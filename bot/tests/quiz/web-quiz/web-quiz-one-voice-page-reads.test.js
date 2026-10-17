@@ -43,9 +43,10 @@ const OFF_READS = {
   teacher: { cold: 13, warm: 0 },
   classLink: { cold: 13, warm: 0 },
 };
-// Rows a key may add with one voice ON. One voice itself adds none (it rides the page's own read); the question
-// read-along (web-quiz-question-readalong.js) is read only for a page with one voice: one row, 30 s cache.
-const NAMED_ON = ['web_quiz_question_readalong'];
+// Rows a key may add with one voice ON: none. One voice and the question read-along (web-quiz-question-readalong.js)
+// both ride the page's own identity read (web-quiz-identity-roster.js), so ON reads as often as OFF.
+const NAMED_ON = [];
+const RA_KEY = 'web_quiz_question_readalong';
 
 const question = (n, media) => ({
   id: `9999999${n}-9999-4999-8999-999999999999`, quiz_id: QUIZ, external_id: media ? `vb:${n}` : `q${n}`, sort_order: n,
@@ -191,6 +192,55 @@ describe.each(Object.keys(KINDS))('%s page, identity read warm and the switch\'s
     const r = await hostWarmRiderCold(flag);
     expect(r.out.one_voice).toBe(true);
     expect(r.settings).toBeLessThanOrEqual(b.settings + NAMED_ON.length);
+  });
+});
+
+// The question read-along rides the same identity read as one voice (#C81 AMENDED): with one voice ON, the read-along
+// ON or OFF reads exactly the same-run base (13 cold, 0 warm), and the read-along module never reads alone on the page.
+const RA = [['on', true], ['off (false)', false], ['absent', undefined]];
+const raRow = (ra) => (ra === undefined ? [] : [{ key: RA_KEY, value: ra }]);
+
+describe.each(Object.keys(KINDS))('%s page, one voice on, the question read-along rides the same read', (kind) => {
+  test.each(RA)('read-along %s: cold and warm reads are exactly the same-run base', async (_, ra) => {
+    const b = boot(kind, undefined);
+    const bCold = await b.page();
+    const bWarm = await b.page();
+    expect({ cold: bCold.settings, warm: bWarm.settings }).toEqual(OFF_READS[kind]);
+    const p = boot(kind, true, { extra: raRow(ra) });
+    const cold = await p.page();
+    const warm = await p.page();
+    expect(cold.out.one_voice).toBe(true);
+    expect(cold.out.question_readalong).toBe(ra === true ? true : undefined);
+    expect(cold.settings).toBe(bCold.settings);
+    expect(warm.settings).toBe(bWarm.settings);
+    // The read-along module holds the page's reading: the publish step's reader asks no read of its own.
+    const QRA = require('../../../shared/services/quiz/web-quiz-question-readalong');
+    const before = p.reads();
+    expect(await QRA.on()).toBe(ra === true);
+    expect(p.reads() - before).toBe(0);
+  });
+
+  test.each(RA)('read-along %s, identity read warm and the read-along\'s own reading cold (#C81): exactly the base', async (_, ra) => {
+    const b = boot(kind, true);
+    await require('../../../shared/services/quiz/web-quiz-identity-roster').identityMode();
+    const base = await b.page();
+    expect(base.settings).toBe(HOST_WARM_READS[kind]);
+    const p = boot(kind, true, { extra: raRow(ra) });
+    await require('../../../shared/services/quiz/web-quiz-identity-roster').identityMode();
+    require('../../../shared/services/quiz/web-quiz-question-readalong').reset();
+    const r = await p.page();
+    expect(r.out.question_readalong).toBe(ra === true ? true : undefined);
+    expect(r.settings).toBe(base.settings);
+  });
+
+  test('a failed read that names the riders: the read-along is off, and it is not read alone', async () => {
+    const b = boot(kind, undefined);
+    const bCold = await b.page();
+    const p = boot(kind, true, { failKey: true, extra: raRow(true) });
+    const cold = await p.page();
+    expect(cold.out.one_voice).toBeUndefined();
+    expect(cold.out.question_readalong).toBeUndefined();
+    expect(cold.settings).toBe(bCold.settings + 1);   // the page's own two switches again, alone (the one-voice row above)
   });
 });
 

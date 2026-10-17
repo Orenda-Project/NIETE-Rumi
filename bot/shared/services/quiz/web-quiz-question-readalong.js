@@ -15,6 +15,8 @@
  * the shared player on the question's stem.
  *
  * Off: an absent row, `false`, a string (the JSON string "true" too), any other value and a failed read. 30 s cache.
+ * The quiz page reads it in its own settings read (web-quiz-identity-roster.js, `take`), with one voice, so the switch
+ * costs the page no read; on() reads alone only for the publish step when that reading is cold.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -37,6 +39,15 @@ async function on({ db, now = Date.now() } = {}) {
     logToFile('⚠️ web-quiz: question read-along setting unreadable — off', { error: err && err.message });
     return false;
   }
+}
+
+/**
+ * The reading of a value another settings read already holds (the quiz page's read, web-quiz-identity-roster.js), kept
+ * as this module's reading for the TTL, so no reader in the process reads the switch again. `undefined` (no row) is off.
+ */
+function take(value, now = Date.now()) {
+  cache = { at: now, on: value === true };
+  return cache.on;
 }
 
 // Letters and digits only, lower case (as the passages' read-along compares words: web-quiz-readalong-timing.js norm).
@@ -120,4 +131,4 @@ function raFor({ entry, url, printed, lang }) {
 /** Tests only: forget the cached reading. */
 function reset() { cache = null; }
 
-module.exports = { on, timings, spokenWords, timingFile, fileKey, raFor, reset, KEY, TTL_MS };
+module.exports = { on, take, timings, spokenWords, timingFile, fileKey, raFor, reset, KEY, TTL_MS };

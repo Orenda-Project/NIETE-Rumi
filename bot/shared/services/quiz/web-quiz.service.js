@@ -650,8 +650,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
   // Jugnu's read-along on the question (web-quiz-question-readalong.js, web_quiz_question_readalong), for a quiz with one
   // voice: a question whose clip carries its word times (meta.web_one q_ra) gets audio.ra for the page's shared player.
-  // Named only when on, so a switched-off payload is today's.
-  if (oneVoice && await require('./web-quiz-question-readalong').on()) {
+  // Named only when on, so a switched-off payload is today's. Read in the page's own settings read with one voice
+  // (web-quiz-identity-roster.js), so the switch costs the page no read.
+  if (oneVoice && await IdRoster.questionReadalongOn()) {
     const QuestionRA = require('./web-quiz-question-readalong');
     const map = (quizMeta.web_one && quizMeta.web_one.audio) || {};
     out.question_readalong = true;
