@@ -285,9 +285,15 @@ function packBody({ ext, files }, read) {
 }
 
 // The hub tail's own tags for the pack: one stylesheet (when the payload names a style) and one script.
+// A pack that fails to load falls back to the files by their own names. The script: hub.js finds no window.WQHOME and
+// asks for wq-home.js/.css itself (loadOnce), so the home's own failure path is the safety net. The stylesheet: its
+// error handler asks once for each style it held, at the same ?v= (the scripts in the pack already ran, so nothing
+// else would ask for them).
 function packTags(payload, assetV) {
   const { js, css } = packParts(payload);
-  return `${css.length ? `<link rel="stylesheet" href="/wq/pack/${css.join('.')}.css?v=${assetV}">\n` : ''}<script src="/wq/pack/${js.join('.')}.js?v=${assetV}" defer></script>\n`;
+  const files = css.map((k) => `'${PACK.css.find(([n]) => n === k)[1]}'`).join(',');
+  const fallback = `this.onerror=null;[${files}].forEach(function(f){var l=document.createElement('link');l.rel='stylesheet';l.href='/wq/'+f+'?v=${assetV}';document.head.appendChild(l)})`;
+  return `${css.length ? `<link rel="stylesheet" href="/wq/pack/${css.join('.')}.css?v=${assetV}" onerror="${fallback}">\n` : ''}<script src="/wq/pack/${js.join('.')}.js?v=${assetV}" defer></script>\n`;
 }
 
 function originOf(req) {

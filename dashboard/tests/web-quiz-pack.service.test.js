@@ -76,7 +76,7 @@ const raw = (f) => fs.readFileSync(path.join(WQ, f));
 const joinJs = (bufs) => Buffer.concat(bufs.flatMap((b, i) => (i ? [Buffer.from(';\n'), b] : [b])));
 const joinCss = (bufs) => Buffer.concat(bufs.flatMap((b, i) => (i ? [Buffer.from('\n'), b] : [b])));
 // The page's stylesheets and scripts by URL, in page order (what the phone asks for from the html itself).
-const tagsOf = (html) => [...html.matchAll(/<link rel="stylesheet" href="([^"]+)">|<script src="([^"]+)"[^>]*><\/script>/g)].map((m) => m[1] || m[2]);
+const tagsOf = (html) => [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"(?: onerror="[^"]*")?>|<script src="([^"]+)"[^>]*><\/script>/g)].map((m) => m[1] || m[2]);
 const preloadsOf = (html) => [...html.matchAll(/<link rel="preload" href="([^"]+)" as="(script|style)">/g)].map((m) => m[1]);
 // the version and the bot's wait (the streamed page's mark) are not the page's shape
 const noV = (html) => html.split(HEX).join('<V>').replace(/"wq-bot",\{detail:\d+\}/, '"wq-bot",{detail:<ms>}');
@@ -333,5 +333,96 @@ describe('the page\'s scripts with the pack on (a vm, the shipped files as the e
     expect(/[?&]v=([\w-]+)/.exec(s.getAttribute('src'))[1]).toBe(HEX);
     // and no pack URL is ever taken for the reader's or hub.js's own tag
     expect(P.sandbox.document.querySelector('script[src*="/wq/hub.js"]').getAttribute('src')).toBe(`/wq/hub.js?v=${HEX}`);
+  });
+});
+
+// ── a pack that does not arrive: the home's own loader is the safety net ─────────────────────────────────────────────
+// hub.js, as shipped, in a vm whose document holds the page's own tags (from the rendered html): what it asks for when
+// the pack's script or stylesheet fails to load. hub.js finds no window.WQHOME and asks for wq-home by its own name
+// (loadOnce), once; from there the home's existing failure path takes over (today: a failed wq-home.js draws the hub).
+function hubVm(html, { before = [] } = {}) {
+  const asked = [];
+  const tags = tagsOf(html).map((u) => ({ getAttribute: (k) => (k === 'src' || k === 'href' ? u : null) }));
+  const root = { _h: '', set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
+    getAttribute(k) { return k === 'data-m' ? (this.attrs[k] || 'H2') : null; }, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
+  const boot = /<script id="boot" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1];
+  const win = { scrollTo() {}, addEventListener() {} };
+  const document = {
+    documentElement: { setAttribute() {}, classList: { toggle() {}, contains: () => false } }, cookie: '',
+    getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? { textContent: boot } : null),
+    querySelector: (sel) => {
+      const m = /^(?:script|link)\[(?:src|href)\*="([^"]+)"\]$/.exec(sel);
+      return m ? tags.find((t) => t.getAttribute('src').includes(m[1])) || null : null;
+    },
+    createElement: (tag) => ({ tag, l: {}, addEventListener(n, fn) { this.l[n] = fn; } }),
+    head: { appendChild: (x) => { asked.push(x); } },
+  };
+  win.document = document;
+  const sandbox = {
+    window: win, document, navigator: { sendBeacon: () => true }, history: { replaceState() {} }, location: { search: '', hash: '', protocol: 'https:', pathname: `/h/${TOKEN}` }, Blob: function Blob() {},
+    localStorage: { getItem: () => null, setItem() {} }, fetch: () => new Promise(() => {}), MutationObserver: function MO() { this.observe = () => {}; },
+    setTimeout: () => 0, clearTimeout() {}, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, Uint8Array, RegExp,
+  };
+  vm.createContext(sandbox);
+  for (const src of before) vm.runInContext(src, sandbox);
+  return { sandbox, asked, root, urls: () => asked.map((x) => x.src || x.href), run: () => vm.runInContext(fs.readFileSync(path.join(WQ, 'hub.js'), 'utf8'), sandbox) };
+}
+// The pack stylesheet's tag as the browser builds it: its inline onerror (when the edge writes one) becomes the
+// element's handler, fired with the element as `this`.
+function packLink(html, sandbox) {
+  const m = /<link rel="stylesheet" href="(\/wq\/pack\/[^"]+)"( onerror="([^"]*)")?>/.exec(html);
+  expect(m).toBeTruthy();
+  const link = { href: m[1], onerror: m[3] ? vm.runInContext(`(function () { ${m[3].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')} })`, sandbox) : null };
+  return { link, fail: () => { if (link.onerror) link.onerror.call(link, { type: 'error' }); } };
+}
+const count = (urls, u) => urls.filter((x) => x === u).length;
+
+describe('the pack fails to load: the home\'s own loader asks for its files by name, once', () => {
+  test('pack script fails (error event, nothing in it ran): hub.js asks /wq/wq-home.js and .css exactly once, at its ?v=', () => {
+    const html = renderHubPage({ payload: BARE({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    expect(tagsOf(html)).toContain(`/wq/pack/tel.home.doors.js?v=${HEX}`);
+    const H = hubVm(html);   // the pack's script never ran: no window.WQHOME
+    H.run();
+    expect(H.sandbox.window.WQHOME).toBeUndefined();
+    expect(count(H.urls(), `/wq/wq-home.js?v=${HEX}`)).toBe(1);
+    expect(count(H.urls(), `/wq/wq-home.css?v=${HEX}`)).toBe(1);
+    expect(H.urls().filter((u) => /\/wq\/pack\//.test(u))).toEqual([]);   // never the pack again
+    // wq-home.js fails too: the home's existing failure path draws a page, and wq-home.js is not asked again here
+    H.asked.find((x) => x.src === `/wq/wq-home.js?v=${HEX}`).l.error();
+    expect(H.root.innerHTML).not.toBe('');
+    expect(count(H.urls(), `/wq/wq-home.js?v=${HEX}`)).toBe(1);
+  });
+
+  test('pack script fails with the minified files on: wq-home.js is asked at the page\'s ?v=<hex>m', () => {
+    const html = renderHubPage({ payload: BARE({ pack: true, min: true }), token: TOKEN, origin: ORIGIN, assetV: `${HEX}m` });
+    const H = hubVm(html);
+    H.run();
+    expect(count(H.urls(), `/wq/wq-home.js?v=${HEX}m`)).toBe(1);
+  });
+
+  test('pack stylesheet fails (error event), its script ran: wq-home.css (and the other named styles) asked exactly once each', async () => {
+    const html = renderHubPage({ payload: HUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const srv = await start(build([]));
+    let js;
+    try { js = (await get(srv, `/wq/pack/tel.bind.home.doors.play.js?v=${HEX}`)).body; } finally { await new Promise((r) => srv.close(r)); }
+    const H = hubVm(html, { before: [js] });   // the pack's script ran: window.WQHOME is there
+    const { fail } = packLink(html, H.sandbox);
+    fail();
+    fail();   // a second error event (a retried fetch) asks for nothing more
+    H.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };   // the home mounts from the pack, as it does on the phone
+    H.run();
+    const css = H.urls().filter((u) => /\.css(\?|$)/.test(u));
+    expect(count(css, `/wq/wq-home.css?v=${HEX}`)).toBe(1);
+    expect(css).toEqual([`/wq/wq-bind.css?v=${HEX}`, `/wq/wq-home.css?v=${HEX}`, `/wq/wq-doors.css?v=${HEX}`]);
+    expect(H.urls().filter((u) => /\.js(\?|$)/.test(u))).toEqual([]);   // the scripts came in the pack: none asked again
+  });
+
+  test('pack stylesheet loads: nothing more is asked (the error handler is only a fallback)', () => {
+    const html = renderHubPage({ payload: HUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    packLink(html, H.sandbox);   // no error event
+    H.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };
+    H.run();
+    expect(H.urls()).toEqual([]);
   });
 });

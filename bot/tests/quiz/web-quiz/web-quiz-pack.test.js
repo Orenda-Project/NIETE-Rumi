@@ -27,6 +27,13 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const Fx = require('./hub-waves-fixture');
+// The same fixture (every child switch on, Fx.hubWaves({ switches: [] })) measured on the code before this switch
+// existed: warm and stale (31 s) waves and app_settings reads, with the fast page on and off. Off here must not exceed
+// them in waves; on must equal off.
+const BASE = {
+  fastOn: { warmWaves: 6, staleWaves: 8, warmApp: 0, staleApp: 5 },
+  fastOff: { warmWaves: 32, staleWaves: 45, warmApp: 0, staleApp: 22 },
+};
 const { makeFake } = require('./fake-supabase');
 
 const SAVED = { ...process.env };
@@ -102,6 +109,11 @@ describe('the hub payload, every child switch on (hub-waves fixture)', () => {
     expect(on.stale.waves).toBe(off.stale.waves);
     expect(on.warm.perTable.app_settings || 0).toBe(off.warm.perTable.app_settings || 0);
     expect(on.stale.perTable.app_settings || 0).toBe(off.stale.perTable.app_settings || 0);
+    // off is no worse than before the switch existed (the base's numbers, above)
+    expect(off.warm.waves).toBeLessThanOrEqual(BASE.fastOn.warmWaves);
+    expect(off.stale.waves).toBeLessThanOrEqual(BASE.fastOn.staleWaves);
+    expect(off.warm.perTable.app_settings || 0).toBeLessThanOrEqual(BASE.fastOn.warmApp);
+    expect(off.stale.perTable.app_settings || 0).toBeLessThanOrEqual(BASE.fastOn.staleApp);
   });
 
   test('the string "true" is off: no `pack` key', async () => {
@@ -123,5 +135,10 @@ describe('the hub payload, every child switch on (hub-waves fixture)', () => {
     expect(on.stale.waves).toBe(off.stale.waves);
     expect(on.warm.perTable.app_settings || 0).toBe(off.warm.perTable.app_settings || 0);
     expect(on.stale.perTable.app_settings || 0).toBe(off.stale.perTable.app_settings || 0);
+    // off: no more waves than the base; the stale request reads this switch's own row in the background (one read, no wave)
+    expect(off.warm.waves).toBeLessThanOrEqual(BASE.fastOff.warmWaves);
+    expect(off.stale.waves).toBeLessThanOrEqual(BASE.fastOff.staleWaves);
+    expect(off.warm.perTable.app_settings || 0).toBeLessThanOrEqual(BASE.fastOff.warmApp);
+    expect(off.stale.perTable.app_settings || 0).toBeLessThanOrEqual(BASE.fastOff.staleApp + 1);
   });
 });
