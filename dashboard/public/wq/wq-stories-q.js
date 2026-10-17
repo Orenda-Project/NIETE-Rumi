@@ -331,6 +331,7 @@
         else if (tap === 'close') { if (m.st === 'mic') micO.onNotNow(); else m.notNow(); }
         else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }   // the word to practise (drawn by R.ex)
         else if (tap === 'echo') eGo();
+        else if (tap === 'rfagain') m.set('mic');
         else if (tap === 'rfhear') { if (W.WQMoment && R.pl && rd) W.WQMoment.hear(R.pl, P[m.i], rd.s, { sents: sents, set: C.set, clear: C.clear }); }
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();

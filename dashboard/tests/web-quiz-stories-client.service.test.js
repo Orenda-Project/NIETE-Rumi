@@ -3080,6 +3080,20 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     const e3 = withMoment(env()); const r3 = await openReader(e3);
     expect(readPage1(e3, r3, ['read', 'read', 'read', 'skipped', 'read'])).not.toContain('rfhear');   // key off
   });
+  test.each(['en', 'ur'])('%s, read_fb: a page read short of 3 stars offers "read it again for 3 stars"; a tap starts Your turn again', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    expect(h).toContain('data-tap="rfagain"');
+    expect(h).toContain(lang === 'ur' ? 'تین ستاروں کے لیے پھر سے پڑھیں!' : 'Read it again for 3 stars!');
+    fire(root, 'rfagain');
+    expect(screenOf(root.innerHTML)).toBe('story-mic');
+  });
+  test('read_fb: 3 stars, or nothing read: no "read it again" (the kind card already leads)', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    expect(readPage1(e, root, ['read', 'read', 'read', 'read', 'read'])).not.toContain('rfagain');
+    const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
+    expect(readPage1(e2, r2, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped'])).not.toContain('rfagain');
+  });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
     const done = { status: 200, body: { ok: true, sticker: true } };
     const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);

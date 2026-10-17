@@ -1400,10 +1400,15 @@
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.html(rfLast, L, { grade: menuData.form });
+    var h = window.WQMoment.html(rfLast, L, { grade: menuData.form }) + (window.WQMoment.again ? window.WQMoment.again(rfLast, L, { grade: menuData.form }) : '');
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
-  function rfSound() { if (rfLast && window.WQMoment) window.WQMoment.sound(q('wqc-rf'), rfLast); }
+  // Jugnu's sound for it, and "read it again to light one more!" (in the box) opening the read again
+  function rfSound() {
+    if (!rfLast || !window.WQMoment) return;
+    window.WQMoment.sound(q('wqc-rf'), rfLast);
+    on('wqc-rfagain', function () { open('read'); });
+  }
   function liveChecked(r) {
     if (!r || r.pending || r.later) { liveSettle(); return; }
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
@@ -1418,7 +1423,7 @@
     }
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
     if (TR) return;
-    if (rfOn() && r.score && q('wqc-rf') && window.WQMoment) { live.checked = r; q('wqc-rf').innerHTML = rfBlock(r, true); }
+    if (rfOn() && r.score && q('wqc-rf') && window.WQMoment) { live.checked = r; q('wqc-rf').innerHTML = rfBlock(r, true); on('wqc-rfagain', function () { open('read'); }); }
     if (r.failed || !(r.wcpm >= 0)) return;
     if (!(r.wcpm > 0)) { readResult(r); return; }
     var sc = q('wqc-score');

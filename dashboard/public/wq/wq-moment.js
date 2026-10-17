@@ -13,7 +13,9 @@
  *   WQMoment.html(fb, lang, o)  the block (no buttons: the host keeps its own Next / Share / Home); o = {grade?, size?: 's'}
  *   WQMoment.mount(el, fb, lang, o)  the block just before `el` (or into it, o.into); one sound when the kit is there
  *   WQMoment.page(s, p, lang, o) / hear(pl, p, s, o)  a storybook page's read: the small block (+ "Hear Jugnu say it"
- *                               on a skipped word) and that sentence played as a slice of the page's own take
+ *                               on a skipped word, + "read it again for 3 stars") and that sentence played as a slice of
+ *                               the page's own take
+ *   WQMoment.again(fb, lang, o) the minute's "read it again to light one more!" soft button (#wqc-rfagain), or ''
  *
  * The jar, its number and the growth line show only on the reading child's own screen (the server sends the speed only
  * to that phone) and only when the read is long enough to be honest (15 words and 6 seconds); otherwise the words, the
@@ -35,6 +37,7 @@
       lights: function (n) { return n + ' of 5 lights'; },
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
+      again: 'Read it again to light one more!', again3: 'Read it again for 3 stars!',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
@@ -44,6 +47,7 @@
       lights: function (n) { return 'روشنیاں: ۵ میں سے ' + ud(n); },
       stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
       up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
+      again: 'ایک اور روشنی کے لیے پھر سے پڑھیں!', again3: 'تین ستاروں کے لیے پھر سے پڑھیں!',
       badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
     }
   };
@@ -165,6 +169,8 @@
     var fb = feedback({ words_read: s.words_read, words_total: s.words_total, ms: s.ms });
     var h = html(fb, lang, { grade: o.grade, size: 's' });
     if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
+    // read it again for 3 stars (a page is too short for lights); never after a 0-word try (that card leads with it)
+    if (!fb.zero && level(fb, o.grade).stars < 3) h += '<button class="wqs-sec" data-tap="rfagain">' + esc(C[L(lang)].again3) + '</button>';
     return { html: h, fb: fb };
   }
   // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop
@@ -182,5 +188,12 @@
     }, 40);
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, BANDS: BANDS };
+  // the minute's read: "read it again to light one more!" (a soft button for the host) on an honest read short of 5
+  // lights; '' otherwise (a short read, another phone, a 0-word try, 5 lights)
+  function again(fb, lang, o) {
+    var n = level(fb, (o || {}).grade).lights;
+    return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
+  }
+
+  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, BANDS: BANDS };
 })();
