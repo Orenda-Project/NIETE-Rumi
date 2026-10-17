@@ -10,6 +10,7 @@
  *   --apply                         write. Without it nothing is written and the LLM is never called.
  *   --env-file <path>               load SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (and the LLM / R2 keys the
  *                                   re-score and the certificate PDF need) from this file, overriding the shell.
+ *   --only-users <uuid,uuid>        restrict to these users (for sandbox proofs). Default: every held attempt.
  *   --out <path>                    also write the JSON summary here.
  *
  * Order of operations for the operator (the flag flip is a SEPARATE, explicit step):
@@ -30,7 +31,7 @@ const TARGET_REFS = {
 };
 
 function parseArgs(argv) {
-  const out = { target: null, apply: false, envFile: null, out: null };
+  const out = { target: null, apply: false, envFile: null, out: null, onlyUsers: null };
   let sawDry = false;
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -39,6 +40,7 @@ function parseArgs(argv) {
     else if (a === '--target') out.target = argv[++i];
     else if (a === '--env-file') out.envFile = argv[++i];
     else if (a === '--out') out.out = argv[++i];
+    else if (a === '--only-users') out.onlyUsers = String(argv[++i] || '').split(',').map(x => x.trim()).filter(Boolean);
     else throw new Error(`unknown argument: ${a}`);
   }
   if (!out.target || !Object.prototype.hasOwnProperty.call(TARGET_REFS, out.target)) {
@@ -104,13 +106,13 @@ async function main(argv) {
 
   let summary;
   try {
-    summary = await releaseHeldAttempts({ supabase, apply: args.apply, scoreAnswer, log: m => console.error(`[release-isaps] ${m}`) });
+    summary = await releaseHeldAttempts({ supabase, apply: args.apply, scoreAnswer, onlyUserIds: args.onlyUsers, log: m => console.error(`[release-isaps] ${m}`) });
   } catch (e) {
     if (e && e.code === 'FLAG_STILL_HELD') { console.error(`\n${e.message}`); process.exitCode = 3; return null; }
     throw e;
   }
   const json = JSON.stringify({ target: args.target, ref, at: new Date().toISOString(), ...summary }, null, 2);
-  console.log(json);
+  process.stdout.write(`${json}\n`);   // not console.log: the bot logger rewrites it into a log line
   if (args.out) fs.writeFileSync(args.out, `${json}\n`);
   if (summary.errors.length) process.exitCode = 2;
   return summary;

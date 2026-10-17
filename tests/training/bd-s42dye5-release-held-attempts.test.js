@@ -261,6 +261,16 @@ describe('apply — the certificate', () => {
   });
 });
 
+describe('--only-users (the sandbox proof must not touch another tester)', () => {
+  test('only the listed users are resolved and certified; the rest stay pending', async () => {
+    const db = seed({ users: { mine: { exams: allNine() }, theirs: { exams: allNine() } } });
+    const s = await Release.releaseHeldAttempts({ supabase: db, apply: true, scoreAnswer, onlyUserIds: ['mine'] });
+    expect(s.attempts_seen).toBe(9);
+    expect(attemptsOf(db).filter(a => a.user_id === 'theirs').every(a => a.status === 'pending_review')).toBe(true);
+    expect(db.tables.training_certificates.map(c => c.user_id)).toEqual(['mine']);
+  });
+});
+
 describe('silence', () => {
   test('zero WhatsApp calls across a full apply', async () => {
     const db = seed({ users: { full: { exams: allNine() }, x: { exams: [{ mcqRight: 1, crq: 9 }] } } });
@@ -315,6 +325,7 @@ describe('the CLI guards', () => {
     expect(Cli.parseArgs(['--target', 'prod'])).toMatchObject({ target: 'prod', apply: false });
     expect(Cli.parseArgs(['--target', 'sandbox', '--apply'])).toMatchObject({ apply: true });
     expect(Cli.parseArgs(['--target', 'sandbox', '--dry-run'])).toMatchObject({ apply: false });
+    expect(Cli.parseArgs(['--target', 'sandbox', '--only-users', 'a,b'])).toMatchObject({ onlyUsers: ['a', 'b'] });
     expect(() => Cli.parseArgs([])).toThrow(/--target/);
     expect(() => Cli.parseArgs(['--target', 'dev'])).toThrow(/--target/);
     expect(() => Cli.parseArgs(['--target', 'prod', '--apply', '--dry-run'])).toThrow();

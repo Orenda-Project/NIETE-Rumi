@@ -69,15 +69,15 @@ async function mustRead(label, p) {
 }
 
 /** Every pending_review attempt id (paged: PostgREST caps a plain read at 1000). */
-async function loadPendingAttempts(supabase) {
+async function loadPendingAttempts(supabase, onlyUserIds) {
   const out = [];
   for (let p = 0; ; p += 1) {
-    const rows = await mustRead('read pending attempts', supabase
+    let q = supabase
       .from('training_assessment_attempts')
       .select('id, user_id, level_id, program_id, grand_quiz_id, quiz_kind, total_questions')
-      .eq('status', PENDING_REVIEW)
-      .order('id')
-      .range(p * PAGE, p * PAGE + PAGE - 1));
+      .eq('status', PENDING_REVIEW);
+    if (Array.isArray(onlyUserIds) && onlyUserIds.length) q = q.in('user_id', onlyUserIds);
+    const rows = await mustRead('read pending attempts', q.order('id').range(p * PAGE, p * PAGE + PAGE - 1));
     out.push(...rows);
     if (rows.length < PAGE) break;
   }
@@ -91,8 +91,9 @@ async function loadPendingAttempts(supabase) {
  * @param {function} p.scoreAnswer   (question, answerText, maxPoints) => {score, feedback}
  * @param {function} [p.certify]     (supabase, {userId, levelId, moduleId, attemptId, programId}) => {issued,...}
  * @param {function} [p.log]
+ * @param {string[]} [p.onlyUserIds] restrict to these users (sandbox proofs); default: everyone held
  */
-async function releaseHeldAttempts({ supabase, apply = false, scoreAnswer, certify, log = () => {} }) {
+async function releaseHeldAttempts({ supabase, apply = false, scoreAnswer, certify, log = () => {}, onlyUserIds }) {
   const held = await crqResultsHeld(supabase);
   if (apply && held) throw new FlagStillHeldError();
   const doCertify = certify || require('./certificate.service').maybeIssueQuizScoreCertificate;
@@ -118,7 +119,7 @@ async function releaseHeldAttempts({ supabase, apply = false, scoreAnswer, certi
   };
   const err = (attemptId, stage, e) => summary.errors.push({ attempt_id: attemptId, stage, message: e && e.message ? e.message : String(e) });
 
-  const pending = await loadPendingAttempts(supabase);
+  const pending = await loadPendingAttempts(supabase, onlyUserIds);
   summary.attempts_seen = pending.length;
   if (pending.length === 0) return summary;
 
