@@ -587,6 +587,11 @@ describe('the reader', () => {
     const css = fs.readFileSync(CSS, 'utf8');
     expect((/\.wqs-whole\{([^}]*)\}/.exec(css) || [])[1]).not.toMatch(/position:absolute/);
   });
+  test('the page\'s main button keeps its label on one line (an Urdu label wrapped and made the row jump)', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-ctl \.wqs-main\{[^}]*white-space:nowrap/);
+    expect(css).toMatch(/\.wqs\[lang=ur\] \.wqs-ctl \.wqs-main\{[^}]*font-size:18px/);
+  });
   test('every Back is a drawn chevron (a Nastaliq font draws the ‹ glyph like the letter ر), mirrored on right-to-left screens', async () => {
     for (const lang of ['en', 'ur']) {
       const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } }); const root = await openReader(e, { lang });
