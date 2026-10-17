@@ -200,8 +200,9 @@ let snap = null; // { at, week, promise }
 let codeSchool = new Map();
 let teacherSchool = new Map();
 let mapsAt = 0;
+let mapsRoot;   // the watch root the code map was built under
 
-function _reset() { studentInfo = new Map(); cappedLogged = new Set(); snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; weekRows = null; schoolsCache = null; }
+function _reset() { studentInfo = new Map(); cappedLogged = new Set(); snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; mapsRoot = undefined; weekRows = null; schoolsCache = null; }
 
 /** Finished sessions from `since` on, appended to `acc` (ids in `seen` are skipped); returns the new cursor. */
 async function finishedSince(since, acc, seen) {
@@ -232,6 +233,11 @@ async function inChunks(table, cols, ids) {
 
 async function schoolsOfCodes(codeIds, now) {
   if (now - mapsAt > MAP_TTL_MS) { codeSchool = new Map(); teacherSchool = new Map(); mapsAt = now; }
+  // A failed settings read may hide a root: no board rather than a count that may credit a class-less child.
+  const { root: watchRoot, unreadable } = await require('./web-quiz-identity-roster').watchRootState();
+  if (unreadable) throw new WebQuiz.WqError(502, { error: 'db_unavailable' });
+  // The root written (or moved) while the map is warm: every code is placed again under the new one.
+  if (watchRoot !== mapsRoot) { codeSchool = new Map(); teacherSchool = new Map(); mapsAt = now; mapsRoot = watchRoot; }
   const newCodes = codeIds.filter((id) => !codeSchool.has(id));
   if (newCodes.length) {
     const codes = await inChunks('quiz_share_codes', 'id, teacher_user_id, parent_share_code_id, invited_by_student_id', newCodes);
@@ -241,9 +247,6 @@ async function schoolsOfCodes(codeIds, now) {
     }
     // A class-less child's own code under the watch root copies the root's teacher but is nobody's school.
     // ... and so does every code whose parent chain reaches the root (a lesson code, a friend's code under it, ...).
-    // A failed settings read may hide a root: no board rather than a count that may credit a class-less child.
-    const { root: watchRoot, unreadable } = await require('./web-quiz-identity-roster').watchRootState();
-    if (unreadable) throw new WebQuiz.WqError(502, { error: 'db_unavailable' });
     const under = watchRoot ? await underWatchRoot(codes, watchRoot, (ids) => inChunks('quiz_share_codes', 'id, parent_share_code_id', ids)) : new Set();
     // A friend's challenge code plays its parent's quiz: one quiz for "first finish" and the friend cap.
     for (const c of codes) {
