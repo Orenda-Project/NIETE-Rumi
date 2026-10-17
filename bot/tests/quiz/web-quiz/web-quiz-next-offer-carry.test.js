@@ -96,7 +96,13 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
   test('left, then shown once more without a tap (the open is the first of #C3\'s two): rotated', async () => {
     const v1 = await gameIsTheAlt();
     await tap(v1, 'numbers');
+    const v2 = await view([video, game, invite]);
+    expect(v2.id).toBe('numbers');
+    // a render alone is no show (C77): the same tile
     expect((await view([video, game, invite])).id).toBe('numbers');
+    // the page's beacon for the tile drawn in view is the show
+    const v3 = await view([video, game, invite]);
+    await Leaf.noteShown(kid(), v3.offer, NOW + 1000);
     expect((await view([video, game, invite])).id).not.toBe('numbers');
   });
 

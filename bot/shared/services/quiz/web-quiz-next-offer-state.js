@@ -12,6 +12,9 @@
  *   noteTap(kid, offer)      a tap on an offer resets its "shown, not tapped" streak, is remembered as opened and not
  *                            yet finished (#C49a's carry-on: `t`), and spends the once-a-day tile its view showed (#C50)
  *   noteDoor(kid)            a door tapped from the home spends the once-a-day tile that home showed (#C50)
+ *   noteShown(kid, offer)    the page's next_shown (pos 0, in view) on an offer: one "shown, not tapped" step for its
+ *                            tile (two within 60 s count once); the second in a row drops it one place for the PKT day
+ *   dropsToday(st, day)      the day's drops, in order (the ranker replays them on every render)
  *   noteDone(kid, card)      a finish card of the carried-on tile's kind: it was finished, so it is carried no more (#C49a)
  *   copyOf(tile)             the fields of a shown tile the state keeps (what the page drew, nothing else)
  */
@@ -67,6 +70,25 @@ async function saveState(key, st) {
 const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const pktDay = (ms) => Math.floor((ms + PKT_MS) / DAY_MS);
+// The tile's own rule (IA §3 step 3): shown twice in a row and not tapped -> one place down; beacons inside 60 s are
+// one show (a reload, a background return, a second fetch)
+const DROP_AFTER = 2;
+const SHOWN_GAP_MS = 60 * 1000;
+const DROPS_MAX = 20;
+const dropsToday = (st, day) => (st && st.dq && st.dq.d === day && Array.isArray(st.dq.ids) ? st.dq.ids.filter((x) => typeof x === 'string') : []);
+const withDrop = (st, id, day) => ({ d: day, ids: [...dropsToday(st, day), id].slice(-DROPS_MAX) });
+
+// One child's state is read and written by one step at a time in this process (a batch's next_shown and next_tap
+// arrive together; two steps racing would lose one's write)
+const chains = new Map();
+function serial(kid, fn) {
+  const prev = chains.get(kid) || Promise.resolve();
+  const run = prev.then(fn, fn);
+  const tail = run.then(() => {}, () => {});
+  chains.set(kid, tail);
+  tail.then(() => { if (chains.get(kid) === tail) chains.delete(kid); });
+  return run;
+}
 const COPY_KEYS = ['kind', 'variant', 'id', 'href', 'title', 'title_ur', 'sub', 'sub_ur', 'minutes', 'art', 'tag', 'tag_ur'];
 function copyOf(x) {
   const out = {};
@@ -83,18 +105,26 @@ const spend = (st, now) => (st.rs && st.rs.day === pktDay(now) ? { rd: st.rs.day
  * the slot's carry-on, which counts it as one shown-without-a-tap (#C49a); and its view's once-a-day tile is spent.
  */
 async function noteTap(kid, offer, now = Date.now()) {
+  if (!kid || typeof offer !== 'string') return false;
+  return serial(kid, () => tapStep(kid, offer, now));
+}
+
+async function tapStep(kid, offer, now) {
   try {
-    if (!kid || typeof offer !== 'string') return false;
     const st = await loadState(kid);
     const id = st.of && st.of[offer];
     if (!id) return false;
     const c = st.vw && st.vw[offer] && st.vw[offer].id === id ? st.vw[offer] : null;
     const v = c ? c.variant || null : st.t && st.t.id === id ? st.t.v || null : null;
-    const u = (st.t && st.t.id === id && (st.t.v || null) === v ? Number(st.t.u) || 0 : 0) + 1;
+    const same = st.t && st.t.id === id && (st.t.v || null) === v;
+    const u = (same ? Number(st.t.u) || 0 : 0) + 1;
+    // a second unfinished open uses the tile up (#C49a): it drops one place for the day, once
+    const used = u >= DROP_AFTER && !(same && st.t.x);
     await saveState(kid, {
       ...st,
       ...(st.s && st.s.id === id ? { s: { id, n: 0 } } : {}),
-      t: { id, v, u, ...(c ? { c } : st.t && st.t.id === id && st.t.c ? { c: st.t.c } : {}) },
+      t: { id, v, u, ...(c ? { c } : st.t && st.t.id === id && st.t.c ? { c: st.t.c } : {}), ...(used || (same && st.t.x) ? { x: 1 } : {}) },
+      ...(used ? { dq: withDrop(st, id, pktDay(now)) } : {}),
       ...spend(st, now),
     });
     return true;
@@ -103,10 +133,44 @@ async function noteTap(kid, offer, now = Date.now()) {
   }
 }
 
+/**
+ * The page's next_shown for the ONE tile (pos 0, drawn in view), by the child's kid: one "shown, not tapped" step for
+ * the tile its offer named. The same tile again inside 60 s is the same show. The second step in a row (an unfinished
+ * open counts as one, #C49a) drops the tile one place for the PKT day and starts its count again.
+ */
+async function noteShown(kid, offer, now = Date.now()) {
+  if (!kid || typeof offer !== 'string') return false;
+  return serial(kid, async () => {
+    try {
+      const st = await loadState(kid);
+      const id = st.of && st.of[offer];
+      if (!id) return false;
+      const s = st.s && st.s.id === id ? st.s : null;
+      if (s && Number.isFinite(Number(s.at)) && now - Number(s.at) < SHOWN_GAP_MS) return false;
+      const n = (s ? Number(s.n) || 0 : 0) + 1;
+      const carried = st.t && st.t.id === id && !st.t.x ? Number(st.t.u) || 0 : 0;
+      if (n + carried < DROP_AFTER) { await saveState(kid, { ...st, s: { id, n, at: now } }); return true; }
+      await saveState(kid, {
+        ...st,
+        s: { id, n: 0, at: now },
+        dq: withDrop(st, id, pktDay(now)),
+        ...(carried ? { t: { ...st.t, x: 1 } } : {}),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  });
+}
+
 /** A door tapped from the home (the page's door_tap, by the child's kid): the once-a-day tile that home showed is spent. */
 async function noteDoor(kid, now = Date.now()) {
+  if (!kid) return false;
+  return serial(kid, () => doorStep(kid, now));
+}
+
+async function doorStep(kid, now) {
   try {
-    if (!kid) return false;
     const st = await loadState(kid);
     const sp = spend(st, now);
     if (!('rd' in sp)) return false;
@@ -122,8 +186,12 @@ const DONE_BY = Object.freeze({ story: ['read', 'listen', 'story'], storybook: [
 
 /** A finish card shown to the child (the page's card_shown, by kid): the carried-on tile of that kind is done. */
 async function noteDone(kid, card) {
+  if (!kid || typeof card !== 'string') return false;
+  return serial(kid, () => doneStep(kid, card));
+}
+
+async function doneStep(kid, card) {
   try {
-    if (!kid || typeof card !== 'string') return false;
     const st = await loadState(kid);
     const kind = st.t && (st.t.k || (st.t.c && st.t.c.kind));
     if (!kind || !(DONE_BY[kind] || []).includes(card)) return false;
@@ -135,4 +203,4 @@ async function noteDone(kid, card) {
   }
 }
 
-module.exports = { KEYS, TTL_MS, STATE_TTL_S, raw, eventsV3Now, loadState, saveState, noteTap, noteDoor, noteDone, copyOf, isTrue, _resetCache: () => { cache = null; } };
+module.exports = { KEYS, TTL_MS, STATE_TTL_S, SHOWN_GAP_MS, raw, eventsV3Now, loadState, saveState, noteTap, noteShown, noteDoor, noteDone, dropsToday, copyOf, isTrue, _resetCache: () => { cache = null; } };

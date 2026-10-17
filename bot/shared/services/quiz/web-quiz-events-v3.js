@@ -18,6 +18,7 @@
  *   relay(e, body, device, { onTap })          the page line, cleaned by the v3 rules (EVENTS v3 §2), keyed by the
  *                                              child (the hub token + chip, else the quiz session), its sitting id, and
  *                                              a next_tap's offer goes to onTap(kid, offer) (the slot's streak reset),
+ *                                              a pos-0 next_shown's to onShown(kid, offer) (one shown step),
  *                                              a door_tap to onDoor(kid) (the home's once-a-day tile spent), a
  *                                              card_shown's card kind to onDone(kid, kind) (the carried-on tile finished).
  *                                              A coach's preview line (`practice: 1`) is kept with kid null: never a child's.
@@ -171,7 +172,7 @@ async function childOf(body = {}) {
 }
 
 /** One page slot line, relayed (fire and forget from the synchronous relay). Never throws. */
-async function relay(e, body = {}, device = null, { onTap = null, onDoor = null, onDone = null } = {}) {
+async function relay(e, body = {}, device = null, { onTap = null, onShown = null, onDoor = null, onDone = null } = {}) {
   try {
     const fields = { ...clean3(e), w: 'p' };
     const studentId = fields.practice ? null : await childOf(body);
@@ -181,6 +182,8 @@ async function relay(e, body = {}, device = null, { onTap = null, onDoor = null,
     logEvent(`web_quiz.${e.n}`, envelope3({ ...fields, dk }, { kid, sit }));
     // the caller's tap hook (the next-thing slot's streak): passed in, so this module needs nothing from the slot's
     if (e.n === 'next_tap' && kid && fields.offer && typeof onTap === 'function') await onTap(kid, fields.offer);
+    // the ONE tile drawn in view (pos 0): one "shown, not tapped" step for it (the slot's drop rule; never a coach's)
+    if (e.n === 'next_shown' && kid && fields.offer && fields.pos === 0 && !fields.practice && typeof onShown === 'function') await onShown(kid, fields.offer);
     // a door tapped from the home (the once-a-day tile it showed is spent, #C50)
     if (e.n === 'door_tap' && kid && !fields.practice && typeof onDoor === 'function') await onDoor(kid);
     // a finish card shown (the page's card kind: the activity was finished, so its tile is no longer carried on, #C49a)

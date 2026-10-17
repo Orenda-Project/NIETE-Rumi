@@ -16,6 +16,10 @@
  *       `web_quiz_next_offer_weights` overrides it without a deploy): scored kinds first, ties -> newest unseen,
  *       the top two rotate when their CIs overlap (seeded by child + day), a primary shown twice and not tapped
  *       drops one place. rank_src 'significant' only when the row beats stopping on the data; else 'prior'.
+ * The tile is steady: a pure function of the child, the PKT day, the day's arm and what the child did. A render
+ * changes nothing. "Shown" is the page's next_shown beacon (pos 0, in view), heard through the event relay
+ * (Leaf.noteShown), two within 60 s counting once; a drop is kept for the PKT day. A month's "home open" is a PKT day
+ * with a home view (never a render). The rand arm's kind is drawn once per child per PKT day and kept.
  * The arm (per child per PKT day): rank 70 % · rand 20 % (the primary's kind drawn among the eligible kinds,
  * rank_src 'rand') · ctrl 10 % (today's order for the surface: the lantern where there is one, else the first
  * candidate as the surface builds them; rank_src 'ctrl'). Rules 1, 2 and 1b hold in every arm.
@@ -120,10 +124,16 @@ function ranked(ctx, list, state, weights) {
     [scored[0], scored[1]] = [scored[1], scored[0]];
   }
   // A primary shown twice in a row and never tapped drops one place, so the tile moves; an unfinished open counts as
-  // one of the two (#C49a).
-  if (scored.length > 1 && usedOf(state, scored[0].c) >= DROP_AFTER) [scored[0], scored[1]] = [scored[1], scored[0]];
+  // one of the two (#C49a). The drops are the day's own list (Leaf.noteShown / noteTap write it), replayed in order on
+  // every render, so a drop holds: a render never undoes one or makes one.
+  dropsOf(state).forEach((id) => {
+    const i = scored.findIndex((x) => x.c.id === id);
+    if (i >= 0 && i < scored.length - 1) [scored[i], scored[i + 1]] = [scored[i + 1], scored[i]];
+  });
   return scored;
 }
+
+const dropsOf = (state) => (Array.isArray(state.drops) ? state.drops.filter((x) => typeof x === 'string') : []);
 
 /** Shown-without-a-tap for a candidate: the untapped streak + the unfinished opens (the last tap, #C49a). */
 function usedOf(state, c) {
@@ -144,7 +154,8 @@ function slot(x, ctx, rankSrc, extra) {
 }
 
 /**
- * The next object for a context. `state`: { arm, seed, now, monthOpens, resumeToday, streak:{id,n}|null, has_root }.
+ * The next object for a context. `state`: { arm, seed, now, monthOpens, resumeToday, streak:{id,n}|null, has_root,
+ * carry, drops: [id…] (the day's drops, in order), randKind (the rand arm's kind kept for the day) }.
  * Returns { next: {...slot, arm, score_v, alts:[...]}, meta: { rule, arm, score_v, order, kinds } } or null.
  */
 function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
@@ -166,7 +177,7 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   // The tile tapped last and not finished (still offered as it was: the same id and variant), on the home only; the
   // once-a-day resume keeps its own rule (#C50). Used up (an unfinished open + one more) it neither leads nor holds a rule.
   const t = state.carry;
-  const spent = (c) => Boolean(t && t.id === c.id && usedOf(state, c) >= DROP_AFTER);
+  const spent = (c) => Boolean(t && t.id === c.id && (t.x || usedOf(state, c) >= DROP_AFTER));
   const carry = ctx === 'home' && t ? eligible.find((c) => c.id === t.id && (c.variant || null) === (t.v || null) && c.rule !== 'resume' && !spent(c)) : null;
   // Opens counted this month (the home's own open included); 0 on a result card before any home open this month.
   const stop = (Number(state.monthOpens) || 0) <= MONTH_OPENS ? eligible.find((c) => c.rule === 'month_stop' && !spent(c)) : null;
@@ -175,6 +186,7 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   let primary = null;
   let rule = 'none';
   let src = null;
+  let drawn = null;
   if (pinned.length) { primary = pinned[0]; rule = 'teacher_quiz'; src = 'pinned'; }
   else if (carry) { primary = carry.kind === 'story' || carry.kind === 'storybook' ? { ...carry, ...CARRY_ON } : carry; rule = 'carry_on'; src = 'rule'; }
   else if (stop) { primary = stop; rule = 'month_stop'; src = 'rule'; }
@@ -189,9 +201,12 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
     const row = rowFor(rows, primary);
     head = { c: primary, row, score: null };
   } else if (arm === 'rand') {
-    const kinds = [...new Set(order.map((x) => x.c.kind))];
-    const kind = kinds[h32(`rand|${state.seed}`) % kinds.length];
-    head = order.find((x) => x.c.kind === kind);
+    // once per child per PKT day: the day's kind is kept (state.randKind) while it is still eligible; a new draw only
+    // when it is not (the child finished it), over the eligible kinds in the kit's order (never the ranked order,
+    // which a drop moves)
+    const kinds = KINDS.filter((k) => order.some((x) => x.c.kind === k));
+    drawn = kinds.includes(state.randKind) ? state.randKind : kinds[h32(`rand|${state.seed}`) % kinds.length];
+    head = order.find((x) => x.c.kind === drawn);
     src = 'rand';
   } else if (arm === 'ctrl') {
     // today's order: the lantern where the surface has one, else the first candidate as built (never the ranked head)
@@ -212,7 +227,7 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
     next,
     // elig: the kinds the rand arm could draw from (its denominator: the draw is uniform over THIS child's set), in
     // the kit's kind order (KINDS)
-    meta: { rule, arm, score_v: scoreV, order: [head, ...tail].map((x) => x.c.id), kinds: [next, ...alts].map((x) => x.kind), elig: KINDS.filter((k) => order.some((x) => x.c.kind === k)) },
+    meta: { rule, arm, score_v: scoreV, order: [head, ...tail].map((x) => x.c.id), kinds: [next, ...alts].map((x) => x.kind), elig: KINDS.filter((k) => order.some((x) => x.c.kind === k)), drawn },
   };
 }
 
@@ -310,7 +325,9 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     const day = pktDay(now);
     const month = pktMonth(now);
     const st = await loadState(sk);
-    const opens = (st.m === month ? Number(st.o) || 0 : 0) + (ctx === 'home' ? 1 : 0);
+    // a month's home open is a PKT day with a home view: a reload or a second fetch the same day is the same open
+    const first = ctx === 'home' && !(st.m === month && st.od === day);
+    const opens = (st.m === month ? Number(st.o) || 0 : 0) + (first ? 1 : 0);
     // #C49a: the tile tapped last; a story opened and left (it is no longer "unseen", so no longer built) comes back
     // from the tap's own copy while the child's runs on it are all unfinished (`open`: the hub's read)
     const t = st.t && typeof st.t === 'object' && st.t.id ? st.t : null;
@@ -319,6 +336,7 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     const r = rank(ctx, list, {
       arm: module.exports.armOf(key, day), seed: `${key}|${day}`, now: new Date(now).toISOString(), monthOpens: opens,
       resumeToday: st.rd === day, streak: st.s || null, has_root: Boolean(hasRoot), carry: t,
+      drops: Leaf.dropsToday(st, day), randKind: st.rk && st.rk.d === day ? st.rk.k : null,
     }, s.weights);
     if (!r) return null;
     const next = { ...r.next, offer: offerId(), alts: r.next.alts.map((a) => ({ ...a, offer: offerId() })) };
@@ -326,9 +344,13 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     [next, ...next.alts].forEach((x) => { offers[x.offer] = x.id; });
     const keep = Object.keys(offers).slice(-9);
     if (!alive()) return null;
+    // a render writes no streak step and no drop (the beacon does, Leaf.noteShown): only this view's offers, the
+    // day's open, the rand arm's kind
     await saveState(sk, {
-      m: month, o: opens,
-      s: st.s && st.s.id === next.id ? { id: next.id, n: (Number(st.s.n) || 0) + 1 } : { id: next.id, n: 1 },
+      m: month, o: opens, ...(ctx === 'home' ? { od: day } : st.m === month && st.od != null ? { od: st.od } : {}),
+      ...(st.s ? { s: st.s } : {}),
+      ...(st.dq && st.dq.d === day ? { dq: st.dq } : {}),
+      ...(r.meta.drawn ? { rk: { d: day, k: r.meta.drawn } } : st.rk && st.rk.d === day ? { rk: st.rk } : {}),
       // #C50: with the taps heard (events v3) a render never spends the once-a-day tile: `rs` marks the view that
       // showed it, and a tap from that view spends it (Leaf.noteTap / noteDoor). Without them, today's rule.
       rd: s.events ? st.rd || null : r.meta.rule === 'resume' ? day : st.rd || null,
