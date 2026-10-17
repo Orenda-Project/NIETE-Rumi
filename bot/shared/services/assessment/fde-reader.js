@@ -230,6 +230,11 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     '- another item on the paper asks the same question, in any wording (a duplicate);',
     '- a Q1 key, or a fact a Q1 stem states, is its whole answer: Q1 «پاکستان 1947ء میں کس رہنما کی قیادت میں …»',
     '  answers «پاکستان کس سال ابھرا؟ → 1947ء»; two Q1 items that together print its whole answer count too;',
+    '- the facts its answer needs are printed in Section A: in a Q1 stem, in a Q1 key, or across two Q1 items. Read every',
+    '  Q1 stem as well as its key: a stem that states two facts to ask which idea they describe gives away a Q5 that asks',
+    '  for those facts, and a Q5 that asks how two things differ is given away when one Q1 item prints what the first',
+    '  does and another prints what the second does. A marking point that only asks for a clear or complete answer adds',
+    '  no fact: judge the facts;',
     '- its key is the same answer as a Q1 key in another form (plural, oblique, a longer sentence of the same fact);',
     '- its marking points are contained in another Q5, Q6 or Q7 item\'s answer or marking points: a child who answers',
     '  that item has already written this one\'s answer.',
@@ -245,6 +250,8 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     'when, on a closer look, it cannot. Never write a correction or a second object after the first; change the',
     'verdict inside the entry instead.',
     '{"candidates":[{"item":"Q7.<n>","by":"<the label of the text that gives it away: Q1.5, Q5.3, Q6.2 …>","evidence":"<the words, copied exactly from that label\'s printed text, answer or points, that answer the item>","reason":"<one short line>","given_away":true}]}',
+    'When the facts are printed in two places, name both labels in "by" (Q1.1, Q1.11) and quote each fact from its own',
+    'label in "evidence", the quotes separated by " | ".',
     'Inside a JSON string never use the character "; quote Urdu with « ». Use the labels exactly as printed below.',
     '{"candidates":[]} is the right answer when nothing is given away.',
     ...(only ? ['', `${ONLY_HEAD} ${only.join(', ')}. The other items were already checked: flag one of these when it is`,
@@ -255,7 +262,7 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     ANSWERS_HEAD,
     ...answers,
   ].join('\n');
-  return { prompt, labels, only, blocks };
+  return { prompt, labels, only, blocks, split: true };
 }
 
 /**
@@ -275,7 +282,7 @@ function giversOf(by, blocks) {
  * a flag whose quote is not on the paper where it says is dropped: the reader saw nothing there.
  * Throws when the reply carries no candidates list: that is a failed read, not a clean one.
  */
-function parseFlags(reply, labels, only = null, blocks = null) {
+function parseFlags(reply, labels, only = null, blocks = null, opts = {}) {
   if (!reply || typeof reply !== 'object' || !Array.isArray(reply.candidates)) throw new Error('reader reply has no candidates list');
   const seen = new Set();
   const out = [];
@@ -289,11 +296,15 @@ function parseFlags(reply, labels, only = null, blocks = null) {
     if (blocks) {
       // The quote is printed under the giver, never the item's own block (its options are what the
       // child picks from), or in the item's own stem (it prints its key, or answers another section).
-      const quote = fold(evidence);
-      const real = quote && quote.trim().split(' ').some((w) => w.length >= QUOTE_WORD);
-      const givers = giversOf(by, blocks).filter((label) => label !== item && blocks.get(label).includes(quote));
+      // With `split` (Social Studies), facts printed in two places come as two quotes, « | » between
+      // them, and each must be printed under a label `by` names.
+      const quotes = (opts.split ? evidence.split(/\s*\|\s*/) : [evidence]).map(fold).filter(Boolean);
+      const real = quotes.length > 0 && quotes.every((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD));
+      const named = giversOf(by, blocks).filter((label) => label !== item);
+      const placed = quotes.map((q) => named.filter((label) => blocks.get(label).includes(q)));
+      const givers = [...new Set(placed.flat())];
       const stem = fold(labels.get(item) && labels.get(item).question);
-      if (!real || !(givers.length || stem.includes(quote))) continue;
+      if (!real || !quotes.every((q, i) => placed[i].length || stem.includes(q))) continue;
       // On a re-check, a kept item given away BY a replacement takes the replacement off.
       if (only && !only.includes(item)) {
         const repl = givers.find((label) => only.includes(label));

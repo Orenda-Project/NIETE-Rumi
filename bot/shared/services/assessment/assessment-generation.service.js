@@ -1875,7 +1875,7 @@ function _addItem(examJson, slotId, q) {
 }
 
 async function _askReader({ examJson, P, only = null, model, ownModel, job, usages, reasoning = READER_REASONING }) {
-  const { prompt, labels, only: onlyLabels, blocks } = Reader.buildReaderPrompt(examJson, P, { only });
+  const { prompt, labels, only: onlyLabels, blocks, split } = Reader.buildReaderPrompt(examJson, P, { only });
   const response = await getClient().chat.completions.create({
     model,
     job,
@@ -1890,7 +1890,7 @@ async function _askReader({ examJson, P, only = null, model, ownModel, job, usag
   // A client that already parsed the JSON hands back an object: read it, never skip the pass for it.
   const content = response?.choices?.[0]?.message?.content;
   const reply = content && typeof content === 'object' ? content : extractJsonFromResponse(content || '');
-  return { flags: Reader.parseFlags(reply, labels, onlyLabels, blocks), labels };
+  return { flags: Reader.parseFlags(reply, labels, onlyLabels, blocks, { split }), labels };
 }
 
 async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
