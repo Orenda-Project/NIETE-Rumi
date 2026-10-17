@@ -43,8 +43,9 @@ const OFF_READS = {
   teacher: { cold: 13, warm: 0 },
   classLink: { cold: 13, warm: 0 },
 };
-// Rows a key of this change may add with it ON (none: the switch rides the page's own read).
-const NAMED_ON = [];
+// Rows a key may add with one voice ON. One voice itself adds none (it rides the page's own read); the question
+// read-along (web-quiz-question-readalong.js) is read only for a page with one voice: one row, 30 s cache.
+const NAMED_ON = ['web_quiz_question_readalong'];
 
 const question = (n, media) => ({
   id: `9999999${n}-9999-4999-8999-999999999999`, quiz_id: QUIZ, external_id: media ? `vb:${n}` : `q${n}`, sort_order: n,

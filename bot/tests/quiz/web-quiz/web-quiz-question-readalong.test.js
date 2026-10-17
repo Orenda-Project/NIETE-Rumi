@@ -43,6 +43,8 @@ const supabase = require('../../../shared/config/supabase');
 const WQ = require('../../../shared/services/quiz/web-quiz.service');
 const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
 const OneVoice = require('../../../shared/services/quiz/web-quiz-one-voice-flag');
+// One voice rides the quiz page's identity settings read (web-quiz-identity-roster.js): reset with it.
+const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster');
 const QRA = require('../../../shared/services/quiz/web-quiz-question-readalong');
 const tts = require('../../../shared/services/tts');
 const r2 = require('../../../shared/storage/r2');
@@ -83,7 +85,7 @@ function seed(rows, { one, ra, meta = {} } = {}) {
 const SAVED = { ...process.env };
 beforeEach(() => {
   process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key' }; delete process.env.WEB_QUIZ_TOKEN_SECRET;
-  WQ._resetQuizCache(); OneVoice.reset(); QRA.reset();
+  WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache(); QRA.reset();
   tts.synthesize.mockClear(); r2.uploadBuffer.mockClear(); r2.headObject.mockClear();
   r2.headObject.mockImplementation(async () => ({ exists: false }));
 });
@@ -288,14 +290,14 @@ describe('B · the page is told, behind web_quiz_question_readalong', () => {
 
   test('golden: one voice on, the payload with this switch\'s row absent deep-equals the payload with it false', async () => {
     const none = JSON.parse(strip(await page({ one: true })));
-    WQ._resetQuizCache(); OneVoice.reset(); QRA.reset();
+    WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache(); QRA.reset();
     const off = JSON.parse(strip(await page({ one: true, ra: false })));
     expect(off).toEqual(none);
   });
 
   test('this switch on but one voice off: today\'s payload (no ra, no question_readalong)', async () => {
     const none = JSON.parse(strip(await page({})));
-    WQ._resetQuizCache(); OneVoice.reset(); QRA.reset();
+    WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache(); QRA.reset();
     const on = JSON.parse(strip(await page({ ra: true })));
     expect(on).toEqual(none);
     expect('question_readalong' in on).toBe(false);
