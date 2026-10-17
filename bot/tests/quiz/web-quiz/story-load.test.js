@@ -464,8 +464,12 @@ describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent 
   const naturalize = (f, { pages = [1, 2], qa = {}, wpm = 153, pace = 170 } = {}) => {
     for (const n of pages) {
       const vj = path.join(f.voiceDir, `p0${n}.json`); const qj = path.join(f.voiceDir, `p0${n}.qa.json`);
-      fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm, pace_wpm: pace, voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' }, timing_src: 'forced_align' }));
-      fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), ...METHOD, wpm_clip: wpm, ...qa }));
+      const j = JSON.parse(fs.readFileSync(vj, 'utf8'));
+      // the silence at the clip's edges as the build measures it on the sound, in step with the word times
+      const ms = Math.max(j.audio.ms, j.words.length ? j.words[j.words.length - 1].e_ms + 400 : 0);
+      const edges = j.words.length ? { head_silence_ms: j.words[0].s_ms, tail_silence_ms: ms - j.words[j.words.length - 1].e_ms } : {};
+      fs.writeFileSync(vj, JSON.stringify({ ...j, audio: { ...j.audio, ms }, wpm, pace_wpm: pace, voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' }, timing_src: 'forced_align' }));
+      fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), ...METHOD, wpm_clip: wpm, ...edges, ...qa }));
       fs.writeFileSync(path.join(f.voiceDir, `p0${n}.ogg`), Buffer.from(`OggS-natural-${n}`));
     }
     return f;
@@ -515,7 +519,7 @@ describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent 
     // The old library's records carry no method fields: under the gate they are not a natural take.
     const old = L.planBook({ ...fixture({ long: true }), voiceGate: true }).misses;
     expect(old.map((m) => m.n)).toEqual([1, 2]);
-    expect(old[0].why).toEqual(['voice method: splices unknown', 'voice method: atempo unknown', 'voice method: inserted silence unknown', 'voice method: speed unknown', 'voice method: kb/s unknown', 'voice timing source stt_align', 'voice midword silence unknown']);
+    expect(old[0].why).toEqual(['voice method: splices unknown', 'voice method: atempo unknown', 'voice method: inserted silence unknown', 'voice method: speed unknown', 'voice method: kb/s unknown', 'voice timing source stt_align', 'voice midword silence unknown', 'voice silence edges unknown']);
   });
 
   test('on: words the timing sources could not settle make the page line-timed, never a guessed box', () => {
@@ -693,6 +697,89 @@ describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent 
     const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.wpm; fs.writeFileSync(vj, JSON.stringify(j));
     const q = JSON.parse(fs.readFileSync(qj, 'utf8')); delete q.wpm_clip; delete q.wpm; fs.writeFileSync(qj, JSON.stringify(q));
     expect(L.planBook({ ...f, voiceGate: true }).misses.map((m) => [m.n, m.why])).toEqual([[2, ['voice pace unknown wpm outside 60–220']]]);
+  });
+
+  // Page 2 printed with n words, its take timed on the same words (lead-in before the first word, tail after the last);
+  // then a natural take at the given pace and record.
+  const WORDS = ['Rain', 'falls', 'on', 'the', 'green', 'hill', 'all', 'day', 'long', 'and'];
+  const shortPage = (n, { wpm, qa = {}, lead = 400, tail = 400, rec = {}, drop = [] } = {}) => {
+    const f = fixture({ long: true });
+    const ws = WORDS.slice(0, n);
+    f.book.pages[1] = { ...f.book.pages[1], text: ws.join(' '), words: ws.map((t, i) => ({ i, t, box: [10 + 40 * i, 800, 36, 40] })) };
+    const vj = path.join(f.voiceDir, 'p02.json');
+    const timed = ws.map((t, i) => ({ i, t, s_ms: lead + 500 * i, e_ms: lead + 450 + 500 * i }));
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), audio: { ms: timed[n - 1].e_ms + tail, mime: 'audio/ogg' }, words: timed, ...rec }));
+    naturalize(f);
+    naturalize(f, { pages: [2], wpm, qa });
+    if (drop.length) {
+      const j = JSON.parse(fs.readFileSync(vj, 'utf8')); drop.forEach((k) => delete j[k]); fs.writeFileSync(vj, JSON.stringify(j));
+      const qj = path.join(f.voiceDir, 'p02.qa.json'); const q = JSON.parse(fs.readFileSync(qj, 'utf8')); drop.forEach((k) => delete q[k]); fs.writeFileSync(qj, JSON.stringify(q));
+    }
+    return f;
+  };
+  const pageOf = (n, { gate = true, ...o } = {}) => L.planBook({ ...shortPage(n, o), voiceGate: gate });
+  const missOf = (p) => p.misses.map((m) => [m.n, m.why]);
+
+  test('on: a page under 8 printed words skips the per-page pace band; its other checks still decide', () => {
+    // one word read at 57 wpm, five words at 220.6: the band would refuse both, and on so few words it measures silence
+    for (const [n, wpm] of [[1, 57], [5, 220.6], [7, 30], [7, 400]]) {
+      const p = pageOf(n, { wpm });
+      expect([n, wpm, missOf(p)]).toEqual([n, wpm, []]);
+      expect(p.ready).toBe(true);
+    }
+    // the same short page still fails on what it says and how it was made
+    expect(missOf(pageOf(1, { wpm: 57, qa: { wer: 0.2 } }))).toEqual([[2, ['voice wer 0.2']]]);
+    expect(missOf(pageOf(1, { wpm: 57, qa: { midword_hits: 1 } }))).toEqual([[2, ['voice midword silence 1']]]);
+    expect(missOf(pageOf(5, { wpm: 220.6, qa: { splices: 1 } }))).toEqual([[2, ['voice method: splices 1']]]);
+    expect(missOf(pageOf(1, { wpm: 57, rec: { ok: false, fails: ['printed but unheard'] } }))).toEqual([[2, ['voice failed its own checks (printed but unheard)']]]);
+    // a page with no pace on record is still refused, short or not
+    expect(missOf(pageOf(1, { wpm: 57, drop: ['wpm', 'wpm_clip'] }))).toEqual([[2, ['voice pace unknown wpm outside 60–220']]]);
+  });
+
+  test('on: a page has the silence before its first word and after its last bounded, measured on the sound', () => {
+    const one = pageOf(1, { wpm: 57, lead: 300 });
+    expect(missOf(one)).toEqual([]);
+    expect(one.ready).toBe(true);
+    expect(missOf(pageOf(1, { wpm: 57, lead: 6000 }))).toEqual([[2, ['voice lead-in 6000 ms']]]);
+    expect(missOf(pageOf(1, { wpm: 57, tail: 5000 }))).toEqual([[2, ['voice tail 5000 ms']]]);
+    expect(missOf(pageOf(7, { wpm: 57, lead: 6000, tail: 5000 }))).toEqual([[2, ['voice lead-in 6000 ms', 'voice tail 5000 ms']]]);
+    // the edges themselves: 800 ms before and 1200 ms after pass, a millisecond more does not
+    expect(missOf(pageOf(1, { wpm: 57, lead: 800, tail: 1200 }))).toEqual([]);
+    expect(missOf(pageOf(1, { wpm: 57, lead: 801 }))).toEqual([[2, ['voice lead-in 801 ms']]]);
+    expect(missOf(pageOf(1, { wpm: 57, tail: 1201 }))).toEqual([[2, ['voice tail 1201 ms']]]);
+    // a page that keeps the band is bounded too
+    expect(missOf(pageOf(10, { wpm: 100, lead: 2205 }))).toEqual([[2, ['voice lead-in 2205 ms']]]);
+    expect(missOf(pageOf(8, { wpm: 100, tail: 1300 }))).toEqual([[2, ['voice tail 1300 ms']]]);
+    expect(missOf(pageOf(10, { wpm: 100, lead: 800, tail: 1200 }))).toEqual([]);
+  });
+
+  test('on: the first and last word times must agree with the sound\'s edges within 500 ms; edges not on record are refused', () => {
+    // a short silence on the sound but the first word stamped 2.2 s in: the stamps are not this sound's
+    expect(missOf(pageOf(1, { wpm: 57, lead: 2205, qa: { head_silence_ms: 100 } }))).toEqual([[2, ['voice first word stamp 2105 ms from the sound']]]);
+    expect(missOf(pageOf(10, { wpm: 100, lead: 2205, qa: { head_silence_ms: 100 } }))).toEqual([[2, ['voice first word stamp 2105 ms from the sound']]]);
+    expect(missOf(pageOf(1, { wpm: 57, lead: 600, qa: { head_silence_ms: 100 } }))).toEqual([]);
+    expect(missOf(pageOf(1, { wpm: 57, lead: 601, qa: { head_silence_ms: 100 } }))).toEqual([[2, ['voice first word stamp 501 ms from the sound']]]);
+    // the last word ends 900 ms before the sound does
+    expect(missOf(pageOf(1, { wpm: 57, tail: 1000, qa: { tail_silence_ms: 100 } }))).toEqual([[2, ['voice last word stamp 900 ms from the sound']]]);
+    // a record without the measured edges is not a checked take
+    expect(missOf(pageOf(1, { wpm: 57, drop: ['head_silence_ms', 'tail_silence_ms'] }))).toEqual([[2, ['voice silence edges unknown']]]);
+    expect(missOf(pageOf(10, { wpm: 100, drop: ['tail_silence_ms'] }))).toEqual([[2, ['voice silence edges unknown']]]);
+    expect(missOf(pageOf(1, { wpm: 57, qa: { head_silence_ms: 'x' } }))).toEqual([[2, ['voice silence edges unknown']]]);
+    // with the switch off the edges are not looked at
+    expect(pageOf(1, { wpm: 57, lead: 6000, tail: 5000, gate: false }).why).toEqual(['p01: voice pace 153 wpm', 'p01: voice span pace 170 wpm', 'p02: voice span pace 170 wpm']);
+    expect(pageOf(1, { wpm: 57, drop: ['head_silence_ms', 'tail_silence_ms'], gate: false }).why).toEqual(['p01: voice pace 153 wpm', 'p01: voice span pace 170 wpm', 'p02: voice span pace 170 wpm']);
+  });
+
+  test('on: a page of 8 or more printed words keeps the pace band', () => {
+    expect(missOf(pageOf(8, { wpm: 57 }))).toEqual([[2, ['voice pace 57 wpm outside 60–220']]]);
+    expect(missOf(pageOf(8, { wpm: 220.6 }))).toEqual([[2, ['voice pace 220.6 wpm outside 60–220']]]);
+    expect(missOf(pageOf(9, { wpm: 57 }))).toEqual([[2, ['voice pace 57 wpm outside 60–220']]]);
+    expect(missOf(pageOf(8, { wpm: 60 }))).toEqual([]);
+  });
+
+  test('off: a short page keeps today\'s pace gates (the short-page rule is the switch\'s only)', () => {
+    const p = pageOf(5, { wpm: 220.6, gate: false });
+    expect(p.why).toEqual(['p01: voice pace 153 wpm', 'p01: voice span pace 170 wpm', 'p02: voice pace 220.6 wpm', 'p02: voice span pace 170 wpm']);
   });
 
   test('on: one voice per book: two voices in one run, or a new voice beside a kept old one, keep the book as it is', async () => {

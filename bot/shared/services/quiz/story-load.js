@@ -26,7 +26,10 @@
  *      (a voice its build marks quality 'low' keeps its voice with that mark: the reader then follows it line by line)
  *      With app_settings web_quiz_story_voice_gate ON (JSON true), the two pace numbers give way to a METHOD gate read
  *      from the voice build's record (qa.json): one take (splices 0), atempo 1, no inserted silence, provider speed ≥ 0.9,
- *      ≥ 48 kb/s, no mid-word silence (midword_hits 0), and a 60–220 wpm whole-clip band so a broken take cannot pass;
+ *      ≥ 48 kb/s, no mid-word silence (midword_hits 0), and a 60–220 wpm whole-clip band so a broken take cannot pass
+ *      (a page under 8 printed words skips the band, its pace still on record; its other checks still decide), and at most
+ *      800 ms of silence before the first word and 1200 ms after the last, measured on the sound (head_silence_ms,
+ *      tail_silence_ms; unknown is refused), with the first and last word times within 500 ms of those edges;
  *      words the timing sources could not settle (timing_unresolved or unresolved_words > 0) make the page line-timed. Under the gate a new
  *      take that fails is never stored and never silences a page: the page keeps the voice it has (applyPlan), and only a
  *      page with no voice at all keeps the book a draft.
@@ -53,6 +56,14 @@ const VOICE_GATE_KEY = 'web_quiz_story_voice_gate';
 const MIN_SPEED = 0.9;
 const MIN_KBPS = 48;
 const WPM_BAND = [60, 220];
+// On a page this short the words per minute is mostly lead-in and tail silence: it skips the band (the voice build
+// judges the book's median pace), and every other check still decides.
+const BAND_MIN_WORDS = 8;
+// Under the gate every page has the silence before its first word and after its last bounded, as measured on the sound
+// (the build record's head_silence_ms / tail_silence_ms), and its first and last word times must agree with that sound.
+const MAX_LEAD_MS = 800;
+const MAX_TAIL_MS = 1200;
+const MAX_EDGE_GAP_MS = 500;
 const voiceGateOn = (value) => value === true;
 const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg', png: 'image/png' };
 const pad = (n) => String(n).padStart(2, '0');
@@ -156,7 +167,22 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
     if (!['provider', 'forced_align'].includes(tsrc)) why.push(`voice timing source ${tsrc || 'unknown'}`);
     const mid = num(qa.midword_hits);
     if (mid !== 0) why.push(`voice midword silence ${mid == null ? 'unknown' : mid}`);
-    if (clipWpm == null || clipWpm < WPM_BAND[0] || clipWpm > WPM_BAND[1]) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm outside ${WPM_BAND[0]}–${WPM_BAND[1]}`);
+    const banded = words.length >= BAND_MIN_WORDS;
+    if (clipWpm == null || (banded && (clipWpm < WPM_BAND[0] || clipWpm > WPM_BAND[1]))) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm outside ${WPM_BAND[0]}–${WPM_BAND[1]}`);
+    const head = num(qa.head_silence_ms);
+    const tail = num(qa.tail_silence_ms);
+    if (head == null || tail == null) why.push('voice silence edges unknown');
+    else {
+      if (head > MAX_LEAD_MS) why.push(`voice lead-in ${Math.round(head)} ms`);
+      if (tail > MAX_TAIL_MS) why.push(`voice tail ${Math.round(tail)} ms`);
+      const clipMs = num(j.audio && j.audio.ms) || num(j.ms);
+      if (ts.length && !bad) {
+        const first = Math.round(Math.abs(ts[0].s_ms - head));
+        if (first > MAX_EDGE_GAP_MS) why.push(`voice first word stamp ${first} ms from the sound`);
+        const last = clipMs ? Math.round(Math.abs(clipMs - tail - ts[ts.length - 1].e_ms)) : 0;
+        if (last > MAX_EDGE_GAP_MS) why.push(`voice last word stamp ${last} ms from the sound`);
+      }
+    }
   } else {
     // Two pace gates: words over the whole clip (what the child sits through), and over the spoken span (what the eye follows).
     if (clipWpm == null || clipWpm > maxWpm(grade, words.length)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
