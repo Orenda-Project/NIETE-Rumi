@@ -74,7 +74,8 @@ function memoryStore() {
       if ([...t.voices.values()].some((v) => v.id !== r.id && v.page_id === r.page_id && v.lang === r.lang && v.is_current && r.is_current)) throw new Error('duplicate key story_page_voices_current');
       t.voices.set(r.id, r);
     },
-    upsertQuestions: async (rows) => rows.forEach((r) => t.questions.set(r.id, r)),
+    // an upsert writes the columns it names and leaves the others as stored (PostgREST)
+    upsertQuestions: async (rows) => rows.forEach((r) => t.questions.set(r.id, { ...t.questions.get(r.id), ...r })),
     deleteQuestionsAbove: async (b, n) => [...t.questions.values()].filter((q) => q.book_id === b && q.n > n).forEach((q) => t.questions.delete(q.id)),
     setStatus: async (id, status) => { t.books.get(id).status = status; },
   };
@@ -427,5 +428,303 @@ describe('missedPages: the pages children opened before they had a voice', () =>
     ];
     const out = await L.missedPages(db(events, [{ id: B1, source_id: 'src-1' }, { id: B2, source_id: 'src-2' }]), { since: at(10), now });
     expect(out.pages.map((p) => `${p.source_id}/${p.n}`)).toEqual(['src-1/5', 'src-2/1']);
+  });
+});
+
+describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent or not true = today)', () => {
+  // A natural-speed take as the voice build records it: one provider call, its bytes as delivered.
+  const METHOD = { splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 1, kbps: 64, midword_hits: 0 };
+  const naturalize = (f, { pages = [1, 2], qa = {}, wpm = 153, pace = 170 } = {}) => {
+    for (const n of pages) {
+      const vj = path.join(f.voiceDir, `p0${n}.json`); const qj = path.join(f.voiceDir, `p0${n}.qa.json`);
+      fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm, pace_wpm: pace, voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' }, timing_src: 'forced_align' }));
+      fs.writeFileSync(qj, JSON.stringify({ ...JSON.parse(fs.readFileSync(qj, 'utf8')), ...METHOD, wpm_clip: wpm, ...qa }));
+      fs.writeFileSync(path.join(f.voiceDir, `p0${n}.ogg`), Buffer.from(`OggS-natural-${n}`));
+    }
+    return f;
+  };
+  const strip = (p) => JSON.parse(JSON.stringify({ ...p, files: p.files.map((x) => x.name) }));
+
+  test('voiceGateOn: only JSON true turns it on (a string is not true)', () => {
+    [undefined, null, false, 'false', 'true', '"true"', ' TRUE ', 1, 'yes', {}, [], { on: true }, { enabled: true }].forEach((v) => expect(L.voiceGateOn(v)).toBe(false));
+    expect(L.voiceGateOn(true)).toBe(true);
+  });
+
+  test('off: the plan is byte-identical to today, and a natural-speed take is refused by the pace gates as today', () => {
+    for (const make of [() => fixture(), () => fixture({ wpm: 104, long: true }), () => naturalize(fixture({ long: true })), () => fixture({ voices: [1] })]) {
+      const today = strip(L.planBook(make()));
+      for (const voiceGate of [false, undefined, null]) expect(strip(L.planBook({ ...make(), voiceGate }))).toEqual(today);
+    }
+    expect(L.planBook({ ...naturalize(fixture({ long: true })), voiceGate: false }).why)
+      .toEqual(['p01: voice pace 153 wpm', 'p01: voice span pace 170 wpm', 'p02: voice pace 153 wpm', 'p02: voice span pace 170 wpm']);
+  });
+
+  test('on: a one-take natural voice at 153 wpm is stored; no pace ceiling, the other checks unchanged', () => {
+    const p = L.planBook({ ...naturalize(fixture({ long: true })), voiceGate: true });
+    expect(p.why).toEqual([]);
+    expect(p.ready).toBe(true);
+    expect(p.misses).toEqual([]);
+    expect(p.voices.map((v) => [v.n, v.row.provider, v.row.voice, v.row.timing_source, v.row.wpm])).toEqual([[1, 'elevenlabs', 'Bella', 'forced_align', 170], [2, 'elevenlabs', 'Bella', 'forced_align', 170]]);
+    const wer = L.planBook({ ...naturalize(fixture({ long: true, wer: 0.2 })), voiceGate: true });
+    expect(wer.misses.map((m) => [m.n, m.why])).toEqual([[1, ['voice wer 0.2']], [2, ['voice wer 0.2']]]);
+    expect(L.planBook({ ...naturalize(fixture({ long: true, mismatch: true })), voiceGate: true }).misses.map((m) => m.why)).toEqual([['voice words differ from the page words']]);
+  });
+
+  test('on: the method gate refuses a stretched, cut, padded, slowed, thin or broken take, and a missing method record', () => {
+    const miss = (o) => L.planBook({ ...naturalize(naturalize(fixture({ long: true })), { pages: [2], ...o }), voiceGate: true }).misses.map((m) => [m.n, m.why]);
+    expect(miss({ qa: { splices: 3 } })).toEqual([[2, ['voice method: splices 3']]]);
+    expect(miss({ qa: { splices: 1 } })).toEqual([[2, ['voice method: splices 1']]]);
+    expect(miss({ qa: { kbps: 47.9 } })).toEqual([[2, ['voice method: 47.9 kb/s']]]);
+    expect(miss({ qa: { atempo: 0.85 } })).toEqual([[2, ['voice method: atempo 0.85']]]);
+    expect(miss({ qa: { inserted_silence_ms: 400 } })).toEqual([[2, ['voice method: inserted silence 400 ms']]]);
+    expect(miss({ qa: { speed: 0.7 } })).toEqual([[2, ['voice method: speed 0.7']]]);
+    expect(miss({ qa: { speed: 0.9 } })).toEqual([]);
+    expect(miss({ qa: { kbps: 24 } })).toEqual([[2, ['voice method: 24 kb/s']]]);
+    expect(miss({ qa: { kbps: 48 } })).toEqual([]);
+    expect(miss({ qa: { midword_hits: 1 } })).toEqual([[2, ['voice midword silence 1']]]);
+    expect(miss({ wpm: 59.9 })).toEqual([[2, ['voice pace 59.9 wpm outside 60–220']]]);
+    expect(miss({ wpm: 220.1 })).toEqual([[2, ['voice pace 220.1 wpm outside 60–220']]]);
+    expect(miss({ wpm: 220, pace: 260 })).toEqual([]);
+    // The old library's records carry no method fields: under the gate they are not a natural take.
+    const old = L.planBook({ ...fixture({ long: true }), voiceGate: true }).misses;
+    expect(old.map((m) => m.n)).toEqual([1, 2]);
+    expect(old[0].why).toEqual(['voice method: splices unknown', 'voice method: atempo unknown', 'voice method: inserted silence unknown', 'voice method: speed unknown', 'voice method: kb/s unknown', 'voice timing source stt_align', 'voice midword silence unknown']);
+  });
+
+  test('on: words the timing sources could not settle make the page line-timed, never a guessed box', () => {
+    const f = naturalize(fixture({ long: true }), { pages: [2], qa: { timing_unresolved: 2 } });
+    const p = L.planBook({ ...f, voiceGate: true });
+    expect(p.why).toEqual([]);
+    expect(p.voices.map((v) => [v.n, v.row.quality])).toEqual([[2, 'low']]);
+    expect(L.planBook({ ...naturalize(fixture({ long: true })), voiceGate: true }).voices.map((v) => v.row.quality)).toEqual([null, null]);
+    // the library builder records the same count as unresolved_words
+    const g = naturalize(fixture({ long: true }), { pages: [2], qa: { unresolved_words: 1 } });
+    expect(L.planBook({ ...g, voiceGate: true }).voices.map((v) => [v.n, v.row.quality])).toEqual([[2, 'low']]);
+  });
+
+  test('on: a failed new take never silences a page; the page keeps the voice it has and the book stays ready', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = naturalize(fixture({ long: true }));
+    await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    const before = [...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.audio_key).sort();
+    expect(before).toHaveLength(2);
+    naturalize(f, { pages: [1] });
+    naturalize(f, { pages: [2], qa: { splices: 4 } });
+    const plan = L.planBook({ ...f, voiceGate: true });
+    const out = await L.applyPlan(plan, { store, upload: r.upload, env: 'sandbox' });
+    expect(out.status).toBe('ready');
+    expect(out.kept).toEqual([2]);
+    const cur = [...store.t.voices.values()].filter((v) => v.is_current);
+    expect(cur).toHaveLength(2);
+    expect(cur.find((v) => v.page_id === Store.uuidV5(BOOK_ID, 'p02')).audio_key).toBe(before.find((k) => /\/a02-/.test(k)));
+    expect(cur.find((v) => v.page_id === Store.uuidV5(BOOK_ID, 'p01')).provider).toBe('elevenlabs');
+    expect(store.t.books.get(BOOK_ID).status).toBe('ready');
+    expect(plan.why).toEqual([]);
+  });
+
+  test('on: a failed take on a page with no voice yet still leaves the book a draft, with the reason', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = naturalize(fixture({ long: true }), { pages: [2], qa: { atempo: 0.85 } });
+    naturalize(f, { pages: [1] });
+    const out = await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    expect(out.status).toBe('draft');
+    expect(out.kept).toEqual([]);
+    expect(store.t.books.get(BOOK_ID).status).toBe('draft');
+    expect([...store.t.voices.values()].map((v) => v.page_id)).toEqual([Store.uuidV5(BOOK_ID, 'p01')]);
+    const fresh = L.planBook({ ...f, voiceGate: true });
+    await L.applyPlan(fresh, { store: memoryStore(), upload: r.upload, env: 'sandbox' });
+    expect(fresh.why).toEqual(['p02: voice method: atempo 0.85']);
+  });
+
+  test('readVoiceGate reads the one key; no row or not true → false; a read error throws (a pass never guesses)', async () => {
+    const db = (row, error = null) => { const calls = []; return { calls, from: (t) => { const b = {}; ['select', 'eq', 'maybeSingle'].forEach((m) => { b[m] = (...a) => { calls.push([t, m, ...a]); return b; }; }); b.then = (res) => res({ data: row, error }); return b; } }; };
+    const d = db({ key: 'web_quiz_story_voice_gate', value: true });
+    expect(await L.readVoiceGate(d)).toBe(true);
+    expect(d.calls).toContainEqual(['app_settings', 'eq', 'key', 'web_quiz_story_voice_gate']);
+    expect(await L.readVoiceGate(db(null))).toBe(false);
+    expect(await L.readVoiceGate(db({ key: 'web_quiz_story_voice_gate', value: { on: true } }))).toBe(false);
+    await expect(L.readVoiceGate(db(null, { message: 'boom' }))).rejects.toThrow('boom');
+  });
+
+  test('on: a kept voice never blanks the book\'s minutes; they count the kept page\'s stored length', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = fixture({ long: true, wpm: 92 });
+    await L.applyPlan(L.planBook(f), { store, upload: r.upload, env: 'sandbox' });
+    const m0 = store.t.books.get(BOOK_ID).minutes;
+    naturalize(f, { pages: [1] }); naturalize(f, { pages: [2], qa: { splices: 4 } });
+    await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    expect(m0).not.toBeNull();
+    expect(store.t.books.get(BOOK_ID).minutes).toBe(m0);
+    // a kept row with no stored length: the stored minutes stay as they are
+    [...store.t.voices.values()].forEach((v) => { delete v.ms; });
+    store.t.books.get(BOOK_ID).minutes = 7.5;
+    await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    expect(store.t.books.get(BOOK_ID).minutes).toBe(7.5);
+  });
+
+  test('on: the dry run gives the write\'s answer: kept pages ready, a voiceless missed page draft, no store = draft', async () => {
+    const f = naturalize(naturalize(fixture({ long: true })), { pages: [2], qa: { atempo: 0.85 } });
+    const dry = await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store: memoryStore(), upload: recorder().upload, env: 'sandbox', dryRun: true });
+    const wet = await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store: memoryStore(), upload: recorder().upload, env: 'sandbox' });
+    expect([dry.status, wet.status]).toEqual(['draft', 'draft']);
+    const plan = L.planBook({ ...f, voiceGate: true });
+    const none = await L.applyPlan(plan, { store: null, upload: null, env: 'sandbox', dryRun: true });
+    expect(none.status).toBe('draft');
+    expect(plan.why).toEqual(['p02: voice method: atempo 0.85']);
+    // the page has a voice already: the dry run says ready and kept, as the write does, and writes nothing
+    const store = memoryStore();
+    await L.applyPlan(L.planBook(fixture({ long: true, wpm: 92 })), { store, upload: recorder().upload, env: 'sandbox' });
+    const snap = JSON.stringify([...store.t.voices.values(), ...store.t.books.values()]);
+    const g = naturalize(naturalize(fixture({ long: true })), { pages: [2], qa: { atempo: 0.85 } });
+    const d2 = await L.applyPlan(L.planBook({ ...g, voiceGate: true }), { store, upload: recorder().upload, env: 'sandbox', dryRun: true });
+    // page 1's new voice differs from page 2's kept one, so (one voice per book) page 1 keeps its voice too
+    expect([d2.status, d2.kept]).toEqual(['ready', [1, 2]]);
+    expect(JSON.stringify([...store.t.voices.values(), ...store.t.books.values()])).toBe(snap);
+    // off: the dry run is today's (no store read)
+    const off = await L.applyPlan(L.planBook(f), { store: null, upload: null, env: 'sandbox', dryRun: true });
+    expect(off).toEqual({ bookId: BOOK_ID, uploaded: L.planBook(f).files.length, skipped: 0, status: L.planBook(f).ready ? 'ready' : 'draft' });
+  });
+
+  test('on: a question clip is stored only when its record says one natural take; otherwise the question keeps its audio', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = fixture({ long: true, wpm: 92 });
+    await L.applyPlan(L.planBook(f), { store, upload: r.upload, env: 'sandbox' });
+    const q1 = Store.uuidV5(BOOK_ID, 'q1');
+    const before = store.t.questions.get(q1).audio; const sprite0 = store.t.books.get(BOOK_ID).questions_sprite;
+    expect(before.q).toMatch(/^q1-/);
+    naturalize(f);
+    fs.writeFileSync(path.join(f.voiceDir, 'q1.ogg'), Buffer.from('OggS-q1-natural'));
+    fs.writeFileSync(path.join(f.voiceDir, 'questions.sprite.ogg'), Buffer.from('OggS-sprite-natural'));
+    // the old library's questions.voice.json has no per-clip record: not a natural take
+    const old = L.planBook({ ...f, voiceGate: true });
+    expect(old.questionMisses).toEqual([{ n: 1, why: ['q1: no build record', 'q1o2: no build record'] }]);
+    await L.applyPlan(old, { store, upload: r.upload, env: 'sandbox' });
+    expect(store.t.questions.get(q1).audio).toEqual(before);
+    expect(store.t.books.get(BOOK_ID).questions_sprite).toEqual(sprite0);
+    expect(store.t.questions.get(q1).q).toBe('Who reads 1?');
+    // one stretched option keeps the whole question's audio and the sprite
+    const qv = path.join(f.voiceDir, 'questions.voice.json');
+    const rec = { splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 0.9, encodes: 1, kbps: 64 };
+    const vj = JSON.parse(fs.readFileSync(qv, 'utf8'));
+    fs.writeFileSync(qv, JSON.stringify({ ...vj, clips: { q1: rec, q1o2: { ...rec, atempo: 0.85 } } }));
+    const half = L.planBook({ ...f, voiceGate: true });
+    expect(half.questionMisses).toEqual([{ n: 1, why: ['q1o2: atempo 0.85'] }]);
+    expect(half.files.filter((x) => /^(qs|q\d)/.test(x.name))).toEqual([]); // no held clip or sprite is stored
+    await L.applyPlan(half, { store, upload: r.upload, env: 'sandbox' });
+    expect(store.t.questions.get(q1).audio).toEqual(before);
+    expect(store.t.books.get(BOOK_ID).questions_sprite).toEqual(sprite0);
+    // every clip natural: the new clips and the new sprite are stored
+    fs.writeFileSync(qv, JSON.stringify({ ...vj, clips: { q1: rec, q1o2: rec } }));
+    const good = L.planBook({ ...f, voiceGate: true });
+    expect(good.questionMisses).toEqual([]);
+    await L.applyPlan(good, { store, upload: r.upload, env: 'sandbox' });
+    expect(store.t.questions.get(q1).audio.q).not.toBe(before.q);
+    expect(store.t.books.get(BOOK_ID).questions_sprite.file).not.toBe(sprite0.file);
+    for (const k of [{ kbps: 32 }, { speed: 0.8 }, { splices: 2 }, { inserted_silence_ms: 300 }]) {
+      fs.writeFileSync(qv, JSON.stringify({ ...vj, clips: { q1: { ...rec, ...k }, q1o2: rec } }));
+      expect(L.planBook({ ...f, voiceGate: true }).questionMisses.map((m) => m.n)).toEqual([1]);
+    }
+  });
+
+  test('on: the word times must come from the provider or a forced alignment of the stored audio, never a recogniser', () => {
+    const f = naturalize(fixture({ long: true }));
+    const set = (n, o) => { const vj = path.join(f.voiceDir, `p0${n}.json`); const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.timing_src; delete j.timing_source; fs.writeFileSync(vj, JSON.stringify({ ...j, ...o })); };
+    const miss = () => L.planBook({ ...f, voiceGate: true }).misses.map((m) => [m.n, m.why]);
+    expect(miss()).toEqual([]);
+    set(2, { timing_src: 'stt_align' });
+    expect(miss()).toEqual([[2, ['voice timing source stt_align']]]);
+    set(2, {});
+    expect(miss()).toEqual([[2, ['voice timing source unknown']]]);
+    set(2, { timing_source: 'provider' });
+    expect(miss()).toEqual([]);
+  });
+
+  test('on: a page with no pace on record is refused', () => {
+    const f = naturalize(fixture({ long: true }));
+    const vj = path.join(f.voiceDir, 'p02.json'); const qj = path.join(f.voiceDir, 'p02.qa.json');
+    const j = JSON.parse(fs.readFileSync(vj, 'utf8')); delete j.wpm; fs.writeFileSync(vj, JSON.stringify(j));
+    const q = JSON.parse(fs.readFileSync(qj, 'utf8')); delete q.wpm_clip; delete q.wpm; fs.writeFileSync(qj, JSON.stringify(q));
+    expect(L.planBook({ ...f, voiceGate: true }).misses.map((m) => [m.n, m.why])).toEqual([[2, ['voice pace unknown wpm outside 60–220']]]);
+  });
+
+  test('on: one voice per book: two voices in one run, or a new voice beside a kept old one, keep the book as it is', async () => {
+    const f = naturalize(fixture({ long: true }));
+    const vj = path.join(f.voiceDir, 'p02.json');
+    fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), voice: { provider: 'elevenlabs', voice: 'Sara', model: 'eleven_v4' } }));
+    const two = L.planBook({ ...f, voiceGate: true });
+    expect(two.voices).toEqual([]);
+    expect(two.files.filter((x) => /^a\d\d-/.test(x.name))).toEqual([]); // the held takes are not in the plan's files either
+    expect(two.misses.map((m) => [m.n, m.why])).toEqual([[1, ['one voice per book: 2 voices in this run']], [2, ['one voice per book: 2 voices in this run']]]);
+    // a new take on page 1 beside page 2's kept old voice: page 1 keeps its old voice too, never a mixed book
+    const store = memoryStore(); const r = recorder();
+    const g = fixture({ long: true, wpm: 92 });
+    await L.applyPlan(L.planBook(g), { store, upload: r.upload, env: 'sandbox' });
+    const before = [...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.audio_key).sort();
+    naturalize(g, { pages: [1] }); naturalize(g, { pages: [2], qa: { splices: 2 } });
+    const plan = L.planBook({ ...g, voiceGate: true });
+    const r2 = recorder();
+    const out = await L.applyPlan(plan, { store, upload: r2.upload, env: 'sandbox' });
+    expect([out.status, out.kept]).toEqual(['ready', [1, 2]]);
+    expect(r2.up.filter((u) => /^a\d\d-/.test(u.name))).toEqual([]); // a held-back take is never stored
+    expect([...store.t.voices.values()].filter((v) => v.is_current).map((v) => v.audio_key).sort()).toEqual(before);
+    const dry = await L.applyPlan(L.planBook({ ...g, voiceGate: true }), { store, upload: r.upload, env: 'sandbox', dryRun: true });
+    expect([dry.status, dry.kept]).toEqual(['ready', [1, 2]]);
+    // the same voice as the kept page: the new take is stored
+    const h = fixture({ long: true });
+    const s2 = memoryStore();
+    naturalize(h);
+    await L.applyPlan(L.planBook({ ...h, voiceGate: true }), { store: s2, upload: r.upload, env: 'sandbox' });
+    fs.writeFileSync(path.join(h.voiceDir, 'p01.ogg'), Buffer.from('OggS-natural-1-retake'));
+    naturalize(h, { pages: [2], qa: { splices: 2 } });
+    const o2 = await L.applyPlan(L.planBook({ ...h, voiceGate: true }), { store: s2, upload: r.upload, env: 'sandbox' });
+    expect(o2.kept).toEqual([2]);
+    expect([...s2.t.voices.values()].filter((v) => v.is_current && v.page_id === Store.uuidV5(BOOK_ID, 'p01'))[0].audio_key).toMatch(/\/a01-/);
+  });
+
+  test('on: a page keeps only a voice in its own language', async () => {
+    const store = memoryStore(); const r = recorder();
+    const f = naturalize(naturalize(fixture({ long: true })), { pages: [2], qa: { splices: 2 } });
+    const p2 = Store.uuidV5(BOOK_ID, 'p02');
+    store.t.voices.set('ur1', { id: 'ur1', page_id: p2, lang: 'ur', audio_key: 'story/x/a02-ur.ogg', is_current: true, ms: 2000, provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' });
+    const out = await L.applyPlan(L.planBook({ ...f, voiceGate: true }), { store, upload: r.upload, env: 'sandbox' });
+    expect([out.status, out.kept]).toEqual(['draft', []]);
+  });
+
+  test('off: planBook and applyPlan\'s writes match the recorded base loader over 15 books', async () => {
+    const variants = { plain: {}, fast: { wpm: 160 }, slow_span: { pace: 190 }, no_voice: { voices: [] }, one_voice: { voices: [1] }, wer: { wer: 0.3 },
+      drift: { drift: 400 }, mismatch: { mismatch: true }, no_band: { band: false }, watermark: { pageWatermark: true }, big_page: { bigPage: true },
+      few_questions: { questionsReviewed: 2 }, grade2_long: { grade: 2, long: true }, grade3: { grade: 3, long: true, wpm: 120 }, grade4_natural: { grade: 4, long: true, wpm: 153 } };
+    const got = {};
+    for (const [name, o] of Object.entries(variants)) {
+      for (const voiceGate of [undefined, false, null]) {
+        const store = memoryStore(); const r = recorder();
+        store.t.voices.set('old', { id: 'old', page_id: Store.uuidV5(BOOK_ID, 'p02'), lang: 'en', audio_key: 'story/x/a02-old.ogg', is_current: true, ms: 1900 });
+        const plan = L.planBook({ ...fixture(o), voiceGate });
+        const p = JSON.parse(JSON.stringify({ ...plan, files: plan.files.map((x) => [x.name, x.contentType, x.buf.length]) }));
+        const out = await L.applyPlan(plan, { store, upload: r.upload, env: 'sandbox' });
+        const books = [...store.t.books.values()].map((b) => ({ ...b, updated_at: 'T' }));
+        const row = { plan: p, out, books, pages: [...store.t.pages.values()], voices: [...store.t.voices.values()], questions: [...store.t.questions.values()], up: r.up };
+        // the whole plan and every write, pinned by a hash of the canonical JSON (keys sorted), plus the readable verdict
+        const canon = (x) => (Array.isArray(x) ? `[${x.map(canon).join(',')}]` : x && typeof x === 'object' ? `{${Object.keys(x).sort().map((k) => `${JSON.stringify(k)}:${canon(x[k])}`).join(',')}}` : JSON.stringify(x));
+        const pin = { sha256: require('crypto').createHash('sha256').update(canon(row)).digest('hex'), status: out.status, why: plan.why, writes: { books: books.length, pages: row.pages.length, voices: row.voices.length, questions: row.questions.length, uploads: r.up.length } };
+        if (voiceGate === undefined) got[name] = pin; else expect(pin).toEqual(got[name]);
+      }
+    }
+    expect(got).toMatchSnapshot();
+  });
+
+  test('supabaseStore: the current voices carry their length, and questions that keep their audio are written apart', async () => {
+    const calls = [];
+    const q = (table) => {
+      const b = {};
+      ['select', 'upsert', 'eq', 'in'].forEach((m) => { b[m] = (...a) => { calls.push([table, m, ...a]); return b; }; });
+      b.then = (res) => res({ data: [], error: null });
+      return b;
+    };
+    const s = L.supabaseStore({ from: q });
+    await s.currentVoices(['p']);
+    expect(calls).toContainEqual(['story_page_voices', 'select', 'id, page_id, lang, audio_key, ms, provider, voice, model']);
+    await s.upsertQuestions([{ id: 'a', n: 1, audio: { q: 'x' } }, { id: 'b', n: 2 }]);
+    expect(calls.filter((c) => c[0] === 'story_questions' && c[1] === 'upsert').map((c) => c[2])).toEqual([[{ id: 'a', n: 1, audio: { q: 'x' } }], [{ id: 'b', n: 2 }]]);
   });
 });
