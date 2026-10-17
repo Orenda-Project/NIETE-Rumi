@@ -35,11 +35,13 @@
       done: 'I\'m done', readNow: 'Read it aloud!', keepGoing: 'Keep going!', checking: 'Listening…',
       netWait: 'Jugnu\'s voice is waiting for the internet…', gone: 'This story is not here any more.', micAgain: 'Try the mic again',
       more: 'More stories',
+      denied: 'That\'s OK, let\'s listen with Jugnu', wellRead: 'Well read!', together: 'Let\'s read it together', echoB: 'Read it together', practise: 'Let\'s practise this word',
     },
     ur: {
       done: 'میں نے پڑھ لیا', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', checking: 'آپ کی آواز سنی جا رہی ہے…',
       netWait: 'جگنو کی آواز انٹرنیٹ کا انتظار کر رہی ہے…', gone: 'یہ کہانی اب یہاں نہیں ہے۔', micAgain: 'مائیک پھر سے چلا کر دیکھیں',
       more: 'اور کہانیاں',
+      denied: 'کوئی بات نہیں، جگنو کے ساتھ سنیں', wellRead: 'بہت اچھا پڑھا!', together: 'آئیں مل کر پڑھیں', echoB: 'آئیں مل کر پڑھیں', practise: 'آئیں، یہ لفظ پھر سے پڑھیں',
     },
   };
   ['en', 'ur'].forEach(function (l) { for (var k in T2[l]) K.T[l][k] = T2[l][k]; });
@@ -69,6 +71,17 @@
       };
     }
     function live() { return R.live(); }
+    // the page's lines after Your turn (the states below are reached only through this file): praise, a word to
+    // practise, the kind words, Read it together
+    R.ex = function (s, p) {
+      var w = p.words && p.words[m.skip], h = '';
+      var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
+      if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
+      else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
+      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
+      return h;
+    };
     var micO = {
       lang: L, src: 'story', ev: ctx.ev, hash: !!b.steady,
       onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
@@ -226,7 +239,7 @@
         nt = C.set(tk, 500);
       }, 500);
     }
-    // the next page's picture and voice (today: on every page drawn; with the setting: once this page's voice plays)
+    // the next page's picture and voice, once this page's voice plays (without the setting: wq-stories.js, on every page drawn)
     function warm() {
       var nx = P[m.i + 1];
       wq[m.i] = 1;
@@ -234,9 +247,8 @@
       try { new W.Image().src = nx.image.url; } catch (e) { /* the turn fetches it */ }
       try { if (nx.audio && W.WQReadAlong.preload) W.WQReadAlong.preload({ id: b.id + '/p' + nx.n, audio: nx.audio, words: nx.words }); } catch (e) { /* the tap fetches it */ }
     }
-    R.os = function (s, i) {
-      if (!on) { if (s === 'error' && R.pl) { m.err(); if (m.i === i) R.re(); } return; }   // today: the page without its voice
-      if (!live() || i !== m.i) return;
+    R.os = function (s, i) {   // with the setting only (without it wq-stories.js keeps today's page without its voice)
+      if (!on || !live() || i !== m.i) return;
       if (s === 'playing') { if (!R.nw) lrl(''); watch(); } else if (s === 'error') down();
     };
     // the page's place in the address (#story/<id>/p<N>): a closed in-app browser reopened lands on the same page
@@ -246,9 +258,10 @@
     var go1 = m.go;
     m.go = function () { var r = go1.apply(m, arguments); here(); return r; };
     // a page served before its voice was ready: one quiet look again after 3 s; offline, the line and Try again
+    // (without the setting: wq-stories.js's own look again, the line never)
     function late(i) {
       var p = P[i];
-      if (!p || p.audio || p.is_picture || ask[i]) return;
+      if (!on || !p || p.audio || p.is_picture || ask[i]) return;
       ask[i] = 1;
       C.set(function () {
         req('GET', R.tch ? ctx.bookUrl : '/api/wq/stories/book/' + K.enc(id) + '/h/' + K.enc(ctx.token) + '?kid=' + K.enc(ctx.kid)).then(function (r) {
@@ -257,7 +270,7 @@
           if (!np || !np.audio || !W.WQReadAlong || !live()) return;
           P[i].audio = np.audio; P[i].words = np.words || P[i].words;
           if (m.i === i && m.st === 'idle') R.re();
-        }).catch(function () { if (on && live() && m.i === i) { ask[i] = 0; line('<button class="wqs-again" data-tap="late">' + esc(t.retry) + '</button>'); } });
+        }).catch(function () { if (live() && m.i === i) { ask[i] = 0; line('<button class="wqs-again" data-tap="late">' + esc(t.retry) + '</button>'); } });
       }, 3000);
     }
     // until the page's picture has loaded, the stage shows the page's words and "Opening…" under it
@@ -273,7 +286,7 @@
     R.sy = function (mb, lab) {
       var o = R.ml;
       ph();
-      if (mb !== R.mb) { R.mb = mb; late(m.i); if (!on) warm(); }   // a page drawn
+      if (mb !== R.mb) { R.mb = mb; late(m.i); }   // a page drawn
       R.ml = lab;
       if (!on || o == null || o === lab) return;
       R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk';
@@ -291,7 +304,6 @@
     }
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
-    if (!on && R.mb) warm();
 
     return {
       mic: micScreen, read: function () { sum = null; readScreen(); }, q: dv('q'), d: dv('d'), e: eScreen,

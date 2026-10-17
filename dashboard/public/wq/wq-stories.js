@@ -11,7 +11,7 @@
       read: 'Read', empty: 'No storybooks here yet. Try another grade.', oops: 'Jugnu could not open this.', retry: 'Try again',
       off: 'Stories are resting today.', home: 'Home', back: 'Back', close: 'Close', sound: 'Sound', prevP: 'Page before', nextP: 'Next page',
       listen: 'Listen', pause: 'Pause', yourTurn: 'Your turn', next: 'Next', again: 'Listen again', whole: 'Whole page', slow: 'Slower', hearFirst: 'Hear it first',
-      opening: 'Opening…', denied: 'That\'s OK, let\'s listen with Jugnu', wellRead: 'Well read!', together: 'Let\'s read it together', echoB: 'Read it together', practise: 'Let\'s practise this word',
+      opening: 'Opening…',
     },
     ur: {
       shelf: 'کہانیوں کی کتابیں', gl: function (g, l) { return 'جماعت ' + g + '، ' + (l === 'ur' ? 'اردو' : 'انگریزی'); },
@@ -19,7 +19,7 @@
       read: 'پڑھ لی', empty: 'یہاں ابھی کوئی کہانی نہیں۔ کوئی اور جماعت چنیں۔', oops: 'یہ کتاب ابھی نہیں کھل سکی۔', retry: 'دوبارہ کوشش کریں',
       off: 'آج کہانیاں آرام کر رہی ہیں۔', home: 'ہوم', back: 'واپس', close: 'بند کریں', sound: 'آواز', prevP: 'پچھلا صفحہ', nextP: 'اگلا صفحہ',
       listen: 'سنیں', pause: 'رکیں', yourTurn: 'اب آپ پڑھیں', next: 'آگے', again: 'دوبارہ سنیں', whole: 'پورا صفحہ', slow: 'آہستہ', hearFirst: 'پہلے سنیں',
-      opening: 'صفحہ کھل رہا ہے…', denied: 'کوئی بات نہیں، جگنو کے ساتھ سنیں', wellRead: 'بہت اچھا پڑھا!', together: 'آئیں مل کر پڑھیں', echoB: 'آئیں مل کر پڑھیں', practise: 'آئیں، یہ لفظ پھر سے پڑھیں',
+      opening: 'صفحہ کھل رہا ہے…',
     },
   };
   var JG = '/wq/jugnu/';
@@ -403,9 +403,28 @@
       if (p.audio) {
         R.mount(p, {
           onEnd: ended,
-          onState: function (s) { if (R.os) R.os(s, i); if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { ac(); m.set(m.l[m.i] ? 'listened' : 'paused'); } },
+          onState: function (s) { if (!b.steady) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } } else if (R.os) R.os(s, i); if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { ac(); m.set(m.l[m.i] ? 'listened' : 'paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { ac(1); m.set('listening'); } },
         });
+      }
+      // without the setting (wq-stories-q.js may not be here yet): the late voice's one look again, the next page warmed
+      if (!b.steady) {
+        if (!p.audio && !p.is_picture && !ask[i]) {
+          ask[i] = 1;
+          C.set(function () {
+            req('GET', bookUrl()).then(function (r) {
+              var np = r.ok && r.body.pages && r.body.pages[i];
+              if (!np || !np.audio || !W.WQReadAlong || cur !== R) return;
+              P[i].audio = np.audio; P[i].words = np.words || P[i].words;
+              if (view === 'page' && m.i === i && m.st === 'idle') { drop(); pageScreen(); }
+            }, function () {});
+          }, 3000);
+        }
+        var nx = P[i + 1];
+        if (nx) {
+          try { new W.Image().src = nx.image.url; } catch (e) {}
+          try { if (nx.audio && W.WQReadAlong.preload) W.WQReadAlong.preload({ id: b.id + '/p' + nx.n, audio: nx.audio, words: nx.words }); } catch (e) {}
+        }
       }
       sync();
     }
@@ -465,12 +484,7 @@
     function slow() { return ls('wq_st_slow:' + (ctx.kid || '')) === '1'; }
     function rate() { var a = R.pl && R.pl.audio; if (a) { a.playbackRate = slow() ? 0.85 : 1; a.preservesPitch = true; } }
     function extra() {
-      var s = m.st, p = P[m.i], w = p.words && p.words[m.skip], a = m.alt(), h = '';
-      var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
-      if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + dirOf(L) + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
-      else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
-      else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
-      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
+      var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';   // after Your turn: wq-stories-q.js
       if (a) h = '<button class="wqs-sec" data-tap="alt"' + (a === 'hearFirst' ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[a]) + '</button>' + h;
       if (p.audio && /^(listened|paused|read|practise)$/.test(s)) h += '<button class="wqs-again" data-tap="again" data-sound data-trigger="tap">↻ ' + esc(t.again) + '</button>';
       return h;
