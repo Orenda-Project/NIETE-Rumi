@@ -388,6 +388,30 @@ describe('one word for the teacher on a child screen, and the pending teacher qu
   });
 });
 
+describe('the home\'s next_tap says where it was tapped (ctx home) and how long after the tile showed (ms_to_tap)', () => {
+  function tapNext(B) {
+    const evs = []; const l = {};
+    const tile = { attrs: { 'data-tap': 'next', 'data-kind': 'story', href: '#stories' }, getAttribute(a) { return this.attrs[a] == null ? null : this.attrs[a]; }, addEventListener(n, fn) { (l[n] = l[n] || []).push(fn); }, classList: { add() {}, remove() {} } };
+    const root = { innerHTML: '', setAttribute() {}, querySelector: () => null, querySelectorAll: (sel) => (sel === '[data-tap]' ? [tile] : []), appendChild() {} };
+    const win = { addEventListener() {}, scrollTo() {} };
+    const document = { querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null), createElement: (tag) => ({ tag, addEventListener() {} }), head: { appendChild() {} } };
+    vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, location: { hash: '', pathname: '/h/x', search: '' }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp, Date });
+    win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) });
+    (l.click || []).forEach((fn) => fn({ preventDefault() {} }));
+    return evs.find(([n]) => n === 'next_tap')[1];
+  }
+  test('the fallback tile (no offer): ctx home + a whole ms_to_tap >= 0', () => {
+    const e = tapNext(HOME);
+    expect(e).toMatchObject({ ctx: 'home', pos: 0, kind: 'story' });
+    expect(Number.isInteger(e.ms_to_tap) && e.ms_to_tap >= 0).toBe(true);
+  });
+  test('a ranked tile: the same, beside its offer words', () => {
+    const e = tapNext({ ...HOME, next: { kind: 'story', href: '#stories', title: 'Read', arm: 'rank', offer: 'o-1', rank_src: 'prior' } });
+    expect(e).toMatchObject({ ctx: 'home', pos: 0, offer: 'o-1', arm: 'rank', rank_src: 'prior' });
+    expect(Number.isInteger(e.ms_to_tap) && e.ms_to_tap >= 0).toBe(true);
+  });
+});
+
 describe('a #story/<id> hash set in the page after the home is drawn (the Next tile, a resume tile) opens the book', () => {
   function live2(B, { stories = null } = {}) {
     const head = []; const l = {};

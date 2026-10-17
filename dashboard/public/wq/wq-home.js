@@ -219,9 +219,11 @@
     root.setAttribute('data-m', DOORS.indexOf(name) >= 0 ? 'H3-' + name : 'H3');
     var ev = ctx.ev || function () {};
     var nx = DOORS.indexOf(name) < 0 ? nextOf(B, ctx) : null;
+    var shownAt = null;
     // Every home render is a home_view (the funnel's denominator); the tile it shows is a next_shown beside it.
     if (nx) {
       ev('home_view', { src: arrivedFrom(B) });
+      shownAt = Date.now();
       ev('next_shown', rankOf(B, { ctx: 'home', kind: nx.kind, pos: 0, source: nx.src === 'next' ? (/^(pinned|ranked|fallback)$/.test(B.next.source) ? B.next.source : 'ranked') : 'fallback' }));
       if (!B.practice) prefetchOnce(nx.href, ctx);
     }
@@ -232,7 +234,7 @@
         var href = el.getAttribute('href') || '';
         // The coach's preview opens nothing that needs a child: one line says where the class opens it.
         if (B.practice && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
-        if (tap === 'next') { ev('next_tap', rankOf(B, { pos: 0, kind: el.getAttribute('data-kind') })); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
+        if (tap === 'next') { ev('next_tap', rankOf(B, msToTap({ ctx: 'home', pos: 0, kind: el.getAttribute('data-kind') }, shownAt))); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
         else if (tap === 'sound') { setMuted(!muted()); mount(root, B, ctx); }
@@ -270,6 +272,8 @@
     var m = /[?&]from=([a-z_]+)/.exec((typeof location !== 'undefined' && location.search) || '');
     return (m && FROM[m[1]]) || 'home';
   }
+  // next_tap's ms_to_tap (EVENTS_V3 §2): whole ms since its next_shown on this render, never invented
+  function msToTap(e, at) { if (at != null) e.ms_to_tap = Math.max(0, Math.round(Date.now() - at)); return e; }
   // The ranking's own fields ride on next_shown / next_tap when the server's `next` carried them; never invented.
   function rankOf(B, e) {
     var n = B.next;
