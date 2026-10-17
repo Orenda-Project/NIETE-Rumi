@@ -13,5 +13,5 @@ whole of what `showList()` does on that turn. Executed by `maker-empty.golden.te
 | 0 | on | allowed | refused | `maker.fallback.body.known` + 3 buttons `ft_fb_quiz` / `ft_fb_lp` / `ft_fb_coach` (1, same ledger row) | `fallback` | each button opens today's entry (Student Videos, lesson-plan browse, coaching) |
 | 0 | on | the module throws at require | — | today's empty string (1) | — | today's |
 
-`transcript_quiz.list_empty { userId }` fires exactly once on every no-lesson row. Stuck cells: 0. Cells that change
+`transcript_quiz.list_empty { tk }` (the teacher's keyed reference) fires exactly once on every no-lesson row. Stuck cells: 0. Cells that change
 today's reply only with the switch ON: rows 4 and 5.

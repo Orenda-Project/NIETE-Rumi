@@ -1713,21 +1713,6 @@
    "242 userId: quiz.teacher_id"
   ]
  },
- "bot/shared/services/quiz/transcript-quiz-list.service.js": {
-  "n": 9,
-  "area": "quiz",
-  "at": [
-   "258 userId (shorthand)",
-   "306 userId: user.id",
-   "312 userId: user.id",
-   "323 userId: user.id",
-   "347 userId: user?.id || null",
-   "417 userId: user.id",
-   "425 userId: user.id",
-   "440 userId: user.id",
-   "456 userId: user.id"
-  ]
- },
  "bot/shared/services/quiz/transcript-quiz-offer.service.js": {
   "n": 11,
   "area": "quiz",
