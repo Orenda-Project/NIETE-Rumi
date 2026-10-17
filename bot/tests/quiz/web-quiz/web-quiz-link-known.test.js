@@ -61,7 +61,7 @@ function seed({ flag = 'v2', known = true, canon = false } = {}) {
   db.students.push(
     { id: SELF, student_name: 'Sadia Testwala', student_name_urdu: 'سعدیہ', list_id: null, enrolled_by_user_id: null, phone: null, is_active: true, status: 'active', created_at: '2026-10-16T00:00:00Z' },
     { id: SIB, student_name: 'Iqra Testwala', list_id: null, enrolled_by_user_id: null, phone: null, is_active: true, status: 'active', created_at: '2026-10-16T00:00:00Z' },
-    { id: OLD, student_name: 'Sadia', list_id: null, enrolled_by_user_id: null, phone: null, is_active: false, status: 'merged', merged_into: SELF, created_at: '2026-10-15T00:00:00Z' },
+    { id: OLD, student_name: 'Sadia Testwala', list_id: null, enrolled_by_user_id: null, phone: null, is_active: false, status: 'merged', merged_into: SELF, created_at: '2026-10-15T00:00:00Z' },
   );
   const fake = makeFake(db);
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
@@ -257,7 +257,7 @@ describe('a class link names only a held child of THAT class (the sibling and ot
   test('a held child of another grade who already played THIS code is named (their own link)', async () => {
     seed();
     db.child_identity = [{ canonical_id: SELF, fixed_grade: 2 }];
-    db.quiz_sessions.push(F.done('s-own', SELF, 'Sadia', 3, 2, { device_ref: DEV }));
+    db.quiz_sessions.push(F.done('s-own', SELF, 'Sadia Testwala', 3, 2, { device_ref: DEV }));
     await homeOpened();
     expect((await known()).kids.map((k) => k.chip)).toEqual([chip(SELF)]);
   });
@@ -288,6 +288,24 @@ describe('the class filter adds no serial wave', () => {
     expect(ids[0]).toBeGreaterThan(at('students'));
   });
 
+  test('the "may this phone name them" checks of the held children start together, not one after another', async () => {
+    seed();
+    await homeOpened([F.kid(1)]);
+    await homeOpened([F.kid(2)]);
+    await homeOpened([SELF]);
+    const real = HubDevice.deviceMayName;
+    let inflight = 0;
+    let most = 0;
+    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (...a) => {
+      inflight += 1; most = Math.max(most, inflight);
+      try { await new Promise((r) => setImmediate(r)); return await real(...a); } finally { inflight -= 1; }
+    });
+    let r;
+    try { r = await known(); } finally { spy.mockRestore(); }
+    expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF), chip(F.kid(2)), chip(F.kid(1))]);
+    expect(most).toBe(3);
+  });
+
   test('a phone that holds nobody makes none of the filter\'s reads', async () => {
     seed();
     const Db = require('../../../shared/services/quiz/web-quiz-db-deadline');
@@ -307,6 +325,41 @@ describe('the one id the child is known by', () => {
     expect(db.quiz_sessions.filter((x) => x.student_id === OLD)).toHaveLength(0);
   });
 
+  test('a phone trusted with two records of the same child (the old one merged into the new) names that child ONCE', async () => {
+    seed({ canon: true });
+    await homeOpened([OLD]);
+    await homeOpened([SELF]);
+    const r = await known();
+    expect(r.kids).toEqual([{ chip: chip(SELF), first: 'Sadia', animal: T.animalFor(SELF) }]);
+  });
+
+  test('a "may this phone name them" check that fails drops only that child; the others are still named', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const real = HubDevice.deviceMayName;
+    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (ids, d) => {
+      if (ids.includes(SIB)) throw new Error('down');
+      return real(ids, d);
+    });
+    let r;
+    try { r = await known(); } finally { spy.mockRestore(); }
+    expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+  });
+
+  test('a child whose trust on this phone has lapsed (still in the phone\'s list) is not named, and cannot be started by their chip', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const real = HubDevice.deviceMayName;
+    const spy = jest.spyOn(HubDevice, 'deviceMayName').mockImplementation(async (ids, d) => (ids.includes(SIB) ? false : real(ids, d)));
+    try {
+      const r = await known();
+      expect(r.kids.map((k) => k.chip)).toEqual([chip(SELF)]);
+      await expect(play({ code: 'AB12CD', chip: chip(SIB), via: 'known', device_ref: DEV })).rejects.toMatchObject({ status: 404 });
+    } finally { spy.mockRestore(); }
+  });
+
   test('an Urdu class link shows the name as written in Urdu', async () => {
     seed();
     db.quiz_share_codes.find((c) => c.id === F.SC).language = 'ur';
@@ -322,10 +375,25 @@ describe('the one id the child is known by', () => {
     const r = await known();
     expect(r.kids.map((k) => k.first)).toEqual(['Kid5', 'Kid4', 'Kid3', 'Kid2']);
   });
+
+  test('the four are counted AFTER the class filter: a fifth, older held child of this class is still named', async () => {
+    seed();
+    const others = Array.from({ length: 4 }, (_, i) => `55555555-5555-4555-8555-0000000002${i}0`);
+    others.forEach((id, i) => {
+      db.students.push({ id, student_name: `Other${i} Testwala`, list_id: null, is_active: true, status: 'active' });
+      db.class_enrollments.push({ id: `e-o${i}`, class_id: F.CLS_B, student_id: id, roll_number: 20 + i, is_active: true });
+    });
+    await homeOpened([F.kid(1)]);                  // this link's class, trusted first (the oldest of five)
+    for (const id of others) await homeOpened([id]);   // four newer children, all of another class
+    const r = await known();
+    expect(r.kids.map((k) => k.chip)).toEqual([chip(F.kid(1))]);
+    await play({ code: 'AB12CD', chip: chip(F.kid(1)), via: 'known', device_ref: DEV });
+    expect(db.quiz_sessions.filter((x) => x.student_id === F.kid(1))).toHaveLength(1);
+  });
 });
 
 describe('golden: switch off', () => {
-  for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true" (JSON true only)', 'true'], ['a number', 1]]) {
+  for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true" (JSON true only)', 'true'], ['the quoted string \'"true"\'', '"true"'], ['a number', 1]]) {
     test(`${name}: no link_known in the payload, nobody answered, and a known start is today's unknown chip`, async () => {
       seed({ known: value });
       if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
@@ -355,6 +423,27 @@ describe('golden: switch off', () => {
     expect(JSON.stringify(off)).toBe(JSON.stringify(none));
   });
 
+  test('a switch read that throws: off, and the payload is byte-identical to a code with no switch row at all', async () => {
+    seed({ known: undefined });
+    db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+    const none = await WQ.getQuiz('AB12CD');
+    seed();
+    await homeOpened();
+    const from = supabase.from;
+    // only this switch's read throws; every other setting reads as before
+    supabase.from = (t) => {
+      const q = from(t);
+      if (t !== 'app_settings') return q;
+      const select = q.select.bind(q);
+      return { ...q, select: (...a) => { const r = select(...a); const inn = r.in.bind(r); return { ...r, in: (col, keys) => { if (keys.includes(KEY)) throw new Error('boom'); return inn(col, keys); } }; } };
+    };
+    try {
+      const thrown = await WQ.getQuiz('AB12CD');
+      expect(JSON.stringify(thrown)).toBe(JSON.stringify(none));
+      expect(await known()).toEqual({ kids: [] });
+    } finally { supabase.from = from; }
+  });
+
   test('a settings read that fails = off (never cached)', async () => {
     seed();
     await homeOpened();
@@ -364,4 +453,24 @@ describe('golden: switch off', () => {
     supabase.from = from;
     expect((await known()).kids).toHaveLength(1);
   });
+});
+
+describe('the switch\'s own read on a quiz open', () => {
+  for (const [name, value] of [['off', false], ['on', true]]) {
+    test(`${name}: one app_settings read per 30 s, however many times the quiz page opens`, async () => {
+      seed({ known: value });
+      const from = supabase.from;
+      let reads = 0;
+      supabase.from = (t) => {
+        const q = from(t);
+        if (t !== 'app_settings') return q;
+        const select = q.select.bind(q);
+        return { ...q, select: (...a) => { const r = select(...a); const inn = r.in.bind(r); return { ...r, in: (col, keys) => { if (keys.includes(KEY)) reads += 1; return inn(col, keys); } }; } };
+      };
+      try {
+        for (let i = 0; i < 5; i += 1) await WQ.getQuiz('AB12CD');
+      } finally { supabase.from = from; }
+      expect(reads).toBe(1);
+    });
+  }
 });

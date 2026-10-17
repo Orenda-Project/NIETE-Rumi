@@ -32,7 +32,6 @@
  * teacher_home.step. `prompted`: the page was opened from a message the bot sent (the token's door is the report);
  * `cls_k`: the keyed class of the code sent (web-quiz-kid clsOf), null when the code is not this teacher's or has none.
  */
-const crypto = require('crypto');
 const express = require('express');
 const { requireInternalKey } = require('../../middleware/require-internal-key');
 const { logToFile } = require('../../utils/logger');
@@ -45,6 +44,7 @@ const Page = require('./teacher-home.page');
 const Data = require('./teacher-home.data');
 const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
+const StaleWords = require('./teacher-stories-stale.flag');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
@@ -54,6 +54,8 @@ const PLAYED_MS = 60000;
 const PLAYED_MAX = 500;
 const ownSentOf = (lessons) => lessons.filter((r) => (r.state === 'sent' || r.state === 'report_sent') && r.quizId).map((r) => r.quizId);
 const asked = (v) => (ASKABLE.includes(v) ? v : null);
+// A page request: anything but a JSON-only caller (Accept names application/json and not text/html).
+const wantsPage = (req) => { const a = String((req.headers && req.headers.accept) || ''); return !/application\/json/i.test(a) || /text\/html/i.test(a); };
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
@@ -143,12 +145,9 @@ function createRouter(deps = null) {
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
 
-  /** The teacher's event key: HMAC(kid key, 't|' + users.id)[:16]; null without a key of 32+ bytes (the child side's rule; never an unkeyed hash). */
-  function tkOf(uid) {
-    const k = process.env.WEB_QUIZ_KID_KEY;
-    if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-    return crypto.createHmac('sha256', k).update(`t|${uid}`).digest('hex').slice(0, 16);
-  }
+  /** The teacher's event key, from the shared helper: null without a key of 32+ bytes. It also names the first-open mark,
+   *  so a WEB_QUIZ_KID_KEY rotation re-arms every teacher's first open. */
+  const tkOf = (uid) => require('../quiz/web-quiz-kid').tk(uid);
   function event(name, uid, fields) {
     try { logEvent(name, { w: 's', ev_v: 3, tk: tkOf(uid), ...fields }); } catch (_) { /* a failed log never decides a response */ }
   }
@@ -282,12 +281,11 @@ function createRouter(deps = null) {
   }
 
   /** The quick home: the same JSON as today's, its reads started together. */
-  async function quickHome(req, res, p) {
+  async function quickHome(req, res, p, userP) {
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
-    const userP = Data.teacherOf(p.uid, deps);
     const soon = quickReads(p.uid);
     const pfP = Data.within(Cta.prefillOf(p.uid), Data.SIDE_BUDGET_MS, null, 'prefill');
     const treeP = Data.within(Bank.chipTree(Date.now(), { quick: true }), Data.SIDE_BUDGET_MS, {}, 'video bank');
@@ -337,10 +335,14 @@ function createRouter(deps = null) {
   router.get('/api/th/home', handleJson(async (req, res) => {
     const p = authorise(req.query.t, res);
     if (!p) return;
-    if (await req.thPaged) { await quickHome(req, res, p); return; }
+    // the user read starts alongside the quick answer's switch read (one round trip, not a serial one after it); a
+    // failed read is answered where it is awaited (the route's 503), never left unheard
+    const userP = Data.teacherOf(p.uid, deps);
+    userP.catch(() => {});
+    if (await req.thPaged) { await quickHome(req, res, p, userP); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
-    const user = await Data.teacherOf(p.uid, deps);
+    const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
@@ -552,6 +554,13 @@ function createRouter(deps = null) {
     let on = true;
     try { on = !Svc || typeof Svc.flagOn !== 'function' || (await Svc.flagOn()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
+    // An expired or forged link asked for as a page (quiz_teacher_stories_stale_words): the home's own stale page, as
+    // `/` and `/send` answer; a JSON caller keeps the stories router's answer.
+    if (wantsPage(req) && (await StaleWords.on())) {
+      const v = HomeToken.verifyTeacherHome(req.params.token);
+      if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
+      if (v.stale) return messagePage(res, 200, 'mk.stale', asked(req.query.lang) || (v.stale.lang === 'en' ? 'en' : 'ur'));
+    }
     return Stories.servePage(req, res, next);
   });
 

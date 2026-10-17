@@ -36,7 +36,7 @@ const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shap
 const DAY = 86400000;
 // a gone teacher's refusal: today's reads vs the quick answer's (its reads start before the user is known)
 const OFF_GONE_READS = 3;
-const ON_GONE_READS = 32;
+const ON_GONE_READS = 33; // +1: the class report's fold-by-child switch read (in parallel with its sessions, no new wave)
 
 let srv;
 let R; // the router module of the last boot
@@ -213,6 +213,33 @@ describe('switch OFF (absent, false, anything but true)', () => {
     expect(m.reads).toBe(todayReads);
     if (process.env.TEACHER_HOME_RECORD === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+  });
+});
+
+describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
+  // Recorded with the key absent. The plain base gives long 45 / 17, small 44 / 17, big 45 / 17 and the shell 1 / 1.
+  // Reads +1 everywhere: the quick answer's own switch read. It starts beside the user read, so it adds no round trip.
+  // Waves -2 on the home: the class report's fold switch is read beside its sessions (base wave 10), and the report
+  // gate starts with the lesson reads (base wave 13). The shell +1 wave: it must know the switch before it serves.
+  // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
+  // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
+  // beside a read already in flight (no new round trip)
+  const PINS = { long: { reads: 47, waves: 15 }, small: { reads: 46, waves: 15 }, big: { reads: 47, waves: 15 }, shell: { reads: 4, waves: 2 } };
+  test.each([
+    ['long', {}],
+    ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
+    ['big', { sessions: 100, quizzes: 120, quizzed: 40 }],
+  ])('the home, %s history', async (name, opts) => {
+    await boot({ ...opts, paged: null });
+    const m = await Fx.measure(() => home());
+    expect(m.value.status).toBe(200);
+    expect({ reads: m.reads, waves: m.waves, list: m.list }).toEqual({ ...PINS[name], list: m.list });
+  });
+  test('the shell', async () => {
+    await boot({ paged: null });
+    const m = await Fx.measure(() => getJson(`/quiz/teacher/${tokenAt()}`));
+    expect(m.value.status).toBe(200);
+    expect({ reads: m.reads, waves: m.waves, list: m.list }).toEqual({ ...PINS.shell, list: m.list });
   });
 });
 

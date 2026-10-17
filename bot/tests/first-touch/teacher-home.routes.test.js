@@ -15,9 +15,11 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => require('./
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
-// The walk-through persona module by its real name: a stand-in.
+// The walk-through persona: the persona tests hand `mockWalk` in through the module registry (`mockModules.load`), so
+// the real file is never required. The module by its path is a tripwire: a persona test that reaches it fails.
 const mockWalk = { forHome: undefined };
-jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk);
+const mockWalkByPath = { forHome: jest.fn(async (phone, lists) => lists) };
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalkByPath);
 // The one door's landing link and its module lookup: stand-ins, inert unless a test fills them.
 const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
@@ -77,7 +79,7 @@ function listWith({ sessions = [], quizzes = [], lessons = [] } = {}) {
   return { ...List, loadLessonPage: jest.fn(async () => ({ sessions, quizzes, counts: {}, lessons })) };
 }
 
-beforeEach(() => { jest.clearAllMocks(); deps = { List: listWith() }; });
+beforeEach(() => { jest.clearAllMocks(); mockModules.load = undefined; deps = { List: listWith() }; });
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
 describe('switch OFF', () => {
@@ -137,7 +139,7 @@ describe('the shell', () => {
     expect(html).toContain('data-screen="teacher_home"');
     expect(html).toContain('data-screen="teacher_send"');
     const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
-    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(1); // the sheet's send; the home's is filled after paint
+    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(0); // none before paint: the top card's comes with it, the sheet's only while open
     expect(res.headers.get('content-security-policy')).toMatch(/script-src 'sha256-/);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(html).not.toContain(TEACHER.name);
@@ -509,15 +511,18 @@ describe('the stories shelf and the other seams', () => {
     deps.supabase = jsonPathSelect(supabase);
     deps.Stories = { flagOn: async () => true, shelf: jest.fn(async () => ({ books: [{ id: 'b1', title: 'The Thirsty Crow' }, { id: 'b2', title: 'Rain' }] })) };
     mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    mockModules.load = (name) => (name === 'testPersona' ? mockWalk : null);
     try {
       await boot(deps);
       const t = tokenFor();
       const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
       const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+      expect(mockWalk.forHome).toHaveBeenCalled();
+      expect(mockWalkByPath.forHome).not.toHaveBeenCalled();
       expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
-    } finally { mockWalk.forHome = undefined; }
+    } finally { mockWalk.forHome = undefined; mockModules.load = undefined; }
   });
 
   test('a stories module whose switch is off → no tiles, the video card is the library pick', async () => {
@@ -609,15 +614,18 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     fake.db.users[0].phone_number = 'fixture-phone';
     deps.List = listWith({ lessons: [lesson(1, 'Plants')] });
     mockWalk.forHome = jest.fn(async (phone, lists) => (phone === 'fixture-phone' ? { ...lists, lessons: [], played: new Map(), shares: [] } : lists));
+    mockModules.load = (name) => (name === 'testPersona' ? mockWalk : null);
     await boot(deps);
     const walk = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(mockWalk.forHome).toHaveBeenCalledTimes(1);
+    expect(mockWalkByPath.forHome).not.toHaveBeenCalled();
     expect(walk.timeline).toEqual([]);
     expect(walk.primary.kind).toBe('video');
     expect(logEvent).toHaveBeenCalledWith('teacher_home_open', expect.objectContaining({ primary_kind: 'library' }));
     mockWalk.forHome = undefined;
     srv.close(); await boot(deps);
     const real = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+    mockModules.load = undefined;
     expect(real.primary.kind).toBe('lesson');
   });
 });
@@ -662,6 +670,49 @@ describe('the store and the lists when something fails', () => {
     await get(`/api/th/home?t=${t}&g=4`);
     const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => f.first);
     expect(firsts).toEqual([false, true, false]);
+  });
+
+  // The first-open mark is keyed by the teacher's reference, so it is the agreed value or nothing.
+  const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+  const withKey = async (key, fn) => {
+    const was = process.env.WEB_QUIZ_KID_KEY;
+    process.env.WEB_QUIZ_KID_KEY = key;
+    try { return await fn(); } finally { process.env.WEB_QUIZ_KID_KEY = was; }
+  };
+  const openKeys = () => [...R().__keys.keys()].filter((k) => String(k).startsWith('th:open:'));
+
+  test('the first-open mark is keyed by the agreed reference: a 32-byte key and the pinned teacher id → th:open:e815e81977411f12', async () => {
+    seed();
+    fake.db.users.push({ ...TEACHER, id: PIN_ID });
+    await boot(deps);
+    R().__keys.clear();
+    await withKey('k'.repeat(32), () => get(`/api/th/home?t=${tokenFor({ uid: PIN_ID })}&g=4`));
+    expect(openKeys()).toEqual(['th:open:e815e81977411f12']);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => [f.first, f.tk]);
+    expect(firsts).toEqual([[true, 'e815e81977411f12']]);
+  });
+
+  test('a 31-byte key is no key: no reference, no first-open mark, first is false', async () => {
+    seed();
+    await boot(deps);
+    R().__keys.clear();
+    await withKey('k'.repeat(31), () => get(`/api/th/home?t=${tokenFor()}&g=4`));
+    expect(openKeys()).toEqual([]);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => [f.first, f.tk]);
+    expect(firsts).toEqual([[false, null]]);
+  });
+
+  test('the reference (events and the first-open mark) comes from the shared helper, no copy of its own', async () => {
+    seed();
+    await boot(deps);
+    R().__keys.clear();
+    const Kid = require('../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    try {
+      await get(`/api/th/home?t=${tokenFor()}&g=4`);
+      expect(openKeys()).toEqual(['th:open:5e1ec7ed5e1ec7ed']);
+      expect(spy).toHaveBeenCalledWith(TEACHER.id);
+    } finally { spy.mockRestore(); }
   });
 
   test('codes that are not the teacher\'s own sends (a watch child, a class child\'s lesson code) are never a send on the home', async () => {
@@ -734,10 +785,13 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     mockDoor.mintLanding = jest.fn(async () => 'https://portal.example/quiz/go/GO.TOKEN_abc');
     await boot(deps);
     const t = tokenFor();
+    // the two homes compared byte for byte are signed in the same second (the maker link carries its expiry)
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now());
     const without = await (await get(`/api/th/home?t=${t}&g=4`)).text();
     const row = jest.fn(async ({ token }) => (token === 'GO.TOKEN_abc' ? '' : ROW));
     mockModules.load = (name) => (name === 'testPersona' ? { row } : null);
     const unlisted = await (await get(`/api/th/home?t=${t}&g=4`)).text();
+    clock.mockRestore();
     expect(row).toHaveBeenCalledWith({ lang: 'en', token: 'GO.TOKEN_abc' });
     expect(unlisted.replace(/"first":(true|false)/, '')).toBe(without.replace(/"first":(true|false)/, ''));
     expect(JSON.parse(unlisted).change).toBe('/quiz/go/GO.TOKEN_abc');
@@ -942,5 +996,88 @@ describe('the top card\'s named item and the early grade pick: two switches of t
     expect(JSON.parse(again)).toEqual(JSON.parse(text));
     expect(again).toBe(text);
     clock.mockRestore();
+  });
+});
+
+// An expired or forged teacher link on the stories page (/quiz/teacher/<t>/stories): with app_settings
+// quiz_teacher_stories_stale_words on (JSON true only), an HTML request gets the home's own stale page — the same words
+// and the one tap back to the chat — instead of the stories router's bare 401 JSON. JSON callers keep the JSON. Off
+// (absent, false, the string "true", 1, {}, a failed read): today's answer, byte for byte.
+describe('the stories page on an expired or forged link', () => {
+  const KEY = 'quiz_teacher_stories_stale_words';
+  const HTML = { accept: 'text/html,application/xhtml+xml', 'user-agent': 'Mozilla/5.0 (Linux; Android 12; wv) WhatsApp' };
+  const page = (p, h = HTML) => fetch(url(p), { headers: { ...H(), ...h }, redirect: 'manual' });
+  const expired = (o = {}) => HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go', ...o }, { now: Date.now() - 25 * 3600 * 1000 });
+  const forged = () => `${tokenFor().slice(0, -3)}abc`;
+  // the stories router's answer to a bad token, as it is today
+  const routerAnswer = (req, res) => res.status(401).json({ error: 'bad_token' });
+  async function withStories(settings, fn) {
+    seed({ settings });
+    require('../../shared/services/first-touch/teacher-stories-stale.flag').reset();
+    await boot(deps);
+    mockStorySvc.flagOn = async () => true;
+    mockStoryRoutes.servePage = jest.fn((req, res) => {
+      if (!HomeToken.verifyTeacherHome(req.params.token) || !HomeToken.verifyTeacherHome(req.params.token).ok) return routerAnswer(req, res);
+      return res.status(200).type('html').send('<p>Stories for your class</p>');
+    });
+    try { await fn(); } finally { mockStoryRoutes.servePage = undefined; mockStorySvc.flagOn = undefined; }
+  }
+
+  test('on: expired → the home\'s stale page (200, its words + the tap back to the chat), in the token\'s language; ?lang= wins', async () => {
+    await withStories([{ key: KEY, value: true }], async () => {
+      let res = await page(`/quiz/teacher/${expired()}/stories`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toMatch(/text\/html/);
+      let html = await res.text();
+      expect(html).toContain('This link has expired');
+      expect(html).toContain('https://wa.me/15550001111?text=quiz');
+      expect(mockStoryRoutes.servePage).not.toHaveBeenCalled();
+      res = await page(`/quiz/teacher/${expired({ lang: 'en' })}/stories?lang=ur`);
+      html = await res.text();
+      expect(html).toMatch(/<html lang="ur"/);
+      expect(html).toContain(str('th.open.wa', 'ur'));
+    });
+  });
+
+  test('on: forged → the same stale page with 404', async () => {
+    await withStories([{ key: KEY, value: true }], async () => {
+      const res = await page(`/quiz/teacher/${forged()}/stories`);
+      expect(res.status).toBe(404);
+      expect(await res.text()).toContain('https://wa.me/15550001111?text=quiz');
+    });
+  });
+
+  test('on: a JSON caller (Accept: application/json, no text/html) keeps today\'s 401 JSON; a valid token gets its page unchanged', async () => {
+    await withStories([{ key: KEY, value: true }], async () => {
+      let res = await page(`/quiz/teacher/${expired()}/stories`, { accept: 'application/json' });
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({ error: 'bad_token' });
+      res = await page(`/quiz/teacher/${tokenFor()}/stories`);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('<p>Stories for your class</p>');
+    });
+  });
+
+  test.each([['absent', []], ['false', [{ key: KEY, value: false }]], ['the string "true"', [{ key: KEY, value: 'true' }]], ['1', [{ key: KEY, value: 1 }]], ['{}', [{ key: KEY, value: {} }]]])(
+    'off (%s): an expired or forged link gets today\'s answer, byte for byte', async (_, settings) => {
+      await withStories(settings, async () => {
+        for (const t of [expired(), forged()]) {
+          const res = await page(`/quiz/teacher/${t}/stories`);
+          expect(res.status).toBe(401);
+          expect(await res.text()).toBe(JSON.stringify({ error: 'bad_token' }));
+        }
+      });
+    });
+
+  test('off on a failed read of the switch: today\'s answer', async () => {
+    await withStories([{ key: KEY, value: true }], async () => {
+      const from = supabase.from;
+      supabase.from = (t) => { if (t === 'app_settings') return { select: () => ({ eq: (k, v) => (v === KEY ? { maybeSingle: async () => ({ data: null, error: { message: 'down' } }) } : from(t).select('key, value').eq(k, v)) }) }; return from(t); };
+      try {
+        require('../../shared/services/first-touch/teacher-stories-stale.flag').reset();
+        const res = await page(`/quiz/teacher/${expired()}/stories`);
+        expect(res.status).toBe(401);
+      } finally { supabase.from = from; }
+    });
   });
 });
