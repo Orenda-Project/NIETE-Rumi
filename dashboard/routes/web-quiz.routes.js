@@ -639,9 +639,6 @@ function botRouteOf(pathname) {
 // The bot's own timing on a teacher report page (x-render-ms, x-queue-age; sent only with web_quiz_events_v2 on):
 // whole numbers only, else not passed on. null when the bot sent neither.
 const TIMING_RX = /^\d{1,7}$/;
-// The bot's Server-Timing on a JSON answer: only `app;dur=<ms>, db;desc="<n>"` passes on to the phone (no other text).
-const API_TIMING_RX = /^app;dur=\d{1,6}, db;desc="\d{1,4}"$/;
-
 function timingOf(res) {
   const one = (h) => { const v = res.headers && res.headers.get ? res.headers.get(h) : null; return typeof v === 'string' && TIMING_RX.test(v) ? v : null; };
   const t = { render: one('x-render-ms'), queue: one('x-queue-age') };
@@ -689,9 +686,6 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      // the bot's own Server-Timing (only sent with web_quiz_wait_ux on), kept only in its clean shape
-      const st = res.headers && res.headers.get ? res.headers.get('server-timing') : null;
-      if (typeof st === 'string' && API_TIMING_RX.test(st)) return { status: res.status, body: json, location, st };
       return { status: res.status, body: json, location };
     } catch (err) {
       const timedOut = Boolean(controller && controller.signal.aborted);
@@ -839,14 +833,12 @@ function createWebQuizRouter(opts = {}) {
       if (r.path === '/api/wq/hub/:token' && !HUB_TOKEN_RX.test(req.params.token || '')) return res.status(401).json({ error: 'bad_token' });
       const qs = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
       const pathname = req.path.replace(/^\/api\/wq\//, '/api/internal/wq/') + qs;
-      const t0 = Date.now();
       try {
         const out = await callBot(r.method.toUpperCase(), pathname, req, req.body, { route: r.path.replace(/^\/api\/wq\//, '/api/internal/wq/') });
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
         if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
-        if (out.st) res.set('Server-Timing', `edge;dur=${Date.now() - t0}, ${out.st}`);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {

@@ -85,6 +85,7 @@ function page() {
   let boot = mk('div');
   const observers = [];
   const pending = [];
+  const calls = [];
   const document = {
     body: { appendChild(el) { document.bar = el; } },
     createElement: mk,
@@ -93,11 +94,16 @@ function page() {
   };
   const window = {
     MutationObserver: class { constructor(fn) { observers.push(fn); } observe() {} },
-    fetch: () => new Promise((res) => pending.push(res)),
+    AbortController,
+    fetch: (u, o) => new Promise((res, rej) => {
+      pending.push(res);
+      calls.push(o || {});
+      if (o && o.signal) o.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }),
   };
-  vm.runInNewContext(WaitUx.JS, { document, window, setTimeout, clearTimeout, setInterval, clearInterval, String, RegExp });
+  vm.runInNewContext(WaitUx.JS, { document, window, setTimeout, clearTimeout, setInterval, clearInterval, String, RegExp, Object });
   return {
-    document, window, boot: () => boot,
+    document, window, calls, boot: () => boot,
     removeBoot() { boot = null; observers.forEach((fn) => fn()); },
     addBoot() { boot = mk('div'); observers.forEach((fn) => fn()); return boot; },
     settle(i) { pending[i](); },
@@ -167,5 +173,50 @@ describe('the bar and Jugnu\'s moment, run', () => {
     expect(p.document.bar.firstChild.style.width).toBe('100%');
     jest.advanceTimersByTime(600);
     expect(p.document.bar.classList.contains('on')).toBe(false);
+  });
+
+  test('a POST made as a Request (fetch(new Request(url, {method: POST}))) is not a read: no bar', () => {
+    const p = page();
+    p.removeBoot();
+    jest.advanceTimersByTime(1000);
+    p.window.fetch({ url: '/api/wq/hub/x', method: 'POST' });
+    jest.advanceTimersByTime(1000);
+    expect(p.document.bar.classList.contains('on')).toBe(false);
+  });
+
+  test('a read that hangs: at 15 s it is called off (the screen\'s own try-again shows) and the bar finishes; it never creeps forever', async () => {
+    const p = page();
+    p.removeBoot();
+    jest.advanceTimersByTime(1000);
+    let failed = null;
+    p.window.fetch('/api/wq/stories/shelf/h/x').catch((e) => { failed = e.name; });
+    jest.advanceTimersByTime(14000);
+    expect(p.document.bar.classList.contains('on')).toBe(true);
+    expect(failed).toBeNull();
+    jest.advanceTimersByTime(1001);
+    await flush();
+    expect(failed).toBe('AbortError');
+    expect(p.document.bar.firstChild.style.width).toBe('100%');
+    jest.advanceTimersByTime(600);
+    expect(p.document.bar.classList.contains('on')).toBe(false);
+  });
+
+  test('a read that answers in time is not called off later; a caller\'s own signal is passed on and left to the caller', async () => {
+    const p = page();
+    p.removeBoot();
+    let failed = null;
+    p.window.fetch('/api/wq/doors/h/x?d=games').catch((e) => { failed = e.name; });
+    p.settle(0);
+    await flush();
+    jest.advanceTimersByTime(20000);
+    await flush();
+    expect(failed).toBeNull();
+    const own = new AbortController();
+    p.window.fetch('/api/wq/lib/h/x', { signal: own.signal });
+    expect(p.calls[1].signal).toBe(own.signal);
+    jest.advanceTimersByTime(15001);
+    await flush();
+    expect(own.signal.aborted).toBe(false);
+    expect(p.document.bar.firstChild.style.width).toBe('100%');
   });
 });

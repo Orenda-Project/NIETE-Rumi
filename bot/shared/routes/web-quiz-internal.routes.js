@@ -74,8 +74,6 @@ const serve = async (fn, req, res) => {
       res.set('Cache-Control', 'private, max-age=3600');
       return res.send(out.bytes);
     }
-    // web_quiz_wait_ux on: where this answer's time went (the request's own clock and database round trips); off, no header
-    if (WaitUx.on()) res.set('Server-Timing', `app;dur=${Timing.elapsed() || 0}, db;desc="${Timing.peek() || 0}"`);
     return res.status(200).json(out);
   } catch (err) {
     if (err instanceof WebQuiz.WqError) return res.status(err.status).json(err.body);

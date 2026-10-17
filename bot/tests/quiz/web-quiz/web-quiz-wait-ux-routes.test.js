@@ -1,9 +1,9 @@
 'use strict';
 /**
- * The designed wait's switch on the routes (app_settings web_quiz_wait_ux, web-quiz-wait-ux.js). On: every JSON answer
- * says where its time went (`Server-Timing: app;dur=<ms>, db;desc="<round trips>"`) and the hub answer (GET and POST)
- * carries `wait_ux: true` for the page's progress bar. Off (no row, a non-true value, a failed read): no header and
- * every answer byte for byte the page module's own answer.
+ * The designed wait's switch on the routes (app_settings web_quiz_wait_ux, web-quiz-wait-ux.js). On: the hub answer
+ * (GET and POST) carries `wait_ux: true` for the page's progress bar; no other answer changes and the switch writes no
+ * header. Off (no row, a non-true value, a failed read): every answer byte for byte the page module's own answer.
+ * The switch never reads on its own: a route the hub never touches makes no settings read for it, on or off.
  * Supabase and the loggers are the boundaries; the page modules' answers are stood in so the bytes compared are exactly
  * what the route adds.
  */
@@ -15,9 +15,11 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 const KEY = 'web_quiz_wait_ux';
 let rows = [];
 let fail = false;
+let settingsReads = 0;
 function seed() {
   Object.assign(require('../../../shared/config/supabase'), {
     from(t) {
+      if (t === 'app_settings') settingsReads += 1;
       const st = { key: null };
       const b = {
         select() { return b; },
@@ -38,12 +40,12 @@ function seed() {
 let WaitUx;
 beforeEach(() => {
   jest.resetModules();
-  rows = []; fail = false;
+  rows = []; fail = false; settingsReads = 0;
   seed();
   WaitUx = require('../../../shared/services/quiz/web-quiz-wait-ux');
 });
 
-const HUB = { lang: 'en', kids: [{ kid: '0123456789abcdef', name: 'Test Child' }], rt: false };
+const HUB = { lang: 'en', kids: [{ kid: '0123456789abcdef', name: 'Sana Testwala' }], rt: false };
 const DOORS = { games: [{ kind: 'numbers', stop: 'bigger' }] };
 
 async function serve(fn) {
@@ -72,12 +74,12 @@ async function serve(fn) {
 const GOLDEN = { hubGet: JSON.stringify(HUB), hubPost: JSON.stringify(HUB), doors: JSON.stringify(DOORS) };
 
 describe('the routes', () => {
-  test('on: every answer says app + db time; the hub answers say wait_ux: true; nothing else changes', async () => {
+  test('on: the hub answers say wait_ux: true; nothing else changes and the switch writes no header', async () => {
     rows = [{ key: KEY, value: true }];
     await WaitUx.refresh();
     await serve(async (ask) => {
       const out = await ask();
-      for (const k of Object.keys(GOLDEN)) expect(out[k].st).toMatch(/^app;dur=\d+, db;desc="\d+"$/);
+      for (const k of Object.keys(GOLDEN)) expect(out[k].st).toBeNull();
       expect(JSON.parse(out.hubGet.body).wait_ux).toBe(true);
       expect(out.hubGet.body.replace(/,"wait_ux":true/, '')).toBe(GOLDEN.hubGet);
       expect(out.hubPost.body.replace(/,"wait_ux":true/, '')).toBe(GOLDEN.hubPost);
@@ -92,5 +94,28 @@ describe('the routes', () => {
       const out = await ask();
       for (const k of Object.keys(GOLDEN)) { expect(out[k].st).toBeNull(); expect(out[k].body).toBe(GOLDEN[k]); }
     });
+  });
+});
+
+describe('no settings read of its own', () => {
+  test.each([['off', undefined], ['on', true]])('%s, a cold switch cache: a route the hub never touches makes 0 settings reads for it', async (_n, value) => {
+    if (value !== undefined) rows = [{ key: KEY, value }];
+    process.env.INTERNAL_API_KEY = 'route-key';
+    const express = require('express');
+    const Library = require('../../../shared/services/quiz/web-quiz-library');
+    const spy = jest.spyOn(Library, 'libHub').mockImplementation(async () => ({ subjects: [] }));
+    const app = express();
+    app.use(express.json());
+    app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    try {
+      settingsReads = 0;
+      const r = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/lib/h/abc.def`, { headers: { 'x-api-key': 'route-key' } });
+      expect(r.status).toBe(200);
+      expect(r.headers.get('server-timing')).toBeNull();
+      await new Promise((res) => setImmediate(res));
+      expect(settingsReads).toBe(0);
+      expect(WaitUx.on()).toBe(false);
+    } finally { spy.mockRestore(); await new Promise((r) => server.close(r)); }
   });
 });

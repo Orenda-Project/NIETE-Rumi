@@ -6,7 +6,8 @@
  * On, the hub page's frame carries one small inline piece (no extra request, drawn before any script arrives):
  *   - a thin brand-coloured bar along the top edge for any wait over 400 ms: while Jugnu's opening frame is up, and
  *     while any child data read (GET /api/wq/…: the Games and Stories doors, the shelf, the videos) is in flight;
- *     it creeps towards 90 % and runs to the end and fades when the wait is over;
+ *     it creeps towards 90 % and runs to the end and fades when the wait is over; a read still unanswered at 15 s is
+ *     called off (the screen then shows its own try-again) and the bar lets it go, so it never creeps forever;
  *   - Jugnu's waiting moment for an opening over 1.5 s: Jugnu bobs and three dots pulse under the opening line.
  * It adds no words (no new copy to translate), takes no taps (pointer-events none, aria-hidden) and honours reduced
  * motion (the bar still shows; nothing bobs or pulses).
@@ -38,8 +39,11 @@ const JS = '(function(d,w){try{'
   + 'var jt=null;function jm(){if(!jt)jt=setTimeout(function(){jt=null;var x=boot();if(x)x.classList.add("wq-bwait")},1500)}'
   + 'start();jm();'
   + 'var m=d.getElementById("wq");if(m&&w.MutationObserver)new w.MutationObserver(function(){if(boot()){start();jm()}else end()}).observe(m,{childList:true,subtree:true});'
-  + 'var f=w.fetch;if(f)w.fetch=function(u,o){var s=String(u&&u.url||u||""),g=!(o&&o.method&&o.method!=="GET")&&/\\/api\\/wq\\//.test(s);'
-  + 'var r=f.apply(this,arguments);if(!g)return r;n++;start();var z=function(){n--;end()};r.then(z,z);return r};'
+  + 'var f=w.fetch;if(f)w.fetch=function(u,o){var s=String(u&&u.url||u||""),'
+  + 'g=/^get$/i.test(o&&o.method||u&&u.method||"GET")&&/\\/api\\/wq\\//.test(s);if(!g)return f.apply(this,arguments);'
+  + 'var a,args=arguments;var C=w.AbortController;if(typeof u=="string"&&!(o&&o.signal)&&C){a=new C();args=[u,Object.assign({},o,{signal:a.signal})]}'
+  + 'var r=f.apply(this,args),k=0,z=function(){if(k)return;k=1;clearTimeout(t);n--;end()},t=setTimeout(function(){if(a)a.abort();z()},15000);'
+  + 'n++;start();r.then(z,z);return r};'
   + '}catch(e){}})(document,window)';
 
 const TAG = `<style id="wq-wait">${CSS}</style><script>${JS}</script>`;
