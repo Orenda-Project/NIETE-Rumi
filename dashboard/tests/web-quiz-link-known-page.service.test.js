@@ -5,7 +5,7 @@
  * that child (via 'known'); "Someone else" is today's landing. Asked once per quiz on this phone. Today's landing is
  * drawn at once while it asks; the answer swaps it for the question only while the child has not touched the page
  * (no tap, key, touch or scroll) — after a touch a late answer is dropped and `link_known_late {ms}` records it, and
- * every answer is timed (`link_known_answer {ms, kids}`). A phone with no device, an answer of nobody, an error or
+ * every answer the server gave is timed (`link_known_answer {ms, kids}`; an error or offline writes no line). A phone with no device, an answer of nobody, an error or
  * offline: today's screen, drawn exactly as today. Never on the teacher's preview, a friend's challenge, a hub link
  * (?k=), or a run in progress. Runs the whole shipped page.
  */
@@ -134,6 +134,42 @@ describe('today\'s screen, drawn exactly as with the switch off', () => {
     await flush(); await flush();
     expect(p.moment()).toBe('M3');
     expect(p.html()).toBe(page({ lang: 'en', store: { wq_d: DEV, wq_kids: [ZAR] } }).html());
+  });
+});
+
+describe('the answer line counts only an answer the server gave', () => {
+  // The miss rate the switch is judged on reads link_known_answer: a server error or a dropped connection is not
+  // "nobody on this phone", so it writes no line at all.
+  const lines = (p) => evs(p).filter((e) => /^link_known_/.test(e.n));
+  const failed = {
+    'an error (503)': { __status: 503, error: 'off' }, 'a server fault (500)': { __status: 500 },
+    'an error page that still carries a list (502)': { __status: 502, kids: [] },
+    offline: { __offline: true }, 'a reply of the wrong shape': { kids: 'x' }, 'an empty reply': {},
+  };
+  for (const [name, reply] of Object.entries(failed)) {
+    test(`${name}: no answer line and no late line`, async () => {
+      const p = on({ api: { '/api/wq/known': reply } });
+      await flush(); await flush();
+      expect(lines(p)).toEqual([]);
+    });
+    test(`${name} after a touch: still no line`, async () => {
+      const p = on({ api: { '/api/wq/known': reply } });
+      p.fireWin('scroll');
+      await flush(); await flush();
+      expect(lines(p)).toEqual([]);
+    });
+  }
+
+  test('an answer of nobody is an answer: one line with kids 0', async () => {
+    const p = on({ api: { '/api/wq/known': { kids: [] } } });
+    await flush(); await flush();
+    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 0 })]);
+  });
+
+  test('cards this phone already shows are an answer too: one line with kids 0', async () => {
+    const p = on({ store: { wq_d: DEV, wq_kids: [ZAR] } });
+    await flush(); await flush();
+    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 0 })]);
   });
 });
 

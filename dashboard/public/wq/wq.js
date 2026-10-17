@@ -3196,7 +3196,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // as themselves. Asked once per quiz on this phone. Today's landing is drawn at once while it asks (never a blank
   // wait); the answer swaps it for the question only while the child has not touched the page (no tap, key, touch or
   // scroll) and the landing is still the screen. After a touch a late answer is dropped (link_known_late {ms}); every
-  // answer is timed (link_known_answer {ms, kids}). "Someone else", nobody, an error or no answer: today's screen.
+  // answer the server gave is timed (link_known_answer {ms, kids}; an error writes no line). "Someone else", nobody,
+  // an error or no answer: today's screen.
   var KN_KEY = 'wq_kn_' + CODE;
   function knownOk() {
     return Boolean(B.link_known) && !B.preview && !B.invited && !B.challenge && !params.k && !S.st && !S.queue.length && !S.pending
@@ -3214,8 +3215,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // A child already a card on this phone's landing is offered there; only the others are asked about here.
       var have = {};
       kids().forEach(function (k) { have[k.chip] = 1; });
-      var got = r && r.ok && r.body && Array.isArray(r.body.kids) ? r.body.kids : [];
-      var list = got.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
+      // An error, a fault or a reply of the wrong shape is not "nobody on this phone": no line, today's screen.
+      if (!(r && r.ok && r.body && Array.isArray(r.body.kids))) return;
+      var list = r.body.kids.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
       var ms = Math.max(0, Date.now() - t0);
       ev('link_known_answer', { ms: ms, kids: list.length });
       if (!list.length) return;
