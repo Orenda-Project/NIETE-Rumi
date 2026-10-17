@@ -23,8 +23,10 @@
  * boot `one_voice`, `voice_sets`). A listen item's sound to identify (`stim`) is the question's material and is
  * always the recording.
  *
- * Off: an absent row, `false`, `{ "enabled": false }`, an object that names no valid `voices`, `bank` or `kbps` (`{}`,
- * `{ "enabled": true }`), a string (the JSON string "true" too), any other value and a failed read. 30 s cache.
+ * Off: an absent row, `false`, an object whose `enabled` is there and is not the JSON `true` (`{ "enabled": false }`,
+ * `{ "enabled": "false" }`), an object that names no valid `voices`, `bank` or `kbps` (`{}`, `{ "enabled": true }`), a
+ * string (the JSON string "true" too), any other value and a failed read. 30 s cache. The quiz page reads it in its own
+ * settings read (web-quiz-identity-roster.js, `take`), so the switch costs the page no read.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -57,7 +59,9 @@ function voiceOf(raw, lang) {
 function normalize(value) {
   const v = value;
   if (v === true) return withSig({ voices: { en: Voice.ONE_VOICE.en, ur: Voice.ONE_VOICE.ur }, bank: [], kbps: DEFAULT_KBPS });
-  if (!v || typeof v !== 'object' || Array.isArray(v) || v.enabled === false) return null;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  // `enabled`, when there, is read as the JSON `true` only (`"false"`, `0`, `null` are off).
+  if ('enabled' in v && v.enabled !== true) return null;
   // An object is a plan only when it names a valid `voices` (a language with a provider and a voice), `bank` (a list)
   // or `kbps` (32 or 64): `{}`, `{ enabled: true }` or a stray row is off, never the default plan.
   const hasVoices = Boolean(v.voices) && typeof v.voices === 'object' && !Array.isArray(v.voices)
@@ -99,6 +103,16 @@ async function plan({ db, now = Date.now() } = {}) {
     logToFile('⚠️ web-quiz: one-voice setting unreadable — the recorded clips play as before', { error: err && err.message });
     return null;
   }
+}
+
+/**
+ * The plan a value another settings read already holds names (the quiz page's read, web-quiz-identity-roster.js), kept
+ * as this module's reading for the TTL, so no reader in the process reads the switch again. `undefined` (no row) is off.
+ */
+function take(value, now = Date.now()) {
+  if (pinned !== undefined) return pinned;
+  cache = { at: now, plan: normalize(value) };
+  return cache.plan;
 }
 
 /** → true only when the switch names a plan. Never throws. */
@@ -151,4 +165,4 @@ function pin(p) { pinned = p || null; }
 /** Tests only: forget the cached reading (and a pin). */
 function reset() { cache = null; pinned = undefined; }
 
-module.exports = { on, plan, normalize, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, KBPS };
+module.exports = { on, plan, take, normalize, renderOf, mixOf, current, currentPlan, keepFresh, pin, reset, KEY, TTL_MS, BANK_PARTS, KBPS };
