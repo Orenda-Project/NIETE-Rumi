@@ -23,4 +23,12 @@ describe('assetVersion: every file the hub loads is hashed', () => {
     jest.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => (path.basename(String(p)) === 'wq-book.js' ? Buffer.from('changed') : real(p, ...a)));
     expect(assetVersion()).not.toBe(before);
   });
+  // The child home and its door screens load at the hub's ?v= too (the routes' home tags, wq-home.js's door loader).
+  test.each(['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css'])('a change to %s alone changes the version', (f) => {
+    const { assetVersion } = require('../routes/web-quiz.routes');
+    const before = assetVersion();
+    const real = fs.readFileSync;
+    jest.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => (path.basename(String(p)) === f ? Buffer.from('changed') : real(p, ...a)));
+    expect(assetVersion()).not.toBe(before);
+  });
 });
