@@ -28,7 +28,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const HubDevice = require('./web-quiz-hub-device');
 
 // The notice's wording version (jg.keep.notice): a new wording is shown again to every child on every phone.
-const NOTICE_V = 1;
+// 2: the true words (no end date yet; only the people who make Jugnu can listen; STOP removes the number, recordings stay).
+const NOTICE_V = 2;
 
 const KEYS = {
   challenge: 'web_quiz_challenge',
