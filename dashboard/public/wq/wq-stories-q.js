@@ -39,19 +39,18 @@
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
     var qi = 0, ans = [], dim = -1, rv = -1, chosen = -1, qlock = 0, la = 0, eo = null, qs = null, fcw = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, spr = null, end = 0;
     function live() { return R.live(); }
-    // the microphone is on only while the child reads: every track stopped the moment a read (or "Read it together")
-    // ends, the page or the reader is left, or a stream comes after the sheet has gone; the next Your turn asks again
-    function stopTracks(s) { try { if (s && s.getTracks) s.getTracks().forEach(function (x) { x.stop(); }); } catch (e) { /* gone */ } }
-    function free() { var s = stream; stream = null; stopTracks(s); }
+    // the mic is on only while a child reads: off when a read ends, the page or reader is left, or it comes too late
+    function stopTracks(s) { try { s.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {} }
+    function free() { stopTracks(stream); stream = null; }
     var set0 = m.set, go0 = m.go, kill0 = R.kill;
-    m.set = function (st) { if (st !== 'reading' && st !== 'echo') free(); return set0.apply(m, arguments); };
+    m.set = function (st) { if (st != 'reading' && st != 'echo') free(); return set0.apply(m, arguments); };
     m.go = function () { free(); return go0.apply(m, arguments); };
     R.kill = function () { free(); return kill0.apply(R, arguments); };
-    // the reader's own Back / Home leave by the hash; a closed tab by pagehide
-    if (W.addEventListener) ['hashchange', 'pagehide'].forEach(function (n) { W.addEventListener(n, function () { if (n === 'pagehide' || !R.live()) free(); }); });
+    // Back / Home leave by the hash; a closed tab by pagehide
+    ['hashchange', 'pagehide'].forEach(function (n) { W.addEventListener(n, function () { if (n == 'pagehide' || !R.live()) free(); }); });
     var micO = {
       lang: L, src: 'story', ev: ctx.ev, notice: { kid: ctx.kid, keep: !!b.lr3_keep },
-      onStream: function (s) { if (m.st === 'mic') { free(); stream = s; m.granted(); } else stopTracks(s); },
+      onStream: function (s) { if (m.st == 'mic' && R.live()) { free(); stream = s; m.granted(); } else stopTracks(s); },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') m.notNow(); },
     };
@@ -121,9 +120,9 @@
 
     function eGo() {
       eo = { s: sents(P[m.i].words), k: 0, f: m.st };
-      // the read gave the microphone back: the live reader asks again inside this tap (the browser remembers the permission)
-      var again = !stream && W.WQLiveRead && W.WQLiveRead.micAgain && W.WQLiveRead.micAgain(), me = eo;
-      if (again) again.then(function (s) { if (eo === me && m.st === 'echo') stream = s; else stopTracks(s); }, function () { /* the sentences still play */ });
+      // the read gave the mic back: the live reader asks again inside this tap
+      var LR = W.WQLiveRead, again = !stream && LR && LR.micAgain && LR.micAgain(), me = eo;
+      if (again) again.then(function (s) { if (eo == me && m.st == 'echo' && R.live()) stream = s; else stopTracks(s); }, function () {});
       m.set('echo');
     }
     function eScreen() {

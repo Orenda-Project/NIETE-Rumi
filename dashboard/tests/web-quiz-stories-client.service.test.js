@@ -560,6 +560,17 @@ describe('the reader', () => {
     (e4.winL.pagehide || []).forEach((f) => f({}));                 // the tab closed mid-read
     expect(st4.tr.stops).toBeGreaterThanOrEqual(1);
   });
+  test('a stream granted after the reader is gone (Back while the phone asks) is given back at once, never read', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const nlr = e.calls.lr.length;
+    e.S.open('b-2', e.ctx({ root }));                              // the child left while the phone's prompt was open
+    await flush();
+    const late = micStream('late');
+    e.calls.ask[0].onStream(late);
+    expect(late.tr.stops).toBe(1);
+    expect(e.calls.lr.length).toBe(nlr);
+  });
   test('a stream that arrives after the sheet has gone is given back at once', async () => {
     const e = env(); const root = await openReader(e);
     toMic(e, root);
@@ -1621,6 +1632,19 @@ describe('echo reading on G1-2', () => {
     const ru = await openReader(u, { lang: 'ur' });
     toMic(u, ru); u.calls.ask[0].onStream({}); u.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
     expect(ru.innerHTML).toMatch(/data-tap="echo"[^>]*>آئیں مل کر پڑھیں<\/button>/);
+  });
+  test('Read it together: a microphone granted after the reader is gone is given back at once', async () => {
+    const e = env({ replies: { book: { status: 200, body: two() } } });
+    const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
+    let give;
+    e.win.WQLiveRead.micAgain = () => new Promise((r) => { give = r; });
+    fire(root, 'echo');
+    e.S.open('b-2', e.ctx({ root }));                              // left before the phone answered
+    await flush();
+    const tr = { stops: 0, stop() { tr.stops += 1; } };
+    give({ id: 'late', getTracks: () => [tr] });
+    await flush();
+    expect(tr.stops).toBe(1);
   });
   test('sentences split on . ! ? ۔ ؟ (a closing quote kept with its sentence)', async () => {
     const e = env(); await openReader(e);
