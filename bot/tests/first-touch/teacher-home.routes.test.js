@@ -137,7 +137,7 @@ describe('the shell', () => {
     expect(html).toContain('data-screen="teacher_home"');
     expect(html).toContain('data-screen="teacher_send"');
     const markup = html.replace(/<script[\s\S]*?<\/script>/g, '');
-    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(1); // the sheet's send; the home's is filled after paint
+    expect((markup.match(/ data-primary[ >]/g) || []).length).toBe(0); // none before paint: the top card's comes with it, the sheet's only while open
     expect(res.headers.get('content-security-policy')).toMatch(/script-src 'sha256-/);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(html).not.toContain(TEACHER.name);
