@@ -191,7 +191,8 @@ describe('the kid hub, switch on: the same payload as switch off where the early
 describe('the kid hub, switch off: exactly today\'s (golden: payload, reads per table, waves)', () => {
   // off_stale's app_settings count holds the minified files' switch (web_quiz_minify, web-quiz-minify.js): with the fast
   // page off it reads its own row in the background once its 30 s cache is past, so the stale request counts one more
-  // app_settings read than before that switch; no wave and no byte of the payload.
+  // app_settings read than before that switch; no wave and no byte of the payload. The same holds for the home's files as
+  // one (web_quiz_pack, web-quiz-pack.js): one more own background read on the stale request, no wave, no payload byte.
   test('a child with every part', async () => {
     boot({ fast: false });
     const tok = tokenOne();
