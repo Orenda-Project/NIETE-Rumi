@@ -182,7 +182,12 @@
     if (kid) body.kid = kid;
     body.device_ref = deviceRef();
     if (URL_LANG) body.lang = URL_LANG;
-    if (URL_KEEP) body.keep = 1;
+    // keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never re-keeps an old choice
+    if (URL_KEEP) {
+      body.keep = 1;
+      URL_KEEP = false;
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + (kid ? '?kid=' + encodeURIComponent(kid) : ''))); } catch (e) {}
+    }
     return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
   }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.

@@ -3,11 +3,10 @@
  * A child's own language, kept on one row per child (child_language) under app_settings `web_quiz_return_lang`, the
  * same switch as the /quiz reply's link: "the child's language follows the child". Two writes: the join's language
  * ('join', once, when a child joins on their own) and a grown-up's tap on the home's grown-ups corner ('chosen', the
- * only update). The order every link and page uses:
- *   the page's own ?lang= → a grown-up's choice → the newest class quiz's language → the join's (or the link's `l`) →
+ * only update). The order every link and page uses (web-quiz-child-lang.js ladder()):
+ *   a grown-up's choice → the page's own ?lang= → the newest class quiz's language → the link's `l` → the join's →
  *   the newest library lesson's → English.
- * stored(id) hands a child's row to a page that orders the rest itself; web-quiz-child-lang.js childLang(id) answers
- * the middle three for a link. Off, or any read error: null, and nothing is read or written. Logs carry an error code
+ * stored(id) hands a child's row to ladder(); web-quiz-child-lang.js childLang(id) answers it for a link. Off, or any read error: null, and nothing is read or written. Logs carry an error code
  * only: never an id, a name or a phone.
  */
 const supabase = require('../../config/supabase');

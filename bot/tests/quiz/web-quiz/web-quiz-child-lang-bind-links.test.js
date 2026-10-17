@@ -136,3 +136,26 @@ describe('switch off: today\'s link, byte for byte', () => {
     expect(linkUrl()).toBe(todays([KID], 'bind'));
   });
 });
+
+// The saved reply's own words follow the same order as its link: a grown-up's choice → class quiz → the join's → a
+// lesson's → the family row's (switch off: the child's newest quiz, else the family row's — today's).
+describe('the saved reply\'s words', () => {
+  const { resolveUx } = require('../../../shared/config/ux-strings');
+  const button = () => WhatsApp.sendCtaUrl.mock.calls[WhatsApp.sendCtaUrl.mock.calls.length - 1][1].buttonText;
+  test('switch on: a self-joined Urdu child, 0 quizzes, an English family row → the reply speaks Urdu', async () => {
+    seed();
+    expect((await saved()).outcome).toBe('bound');
+    expect(button()).toBe(resolveUx('jugnuBindOpenBtn', { language: 'ur' }));
+  });
+  test('switch on: a grown-up\'s kept «اردو» outranks an English class quiz', async () => {
+    seed({ quizLang: 'en', joined: null });
+    fake.db.child_language.push({ canonical_id: KID, language: 'ur', source: 'chosen' });
+    expect((await saved()).outcome).toBe('bound');
+    expect(button()).toBe(resolveUx('jugnuBindOpenBtn', { language: 'ur' }));
+  });
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s → today\'s English reply', async (_l, ret) => {
+    seed({ ret });
+    expect((await saved()).outcome).toBe('bound');
+    expect(button()).toBe(resolveUx('jugnuBindOpenBtn', { language: 'en' }));
+  });
+});

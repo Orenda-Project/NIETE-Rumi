@@ -8,6 +8,8 @@
  * the payload and the next reply's link are today's. Supabase, Redis and WhatsApp are the boundaries and are faked;
  * every first-party module on the path runs for real, the internal route included.
  */
+// the chips are keyed by the token secret: set before CHIP is made (the corner's link carries the child's real chip)
+process.env.WEB_QUIZ_TOKEN_SECRET = 'hub-test-secret';
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/services/cache/railway-redis.service', () => {
   const store = new Map();

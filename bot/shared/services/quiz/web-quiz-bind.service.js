@@ -120,7 +120,10 @@ async function languageFor(child, user, asked = null) {
   if (asked === 'ur' || asked === 'en') return asked;
   try {
     const SQ = require('./student-quiz.service');
-    const lang = SQ.childLanguage(await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]));
+    const quizzes = await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]);
+    // web_quiz_return_lang: the child's own language (a grown-up's choice → class quiz → the join's) before a lesson's
+    // (off: null, today's)
+    const lang = (await require('./web-quiz-child-lang').childLang(child.id, { history: quizzes })) || SQ.childLanguage(quizzes);
     if (lang) return lang;
   } catch (_) { /* the user's */ }
   return clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');

@@ -56,7 +56,8 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   const chosen = { id: canonical };
   const out = { kid: parts.kidChip(canonical), lang, teacher: null, again: [], lib: null, challenge: null };
   if (f.homeButton) out.nav_home = true;
-  out.teacher = await parts.teacherCard(chosen, ctx.list, history, grade);
+  // web_quiz_return_lang: the teacher's twin in the card's own language (off: the newest quiz's, today's)
+  out.teacher = await parts.teacherCard(chosen, ctx.list, history, grade, null, (await require('./web-quiz-return-lang').on()) ? lang : null);
   out.again = parts.againOf(history, canonical, out.teacher && out.teacher.code);
   out.last = parts.lastOf(history, canonical);
   if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;

@@ -54,10 +54,11 @@ const at = (h) => new Date(NOW_MS + h * 3600000).toISOString();
  * parent code), else the teacher's class quiz. `quizLang`: the quiz's language. `joined`: the language kept for the
  * child by the join (child_language), or none.
  */
-function seed({ ret = true, lesson = false, quizLang = 'en', joined = 'ur' } = {}) {
+function seed({ ret = true, lesson = false, quizLang = 'en', joined = 'ur', canon = false } = {}) {
   const settings = [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_hub_door', value: true },
     { key: 'web_quiz_link_home', value: true }];
   if (ret !== 'absent') settings.push({ key: 'web_quiz_return_lang', value: ret });
+  if (canon) settings.push({ key: 'web_quiz_identity_canon', value: true });
   const fake = makeFake({
     app_settings: settings,
     quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '2', subject: 'maths', quiz_source: 'transcript', video_id: null, meta: {}, language: quizLang }],
@@ -78,7 +79,9 @@ function seed({ ret = true, lesson = false, quizLang = 'en', joined = 'ur' } = {
   Ret._resetCache();
   try { require('../../../shared/services/quiz/web-quiz-hub')._resetCache(); } catch (_) { /* none */ }
   try { require('../../../shared/services/quiz/web-quiz-next-offer')._resetCache(); } catch (_) { /* none */ }
+  require('../../../shared/services/quiz/web-quiz-identity-flags')._resetCache();
   redis._store.clear();
+  return fake;
 }
 const st = () => T.signSession({ sessionId: 's1', deviceRef: D1, shareCodeId: SC });
 const resolve = (c) => WQ.resolveCode(c);
@@ -136,5 +139,30 @@ describe('switch off: today\'s links, byte for byte, and today\'s card language'
     const s = await snap();
     expect(s.token).toBe(T.signHub([KID]));
     expect(s.lang).toBe('en');
+  });
+});
+
+// A child whose run was played under a record later merged into the child (web_quiz_identity_canon): the kept choice
+// lives under the id the child is known by, and every door reads it there.
+describe('switch on: a merged child\'s kept choice', () => {
+  const RAW = '44444444-4444-4444-8444-444444444499';
+  const merged = (opts = {}) => {
+    const fake = seed({ quizLang: 'en', joined: null, canon: true, ...opts });
+    fake.db.students.push({ id: RAW, student_name: 'Zara Testwala', student_name_urdu: null, self_reported_class: 'Grade 2', list_id: null, is_active: true, status: 'merged', merged_into: KID, created_at: at(-72) });
+    fake.db.quiz_sessions[0].student_id = RAW;
+    fake.db.child_language.push({ canonical_id: KID, language: 'ur', source: 'chosen' });
+    return fake;
+  };
+  test('the old link opened again carries the chosen "ur" (read by the id the child is known by)', async () => {
+    merged();
+    expect(tokOf(await linkHomeHref())).toMatchObject({ k: 'h', l: 'ur' });
+  });
+  test('the results card\'s door: the same "ur"', async () => {
+    merged();
+    expect(tokOf(await doorHref())).toMatchObject({ k: 'h', ids: [KID], l: 'ur' });
+  });
+  test('switch off: the old link is today\'s, byte for byte', async () => {
+    merged({ ret: false });
+    expect(await linkHomeHref()).toBe(`/h/${T.signHub([RAW])}?from=link`);
   });
 });

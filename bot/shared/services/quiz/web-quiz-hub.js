@@ -171,7 +171,9 @@ async function recentCodes(teachers) {
 
 const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
 
-async function teacherCard(kidRow, list, history, grade, homeP = null) {
+// pageLang: the language the child's page resolved (web_quiz_return_lang on: the twin in that language is picked first);
+// null: the child's newest quiz's, as before.
+async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -197,7 +199,7 @@ async function teacherCard(kidRow, list, history, grade, homeP = null) {
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
-  const lang = clampLanguage(require('./student-quiz.service').childLanguage(history));
+  const lang = pageLang || clampLanguage(require('./student-quiz.service').childLanguage(history));
   const fresh = open.filter((c) => quizById.get(c.quiz_id) && !lessonRefs(quizById.get(c.quiz_id)).some((r) => doneLessons.has(r)));
   const ranked = [];
   const push = (c, rank) => { const q = quizById.get(c.quiz_id); ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 }); };
@@ -350,8 +352,13 @@ async function kidFromHub(token, chip, device) {
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
-  // lang: the child's language from their own quizzes (null with none), for the video library's language list.
-  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null, lang: require('./student-quiz.service').childLanguage(ctx.history) };
+  // lang: the child's language from their own quizzes (null with none), for the video library's language list;
+  // web_quiz_return_lang: the hub's own order (a grown-up's choice → class quiz → the link's `l` → the join's → lesson)
+  const CLang = require('./web-quiz-child-lang');
+  const lang = (await require('./web-quiz-return-lang').on())
+    ? CLang.ladder({ own: await CLang.ownOf(studentId), history: ctx.history, linked: await linkedLang(token) })
+    : require('./student-quiz.service').childLanguage(ctx.history);
+  return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null, lang };
 }
 
 // `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
@@ -422,12 +429,12 @@ async function lockedHub(ids, why, asked = null, linked = null) {
     const live = (rows || []).filter((r) => r.is_active !== false);
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
-      const history = await StudentQuiz.quizzesForStudents(live);
-      // web_quiz_return_lang: the join's beside the link's; a grown-up's kept choice above all (off: null, today's line)
-      const own = live.length === 1 ? await require('./child-language.repo').stored(live[0].id) : null;
-      const kept = (s) => (own && own.source === s ? own.language : null);
-      lang = clampLanguage(StudentQuiz.classLanguage(history) || linked || kept('join') || StudentQuiz.childLanguage(history));
-      chosen = kept('chosen');
+      // web_quiz_return_lang: the child's kept row, by the id the child is known by (the token keeps raw ids), read beside
+      // the quizzes; the one order (web-quiz-child-lang.js ladder) — off: null, today's line
+      const [history, own] = await Promise.all([StudentQuiz.quizzesForStudents(live),
+        live.length === 1 ? require('./web-quiz-child-lang').ownOf(live[0].id, { raw: true }) : null]);
+      lang = clampLanguage(require('./web-quiz-child-lang').ladder({ own, history, linked }));
+      chosen = own && own.source === 'chosen' ? own.language : null;
     } else if (linked) lang = linked;
   } catch (_) { /* English */ }
   if (asked) lang = asked;
@@ -474,19 +481,21 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false 
   const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
   // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
   const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
+  // The child's kept language (web_quiz_return_lang; child_language), started here too: a grown-up's tap on the grown-ups
+  // corner (`keep`, this trusted phone, the child the request names) is kept, else the child's row is read. Off: null.
+  const CL = require('./child-language.repo');
+  const ownP = !chosen ? Promise.resolve(null)
+    : keep && asked && kidChip(chosen.id) === String(kid || '')
+      ? CL.choose(chosen.id, asked).then((kept) => (kept ? { language: asked, source: 'chosen' } : CL.stored(chosen.id)))
+      : CL.stored(chosen.id);
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
-  const StudentQuiz = require('./student-quiz.service');
-  // web_quiz_return_lang: the child's kept language (child_language) — a grown-up's tap on the grown-ups corner
-  // (`keep`, this trusted phone, the chosen child) is kept first; a kept choice outranks even a `?lang=` the URL still
-  // carries (a join's redirect is reopened for days), the join's sits beside the link's `l`. Off: null (the line below
-  // is today's exactly).
-  const CL = require('./child-language.repo');
-  if (keep && asked && chosen) await CL.choose(chosen.id, asked);
-  const own = chosen ? await CL.stored(chosen.id) : null;
-  const kept = (s) => (own && own.source === s ? own.language : null);
-  const lang = kept('chosen') || asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || kept('join') || StudentQuiz.childLanguage(history));
+  // web_quiz_return_lang: the one order (web-quiz-child-lang.js ladder) over the child's kept row: a kept choice outranks
+  // even a `?lang=` the URL still carries (a join's redirect is reopened for days), the link's `l` sits before the
+  // join's. Off: `own` is null and the order is today's line exactly.
+  const own = await ownP;
+  const lang = clampLanguage(require('./web-quiz-child-lang').ladder({ own, asked, history, linked }));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
@@ -511,7 +520,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false 
     return out;
   }
   const grade = ctx.grade;
-  out.teacher = await teacherCard(chosen, ctx.list, history, grade, homeP);
+  // web_quiz_return_lang: the teacher's twin in the page's own language (off: the newest quiz's, today's)
+  out.teacher = await teacherCard(chosen, ctx.list, history, grade, homeP, (await require('./web-quiz-return-lang').on()) ? out.lang : null);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
