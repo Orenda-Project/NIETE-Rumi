@@ -627,7 +627,8 @@ async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = f
     : quizzes || [];
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
-  const allSessions = await sessionsFor(codes.map((c) => c.id));
+  // The fold switch is read alongside the sessions (one round trip, not a serial one after them).
+  const [allSessions, foldOn] = await Promise.all([sessionsFor(codes.map((c) => c.id)), FoldFlag.on()]);
   const counted = countedSessions(allSessions, teacherId);
   // A storybook send's children count once they joined (story-teacher-report.js); a no-op when there is none.
   require('./story-teacher-report').countStoryJoins(counted, { quizzes: qs, sessions: allSessions, quizOfCode, count: (rows) => countedSessions(rows, teacherId, { opened: true }) });
@@ -644,7 +645,6 @@ async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = f
   }
   // quiz_report_fold_by_child: a child not on the class list counts once per CHILD here too, so the teacher home
   // (which reads this count) names the same children as the quiz's own report; off, one row per record (today).
-  const foldOn = await FoldFlag.on();
   const listedOf = (q) => { const { one } = classOf(roster, q, null); return one ? new Set(one.kids.map((k) => k.id)) : null; };
   const offListOf = (q, rows, ids) => rows.filter((x) => !(ids && x.student_id && ids.has(x.student_id)));
   const facts = foldOn
