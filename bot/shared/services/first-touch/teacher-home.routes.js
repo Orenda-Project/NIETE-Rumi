@@ -46,6 +46,9 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
 const ASKABLE = Object.freeze(['en', 'ur']);
 const COACH_ROLES = new Set(['coach', 'principal', 'school_leader', 'supervisor', 'aeo', 'head']);
+const PLAYED_MS = 60000;
+const PLAYED_MAX = 500;
+const ownSentOf = (lessons) => lessons.filter((r) => (r.state === 'sent' || r.state === 'report_sent') && r.quizId).map((r) => r.quizId);
 const asked = (v) => (ASKABLE.includes(v) ? v : null);
 // A page request: anything but a JSON-only caller (Accept names application/json and not text/html).
 const wantsPage = (req) => { const a = String((req.headers && req.headers.accept) || ''); return !/application\/json/i.test(a) || /text\/html/i.test(a); };
@@ -116,6 +119,22 @@ function createRouter(deps = null) {
     res.status(v && v.stale ? 410 : 404).json({ error: 'mk.stale' });
     return null;
   }
+  /**
+   * The class report's played counts, held 60 s per teacher (the newest 500): only a read that answered is held, and any
+   * send, share or mark made from the page drops it (`dropPlayed`; a read that began before a drop is never held).
+   */
+  const memo = new Map();
+  let drops = 0;
+  function playedOwn(uid) {
+    const hit = memo.get(uid);
+    if (hit && Date.now() - hit.at < PLAYED_MS) return Promise.resolve(hit.v);
+    const gen = drops;
+    return Data.playedOwn(uid, deps).then((v) => {
+      if (gen === drops) { memo.delete(uid); memo.set(uid, { at: Date.now(), v }); if (memo.size > PLAYED_MAX) memo.delete(memo.keys().next().value); }
+      return v;
+    });
+  }
+  const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
 
@@ -235,15 +254,23 @@ function createRouter(deps = null) {
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
-    const [lessons0, played0, shares0, pf, tree, children, confirm, maker] = await Promise.all([
-      Data.within(Data.lessons(p.uid, deps), Data.REPORT_BUDGET_MS, [], 'lessons'),
-      Data.within(Data.playedOwn(p.uid, deps), Data.REPORT_BUDGET_MS, new Map(), 'class report'),
+    const gate = (ids) => (ids.length ? Data.within(Data.dep(deps, 'Gate').teacherReportOn(p.uid), Data.SIDE_BUDGET_MS, false, 'report gate') : false);
+    // "Send again" only where the send would answer; a read that fails or runs late → offered as before (null)
+    const sendable = (ids, pl) => Data.within(Data.sendableOwn(p.uid, [...ids, ...pl.keys()], deps), Data.SIDE_BUDGET_MS, null, 'send-again check');
+    const lessonsP = Data.within(Data.lessons(p.uid, deps), Data.REPORT_BUDGET_MS, [], 'lessons');
+    const playedP = Data.within(playedOwn(p.uid), Data.REPORT_BUDGET_MS, new Map(), 'class report');
+    // the gate and the send-again check start as soon as their own inputs are in, alongside the other reads
+    const [lessons0, played0, shares0, pf, tree, children, confirm, maker, on0, againable0] = await Promise.all([
+      lessonsP,
+      playedP,
       Data.within(Data.libraryShares(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'library shares'),
       Data.within(Cta.prefillOf(p.uid), Data.SIDE_BUDGET_MS, null, 'prefill'),
       Data.within(Bank.chipTree(), Data.SIDE_BUDGET_MS, {}, 'video bank'),
       Data.within(Data.childrenLink(user, deps), Data.SIDE_BUDGET_MS, null, 'children'),
       Data.within(Data.confirmRows(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'confirm queue'),
       makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null)),
+      lessonsP.then((l) => gate(ownSentOf(l))),
+      Promise.all([lessonsP, playedP]).then(([l, pl]) => sendable(ownSentOf(l), pl)),
     ]);
     // a listed test phone walking as "a teacher with no lessons yet" (sandbox walk-through only): the lists hidden, never touched
     const { lessons, played, shares } = await walkLists(user, { lessons: lessons0, played: played0, shares: shares0 });
@@ -251,14 +278,14 @@ function createRouter(deps = null) {
     const pfSubject = (/^grade_[1-5]\|([a-z_]+)$/.exec(String(pf || '')) || [])[1] || null;
     const lib = await libraryFor({ p, token, lang, grade, tree, pfSubject });
     const reports = new Map();
-    const ownSent = lessons.filter((r) => (r.state === 'sent' || r.state === 'report_sent') && r.quizId).map((r) => r.quizId);
+    const ownSent = ownSentOf(lessons);
+    const walked = lessons !== lessons0 || played !== played0; // the walk-through's lists: both asked again on what it shows
     if (ownSent.length) {
-      const on = await Data.within(Data.dep(deps, 'Gate').teacherReportOn(p.uid), Data.SIDE_BUDGET_MS, false, 'report gate');
+      const on = walked ? await gate(ownSent) : on0;
       if (on) ownSent.forEach((id) => { const u = Data.dep(deps, 'Gate').reportUrls({ teacherId: p.uid, quizId: id }); if (u) reports.set(id, { live: u.live, remind: u.remind }); });
     }
     const change = await changeLanding(user, lang);
-    // "Send again" only where the send would answer; a read that fails or runs late → offered as before (null)
-    const againable = await Data.within(Data.sendableOwn(p.uid, [...ownSent, ...played.keys()], deps), Data.SIDE_BUDGET_MS, null, 'send-again check');
+    const againable = walked ? await sendable(ownSent, played) : againable0;
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
       maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
@@ -302,11 +329,13 @@ function createRouter(deps = null) {
     const lang = Page.pageLang(p.lang, asked(b.lang)).lang;
     const id = uuidIn(b.id);
     if (!id) { fail(res, 400); return; }
+    dropPlayed(p.uid);
     let out = null;
     if (b.kind === 'video') out = await Send.videoSend({ uid: p.uid, lang, quizId: id }, deps);
     else if (b.kind === 'share') out = await Send.shareSend({ uid: p.uid, lang, shareCodeId: id }, deps);
     else if (b.kind === 'again') out = await Send.againSend({ uid: p.uid, lang, quizId: id }, deps);
     else { fail(res, 400); return; }
+    dropPlayed(p.uid); // again after the write: a read that began during it holds nothing
     if (!out) { fail(res, 404); return; }
     headers(res);
     res.status(200).json({ message: out.message, wa: out.wa, c: out.shareCodeId || null });
@@ -320,9 +349,11 @@ function createRouter(deps = null) {
     const kind = b.kind === 'lesson' || b.kind === 'coaching' ? b.kind : null;
     const id = kind === 'coaching' ? uuidIn(b.id) : (typeof b.id === 'string' && KEY_RX.test(b.id) ? b.id : null);
     if (!kind || !id) { fail(res, 400); return; }
+    dropPlayed(p.uid);
     const user = await Data.teacherOf(p.uid, deps);
     if (!user) { fail(res, 404); return; }
     const out = await Send.startQuiz({ user, kind, id, lang }, deps);
+    dropPlayed(p.uid);
     event('teacher_home.quiz_make', p.uid, { kind, outcome: out.quizId ? 'started' : out.error });
     if (!out.quizId) { fail(res, out.error === 'not_found' ? 404 : 409); return; }
     headers(res);
@@ -347,9 +378,11 @@ function createRouter(deps = null) {
     const looseId = uuidIn(b.looseId);
     const candidateId = uuidIn(b.candidateId);
     if (!looseId || !candidateId || !['same', 'no', 'unsure'].includes(b.decision)) { fail(res, 400); return; }
+    dropPlayed(p.uid);
     // "Not sure" leaves the pair in the queue and writes nothing (as the report page's queue does).
     if (b.decision !== 'unsure') {
       const r = await Data.dep(deps, 'Queue').decide({ teacherUserId: p.uid, looseId, candidateId, decision: b.decision });
+      dropPlayed(p.uid);
       if (!r || !r.ok) { fail(res, r && r.off ? 404 : 409); return; }
     }
     event('teacher_home.step', p.uid, { step: `confirm_${b.decision}` });
@@ -375,8 +408,11 @@ function createRouter(deps = null) {
    * that clear landed. → false when the clear failed (no event).
    */
   async function sent(p, { kind, origin, again, id, c }) {
+    dropPlayed(p.uid);
     const code = await codeOf(p.uid, c);
-    if (code.mine && !(await require('./teacher-home.sent').markSent(c))) {
+    const marked = !code.mine || await require('./teacher-home.sent').markSent(c);
+    dropPlayed(p.uid);
+    if (!marked) {
       logToFile('⚠️ teacher home: a send could not be marked sent', { kind });
       return false;
     }
