@@ -17,6 +17,13 @@
  *                          and its "Share to class group" sends the card (deed + topic, no digits)
  *   WQFC.shareText(o)      pure: the deed (+ the title), the link on its own line, the return line last
  *   WQFC.deedFor(kind, r)  pure: the deed a finish earned (the server only accepts these)
+ *   WQFC.sheetHtml(o)      pure: the one share's sheet (app_settings web_quiz_share_v4)
+ *
+ * The one share (web_quiz_share_v4: the host passes o.v4 from its payload's share_v4): o.item {type:'book'|'video', id}
+ * names what was finished (the server checks it and seals it into the link, which lands a new child on it), and a tap
+ * opens ONE sheet over the page — the card's picture, "Send on WhatsApp" (the words + the link, whose preview is the
+ * card), the picture as a file where the phone can share one, "Save picture", "Copy link", Back. A tap before the card
+ * is in says "Getting your card…" and waits for it (never words without the card). Off: today's tap.
  *
  * The share never navigates this page (the child would lose it in WhatsApp's own browser): an <a target="_blank"> to
  * wa.me with the text, or navigator.share({files}) with the card's picture where the browser can share a file.
@@ -71,6 +78,11 @@
       ret: 'Play with Jugnu any day. Tap, then send:', words: 'quiz please', quizDeed: 'You finished the whole quiz!' },
     ur: { send: 'کلاس گروپ میں بھیجیں', sendPlain: 'شیئر کریں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
       ret: 'جب دل چاہے جگنو کے ساتھ کھیلیں! یہاں دبائیں، پھر بھیجیں:', words: 'کوئز دکھائیں', quizDeed: 'شاباش! آپ نے پورا کوئز کر لیا!' }
+  };
+  // The one share's sheet (web_quiz_share_v4).
+  var SH = {
+    en: { wa: 'Send on WhatsApp', file: 'Share picture', save: 'Save picture', copy: 'Copy link', copied: 'Copied!', back: 'Back', getting: 'Getting your card…', again: 'Tap again to share' },
+    ur: { wa: 'واٹس ایپ پر بھیجیں', file: 'تصویر بھیجیں', save: 'تصویر محفوظ کریں', copy: 'لنک کاپی کریں', copied: 'کاپی ہو گیا!', back: 'واپس', getting: 'آپ کا کارڈ بن رہا ہے…', again: 'بھیجنے کے لیے دوبارہ دبائیں' }
   };
   var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried', 'read_practice', 'read_some_practice'], listen: ['listen_done', 'listen_practice'],
     story: ['story_read', 'answered', 'read_tried', 'story_practice'], game: ['game_done', 'game_practice'], book: ['book_read', 'listen_done', 'read_tried'], video: ['video_watched'] };
@@ -168,6 +180,8 @@
     var tl = titleLine(l, o.title);
     if (tl) lines.push(tl);
     if (o.url) lines.push(String(o.url));
+    // the one share with no bot chat to name: the link above is the friend's way in, never loose words
+    if (o.v4 === true && o.url && !ret.href) return lines.join('\n');
     lines.push(ret.text || W[l].ret);
     lines.push(ret.href || ('“' + (ret.words || W[l].words) + '”'));
     return lines.join('\n');
@@ -221,6 +235,13 @@
     '.wqfc-nt{display:grid;gap:2px;min-width:0}.wqfc-nt b{font-size:19px}.wqfc-nt small{opacity:.8}' +
     '.wqfc-deed{font-weight:800;font-size:22px;margin:8px 0 0}[lang="ur"] .wqfc-nt b,[lang="ur"] .wqfc-nt small,[lang="ur"] .wqfc-nt span,[lang="ur"] .wqfc-deed,html[lang="ur"] .wqfc-share{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc{animation:wqfc-in .4s ease-out .3s both}@keyframes wqfc-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}}';
+  // the sheet's own styles, added only when a sheet opens (the card's CSS above stays today's)
+  var SHEET_CSS = '.wqfc-sheet{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto}' +
+    '.wqfc-sh-in{width:100%;max-width:480px;display:grid;gap:12px;padding:16px;border-radius:24px;background:var(--bg,#FFF8E7);box-sizing:border-box;box-shadow:0 8px 24px rgba(15,23,42,.25)}' +
+    '.wqfc-sh-pic{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:16px;background:#FDE68A;object-fit:cover}' +
+    '.wqfc-sh-in .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:56px;box-sizing:border-box}' +
+    '.wqfc-sh-ok{text-align:center;font-weight:700;margin:0;min-height:1.5em}[lang="ur"] .wqfc-sh-in .wq-btn{font-size:20px;line-height:2}' +
+    '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
   function css() {
     try {
       if (document.getElementById('wqfc-css')) return;
@@ -250,10 +271,17 @@
   // One token per finish (the auth names it), kept for re-renders of the same card.
   var minted = {};
   function authKey(a) { return a ? (a.st || a.ct || ((a.hub || '') + '|' + (a.kid || ''))) : ''; }
+  // The item a finish names (the one share): a storybook or a video, its id as the host has it; the server checks it.
+  function itemOf(o) {
+    var it = o && o.item;
+    return it && (it.type === 'book' || it.type === 'video') && typeof it.id === 'string' && /^[0-9A-Za-z-]{8,64}$/.test(it.id) ? { type: it.type, id: it.id } : null;
+  }
   function mint(o) {
-    var k = authKey(o.auth) + '|' + o.kind + '|' + o.deed + '|' + L(o.lang);
+    var it = o.v4 === true ? itemOf(o) : null;
+    var k = authKey(o.auth) + '|' + o.kind + '|' + o.deed + '|' + L(o.lang) + (it ? '|' + it.type + ':' + it.id : '');
     if (minted[k]) return minted[k];
     var body = { kind: o.kind, deed: o.deed, lang: L(o.lang) };
+    if (it) body.item = it;
     var a = o.auth || {};
     ['st', 'ct', 'hub', 'kid'].forEach(function (f) { if (typeof a[f] === 'string') body[f] = a[f]; });
     if (typeof fetch !== 'function') { minted[k] = Promise.resolve(null); return minted[k]; }
@@ -288,7 +316,8 @@
       if (!j) return;
       st.url = location.origin + j.url;
       st.img = j.img;
-      st.text = shareText({ lang: o.lang, deed: o.deed, title: o.title, url: st.url, ret: j.ret });
+      st.v4 = j.v4 === true;
+      st.text = shareText({ lang: o.lang, deed: o.deed, title: o.title, url: st.url, ret: j.ret, v4: st.v4 });
       st.ready = true;
       try {
         var a = document.getElementById('wqfc-share');
@@ -299,12 +328,19 @@
     return st;
   }
   var primed = {};
-  function keyOf(o) { return authKey(o.auth) + '|' + o.kind + '|' + o.deed + '|' + L(o.lang); }
+  function keyOf(o) { var it = o.v4 === true ? itemOf(o) : null; return authKey(o.auth) + '|' + o.kind + '|' + o.deed + '|' + L(o.lang) + (it ? '|' + it.type + ':' + it.id : ''); }
 
   // A tap: the picture as a file where the browser can share one; else the anchor's own wa.me (new window), or the
   // host's fallback (the quiz's "send it on WhatsApp" screen) for a host's <button>.
   function tapShare(o, e, fallback) {
     var st = prime(o);
+    // the one share (o.v4, the host's share_v4): a tap never sends words without the card — it says so while the card
+    // is made, and the sheet opens when it is in; no card at all asks for one more tap (which asks the server again)
+    if (o.v4 === true && !st.ready) {
+      if (e && e.preventDefault) e.preventDefault();
+      waitCard(o, st, e);
+      return;
+    }
     // The card's link not in yet: the tap waits for it, at most 2 s (the button soft meanwhile, no new words), then
     // shares what it has — the host's link at least, so the class always gets something to tap.
     if (!st.settled && !st.gaveUp) {
@@ -331,6 +367,12 @@
     var ev = typeof o.ev === 'function' ? o.ev : function () {};
     // The sender's WhatsApp fetches the preview picture a moment after the tap: ask for it now, so it is drawn by then.
     if (st.img && !st.warmed) { st.warmed = true; try { fetch(st.img).catch(function () {}); } catch (x) { /* the preview asks itself */ } }
+    // the one share: the sheet with the picture, every way to send it (the host's own fallback screen is not needed)
+    if (st.v4 && st.img) {
+      if (e && e.preventDefault) e.preventDefault();
+      openSheet(o, st);
+      return;
+    }
     if (st.file) {
       if (e && e.preventDefault) e.preventDefault();
       navigator.share({ files: [st.file], text: st.text }).then(function () { ev('card_share', shareEv(o, 'file')); },
@@ -341,9 +383,83 @@
     if (fallback) fallback(st.text, st.url);
   }
 
+  var SLOW_MS = 12000;
+  function waitCard(o, st, e) {
+    if (st.waiting) return;
+    st.waiting = true;
+    var btn = e && e.currentTarget && typeof e.currentTarget.setAttribute === 'function' ? e.currentTarget : document.getElementById('wqfc-share');
+    var w = SH[L(o.lang)];
+    var was = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = esc(w.getting); btn.setAttribute('aria-busy', 'true'); btn.setAttribute('data-wait', '1'); }
+    var t = null;
+    var done = function () {
+      if (!st.waiting) return;
+      st.waiting = false;
+      if (t) clearTimeout(t);
+      if (btn) { btn.removeAttribute('aria-busy'); btn.removeAttribute('data-wait'); btn.innerHTML = st.ready ? was : esc(w.again); }
+      if (st.ready && st.v4 && st.img) { openSheet(o, st); return; }
+      if (st.ready) { tapShare(o, null, null); return; }
+      var k = keyOf(o);
+      delete primed[k];
+      delete minted[k];
+    };
+    t = setTimeout(done, SLOW_MS);
+    st.wait.then(done, done);
+  }
+
+  // The one share's sheet (pure): the picture first, then ONE primary (WhatsApp), the file where it can go, save, copy, back.
+  function sheetHtml(o) {
+    var l = L(o.lang), w = SH[l];
+    var img = typeof o.img === 'string' && /^\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(o.img) ? o.img : '';
+    return '<div class="wqfc-sheet" id="wqfc-sheet" role="dialog" aria-modal="true" data-screen="share_sheet" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '"><div class="wqfc-sh-in">' +
+      (img ? '<img class="wqfc-sh-pic" src="' + esc(img) + '" alt="" width="1200" height="630">' : '') +
+      '<a class="wq-btn wq-go" id="wqfc-sh-wa" data-primary data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(o.text || '')) + '">' + esc(w.wa) + '</a>' +
+      (o.file ? '<button class="wq-btn wq-soft" id="wqfc-sh-file" type="button" data-tap="card_file">' + esc(w.file) + '</button>' : '') +
+      (img ? '<a class="wq-btn wq-soft" id="wqfc-sh-save" data-tap="card_save" href="' + esc(img) + '" download="jugnu-card.png">' + esc(w.save) + '</a>' : '') +
+      (o.url ? '<button class="wq-btn wq-soft" id="wqfc-sh-copy" type="button" data-tap="card_copy">' + esc(w.copy) + '</button>' : '') +
+      '<p class="wqfc-sh-ok" id="wqfc-sh-ok" aria-live="polite"></p>' +
+      '<button class="wq-btn wq-ghost" id="wqfc-sh-back" type="button" data-tap="sheet_back">' + esc(w.back) + '</button></div></div>';
+  }
+  function openSheet(o, st) {
+    var ev = typeof o.ev === 'function' ? o.ev : function () {};
+    try {
+      if (!document.getElementById('wqfc-sh-css')) {
+        var stl = document.createElement('style'); stl.id = 'wqfc-sh-css'; stl.textContent = SHEET_CSS; (document.head || document.body).appendChild(stl);
+      }
+      var old = document.getElementById('wqfc-sheet');
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, text: st.text, url: st.url, file: !!st.file }));
+      ev('card_share', shareEv(o, 'sheet'));
+      var sh = document.getElementById('wqfc-sheet');
+      var close = function () { try { if (sh && sh.parentNode) sh.parentNode.removeChild(sh); } catch (x) { /* gone */ } };
+      var bind = function (id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+      bind('wqfc-sh-wa', function () { ev('card_share', shareEv(o, 'wa')); });
+      bind('wqfc-sh-file', function () {
+        if (!st.file || !navigator.share) return;
+        navigator.share({ files: [st.file], text: st.text }).then(function () { ev('card_share', shareEv(o, 'file')); }, function () { /* the WhatsApp button stays */ });
+      });
+      bind('wqfc-sh-copy', function () {
+        var ok = document.getElementById('wqfc-sh-ok');
+        var said = function () { if (ok) ok.textContent = SH[L(o.lang)].copied; };
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(st.url).then(said, function () {}); return; }
+        } catch (x) { /* the legacy copy below */ }
+        try {
+          var ta = document.createElement('textarea'); ta.value = st.url; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select(); if (document.execCommand('copy')) said(); document.body.removeChild(ta);
+        } catch (x) { /* the link is in the WhatsApp words too */ }
+      });
+      bind('wqfc-sh-back', close);
+      if (sh) sh.addEventListener('click', function (e) { if (e && e.target === sh) close(); });
+      var first = document.getElementById('wqfc-sh-wa');
+      if (first && first.focus) first.focus();
+    } catch (x) { /* the next tap tries again */ }
+  }
+
   // The card's block, before `stack` (the host's own buttons): Share, the Next tile, Home. One listener per control.
   function mount(stack, o) {
     if (o && o.source && !o.kind) {
+      var src = o;
       var f = fromSource(o);
       if (!f) return false;
       var l = L(o.lang);
@@ -353,6 +469,7 @@
         // a storybook's sticker only when the server gave one (a book read again, or only looked through, gets none)
         (f.tried || o.source === 'story' && o.sticker !== true ? '' : '<p class="wqfc-st" data-sticker>' + STICKER + '<span>' + esc(S[l].sticker) + '</span></p>') : '';
       o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, lead: o.lead, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
+      if (src.v4 === true) { o.item = src.item; o.v4 = true; }
     }
     if (!stack || typeof stack.insertAdjacentHTML !== 'function' || !o || !KIND_DEEDS[o.kind] || KIND_DEEDS[o.kind].indexOf(o.deed) < 0) return false;
     // drawn first, then the one request for its link: a card never waits for the network (a live read leaves it
@@ -416,7 +533,7 @@
     var ttl = d.title && typeof d.title === 'object' ? (h.L === 'ur' && d.title.ur) || d.title.en || '' : '';
     // o.fold (the child home on): the host's one next thing leads (the share soft under it); none = the host's questions
     var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: o.fold ? o.fold.next : r.next_offer || d.next_offer, lead: !!o.fold,
-      plain: !!o.fold && (h.md() || {}).no_class === true, auth: { ct: d.ct }, ev: h.ev });
+      plain: !!o.fold && (h.md() || {}).no_class === true, auth: { ct: d.ct }, ev: h.ev, v4: (h.md() || {}).share_v4 === true || undefined });
     if (!on) return false;
     try {
       var old = document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;
@@ -472,5 +589,5 @@
 
   window.WQFC = { mount: mount, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
-    html: html, nextHtml: nextHtml, DEEDS: DEEDS, W: W, S: S, CSS: CSS };
+    html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS };
 })();

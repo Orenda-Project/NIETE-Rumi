@@ -448,7 +448,36 @@ const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(i
  * A shared finish card (/k/<t>): the og head names the card's picture; the page shows it with ONE way in, this
  * bot's chat with the return words typed (the bot's /quiz then opens the child's own home). No script, no boot.
  */
+// The one share's landing (web_quiz_share_v4 tokens: facts.v4): the card, the activity's mark in its colour, who did
+// what, and ONE big way in — the bot's chat with the item's ref typed, so the friend's home opens on it.
+const CARD_LANDING = {
+  en: { sub: 'Join in and play it too!', hint: 'Tap the green button, then press send in WhatsApp.' },
+  ur: { sub: 'آپ بھی آئیں اور کھیلیں!', hint: 'سبز بٹن دبائیں، پھر واٹس ایپ میں بھیجنے کا بٹن دبائیں۔' },
+};
+function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
+  const lang = facts.lang === 'ur' ? 'ur' : 'en';
+  const dir = lang === 'ur' ? 'rtl' : 'ltr';
+  const brand = brandOf(brandKey);
+  const img = `${origin}/wq/card/${token}.png`;
+  const title = facts.first ? `${facts.first}: ${facts.deed_text}` : facts.deed_text;
+  const ret = facts.ret || {};
+  const c = CARD_LANDING[lang];
+  const accent = /^#[0-9A-Fa-f]{6}$/.test(String(facts.accent || '')) ? facts.accent : '#15803D';
+  const go = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href)
+    ? `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(ret.href)}">${esc(ret.cta || '')}</a><p class="hint">${esc(c.hint)}</p>` : '';
+  return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
+<style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:14px;box-sizing:border-box}
+.k img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}.mark{justify-self:start;padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px}
+.k h1{margin:0;font-size:24px;line-height:${lang === 'ur' ? 2 : 1.25};color:${accent}}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
+.wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}
+.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}</style>
+</head>
+<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="auto">${esc(title)}</h1><p>${esc(c.sub)}</p>${go}</main></body>
+</html>`;
+}
+
 function renderCardPage({ facts, token, origin, url, brandKey, oneFace = false }) {
+  if (facts && facts.v4 === true) return renderCardPageV4({ facts, token, origin, url, brandKey, oneFace });
   const lang = facts.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(brandKey);
