@@ -100,6 +100,27 @@ describe('the switch (web-quiz-minify.js)', () => {
     await wait();
     expect(Min.on()).toBe(true);
   });
+
+  test('while the hub\'s one switch read is in flight for this switch, on() starts no read of its own; that read fills the cache', async () => {
+    const rows = [{ key: 'web_quiz_minify', value: true }];
+    settings(rows);
+    const from = supabase.from;
+    let own = 0;
+    supabase.from = (t) => { if (t === 'app_settings') own += 1; return from(t); };
+    const Swr = require('../../../shared/services/quiz/web-quiz-swr');
+    let release;
+    const held = new Promise((r) => { release = r; });
+    Swr.cover(['minify'], held);   // the seam's read, started and not yet answered (web-quiz-hub-switches.js)
+    expect(Min.on()).toBe(false);  // first open after a start: nothing cached yet
+    await wait();
+    expect(own).toBe(0);
+    Min.hubSwitches.prime(rows, Date.now());
+    release(true);
+    await wait();
+    expect(Min.on()).toBe(true);
+    expect(own).toBe(0);
+    supabase.from = from;
+  });
 });
 
 describe('the quiz payload (getQuiz)', () => {
