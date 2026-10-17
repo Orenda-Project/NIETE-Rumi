@@ -178,4 +178,20 @@ describe('the bot\'s header policy agrees with the page\'s own <meta> policy (th
     const fetched = (html.match(/fetch\(\s*['"`]?([^'"`,)]*)/g) || []).map((f) => f.replace(/^fetch\(\s*['"`]?/, ''));
     fetched.forEach((u) => expect(u).not.toMatch(/^https?:/));
   });
+
+  // The header alone, enforced: every inline <script> and <style> the page carries is allowed by its hash, and the page
+  // loads nothing from another origin (no src/href to http(s)), so a browser that applies only the header runs the page.
+  const sha = (s) => `'sha256-${require('crypto').createHash('sha256').update(s, 'utf8').digest('base64')}'`;
+  const directive = (csp, name) => (csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) || '').split(/\s+/).slice(1);
+  test.each(pages)('%s: the header policy allows every inline script and style by hash, nothing cross-origin', (_, build) => {
+    const { html, csp } = build();
+    // executed inline scripts only: the boot block (type="application/json") is data, never run, so never hash-checked
+    const scripts = [...html.matchAll(/<script(?![^>]*\b(?:src|type)=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    scripts.forEach((s) => expect(directive(csp, 'script-src')).toContain(sha(s)));
+    styles.forEach((s) => expect(directive(csp, 'style-src')).toContain(sha(s)));
+    expect(html).not.toMatch(/\s(?:src|href|action)="https?:/);
+    expect(html).not.toMatch(/\son[a-z]+="/);   // no inline handler attribute (a hash-only script-src would block it)
+  });
 });
