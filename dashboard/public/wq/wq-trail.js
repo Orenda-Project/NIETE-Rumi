@@ -38,6 +38,8 @@
       endReadAll: 'You read the whole story!', endReadSome: 'You read out loud with Jugnu!', endZeroWords: 'You tried a whole new story!',
       endListen: 'You listened to the whole story!', endTap: 'You answered all the questions!', endSticker: 'A sticker went into your Book.',
       endB3Next: 'Next time Jugnu can read a story with you first.', endNext: function (title) { return 'Next: ' + title; }, endHome: 'Home',
+      // the folded end card (the child home on): the home's own Next with nothing ranked (wq-home.js), the bar's Home
+      foldPick: 'Pick a story', foldHome: 'Home',
       trailPractice: 'Playing again: just for fun', trailMicWait: 'This game needs the mic. Play it when the mic is on.', trailOther: 'Try another game', trailStopDone: 'Game done!',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
       gamesTitle: "{name}'s games", gamesPick: 'Pick a game', gamesBack: "Back to {name}'s games",
@@ -62,6 +64,7 @@
       endReadAll: 'آپ نے پوری کہانی پڑھ لی!', endReadSome: 'آپ نے جگنو کے ساتھ اونچی آواز میں پڑھا!', endZeroWords: 'آپ نے ایک بالکل نئی کہانی کھول کر دیکھی!',
       endListen: 'آپ نے پوری کہانی سن لی!', endTap: 'آپ نے سارے سوالوں کے جواب دے دیے!', endSticker: 'آپ کی کتاب میں ایک اسٹیکر لگ گیا۔',
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
+      foldPick: 'کہانی چنیں', foldHome: 'ہوم',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       gamesTitle: '{name} کے کھیل', gamesPick: 'ایک کھیل چنیں', gamesBack: '{name} کے کھیلوں پر واپس',
@@ -122,6 +125,50 @@
 
     function btn(id, label, cls) { return '<button class="wq-btn ' + (cls || 'wq-go') + '" id="' + id + '" type="button">' + esc(label) + '</button>'; }
     function home() { return '<div class="wq-stack">' + btn('wqc-menu', t.endHome) + '</div>'; }
+
+    // ── the child home on (the menu's card_fold; app_settings web_quiz_home_v3): an end card is the card and ONE next
+    // thing — the ranked Next (the first offer this page can open, else "Pick a story": the home on its Stories door), or
+    // the story's questions when they follow — "Share to class group" soft, and ONE Home row to the child's home. No
+    // again, no "Show me the words", no "Next: …" line. Never on a class round turn (its hand-back card is today's). ──
+    function fold() { var d = h.S.data || {}; return !!(h.md() || {}).card_fold && !d.round_turn && !!(h.boot && h.boot.token); }
+    function homeHref(hash) { return '/h/' + encodeURIComponent(h.boot.token) + '?' + (h.boot.kid ? 'kid=' + encodeURIComponent(h.boot.kid) + '&' : '') + 'from=home' + (hash || ''); }
+    // the slot's offer, or the next of its alternatives, that opens on this site (an invite's WhatsApp message never)
+    function foldNext(nx) {
+      var all = nx && typeof nx === 'object' ? [nx].concat(Array.isArray(nx.alts) ? nx.alts : []) : [];
+      for (var i = 0; i < all.length; i++) {
+        var x = all[i];
+        if (x && typeof x.href === 'string' && /^\/[^/]/.test(x.href) && ((L === 'ur' && x.title_ur) || x.title)) return x;
+      }
+      return { kind: 'stories', href: homeHref('#stories'), title: t.foldPick };
+    }
+    // the next thing (the questions, or this page's own Next link — the card's tile takes its place when the card is
+    // drawn), then the host's stack with the one Home row; the card's block goes between them (Share under the Next)
+    function foldHtml(fx, qa) {
+      var first = qa ? h.qaButtons().replace(/<button[^>]*id="wqc-menu"[\s\S]*?<\/button>/, '').replace('id="wqc-qa"', 'id="wqc-qa" data-primary')
+        : '<a class="wq-btn wq-go" id="wqc-fnext" data-primary href="' + esc(fx.href) + '">' + esc((L === 'ur' && fx.title_ur) || fx.title) + '</a>';
+      return '<div class="wqc-fold">' + first + '</div><div class="wq-stack"><a class="wq-btn wq-soft" id="wqc-fhome" data-home href="' + esc(homeHref()) + '">' + esc(t.foldHome) + '</a></div>';
+    }
+    // after the card: one Home (the page's top link goes), one Next (the card's tile, or ours), Share soft under the questions
+    function foldAfter(qa) {
+      try {
+        var top = document.getElementById('wq-home');
+        if (top && top.parentNode) top.parentNode.removeChild(top);
+        var mine = document.getElementById('wqfc-next') ? document.getElementById('wqc-fnext') : null;
+        if (mine && mine.parentNode) mine.parentNode.removeChild(mine);
+        var card = document.getElementById('wqfc-share');
+        if (card && qa) { card.className = card.className.replace(/\bwq-go\b/, 'wq-soft'); card.removeAttribute('data-primary'); }
+        // the card is the one headline: a practice run's banner (Story Time's "just for fun") stays on the screens before it
+        var banner = card ? document.getElementById('wqc-practice') : null;
+        if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
+      } catch (e) { /* the card still works */ }
+    }
+    function foldEnd(name, top, qa, nx, card) {
+      var fx = foldNext(nx);
+      h.show(name, top + foldHtml(fx, qa));
+      if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa ? null : fx } }));
+      foldAfter(qa);
+    }
     function outcome(d) { return (d && (d.outcome || (d.draw && d.draw.outcome))) || null; }
     function isWarmup(d) { return !!(d && d.anchor_block); }
 
@@ -410,6 +457,9 @@
       if (r) d.story_r = r;
       if (name === 'read-result') d.story_qa = !!qa;
       if (window.WQJ) window.WQJ.finish({ kind: name });
+      // the story's own result, when the page handed it over (data.story_r), carries the ranked Next
+      // folded, a practice run (Story Time is one) puts no sticker in the Book, so it says none
+      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); return; }
       h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
@@ -556,6 +606,7 @@
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
         return;
       }
+      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); return; }
       h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });

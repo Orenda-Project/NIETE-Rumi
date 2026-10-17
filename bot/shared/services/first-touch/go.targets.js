@@ -11,7 +11,8 @@
  *                                         a working teacher screen (library chips, send to the class group)
  *              else → null                the landing's honest line
  *   join     → /quiz/join/<j token>       the join page's `../quiz/web-quiz-student-join` joinUrl({n, lang})
- *   child    → /h/<hub token>?from=quiz   the child home (the same shell as /quiz/home), minted as the hub reply does;
+ *   child    → /h/<hub token>?from=quiz   the child home (the same shell as /quiz/home), minted as the hub reply does
+ *                                         (the landing's en|ur in the token under web_quiz_return_lang);
  *                                         `from=quiz` = a known child arriving from /quiz (no "saved" line)
  *   bind     → the join page's bindPick({n, kid, device, src}) → { next } | { refused } — the one write of a binding;
  *              the landing has already checked `kid` is one of THIS phone's (or this device's) children
@@ -66,8 +67,9 @@ function join({ n, lang = 'bi' }) {
   return typeof url === 'string' && url ? (pathOf(url) || url) : null;
 }
 
-async function child(kids, from = 'quiz') {
-  const url = await require('../quiz/web-quiz-hub-flags').hubLink(kids, 'one_door');
+async function child(kids, from = 'quiz', lang = null) {
+  // web_quiz_return_lang: the landing's language (en|ur; 'bi' is none) rides the hub token (off: today's link)
+  const url = await require('../quiz/web-quiz-hub-flags').hubLink(kids, { caller: 'one_door', lang });
   const p = pathOf(url);
   if (!p) return null;
   return `${p}${p.includes('?') ? '&' : '?'}from=${from}`;

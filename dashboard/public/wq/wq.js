@@ -596,7 +596,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoT: 'Whose turn is it?', whoSay: 'Tap your name.', onPhone: 'On this phone', inClass: function (c) { return 'Find your name in ' + c; },
       newKid: "I'm new", newT: 'Hello! What is your first name?', newSay: 'Just your first name.', start: 'Start', privacy: 'Only first names. No phone numbers.',
       isYou: function (n) { return 'Are you ' + n + '?'; }, isYouSub: 'Tap Yes only if this is your own name.', yesMe: "Yes, it's me", diff: function (n) { return "I'm a different " + n; },
-      vT: 'Watch the lesson (optional)', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
+      vT: 'Watch the lesson (optional)', vT3: 'Watch the lesson', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?', hintAsk: 'Need a hint?', hintNudge: 'Stuck? Tap me for a hint.',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
@@ -611,6 +611,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       prac: 'This name already finished on another phone. This round is practice; your first finished score stays.',
       shareBtn: 'Share to class group', challenge: 'Challenge a friend', cardPriv: 'Only your first name goes on the card.',
       hubDoor: 'My quizzes, videos and challenges',
+      // the folded card's Next with nothing ranked: the home's own words (wq-home.js nextPick)
+      foldPick: 'Pick a story', sharePlain: 'Share',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
@@ -669,7 +671,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoT: 'آج کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', onPhone: 'اس فون پر', inClass: function (c) { return c + ' میں اپنا نام ڈھونڈیں'; },
       newKid: 'نیا نام', newT: 'السلام علیکم! آپ کا پہلا نام کیا ہے؟', newSay: 'صرف پہلا نام لکھیں۔', start: 'شروع کریں', privacy: 'صرف پہلا نام۔ فون نمبر نہیں۔',
       isYou: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, isYouSub: 'ہاں صرف تب دبائیں جب یہ آپ کا اپنا نام ہو۔', yesMe: 'جی ہاں، یہ میں ہوں', diff: function (n) { return 'میں کوئی اور ' + n + ' ہوں'; },
-      vT: 'سبق دیکھیں (اختیاری)', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
+      vT: 'سبق دیکھیں (اختیاری)', vT3: 'سبق دیکھیں', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
       qof: function (i, n) { return 'سوال ' + urDigits(i) + ' از ' + urDigits(n); }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟', hintAsk: 'اشارہ چاہیے؟', hintNudge: 'مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
@@ -684,6 +686,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
       shareBtn: 'کلاس گروپ میں بھیجیں', challenge: 'دوست کو چیلنج کریں', cardPriv: 'کارڈ پر صرف آپ کا پہلا نام جاتا ہے۔',
       hubDoor: 'میرے کوئز، ویڈیوز اور چیلنج',
+      foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
@@ -1204,8 +1207,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // Home: a class child's own run (a session, not a friend's challenge, not the teacher's preview); the server's door decides the rest.
   function homeOk() { return HOME_ON && Boolean(S.st) && !friendRun() && !B.preview; }
+  // The folded card's bar (FOLD_BAR): its one Home is the row under the card, so the bar draws none.
+  var FOLD_BAR = '<span class="wq-grow" data-fold></span>';
   function bar(extra, teacher) {
-    var home = homeOk() && !teacher;
+    var home = homeOk() && !teacher && extra !== FOLD_BAR;
     // With Home in the bar the progress dots get their own row under it, so a long quiz still fits at 360 px.
     var dotsRow = home && extra && extra.indexOf('wq-dots') >= 0 ? extra : '';
     return '<div class="wq-bar">' + lockup(teacher) + (dotsRow ? '<span class="wq-grow"></span>' : (extra || '<span class="wq-grow"></span>')) +
@@ -1492,7 +1497,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       nfT: function (t, c) { return "I can't find " + t + (c ? ' in ' + c : '') + '. Is that how your name is written?'; },
       nfYes: "Yes, that's my name", nfFix: 'Let me fix it',
       nsT: function (t, c, n) { return 'There are ' + n + ' children called ' + t + (c ? ' in ' + c : '') + '.'; },
-      nsSay: 'Tap Yes to play. Your teacher will check which one you are.'
+      nsSay: 'Tap Yes to play. Your teacher will check which one you are.',
+      // a class link on a phone that holds a child (web_quiz_link_known_child): asked before the name box
+      knIs: function (n) { return 'Is it ' + n + '?'; }, knYes: "Yes, that's me", knElse: 'Someone else'
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
@@ -1520,7 +1527,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       nfT: function (t, c) { return (c ? c + ' میں ' : '') + t + ' کا نام نہیں ملا۔ کیا آپ کا نام ایسے ہی لکھا جاتا ہے؟'; },
       nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں',
       nsT: function (t, c, n) { return (c ? c + ' میں ' : '') + t + ' نام کے ' + n + ' بچے ہیں۔'; },
-      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ ٹیچر خود دیکھ لیں گے کہ آپ کون ہیں۔'
+      nsSay: 'کھیلنے کے لیے جی ہاں دبائیں۔ ٹیچر خود دیکھ لیں گے کہ آپ کون ہیں۔',
+      knIs: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, knYes: 'جی ہاں، میں ہوں', knElse: 'نہیں، میں کوئی اور ہوں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // The roll pad and its lists: 0-9, Urdu included. The roll number is matched to the teacher's
@@ -1780,7 +1788,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return who();
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); return; }
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1793,7 +1801,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
@@ -1818,14 +1826,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var v = B.video;
     // A reload mid-video picks up where it was (#t= is a media fragment; the server never sees it).
     var at = S.vt > 0 ? Math.floor(S.vt) : 0;
-    var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(T.vT) + '</h2>' +
+    // From the child home's Videos door (?via=videos) with web_quiz_videos_v3 on: the play is the one primary and the
+    // heading is not "optional"; "Go to the questions" waits in the secondary style until the video ends. Else today's.
+    var door = Boolean(B.videos_v3 && params.via === 'videos');
+    var vT = door ? T.vT3 : T.vT;
+    var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>' +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
       '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
-      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
+      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
-      '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
+      '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
     if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
@@ -1838,7 +1850,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     if (vid) vid.addEventListener('timeupdate', function () { keepVideoAt(vid, false); });
     if (vid) vid.addEventListener('pause', function () { keepVideoAt(vid, true); });
-    if (vid) vid.addEventListener('ended', function () { S.vdone = 1; S.vt = 0; save(); ev('video_end', {}); });
+    if (vid) vid.addEventListener('ended', function () {
+      S.vdone = 1; S.vt = 0; save(); ev('video_end', {});
+      // The door's page: watched to the end, the questions lead again.
+      var sk = door && $('#wq-skip');
+      if (sk) { sk.className = 'wq-btn wq-go'; sk.setAttribute('data-primary', ''); if (cover) cover.removeAttribute('data-primary'); }
+    });
     on('.wq-vcover', function () {
       if (!vid || !vid.paused) return;
       try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
@@ -2202,7 +2219,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-gohome', function () { dropSheet(); homeGo(src); });
     on('#wq-stay', function () { dropSheet(); ev('home_tap', { src: src, how: 'stay' }); });
   }
-  function homeGo(src) {
+  function homeGo(src, hash) {
     if (homeGoing) return;
     homeGoing = true;
     flushQueue().then(function () { return api('POST', 'hubdoor', { st: S.st, home: 1 }); }).then(function (r) {
@@ -2210,7 +2227,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (/^\/h\/[A-Za-z0-9._-]+$/.test(href)) {
         ev('home_tap', { src: src, how: 'door' });
         flushQueue(true); flushEv(true);
-        location.assign(href + '?from=home');
+        location.assign(href + '?from=home' + (hash || ''));
         return;
       }
       homeGoing = false;
@@ -2274,9 +2291,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? '<div class="wq-banner">' + esc(T.prac) + '</div>' : '') +
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
-        (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn();
+        // The home on (finish's card_fold): the card is the one way on from here; the class table and the videos live on the home.
+        (foldOn(res) ? '' : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
       render(h, 'M9');
-      libPrefetch();
+      if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
       if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
       speak(done.text, done.url, null);
@@ -2452,6 +2470,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
     // the second action, right under "Share to class group".
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
+    // The home on: the card and one next thing (before the Jugnu card, whose file is then never asked for).
+    if (foldOn(res)) return foldCard(res, c, total, res.card_v3 && window.WQFC ? window.WQFC : null);
     // The Jugnu card (wq-card.js, sent only when finish offers it): first under the score, above the shares.
     var jc = res.jugnu_card && !friend ? jugnuCard() : '';
     // The finish card (wq-finish-card.js, finish's card_v3): the deed above the score, the Next tile, the class share.
@@ -2543,6 +2563,69 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
     if (res.card_v3 && !friend) finishCard(classUrl);
+  }
+  /* ---------------- the card and one next thing (app_settings web_quiz_home_v3, finish's card_fold) ---------------- */
+  // A class child's own card with the home on: the card, the ranked Next tile (the one primary), "Share to class group"
+  // as the secondary, one Home row. The doors, the class and the league live on the home; "Challenge a friend" is the
+  // slot's invite when it ranks first. Without card_fold the card below is today's.
+  function foldOn(res) { return Boolean(res && res.card_fold) && Boolean(S.st) && !friendRun() && !B.preview; }
+  // The slot's offer, or the next of its alternatives, that opens on this site (an invite's WhatsApp message never).
+  function foldOffer(nx) {
+    var all = nx && typeof nx === 'object' ? [nx].concat(Array.isArray(nx.alts) ? nx.alts : []) : [];
+    for (var i = 0; i < all.length; i++) {
+      var x = all[i];
+      if (x && typeof x.href === 'string' && /^\/[^/]/.test(x.href) && ((LANG === 'ur' && x.title_ur) || x.title)) return x;
+    }
+    return null;
+  }
+  // Its tile: the finish card's own when it can draw it, else this page's; with nothing to open, the home's own last
+  // Next: "Pick a story".
+  function foldNext(nx, fc) {
+    var tile = fc && nx ? fc.nextHtml(LANG, nx, true) : '';
+    if (tile) return tile;
+    if (nx) return '<a class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary href="' + esc(nx.href) + '">' + esc((LANG === 'ur' && nx.title_ur) || nx.title) + '</a>';
+    return '<button class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary>' + esc(T.foldPick) + '</button>';
+  }
+  function foldCard(res, c, total, fc) {
+    var nx = foldOffer(res.next_offer);
+    var kept = c.practice && c.kept ? c.kept : null;
+    var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
+    var tile = foldNext(nx, fc);
+    var h = bar(FOLD_BAR) +
+      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<img src="' + IMG + 'celebrate.webp" alt="">' +
+      '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
+      '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
+      (fc ? fc.quizDeedHtml(LANG) : '') + '<div class="wq-big">' + esc(scoreN(c.correct)) + '/' + esc(scoreN(total)) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
+      '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
+      (kept ? '<div class="wq-banner">' + esc(TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '') + newBest(c, total) +
+      tile +
+      '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
+      '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
+    render(h, 'M10');
+    wireBar();
+    var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
+    if (S.st && sget('wq_cv', null) !== S.st) {
+      sset('wq_cv', S.st);
+      ev('card_view', { band: pct < 50 ? 'low' : pct < 80 ? 'mid' : 'high', friend: 0, fold: 1 });
+    }
+    var art = res.art || {};
+    var classUrl = link('/q/' + CODE + (art.card ? '?a=' + encodeURIComponent(art.card) : ''));
+    warmArt('card', art.card);
+    warmLink(classUrl);
+    var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
+    on('#wq-fhome', function () { homeGo('card'); });
+    // No answer from the slot: the home, on its Stories door (the home's own Next when it has nothing ranked).
+    if (!nx) on('#wq-fnext', function () { homeGo('card', '#stories'); });
+    else {
+      var pick = function () { ev('next_pick', { src: 'fold', kind: String(nx.kind || '').replace(/[^a-z0-9_]/g, '').slice(0, 32) }); flushEv(true); };
+      on('#wq-fnext', pick);
+      on('#wqfc-next', pick);   // the finish card's own tile, when it drew it
+    }
+    if (res.card_v3) finishCard(classUrl);
   }
   /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */
   // Last in card(): the card's token is asked for as the card opens (the share never waits); the file is asked for
@@ -3058,6 +3141,53 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       location.replace(withLang(h));
     }, fall);
   }
+  // A class link on a phone that already holds a child (boot link_known, app_settings web_quiz_link_known_child): the
+  // server answers the children THIS phone holds (never a classmate; nobody on a forwarded link) and the page asks
+  // "Is it <First>?" (two or more: "Whose turn is it?") before the name box, so a child who joined on their own plays
+  // as themselves. Asked once per quiz on this phone; "Someone else", nobody, an error or no answer in 3 s: today's screen.
+  var KN_KEY = 'wq_kn_' + CODE;
+  function knownOk() {
+    return Boolean(B.link_known) && !B.preview && !B.invited && !B.challenge && !params.k && !S.st && !S.queue.length && !S.pending
+      && Boolean(sget('wq_d', null)) && !sget(KN_KEY, null);
+  }
+  function knownAsk() {
+    var done = false;
+    function fall() { if (!done) { done = true; landing(); } }
+    setTimeout(fall, 3000);
+    // The server reads this phone's own wq_dv cookie (the edge forwards it), never a device the page sends.
+    api('POST', 'known', { code: CODE }).then(function (r) {
+      if (done) return;
+      // A child already a card on this phone's landing is offered there; only the others are asked about here.
+      var have = {};
+      kids().forEach(function (k) { have[k.chip] = 1; });
+      var got = r && r.ok && r.body && Array.isArray(r.body.kids) ? r.body.kids : [];
+      var list = got.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
+      if (!list.length) return fall();
+      done = true;
+      knownCards(list);
+    }, fall);
+  }
+  function knownCards(list) {
+    var one = list.length === 1 ? list[0] : null;
+    var nm = function (k) { return '<bdi>' + esc(k.first) + '</bdi>'; };
+    var h = bar() +
+      jug('hello', one ? T.hello : T.whoSay, true, true) +
+      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>' +
+      (one
+        ? '<h2>' + TW.knIs(nm(one)) + '</h2><button class="wq-btn wq-go" id="wq-kn-yes">' + ani(one.animal) + esc(TW.knYes) + '</button>'
+        : '<h2>' + esc(T.whoT) + '</h2><div class="wq-kids-big">' + list.map(function (k, i) {
+          return '<button class="wq-kid wq-kid-big" id="wq-kn-' + i + '">' + ani(k.animal) + nm(k) + '</button>';
+        }).join('') + '</div>') +
+      '<button class="wq-btn wq-ghost" id="wq-kn-else">' + esc(TW.knElse) + '</button>';
+    render(h, 'M4-known');
+    wireBar();
+    ev('known_ask', { kids: list.length });
+    function pick(k) { sset(KN_KEY, 1); ev('identity_pick', { src: 'known' }); startSession({ chip: k.chip, via: 'known' }, k); }
+    if (one) on('#wq-kn-yes', function () { pick(one); });
+    else list.forEach(function (k, i) { on('#wq-kn-' + i, function () { pick(k); }); });
+    on('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
+  }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
@@ -3067,5 +3197,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
   else if (HX) handsetBind(HX);
+  else if (knownOk()) knownAsk();
   else landing();
 })();
