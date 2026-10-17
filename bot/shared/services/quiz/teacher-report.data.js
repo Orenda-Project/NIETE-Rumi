@@ -537,8 +537,8 @@ async function onePerChildOffList(counted, who, quizId, foldOn) {
 /**
  * The children of ONE storybook class code, counted as the web report's story section counts them (quizReport):
  * joined children, no teacher's own try, no invited friend, one attempt per child, one row per child off the
- * class list by typed name. For the 12 h WhatsApp report of that code, so both reports of one send name the same
- * children.
+ * class list (by typed name, or by child with quiz_report_fold_by_child on). For the 12 h WhatsApp report of that
+ * code, so both reports of one send name the same children.
  * `rawSessions` = the code's session rows, before any counting.
  */
 async function storySendChildren(teacherId, quizId, shareCodeId, rawSessions) {
@@ -546,8 +546,9 @@ async function storySendChildren(teacherId, quizId, shareCodeId, rawSessions) {
   const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!quiz) return counted;
-  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, counted, clampLanguage(quiz.language));
-  return (await onePerChildOffList(counted, who, quiz.id, false)).counting;
+  const foldOn = await FoldFlag.on();
+  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, counted, clampLanguage(quiz.language), { foldOn });
+  return (await onePerChildOffList(counted, who, quiz.id, foldOn)).counting;
 }
 
 /**
