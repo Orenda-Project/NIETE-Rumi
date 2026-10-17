@@ -119,16 +119,18 @@ async function rows(query) {
 }
 const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 
-// The watch root's codes copy its teacher but are not that teacher's class: the root, a class-less child's code under it
-// (teacher-report's VALUE read and query rule) and a friend's code under one of those. No root: every code, as today.
+// The watch root's codes copy its teacher but are not that teacher's class: the root and every code whose parent chain
+// reaches it (a class-less child's code; a friend's code under it, and so on). The root's own children leave in the
+// query (teacher-report's VALUE read and rule); the deeper ones by their chain. No root: every code, as today.
 async function codesOffWatchRoot(query) {
   const root = await watchRootId();
   const codes = await rows(notUnderWatchRoot(query, root));
   if (!root) return codes;
-  const have = new Set(codes.map((x) => x.id));
-  const up = uniq(codes.map((x) => x.parent_share_code_id)).filter((p) => !have.has(p));
+  const byId = new Map(codes.map((x) => [x.id, x]));
+  const up = uniq(codes.map((x) => x.parent_share_code_id)).filter((p) => !byId.has(p));
   const watch = new Set((up.length ? await inChunks(() => supabase.from('quiz_share_codes').select('id').eq('parent_share_code_id', root), 'id', up) : []).map((x) => x.id));
-  return codes.filter((x) => x.id !== root && !watch.has(x.parent_share_code_id));
+  const off = (x, n = 0) => x.id === root || watch.has(x.parent_share_code_id) || (n < 50 && byId.has(x.parent_share_code_id) && off(byId.get(x.parent_share_code_id), n + 1));
+  return codes.filter((x) => !off(x));
 }
 
 /** The teacher's classes (class_teachers active ∪ the teacher's lists' classes) and lists (own ∪ on those classes). */

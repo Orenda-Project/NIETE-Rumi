@@ -27,6 +27,7 @@ const ROOT = '30000000-0000-4000-8000-0000000000a0';  // the watch root
 const W1 = '30000000-0000-4000-8000-0000000000a1';    // a class-less child's code under the root
 const W2 = '30000000-0000-4000-8000-0000000000a2';
 const WF = '30000000-0000-4000-8000-0000000000a3';    // a friend's code under W1 (inviter set)
+const WFF = '30000000-0000-4000-8000-0000000000a4';   // that friend's own friend code under WF (inviter set)
 const Q1 = '20000000-0000-4000-8000-000000000001';
 const QV = '20000000-0000-4000-8000-0000000000aa';    // the bank video quiz the watch codes play
 const r = (n) => `b0000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}`;
@@ -119,6 +120,16 @@ describe('the VALUE set: a watch child is never in the root teacher\'s queue', (
     const ids = (await Queue.computeCandidates(T1)).map((x) => x.loose_id);
     expect(ids).not.toContain(w(3));
     expect(ids).not.toContain(w(4));
+  });
+
+  test('every depth under the root is out: the root code, a watch child\'s code, its friend code, a friend\'s friend code', async () => {
+    seed({ value: ROOT });
+    fake.db.quiz_share_codes.push({ id: WFF, teacher_user_id: T1, class_id: null, parent_share_code_id: WF, invited_by_student_id: w(3) });
+    fake.db.students.push(watchKid(w(6), 'Huda'));
+    fake.db.quiz_sessions.push(onWatch('w6', w(6), WFF, { parent_phone: P(26), device_ref: 'dev-26' }));
+    expect(await Queue.computeCandidates(T1)).toEqual(OWN_ROWS);
+    expect(await Queue.linkClassCodes({ teacherUserId: T1, classId: C1 })).toEqual({ linked: 1 });
+    expect([ROOT, W1, W2, WF, WFF].map(codeClass)).toEqual([null, null, null, null, null]);
   });
 
   test('a watch child the teacher once merged by a queue tap is no blocker: the teacher\'s own same-name child still joins', async () => {
