@@ -63,8 +63,8 @@ function kidFor(canonicalId) {
   }
 }
 const IdFlags = require('./web-quiz-identity-flags');
-const { inChunks } = require('./web-quiz-in-chunks');
-const { watchRootId, notUnderWatchRoot } = require('./teacher-report.data');   // the watch root: one parse, one rule   // every `.in()` on a data-sized list: <= 200 ids a request
+const { inChunks } = require('./web-quiz-in-chunks');   // every `.in()` on a data-sized list: <= 200 ids a request
+const { watchRootId, notUnderWatchRoot } = require('./teacher-report.data');   // the watch root: one parse, one rule
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
 // Bounded labelling mode (IDENTITY §12 gate, ruled 15 Oct 2026): the queue serves roster_unique_with_loose only (0 wrong
@@ -119,12 +119,11 @@ async function rows(query) {
 }
 const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 
-// The watch root's codes copy its teacher but are not that teacher's class: the root and every code whose parent chain
-// reaches it (a class-less child's code; a friend's code under it, and so on). The root's own children leave in the
-// query (teacher-report's VALUE read and rule); the deeper ones by their chain. No root: every code, as today.
+// The watch root and every code whose parent chain reaches it copy its teacher but are not that teacher's class (a
+// class-less child's code, a friend's code under it, ...): never pooled or linked. No root: every code, as today.
 async function codesOffWatchRoot(query) {
   const root = await watchRootId();
-  const codes = await rows(notUnderWatchRoot(query, root));
+  const codes = await rows(notUnderWatchRoot(query, root));   // the root's own children leave in the query
   if (!root) return codes;
   const byId = new Map(codes.map((x) => [x.id, x]));
   const up = uniq(codes.map((x) => x.parent_share_code_id)).filter((p) => !byId.has(p));
