@@ -56,8 +56,11 @@ const EARLY_TAP_KEY = 'quiz_join_early_tap';
 // guards' reads start together, the binder's reads start together; the writes keep their order (the row, its identity,
 // the binding, the door key, the remember line) and the answer is the same bytes. JSON true only; OFF → today's reads.
 const FAST_KEY = 'quiz_join_fast';
+// The go button says "Getting your games ready…" while the join runs (the page draws it; join.js shows it). Read in the
+// join's own switch read (no read of its own); JSON true only, and only with the join switch on.
+const WAIT_WORD_KEY = 'quiz_join_wait_word';
 // The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
-const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
+const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -94,7 +97,7 @@ async function earlyTapOn() {
   }
 }
 
-/** → { on, bind, earlyTap, fast? }; all false on a failed read. Never throws. */
+/** → { on, bind, earlyTap, fast?, waitWord? }; all false on a failed read. Never throws. */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
@@ -102,16 +105,17 @@ async function flags(now = Date.now()) {
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const on = isTrue(by[SWITCH_KEY]);
+    const wait = on && by[WAIT_WORD_KEY] === true ? { waitWord: true } : {};
     if (on && by[FAST_KEY] === true) {
       // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
       if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now);
       const bind = Boolean((await IdFlags.flags()).phoneBind);
-      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true };
+      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait };
       return cache;
     }
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
     const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap };
+    cache = { at: now, on, bind, earlyTap, ...wait };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
@@ -304,7 +308,7 @@ async function pageInfo({ t } = {}) {
     const old = T.verify(t, 'j', { allowExpired: true });
     return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}) };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}), ...(f.waitWord ? { waitWord: true } : {}) };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
@@ -640,7 +644,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 }
 
 module.exports = {
-  SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
+  SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
   flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
