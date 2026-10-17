@@ -903,6 +903,7 @@ const RULE = {
   oneKey: 'An anagram, homophone or spelling MCQ has exactly one option that satisfies the stem.',
   urduSpelling: 'A spelling (املا) MCQ quotes a meaning or a picture-word in its stem, never the word whose spelling is tested.',
   oneQuestion: 'Each MCQ stem asks one question and ends with its one «؟».',
+  urduPlainOptions: 'An MCQ option is never a word of worship (اذان، نماز، روزہ); a distractor is an everyday word.',
   urduTermWord: 'A grammar-term item (اسم صفت، حرفِ عطف، فعل …) never prints a word of its own answer in its stem: describe what the term does, and quote an example.',
   urduConceptOnce: `Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only: no other Q1 item names its words, states its rule or gives its example. Each of these is a concept of its own: اسم صوت، اسم آلہ، اسم معرفہ، اسم نکرہ، صفت، موصوف; a definition item asks its concept, so an item that says what a term is («جو لفظ … آواز ظاہر کرے») and an item that asks for that term are one concept asked twice. ${URDU_Q4_NEVER}`,
   urduHomograph: 'A homograph (ایک ہی املا) item never quotes the pair\'s word in its stem, not even inside a longer word or phrase; it gives both meanings only.',
@@ -1028,6 +1029,13 @@ const URDU_LESSONS_RULES = Object.freeze({
     : `Q1 asks no grammar concept on these lessons. ${URDU_Q4_NEVER}`),
   termWord: (terms) => (terms.length
     ? `A grammar-term item (${terms.join('، ')}) never prints a word of its own answer in its stem: describe what the term does, and quote an example.`
+    : null),
+  // A count is easier to keep than "once each". `pairs`: the entries that name two concepts.
+  budget: (terms, n, of, pairs) => (n
+    ? `Q1: exactly ${n} of the ${of} items ${n === 1 ? 'is' : 'are'} grammar, one item per concept (${terms.join('، ')}${pairs.length ? `; ${pairs.map((t) => `«${t}»`).join(' and ')} ${pairs.length === 1 ? 'is' : 'are each'} two concepts, one item each` : ''}); the other ${of - n} are vocabulary, word meanings or comprehension from these lessons.`
+    : null),
+  concept: (terms) => (terms.length
+    ? `Give every Q1 item a "concept" field: the grammar concept it asks, written as one of ${terms.join('، ')}; or «ذخیرۂ الفاظ / فہم» for a vocabulary, word-meaning or comprehension item. The field is never printed.`
     : null),
 });
 
@@ -1163,6 +1171,10 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const urduLessons = !fde && key === 'urdu' ? scopeLessons(P, scope) : null;
   // Their grammar concepts, less the kinds Q4 asks.
   const urduTerms = urduLessons && [...new Set(urduLessons.flatMap((l) => l.grammar.filter((g) => !g.q4).map((g) => g.ur)))];
+  // How many concepts those are: an entry the layout reads as two (تمنائی اور شکیہ) counts two.
+  const urduWidth = (ur) => Math.max(1, ...urduLessons.flatMap((l) => l.grammar).filter((g) => g.ur === ur).map((g) => (g.tags || []).length));
+  const urduPairs = urduTerms && urduTerms.filter((ur) => urduWidth(ur) > 1);
+  const urduConcepts = urduTerms && urduTerms.reduce((n, ur) => n + urduWidth(ur), 0);
   const given = Array.isArray(slots) && slots.length ? slots : section.slots;
   const shaped = given.map((s) => {
     if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
@@ -1263,10 +1275,12 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english') rules.push(RULE.oneKeyEnglish);
-    if (key === 'urdu') rules.push(RULE.oneKey, RULE.urduSpelling, RULE.oneQuestion);
+    if (key === 'urdu') rules.push(RULE.oneKey, RULE.urduSpelling, RULE.oneQuestion, RULE.urduPlainOptions);
     if (key === 'urdu' && list.some((s) => s.slot === 'urdu.A.Q1')) {
+      const q1 = list.find((s) => s.slot === 'urdu.A.Q1');
       const concepts = urduTerms
-        ? [URDU_LESSONS_RULES.conceptOnce(urduTerms), URDU_LESSONS_RULES.termWord(urduTerms)].filter(Boolean)
+        ? [URDU_LESSONS_RULES.conceptOnce(urduTerms), URDU_LESSONS_RULES.termWord(urduTerms),
+          URDU_LESSONS_RULES.budget(urduTerms, urduConcepts, q1.generate, urduPairs), URDU_LESSONS_RULES.concept(urduTerms)].filter(Boolean)
         : [RULE.urduConceptOnce, RULE.urduTermWord];
       rules.push(...concepts, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduFormFamily, RULE.urduOneTable);
     }
