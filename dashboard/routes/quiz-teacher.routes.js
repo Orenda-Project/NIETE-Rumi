@@ -25,6 +25,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
 const { str } = require('../../bot/shared/services/first-touch/teacher-home.strings');
 
@@ -109,6 +110,8 @@ function createQuizTeacherRouter(opts = {}) {
     configured = Boolean(botUrl && apiKey);
   }
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
   // the number for the edge's own error page: the portal's own setting (digits only), then what the bot's home answers say
   let lastBot = cleanBot(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, ''));
   const fail = (req, res, status) => errorPage(req, res, status, lastBot);
@@ -138,6 +141,7 @@ function createQuizTeacherRouter(opts = {}) {
     }
     if (out.status >= 500) { if (json) errorJson(res); else fail(req, res, 503); return true; }
     res.set(PRIVATE);
+    carryBotSecurity(res, out, securityOn);
     if (out.status === 204) { res.status(204).end(); return true; }
     res.status(out.status).type(out.contentType || (json ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8')).send(out.bytes || Buffer.alloc(0));
     return true;

@@ -17,6 +17,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -62,6 +63,8 @@ function createTeacherStoriesRouter(opts = {}) {
   const teacherOn = opts.teacherOn || teacherFlagReader({ now: opts.now });
   const isOn = async () => { try { return (await teacherOn()) === true; } catch (_) { return false; } };
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
   const common = { windowMs: 60 * 1000, standardHeaders: true, legacyHeaders: false, validate: false,
     handler: (req, res) => res.status(429).json({ error: 'slow_down' }) };
   const read = rateLimit({ ...common, max: 120, keyGenerator: (req) => `ts:${clientIp(req)}` });
@@ -117,6 +120,7 @@ function createTeacherStoriesRouter(opts = {}) {
     }
     if (out.status !== 200 || !out.bytes || !/^text\/html/i.test(out.contentType || '')) return next();
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+    carryBotSecurity(res, out, securityOn);
     return res.status(200).type('html').send(out.bytes);
   });
 

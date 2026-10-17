@@ -33,6 +33,7 @@ const Preview = require('./web-quiz-preview');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
+const { securityOf } = require('./edge-security-headers');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -612,7 +613,8 @@ function clientIp(req) {
  * timeout, redirects never followed. Shared by the child quiz and the teacher report.
  * Returns { status, body, location } (JSON parsed), or { status, bytes, contentType,
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
- * PDF; with `timing` when the bot sent its timing headers, and `disposition` when it named a download). Throws { unreachable: true } when the bot cannot be reached.
+ * PDF; with `timing` when the bot sent its timing headers, `disposition` when it named a download, and `security` when it
+ * sent a page security header). Throws { unreachable: true } when the bot cannot be reached.
  */
 const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 function deviceCookie(req) {
@@ -672,7 +674,10 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       if ((raw || (res.status >= 200 && res.status < 300 && /^image\//i.test(type))) && res.arrayBuffer) {
         const timing = timingOf(res);
         const disposition = raw && res.headers && res.headers.get ? res.headers.get('content-disposition') : null; // a report PDF's name
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}) };
+        // The bot's own page security headers (CSP, nosniff, X-Frame-Options, Referrer-Policy) for the relays to carry
+        // when quiz_edge_security_headers is on (edge-security-headers.js); absent when the bot sent none.
+        const security = raw ? securityOf(res.headers) : null;
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}), ...(security ? { security } : {}) };
       }
       const text = await res.text();
       let json = null;
