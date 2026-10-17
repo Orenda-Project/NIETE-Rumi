@@ -154,6 +154,10 @@ describe('2. Q7 ← Q1: a spelling fold, and a fact carried by the MCQ\'s stem',
       'chapters_2 پاکستان میں سینٹ کے ارکان کی تعداد کتنی ہے؟',
       // Round 15: a one-fact Q7 that Q6 ۳'s model answer states («1864ء میں سائنٹیفک سوسائٹی قائم کی»).
       'chapters_2 سرسید احمد خان نے 1864ء میں کون سا ادارہ قائم کیا؟',
+      // The two-Q1 rule: Q1 ۱۴ prints the five-hour rule and its words cover 0.67 of this Q5's answer.
+      // The child still works the time out, so it is a partial: the rule's one false hold on the
+      // recorded papers, which costs a spare, never a wrong paper.
+      'full_2 لاہور میں گرینچ کے وقت سے 5 گھنٹے کا فرق ہے۔ اگر وہاں صبح کے 6 بجے ہیں تو لاہور میں کیا وقت ہوگا اور کیوں؟',
     ]);
   });
 });

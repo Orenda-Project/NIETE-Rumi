@@ -697,7 +697,40 @@ function stemTwin(m, item) {
   return within(m.phrase, item.answer) && share(m.keyF, item.answered) * 2 >= m.keyF.size;
 }
 
+// A Q7 keyed on a Q1 key: its answer, or an answer its scheme accepts, is a Q1 MCQ's key read as
+// words (option letter aside): Q7 «… اجلاس کہاں منعقد ہوا؟ → لاہور کے منٹو پارک», accepting «لاہور»,
+// beside Q1 «قرارداد پاکستان کس شہر کے منٹو پارک میں منظور ہوئی؟ → د) لاہور». A one-fact Q7 has one
+// answer, so a child who read the MCQ has it.
+const asWords = (text) => tokensOf(text).join(' ');
+function keyedOnQ1(q1s) {
+  const keys = new Set(q1s.map((m) => asWords(keyText(m))).filter(Boolean));
+  return (q) => [q.answer, ...textsOf(q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept : [])]
+    .some((t) => typeof t === 'string' && keys.has(asWords(t.replace(OPTION_HEAD, ''))));
+}
+
+// A Q5 two Q1 MCQs answer together: at least PAIR_COVER of its model answer's words are in the
+// stems and keys of two Q1 items (Q5 «جمہوریت اور شہنشاہیت میں کیا فرق ہے؟» beside Q1 «جمہوری حکومت
+// میں حکمرانوں کو کون منتخب کرتا ہے؟ → عوام اپنے ووٹوں سے» and «… بادشاہ یا ملکہ پورا نظام سنبھالتے
+// ہیں … → شہنشاہیت»). Below 0.65 the pairs are partials FDE's own paper has (one half of a
+// comparison, a rule the Q5 still asks the child to use).
+const PAIR_COVER = 0.65;
+function pairAnswered(q1s) {
+  const texts = q1s.map((m) => new Set([...tokensOf(m.question), ...tokensOf(keyText(m))]));
+  return (q) => {
+    const answer = [...new Set(tokensOf(q.answer))];
+    if (!answer.length) return false;
+    for (let a = 0; a < texts.length; a += 1) {
+      for (let b = a + 1; b < texts.length; b += 1) {
+        if (answer.filter((w) => texts[a].has(w) || texts[b].has(w)).length >= PAIR_COVER * answer.length) return true;
+      }
+    }
+    return false;
+  };
+}
+
 function sameFact(q1s) {
+  const q7Keyed = keyedOnQ1(q1s);
+  const q5Pair = pairAnswered(q1s);
   const mcqs = q1s.map((m) => ({
     key: new Set(tokensOf(keyText(m))),
     stem: new Set(tokensOf(m.question)),
@@ -706,7 +739,9 @@ function sameFact(q1s) {
     keyF: folded(keyText(m)),
   })).filter((m) => m.key.size && m.stem.size);
   if (!mcqs.length) return null;
-  return (q) => {
+  return (q, slotId) => {
+    if (slotId === 'social_studies.D.Q7' && q7Keyed(q)) return true;
+    if (slotId === 'social_studies.C.Q5' && q5Pair(q)) return true;
     const scheme = q.scheme && typeof q.scheme === 'object' ? q.scheme : {};
     const points = Array.isArray(scheme.points) ? scheme.points.filter((p) => p && typeof p.text === 'string') : [];
     const accept = textsOf(Array.isArray(scheme.accept) ? scheme.accept : []);
@@ -1528,7 +1563,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         return row ? hold(slot, q, row.name) : true;
       }
       if (bySlot.get(slot.slot).some((p) => twin(p, q))) return false;
-      if (cross.rule(q)) return hold(slot, q, 'section_a');
+      if (cross.rule(q, slot.slot)) return hold(slot, q, 'section_a');
       const row = restated(slot, q);
       return row ? hold(slot, q, row.name) : true;
     };
