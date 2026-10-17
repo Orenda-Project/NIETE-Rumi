@@ -131,6 +131,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = 
   const listeners = {};
   const posts = [];
   const juice = [];
+  const opened = [];
   const tagOf = (id) => new RegExp(`<(a|button|p)\\b[^>]*\\bid="${id}"[^>]*>`).exec(screen);
   const el = (id) => ({
     id,
@@ -166,11 +167,11 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = 
     L: lang, t: { again: 'Again', later: 'Later', listening: 'Listening' }, tc: (k) => k, boot: { kid: 'k1', token: 'tok' }, S, esc,
     on: (id, fn) => { (listeners[id] = listeners[id] || []).push(fn); }, q: () => null,
     show: (name, html) => { S.screen = name; screen = html; }, jug: (pose, line) => `<p class="wq-say" data-pose="${pose}">${esc(line)}</p>`,
-    ev() {}, open() {}, refreshMenu() {}, md: () => menu, read() {}, backLabel: () => 'Back',
+    ev() {}, open(x) { opened.push(x); }, refreshMenu() {}, md: () => menu, read() {}, backLabel: () => 'Back',
     qa: () => ({ open() {} }), qaButtons: () => '<button class="wq-btn wq-go" id="wqc-qa" type="button">Story questions</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">Back</button>',
   };
   const TR = ctx.WQTRAIL.init(h);
-  return { TR, html: () => screen, posts, juice };
+  return { TR, html: () => screen, posts, juice, opened, tap: (id) => (listeners[id] || []).forEach((fn) => fn({ preventDefault() {} })) };
 }
 const RF = { read_feedback: true };
 const FOLD = { card_v3: true, card_fold: true, v2: {} };
@@ -277,6 +278,34 @@ describe('the key on: the moment answers the read on the end card', () => {
     const off = trail({ data: { questions_on: true } });
     off.TR.readEnd({ ...CHECKED, rf: CHECKED }, null, 4);
     expect(t.html()).toBe(off.html());
+  });
+});
+
+// ---- "read it again": one more light on the minute's read, three stars on a storybook page --------------------------
+describe('read it again', () => {
+  test.each(['en', 'ur'])('%s: an honest read short of 5 lights offers one more light (soft, never a second primary); a tap opens the read', (lang) => {
+    const t = trail({ lang, menu: { ...RF, ...FOLD }, data: { next_offer: NEXT } });
+    t.TR.readEnd({ ...CHECKED, rf: CHECKED }, null, 4);
+    const h = t.html();
+    expect(h).toMatch(/<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">/);
+    expect(h).toContain(lang === 'ur' ? 'ایک اور روشنی کے لیے پھر سے پڑھیں!' : 'Read it again to light one more!');
+    expect(primaries(h)).toBeLessThanOrEqual(1);
+    t.tap('wqc-rfagain');
+    expect(t.opened).toEqual(['read']);
+  });
+  test('5 lights, a short read (no jar), another phone (no speed), a 0-word try, the key off: no offer', () => {
+    const cases = [
+      [RF, { score: { correct: 98, attempted: 100 }, wcpm: 98 }],          // grade 3: 5 lights
+      [RF, { score: { correct: 9, attempted: 10 }, secs: 5 }],               // too short to be honest
+      [RF, { score: { attempted: 50 }, feedback: { stars: 3, badge: 'star', words_heard: 50 } }],
+      [RF, { score: { correct: 0, attempted: 0 } }],
+      [{}, CHECKED],
+    ];
+    for (const [menu, rf] of cases) {
+      const t = trail({ menu, data: { questions_on: true } });
+      t.TR.readEnd({ ...rf, rf }, null, 4);
+      expect(t.html()).not.toContain('wqc-rfagain');
+    }
   });
 });
 
@@ -447,6 +476,16 @@ describe('Read aloud without the Trail', () => {
     expect(h).toContain(lang === 'ur' ? 'آئیں مل کر پڑھیں!' : "Let's read it together!");
     expect(h).toContain('data-badge="try"');
     expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('id="wqc-again"'));
+  });
+  test('key on, an honest checked read short of 5 lights: "read it again to light one more!" opens the read again', async () => {
+    const p = plain('en', RF);
+    p.w.open('read'); await p.flush();
+    p.w.readResult({ score: { correct: 46, attempted: 50, stopped: false }, wcpm: 48, previous: { wcpm: 40 } });
+    await p.flush();
+    expect(p.html()).toContain('id="wqc-rfagain"');
+    const n = p.fetches.length;
+    await p.click('wqc-rfagain');
+    expect(p.fetches.slice(n).some((f) => /ch\/HUB\.TOKEN\/read/.test(f.url))).toBe(true);
   });
   test('key on, "we\'ll check it later": no moment yet (nothing judged)', async () => {
     const p = plain('en', RF);

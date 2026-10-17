@@ -645,9 +645,9 @@
         return;
       }
       var rf = rfHtml(r);
-      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(rf); return; }
+      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(rf); rfAgain(rf, d); return; }
       h.show(name, h.jug(pose, line, true) + wait + rf + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
-      rfSound(rf);
+      rfSound(rf); rfAgain(rf, d);
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
@@ -663,8 +663,9 @@
       var md = h.md() || {};
       if (md.read_feedback !== true || !window.WQMoment || !r || !r.rf || (h.S.data || {}).round_turn) return '';
       rfFb = window.WQMoment.feedback(r.rf);
-      return window.WQMoment.html(rfFb, L, { grade: md.form });
+      return window.WQMoment.html(rfFb, L, { grade: md.form }) + (window.WQMoment.again ? window.WQMoment.again(rfFb, L, { grade: md.form }) : '');
     }
+    function rfAgain(rf, d) { if (rf) h.on('wqc-rfagain', function () { h.open(d.ex); }); }
     // Jugnu's sound for it: the badge jingle after a read (after the finish fanfare), the soft chime after a 0-word try
     function rfSound(rf) {
       if (!rf || !rfFb || !window.WQMoment) return;
