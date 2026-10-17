@@ -154,11 +154,11 @@ function seed({ home = false, story = false } = {}) {
       code(SC_ST_OT, 'SO12CD', QUIZ_ST, { class_id: CLS_OTHER, topic: 'Row topic never drawn' }),
     ],
     quiz_sessions: [
-      { id: 's-a1', quiz_id: QUIZ, share_code_id: SC, student_id: KID_A, student_name: 'Zara Example', user_id: null,
+      { id: 's-a1', quiz_id: QUIZ, share_code_id: SC, student_id: KID_A, student_name: 'Zara Testwala', user_id: null,
         status: 'completed', correct_answers: 1, total_questions_answered: 2, mastery_percentage: 50,
         completed_at: ago(1), created_at: ago(1), invited_by_student_id: null },
     ],
-    students: [{ id: KID_A, student_name: 'Zara Example', self_reported_class: '3' }],
+    students: [{ id: KID_A, student_name: 'Zara Testwala', self_reported_class: '3' }],
     quiz_answers: [],
   };
   fake = makeFake(db);
@@ -306,7 +306,7 @@ describe('class quiz (quiz_teacher_home on)', () => {
     const text = shown(drawn[0]);
     expect(text).toContain('Class 3-A');
     expect(text).toContain('Parts of a plant');
-    expect(text).not.toMatch(/Zara|Example|Sender|FIXTURE|\d+\s*\/\s*\d+|%|question/i);
+    expect(text).not.toMatch(/Zara|Testwala|Example|Sender|FIXTURE|\d+\s*\/\s*\d+|%|question/i);
     expect(text).not.toMatch(TEST_WORDS);
   });
 
@@ -373,7 +373,7 @@ describe('class story (quiz_teacher_home AND the story send on)', () => {
     expect(text).toContain('Class 3-A');
     expect(text).toContain('The Brave Little Ant');
     expect(text).not.toContain('Row topic never drawn');
-    expect(text).not.toMatch(/Zara|Example|Sender|FIXTURE|%|\d+\s*\/\s*\d+/);
+    expect(text).not.toMatch(/Zara|Testwala|Example|Sender|FIXTURE|%|\d+\s*\/\s*\d+/);
     expect(text).not.toMatch(TEST_WORDS);
   });
 
@@ -392,6 +392,21 @@ describe('class story (quiz_teacher_home AND the story send on)', () => {
     db.story_books[0].title = 'The Brave Little Ant Again';
     resetCaches();
     expect((await quiz('ST12CD')).body.art.teach_v).not.toBe(v1);
+  });
+
+  test('a story picture remembered while the story send was on is not served once it goes off (the memo re-checks)', async () => {
+    const on = await ClassPic.factsFor(SC_ST);
+    expect(on && on.kind).toBe('story');
+    expect(await ClassPic.field({ shareCodeId: SC_ST, code: 'ST12CD' }, { story: true })).toEqual({ teach: tId(SC_ST), teach_v: on.v });
+    expect((await pic(SC_ST, 'ST12CD')).status).toBe(200);
+    expect(drawn).toHaveLength(1);
+    // the story send goes off; the class picture's own memo is NOT cleared (only the switch's cache is)
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_stories_teacher');
+    Stories._reset();
+    expect(await ClassPic.factsFor(SC_ST)).toBeNull();
+    expect(await ClassPic.field({ shareCodeId: SC_ST, code: 'ST12CD' }, { story: true })).toBeNull();
+    expect((await pic(SC_ST, 'ST12CD')).status).toBe(404);
+    expect(drawn).toHaveLength(1);
   });
 
   test('a cover storage cannot give: the picture is still drawn, without it', async () => {
@@ -454,6 +469,19 @@ describe('never a child\'s link, never another teacher\'s class', () => {
 describe('the picture itself (pure)', () => {
   test('urDigits: every ASCII digit as its Urdu digit', () => {
     expect(ClassPic.urDigits('3-A · 10')).toBe('۳-A · ۱۰');
+  });
+
+  test('a class label stored in Urdu or Arabic-Indic digits: ASCII digits on the English picture, Urdu digits on the Urdu one', () => {
+    for (const label of ['۳-A', '٣-A']) {
+      const en = shown(ClassPic.renderClassPic({ kind: 'quiz', lang: 'en', label, topic: 'Parts of a plant' }, { fonts: false }));
+      expect(en).toContain('Class 3-A');
+      expect(en).not.toMatch(/[٠-٩۰-۹]/);
+      const enStory = shown(ClassPic.renderClassPic({ kind: 'story', lang: 'en', label: `${label}1`, title: 'The Brave Little Ant' }, { fonts: false }));
+      expect(enStory).toContain('Class 3-A1');
+    }
+    const ur = shown(ClassPic.renderClassPic({ kind: 'quiz', lang: 'ur', label: '۳-A', topic: 'پودے کے حصے' }, { fonts: false }));
+    expect(ur).toContain('۳-A');
+    expect(ur).not.toMatch(/[0-9]/);
   });
 
   test('the four pictures say only their facts and the fixed words', () => {

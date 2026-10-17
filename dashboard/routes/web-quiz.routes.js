@@ -59,11 +59,16 @@ const ART_EXT = { teach: 'png' };
 // picture never changes under its link (?v= moves with its label, topic or book).
 const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600, teach: YEAR_S };
 // How long the edge itself keeps a drawn picture (ms): the preview fetch finds the one the card opening warmed.
-const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000, teach: 86400000 };
+// The class link's picture is kept no longer than the live class picture: its switch turned off, the edge stops
+// handing it out within 120 s (its link's ?v= still moves with every new label, topic or book).
+const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000, teach: 120000 };
 // The class link picture's version (the bot's web-quiz-class-pic.js): 8 hex.
 const TEACH_V_RX = /^[0-9a-f]{8}$/;
 // How long the edge remembers a code's og facts for a link-preview fetch (ms).
 const OG_KEEP_MS = 3600000;
+// Facts that name the class link's picture are remembered no longer than that picture is kept: its switch turned
+// off, a preview head stops naming it within the same 120 s. Facts naming none keep the hour.
+const ogKeepMs = (facts) => (facts && facts.art && facts.art.teach ? Math.min(OG_KEEP_MS, ART_KEEP_MS.teach) : OG_KEEP_MS);
 // A finish card's sealed token (the bot's web-quiz-card-image.js): base64url only. The edge checks its shape; the bot opens it.
 const CARD_TOKEN_RX = /^[A-Za-z0-9_-]{40,400}$/;
 const cardToken = (v) => (typeof v === 'string' && CARD_TOKEN_RX.test(v) ? v : null);
@@ -844,7 +849,7 @@ function createWebQuizRouter(opts = {}) {
     if (preview && !known) {
       try {
         const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
-        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, OG_KEEP_MS); }
+        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, ogKeepMs(known)); }
       } catch (_) { /* the full path below */ }
     }
     if (known && !(view === 'class' && known.invited)) {
@@ -873,7 +878,7 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       lastFast = out.body.fast === true;
-      if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
+      if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
       if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));

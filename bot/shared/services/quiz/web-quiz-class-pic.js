@@ -57,6 +57,10 @@ const COPY = {
 function urDigits(s) {
   return String(s == null ? '' : s).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d)));
 }
+/** Urdu (U+06F0-9) and Arabic-Indic (U+0660-9) digits as ASCII: a stored «۳-A» reads «3-A» on the English picture. */
+function asciiDigits(s) {
+  return String(s == null ? '' : s).replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (d) => String((d.charCodeAt(0) & 0xF)));
+}
 
 // ─── the facts ──────────────────────────────────────────────────────────────
 
@@ -188,7 +192,8 @@ function renderClassPic(f, opt = {}) {
   const nameDir = URDU_RX.test(name || '') ? 'rtl' : 'ltr';
   const cover = opt.cover && opt.cover.b64 ? `<img class="cover" src="data:${opt.cover.type};base64,${opt.cover.b64}" alt="">` : null;
   const art = cover || (a.hello ? `<img class="jug" src="data:image/webp;base64,${a.hello}" alt="">` : '<div class="jug"></div>');
-  const label = f.label ? `<div class="pill">${esc(t.cls)} <bdi dir="ltr">${esc(shown(f.label))}</bdi></div>` : '';
+  // the class label: Urdu digits on the Urdu picture, ASCII digits on the English one (whichever the label was stored in)
+  const label = f.label ? `<div class="pill">${esc(t.cls)} <bdi dir="ltr">${esc(rtl ? urDigits(f.label) : asciiDigits(f.label))}</bdi></div>` : '';
   const long = String(name || '').length > (rtl ? 26 : 30);
   return `<!doctype html><html lang="${lang}" dir="${rtl ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><style>${fonts}
 *{box-sizing:border-box;margin:0;padding:0}
