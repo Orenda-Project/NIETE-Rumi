@@ -1364,6 +1364,7 @@
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      if (TR.storySettled) TR.storySettled(r);
       liveSettle();
       return;
     }
