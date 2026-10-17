@@ -184,6 +184,19 @@ describe('on (JSON true): Server-Timing on the internal hub answer', () => {
     expect(reads.filter((x) => x.keys.includes(ST_KEY)).every((x) => x.keys.includes('web_quiz_hub'))).toBe(true);
   });
 
+  test('with the designed wait on too: the header and wait_ux together, both keys in the hub\'s one switch read', async () => {
+    const off = (await warmHub()).text;
+    seed([...BASE, { key: ST_KEY, value: true }, { key: 'web_quiz_wait_ux', value: true }]);
+    const { r, text } = await warmHub();
+    expect(r.headers.get('server-timing')).toMatch(/total;dur=\d+$/);
+    expect(JSON.parse(text).wait_ux).toBe(true);
+    expect(norm(text).replace(/,"wait_ux":true/, '')).toBe(norm(off));
+    await staleHub();
+    const batch = reads.filter((x) => x.keys.includes(ST_KEY));
+    expect(batch.length).toBe(1);
+    expect(batch[0].keys).toEqual(expect.arrayContaining(['web_quiz_hub', 'web_quiz_wait_ux']));
+  });
+
   test('GOLDEN: the JSON body is byte for byte the off answer', async () => {
     const off = (await warmHub()).text;
     withSwitch(true);
