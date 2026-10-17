@@ -2550,7 +2550,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    // the one share (finish's share_v4): this page's own share, the picture and the class link, is the only one a tap runs
+    if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2614,6 +2615,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       tile +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
+      // the one share (finish's share_v4): "Challenge a friend" is back on the card, its own link and picture
+      (res.share_v4 === true ? '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
@@ -2627,8 +2630,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     warmArt('card', art.card);
     warmLink(classUrl);
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    // the one share (finish's share_v4): this page's own share, the picture and the class link, is the only one a tap runs
+    if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
+    if (res.share_v4 === true) {
+      var chalUrl = link('/q/' + (res.challenge_code || CODE));
+      warmArt('invite', art.invite);
+      warmLink(chalUrl);
+      on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
+    }
     on('#wq-fhome', function () { homeGo('card'); });
     // No answer from the slot: the home, on its Stories door (the home's own Next when it has nothing ranked).
     if (!nx) on('#wq-fnext', function () { homeGo('card', '#stories'); });
