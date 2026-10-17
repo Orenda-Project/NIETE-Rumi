@@ -63,6 +63,7 @@ const ROUTES = [
   ['GET', `/quiz/teacher/${TOK}/send?c=${UUID}&o=library`, null, false],
   ['GET', `/api/th/home?t=${TOK}`, null, true],
   ['GET', `/api/th/library?t=${TOK}`, null, true],
+  ['GET', `/api/th/timeline?t=${TOK}`, null, true],
   ['GET', `/api/th/quiz/${UUID}?t=${TOK}`, null, true],
   ['POST', '/api/th/send', { ...POST_OK, kind: 'video', id: UUID }, true],
   ['POST', '/api/th/quiz/make', { ...POST_OK, kind: 'lesson', id: 'lsn_lp_v8_abc' }, true],
@@ -172,6 +173,21 @@ describe('path-for-path forwarding', () => {
       `/api/internal/th/api/th/home?t=${TOK}&g=3&lang=en`,
       `/api/internal/th/api/th/home?t=${TOK}`,
       `/api/internal/th/api/th/library?t=${TOK}&g=5`,
+    ]);
+  });
+  test('timeline: only t, a cursor of the page\'s own shape, n (1–20 digits), lang forwarded', async () => {
+    await boot(ok);
+    await request('GET', `/api/th/timeline?t=${TOK}&after=1791180000000.lp_c1000000-0000-4000-8000-000000000041&n=10&lang=ur&g=3&evil=1`);
+    await request('GET', `/api/th/timeline?t=${TOK}&after=..%2Fx&n=999`);
+    await request('GET', `/api/th/timeline?t=${TOK}&n=21`);
+    await request('GET', `/api/th/timeline?t=${TOK}&n=0`);
+    await request('GET', `/api/th/timeline?t=${TOK}&n=20`);
+    expect(calls.map((c) => c.path)).toEqual([
+      `/api/internal/th/api/th/timeline?t=${TOK}&after=1791180000000.lp_c1000000-0000-4000-8000-000000000041&n=10&lang=ur`,
+      `/api/internal/th/api/th/timeline?t=${TOK}`,
+      `/api/internal/th/api/th/timeline?t=${TOK}`,
+      `/api/internal/th/api/th/timeline?t=${TOK}`,
+      `/api/internal/th/api/th/timeline?t=${TOK}&n=20`,
     ]);
   });
   test('quiz/:id with a uuid', async () => {

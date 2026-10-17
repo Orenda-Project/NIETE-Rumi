@@ -666,17 +666,24 @@ function weekStart(iso) {
 
 /**
  * @param {string} teacherId
- * @param {{days?: number, now?: number}} [opts]
+ * @param {{days?: number, now?: number, ownOnly?: boolean}} [opts] `ownOnly` (the teacher home's quick answer): the
+ *   teacher's own quizzes only, never the library quizzes they sent (each own quiz's row is the same either way: it
+ *   counts its own codes' sessions), with the class list read alongside the quizzes instead of after them; a story
+ *   row also carries its `book` (meta.story.book_id or null).
  */
-async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
+/** A story send's book id (as the jsonb path `meta->story->>book_id` reads it), or null. */
+const bookOf = (q) => { const b = q.meta && q.meta.story && q.meta.story.book_id; return b ? String(b) : null; };
+
+async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = false } = {}) {
   if (!teacherId) return null;
   const since = new Date(now - days * 86400000).toISOString();
+  const rosterSoon = ownOnly ? readRoster(teacherId).then((v) => ({ v }), (err) => ({ err })) : null;
   const { data: quizzes, error } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('teacher_id', teacherId).in('status', ['sent', 'report_sent']).gte('created_at', since)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   // The library quizzes this teacher sent (quiz_teacher_home), by their send date, among their own.
-  const sentList = await softly(() => sentQuizzes(teacherId, { since }), []);
+  const sentList = ownOnly ? [] : await softly(() => sentQuizzes(teacherId, { since }), []);
   const qs = sentList.length
     ? [...(quizzes || []), ...sentList].sort((a, b) => String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || '')))
     : quizzes || [];
@@ -694,7 +701,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   });
 
   let roster = null;
-  try { roster = await readRoster(teacherId); } catch (err) {
+  try { roster = rosterSoon ? await rosterSoon.then((r) => { if (r.err) throw r.err; return r.v; }) : await readRoster(teacherId); } catch (err) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
   const rows = qs.map((q) => {
@@ -714,6 +721,8 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
       subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
       // a library quiz this teacher SENT (sentQuizzes gives it sent_at); their own quizzes carry no key
       ...(q.sent_at ? { sent: true } : {}),
+      // the quick answer: a story send's book from this read's own meta (the home's "sent" pill, the pick's skip)
+      ...(ownOnly && q.quiz_source === 'story' ? { book: bookOf(q) } : {}),
     };
   });
 

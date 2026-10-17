@@ -105,17 +105,18 @@ function classCard({ lessons, played, shares, reports, now, can = anyCan }) {
 
 /**
  * → the page's JSON (minus the class messages, which the router adds for the cards that send from the page).
+ * `maxRows`: the timeline's length (the paged answer holds the whole history and ships it a page at a time).
  * `stories` = the shelf's books for `grade` or null; `video` = the bank pick or null; `storiesBase` = the stories
  * page's path for this token, or null when the stories page is not there.
  */
 function buildHome({
   first = null, grade = 2, lessons = [], played = new Map(), shares = [], reports = new Map(), stories = null,
   video = null, maker = null, storiesBase = null, children = null, confirm = [], tryStudent = null, change = false,
-  againable = null, now = Date.now(),
+  againable = null, now = Date.now(), maxRows = MAX_ROWS,
 }) {
   const can = againable instanceof Set ? (id) => againable.has(id) : anyCan;
   const rows = [...lessons.map((r) => lessonRow(r, played, reports, can)), ...extraOwn(lessons, played).map(([id, p]) => ownRow(id, p, reports, can)), ...shares.map(shareRow)]
-    .sort((a, b) => ms(b.date) - ms(a.date)).slice(0, MAX_ROWS);
+    .sort((a, b) => ms(b.date) - ms(a.date)).slice(0, maxRows);
   const sent = sentBooks(played, now);
   const books = Array.isArray(stories) && stories.length && storiesBase
     ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}${storiesBase.includes('?') ? '&' : '?'}book=${encodeURIComponent(b.id)}`, ...(sent.has(b.id) ? { sent: sent.get(b.id) } : {}) })) : [];
