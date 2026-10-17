@@ -29,6 +29,15 @@ describe('raw person ids on log lines', () => {
     expect(rawIdHits("const o = { userId: user.id }; save(o);")).toEqual([]);
   });
 
+  test('a member call counts like a bare one: logger.logEvent, d.logError, this.logToFile, require(…).logEvent', () => {
+    expect(rawIdHits("logger.logEvent('x', { userId: u.id });")).toEqual(['1 userId: u.id']);
+    expect(rawIdHits("d.logError('x', { userId: args.userId, error: e.message });")).toEqual(['1 userId: args.userId']);
+    expect(rawIdHits("this.logToFile('x', { phone });")).toEqual(['1 phone (shorthand)']);
+    expect(rawIdHits("require('../utils/structured-logger').logEvent('x', { teacherId: t });")).toEqual(['1 teacherId: t']);
+    expect(rawIdHits("window.console.warn('x', { studentId: s });")).toEqual(['1 studentId: s']);
+    expect(rawIdHits("d.logEvent('x', { tk: tk(u.id) }); obj.logEventsCount('x', { userId: u.id });")).toEqual([]);
+  });
+
   test('a hit names the line of its log call', () => {
     expect(rawIdHits("/* one\ntwo */\nconst a = 1;\nlogEvent('x', {\n  userId: u.id,\n});")).toEqual(['4 userId: u.id']);
   });

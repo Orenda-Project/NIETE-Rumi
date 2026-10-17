@@ -7,7 +7,8 @@
  *   logEvent('x', { userId: user.id })      → 1 hit (userId: user.id)
  *   logToFile('y', { phone, tk: tk(id) })   → 1 hit (phone, shorthand)
  *   logEvent('x', { tk: tk(user.id), phone: phone.slice(-4), from: 'list' }) → 0
- * Log calls: logEvent, logToFile, logError, logWarn, logInfo, logDebug, console.log/warn/error/info/debug.
+ * Log calls: logEvent, logToFile, logError, logWarn, logInfo, logDebug, console.log/warn/error/info/debug, called bare or
+ * as a member (`logger.logEvent(`, `d.logError(`, `this.logToFile(`).
  * Comments are stripped; string contents are blanked before keys are read (a key named inside a message is no hit).
  */
 
@@ -15,7 +16,8 @@ const KEYS = ['userId', 'user_id', 'teacherId', 'teacher_id', 'teacherUserId', '
   'childId', 'child_id', 'canonicalId', 'canonical_id', 'phone', 'phoneNumber', 'phone_number', 'phoneNorm', 'phone_norm',
   'parentPhone', 'parent_phone', 'waId', 'wa_id', 'from'];
 const KEY = `(?:${KEYS.join('|')})`;
-const CALL = /(?<![\w$.])(?:logEvent|logToFile|logError|logWarn|logInfo|logDebug|console\.(?:log|warn|error|info|debug))\s*\(/g;
+// a bare or member call (`logEvent(`, `logger.logEvent(`, `d.logError(`, `this.logToFile(`); never a longer name
+const CALL = /(?<![\w$])(?:logEvent|logToFile|logError|logWarn|logInfo|logDebug|console\.(?:log|warn|error|info|debug))\s*\(/g;
 const PAIR = new RegExp(`(?:^|[{,\\s])(${KEY})\\s*:\\s*([^,}\\n]+)|[{,]\\s*(${KEY})\\s*(?=[,}])`, 'g');
 // A value that is not a raw id or phone: a literal, a boolean or count, or a keyed / masked / hashed form.
 const SAFE = new RegExp([
