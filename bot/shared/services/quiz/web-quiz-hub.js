@@ -694,7 +694,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
 async function hub(token, opts = {}) {
   // Fast first page (web_quiz_fast): every switch the hub reads, as ONE read, started before any of them (each switch
   // with no fresh value waits for it instead of its own read): web-quiz-hub-switches.js. Only for a hub token. Off: no call.
-  if (require('./web-quiz-fast').on() && T.secret() && T.verify(token, 'h')) require('./web-quiz-hub-switches').ensure();
+  // A process's first hub reads the fast switch itself (not known yet): the one read starts when that read says on, so
+  // the next hub finds every switch primed and makes no settings read of its own. Off: nothing more.
+  const Fast = require('./web-quiz-fast');
+  const hubToken = () => T.secret() && T.verify(token, 'h');
+  if (Fast.on()) { if (hubToken()) require('./web-quiz-hub-switches').ensure(); }
+  else if (Fast.pending() && hubToken()) Fast.pending().then((on) => { if (on) require('./web-quiz-hub-switches').ensure(); }, () => {});
   // Fast first page (web_quiz_fast): the page-events switch is read beside the payload, not after it.
   const rt = require('./web-quiz-fast').on() ? require('./web-quiz-fast').early(Tel.flag()) : null;
   const ui = await require('./web-quiz-ur-polish').ui();

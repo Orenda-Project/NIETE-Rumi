@@ -73,4 +73,7 @@ function early(promise) {
   return promise;
 }
 
-module.exports = { on, fresh, cachedOn, prime, early, KEY, _reset: () => { cache = null; reading = null; } };
+/** The fast switch's own read in flight (resolves on/off), or null. */
+const pending = () => reading;
+
+module.exports = { on, fresh, cachedOn, prime, early, pending, KEY, _reset: () => { cache = null; reading = null; } };
