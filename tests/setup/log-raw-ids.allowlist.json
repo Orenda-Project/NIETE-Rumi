@@ -1062,13 +1062,6 @@
    "570 userId (shorthand)"
   ]
  },
- "bot/shared/services/first-touch/maker.bank.js": {
-  "n": 1,
-  "area": "first-touch",
-  "at": [
-   "194 userId: uid"
-  ]
- },
  "bot/shared/services/first-touch/one-door.service.js": {
   "n": 2,
   "area": "first-touch",
