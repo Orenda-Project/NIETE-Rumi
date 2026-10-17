@@ -116,10 +116,10 @@ describe('home on: a read ends on the card and ONE next thing', () => {
     expectFold(t.html());
     expect(t.html()).toContain('#stories');
   });
-  test('a read that certified nothing: the same row set (the try card)', () => {
+  test('a read that certified nothing: the same row set, without Share (the try card)', () => {
     const t = trail({ menu: FOLD, data: { story: { tokens: 'a b c d e f g h i j k l'.split(' ') } } });
     t.TR.readEnd({ score: { attempted: 0 } }, null, 0);
-    expectFold(t.html());
+    expectFold(t.html(), { share: false });
   });
   test('Urdu: «کہانی چنیں» and «ہوم»', () => {
     const t = trail({ lang: 'ur', menu: FOLD });

@@ -365,6 +365,49 @@ describe('(d) a practice listen: "show me the words" after the questions', () =>
   });
 });
 
+// (e) "Hear it again" on a read that certified nothing: a read run's token gets the passage's timings only once its
+// result has settled as not a reading (0 words, unheard) — never before the read, never after a heard read.
+describe('(e) a read run whose result settled as not a reading: "Hear it again"', () => {
+  const counted = async () => {
+    const { body } = await get('read');
+    expect(body).toMatchObject({ ex: 'read', mode: 'check' });
+    const row = rowOf(body.ct);
+    putFile(`${dirOf(row.passage_id)}/current.json`, fileFor(row.passage_id, Bank.getPassage(row.passage_id).text));
+    return { ct: body.ct, row };
+  };
+  test('on: before the reading 400; while it is scored 409; settled at 0 words → the timing file', async () => {
+    on(...STORY_ON, READALONG);
+    const { ct, row } = await counted();
+    expect((await words(ct)).status).toBe(400);
+    row.status = 'scoring';
+    expect((await words(ct)).status).toBe(409);
+    Object.assign(row, { status: 'scored', score: { correct: 0, attempted: 0 }, wcpm: null });
+    const w = await words(ct);
+    expect(w.status).toBe(200);
+    expect(w.body.readalong).toMatchObject({ v: 1, id: row.passage_id, audio: { url: `https://signed.test/${dirOf(row.passage_id)}/sx-grace-ab12cd34.ogg` } });
+  });
+  test('settled unheard (failed) → the timing file too', async () => {
+    on(...STORY_ON, READALONG);
+    const { ct, row } = await counted();
+    Object.assign(row, { status: 'failed', meta: { ...(row.meta || {}), reason: 'unheard' } });
+    expect((await words(ct)).status).toBe(200);
+  });
+  test('a heard read (words read) is refused, as today', async () => {
+    on(...STORY_ON, READALONG);
+    const { ct, row } = await counted();
+    Object.assign(row, { status: 'scored', score: { correct: 5, attempted: 6 }, wcpm: 30 });
+    expect((await words(ct)).status).toBe(403);
+  });
+  test('off: 404 and no timing file is read', async () => {
+    on(...STORY_ON);
+    const { ct, row } = await counted();
+    Object.assign(row, { status: 'scored', score: { correct: 0, attempted: 0 } });
+    r2.downloadFromR2.mockClear();
+    expect((await words(ct)).status).toBe(404);
+    expect(readalongReads()).toHaveLength(0);
+  });
+});
+
 describe('the coach\'s preview: #listen/<pid> (stored clip + highlight, no run)', () => {
   test('on: a practice passage\'s timing for a hub token on its own phone; no run row is written', async () => {
     on(...STORY_ON, READALONG);

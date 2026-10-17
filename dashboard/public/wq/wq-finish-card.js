@@ -200,7 +200,8 @@
     return '<div class="wqfc" data-screen="card" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '">' + (o.top || '') +
       (o.sound === false ? '' : '<button class="wqfc-snd" id="wqfc-snd" type="button" data-tap="sound" aria-label="' + esc(W[l].sound) + '" aria-pressed="' + (muted() ? 'true' : 'false') + '">' + (muted() ? SND_OFF : SND_ON) + '</button>') +
       (lead ? tile : '') +
-      '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? W[l].sendPlain : W[l].send) + '</a>' +
+      // a read that certified nothing (read_tried) is not shared: no Share on the try card
+      (o.deed === 'read_tried' ? '' : '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? W[l].sendPlain : W[l].send) + '</a>') +
       (lead ? '' : tile) +
       (o.home && /^\/[^/]/.test(o.home) ? '<a class="wq-btn wq-soft wqfc-home" id="wqfc-home" data-home data-tap="home" href="' + esc(o.home) + '">' + esc(W[l].home) + '</a>' : '') +
       '</div>';

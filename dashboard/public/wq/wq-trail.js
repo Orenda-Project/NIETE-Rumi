@@ -162,12 +162,29 @@
         if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
       } catch (e) { /* the card still works */ }
     }
+    // a read that heard nothing (the kind card, never the 10-s "later" one): its ONE Next is "Hear it again" — Jugnu
+    // reads the passage word by word — when the passage's timings are here (on the serve, or asked for once by the run
+    // token after the read); "I'm ready" opens the read again, as "Try again" does
+    function replayRa(d, card) {
+      var r = (card && card.r) || {};
+      if (d.ex !== 'read' || !r.tried || r.later || r.hold) return null;
+      var ra = d.readalong || d.hear_first || d.words_ra;
+      return ra ? (window.WQReadAlong ? ra : 'wait') : false;   // false: no timings yet; 'wait': the player is on its way
+    }
     function foldEnd(name, top, qa, nx, card) {
+      var d = h.S.data || {};
+      var want = qa ? null : replayRa(d, card);
+      var ra = want && want !== 'wait' ? want : null;
       var fx = foldNext(nx);
-      h.show(name, top + foldHtml(fx, qa));
+      h.show(name, top + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
-      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa ? null : fx } }));
+      if (ra) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
+      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || ra ? null : fx } }));
       foldAfter(qa);
+      // no timings on the serve (a counted read): asked for once now; the card is drawn again with "Hear it again"
+      var redraw = function () { if (h.S.data === d && h.S.screen === name) foldEnd(name, top, qa, nx, card); };
+      if (want === false && d.ct) askWords(d, redraw);
+      if (want === 'wait') { raLoad(); if (!raLoad.failed) raWaits.push(function (ok) { if (ok) redraw(); }); }
     }
     function outcome(d) { return (d && (d.outcome || (d.draw && d.draw.outcome))) || null; }
     function isWarmup(d) { return !!(d && d.anchor_block); }
@@ -476,6 +493,10 @@
       var d = h.S.data;
       if (!wordsOk(d)) return;
       if (d.words_ra) { if (window.WQReadAlong) h.on('wqc-show-words', function () { showWords(d.words_ra); }); return; }
+      askWords(d, redraw);
+    }
+    // the passage's timings, asked for once by the run token (d.words_ra); redraw() once they and the player are here
+    function askWords(d, redraw) {
       if (d.words_asked) return;
       d.words_asked = true;
       raLoad();

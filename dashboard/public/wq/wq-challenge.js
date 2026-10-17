@@ -1251,7 +1251,12 @@
       var r = liveWpm(live.v);
       var lc = { correct: live.v.correct, attempted: live.v.attempted, secs: r.secs };
       // Nothing heard live is no result: the checked count decides, on today's screens.
-      if (!live.v.attempted) { upload(); return; }
+      if (!live.v.attempted) {
+        // live reading v3 with the card: nothing heard live is the kind card at once, never "Listening…" then "wait";
+        // the recording still goes up for the record, and its check moves nothing on this card (live.zero)
+        if (lr3() && TR && menuData.card_v3 && window.WQFC) { live.zero = true; lrT().hand(true); readResult({ score: { correct: 0, attempted: 0 }, sticker: false }); uploadQuiet(lc); return; }
+        upload(); return;
+      }
       var w = r.secs > 0 ? Math.round(live.v.correct / r.secs * 60) : 0;
       live.wpm = w;
       liveResult(w);
@@ -1376,6 +1381,7 @@
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
+      if (live && live.zero) return;
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
       if (TR.storySettled) TR.storySettled(r);
       liveSettle();
@@ -1467,7 +1473,9 @@
   }
 
   function readResult(r) {
-    if (rec.gaveUp) return;   // live reading v3: the card was shown at the 10-s mark; a late answer moves nothing
+    // live reading v3: the card was shown at the 10-s mark; a late answer moves nothing — except a settled "nothing read"
+    // while that card is still open: it becomes the kind card, never "wait a little" forever
+    if (rec.gaveUp && !(TR && lr3() && S.screen === 'read-result' && r && !r.pending && !r.later && window.WQFC && window.WQFC.unheard(r, null, null, 0))) return;
     // live reading v3: the card judges how the reading ended (a silent start is never a reading), so it always has it
     if (lr3() && r && r.ended == null && rec.ended) r = Object.assign({}, r, { ended: rec.ended });
     if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }

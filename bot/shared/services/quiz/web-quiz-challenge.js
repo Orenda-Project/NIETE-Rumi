@@ -2062,17 +2062,30 @@ async function readingOf(c, lang) {
   return { run, row, mem, spec };
 }
 
+// a read run whose result settled as not a reading: nothing heard (failed 'unheard') or not one word read
+const notAReading = (row) => !!row && ((row.status === 'failed' && !!row.meta && row.meta.reason === 'unheard')
+  || (row.status === 'scored' && !!row.score && Number(row.score.attempted != null ? row.score.attempted : row.score.correct) === 0));
+
 /**
  * "Show me the words" after a practice listen's questions: the story's timing file (web_quiz_readalong), by the run
  * token. Only a practice listen run gets it — a counted listen never shows its text (it is heard, never shown).
+ * "Hear it again" on a read that certified nothing: a read run gets its passage's timings only once its result has
+ * settled as not a reading — never before the read (400), never while it is scored (409), never after a heard read
+ * (403). The run is over and recorded; a re-read is the existing "Try again", so hearing it cannot lift a counted score.
  */
 async function listenWords({ ct, lang } = {}) {
   const c = runOf(ct);
-  if (c.ex !== 'listen') fail(400, 'bad_request');
+  if (c.ex !== 'listen' && c.ex !== 'read') fail(400, 'bad_request');
   const { run, row, mem, spec } = await readingOf(c, lang);
   const sv = mem.v2 || (await servedInfo(c.r)) || {};
   const mode = sv.mode || (row && row.mode) || mem.mode;
-  if (mode !== 'practice') fail(403, 'not_practice');
+  if (c.ex === 'read') {
+    if (!notAReading(row)) {
+      if (mem.status === 'scoring' || (row && row.status === 'scoring')) fail(409, 'pending');
+      if (!row || isServedRow(row) || row.status === 'abandoned') fail(400, 'bad_request');
+      fail(403, 'heard');
+    }
+  } else if (mode !== 'practice') fail(403, 'not_practice');
   const st = spec.story || {};
   const t = sv.passage_id ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: run.lang, passageId: sv.passage_id, text: st.text }) : null;
   if (!t) fail(404, 'no_words');
