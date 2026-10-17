@@ -347,4 +347,37 @@ describe('one primary action on the screen', () => {
     expect(p.q('#th-sheet').hidden).toBe(true);
     expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['again']);
   });
+
+  test('a quiz that lands while the sheet is open repaints the top card without a second primary; closed, the new card\'s is the one', async () => {
+    const timers = [];
+    const p = await open({ ...home(), timeline: [{ kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' }] }, {
+      timers, backThrows: true,
+      answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' } : {}),
+    });
+    await p.tap(p.q('#th-rows').querySelector('[data-tap="quiz_this"]'));
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    timers.splice(0).forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').getAttribute('data-kind')).toBe('made');
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
+  });
+
+  test('a grade change while the sheet is open repaints the top card without a second primary', async () => {
+    const VIDEO = { kind: 'video', id: 'v1', title: 'Rain', send: { message: 'V', wa: 'https://wa.me/?text=V', c: 'vc' } };
+    const p = await open({ primary: VIDEO, library: LIB }, {
+      backThrows: true,
+      answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { ...LIB, grade: 3, pick: { ...VIDEO, id: 'v2', title: 'Sun' } } : {}),
+    });
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="3"]'));
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').textContent).toContain('Sun');
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
+  });
 });
