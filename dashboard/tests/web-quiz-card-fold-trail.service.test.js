@@ -24,6 +24,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false, 
   let screen = '';
   const listeners = {};
   const events = [];
+  const posts = [];
   // one element of the screen string, by id: its opening tag, and the whole element for <a>/<button>
   const tagOf = (id) => { const m = new RegExp(`<(a|button|p)\\b[^>]*\\bid="${id}"[^>]*>`).exec(screen); return m; };
   const el = (id) => ({
@@ -45,7 +46,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false, 
   const ctx = {
     location: { origin: 'https://portal.example', hash: '', href, search: href.indexOf('?') >= 0 ? href.slice(href.indexOf('?')) : '' }, navigator: {}, URL,
     sessionStorage: { getItem: () => null, setItem() {} }, localStorage: { getItem: () => null, setItem() {} },
-    fetch: () => Promise.resolve({ ok: false, status: 503, text: () => Promise.resolve('') }),
+    fetch: (url, init) => { posts.push({ url, body: init && init.body ? JSON.parse(init.body) : null }); return Promise.resolve({ ok: false, status: 503, text: () => Promise.resolve('') }); },
     document: {
       getElementById: (id) => (screen.indexOf(`id="${id}"`) >= 0 ? el(id) : null),
       querySelector: (sel) => (sel === '#wq .wq-stack' && screen.indexOf('<div class="wq-stack">') >= 0
@@ -68,7 +69,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, top = false, 
     qa: () => ({ open() {} }), qaButtons: () => '<button class="wq-btn wq-go" id="wqc-qa" type="button">Story questions</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">Back</button>',
   };
   const TR = ctx.WQTRAIL.init(h);
-  return { TR, html: () => screen, events, tap: (id) => (listeners[id] || []).forEach((fn) => fn({ preventDefault() {} })) };
+  return { TR, html: () => screen, events, posts, tap: (id) => (listeners[id] || []).forEach((fn) => fn({ preventDefault() {} })) };
 }
 
 const FOLD = { card_v3: true, card_fold: true, v2: {} };
@@ -219,6 +220,38 @@ describe('home on, without the finish card (card_v3 off) or where the card is ne
     t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
     expectFold(t.html());
     expect(t.html()).not.toContain('id="wqc-practice"');
+  });
+  test('a stop played again, the whole story read: the card, never the sticker or "today", and no read_all anywhere', () => {
+    for (const lang of ['en', 'ur']) {
+      const t = trail({ lang, menu: FOLD, data: { practice_round: true } });
+      t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+      const h = t.html();
+      expectFold(h);
+      expect(h).not.toContain('id="wqc-sticker"');
+      expect(h).not.toContain('data-sticker');
+      const share = decodeURIComponent((/id="wqfc-share"[^>]*href="https:\/\/wa\.me\/\?text=([^"]*)"/.exec(h) || [])[1] || '');
+      expect(share).toContain(lang === 'ur' ? 'میں نے پوری کہانی اونچی آواز میں پڑھی!' : 'I read a whole story out loud!');
+      expect(share).not.toMatch(/⭐|today|آج/);
+      const mint = t.posts.find((x) => x.url === '/api/wq/card');
+      expect(mint.body).toMatchObject({ kind: 'read', deed: 'read_practice' });
+      expect(JSON.stringify([t.events, t.posts])).not.toContain('read_all');
+    }
+  });
+  test('Story Time (a practice run) folded: no sticker line', () => {
+    for (const [ex, end] of [['listen', (t) => t.TR.tapEnd('listen-result', {})], ['read', (t) => t.TR.readEnd({ score: { attempted: 4 } }, null, 4)]]) {
+      const t = trail({ href: STORY_HREF + (ex === 'listen' ? '&ex=listen' : ''), menu: { ...FOLD, v2: { story: true } }, data: { story_room: true, practice_round: true, ex } });
+      t.TR.menu();
+      end(t);
+      expectFold(t.html());
+      expect(t.html()).not.toContain('id="wqc-sticker"');
+      expect(t.posts.find((x) => x.url === '/api/wq/card').body).toMatchObject(ex === 'listen' ? { kind: 'listen', deed: 'listen_practice' } : { kind: 'story', deed: 'story_practice' });
+    }
+  });
+  test('a counted run folded keeps its sticker and its read_all card', () => {
+    const t = trail({ menu: FOLD });
+    t.TR.readEnd({ score: { attempted: 4 } }, null, 4);
+    expect(t.html()).toContain('id="wqc-sticker"');
+    expect(t.posts.find((x) => x.url === '/api/wq/card').body).toMatchObject({ kind: 'read', deed: 'read_all' });
   });
   test('card_fold absent: a practice run still gets no card (today)', () => {
     const t = trail({ menu: { card_v3: true, v2: {} }, data: { practice_round: true } });

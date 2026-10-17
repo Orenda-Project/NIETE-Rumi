@@ -5,7 +5,7 @@
  * web_quiz_hub_door, only with web_quiz_hub on; read fail-closed in web-quiz-hub-flags).
  *
  *   field(s)        finish()'s {hub_door: true} when the card may offer it, else {} (the payload stays today's)
- *   foldField(s)    finish()'s {card_fold: true} with the child home on (app_settings web_quiz_home_v3): a class child's
+ *   foldField(s)    finish()'s {card_fold: true} (+ no_class, noClassField) with the child home on (app_settings web_quiz_home_v3): a class child's
  *                   own card is the card and ONE next thing, and its Home row (POST /hubdoor {home}) opens on a
  *                   finished run without the card's door or the Home button switched on; else {} (today's payload)
  *   menuFoldField() the Jugnu page's menu's {card_fold: true} with the child home on (its end cards fold too), else {}
@@ -48,7 +48,8 @@ async function field(s) {
 
 async function foldField(s) {
   try {
-    return ownRun(s) && (await HomeFlags.flags()).home ? { card_fold: true } : {};
+    // a child with no class (noClassField): the card's share says "Share" (no_class beside card_fold)
+    return ownRun(s) && (await HomeFlags.flags()).home ? { card_fold: true, ...(await noClassField(s.student_id)) } : {};
   } catch (_) {
     return {};
   }

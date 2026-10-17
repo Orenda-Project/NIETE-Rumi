@@ -42,13 +42,14 @@ const D1 = 'AAAAAAAAAAAAAAAAAAAAAA';
 const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 
-function seed({ home, door = false, sess = {} } = {}) {
+// lesson: the quiz's code is a library lesson's (a "watch more" code under a teacher's), so no teacher sent this child a quiz
+function seed({ home, door = false, sess = {}, lesson = false } = {}) {
   const fake = makeFake({
     app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: true }, { key: 'web_quiz_hub_door', value: door },
       ...(home === undefined ? [] : [{ key: 'web_quiz_home_v3', value: home }])],
     quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '3', subject: 'maths', quiz_source: 'transcript', video_id: null }],
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, language: 'en', active: true,
-      expires_at: future, invited_by_student_id: null, parent_share_code_id: null, created_at: ago(30) }],
+      expires_at: future, invited_by_student_id: null, parent_share_code_id: lesson ? 'sc-parent' : null, created_at: ago(30) }],
     quiz_questions: [1, 2].map((n) => ({ id: Q(n), quiz_id: QUIZ, external_id: `q${n}`, sort_order: n, question_text: `Q${n}`,
       option_a: 'A', option_b: 'B', option_c: null, option_d: null, correct_option: 'A', explanation: null, option_feedback: null, media: {}, render_pattern: null })),
     quiz_sessions: [{ id: 's1', quiz_id: QUIZ, share_code_id: SC, student_id: KID, status: 'in_progress', user_id: null,
@@ -81,6 +82,21 @@ describe('finish(): the card folds with the home on', () => {
       Flags._resetCache(); HomeFlags._resetCache();
       seed({ home });
       expect(await WQ.finishSession({ st: st() })).not.toHaveProperty('card_fold');
+    }
+  });
+  test('a child with no class (no quiz a teacher sent: a library lesson\'s code), the home on: no_class beside card_fold (the card says "Share")', async () => {
+    seed({ home: true, lesson: true });
+    expect(await WQ.finishSession({ st: st() })).toMatchObject({ card_fold: true, no_class: true });
+  });
+  test('a class child (this quiz is the teacher\'s): card_fold, no no_class; home off: neither key', async () => {
+    seed({ home: true });
+    const out = await WQ.finishSession({ st: st() });
+    expect(out.card_fold).toBe(true);
+    expect(out).not.toHaveProperty('no_class');
+    for (const home of [undefined, false, 'true']) {
+      Flags._resetCache(); HomeFlags._resetCache();
+      seed({ home, lesson: true });
+      expect(await WQ.finishSession({ st: st() })).not.toHaveProperty('no_class');
     }
   });
   test('a friend\'s challenge run and the teacher\'s own run: no key', async () => {
@@ -145,5 +161,13 @@ describe('the folded card\'s two event lines keep their fields (the after-quiz n
     expect(WQ.cleanEvent({ n: 'card_share', src: 'card', kind: 'card_image' }).props).toEqual({ src: 'card' });
     expect(WQ.cleanEvent({ n: 'card_view', band: 'mid', fold: true }).props).toEqual({ band: 'mid' });
     expect(WQ.cleanEvent({ n: 'next_pick', src: 'fold', kind: 'Zara Testwala' }).props).toEqual({ src: 'fold' });
+  });
+  test('next_pick\'s kind is a LIST (the slot\'s own kinds), never a pattern: a name-shaped slug is dropped', () => {
+    for (const kind of ['story', 'storybook', 'game', 'read', 'listen', 'video', 'quiz', 'trail']) {
+      expect(WQ.cleanEvent({ n: 'next_pick', src: 'fold', kind }).props).toEqual({ src: 'fold', kind });
+    }
+    for (const kind of ['zara_testwala', 'invite', 'stories', 'x']) {
+      expect(WQ.cleanEvent({ n: 'next_pick', src: 'fold', kind }).props).toEqual({ src: 'fold' });
+    }
   });
 });

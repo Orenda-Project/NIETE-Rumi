@@ -39,7 +39,13 @@
       answered: 'I answered the story questions today!',
       game_done: 'I played a numbers game with Jugnu today!',
       book_read: 'I read a storybook with Jugnu today!',
-      video_watched: 'I watched a video with Jugnu today!'
+      video_watched: 'I watched a video with Jugnu today!',
+      // a stop played again (practice, the child home on): no "today", no star, no sticker — the Book is counted runs only
+      read_practice: 'I read a whole story out loud!',
+      read_some_practice: 'I read out loud with Jugnu!',
+      listen_practice: 'I listened to a story with Jugnu!',
+      story_practice: 'I read a story with Jugnu!',
+      game_practice: 'I played a numbers game with Jugnu!'
     },
     ur: {
       quiz_done: 'میں نے آج ٹیچر کا کوئز مکمل کیا!',
@@ -51,7 +57,12 @@
       answered: 'میں نے آج کہانی کے سوالوں کے جواب دیے!',
       game_done: 'میں نے آج جگنو کے ساتھ گنتی کا کھیل کھیلا!',
       book_read: 'میں نے آج جگنو کے ساتھ کہانی کی کتاب پڑھی!',
-      video_watched: 'میں نے آج جگنو کے ساتھ ویڈیو دیکھی!'
+      video_watched: 'میں نے آج جگنو کے ساتھ ویڈیو دیکھی!',
+      read_practice: 'میں نے پوری کہانی اونچی آواز میں پڑھی!',
+      read_some_practice: 'میں نے جگنو کے ساتھ اونچی آواز میں پڑھا!',
+      listen_practice: 'میں نے جگنو کے ساتھ کہانی سنی!',
+      story_practice: 'میں نے جگنو کے ساتھ کہانی پڑھی!',
+      game_practice: 'میں نے جگنو کے ساتھ گنتی کا کھیل کھیلا!'
     }
   };
   var W = {
@@ -61,8 +72,8 @@
     ur: { send: 'کلاس گروپ میں بھیجیں', sendPlain: 'شیئر کریں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
       ret: 'جب دل چاہے جگنو کے ساتھ کھیلیں! یہاں دبائیں، پھر بھیجیں:', words: 'کوئز دکھائیں', quizDeed: 'شاباش! آپ نے پورا کوئز کر لیا!' }
   };
-  var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried'], listen: ['listen_done'], story: ['story_read', 'answered', 'read_tried'],
-    game: ['game_done'], book: ['book_read', 'listen_done', 'read_tried'], video: ['video_watched'] };
+  var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried', 'read_practice', 'read_some_practice'], listen: ['listen_done', 'listen_practice'],
+    story: ['story_read', 'answered', 'read_tried', 'story_practice'], game: ['game_done', 'game_practice'], book: ['book_read', 'listen_done', 'read_tried'], video: ['video_watched'] };
   // The card's own screen lines: zero input (the story reader's own words), a storybook's
   // headline by how it ended, and the count-up deed (on this screen only: never on the picture or in the share).
   var S = {
@@ -144,7 +155,8 @@
   function shareText(o) {
     var l = L(o.lang);
     var ret = o.ret || {};
-    var lines = ['⭐ ' + deedText(l, o.deed)];
+    // a stop played again earns no sticker, so its words carry no star
+    var lines = [(/_practice$/.test(o.deed) ? '' : '⭐ ') + deedText(l, o.deed)];
     var tl = titleLine(l, o.title);
     if (tl) lines.push(tl);
     if (o.url) lines.push(String(o.url));
@@ -363,6 +375,7 @@
   // (the host's), no button the check could change (the host's); the settled card later mounts the same card again,
   // with the held card's deed (one finish, one link) unless the check found nothing read (then the try card).
   var held = null;
+  var PRACTICE_OF = { read_all: 'read_practice', read_some: 'read_some_practice', listen_done: 'listen_practice', story_read: 'story_practice', game_done: 'game_practice' };
   function trailEnd(h, o) {
     var d = h.S.data || {};
     var r = o.r || {};
@@ -381,6 +394,8 @@
     } else if (d.ex === 'listen') { kind = 'listen'; deed = 'listen_done'; }
     else if (o.story) { kind = 'story'; deed = 'story_read'; }
     else { kind = 'game'; deed = 'game_done'; }
+    // o.fold: a stop played again (practice) says its own deed — never the counted run's sticker or "today"
+    if (o.fold && d.practice_round && PRACTICE_OF[deed]) deed = PRACTICE_OF[deed];
     var ttl = d.title && typeof d.title === 'object' ? (h.L === 'ur' && d.title.ur) || d.title.en || '' : '';
     // o.fold (the child home on): the host's one next thing leads (the share soft under it); none = the host's questions
     var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: o.fold ? o.fold.next : r.next_offer || d.next_offer, lead: !!o.fold,

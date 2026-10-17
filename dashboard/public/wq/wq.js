@@ -612,7 +612,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       shareBtn: 'Share to class group', challenge: 'Challenge a friend', cardPriv: 'Only your first name goes on the card.',
       hubDoor: 'My quizzes, videos and challenges',
       // the folded card's Next with nothing ranked: the home's own words (wq-home.js nextPick)
-      foldPick: 'Pick a story',
+      foldPick: 'Pick a story', sharePlain: 'Share',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
@@ -686,7 +686,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
       shareBtn: 'کلاس گروپ میں بھیجیں', challenge: 'دوست کو چیلنج کریں', cardPriv: 'کارڈ پر صرف آپ کا پہلا نام جاتا ہے۔',
       hubDoor: 'میرے کوئز، ویڈیوز اور چیلنج',
-      foldPick: 'کہانی چنیں',
+      foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
@@ -2589,8 +2589,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (kept ? '<div class="wq-banner">' + esc(TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '') + newBest(c, total) +
       tile +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
-      '<button class="wq-btn wq-soft" id="wq-share">' + esc(T.shareBtn) + '</button>' +
-      '<button class="wq-btn wq-ghost" id="wq-fhome">' + esc(T.homeBtn) + '</button>';
+      '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);

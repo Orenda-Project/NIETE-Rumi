@@ -63,7 +63,8 @@ describe('home on: the card and one next thing', () => {
         expect(h).toContain(lang === 'ur' ? NEXT.title_ur : NEXT.title);
         expect(actions(h)).toEqual(['wqfc-next', 'wq-share', 'wq-fhome']);
         expect(h).toMatch(new RegExp('<button class="wq-btn wq-soft" id="wq-share">' + p.wq.T.shareBtn + '</button>'));
-        expect(h).toContain('<button class="wq-btn wq-ghost" id="wq-fhome">' + p.wq.T.homeBtn + '</button>');
+        expect(h).toContain('<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + p.wq.T.homeBtn + '</button>');
+        expect((h.match(/\sdata-home[\s>=]/g) || []).length).toBe(1);
         gone(p, lang);
       });
     }
@@ -112,6 +113,18 @@ describe('home on: the card and one next thing', () => {
       gone(p, lang);
     });
   }
+  test('a child with no class (finish\'s no_class): "Share" / «شیئر کریں» on the folded card, a video quiz too; a class child keeps the class words', () => {
+    for (const lang of ['en', 'ur']) {
+      const plain = lang === 'ur' ? 'شیئر کریں' : 'Share';
+      for (const extra of [{}, { next: { vid: 'v2', title: 'Leaves', code: 'NXT1' } }]) {
+        const p = cardPage(lang, { ...RESULT, card_v3: true, card_fold: true, no_class: true, next_offer: NEXT, ...extra }, { fc: true, video: extra.next ? { url: 'https://r2.test/v.mp4' } : null });
+        expect(p.html()).toContain('<button class="wq-btn wq-soft" id="wq-share">' + plain + '</button>');
+        expect(p.html()).not.toContain(p.wq.T.shareBtn);
+      }
+      const cls = cardPage(lang, { ...RESULT, card_v3: true, card_fold: true, next_offer: NEXT }, { fc: true }).html();
+      expect(cls).toContain('<button class="wq-btn wq-soft" id="wq-share">' + (lang === 'ur' ? 'کلاس گروپ میں بھیجیں' : 'Share to class group') + '</button>');
+    }
+  });
   test('the results screen before the card: only "See my card" (no See my class, no Watch another video)', async () => {
     for (const lang of ['en', 'ur']) {
       const p = page({ lang, store: store(null), api: { finish: { ...RESULT, card_fold: true } } });
