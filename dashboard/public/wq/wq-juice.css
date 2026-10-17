@@ -1,0 +1,13 @@
+/* The sound + motion kit (wq-juice.js): only on pages whose payload carries juice: true. */
+.wq-juice .wq-btn:active,.wq-juice .wq-opt:active,.wq-juice .wqc-opt:active{transform:translateY(2px);border-bottom-width:2px;transition:transform 80ms}
+.wqj-snd{min-width:48px;min-height:48px;border:0;background:transparent;font-size:22px;cursor:pointer}
+.wqj-snd[aria-pressed=false]{opacity:.55}
+.wqj-strip{margin:4px 0 0;text-align:center;font-weight:800;color:#15803D;font-size:18px}
+.wqj-cf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50}
+.wqj-cf i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:wqj-fall 1600ms ease-in forwards}
+@keyframes wqj-fall{0%{transform:translateY(0) rotate(0)}81%{opacity:1}100%{transform:translateY(105vh) rotate(540deg);opacity:0}}
+.wq-juice .wq-opt.wq-picked{border-color:#E65100!important;background:#fff!important;text-decoration:underline;text-decoration-color:#E65100;text-underline-offset:4px}
+.wq-juice .wq-hot.wq-picked{border-color:#E65100}
+.wq-juice .wq-seq.wq-picked,.wq-juice .wq-mgrid.wq-picked{box-shadow:0 0 0 4px #E65100}
+.wqj-ring{box-shadow:0 0 0 4px rgba(88,204,2,.45);transition:box-shadow 200ms}
+@media (prefers-reduced-motion:reduce){.wq-juice .wq-btn:active,.wq-juice .wq-opt:active{transform:none}.wqj-cf{display:none}}

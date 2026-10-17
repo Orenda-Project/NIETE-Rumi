@@ -43,7 +43,7 @@
       oops: 'ویڈیوز نہیں کھلیں۔', retry: 'دوبارہ کوشش کریں', wait: 'لائبریری کھل رہی ہے…',
       noClass: 'پہلے اپنے استاد کا کوئی کوئز کھیلیں، پھر یہ ویڈیو یہاں کھلے گی۔', opening: 'ویڈیو کھل رہی ہے…',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
-      mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
+      mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
     },
   };
 
@@ -417,6 +417,8 @@
           return r.text().then(function (x) {
             var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) {}
             if (r.ok && j && j.code) { flushEv(); location.assign('/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')); return; }
+            // A child with no class (web_quiz_home_v3): the video plays on the child home's own player, the quiz offered after.
+            if (r.ok && j && j.watch) { flushEv(); location.assign(hubUrl + '#watch/' + encodeURIComponent(j.watch.vid || v.vid)); return; }
             going = false;
             ev('error', { err: r.status === 409 ? 'lib_no_class' : 'lib_start_' + r.status });
             o.note = r.status === 409 ? t.noClass : t.oops;

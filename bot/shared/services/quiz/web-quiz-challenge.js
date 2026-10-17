@@ -716,6 +716,7 @@ async function menu(token, { kid, lang, device } = {}) {
     trail: rules.period ? Fast.early(periodTrail(w)) : null,
     rt: Fast.early(Tel.flag()),
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
+    juice: Fast.early(require('./web-quiz-juice').field()),
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
@@ -748,6 +749,8 @@ async function menu(token, { kid, lang, device } = {}) {
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await got('rt', () => Tel.flag()),
     ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
+    // the sound + motion kit (web-quiz-juice.js): named only when on
+    ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
   };
 }
@@ -2305,3 +2308,24 @@ module.exports.rapidPerfect = rapidPerfect;
 module.exports.scoreRead = scoreRead;
 module.exports.passageFor = passageFor;
 module.exports.childTest = childTest;
+// the v3 home's door screens (web-quiz-hub-doors.js): a listening story opens only once its clip is recorded, and a
+// row's words in the quiz voice (the clips' own scheme and recorder; a missing one is recorded in the background, so
+// the row has it on a later open, under the same daily cap as every clip)
+module.exports.storyClip = storyClip;
+module.exports.sayClip = async (text, lang) => {
+  if (!text) return null;
+  const key = clipKey('door', 'say', lang, String(text));
+  // a door label never takes the last half of the day's recordings from the challenge's own clips: past it, known clips only
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, String(text), lang);
+};
+// a listen row on the door's Stories list: the listening story's own key, but like the labels it records only while more
+// than half the day's recordings are left (past it, known clips only), so opening Stories never spends the challenge's half
+module.exports.storyClipCapped = (lang, text) => {
+  if (!text) return null;
+  const key = clipKey('listen', 'story', lang, text);
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, text, lang);
+};
+// tests only: the day's recordings already made (to stand at a point of the daily cap without recording)
+module.exports.__useClips = (n, now = Date.now()) => { clipsRecordedOn(now); clipsRecorded = n; };

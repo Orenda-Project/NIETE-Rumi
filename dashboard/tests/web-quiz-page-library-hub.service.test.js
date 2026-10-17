@@ -89,6 +89,16 @@ test('no teacher\'s quiz played yet (409 no_class): says so, in Urdu too, and st
   expect(p.html()).toContain('پہلے اپنے استاد کا کوئی کوئز کھیلیں');
 });
 
+test('a child with no class (the child home on): start() answers a watch, and the lesson plays on the home\'s own player', async () => {
+  const p = libPage({ api: { ...API, '/api/wq/videos/start': { watch: { vid: V(2), url: 'https://r2.example.test/v.mp4?sig', title: 'Leaves', lang: 'en', after: false } } } });
+  await flush(); await flush();
+  p.els['[data-s="Science"]'].fire('click');
+  await flush(); await flush();
+  p.els[`[data-v="${V(2)}"]`].fire('click');
+  await flush(); await flush();
+  expect(p.assigned).toEqual([`/h/HUBTOK?kid=c1#watch/${V(2)}`]);
+});
+
 test('Back from the subjects goes to the hub', async () => {
   const p = libPage({ api: API });
   await flush(); await flush();
@@ -100,7 +110,7 @@ describe('a library link opened on another phone (the hub link is bound to the c
   const LOCK = { '/api/wq/lib/h/HUBTOK': { __status: 401, error: 'bad_token' } };
   test.each([
     ['en', 'This link was sent to another player', 'Ask the child who got this link to open it.', 'Is this your link? Send /quiz on WhatsApp again for a new one.'],
-    ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔', 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ \u2066/quiz\u2069 بھیجیں۔'],
+    ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔', 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس\u00a0ایپ پر دوبارہ \u2066/quiz\u2069 بھیجیں۔'], // «واٹس ایپ» drawn raw here: held by U+00A0
   ])('%s: says whose link it is and how to get your own, offers no retry (a retry can never work there) and goes back to the hub', async (lang, title, say, mine) => {
     const p = libPage({ lang, api: LOCK });
     await flush(); await flush();

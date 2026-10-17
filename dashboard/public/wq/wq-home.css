@@ -1,9 +1,9 @@
 /* The v3 child home (wq-home.js, web_quiz_home_v3): header, ONE Next tile, the doors as a fixed bottom bar. */
-.wq-home{padding-bottom:96px}
+.wq-home{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .wq-hhead{display:flex;align-items:center;gap:10px;min-height:56px}
-.wq-hjug{flex:none;width:44px;height:44px}
+.wq-hjug{flex:none;width:48px;height:48px}
 .wq-hhi{flex:1;display:flex;flex-direction:column;gap:4px;font-weight:900;font-size:20px;line-height:1.25;color:var(--navy)}
-.wq-hname{align-self:flex-start;min-height:44px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:start;text-decoration:underline dotted 2px;text-underline-offset:6px;cursor:pointer}
+.wq-hname{align-self:flex-start;min-height:48px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:start;text-decoration:underline dotted 2px;text-underline-offset:6px;cursor:pointer}
 .wq-gstop{margin:0;color:var(--muted);font-weight:700}
 .wq-dots{display:flex;gap:5px}
 .wq-dot{display:block;width:11px;height:11px;border-radius:50%;background:var(--star-off,#E2E5E3)}
@@ -29,7 +29,7 @@ html[dir=rtl] .wq-ngo{transform:scaleX(-1)}
 .wq-door svg{color:var(--brand-d)}
 .wq-door.at{background:var(--brand-l)}
 .wq-grown{display:flex;justify-content:center;margin-top:40px}
-.wq-gbtn{position:relative;overflow:hidden;min-height:44px;padding:0 18px;border:2px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:700;-webkit-user-select:none;user-select:none;touch-action:none}
+.wq-gbtn{position:relative;overflow:hidden;min-height:48px;padding:0 18px;border:2px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:700;-webkit-user-select:none;user-select:none;touch-action:none}
 .wq-gfill{position:absolute;inset:0;width:0;background:var(--tint)}
 .wq-gbtn.held .wq-gfill{width:100%;transition:width 2s linear}
 .wq-gsheet{position:fixed;left:12px;right:12px;bottom:96px;z-index:6;display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:18px;background:var(--card);border:2px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.18)}
@@ -48,3 +48,15 @@ html[lang=ur] .wq-hhi,html[lang=ur] .wq-ntext b,html[lang=ur] .wq-door,html[lang
 html[lang=ur] .wq-gstop,html[lang=ur] .wq-prstrip,html[lang=ur] .wq-ntext small,html[lang=ur] .wq-row small,html[lang=ur] .wq-dsay,html[lang=ur] .wq-soon,html[lang=ur] .wq-gbtn,html[lang=ur] .wq-new{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:18px}
 html[lang=ur] .wq-door{font-size:17px}
 @media (prefers-reduced-motion:reduce){.wq-gbtn.held .wq-gfill{transition:none}.wq-next:active{transform:none}}
+/* a door row with the picture the server sent (a quiz's subject): picture, then the words */
+.wq-rowart{flex-direction:row;align-items:center;gap:12px}.wq-rart{flex:none;width:48px;height:48px;border-radius:12px;object-fit:cover;background:var(--tint)}.wq-rtx{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* the minutes never break from their number («۲ منٹ» on one line) */
+.wq-nmin{white-space:nowrap}
+/* the door frame ends above the fixed bottom bar: bar (8 + 64 + 8 + 2) + a gap, plus the phone's safe area */
+.wq-droom{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+/* grown-ups sheet: the language button is white on the dark brand green (5.4:1), not dark ink on mid green */
+.wq-gsheet .wq-go{background:#23794D;color:#FFFFFF;box-shadow:0 5px 0 #1B5E3B}
+html[lang=ur] .wq-gsheet .wq-go{font-weight:700}
+/* Urdu links in the sheet: no underline through the Nastaliq, a bar under the word instead (48 px tap) */
+html[lang=ur] .wq-gsheet .wq-ghost{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0;padding:8px 4px 6px;min-height:48px;width:auto;align-self:center;font-family:var(--fu);font-weight:400;line-height:1.9}
+.wq-row[data-primary]{border-color:var(--brand);box-shadow:0 4px 0 var(--brand-d)}
