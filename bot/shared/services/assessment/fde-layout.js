@@ -1094,6 +1094,24 @@ function printsOwnKey(q) {
   const others = options.filter((o) => o !== key && plain(o));
   return printed(key) && !others.some(printed);
 }
+// Urdu Q1: a grammar-term item whose stem prints a word of its own key, outside the example it
+// quotes and in no other option («… «گاڑی» کی صفت بیان کرنے والے لفظ کو کیا کہتے ہیں؟» → اسم صفت,
+// beside موصوف / اسم آلہ / اسم صوت), is answered by matching words. The key is a grammar term: a
+// class word first (اسم، حرف…، فعل، جملہ) or a bare term (صفت، مذکر …). The class word itself is
+// the stem's own frame («… لفظ کو کیا کہتے ہیں؟») and is not read; a key that is a name or a fact
+// the stem names is another shape, and stays.
+const TERM_CLASS = new Set(['اسم', 'حرف', 'فعل', 'لفظ', 'جملہ', 'الفاظ']);
+const BARE_TERMS = new Set(['موصوف', 'صفت', 'مذکر', 'مونث', 'واحد', 'جمع', 'متضاد', 'مترادف']);
+const termClass = (w) => TERM_CLASS.has(w) || w.startsWith('حرف');
+function namesOwnTerm(q) {
+  if (!Array.isArray(q.options) || !q.options.length) return false;
+  const key = plain(keyText(q));
+  const words = key.split(' ').filter(Boolean);
+  if (!words.length || !(termClass(words[0]) || BARE_TERMS.has(key))) return false;
+  const stem = ` ${plain(String(q.question || '').replace(QUOTE_SPAN, ' '))} `;
+  const others = q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter((o) => o && o !== key).map((o) => o.split(' '));
+  return words.some((w) => [...w].length >= 3 && !termClass(w) && stem.includes(` ${w} `) && !others.some((o) => o.includes(w)));
+}
 function asksTwo(q) {
   if (!Array.isArray(q.options) || !q.options.length) return false;
   return (String(q.question || '').replace(QUOTE_SPAN, ' ').match(/[؟?]/g) || []).length >= 2;
@@ -1271,7 +1289,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (!settleVerses(slot, q) || !printable(slot, q)) return false;
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return false;
-      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return false;
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || namesOwnTerm(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
