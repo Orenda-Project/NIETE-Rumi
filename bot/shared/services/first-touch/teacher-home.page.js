@@ -145,7 +145,8 @@ try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.w
 function fetchSend(kind,id,title,origin){if(busy)return;busy=true;err(false);
 post('/api/th/send',{t:b.t,kind:kind,id:id,lang:b.lang}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(!x||typeof x.message!=='string'||typeof x.wa!=='string')throw 0;x.sendKind=kind;x.id=id;x.origin=origin;sheet(x,title)})
 .catch(function(){err(true)}).then(function(){busy=false})}
-function top(){var c=q('#th-top');clear(c);var p=d.primary||{};c.setAttribute('data-kind',p.kind||'none');
+function top(){paint();if(!q('#th-sheet').hidden)Array.prototype.forEach.call(q('#th-top').querySelectorAll('[data-primary]'),function(e){e.removeAttribute('data-primary');held0.push(e)})}
+function paint(){var c=q('#th-top');clear(c);var p=d.primary||{};c.setAttribute('data-kind',p.kind||'none');
 if(p.kind==='class'){c.appendChild(el('p','th-say',p.played>0?fill('th.played.n',{n:dg(p.played)}):S['th.zero']));
 var t=el('p','th-sub');t.appendChild(topic(p.title));c.appendChild(t);
 if(p.again&&p.again.href)c.appendChild(link('th-go',S['th.again'],p.again.href,'again',true));
