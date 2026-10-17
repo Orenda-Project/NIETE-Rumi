@@ -446,6 +446,72 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
   });
 });
 
+describe('the video ends before the card\'s script lands (Slow 4G, a short clip dragged to its end): the card is drawn when it lands', () => {
+  const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
+  const answer = (url) => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(/\/lib\//.test(url) ? { grade: '3', subjects: [] } : WATCH) });
+  function slowPage({ card = true, lang = 'en' } = {}) {
+    const byId = {};
+    const t = live({ fetchImpl: answer, byId });
+    const holder = { removeChild: jest.fn() };
+    const tile = el();
+    const after = el({ hidden: true, parentNode: holder, querySelector: (q) => (q === '.wq-vnext' ? tile : null) });
+    const vEl = el({ duration: 100, currentTime: 0 }); const play = el();
+    const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': play, '.wq-after': after });
+    const evs = [];
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang, ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
+    // the real card script: it mounts its block (Share, the deed line) and its Next tile #wqfc-next
+    const mount = jest.fn(() => { byId['wqfc-next'] = el(); return true; });
+    const lands = () => { t.W.WQFC = { mount }; t.head[0].onload(); };
+    return { ...t, root, after, holder, tile, vEl, evs, mount, lands, byId };
+  }
+  test.each([['en'], ['ur']])('%s: WQFC absent at `ended` -> our tile; the script\'s load -> the card is mounted on it (once)', async (lang) => {
+    const p = slowPage({ lang });
+    await flush();
+    expect(p.head.map((x) => x.src)).toEqual(['/wq/wq-finish-card.js?v=abc123']);
+    p.vEl.fire('ended');
+    expect(p.after.hidden).toBe(false);   // nothing to wait on: our tile at once
+    expect(p.mount).not.toHaveBeenCalled();
+    p.lands();
+    expect(p.mount).toHaveBeenCalledTimes(1);
+    expect(p.mount).toHaveBeenCalledWith(p.after, expect.objectContaining({ kind: 'video', deed: 'video_watched', lang, title: 'Life cycle of a hen', lead: true }));
+    expect(p.holder.removeChild).toHaveBeenCalledWith(p.after);
+  });
+  test('the script lands while the video still plays: nothing drawn early; the end then mounts the card as today', async () => {
+    const p = slowPage();
+    await flush();
+    p.lands();
+    expect(p.mount).not.toHaveBeenCalled();
+    p.vEl.fire('ended');
+    expect(p.mount).toHaveBeenCalledTimes(1);
+    expect(p.after.hidden).toBe(true);
+  });
+  test('a card already mounted (#wqfc-next there) is never drawn twice', async () => {
+    const p = slowPage();
+    await flush();
+    p.vEl.fire('ended');
+    p.byId['wqfc-next'] = el();
+    p.lands();
+    expect(p.mount).not.toHaveBeenCalled();
+  });
+  test('a script that never loads keeps today\'s tile', async () => {
+    const p = slowPage();
+    await flush();
+    p.vEl.fire('ended');
+    await flush();
+    expect(p.after.hidden).toBe(false);
+    expect(p.tile.getAttribute('data-primary')).toBe('');
+    expect(p.mount).not.toHaveBeenCalled();
+  });
+  test('GOLDEN: card_v3 off -> no script asked, today\'s end', async () => {
+    const p = slowPage({ card: false });
+    await flush();
+    expect(p.head).toEqual([]);
+    p.vEl.fire('ended');
+    expect(p.after.hidden).toBe(false);
+    expect(p.evs.filter(([n]) => n === 'next_shown')).toEqual([['next_shown', { ctx: 'after_video', kind: 'video', pos: 0, source: 'fallback' }]]);
+  });
+});
+
 describe('after a watched video: a ranked Next from the server (watch.next) when it sends one, else today\'s fixed rule', () => {
   const VID2 = '0b9c5d1e-7f6a-4b3c-9d2e-1a0f9e8d7c6b';
   function watchWith(next, { card = true } = {}) {
