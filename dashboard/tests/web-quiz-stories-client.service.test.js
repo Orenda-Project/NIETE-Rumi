@@ -64,6 +64,17 @@ function fakeEl(name) {
 // a child's tap on the main button comes at least 700 ms after it last changed (the reader ignores one inside 600 ms:
 // the tap-lock tests below fire it early on purpose with fireNow)
 let lastEnv = null;
+// every test, whatever it did: once the reader is left (the address loses #story/…), no offline / online / pagehide
+// listener of its may stay on the window (a leak keeps the whole reader alive and acts on a page the child left)
+const envs = [];
+afterEach(() => {
+  const left = envs.splice(0).map((e) => {
+    e.win.location.hash = '';
+    try { e.S.route(e.ctx()); } catch (x) { /* a test that broke the reader on purpose */ }
+    return ['offline', 'online', 'pagehide'].filter((n) => (e.winL[n] || []).length);
+  });
+  expect(left.filter((x) => x.length)).toEqual([]);
+});
 function fire(root, tap, arg) {
   if (tap === 'main' && lastEnv) lastEnv.advance(700);
   fireNow(root, tap, arg);
@@ -171,6 +182,7 @@ function env(opt = {}) {
   const ctx = (over = {}) => ({ token: TOKEN, kid: KID, lang: 'en', clock, ev: (n, p) => { (calls.ev = calls.ev || []).push([n, p]); }, ...over });
   const E = { S, win, calls, clock, advance, ctx, store, winL, wqRoot, doc, get now() { return now; } };
   lastEnv = E;
+  envs.push(E);
   return E;
 }
 const text = (h) => h.replace(/<[^>]*>/g, ' ').replace(/&(#39|amp|lt|gt|quot);/g, ' ');
