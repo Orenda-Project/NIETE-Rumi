@@ -76,7 +76,7 @@ describe('the switch: off is closed everywhere', () => {
     supabase.from = () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'down' } }) }) });
     expect(await status(Stories.shelf(TOKEN, { kid: 'a' }))).toBe(404);
   });
-  test('only a literal true turns it on', async () => {
+  test('only a literal true turns it on (the string "true" is off)', async () => {
     seed({ on: false });
     fake.db.app_settings.push({ key: 'web_quiz_stories', value: 'yes' });
     expect(await Stories.storiesOn()).toBe(false);
@@ -331,7 +331,7 @@ describe('the book', () => {
     expect(out.pages[0].words.some((w) => w.s_ms != null)).toBe(false);
     expect(mockPresign).not.toHaveBeenCalled();
   });
-  test('lr3: true only when the live reader v3 AND realtime switches are both the boolean true, read in the one settings query', async () => {
+  test('lr3: true only when the live reader v3 AND realtime switches are both the boolean true (the string "true" is off), read in the one settings query', async () => {
     const cases = [
       [[], false],
       [[['web_quiz_live_read_v3', true]], false],
