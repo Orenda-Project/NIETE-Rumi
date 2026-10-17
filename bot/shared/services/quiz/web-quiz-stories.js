@@ -124,9 +124,13 @@ async function resumeOf(studentId, now) {
       last.set(r.book_id, { at: String(r.at) > was.at ? String(r.at) : was.at, page: Math.max(was.page, Number(r.page_n)) });
     }
   });
-  const open = [...last.entries()].filter(([id]) => !done.has(id)).sort((a, b) => b[1].at.localeCompare(a[1].at));
-  for (const [id, seen] of open.slice(0, 5)) {
-    const b = await readyBook(id); // eslint-disable-line no-await-in-loop
+  const open = [...last.entries()].filter(([id]) => !done.has(id) && UUID_RX.test(String(id))).sort((a, b) => b[1].at.localeCompare(a[1].at)).slice(0, 5);
+  if (!open.length) return null;
+  // One read for the (up to 5) newest half-read books; the newest one still ready wins.
+  const { data: rows } = await supabase.from('story_books').select('*').in('id', open.map(([id]) => id)).eq('status', 'ready');
+  const ready = new Map((rows || []).map((b) => [b.id, b]));
+  for (const [id, seen] of open) {
+    const b = ready.get(id);
     if (b) {
       const pages = Number(b.pages) || 0;
       return { book_id: b.id, title: b.title, cover: fileUrl(b.id, b.cover_file), page_n: Math.max(1, Math.min(seen.page + 1, pages || seen.page + 1)), pages };
@@ -236,15 +240,20 @@ async function doneSet(studentId, bookIds) {
 
 const gradeOf = (v) => { const m = /\d+/.exec(String(v == null ? '' : v)); const g = m ? Number(m[0]) : 0; return GRADES.includes(g) ? g : null; };
 
+/** The ready books of one grade × language in this child's shelf order, and which of them the child finished. */
+async function orderedBooks(studentId, { grade, lang, teacher = [], now = Date.now() }) {
+  const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
+  const books = data || [];
+  const done = await doneSet(studentId, books.map((b) => b.id));
+  return { ordered: shelfOrder(books, { childId: studentId, day: pktDay(now), done, teacher }), done };
+}
+
 async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
   const who = await guard(token, kid, device);
   const grade = gradeOf(g) || gradeOf(who.grade) || 1;
   const lang = clampLanguage(l);
-  const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
-  const books = data || [];
   const teacher = String(t || '').split(',').map((s) => s.trim()).filter((s) => UUID_RX.test(s)).slice(0, MAX_TEACHER);
-  const done = await doneSet(who.studentId, books.map((b) => b.id));
-  const ordered = shelfOrder(books, { childId: who.studentId, day: pktDay(now), done, teacher });
+  const { ordered, done } = await orderedBooks(who.studentId, { grade, lang, teacher, now });
   const out = {
     grade, lang, grades: GRADES.slice(),
     books: ordered.map((b, i) => ({
@@ -514,7 +523,7 @@ async function stickersFor(studentId) {
 module.exports = {
   hubSwitches,
   shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
-  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY,
+  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, resumeOf, orderedBooks, gradeOf, fileUrl,
   _reset: () => { cache = null; },
   _cardField: (fn) => { cardField = fn; },
 };
