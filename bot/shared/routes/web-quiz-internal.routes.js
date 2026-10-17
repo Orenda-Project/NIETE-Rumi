@@ -74,14 +74,17 @@ const serve = async (fn, req, res) => {
   }
 };
 
+// The finish card's switch rides the page and its preview facts (named only when on): the edge then counts an Urdu
+// link's preview in Urdu digits. Read beside the quiz, never after it; off, the payload is today's.
+const withCard = (quizP) => Promise.all([quizP, CardImage.field()]).then(([out, card]) => (out && typeof out === 'object' ? Object.assign(out, card) : out));
 router.get('/quiz/:code', handle(async (req) => {
-  const out = await WebQuiz.getQuiz(req.params.code, { p: req.query.p });
+  const out = await withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }));
   // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
   if (!req.query.p) WebQuizOg.remember(req.params.code, out);
   return out;
 }));
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
-router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
+router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => withCard(WebQuiz.getQuiz(c)))));
 // Whether the sound + motion kit is on (web_quiz_juice): the edge serves the kit's demo page only then.
 router.get('/juice', handle(async () => ({ on: await require('../services/quiz/web-quiz-juice').flag() })));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));

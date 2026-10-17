@@ -28,6 +28,7 @@ const express = require('express');
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
+const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
 
@@ -192,7 +193,26 @@ function lockupHtml(brand, lang) {
   return `<span class="wq-brand">${markHtml(brand)}<span class="wq-lock"><b>${esc(brand.label[lang])}</b><small>${esc(brand.sub[lang])}</small></span></span>`;
 }
 
+// An Urdu preview counts in Urdu digits while the finish card's switch is on (the bot carries `card_v3: true`): the
+// teacher's link and a child's card link sit side by side in one class group, one digit system. Off: today's text.
+// A score (۳/۵) keeps its left-to-right order inside the Urdu line (U+2066…U+2069).
+const urCount = (t) => urDigits(t).replace(/[\u06F0-\u06F9]+\/[\u06F0-\u06F9]+/g, (m) => `\u2066${m}\u2069`);
+// Three Urdu descriptions as a native reader phrases them, with the same switch: the schools league ("up to 10 more
+// for the score"), the class table (no masculine form addressed to the child), a challenge (see YOUR score).
+const UR_DESC_ON = {
+  schools: 'کھیلنے کے 10 پوائنٹس، اسکور کے مطابق مزید 10 تک۔ کھیلیں اور اپنے اسکول کو اوپر لے جائیں!',
+  class: 'کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔',
+  challenge: 'وہی کوئز کھیلیں اور اپنا اسکور دیکھیں!',
+};
 function ogText(payload, view, brand) {
+  const og = ogTextOf(payload, view, brand);
+  const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  if (!ur || payload.card_v3 !== true) return og;
+  const which = payload.challenge && payload.art && payload.art.invite ? 'challenge' : view;
+  return { ...og, title: urCount(og.title), desc: urCount(UR_DESC_ON[which] || og.desc) };
+}
+
+function ogTextOf(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';

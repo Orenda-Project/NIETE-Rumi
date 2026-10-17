@@ -26,6 +26,8 @@ function facts(p) {
     art: (p && p.art) || {},
     brand: (p && p.brand) || null,
     invited: Boolean(p && p.invited),
+    // the finish card's switch, named only when on (the Urdu preview's digits); off, the facts are today's
+    ...(p && p.card_v3 === true ? { card_v3: true } : {}),
   };
 }
 
