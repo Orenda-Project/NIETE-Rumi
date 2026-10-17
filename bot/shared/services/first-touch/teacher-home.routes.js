@@ -41,12 +41,15 @@ const Page = require('./teacher-home.page');
 const Data = require('./teacher-home.data');
 const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
+const StaleWords = require('./teacher-stories-stale.flag');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
 const ASKABLE = Object.freeze(['en', 'ur']);
 const COACH_ROLES = new Set(['coach', 'principal', 'school_leader', 'supervisor', 'aeo', 'head']);
 const asked = (v) => (ASKABLE.includes(v) ? v : null);
+// A page request: anything but a JSON-only caller (Accept names application/json and not text/html).
+const wantsPage = (req) => { const a = String((req.headers && req.headers.accept) || ''); return !/application\/json/i.test(a) || /text\/html/i.test(a); };
 const uuidIn = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
 const bodyOf = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 const optional = (path) => { try { return require(path); } catch (_) { return null; } };
@@ -425,6 +428,13 @@ function createRouter(deps = null) {
     let on = true;
     try { on = !Svc || typeof Svc.flagOn !== 'function' || (await Svc.flagOn()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
+    // An expired or forged link asked for as a page (quiz_teacher_stories_stale_words): the home's own stale page, as
+    // `/` and `/send` answer; a JSON caller keeps the stories router's answer.
+    if (wantsPage(req) && (await StaleWords.on())) {
+      const v = HomeToken.verifyTeacherHome(req.params.token);
+      if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
+      if (v.stale) return messagePage(res, 200, 'mk.stale', asked(req.query.lang) || (v.stale.lang === 'en' ? 'en' : 'ur'));
+    }
     return Stories.servePage(req, res, next);
   });
 
