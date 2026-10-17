@@ -174,7 +174,7 @@ describe('2. a Q6 that asks only book facts in a situation is held, and D is ask
     });
   }
 
-  test('a Q6 that asks which government is responsible for a situation, with a reason, prints', () => {
+  test('a Q6 that asks which government is responsible for a situation, with a reason, is not held by the book-fact rule (a naming-only one is held as names_body, fde-r17e-sst)', () => {
     const ch4 = fixture('r17d-sst-local-chapters_4');
     const laid = applyLayout(clone(ch4), SST, scopeOf(ch4), { reasked: true });
     const tierItems = items(ch4, D6).filter((q) => q.question.includes('وجہ'));

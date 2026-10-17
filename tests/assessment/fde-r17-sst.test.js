@@ -104,7 +104,18 @@ const stable = (exam) => { const e = clone(exam); delete e._layout.generated_at;
 beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 
 describe('2. a caught question never prints', () => {
-  const CH6 = paper('chapters_6');
+  // chapters_6's which-government Q6 («… کس حکومت کی ذمہ داری ہے؟») only names who does each job, so it
+  // is held as recall (fde-r17e-sst); here it is a fictional two-idea situation, so these tests read Q7.
+  const CH6 = (() => {
+    const ex = paper('chapters_6');
+    const q = items(ex, D6).find((x) => /کس حکومت کی ذمہ داری/.test(x.question));
+    q.question = 'سلیم کی گلی میں روز کچرا جمع ہوتا ہے اور ہمسائے ایک دوسرے کو الزام دیتے ہیں۔ سلیم کو کیا کرنا چاہیے؟ دو باتیں بتائیں اور ہر ایک کی وجہ لکھیں۔';
+    q.scheme = { ...q.scheme, points: [
+      { text: 'ہمسایوں سے مل کر صفائی کی باری طے کرنا تاکہ جھگڑا نہ ہو', marks: 3, kind: 'A' },
+      { text: 'کچرا کوڑے دان میں ڈالنے کی عادت تاکہ بیماری نہ پھیلے', marks: 3, kind: 'A' },
+    ] };
+    return ex;
+  })();
   const FULL2 = paper('full_2');
   const FULL1 = paper('full_1');
 
@@ -146,10 +157,11 @@ describe('2. a caught question never prints', () => {
     expect(r.examJson._layout.short_choice).toEqual([{ slot: D6, printed: 5, generate: 6 }, { slot: D7, printed: 7, generate: 8 }]);
   });
 
-  test('full_2 Q7 ۸ (= Q1 ۱۶) and full_1 Q6 ۶ (held on points) do not print', () => {
+  test('full_2 Q7 ۸ (= Q1 ۱۶) and full_1\'s which-government Q6 do not print; full_1 Q6 ۶ (held before only on marking-only points) prints', () => {
     expect(stems(lay(FULL2, { reasked: true }).examJson, D7)).not.toContain('پاکستان کا سب سے بڑا صحرا کون سا ہے؟');
     const f1 = lay(FULL1, { reasked: true });
-    expect(stems(f1.examJson, D6).some((s) => /صفائی مہم/.test(s))).toBe(false);
+    expect(stems(f1.examJson, D6).some((s) => /صفائی مہم/.test(s))).toBe(true);
+    expect(stems(f1.examJson, D6).some((s) => /مویشی منڈی کا انتظام کون سی حکومت/.test(s))).toBe(false);
     expect(stems(f1.examJson, D6)).toHaveLength(5);
     expect(f1.shortfall).toEqual([]);
   });
@@ -200,6 +212,20 @@ describe('3. an empty mind map: B\'s re-ask names it', () => {
     tree.unseen.subjective['Mind Map'] = [clone(mindMap)];
     return JSON.stringify(tree);
   };
+  // The recorded D replies (chapters 4 + 6) carry which-government Q6s that only name who does each job,
+  // held as recall since round 6 (fde-r17e-sst). Here they explain with two ideas, so D fills and the
+  // test reads B alone.
+  const explained = (json) => {
+    const tree = JSON.parse(json);
+    for (const q of tree.unseen.subjective['Long Question'] || []) {
+      if (!/Q6/.test(q.slot) || !/حکومت/.test(q.question)) continue;
+      q.scheme = { ...q.scheme, points: [
+        { text: 'مل کر کام کرنے سے مسئلہ جلد حل ہوتا ہے کیونکہ ہر ایک اپنا حصہ سنبھالتا ہے', marks: 3, kind: 'A' },
+        { text: 'شہری شکایت درج کرا کے اور صفائی رکھ کر خود بھی مدد کرتے ہیں', marks: 3, kind: 'A' },
+      ] };
+    }
+    return JSON.stringify(tree);
+  };
   // chapters_5's exam as the engine sees it: the recorded replies stand in for a paper.
   const exam = { _layout: { scope: { kind: 'chapters', chapters: rec.scope.chapters, pages: rec.scope.pages } }, unseen: {} };
 
@@ -209,7 +235,7 @@ describe('3. an empty mind map: B\'s re-ask names it', () => {
 
   test('the re-ask asks for exactly one "Mind Map" item under its slot, and the paper builds', async () => {
     const { asked, out } = await run(exam, {
-      replies: { A: rec.replies.A, B: [rec.replies.B[0], withMap(rec.replies.B[1])], C: rec.replies.C, D: rec.replies.D },
+      replies: { A: rec.replies.A, B: [rec.replies.B[0], withMap(rec.replies.B[1])], C: rec.replies.C, D: rec.replies.D.map(explained) },
     });
     const bs = asked.filter((a) => a.sec === 'B');
     expect(bs).toHaveLength(2);

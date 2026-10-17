@@ -104,11 +104,12 @@ describe('1. which government does a job', () => {
       // The r10 red case, keyed as the book has it.
       { slot: 'social_studies.C.Q5', question: 'دکان داروں نے سڑک پر قبضہ کر کے راستہ بند کر دیا ہے۔ یہ مسئلہ کس حکومت کا ہے؟', answer: 'یہ صوبائی حکومت کا کام ہے کیونکہ عوامی سڑکوں اور راستوں سے تجاوزات ہٹانا صوبائی حکومت کی ذمہ داری ہے۔', scheme: { points: [{ kind: 'K', text: 'صوبائی حکومت', marks: 1 }, { kind: 'U', text: 'تجاوزات ہٹانا صوبائی کام ہے', marks: 2 }] } },
       // Two jobs, each keyed to its own government, and a comparison of all three.
-      { slot: 'social_studies.D.Q6', question: 'گلی میں گندا پانی جمع ہے اور ٹھیلوں نے راستہ روک رکھا ہے۔ کس حکومت سے رابطہ کریں؟', answer: 'نکاسی آب مقامی حکومت کا کام ہے۔ تجاوزات ہٹانا صوبائی حکومت کا کام ہے۔ وفاقی حکومت دفاع اور خارجہ پالیسی دیکھتی ہے، صوبائی حکومت امن و امان دیکھتی ہے اور مقامی حکومت مویشی منڈیاں لگاتی ہے۔', scheme: { points: [{ kind: 'K', text: 'نکاسی آب: مقامی حکومت', marks: 3 }, { kind: 'K', text: 'تجاوزات: صوبائی حکومت', marks: 3 }] } },
+      { slot: 'social_studies.D.Q6', question: 'گلی میں گندا پانی جمع ہے اور ٹھیلوں نے راستہ روک رکھا ہے۔ کس حکومت سے رابطہ کریں؟', answer: 'نکاسی آب مقامی حکومت کا کام ہے۔ تجاوزات ہٹانا صوبائی حکومت کا کام ہے۔ وفاقی حکومت دفاع اور خارجہ پالیسی دیکھتی ہے، صوبائی حکومت امن و امان دیکھتی ہے اور مقامی حکومت مویشی منڈیاں لگاتی ہے۔', scheme: { points: [{ kind: 'K', text: 'نکاسی آب: مقامی حکومت', marks: 2 }, { kind: 'K', text: 'تجاوزات: صوبائی حکومت', marks: 2 }, { kind: 'A', text: 'گندا پانی رکنے سے بیماریاں پھیلتی ہیں اس لیے جلد شکایت ضروری ہے', marks: 1 }, { kind: 'A', text: 'راستہ کھلنے سے لوگوں کی آمد و رفت آسان ہو جاتی ہے', marks: 1 }] } },
       // A local job, a pronoun carrying the tier.
       { slot: 'social_studies.D.Q7', question: 'مویشی منڈی کون لگاتا ہے؟', answer: 'مقامی حکومت۔ یہ نکاسی آب کا انتظام بھی دیکھتی ہے۔', scheme: { points: [{ kind: 'K', text: 'مقامی حکومت', marks: 2 }] } },
     ];
-    // Each on its own paper: the Q6 item's points hold the whole Q5 item (encroachment → provincial),
+    // The Q6 item explains with two ideas besides naming each government, so it is no naming-only recall
+    // item (fde-r17e-sst). Each on its own paper: the Q6 item's points hold the whole Q5 item (encroachment → provincial),
     // which round 13 holds as one item asked twice; the tier rule is what is tested here.
     for (const q of right) {
       const laid = applyLayout(paper([q]), SST, FDE, { reasked: false });

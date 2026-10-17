@@ -101,8 +101,12 @@ describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6'
     expect(kept(CH1, D7)).not.toContain(items(CH1, D7)[7].question);
   });
 
-  test('chapters_2 Q7 ۷ «سلام کرنا» (a point of Q6 ۶) is held before the re-ask', () => {
-    expect(kept(CH2, D7)).not.toContain(items(CH2, D7)[6].question);
+  // Q6 ۶ is itself held (its points restate a Q5), and a held Social Studies item never prints, so it
+  // gives the Q7 nothing away.
+  test('chapters_2 Q7 ۷ «سلام کرنا» (a point of Q6 ۶) prints: Q6 ۶ is held and never prints', () => {
+    const laid = lay(CH2, { reasked: false });
+    expect(laid.held.some((h) => h.slot === D6 && h.q.question === items(CH2, D6)[5].question)).toBe(true);
+    expect(kept(CH2, D7)).toContain(items(CH2, D7)[6].question);
   });
 
   test('chapters_2 Q6 ۴ restates Q6 ۱ (the same four points): the later one is held, the first kept', () => {
