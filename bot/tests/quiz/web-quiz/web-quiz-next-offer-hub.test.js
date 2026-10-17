@@ -830,7 +830,7 @@ describe('the tile: words, picture, tag, source', () => {
     const kinds = new Set(list.map((c) => c.kind));
     ['quiz', 'video', 'story', 'game', 'sticker', 'invite', 'storybook'].forEach((k) => expect(kinds).toContain(k));
     list.forEach((c) => expect(typeof c.art === 'string' && c.art.startsWith('/')).toBe(true));
-    // the library tile only when no lesson can be named (#C46): the hub's own grade picture
+    // the library tile only when no lesson can be named: the hub's own grade picture
     const lib = S.candidatesOf({ out: { ...out, recs: [] }, token: 'tok', watch: true, subjectArt, known: new Set(['TQ0001']) });
     expect(lib.find((c) => c.id === 'library').art).toBe('/wq/art/grade-3-1.webp');
     expect(list.find((c) => c.rule === 'teacher_quiz' && c.variant === 'new').art).toBe('/wq/art/subject-science-1.webp');
@@ -1026,14 +1026,14 @@ describe('a child WITH a class: a "Watch a video" tile plays the lesson it names
     expect(snap.out.recs.map((r) => r.vid)).toContain(VID);
   });
 
-  // #C72: the result snapshot's reads. OFF (no lesson asked, `watch` off) = the recorded 16 tables on a cold start:
+  // The result snapshot's reads. OFF (no lesson asked, `watch` off) = the recorded 16 tables on a cold start:
   // 12 data reads, exactly, + up to 4 switch reads (app_settings; a warm switch cache skips some, so they are a
   // ceiling). ON (a class child, the lesson named) <= OFF + its own named rows: the sessions, the quizzes and the
   // lessons behind the class's quiz (the recs a class-less child already gets), one each; never another table.
   const SNAP_OFF_DATA = { students: 2, student_lists: 2, class_enrollments: 2, quiz_share_codes: 3, quiz_sessions: 2, quizzes: 1 };
   const SNAP_SWITCH_MAX = 4;
   const SNAP_ON_ROWS = { quiz_sessions: 1, quizzes: 1, student_videos: 1 };
-  test('#C72: the result snapshot reads 16 tables with the lesson off (12 data + up to 4 switches); on, at most those + quiz_sessions, quizzes, student_videos (one each)', async () => {
+  test('the result snapshot reads 16 tables with the lesson off (12 data + up to 4 switches); on, at most those + quiz_sessions, quizzes, student_videos (one each)', async () => {
     const readsOf = async (watch) => {
       seed(ALL_ON(), lessons());
       const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');

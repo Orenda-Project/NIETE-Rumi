@@ -96,13 +96,13 @@ function copyOf(x) {
   return out;
 }
 
-// #C50: the once-a-day tile (`rs`, the view that showed it today) is spent by a tap from that view
+// the once-a-day tile (`rs`, the view that showed it today) is spent by a tap from that view
 const spend = (st, now) => (st.rs && st.rs.day === pktDay(now) ? { rd: st.rs.day, rs: null } : {});
 
 /**
  * A tap on an offer (the page's next_tap, through the event relay, by the child's kid): its streak starts again; the
  * tapped tile is remembered as opened and not yet finished (`t`: id, variant, unfinished opens `u`, its copy `c`) —
- * the slot's carry-on, which counts it as one shown-without-a-tap (#C49a); and its view's once-a-day tile is spent.
+ * the slot's carry-on, which counts it as one shown-without-a-tap; and its view's once-a-day tile is spent.
  */
 async function noteTap(kid, offer, now = Date.now()) {
   if (!kid || typeof offer !== 'string') return false;

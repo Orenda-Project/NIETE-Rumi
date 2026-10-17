@@ -68,7 +68,7 @@ beforeEach(() => {
 });
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
-describe('#C49a: an opened, unfinished activity counts as one shown-without-a-tap, not as done', () => {
+describe('an opened, unfinished activity counts as one shown-without-a-tap, not as done', () => {
   // The game is the ranked alt under the video, so "the same tile came back" is the carry-on and nothing else.
   async function gameIsTheAlt() {
     await seed(true);
@@ -94,7 +94,7 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
     expect(v3.id).not.toBe('numbers');
   });
 
-  test('left, then shown once more without a tap (the open is the first of #C3\'s two): rotated', async () => {
+  test('left, then shown once more without a tap (the open is the first of the two untapped shows): rotated', async () => {
     const v1 = await gameIsTheAlt();
     await tap(v1, 'numbers');
     const v2 = await view([video, game, invite]);
@@ -242,7 +242,7 @@ describe('#C49a: an opened, unfinished activity counts as one shown-without-a-ta
   });
 });
 
-describe('#C50: a render never uses up the once-a-day tile', () => {
+describe('a render never uses up the once-a-day tile', () => {
   test('rendered twice (a reload, a background return, a second /quiz reply): the same "Finish your story" tile', async () => {
     await seed(true);
     expect((await view([video, book])).id).toBe('sb-7');
