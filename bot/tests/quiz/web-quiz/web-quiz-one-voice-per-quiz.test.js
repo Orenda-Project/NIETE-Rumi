@@ -340,6 +340,19 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     expect(k64).toMatch(/\/story-el-bella-[0-9a-f]{8}\.ogg$/);
     expect(k64).not.toBe(k32);
   });
+
+  test('a clip is recorded at the rate its key names, even when the plan\'s rate changed after the key was made', async () => {
+    seed([], { flag: { kbps: 32 } });
+    await OneVoice.on();
+    const k32 = Ch.clipKey('listen', 'story', 'en', 'The wind came up.');
+    expect(k32).toMatch(/-k32-[0-9a-f]{8}\.ogg$/);
+    // the plan now reads 64; the 32 kb/s key is still recorded at 32, never at the plan's new rate
+    OneVoice.reset(); seed([], { flag: { kbps: 64 } }); await OneVoice.on();
+    expect(OneVoice.currentPlan().kbps).toBe(64);
+    await Ch.warmClip(k32, 'The wind came up.', 'en');
+    expect(tts.synthesize).toHaveBeenCalledTimes(1);
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
+  });
 });
 
 /*
