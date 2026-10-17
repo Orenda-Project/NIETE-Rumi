@@ -1018,8 +1018,17 @@ function stemGivesKey(a, b) {
     return Boolean(k) && (String(by.question || '').match(QUOTE_SPAN) || [])
       .some((quote) => { const words = quote.split(/[،,]/).map(plain).filter(Boolean); return words.length >= 2 && words.includes(k); });
   };
+  // A stem that names a one-word key gives it away only when it names no other option of that item
+  // («ببلو نے اسلم اور کیک کے بارے میں …» names two of «کھیر / حلوہ / کیک / اسلم»: no cue).
+  const namesOnlyKey = (q, by) => {
+    const stem = new Set(tokensOf(by.question));
+    return Array.isArray(q.options) && q.options.filter((o) => {
+      const words = tokensOf(String(o).replace(OPTION_HEAD, ''));
+      return words.length > 0 && words.every((w) => stem.has(w));
+    }).length === 1;
+  };
   const given = (q, by) => listed(q, by) || (!QUOTES_EXAMPLE.test(String(q.question || ''))
-    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by))));
+    && (key(q).size >= GIVEN_WORDS || (key(q).size === 1 && topic(q, by) && namesOnlyKey(q, by))));
   // Another item's OPTION that prints a key of two words or more, in order, inside something it says
   // about it, states that key as a fact, even as a wrong option («سدرہ نے … کیا بنایا؟ → تھیڑ کمپنی»
   // beside «ب) سدرہ کی تھیڑ کمپنی بند کرنے کی»). An option that is only the key, or a one-word key
@@ -1232,20 +1241,22 @@ const storyCue = (a, b) => namesKeyOf(a, b) || namesKeyOf(b, a);
 // اسم معرفہ کون سا ہے؟), or when its stem or key says what the term is («… خاص نام کے بجائے … عام
 // چیز …» → اسکول; «… ایک ہی املا …»). The named noun and the common noun are one rule (خاص / عام).
 // A word meaning, an antonym or a story fact asks no grammar concept.
-// Written as plain() writes the text it reads: آ as ا, ئ as ی.
+// Each row is written as the book writes it and folded as plain() folds the text it reads (آ as ا,
+// ئ as ی, …), so no row can be dead for a letter form.
+const foldPattern = (re) => new RegExp(UR_FORMS.reduce((src, [f, to]) => src.replace(new RegExp(f.source, 'g'), to), re.source.replace(UR_MARKS, '')), re.flags);
 const CONCEPTS = [
   ['naming', /(?:^| )(?:اسم )?(?:معرفہ|نکرہ)(?: |$)|اسم (?:خاص|عام)|خاص (?:شخص|نام)|مخصوص نام|عام (?:چیز|نام)/],
-  ['sound', /اسم صوت|اواز (?:کو )?ظاہر/],
-  ['tool', /اسم الہ|ہتھیار یا اوزار|اوزار کا نام/],
+  ['sound', /اسم صوت|آواز (?:کو )?ظاہر/],
+  ['tool', /اسم آلہ|ہتھیار یا اوزار|اوزار کا نام/],
   ['place', /اسم ظرف/],
   ['adjective', /اسم صفت|(?:^| )صفت(?: |$)/],
   ['qualified', /موصوف/],
   ['conjunction', /حرف عطف|(?:^| )عطف(?: |$)|جوڑت[ےا]|جوڑنے/],
   ['condition', /حرف (?:شرط|جزا)|شرط و جزا/],
   ['doubt', /شکیہ|شک (?:و شبہ|ظاہر|کا اظہار)/],
-  ['wish', /تمنایی|ارزو (?:کا اظہار|ظاہر)/],
+  ['wish', /تمنائی|آرزو (?:کا اظہار|ظاہر)/],
   ['homograph', HOMOGRAPH],
-];
+].map(([name, re]) => [name, foldPattern(re)]);
 function conceptOf(q) {
   if (!Array.isArray(q.options) || !q.options.length) return null;
   const read = [plain(keyOption(q)), plain(String(q.question || '').replace(QUOTE_SPAN, ' '))];
@@ -1253,6 +1264,25 @@ function conceptOf(q) {
   return found ? found[0] : null;
 }
 const sameConcept = (a, b) => { const c = conceptOf(a); return Boolean(c) && c === conceptOf(b); };
+// The lessons a chapter or pages paper covers (P.lessons, by number or by any page they share), or
+// null: the full syllabus, a subject without a lesson table, or a scope that names none of them.
+function scopeLessons(P, scope) {
+  if (!P || !Array.isArray(P.lessons) || !scope || (scope.kind !== 'chapters' && scope.kind !== 'pages')) return null;
+  const ranges = (text) => String(text || '').split(',').map((part) => part.split('-').map((n) => Number(n.trim())))
+    .filter(([a]) => Number.isFinite(a)).map(([a, b]) => [a, Number.isFinite(b) ? b : a]);
+  const chapters = scope.kind === 'chapters' && Array.isArray(scope.chapters) ? scope.chapters.map(Number) : [];
+  const pages = ranges(scope.pages);
+  const chosen = chapters.length
+    ? P.lessons.filter((l) => chapters.includes(l.lesson))
+    : P.lessons.filter((l) => ranges(l.pages).some(([a, b]) => pages.some(([c, d]) => a <= d && c <= b)));
+  return chosen.length ? chosen : null;
+}
+// Urdu Q1 on chosen lessons: the grammar concept an item asks, when it is not one those lessons teach.
+function outsideLessons(q, lessons) {
+  const concept = lessons && conceptOf(q);
+  if (!concept) return null;
+  return lessons.some((l) => l.grammar.some((g) => (g.tags || []).includes(concept))) ? null : concept;
+}
 function sameQuestion(a, b) {
   const [sa, sb] = [plain(a.question), plain(b.question)];
   if (!sa || !sb) return false;
@@ -1407,6 +1437,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const room = (slot) => bySlot.get(slot.slot).length < slot.generate;
   let unplaced = 0;
   let putBack = [];
+  let held = [];
+  // Urdu on chosen lessons: Q1 asks only those lessons' own grammar.
+  const lessons = P.key === 'urdu' ? scopeLessons(P, scope) : null;
 
   const all = walk(src);
   all.forEach((entry) => { stripTags(entry.q); stripStemOptions(entry.q); if (P.key === 'urdu') stripStemOptions(entry.q, true); });
@@ -1420,6 +1453,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
     putBack = [];
+    held = [];
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
     const inSlot = new Map(); // Urdu Q1: slot → items held inside Q1 that give nothing away, in reply order
@@ -1431,6 +1465,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && (keyAcceptSplit(q) || groupWordListed(q))) return false;
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && (printsOwnKey(q) || lettersOfKey(q))) return false;
+      const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
+      if (outside) { held.push({ slot: slot.slot, rule: 'grammar_outside_lessons', concept: outside }); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q); return false; }
       if (!holds(slot)) {
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
@@ -1568,8 +1604,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
     frame_pages: null,
     notes: [],
   };
-  // `putBack` (Urdu: the held items that came back, with their rule) only when there are some.
-  return { examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}) };
+  // `putBack` (Urdu: the held items that came back, with their rule) and `held` (Urdu: Q1 items held
+  // for a grammar concept the chosen lessons do not teach) only when there are some.
+  return {
+    examJson: out, placed, unplaced, shortfall, ...(putBack.length ? { putBack } : {}), ...(held.length ? { held } : {}),
+  };
 }
 
-module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };
+module.exports = {
+  applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord, scopeLessons, conceptOf, conceptNames: CONCEPTS.map(([name]) => name),
+};
