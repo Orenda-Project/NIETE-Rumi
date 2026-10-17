@@ -37,18 +37,23 @@ function lib() {
 const toks = (ws, { from = 0, gap = 1, final = true } = {}) => ws.map((w, k) => ({ text: (from + k === 0 ? '' : ' ') + w, start_ms: (from + k) * gap * 1000, end_ms: ((from + k) * gap + 0.8) * 1000, is_final: final }));
 
 describe('the matcher: transcript tokens → passage words', () => {
-  test('a word whose print differs from its stored spelling: the printed spelling (the word\'s alt) counts as read; without alt nothing changes', () => {
+  test('a word whose print differs from its stored spelling: the printed spelling (the word\'s alt) counts as read, at that word only; without alt nothing changes', () => {
     // a short word must match exactly (one changed letter is only forgiven from 4 letters up), so its printed form needs alt
-    const words = ['My', 'mum', 'is', 'home'];
     const items = [{ t: 'My' }, { t: 'mum', alt: ['mom'] }, { t: 'is' }, { t: 'home' }];
-    const v = lib().matcher(words, 'en', items).push(toks(['my', 'mom', 'is', 'home']));
-    expect([...v.states]).toEqual(['read', 'read', 'read', 'read']);
-    const plain = lib().matcher(words, 'en').push(toks(['my', 'mom', 'is', 'home']));
-    expect([...plain.states]).toEqual(['read', 'skipped', 'read', 'read']);   // today's behaviour, unchanged without alt
-    const stored = lib().matcher(words, 'en', items).push(toks(['my', 'mum', 'is', 'home']));
-    expect([...stored.states]).toEqual(['read', 'read', 'read', 'read']);   // the stored spelling still counts
-    const ur = lib().matcher(['وہ', 'آب', 'لایا'], 'ur', [{ t: 'وہ' }, { t: 'آب', alt: ['اَب'] }, { t: 'لایا' }]).push(toks(['وہ', 'اب', 'لایا']));
-    expect([...ur.states]).toEqual(['read', 'read', 'read']);
+    const words = items.map((x) => x.t);
+    expect([...lib().matcher(words, 'en', items).push(toks(['my', 'mom', 'is', 'home'])).states]).toEqual(['read', 'read', 'read', 'read']);
+    expect([...lib().matcher(words, 'en').push(toks(['my', 'mom', 'is', 'home'])).states]).toEqual(['read', 'skipped', 'read', 'read']);   // today, without alt
+    expect([...lib().matcher(words, 'en', items).push(toks(['my', 'mum', 'is', 'home'])).states]).toEqual(['read', 'read', 'read', 'read']);   // the stored spelling still counts
+    // Urdu: the print «دیئے», the store «دئے» (they differ after the fold, so only alt joins them)
+    const ur = [{ t: 'پھول' }, { t: 'دئے', alt: ['دیئے'] }, { t: 'گئے' }];
+    expect([...lib().matcher(ur.map((x) => x.t), 'ur', ur).push(toks(['پھول', 'دیئے', 'گئے'])).states]).toEqual(['read', 'read', 'read']);
+    expect([...lib().matcher(ur.map((x) => x.t), 'ur').push(toks(['پھول', 'دیئے', 'گئے'])).states]).toEqual(['read', 'skipped', 'read']);
+  });
+  test('an alt that is also another word printed on the same page never takes that word\'s place; two words may share an alt', () => {
+    const items = [{ t: 'mum', alt: ['mom'] }, { t: 'and' }, { t: 'mom' }, { t: 'sat' }];
+    expect([...lib().matcher(items.map((x) => x.t), 'en', items).push(toks(['mum', 'and', 'mom', 'sat'])).states]).toEqual(['read', 'read', 'read', 'read']);
+    const two = [{ t: 'mum', alt: ['ma'] }, { t: 'and' }, { t: 'mam', alt: ['ma'] }];
+    expect([...lib().matcher(two.map((x) => x.t), 'en', two).push(toks(['ma', 'and', 'ma'])).states]).toEqual(['read', 'read', 'read']);
   });
   test('case and punctuation fold; a read word is "read", the next one "current", the rest "ahead"', () => {
     const m = lib().matcher(['Imran', 'woke', 'up', 'early', 'for', 'school.'], 'en');

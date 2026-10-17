@@ -57,15 +57,16 @@
   function matcher(words, lang, items) {
     var raw = (words || []).map(String).filter(function (x) { return x.trim(); });
     var ref = raw.map(fold);
-    // a word printed differently from its stored spelling (items[i].alt): the printed form counts as the word
+    // a word printed differently from its stored spelling (items[i].alt): at that word's own place, the printed form counts
     var alt = {};
-    (items || []).forEach(function (x) { (x && x.alt || []).forEach(function (a) { var f = fold(a); if (f) alt[f] = fold(x.t); }); });
+    (items || []).forEach(function (x) { var k = x && fold(x.t); (x && x.alt || []).forEach(function (a) { var f = fold(a); if (k && f) (alt[k] = alt[k] || []).push(f); }); });
+    var eq = function (a, b) { return W.same(a, b) || !!(alt[a] && alt[a].indexOf(b) >= 0); };
     var st = { F: '', N: '', fin: [], done: false };
     function view() {
       var hw = hypWords(st.F + st.N);
-      var hyp = hw.map(function (x) { return alt[x.w] || x.w; });
+      var hyp = hw.map(function (x) { return x.w; });
       var final = hw.map(function (x) { return x.end < st.F.length || (x.end === st.F.length && (st.done || !st.N || /^\s/.test(st.N))); });
-      var a = W.alignPrefix(ref, hyp);
+      var a = W.alignPrefix(ref, hyp, eq);
       var reached = 0; var i;
       for (i = 0; i < ref.length; i += 1) if (a.status[i] !== 'omit' && a.hypIdx[i] >= 0) reached = i + 1;
       var states = []; var read = 0; var heard = 0; var skipped = 0; var cur = -1;
