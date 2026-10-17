@@ -177,7 +177,7 @@ describe('a switch reads the same through the seam as through its own read', () 
     expect(S.reads.filter((r) => r.t === 'app_settings').length).toBe(1);
     const primed = {};
     for (const e of Seam().entries()) primed[e.name] = noAt(e.peek());
-    expect(Object.keys(primed).length).toBe(15);  // every module the hub reads a switch through, but the fast switch itself (challenge: 5 switches; stories: 4 keys; the next thing: 3 keys; the finish card: 1)
+    expect(Object.keys(primed).length).toBe(16);  // every module the hub reads a switch through, but the fast switch itself (challenge: 5 switches; stories: 4 keys; the next thing: 3 keys; the finish card: 1; the returning child's language: 1)
     // The same cache, but where the module's own read reads nothing (keep my place's way back with its parent off:
     // it answers false before its cache; primed, its cache holds what its read would hold).
     const skipped = Object.keys(own).filter((n) => own[n] === null);
@@ -328,5 +328,29 @@ describe('the 25 s timer (one per process)', () => {
     Seam().start();
     const cold = await measure(tokenOne(), { device: DEVICE });
     expect(settingsReads(cold)).toBe(1);
+  });
+});
+
+describe('the returning child\'s language (web_quiz_return_lang): a link that carries it rides the one read', () => {
+  const tokenLang = () => S.T.signHub(S.T.verify(tokenOne(), 'h').ids, 'hub_link', { lang: 'ur' });
+  const RET = { key: 'web_quiz_return_lang', value: true };
+
+  test('the seam reads its key (fast off: its own read)', async () => {
+    boot({ fast: false, every: true });
+    S.db.app_settings = [...S.db.app_settings.filter((r) => r.key !== RET.key), RET];
+    Fx.askedKeys.clear();
+    await measure(tokenLang(), { device: DEVICE });
+    expect([...Fx.askedKeys]).toContain('web_quiz_return_lang');
+    expect([...Fx.askedKeys].filter((k) => k !== 'web_quiz_fast' && !Seam().ALL_KEYS().includes(k)).sort()).toEqual([]);
+  });
+
+  test('fast on, cold: still ONE app_settings read, and the switch answers through it', async () => {
+    await coldWithFastWarm({ fast: true, every: true });
+    S.db.app_settings = [...S.db.app_settings.filter((r) => r.key !== RET.key), RET];
+    const cold = await measure(tokenLang(), { device: DEVICE });
+    expect(settingsReads(cold)).toBe(1);
+    expect(await require('../../../shared/services/quiz/web-quiz-return-lang').on()).toBe(true);
+    const warm = await measure(tokenLang(), { device: DEVICE });
+    expect(settingsReads(warm)).toBe(0);
   });
 });
