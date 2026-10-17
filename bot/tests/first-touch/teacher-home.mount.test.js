@@ -25,7 +25,12 @@ function codeOf(file) {
 
 test('bot/whatsapp-bot.js mounts the teacher home, live, before the app listens', () => {
   const code = codeOf(path.join(__dirname, '../../whatsapp-bot.js'));
-  const at = code.indexOf("require('./shared/services/first-touch/teacher-home.mount').mountTeacherHome(app)");
+  // its own line, or its line in the first-touch mount list (shared/services/first-touch/mounts.js) that the bot loops over
+  const line = code.indexOf("require('./shared/services/first-touch/teacher-home.mount').mountTeacherHome(app)");
+  const at = line > -1 ? line : code.indexOf("require('./shared/services/first-touch/mounts')");
+  if (line === -1) {
+    expect(require('../../shared/services/first-touch/mounts').some(([, f, m]) => f === 'teacher-home.mount' && m === 'mountTeacherHome')).toBe(true);
+  }
   expect(at).toBeGreaterThan(-1);
   expect(at).toBeLessThan(code.indexOf('app.listen('));
   expect(at).toBeGreaterThan(code.indexOf('const app = express()'));

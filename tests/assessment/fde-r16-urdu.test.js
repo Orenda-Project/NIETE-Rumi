@@ -132,7 +132,10 @@ describe('(c) a quoted word list that prints another item\'s key gives it away',
     q1[1].question = 'کون سا لفظ تمنائی جملے میں استعمال ہوتا ہے؟';
     q1[1].options = ['الف) کاش', 'ب) شاید', 'ج) اگر', 'د) تو'];
     q1[1].answer = 'الف) کاش';
-    const stems = q1Stems(lay(exam, false).examJson);
+    // تمنائی is lesson 5's grammar: on this lessons 6–7 paper the item is held for scope, so the point
+    // is read on lessons 4–5.
+    expect(q1Stems(lay(exam, false).examJson)).not.toContain(q1[0].question);
+    const stems = q1Stems(lay({ ...exam, _scope: { kind: 'chapters', chapters: [4, 5], pages: null } }, false).examJson);
     expect(stems).toContain(q1[0].question);
   });
 });

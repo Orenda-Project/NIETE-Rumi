@@ -465,9 +465,9 @@ describe('the shapes a local round missed', () => {
   });
 });
 
-describe('only Urdu', () => {
+describe('only Urdu (and Social Studies, its own pass)', () => {
   test('the subjects the pass can ever read', () => {
-    expect(Reader.READER_SUBJECTS).toEqual(['urdu']);
+    expect(Reader.READER_SUBJECTS).toEqual(['urdu', 'social_studies']);
   });
 
   // A Maths pattern paper from the recorded fixture, each section answered with its own slots.
