@@ -93,7 +93,8 @@ describe('key on: the feedback band on every scored body; the speed only on the 
   beforeEach(() => { settings = [{ key: RF.KEY, value: true }]; });
   test('owner: today\'s body plus feedback; another phone: the score, the feedback, and none of the owner-only keys at any depth', async () => {
     wire(scored);
-    const fb = { stars: 3, badge: 'faster', words_heard: 44 };   // 40 of 44 right = 91 %
+    // 40 of 44 right = 91 %; faster than the last read, but "faster" names the speed's band: the owner's page draws it
+    const fb = { stars: 3, badge: 'star', words_heard: 44 };
     for (const [name, call] of Object.entries(BUILDERS)) {
       expect([name, await call({ 'x-wq-device': own })]).toEqual([name, { ...scored, feedback: fb }]);
       for (const h of OTHER) {
@@ -113,9 +114,13 @@ describe('key on: the feedback band on every scored body; the speed only on the 
     wire({ pending: true });
     expect(await get({})).toEqual({ pending: true });
   });
-  test('"faster" only against the child\'s own last read, and only on a read long enough to be honest', () => {
-    const b = (correct, w, p) => RF.band({ score: { correct, attempted: correct }, wcpm: w, previous: p == null ? null : { wcpm: p } }).badge;
-    expect([b(40, 42, 40), b(40, 41, 40), b(40, 42, null), b(10, 42, 30)]).toEqual(['faster', 'star', 'star', 'star']);
+  test('the band never names the speed: no lights, no growth, never a "faster" badge, whatever the last read was', () => {
+    for (const [w, p] of [[42, 40], [80, 20], [10, 60]]) {
+      const band = RF.band({ score: { correct: 40, attempted: 40 }, wcpm: w, previous: { wcpm: p } });
+      expect(band).toEqual({ stars: 3, badge: 'star', words_heard: 40 });
+      expect(Object.keys(band).filter((k) => RF.OWNER_ONLY.includes(k))).toEqual([]);
+    }
+    expect(RF.band({ score: { correct: 6, attempted: 10 }, wcpm: 60, previous: { wcpm: 20 } })).toEqual({ stars: 1, badge: 'reader', words_heard: 10 });
   });
 });
 
@@ -131,7 +136,8 @@ describe('the band and the page agree (wq-moment.js draws the same stars and bad
     const out = { score: { ...score, stopped: false }, wcpm, previous: prev == null ? null : { wcpm: prev } };
     const lv = M.level(M.feedback(out), 3);
     const band = RF.band(out);
-    expect({ stars: band.stars, badge: band.badge }).toEqual({ stars: lv.stars, badge: lv.badge });
+    // the same stars; the same badge, except the owner's own "faster" (worked out from the speed, so never in the band)
+    expect({ stars: band.stars, badge: band.badge }).toEqual({ stars: lv.stars, badge: lv.badge === 'faster' ? (lv.stars === 3 ? 'star' : 'reader') : lv.badge });
     // and the page draws the same stars and badge from the band alone (another phone's body)
     const stripped = { score: { attempted: score.attempted, stopped: false }, feedback: band };
     const lv2 = M.level(M.feedback(stripped), 3);
@@ -140,8 +146,7 @@ describe('the band and the page agree (wq-moment.js draws the same stars and bad
   });
   test('the numbers are one table: the page\'s and the server\'s thresholds match', () => {
     expect(src).toMatch(/STAR_AT = \[0\.7, 0\.9\]/);
-    expect(src).toMatch(/GROWTH_UP = 2;/);
-    expect(src).toMatch(/MIN_WORDS = 15,/);
-    expect([RF.STAR_AT, RF.GROWTH_UP, RF.MIN_WORDS]).toEqual([[0.7, 0.9], 2, 15]);
+    expect(src).toMatch(/MIN_WORDS = 15, MIN_MS = 6000;/);
+    expect([RF.STAR_AT, RF.MIN_WORDS, RF.MIN_MS]).toEqual([[0.7, 0.9], 15, 6000]);
   });
 });

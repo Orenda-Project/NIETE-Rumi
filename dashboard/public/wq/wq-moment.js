@@ -13,8 +13,9 @@
  *   WQMoment.html(fb, lang, o)  the block (no buttons: the host keeps its own Next / Share / Home); o = {grade?, size?: 's'}
  *   WQMoment.mount(el, fb, lang, o)  the block just before `el` (or into it, o.into); one sound when the kit is there
  *
- * The number shows only on the reading child's own screen (the server sends the speed only to that phone) and only
- * when the read is long enough to be honest (15 words and 6 seconds); otherwise the picture alone.
+ * The jar, its number and the growth line show only on the reading child's own screen (the server sends the speed only
+ * to that phone) and only when the read is long enough to be honest (15 words and 6 seconds); otherwise the words, the
+ * stars and the badge carry it. A 0-word read has no stars row at all (never empty stars).
  * Copy rules: no test words; gender-neutral آپ; Urdu digits in Urdu; every Urdu run in dir="rtl". Never "slower".
  */
 (function () {
@@ -67,7 +68,7 @@
     var zero = !(words > 0);
     var showNum = !zero && !!wcpm && words >= MIN_WORDS && (checked > 0 || ms >= MIN_MS);
     var fb = { words: words, total: total, wcpm: zero ? null : wcpm, prev: prev, acc: zero ? null : acc, zero: zero, showNum: showNum };
-    if (band && !zero) { fb.wcpm = null; fb.showNum = false; fb.band = { stars: Math.max(1, Math.min(3, num(band.stars))), up: band.badge === 'faster' }; }
+    if (band && !zero) { fb.wcpm = null; fb.showNum = false; fb.band = { stars: Math.max(1, Math.min(3, num(band.stars))) }; }
     return fb;
   }
   function bands(grade) {
@@ -77,10 +78,10 @@
   function level(fb, grade) {
     fb = fb || {};
     if (fb.zero) return { lights: 0, stars: 0, growth: null, badge: 'try' };
-    if (fb.band) return { lights: 1, stars: fb.band.stars, growth: fb.band.up ? 'up' : null, badge: fb.band.up ? 'faster' : fb.band.stars === 3 ? 'star' : 'reader' };
+    if (fb.band) return { lights: 0, stars: fb.band.stars, growth: null, badge: fb.band.stars === 3 ? 'star' : 'reader' };
     var b = bands(grade), lights = 0, i;
-    if (fb.wcpm) { for (i = 0; i < b.length; i++) if (fb.wcpm >= b[i]) lights = i + 1; }
-    else lights = 1;
+    // the lights name the speed's band: only on a read long enough to be honest, like the number beside them
+    if (fb.wcpm && fb.showNum) { for (i = 0; i < b.length; i++) if (fb.wcpm >= b[i]) lights = i + 1; }
     var stars = fb.acc == null ? 1 : fb.acc >= STAR_AT[1] ? 3 : fb.acc >= STAR_AT[0] ? 2 : 1;
     var growth = null;
     // growth only against the child's own last read, and only when both are honest numbers
@@ -103,7 +104,7 @@
   function html(fb, lang, o) {
     o = o || {};
     var l = L(lang), c = C[l], lv = level(fb, o.grade), dir = l === 'ur' ? 'rtl' : 'ltr', i;
-    var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + '" data-deed="read" data-rf data-level="' + lv.lights + '" role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
+    var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + '" data-deed="read" data-rf' + (lv.lights ? ' data-level="' + lv.lights + '"' : '') + ' role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
       '<div class="wq-moment-sky" aria-hidden="true"></div>';
     if (fb.zero) {
       out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
@@ -111,8 +112,10 @@
       out += '<p class="wq-moment-deed">' + esc(c.words(fb.words)) + '</p>';
       var lights = '';
       for (i = 0; i < 5; i++) lights += light(i < lv.lights);
-      out += '<div class="wq-moment-meter" data-level="' + lv.lights + '" role="img" aria-label="' + esc(c.lights(lv.lights)) + '"><span class="wq-moment-jar">' + lights + '</span>' +
-        (fb.showNum ? '<span class="wq-moment-num">' + esc(c.num(fb.wcpm)) + '</span>' : '') + '</div>';
+      // Jugnu's jar with the number beside it: an honest read on the child's own phone only (a short read, another
+      // phone: the words and the stars carry it)
+      if (lv.lights) out += '<div class="wq-moment-meter" data-level="' + lv.lights + '" role="img" aria-label="' + esc(c.lights(lv.lights)) + '"><span class="wq-moment-jar">' + lights + '</span>' +
+        '<span class="wq-moment-num">' + esc(c.num(fb.wcpm)) + '</span></div>';
       var stars = '';
       for (i = 0; i < 3; i++) stars += star(i < lv.stars);
       out += '<div class="wq-moment-stars" data-stars="' + lv.stars + '" role="img" aria-label="' + esc(c.stars(lv.stars)) + '">' + stars + '</div>';
