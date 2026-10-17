@@ -241,6 +241,33 @@ const CHROME = {
   },
 };
 
+/**
+ * A storybook send's report (r.story, web_quiz_stories_teacher) reads as a story: these replace the quiz words of the
+ * page's chrome for that page only. A quiz report never sees them.
+ */
+const STORY_CHROME = {
+  en: {
+    title: 'Story report',
+    notPlayed: 'Not opened yet',
+    allPlayed: 'Everyone on your class list has opened it.',
+    ambiguousBody: 'Children who opened it are above. Pick the class to see who has not opened it yet.',
+    noneTitle: 'See who has not opened it',
+    noneBody: 'Send /roster on WhatsApp to add your class list, then reopen this report to see who has not opened it.',
+    noticeClosed: 'This story link has closed, so its class can no longer be changed.',
+  },
+  ur: {
+    title: 'کہانی کی رپورٹ',
+    notPlayed: 'ابھی نہیں کھولی',
+    allPlayed: 'کلاس کی فہرست میں سب بچوں نے کہانی کھول لی ہے۔',
+    ambiguousTitle: 'یہ کہانی کس کلاس کے لیے تھی؟',
+    ambiguousBody: 'جن بچوں نے کہانی کھولی وہ اوپر ہیں۔ کلاس چنیں تاکہ پتا چلے کس نے ابھی نہیں کھولی۔',
+    noneTitle: 'دیکھیں کس نے ابھی کہانی نہیں کھولی',
+    noticeClosed: 'اس کہانی کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
+  },
+};
+/** The chrome for one report: the quiz's own, or the story's words over it for a story send. */
+const chromeOf = (C, lang, r) => (r && r.story ? { ...C, ...(STORY_CHROME[lang] || STORY_CHROME.en) } : C);
+
 const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const PKT_MS = 5 * 3600 * 1000;
@@ -465,7 +492,8 @@ function topBar({ C, L, langHref, print }) {
 }
 
 function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null, ok = null }) {
-  const { rtl, C, T, L, K, M } = kit(lang);
+  const { rtl, C: quizChrome, T, L, K, M } = kit(lang);
+  const C = chromeOf(quizChrome, lang, r);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
   const quiz = r.quiz || {};
@@ -694,7 +722,8 @@ function renderPage(data, opts = {}) {
   const roundCard = tab === 'class' && !print && typeof opts.roundCard === 'string' ? opts.roundCard : '';
   const upd = `<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div>`;
   const needUrdu = rtl || scriptOf(JSON.stringify(data || {})) === 'ur';
-  const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || C.title} · ${C.title}` : C.classTitle;
+  const PC = tab === 'quiz' ? chromeOf(C, lang, data.quiz) : C;
+  const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || PC.title} · ${PC.title}` : C.classTitle;
   const pageCss = V21.usedIn(parts.main) ? `${extraCss}${V21.CSS}` : extraCss; // v21 pieces (bd-v0toag.9/.10), switch on only
   const css = usesMath(parts.main) ? `${pageCss}\n${mathCss()}` : pageCss;
   return shell({ lang, rtl, print, needUrdu, extraCss: css, title, body: `${parts.header}<main class="wrap">${roundCard}${parts.main}${foot}${upd}</main>` });
