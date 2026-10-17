@@ -556,6 +556,104 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('the mic notice: the sheet is handed this child\'s chip and whether Jugnu keeps passage recordings (lr3_keep), one mark for the live reader to keep', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    expect(e.calls.ask[0].notice).toEqual({ kid: KID, keep: false });
+    const e2 = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    expect(e2.calls.ask[0].notice).toEqual({ kid: KID, keep: true });
+  });
+  test('the kept notice, told once: the page read after a sheet that showed it carries notice:2 (the server\'s record), the next read does not; never for "nothing kept" or with no notice shown', async () => {
+    const R5 = { words_total: 5, words_read: 5, skipped: 0, ms: 5000, ended: 'quiet', marks: ['read', 'read', 'read', 'read', 'read'] };
+    const reads = (e) => e.calls.posts.filter((x) => x.body.event === 'story_page_read').map((x) => x.body.data);
+    const e = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const root = await openReader(e);
+    toMic(e, root);
+    e.calls.ask[0].notice.shown = 1;                               // the live reader showed it and the child tapped Start
+    e.calls.ask[0].onStream({});
+    e.calls.lr[0].o.onResult(R5);
+    expect(reads(e)[0].notice).toBe(2);
+    expect(e.calls.ask[0].notice.shown).toBe(0);
+    fire(root, 'main'); toMic(e, root);
+    e.calls.ask[1].onStream({});
+    e.calls.lr[e.calls.lr.length - 1].o.onResult(R5);
+    expect(reads(e)).toHaveLength(2);
+    expect(reads(e)[1]).not.toHaveProperty('notice');
+    const e2 = env(); const r2 = await openReader(e2);           // lr3_keep absent: the "nothing kept" words
+    toMic(e2, r2); e2.calls.ask[0].notice.shown = 1; e2.calls.ask[0].onStream({}); e2.calls.lr[0].o.onResult(R5);
+    expect(reads(e2)[0]).not.toHaveProperty('notice');
+    const e3 = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const r3 = await openReader(e3);
+    toMic(e3, r3); e3.calls.ask[0].onStream({}); e3.calls.lr[0].o.onResult(R5);   // already seen on this phone: nothing shown
+    expect(reads(e3)[0]).not.toHaveProperty('notice');
+  });
+  test('the notice version the reader sends is the Trail\'s (TrailPage.NOTICE_V): a new notice wording moves both or the server ignores the field', () => {
+    const tp = fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'services', 'quiz', 'web-quiz-trail-page.js'), 'utf8');
+    expect(fs.readFileSync(QSRC, 'utf8').match(/d\.notice = (\d+);/)[1]).toBe(tp.match(/const NOTICE_V = (\d+);/)[1]);
+  });
+  // the phone's microphone light: a stream whose tracks count their stops
+  const micStream = (id) => { const tr = { stops: 0, stop() { tr.stops += 1; } }; return { id, tr, getTracks: () => [tr] }; };
+  test('the microphone is given back the moment a page read ends (every track stopped); the next Your turn asks again', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const st = micStream('a');
+    e.calls.ask[0].onStream(st);
+    expect(st.tr.stops).toBe(0);                                  // reading: the microphone is on
+    e.calls.lr[0].o.onResult({ words_total: 5, words_read: 4, skipped: 1, ms: 5000, ended: 'quiet', marks: ['read', 'read', 'read', 'skipped', 'read'] });
+    expect(st.tr.stops).toBe(1);
+    fire(root, 'main');                                            // Next
+    toMic(e, root);
+    expect(e.calls.ask).toHaveLength(2);
+    const st2 = micStream('b');
+    e.calls.ask[1].onStream(st2);
+    expect(e.calls.lr[e.calls.lr.length - 1].o.stream).toBe(st2);
+  });
+  test('the microphone is given back when the read is closed, when the page is left, and when the reader is closed', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const st = micStream('a');
+    e.calls.ask[0].onStream(st);
+    fire(root, 'close');
+    expect(st.tr.stops).toBeGreaterThanOrEqual(1);
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    const st2 = micStream('b');
+    e2.calls.ask[0].onStream(st2);
+    e2.S.open('b-2', e2.ctx({ root: r2 }));                        // another book opened (a route change)
+    await flush();
+    expect(st2.tr.stops).toBeGreaterThanOrEqual(1);
+    const e3 = env(); const r3 = await openReader(e3);
+    toMic(e3, r3);
+    const st3 = micStream('c');
+    e3.calls.ask[0].onStream(st3);
+    fire(r3, 'back');                                              // the reader's own way out (by the hash)
+    (e3.winL.hashchange || []).forEach((f) => f({}));
+    expect(st3.tr.stops).toBeGreaterThanOrEqual(1);
+    const e4 = env(); const r4 = await openReader(e4);
+    toMic(e4, r4);
+    const st4 = micStream('d');
+    e4.calls.ask[0].onStream(st4);
+    (e4.winL.pagehide || []).forEach((f) => f({}));                 // the tab closed mid-read
+    expect(st4.tr.stops).toBeGreaterThanOrEqual(1);
+  });
+  test('a stream granted after the reader is gone (Back while the phone asks) is given back at once, never read', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const nlr = e.calls.lr.length;
+    e.S.open('b-2', e.ctx({ root }));                              // the child left while the phone's prompt was open
+    await flush();
+    const late = micStream('late');
+    e.calls.ask[0].onStream(late);
+    expect(late.tr.stops).toBe(1);
+    expect(e.calls.lr.length).toBe(nlr);
+  });
+  test('a stream that arrives after the sheet has gone is given back at once', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    e.calls.ask[0].onNotNow();
+    const late = micStream('late');
+    e.calls.ask[0].onStream(late);
+    expect(late.tr.stops).toBe(1);
+  });
   test('a wide line of small print is whole on screen, both edges, in page view, while listening and while reading, in English (left to right) and Urdu (right to left)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [40, 800, 640, 22] }, { i0: 3, i1: 4, box: [60, 830, 600, 22] }];
     for (const lang of ['en', 'ur']) {
@@ -1946,6 +2044,19 @@ describe('echo reading on G1-2', () => {
     toMic(u, ru); u.calls.ask[0].onStream({}); u.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
     expect(ru.innerHTML).toMatch(/data-tap="echo"[^>]*>آئیں مل کر پڑھیں<\/button>/);
   });
+  test('Read it together: a microphone granted after the reader is gone is given back at once', async () => {
+    const e = env({ replies: { book: { status: 200, body: two() } } });
+    const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
+    let give;
+    e.win.WQLiveRead.micAgain = () => new Promise((r) => { give = r; });
+    fire(root, 'echo');
+    e.S.open('b-2', e.ctx({ root }));                              // left before the phone answered
+    await flush();
+    const tr = { stops: 0, stop() { tr.stops += 1; } };
+    give({ id: 'late', getTracks: () => [tr] });
+    await flush();
+    expect(tr.stops).toBe(1);
+  });
   test('sentences split on . ! ? ۔ ؟ (a closing quote kept with its sentence)', async () => {
     const e = env(); await openReader(e);
     const ws = ['Mina', 'runs.', '"Up!"', 'Is', 'it', 'red?', 'یہ', 'پتنگ', 'ہے۔', 'کیا', 'اڑی؟', 'Then'].map((t, i) => ({ i, t }));
@@ -1964,7 +2075,12 @@ describe('echo reading on G1-2', () => {
     const e = env({ replies: { book: { status: 200, body: two() } } });
     const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
     const nra = e.calls.ra.length;
+    // the read's microphone was given back when it ended; "Read it together" asks for one inside its tap
+    let asked = 0;
+    e.win.WQLiveRead.micAgain = () => { asked += 1; return Promise.resolve({ id: 'echo' }); };
     fire(root, 'echo');
+    expect(asked).toBe(1);
+    await flush();
     let h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-echo');
@@ -1993,7 +2109,7 @@ describe('echo reading on G1-2', () => {
     const c = e.calls.lr[1];
     expect(c.o.words.map((w) => w.t)).toEqual(['Mina', 'runs.']);
     expect(c.o.words[1].box).toEqual([160, 810, 50, 50]);
-    expect(c.o).toMatchObject({ lang: 'en', dir: 'ltr', meter: 'none', record: false, counted: false, stream: { id: 'st' } });
+    expect(c.o).toMatchObject({ lang: 'en', dir: 'ltr', meter: 'none', record: false, counted: false, stream: { id: 'echo' } });
     expect(root.querySelector('[data-es]').innerHTML).toBe(es);   // the boxes stay outlined with the mic on
     // the child echoes -> the next sentence
     c.o.onResult(READ(['read', 'read']));

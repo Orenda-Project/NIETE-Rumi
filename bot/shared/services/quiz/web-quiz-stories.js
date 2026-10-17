@@ -36,6 +36,8 @@ const FLAG_KEY = 'web_quiz_stories';
 const BAND_KEY = 'web_quiz_stories_band';
 // "Read it together" needs the live reader's story keys: offered only when both of its switches are on.
 const LR3_KEYS = ['web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
+// Jugnu keeps its passage recordings (web-quiz-challenge.js keepAudioOn): the microphone notice says so (book.lr3_keep)
+const KEEP_KEY = 'web_quiz_challenge_keep_audio';
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -72,14 +74,15 @@ function counted(row) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, ...LR3_KEYS]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, ...LR3_KEYS, KEEP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))) };
+    const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, keep: lr3 && isTrue(by.get(KEEP_KEY)) };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false };
+    cache = { at: now, on: false, band: false, lr3: false, keep: false };
   }
   return cache;
 }
@@ -380,6 +383,8 @@ async function bookData(id) {
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
     pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3,
+    // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
+    ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
@@ -420,6 +425,18 @@ async function bookOn() {
   try { return Boolean((await require('./web-quiz-book').flags()).book); } catch (_) { return false; }
 }
 
+// The storybook sheet showed the microphone notice (wq-liveread.js), and this page read says so (`notice`: its version):
+// the Trail's own record "this child has seen it on this phone", only with lr3 + the notice and keep switches + the exact
+// version. The story_events row never carries the field (keep() drops it). Best effort, never throws.
+async function noticeShown(studentId, device, v) {
+  try {
+    const TrailPage = require('./web-quiz-trail-page');
+    if (v !== TrailPage.NOTICE_V || !(await flags()).keep) return;
+    const tp = await TrailPage.flags();
+    if (tp.consent && tp.keep) await TrailPage.noteNoticeShown(studentId, device);
+  } catch (_) { /* the phone's own mark still holds */ }
+}
+
 async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, data } = {}, { device } = {}) {
   const who = await guard(token, kid, device);
   if (!EVENTS.has(name) && name !== 'story_answer') fail(400, 'bad_event');
@@ -441,6 +458,7 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   }
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 1 || page > (Number(b.pages) || 0))) fail(400, 'bad_page');
+  if (name === 'story_page_read' && data && data.notice != null) await noticeShown(who.studentId, device, data.notice);
   let kept = keep(name, data);
   const out = { ok: true };
   if (name === 'story_questions_done') {

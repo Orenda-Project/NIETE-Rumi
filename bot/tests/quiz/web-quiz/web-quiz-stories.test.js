@@ -349,6 +349,26 @@ describe('the book', () => {
       expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
     }
   });
+  test('lr3_keep (the mic notice\'s words): whether Jugnu keeps passage recordings, only when lr3 is on, in the one settings query', async () => {
+    const LR = [['web_quiz_live_read_v3', true], ['web_quiz_challenge_realtime', true]];
+    const cases = [
+      [[], undefined],                                                    // lr3 off: the payload is today's (no key)
+      [[['web_quiz_challenge_keep_audio', true]], undefined],
+      [LR, false],
+      [[...LR, ['web_quiz_challenge_keep_audio', false]], false],
+      [[...LR, ['web_quiz_challenge_keep_audio', true]], true],
+    ];
+    seed(); await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }); // the Book's own switch read, cached for the loop
+    for (const [extra, want] of cases) {
+      Stories._reset(); seed();
+      extra.forEach(([key, value]) => fake.db.app_settings.push({ key, value }));
+      const before = fake.calls.filter((c) => c.table === 'app_settings').length;
+      const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+      if (want === undefined) expect(Object.prototype.hasOwnProperty.call(out, 'lr3_keep')).toBe(false);
+      else expect(out.lr3_keep).toBe(want);
+      expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
+    }
+  });
   test('the share card: no card_v3 key while the card module is absent or off', async () => {
     seed();
     const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });

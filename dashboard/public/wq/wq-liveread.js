@@ -17,6 +17,8 @@
  *                                 rules, the fallback; → { stop(reason), destroy() }. A counted mount (o.counted): a quiet
  *                                 "Stop for now" from the first second, "I'm done" only once o.doneFrom (0.8) of the words are lit
  *   askMic(el, o)                 the microphone sheet that works in WhatsApp's in-app browser on Android (below)
+ *   noticeSeen / noticeMark / noticeText   the microphone notice: one mark per child per phone, on the first reading with
+ *                                 the microphone wherever it is (the storybook's sheet, or the Trail's notice screen)
  *   doneHtml(copy)                the one Done label: "I'm done" / «میں نے پڑھ لیا» and a drawn tick
  *   wordTaps(el, marks, playWord) after a practice reading: a skipped word is a tap that says it (o.playWord on mount)
  * The sound kit (window.WQJ, when the page has it): WQJ.mic(true|false) around the microphone, and on a practice read
@@ -176,12 +178,18 @@
       micAsk: 'Tap the button so Jugnu can hear you read.', micGo: 'Start reading', chrome: 'Open in Chrome', listen: 'Listen with Jugnu instead',
       notNow: 'Not now, just listen', stop: 'Stop for now', grownUps: 'For grown-ups', okListen: 'That\'s OK, let\'s listen with Jugnu.',
       osAsk: 'When the phone asks, tap Allow.', rest: 'Jugnu\'s ears need a rest. Let\'s listen to this one together!',
-      facts: 'The voice is heard only to light up the words as they are read. On a story page nothing is kept. “Not now, just listen” works at any time.' },
+      facts: 'The voice is heard only to light up the words as they are read. On a story page nothing is kept. “Not now, just listen” works at any time.',
+      // the microphone notice (once per child per phone, the first reading with the microphone anywhere): keep = Jugnu keeps
+      // its passage recordings (web_quiz_challenge_keep_audio; no automatic deletion; STOP removes the phone link only)
+      noticeKept: 'For grown-ups: Jugnu keeps the recordings of its reading passages, with no end date yet. Only the people who make Jugnu can listen, to help Jugnu hear children better. Story pages are never kept. Sending STOP on WhatsApp removes this phone number; recordings already kept stay.',
+      noticeNone: 'Nothing is kept. Jugnu listens only while you read.' },
     ur: { done: 'میں نے پڑھ لیا', doneAsk: 'ہو گیا؟', checking: 'آپ کی آواز سنی جا رہی ہے…', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', wellRead: 'بہت خوب پڑھا!',
       micAsk: 'بٹن دبائیں تاکہ جگنو آپ کو پڑھتے ہوئے سن سکے۔', micGo: 'پڑھنا شروع کریں', chrome: 'کروم میں کھولیں', listen: 'جگنو سے سن لیں',
       notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', grownUps: 'بڑوں کے لیے', okListen: 'کوئی بات نہیں۔ آئیں، جگنو سے سنتے ہیں۔',
       osAsk: 'جب فون پوچھے تو «اجازت دیں» (\u2066Allow\u2069) دبائیں۔', rest: 'جگنو کے کانوں کو اب تھوڑا آرام چاہیے۔ آئیں، یہ کہانی مل کر سنتے ہیں!',
-      facts: 'آواز صرف پڑھتے وقت الفاظ کو روشن کرنے کے لیے سنی جاتی ہے۔ کہانی کے صفحے پر کچھ بھی محفوظ نہیں ہوتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔' },
+      facts: 'آواز صرف پڑھتے وقت الفاظ کو روشن کرنے کے لیے سنی جاتی ہے۔ کہانی کے صفحے پر کچھ بھی رکھا نہیں جاتا۔ «ابھی نہیں، صرف سنیں» کسی بھی وقت دبا سکتے ہیں۔',
+      noticeKept: 'بڑوں کے لیے: جگنو کی عبارتیں پڑھتے وقت جو ریکارڈنگ ہوتی ہے، وہ جگنو رکھتا ہے، اور ابھی یہ طے نہیں کہ کب تک رکھے گا۔ یہ ریکارڈنگ صرف جگنو بنانے والے لوگ سن سکتے ہیں۔ وہ اسے اس لیے سنتے ہیں تاکہ جگنو بچوں کی آواز بہتر سمجھ سکے۔ کہانی کے صفحوں کی ریکارڈنگ کبھی نہیں رکھی جاتی۔ واٹس\u00a0ایپ پر \u2066STOP\u2069 بھیجنے سے یہ فون نمبر ہٹا دیا جاتا ہے، لیکن جو ریکارڈنگ پہلے سے رکھی جا چکی ہے وہ موجود رہتی ہے۔',
+      noticeNone: 'کچھ بھی نہیں رکھا جاتا۔ جگنو صرف اسی وقت سنتا ہے جب آپ پڑھ رہے ہوں۔' },
   };
   // the controls' glyphs are drawn, never a font character (a ✓ or an emoji falls into the Nastaliq face)
   var TICK = '<svg class="lr-tick" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -196,8 +204,28 @@
   function doneHtml(t) { return esc(t.done) + ' ' + TICK; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
+  // ── the microphone notice: ONE mark per child per phone (wq_notice_v:<chip>, the key the Trail's notice keeps), shown on
+  //    the first reading with the microphone wherever it is — the storybook's sheet or Jugnu's passage — never again. The
+  //    mark says which words were shown: a kept notice covers everything; a "nothing kept" one does not cover a kept one.
+  var NOTICE_KEY = 'wq_notice_v:';
+  var NOTICE_KEPT = 'lr3k';
+  var NOTICE_NONE = 'lr3n';
+  function noticeSeen(kid, keep) {
+    if (!kid) return false;
+    var v = null;
+    try { v = window.localStorage.getItem(NOTICE_KEY + kid); } catch (e) { return false; }
+    return v === NOTICE_KEPT || (!keep && v === NOTICE_NONE);
+  }
+  function noticeMark(kid, keep) {
+    if (!kid) return;
+    try { window.localStorage.setItem(NOTICE_KEY + kid, keep ? NOTICE_KEPT : NOTICE_NONE); } catch (e) { /* shown again next time: never hidden */ }
+  }
+  function noticeText(lang, keep) { var t = COPY[lang === 'ur' ? 'ur' : 'en']; return keep ? t.noticeKept : t.noticeNone; }
+
   // ── the microphone sheet, one on every reading surface (WhatsApp in-app browser on Android: ask only after a tap) ──
-  //   askMic(el, {lang, src, onStream, onNotNow, onDenied, ev, facts})
+  //   askMic(el, {lang, src, onStream, onNotNow, onDenied, ev, facts, notice: {kid, keep}})
+  //   0. notice (when this child has not seen it on this phone): the microphone notice under the child's line, above the fold;
+  //      "Start reading" marks it seen ("Not now" is not a microphone use: it stays owed);
   //   1. one line for the child + the big "Start reading" (getUserMedia only inside this tap) + "For grown-ups" (what is
   //      heard, what is kept, how to stop — closed until opened);
   //   2. the phone's own prompt as a picture (which button to tap);
@@ -210,7 +238,9 @@
     var src = String(o.src || 'passage').slice(0, 16);
     var ev = function (n, d) { try { if (o.ev) o.ev(n, d); } catch (e) { /* the host's log never breaks the ask */ } };
     var dl = o.lang === 'ur' ? ' dir="rtl" lang="ur"' : ' dir="ltr" lang="en"';
+    var nt = o.notice && !noticeSeen(o.notice.kid, !!o.notice.keep) ? o.notice : null;
     el.innerHTML = '<div class="lr-ask"' + dl + '><p class="lr-say">' + esc(t.micAsk) + '</p>'
+      + (nt ? '<p class="lr-notice" role="note">' + esc(noticeText(o.lang, !!nt.keep)) + '</p>' : '')
       + '<div class="lr-os-pic">' + OS_PIC + '<p class="lr-os-say">' + esc(t.osAsk) + '</p></div>'
       + '<button class="wq-btn wq-go lr-go" type="button">' + MIC + ' ' + esc(t.micGo) + '</button>'
       + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.notNow) + '</button>'
@@ -234,6 +264,7 @@
       if (b) b.addEventListener('click', function () { if (o.onDenied) o.onDenied(why); });
     }
     el.querySelector('.lr-go').addEventListener('click', function () {
+      if (nt) { noticeMark(nt.kid, !!nt.keep); nt.shown = 1; }   // the host may tell its server once (the storybook's page read)
       var md = navigator.mediaDevices;
       if (!md || typeof md.getUserMedia !== 'function') { off('unsupported'); return; }
       setTimeout(function () { off('timeout'); }, MIC_WAIT_MS);
@@ -243,6 +274,12 @@
         o.onStream(stream);
       }).catch(function (e) { off(String((e && e.name) || 'error').toLowerCase().replace(/[^a-z]/g, '').slice(0, 24)); });
     });
+  }
+
+  /** The microphone again after a host gave it back (permission already given): a promise of a stream, or null. */
+  function micAgain() {
+    var md = navigator.mediaDevices;
+    return md && typeof md.getUserMedia === 'function' ? md.getUserMedia({ audio: true }) : null;
   }
 
   // ── the reading, mounted on one element (a story page) ────────────────────────────
@@ -482,5 +519,6 @@
     return { copy: C, counted: counted, view: view, doneOpen: doneOpen, heard: heard, hand: hand, check: check, sayWords: sayWords, sticky: sticky };
   }
 
-  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, spanMs: spanMs, trail: trail, COPY: COPY };
+  window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, spanMs: spanMs, trail: trail, COPY: COPY,
+    noticeSeen: noticeSeen, noticeMark: noticeMark, noticeText: noticeText, micAgain: micAgain };
 })();
