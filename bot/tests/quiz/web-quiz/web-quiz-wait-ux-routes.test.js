@@ -27,7 +27,8 @@ function seed() {
           if (fail) return { data: null, error: { message: 'down' } };
           return { data: rows.find((r) => r.key === st.key) || null, error: null };
         },
-        then(res, rej) { return Promise.resolve({ data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej); },
+        // the hub's one switch read (web-quiz-hub-flags.js) is an .in() list; a failed read fails it too
+        then(res, rej) { return Promise.resolve(fail && t === 'app_settings' ? { data: null, error: { message: 'down' } } : { data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej); },
       };
       return b;
     },
