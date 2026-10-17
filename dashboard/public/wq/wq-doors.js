@@ -328,14 +328,15 @@
   }
   function start(root, B, ctx, v) {
     if (going) return;
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k), 'door_video'); }
+    // A class child's lesson page is told it was opened from this door (via=videos): with web_quiz_videos_v3 on it puts the play first.
+    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos', 'door_video'); }
     going = true;
     var t = C(ctx);
     if (view.name !== 'watch/' + v.vid) draw(root, B, ctx, 'watch/' + v.vid, null);
     view.name = 'watch/' + v.vid;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: v.vid }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : ''), 'door_video');
+      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos', 'door_video');
       if (!err && j && j.watch) {
         var after = nextInList(v.vid);
         var next = rankedNext(j.watch.next, ctx) || (j.watch.after ? { kind: 'quiz', title: t.quizAfter, sub: j.watch.title, href: '#', quiz: true }
@@ -412,7 +413,8 @@
     } catch (e) {}
   }
   // The card after a watched video: its block above the hidden tile holder, the one Next tile inside it (our own tile
-  // goes); its Next opens what ours would. false = no card (switch off, script not there): our own tile stays.
+  // goes); its Next opens what ours would, and leads (the card and ONE next thing: Share is the soft secondary).
+  // false = no card (switch off, script not there): our own tile stays.
   function endCard(root, B, ctx, ev) {
     if (B.card_v3 !== true || !window.WQFC || typeof window.WQFC.mount !== 'function') return false;
     var a = root.querySelector('.wq-after'); var w = view.watch || {}; var nx = view.next || {};
@@ -421,7 +423,7 @@
     var next = nx.path ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: nx.path }
       : /^\/[^/]/.test(here) ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: here + (nx.hash || '#videos') } : null;
     var ok = false;
-    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
+    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, plain: !!(B.doors && B.doors.videos && B.doors.videos.watch === true), auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
     if (!ok) return false;
     if (a && a.parentNode) a.parentNode.removeChild(a);
     var t = document.getElementById('wqfc-next');

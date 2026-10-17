@@ -185,9 +185,11 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     // the first open after a self-join (src join | bind, the phone that joined): "Jugnu will remember you" + Undo, once
     // ...and, for the link's whole life, "Forget this phone" in the grown-ups corner of the phone that made it
     const R = require('./web-quiz-home-remember');
-    const [remember, own] = await Promise.all([R.field({ device, chosenId, src }), R.owns({ device, chosenId, binds: d.binds })]);
+    // (one read of the binding rows for both, beside the phone rows: no added wave)
+    const rows = R.rowsFor(device);
+    const [remember, own, phones] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang)]);
     if (own) remember.forget_phone = true;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...(await phoneRows(d.binds, out.lang)), ...remember };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...phones, ...remember };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
