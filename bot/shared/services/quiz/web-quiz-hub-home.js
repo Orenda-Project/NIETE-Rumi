@@ -4,7 +4,7 @@
  * the hub's boot JSON — one Next thing, three doors (Stories, Games, Videos) and the header's day-dots and sticker jar.
  * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
  *
- *   homeField({ out, chosenId, history, pre })    {} | { home_v3: 1, doors, head }
+ *   homeField({ out, chosenId, history, pre, device, src })    {} | { home_v3: 1, doors, head, remember? }
  *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
@@ -170,7 +170,7 @@ function prefetch(chosenId, now = Date.now()) {
 }
 
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
-async function homeField({ out, chosenId, history, now = Date.now(), pre } = {}) {
+async function homeField({ out, chosenId, history, now = Date.now(), pre, device = null, src = null } = {}) {
   try {
     const p = pre || prefetch(chosenId, now);
     const f = await p.flags;
@@ -182,7 +182,12 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre } = {})
     const head = headOf(stamps, now);
     // The sticker jar leads to Jugnu's Book, so it is there only when the Book is; "new" = a sticker in the last day.
     head.jar = out.book_on ? { fresh } : null;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...(await phoneRows(d.binds, out.lang)) };
+    // the first open after a self-join (src join | bind, the phone that joined): "Jugnu will remember you" + Undo, once
+    // ...and, for the link's whole life, "Forget this phone" in the grown-ups corner of the phone that made it
+    const R = require('./web-quiz-home-remember');
+    const [remember, own] = await Promise.all([R.field({ device, chosenId, src }), R.owns({ device, chosenId, binds: d.binds })]);
+    if (own) remember.forget_phone = true;
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...(await phoneRows(d.binds, out.lang)), ...remember };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
