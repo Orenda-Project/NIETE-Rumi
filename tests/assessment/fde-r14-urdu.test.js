@@ -208,7 +208,8 @@ describe('(2) the Section A re-ask is told the items Q1 keeps, with their keys',
 
   test('a top-up names every kept Q1 item and its key, and never to key a new item on them', () => {
     const first = firstReply();
-    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 6 });
+    // Six re-asked items, and one more: the second شرط و جزا item («جوں جوں» …) asks a concept Q1 already asks.
+    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 7 });
     const note = takenNote(U, sectionA, first.examJson, { topUp: true, shortfall: first.shortfall });
     expect(note).toContain(`- ${recorded('full_1', 2).question} → دندان سازی`);
     expect(note).toContain(`- ${recorded('full_1', 3).question} → گلستان`);
