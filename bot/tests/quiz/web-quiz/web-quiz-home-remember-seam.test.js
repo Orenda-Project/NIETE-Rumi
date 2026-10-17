@@ -247,3 +247,60 @@ describe('the switch off (web_quiz_home_v3 absent, the string "true", false)', (
     expect(events('web_quiz.home_remember')).toHaveLength(0);
   });
 });
+
+describe('"Forget this phone" in the grown-ups corner, for the link\'s whole life (the same POST /bind/undo, {from:"home"})', () => {
+  const T = require('../../../shared/services/quiz/web-quiz-token');
+  const HubHome = () => require('../../../shared/services/quiz/web-quiz-hub-home');
+  const chip = (id) => T.chipId('h', id);
+  test('long after the line: the corner has the row for the phone that joined, and one tap erases that link only', async () => {
+    const { kidId } = await joinNew();
+    await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' });
+    // the 20 s line is long gone (its key expired); the corner still knows this phone's link
+    [...redis.__keys.keys()].filter((k) => /^wq:home:rem:/.test(k)).forEach((k) => redis.__keys.delete(k));
+    const out = { lang: 'en', kids: [], book_on: false };
+    const f = await HubHome().homeField({ out, chosenId: kidId, history: [], device: DEVICE, src: 'quiz' });
+    expect(f.forget_phone).toBe(true);
+    expect(f).not.toHaveProperty('remember');
+    // another phone (a forwarded link) never sees the row
+    expect((await HubHome().homeField({ out, chosenId: kidId, history: [], device: OTHER_DEVICE, src: 'quiz' }))).not.toHaveProperty('forget_phone');
+    const forget = jest.spyOn(StudentIdentity, 'forgetDoorVerdict');
+    expect(await Remember().forget({ device: OTHER_DEVICE, kid: chip(kidId) })).toEqual({ ok: false, error: 'not_bound' });
+    const res = await postUndo({ from: 'home', kid: chip(kidId) });
+    expect(res.body).toEqual({ ok: true });
+    const mine = fake.db.child_phone_bindings.find((b) => b.canonical_id === kidId);
+    expect(mine.revoked_by).toBe('page_undo');
+    expect((await Bindings.activeForChild(kidId)).map((b) => b.id)).not.toContain(mine.id);
+    expect(fake.db.students.find((s) => String(s.id) === kidId).is_active).not.toBe(false);
+    expect(forget).toHaveBeenCalledWith(PHONE, PHONE);
+    expect(events('web_quiz.bind_undo')).toEqual([expect.objectContaining({ via: 'page', n: 1 })]);
+    expect(sends()).toBe(0);
+    // gone: the row is not drawn again, a second tap finds nothing
+    expect(await HubHome().homeField({ out, chosenId: kidId, history: [], device: DEVICE, src: 'quiz' })).not.toHaveProperty('forget_phone');
+    expect((await postUndo({ from: 'home', kid: chip(kidId) })).body).toEqual({ ok: false, error: 'not_bound' });
+  });
+  test('two children joined on one phone: forgetting one keeps the other\'s row and link', async () => {
+    const a = await joinNew('Sara');
+    const b = await joinNew('Bilal');
+    expect(await Remember().forget({ device: DEVICE, kid: chip(a.kidId) })).toEqual({ ok: true });
+    const out = { lang: 'en', kids: [], book_on: false };
+    expect((await HubHome().homeField({ out, chosenId: b.kidId, history: [], device: DEVICE, src: 'quiz' })).forget_phone).toBe(true);
+    expect((await Bindings.activeForChild(b.kidId)).length).toBe(1);
+  });
+  test('the line\'s Undo also clears the corner row; a link erased elsewhere (STOP) hides the row', async () => {
+    const { kidId } = await joinNew();
+    await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' });
+    await Remember().undo({ device: DEVICE });
+    const out = { lang: 'en', kids: [], book_on: false };
+    expect(await HubHome().homeField({ out, chosenId: kidId, history: [], device: DEVICE, src: 'quiz' })).not.toHaveProperty('forget_phone');
+    const c = await joinNew('Bilal');
+    await Bindings.eraseOne(fake.db.child_phone_bindings.find((x) => x.canonical_id === c.kidId).id, 'stop');
+    expect(await HubHome().homeField({ out, chosenId: c.kidId, history: [], device: DEVICE, src: 'quiz' })).not.toHaveProperty('forget_phone');
+  });
+  test('switch off: no row, the tap answers not_bound, nothing erased', async () => {
+    seed({ home: false });
+    const { kidId } = await joinNew();
+    expect(await Remember().owns({ device: DEVICE, chosenId: kidId })).toBe(false);
+    expect(await Remember().forget({ device: DEVICE, kid: chip(kidId) })).toEqual({ ok: false, error: 'not_bound' });
+    expect(fake.db.child_phone_bindings.find((b) => b.canonical_id === kidId).revoked_at || null).toBeNull();
+  });
+});

@@ -167,3 +167,73 @@ describe('the look', () => {
     expect(css).toMatch(/\.wq-remember\.wq-remgone\{[^}]*opacity:0/);
   });
 });
+
+// The grown-ups sheet behind the 2-second hold, with its buttons' listeners kept (createElement → a box whose
+// querySelector answers the sheet's own taps).
+function sheetPage({ fetchImpl = null } = {}) {
+  const loc = { hash: '', pathname: '/h/x', search: '', reloads: 0, reload() { this.reloads += 1; }, replace() {}, assign() {} };
+  const calls = []; const sheets = [];
+  const btn = () => { const l = {}; return { l, disabled: false, addEventListener(n, fn) { (l[n] = l[n] || []).push(fn); }, fire(n) { (l[n] || []).forEach((fn) => fn({ preventDefault() {} })); } }; };
+  const hold = btn(); hold.classList = { add() {}, remove() {} };
+  const root = {
+    innerHTML: '', setAttribute() {}, children: [],
+    querySelector: (sel) => (sel === '[data-tap="grownups"]' ? hold : null),
+    querySelectorAll: () => [],
+    appendChild: (b) => { b.parentNode = root; sheets.push(b); },
+    removeChild: (b) => { const i = sheets.indexOf(b); if (i >= 0) sheets.splice(i, 1); },
+  };
+  const document = {
+    querySelector: () => null, head: { appendChild() {} },
+    createElement: () => {
+      const taps = {};
+      return { className: '', attrs: {}, innerHTML: '', setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, appendChild() {},
+        querySelector(sel) { const m = /^\[data-tap="([a-z]+)"\]$/.exec(sel); if (!m || this.innerHTML.indexOf('data-tap="' + m[1] + '"') < 0) return null; taps[m[1]] = taps[m[1]] || btn(); return taps[m[1]]; }, taps };
+    },
+  };
+  const fetch = (url, init) => { calls.push([url, init]); return fetchImpl ? fetchImpl() : Promise.resolve({ json: () => Promise.resolve({ ok: true }) }); };
+  const win = { addEventListener() {}, scrollTo() {} };
+  vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, navigator: {}, location: loc, fetch, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, Date, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp, Promise });
+  return {
+    loc, calls, sheets,
+    open(B, lang = 'en') { win.WQHOME.mount(root, B, { token: TOKEN, lang, ev() {} }); hold.fire('pointerdown'); jest.advanceTimersByTime(2100); return sheets[sheets.length - 1]; },
+  };
+}
+
+describe('"Forget this phone" in the grown-ups corner (the boot\'s `forget_phone`)', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  test.each([['en', 'Forget this phone'], ['ur', 'اس فون پر یاد نہ رکھیں']])('%s: the row is in the sheet, never a primary', (lang, words) => {
+    const sheet = sheetPage().open({ ...HOME, forget_phone: true }, lang);
+    expect(sheet.innerHTML).toContain('data-tap="forget"');
+    expect(visible(sheet.innerHTML)).toContain(words);
+    expect(sheet.innerHTML).not.toMatch(/data-tap="forget"[^>]*data-primary|data-primary[^>]*data-tap="forget"/);
+    expect(visible(sheet.innerHTML)).not.toMatch(BANNED);
+  });
+  test('no `forget_phone` (a guest phone, the switch off): the sheet is as before', () => {
+    const sheet = sheetPage().open(HOME);
+    expect(sheet.innerHTML).not.toContain('data-tap="forget"');
+  });
+  test('one tap: one POST {from:"home", kid}, then the home reloads (as the guest home)', async () => {
+    const realT = jest.requireActual('timers');
+    const p = sheetPage();
+    const sheet = p.open({ ...HOME, forget_phone: true });
+    jest.useRealTimers();
+    sheet.taps.forget.fire('click');
+    sheet.taps.forget.fire('click');
+    await new Promise((r) => realT.setImmediate(r)); await new Promise((r) => realT.setImmediate(r));
+    expect(p.calls).toHaveLength(1);
+    expect(p.calls[0][0]).toBe('/api/wq/bind/undo');
+    expect(JSON.parse(p.calls[0][1].body)).toEqual({ from: 'home', kid: KID });
+    expect(p.loc.reloads).toBe(1);
+  });
+  test('a failed tap reloads nothing and can be tried again', async () => {
+    const realT = jest.requireActual('timers');
+    const p = sheetPage({ fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ ok: false, error: 'not_bound' }) }) });
+    const sheet = p.open({ ...HOME, forget_phone: true });
+    jest.useRealTimers();
+    sheet.taps.forget.fire('click');
+    await new Promise((r) => realT.setImmediate(r)); await new Promise((r) => realT.setImmediate(r));
+    expect(p.loc.reloads).toBe(0);
+    expect(sheet.taps.forget.disabled).toBe(false);
+  });
+});

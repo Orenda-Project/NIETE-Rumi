@@ -180,7 +180,10 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     // The sticker jar leads to Jugnu's Book, so it is there only when the Book is; "new" = a sticker in the last day.
     head.jar = out.book_on ? { fresh } : null;
     // the first open after a self-join (src join | bind, the phone that joined): "Jugnu will remember you" + Undo, once
-    const remember = await require('./web-quiz-home-remember').field({ device, chosenId, src });
+    // ...and, for the link's whole life, "Forget this phone" in the grown-ups corner of the phone that made it
+    const R = require('./web-quiz-home-remember');
+    const [remember, own] = await Promise.all([R.field({ device, chosenId, src }), R.owns({ device, chosenId, binds: d.binds })]);
+    if (own) remember.forget_phone = true;
     return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...(await phoneRows(d.binds, out.lang)), ...remember };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
