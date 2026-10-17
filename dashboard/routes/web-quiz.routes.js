@@ -271,9 +271,10 @@ const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
 function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg' }) {
   const img = image || `${origin}${brand.og.image}`;
-  const ur2 = ur2On(ui, lang);
+  // web_quiz_fast on: ONE face for both looks, so the preload below names the polished one either way (urduLook).
+  const { ur2, cls, URDU_FONT } = urduLook(ui, lang);
   return `<!doctype html>
-<html lang="${lang}" dir="${dir}"${ur2 ? ' class="wq-ur2"' : ''}>
+<html lang="${lang}" dir="${dir}"${cls}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -293,6 +294,22 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? URDU_FONT_2 : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
+}
+
+// One Urdu face per page (app_settings web_quiz_fast, carried to head() as `ui.fast`): the plain and the polished
+// look both draw with the polished face (wq.css html.wq-uf), so a page whose head guessed the look wrong still
+// fetches one face, and the plain face is never fetched as well. Off: today's class and preload, byte for byte.
+function urduLook(ui, lang) {
+  const ur2 = ur2On(ui, lang);
+  if (!(ui && ui.fast === true)) return { ur2, cls: ur2 ? ' class="wq-ur2"' : '', URDU_FONT };
+  return { ur2, cls: ` class="${ur2 ? 'wq-ur2 ' : ''}wq-uf"`, URDU_FONT: URDU_FONT_2 };
+}
+// The bot's payload says `fast: true` beside its `ui`: the head reads it from `ui` (off: the payload itself).
+const withOneFace = (payload) => (payload && payload.fast === true ? { ...payload, ui: { ...(payload.ui || {}), fast: true } } : payload);
+// What the shells that call no bot (library, closed, flush heads) keep of the last payload: the look and the switch.
+function shellUi(body) {
+  const ui = body.ui && body.ui.ur2 === true ? { ur2: true } : null;
+  return body.fast === true ? { ...(ui || {}), fast: true } : ui;
 }
 
 // The sound + motion kit (app_settings web_quiz_juice, decided by the bot): its stylesheet and script, before the page's
@@ -334,6 +351,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
   const brand = brandOf(payload && payload.brand);
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
+  payload = withOneFace(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
   return {
     lang, dir, ur2: ur2On(payload && payload.ui, lang), title: og.title, bootsay: BOOT_COPY[lang],
@@ -400,7 +418,7 @@ const cardType = (image) => (image && /\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(im
  * A shared finish card (/k/<t>): the og head names the card's picture; the page shows it with ONE way in, this
  * bot's chat with the return words typed (the bot's /quiz then opens the child's own home). No script, no boot.
  */
-function renderCardPage({ facts, token, origin, url, brandKey }) {
+function renderCardPage({ facts, token, origin, url, brandKey, fast = false }) {
   const lang = facts.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(brandKey);
@@ -409,7 +427,7 @@ function renderCardPage({ facts, token, origin, url, brandKey }) {
   const ret = facts.ret || {};
   const go = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href)
     ? `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(ret.href)}">${esc(ret.cta || '')}</a>` : '';
-  return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png' }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
+  return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: fast ? { fast: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
 <style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:16px}
 .k img{width:100%;height:auto;border-radius:16px}.k p{margin:0;font-size:20px;line-height:${lang === 'ur' ? 2 : 1.4}}
 .wq-btn{display:block;text-align:center;padding:16px;border-radius:14px;background:#15803D;color:#fff;font-weight:700;font-size:20px;text-decoration:none;min-height:56px}</style>
@@ -482,6 +500,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
+  payload = withOneFace(payload);
   // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   return {
@@ -853,7 +872,7 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
-      lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
+      lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
       if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
@@ -916,7 +935,7 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
-      lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
+      lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
@@ -964,6 +983,8 @@ function createWebQuizRouter(opts = {}) {
     } catch (_) {
       return res.status(502).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
+    // The challenge menu carries no switch of its own: one Urdu face while the last quiz/hub payload said fast.
+    if (lastFast && out.body && typeof out.body === 'object') out.body = { ...out.body, ui: { ...(out.body.ui || {}), fast: true } };
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
       return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
     }
@@ -1068,7 +1089,7 @@ function createWebQuizRouter(opts = {}) {
     }
     // A shared card opened (a classmate's tap, or the preview crawler): kind and who fetched it, never the token.
     logEvent('web_quiz.card_open', { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' });
-    return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand }));
+    return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand, fast: lastFast }));
   });
 
   // M4b library
