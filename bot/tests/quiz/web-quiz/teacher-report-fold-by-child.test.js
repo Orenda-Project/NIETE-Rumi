@@ -43,8 +43,8 @@ const SESSIONS = [
 ];
 
 let Data;
-function wire({ on, bindings = [], second = {}, secondName = null } = {}) {
-  const sessions = secondName ? SESSIONS.map((x) => (x.id === 's4' ? { ...x, student_name: secondName } : x)) : SESSIONS;
+function wire({ on, bindings = [], second = {}, secondName = null, extra = [] } = {}) {
+  const sessions = [...(secondName ? SESSIONS.map((x) => (x.id === 's4' ? { ...x, student_name: secondName } : x)) : SESSIONS), ...extra];
   const tables = F.db({ sessions });
   tables.quizzes = tables.quizzes.map((q) => ({ ...q, teacher_id: F.TEACHER, status: 'sent', created_at: ago(30), meta: { share_code_id: F.SC } }));
   const fake = makeFake(tables);
@@ -104,6 +104,12 @@ describe('on: off-list rows fold by child', () => {
     const on = listed(await Data.quizReport(F.TEACHER, F.QUIZ));
     expect(on).toEqual(off);
     expect(on).toMatchObject({ onList: 2, of: 8 });
+  });
+
+  test.each([['on', true], ['off', false]])('%s: two children ON the list who share a first name (Ali, rolls 2 and 3) stay two rows', async (_, on) => {
+    wire({ on, extra: [done('s6', F.kid(2), 'Ali Raza Testwala', 4, 9), done('s7', F.kid(3), 'Ali Hamza Testwala', 3, 8)] });
+    const r = await Data.quizReport(F.TEACHER, F.QUIZ);
+    expect(r.played.filter((p) => p.first === 'Ali').map((p) => [p.onList, p.roll]).sort()).toEqual([[true, 2], [true, 3]]);
   });
 
   test('a failed read of the child facts: today\'s fold, and the failure is logged', async () => {
