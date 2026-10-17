@@ -535,6 +535,49 @@ describe('after a watched video: a ranked Next from the server (watch.next) when
     expect(tapE).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join, ms_to_tap: tapE.ms_to_tap });
     expect(Number.isInteger(tapE.ms_to_tap) && tapE.ms_to_tap >= 0).toBe(true);
   });
+  test('a second video started from the first one\'s Next tile: a tap before its own Next tile shows carries no ms_to_tap (never the first video\'s), and after it ends the tap is timed again', async () => {
+    const answers = {
+      [VID]: { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: true,
+        next: { kind: 'video', title: 'Watch next', href: '#watch/' + VID2, source: 'ranked' } } },
+      [VID2]: { watch: { vid: VID2, url: 'https://r2.example.test/v2_web.mp4?sig', title: 'Parts of a flower', lang: 'en', after: true,
+        next: { kind: 'story', title: 'Read a story', href: '#stories', source: 'ranked' } } },
+    };
+    const answer = (u, o) => { const j = answers[JSON.parse(o.body).vid]; return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(j)), json: () => Promise.resolve(j) }); };
+    const t = live({ fetchImpl: answer });
+    // Each draw gives fresh elements, as the page's innerHTML does (no listener carried over from the screen before).
+    let cur;
+    const fresh = () => {
+      const tap = el(); tap.setAttribute('data-tap', 'after'); tap.closest = () => tap;
+      cur = { tap, vEl: el({ duration: 100, currentTime: 0 }), play: el(), after: el({ hidden: true, parentNode: { removeChild() {} }, querySelector: () => el() }) };
+    };
+    fresh();
+    const root = {
+      attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
+      get innerHTML() { return ''; }, set innerHTML(v) { fresh(); },
+      querySelector: (sel) => ({ '.wq-vid': cur.vEl, '.wq-vplay': cur.play, '.wq-after': cur.after }[sel] || null),
+      querySelectorAll: (sel) => (sel === '[data-tap]' ? [cur.tap] : []),
+    };
+    const evs = [];
+    const click = () => cur.tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: cur.tap });
+    const taps = () => evs.filter(([n]) => n === 'next_tap').map(([, p]) => p);
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), go: jest.fn() }, `watch/${VID}`);
+    await flush();
+    cur.vEl.fire('ended'); // video 1's Next tile shows
+    expect(evs.filter(([n]) => n === 'next_shown').length).toBe(1);
+    click(); // video 1's tile: the next lesson starts here
+    expect(Number.isInteger(taps()[0].ms_to_tap)).toBe(true);
+    await flush();
+    expect(posts(t.fetch).map((b) => b.vid)).toEqual([VID, VID2]);
+    click(); // video 2's tile, before video 2 ends: its tile was never shown, so no time to tap
+    expect(taps().length).toBe(2);
+    expect(taps()[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, source: 'ranked' });
+    expect('ms_to_tap' in taps()[1]).toBe(false);
+    cur.vEl.fire('ended'); // video 2's own Next tile shows
+    expect(evs.filter(([n]) => n === 'next_shown').length).toBe(2);
+    click();
+    expect(taps().length).toBe(3);
+    expect(Number.isInteger(taps()[2].ms_to_tap) && taps()[2].ms_to_tap >= 0).toBe(true);
+  });
   test('a malformed next (no title, an outside href, javascript:) is ignored: today\'s rule', async () => {
     for (const bad of [{ href: '#stories' }, { title: 'x', href: 'https://evil.example/' }, { title: 'x', href: 'javascript:alert(1)' }, { title: 'x', href: '//evil.example/p' }, 'nope']) {
       const p = watchWith(bad);
