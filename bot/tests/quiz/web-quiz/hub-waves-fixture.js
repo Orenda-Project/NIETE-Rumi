@@ -46,6 +46,22 @@ const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web
   'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page',
   'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join', 'web_quiz_readalong', 'web_quiz_stories_band', 'web_quiz_live_read_v3',
   'web_quiz_challenge_realtime', 'web_quiz_card_v3', 'web_quiz_next_offer', 'web_quiz_events_v3', 'web_quiz_challenge_pool'];
+// The hub's serial round trips on sandbox's own code (no fast page; measured on 7b3cfbced with this fixture's JSON true
+// seeds, fast off): the most the hub may cost with the fast page off, and what the fast page is measured against.
+//   classList / loose / picker / locked: the usual switches (ON_KEYS); every: CEILING_KEYS (hubWaves());
+//   rows: hubWaves({ switches: that row }); coldEvery: a cold process, CEILING_KEYS; staleUsual: 31 s later, ON_KEYS.
+const BASE_OFF = Object.freeze({
+  classList: { warm: 26, stale: 39 }, loose: { warm: 21, stale: 32 }, picker: { warm: 5 }, locked: { warm: 3 },
+  every: { warm: 32, stale: 45 },
+  rows: {
+    'web_quiz_home_v3 + web_quiz_stories': { warm: 32, stale: 45 }, quiz_student_join: { warm: 29, stale: 42 },
+    web_quiz_challenge_book: { warm: 29, stale: 42 }, web_quiz_phone_bind: { warm: 26, stale: 37 }, web_quiz_stories: { warm: 32, stale: 45 },
+    web_quiz_stories_band: { warm: 32, stale: 45 }, web_quiz_readalong: { warm: 32, stale: 45 },
+    'web_quiz_live_read_v3 + web_quiz_challenge_realtime': { warm: 32, stale: 45 }, web_quiz_card_v3: { warm: 32, stale: 45 },
+    'web_quiz_next_offer + web_quiz_events_v3': { warm: 32, stale: 45 },
+  },
+  coldEvery: { settingsReads: 23, waves: 47 }, staleUsual: { settingsReads: 15, waves: 39 },
+});
 // Keys the hub S.reads that are not on/off switches of the child's page.
 const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity', 'web_quiz_watch_root', 'web_quiz_next_offer_weights'];
 
@@ -236,6 +252,6 @@ async function hubWaves({ switches = [], fast = true, every = true, loose = fals
 }
 
 module.exports = {
-  MOCKS, S, NOW, READ_MS, KID, SIB, PEER, TEACHER, LIST, CLASS, DEVICE, ON_KEYS, CEILING_KEYS, NOT_SWITCHES,
+  MOCKS, S, NOW, READ_MS, KID, SIB, PEER, TEACHER, LIST, CLASS, DEVICE, ON_KEYS, CEILING_KEYS, NOT_SWITCHES, BASE_OFF,
   tables, seed, settle, boot, waveList, measure, hubWaves, useClock, hubEnv, tokenOne, tokenTwo, askedKeys,
 };

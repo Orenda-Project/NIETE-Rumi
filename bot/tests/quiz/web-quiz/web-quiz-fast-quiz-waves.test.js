@@ -173,6 +173,13 @@ const depth = (ms) => Math.round(ms / READ_MS);
 // to the author's class, which is not one of the sender's: its class row is one read after the list (4). A friend's
 // challenge resolves through two code reads and reads the challenger's run after the page is built: not this change.
 const LIMIT = { handed_home_off: 4, invite: null };
+// The page's serial round trips on sandbox's own code (no fast page; measured on 7b3cfbced with this file's JSON true
+// seeds, fast off): OFF(head) and ON(head) are never above these. every: en_class with CEILING_KEYS on.
+const BASE_OFF = Object.freeze({
+  en_class: { warm: 9, stale: 18 }, ur_list: { warm: 10, stale: 19 }, no_class: { warm: 11, stale: 18 },
+  handed_home_on: { warm: 12, stale: 22 }, handed_home_off: { warm: 10, stale: 20 }, invite: { warm: 8, stale: 14 },
+  every: { warm: 9, stale: 18 },
+});
 
 // The goldens: recorded once from the code before this change, then compared byte for byte.
 let golden = null;
@@ -194,6 +201,9 @@ describe.each(SCENARIOS)('%s', (scn) => {
     pin(`${scn}:off:payload`, off.warm);
     pin(`${scn}:off:reads`, JSON.stringify(off.warmReads));
     pin(`${scn}:off:stale`, off.stale);
+    // OFF(head) <= OFF(base): sandbox's own counts, same seeds
+    expect(off.warmWaves).toBeLessThanOrEqual(BASE_OFF[scn].warm);
+    expect(off.staleWaves).toBeLessThanOrEqual(BASE_OFF[scn].stale);
   });
 
   test('switch on: the payload is byte for byte the one before this change, warm and 31 s later', async () => {
@@ -201,6 +211,12 @@ describe.each(SCENARIOS)('%s', (scn) => {
     expect(JSON.parse(on.warm).fast).toBe(true);
     pin(`${scn}:on:payload`, on.warm);
     expect(on.stale).toBe(on.warm);
+    // ON = OFF: the payload is the switch-off one (golden, sandbox's own) plus `fast`, and no more waves than base
+    const p = JSON.parse(on.warm);
+    delete p.fast;
+    expect(JSON.stringify(p)).toBe(loadGolden()[`${scn}:off:payload`]);
+    expect(on.warmWaves).toBeLessThanOrEqual(BASE_OFF[scn].warm);
+    expect(on.staleWaves).toBeLessThanOrEqual(BASE_OFF[scn].stale);
   });
 
   const limit = scn in LIMIT ? LIMIT[scn] : 3;
@@ -233,6 +249,8 @@ describe('the quiz page\'s round-trip ceiling (every child switch on, fast page 
     const over = (what, got, max, set) => `${what}: ${got} serial round trips, the ceiling is ${max}. The waves (table, caller):\n${waveList(set)}`;
     if (on.warmWaves > QUIZ_CEILING.warm) throw new Error(over('getQuiz, warm', on.warmWaves, QUIZ_CEILING.warm, on.warmSet));
     if (on.staleWaves > QUIZ_CEILING.stale) throw new Error(over('getQuiz, stale', on.staleWaves, QUIZ_CEILING.stale, on.staleSet));
+    expect(on.warmWaves).toBeLessThanOrEqual(BASE_OFF.every.warm);
+    expect(on.staleWaves).toBeLessThanOrEqual(BASE_OFF.every.stale);
     // Every switch the page asked for is on in this case (a new switch joins CEILING_KEYS, so the ceiling sees its reads).
     const missing = [...askedKeys].filter((k) => !CEILING_KEYS.includes(k) && !NOT_SWITCHES.includes(k)).sort();
     expect(missing).toEqual([]);

@@ -30,7 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const Fx = require('./hub-waves-fixture');
 
-const { S, NOW, DEVICE, CEILING_KEYS, settle, boot, measure, tokenOne, waveList } = Fx;
+const { S, NOW, DEVICE, CEILING_KEYS, BASE_OFF, settle, boot, measure, tokenOne, waveList } = Fx;
 const GOLDEN = JSON.parse(fs.readFileSync(path.join(__dirname, 'web-quiz-hub-waves.golden.json'), 'utf8'));
 // Measured on the code before the seam (c3895d2df), fixture as here.
 const BEFORE = { staleSettingsReads: 13, staleWaves: 8, coldSettingsReads: 14, coldWaves: 16 };
@@ -66,6 +66,8 @@ describe('stale hub (31 s, every 30 s cache expired), fast on', () => {
     console.log(`stale hub: app_settings reads ${BEFORE.staleSettingsReads} -> ${settingsReads(stale)}, waves ${BEFORE.staleWaves} -> ${stale.waves}\n${waveList(S.lastReads)}`);
     expect(settingsReads(stale)).toBeLessThanOrEqual(2);
     expect(stale.waves).toBeLessThanOrEqual(BEFORE.staleWaves);
+    expect(settingsReads(stale)).toBeLessThanOrEqual(BASE_OFF.staleUsual.settingsReads);
+    expect(stale.waves).toBeLessThanOrEqual(BASE_OFF.staleUsual.waves);
     expect(stale.out).toBe(GOLDEN.on_warm_payload);
     expect(stale.out).toBe(warm.out);
     expect(stale.open).toBe(warm.open);
@@ -87,6 +89,8 @@ describe('cold process (first hub after a start, the fast switch already read), 
     expect(settingsReads(cold)).toBe(1);
     expect(S.lastReads.length).toBeGreaterThan(0);
     expect(cold.waves).toBeLessThanOrEqual(BEFORE.coldWaves - 6);
+    expect(settingsReads(cold)).toBeLessThanOrEqual(BASE_OFF.coldEvery.settingsReads);
+    expect(cold.waves).toBeLessThanOrEqual(BASE_OFF.coldEvery.waves);
     expect(settingsReads(warm)).toBe(0);
     expect(noOffer(cold.out)).toBe(noOffer(warm.out));
   });

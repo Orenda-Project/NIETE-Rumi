@@ -32,7 +32,7 @@ const fs = require('fs');
 const path = require('path');
 const Fx = require('./hub-waves-fixture');
 
-const { S, NOW, KID, SIB, DEVICE, CEILING_KEYS, NOT_SWITCHES, askedKeys, settle, boot, waveList, measure, tokenOne, tokenTwo } = Fx;
+const { S, NOW, KID, SIB, DEVICE, CEILING_KEYS, NOT_SWITCHES, BASE_OFF, askedKeys, settle, boot, waveList, measure, tokenOne, tokenTwo } = Fx;
 const GOLDEN = path.join(__dirname, 'web-quiz-hub-waves.golden.json');
 
 const SAVED = { ...process.env };
@@ -80,6 +80,10 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     expect(p.fast).toBe(true);
     same('on_warm_payload', warm.out);
     same('on_warm_hub_open', warm.open);
+    // ON = OFF: the payload is the fast-off one plus `fast` (golden off_warm, sandbox's own); and no more waves than base
+    delete p.fast;
+    expect(JSON.stringify(p)).toBe(golden.off_warm.out);
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.classList.warm);
     console.log(`hub warm waves (switch on): today ${today('on_warm_waves_today', warm.waves)} -> ${warm.waves}; reads ${JSON.stringify(warm.perTable)}`);
     // A child on a class list: the canonical ids and the hub each read the list (1 wave a loose child has not).
     expect(warm.waves).toBeLessThanOrEqual(6);
@@ -107,6 +111,7 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     expect(stale.open).toBe(warm.open);
     // Every switch is answered from its cache; the 2 waves over warm are the class roster's own 30 s cache (identity roster).
     expect(stale.waves).toBeLessThanOrEqual(8);
+    expect(stale.waves).toBeLessThanOrEqual(BASE_OFF.classList.stale);
   });
 
   test('a loose child (no class list, no enrolment; the usual quiz child): the payload is today\'s, in at most 5 waves warm', async () => {
@@ -126,6 +131,8 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     console.log(`hub loose child waves (switch on): warm today ${today('on_loose_waves_today', warm.waves)} -> ${warm.waves}, stale today ${today('on_loose_stale_waves_today', stale.waves)} -> ${stale.waves}`);
     expect(warm.waves).toBeLessThanOrEqual(5);
     expect(stale.waves).toBeLessThanOrEqual(5);
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.loose.warm);
+    expect(stale.waves).toBeLessThanOrEqual(BASE_OFF.loose.stale);
   });
 
   test('the "who is playing?" picker (two children, none picked): the payload is today\'s', async () => {
@@ -135,6 +142,7 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     expect(JSON.parse(warm.out).kids.length).toBe(2);
     same('on_picker_payload', warm.out);
     same('on_picker_hub_open', warm.open);
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.picker.warm);
   });
 
   test('the locked hub (no device): the payload is today\'s, in 3 waves', async () => {
@@ -145,6 +153,7 @@ describe('the kid hub, switch on (web_quiz_fast)', () => {
     same('on_locked_payload', warm.out);
     console.log(`hub locked waves (switch on): ${warm.waves}`);
     expect(warm.waves).toBeLessThanOrEqual(3);
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.locked.warm);
   });
 });
 
@@ -199,22 +208,31 @@ describe('the kid hub, switch off: exactly today\'s (golden: payload, reads per 
     console.log(`hub waves (switch off): warm ${warm.waves}, stale ${stale.waves}`);
     same('off_warm', warm);
     same('off_stale', stale);
+    // OFF(head) <= OFF(base): sandbox's own counts, same seeds (hub-waves-fixture.js BASE_OFF)
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.classList.warm);
+    expect(stale.waves).toBeLessThanOrEqual(BASE_OFF.classList.stale);
   });
 
   test('a loose child', async () => {
     boot({ fast: false, loose: true });
     const tok = tokenOne();
     await measure(tok, { device: DEVICE });
-    same('off_loose', await measure(tok, { device: DEVICE }));
+    const warm = await measure(tok, { device: DEVICE });
+    same('off_loose', warm);
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.loose.warm);
   });
 
   test('the picker and the locked hub', async () => {
     boot({ fast: false });
     await measure(tokenTwo(), { device: DEVICE });
-    same('off_picker', await measure(tokenTwo(), { device: DEVICE }));
+    const picker = await measure(tokenTwo(), { device: DEVICE });
+    same('off_picker', picker);
+    expect(picker.waves).toBeLessThanOrEqual(BASE_OFF.picker.warm);
     boot({ fast: false });
     await measure(tokenOne(), {});
-    same('off_locked', await measure(tokenOne(), {}));
+    const locked = await measure(tokenOne(), {});
+    same('off_locked', locked);
+    expect(locked.waves).toBeLessThanOrEqual(BASE_OFF.locked.warm);
   });
 });
 
@@ -248,6 +266,8 @@ describe('the hub\'s round-trip ceiling (every child switch on, fast page on)', 
     console.log(`hub ceiling: warm ${warm.waves} (ceiling ${HUB_CEILING.warm}), stale ${stale.waves} (ceiling ${HUB_CEILING.stale})\n${waveList(warmList)}`);
     if (warm.waves > HUB_CEILING.warm) { S.lastReads = warmList; throw new Error(overCeiling('hub, warm', warm.waves, HUB_CEILING.warm)); }
     if (stale.waves > HUB_CEILING.stale) throw new Error(overCeiling('hub, stale', stale.waves, HUB_CEILING.stale));
+    expect(warm.waves).toBeLessThanOrEqual(BASE_OFF.every.warm);
+    expect(stale.waves).toBeLessThanOrEqual(BASE_OFF.every.stale);
     // Every switch the hub asked for is on in this case (a new switch joins CEILING_KEYS, so the ceiling sees its reads).
     const missing = [...askedKeys].filter((k) => !CEILING_KEYS.includes(k) && !NOT_SWITCHES.includes(k)).sort();
     expect(missing).toEqual([]);

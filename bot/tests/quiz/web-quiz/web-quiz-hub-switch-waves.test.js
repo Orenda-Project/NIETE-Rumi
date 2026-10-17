@@ -71,6 +71,9 @@ describe('a hub switch ON adds no wave over OFF (fast page on, every other switc
     console.log(`${keys.join(' + ')}: warm OFF ${off.warm.waves} ON ${on.warm.waves}; stale OFF ${off.stale.waves} ON ${on.stale.waves}`);
     if (on.warm.waves !== off.warm.waves + extra) throw new Error(show('warm', off.warm.waves, on.warm.waves, off.list, on.list, extra));
     if (on.stale.waves !== off.stale.waves + staleExtra) throw new Error(show('stale', off.stale.waves, on.stale.waves, off.staleList, on.staleList, staleExtra));
+    // OFF(head) <= OFF(base): sandbox's own counts for this row, same seeds (hub-waves-fixture.js BASE_OFF)
+    expect(off.warm.waves).toBeLessThanOrEqual(Fx.BASE_OFF.rows[name].warm);
+    expect(off.stale.waves).toBeLessThanOrEqual(Fx.BASE_OFF.rows[name].stale);
   });
 });
 
@@ -90,6 +93,8 @@ describe('the hub with every child switch on', () => {
     expect(p.card_v3).toBe(true);
     expect(all.warm.waves).toBeLessThanOrEqual(6);
     expect(all.stale.waves).toBeLessThanOrEqual(8);
+    expect(all.warm.waves).toBeLessThanOrEqual(Fx.BASE_OFF.every.warm);
+    expect(all.stale.waves).toBeLessThanOrEqual(Fx.BASE_OFF.every.stale);
     // the fast page's payload is the one the hub builds with it off, `next` included (each offer id is a fresh random one)
     const slow = await Fx.hubWaves({ switches: [], fast: false, stale: false });
     const noOffer = (json) => json.replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"-"');
