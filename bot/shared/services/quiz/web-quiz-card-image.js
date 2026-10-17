@@ -200,8 +200,9 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ITEM_RX = Object.freeze({ book: UUID_RX, video: UUID_RX, quiz: CODE_RX, door: /^games$/ });
 // The finishes that have no item of their own: the friend lands on the door they live behind.
 const DOOR_OF = Object.freeze({ read: 'games', listen: 'games', story: 'games', game: 'games' });
-// Which items a finish of each kind may name: a storybook's card its book, a video's its video, a quiz's its class code.
-const ITEM_TYPES = Object.freeze({ book: ['book'], video: ['video'], quiz: ['quiz'] });
+// Which items a finish of each kind may name: a storybook's card its book (also a storybook finished on its questions,
+// kind story), a video's its video; a quiz's is its class code, the server's own.
+const ITEM_TYPES = Object.freeze({ book: ['book', 'story'], video: ['video'] });
 async function readyBook(id) {
   const { data } = await supabase.from('story_books').select('id, status').eq('id', id).maybeSingle();
   return Boolean(data && data.status === 'ready');
@@ -210,22 +211,17 @@ async function liveVideo(id) {
   const ix = await require('./web-quiz-bank').bank();
   return Boolean(ix && Array.isArray(ix.rows) && ix.rows.some((r) => r.id === id));
 }
-async function liveCode(code) {
-  const { data } = await supabase.from('quiz_share_codes').select('code, active').eq('code', code).maybeSingle();
-  return Boolean(data && data.active !== false);
-}
 /** The item a finish names, checked: {t, id} when it is real and of the finish's kind, else null. Never throws. */
 async function checkItem(raw, kind, w) {
   try {
     // a class quiz's own code: the server's, never the page's
     if (kind === 'quiz') return w && w.code ? { t: 'quiz', id: w.code } : null;
-    if (DOOR_OF[kind]) return { t: 'door', id: DOOR_OF[kind] };
-    if (!raw || typeof raw !== 'object') return null;
-    const t = raw.type;
-    const id = String(raw.id == null ? '' : raw.id);
-    if (!ITEM_TYPES[t] || !ITEM_TYPES[t].includes(kind) || !ITEM_RX[t].test(id)) return null;
-    const ok = t === 'book' ? await readyBook(id) : t === 'video' ? await liveVideo(id) : await liveCode(id);
-    return ok ? { t, id } : null;
+    const t = raw && typeof raw === 'object' ? raw.type : null;
+    const id = String(raw && raw.id != null ? raw.id : '');
+    const ok = ITEM_TYPES[t] && ITEM_TYPES[t].includes(kind) && ITEM_RX[t].test(id) && (t === 'book' ? await readyBook(id) : await liveVideo(id));
+    if (ok) return { t, id };
+    // no item of its own (a Jugnu read, story or game): the door it lives behind
+    return DOOR_OF[kind] ? { t: 'door', id: DOOR_OF[kind] } : null;
   } catch (_) {
     return null;
   }
@@ -238,13 +234,15 @@ function cleanFirst(name) {
   return firstName(name).replace(/[^\p{L}\p{M}'-]/gu, '').slice(0, 24);
 }
 
-async function studentFirst(studentId, lang) {
-  const { data: kid } = await supabase.from('students').select('id, student_name, student_name_urdu').eq('id', studentId).maybeSingle();
+// info (the one share only): told whether the child has a class (`plain`: none, so the Share button says friends)
+async function studentFirst(studentId, lang, info) {
+  const { data: kid } = await supabase.from('students').select(info ? 'id, student_name, student_name_urdu, list_id' : 'id, student_name, student_name_urdu').eq('id', studentId).maybeSingle();
   if (!kid) return '';
+  if (info) info.plain = kid.list_id == null;
   return cleanFirst(require('./web-quiz-roster').displayName(kid, lang));
 }
 
-async function who(body, lang, device) {
+async function who(body, lang, device, info) {
   const s = typeof body.st === 'string' ? T.verify(body.st, 's') : null;
   if (s && s.sid) {
     const { data: row } = await supabase.from('quiz_sessions').select('id, student_id, student_name, share_code_id, status, user_id').eq('id', s.sid).maybeSingle();
@@ -259,7 +257,7 @@ async function who(body, lang, device) {
     return { first: first || cleanFirst(row.student_name), code };
   }
   const c = typeof body.ct === 'string' ? T.verify(body.ct, 'c') : null;
-  if (c && c.sid) return { first: await studentFirst(c.sid, lang), code: null };
+  if (c && c.sid) return { first: await studentFirst(c.sid, lang, info), code: null };
   const h = typeof body.hub === 'string' ? T.verify(body.hub, 'h') : null;
   if (h && Array.isArray(h.ids)) {
     const ids = h.ids.filter((x) => typeof x === 'string').slice(0, 4);
@@ -268,7 +266,7 @@ async function who(body, lang, device) {
     // A forwarded hub link names nobody: only the phone the link is bound to (or one this child played on), as the hub.
     const trust = await require('./web-quiz-hub-device').deviceTrusted(body.hub, device);
     if (!trust.ok || !trust.ids.map(String).includes(String(hit))) fail(403, 'other_device');
-    return { first: await studentFirst(hit, lang), code: null };
+    return { first: await studentFirst(hit, lang, info), code: null };
   }
   return fail(401, 'bad_token');
 }
@@ -296,8 +294,9 @@ async function mint(body = {}, { device = null } = {}) {
   // the one share: the item checked and sealed, and the token marked (its picture and landing are the new ones)
   const v4 = await shareOn();
   let w;
+  const info = v4 ? { plain: false } : null;
   try {
-    w = await who(body, lang, device);
+    w = await who(body, lang, device, info);
   } catch (err) {
     // the one share on a phone the hub does not know (a forwarded or opened-elsewhere link): a card that names nobody,
     // so the child still sends a picture and a link, never bare words
@@ -309,7 +308,7 @@ async function mint(body = {}, { device = null } = {}) {
   if (!token) fail(503, 'web_quiz_off');
   const url = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
-  if (v4) { out.v4 = true; out.item = item ? item.t : null; }
+  if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
   return out;
 }
 

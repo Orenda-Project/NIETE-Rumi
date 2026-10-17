@@ -34,7 +34,7 @@ function seed({ card = true, share = false } = {}) {
   return {
     app_settings: [...(card ? [{ key: 'web_quiz_card_v3', value: true }] : []), ...(share ? [{ key: 'web_quiz_share_v4', value: true }] : [])],
     quiz_share_codes: [{ id: 'sc-1', code: 'CLS001', quiz_id: 'qz-1', topic: 'Plants', language: 'en', active: true }],
-    students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Zarvish Testwala' }],
+    students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Zarvish Testwala' }, { id: 'st-3', student_name: 'Noor Testwala', list_id: 'list-1' }],
     quiz_sessions: [{ id: '0f8e2c1a-1b2c-4d5e-8f90-a1b2c3d4e5f6', quiz_id: 'qz-1', student_id: 'st-1', student_name: 'Amal Testwala', share_code_id: 'sc-1', status: 'completed' }],
     story_books: [{ id: BOOK, status: 'ready', title: 'The lost kite' }, { id: DRAFT, status: 'draft', title: 'Not yet' }],
   };
@@ -95,7 +95,24 @@ describe('the switch', () => {
   });
 });
 
+describe('the Share button follows the target (a child with no class shares with friends)', () => {
+  test('on: the mint says plain for a child with no class, not for a class child or a class quiz', async () => {
+    expect((await mint({ kind: 'read', deed: 'read_all' })).body.plain).toBe(true);
+    const cls = await fetch(`${base}/card`, { method: 'POST', headers: KEY, body: JSON.stringify({ ct: T.signChallenge({ studentId: 'st-3', ex: 'read', runId: 'run-2' }), kind: 'read', deed: 'read_all', lang: 'en' }) });
+    expect((await cls.json()).plain).toBe(false);
+    const q = await fetch(`${base}/card`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: st(), kind: 'quiz', deed: 'quiz_done', lang: 'en' }) });
+    expect((await q.json()).plain).toBe(false);
+  });
+});
+
 describe('the item a share lands on', () => {
+  test('a storybook finish with only its questions answered (kind story) still names its book, never the Games door', async () => {
+    const { body } = await mint({ kind: 'story', deed: 'answered', item: { type: 'book', id: BOOK } });
+    expect(Card.facts(body.token).item).toEqual({ type: 'book', id: BOOK });
+    // an unready book: the story's own door, as before
+    const d = await mint({ kind: 'story', deed: 'answered', item: { type: 'book', id: DRAFT } });
+    expect(Card.facts(d.body.token).item).toEqual({ type: 'door', id: 'games' });
+  });
   test('a storybook card seals its ready book; the link is /k/<t>; the answer says v4 and the item kind', async () => {
     const { status, body } = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
     expect(status).toBe(200);
@@ -129,8 +146,8 @@ describe('the item a share lands on', () => {
   });
   test('a Jugnu read, story or game has no item of its own: the Games door is sealed; the landing shows its mark', async () => {
     for (const [kind, deed] of [['game', 'game_done'], ['read', 'read_all'], ['listen', 'listen_done'], ['story', 'story_read']]) {
-      // a page that names a book on these is ignored
-      const { body } = await mint({ kind, deed, item: { type: 'book', id: BOOK } });
+      // a page that names a book on a read, a listen or a game is ignored; a Jugnu story names none (a storybook's does)
+      const { body } = await mint({ kind, deed, item: kind === 'story' ? undefined : { type: 'book', id: BOOK } });
       expect(body.item).toBe('door');
       expect(Card.facts(body.token).item).toEqual({ type: 'door', id: 'games' });
     }

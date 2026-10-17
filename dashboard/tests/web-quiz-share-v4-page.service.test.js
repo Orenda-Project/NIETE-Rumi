@@ -69,7 +69,7 @@ describe('the sheet (pure)', () => {
     expect(h).toContain('id="wqfc-sh-copy"');
     expect(h).toContain('id="wqfc-sh-back"');
     expect(h).not.toContain('id="wqfc-sh-file"');
-    for (const [k, w] of Object.entries(FC.SH[lang])) expect(h.indexOf(w) >= 0 || ['copied', 'file', 'getting', 'again'].includes(k)).toBe(true);
+    for (const [k, w] of Object.entries(FC.SH[lang])) expect(h.indexOf(w) >= 0 || ['copied', 'file', 'getting', 'again', 'friends'].includes(k)).toBe(true);
     expect(JSON.stringify(FC.SH[lang])).not.toMatch(BANNED);
   });
   test('a phone that can share a file gets that button too; a picture path that is not the card\'s is dropped', () => {
@@ -129,10 +129,54 @@ describe('the tap', () => {
   });
 });
 
+describe('the quiz card\'s Share (the real button on the real page) opens the one sheet', () => {
+  const { flush: pflush } = require('./wq-page-harness');
+  const QRES = { card: { first: 'Noor', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+    art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, card_v3: true, share_v4: true };
+  const qstore = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Noor', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
+  async function quizPage(lang, extra, mint) {
+    const shares = [];
+    const p = page({ lang, store: qstore({ ...QRES, ...extra }), api: { '/api/wq/card': mint }, nav: { share: (d) => { shares.push(d); return Promise.resolve(); } } });
+    let sheet = '';
+    p.ctx.document.body.insertAdjacentHTML = (pos, h) => { sheet += h; };
+    vm.runInContext(FC_SRC, p.ctx);
+    Object.values(p.els).forEach((el) => { el.listeners = {}; });
+    p.wq.card();
+    await pflush(); await pflush();
+    return { p, shares, sheet: () => sheet };
+  }
+  for (const lang of ['en', 'ur']) {
+    for (const [name, fold] of [['the card', {}], ['the folded card', { card_fold: true }]]) {
+      test(`${lang}, ${name}: one tap → the sheet with the card's picture and its link; the page's own share does not run`, async () => {
+        const { p, shares, sheet } = await quizPage(lang, fold, { token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET, v4: true, item: 'quiz' });
+        // the card minted at the finish is the one the tap uses (one mint, with the one share's mark asked for)
+        const mints = p.fetches.filter((f) => f.url === '/api/wq/card');
+        expect(mints.length).toBe(1);
+        p.els['#wq-share'].fire('click');
+        await pflush(); await pflush();
+        expect(shares.length).toBe(0);
+        expect(p.moment()).not.toBe('M12-fallback');
+        expect(sheet()).toContain('data-screen="share_sheet"');
+        expect(sheet()).toContain(`src="/wq/card/${TOK}.png"`);
+        expect(sheet()).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
+        expect(decodeURIComponent(/id="wqfc-sh-wa"[^>]*href="https:\/\/wa\.me\/\?text=([^"]+)"/.exec(sheet())[1])).toContain(`https://example.test/q/TEST?k=${TOK}`);
+        expect(p.fetches.filter((f) => f.url === '/api/wq/card').length).toBe(1);
+      });
+    }
+    test(`${lang}: no card at all (the mint refused): the page's own share with the picture, never bare words`, async () => {
+      const { p, shares } = await quizPage(lang, {}, null);
+      p.els['#wq-share'].fire('click');
+      await pflush(); await pflush();
+      expect(shares.length).toBe(1);
+      expect(shares[0].url).toBe(`https://example.test/q/TEST?a=${encodeURIComponent(QRES.art.card)}`);
+    });
+  }
+});
+
 describe('the quiz card with the home on: "Challenge a friend" is back with the one share', () => {
-  const RESULT = { card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+  const RESULT = { card: { first: 'Noor', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
     art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl', invite: 'i.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, card_fold: true };
-  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Zara', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
+  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Noor', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
   test.each(['en', 'ur'])('%s: share_v4 → the button, and its tap shares the challenge link', (lang) => {
     const p = page({ lang, store: store({ ...RESULT, share_v4: true }) });
     p.wq.card();
@@ -151,8 +195,9 @@ describe('the quiz card with the home on: "Challenge a friend" is back with the 
 });
 
 describe('the shared link\'s landing (/k/<t>)', () => {
-  const facts = (lang, extra = {}) => ({ kind: 'book', lang, first: 'Amal', deed_text: 'I read a storybook with Jugnu today!', ret: RET, ...extra });
-  const GOLDEN = { 'en|false': 'c1db72aead21539a', 'en|true': '489c53d92ce39e04', 'ur|false': '5798b09ddfa67e9d', 'ur|true': 'b02dfbf2891842f7' };
+  const facts = (lang, extra = {}) => ({ kind: 'book', lang, first: 'Noor', deed_text: 'I read a storybook with Jugnu today!', ret: RET, ...extra });
+  // recorded on origin/sandbox 04bebe647 (before this change) with the same facts
+  const GOLDEN = { 'en|false': '9fbf818cf0fd2dea', 'en|true': 'e88ed8084c2d59e8', 'ur|false': '7c826ccd62222f7e', 'ur|true': 'b36b9adfc407a7bf' };
   test('a token minted with the switch off: today\'s page, byte for byte', () => {
     for (const [k, h] of Object.entries(GOLDEN)) {
       const [lang, uf] = k.split('|');
@@ -169,6 +214,10 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     expect(html).toContain('href="https://wa.me/15550001111?text=quiz%20please%20jb3b9c1e2a"');
     expect(html).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
     expect(html).not.toMatch(BANNED);
+    // with no bot number (no chat link): still ONE way in — WhatsApp with the words typed, never a page without a door
+    const none = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect((none.match(/data-primary/g) || []).length).toBe(1);
+    expect(none).toContain(`href="https://wa.me/?text=${encodeURIComponent(RET.words)}"`);
     // a colour that is not a colour never reaches the style
     const bad = renderCardPage({ facts: facts(lang, { v4: true, accent: 'red;}</style><script>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
     expect(bad).not.toContain('<script>');
@@ -207,6 +256,37 @@ describe('the one share never sends words without the card', () => {
     await flush(); await flush();
     expect(p.posts.length).toBe(2);
     expect(p.body()).toContain('data-screen="share_sheet"');
+    // the button's own label is back once the card is in (never stuck on "tap again")
+    expect(p.a.innerHTML).toBe('Share');
+    expect(p.a.attrs['aria-busy']).toBeUndefined();
+  });
+  test.each(['en', 'ur'])('%s: the button says who it goes to — the mint says no class: "Share with friends"; a class: the class group', async (lang) => {
+    const p = fcPage({ ...MINT, v4: true, item: 'book', plain: true });
+    p.FC.mount(p.stack, { ...BOOK_O, lang, v4: true });
+    await flush(); await flush();
+    expect(p.a.innerHTML).toBe(p.FC.SH[lang].friends);
+    const q = fcPage({ ...MINT, v4: true, item: 'book', plain: false });
+    q.FC.mount(q.stack, { ...BOOK_O, lang, v4: true });
+    await flush(); await flush();
+    expect(q.a.innerHTML).toBe(q.FC.W[lang].send);
+    // switch off: today's label, whatever the mint says
+    const r = fcPage({ ...MINT, plain: true });
+    r.FC.mount(r.stack, { ...BOOK_O, lang });
+    await flush(); await flush();
+    expect(r.a.innerHTML).toBe('Share');
+  });
+  test('a switch race (the host says v4, the mint answers without it): the tap is never silent — "tap again", and that tap shares the card link', async () => {
+    let release;
+    const p = fcPage(() => new Promise((r) => { release = r; }));
+    p.FC.mount(p.stack, { ...BOOK_O, v4: true });
+    p.a.tap();
+    release(MINT);
+    await flush(); await flush();
+    expect(p.a.innerHTML).toBe(p.FC.SH.en.again);
+    expect(decodeURIComponent(p.a.attrs.href)).toContain(`https://portal.example/k/${TOK}`);
+    const e = p.a.tap();
+    expect(e.prevented).toBe(0);
+    expect(p.a.innerHTML).toBe('Share');
   });
   test('with no bot number (the mint gives no chat link): the words end with the card link, never loose words', () => {
     const FC = fcPage(MINT).FC;
@@ -235,9 +315,9 @@ describe('the one share never sends words without the card', () => {
 });
 
 describe('the folded quiz card: "Challenge a friend" only with share_v4 JSON true', () => {
-  const RESULT = { card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+  const RESULT = { card: { first: 'Noor', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
     art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl', invite: 'i.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, card_fold: true };
-  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Zara', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
+  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Noor', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
   test.each([['absent', {}], ['false', { share_v4: false }], ['the string "true"', { share_v4: 'true' }], ['1', { share_v4: 1 }]])('%s: no challenge door (today\'s fold card)', (_, extra) => {
     for (const lang of ['en', 'ur']) {
       const p = page({ lang, store: store({ ...RESULT, ...extra }) });

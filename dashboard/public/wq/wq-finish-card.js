@@ -81,8 +81,9 @@
   };
   // The one share's sheet (web_quiz_share_v4).
   var SH = {
-    en: { wa: 'Send on WhatsApp', file: 'Share picture', save: 'Save picture', copy: 'Copy link', copied: 'Copied!', back: 'Back', getting: 'Getting your card…', again: 'Tap again to share' },
-    ur: { wa: 'واٹس ایپ پر بھیجیں', file: 'تصویر بھیجیں', save: 'تصویر محفوظ کریں', copy: 'لنک کاپی کریں', copied: 'کاپی ہو گیا!', back: 'واپس', getting: 'آپ کا کارڈ بن رہا ہے…', again: 'بھیجنے کے لیے دوبارہ دبائیں' }
+    // friends: the Share button of a child with no class (the link brings a friend in, there is no class group)
+    en: { wa: 'Send on WhatsApp', file: 'Share picture', save: 'Save picture', copy: 'Copy link', copied: 'Copied!', back: 'Back', getting: 'Getting your card…', again: 'Tap again to share', friends: 'Share with friends' },
+    ur: { wa: 'واٹس ایپ پر بھیجیں', file: 'تصویر بھیجیں', save: 'تصویر محفوظ کریں', copy: 'لنک کاپی کریں', copied: 'کاپی ہو گیا!', back: 'واپس', getting: 'آپ کا کارڈ بن رہا ہے…', again: 'بھیجنے کے لیے دوبارہ دبائیں', friends: 'دوستوں کو بھیجیں' }
   };
   var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried', 'read_practice', 'read_some_practice'], listen: ['listen_done', 'listen_practice'],
     story: ['story_read', 'answered', 'read_tried', 'story_practice'], game: ['game_done', 'game_practice'], book: ['book_read', 'listen_done', 'read_tried'], video: ['video_watched'] };
@@ -216,7 +217,7 @@
       (o.sound === false ? '' : '<button class="wqfc-snd" id="wqfc-snd" type="button" data-tap="sound" aria-label="' + esc(W[l].sound) + '" aria-pressed="' + (muted() ? 'true' : 'false') + '">' + (muted() ? SND_OFF : SND_ON) + '</button>') +
       (lead ? tile : '') +
       // a read that certified nothing (read_tried) is not shared: no Share on the try card
-      (o.deed === 'read_tried' ? '' : '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? W[l].sendPlain : W[l].send) + '</a>') +
+      (o.deed === 'read_tried' ? '' : '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? (o.v4 === true ? SH[l].friends : W[l].sendPlain) : W[l].send) + '</a>') +
       (lead ? '' : tile) +
       (o.home && /^\/[^/]/.test(o.home) ? '<a class="wq-btn wq-soft wqfc-home" id="wqfc-home" data-home data-tap="home" href="' + esc(o.home) + '">' + esc(W[l].home) + '</a>' : '') +
       '</div>';
@@ -322,6 +323,11 @@
       try {
         var a = document.getElementById('wqfc-share');
         if (a && a.tagName === 'A') a.setAttribute('href', waHref(st.text));
+        // the one share: the button says who it goes to, from the server (no class: friends; else the class group)
+        if (a && st.v4 && typeof j.plain === 'boolean') {
+          labels[k] = esc(j.plain ? SH[L(o.lang)].friends : W[L(o.lang)].send);
+          if (!st.waiting) a.innerHTML = labels[k];
+        }
       } catch (e) { /* the tap still shares st.text */ }
       fileOf(j.img).then(function (f) { st.file = f; });
     });
@@ -335,12 +341,14 @@
   function tapShare(o, e, fallback) {
     var st = prime(o);
     // the one share (o.v4, the host's share_v4): a tap never sends words without the card — it says so while the card
-    // is made, and the sheet opens when it is in; no card at all asks for one more tap (which asks the server again)
+    // is made, and the sheet opens when it is in; no card at all asks for one more tap (which asks the server again),
+    // or runs the host's own share (the quiz's: its picture and the class link)
     if (o.v4 === true && !st.ready) {
       if (e && e.preventDefault) e.preventDefault();
-      waitCard(o, st, e);
+      waitCard(o, st, e, fallback);
       return;
     }
+    if (o.v4 === true) relabel(o, e);
     // The card's link not in yet: the tap waits for it, at most 2 s (the button soft meanwhile, no new words), then
     // shares what it has — the host's link at least, so the class always gets something to tap.
     if (!st.settled && !st.gaveUp) {
@@ -384,24 +392,34 @@
   }
 
   var SLOW_MS = 12000;
-  function waitCard(o, st, e) {
+  // The Share button's own label, kept once per card (a wait or a "tap again" never becomes the label to go back to).
+  var labels = {};
+  function btnOf(e) { return e && e.currentTarget && typeof e.currentTarget.setAttribute === 'function' ? e.currentTarget : document.getElementById('wqfc-share'); }
+  function relabel(o, e) {
+    var btn = btnOf(e), k = keyOf(o);
+    if (btn && labels[k] != null && btn.innerHTML !== labels[k]) btn.innerHTML = labels[k];
+  }
+  function waitCard(o, st, e, fallback) {
     if (st.waiting) return;
     st.waiting = true;
-    var btn = e && e.currentTarget && typeof e.currentTarget.setAttribute === 'function' ? e.currentTarget : document.getElementById('wqfc-share');
+    var btn = btnOf(e);
     var w = SH[L(o.lang)];
-    var was = btn ? btn.innerHTML : '';
+    var k = keyOf(o);
+    if (btn && labels[k] == null) labels[k] = btn.innerHTML;
+    var was = labels[k];
     if (btn) { btn.innerHTML = esc(w.getting); btn.setAttribute('aria-busy', 'true'); btn.setAttribute('data-wait', '1'); }
     var t = null;
     var done = function () {
       if (!st.waiting) return;
       st.waiting = false;
       if (t) clearTimeout(t);
-      if (btn) { btn.removeAttribute('aria-busy'); btn.removeAttribute('data-wait'); btn.innerHTML = st.ready ? was : esc(w.again); }
-      if (st.ready && st.v4 && st.img) { openSheet(o, st); return; }
-      if (st.ready) { tapShare(o, null, null); return; }
-      var k = keyOf(o);
-      delete primed[k];
-      delete minted[k];
+      var sheet = st.ready && st.v4 && st.img;
+      // no sheet (no card, or a card without the one share's mark: a switch flipped meanwhile): the host's own share
+      // where it has one; else "tap again", whose tap shares the card's link (the anchor has it) or asks again
+      if (btn) { btn.removeAttribute('aria-busy'); btn.removeAttribute('data-wait'); btn.innerHTML = sheet || fallback ? was : esc(w.again); }
+      if (sheet) { openSheet(o, st); return; }
+      if (!st.ready) { delete primed[k]; delete minted[k]; }
+      if (fallback) fallback(st.text, st.url);
     };
     t = setTimeout(done, SLOW_MS);
     st.wait.then(done, done);
@@ -571,19 +589,24 @@
   // The teacher's quiz card (wq.js M10, which draws the deed line and the tile from these): its own screen keeps n/10
   //; its class share is the card — deed + topic, no score, the link, the return line.
   function quizDeedHtml(lang) { return '<p class="wqfc-deed" id="wqfc-deed">' + esc(W[L(lang)].quizDeed) + '</p>'; }
-  function quiz(o) { return { kind: 'quiz', deed: 'quiz_done', lang: L(o.lang), title: o.topic, auth: o.st ? { st: o.st } : null, ev: o.ev, link: typeof o.url === 'string' ? o.url : null }; }
+  function quiz(o) {
+    var q = { kind: 'quiz', deed: 'quiz_done', lang: L(o.lang), title: o.topic, auth: o.st ? { st: o.st } : null, ev: o.ev, link: typeof o.url === 'string' ? o.url : null };
+    // the one share (the finish's share_v4): the card minted at the finish is the one the Share tap opens in the sheet
+    if (o.v4 === true) q.v4 = true;
+    return q;
+  }
   function primeQuiz(o) {
     var q = quiz(o);
     prime(q);
     if (typeof o.ev === 'function' && once('q|' + keyOf(q))) o.ev('card_shown', shownEv(q));
   }
-  function shareQuiz(o, fallback) { tapShare(quiz(o), null, fallback); }
+  function shareQuiz(o, fallback, e) { var q = quiz(o); tapShare(q, q.v4 === true ? e : null, fallback); }
   // wq.js registers this before today's "Share to class group" listener: the class share becomes the card, and
   // today's listener (still there, untouched) does not run for that tap.
   function quizShareTap(o, fallback) {
     return function (e) {
       if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-      shareQuiz(o, fallback);
+      shareQuiz(o, fallback, e);
     };
   }
 
