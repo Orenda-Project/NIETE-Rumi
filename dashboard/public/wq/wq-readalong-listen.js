@@ -49,13 +49,14 @@
     hub.boot();
   }
 
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function open(pid) {
     var B = boot();
     var lang = B.lang === 'ur' ? 'ur' : 'en';
     var t = T[lang];
     var root = document.getElementById('wq');
     shown = true;
-    hub.render(hub.bar() + '<div class="wq-jug"><span class="wq-jimg" data-jpose="hello"><img src="/wq/jugnu/hello.webp" alt="" width="92" height="92"></span><div class="wq-say">' + esc(t.say) + '</div></div>'
+    hub.render(hub.bar() + '<div class="wq-jug"><span class="wq-jimg" data-jpose="hello"><img src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="92" height="92"></span><div class="wq-say">' + esc(t.say) + '</div></div>'
       + '<div id="wq-listen-ra"></div><div class="wq-stack">'
       + '<button class="wq-btn wq-soft" id="wq-listen-back" type="button">' + esc(t.back) + '</button></div>', 'HL');
     var b = root.querySelector('#wq-listen-back');

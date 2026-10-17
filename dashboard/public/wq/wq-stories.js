@@ -62,7 +62,7 @@
 
   function hm(l) { return '<a class="wqs-ic" href="#" data-home data-tap="home" aria-label="' + esc(T[l].home) + '">' + IC.home + '</a>'; }
   function scr(name, l, inner, cls) { return '<section class="wqs ' + (cls || '') + '" data-screen="' + name + '" lang="' + l + '" dir="' + dirOf(l) + '">' + inner + '</section>'; }
-  function img(src, w, h, cls, ex) { return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(src) + '" width="' + w + '" height="' + h + '" alt=""' + (ex || '') + ' onerror="WQSTORIES._bad(this)">'; }
+  function img(src, w, h, cls, ex) { return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(W.wqjv ? W.wqjv(src) : src) + '" width="' + w + '" height="' + h + '" alt=""' + (ex || '') + ' onerror="WQSTORIES._bad(this)">'; }
   function ic(t, tap, label, glyph, ex) { return '<button class="wqs-ic" ' + (ex || 'data-back') + ' data-tap="' + tap + '" aria-label="' + esc(label) + '">' + (glyph === '‹' ? IC.prev : glyph) + '</button>'; }
   function top(l, left, title, snd) {
     var t = T[l], m = muted();

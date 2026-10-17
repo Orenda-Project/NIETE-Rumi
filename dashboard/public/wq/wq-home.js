@@ -114,7 +114,7 @@
     var t = C(ctx); var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var hi = B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '');
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
-    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="/wq/jugnu/hello.webp" alt="" width="48" height="48">' +
+    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48">' +
       '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + esc(hi) + '</button>' : esc(hi)) + dotsHtml(B, t) + '</span>' + jar +
       '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? ICON.sndOff : ICON.sndOn) + '</button></header>';
   }
@@ -145,9 +145,10 @@
     var back = B.practice_back ? '<a class="wq-prback" data-tap="prback" href="' + esc(B.practice_back) + '">' + esc(t.prBack) + '</a>' : '<button class="wq-prback" type="button" data-tap="prback">' + esc(t.prBack) + '</button>';
     return '<div class="wq-prstrip" data-practice-strip="1"><span>' + esc(t.prSees) + '</span>' + back + '</div>';
   }
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function nextHtml(nx, ctx) {
     var t = C(ctx);
-    var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp" alt="" width="96" height="96">';
+    var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="' + jv('/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp') + '" alt="" width="96" height="96">';
     var meta = [nx.sub ? '<bdi>' + esc(nx.sub) + '</bdi>' : '', nx.minutes ? '<span class="wq-nmin">' + esc(t.mins(nx.minutes)) + '</span>' : ''].filter(Boolean).join(langOf(ctx) === 'ur' ? '، ' : ' · ');
     var tag = nx.tag ? '<i class="wq-new">' + esc(nx.tag) + '</i>' : '';
     var inner = art + '<span class="wq-ntext">' + tag + '<b>' + esc(nx.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + (nx.href ? '<span class="wq-ngo" aria-hidden="true">' + ICON.go + '</span>' : '');
