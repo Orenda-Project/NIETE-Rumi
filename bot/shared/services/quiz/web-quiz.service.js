@@ -487,6 +487,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // is handed the quiz row read here and the code's class read with the code; stale 30 s settings and rosters on
   // this path answer at once and are re-read behind the page.
   const quizP = fast ? Fast.early(quizRead()) : null;
+  // The page's story, once read (the fast page's class link picture asks for it; never awaited off the fast page).
+  let setStory = null;
+  const storyKnown = fast ? new Promise((ok) => { setStory = ok; }) : null;
   const pre = fast ? {
     idn: Fast.early(identityV2(ctx, { fast: true, quizRow: Fast.early(quizP.then((r) => (r && r.data) || null)) })),
     label: Fast.early(classLabel(ctx)),
@@ -497,6 +500,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     ui: Fast.early(require('./web-quiz-ur-polish').ui()),
     ask: Fast.early(require('./web-quiz-invite-ask').mode()),
     linkHome: Fast.early(require('./web-quiz-link-home').field(ctx, { preview: Boolean(p) && isPreviewFor(p, ctx), swr: true })),
+    // the class link's picture (web-quiz-class-pic.js): its switch and facts need only the code; a story's picture
+    // waits for the page's story below
+    teach: Fast.early(require('./web-quiz-class-pic').field(ctx, { story: () => storyKnown })),
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
   if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn, { swr: true }) : null)));
@@ -508,6 +514,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // A storybook the teacher sent (story-teacher.service, web_quiz_stories_teacher) has no questions: the page joins the
   // child and opens the book. Any other quiz with none is the 404 it always was.
   const story = questions.length ? null : await require('./story-teacher.service').storyForQuiz(quizRow, ctx);
+  if (setStory) setStory(story);
   if (!questions.length && !story) fail(404, 'no_questions');
   // The language the quiz's clips are recorded in (the row's, else its questions' script).
   const voiceLang = clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions));
@@ -625,7 +632,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   };
   // The teacher's own class link previews as its class (web-quiz-class-pic.js; quiz_teacher_home, and the story send's
   // switch for a story): named only when on, so a switched-off payload is today's.
-  const teach = await require('./web-quiz-class-pic').field(ctx, { story });
+  const teach = await got('teach', () => require('./web-quiz-class-pic').field(ctx, { story }));
   if (teach) Object.assign(out.art, teach);
   // Whether the page sends its page-session events (wq-tel.js).
   out.rt = await got('rt', () => Tel.flag());

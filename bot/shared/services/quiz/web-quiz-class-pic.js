@@ -137,8 +137,9 @@ async function field(ctx, { story = null } = {}) {
     if (ctx.row && (ctx.row.invited_by_student_id || ctx.row.parent_share_code_id)) return null;
     const f = await factsFor(ctx.shareCodeId);
     if (!f || f.code !== String(ctx.code || '').toUpperCase()) return null;
-    // a story's picture only where the page opens the story
-    if (f.kind === 'story' && !story) return null;
+    // a story's picture only where the page opens the story (the fast page starts this before it knows: it hands a
+    // function that answers the page's story once read, asked only for a story's picture)
+    if (f.kind === 'story' && !(typeof story === 'function' ? await story() : story)) return null;
     const id = artId(KIND, ctx.shareCodeId);
     return id ? { teach: id, teach_v: f.v } : null;
   } catch (e) {
