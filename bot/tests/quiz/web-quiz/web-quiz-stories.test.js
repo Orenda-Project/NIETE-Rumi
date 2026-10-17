@@ -620,3 +620,78 @@ describe('pageReadable (the live-read key asks before it spends)', () => {
     expect(fake.calls.slice(before).some((c) => c.table !== 'app_settings')).toBe(false);
   });
 });
+
+describe('the switch read: one failing key never turns stories off', () => {
+  const { OFF_VALUES, throwOn } = require('../../helpers/switch-off-matrix');
+  const ALL_ON = [['web_quiz_stories_steady', true], ['web_quiz_live_read_v3', true], ['web_quiz_challenge_realtime', true], ['web_quiz_challenge_keep_audio', true]];
+  // Count the stories switch reads (an app_settings `.in('key', …)` naming `web_quiz_stories`), failed ones too.
+  function counting(from) {
+    const reads = { n: 0 };
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'app_settings' && typeof b.in === 'function') {
+        const within = b.in;
+        b.in = (c, vs) => { if (c === 'key' && [].concat(vs).includes('web_quiz_stories')) reads.n += 1; return within.call(b, c, vs); };
+      }
+      return b;
+    };
+    return reads;
+  }
+  function seedAllOn() {
+    seed({ band: true });
+    ALL_ON.forEach(([key, value]) => fake.db.app_settings.push({ key, value }));
+  }
+  const view = (out) => ({ band: out.pages[0].text_band !== null, steady: out.steady === 1, lr3: out.lr3, keep: Object.prototype.hasOwnProperty.call(out, 'lr3_keep') ? out.lr3_keep : 'none' });
+
+  test('normal path: everything on is one read, then cached', async () => {
+    seedAllOn();
+    const reads = counting(fake.from);
+    expect(view(await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual({ band: true, steady: true, lr3: true, keep: true });
+    expect(await status(Stories.shelf(TOKEN, { kid: 'a', now: NOON_PKT }))).toBe(200);
+    expect(reads.n).toBe(1);
+  });
+  test('normal path: stories off is one read (the recorded constant), then cached', async () => {
+    seed({ on: false });
+    const reads = counting(fake.from);
+    expect(await body(Stories.shelf(TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
+    expect(await body(Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
+    expect(reads.n).toBe(1);
+  });
+  // [key that fails to read, what the book says, settings reads]: the read is tried again without keep-audio, then
+  // without the live reader's two, then the main switch alone; the keys left out are off, the rest read as before.
+  test.each([
+    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 2],
+    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 3],
+    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 3],
+    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 4],
+    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 4],
+  ])('a failed read naming %s keeps the shelf and the book on', async (key, want, n) => {
+    seedAllOn();
+    const reads = counting(throwOn(fake.from, key));
+    expect(await status(Stories.shelf(TOKEN, { kid: 'a', now: NOON_PKT }))).toBe(200);
+    expect(reads.n).toBe(n);
+    expect(view(await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual(want);
+    expect(await Stories.hubBits()).toEqual({ stories: { on: 1 } });
+    expect(reads.n).toBe(n); // cached: the book and the hub read nothing more
+  });
+  test('a failed read naming web_quiz_stories itself is off: shelf and book 404 stories_off, cached', async () => {
+    seedAllOn();
+    const reads = counting(throwOn(fake.from, 'web_quiz_stories'));
+    expect(await body(Stories.shelf(TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
+    expect(await body(Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
+    expect(await Stories.hubBits()).toEqual({});
+    expect(reads.n).toBe(4);
+    expect(mockKidFromHub).not.toHaveBeenCalled();
+  });
+  test('the fallback reads stories as strictly as the normal path: every OFF value of web_quiz_stories is off', async () => {
+    for (const [label, value] of [...OFF_VALUES, ['"true"', 'true']]) {
+      for (const key of ['web_quiz_challenge_keep_audio', 'web_quiz_stories_band']) {
+        Stories._reset(); seedAllOn();
+        fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'web_quiz_stories');
+        if (value !== null) fake.db.app_settings.push({ key: 'web_quiz_stories', value });
+        counting(throwOn(fake.from, key));
+        expect([label, key, await body(Stories.shelf(TOKEN, { kid: 'a' }))]).toEqual([label, key, { error: 'stories_off' }]);
+      }
+    }
+  });
+});
