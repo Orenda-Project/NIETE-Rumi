@@ -87,9 +87,9 @@ describe('round-14 Social Studies one level per choice group', () => {
       expect(d).toContain('Every Q7 item is Remember');
       for (const text of [c, d]) expect(text).not.toMatch(COUNTED);
       for (const id of ['A', 'B']) expect(prompt('social_studies', id, scope)).not.toMatch(/Every Q[567] item is/);
-      // Marks and counts stay as the pattern has them.
-      expect(c).toContain('generate EXACTLY 9 items');
-      expect(d).toContain('generate EXACTLY 6 items');
+      // Marks and counts stay as the pattern has them; the first ask adds two spares to each C/D slot.
+      expect(c).toContain('generate EXACTLY 11 items'); // 9 print, 2 spares
+      expect(d).toContain('generate EXACTLY 8 items'); // 6 print, 2 spares
     }
   });
 

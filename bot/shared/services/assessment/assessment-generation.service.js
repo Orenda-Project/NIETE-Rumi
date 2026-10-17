@@ -762,9 +762,18 @@ const SECTION_MAX_TOKENS = 32000;
 const SECTION_TIMEOUT_MS = 300000;
 const SECTION_REASONING = { effort: 'low' };
 
+/**
+ * Social Studies C and D: the first ask writes spares past what prints, and the layout keeps the
+ * first items that are new. A held item (a Section A fact asked again, a point set another item
+ * answers) then leaves no gap, and a reader flag later is less likely to take a choice slot below
+ * what it must offer. Every other slot asks exactly what it prints.
+ */
+const FIRST_ASK_SPARES = Object.freeze({ 'social_studies.C.Q5': 2, 'social_studies.D.Q6': 2, 'social_studies.D.Q7': 2 });
+const firstAsk = (slot) => (Number(slot.generate) || 0) + (FIRST_ASK_SPARES[slot.slot] || 0);
+
 /** The output ceiling for one section's call, from the items its slots generate. */
 function sectionMaxTokens(section) {
-  const want = (section.slots || []).reduce((sum, slot) => sum + (Number(slot.generate) || 0)
+  const want = (section.slots || []).reduce((sum, slot) => sum + firstAsk(slot)
     * (slot.shape === 'mcq' ? SECTION_TOKENS_PER_MCQ : SECTION_TOKENS_PER_WRITTEN), 0);
   return Math.min(SECTION_MAX_TOKENS, Math.max(SECTION_MIN_TOKENS, want));
 }
@@ -1039,12 +1048,17 @@ function _marksPhrase(slot) {
 /** One slot as the model is asked for it: every field read from the pattern, nothing typed. */
 function _slotBlock(slot, lang) {
   const label = lang === 'ur' && slot.label_ur ? `${slot.label_en} (${slot.label_ur})` : slot.label_en;
+  const asked = firstAsk(slot);
   const lines = [
-    `• ${label} — generate EXACTLY ${slot.generate} item${slot.generate === 1 ? '' : 's'} under unseen.${slot.category}."${slot.type}"; `
+    `• ${label} — generate EXACTLY ${asked} item${asked === 1 ? '' : 's'} under unseen.${slot.category}."${slot.type}"; `
       + `tag every item "slot": "${slot.slot}"; ${_marksPhrase(slot)}.`,
   ];
   if (slot.attempt < slot.generate) {
     lines.push(`  Choice: the child chooses ${slot.attempt} of ${slot.generate}; make all ${slot.generate} the same difficulty.`);
+  }
+  if (asked > slot.generate) {
+    lines.push(`  Spares: the last ${asked - slot.generate} are spares, the same difficulty; the paper prints the first ${slot.generate} `
+      + 'that ask nothing another item on this paper asks.');
   }
   if (slot.prompt_rule) lines.push(`  Rule: ${slot.prompt_rule}`);
   const g = slot.grain;
@@ -1976,7 +1990,9 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
 // twice what is missing plus spares), the paper is laid out again and the reader checks the
 // replacements only; one still flagged is taken off too. A flagged Q5 is taken off with no re-ask:
 // Q5 offers more than the child answers. Nothing taken off comes back: a choice slot prints fewer
-// items (applyLayout), and a paper the pass would leave short prints as it was before the pass.
+// items (applyLayout), and a paper the pass would leave short fails closed (PATTERN_SHORT_SLOT, with
+// this record on it), never printing a caught item to fill the place. A read that fails prints the
+// paper as it was: no caught item is known.
 const SST_D_SLOTS = ['social_studies.D.Q6', 'social_studies.D.Q7'];
 const _labelSlot = (label) => ({ Q5: 'social_studies.C.Q5', Q6: 'social_studies.D.Q6', Q7: 'social_studies.D.Q7' })[String(label).split('.')[0]];
 
@@ -1992,7 +2008,8 @@ async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, bui
     logToFile('[assessment] reader pass', {
       requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
     });
-    if (exam && exam._layout) exam._layout.reader = { ...stats, items: error ? [] : items, ...(error ? { error } : {}) };
+    // The record keeps its items on every path, an error's included: a refused paper still names them.
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items, ...(error ? { error } : {}) };
     return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
   };
   const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
@@ -2009,12 +2026,22 @@ async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, bui
   stats.flagged = first.flags.length;
   const held = first.flags.map((f) => ({ ...f, q: first.labels.get(f.item), slot: _labelSlot(f.item) }));
 
+  const dHeld = held.filter((h) => SST_D_SLOTS.includes(h.slot));
+  // From here on no caught item prints: every exit returns the paper with them taken off, and one the
+  // pass leaves short fails closed in the engine (PATTERN_SHORT_SLOT) with this record attached.
+  let laid = lay(without(examJson, held));
+  let exam = laid.examJson;
+  let still = [];
+  let replacements = [];
+  const settle = (error = null) => {
+    stats.still_flagged = still.length;
+    stats.replaced = error ? 0 : replacements.length - still.length;
+    stats.taken_off = held.length + still.length;
+    held.forEach((h) => record(h, !error && SST_D_SLOTS.includes(h.slot) ? 'replaced' : 'taken_off'));
+    still.forEach((h) => record(h, 'taken_off'));
+    return done(exam, laid, error);
+  };
   try {
-    let laid = lay(without(examJson, held));
-    let exam = laid.examJson;
-    const dHeld = held.filter((h) => SST_D_SLOTS.includes(h.slot));
-    let still = [];
-    let replacements = [];
     if (dHeld.length) {
       const b = built.find((x) => x.section.slots.some((s) => s.slot === SST_D_SLOTS[0]));
       const missing = b.section.slots.map((s) => ({ slot: s.slot, missing: s.generate - count(exam, s.slot) })).filter((f) => f.missing > 0);
@@ -2025,7 +2052,7 @@ async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, bui
       logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: missing, reader: dHeld.map(({ q, ...f }) => f) });
       const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
       sectionUsages.push(...second.usages);
-      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return done(examJson, null, 'top-up: refused text');
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return settle('top-up: refused text');
       stripImageKeys(second.tree);
       normaliseAnswers(second.tree);
       // Only new items: an item taken off and written again is not a replacement.
@@ -2054,15 +2081,9 @@ async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, bui
         exam = laid.examJson;
       }
     }
-    stats.still_flagged = still.length;
-    stats.replaced = replacements.length - still.length;
-    stats.taken_off = held.length + still.length;
-    held.forEach((h) => record(h, SST_D_SLOTS.includes(h.slot) ? 'replaced' : 'taken_off'));
-    still.forEach((h) => record(h, 'taken_off'));
-    if (laid.shortfall.length) return done(examJson, null, 'the paper would be short');
-    return done(exam, laid);
+    return settle(laid.shortfall.length ? 'the paper would be short' : null);
   } catch (err) {
-    return done(examJson, null, `top-up: ${err.message}`);
+    return settle(`top-up: ${err.message}`);
   }
 }
 
