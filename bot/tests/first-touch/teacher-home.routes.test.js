@@ -740,10 +740,13 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     mockDoor.mintLanding = jest.fn(async () => 'https://portal.example/quiz/go/GO.TOKEN_abc');
     await boot(deps);
     const t = tokenFor();
+    // the two homes compared byte for byte are signed in the same second (the maker link carries its expiry)
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now());
     const without = await (await get(`/api/th/home?t=${t}&g=4`)).text();
     const row = jest.fn(async ({ token }) => (token === 'GO.TOKEN_abc' ? '' : ROW));
     mockModules.load = (name) => (name === 'testPersona' ? { row } : null);
     const unlisted = await (await get(`/api/th/home?t=${t}&g=4`)).text();
+    clock.mockRestore();
     expect(row).toHaveBeenCalledWith({ lang: 'en', token: 'GO.TOKEN_abc' });
     expect(unlisted.replace(/"first":(true|false)/, '')).toBe(without.replace(/"first":(true|false)/, ''));
     expect(JSON.parse(unlisted).change).toBe('/quiz/go/GO.TOKEN_abc');
