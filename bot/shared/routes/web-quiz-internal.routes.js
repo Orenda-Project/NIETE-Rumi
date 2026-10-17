@@ -47,6 +47,9 @@ const WebQuizArt = require('../services/quiz/web-quiz-art');
 const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
 const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
+const AfterVideo = () => require('../services/quiz/web-quiz-next-offer-video');
+// Warm the next thing for the result while the child plays (web_quiz_next_offer; off -> nothing): after the answer, never in it.
+const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).catch(() => {}); }); };
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
@@ -89,9 +92,15 @@ router.get('/quiz/:code', handle(async (req) => {
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => withCard(WebQuiz.getQuiz(c)))));
 // Whether the sound + motion kit is on (web_quiz_juice): the edge serves the kit's demo page only then.
 router.get('/juice', handle(async () => ({ on: await require('../services/quiz/web-quiz-juice').flag() })));
-router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
+router.post('/session', handle(async (req) => {
+  const out = await WebQuiz.startSession(req.body || {}, { device: req.get('x-wq-device') || null });
+  warmNext(() => NextOffer().warmFromSession(out, { device: req.get('x-wq-device') || null }));
+  return out;
+}));
 // An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
 router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
+// A class link on a phone that holds a child: the children this browser holds, for "Is it <First>?" ({kids: []} when off).
+router.post('/known', handle((req) => WebQuiz.knownKids(req.body || {}, { device: req.get('x-wq-device') || null })));
 // The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
 router.post('/bind', handle((req) => require('../services/quiz/web-quiz-handset').bind(req.body || {}, WebQuiz.WqError)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
@@ -118,7 +127,15 @@ router.get('/book/h/:token', handle((req) => require('../services/quiz/web-quiz-
 const BindPage = () => require('../services/quiz/web-quiz-bind-page');
 router.post('/bind/mint', handle((req) => BindPage().mint({ hub: (req.body || {}).hub, kid: (req.body || {}).kid, lang: (req.body || {}).lang, device: req.get('x-wq-device') || undefined })));
 router.get('/bind/status', handle((req) => BindPage().status({ code: typeof req.query.code === 'string' ? req.query.code.slice(0, 20) : '' })));
-router.post('/bind/undo', handle((req) => BindPage().undo({ code: (req.body || {}).code, device: req.get('x-wq-device') || undefined })));
+// {from:'join'}: the first home's "Jugnu will remember you on this phone" Undo (a self-join has no code; the phone that joined)
+// {from:'home', kid}: the grown-ups corner's "Forget this phone" (the same erase, for the link's whole life)
+router.post('/bind/undo', handle((req) => {
+  const b = req.body || {};
+  const device = req.get('x-wq-device') || undefined;
+  if (b.from === 'join') return require('../services/quiz/web-quiz-home-remember').undo({ device, lang: b.lang });
+  if (b.from === 'home') return require('../services/quiz/web-quiz-home-remember').forget({ device, kid: b.kid });
+  return BindPage().undo({ code: b.code, device });
+}));
 // ── end keep my place ──
 // ── a child joins on their own ── (web-quiz-student-join.js; quiz_student_join, off -> {off:true}). The device is x-wq-device.
 const StudentJoin = () => require('../services/quiz/web-quiz-student-join');
@@ -139,7 +156,8 @@ router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}, { 
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k, z: req.query.z })));
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
 // device: the phone's device_ref from x-wq-device (the edge's wq_dv cookie), never trusted from the body.
-router.post('/videos/start', handle((req) => WebQuizVideos.start({ ...(req.body || {}), device: req.get('x-wq-device') || undefined })));
+// a class-less child's watch carries the ranked next thing after it (web_quiz_next_offer; nothing when off)
+router.post('/videos/start', handle((req) => WebQuizVideos.start({ ...(req.body || {}), device: req.get('x-wq-device') || undefined }, { onWatch: (a) => AfterVideo().watchNext(a) })));
 router.get('/pulse/:code', handle((req) => WebQuizPulse.poll(req.params.code, { st: req.query.st, since: req.query.since }, WebQuiz)));
 // M4c challenge — required on first use, so the bot boots without it; a missing module answers 503 'unavailable'.
 const challenge = (fn) => handle((req) => {
@@ -169,7 +187,9 @@ router.post('/ch/result', challenge(async (C, req) => withNext(await C.submit(re
 router.get('/ch/words/:ct', challenge((C, req) => C.listenWords({ ct: req.params.ct, lang: req.query.lang })));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/listen/h/:token/:pid', challenge((C, req) => C.listenPreview(req.params.token, req.params.pid, { lang: req.query.lang, device: req.get('x-wq-device') })));
-router.get('/ch/:token', challenge(async (C, req) => Object.assign(await C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') }), await CardImage.field())));
+// The child home on (web_quiz_home_v3): {card_fold: true}, so the end cards are the card and one next thing.
+router.get('/ch/:token', challenge(async (C, req) => Object.assign(await C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') }), await CardImage.field(),
+  await require('../services/quiz/web-quiz-hub-door').menuFoldField())));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
   ? { passageId: typeof req.query.pid === 'string' ? req.query.pid : null, room: 'story' } : {});
@@ -180,14 +200,21 @@ router.get('/ch/:token/back', handle(async (req) => {
   try { to = await require('../services/quiz/web-quiz-class-round').backTo(req.params.token, { lang: req.query.lang, device: req.get('x-wq-device') || undefined }); } catch (_) { to = null; }
   return { to };
 }));
-router.get('/ch/:token/:exercise', challenge(async (C, req) => C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device'), ...(await storyAsk(C, req)) })));
+router.get('/ch/:token/:exercise', challenge(async (C, req) => {
+  const out = await C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device'), ...(await storyAsk(C, req)) });
+  warmNext(() => NextOffer().warmFromChallenge(out, { device: req.get('x-wq-device') || null }));
+  return out;
+}));
 router.get('/challenge/results', challenge((C, req) => C.listResults({ cls: req.query.class, list: req.query.list })));
 // A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.
 router.get('/art/:id', async (req, res) => {
   try {
-    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og' });
+    // c: the /q/<CODE> the edge was asked under (the class link's picture is drawn only for its own code)
+    const code = typeof req.query.c === 'string' ? req.query.c.slice(0, 12) : null;
+    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og', code });
     res.set('Content-Type', out.contentType);
-    res.set('Cache-Control', 'public, max-age=600');
+    // a picture whose link carries its own version (the class link's ?v=) never changes under that link
+    res.set('Cache-Control', out.immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=600');
     return res.send(out.bytes);
   } catch (err) {
     if (err instanceof WebQuizArt.ArtError) return res.status(err.status).json(err.body);

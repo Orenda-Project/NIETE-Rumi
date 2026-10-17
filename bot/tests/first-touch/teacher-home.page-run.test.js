@@ -40,7 +40,7 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], paged = false } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, paged = false } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
@@ -64,7 +64,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
-    setTimeout(fn, ms) { fn.ms = ms; timers.push(fn); },
+    setTimeout(fn, ms) { timers.push(Object.assign(fn, { ms })); },
     fetch: (p, opts = {}) => {
       const body = opts.body ? JSON.parse(opts.body) : undefined;
       fetches.push({ path: p, body });
@@ -77,6 +77,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     },
     JSON, String, Array, Object, Promise, Number, Boolean, RegExp,
   };
+  if (clock) window.Date = class extends Date { static now() { return clock.t; } };
   window.window = window;
   const ctx = vm.createContext(window);
   doc.querySelectorAll('script').filter((s) => !s.getAttribute('type')).forEach((s) => vm.runInContext(s.text, ctx));
@@ -390,5 +391,58 @@ describe('switch OFF: today\'s page', () => {
     const on = Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true });
     expect(on.csp).toContain(`'sha256-${Page.SCRIPT_PAGED_HASH}'`);
     expect(on.html).toContain(`<script>${Page.SCRIPT_PAGED}</script>`);
+  });
+});
+
+describe('a quiz that takes longer than three minutes', () => {
+  const home = () => ({ primary: { kind: 'lesson', id: 'lp_9', make: 'lesson', from: 'lp', title: 'Water' }, library: LIB, timeline: [] });
+
+  test('the late line shows, the page keeps asking, and the top card becomes the quiz when it lands at 200 s', async () => {
+    const clock = { t: 1000000 };
+    const start = clock.t;
+    const timers = [];
+    const ready = () => clock.t - start >= 200000;
+    const p = await open(home(), { timers, clock, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? (ready() ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' } : { state: 'making' }) : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    let sawLate = false;
+    for (let i = 0; i < 80 && timers.length && p.q('#th-top').getAttribute('data-kind') !== 'made'; i += 1) {
+      const due = timers.splice(0);
+      clock.t += Math.max(...due.map((fn) => fn.ms || 0));
+      due.forEach((fn) => fn());
+      for (let k = 0; k < 5; k += 1) await new Promise((r) => setImmediate(r));
+      if (p.q('#th-top').textContent.indexOf('Taking longer than usual') >= 0) sawLate = true;
+    }
+    expect(sawLate).toBe(true);
+    expect(p.q('#th-top').getAttribute('data-kind')).toBe('made');
+    expect(p.q('#th-top').querySelector('[data-tap="send"]')).not.toBeNull();
+  });
+
+  test('after 10 minutes the page stops asking and the late line stays', async () => {
+    const clock = { t: 1000000 };
+    const timers = [];
+    const p = await open(home(), { timers, clock, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'making' } : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    let polls = 0;
+    for (let i = 0; i < 400 && timers.length; i += 1) {
+      const due = timers.splice(0);
+      clock.t += Math.max(...due.map((fn) => fn.ms || 0));
+      due.forEach((fn) => fn());
+      for (let k = 0; k < 5; k += 1) await new Promise((r) => setImmediate(r));
+    }
+    polls = p.fetches.filter((f) => f.path.indexOf('/api/th/quiz/qz1?') === 0).length;
+    expect(timers).toHaveLength(0);
+    // every 5 s for 3 min (≈36), then every 15 s until 10 min (≈28)
+    expect(polls).toBeGreaterThanOrEqual(62);
+    expect(polls).toBeLessThanOrEqual(66);
+    expect(p.q('#th-top').textContent).toContain('Taking longer than usual');
+  });
+});
+
+describe('the words while a quiz is made', () => {
+  const Strings = require('../../shared/services/first-touch/teacher-home.strings');
+  test('no number of minutes is promised; the chat is named as the other way it arrives', () => {
+    expect(Strings.str('th.job', 'en')).toBe('Your quiz is on its way — it takes a few minutes and arrives in this chat too');
+    expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
   });
 });

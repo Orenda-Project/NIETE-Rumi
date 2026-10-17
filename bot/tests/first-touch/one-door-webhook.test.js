@@ -234,13 +234,13 @@ describe('a known child (a chat-joined row on this phone)', () => {
     } finally { await app.close(); }
   });
 
-  test('ON: the same ONE hub link, with the child words (stories, videos and quizzes — no retired door word)', async () => {
+  test('ON: the same ONE hub link, with the child words (stories, games and videos — no retired door word)', async () => {
     const app = await boot(worldOf({ users: [CHILD_USER()], students: [CHILD_ROW()], settings: ON }));
     try {
       const out = await app.text('/quiz');
       expect(ctas(out)).toHaveLength(1);
       expect(out[0].p.url).toMatch(/^https:\/\/portal\.example\/h\//);
-      expect(out[0].p.body).toBe('Your stories, videos and quizzes are here.');
+      expect(out[0].p.body).toBe('Your stories, games and videos are here.');
       expect(out[0].p.buttonText).toBe('Open');
     } finally { await app.close(); }
   });

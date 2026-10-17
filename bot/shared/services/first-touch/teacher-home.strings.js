@@ -37,7 +37,7 @@ const STRINGS = Object.freeze({
   'th.lastlesson': Object.freeze({ en: 'Quiz from your last lesson: {topic}', ur: 'آپ کے پچھلے سبق کا کوئز: {topic}' }),
   'th.tag.story': Object.freeze({ en: 'Story sent', ur: 'بھیجی گئی کہانی' }),
   'th.quiz.this': Object.freeze({ en: 'Quiz this', ur: 'اس کا کوئز بنائیں' }),
-  'th.job': Object.freeze({ en: 'Your quiz arrives in this chat in about a minute', ur: 'آپ کا کوئز تقریباً ایک منٹ میں اسی چیٹ میں آئے گا' }),
+  'th.job': Object.freeze({ en: 'Your quiz is on its way — it takes a few minutes and arrives in this chat too', ur: 'کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا' }),
   'th.quiz.making': Object.freeze({ en: 'Making your quiz…', ur: 'آپ کا کوئز بن رہا ہے…' }),
   'th.quiz.late': Object.freeze({ en: 'Taking longer than usual — it will arrive in this chat', ur: 'معمول سے زیادہ وقت لگ رہا ہے — کوئز اسی چیٹ میں آ جائے گا' }),
   'th.more': Object.freeze({ en: 'More', ur: 'مزید' }),
