@@ -83,7 +83,7 @@
   var SH = {
     // friends: the Share button of a child with no class (the link brings a friend in, there is no class group)
     en: { wa: 'Send on WhatsApp', file: 'Share picture', save: 'Save picture', copy: 'Copy link', copied: 'Copied!', back: 'Back', getting: 'Getting your card…', again: 'Tap again to share', friends: 'Share with friends' },
-    ur: { wa: 'واٹس ایپ پر بھیجیں', file: 'تصویر بھیجیں', save: 'تصویر محفوظ کریں', copy: 'لنک کاپی کریں', copied: 'کاپی ہو گیا!', back: 'واپس', getting: 'آپ کا کارڈ بن رہا ہے…', again: 'بھیجنے کے لیے دوبارہ دبائیں', friends: 'دوستوں کو بھیجیں' }
+    ur: { wa: 'واٹس ایپ پر بھیجیں', file: 'تصویر بھیجیں', save: 'تصویر محفوظ کریں', copy: 'لنک کاپی کریں', copied: 'کاپی ہو گیا!', back: 'واپس', getting: 'آپ کا کارڈ بن رہا ہے…', again: 'بھیجنے کے لیے دوبارہ دبائیں', friends: 'دوستوں کو بھیجیں' }
   };
   var KIND_DEEDS = { quiz: ['quiz_done'], read: ['read_all', 'read_some', 'read_tried', 'read_practice', 'read_some_practice'], listen: ['listen_done', 'listen_practice'],
     story: ['story_read', 'answered', 'read_tried', 'story_practice'], game: ['game_done', 'game_practice'], book: ['book_read', 'listen_done', 'read_tried'], video: ['video_watched'] };

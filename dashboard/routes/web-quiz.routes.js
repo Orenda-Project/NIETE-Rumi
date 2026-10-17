@@ -453,7 +453,7 @@ const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(i
 // typed, the friend picks the chat), never a page without a door.
 const CARD_LANDING = {
   en: { sub: 'Join in and play it too!', hint: 'Tap the green button, then press send in WhatsApp.' },
-  ur: { sub: 'آپ بھی آئیں اور کھیلیں!', hint: 'سبز بٹن دبائیں، پھر واٹس ایپ میں بھیجنے کا بٹن دبائیں۔' },
+  ur: { sub: 'آپ بھی آئیں اور کھیلیں!', hint: 'سبز بٹن دبائیں، پھر واٹس ایپ میں بھیجنے کا بٹن دبائیں۔' },
 };
 function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
   const lang = facts.lang === 'ur' ? 'ur' : 'en';
