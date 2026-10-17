@@ -9,53 +9,23 @@
  * Off: the key is absent, so every answer and every page is today's, byte for byte. Only the stored JSON boolean true
  * turns it on: the string 'true', 1, {enabled:true}, no row or a failed read are all off.
  *
- * on() never waits: it answers from the cache and refreshes it in the background (web-quiz-one-face.js's shape), so
- * the switch adds no database round trip to a child's page. The first answer after a start is off; a value older than
- * twice the cache time is off too.
+ * The key rides the hub's one settings read (web-quiz-hub-flags.js), so the switch adds no read of its own to a
+ * child's page. on() never waits: it answers from that cache and refreshes it in the background. The first answer
+ * after a start is off; a value older than twice the cache time is off too.
  */
-const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
+const Flags = require('./web-quiz-hub-flags');
 
-const KEY = 'web_quiz_one_button';
+const KEY = Flags.ONE_BUTTON_KEY;
 const FIELD = 'one_button';
-const TTL_MS = 30 * 1000;
-let cache = null; // { at, on }
-let reading = null;
 
-/** Only the JSON boolean the flip writes (app_settings.value is jsonb). */
-function isTrue(value) {
-  return value === true;
-}
-
-function refresh() {
-  if (!reading) {
-    reading = (async () => {
-      try {
-        const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
-        if (error) throw new Error(error.message || 'app_settings read failed');
-        cache = { at: Date.now(), on: isTrue(data && data.value) };
-      } catch (err) {
-        logToFile('⚠️ web quiz one button: settings lookup failed — off', { error: err.message });
-        cache = { at: Date.now(), on: false };
-      } finally {
-        reading = null;
-      }
-      return cache.on;
-    })();
-  }
-  return reading;
-}
-
-/** The switch, never waited for: the cached value, refreshed in the background when stale. Never throws. */
+/** The switch, never waited for. Never throws. */
 function on(now = Date.now()) {
-  if (!cache || now - cache.at >= TTL_MS) refresh().catch(() => {});
-  return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
+  try { return Flags.oneButtonNow(now); } catch (_) { return false; }
 }
 
 /** The switch, waited for (tests). */
 async function flag(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
-  return refresh();
+  try { return Boolean((await Flags.flags(now)).oneButton); } catch (_) { return false; }
 }
 
 /**
@@ -67,4 +37,4 @@ function carry(answerP) {
   return Promise.resolve(answerP).then((out) => (one && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
 }
 
-module.exports = { on, flag, carry, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, flag, carry, KEY, FIELD };

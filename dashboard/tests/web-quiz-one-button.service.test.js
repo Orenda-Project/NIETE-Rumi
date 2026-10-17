@@ -1,8 +1,9 @@
 /**
  * One button system (app_settings web_quiz_one_button → the bot's `one_button` → `wq-1b` on <html>).
  *
- * - wq.css: the component's kinds (`.wq-btn--primary/--secondary/--icon/--home/--share/--speaker/--hold` and the land
- *   colours) all exist, and EVERY kind sets its own --edge, so no button's ledge falls back to another colour's.
+ * - wq.css: the component's kinds (`.wq-btn--primary/--secondary/--icon/--home/--share/--speaker/--hold` and the lands
+ *   --st/--gm/--vd) all exist, EVERY kind sets its own --edge (no ledge falls back to another colour's), and they
+ *   paint only from --fill/--on/--sh-btn, so a look changes tokens, never rules.
  * - wq-tel.js: the class goes on <html> only for the JSON boolean true; anything else leaves the page as it is.
  * - wq-home.js (run in a vm): off, the grown-ups button is today's markup byte for byte; on, it says it is held
  *   ("Hold for grown-ups"), carries the ring and the lock, and a short tap shows "Keep holding" (EN + UR).
@@ -22,7 +23,7 @@ const HOME = {
   home_v3: 1, head: { dots: 2, today: false, jar: { fresh: true } },
   doors: { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: 'The red kite' }], games: [], videos: null },
 };
-const KINDS = ['primary', 'secondary', 'icon', 'home', 'share', 'speaker', 'hold', 's1', 's2', 's3'];
+const KINDS = ['primary', 'secondary', 'icon', 'home', 'share', 'speaker', 'hold', 'st', 'gm', 'vd'];
 
 // Every rule whose whole selector is one `.wq-btn--<kind>`: the kind's own definition.
 // (A rule is `selector{body}` with no brace inside; a rule inside an @media block is found the same way.)
@@ -49,10 +50,22 @@ describe('wq.css: the one button component', () => {
   test.each(KINDS)('.wq-btn--%s sets its own --edge (its ledge is a shade of its own fill)', (k) => {
     expect(kindRules()[k]).toMatch(/--edge:/);
   });
-  test('no kind draws its ledge from the brand colour by default (only primary, whose fill IS the brand)', () => {
+  test('a kind\'s ledge is its own fill\'s: brand-filled kinds sit on --brand-d, a land on its own --land-*-edge, card-filled kinds on --line', () => {
     const r = kindRules();
-    KINDS.filter((k) => k !== 'primary').forEach((k) => expect([k, /--edge:var\(--brand/.test(r[k])]).toEqual([k, false]));
+    KINDS.forEach((k) => {
+      const fill = (/--fill:([^;]+)/.exec(r[k]) || [])[1];
+      const edge = (/--edge:([^;]+)/.exec(r[k]) || [])[1];
+      const land = /^var\(--land-(st|gm|vd)\)$/.exec(fill || '');
+      const want = land ? `var(--land-${land[1]}-edge)` : fill === 'var(--brand)' ? 'var(--brand-d)' : 'var(--line)';
+      expect([k, edge]).toEqual([k, want]);
+    });
     expect(CSS).not.toMatch(/--sh-btn:[^;]*var\(--bd,/);
+  });
+  test('no ledge colour leans on color-mix outside an @supports block (older phones would draw no ledge)', () => {
+    expect(CSS.replace(/@supports[^{]*\{[^{}]*(\{[^{}]*\}[^{}]*)*\}/g, '')).not.toMatch(/--edge:\s*color-mix\(/);
+  });
+  test('the answer-option colours (--s1..--s4) are never a button\'s fill or ledge', () => {
+    Object.values(kindRules()).forEach((b) => expect(b).not.toMatch(/var\(--s[1-4]/));
   });
   test('every kind centres its label both ways and kills the tap flash', () => {
     const shared = /\.wq-btn--primary,\.wq-btn--secondary,\.wq-btn--share,\.wq-btn--icon,\.wq-btn--speaker,\.wq-btn--home,\.wq-btn--hold\{([^}]*)\}/.exec(CSS);
@@ -61,10 +74,32 @@ describe('wq.css: the one button component', () => {
     expect(shared[1]).toMatch(/align-items:center/);
     expect(shared[1]).toMatch(/justify-content:center/);
     expect(shared[1]).toMatch(/-webkit-tap-highlight-color:transparent/);
+    expect(shared[1]).toMatch(/background:var\(--fill\);color:var\(--on\);box-shadow:var\(--sh-btn\)/);
   });
-  test('the tokens live in :root at today\'s values (the adventure look redefines them; off changes nothing)', () => {
+  test('the tokens live in :root: main 56, second 52, two-line 76, icon a 48 circle; the Urdu sizes at today\'s values', () => {
     const root = CSS.slice(CSS.indexOf(':root{'), CSS.indexOf('}', CSS.indexOf(':root{')));
-    ['--gutter:16px', '--btn-h:60px', '--btn-h2:52px', '--btn-icon:56px', '--r-btn:18px', '--btn-fs-ur:19px', '--btn-fs-ur-sm:18px'].forEach((t) => expect(root).toContain(t));
+    ['--gutter:16px', '--btn-h:56px', '--btn-h2:52px', '--btn-h-2l:76px', '--btn-icon:48px', '--r-btn:18px', '--r-icon:50%', '--btn-fs-ur:19px', '--btn-fs-ur-sm:18px', '--press-y:4px'].forEach((t) => expect(root).toContain(t));
+  });
+  test('the height tokens are only ever read under wq-1b or by the new kinds (off changes nothing)', () => {
+    CSS.split('}').filter((r) => /var\(--(btn-h|btn-h2|btn-h-2l|btn-icon|r-icon)\)/.test(r)).forEach((r) => {
+      const sel = r.slice(0, r.indexOf('{')).replace(/^[\s\S]*\*\//, '').trim();
+      sel.split(',').forEach((x) => expect([x.trim(), /^(html\.wq-1b|html\[lang=ur\]\[lang\] \.wq-btn\.wq-btn--|\.wq-btn--)/.test(x.trim()) || /^@media/.test(x.trim())]).toEqual([x.trim(), true]));
+    });
+  });
+  test('a button\'s height is the token, set as height (a label line never grows it), in both languages', () => {
+    expect(CSS).toContain('html.wq-1b .wq-btn:not([class*="wq-btn--"]){display:flex;align-items:center;justify-content:center;height:var(--btn-h);min-height:0;');
+    expect(CSS).toMatch(/html\.wq-1b\[lang=ur\] \.wq-btn:not\(\[class\*="wq-btn--"\]\)\{[^}]*height:var\(--btn-h\);min-height:0/);
+    expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;');
+  });
+  test('every icon-only control is a 48 circle, and the row speakers never stretch to the row', () => {
+    expect(CSS).toMatch(/html\.wq-1b \.wq-homebtn,[^{]*\.wq-jar\{flex:none;width:var\(--btn-icon\)[^}]*border-radius:var\(--r-icon\)\}/);
+    expect(CSS).toMatch(/html\.wq-1b button\.wq-dspk\{[^}]*align-self:center;[^}]*height:var\(--btn-icon\);min-height:0;[^}]*border-radius:var\(--r-icon\)/);
+    expect(CSS).toMatch(/html\.wq-1b \.wqs-ic\{[^}]*border-radius:var\(--r-icon\)/);
+    ['icon', 'speaker'].forEach((k) => expect(kindRules()[k]).toMatch(/border-radius:var\(--r-icon\)/));
+  });
+  test('one secondary height in both languages (the Urdu face\'s 60 px button line does not stretch it)', () => {
+    expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--secondary,html[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
+    expect(CSS).not.toMatch(/--btn-h2-ur/);
   });
   test('the Urdu button sizes come from the tokens, not literals', () => {
     expect(CSS).toContain('html[lang=ur] .wq-btn{font-weight:700;font-size:var(--btn-fs-ur);line-height:1.9}');
@@ -73,9 +108,10 @@ describe('wq.css: the one button component', () => {
   });
   test('the re-skin of today\'s buttons and the gutter apply only under wq-1b', () => {
     const tail = CSS.slice(CSS.indexOf('/* ONE button system'));
-    const rules = rulesOf(tail.slice(0, tail.indexOf('@supports')));
+    const rules = rulesOf(tail.slice(0, tail.indexOf('/* The ONE button component for new markup')));
     expect(rules.length).toBeGreaterThan(20);
-    rules.forEach(({ sel }) => sel.split(',').forEach((s) => expect([s.trim(), s.trim().startsWith('html.wq-1b')]).toEqual([s.trim(), true])));
+    // top-level commas only (an :is(a,button) list is one selector)
+    rules.forEach(({ sel }) => sel.replace(/\([^()]*\)/g, '()').split(',').forEach((s) => expect([s.trim(), s.trim().startsWith('html.wq-1b')]).toEqual([s.trim(), true])));
   });
 });
 
@@ -182,5 +218,47 @@ describe('wq-home.js hold(): a short tap answers, a full hold opens', () => {
     jest.advanceTimersByTime(3000);
     expect(done).not.toHaveBeenCalled();
     expect(k.calls.vibrate).toBe(0);
+  });
+});
+
+describe('wq-home.css: the hold\'s "keep holding" line', () => {
+  const css = fs.readFileSync(path.join(WQ, 'wq-home.css'), 'utf8');
+  test('under wq-1b the hold stands over its hint, and the hint shows only when the page unhides it', () => {
+    expect(css).toContain('html.wq-1b .wq-grown{flex-direction:column;align-items:center}');
+    expect(css).toContain('html.wq-1b .wq-ghint[hidden]{display:none}');
+    expect(css).toMatch(/html\.wq-1b\[lang=ur\] \.wq-ghint\{font-family:var\(--fu\)/);
+  });
+});
+
+describe('wq-lib.js: the library page gets its answer later, and hands it to the class switch', () => {
+  // The shipped wq-lib.js on its own, as the edge's library page loads it (the library tests' fake DOM, smaller).
+  const run = (answer) => {
+    const seen = [];
+    const root = { innerHTML: '', querySelector: () => ({ addEventListener() {}, setAttribute() {}, getAttribute() {} }), addEventListener() {} };
+    const boot = { textContent: JSON.stringify({ view: 'lib', hub: 'HUBTOK', kid: 'c1', lang: 'en' }) };
+    const ctx = {
+      console, JSON, Promise, setTimeout: () => 0,
+      document: { documentElement: { classList: { contains: () => false } }, getElementById: (id) => (id === 'boot' ? boot : id === 'wql-root' ? root : null), querySelector: () => null, addEventListener() {} },
+      location: { host: 'example.test', search: '', assign() {} },
+      navigator: { userAgent: 'test' },
+      fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(answer)) }),
+      requestIdleCallback: (fn) => fn(),
+      WQT: { oneButton: (j) => seen.push(j), push: () => false },
+    };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(WQ, 'wq-lib.js'), 'utf8'), ctx);
+    return seen;
+  };
+  const flush = () => new Promise((r) => setImmediate(r));
+  test('the library\'s answer goes to WQT.oneButton (on or off, wq-tel.js decides)', async () => {
+    const on = run({ grade: '3', mine: null, grades: [], subjects: [], one_button: true });
+    await flush(); await flush();
+    expect(on).toHaveLength(1);
+    expect(on[0].one_button).toBe(true);
+    const off = run({ grade: '3', mine: null, grades: [], subjects: [] });
+    await flush(); await flush();
+    expect(off).toHaveLength(1);
+    expect(off[0].one_button).toBeUndefined();
   });
 });

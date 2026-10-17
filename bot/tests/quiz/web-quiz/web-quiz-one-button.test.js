@@ -1,7 +1,7 @@
 'use strict';
 /**
  * One button system (app_settings web_quiz_one_button): default off, on only for the stored JSON boolean true, 30 s
- * cache, fail off, never waited for. On, the quiz, hub (GET and POST), challenge menu and library answers say
+ * cache, fail off, never waited for, riding the hub's one settings read (no read of its own). On, the quiz, hub (GET and POST), challenge menu and library answers say
  * `one_button: true`; off, every answer is byte for byte the page module's own answer (the route adds nothing).
  *
  * Supabase and the loggers are the boundaries. The route tests stand in the page modules' answers (getQuiz, hub, menu,
@@ -20,17 +20,22 @@ let settingsReads = 0;
 function seed() {
   Object.assign(require('../../../shared/config/supabase'), {
     from(t) {
-      const st = { t, key: null };
+      const st = { t, key: null, keys: null };
       const b = {
         select() { return b; },
         eq(c, v) { if (c === 'key') st.key = v; return b; },
-        in() { return b; },
+        in(c, v) { if (c === 'key') st.keys = v; return b; },
         async maybeSingle() {
-          if (t === 'app_settings' && st.key === KEY) settingsReads += 1; // this switch's own reads (the one-face switch reads beside it)
           if (fail) return { data: null, error: { message: 'down' } };
           return { data: rows.find((r) => r.key === st.key) || null, error: null };
         },
-        then(res, rej) { return Promise.resolve({ data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej); },
+        then(res, rej) {
+          // the reads that carry this switch's key: the hub's one settings read (the one-face switch reads beside it)
+          if (t === 'app_settings' && (st.keys || []).includes(KEY)) settingsReads += 1;
+          if (fail && t === 'app_settings') return Promise.resolve({ data: null, error: { message: 'down' } }).then(res, rej);
+          const keyOk = (r) => (st.keys ? st.keys.includes(r.key) : !st.key || r.key === st.key);
+          return Promise.resolve({ data: t === 'app_settings' ? rows.filter(keyOk) : [], error: null }).then(res, rej);
+        },
       };
       return b;
     },
@@ -67,13 +72,23 @@ describe('the switch', () => {
     expect(OneButton.on()).toBe(false);
   });
 
-  test('a failed read: off, and off stays cached for 30 s', async () => {
+  test('a failed read: off, and off until a read lands', async () => {
     rows = [{ key: KEY, value: true }];
     fail = true;
     expect(await OneButton.flag()).toBe(false);
     expect(OneButton.on()).toBe(false);
     fail = false;
     expect(OneButton.on()).toBe(false);
+    await new Promise((r) => setImmediate(r));
+    expect(OneButton.on()).toBe(true);
+  });
+
+  test('no read of its own: the key is one of the hub\'s switches, read in the same one query', async () => {
+    rows = [{ key: KEY, value: true }, { key: 'web_quiz_hub', value: true }];
+    const f = await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
+    expect(f.hub).toBe(true);
+    expect(f.oneButton).toBe(true);
+    expect(OneButton.on()).toBe(true);
     expect(settingsReads).toBe(1);
   });
 
@@ -105,7 +120,7 @@ describe('the switch', () => {
     const t0 = Date.now();
     await OneButton.flag(t0);
     // every read from here hangs
-    require('../../../shared/config/supabase').from = () => ({ select() { return this; }, eq() { return this; }, maybeSingle: () => new Promise(() => {}) });
+    require('../../../shared/config/supabase').from = () => ({ select() { return this; }, in() { return this; }, then: () => new Promise(() => {}) });
     expect(OneButton.on(t0 + 59 * 1000)).toBe(true);
     expect(OneButton.on(t0 + 61 * 1000)).toBe(false);
   });
