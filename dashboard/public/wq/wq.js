@@ -596,7 +596,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoT: 'Whose turn is it?', whoSay: 'Tap your name.', onPhone: 'On this phone', inClass: function (c) { return 'Find your name in ' + c; },
       newKid: "I'm new", newT: 'Hello! What is your first name?', newSay: 'Just your first name.', start: 'Start', privacy: 'Only first names. No phone numbers.',
       isYou: function (n) { return 'Are you ' + n + '?'; }, isYouSub: 'Tap Yes only if this is your own name.', yesMe: "Yes, it's me", diff: function (n) { return "I'm a different " + n; },
-      vT: 'Watch the lesson (optional)', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
+      vT: 'Watch the lesson (optional)', vT3: 'Watch the lesson', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?', hintAsk: 'Need a hint?', hintNudge: 'Stuck? Tap me for a hint.',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
@@ -671,7 +671,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoT: 'آج کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', onPhone: 'اس فون پر', inClass: function (c) { return c + ' میں اپنا نام ڈھونڈیں'; },
       newKid: 'نیا نام', newT: 'السلام علیکم! آپ کا پہلا نام کیا ہے؟', newSay: 'صرف پہلا نام لکھیں۔', start: 'شروع کریں', privacy: 'صرف پہلا نام۔ فون نمبر نہیں۔',
       isYou: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, isYouSub: 'ہاں صرف تب دبائیں جب یہ آپ کا اپنا نام ہو۔', yesMe: 'جی ہاں، یہ میں ہوں', diff: function (n) { return 'میں کوئی اور ' + n + ' ہوں'; },
-      vT: 'سبق دیکھیں (اختیاری)', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
+      vT: 'سبق دیکھیں (اختیاری)', vT3: 'سبق دیکھیں', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
       qof: function (i, n) { return 'سوال ' + urDigits(i) + ' از ' + urDigits(n); }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟', hintAsk: 'اشارہ چاہیے؟', hintNudge: 'مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
@@ -1823,14 +1823,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var v = B.video;
     // A reload mid-video picks up where it was (#t= is a media fragment; the server never sees it).
     var at = S.vt > 0 ? Math.floor(S.vt) : 0;
-    var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(T.vT) + '</h2>' +
+    // From the child home's Videos door (?via=videos) with web_quiz_videos_v3 on: the play is the one primary and the
+    // heading is not "optional"; "Go to the questions" waits in the secondary style until the video ends. Else today's.
+    var door = Boolean(B.videos_v3 && params.via === 'videos');
+    var vT = door ? T.vT3 : T.vT;
+    var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>' +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
       '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
-      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
+      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
-      '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
+      '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
     if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
@@ -1843,7 +1847,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     if (vid) vid.addEventListener('timeupdate', function () { keepVideoAt(vid, false); });
     if (vid) vid.addEventListener('pause', function () { keepVideoAt(vid, true); });
-    if (vid) vid.addEventListener('ended', function () { S.vdone = 1; S.vt = 0; save(); ev('video_end', {}); });
+    if (vid) vid.addEventListener('ended', function () {
+      S.vdone = 1; S.vt = 0; save(); ev('video_end', {});
+      // The door's page: watched to the end, the questions lead again.
+      var sk = door && $('#wq-skip');
+      if (sk) { sk.className = 'wq-btn wq-go'; sk.setAttribute('data-primary', ''); if (cover) cover.removeAttribute('data-primary'); }
+    });
     on('.wq-vcover', function () {
       if (!vid || !vid.paused) return;
       try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
