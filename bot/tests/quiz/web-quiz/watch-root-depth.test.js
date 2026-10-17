@@ -62,7 +62,7 @@ const sess = (sid, sc, k, name, h, extra = {}) => ({
 });
 
 let fake;
-function seed({ root = true } = {}) {
+function seed({ root = true, resetLeague = true } = {}) {
   fake = makeFake({
     app_settings: root ? [{ key: 'web_quiz_watch_root', value: JSON.stringify(ROOT) }] : [],
     schools: [
@@ -105,7 +105,7 @@ function seed({ root = true } = {}) {
   });
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   require('../../../shared/services/quiz/web-quiz-identity-roster')._resetCache();
-  Schools._reset();
+  if (resetLeague) Schools._reset();
 }
 
 const SAVED = { ...process.env };
@@ -172,6 +172,14 @@ describe('the school league: a finish under the watch root credits no school, at
     const b = await Schools.board('ALPHA1', { now: Date.now() });
     expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 3 }));
   });
+  test('the VALUE written while the league holds its codes: the next board (a minute on) already leaves the watch side out', async () => {
+    seed({ root: false });
+    const t0 = Date.now();
+    expect((await Schools.board('ALPHA1', { now: t0 })).rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 7 }));
+    seed({ root: true, resetLeague: false });   // the settings read sees the VALUE; the league's code map is still warm
+    const b = await Schools.board('ALPHA1', { now: t0 + 2 * 60 * 1000 });
+    expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ kids: 3 }));
+  });
 });
 
 describe('the walk itself (watch-root.js underWatchRoot): fail closed', () => {
@@ -223,6 +231,54 @@ describe('a failed settings read may hide a root: the page\'s readers fail close
   });
   test('the league answers no board rather than a count that may credit a class-less child', async () => {
     failSettings();
+    await expect(Schools.board('ALPHA1', { now: Date.now() })).rejects.toMatchObject({ status: 502 });
+  });
+  test('the league answers no board on a failed settings read even while its code map is warm', async () => {
+    seed({ root: false });
+    const t0 = Date.now();
+    await Schools.board('ALPHA1', { now: t0 });   // the map is built (no VALUE yet)
+    seed({ root: true, resetLeague: false });
+    failSettings();
+    await expect(Schools.board('ALPHA1', { now: t0 + 2 * 60 * 1000 })).rejects.toMatchObject({ status: 502 });
+  });
+  // One failed settings read, then a good one, inside ONE chips call: the pool never takes a code of the other side.
+  test.each([['AB12CD', WATCH_NAMES], ['CLESS4', WATCH_NAMES], ['WFRND1', CLASS_NAMES], ['WLESS1', CLASS_NAMES]])('%s: a blip then a good read pools nothing of the other side', async (c, other) => {
+    const ctx = await WQ.resolveCode(c);
+    require('../../../shared/services/quiz/web-quiz-identity-roster')._resetCache();
+    let n = 0;
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'app_settings' && n++ === 0) b.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'db down' } }).then(res, rej);
+      return b;
+    };
+    const names = (await WQ.classChips(ctx)).map((x) => x.first);
+    expect(names.join(' ')).not.toMatch(other);
+  });
+});
+
+describe('a code read that answers {error} (not a throw) fails closed', () => {
+  function failCodeReads() {
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'quiz_share_codes') return b;
+      const inn = b.in;
+      b.in = (col, vs) => {
+        const q = inn(col, vs);
+        if (col === 'id') q.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'db down' } }).then(res, rej);
+        return q;
+      };
+      return b;
+    };
+  }
+  test('the page: a class code keeps the watch side out when the parent read answers {error}', async () => {
+    const ctx = await WQ.resolveCode('AB12CD');
+    failCodeReads();
+    expect((await WQ.classChips(ctx)).map((x) => x.first).join(' ')).not.toMatch(WATCH_NAMES);
+  });
+  test('the league: no board, never a count that credits the watch side', async () => {
+    failCodeReads();
     await expect(Schools.board('ALPHA1', { now: Date.now() })).rejects.toMatchObject({ status: 502 });
   });
 });
