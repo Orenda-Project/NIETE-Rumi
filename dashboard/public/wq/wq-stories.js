@@ -45,18 +45,19 @@
   function clockOf(ctx) {
     return ctx.clock || { now: function () { return Date.now(); }, set: function (f, ms) { return W.setTimeout(f, ms); }, clear: function (h) { W.clearTimeout(h); } };
   }
-  function req(method, url, body) {
+  function req(method, url, body, k) {
     var init = { method: method, credentials: 'same-origin', headers: { accept: 'application/json' } };
+    if (k) init.keepalive = k;
     if (body) { init.headers['content-type'] = 'application/json'; init.body = JSON.stringify(body); }
     return W.fetch(url, init).then(function (r) {
       return r.json().then(function (j) { return { status: r.status, ok: r.ok, body: j || {} }; }, function () { return { status: r.status, ok: r.ok, body: {} }; });
     });
   }
-  function post(ctx, id, ev, data, n) {
+  function post(ctx, id, ev, data, n, k) {
     if (ctx.role === 'teacher') return Promise.resolve({});
     var b = { kid: ctx.kid, book_id: id, event: ev, data: data || {} };
     if (n) b.page_n = n;
-    return req('POST', '/api/wq/stories/event/h/' + enc(ctx.token), b).then(function (r) { return r.body; }, function () { return {}; });
+    return req('POST', '/api/wq/stories/event/h/' + enc(ctx.token), b, k).then(function (r) { return r.body; }, function () { return {}; });
   }
   function tids(kid) { return String(ls('wq_st_t:' + (kid || '')) || '').split(',').filter(Boolean); }
 
@@ -312,7 +313,7 @@
       wait();
       (cache[id] && !tch ? Promise.resolve({ ok: true, body: cache[id] }) : req('GET', bookUrl())).then(function (r) {
         if (cur !== R) return;
-        if (r.status === 404) return r.body.error === 'gone' ? withQ(function () { if (cur === R) W.WQSTORIES._gone(R); }) : paint(kind('stories-off', L, t.off, '<button class="wqs-main" data-primary data-home data-tap="home">' + esc(t.home) + '</button>'));
+        if (r.status === 404) return r.body.error === 'gone' ? withQ(function (k) { if (cur === R) k ? W.WQSTORIES._gone(R) : oops(); }) : paint(kind('stories-off', L, t.off, '<button class="wqs-main" data-primary data-home data-tap="home">' + esc(t.home) + '</button>'));
         if (!r.ok) return oops();
         var go = function () { if (cur === R) start(r.body, q); };
         need('wq-readalong.js?v=' + RA_V, 'WQReadAlong', 0, r.body.lr3 && !tch && !W.WQLiveRead ? function () { need('wq-read-live.js', 'WQLive', 0, function () { need('wq-liveread.js', 'WQLiveRead', 'wq-liveread.css', go); }); } : go);
@@ -365,22 +366,21 @@
     R.drop = drop;
     // the listening clock: stopped (billed) or restarted (g)
     var ac = R.ac = function (g) { if (t0 >= 0) { acc += C.now() - t0; t0 = -1; } if (g) t0 = C.now(); };
-    function flush() {
+    function flush(k) {
       ac();
-      if (acc > 0 && !sent[pg] && P[pg]) { sent[pg] = 1; pp('story_page_listened', { ms: acc, completed: false }, pg); }
+      if (acc > 0 && !sent[pg] && P[pg]) { sent[pg] = 1; pp('story_page_listened', { ms: acc, completed: false }, pg, k); }
       acc = 0;
     }
     R.fl = flush;
-    var pp = R.pp = function (ev, d, k) { var n = P[k] && P[k].n; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n); };
+    var pp = R.pp = function (ev, d, k, ka) { var n = P[k] && P[k].n; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n, ka); };
     function kill() {
       if (cur === R) { flush(); cur = null; }
-      drop(); if (R.au) R.au.pause();
+      drop(); if (R.au) R.au.pause(); if (R.un) R.un();
     }
     R.kill = kill;
-    R.hush = function () {
+    R.hush = function () {   // the echo and Your turn's reading: wq-stories-q.js
       if (R.au) R.au.pause();
-      if (m && m.st === 'listening') m.primary(); else if (m && m.st === 'echo') Q.act('hush'); else if (R.pl) R.pl.pause();
-      if (R.lr && m.st === 'reading') R.lr.stop('hidden');
+      if (m && m.st === 'listening') m.primary(); else if (R.pl) R.pl.pause();
     };
     function fx(n) {
       var p = R.pl;
@@ -392,7 +392,7 @@
       else if (n === 'stop' && R.lr) R.lr.stop('done_tap');
     }
     function pageScreen() {
-      var p = P[m.i], im = p.image, i = m.i;
+      var p = P[m.i], im = p.image, i = m.i, ve = function () { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } };
       paint(scr('story-page', L, top(L, ic(t, 'back', t.back, '‹'), b.title, !!p.audio) + stage(p, (p.audio && p.boxes_ok ? '' : img(im.url, im.w, im.h)) + (p.audio ? '<div data-ra></div>' : '')) +
         '<div class="wqs-extra" data-extra>' + extra() + '</div><div class="wqs-lrl" data-lrl></div><div class="wqs-ctl">' +
         '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '">' + IC.prev + '</button>' +
@@ -403,7 +403,7 @@
       if (p.audio) {
         R.mount(p, {
           onEnd: ended,
-          onState: function (s) { if (!b.steady) { if (s === 'error' && R.pl) { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } } } else if (R.os) R.os(s, i); if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { ac(); m.set(m.l[m.i] ? 'listened' : 'paused'); } },
+          onState: function (s) { if (b.steady && R.os) R.os(s, i); else if (s === 'error' && R.pl) b.steady ? withQ(function (k) { if (cur === R) k ? R.os(s, i) : m.i === i && ve(); }) : ve(); if (s === 'blocked' && m.st === 'listening') { t0 = -1; m.set('paused'); } else if (s === 'paused' && m.st === 'listening') { ac(); m.set(m.l[m.i] ? 'listened' : 'paused'); } },
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { ac(1); m.set('listening'); } },
         });
       }
@@ -512,7 +512,6 @@
       else if (tap === 'back') back();
       else if (tap === 'home') home();
       else if (tap === 'retry') R.re();
-      else if (tap === 'close') m.notNow();
       else if (tap === 'snd') {
         var v = !muted(), s = root.querySelector('[data-snd]');
         if (W.WQJ && W.WQJ.mute) juice('mute', v);
@@ -521,7 +520,6 @@
         if (R.au) R.au.muted = v;
         if (s) { s.innerHTML = v ? IC.mute : IC.spk; s.setAttribute('aria-pressed', String(v)); }
       } else if (tap === 'again') { if (R.pl) { if (t0 < 0) ac(1); R.pl.replay(); if (/^(listened|paused)$/.test(m.st)) m.set('listening'); } }
-      else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }
       else if (tap === 'alt') m.altTap();
       else if (tap === 'slow') { ls('wq_st_slow:' + (ctx.kid || ''), slow() ? '0' : '1'); rate(); var sb = root.querySelector('.wqs-slow'); if (sb) sb.setAttribute('aria-pressed', String(slow())); }
       else if (tap === 'cam') { wu = !wu; zl = -1; if (wu) camTo(null); else if (li >= 0) camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }
