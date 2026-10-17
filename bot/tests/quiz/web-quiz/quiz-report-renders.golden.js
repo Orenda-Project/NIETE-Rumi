@@ -8,9 +8,9 @@ const base = (o = {}) => ({
   quiz: { id: 'q-1', topic: 'Plants', subject: 'science', grade: '5', source: 'lp_v8', date: '2026-10-05T09:00:00Z' },
   roster: { state: 'known', className: '5-A', lists: [{ id: 'l', label: '5-A' }] },
   summary: { played: 1, of: 3, avg: 60, hardestN: 2 },
-  played: [{ first: 'Ayesha', roll: 2, correct: 3, total: 4, pct: 75, onList: true }, { first: 'Bilal', correct: 1, total: 4, pct: 25, onList: false }],
-  notPlayed: [{ first: 'Hina', roll: 1, studentId: 's1' }],
-  provisional: [{ typed: 'Zed Q', sessionId: 'x', correct: 1, total: 4 }],
+  played: [{ first: 'Ayesha Testwala', roll: 2, correct: 3, total: 4, pct: 75, onList: true }, { first: 'Bilal Testwala', correct: 1, total: 4, pct: 25, onList: false }],
+  notPlayed: [{ first: 'Hina Testwala', roll: 1, studentId: 's1' }],
+  provisional: [{ typed: 'Zed Testwala', sessionId: 'x', correct: 1, total: 4 }],
   questions: [{ n: 1, text: 'Q?', correctPct: 50, wrongTop: { option: 'B', text: 'W', pct: 50 } }],
   guidance: { muddled: 'm', board: 'b', check: 'c' },
   reminder: { text: `Play ${LINK}` }, ...o });
