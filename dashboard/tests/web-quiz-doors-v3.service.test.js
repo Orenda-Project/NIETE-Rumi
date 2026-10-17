@@ -284,11 +284,13 @@ describe('the storybook shelf is asked for once per door visit (the rows arrivin
     const slots = []; let draws = 0;
     const root = {
       attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
-      get innerHTML() { return ''; }, set innerHTML(v) { draws += 1; slots.push(el({ parentNode: parent })); },
+      get innerHTML() { return ''; }, set innerHTML(v) { draws += 1; const x = el({ parentNode: parent }); x.setAttribute('data-host', 'doors'); slots.push(x); },
       querySelector: (sel) => (sel === '[data-stories-shelf]' ? slots[slots.length - 1] || null : null),
       querySelectorAll: () => [],
     };
-    return { root, slots, parent, draws: () => draws };
+    // Home drawn over the door: the home's own slot (no data-host), as wq-home.js draws it
+    const home = () => { draws += 1; slots.push(el({ parentNode: parent })); };
+    return { root, slots, parent, draws: () => draws, home };
   }
   const ROWS = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(STORIES_MANY)), json: () => Promise.resolve(STORIES_MANY) });
   test('the reader already here: one shelf fill; the redraw moves the filled shelf into the new slot (no second GET, no repaint)', async () => {
@@ -313,6 +315,20 @@ describe('the storybook shelf is asked for once per door visit (the rows arrivin
     head.filter((x) => /wq-stories\.js/.test(x.src || '')).forEach((x) => x.fire('load'));
     expect(shelf).toHaveBeenCalledTimes(1);
     expect(shelf.mock.calls[0][0]).toBe(r.slots[1]);
+  });
+  test('Home tapped before the reader answers: the late reader paints nothing on the Home screen; the next Stories visit gets its shelf', async () => {
+    const { W, head } = live({ fetchImpl: ROWS });
+    const r = drawingRoot();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    await flush();
+    r.home();
+    const shelf = jest.fn((x) => x.setAttribute('data-filled', '1'));
+    W.WQSTORIES = { shelf };
+    head.filter((x) => /wq-stories\.js/.test(x.src || '')).forEach((x) => x.fire('load'));
+    expect(shelf).not.toHaveBeenCalled();
+    W.WQDOORS.mount(r.root, BOOK_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    expect(shelf).toHaveBeenCalledTimes(1);
+    expect(shelf.mock.calls[0][0]).toBe(r.slots[r.slots.length - 1]);
   });
   test('a new visit to the door asks again (a book read since may have changed the shelf)', async () => {
     const shelf = jest.fn((x) => x.setAttribute('data-filled', '1'));

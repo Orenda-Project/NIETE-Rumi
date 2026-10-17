@@ -220,7 +220,8 @@
   // its own the door keeps its primary (primary: false); with none the shelf's first cover (or the teacher's book) is
   // the primary, and the door's fallback button steps aside while the shelf shows one (back if the shelf goes away).
   // One shelf per door visit: the rows arriving redraw the door, and the shelf the reader already filled moves into the
-  // new slot (no second GET, no repaint of covers still loading); a reader that loads late fills the slot on screen.
+  // new slot (no second GET, no repaint of covers still loading); a reader that loads late fills the door's slot on
+  // screen, and nothing when the child has left the door.
   var shelfKept = null;
   function storiesShelf(root, B, ctx) {
     var sh = root.querySelector('[data-stories-shelf]');
@@ -228,7 +229,10 @@
     var key = tok(B, ctx) + '|' + (B.kid || '') + '|' + langOf(ctx);
     var fill = function () {
       if (!window.WQSTORIES || typeof window.WQSTORIES.shelf !== 'function') return;
-      var slot = root.querySelector('[data-stories-shelf]') || sh;
+      // the slot asked for, or the door's own slot that replaced it; never another screen's (Home drawn meanwhile)
+      var cur = root.querySelector('[data-stories-shelf]');
+      var slot = cur === sh || (cur && cur.getAttribute('data-host') === 'doors') ? cur : null;
+      if (!slot) return;
       var fb = root.querySelector('[data-shelf-fallback]');
       if (shelfKept && shelfKept.key === key && shelfKept.el !== slot && slot.parentNode) {
         try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb); return; } catch (e) {}
