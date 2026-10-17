@@ -621,6 +621,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (ask !== 'off') out.invite_ask = ask;
   // An old, finished class link opens the child's hub (web-quiz-link-home.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
+  // A class link on a phone that holds a child asks "Is it <First>?" first (web-quiz-link-known.js): named only when on.
+  if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
@@ -965,6 +967,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // A hub link on the phone the hub trusted — or a chip the one-shot handset link offered (web-quiz-handset.js
     // trusts the device the same way): the child is one of that phone's own, however long ago they last played
     // (the teacher's recent-player chips below only reach the 40 newest players).
+    student = found;
+    found = null;
+  } else if (body.chip && body.via === 'known' && (found = await require('./web-quiz-link-known').kidFor(ctx, String(body.chip), body.device_ref))) {
+    // "Is it <First>?" on a class link (web_quiz_link_known_child): a child this browser holds, as the one id they
+    // are known by, so the finish reaches the home `/quiz` opens and no second child is made.
     student = found;
     found = null;
   } else if (body.chip) {
@@ -2252,6 +2259,8 @@ async function media(code, qid, { k, z } = {}) {
 
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
+  // the children this browser holds, for a class link's "Is it <First>?" (web-quiz-link-known.js)
+  knownKids: (body = {}) => require('./web-quiz-link-known').known(body, resolveCode),
   // exported for tests and the router
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it

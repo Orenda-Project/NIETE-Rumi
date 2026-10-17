@@ -92,6 +92,8 @@ router.get('/juice', handle(async () => ({ on: await require('../services/quiz/w
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 // An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
 router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
+// A class link on a phone that holds a child: the children this browser holds, for "Is it <First>?" ({kids: []} when off).
+router.post('/known', handle((req) => WebQuiz.knownKids(req.body || {})));
 // The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
 router.post('/bind', handle((req) => require('../services/quiz/web-quiz-handset').bind(req.body || {}, WebQuiz.WqError)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
