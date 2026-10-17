@@ -1125,14 +1125,18 @@ function createWebQuizRouter(opts = {}) {
   });
   // A lesson's small thumbnail (the bot draws it from the poster once; off, unknown or not drawn: 404). Kept here a day,
   // so a class opening the same shelf asks the bot once; the phone keeps it for good (the shelf's URL carries ?v=).
+  // A lesson the bot says has no picture (no_picture) is kept as such for 10 minutes, here and on the phone.
   const thumbKept = Preview.ttlCache({ max: 600, now });
+  const THUMB_NONE_MS = 10 * 60 * 1000;
+  const NO_PICTURE = { none: true };
   router.get('/wq/vt/:vid.webp', limiters.read, async (req, res) => {
     const vid = String(req.params.vid || '').toLowerCase();
     if (!VID_RX.test(vid)) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const send = (pic) => res.status(200).set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    const noPicture = () => res.status(404).set('Cache-Control', `public, max-age=${THUMB_NONE_MS / 1000}`).json({ error: 'no_picture' });
     const kept = thumbKept.get(vid);
-    if (kept) return send(kept);
+    if (kept) return kept.none ? noPicture() : send(kept);
     try {
       const out = await callBot('GET', `/api/internal/wq/vt/${vid}.webp`, req, null, { route: '/api/internal/wq/vt/:vid.webp' });
       if (out.bytes) {
@@ -1140,6 +1144,7 @@ function createWebQuizRouter(opts = {}) {
         thumbKept.set(vid, pic, CARD_KEEP_MS);
         return send(pic);
       }
+      if (out.status === 404 && out.body && out.body.error === 'no_picture') { thumbKept.set(vid, NO_PICTURE, THUMB_NONE_MS); return noPicture(); }
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
     } catch (_) {
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });

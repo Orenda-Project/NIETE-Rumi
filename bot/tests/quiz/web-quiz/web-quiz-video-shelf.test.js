@@ -160,6 +160,17 @@ describe('a subject\'s lessons from the kid\'s hub', () => {
     F.seed(supabase, [LIB, SHELF, { ...ROOT, value: 'not an id' }]);
     expect((await Lib.libHub('hubtoken', { kid: 'chip', s: 'Science' })).quiz).toBe(false);
   });
+  test('a child with no class opening Videos: the watch root is read once for all the subjects\' shelves, not once each', async () => {
+    F.seed(supabase, [LIB, SHELF, ROOT]);
+    mockKidFromHub.mockResolvedValue(SOLO_KID);
+    expect((await Lib.libHub('hubtoken', { kid: 'chip', s: 'Science' })).quiz).toBe(true);
+    const from = jest.spyOn(supabase, 'from');
+    try {
+      expect((await Lib.libHub('hubtoken', { kid: 'chip', s: 'Maths' })).quiz).toBe(true);
+      expect((await Lib.libHub('hubtoken', { kid: 'chip', s: 'English' })).quiz).toBe(true);
+      expect(from.mock.calls.filter(([t]) => t === 'app_settings')).toHaveLength(0);
+    } finally { from.mockRestore(); }
+  });
   test('off: byte-identical to a library with no such switch; the subjects list never changes', async () => {
     mockKidFromHub.mockResolvedValue(CLASS_KID);
     F.seed(supabase, [LIB]);
@@ -217,8 +228,37 @@ describe('the thumbnail', () => {
     expect(download).not.toHaveBeenCalled();
     download.mockRejectedValue(new Error('NoSuchKey'));
     expect(await Thumb.thumb(F.V(3))).toBeNull();
-    // a miss is not kept: the next ask tries again
+  });
+  test('no poster: remembered as none for 10 minutes (one storage read, not one per card view), then asked again', async () => {
+    F.seed(supabase, [LIB, SHELF]);
+    let now = 1_000_000;
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      download.mockRejectedValue(new Error('NoSuchKey'));
+      expect(await Thumb.thumb(F.V(3))).toBeNull();
+      expect(Thumb.noPicture(F.V(3))).toBe(true);
+      expect(Thumb.noPicture(F.V(1))).toBe(false);
+      download.mockResolvedValue(await poster());
+      now += 9 * 60 * 1000;
+      expect(await Thumb.thumb(F.V(3))).toBeNull();
+      expect(download).toHaveBeenCalledTimes(1);
+      now += 2 * 60 * 1000;
+      expect(await Thumb.thumb(F.V(3))).not.toBeNull();
+      expect(download).toHaveBeenCalledTimes(2);
+    } finally { clock.mockRestore(); }
+  });
+  test('the kept pictures: the least recently shown goes first when full, never one a child just saw', async () => {
+    F.seed(supabase, [LIB, SHELF]);
+    Thumb._reset(2);
     download.mockResolvedValue(await poster());
-    expect(await Thumb.thumb(F.V(3))).not.toBeNull();
+    await Thumb.thumb(F.V(1));
+    await Thumb.thumb(F.V(2));
+    await Thumb.thumb(F.V(1));          // seen again: now the freshest
+    await Thumb.thumb(F.V(3));          // full: V(2) goes, not V(1)
+    expect(download).toHaveBeenCalledTimes(3);
+    await Thumb.thumb(F.V(1));
+    expect(download).toHaveBeenCalledTimes(3);
+    await Thumb.thumb(F.V(2));
+    expect(download).toHaveBeenCalledTimes(4);
   });
 });

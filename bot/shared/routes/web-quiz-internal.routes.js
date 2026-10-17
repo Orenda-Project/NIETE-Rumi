@@ -281,10 +281,13 @@ router.get('/hub/:token', handle((req) => WaitUx.carry(OneFace.carry(require('..
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 // `l`: the page's language (en|ur, anything else dropped); read only under app_settings web_quiz_videos_v3.
 const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
-// web_quiz_video_shelf: a lesson's small thumbnail for the Videos door's shelves (off, unknown or not drawn: 404)
+// web_quiz_video_shelf: a lesson's small thumbnail for the Videos door's shelves (off: 404 not_found, never kept; a
+// lesson with no picture: 404 no_picture, kept 10 minutes so its cards do not ask storage on every view)
 router.get('/vt/:vid.webp', async (req, res) => {
   try {
-    const pic = await require('../services/quiz/web-quiz-video-thumb').thumb(req.params.vid);
+    const Thumb = require('../services/quiz/web-quiz-video-thumb');
+    const pic = await Thumb.thumb(req.params.vid);
+    if (!pic && Thumb.noPicture(req.params.vid)) return res.status(404).set('Cache-Control', `public, max-age=${Math.round(Thumb.NONE_MS / 1000)}`).json({ error: 'no_picture' });
     if (!pic) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     return res.status(200).set({ 'Content-Type': pic.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' }).send(pic.bytes);
   } catch (err) {

@@ -61,12 +61,15 @@ html[lang=ur] .wq-rtext b:has(>.wq-lat),html[lang=ur] .wq-dsec:has(>.wq-lat){lin
 .wq-vmin{position:absolute;inset-block-end:6px;inset-inline-end:6px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.66);color:#fff;font-size:13px;font-weight:800}
 .wq-vdone{position:absolute;inset-block-start:6px;inset-inline-end:6px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--ok,#2E9E5B);color:#fff;font-style:normal}
 .wq-vct{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:15px;line-height:1.3;color:var(--navy);overflow-wrap:anywhere}
-.wq-vq,.wq-vquiz{background:var(--card);color:var(--brand-d);border:2px solid var(--brand);box-shadow:0 3px 0 var(--brand-d);-webkit-tap-highlight-color:transparent}
-.wq-vq:active,.wq-vquiz:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-d)}
+.wq-vq,.wq-vquiz,.wq-vretry{background:var(--card);color:var(--brand-d);border:2px solid var(--brand);box-shadow:0 3px 0 var(--brand-d);-webkit-tap-highlight-color:transparent}
+.wq-vq:active,.wq-vquiz:active,.wq-vretry:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-d)}
 .wq-vq{min-height:48px;padding:0 14px;border-radius:14px;font-size:16px}
 .wq-vquiz{min-height:56px;margin-top:14px}
+/* a shelf whose lessons did not load: the oops line and one Try again, in the row's place */
+.wq-vrow .wq-voops{flex:1 1 auto;align-self:center;margin:0}
+.wq-vretry{flex:none;width:auto;align-self:center;min-height:48px;padding:0 16px;border-radius:999px}
 .wq-vskel .wq-vthumb{animation:wq-pulse 1.2s ease-in-out infinite;box-shadow:none}
 .wq-vskel b{display:block;height:14px;width:80%;border-radius:7px;background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
-html[lang=ur] .wq-vct,html[lang=ur] .wq-vsall,html[lang=ur] .wq-vq,html[lang=ur] .wq-vquiz{font-family:var(--fu);font-weight:400;line-height:1.9}
+html[lang=ur] .wq-vct,html[lang=ur] .wq-vsall,html[lang=ur] .wq-vq,html[lang=ur] .wq-vquiz,html[lang=ur] .wq-vretry{font-family:var(--fu);font-weight:400;line-height:1.9}
 html[lang=ur] .wq-vct .wq-lat{font-family:var(--f);font-weight:800;line-height:1.3}
 @media (prefers-reduced-motion:reduce){.wq-vskel .wq-vthumb,.wq-vskel b{animation:none}}

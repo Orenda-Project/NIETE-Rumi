@@ -134,10 +134,12 @@ function el(extra = {}) {
     querySelector: () => null, ...extra,
   };
 }
+const FAIL = Symbol('a request that fails');
 const flush = async () => { for (let i = 0; i < 8; i += 1) await new Promise((r) => setImmediate(r)); };
 function live(answers) {
   const fetch = jest.fn((url, o) => {
     const j = answers(url, o);
+    if (j === FAIL) return Promise.resolve({ ok: false, status: 504, json: () => Promise.reject(new Error('504')), text: () => Promise.resolve('') });
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(j), text: () => Promise.resolve(JSON.stringify(j)) });
   });
   const shelves = {};
@@ -235,5 +237,40 @@ describe('the watch screen\'s Quiz button outlives the end card (switch on, card
     q.fire('click');
     await flush();
     expect(go).toHaveBeenCalledWith('/q/WAT001?k=kw&to=q', 'door_quiz');
+  });
+});
+
+describe('a subject that does not load never leaves placeholders up (switch on)', () => {
+  test.each(['en', 'ur'])('%s: the failed shelf shows the oops line and one Try again; the tap reloads just that shelf', async (lang) => {
+    let maths = 0;
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? ((maths += 1) === 1 ? FAIL : { ...CH, subject: 'Maths' }) : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    const retry = el(); retry.setAttribute('data-tap', 'vretry'); retry.setAttribute('data-item', 'Maths'); retry.setAttribute('data-pos', '1');
+    t.shelves.Maths = el({ querySelectorAll: (sel) => (sel === '[data-tap]' ? [retry] : []) });
+    t.W.WQDOORS.mount(t.root, F.boot(lang, SHELF()), { token: TOKEN, lang, ev() {}, go: jest.fn() }, 'videos');
+    await flush();
+    const failed = t.shelves.Maths.innerHTML;
+    expect(failed).not.toMatch(/wq-vskel/);
+    expect(failed).toContain(lang === 'ur' ? 'اوہو! یہ نہیں کھل سکا۔' : 'This did not load.');
+    expect(count(failed, /<button class="wq-btn wq-btn--secondary[^"]*" type="button" data-tap="vretry" data-item="Maths"/g)).toBe(1);
+    expect(t.shelves.Science.innerHTML).toMatch(/class="wq-vcard"/);
+    retry.fire('click');
+    await flush();
+    expect(maths).toBe(2);
+    expect(t.shelves.Maths.innerHTML).toMatch(/class="wq-vcard"/);
+    expect(t.shelves.Maths.innerHTML).not.toMatch(/vretry|wq-vskel/);
+  });
+  test('a subject opened (See all) that does not load: the oops line and Try again, never "No videos here yet"', async () => {
+    const t = live((url) => (/[?&]s=Science/.test(url) ? FAIL : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    const B = F.boot('en', SHELF());
+    const ctx = { token: TOKEN, lang: 'en', ev() {}, go: jest.fn() };
+    const all = el(); all.setAttribute('data-tap', 'subj'); all.setAttribute('data-item', 'Science');
+    t.taps.push(all);
+    t.W.WQDOORS.mount(t.root, B, ctx, 'videos');
+    await flush();
+    all.fire('click');
+    await flush();
+    expect(t.root.innerHTML).toContain('This did not load.');
+    expect(t.root.innerHTML).not.toContain('No videos here yet.');
+    expect(t.root.innerHTML).toMatch(/data-tap="vretry" data-item="Science"/);
   });
 });

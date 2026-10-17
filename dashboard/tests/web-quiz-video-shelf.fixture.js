@@ -9,7 +9,7 @@ const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlM
 const KID = '0123456789abcdef';
 const VID = 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const VID2 = 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-const HUB = { lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false };
+const HUB = { lang: 'en', kids: [{ chip: KID, first: 'Zara Testwala', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false };
 const LIB_SUBJECTS = { grade: '3', subjects: [{ key: 'Science', n: 12, art: '/wq/art/subject-science.webp' }, { key: 'Maths', n: 9, art: '/wq/art/subject-maths.webp' }] };
 const LIB_CHAPTERS = {
   grade: '3', subject: 'Science', art: '/wq/art/subject-science.webp', tile: 'neutral',
