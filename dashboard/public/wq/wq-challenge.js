@@ -190,6 +190,11 @@
         '@keyframes wqc-pulse{50%{opacity:.3}}',
         '.wqc-hear{border:0;background:transparent;color:var(--navy);font-weight:800;font-size:15px;text-decoration:underline;cursor:pointer;padding:4px 0}',
         '.wqc-hear.wqc-pulse{animation:wqc-pulse 1.2s ease-in-out infinite}',
+        // the passage's title on a read or listen intro (wq-trail.js): the page heading's colour and weight (wq.css h1/h2,
+        // its Urdu and Urdu-polish weights), never the grey caption of .wq-sub; Urdu keeps its 20 px
+        '#wqc-ptitle{color:var(--navy);font-weight:900;font-size:20px}',
+        'html[lang=ur] #wqc-ptitle{font-weight:700}',
+        'html.wq-ur2[lang=ur] #wqc-ptitle{font-weight:400}',
         '.wqc-score{font-size:30px;font-weight:900;color:var(--navy);text-align:center;margin:0}',
         'html[lang=ur] .wqc-score{font-weight:700;line-height:2}',
         // the action stays on screen however long the story is (Urdu runs past the fold at 360x740)
@@ -1211,7 +1216,8 @@
 
   function liveResult(w) {
     // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
-    if (TR) { qa.attempted = live.v.attempted; TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
+    // the first card waits for the server's result before it draws a button the result could change (liveSettle)
+    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold({ score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
@@ -1310,12 +1316,19 @@
 
   // The checked count (the number of record) arrived: "nothing heard" or a first-line stop replaces the live result;
   // a count 3 or more away replaces the number; the growth line always uses the checked count.
+  // The Trail's held first card settles once: from the live count, while that card is still open.
+  function liveSettle() {
+    if (!(live && live.held)) return;
+    live.held = false;
+    if (S.screen === 'read-result') TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk);
+  }
   function liveChecked(r) {
-    if (!r || r.pending || r.later) return;
+    if (!r || r.pending || r.later) { liveSettle(); return; }
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
-      if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) readResult(r);
+      if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      liveSettle();
       return;
     }
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
@@ -1347,14 +1360,14 @@
       settle();
       if (r && r.pending) { pollQuiet(0); return; }
       liveChecked(r);
-    }).catch(function (e) { settle(); ev('ch_live', { ok: false, err: 'check_' + ((e && e.status) || 0) }); });
+    }).catch(function (e) { settle(); ev('ch_live', { ok: false, err: 'check_' + ((e && e.status) || 0) }); liveSettle(); });
   }
   function pollQuiet(n) {
-    if (n >= POLL_MAX) return;
+    if (n >= POLL_MAX) { liveSettle(); return; }
     setTimeout(function () {
       api('ch/result/' + encodeURIComponent(S.data.ct)).then(function (r) {
         if (r && r.pending) pollQuiet(n + 1); else liveChecked(r);
-      }).catch(function (e) { if (!(e && e.status >= 400 && e.status < 500)) pollQuiet(n + 1); });
+      }).catch(function (e) { if (!(e && e.status >= 400 && e.status < 500)) pollQuiet(n + 1); else liveSettle(); });
     }, POLL_MS);
   }
 
@@ -1371,11 +1384,20 @@
       });
     }).then(function (key) {
       show('read-wait', jug('thinking', t.listening, true));
-      return api('ch/result', resultBody({ key: key, ms: rec.ms || 0 }));
+      return resultCall(resultBody({ key: key, ms: rec.ms || 0 }));
     }).then(function (r) {
       if (r && r.pending) return pollResult(0);
       readResult(r);
     }).catch(function (e) { errorScreen(e, function () { open('read'); }); });
+  }
+
+  // The portal answers 502 bot_unreachable when its call to the bot ran out of time; the bot may still be scoring
+  // this read, so the page asks for the result as it does for a pending score (a read the bot never had polls 404).
+  function resultCall(body) {
+    return api('ch/result', body).catch(function (e) {
+      if (e && e.status === 502 && e.message === 'bot_unreachable') return { pending: true };
+      throw e;
+    });
   }
 
   var POLL_MS = 3000;
