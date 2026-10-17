@@ -489,6 +489,23 @@ async function storySendChildren(teacherId, quizId, shareCodeId, rawSessions) {
 }
 
 /**
+ * The 12 h WhatsApp quiz report's finished children for ONE class code, folded as the web report folds them when
+ * quiz_report_fold_by_child is on: children on the class list as they are, a child off it once per CHILD. Off, or
+ * when the quiz or the child facts cannot be read, the rows come back untouched (the WhatsApp report's own count:
+ * one per record). `rows` = that report's finished rows (one attempt per child already applied); order kept.
+ */
+async function foldFinishers(teacherId, quizId, shareCodeId, rows) {
+  if (!rows.length || !(await FoldFlag.on())) return rows;
+  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error || !quiz) return rows;
+  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, rows, clampLanguage(quiz.language), { foldOn: true });
+  const { counting, facts } = await onePerChildOffList(rows, who, quiz.id, true);
+  if (!facts) return rows;
+  const kept = new Set(counting);
+  return rows.filter((r) => kept.has(r));
+}
+
+/**
  * @param {string} teacherId  from the verified token, never from the request
  * @param {string} quizId
  * @param {{listId?: string|null}} [opts] the class the teacher picked on the page
@@ -634,12 +651,25 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   try { roster = await readRoster(teacherId); } catch (err) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
+  // quiz_report_fold_by_child: a child not on the class list counts once per CHILD here too, so the teacher home
+  // (which reads this count) names the same children as the quiz's own report; off, one row per record (today).
+  const foldOn = await FoldFlag.on();
+  const listedOf = (q) => { const { one } = classOf(roster, q, null); return one ? new Set(one.kids.map((k) => k.id)) : null; };
+  const offListOf = (q, rows, ids) => rows.filter((x) => !(ids && x.student_id && ids.has(x.student_id)));
+  const facts = foldOn
+    ? await childFacts(qs.flatMap((q) => offListOf(q, onePerChildAcrossCodes(sessionsOf.get(q.id) || []), listedOf(q)).map((x) => x.student_id)), null)
+    : null;
   const rows = qs.map((q) => {
     // One child per quiz across its codes (as the quiz page), and "N of M" counts the
     // class list only: a typed child who is not on it is never set against the class size.
-    const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
+    const once = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
     const { roster: view, one } = classOf(roster, q, null);
     const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
+    const byFinish = (list) => list.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
+    const kept = facts
+      ? new Set(foldByChild(byFinish(offListOf(q, once, ids)), { idOf: (x) => x.student_id, nameOf: (x) => x.student_name, facts }).map((c) => c.first))
+      : null;
+    const mine = kept ? once.filter((x) => (ids && x.student_id && ids.has(x.student_id)) || kept.has(x)) : once;
     // the same children for the average as for "N of M"
     // A storybook send has no questions: its children count as played, never as a 0 % score in an average.
     const scores = q.quiz_source === 'story' ? [] : (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
@@ -677,7 +707,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
 }
 
 module.exports = {
-  quizReport, classReport, reminderText, weekStart, gradesOf, listLabel,
+  quizReport, classReport, foldFinishers, reminderText, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
