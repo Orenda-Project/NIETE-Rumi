@@ -18,7 +18,7 @@ const WatchRoot = require('../../../shared/services/quiz/watch-root');
 const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster');
 const Videos = require('../../../shared/services/quiz/web-quiz-videos');
 
-const ID = '33333333-3333-4333-8333-777777777777';
+const ID = '33333333-3333-4333-8333-abcdefabcdef';   // hex letters, so the upper-case rows pin the lower-casing
 const UP = ID.toUpperCase();
 
 let clock = Date.now();
@@ -79,6 +79,15 @@ describe('a failed read: each reader\'s policy, named', () => {
     expect(await IdRoster.watchRootState(clock)).toEqual({ root: ID, unreadable: false });
     seed([]);
     expect(await IdRoster.watchRootState(clock)).toEqual({ root: null, unreadable: false });
+  });
+  test('a failed read is not cached: the next read, at the same clock, sees the VALUE', async () => {
+    seed([{ key: 'web_quiz_watch_root', value: ID }], { fail: true });
+    expect(await IdRoster.watchRootState(clock)).toEqual({ root: null, unreadable: true });
+    expect(await WatchRoot.watchRootId(clock)).toBeNull();
+    const good = makeFake({ app_settings: [{ key: 'web_quiz_watch_root', value: ID }] });
+    supabase.from = (t) => good.from(t);   // the store is back; no cache reset, no clock move
+    expect(await IdRoster.watchRootState(clock)).toEqual({ root: ID, unreadable: false });
+    expect(await WatchRoot.watchRootId(clock)).toBe(ID);
   });
   test('the videos module: no root, so no watch code is minted (fail closed, as today)', async () => {
     seed([{ key: 'web_quiz_watch_root', value: ID }], { fail: true });
