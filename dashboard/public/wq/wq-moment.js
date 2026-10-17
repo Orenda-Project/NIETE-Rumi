@@ -12,6 +12,8 @@
  *                               (a share card takes this, never the number)
  *   WQMoment.html(fb, lang, o)  the block (no buttons: the host keeps its own Next / Share / Home); o = {grade?, size?: 's'}
  *   WQMoment.mount(el, fb, lang, o)  the block just before `el` (or into it, o.into); one sound when the kit is there
+ *   WQMoment.page(s, p, lang, o) / hear(pl, p, s, o)  a storybook page's read: the small block (+ "Hear Jugnu say it"
+ *                               on a skipped word) and that sentence played as a slice of the page's own take
  *
  * The jar, its number and the growth line show only on the reading child's own screen (the server sends the speed only
  * to that phone) and only when the read is long enough to be honest (15 words and 6 seconds); otherwise the words, the
@@ -32,17 +34,17 @@
       num: function (n) { return n + ' words a minute'; },
       lights: function (n) { return n + ' of 5 lights'; },
       stars: function (n) { return n + ' of 3 stars'; },
-      up: 'Faster than last time!', same: 'Steady, just like last time!',
+      up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
       words: function (n) { return n === 1 ? 'آپ نے ۱ لفظ پڑھا!' : 'آپ نے ' + ud(n) + ' لفظ پڑھے!'; },
       zero: 'آئیں مل کر پڑھیں!',
       num: function (n) { return 'ایک منٹ میں ' + ud(n) + ' لفظ'; },
-      lights: function (n) { return '۵ میں سے ' + ud(n) + ' روشنیاں'; },
-      stars: function (n) { return '۳ میں سے ' + ud(n) + ' ستارے'; },
-      up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!',
-      badge: { reader: 'بہادر پڑھنے والے', star: 'ستارہ پڑھنے والے', faster: 'تیز پڑھنے والے', try: 'زبردست کوشش' }
+      lights: function (n) { return 'روشنیاں: ۵ میں سے ' + ud(n); },
+      stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
+      up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
+      badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
     }
   };
   function ud(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
@@ -146,5 +148,39 @@
     } catch (e) { /* the moment still shows */ }
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, BANDS: BANDS };
+  /* ---------- a storybook page (wq-stories-q.js after Your turn) ---------- */
+  // s: the page's read {words_read, words_total, ms, marks}; p: the page {words, audio, quality}; o.sents: the reader's
+  // sentence splitter. The sentence holding the first skipped word, as word indexes and its end in the page's take;
+  // none on a page with no voice or poor word timings (quality low)
+  function slice(p, s, o) {
+    var k = s && s.marks ? s.marks.indexOf('skipped') : -1, ss, j;
+    if (k < 0 || !p || !p.audio || p.quality === 'low' || !o || !o.sents) return null;
+    ss = o.sents(p.words || []);
+    for (j = 0; j < ss.length; j++) if (k >= ss[j][0] && k <= ss[j][1]) return { from: ss[j][0], to: ss[j][1], e_ms: (p.words[ss[j][1]] || {}).e_ms };
+    return null;
+  }
+  // {html, fb}: the small moment, then (o.hear: the practise card) "Hear Jugnu say it" when there is a sentence to play
+  function page(s, p, lang, o) {
+    o = o || {};
+    var fb = feedback({ words_read: s.words_read, words_total: s.words_total, ms: s.ms });
+    var h = html(fb, lang, { grade: o.grade, size: 's' });
+    if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
+    return { html: h, fb: fb };
+  }
+  // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop
+  var hearT = null;
+  function hear(pl, p, s, o) {
+    var x = slice(p, s, o);
+    if (!x || !pl) return;
+    if (hearT) o.clear(hearT);
+    pl.seekToWord(x.from); pl.play();
+    hearT = o.set(function tk() {
+      var a = pl.audio;
+      if (!a) { hearT = null; return; }
+      if (a.currentTime * 1000 >= x.e_ms || pl.current > x.to) { hearT = null; pl.pause(); return; }
+      hearT = o.set(tk, 40);
+    }, 40);
+  }
+
+  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, BANDS: BANDS };
 })();

@@ -1,7 +1,7 @@
-/* The reading moment (wq-moment.js; web_quiz_read_feedback). Values come from the page's tokens when they are there
+/* The reading moment (wq-moment.js; web_quiz_read_feedback). Colours come from the page's tokens when they are there
    (the adventure layer overrides them); the fallbacks are today's look. No buttons here: the host keeps its own. */
 .wq-moment{position:relative;box-sizing:border-box;margin:12px auto 16px;padding:16px;max-width:420px;width:100%;
-  border-radius:var(--r-card,20px);background:var(--card,#fff);box-shadow:var(--sh-card,0 2px 0 rgba(0,0,0,.06));
+  border-radius:var(--r-card,20px);background:var(--card,#fff);box-shadow:0 2px 0 rgba(0,0,0,.06);
   border:2px solid var(--line,#E5E7EB);text-align:center;overflow:hidden}
 .wq-moment-sky{position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(circle at 20% 15%,var(--glow,#FEF3C7) 0 6px,transparent 7px),radial-gradient(circle at 82% 25%,var(--glow,#FEF3C7) 0 4px,transparent 5px),

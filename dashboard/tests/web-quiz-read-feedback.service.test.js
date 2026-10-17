@@ -104,6 +104,26 @@ describe('WQMoment, pure', () => {
   });
 });
 
+describe('the Urdu words (after a native read)', () => {
+  test('badges name the badge, never the child: no gendered «والے / والی»; labels read right for every count', () => {
+    const M = moment();
+    const reads = [
+      M.feedback({ score: { correct: 50, attempted: 50 }, wcpm: 60, previous: { wcpm: 40 } }),   // faster
+      M.feedback({ score: { correct: 50, attempted: 50 }, wcpm: 60 }),                           // star
+      M.feedback({ score: { correct: 30, attempted: 50 }, wcpm: 30 }),                           // reader
+      M.feedback({ score: { correct: 0, attempted: 0 } }),                                       // try
+    ];
+    const ur = reads.map((fb) => M.html(fb, 'ur', { grade: 3 }));
+    expect(ur.map((h) => /data-badge="(\w+)"/.exec(h)[1])).toEqual(['faster', 'star', 'reader', 'try']);
+    for (const h of ur) expect(h).not.toMatch(/والے|والی/);
+    expect(ur[0]).toContain('رفتار کا تمغہ');
+    expect(ur[1]).toContain('پڑھائی کا ستارہ');
+    expect(ur[2]).toContain('ہمت کا تمغہ');
+    expect(ur[3]).toContain('زبردست کوشش');
+    expect(ur[2]).toContain('aria-label="ستارے: ۳ میں سے ۱"');
+  });
+});
+
 // ---- the Jugnu page's end cards (wq-trail.js with a small host) --------------------------------------------------
 const STORY_HREF = 'https://portal.example/c/tok?room=story&pid=p1';
 function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok' } = {}) {

@@ -3059,6 +3059,27 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('data-col'));
     expect(primaries(h)).toBeLessThanOrEqual(1);
   });
+  test('read_fb, a word skipped: "hear Jugnu say it" plays only the sentence with that word, from the page\'s own take, then stops', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    expect(h).toContain('data-tap="rfhear"');
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    p.log.length = 0; p.audio.currentTime = 0.1;
+    fire(root, 'rfhear');
+    expect(p.log).toEqual(['seek:0', 'play']);
+    p.audio.currentTime = 2.6; e.advance(40);   // past the sentence's last word (kite., ends 2500 ms)
+    expect(p.log).toEqual(['seek:0', 'play', 'pause']);
+    expect(e.calls.audios).toHaveLength(0);   // no second player: the ONE mute and one voice per book hold
+  });
+  test('read_fb: no replay on a page whose words are not timed well (quality low), on a page with no voice, or with no word skipped', async () => {
+    const low = book({ read_fb: 1 }); low.pages[0].quality = 'low';
+    const e1 = withMoment(env({ replies: { book: { status: 200, body: low } } })); const r1 = await openReader(e1);
+    expect(readPage1(e1, r1, ['read', 'read', 'read', 'skipped', 'read'])).not.toContain('rfhear');
+    const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
+    expect(readPage1(e2, r2, ['read', 'read', 'read', 'read', 'read'])).not.toContain('rfhear');   // "Listen again" already plays the page
+    const e3 = withMoment(env()); const r3 = await openReader(e3);
+    expect(readPage1(e3, r3, ['read', 'read', 'read', 'skipped', 'read'])).not.toContain('rfhear');   // key off
+  });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
     const done = { status: 200, body: { ok: true, sticker: true } };
     const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
