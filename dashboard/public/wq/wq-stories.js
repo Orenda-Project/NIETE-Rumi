@@ -407,7 +407,7 @@
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { ac(1); m.set('listening'); } },
         });
       }
-      // without the setting (wq-stories-q.js may not be here yet): the late voice's one look again, the next page warmed
+      // without the setting (wq-stories-q.js may not be here yet)
       if (!b.steady) {
         if (!p.audio && !p.is_picture && !ask[i]) {
           ask[i] = 1;
@@ -484,7 +484,7 @@
     function slow() { return ls('wq_st_slow:' + (ctx.kid || '')) === '1'; }
     function rate() { var a = R.pl && R.pl.audio; if (a) { a.playbackRate = slow() ? 0.85 : 1; a.preservesPitch = true; } }
     function extra() {
-      var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';   // after Your turn: wq-stories-q.js
+      var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';
       if (a) h = '<button class="wqs-sec" data-tap="alt"' + (a === 'hearFirst' ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[a]) + '</button>' + h;
       if (p.audio && /^(listened|paused|read|practise)$/.test(s)) h += '<button class="wqs-again" data-tap="again" data-sound data-trigger="tap">↻ ' + esc(t.again) + '</button>';
       return h;
