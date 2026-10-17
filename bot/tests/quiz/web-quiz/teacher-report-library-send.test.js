@@ -255,7 +255,8 @@ describe('the watch root\'s codes are not the sender\'s class; a class child\'s 
   };
   const listed = async () => (await Data.sentQuizzes(SENDER)).map((q) => q.id);
 
-  test.each([['a plain id', ROOT], ['a JSON string', JSON.stringify(ROOT)]])('the root set (%s): its child is left out everywhere; the lesson code stays', async (_, v) => {
+  test.each([['a plain id', ROOT], ['a JSON string', JSON.stringify(ROOT)],
+    ['an upper-case id padded with spaces', `  ${ROOT.toUpperCase()}\n`], ['an upper-case JSON string padded inside', JSON.stringify(` ${ROOT.toUpperCase()} `)]])('the root set (%s): its child is left out everywhere; the lesson code stays', async (_, v) => {
     seedBoth(v);
     expect(await listed()).not.toContain(WQ);
     expect(await listed()).toContain(LQ2);
@@ -345,6 +346,8 @@ describe('switch off: today\'s, byte for byte', () => {
     const b = await Data.classReport(SENDER, { now: NOW });
     expect(b.quizzes).toEqual([]);
     expect(JSON.stringify(await Data.quizReport(AUTHOR, LQ))).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
+    // every off state: the author's class tab rows carry no sent key (today's rows)
+    (await Data.classReport(AUTHOR, { now: NOW })).quizzes.forEach((q) => expect(q).not.toHaveProperty('sent'));
   };
 
   test.each(OFF_VALUES)('quiz_teacher_home %s: the sender is refused, the class tab has no library sends', async (_, home) => {

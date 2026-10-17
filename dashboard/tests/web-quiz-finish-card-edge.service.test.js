@@ -19,11 +19,12 @@ const jsonRes = (status, body) => ({ status, ok: status < 300, headers: { get: (
 const pngRes = () => ({ status: 200, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'image/png' : null) }, arrayBuffer: async () => PNG, text: async () => '' });
 const payload = () => ({ quiz: { id: 'q', code: 'AB12CD', topic: 'Plants', lang: 'en', dir: 'ltr', n: 7, questions: [] }, cls: { label: 'Class 5', chips: [] }, live: {}, video: null, preview: false, brand: 'niete', art: { class: null, invite: null, schools: null } });
 
+// one connection per request (agent: false): a pooled keep-alive socket can still reach the previous test's server
 function req(srv, path, { ua = 'Mozilla/5.0 (Linux; Android 13) Chrome/129 Mobile', method = 'GET', body = null } = {}) {
   return new Promise((resolve, reject) => {
     const headers = { host: 'portal.example', 'user-agent': ua, 'x-forwarded-proto': 'https' };
     if (body) headers['content-type'] = 'application/json';
-    const r = http.request({ host: '127.0.0.1', port: srv.address().port, path, method, headers }, (res) => {
+    const r = http.request({ host: '127.0.0.1', port: srv.address().port, path, method, headers, agent: false }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));

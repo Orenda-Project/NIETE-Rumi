@@ -52,7 +52,7 @@ test('Urdu: the same screen in Urdu', async () => {
   p.wq.results(0);
   await settle();
   expect(p.moment()).toBe('M9-pending');
-  expect(p.html()).toContain('انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔');
+  expect(p.html()).toContain('انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔');
 });
 
 test('back online: the page sends the result by itself and opens the real results', async () => {

@@ -121,11 +121,17 @@ const CHANNEL_BY_META_SOURCE = Object.freeze({
   lp_offer: 'lp_offer',
   list: 'quiz_menu',
   flow: 'quiz_menu',
+  home: 'teacher_home',
   remake: 'remake',
 });
 
 function channelOf(metaSource) {
   return CHANNEL_BY_META_SOURCE[metaSource] || 'unknown';
+}
+
+/** The `meta.source` a lesson start writes for the door it came through: the Flow, the teacher home, else the list. */
+function metaSourceOf(via) {
+  return via === 'flow' || via === 'home' ? via : 'list';
 }
 
 /**
@@ -139,4 +145,4 @@ function streamOf(source) {
   return null;
 }
 
-module.exports = { emit, channelOf, streamOf, STAGES };
+module.exports = { emit, channelOf, metaSourceOf, streamOf, STAGES };

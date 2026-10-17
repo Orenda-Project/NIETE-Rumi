@@ -28,6 +28,7 @@ const express = require('express');
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
+const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
 
@@ -100,6 +101,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
   // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
   { method: 'post', path: '/api/wq/ch/live', limiter: ['challenge', 'challengeIp'] },
+  // live reading v3: a story page's one-read speech key (the bot answers 404 while web_quiz_live_read_v3 is off)
+  { method: 'post', path: '/api/wq/lr/key', limiter: ['lrKey', 'challengeIp'] },
   // questions after Read aloud: the reached questions (no key), then one answer per tap (counted per run)
   { method: 'post', path: '/api/wq/ch/qs', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/qa', limiter: ['challenge', 'challengeIp'] },
@@ -140,7 +143,7 @@ const BOOT_COPY = { en: 'Opening the quiz…', ur: 'کوئز کھل رہا ہے�
 const CLOSED_COPY = {
   en: { title: 'This quiz has closed', say: 'Ask your teacher for a new link.', off: 'The quiz is not open right now', offSay: 'Please try again in a little while.',
     hub: 'This link has expired', hubSay: 'Send /quiz on WhatsApp to get a new one.' },
-  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے استاد سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے ٹیچر سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
     hub: 'یہ لنک پرانا ہو چکا ہے', hubSay: 'نیا لنک لینے کے لیے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔' },
 };
 
@@ -170,6 +173,11 @@ function assetVersion() {
   for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
+  // The stories reader (loaded by the home and the hub at this ?v=) and its lazy questions file (at the reader's ?v=, this
+  // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
   return h.digest('hex').slice(0, 10);
 }
 
@@ -191,7 +199,26 @@ function lockupHtml(brand, lang) {
   return `<span class="wq-brand">${markHtml(brand)}<span class="wq-lock"><b>${esc(brand.label[lang])}</b><small>${esc(brand.sub[lang])}</small></span></span>`;
 }
 
+// An Urdu preview counts in Urdu digits while the finish card's switch is on (the bot carries `card_v3: true`): the
+// teacher's link and a child's card link sit side by side in one class group, one digit system. Off: today's text.
+// A score (۳/۵) keeps its left-to-right order inside the Urdu line (U+2066…U+2069).
+const urCount = (t) => urDigits(t).replace(/[\u06F0-\u06F9]+\/[\u06F0-\u06F9]+/g, (m) => `\u2066${m}\u2069`);
+// Three Urdu descriptions as a native reader phrases them, with the same switch: the schools league ("up to 10 more
+// for the score"), the class table (no masculine form addressed to the child), a challenge (see YOUR score).
+const UR_DESC_ON = {
+  schools: 'کھیلنے کے 10 پوائنٹس، اسکور کے مطابق مزید 10 تک۔ کھیلیں اور اپنے اسکول کو اوپر لے جائیں!',
+  class: 'کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔',
+  challenge: 'وہی کوئز کھیلیں اور اپنا اسکور دیکھیں!',
+};
 function ogText(payload, view, brand) {
+  const og = ogTextOf(payload, view, brand);
+  const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  if (!ur || payload.card_v3 !== true) return og;
+  const which = payload.challenge && payload.art && payload.art.invite ? 'challenge' : view;
+  return { ...og, title: urCount(og.title), desc: urCount(UR_DESC_ON[which] || og.desc) };
+}
+
+function ogTextOf(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
@@ -640,7 +667,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -721,6 +748,8 @@ function createWebQuizRouter(opts = {}) {
     challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
     // a storybook's page and question events: ~30 a book, per child link
     stories: rateLimit({ ...common, max: 200, keyGenerator: (req) => `sh:${String((req.params && req.params.token) || clientIp(req)).slice(0, 200)}` }),
+    // a story page's one-read speech key, per hub link (a class shares one school IP): 20 a minute is a sentence every 3 s
+    lrKey: rateLimit({ ...common, max: 20, keyGenerator: (req) => `lr:${(req.body && typeof req.body.st === 'string' && req.body.st.slice(0, 200)) || clientIp(req)}` }),
   };
   // Code enumeration: only answers that came back 404 count toward this one.
   const unknownCode = rateLimit({ ...common, max: 20, keyGenerator: (req) => `u:${clientIp(req)}`,

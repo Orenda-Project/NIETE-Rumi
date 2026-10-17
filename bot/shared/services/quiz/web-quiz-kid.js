@@ -6,6 +6,7 @@
  *   dk   = hex(HMAC-SHA256(K, 'dev|'  + device ref))[0:12]                 a phone, the per-device count beside a kid
  *   cls  = hex(HMAC-SHA256(K, 'cls|'  + class id, lower-case))[0:12]       a class
  *   ukey = hex(HMAC-SHA256(K, 'ukey|' + normalised phone))[0:16]           an unknown phone, never beside kid/dk/cls
+ *   tk   = hex(HMAC-SHA256(K, 't|'    + users.id))[0:16]                   a teacher, on a log line instead of the id
  *
  * K is the env var WEB_QUIZ_KID_KEY (at least 32 bytes; never in the logs, the repo or the page, and not the token
  * secret, so rotating that never moves a kid); WEB_QUIZ_KID_KEY_V labels it (the academic year it starts, e.g.
@@ -93,6 +94,18 @@ function ukey(phoneNorm, { now = Date.now() } = {}) {
   return p ? mac('ukey', p, 16, now) : null;
 }
 
+/** A quiz's key beside a kid (EVENTS v3: a quiz id is never logged beside a kid): hex(HMAC(K, 'q|' + quiz id))[0:10]. */
+function qk(quizId, { now = Date.now() } = {}) {
+  const id = uuidOf(quizId);
+  return id ? mac('q', id, 10, now) : null;
+}
+
+/** A teacher's key from their users.id, for a log line that would otherwise carry the raw id (EVENTS v3 §6). */
+function tk(userId, { now = Date.now() } = {}) {
+  const id = userId == null ? '' : String(userId).trim();
+  return id ? mac('t', id, 16, now) : null;
+}
+
 /** The fields without any id that would join a row back to a phone, a share code or a session. Pure. */
 function stripIds(fields = {}) {
   const out = { ...fields };
@@ -119,4 +132,4 @@ async function emit(name, fields = {}, { canonicalId = null, device = null, kind
 }
 
 // kidOf / dkOf / clsOf / ukeyOf: the names the callers use (the same functions).
-module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, stripIds, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
+module.exports = { kid, dk, cls, ukey, qk, tk, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, stripIds, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };

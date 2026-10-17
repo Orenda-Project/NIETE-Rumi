@@ -50,28 +50,28 @@
     },
     ur: {
       who: 'کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; },
-      fromT: 'آپ کے استاد کی طرف سے', play: 'کھیلیں',
+      fromT: 'آپ کے ٹیچر کی طرف سے', play: 'کھیلیں',
       sent: function (d) { return d <= 0 ? 'آج بھیجا گیا' : d === 1 ? 'کل بھیجا گیا' : '<bdi>' + d + '</bdi> دن پہلے بھیجا گیا'; },
-      none: 'ابھی استاد کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
+      none: 'ابھی ٹیچر کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
       againT: 'دوبارہ کھیلیں', againRow: function (score, n) { return 'بہترین ' + score + ' · <bdi>' + n + ' بار</bdi>'; },
-      practice: 'مشق: استاد کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
+      practice: 'مشق: ٹیچر کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
       libT: 'ویڈیو لائبریری', libSub: 'مضمون اور باب چنیں',
       recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
       switchKid: 'کھلاڑی بدلیں', oops: 'کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں۔', offline: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
       someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز، ویڈیوز اور چیلنج» دبائیں۔',
       mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
-      newSay: 'اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
+      newSay: 'اپنے ٹیچر سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
       lastT: 'آپ کا پچھلا کوئز', cont: 'جاری رکھیں', soFar: function (n) { return n ? '<bdi>' + n + '</bdi> سوالوں کے جواب دیے' : 'ابھی شروع نہیں کیا'; },
       done: 'مکمل', playAgain: 'دوبارہ کھیلیں', vidT: 'ویڈیوز', vidSub: 'ایک دیکھیں اور اس کا کوئز کریں',
-      wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
+      wait: 'کھل رہا ہے…', noClass: 'پہلے ٹیچر کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ ٹیچر سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
   };
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, the name
   // first in the greeting. Off, COPY.ur is today's, untouched.
   var UR2_COPY = {
     whoSay: 'اپنا نام دبائیں۔', hi: function (n) { return '\u2068' + n + '\u2069، السلام علیکم! آج کیا کھیلیں؟'; },
-    none: 'ابھی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کھیلیں!', practice: 'مشق۔ استاد کو پہلا اسکور ہی دکھے گا۔',
+    none: 'ابھی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کھیلیں!', practice: 'مشق۔ ٹیچر کو پہلا اسکور ہی دکھے گا۔',
     chSub: 'پڑھنے اور گنتی کے کھیل', lockSay: 'یہ لنک جس کو ملا تھا، وہی کھولے۔',
     mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز اور ویڈیوز» دبائیں۔'
   };
@@ -378,6 +378,7 @@
   var homeFail = false;
   function hub() {
     batchIds(B.kid);
+    storyIn();
     if (B.home_v3 && !homeFail) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return loadOnce('wq-home', true, hub, null, function () { homeFail = true; hub(); }); }
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
@@ -439,6 +440,21 @@
     starting = false;
     if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
+
+  // A story link (#story/<id>, a teacher's class link) without the v3 home, stories on (`stories.on`): the reader
+  // (wq-stories.js) is fetched once and opens the book; leaving it draws the hub again. Switch off: nothing runs.
+  var inStory = false, storyWired = false;
+  // The reader takes its child from WQSTORIES_CTX before the page's boot JSON, which a first open rendered locked (no child).
+  function storyIn() {
+    if (!(B.stories && B.stories.on && B.kid)) return;
+    window.WQSTORIES_CTX = { token: TOKEN, kid: B.kid, lang: LANG };
+    if (B.home_v3 && !homeFail) return;
+    if (!storyWired) { storyWired = true; window.addEventListener('hashchange', storyIn); }
+    var was = inStory;
+    inStory = /^#story\//.test(location.hash || '');
+    if (inStory) { if (!window.WQSTORIES) loadOnce('wq-stories', true); }
+    else if (was) hub();
+  }
 
   /* ---------------- boot ---------------- */
   function boot() {
