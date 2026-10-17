@@ -164,6 +164,22 @@ async function cardField() {
   } catch (_) { return {}; }
 }
 
+/** `{friends_joined: {n, today}}` when web_quiz_share_joined is on and a friend joined from this child's card, else `{}`. */
+async function friendsField(chosenId) {
+  try {
+    const f = await require('./web-quiz-share-open').friendsOf(chosenId);
+    return f ? { friends_joined: { n: f.n, today: f.today === true } } : {};
+  } catch (_) { return {}; }
+}
+
+/** The count, only for a phone that may name the child (one it played on, or one its hub was opened on), else `{}`. */
+async function friendsFor(friends, chosenId, device) {
+  if (!friends || !friends.friends_joined) return {};
+  try {
+    return (await require('./web-quiz-hub-device').deviceMayName([chosenId], device)) ? friends : {};
+  } catch (_) { return {}; }
+}
+
 /**
  * The home's reads, started by the hub the moment it knows the chosen child, beside its own reads (never after them):
  * the switches, this week's runs, the finish card's switch and the phone's bindings depend on nothing but the child.
@@ -172,7 +188,9 @@ async function cardField() {
 function prefetch(chosenId, now = Date.now()) {
   const f = flags();
   const data = f.then((on) => (on.home && chosenId
-    ? Promise.all([runsOf(chosenId, now), cardField(), bindsOf(chosenId).catch(() => null)]).then(([runs, card, binds]) => ({ runs, card, binds }))
+    // "a friend joined" only rides the one share, after the card's read (its warm cache): no read of its own
+    ? Promise.all([runsOf(chosenId, now), cardField().then((card) => Promise.all([card, card.share_v4 ? friendsField(chosenId) : {}])), bindsOf(chosenId).catch(() => null)])
+      .then(([runs, [card, friends], binds]) => ({ runs, card, friends, binds }))
     : null)).catch(() => null);
   return { flags: f, data };
 }
@@ -208,9 +226,9 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const R = require('./web-quiz-home-remember');
     // (one read of the binding rows for both, beside the phone rows: no added wave)
     const rows = R.rowsFor(device);
-    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot, out.lang)]);
+    const [remember, own, phones, cd, friends] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot, out.lang), friendsFor(d.friends, chosenId, device)]);
     if (own) remember.forget_phone = true;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...phones, ...remember, ...cd };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...friends, ...phones, ...remember, ...cd };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
@@ -313,4 +331,4 @@ function practiceHubFb(token, o) {
   const fb = practiceOf(token) ? fbOf(flags()) : false;
   return Promise.all([practiceHub(token, o), fb]).then(([out, on]) => (on && out && out.home_v3 ? { ...out, home_fb: 1 } : out));
 }
-module.exports = { homeField: homeFieldFb, doorsOf, headOf, flags, practiceHub: practiceHubFb, practiceOf, prefetch: prefetchFb, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); ClassDoors._resetCache(); }, _useModules: (m) => { modules = m; } };
+module.exports = { homeField: homeFieldFb, friendsField, friendsFor, doorsOf, headOf, flags, practiceHub: practiceHubFb, practiceOf, prefetch: prefetchFb, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => { HomeFlags._resetCache(); Fallback._resetCache(); ClassDoors._resetCache(); }, _useModules: (m) => { modules = m; } };

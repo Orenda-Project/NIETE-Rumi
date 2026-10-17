@@ -446,6 +446,7 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       logToFile('⚠️ student join: the door key was not written (the binding answers the next /quiz)', { error: err.message });
     }
     const kids = [{ id }, ...set];
+    fresh(r.tok.n, id, set);
     await emit('join_done', { grade: g, kids_n: kids.length }, id, device);
     // the home this opens says once "Jugnu will remember you on this phone", with Undo (web_quiz_home_v3; off: nothing)
     await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: id, userId: who.userId });
@@ -647,17 +648,27 @@ async function noteRecognised({ phoneNorm } = {}) {
   }
 }
 
+// The NEW child a join just made, by its link's nonce (in this process, read once by opening() below): a shared card's
+// sharer gains a friend only for a new child (web_quiz_share_joined), never for a child the phone already had.
+const FRESH = new Map();
+function fresh(n, id, set) {
+  if (FRESH.size > 500) FRESH.clear();
+  FRESH.set(String(n), { id: String(id), set: (set || []).map((k) => String(k.id)) });
+}
+
 // A shared card's item kept for this phone (web_quiz_share_v4, web-quiz-share-open.js): the home link a join, a
 // landing or a pick answers with opens on it. The nonce names the phone; nothing kept, or the switch off: today's link.
 function opening(fn, nonceOf) {
   return async (args = {}) => {
     const out = await fn(args);
+    const n = nonceOf(args);
+    const made = n ? FRESH.get(String(n)) : null;
+    if (made) FRESH.delete(String(n));
     // the switch from the join's own read (its cache, warm from this join): off, nothing more is asked
     if (!out || typeof out.next !== 'string' || !(cache && cache.share === true)) return out;
     try {
-      const n = nonceOf(args);
       const who = n ? await GoNonce.peek(n) : null;
-      if (who && who.phoneNorm) out.next = await require('./web-quiz-share-open').withOpen(who.phoneNorm, out.next);
+      if (who && who.phoneNorm) out.next = await require('./web-quiz-share-open').withOpen(who.phoneNorm, out.next, made ? { fresh: made } : null);
     } catch (err) {
       logToFile('⚠️ student join: the shared item was not added (the home opens as today)', { error: err.message });
     }

@@ -5,7 +5,7 @@
  * Kept apart from web-quiz-card-image.js (which re-exports all of it) so the bot's join and home paths can ask "is the
  * one share on?" and "which item is this ref?" without loading the picture's renderer and its quiz requires.
  *
- *   on() / shareOn() / field()  the card's one settings read (30 s cache, fails closed); never throws
+ *   on() / shareOn() / joinedOn() / field()  the card's one settings read (30 s cache, fails closed); never throws
  *   ref(item) / byRef(ref)      pure / one read: the ref the join words carry (`jb1a2b3c4d` a book, `jv…` a video) and back
  */
 const supabase = require('../../config/supabase');
@@ -14,6 +14,8 @@ const { logToFile } = require('../../utils/logger');
 const KEY = 'web_quiz_card_v3';
 // The one share on top of the card (finish's `share_v4`): read in the card's own settings read, never a read of its own.
 const SHARE_KEY = 'web_quiz_share_v4';
+// "A friend joined from your card!" on top of the one share: the same read and cache, never a read of its own.
+const JOINED_KEY = 'web_quiz_share_joined';
 const TTL_MS = 30 * 1000;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,10 +30,10 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
-    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)) };
+    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)) };
     return cache.on;
   } catch (err) {
     // the read that names the share failed: the card reads its own key as before, and only the share is off
@@ -49,6 +51,14 @@ async function on(now = Date.now()) {
 /** true only with the card on AND app_settings web_quiz_share_v4 literally true (the same read and cache). */
 async function shareOn(now = Date.now()) {
   return (await on(now)) && cache.share === true;
+}
+/** true only with the one share on AND app_settings web_quiz_share_joined literally true (the same read and cache). */
+async function joinedOn(now = Date.now()) {
+  return (await shareOn(now)) && cache.joined === true;
+}
+/** The joined switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+function joinedCached() {
+  return Boolean(cache && cache.joined === true);
 }
 async function field() {
   try {
@@ -90,4 +100,4 @@ async function byRef(r) {
 
 function _reset() { cache = null; }
 
-module.exports = { KEY, SHARE_KEY, UUID_RX, REF_RX, on, shareOn, field, ref, byRef, _reset };
+module.exports = { KEY, SHARE_KEY, JOINED_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, field, ref, byRef, _reset };
