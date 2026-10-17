@@ -25,6 +25,7 @@
       jar: 'My stickers', jarNew: 'A new sticker', sndOn: 'Sound on', sndOff: 'Sound off',
       sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
       who: 'Who is playing?', someoneNew: 'Someone new?',
+      remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
     },
     ur: {
@@ -41,6 +42,7 @@
       jar: 'میرے اسٹیکرز', jarNew: 'نیا اسٹیکر', sndOn: 'آواز چالو', sndOff: 'آواز بند',
       sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
+      remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
     },
   };
@@ -78,18 +80,19 @@
     // The fallback carries the same minutes the ranker uses (quiz/video 3, story 2, numbers 1) and the thing's own art.
     if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.fromTeacher, tag: t.newQuiz, sub: B.teacher.topic || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher', art: artOfCode(B, B.teacher.code), minutes: 3 };
     if (B.last && B.last.code && B.last.state === 'open') return { kind: 'quiz', title: t.nextCont, sub: B.last.topic || '', href: quizHref(B.last.code, B.last.k), src: 'last', art: artOfCode(B, B.last.code), minutes: 3 };
+    // A game tile opens the one game it names (#next: the first not done; #numbers: the warm-up; wq-trail.js), never the list.
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
-      if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx), src: 'lantern', minutes: 2 };
+      if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx) + '#next', src: 'lantern', minutes: 2 };
       if (x.kind === 'story' && x.title) return { kind: 'story', title: t.nextStory, sub: x.title, href: chHref(B, ctx) + (x.pid ? '&room=story&pid=' + encodeURIComponent(x.pid) : ''), src: 'lantern', minutes: 2 };
-      if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'lantern', minutes: 1 };
+      if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx) + '#numbers', src: 'lantern', minutes: 1 };
     }
     var d = doorsOf(B);
     var s = d.stories.filter(function (r) { return r.kind === 'passage' || r.kind === 'listen'; })[0];
     if (s) return { kind: 'story', title: s.kind === 'listen' ? t.nextListen : t.nextStory, sub: s.title || '', href: storyHref(B, ctx, s), src: 'door', minutes: 2 };
     if (d.videos && d.videos.href) return { kind: 'video', title: t.nextVideo, sub: '', href: withHome(B, d.videos.href), src: 'door', art: d.videos.art || null, minutes: 3 };
     var g = d.games[0];
-    if (g) return g.kind === 'numbers' ? { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx), src: 'door', minutes: 1 }
+    if (g) return g.kind === 'numbers' ? { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx) + '#numbers', src: 'door', minutes: 1 }
       : { kind: 'quiz', title: g.done ? t.nextAgain : t.playQuiz, sub: g.topic || '', href: quizHref(g.code, g.k, g.done), src: 'door', art: g.art || null, minutes: 3 };
     // Nothing to offer: the primary still opens something (the Stories door); the sentence becomes the sub-line.
     return { kind: 'door', title: t.nextPick, sub: t.nextNone, href: '#stories', src: 'none' };
@@ -163,7 +166,54 @@
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
+  }
+  /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
+   * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
+   * seconds from its first paint; then it fades and this page never draws it again. Undo asks the existing
+   * POST /api/wq/bind/undo {from:'join'}: the bot erases that phone's binding (the child stays) and answers the
+   * "who are you?" page. Absent `remember`: nothing here, the home is today's. */
+  var rem = { until: 0, gone: false, timer: null, busy: false };
+  var GO_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/quiz\/go\/[A-Za-z0-9._~-]{4,600}$/;
+  function remOn(B) { return Boolean(B.remember) && !B.practice && !rem.gone && (!rem.until || Date.now() < rem.until); }
+  function rememberHtml(B, ctx) {
+    if (!remOn(B)) return '';
+    var t = C(ctx);
+    return '<p class="wq-remember" data-remember role="status"><span>' + esc(t.remember) + '</span><button class="wq-remundo" type="button" data-remember-undo>' + esc(t.remUndo) + '</button></p>';
+  }
+  function remDrop(root) {
+    rem.gone = true;
+    var x = root.querySelector('[data-remember]');
+    if (x && x.parentNode) x.parentNode.removeChild(x);
+  }
+  function remember(root, B, ctx) {
+    var line = root.querySelector('[data-remember]');
+    if (!line) return;
+    var s = Math.max(1, Math.min(60, Number(B.remember && B.remember.s) || 20));
+    if (!rem.until) rem.until = Date.now() + s * 1000;
+    if (!rem.timer) {
+      rem.timer = setTimeout(function () {
+        rem.gone = true;
+        var x = root.querySelector('[data-remember]');
+        if (!x) return;
+        x.classList.add('wq-remgone');
+        setTimeout(function () { if (x.parentNode) x.parentNode.removeChild(x); }, 600);
+      }, Math.max(0, rem.until - Date.now()));
+    }
+    var u = line.querySelector('[data-remember-undo]');
+    if (!u) return;
+    u.addEventListener('click', function () {
+      if (rem.busy) return;
+      rem.busy = true; u.disabled = true;
+      fetch('/api/wq/bind/undo', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify({ from: 'join', lang: langOf(ctx) }) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j || !j.ok) throw new Error('undo');
+          if (typeof j.next === 'string' && GO_RX.test(j.next)) { rem.gone = true; location.replace(j.next); return; }
+          remDrop(root);
+        })
+        .catch(function () { rem.busy = false; u.disabled = false; });
+    });
   }
   function rowHtml(href, title, sub, tag, kind, art) {
     var pic = art ? '<img class="wq-rart" src="' + esc(art) + '" alt="" width="48" height="48" loading="lazy" decoding="async">' : '';
@@ -216,11 +266,14 @@
     var html0 = DOORS.indexOf(name) >= 0 ? door(B, ctx, name) : html(B, ctx);
     root.innerHTML = html0;
     root.setAttribute('data-m', DOORS.indexOf(name) >= 0 ? 'H3-' + name : 'H3');
+    if (B.remember) remember(root, B, ctx);
     var ev = ctx.ev || function () {};
     var nx = DOORS.indexOf(name) < 0 ? nextOf(B, ctx) : null;
+    var shownAt = null;
     // Every home render is a home_view (the funnel's denominator); the tile it shows is a next_shown beside it.
     if (nx) {
       ev('home_view', { src: arrivedFrom(B) });
+      shownAt = Date.now();
       ev('next_shown', rankOf(B, { ctx: 'home', kind: nx.kind, pos: 0, source: nx.src === 'next' ? (/^(pinned|ranked|fallback)$/.test(B.next.source) ? B.next.source : 'ranked') : 'fallback' }));
       if (!B.practice) prefetchOnce(nx.href, ctx);
     }
@@ -231,7 +284,7 @@
         var href = el.getAttribute('href') || '';
         // The coach's preview opens nothing that needs a child: one line says where the class opens it.
         if (B.practice && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
-        if (tap === 'next') { ev('next_tap', rankOf(B, { pos: 0, kind: el.getAttribute('data-kind') })); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
+        if (tap === 'next') { ev('next_tap', rankOf(B, msToTap({ ctx: 'home', pos: 0, kind: el.getAttribute('data-kind') }, shownAt))); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
         else if (tap === 'sound') { setMuted(!muted()); mount(root, B, ctx); }
@@ -269,6 +322,8 @@
     var m = /[?&]from=([a-z_]+)/.exec((typeof location !== 'undefined' && location.search) || '');
     return (m && FROM[m[1]]) || 'home';
   }
+  // next_tap's ms_to_tap (EVENTS_V3 §2): whole ms since its next_shown on this render, never invented
+  function msToTap(e, at) { if (at != null) e.ms_to_tap = Math.max(0, Math.round(Date.now() - at)); return e; }
   // The ranking's own fields ride on next_shown / next_tap when the server's `next` carried them; never invented.
   function rankOf(B, e) {
     var n = B.next;
@@ -335,6 +390,8 @@
       '<a class="wq-btn wq-go" data-primary data-tap="lang" href="' + esc(withLang('/h/' + encodeURIComponent(ctx.token || '') + '?kid=' + encodeURIComponent(B.kid || ''), other)) + '">' + esc(t.grownLang) + '</a>' +
       (g.teacher_href ? '<a class="wq-btn wq-ghost" data-tap="teacher" href="' + esc(g.teacher_href) + '">' + esc(g.teacher_label || '') + '</a>' : '') +
       (g.stop_href ? '<a class="wq-btn wq-ghost" data-tap="stop" href="' + esc(g.stop_href) + '">' + esc(g.stop_label || '') + '</a>' : '') +
+      // the phone that made this child's link (the boot's `forget_phone`, the link's whole life): one tap forgets it
+      (B.forget_phone && !B.practice ? '<button class="wq-btn wq-ghost" type="button" data-tap="forget">' + esc(t.forget) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" type="button" data-tap="close">' + esc(t.grownClose) + '</button>';
     // Keep my place lives here on the v3 home (the card and, back from WhatsApp, its "Saved ✓ … Undo"): the sheet stays
     // in the page until Close, so the Undo lands in it. A phone already kept is told how a grown-up removes it (STOP).
@@ -354,6 +411,15 @@
       if (n === box || !n.setAttribute) return;
       n.setAttribute('inert', ''); n.setAttribute('aria-hidden', 'true'); behind.push(n);
     });
+    var fg = box.querySelector('[data-tap="forget"]');
+    if (fg) fg.addEventListener('click', function () {
+      if (fg.disabled) return;
+      fg.disabled = true;
+      fetch('/api/wq/bind/undo', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify({ from: 'home', kid: B.kid }) })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (!j || !j.ok) throw new Error('forget'); location.reload(); })
+        .catch(function () { fg.disabled = false; });
+    });
     var c = box.querySelector('[data-tap="close"]');
     if (c) c.addEventListener('click', function () {
       behind.forEach(function (n) { n.removeAttribute('inert'); n.removeAttribute('aria-hidden'); });
@@ -362,7 +428,7 @@
   }
   // The jar opens Jugnu's Book (wq-book.js); Back returns to the home.
   function book(root, B, ctx) {
-    var open = function () { if (window.WQBOOK) window.WQBOOK.open({ root: root, token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ctx.ev, back: function () { mount(root, B, ctx); } }); };
+    var open = function () { if (window.WQBOOK) window.WQBOOK.open({ root: root, token: ctx.token, kid: B.kid, lang: langOf(ctx), v3: true, ev: ctx.ev, back: function () { mount(root, B, ctx); } }); };
     if (window.WQBOOK) return open();
     loadOnce('wq-book', open, 'wq-bk-js');
   }

@@ -15,6 +15,21 @@
     return out;
   }
   S._sents = sents;
+  // a long page's Your turn in parts: <= 40 words is one part; longer pages go by consecutive lines, <= 25 words a part
+  function chunks(p, ln) {
+    var n = (p.words || []).length, out = [], a = -1, z = -1, g = [], i;
+    if (n <= 40) return [[0, n - 1]];
+    ln.l.forEach(function (x) { g.push([x.i[0], x.i[x.i.length - 1]]); });
+    if (ln.of.filter(function (x) { return x != null; }).length !== n) for (g = [], i = 0; i < n; i += 25) g.push([i, Math.min(n, i + 25) - 1]);
+    g.forEach(function (x) {
+      if (a >= 0 && x[1] - a + 1 > 25) { out.push([a, z]); a = -1; }
+      if (a < 0) a = x[0];
+      z = x[1];
+    });
+    out.push([a, z]);
+    return out;
+  }
+  S._chunks = chunks;
   var T2 = {
     en: {
       done: 'I\'m done', readNow: 'Read it aloud!', keepGoing: 'Keep going!', checking: 'Listening…',
@@ -86,21 +101,22 @@
       var p = P[m.i], LR = W.WQLiveRead, c, lh = '<div class="wqs-lr" data-lr></div>', st;
       if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, marks: [] }; }
       c = ck[ci];
-      st = R.stage(p, lh);
+      st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
-        (R.mode() === 'z' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
+        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
-      if (z) R.camLine(c[0]);
+      // the camera frames every line of the part being read, whole (both edges, any writing direction), once, and holds
+      // still while the child reads (a line's own zoom, or the larger-print floor, would push lines off the edge)
+      if (z) { var LN = R.lines(), bs = [], seen = {}; for (var i = c[0]; i <= c[1]; i++) { var n = LN.of[i]; if (n != null && !seen[n]) { seen[n] = 1; bs = bs.concat(LN.l[n].bs); } } R.camTo(bs, 1); }
+      else if (R.mode() === 'l') R.camTo([p.text_band.box], 1);
       var ws = p.words.slice(c[0], c[1] + 1), sw = spoken(ws);
       // the live reader is asked only the spoken words; its marks come back on the page's own word numbers
       var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
       if (!sw.length) return back({ words_total: 0 });
       try { lrOn(sw, back); } catch (e) { m.denied(); return; }
       R.poll = C.set(function tick() {
-        var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]'), k = 0, ss = (v && v.states) || [];
+        var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]');
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
-        while (k < ss.length - 1 && /read|heard|skipped/.test(ss[k])) k++;
-        if (z && ss.length) R.camLine(c[0] + k);
         if (R.lr) R.poll = C.set(tick, 500);
       }, 500);
     }
@@ -268,6 +284,8 @@
       K.load('wq-finish-card.js', 'wq-finish-card.css', function () { var w = fcw; fcw = true; w.forEach(function (f) { f(); }); });
     }
 
+    // the done card drew its own "More stories" tile (a link to the shelf): its tap is ours too, never a page turn
+    var fin = 0;
     function finish() {
       if (R.tch) return paint(preview());
       var c = m.counts(), tp = [], k;
@@ -279,19 +297,26 @@
       post(ctx, id, 'story_done', { pages_listened: c.pages_listened, pages_read: c.pages_read, stars: qs }).then(function (r) { need(function () {
         if (!live()) return;
         var deed = function (k) { return t[rd ? 'pagesRead' : 'pagesHeard'](K.dg(k, L), k); };
-        // with the finish card (card_v3) the card leads with its own one primary, so "More stories" is a secondary;
-        // a card that refuses leaves today's screen, drawn again with our primary
+        // with the finish card (card_v3) "More stories" is the card's Next tile and it leads (ONE primary, the share
+        // soft under it), so ours is not drawn beside it; a card that refuses leaves today's screen with our primary
+        var lo = W.location, nx = /^\/[^/]/.test(lo.pathname || '') ? { kind: 'stories', href: lo.pathname + (lo.search || '') + '#stories', title: t.more } : null;
+        // its picture: the next unread book on the shelf this page already drew (its data, its cached cover; no request)
+        var sl = nx && W.document && W.document.querySelector('[data-stories-shelf], .wq-shelf[data-shelf]'), sb = ((sl && sl._d) || {}).books || [], x;
+        for (x = 0; x < sb.length; x++) if (!sb[x].done && sb[x].id !== id && sb[x].cover) { nx.art = sb[x].cover; break; }
         var draw = function (fc) {
           paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
             (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
-            '<div class="wqs-col" data-col><button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>' +
+            '<div class="wqs-col" data-col>' + (fc && nx ? '' : '<button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>') +
             '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         };
-        var ok = false, fc = n && b.card_v3 && W.WQFC && W.WQFC.mount;
+        // the done screen is the book's end: the questions answered count as a deed on the card
+        var qa = ans.filter(function (x) { return x && x.length; }).length;
+        var ok = false, fc = (n || qa) && b.card_v3 && W.WQFC && W.WQFC.mount;
         draw(fc);
         if (fc) {
-          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: null, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
+          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, whole: true, answered: qa, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
           if (!ok) draw(false);
+          else fin = nx ? 1 : 0;
         }
         var own = root.querySelector('[data-own]');
         if (own) own.hidden = ok;
@@ -316,7 +341,7 @@
         else if (tap === 'lplay') { if (R.pl) R.pl.play(); }
         else if (tap === 'qnext') adv();
         else if (tap === 'lret') { R.drop(); qlock = 0; chosen = -1; qPaint(); }
-        else if (tap === 'more') { R.kill(); W.location.hash = '#stories'; }
+        else if (tap === 'more' || tap === 'next' && fin) { R.kill(); W.location.hash = '#stories'; }
         else return false;
         return true;
       },

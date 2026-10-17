@@ -212,3 +212,30 @@ describe('the mount wrapper (broken at load)', () => {
     } finally { await new Promise((r) => s.close(r)); }
   });
 });
+
+describe('the teacher home\'s "prepared" mark on a code the make minted (quiz_teacher_home on)', () => {
+  const R = () => require('../../shared/services/cache/railway-redis.service');
+  const { logToFile } = require('../../shared/utils/logger');
+  function seedHomeOn() {
+    seed();
+    fake.db.app_settings.push({ key: 'quiz_teacher_home', value: true });
+    require('../../shared/services/first-touch/teacher-home.flags').reset();
+  }
+  test('a store that refuses once is asked again: the code is marked prepared, the make answers as today', async () => {
+    seedHomeOn();
+    R().set.mockImplementationOnce(async () => false);
+    const res = await post('/api/ft/make', { t: tokenFor(), grade: '4', subject: 'maths', quizId: qid(2) });
+    expect(res.status).toBe(200);
+    const { shareCodeId } = await res.json();
+    expect(R().__keys.has(`th:prep:${shareCodeId}`)).toBe(true);
+  });
+  test('a store that refuses twice: the make still answers (the teacher asked for it), and the refusal is logged with no id', async () => {
+    seedHomeOn();
+    R().set.mockImplementationOnce(async () => false).mockImplementationOnce(async () => false);
+    const res = await post('/api/ft/make', { t: tokenFor(), grade: '4', subject: 'maths', quizId: qid(2) });
+    expect(res.status).toBe(200);
+    const warned = logToFile.mock.calls.filter(([m]) => /could not be marked prepared/.test(m));
+    expect(warned).toHaveLength(1);
+    expect(JSON.stringify(warned)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
+  });
+});

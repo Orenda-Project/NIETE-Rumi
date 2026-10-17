@@ -68,6 +68,15 @@ test('the landing names a story, never "questions" (EN + UR)', () => {
   expect(T.play).toBe('Play');
 });
 
+test('Jugnu greets a story as a story, never "the quiz" (EN + UR); the welcome-back line is the page\'s own', () => {
+  const M = linkModule();
+  const T = { hello: "Assalam o Alaikum! Let's play the quiz together.", helloN: (n) => `Welcome back, ${n}!`, play: 'Play' };
+  expect(M.copy(T, 'en').hello).toBe("Assalam o Alaikum! Let's read a story together.");
+  expect(M.copy(T, 'ur').hello).toBe('السلام علیکم! آئیں، کہانی پڑھیں۔');
+  ['en', 'ur'].forEach((l) => expect(M.copy(T, l).hello).not.toMatch(/quiz|کوئز/i));
+  expect(M.copy(T, 'en').helloN('Zoya')).toBe('Welcome back, Zoya!');
+});
+
 test('the door refused: a kind word and the landing again, never a dead end', async () => {
   const p = page({ B: { story: { id: BOOK } }, replies: [joined, { status: 404, ok: false, body: { error: 'no_door' } }] });
   await join(p);

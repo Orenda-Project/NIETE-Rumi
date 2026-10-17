@@ -383,3 +383,49 @@ describe('supabaseStore', () => {
     await expect(bad.upsertBook({ id: 'x' })).rejects.toThrow(/42P01/);
   });
 });
+
+describe('missedPages: the pages children opened before they had a voice', () => {
+  // story_events as rows; a query is the chain the loader builds, applied to them (eq on a column or a data->> key, gt/lte on at).
+  const db = (events, books) => ({
+    from: (table) => {
+      const f = [];
+      const b = {
+        select: () => b,
+        eq: (k, v) => { f.push((r) => String(k.startsWith('data->>') ? (r.data || {})[k.slice(7)] : r[k]) === String(v)); return b; },
+        lte: (k, v) => { f.push((r) => r[k] <= v); return b; },
+        gt: (k, v) => { f.push((r) => r[k] > v); return b; },
+        in: (k, vs) => { f.push((r) => vs.includes(r[k])); return b; },
+        order: () => b,
+        limit: () => b,
+        then: (res) => res({ data: (table === 'story_events' ? events : books).filter((r) => f.every((p) => p(r))), error: null }),
+      };
+      return b;
+    },
+  });
+  const B1 = 'b0000000-0000-4000-8000-0000000000b1';
+  const B2 = 'b0000000-0000-4000-8000-0000000000b2';
+  const at = (m) => `2026-10-16T22:${String(m).padStart(2, '0')}:00.000Z`;
+  const now = () => new Date('2026-10-16T23:00:00.000Z');
+
+  test('both shapes: a story_page_unvoiced row and a story_page_listened {miss:true} row; never a page really listened', async () => {
+    const events = [
+      { book_id: B1, page_n: 2, at: at(1), event: 'story_page_listened', data: { miss: true } },
+      { book_id: B2, page_n: 4, at: at(2), event: 'story_page_unvoiced', data: {} },
+      { book_id: B1, page_n: 3, at: at(3), event: 'story_page_listened', data: { ms: 9000, completed: true } },
+      { book_id: B2, page_n: 4, at: at(4), event: 'story_page_unvoiced', data: {} },
+    ];
+    const out = await L.missedPages(db(events, [{ id: B1, source_id: 'src-1' }, { id: B2, source_id: 'src-2' }]), { now });
+    expect(out.until).toBe('2026-10-16T23:00:00.000Z');
+    expect(out.pages).toEqual([{ book_id: B1, n: 2, source_id: 'src-1' }, { book_id: B2, n: 4, source_id: 'src-2' }]);
+  });
+
+  test('since: only rows after the last run, in either shape', async () => {
+    const events = [
+      { book_id: B1, page_n: 2, at: at(1), event: 'story_page_unvoiced', data: {} },
+      { book_id: B1, page_n: 5, at: at(30), event: 'story_page_unvoiced', data: {} },
+      { book_id: B2, page_n: 1, at: at(31), event: 'story_page_listened', data: { miss: true } },
+    ];
+    const out = await L.missedPages(db(events, [{ id: B1, source_id: 'src-1' }, { id: B2, source_id: 'src-2' }]), { since: at(10), now });
+    expect(out.pages.map((p) => `${p.source_id}/${p.n}`)).toEqual(['src-1/5', 'src-2/1']);
+  });
+});

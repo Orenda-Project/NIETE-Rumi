@@ -144,7 +144,7 @@ async function destination(o) {
       return { ...base, how: 'confirm', page: 'pick', kids: who.kids.map((k) => ({ pick: pickOf(o.p.n, k.id), first: k.first })) };
     }
     if (who.src === 'family') return { ...base, side: 'unknown', how: 'ask_no_writer', page: 'role' };
-    return { ...base, how: 'child_home', next: await Targets.child(who.children, 'quiz') };
+    return { ...base, how: 'child_home', next: await Targets.child(who.children, 'quiz', lang) };
   }
   if (who.side === 'join') return { ...base, how: 'join', next: Targets.join({ n: o.p.n, lang }) };
   return { ...base, how: 'ask', page: 'role' };

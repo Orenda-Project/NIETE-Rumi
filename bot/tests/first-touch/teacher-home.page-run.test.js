@@ -38,7 +38,7 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [] } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
   const doc = adopt(parse(html));
   const fetches = [];
@@ -60,7 +60,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200 } = {
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
-    setTimeout() {},
+    setTimeout(fn) { timers.push(fn); },
     fetch: (p, opts = {}) => {
       const body = opts.body ? JSON.parse(opts.body) : undefined;
       fetches.push({ path: p, body });
@@ -147,6 +147,31 @@ describe('"Send to my class" on the sheet', () => {
     expect(p.beacons).toEqual([{ path: '/api/th/step', body: { t: 'a.b', step: 'share_tap', kind: 'again', id: 'own1', origin: 'again', c: 'own-code' } }]);
   });});
 
+describe('a story the teacher sent this month', () => {
+  const SENT = '2026-10-12T12:00:00.000Z';
+  const lib = (stories) => ({ primary: { kind: 'none' }, library: { grade: 3, stories, all: '/all' } });
+  const STORIES = [{ id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1', sent: SENT }, { id: 'b2', title: 'Rain', href: '/s?book=b2' }];
+
+  test.each([['en', 'Sent \u2713 12/10'], ['ur', 'بھیجی گئی \u2713 ۱۲/۱۰']])('%s: only the sent book\'s row shows when it was sent, next to its title (not a button)', async (lang, chip) => {
+    const p = await open(lib(STORIES), { lang });
+    const [a, b] = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    const c = a.querySelector('.th-sent');
+    expect(c.textContent).toBe(chip);
+    expect(c.tagName).toBe('SPAN');
+    expect(c.getAttribute('data-tap')).toBeNull();
+    expect(c.parentNode.getAttribute('class')).toBe('th-row-n');
+    expect(b.querySelectorAll('.th-sent')).toHaveLength(0);
+    expect(b.querySelector('.th-row-n').textContent).toBe('Rain');
+  });
+
+  test('another grade: the rows follow the library the server answers', async () => {
+    const p = await open(lib(STORIES), { answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5', sent: SENT }, { id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    const rows = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    expect(rows.map((r) => r.querySelectorAll('.th-sent').length)).toEqual([1, 0]);
+  });
+});
+
 describe('the message box', () => {
   const LONG = {
     en: 'Assalam o Alaikum class! Your teacher sent you a quiz: Fractions.\nOpen it here: https://portal.example/q/ABCDEF\nPlay it at home and see your score.\n\nWhen you have played, tap here to tell your teacher you are done and to see more quizzes from the class.',
@@ -195,5 +220,78 @@ describe('when the home cannot load', () => {
     expect(go.hidden).toBe(false);
     expect(go.getAttribute('href')).toBe(CHAT);
     expect(p.q('#th-main').getAttribute('data-ready')).toBe('err');
+  });
+});
+
+describe('"My lessons" rows', () => {
+  const row = (p, i) => p.q('#th-rows').querySelectorAll('li')[i];
+
+  test('a sent quiz that can no longer be sent again keeps its played count and its report link, with no "Send again"', async () => {
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: [
+      { kind: 'lp', verb: null, id: null, sendKind: null, played: 15, report: '/r/live-1', title: 'Fractions' },
+      { kind: 'quiz', verb: null, id: null, sendKind: null, played: 0, title: 'Plants' },
+    ] });
+    expect(row(p, 0).querySelector('.th-row-k').textContent).toBe('Lesson plan · 15 in your class played');
+    expect(row(p, 0).querySelector('[data-tap="report"]').href).toBe('/r/live-1');
+    expect(row(p, 0).querySelector('[data-tap="again"]')).toBeNull();
+    expect(row(p, 1).querySelector('.th-row-k').textContent).toBe('Quiz sent · No one in your class has played yet');
+    expect(row(p, 1).querySelector('[data-tap="report"]')).toBeNull();
+    expect(row(p, 1).querySelector('[data-tap="again"]')).toBeNull();
+  });
+
+  test('a row that can be sent again: count, "Send again", then the report link, as before; a lesson with no quiz has no count', async () => {
+    const p = await open({ primary: { kind: 'none' }, library: LIB, timeline: [
+      { kind: 'lp', verb: 'again', id: 'q1', sendKind: 'again', played: 3, report: '/r/live-2', title: 'Seasons' },
+      { kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' },
+    ] });
+    expect(row(p, 0).querySelector('.th-row-k').textContent).toBe('Lesson plan · 3 in your class played');
+    expect(row(p, 0).children.map((c) => c.getAttribute('data-tap'))).toEqual([null, 'again', 'report']);
+    expect(row(p, 1).querySelector('.th-row-k').textContent).toBe('Lesson plan');
+    expect(row(p, 1).querySelector('[data-tap="report"]')).toBeNull();
+  });
+});
+
+describe('"Quiz this" starts one quiz, wherever it is tapped', () => {
+  const LESSON = { kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' };
+  const home = () => ({ primary: { kind: 'lesson', id: 'lp_9', make: 'lesson', from: 'lp', title: 'Water' }, library: LIB, timeline: [{ ...LESSON }] });
+  const answer = (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : {});
+  const makes = (p) => p.fetches.filter((f) => f.path === '/api/th/quiz/make');
+  const rowOf = (p) => p.q('#th-rows').querySelectorAll('li')[0];
+
+  test('from the top card: the same lesson\'s row no longer offers "Quiz this" and says the quiz is being made', async () => {
+    const p = await open(home(), { answer });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    expect(makes(p)).toHaveLength(1);
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).toBeNull();
+    expect(rowOf(p).textContent).toContain('Making your quiz…');
+  });
+
+  test('from the row: the top card no longer offers "Quiz this" for that lesson and says the quiz is being made', async () => {
+    const p = await open(home(), { answer });
+    await p.tap(rowOf(p).querySelector('[data-tap="quiz_this"]'));
+    expect(makes(p)).toHaveLength(1);
+    expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).toBeNull();
+    expect(p.q('#th-top').textContent).toContain('Making your quiz…');
+  });
+
+  test('once the quiz is ready: the top card sends it and the row offers "Send again" for that quiz', async () => {
+    const timers = [];
+    const p = await open(home(), { timers, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' }
+        : path === '/api/th/send' ? { message: 'M', wa: 'https://wa.me/?text=M' } : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    timers.splice(0).forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').querySelector('[data-tap="send"]')).not.toBeNull();
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).toBeNull();
+    await p.tap(rowOf(p).querySelector('[data-tap="again"]'));
+    expect(p.fetches.filter((f) => f.path === '/api/th/send').map((f) => [f.body.kind, f.body.id])).toEqual([['again', 'qz1']]);
+  });
+
+  test('a refused make leaves both buttons as they were', async () => {
+    const p = await open(home(), { answer: (path) => (path === '/api/th/quiz/make' ? {} : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).not.toBeNull();
+    expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).not.toBeNull();
   });
 });
