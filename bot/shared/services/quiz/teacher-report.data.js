@@ -46,6 +46,8 @@ const { excludeSelfTests } = require('./teacher-self-test');
 const { v21On } = require('./quiz-v21-flag');
 const V21 = require('./teacher-report-v21');
 const SloCode = require('./quiz-slo-code');
+const FoldFlag = require('./report-fold-flag');
+const { inChunks } = require('./web-quiz-in-chunks');
 
 const QUIZ_COLS = 'id, teacher_id, topic, subject, grade, language, quiz_source, status, list_id, meta, created_at';
 const SESSION_COLS = 'id, quiz_id, share_code_id, student_id, student_name, user_id, status, correct_answers, '
@@ -353,7 +355,7 @@ async function questionStats(quizId, counted, { codeOf = null } = {}) {
  * keys /who/class takes. Null when v2 cannot answer (no class tables, no class
  * for this teacher, a read error) — the teacher's class lists answer instead.
  */
-async function fromIdentity(code, quizId) {
+async function fromIdentity(code, quizId, { foldOn = false } = {}) {
   if (!code) return null;
   let na = null;
   try {
@@ -377,8 +379,77 @@ async function fromIdentity(code, quizId) {
     notPlayed: known && na.notPlayed
       ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number != null ? Number(k.number) : null }))
       : null,
-    provisional: known ? groupProvisional(na.provisional || []) : [],
+    // with quiz_report_fold_by_child on, quizReport folds these with the played rows' facts (one read for both)
+    provisional: known ? (foldOn ? null : groupProvisional(na.provisional || [])) : [],
+    provisionalRaw: known && foldOn ? na.provisional || [] : [],
   };
+}
+
+/** The provisional list by child (quiz_report_fold_by_child on, facts read), else by typed name (today). */
+function provisionalRows(rows, facts) {
+  if (!facts) return groupProvisional(rows);
+  const sorted = rows.slice().sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
+  return foldByChild(sorted, { idOf: (r) => r.studentId, nameOf: (r) => r.typed, facts })
+    .map((c) => ({ ...c.first, repeats: c.n }));
+}
+
+/**
+ * quiz_report_fold_by_child: for off-list records, who each one is (`merged_into ?? id`) and the phones it is bound
+ * to (child_phone_bindings.phone_tomb, revoked or not: a phone the child used) — its own and its merged-into record's.
+ * → Map id → { who, phones }, or null when either read fails (the caller then folds by typed name, as today).
+ * `merged_into` is followed ONE step (A → B); a chain A → B → C is not resolved further (the merge path writes the
+ * surviving record directly, so a chain is not expected).
+ */
+async function childFacts(ids, quizId) {
+  const uniq = [...new Set(ids.filter(Boolean).map(String))];
+  const out = new Map();
+  if (!uniq.length) return out;
+  try {
+    const kids = await inChunks(() => supabase.from('students').select('id, merged_into'), 'id', uniq);
+    const whoOf = new Map(uniq.map((id) => [id, id]));
+    kids.forEach((k) => { if (whoOf.has(String(k.id)) && k.merged_into) whoOf.set(String(k.id), String(k.merged_into)); });
+    const lookup = [...new Set([...uniq, ...whoOf.values()])];
+    const binds = await inChunks(() => supabase.from('child_phone_bindings').select('canonical_id, phone_tomb'), 'canonical_id', lookup);
+    const phonesOf = new Map();
+    binds.forEach((b) => {
+      if (!b.phone_tomb) return;
+      const k = String(b.canonical_id);
+      if (!phonesOf.has(k)) phonesOf.set(k, new Set());
+      phonesOf.get(k).add(String(b.phone_tomb));
+    });
+    uniq.forEach((id) => {
+      const who = whoOf.get(id);
+      out.set(id, { who, phones: new Set([...(phonesOf.get(id) || []), ...(phonesOf.get(who) || [])]) });
+    });
+    return out;
+  } catch (err) {
+    logToFile('⚠️ teacher report: child facts unreadable — same-name rows fold as before', { quizId, error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Off-list records (earliest finish first) → one cluster per child: { first, n }. A record joins the first cluster
+ * that is the same child (`who`), or has its typed name and shares a phone with it, or where either side has no
+ * binding (a fresh browser cannot be told apart). The same typed name on two different phones starts a new cluster.
+ */
+function foldByChild(records, { idOf, nameOf, facts }) {
+  const clusters = [];
+  records.forEach((r) => {
+    const id = idOf(r) ? String(idOf(r)) : null;
+    const f = (id && facts.get(id)) || { who: id, phones: new Set() };
+    const name = typedKey(nameOf(r));
+    const sharesPhone = (c) => f.phones.size === 0 || c.phones.size === 0 || [...f.phones].some((ph) => c.phones.has(ph));
+    const c = clusters.find((x) => (f.who && x.whos.has(f.who)) || (name && x.name === name && sharesPhone(x)));
+    if (c) {
+      c.n += 1;
+      if (f.who) c.whos.add(f.who);
+      f.phones.forEach((ph) => c.phones.add(ph));
+    } else {
+      clusters.push({ first: r, n: 1, name, whos: new Set(f.who ? [f.who] : []), phones: new Set(f.phones) });
+    }
+  });
+  return clusters;
 }
 
 /** A typed name's grouping key: identity v2's canonical form (case, spaces, script folded). */
@@ -458,16 +529,25 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   // Identity v2 answers first. A legacy class list the teacher picked on the page,
   // or the quiz's own list_id, still decides when v2 does not KNOW the class
   // (a list with no class behind it: legacy-only teachers).
-  let who = await fromIdentity(primary, quizId);
+  const foldOn = await FoldFlag.on();
+  let who = await fromIdentity(primary, quizId, { foldOn });
   if (!who || (who.roster.state !== 'known' && (listId || quiz.list_id))) {
     who = await fromLists(teacherId, quiz, listId, counted, lang);
   }
 
   // A child not on the list who typed the same name on this quiz more than once (a fresh
   // phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
+  // With quiz_report_fold_by_child on, ONE child is the same child (merged_into ?? student_id) or the same typed name
+  // on a shared phone / no binding; the same name on two different phones is two children.
+  const byFinish = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
+  const offList = foldOn ? byFinish.filter((s) => !who.listed(s)) : [];
+  const provisionalRaw = foldOn ? who.provisionalRaw || [] : [];
+  const facts = foldOn ? await childFacts([...offList.map((s) => s.student_id), ...provisionalRaw.map((r) => r.studentId)], quizId) : null;
+  const kept = facts ? new Set(foldByChild(offList, { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
   const sameTyped = new Map();
-  const counting = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+  const counting = byFinish
     .filter((s) => {
+      if (kept) return who.listed(s) || kept.has(s);
       if (who.listed(s)) return true;
       const k = typedKey(s.student_name);
       if (!k) return true;
@@ -487,7 +567,8 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       ...(tries ? { attempts: tries.get(V21.childKey(s)) || 1 } : {}),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
-  const { roster: rosterView, notPlayed, provisional } = who;
+  const { roster: rosterView, notPlayed } = who;
+  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts);
 
   const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
