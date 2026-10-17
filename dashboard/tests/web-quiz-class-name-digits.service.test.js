@@ -73,7 +73,7 @@ describe('English pages are untouched', () => {
       card: page({ lang: 'en', cls: EN_CLS, brand: BRAND, store: finished() }).html(),
     });
     const file = path.join(__dirname, 'fixtures', 'class-name-digits-en.golden.json');
-    if (process.env.CLASS_DIGITS_GOLDEN_WRITE === '1') fs.writeFileSync(file, `${got}\n`);
+    // Recorded once from the base code; to re-record, write `${got}\n` to `file` by hand for one run.
     expect(got).toBe(fs.readFileSync(file, 'utf8').trimEnd());
   });
 });

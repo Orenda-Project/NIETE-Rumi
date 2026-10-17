@@ -65,7 +65,7 @@ beforeEach(() => {
   process.env.WEB_QUIZ_KID_KEY = 'c'.repeat(40);
   jest.spyOn(NO, 'armOf').mockReturnValue('rank');
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
 describe('#C49a: an opened, unfinished activity counts as one shown-without-a-tap, not as done', () => {
   // The game is the ranked alt under the video, so "the same tile came back" is the carry-on and nothing else.
@@ -172,6 +172,8 @@ describe('#C50: a render never uses up the once-a-day tile', () => {
   });
 
   test('a door tapped from the home that showed it (the page\'s door_tap, through the relay): spent', async () => {
+    // The relay stamps the tap with the real clock; pin it to the views' NOW so the day is the same on any run date.
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
     await seed(true);
     expect((await view([video, book])).id).toBe('sb-7');
     Svc.events({ ht: T.signHub([KID]), chip: T.chipId('h', KID), events: [{ n: 'door_tap', door: 'stories', pos: 1 }] }, { device: DEV });
