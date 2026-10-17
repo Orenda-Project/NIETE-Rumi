@@ -99,12 +99,12 @@ describe('one grammar concept once', () => {
 });
 
 describe('story-name cue', () => {
-  test('DOC: a stem naming the key and a second option is no story cue, but the one-word-key rule (stemGivesKey) still holds one', () => {
+  test('a stem naming the key and a second option is no cue, for the story rule and the one-word-key rule alike: both stay', () => {
     const a = 'ببلو نے اسلم اور کیک کے بارے میں ڈائری میں کیا لکھا؟';
     const b = 'ببلو نے اپنے دوست کے لیے کیا بنانے کا سوچا؟';
     const { stems } = paper([mcq(a, ['الف) سالگرہ', 'ب) کہانی', 'ج) نظم', 'د) خط'], 'الف) سالگرہ'),
       mcq(b, ['الف) کھیر', 'ب) حلوہ', 'ج) کیک', 'د) اسلم'], 'ج) کیک')]);
-    expect(stems.includes(a) && stems.includes(b)).toBe(false);
+    expect(stems.includes(a) && stems.includes(b)).toBe(true);
   });
   test('a story stem that names only the key option holds one of the pair', () => {
     const a = 'ببلو نے کیک بنانے کے لیے کس سے مدد مانگی؟';
