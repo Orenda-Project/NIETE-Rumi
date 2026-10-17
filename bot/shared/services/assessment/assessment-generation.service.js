@@ -1982,6 +1982,38 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
   }
 }
 
+/**
+ * Social Studies: the first-ask spares a D slot could take when the reader's re-check might leave it
+ * short. A slot is at risk when it is short with every replacement taken off; its spares are the items
+ * of `source` (the model's replies) that a layout of the paper, without the replacements, places in
+ * it: new against everything the layout holds against, and not an item the reader caught. Laid out
+ * (their slot, marks and lines set). None when no slot is at risk.
+ */
+function _sstSpares({ exam, source, replacements, caught, lay }) {
+  if (!source) return [];
+  const without = replacements.reduce((e, q) => _dropItems(e, q.slot, new Set([_readerId(q)])), exam);
+  const risk = new Set(lay(without).shortfall.map((f) => f.slot).filter((slot) => SST_D_SLOTS.includes(slot)));
+  if (!risk.size) return [];
+  const onPaper = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+  const caughtIds = new Set(caught.map((h) => _readerId(h.q)));
+  const trial = lay(_topUp(without, source, risk)).examJson;
+  return [...risk].flatMap((slot) => Reader.itemsOf(trial, slot))
+    .filter((q) => !onPaper.has(_readerId(q)) && !caughtIds.has(_readerId(q)));
+}
+
+// The paper with the given laid-out items added at the end of their slots' lists.
+function _withItems(examJson, list) {
+  const out = JSON.parse(JSON.stringify(examJson));
+  for (const q of list) {
+    const slot = q.slot;
+    const lists = Object.values(out.unseen || {}).flatMap((types) => Object.values(types || {})).filter(Array.isArray);
+    const home = lists.find((l) => l.some((x) => x && x.slot === slot));
+    if (home) home.push(JSON.parse(JSON.stringify(q)));
+    else out.unseen = _mergeSections([out, { unseen: { _spares: { [slot]: [JSON.parse(JSON.stringify(q))] } } }]).unseen;
+  }
+  return out;
+}
+
 // ── The reader pass (Social Studies) ───────────────────────────────────
 //
 // The same read for T6-A: the reader judges the Q5, Q6 and Q7 items (a duplicate, a whole answer
@@ -1993,14 +2025,18 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
 // items (applyLayout), and a paper the pass would leave short fails closed (PATTERN_SHORT_SLOT, with
 // this record on it), never printing a caught item to fill the place. A read that fails prints the
 // paper as it was: no caught item is known.
+// A D slot the replacements alone could not fill also offers its first-ask spares (`source`: what the
+// model wrote, before the layout): the items the layout finds new but had no room for. They are read
+// in the same re-check as the replacements, and one fills a place only when the slot is short without
+// it; a spare the re-check flags never prints either.
 const SST_D_SLOTS = ['social_studies.D.Q6', 'social_studies.D.Q7'];
 const _labelSlot = (label) => ({ Q5: 'social_studies.C.Q5', Q6: 'social_studies.D.Q6', Q7: 'social_studies.D.Q7' })[String(label).split('.')[0]];
 
-async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
+async function _readerPassSst({ examJson, source = null, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
   const began = Date.now();
   const readUsages = [];
   const sectionUsages = [];
-  const stats = { flagged: 0, replaced: 0, still_flagged: 0, taken_off: 0 };
+  const stats = { flagged: 0, replaced: 0, still_flagged: 0, taken_off: 0, spares_read: 0, spares: 0 };
   const items = [];
   const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
   const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
@@ -2066,19 +2102,50 @@ async function _readerPassSst({ examJson, P, key, layoutScope, now, pattern, bui
         exam = laid.examJson;
       }
       replacements = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !keptIds.has(_readerId(q)));
-      if (replacements.length) {
+      const replacedIds = new Set(replacements.map(_readerId));
+      const spares = _sstSpares({ exam, source, replacements, caught: held, lay });
+      let spareFlags = [];
+      if (replacements.length || spares.length) {
+        // The paper as the re-check reads it: the replacements in place, the spares after them.
+        const readExam = _withItems(exam, spares);
+        const ids = new Set([...replacedIds, ...spares.map(_readerId)]);
+        const judged = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(readExam, slot)).filter((q) => ids.has(_readerId(q)));
+        stats.spares_read = spares.length;
         try {
-          const again = await ask(exam, replacements);
-          still = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item), slot: _labelSlot(f.item) }));
+          const again = await ask(readExam, judged);
+          const flags = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item), slot: _labelSlot(f.item) }));
+          still = flags.filter((h) => replacedIds.has(_readerId(h.q)));
+          spareFlags = flags.filter((h) => !replacedIds.has(_readerId(h.q)));
           stats.rechecked = true;
         } catch (err) {
           stats.rechecked = false;
+          // An unread spare is never offered: only the replacements are kept, as before.
+          spareFlags = spares.map((q) => ({ q, slot: q.slot }));
           logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
         }
       }
       if (still.length) {
         laid = lay(without(exam, still));
         exam = laid.examJson;
+      }
+      const flaggedSpares = new Set(spareFlags.map((h) => _readerId(h.q)));
+      const clean = spares.filter((q) => !flaggedSpares.has(_readerId(q)));
+      if (clean.length && laid.shortfall.some((f) => SST_D_SLOTS.includes(f.slot))) {
+        const before = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+        laid = lay(_withItems(exam, clean));
+        exam = laid.examJson;
+        _blankWordsStems(exam, P, key);
+        if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
+          laid = lay(exam);
+          exam = laid.examJson;
+        }
+        // Nothing the reader caught comes back as a spare, whatever form the model wrote it in.
+        const gone = [...held, ...still, ...spareFlags];
+        if (gone.some((h) => SST_D_SLOTS.some((slot) => Reader.itemsOf(exam, slot).some((q) => _readerId(q) === _readerId(h.q))))) {
+          laid = lay(without(exam, gone.map((h) => ({ ...h, slot: h.slot || h.q.slot }))));
+          exam = laid.examJson;
+        }
+        stats.spares = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !before.has(_readerId(q))).length;
       }
     }
     return settle(laid.shortfall.length ? 'the paper would be short' : null);
@@ -2364,7 +2431,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // The reader pass reads a whole paper only: a short one fails below as it always has.
   if (readerPass && Reader.READER_SUBJECTS.includes(key) && !laid.shortfall.length && !_emptyQuestionParts(examJson).length) {
     const read = await (key === 'social_studies' ? _readerPassSst : _readerPass)({
-      examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId,
+      examJson, source: key === 'social_studies' ? merged() : null, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId,
     });
     examJson = read.examJson;
     if (read.laid) laid = read.laid;
