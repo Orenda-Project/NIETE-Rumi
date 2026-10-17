@@ -353,6 +353,19 @@ describe('the confirm rows and the events', () => {
     expect(logEvent).toHaveBeenCalledWith('teacher_send', expect.objectContaining({ w: 's', kind: 'video', origin: 'library', again: false, id: qid(2) }));
   });
 
+  test('a kid key shorter than 32 bytes: the home open carries no tk and is never a first open', async () => {
+    const key = process.env.WEB_QUIZ_KID_KEY;
+    try {
+      seed();
+      await boot(deps);
+      require('../../shared/services/cache/railway-redis.service').__keys.clear();
+      process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(31);
+      await get(`/api/th/home?t=${tokenFor()}&g=4`);
+      const open = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => f);
+      expect(open).toEqual([expect.objectContaining({ tk: null, first: false })]);
+    } finally { process.env.WEB_QUIZ_KID_KEY = key; }
+  });
+
   test('a kid key shorter than 32 bytes is no key (as for the child side): tk is null; 32 bytes keys it', async () => {
     const key = process.env.WEB_QUIZ_KID_KEY;
     try {

@@ -129,7 +129,7 @@ function createRouter(deps = null) {
   /**
    * The teacher's first open of the home ever (a year-long SET NX on the event key); false when it cannot be told. The
    * client's setNX answers true when the store is down or fails (it never blocks its callers), so a true is believed
-   * only when the key now reads back.
+   * only when the key now reads back. The key is the teacher's tk, so a rotated kid key re-arms every first open.
    */
   async function firstOpen(uid) {
     const tk = tkOf(uid);
