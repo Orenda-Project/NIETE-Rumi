@@ -523,6 +523,22 @@ describe('the hub door for a story session', () => {
     Stories._reset();
     await expect(Door.door({ st, story: 1 }, Err)).rejects.toMatchObject({ status: 404 });
   });
+  test('fast first page on (web_quiz_fast): the story door also names the child\'s hub chip, so the hub can start the book at once; off: {href} only (golden)', async () => {
+    const Fast = require('../../../shared/services/quiz/web-quiz-fast');
+    const { st } = await storySession();
+    Fast._reset();
+    const off = await Door.door({ st, story: 1 }, Err);
+    expect(Object.keys(off)).toEqual(['href']);
+    db.app_settings.push({ key: 'web_quiz_fast', value: true });
+    Fast._reset(); Fast.on(); await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(Fast.on()).toBe(true);
+    const on = await Door.door({ st, story: 1 }, Err);
+    expect(on.href).toBe(off.href);
+    expect(on.kid).toBe(T.chipId('h', KID_A));
+    // a results-card door (not a story) stays {href} with the switch on
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_fast');
+    Fast._reset();
+  });
   test('a quiz that is not a story never opens early', async () => {
     db.quizzes.push({ id: 'q-video', quiz_source: 'video', meta: {}, topic: 'A video' });
     db.quiz_share_codes.push({ id: 'sc-v', code: 'VV22VV', quiz_id: 'q-video', teacher_user_id: TEACHER, active: true, expires_at: new Date(Date.now() + 864e5).toISOString(), invited_by_student_id: null });

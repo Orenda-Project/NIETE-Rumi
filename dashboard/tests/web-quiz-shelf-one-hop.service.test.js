@@ -81,7 +81,7 @@ async function fastOpen(payload) {
 const inline = (html) => (html.match(/<script>([\s\S]*?)<\/script>/g) || []).map((s) => s.replace(/^<script>|<\/script>$/g, ''));
 
 /** A phone: the page's inline scripts in order, in a vm with a fake head, fetch and Image. */
-function phone({ hash = '', store = {}, answers = {} } = {}) {
+function phone({ hash = '', search = '', store = {}, answers = {} } = {}) {
   const head = [];
   const fetches = [];
   const pictures = [];
@@ -94,7 +94,7 @@ function phone({ hash = '', store = {}, answers = {} } = {}) {
     return res;
   };
   const win = {
-    location: { hash, search: '', pathname: `/h/${TOKEN}` },
+    location: { hash, search, pathname: `/h/${TOKEN}` },
     localStorage: { getItem: (k) => (ls.has(k) ? ls.get(k) : null), setItem: (k, v) => ls.set(k, String(v)) },
     fetch: (url, init) => { fetches.push({ url, init }); return Promise.resolve(answer(url)); },
     Image: function Image() { const im = {}; pictures.push(im); return im; },
@@ -186,6 +186,32 @@ describe.each(['en', 'ur'])('switch on (%s): the tail starts the reads before an
   test('the phone remembers whether its home is the v3 home (for the next open\'s head)', async () => {
     expect((await run('')).ls.get('wq_h3')).toBe('1');
     expect((await run('', HUB({ fast: true, lang, home_v3: 0 }), { wq_h3: '1' })).ls.get('wq_h3')).toBe('0');
+  });
+});
+
+describe.each(['en', 'ur'])('switch on (%s): a class link to a story (?kid=<chip>#story/<id>) starts the book before the server answers', (lang) => {
+  const BOOK = { id: 'b-lost-deer', lang, pages: [{ n: 1, image: { url: '/s/b-lost-deer/p1.webp', w: 720, h: 960 } }] };
+  const bookUrl = `/api/wq/stories/book/b-lost-deer/h/${encodeURIComponent(TOKEN)}?kid=${KID}`;
+  test('the head alone asks for the book and its first picture; the tail does not ask again', async () => {
+    const { early, body } = await fastOpen(HUB({ fast: true, lang }));
+    const p = phone({ hash: '#story/b-lost-deer', search: `?from=link&kid=${KID}&lang=${lang}`, answers: { '/stories/book/': BOOK } });
+    inline(early).forEach(p.run);
+    await flush(); await flush();
+    expect(p.fetches.map((f) => f.url)).toEqual([bookUrl]);
+    expect(p.pictures.map((i) => i.src)).toEqual(['/s/b-lost-deer/p1.webp']);
+    const tail = body.slice(early.length);
+    inline(tail.slice(0, tail.indexOf('<script src='))).forEach(p.run);
+    await flush();
+    expect(p.fetches.map((f) => f.url)).toEqual([bookUrl]);
+  });
+  test('no chip, a malformed chip, or not a story: nothing before the server answers', async () => {
+    const { early } = await fastOpen(HUB({ fast: true, lang }));
+    for (const [hash, search] of [['#story/b-lost-deer', '?from=link'], ['#story/b-lost-deer', '?kid=XYZ'], ['#stories', `?kid=${KID}`]]) {
+      const p = phone({ hash, search });
+      inline(early).forEach(p.run);
+      await flush();
+      expect([hash, search, p.fetches]).toEqual([hash, search, []]);
+    }
   });
 });
 

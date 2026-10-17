@@ -58,6 +58,16 @@ test('a story send: the join opens the hub door with story:1, then the book on i
   expect(p.out.shown).not.toContain('question');
 });
 
+test('fast first page (the door names the child\'s chip): the hub link carries it, so the hub starts the book at once', async () => {
+  const KID = '0123456789abcdef';
+  const p = page({ B: { story: { id: BOOK, from_teacher: true, code: 'AB12CD' } }, replies: [joined, { status: 200, ok: true, body: { href: '/h/abc.def', kid: KID } }] });
+  await join(p);
+  expect(p.out.went).toBe(`/h/abc.def?from=link&kid=${KID}&lang=en#story/${BOOK}`);
+  const q = page({ B: { story: { id: BOOK, from_teacher: true, code: 'AB12CD' } }, replies: [joined, { status: 200, ok: true, body: { href: '/h/abc.def', kid: 'not-a-chip"' } }] });
+  await join(q);
+  expect(q.out.went).toBe(`/h/abc.def?from=link&lang=en#story/${BOOK}`);
+});
+
 test('the landing names a story, never "questions" (EN + UR)', () => {
   const M = linkModule();
   const T = { meta: () => '3 questions', play: 'Play', oops: 'oops' };

@@ -6,7 +6,9 @@
  *   head(v)          an inline script for the head the edge sends BEFORE the bot answers: it reads the hash on the phone
  *                    and preloads the home's scripts and styles at the hub's own ?v= (a door or a story: the home and its
  *                    doors, + the reader for #stories / #story/; a phone whose last home was the v3 home: the home and its
- *                    doors on any open). It also sets window.WQPRE, the early answers' store.
+ *                    doors on any open). A class link to a story that names the child (?kid=<chip>#story/<id>, the
+ *                    story door's answer with the switch on) asks for the book and its first picture right here, before
+ *                    the server has answered. It also sets window.WQPRE, the early answers' store.
  *   tail(t, B, tok)  the page's tail with one call after the boot JSON — WQPRE.go({…}) — that starts the door's rows, the
  *                    shelf, the library or the book at once (the child and the language are only known here), before
  *                    any script runs. A script's own GET of one of those URLs (wq-doors.js, wq-stories.js) is answered
@@ -34,9 +36,12 @@ w.WQLZ=' srcset="'+G+'" onload="WQPRE.see(this)"';
 w.fetch=function(u,i){var r=typeof u==="string"&&!(i&&i.method&&i.method!=="GET")&&P.take(u);return r?r.then(null,function(){return F.call(w,u,i)}):F.apply(w,arguments)};
 var h=String(w.location.hash||""),door=/^#(stories|games|videos|watch\\/)/.test(h),st=/^#(stories$|story\\/)/.test(h),home=door||st;
 try{if(w.localStorage.getItem("wq_h3")==="1")home=1}catch(x){}
+function book(t,k){var m=/^#story\\/([A-Za-z0-9_-]+)(?:\\/(q|p(\\d+)))?$/.exec(h);if(m)P.get("/api/wq/stories/book/"+encodeURIComponent(m[1])+"/h/"+t+"?kid="+encodeURIComponent(k),function(b){var p=(b.pages||[])[m[3]?m[3]-1:0];if(p&&p.image)P.pic(p.image.url)})}
 var pre=function(f,as){var l=d.createElement("link");l.rel="preload";l.as=as;l.href="/wq/"+f+"?v=__V__";d.head.appendChild(l)};
 if(home){pre("wq-home.js","script");pre("wq-home.css","style");pre("wq-doors.js","script");pre("wq-doors.css","style")}
 if(st){pre("wq-stories.js","script");pre("wq-stories.css","style")}
+var c=/[?&]kid=([0-9a-f]{16})(&|$)/.exec(w.location.search||""),tk=/^\\/h\\/([A-Za-z0-9._-]+)$/.exec(w.location.pathname||"");
+if(c&&tk)book(encodeURIComponent(tk[1]),c[1]);
 P.go=function(o){
 try{w.localStorage.setItem("wq_h3",o.h?"1":"0")}catch(x){}
 if(!o.k||o.x||!(o.h||o.s))return;
@@ -45,7 +50,7 @@ if(o.h&&(m=/^#(stories|games)$/.exec(h)))P.get("/api/wq/doors/h/"+t+"?kid="+k+"&
 if(o.h&&h==="#videos")P.get("/api/wq/lib/h/"+t+"?kid="+k+"&l="+l);
 if(o.s&&o.h&&h==="#stories"){var g=[],ids="";try{g=String(w.localStorage.getItem("wq_st_gl")||"").split(",");ids=String(w.localStorage.getItem("wq_st_t:"+o.k)||"").split(",").filter(Boolean).join(",")}catch(x){}
 P.get("/api/wq/stories/shelf/h/"+t+"?kid="+k+(g[0]?"&g="+e(g[0]):"")+"&l="+(g[1]?(g[1]==="ur"?"ur":"en"):l)+(ids?"&t="+e(ids):""),function(j){(j.books||[]).slice(0,4).forEach(function(b){P.pic(b.cover)})})}
-if(o.s&&(m=/^#story\\/([A-Za-z0-9_-]+)(?:\\/(q|p(\\d+)))?$/.exec(h)))P.get("/api/wq/stories/book/"+e(m[1])+"/h/"+t+"?kid="+k,function(b){var p=(b.pages||[])[m[3]?m[3]-1:0];if(p&&p.image)P.pic(p.image.url)})};
+if(o.s)book(t,o.k)};
 }catch(x){}})(window,document);`;
 
 // JSON for an inline script: nothing may close the tag.
