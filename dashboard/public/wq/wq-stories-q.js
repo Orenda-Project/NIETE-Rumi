@@ -22,7 +22,7 @@
       wholeRead: 'You read the whole story!', readSome: 'You read with Jugnu!', wholeHeard: 'You listened to the whole story!', heardSome: 'You listened with Jugnu!',
       pagesRead: function (s, n) { return s + (n === 1 ? ' page read' : ' pages read'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' page heard' : ' pages heard'); },
-      more: 'More stories',
+      more: 'More stories', looked: 'You looked through the whole book.',
     },
     ur: {
       done: 'میں نے پڑھ لیا', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', checking: 'آپ کی آواز سنی جا رہی ہے…',
@@ -30,7 +30,7 @@
       wholeRead: 'آپ نے پوری کہانی پڑھ لی!', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', wholeHeard: 'آپ نے پوری کہانی سن لی!', heardSome: 'آپ نے جگنو کے ساتھ سنا!',
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); },
-      more: 'اور کہانیاں',
+      more: 'اور کہانیاں', looked: 'آپ نے پوری کتاب دیکھ لی۔',
     },
   };
   ['en', 'ur'].forEach(function (l) { for (var k in T2[l]) K.T[l][k] = T2[l][k]; });
@@ -259,7 +259,7 @@
       for (k = 0; k < P.length; k++) if (!P[k].is_picture && P[k].words && P[k].words.length) tp.push(k);
       var all = function (o) { return tp.length > 0 && tp.every(function (i) { return o[i]; }); };
       var rd = c.pages_read > 0, n = rd ? c.pages_read : c.pages_listened;
-      var head = rd ? (all(m.r) ? t.wholeRead : t.readSome) : n ? (all(m.l) ? t.wholeHeard : t.heardSome) : t.together;
+      var head = rd ? (all(m.r) ? t.wholeRead : t.readSome) : n ? (all(m.l) ? t.wholeHeard : t.heardSome) : t.looked;
       R.wait();
       post(ctx, id, 'story_done', { pages_listened: c.pages_listened, pages_read: c.pages_read, stars: qs }).then(function (r) { need(function () {
         if (!live()) return;

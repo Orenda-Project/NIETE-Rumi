@@ -725,7 +725,7 @@ describe('questions and the done card', () => {
     h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-done');
-    expect(h).toContain('Let&#39;s read it together');
+    expect(h).toContain('You looked through the whole book.');
     expect(text(h)).not.toMatch(/\d\s*\/\s*\d|wrong|★|⭐|whole story/i);
     expect(h).not.toContain('sticker');
     expect(e.calls.juice).not.toContain('finish:3');
@@ -844,7 +844,7 @@ describe('questions and the done card', () => {
     fire(r2, 'ans', 2); await flush(); e2.advance(900);
     expect(r2.innerHTML).toContain('Where does the kite go?');
   });
-  test('zero-input chain: skip Listen, Done at 0 words, no questions -> "Let\'s read it together", no sticker, no confetti', async () => {
+  test('zero-input chain: skip Listen, Done at 0 words, no questions -> "You looked through the whole book.", no sticker, no confetti', async () => {
     const e = env({ wqj: true, alwaysSticker: true, replies: { book: { status: 200, body: book({ questions: [] }) } } });
     const root = await openReader(e);
     fire(root, 'next'); fire(root, 'next');
@@ -858,14 +858,16 @@ describe('questions and the done card', () => {
     const h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-done');
-    expect(h).toContain('Let&#39;s read it together');
+    // the done line says what happened (the book was paged through), not an offer to read together
+    expect(h).toContain('You looked through the whole book.');
+    expect(h).not.toContain('Let&#39;s read it together');
     expect(text(h)).not.toMatch(/whole story|sticker|page|tried/i);
     expect(e.calls.juice.filter((x) => /^finish/.test(x))).toHaveLength(0);
     const e2 = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl', questions: [] }) } } });
     const r2 = await openReader(e2, { lang: 'ur' });
     fire(r2, 'next'); fire(r2, 'next'); fire(r2, 'next'); await flush(); await flush();
     checkScreen(r2.innerHTML, 'ur');
-    expect(r2.innerHTML).toContain('آئیں مل کر پڑھیں');
+    expect(r2.innerHTML).toContain('آپ نے پوری کتاب دیکھ لی۔');
     expect(screenOf(r2.innerHTML)).toBe('story-done');
   });
 });
