@@ -38,6 +38,8 @@
       endReadAll: 'You read the whole story!', endReadSome: 'You read out loud with Jugnu!', endZeroWords: 'You tried a whole new story!',
       endListen: 'You listened to the whole story!', endTap: 'You answered all the questions!', endSticker: 'A sticker went into your Book.',
       endB3Next: 'Next time Jugnu can read a story with you first.', endNext: function (title) { return 'Next: ' + title; }, endHome: 'Home',
+      // the folded end card (the child home on): the home's own Next with nothing ranked (wq-home.js), the bar's Home
+      foldPick: 'Pick a story', foldHome: 'Home',
       trailPractice: 'Playing again: just for fun', trailMicWait: 'This game needs the mic. Play it when the mic is on.', trailOther: 'Try another game', trailStopDone: 'Game done!',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
       gamesTitle: "{name}'s games", gamesPick: 'Pick a game', gamesBack: "Back to {name}'s games",
@@ -62,6 +64,7 @@
       endReadAll: 'آپ نے پوری کہانی پڑھ لی!', endReadSome: 'آپ نے جگنو کے ساتھ اونچی آواز میں پڑھا!', endZeroWords: 'آپ نے ایک بالکل نئی کہانی کھول کر دیکھی!',
       endListen: 'آپ نے پوری کہانی سن لی!', endTap: 'آپ نے سارے سوالوں کے جواب دے دیے!', endSticker: 'آپ کی کتاب میں ایک اسٹیکر لگ گیا۔',
       endB3Next: 'اگلی بار جگنو پہلے آپ کے ساتھ کہانی پڑھ سکتا ہے۔', endNext: function (title) { return 'آگے: ⁨' + title + '⁩'; }, endHome: 'واپس جائیں',
+      foldPick: 'کہانی چنیں', foldHome: 'ہوم',
       trailPractice: 'یہ کھیل دوبارہ: بس مزے کے لیے', trailMicWait: 'اس کھیل کے لیے مائیک چاہیے۔ مائیک چلنے پر کھیلیں۔', trailOther: 'کوئی اور کھیل کھیلیں', trailStopDone: 'کھیل مکمل!',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       gamesTitle: '{name} کے کھیل', gamesPick: 'ایک کھیل چنیں', gamesBack: '{name} کے کھیلوں پر واپس',
@@ -79,6 +82,7 @@
   var HELP_KEY = 'wqc_helped_v2';
   var CLIP_TRIES = 3;
   var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
+  var RA_WAIT_MS = 4000;       // a tap that beat the player waits this long for it (inside the tap's 5-s audio window)
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
   var RA_V = 'be7fe1dc23';
@@ -121,6 +125,50 @@
 
     function btn(id, label, cls) { return '<button class="wq-btn ' + (cls || 'wq-go') + '" id="' + id + '" type="button">' + esc(label) + '</button>'; }
     function home() { return '<div class="wq-stack">' + btn('wqc-menu', t.endHome) + '</div>'; }
+
+    // ── the child home on (the menu's card_fold; app_settings web_quiz_home_v3): an end card is the card and ONE next
+    // thing — the ranked Next (the first offer this page can open, else "Pick a story": the home on its Stories door), or
+    // the story's questions when they follow — "Share to class group" soft, and ONE Home row to the child's home. No
+    // again, no "Show me the words", no "Next: …" line. Never on a class round turn (its hand-back card is today's). ──
+    function fold() { var d = h.S.data || {}; return !!(h.md() || {}).card_fold && !d.round_turn && !!(h.boot && h.boot.token); }
+    function homeHref(hash) { return '/h/' + encodeURIComponent(h.boot.token) + '?' + (h.boot.kid ? 'kid=' + encodeURIComponent(h.boot.kid) + '&' : '') + 'from=home' + (hash || ''); }
+    // the slot's offer, or the next of its alternatives, that opens on this site (an invite's WhatsApp message never)
+    function foldNext(nx) {
+      var all = nx && typeof nx === 'object' ? [nx].concat(Array.isArray(nx.alts) ? nx.alts : []) : [];
+      for (var i = 0; i < all.length; i++) {
+        var x = all[i];
+        if (x && typeof x.href === 'string' && /^\/[^/]/.test(x.href) && ((L === 'ur' && x.title_ur) || x.title)) return x;
+      }
+      return { kind: 'stories', href: homeHref('#stories'), title: t.foldPick };
+    }
+    // the next thing (the questions, or this page's own Next link — the card's tile takes its place when the card is
+    // drawn), then the host's stack with the one Home row; the card's block goes between them (Share under the Next)
+    function foldHtml(fx, qa) {
+      var first = qa ? h.qaButtons().replace(/<button[^>]*id="wqc-menu"[\s\S]*?<\/button>/, '').replace('id="wqc-qa"', 'id="wqc-qa" data-primary')
+        : '<a class="wq-btn wq-go" id="wqc-fnext" data-primary href="' + esc(fx.href) + '">' + esc((L === 'ur' && fx.title_ur) || fx.title) + '</a>';
+      return '<div class="wqc-fold">' + first + '</div><div class="wq-stack"><a class="wq-btn wq-soft" id="wqc-fhome" data-home href="' + esc(homeHref()) + '">' + esc(t.foldHome) + '</a></div>';
+    }
+    // after the card: one Home (the page's top link goes), one Next (the card's tile, or ours), Share soft under the questions
+    function foldAfter(qa) {
+      try {
+        var top = document.getElementById('wq-home');
+        if (top && top.parentNode) top.parentNode.removeChild(top);
+        var mine = document.getElementById('wqfc-next') ? document.getElementById('wqc-fnext') : null;
+        if (mine && mine.parentNode) mine.parentNode.removeChild(mine);
+        var card = document.getElementById('wqfc-share');
+        if (card && qa) { card.className = card.className.replace(/\bwq-go\b/, 'wq-soft'); card.removeAttribute('data-primary'); }
+        // the card is the one headline: a practice run's banner (Story Time's "just for fun") stays on the screens before it
+        var banner = card ? document.getElementById('wqc-practice') : null;
+        if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
+      } catch (e) { /* the card still works */ }
+    }
+    function foldEnd(name, top, qa, nx, card) {
+      var fx = foldNext(nx);
+      h.show(name, top + foldHtml(fx, qa));
+      if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa ? null : fx } }));
+      foldAfter(qa);
+    }
     function outcome(d) { return (d && (d.outcome || (d.draw && d.draw.outcome))) || null; }
     function isWarmup(d) { return !!(d && d.anchor_block); }
 
@@ -258,7 +306,13 @@
     function hearAsk(intro) {
       h.show('hear-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
         + btn('wqc-hear-along', t.storyReadAlong) + btn('wqc-hear-read', h.t.ready) + '</div>');
-      h.on('wqc-hear-along', function () { if (window.WQReadAlong) timedAlong(h.S.data.hear_first, intro); else intro(); unwarm(); });
+      h.on('wqc-hear-along', function () {
+        var d = h.S.data;
+        if (window.WQReadAlong) timedAlong(d.hear_first, intro);
+        else if (raLoad.asked && !raLoad.failed) alongWait(d, d.hear_first, intro, intro);   // the player is on its way
+        else intro();
+        unwarm();
+      });
       h.on('wqc-hear-read', function () { unwarm(); intro(); });
       warm();
     }
@@ -287,8 +341,16 @@
         var s = document.createElement('script');
         s.src = '/wq/wq-readalong.js?v=' + RA_V;
         s.addEventListener('load', warm);
+        s.addEventListener('load', function () { raLanded(true); });
+        s.addEventListener('error', function () { raLanded(false); });
         document.head.appendChild(s);
-      } catch (e) { /* the line-lit read-along stays */ }
+      } catch (e) { raLoad.failed = true; /* the line-lit read-along stays */ }
+    }
+    // the player's script landed (or failed): a "Read along" tap that came before it goes on now
+    var raWaits = [];
+    function raLanded(ok) {
+      if (!ok) raLoad.failed = true;
+      raWaits.splice(0).forEach(function (fn) { fn(ok); });
     }
     // the ask screen is where the story is listened to: its clip may preload (one request, no decode, never a play)
     // so the child's tap starts the voice at once; once per timing object, and only while the ask is on screen
@@ -319,7 +381,33 @@
     function readAlong() {
       var d = h.S.data;
       if (d.readalong && window.WQReadAlong) { timedAlong(d.readalong, h.read); return; }
-      if (!clipUrl(d)) { h.read(); return; }
+      // the player was asked for when the story opened and is still on its way (a quick tap on a slow phone): the
+      // along screen waits for it, never the old clip, and Jugnu reads word by word the moment it lands
+      if (d.readalong && raLoad.asked && !raLoad.failed) { alongWait(d, d.readalong, h.read, lineAlong); return; }
+      lineAlong(d);
+    }
+    // the passage's words wait on the along screen for the player (ra: its timings; next: after "I'm ready"); a player
+    // that fails or is not here in time: fallback(d)
+    function alongWait(d, ra, next, fallback) {
+      var st = d.story || {};
+      var over = false;
+      var end = function (ok) {
+        if (over) return;
+        over = true;
+        if (h.S.data !== d || h.S.screen !== 'story-along') return;
+        if (ok && window.WQReadAlong) timedAlong(ra, next); else fallback(d);
+      };
+      h.show('story-along', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra">'
+        + (st.text ? '<div class="wqc-story" dir="' + (st.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + esc(st.text) + '</div>' : '') + '</div>'
+        + '<div class="wqc-sticky">' + btn('wqc-along-read', h.t.ready) + '</div>');
+      h.on('wqc-along-read', function () { over = true; next(); });
+      raWaits.push(end);
+      setTimeout(function () { end(false); }, RA_WAIT_MS);
+    }
+    function lineAlong(d) {
+      // with word timings on the serve (their player failed or came too late) nothing moves on by itself: only "I'm ready"
+      var stay = !!d.readalong;
+      if (!clipUrl(d) && !stay) { h.read(); return; }
       var st = d.story;
       var ws = alongWords(st);
       var lines = (st.lines && st.lines.length) ? st.lines : [{ from: 0, to: ws.length - 1 }];
@@ -348,26 +436,36 @@
         var el = h.q('wqc-along-story');
         if (el) el.innerHTML = alongHtml(ws, lines, at);
       };
+      var halt = function () { try { if (a) a.pause(); } catch (e) { /* already stopped */ } };
+      var end = stay ? halt : go;
       h.on('wqc-along-read', go);
+      if (!clipUrl(d)) return;
       try {
         a = new Audio(clipUrl(d));
         a.addEventListener('timeupdate', light);
-        a.addEventListener('ended', go);
-        a.addEventListener('error', go);
+        a.addEventListener('ended', end);
+        a.addEventListener('error', end);
         var p = a.play();
-        if (p && p.catch) p.catch(go);
-        cap = setTimeout(go, ALONG_CAP_MS);
-      } catch (e) { go(); }
+        if (p && p.catch) p.catch(end);
+        if (!stay) cap = setTimeout(go, ALONG_CAP_MS);
+      } catch (e) { end(); }
     }
     // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
-    function storyEnd(name, qa) {
+    // r: the read's result; the card gets it (its ranked next_offer), and the card after the story's questions too
+    function storyEnd(name, qa, r) {
+      var d = h.S.data || {};
+      if (r) d.story_r = r;
+      if (name === 'read-result') d.story_qa = !!qa;
       if (window.WQJ) window.WQJ.finish({ kind: name });
+      // the story's own result, when the page handed it over (data.story_r), carries the ranked Next
+      // folded, a practice run (Story Time is one) puts no sticker in the Book, so it says none
+      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); return; }
       h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
-      wordsAfter(function () { storyEnd(name, qa); });
-      if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t });
+      wordsAfter(function () { storyEnd(name, qa, r); });
+      if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t, r: d.story_r });
     }
     // "Show me the words" after a practice listen's questions (show_words; never a counted listen or a class round):
     // the words are asked for by the run token only now, after the questions; the card is drawn again with the button
@@ -508,6 +606,7 @@
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
         return;
       }
+      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); return; }
       h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
@@ -523,7 +622,7 @@
       if (window.WQFC && (h.md() || {}).card_v3 && window.WQFC.unheard(r, words, heard, storyLen(d))) { endCard('read-result', 'hello', window.WQFC.triedLine(L, r), Object.assign({}, r || {}, { again: !(r && r.later), qa: false, noSticker: true, tried: true, hold: !!hold })); return !!hold; }
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
-        storyEnd('read-result', !!(heard && d.questions_on));
+        storyEnd('read-result', !!(heard && d.questions_on), r);
         return;
       }
       if (r && r.later) { endCard('read-result', 'hello', h.t.later, r); return; }
@@ -537,6 +636,12 @@
     }
     // a live reading's first card, before the server answers (the story room draws at once, as today)
     function readHold(r, words, heard) { return readEnd(r, words, heard, true) === true; }
+    // a live story read's checked result came after its card: the card gets the ranked next thing (finish card only)
+    function storySettled(r) {
+      var d = h.S.data || {};
+      if (!isStory() || !r || !r.next_offer || h.S.screen !== 'read-result' || (d.story_r && d.story_r.next_offer)) return;
+      if (window.WQFC && (h.md() || {}).card_v3) storyEnd('read-result', !!d.story_qa, r);
+    }
     // s: the server's score for bigger / missing; a run stopped early did not answer every question, so the card
     // never says it did: the sticker line alone (a first counted run), or today's "Stop done!" on a practice round
     function tapEnd(name, s) {
@@ -552,7 +657,7 @@
     }
 
     return { games: function () { return games; }, opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, notice: notice, consent: consent, withHelped: withHelped,
-      readEnd: readEnd, readHold: readHold, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
+      readEnd: readEnd, readHold: readHold, storySettled: storySettled, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, introTitle: introTitle, introLine: introLine, T: T };
   }
 
   window.WQTRAIL = { init: init, T: T };
