@@ -258,6 +258,19 @@ describe('the seven refusals, one by one (no binding row, the code spent where i
     expect(inserts('child_phone_bindings')).toHaveLength(0);
   });
 
+  test('max_phones counts live links only: a revoked link whose phone is still set never fills the cap', async () => {
+    // the database clears the phone on revoke; this row keeps it so the "not revoked" filter is held on its own
+    const revoked = binding(KIDS[0], fixturePhone(703), { revoked_at: iso(Date.now() - 60000), revoked_by: 'teacher' });
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])],
+      bindings: [binding(KIDS[0], fixturePhone(701)), binding(KIDS[0], fixturePhone(702)), revoked] });
+    const Bindings = require('../../../shared/services/quiz/child-phone-bindings.repo');
+    expect((await Bindings.activeForChild(KIDS[0])).map((b) => b.id).sort())
+      .toEqual([binding(KIDS[0], fixturePhone(701)).id, binding(KIDS[0], fixturePhone(702)).id].sort());
+    await say('JUGNU-AB2CD');
+    expect(events('web_quiz.bind_refused')).toEqual([]);
+    expect(inserts('child_phone_bindings')).toHaveLength(1);
+  });
+
   test('max_kids: a fifth child → refused, no insert, ONE full line, ledger bind_reply', async () => {
     seed({ students: [0, 1, 2, 3].map(chatKid).concat(student(4)), codes: [code('JUGNU-AB2CD', KIDS[4])] });
     expect(await say('JUGNU-AB2CD')).toBe(true);
