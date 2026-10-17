@@ -176,7 +176,7 @@ async function recentCodes(teachers) {
 
 const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
 
-async function teacherCard(kidRow, list, history, grade, fast = false) {
+async function teacherCard(kidRow, list, history, grade, homeP = null, fast = false) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -187,17 +187,18 @@ async function teacherCard(kidRow, list, history, grade, fast = false) {
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
   const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, fast)]);
-  const open0 = codes.filter((c) => isOpen(c) && !seen.has(c.id));
-  const quizzesOf = (open) => {
-    const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-    return dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
-  };
-  // fast (web_quiz_fast): the quizzes are read beside the storybook check, for every open code (a filtered-out code's
-  // row is never looked up); off: after it, for the codes it kept (today's reads).
-  const early = fast && open0.length ? require('./web-quiz-fast').early(quizzesOf(open0)) : null;
-  const open = await require('./web-quiz-hub-home').sentOnly(open0); // a previewed storybook is not "from your teacher": unchanged while web_quiz_home_v3 is off
+  const listed = codes.filter((c) => isOpen(c) && !seen.has(c.id));
+  if (!listed.length) return null;
+  // The child home (web_quiz_home_v3): a storybook the teacher only previewed is not "from your teacher" — told apart
+  // by three more columns on this same quizzes read (the home's switch is read beside the hub's own reads).
+  const Home = require('./web-quiz-hub-home');
+  const home = homeP ? (await homeP.flags).home === true : false;
+  const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
+  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
+  const previews = home ? Home.storyPreviews(quizzes) : null;
+  const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
   if (!open.length) return null;
-  const { data: quizzes } = await (early || quizzesOf(open));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
@@ -448,13 +449,11 @@ async function lockedHub(ids, why, asked = null) {
 // today's order of reads, byte for byte.
 const HUB_BRANCHES = [
   { name: 'extras', run: (s) => require('./web-quiz-bind-page').hubExtras(s.shadow, { token: s.token, chosen: s.chosen, rows: s.kidsRows, trust: s.trust, lang: s.lang, device: s.device, src: s.src, ...(s.par ? { canon: s.canon } : {}) }) },
-  { name: 'teacher', run: (s) => teacherCard(s.chosen, s.ctx.list, s.history, s.ctx.grade, s.par) },
+  { name: 'teacher', run: (s) => teacherCard(s.chosen, s.ctx.list, s.history, s.ctx.grade, s.homeP, s.par) },
   { name: 'answered', run: (s) => (s.last0 && s.last0.state === 'open' ? answeredSoFar(s.history.find((e) => e.code === s.last0.code), s.last0.answered) : Promise.resolve(null)) },
   { name: 'recs', run: (s) => recsFor(s.chosen.id, s.history, s.ctx.grade, s.par) },
   { name: 'play', run: (s) => s.challengeP.then((form) => require('./web-quiz-hub-play').playField({ chosenId: s.chosen.id, last: s.last0, lang: s.lang, challenge: form ? { on: true } : null, grade: s.ctx.grade, stopsOf: () => trailStops(form), ...(s.runs ? { runs: s.runs } : {}) })) },
   { name: 'bits', run: (s) => require('./web-quiz-book').hubBits({ studentId: s.chosen.id, ...(s.runs ? { runs: s.runs } : {}) }) },
-  // the v3 home's reads (web_quiz_home_v3), keyed on the child; its doors are drawn from `out` at the end (homeFrom)
-  { name: 'home', run: (s) => require('./web-quiz-hub-home').homeReads({ chosenId: s.chosen.id, history: s.history, lang: s.lang }) },
   // a place saved on a phone with no code hides the "keep my place" card (quiz_student_join); applied after keep my place
   { name: 'bound', run: (s) => require('./web-quiz-student-join').guestBound(s.chosen.id, { canon: s.canon }) },
   // Stories (web_quiz_stories): keyed on the child
@@ -525,6 +524,8 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const fast = require('./web-quiz-fast').on();
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
   const challengeP = f.challenge && chosen ? ((fast && guessForm && String(chosen.id) === guess) ? guessForm : challengeForm(chosen.id, fast)) : Promise.resolve(null);
+  // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
+  const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen), reads: guessReads && String(chosen.id) === guess ? guessReads : null } : null) : null;
   const history = ctx ? ctx.history : [];
@@ -553,7 +554,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const runs = par ? require('./web-quiz-book').runsOnce(chosen.id) : null;
   const last0 = chosen && f.childHome ? lastOf(history, chosen.id) : undefined;
   // The hub's branches (see HUB_BRANCHES above): all at once when par, else each where it is read.
-  const branchCtx = { par, f, token, chosen, kidsRows, trust, lang, device, src, canon, ctx, history, last0, challengeP, runs, shadow };
+  const branchCtx = { par, f, token, chosen, kidsRows, trust, lang, device, src, canon, ctx, history, last0, challengeP, homeP, runs, shadow };
   const take = par ? await collectHubBranches(branchCtx) : lazyHubBranches(branchCtx);
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await take('extras');
@@ -602,17 +603,13 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   }, chosen.id));
   Object.assign(out, await take('bits')); // Jugnu's Book: {} while web_quiz_challenge_book is off
   // Stories and the v3 home are independent fields: read side by side, so Stories adds no serial wave.
-  // (fast: both ran with the branches above; the home's doors are drawn from `out` here, with no read)
-  if (par) {
-    const [storyBits, homeReads] = await Promise.all([take('stories'), take('home')]);
-    Object.assign(out, storyBits, require('./web-quiz-hub-home').homeFrom({ out, history, reads: homeReads }));
-  } else {
-    const [storyBits, homeBits] = await Promise.all([
-      require('./web-quiz-stories').hubBits({ studentId: chosen.id }), // Stories: {} while web_quiz_stories is off
-      require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
-    ]);
-    Object.assign(out, storyBits, homeBits);
-  }
+  // Stories and the v3 home are independent fields: read side by side, so Stories adds no serial wave (the home's reads
+  // were started with challengeP; fast: Stories ran with the branches above).
+  const [storyBits, homeBits] = await Promise.all([
+    par ? take('stories') : require('./web-quiz-stories').hubBits({ studentId: chosen.id }), // Stories: {} while web_quiz_stories is off
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP }), // the v3 home's doors + header: {} while web_quiz_home_v3 is off
+  ]);
+  Object.assign(out, storyBits, homeBits);
   return out;
 }
 

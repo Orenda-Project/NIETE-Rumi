@@ -30,7 +30,7 @@ const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 let DB;
 const asked = [];
 function world(bindings) {
-  DB = { app_settings: [{ key: 'web_quiz_home_v3', value: 'true' }], web_quiz_challenge_runs: [], child_phone_bindings: bindings };
+  DB = { app_settings: [{ key: 'web_quiz_home_v3', value: true }], web_quiz_challenge_runs: [], child_phone_bindings: bindings };
   const fake = makeFake(DB);
   supabase.from = strictFrom(fake.from, ['child_phone_bindings']);
   supabase.rpc = fake.rpc;

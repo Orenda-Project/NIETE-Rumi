@@ -46,6 +46,8 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
           if (op === 'is') return v === 'null' ? cell == null : String(cell) === v;
           if (op === 'eq') return cell != null && String(cell) === v;
           if (op === 'neq') return cell != null && String(cell) !== v;
+          if (op === 'lte') return cell != null && Number(cell) <= Number(v);
+          if (op === 'gte') return cell != null && Number(cell) >= Number(v);
           throw new Error(`fake or(): unsupported op ${op}`);
         };
         st.filters.push((r) => parts.some((p) => one(r, p)));

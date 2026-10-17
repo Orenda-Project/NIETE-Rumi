@@ -39,9 +39,9 @@ const LIST_C = 'a0000000-0000-4000-8000-00000000000c';
 // The wave ceiling's case: every child-facing switch the quiz page reads, on (the ceiling test checks this list is complete).
 const CEILING_KEYS = ['web_quiz_back_nav', 'web_quiz_challenge', 'web_quiz_challenge_rungs', 'web_quiz_challenge_v2', 'web_quiz_child_quiz_home',
   'web_quiz_events_v2', 'web_quiz_home_button', 'web_quiz_hub', 'web_quiz_hub_door', 'web_quiz_invite_ask', 'web_quiz_library',
-  'web_quiz_link_home', 'web_quiz_rich_telemetry', 'web_quiz_ur_polish', 'web_quiz_juice', 'web_quiz_readalong'];
+  'web_quiz_link_home', 'web_quiz_rich_telemetry', 'web_quiz_ur_polish', 'web_quiz_juice', 'web_quiz_readalong', 'web_quiz_card_v3'];
 // Keys the page reads that are not on/off switches of the child's page (web_quiz_identity is 'v2' in the fixture).
-const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity'];
+const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity', 'web_quiz_watch_root'];
 
 function school(scn, { fast, every = false }) {
   const db = F.db({ codeClass: scn === 'en_class' || scn === 'invite' ? F.CLS_A : null });

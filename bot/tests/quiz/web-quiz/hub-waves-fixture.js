@@ -45,9 +45,9 @@ const ON_KEYS = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_library', 'web_
 const CEILING_KEYS = [...ON_KEYS, 'web_quiz_back_nav', 'web_quiz_hub_door', 'web_quiz_challenge_rungs', 'web_quiz_challenge_trail',
   'web_quiz_rich_telemetry', 'web_quiz_bind_way_back', 'web_quiz_guest_home', 'quiz_first_door', 'quiz_maker_page',
   'web_quiz_home_v3', 'web_quiz_stories', 'quiz_student_join', 'web_quiz_readalong', 'web_quiz_stories_band', 'web_quiz_live_read_v3',
-  'web_quiz_challenge_realtime'];
+  'web_quiz_challenge_realtime', 'web_quiz_card_v3'];
 // Keys the hub S.reads that are not on/off switches of the child's page.
-const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity'];
+const NOT_SWITCHES = ['web_quiz_fast', 'web_quiz_brand', 'web_quiz_db_deadline', 'web_quiz_identity', 'web_quiz_watch_root'];
 
 function code(id, c, quizId, extra = {}) {
   return { id, code: c, quiz_id: quizId, active: true, expires_at: future, topic: `Topic ${c}`, language: 'en', class_id: null,

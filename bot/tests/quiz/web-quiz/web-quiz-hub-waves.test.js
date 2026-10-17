@@ -267,7 +267,7 @@ describe('the hub\'s parallel branches (HUB_BRANCHES)', () => {
     expect(after.perTable.students).toBe(before.perTable.students + 1);
     expect(after.waves).toBe(before.waves);
     expect(() => S.Hub.addHubBranch({ name: 'probe', run: () => null })).toThrow(/already/);
-    expect(S.Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'home', 'bound', 'stories', 'probe']);
+    expect(S.Hub.HUB_BRANCHES.map((b) => b.name)).toEqual(['extras', 'teacher', 'answered', 'recs', 'play', 'bits', 'bound', 'stories', 'probe']);
   });
 });
 

@@ -39,6 +39,7 @@ const ROWS = [
   [['web_quiz_stories_band']],
   [['web_quiz_readalong']],
   [['web_quiz_live_read_v3', 'web_quiz_challenge_realtime']],
+  [['web_quiz_card_v3']],
 ];
 
 const SAVED = { ...process.env };

@@ -4,11 +4,12 @@
  * the hub's boot JSON — one Next thing, three doors (Stories, Games, Videos) and the header's day-dots and sticker jar.
  * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
  *
- *   homeField({ out, chosenId, history, token })  {} | { home_v3: 1, doors, head }
+ *   homeField({ out, chosenId, history, pre })    {} | { home_v3: 1, doors, head }
  *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
- *   sentOnly(codes)                               the teacher's open codes without a storybook only previewed (switch on)
+ *   prefetch(chosenId)                            the home's reads, started beside the hub's own: { flags, data }
+ *   storyPreviews(quizzes)                        the storybooks a teacher only previewed (pure; switch on)
  *   practiceHub(token, { lang, brandKey })        the coach's preview of the class's home, or null (not a practice
  *                                                 token, or the switch off: the caller goes on to today's path)
  *
@@ -21,62 +22,20 @@
  * The page decides nothing about what is next: the Next tile is `out.next` (web_quiz_next_offer) when the server sent it,
  * else the hub's own lantern / teacher card, in that order (wq-home.js). The doors carry ids and hrefs only; the
  * storybook shelf is a stub the stories reader fills (web_quiz_stories). Never a tile the server would answer "on its
- * way": the Trail's "more stories" list and an empty shelf are left out; the Videos door is empty for a child with
- * no class quiz (videos/start answers 409 no_class without one).
+ * way": the Trail's "more stories" list and an empty shelf are left out; a child with no class quiz gets the Videos
+ * door too (`watch: true`: videos/start answers a watch-only start under this switch, not 409 no_class).
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const { clampLanguage } = require('../../config/ux-strings');
-const Swr = require('./web-quiz-swr');
 
-const KEY = 'web_quiz_home_v3';
-const STORIES_KEY = 'web_quiz_stories';
-const TTL_MS = 30 * 1000;
+const HomeFlags = require('./web-quiz-home-flags');
+const { flags, KEY, STORIES_KEY } = HomeFlags;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
 const FINAL = new Set(['scored', 'failed']);
-let cache = null;
-
-function isTrue(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
-  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
-}
-
-/** { home, stories } — 30 s cache, fails closed (a read error is every switch off). */
-// web_quiz_fast on: a stale cache is answered at once and read again in the background (web-quiz-swr.js).
-async function flags(now = Date.now()) {
-  if (Swr.stale(cache, TTL_MS, now)) { Swr.revalidate('home-v3-flags', () => readFlags(now)); return cache; }
-  return readFlags(now);
-}
-
-async function readFlags(now) {
-  if (cache && now - cache.at < TTL_MS) return cache;
-  // web_quiz_fast on: the hub's one switch read is in flight for this switch; its answer, not a read of its own.
-  const seam = Swr.covered('home-v3-flags');
-  if (seam) { await seam; if (cache && now - cache.at < TTL_MS) return cache; }
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    return fromRows(data, now);
-  } catch (err) {
-    logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
-    return { home: false, stories: false };
-  }
-}
-
-function fromRows(data, now) {
-  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-  cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]) };
-  return cache;
-}
-
-// The hub's one switch read (web_quiz_fast on, web-quiz-hub-switches.js): this module's keys, its cache's age, and the
-// cache from the raw rows, parsed here exactly as this module's own read parses them.
-const hubSwitches = { name: 'home-v3-flags', keys: [KEY, STORIES_KEY], swr: ['home-v3-flags'], age: (now) => Swr.ageOf(cache, TTL_MS, now),
-  prime: (rows, now) => fromRows(rows.filter((r) => r.key === KEY || r.key === STORIES_KEY), now), read: () => flags(), peek: () => cache };
 
 // Monday 00:00 PKT of the week `ms` is in, as epoch ms.
 function weekStart(ms) {
@@ -122,22 +81,27 @@ function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
   if (out.challenge && out.challenge.on) games.push({ kind: 'numbers' });
   const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
   again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
-  const videos = out.lib && out.lib.href && hasRoot ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}) } : null;
+  // Every child with a library: one with no class quiz yet WATCHES (videos/start's watch-only answer, same switch).
+  const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }) } : null;
   return { stories: story, games, videos };
 }
 
-// This week's finishes: the quizzes in the hub's history and the child's final Jugnu runs (one small read; [] on any error).
-async function stampsOf(chosenId, history, now) {
-  const quiz = (history || []).map((e) => e && e.latest && e.latest.completed_at).filter(Boolean);
+// The child's final Jugnu runs this PKT week (one small read; null on any error).
+async function runsOf(chosenId, now) {
   try {
     const { data, error } = await supabase.from('web_quiz_challenge_runs').select('status, created_at')
       .eq('student_id', chosenId).gte('created_at', new Date(weekStart(now)).toISOString()).limit(200);
-    if (error) return { stamps: quiz, fresh: false };
-    const runs = (data || []).filter((r) => FINAL.has(r.status));
-    return { stamps: quiz.concat(runs.map((r) => r.created_at)), fresh: runs.some((r) => now - Date.parse(r.created_at || '') < DAY_MS) };
+    return error ? null : (data || []).filter((r) => FINAL.has(r.status));
   } catch (_) {
-    return { stamps: quiz, fresh: false };
+    return null;
   }
+}
+
+// This week's finishes (pure): the quizzes in the hub's history and the child's final Jugnu runs.
+function stampsOf(history, runs, now) {
+  const quiz = (history || []).map((e) => e && e.latest && e.latest.completed_at).filter(Boolean);
+  if (!runs) return { stamps: quiz, fresh: false };
+  return { stamps: quiz.concat(runs.map((r) => r.created_at)), fresh: runs.some((r) => now - Date.parse(r.created_at || '') < DAY_MS) };
 }
 
 /*
@@ -148,21 +112,29 @@ async function stampsOf(chosenId, history, now) {
  */
 const JOIN_MODULE = './web-quiz-student-join';
 const DOOR_MODULE = '../first-touch/one-door.service';
+// The finish card (web_quiz_card_v3): its own module says whether it is on, so a watched video ends on the card.
+const CARD_MODULE = './web-quiz-card-image';
 const JN_RX = /^[A-Za-z0-9._-]{8,600}$/;
 const GL_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/quiz\/go\/[A-Za-z0-9._~-]{4,600}$/;
 const TEACHER_LABEL = { en: 'I teach a class', ur: 'میں ٹیچر ہوں' };
-let modules = null; // tests inject { join, door } here (null = the real requires)
+let modules = null; // tests inject { join, door, card } here (null = the real requires)
 function optional(name, spec) {
   if (modules) return modules[name] || null;
   try { return require(spec); } catch (_) { return null; }
 }
-async function phoneRows(chosenId, lang) {
+// The phone's active bindings for this child, or null when neither row's module is there (no read then).
+async function bindsOf(chosenId) {
+  const Join = optional('join', JOIN_MODULE);
+  const Door = optional('door', DOOR_MODULE);
+  if (!(Join && typeof Join.siblingJoinToken === 'function') && !(Door && typeof Door.mintLandingForPhone === 'function')) return null;
+  return require('./child-phone-bindings.repo').activeForChild(chosenId);
+}
+async function phoneRows(binds, lang) {
+  if (!binds) return {};
   const Join = optional('join', JOIN_MODULE);
   const Door = optional('door', DOOR_MODULE);
   const sib = Join && typeof Join.siblingJoinToken === 'function' ? Join.siblingJoinToken : null;
   const land = Door && typeof Door.mintLandingForPhone === 'function' ? Door.mintLandingForPhone : null;
-  if (!sib && !land) return {};
-  const binds = await require('./child-phone-bindings.repo').activeForChild(chosenId);
   const newest = binds.filter((b) => b && b.phone_norm)
     .sort((a, b) => String(b.last_played_at || b.bound_at || '').localeCompare(String(a.last_played_at || a.bound_at || '')))[0];
   if (!newest) return {};
@@ -174,17 +146,40 @@ async function phoneRows(chosenId, lang) {
   };
 }
 
+/** `{card_v3: true}` when the finish card's module is there and its switch is on, else `{}`. Never throws. */
+async function cardField() {
+  const Card = optional('card', CARD_MODULE);
+  if (!Card || typeof Card.field !== 'function') return {};
+  try { return (await Card.field()).card_v3 === true ? { card_v3: true } : {}; } catch (_) { return {}; }
+}
+
+/**
+ * The home's reads, started by the hub the moment it knows the chosen child, beside its own reads (never after them):
+ * the switches, this week's runs, the finish card's switch and the phone's bindings depend on nothing but the child.
+ * `{ flags, data }`: two promises that never reject; with the switch off `data` reads nothing more.
+ */
+function prefetch(chosenId, now = Date.now()) {
+  const f = flags();
+  const data = f.then((on) => (on.home && chosenId
+    ? Promise.all([runsOf(chosenId, now), cardField(), bindsOf(chosenId).catch(() => null)]).then(([runs, card, binds]) => ({ runs, card, binds }))
+    : null)).catch(() => null);
+  return { flags: f, data };
+}
+
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
-async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
+async function homeField({ out, chosenId, history, now = Date.now(), pre } = {}) {
   try {
-    const f = await flags();
+    const p = pre || prefetch(chosenId, now);
+    const f = await p.flags;
     if (!f.home || !chosenId || !out) return {};
+    const d = await p.data;
+    if (!d) return {};
     const hasRoot = (history || []).some((e) => e && e.teacherSent);
-    const { stamps, fresh } = await stampsOf(chosenId, history, now);
+    const { stamps, fresh } = stampsOf(history, d.runs, now);
     const head = headOf(stamps, now);
     // The sticker jar leads to Jugnu's Book, so it is there only when the Book is; "new" = a sticker in the last day.
     head.jar = out.book_on ? { fresh } : null;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...(await phoneRows(chosenId, out.lang)) };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...(await phoneRows(d.binds, out.lang)) };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
@@ -192,53 +187,14 @@ async function homeField({ out, chosenId, history, now = Date.now() } = {}) {
 }
 
 /**
- * The fast first page (web_quiz_fast, the hub's branches): homeField's reads, keyed on the child alone, started with
- * the hub's other branches. Resolves to what homeFrom needs (null: the switch off; { err }: a failure). Never rejects.
+ * The storybooks the teacher only previewed (the preview mints its code at render), from the teacher card's own quizzes
+ * read (pure): a `quiz_source:'story'` quiz counts as sent with `status:'sent'` or `meta.sent_at` / `meta.first_sent_at`.
+ * The hub asks for these columns only with the switch on (PREVIEW_COLS); with it off it never calls this.
  */
-async function homeReads({ chosenId, history, lang, now = Date.now() } = {}) {
-  try {
-    const f = await flags();
-    if (!f.home || !chosenId) return null;
-    const [st, phone] = await Promise.all([stampsOf(chosenId, history, now), phoneRows(chosenId, lang)]);
-    return { f, st, phone, now };
-  } catch (err) {
-    return { err };
-  }
-}
-
-/** homeField's answer from homeReads' result, once the hub has built `out` (no read): the same keys, in the same order. */
-function homeFrom({ out, history, reads } = {}) {
-  if (!reads || !out) return {};
-  if (reads.err) { logToFile('⚠️ web quiz home: unavailable', { error: reads.err.message }); return {}; }
-  try {
-    const hasRoot = (history || []).some((e) => e && e.teacherSent);
-    const head = headOf(reads.st.stamps, reads.now);
-    head.jar = out.book_on ? { fresh: reads.st.fresh } : null;
-    return { home_v3: 1, doors: doorsOf({ out, stories: reads.f.stories, hasRoot }), head, ...reads.phone };
-  } catch (err) {
-    logToFile('⚠️ web quiz home: unavailable', { error: err.message });
-    return {};
-  }
-}
-
-/**
- * The teacher's open codes minus the storybooks the teacher only previewed (the preview mints its code at render): a
- * `quiz_source:'story'` quiz counts as sent with `status:'sent'` or `meta.sent_at` / `meta.first_sent_at`. With the
- * switch off: the same array, no read. A read error keeps today's list (never hides a real teacher quiz).
- */
-async function sentOnly(codes) {
-  if (!Array.isArray(codes) || !codes.length) return codes;
-  try {
-    if (!(await flags()).home) return codes;
-    const ids = [...new Set(codes.map((c) => c.quiz_id).filter(Boolean))];
-    const { data, error } = await supabase.from('quizzes').select('id, quiz_source, status, meta').in('id', ids);
-    if (error) return codes;
-    const sent = (q) => q.status === 'sent' || Boolean(q.meta && (q.meta.sent_at || q.meta.first_sent_at));
-    const preview = new Set((data || []).filter((q) => q.quiz_source === 'story' && !sent(q)).map((q) => q.id));
-    return preview.size ? codes.filter((c) => !preview.has(c.quiz_id)) : codes;
-  } catch (_) {
-    return codes;
-  }
+const PREVIEW_COLS = 'quiz_source, status, meta';
+function storyPreviews(quizzes) {
+  const sent = (q) => q.status === 'sent' || Boolean(q.meta && (q.meta.sent_at || q.meta.first_sent_at));
+  return new Set((quizzes || []).filter((q) => q && q.quiz_source === 'story' && !sent(q)).map((q) => q.id));
 }
 
 // ─── the practice home ─────────────────────────────────────────────────────────────────────────────
@@ -306,4 +262,4 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
   }
 }
 
-module.exports = { homeField, homeReads, homeFrom, doorsOf, headOf, flags, hubSwitches, practiceHub, practiceOf, sentOnly, KEY, STORIES_KEY, _resetCache: () => { cache = null; }, _useModules: (m) => { modules = m; } };
+module.exports = { homeField, doorsOf, headOf, flags, practiceHub, practiceOf, prefetch, storyPreviews, PREVIEW_COLS, KEY, STORIES_KEY, _resetCache: () => HomeFlags._resetCache(), _useModules: (m) => { modules = m; } };
