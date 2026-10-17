@@ -1,9 +1,8 @@
 'use strict';
 /**
  * The v3 home's door screens (web-quiz-hub-doors.js, web_quiz_home_v3): GET /doors/h/<token>?d=stories|games.
- * Stories: this week's story first, then every story the child can open now, shuffled per child per Pakistan day
- * (stable within the day, `pos` on every row), the ones already met last; only rows that would open (a read with its
- * text, a listen with its clip); 0 / 1 / many. Games: the number games by the Trail's own rule. Switch off: 404.
+ * Stories: the storybooks' door — no Jugnu passage is listed, read or voiced (the shelf flag only). Games: the number
+ * games by the Trail's own rule. Switch off: 404. The pure day seed and shuffle stay exported and tested.
  * Supabase is faked; the hub (who the child is), the item bank and the challenge's clip/grade helpers are stood in for.
  * Invented children and passages only.
  */
@@ -16,10 +15,12 @@ jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (..
 const mockPassages = new Map();
 jest.mock('../../../shared/services/child-test/item-bank', () => ({ getPassage: (id) => mockPassages.get(id) || null }));
 const mockCh = {
-  storyClip: jest.fn(), sayClip: jest.fn(), formForChild: jest.fn(), gradeOf: jest.fn(), recordOn: jest.fn(), missingOn: jest.fn(), poolOn: jest.fn(),
+  storyClip: jest.fn(), storyClipCapped: jest.fn(), sayClip: jest.fn(), formForChild: jest.fn(), gradeOf: jest.fn(), recordOn: jest.fn(), missingOn: jest.fn(), poolOn: jest.fn(),
   nameOf: jest.fn((id, lang) => (lang === 'ur' ? { bigger: 'بڑا کون سا ہے؟', missing: 'غائب عدد' } : { bigger: 'Which is bigger?', missing: 'Missing number' })[id]),
 };
 jest.mock('../../../shared/services/quiz/web-quiz-challenge', () => mockCh);
+const mockReadOpen = jest.fn();
+jest.mock('../../../shared/services/quiz/web-quiz-challenge-budget', () => ({ readOpen: (...a) => mockReadOpen(...a) }));
 // The real clip recorder's boundaries, for the daily-cap rows below (the store and the paid voice).
 const mockHead = jest.fn(async () => ({ exists: false }));
 jest.mock('../../../shared/storage/r2', () => ({
@@ -84,6 +85,8 @@ beforeEach(() => {
   mockCh.recordOn.mockResolvedValue(true);
   mockCh.missingOn.mockResolvedValue(true);
   mockCh.poolOn.mockResolvedValue(false);
+  mockReadOpen.mockResolvedValue(false);
+  delete mockCh.listenOn;
 });
 
 const stories = (opts) => Doors.door('tok', { kid: 'chip', d: 'stories', lang: 'en', now: NOW, ...opts });
@@ -104,8 +107,20 @@ describe('the switch and who', () => {
   });
 });
 
-describe('Stories: 0 / 1 / many, only what opens', () => {
-  test('0: no released story -> an empty list (the page shows its own line), the shelf flag passed through', async () => {
+describe('the Stories door is the storybooks\' door: no Jugnu passage is listed or asked for', () => {
+  test('released reads and listens, Story Time on: no rows, no clip asked, no passage read; the shelf flag passed through', async () => {
+    seed([...STORY_ON, ON('web_quiz_home_v3'), ON('web_quiz_stories')], { passages: [passage('en.read.1.k01', 'read', 1, 3, 'The red kite'), passage('en.listen.1.k02', 'listen', 1, 2, 'The rain song')] });
+    expect(await stories()).toEqual({ stories: [], shelf: true });
+    expect(mockCh.storyClip).not.toHaveBeenCalled();
+    expect(mockCh.sayClip).not.toHaveBeenCalled();
+    expect(mockSynth).not.toHaveBeenCalled();
+    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k01', 'read', 1, 3, 'The red kite')] });
+    expect(await stories()).toEqual({ stories: [], shelf: false });
+  });
+});
+
+describe('Stories: no passage, with or without Story Time', () => {
+  test('no released story -> an empty list, the shelf flag passed through', async () => {
     seed([...STORY_ON, ON('web_quiz_home_v3'), ON('web_quiz_stories')]);
     expect(await stories()).toEqual({ stories: [], shelf: true });
   });
@@ -113,98 +128,11 @@ describe('Stories: 0 / 1 / many, only what opens', () => {
     seed([ON('web_quiz_hub'), ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k01', 'read', 1, 3)] });
     expect((await stories()).stories).toEqual([]);
   });
-  test('1: this week\'s story, the one primary row', async () => {
-    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k01', 'read', 1, 3, 'The red kite')] });
-    const out = await stories();
-    expect(out.stories).toEqual([{ kind: 'passage', id: 'en.read.1.k01', title: 'The red kite', pos: 0, week: true, fresh: true }]);
-    expect(out.shelf).toBe(false);
-  });
-  test('many: newest read first; unseen next; met last; listen rows only with a clip; untitled, unreleased, above-band and reserve rows never', async () => {
-    const ps = [
-      passage('en.read.1.k01', 'read', 1, 20), passage('en.read.1.k02', 'read', 1, 1, 'Newest'), passage('en.read.1.k03', 'read', 1, 10),
-      passage('en.read.1.k04', 'read', 1, 12), passage('en.listen.1.k05', 'listen', 1, 4), passage('en.listen.1.k06', 'listen', 1, 5, 'No clip yet'),
-      passage('en.read.3.k07', 'read', 3, 2, 'Too hard'), { ...passage('en.read.1.k08', 'read', 1, -2, 'Next week') },
-      passage('en.read.1.reserve01', 'read', 1, 30, 'Reserve'),
-    ];
-    mockPassages.set('en.read.1.k09', { text: 'x', title_en: null, title_ur: null, kind: 'read', pool: 'practice' });
-    ps.push({ passage_id: 'en.read.1.k09', lang: 'en', band: 1, kind: 'read', pool: 'practice', status: 'reviewed', released_at: ago(6) });
-    mockCh.storyClip.mockImplementation(async (lang, text) => (/No clip yet/.test(text) ? null : 'https://r2.example.test/c.ogg'));
-    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: ps, runs: [{ student_id: KID, passage_id: 'en.read.1.k01' }] });
-    const out = (await stories()).stories;
-    const ids = out.map((r) => r.id);
-    expect(ids[0]).toBe('en.read.1.k02');
-    expect(out[0]).toMatchObject({ week: true, pos: 0 });
-    expect(ids.slice(1, 4).sort()).toEqual(['en.listen.1.k05', 'en.read.1.k03', 'en.read.1.k04']);
-    expect(ids[4]).toBe('en.read.1.k01');
-    expect(out[4]).toMatchObject({ done: true });
-    expect(out.map((r) => r.pos)).toEqual([0, 1, 2, 3, 4]);
-    expect(out.find((r) => r.id === 'en.listen.1.k05').kind).toBe('listen');
-    for (const never of ['en.listen.1.k06', 'en.read.3.k07', 'en.read.1.k08', 'en.read.1.reserve01', 'en.read.1.k09']) expect(ids).not.toContain(never);
-  });
-  test('a row\'s words in the quiz voice when the clip exists (the speaker plays it)', async () => {
-    mockCh.sayClip.mockImplementation(async (t) => (t === 'The red kite' ? 'https://r2.example.test/say.ogg' : null));
-    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k01', 'read', 1, 3, 'The red kite')] });
-    expect((await stories()).stories[0].say).toBe('https://r2.example.test/say.ogg');
-  });
-
-  test('the wait for the say clips leaves no timer behind once they answer (a door read never holds the process open)', async () => {
-    mockCh.sayClip.mockImplementation(async () => null);
-    const set = jest.spyOn(global, 'setTimeout');
-    const clear = jest.spyOn(global, 'clearTimeout');
-    try {
-      await stories();
-      const waits = set.mock.calls.map((c, i) => [c[1], set.mock.results[i].value]).filter(([ms]) => ms === 600).map(([, id]) => id);
-      expect(waits.length).toBeGreaterThan(0);
-      waits.forEach((id) => expect(clear).toHaveBeenCalledWith(id));
-    } finally { set.mockRestore(); clear.mockRestore(); }
-  });
-});
-
-describe('listen rows and the daily cap on recorded clips (the door takes no more than half, as its labels)', () => {
-  const RealCh = () => jest.requireActual('../../../shared/services/quiz/web-quiz-challenge');
-  const listens = () => [passage('en.listen.1.k21', 'listen', 1, 4, 'Known clip'), passage('en.listen.1.k22', 'listen', 1, 5, 'Unknown clip')];
-  beforeEach(() => {
-    const Ch = RealCh();
-    Ch.__reset();
-    // the door asks the real clip helpers (the stand-in delegates), so the recorder and its cap run for real
-    mockCh.storyClip.mockImplementation((...a) => Ch.storyClip(...a));
-    if (typeof Ch.storyClipCapped === 'function') mockCh.storyClipCapped = (...a) => Ch.storyClipCapped(...a);
-    mockHead.mockImplementation(async (key) => ({ exists: key === Ch.clipKey('listen', 'story', 'en', 'Known clip text.') }));
-  });
-  afterEach(() => { delete mockCh.storyClipCapped; RealCh().__reset(); });
-
-  test('past half the day\'s recordings: an unknown clip starts no recording and is not listed; a known clip still lists', async () => {
-    const Ch = RealCh();
-    expect(await Ch.warmClip(Ch.clipKey('listen', 'story', 'en', 'Known clip text.'), 'Known clip text.', 'en', { record: false })).toBe('had');
-    Ch.__useClips(Ch.MAX_CLIP_RECORDINGS / 2);
-    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: listens() });
-    const ids = (await stories()).stories.map((r) => r.id);
-    expect(mockSynth).not.toHaveBeenCalled();
-    expect(ids).toContain('en.listen.1.k21');
-    expect(ids).not.toContain('en.listen.1.k22');
-  });
-
-  test('under half: a missing clip is recorded in the background as today (listed on a later open)', async () => {
-    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: listens() });
-    const ids = (await stories()).stories.map((r) => r.id);
-    expect(ids).not.toContain('en.listen.1.k22');
-    expect(mockSynth).toHaveBeenCalledWith(expect.objectContaining({ text: 'Unknown clip text.' }));
-  });
 });
 
 describe('the shuffle: stable within a Pakistan day, per child', () => {
   const ten = () => Array.from({ length: 10 }, (_, i) => passage(`en.read.1.s${i}`, 'read', 1, 10 + i));
-  test('00:10 PKT and 23:50 PKT give the same order; another day or another child may not', async () => {
-    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: ten() });
-    const at = (iso) => stories({ now: Date.parse(iso) }).then((o) => o.stories.map((r) => r.id).join());
-    const early = await at('2026-10-15T19:10:00Z'); // 00:10 PKT on the 16th
-    const late = await at('2026-10-16T18:50:00Z');  // 23:50 PKT on the 16th
-    expect(late).toBe(early);
-    // the next Pakistan day re-deals the shelf itself, not only the seed (ten rows: an equal order by chance is negligible)
-    const next = await at('2026-10-16T19:10:00Z');  // 00:10 PKT on the 17th
-    expect(next.split(',')).toHaveLength(10);
-    expect(next.split(',').sort()).toEqual(early.split(',').sort());
-    expect(next).not.toBe(early);
+  test('the day seed: 00:10 PKT and 23:50 PKT the same; another Pakistan day or another child not', () => {
     expect(Doors.daySeed(KID, Date.parse('2026-10-15T19:10:00Z'))).toBe(Doors.daySeed(KID, Date.parse('2026-10-16T18:50:00Z')));
     expect(Doors.daySeed(KID, Date.parse('2026-10-16T19:10:00Z'))).not.toBe(Doors.daySeed(KID, Date.parse('2026-10-16T18:50:00Z')));
     expect(Doors.daySeed(KID2, NOW)).not.toBe(Doors.daySeed(KID, NOW));
@@ -232,6 +160,37 @@ describe('Games: the number games by the Trail\'s own rule', () => {
   test('without the missing-number switch: which is bigger only', async () => {
     mockCh.missingOn.mockResolvedValue(false);
     expect((await games()).games.map((g) => g.stop)).toEqual(['bigger']);
+  });
+  test('Jugnu\'s passages beside the games (the Stories door shows storybooks only): read along, read aloud, listen — each only when it would open', async () => {
+    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k01', 'read', 1, 9, 'Old kite'), passage('en.read.1.k02', 'read', 1, 2, 'The red kite'), passage('en.listen.1.k05', 'listen', 1, 3, 'The rain song')] });
+    mockReadOpen.mockResolvedValue(true);
+    const NAMES = { en: { bigger: 'Which is bigger?', missing: 'Missing number', read: 'Read aloud' }, ur: { read: 'اونچی آواز میں پڑھیں' } };
+    mockCh.nameOf.mockImplementation((id, lang) => (NAMES[lang] || NAMES.en)[id]);
+    const g = (await games()).games;
+    expect(g.filter((r) => r.kind !== 'numbers')).toEqual([
+      { kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' },
+      { kind: 'read', stop: 'read', name: 'Read aloud' },
+      { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' },
+    ]);
+    // the day's read-aloud cap reached: no read-aloud row; the read along and the listen stay
+    mockReadOpen.mockResolvedValue(false);
+    expect((await games()).games.filter((r) => r.kind !== 'numbers').map((r) => r.kind)).toEqual(['passage', 'listen']);
+    // Story Time off: no passage rows (the room would not serve them)
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3')], { passages: [passage('en.read.1.k02', 'read', 1, 2, 'The red kite')] });
+    expect((await games()).games.filter((r) => r.kind === 'passage')).toEqual([]);
+  });
+  test('a Games-door open asks for no story clip: the listen row is listed by its listening text alone (the clip is asked when the child opens the listen)', async () => {
+    seed([...STORY_ON, ON('web_quiz_home_v3')], { passages: [passage('en.listen.1.k05', 'listen', 1, 3, 'The rain song'), passage('en.listen.1.k06', 'listen', 1, 1, 'No words yet')] });
+    mockPassages.set('en.listen.1.k06', { ...mockPassages.get('en.listen.1.k06'), text: '' });
+    mockReadOpen.mockResolvedValue(false);
+    mockCh.storyClip.mockResolvedValue(null);
+    mockCh.storyClipCapped.mockResolvedValue(null);
+    const g = (await games()).games;
+    // the newest listen has no words in the bank, so the one before it is the row
+    expect(g.filter((r) => r.kind !== 'numbers')).toEqual([{ kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }]);
+    expect(mockCh.storyClip).not.toHaveBeenCalled();
+    expect(mockCh.storyClipCapped).not.toHaveBeenCalled();
+    expect(mockSynth).not.toHaveBeenCalled();
   });
   test('the grade-1 form: its one game', async () => {
     mockCh.formForChild.mockResolvedValue('1');

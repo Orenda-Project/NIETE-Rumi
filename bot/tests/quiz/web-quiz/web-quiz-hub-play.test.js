@@ -90,6 +90,7 @@ function seed(settings, over = {}) {
   Object.assign(supabase, { from, rpc: fake.rpc });
   Hub._resetCache();
   Play._resetCache();
+  require('../../../shared/services/quiz/web-quiz-home-flags')._resetCache();
 }
 
 beforeEach(() => {
@@ -170,6 +171,16 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.play.lantern).toEqual({ kind: 'trail', stops: 1 });
     expect(out.play.doors).toEqual(['hub_first', 'tomorrow', 'shelf']);
+  });
+
+  test('the v3 home on (web_quiz_home_v3): the trail lantern names its first open step for the home\'s tile; off: today\'s lantern', async () => {
+    const runs = { web_quiz_challenge_runs: [{ student_id: KID, exercise: 'read', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null }] };
+    seed([...STORY_ON, { key: 'web_quiz_home_v3', value: true }], runs); // the JSON true the flip writes
+    const lt = (await Hub.hub(T.signHub([KID]), A)).play.lantern;
+    expect(lt).toMatchObject({ kind: 'trail', stops: 1, first: { id: expect.any(String), label: expect.any(String), lang: 'en' } });
+    expect(lt.first.id).not.toBe('read');
+    seed(STORY_ON, runs);
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'trail', stops: 1 });
   });
 
   test('NEW iff no run row (any mode) and no sticker for the passage or its twin; the newest live story is named', async () => {

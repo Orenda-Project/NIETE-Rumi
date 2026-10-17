@@ -90,6 +90,8 @@ describe('Section A never gives Section C away', () => {
     // A stem that prints another Q1 item's key holds that item: Q1 ۱۹ asks the name for a word group three earlier stems print
     // («… یہ الفاظ کس کے متلازم ہیں؟» → «متلازم الفاظ»).
     if (name === 'chapters_2') kept.splice(kept.indexOf(GROUP_NAME), 1);
+    // One grammar concept once: chapters_1's second شکیہ item is held («کون سا جملہ شکیہ ہے؟» stays).
+    if (name === 'chapters_1') kept.splice(kept.indexOf('کون سا لفظ شکیہ جملے میں استعمال ہوتا ہے؟'), 1);
     expect(after.slice().sort()).toEqual(kept.sort());
   });
 

@@ -101,7 +101,10 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
     const { examJson } = applyLayout(exam, U, L67, { reasked: false });
     const q1 = items(examJson, 'urdu.A.Q1');
     expect(q1.some((q) => q.question.startsWith('قلم، کاپی، بستہ، تختی'))).toBe(false);
-    expect(q1).toHaveLength(19);
+    // 18, not 19: «… اس کا نتیجہ کیا نکلے گا؟» is held too, its option «د) تھیڑ کمپنی ختم ہو جائے گی»
+    // stating «… کیا بنایا؟ → تھیڑ کمپنی» (an option that states a key, fde-r17-urdu.test.js (b)).
+    expect(q1).toHaveLength(18);
+    expect(q1.some((q) => q.question.endsWith('اس کا نتیجہ کیا نکلے گا؟'))).toBe(false);
     expect(items(examJson, 'urdu.C.Q4').map((q) => q.answer)).toContain('الف) اسکول');
   });
 
@@ -114,7 +117,13 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
   test('a paper with no shared key lays out as before', () => {
     const exam = q4Only(clone(papers.lessons_4_5_failed));
     const { examJson } = applyLayout(exam, U, L45, { reasked: false });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    // One grammar concept once: the second شکیہ item («شکیہ جملے میں کون سا لفظ آ سکتا ہے؟») and the
+    // second تمنائی item («تمنائی جملے میں کس چیز کا اظہار ہوتا ہے؟») are held.
+    const q1 = items(examJson, 'urdu.A.Q1').map((q) => q.question);
+    expect(q1).toHaveLength(18);
+    expect(q1).not.toContain('شکیہ جملے میں کون سا لفظ آ سکتا ہے؟');
+    expect(q1).toContain('کون سا جملہ تمنائی ہے؟');
+    expect(q1).not.toContain('تمنائی جملے میں کس چیز کا اظہار ہوتا ہے؟');
   });
 
   test('the re-asked Section A is told Q4\'s questions and answers; other sections are not', () => {
