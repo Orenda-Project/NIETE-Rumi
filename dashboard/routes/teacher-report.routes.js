@@ -123,7 +123,9 @@ function createTeacherReportRouter(opts = {}) {
       const type = out.contentType || 'text/html; charset=utf-8';
       if (kind === 'pdf' && out.status === 200 && /application\/pdf/i.test(type)) {
         const day = new Date(Date.now() + PKT_MS).toISOString().slice(0, 10);
-        res.set('Content-Disposition', `attachment; filename="quiz-report-${day}.pdf"`);
+        // The bot names a story's own report story-report-<day>.pdf; anything else it says is a quiz report.
+        const kind = /^attachment; filename="story-report-\d{4}-\d{2}-\d{2}\.pdf"$/.test(out.disposition || '') ? 'story' : 'quiz';
+        res.set('Content-Disposition', `attachment; filename="${kind}-report-${day}.pdf"`);
       }
       // The report page's timing, when the bot sent it (events v2 on): its own numbers back, and the edge's whole time.
       if (kind === 'page' && out.status === 200 && out.timing) {
