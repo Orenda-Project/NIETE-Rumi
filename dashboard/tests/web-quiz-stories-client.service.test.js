@@ -1134,6 +1134,10 @@ describe('hooks, hush, back controls, the own done screen', () => {
     e.S.shelf(el2, e.ctx({ primary: false }));
     expect(primaries(el2.innerHTML)).toBe(0);
   });
+  test('the look-back screen (a centred sheet) stretches the page stage: the stage\'s only child is absolute, so a centred stage would be 0 px wide', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-sheet \.wqs-stage[^{]*\{[^}]*align-self:stretch/);
+  });
   test('the look-back screen has a back control; the shelf retry has a home link', async () => {
     const e = env({ hash: '#story/b-1/q', right: () => false });
     const root = fakeEl('root');
