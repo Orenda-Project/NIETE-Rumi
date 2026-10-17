@@ -1530,16 +1530,6 @@
    "279 userId (shorthand)"
   ]
  },
- "bot/shared/services/quiz/lp-lesson-claim.js": {
-  "n": 4,
-  "area": "quiz",
-  "at": [
-   "122 userId: teacherId",
-   "130 userId: teacherId",
-   "142 userId: teacherId",
-   "145 userId: teacherId"
-  ]
- },
  "bot/shared/services/quiz/lp-v8-lesson-provider.js": {
   "n": 7,
   "area": "quiz",
