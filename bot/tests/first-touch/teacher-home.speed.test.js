@@ -153,6 +153,33 @@ describe('the class report is held 60 s per teacher', () => {
     expect(deps.Report.classReport).toHaveBeenCalledTimes(3);
   });
 
+  test('a read that began before a send\'s drop is never held: the next open reads again', async () => {
+    const deps = setup();
+    await boot(deps);
+    const t = tokenFor();
+    const first = home(t); // its class report is in flight for MS.report
+    await wait(50);
+    expect((await post('/api/th/send', { t, kind: 'again', id: OWN_QUIZ })).status).toBe(200);
+    await first;
+    await home(t);
+    expect(deps.Report.classReport).toHaveBeenCalledTimes(2);
+  });
+
+  test('a read that starts while a send is still writing is not held past the write', async () => {
+    const deps = setup();
+    const Send = require('../../shared/services/first-touch/teacher-home.send');
+    const realAgain = Send.againSend;
+    jest.spyOn(Send, 'againSend').mockImplementation(async (...a) => { await wait(MS.report + 300); return realAgain(...a); });
+    await boot(deps);
+    const t = tokenFor();
+    const sending = post('/api/th/send', { t, kind: 'again', id: OWN_QUIZ });
+    await wait(50);
+    await home(t); // starts after the send's first drop, answers before the write lands
+    expect((await sending).status).toBe(200);
+    await home(t);
+    expect(deps.Report.classReport).toHaveBeenCalledTimes(2);
+  });
+
   test('a failed read is never held', async () => {
     let n = 0;
     const deps = setup({ report: async () => { n += 1; if (n === 1) throw new Error('down'); return { quizzes: [] }; } });
