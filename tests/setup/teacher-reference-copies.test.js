@@ -1,19 +1,14 @@
 /**
- * The teacher's keyed reference in logs and events: HMAC-SHA256(WEB_QUIZ_KID_KEY, 't|' + users.id), 16 hex, null
- * under a 32-byte key. Until one shared helper exports it, a few modules carry their own copy, and the copies must
- * give the same value or a log line stops joining its events.
+ * The teacher's keyed reference in logs, events and the first-open mark: HMAC-SHA256(WEB_QUIZ_KID_KEY, 't|' + users.id),
+ * 16 hex, null under a 32-byte key. One helper computes it: tk() in bot/shared/services/quiz/web-quiz-kid.js. The
+ * modules that once carried their own copy (teacher-report-list.service.js, maker.fallback.js, web-quiz-join-queue.js,
+ * teacher-home.routes.js) call it.
  *
- *   1. The copies are counted per file against teacher-reference-copies.allowlist.json, shrink-only: a new copy
- *      fails; a file that moves to the shared helper drops to 0 and passes with a CLEAN warning.
- *   2. Every file that still holds a copy should have a test that asserts the agreed value: a 32-byte key and the
- *      id a0000000-0000-4000-8000-000000000001 give e815e81977411f12. A listed copy without one prints a WARN line
- *      for now; once the shared helper lands the copies go, and this rule becomes "no copies".
- *
- * The listed copy: bot/shared/services/first-touch/teacher-home.routes.js (PR #2655). teacher-report-list.service.js,
- * maker.fallback.js and web-quiz-join-queue.js take tk() from bot/shared/services/quiz/web-quiz-kid.js, the shared
- * helper.
- */
-const fs = require('fs');
+ *   1. No copies: an inline `.update('t|' + id)` outside the helper fails (teacher-reference-copies.allowlist.json is
+ *      empty and shrink-only — a new entry needs a reason in review).
+ *   2. The helper is pinned: a test asserts that a 32-byte key and the id a0000000-0000-4000-8000-000000000001 give
+ *      e815e81977411f12 through web-quiz-kid, so a change to the helper's value cannot pass unnoticed.
+ */const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { countVerdict } = require('./ratchet-verdict-lib');
@@ -50,15 +45,16 @@ describe('the teacher reference copies', () => {
     expect(failures).toEqual([]);
   });
 
-  test('every copy is pinned to the agreed value by a test of its module (a listed copy without one: WARN)', () => {
-    const tests = tracked('bot/tests', 'dashboard/tests').map((f) => [f, read(f)]).filter(([, s]) => s.includes(PINNED));
-    const unpinned = Object.keys(copies()).filter((f) => {
-      const mod = path.basename(f, '.js');
-      return !tests.some(([, s]) => s.includes(`/${mod}'`) || s.includes(`/${mod}.js'`));
+  test('no copies: the list is empty and the tree holds none', () => {
+    expect(ALLOW).toEqual({});
+    expect(copies()).toEqual({});
+  });
+
+  test('the shared helper is pinned to the agreed value by a test', () => {
+    const pins = tracked('bot/tests', 'dashboard/tests').filter((f) => {
+      const src = read(f);
+      return src.includes(PINNED) && /\/web-quiz-kid['.]/.test(src);
     });
-    for (const f of unpinned.filter((x) => Object.prototype.hasOwnProperty.call(ALLOW, x))) {
-      console.warn(`WARN: ${f} has no test asserting ${PINNED}. Add one beside its emitted reference.`);
-    }
-    expect(unpinned.filter((x) => !Object.prototype.hasOwnProperty.call(ALLOW, x))).toEqual([]);
+    expect(pins.length).toBeGreaterThan(0);
   });
 });

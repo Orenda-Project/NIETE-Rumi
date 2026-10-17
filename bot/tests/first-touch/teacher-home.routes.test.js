@@ -569,6 +569,49 @@ describe('the store and the lists when something fails', () => {
     expect(firsts).toEqual([false, true, false]);
   });
 
+  // The first-open mark is keyed by the teacher's reference, so it is the agreed value or nothing.
+  const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+  const withKey = async (key, fn) => {
+    const was = process.env.WEB_QUIZ_KID_KEY;
+    process.env.WEB_QUIZ_KID_KEY = key;
+    try { return await fn(); } finally { process.env.WEB_QUIZ_KID_KEY = was; }
+  };
+  const openKeys = () => [...R().__keys.keys()].filter((k) => String(k).startsWith('th:open:'));
+
+  test('the first-open mark is keyed by the agreed reference: a 32-byte key and the pinned teacher id → th:open:e815e81977411f12', async () => {
+    seed();
+    fake.db.users.push({ ...TEACHER, id: PIN_ID });
+    await boot(deps);
+    R().__keys.clear();
+    await withKey('k'.repeat(32), () => get(`/api/th/home?t=${tokenFor({ uid: PIN_ID })}&g=4`));
+    expect(openKeys()).toEqual(['th:open:e815e81977411f12']);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => [f.first, f.tk]);
+    expect(firsts).toEqual([[true, 'e815e81977411f12']]);
+  });
+
+  test('a 31-byte key is no key: no reference, no first-open mark, first is false', async () => {
+    seed();
+    await boot(deps);
+    R().__keys.clear();
+    await withKey('k'.repeat(31), () => get(`/api/th/home?t=${tokenFor()}&g=4`));
+    expect(openKeys()).toEqual([]);
+    const firsts = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => [f.first, f.tk]);
+    expect(firsts).toEqual([[false, null]]);
+  });
+
+  test('the reference (events and the first-open mark) comes from the shared helper, no copy of its own', async () => {
+    seed();
+    await boot(deps);
+    R().__keys.clear();
+    const Kid = require('../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    try {
+      await get(`/api/th/home?t=${tokenFor()}&g=4`);
+      expect(openKeys()).toEqual(['th:open:5e1ec7ed5e1ec7ed']);
+      expect(spy).toHaveBeenCalledWith(TEACHER.id);
+    } finally { spy.mockRestore(); }
+  });
+
   test('codes that are not the teacher\'s own sends (a watch child, a class child\'s lesson code) are never a send on the home', async () => {
     seed();
     const at = new Date().toISOString();
