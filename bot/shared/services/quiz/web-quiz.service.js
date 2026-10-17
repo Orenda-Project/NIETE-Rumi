@@ -2200,7 +2200,9 @@ function events(body = {}, { device = null } = {}) {
     // Events v3 (web_quiz_events_v3): the next-thing slot's lines, keyed and with their sitting id. Off: today's path.
     if ((EV3().relayed(e) || EV3().forged(e)) && require('./web-quiz-next-offer-state').eventsV3Now()) {
       if (EV3().forged(e)) continue;   // a server-only v3 name from a page is never logged
-      EV3().relay(e, body, device, { onTap: (kid, offer) => require('./web-quiz-next-offer-state').noteTap(kid, offer) }).catch(() => {});
+      EV3().relay(e, body, device, { onTap: (kid, offer) => require('./web-quiz-next-offer-state').noteTap(kid, offer),
+        onDoor: (kid) => require('./web-quiz-next-offer-state').noteDoor(kid),
+        onDone: (kid, card) => require('./web-quiz-next-offer-state').noteDone(kid, card) }).catch(() => {});
       logged += 1;
       continue;
     }
