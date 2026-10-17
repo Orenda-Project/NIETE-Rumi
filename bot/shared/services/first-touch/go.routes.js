@@ -73,9 +73,11 @@ function json(res, status, body) {
   return res.status(status).json(body);
 }
 
-async function v3(name, props) {
+// a door line under events v3: the shared envelope (kid_v, kid null) and the sitting keyed by this phone's dk, so the
+// role answer joins the sitting the child then plays in (EVENTS v3 §0)
+async function v3(name, props, device = null) {
   try {
-    if ((await Flags.flags()).eventsV3) logEvent(`web_quiz.${name}`, { w: 's', ev_v: 3, v3: 1, kid: null, ...props });
+    if ((await Flags.flags()).eventsV3) await require('../quiz/web-quiz-events-v3').emit3(`web_quiz.${name}`, props, { device });
   } catch (_) { /* never decides a response */ }
 }
 function event(name, props) {
@@ -144,7 +146,7 @@ async function destination(o) {
       return { ...base, how: 'confirm', page: 'pick', kids: who.kids.map((k) => ({ pick: pickOf(o.p.n, k.id), first: k.first })) };
     }
     if (who.src === 'family') return { ...base, side: 'unknown', how: 'ask_no_writer', page: 'role' };
-    return { ...base, how: 'child_home', next: await Targets.child(who.children, 'quiz') };
+    return { ...base, how: 'child_home', next: await Targets.child(who.children, 'quiz', lang) };
   }
   if (who.side === 'join') return { ...base, how: 'join', next: Targets.join({ n: o.p.n, lang }) };
   return { ...base, how: 'ask', page: 'role' };
@@ -179,7 +181,7 @@ router.get('/land/:token', async (req, res) => {
     if (o.p) lang = o.p.lang;
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
-      await v3('go_stale', { why: o.stale, lang });
+      await v3('go_stale', { why: o.stale, lang }, deviceOf(req));
       return page(res, Page.buildMessagePage({ id: 'go.stale', lang, bot: botNumber() }));
     }
     // the one question paints before any database read; who this phone is, is asked after paint
@@ -206,7 +208,7 @@ router.post('/who', async (req, res) => {
     const d = o.p.side === 'unknown' && o.p.src === 'change' ? { side: 'unknown' } : await destination(o);
     if (d.next) return json(res, 200, { side: d.side, next: d.next });
     if (d.page === 'pick') return json(res, 200, { side: d.side, next: `/quiz/go/${encodeURIComponent(t)}` });
-    await v3('role_asked', { lang: o.p.lang });
+    await v3('role_asked', { lang: o.p.lang }, deviceOf(req));
     // a child who played on THIS device's quiz page: one line above the tiles (only when a binding can be written)
     const qd = quizDevice(b.d);
     if (qd && Targets.canBind()) {
@@ -231,7 +233,7 @@ router.post('/role', async (req, res) => {
     // the write is single-use per link: a second tap re-reads, it never writes twice
     if (await GoNonce.claim(o.p.n, 'role')) {
       await Role.writeRoleAnswer({ userId: o.userId, side, phone: o.phoneNorm, src: 'role_page' });
-      await v3('role_answered', { role: side === 'teacher' ? 'teacher' : 'student', lang: o.p.lang });
+      await v3('role_answered', { role: side === 'teacher' ? 'teacher' : 'student', lang: o.p.lang }, deviceOf(req));
       event('one_door.role', { side, writer: 'role_page' });
     }
     const d = await destination(o);

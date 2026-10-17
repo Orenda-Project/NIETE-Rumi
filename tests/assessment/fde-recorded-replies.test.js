@@ -35,6 +35,7 @@ jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
 }));
 
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
+const { topUpTree } = require('./helpers/urdu-spares');
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'fde');
 const fixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8'));
@@ -78,6 +79,9 @@ function recordedUrdu(edit = (s, tree) => tree) {
     ? loaded(HELD_PAGES, '1-27') : loaded(LESSON_PAGES, String(pageRanges))));
   mockCreate.mockImplementation(async (params) => {
     const s = sectionOf(params);
+    // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
+    const spares = s === 'A' && topUpTree(params.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n'));
+    if (spares) return reply(JSON.stringify({ unseen: spares }));
     return reply(JSON.stringify(edit(s, JSON.parse(URDU.sections[s]))));
   });
 }
@@ -96,15 +100,49 @@ describe('the recorded Urdu paper', () => {
     expect(line).toMatchObject({ dropped: 0, shortfall: [] });
   });
 
-  test('an item quoting a held-only line of 24+ characters is still dropped, and still fails the slot', async () => {
+  test('an item quoting a held-only line of 24+ characters is still dropped; its place is asked again once and the line never prints', async () => {
     recordedUrdu((s, tree) => {
       if (s === 'A') tree.unseen.objective.MCQs[3].question = `مکمل کریں: «${HELD_ONLY}»`;
       return tree;
     });
+    const inner = mockCreate.getMockImplementation();
+    // The re-ask writes items the paper does not have yet (the replay helper's spares are already on it).
+    mockCreate.mockImplementation(async (params) => {
+      const text = params.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+      if (!/it repeats words from a lesson the paper must never quote/.test(text)) return inner(params);
+      const fresh = [['کنواں', 'پانی نکالنے کی جگہ'], ['چرواہا', 'بکریاں چرانے والا'], ['لوہار', 'لوہے کا کام کرنے والا']].map(([w, k]) => ({
+        slot: 'urdu.A.Q1', main_question: 'صحیح جواب کا انتخاب کریں', question: `لفظ «${w}» سے کیا مراد ہے؟`,
+        options: [`الف) ${k}`, 'ب) پہاڑ کی چوٹی', 'ج) آسمان کا رنگ', 'د) رات کا وقت'], answer: `الف) ${k}`, marks: 1,
+      }));
+      return reply(JSON.stringify({ unseen: { objective: { MCQs: fresh } } }));
+    });
+    const out = await Gen.generatePatternExam(ARGS('urdu'));
+    // Held exactly as strictly: the quoting item is dropped, the re-ask is told the run and writes new items.
+    expect(logged('[assessment] held item dropped')).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3', kind: 'MCQs', match: expect.any(String) }]);
+    expect(logged('[assessment] held quote re-asked')).toEqual([expect.objectContaining({ slots: ['urdu.A.Q1'], refilled: true, held_again: 0 })]);
+    expect(JSON.stringify(out.examJson)).not.toContain(HELD_ONLY);
+  });
+
+  test('a re-ask that quotes the held-only line again fails the slot', async () => {
+    recordedUrdu((s, tree) => {
+      if (s === 'A') tree.unseen.objective.MCQs[3].question = `مکمل کریں: «${HELD_ONLY}»`;
+      return tree;
+    });
+    const inner = mockCreate.getMockImplementation();
+    // The re-ask answers with the recorded Section A again (the quoting item included).
+    mockCreate.mockImplementation(async (params) => {
+      const text = params.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+      if (/it repeats words from a lesson the paper must never quote/.test(text)) {
+        const tree = JSON.parse(URDU.sections.A);
+        tree.unseen.objective.MCQs[3].question = `مکمل کریں: «${HELD_ONLY}»`;
+        return reply(JSON.stringify(tree));
+      }
+      return inner(params);
+    });
     const err = await Gen.generatePatternExam(ARGS('urdu')).catch((e) => e);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
     expect(err.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
-    expect(logged('[assessment] held item dropped')).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3', kind: 'MCQs', match: expect.any(String) }]);
+    expect(logged('[assessment] held item dropped')).toEqual(Array(2).fill({ slot: 'urdu.A.Q1', reason: 'lesson_1_3', kind: 'MCQs', match: expect.any(String) }));
   });
 
   test('a 23-character run from the held pages is shared wording, not a quote', async () => {

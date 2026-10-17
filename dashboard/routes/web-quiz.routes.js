@@ -142,6 +142,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
   // an old, finished class link opened again: the child's hub, for one remembered child on this phone
   { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
+  // a class link on a phone that holds a child: which children this browser holds ("Is it <name>?")
+  { method: 'post', path: '/api/wq/known', limiter: 'session' },
   // the finish card (web_quiz_card_v3): a card token for this child's finish (the bot answers 404 while it is off)
   { method: 'post', path: '/api/wq/card', limiter: 'session' },
   // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
@@ -185,9 +187,9 @@ function assetVersion() {
   for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
-  // The stories reader (loaded by the home and the hub at this ?v=) and its lazy questions file (at the reader's ?v=, this
+  // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
   // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
-  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js']) {
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -262,7 +264,7 @@ function ogTextOf(payload, view, brand) {
   // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
   if (payload && payload.story) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${label}`,
+      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${cls.label || 'your class'}`,
       desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
     };
   }
@@ -356,8 +358,9 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   const teachId = view === 'quiz' ? artId(art.teach, 'teach') : null;
   const teach = teachId && typeof art.teach_v === 'string' && TEACH_V_RX.test(art.teach_v)
     ? `${origin}/q/${code}/art/teach.png?a=${encodeURIComponent(teachId)}&v=${art.teach_v}` : null;
-  // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture.
-  const live = ver && view === 'quiz' ? pic('class', artId(art.class, 'class')) : null;
+  // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture. A story's
+  // reminder keeps the story's own picture: the live class picture is a quiz scoreboard (played, average, top score).
+  const live = ver && view === 'quiz' && !(payload && payload.story) ? pic('class', artId(art.class, 'class')) : null;
   return pic('card', artId(a, 'card'))
     || pic('invite', artId(art.invite, 'invite'))
     || live
@@ -807,6 +810,8 @@ function createWebQuizRouter(opts = {}) {
     return next();
   }
 
+  // With app_settings web_quiz_brotli on: br scripts/styles, a day for unversioned files, versioned Jugnu pictures (web-quiz-static.js).
+  router.use(require('./web-quiz-static').createWqStatic({ publicDir: PUBLIC_DIR, on: opts.brotliOn }));
   for (const r of API_ROUTES) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);

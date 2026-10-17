@@ -37,7 +37,7 @@ const STRINGS = Object.freeze({
   'th.lastlesson': Object.freeze({ en: 'Quiz from your last lesson: {topic}', ur: 'آپ کے پچھلے سبق کا کوئز: {topic}' }),
   'th.tag.story': Object.freeze({ en: 'Story sent', ur: 'بھیجی گئی کہانی' }),
   'th.quiz.this': Object.freeze({ en: 'Quiz this', ur: 'اس کا کوئز بنائیں' }),
-  'th.job': Object.freeze({ en: 'Your quiz arrives in this chat in about a minute', ur: 'آپ کا کوئز تقریباً ایک منٹ میں اسی چیٹ میں آئے گا' }),
+  'th.job': Object.freeze({ en: 'Your quiz is on its way — it takes a few minutes and arrives in this chat too', ur: 'کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا' }),
   'th.quiz.making': Object.freeze({ en: 'Making your quiz…', ur: 'آپ کا کوئز بن رہا ہے…' }),
   'th.quiz.late': Object.freeze({ en: 'Taking longer than usual — it will arrive in this chat', ur: 'معمول سے زیادہ وقت لگ رہا ہے — کوئز اسی چیٹ میں آ جائے گا' }),
   'th.more': Object.freeze({ en: 'More', ur: 'مزید' }),
@@ -45,6 +45,8 @@ const STRINGS = Object.freeze({
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),
   'th.all.stories': Object.freeze({ en: 'All stories', ur: 'سب کہانیاں' }),
+  // a story the teacher sent this month, by its row; {day} = the send's day/month in the page's digits
+  'th.sent.on': Object.freeze({ en: 'Sent ✓ {day}', ur: 'بھیجی گئی ✓ {day}' }),
   'th.videos.card': Object.freeze({ en: 'Ready video quizzes', ur: 'تیار ویڈیو کوئز' }),
   // the foot
   'th.make': Object.freeze({ en: 'Make a new quiz', ur: 'نیا کوئز بنائیں' }),

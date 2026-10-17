@@ -98,10 +98,10 @@ describe('urdu Q1 ↔ Q4: a key in Q4\'s accepted answers, or Q4\'s word list re
     expect(q1Count(examJson)).toBe(before);
   });
 
-  test('after the one re-ask, the held item comes back only for a place nothing else takes', () => {
-    const before = q1Count(ch2);
+  test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {
+    const held = q1Count(applyLayout(clone(ch2), U, FDE, { reasked: false }).examJson);
     const { examJson } = applyLayout(clone(ch2), U, FDE, { reasked: true });
-    expect(q1Count(examJson)).toBe(before);
+    expect(q1Count(examJson)).toBe(held);
   });
 });
 

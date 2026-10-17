@@ -115,6 +115,14 @@ input{width:100%;height:56px;border-radius:14px;border:2px solid #e3c48a;padding
 .pick{display:block;width:100%;min-height:56px;margin:8px 0;border-radius:14px;border:2px solid #e3c48a;background:#fff;font-size:20px;font-family:inherit}
 [dir=rtl] main{text-align:right}[dir=rtl] h1{text-align:center}bdi{unicode-bidi:isolate}`;
 
+// quiz_join_early_tap: the chips are drawn before join.js (deferred) binds its listener, so a tap in that window was
+// lost. This runs before the chips exist: it presses the tapped chip at once and keeps its grade on <html data-early>;
+// join.js replays it once it has bound (window.__jnBound stops the keeping). ES5, inline, < 400 bytes.
+const EARLY_TAP = '<script>(function(){var d=document;d.addEventListener("click",function(e){if(window.__jnBound)return;'
+  + 'var t=e.target,c=t&&t.closest?t.closest("[data-tap=grade]"):null;if(!c)return;var a=d.querySelectorAll(".chip");'
+  + 'for(var i=0;i<a.length;i++)a[i].setAttribute("aria-pressed",a[i]===c?"true":"false");'
+  + 'd.documentElement.setAttribute("data-early",c.getAttribute("data-grade"))},true)})();</script>';
+
 // The one-face stylesheet: the first rule (the face) and the Urdu body stack are the only lines that differ.
 const CSS_ONE = CSS
   .replace(/^@font-face\{[^}]*\}/, `@font-face{font-family:"WQ Nastaliq 2";src:url(${UR_FONT_ONE}) format("woff2");font-weight:400;font-display:swap;unicode-range:${ONE_FACE_RANGE}}`)
@@ -137,7 +145,7 @@ ${body}
 }
 
 /** The join screen. Practice: the strip, the grade only (no name, no notice). */
-function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, oneFace = false }) {
+function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyTap = false, oneFace = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
   const b = cleanBot(bot);
@@ -151,7 +159,7 @@ function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, oneFac
 <p class="hint">${esc(c.hint)}</p>
 <div class="notice" id="jn-notice" hidden><p id="jn-n1"></p><p id="jn-n2"></p><p>${esc(c.noticeStop).replace('STOP', '<bdi dir="ltr">STOP</bdi>')}</p></div>`;
   const body = `<body${practice ? ' class="practice"' : ''}>
-<main id="jn" data-screen="join">
+${earlyTap ? `${EARLY_TAP}\n` : ''}<main id="jn" data-screen="join">
 ${practice ? `<p class="strip">${esc(c.practice)}</p>\n` : ''}<img class="jg" src="/wq/jugnu/hello.webp" alt="" width="96" height="96">
 <h1 id="jn-h">${esc(c.h)}</h1>
 <ul class="chips" role="group" aria-labelledby="jn-h">${chips}</ul>
@@ -213,9 +221,9 @@ function createQuizJoinRouter(opts = {}) {
     if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error', bot: lastBot }));
     assetV = assetV || assetVersion();
     jsV = jsV || fileVersion('join.js');
-    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, oneFace: out.body.one_face === true }));
+    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, earlyTap: out.body.earlyTap === true, oneFace: out.body.one_face === true }));
   }
   return router;
 }
 
-module.exports = { createQuizJoinRouter, renderJoinPage, renderJoinNote, COPY, WARM, JOIN_TOKEN_RX, UR_FONT, UR_FONT_ONE };
+module.exports = { createQuizJoinRouter, renderJoinPage, renderJoinNote, COPY, WARM, JOIN_TOKEN_RX, UR_FONT, UR_FONT_ONE, EARLY_TAP };

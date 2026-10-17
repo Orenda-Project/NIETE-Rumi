@@ -38,7 +38,7 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [] } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
   const doc = adopt(parse(html));
   const fetches = [];
@@ -60,7 +60,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
-    setTimeout(fn) { timers.push(fn); },
+    setTimeout(fn, ms) { timers.push(Object.assign(fn, { ms })); },
     fetch: (p, opts = {}) => {
       const body = opts.body ? JSON.parse(opts.body) : undefined;
       fetches.push({ path: p, body });
@@ -72,6 +72,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     },
     JSON, String, Array, Object, Promise, Number, Boolean, RegExp,
   };
+  if (clock) window.Date = class extends Date { static now() { return clock.t; } };
   window.window = window;
   const ctx = vm.createContext(window);
   doc.querySelectorAll('script').filter((s) => !s.getAttribute('type')).forEach((s) => vm.runInContext(s.text, ctx));
@@ -146,6 +147,31 @@ describe('"Send to my class" on the sheet', () => {
     await p.tap(p.q('#th-sheet-go'));
     expect(p.beacons).toEqual([{ path: '/api/th/step', body: { t: 'a.b', step: 'share_tap', kind: 'again', id: 'own1', origin: 'again', c: 'own-code' } }]);
   });});
+
+describe('a story the teacher sent this month', () => {
+  const SENT = '2026-10-12T12:00:00.000Z';
+  const lib = (stories) => ({ primary: { kind: 'none' }, library: { grade: 3, stories, all: '/all' } });
+  const STORIES = [{ id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1', sent: SENT }, { id: 'b2', title: 'Rain', href: '/s?book=b2' }];
+
+  test.each([['en', 'Sent \u2713 12/10'], ['ur', 'بھیجی گئی \u2713 ۱۲/۱۰']])('%s: only the sent book\'s row shows when it was sent, next to its title (not a button)', async (lang, chip) => {
+    const p = await open(lib(STORIES), { lang });
+    const [a, b] = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    const c = a.querySelector('.th-sent');
+    expect(c.textContent).toBe(chip);
+    expect(c.tagName).toBe('SPAN');
+    expect(c.getAttribute('data-tap')).toBeNull();
+    expect(c.parentNode.getAttribute('class')).toBe('th-row-n');
+    expect(b.querySelectorAll('.th-sent')).toHaveLength(0);
+    expect(b.querySelector('.th-row-n').textContent).toBe('Rain');
+  });
+
+  test('another grade: the rows follow the library the server answers', async () => {
+    const p = await open(lib(STORIES), { answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5', sent: SENT }, { id: 'b1', title: 'The Thirsty Crow', href: '/s?book=b1' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    const rows = p.q('#th-stories').querySelectorAll('[data-row="story"]');
+    expect(rows.map((r) => r.querySelectorAll('.th-sent').length)).toEqual([1, 0]);
+  });
+});
 
 describe('the message box', () => {
   const LONG = {
@@ -268,5 +294,58 @@ describe('"Quiz this" starts one quiz, wherever it is tapped', () => {
     await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
     expect(rowOf(p).querySelector('[data-tap="quiz_this"]')).not.toBeNull();
     expect(p.q('#th-top').querySelector('[data-tap="quiz_this"]')).not.toBeNull();
+  });
+});
+
+describe('a quiz that takes longer than three minutes', () => {
+  const home = () => ({ primary: { kind: 'lesson', id: 'lp_9', make: 'lesson', from: 'lp', title: 'Water' }, library: LIB, timeline: [] });
+
+  test('the late line shows, the page keeps asking, and the top card becomes the quiz when it lands at 200 s', async () => {
+    const clock = { t: 1000000 };
+    const start = clock.t;
+    const timers = [];
+    const ready = () => clock.t - start >= 200000;
+    const p = await open(home(), { timers, clock, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? (ready() ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' } : { state: 'making' }) : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    let sawLate = false;
+    for (let i = 0; i < 80 && timers.length && p.q('#th-top').getAttribute('data-kind') !== 'made'; i += 1) {
+      const due = timers.splice(0);
+      clock.t += Math.max(...due.map((fn) => fn.ms || 0));
+      due.forEach((fn) => fn());
+      for (let k = 0; k < 5; k += 1) await new Promise((r) => setImmediate(r));
+      if (p.q('#th-top').textContent.indexOf('Taking longer than usual') >= 0) sawLate = true;
+    }
+    expect(sawLate).toBe(true);
+    expect(p.q('#th-top').getAttribute('data-kind')).toBe('made');
+    expect(p.q('#th-top').querySelector('[data-tap="send"]')).not.toBeNull();
+  });
+
+  test('after 10 minutes the page stops asking and the late line stays', async () => {
+    const clock = { t: 1000000 };
+    const timers = [];
+    const p = await open(home(), { timers, clock, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'making' } : {}) });
+    await p.tap(p.q('#th-top').querySelector('[data-tap="quiz_this"]'));
+    let polls = 0;
+    for (let i = 0; i < 400 && timers.length; i += 1) {
+      const due = timers.splice(0);
+      clock.t += Math.max(...due.map((fn) => fn.ms || 0));
+      due.forEach((fn) => fn());
+      for (let k = 0; k < 5; k += 1) await new Promise((r) => setImmediate(r));
+    }
+    polls = p.fetches.filter((f) => f.path.indexOf('/api/th/quiz/qz1?') === 0).length;
+    expect(timers).toHaveLength(0);
+    // every 5 s for 3 min (≈36), then every 15 s until 10 min (≈28)
+    expect(polls).toBeGreaterThanOrEqual(62);
+    expect(polls).toBeLessThanOrEqual(66);
+    expect(p.q('#th-top').textContent).toContain('Taking longer than usual');
+  });
+});
+
+describe('the words while a quiz is made', () => {
+  const Strings = require('../../shared/services/first-touch/teacher-home.strings');
+  test('no number of minutes is promised; the chat is named as the other way it arrives', () => {
+    expect(Strings.str('th.job', 'en')).toBe('Your quiz is on its way — it takes a few minutes and arrives in this chat too');
+    expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
   });
 });
