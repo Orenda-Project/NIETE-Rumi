@@ -328,3 +328,28 @@ describe('1. the reader pass reads Social Studies', () => {
     expect(out.examJson._layout.reader).toBeUndefined();
   });
 });
+
+describe('1b. the reader\'s record never makes the paper refuse', () => {
+  // SST items print «اسی طرح» in their own text on recorded papers; a reader reason that quotes one
+  // lands in _layout.reader, which the renderer must not read as review chrome.
+  const { renderPaper, renderMarkingScheme } = require('../../bot/shared/services/assessment/assessment-paper-fde.renderer');
+  const CH2 = paper('chapters_2');
+  const NEW_Q7 = { slot: D7, question: 'دریائے سندھ کس سمندر میں گرتا ہے؟', answer: 'بحیرہ عرب', scheme: { points: [{ text: 'بحیرہ عرب', marks: 2 }] } };
+  const topUp = JSON.stringify({ unseen: { subjective: { 'Short Questions (2)': [NEW_Q7] } } });
+  const labelOf = (text, re) => { const l = text.split('\n').find((x) => /^Q\d\.\d+ /.test(x) && re.test(x)); return l ? l.split(' ')[0] : null; };
+
+  test.each(['اسی طرح', 'مسودہ', 'needs review', 'filler'])('a reason quoting «%s»: the paper and the scheme render', async (quoted) => {
+    const { out } = await run(CH2, {
+      readerPass: true,
+      topUp,
+      reader: async (text, n) => (n === 1
+        ? JSON.stringify({ candidates: [{ item: labelOf(text, /کس سال ابھرا/), by: 'Q1.5', evidence: 'پاکستان 1947ء میں', reason: `Q1 ۵ states the year, «${quoted}»`, given_away: true }] })
+        : JSON.stringify({ candidates: [] })),
+    });
+    expect(out.error).toBeUndefined();
+    expect(JSON.stringify(out.examJson._layout.reader)).toContain(quoted);
+    const args = { examJson: out.examJson, grade: 5, subject: 'social_studies' };
+    expect(() => renderPaper(args)).not.toThrow();
+    expect(() => renderMarkingScheme(args)).not.toThrow();
+  });
+});
