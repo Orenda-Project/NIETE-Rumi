@@ -216,3 +216,30 @@ describe('open(): the kept choice is read while the home is on', () => {
     expect(await spyOpen([{ key: 'web_quiz_return_lang', value: true }], { quizLang: 'en' })).toEqual({ reads: 0, kept: 0 });
   });
 });
+
+// A URL's ?lang= is weaker than a grown-up's kept choice: a join's redirect (…&lang=en) is reopened for days.
+describe('a kept choice outranks a ?lang= the URL still carries', () => {
+  test('switch on: chosen "ur" + a stale ?lang=en (no keep) → the home in Urdu, the choice untouched', async () => {
+    seed(ON, { quizLang: 'en', kept: { language: 'ur', source: 'chosen' } });
+    const page = await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, lang: 'en' });
+    expect(page.lang).toBe('ur');
+    expect(db.child_language).toEqual([expect.objectContaining({ language: 'ur', source: 'chosen' })]);
+    expect(langCalls().filter((c) => c.op !== 'select')).toEqual([]);
+  });
+  test('switch on: the locked page (another phone) too', async () => {
+    seed(ON, { kept: { language: 'ur', source: 'chosen' } });
+    const t = T.signHub([KID]);
+    await Hub.hub(t, A);
+    const locked = await Hub.hub(t, { ...B, lang: 'en' });
+    expect(locked).toMatchObject({ locked: true, lang: 'ur' });
+  });
+  test('switch on: no choice kept → ?lang= still wins (the join\'s first open)', async () => {
+    seed(ON, { kept: { language: 'en', source: 'join' } });
+    expect((await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, lang: 'ur' })).lang).toBe('ur');
+  });
+  test.each([['absent', 'absent'], ['false', false], ['the string "true"', 'true']])('switch row %s: ?lang=en wins as today (the row is not read)', async (_l, value) => {
+    seed(off(value), { quizLang: 'en', kept: { language: 'ur', source: 'chosen' } });
+    expect((await Hub.hub(T.signHub([KID]), { ...A, kid: CHIP, lang: 'en' })).lang).toBe('en');
+    expect(langCalls()).toEqual([]);
+  });
+});

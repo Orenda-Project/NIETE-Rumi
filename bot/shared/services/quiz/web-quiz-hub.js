@@ -416,19 +416,23 @@ async function linkedLang(token) {
 /** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
 async function lockedHub(ids, why, asked = null, linked = null) {
   let lang = 'en';
+  let chosen = null;
   try {
     const { data: rows } = await dbRead('lockedHub:students:1', (db) => db.from('students').select('id, is_active').in('id', ids));
     const live = (rows || []).filter((r) => r.is_active !== false);
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
       const history = await StudentQuiz.quizzesForStudents(live);
-      // web_quiz_return_lang: a grown-up's kept choice first, the join's beside the link's (off: null, #82's line)
+      // web_quiz_return_lang: the join's beside the link's; a grown-up's kept choice above all (off: null, today's line)
       const own = live.length === 1 ? await require('./child-language.repo').stored(live[0].id) : null;
       const kept = (s) => (own && own.source === s ? own.language : null);
-      lang = clampLanguage(kept('chosen') || StudentQuiz.classLanguage(history) || linked || kept('join') || StudentQuiz.childLanguage(history));
+      lang = clampLanguage(StudentQuiz.classLanguage(history) || linked || kept('join') || StudentQuiz.childLanguage(history));
+      chosen = kept('chosen');
     } else if (linked) lang = linked;
   } catch (_) { /* English */ }
   if (asked) lang = asked;
+  // a grown-up's kept choice outranks the URL's ?lang= (web_quiz_return_lang; off: null)
+  if (chosen) lang = chosen;
   logEvent('web_quiz.hub_locked', { kids: ids.length, why });
   return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
 }
@@ -475,13 +479,14 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false 
   const history = ctx ? ctx.history : [];
   const StudentQuiz = require('./student-quiz.service');
   // web_quiz_return_lang: the child's kept language (child_language) — a grown-up's tap on the grown-ups corner
-  // (`keep`, this trusted phone, the chosen child) is kept first; a kept choice outranks the class quiz, the join's
-  // sits beside the link's `l`. Off: null (the line below is #82's exactly).
+  // (`keep`, this trusted phone, the chosen child) is kept first; a kept choice outranks even a `?lang=` the URL still
+  // carries (a join's redirect is reopened for days), the join's sits beside the link's `l`. Off: null (the line below
+  // is today's exactly).
   const CL = require('./child-language.repo');
   if (keep && asked && chosen) await CL.choose(chosen.id, asked);
   const own = chosen ? await CL.stored(chosen.id) : null;
   const kept = (s) => (own && own.source === s ? own.language : null);
-  const lang = asked || clampLanguage(kept('chosen') || StudentQuiz.classLanguage(history) || linked || kept('join') || StudentQuiz.childLanguage(history));
+  const lang = kept('chosen') || asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || kept('join') || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
