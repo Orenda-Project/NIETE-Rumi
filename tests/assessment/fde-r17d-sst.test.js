@@ -82,7 +82,7 @@ describe('1. the reader names the composite give-away: the facts a C/D answer ne
 
   test('the Social Studies reader prompt names a Q1 stem, a key, or two Q1 items together, and asks for each fact quoted', () => {
     const { prompt } = Reader.buildReaderPrompt(exam, SST);
-    expect(prompt).toContain('the facts its answer needs are printed in Section A');
+    expect(prompt).toContain('fact its answer needs is printed in Section A');
     expect(prompt).toContain('across two Q1 items');
     expect(prompt).toContain('quote each fact');
     expect(prompt).toContain('" | "');
@@ -102,6 +102,15 @@ describe('1. the reader names the composite give-away: the facts a C/D answer ne
     const item = labelOf(prompt, q5.question);
     const reply = { candidates: [{ item, by: 'Q1.1, Q1.11', evidence: 'پاکستان میں قوانین بنانے کا اختیار کس ادارے کے پاس ہے؟ (مقننہ) | انتظامیہ قانون نافذ کرتی ہے، عدلیہ انصاف فراہم کرتی ہے', reason: 'both halves printed', given_away: true }] };
     expect(Reader.parseFlags(reply, labels, null, blocks, { split }).map((f) => f.item)).toEqual(['Q5.2']);
+    // The reader's own label for the key, and an ellipsis, are not on the paper.
+    reply.candidates[0].evidence = 'پاکستان میں قوانین بنانے کا اختیار کس ادارے کے پاس ہے؟ (key: مقننہ) | انتظامیہ قانون نافذ کرتی ہے … عدلیہ انصاف فراہم کرتی ہے';
+    expect(Reader.parseFlags(reply, labels, null, blocks, { split }).map((f) => f.item)).toEqual(['Q5.2']);
+  });
+
+  test('the reader is told a partly answered item is not given away', () => {
+    const { prompt } = Reader.buildReaderPrompt(exam, SST);
+    expect(prompt).toContain('EVERY fact its answer needs is printed in Section A');
+    expect(prompt).toContain('an item Section A answers only in part');
   });
 
   test('a composite flag with one quote that is not on the paper is still dropped', () => {

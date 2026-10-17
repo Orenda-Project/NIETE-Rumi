@@ -230,7 +230,7 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     '- another item on the paper asks the same question, in any wording (a duplicate);',
     '- a Q1 key, or a fact a Q1 stem states, is its whole answer: Q1 «پاکستان 1947ء میں کس رہنما کی قیادت میں …»',
     '  answers «پاکستان کس سال ابھرا؟ → 1947ء»; two Q1 items that together print its whole answer count too;',
-    '- the facts its answer needs are printed in Section A: in a Q1 stem, in a Q1 key, or across two Q1 items. Read every',
+    '- EVERY fact its answer needs is printed in Section A: in a Q1 stem, in a Q1 key, or across two Q1 items. Read every',
     '  Q1 stem as well as its key: a stem that states two facts to ask which idea they describe gives away a Q5 that asks',
     '  for those facts, and a Q5 that asks how two things differ is given away when one Q1 item prints what the first',
     '  does and another prints what the second does. A marking point that only asks for a clear or complete answer adds',
@@ -241,6 +241,7 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     'Do NOT flag:',
     '- an item whose fact appears in Q1 only as a wrong option (a distractor);',
     '- the same name, place or tier with a DIFFERENT fact asked about it;',
+    '- an item Section A answers only in part: one of its two parts, or its answer without the reasons its points ask for;',
     '- two items on the same chapter that need different facts.',
     'Which one to flag: when a Q5 and a Q6 or Q7 item answer each other, flag the Q6 or Q7; when a Q6 and a Q7 do,',
     'flag the Q7; two items in one question, the higher-numbered one. A Q5 is flagged only when Section A gives it away.',
@@ -298,8 +299,9 @@ function parseFlags(reply, labels, only = null, blocks = null, opts = {}) {
       // child picks from), or in the item's own stem (it prints its key, or answers another section).
       // With `split` (Social Studies), facts printed in two places come as two quotes, « | » between
       // them, and each must be printed under a label `by` names. A quote that runs a Q1 stem into its
-      // key («… کس ادارے کے پاس ہے؟ مقننہ») is read a sentence at a time: the options print between them.
-      const quotes = (opts.split ? evidence.split(/\s*\|\s*/).flatMap((q) => q.split(/[؟?۔()]+/)) : [evidence]).map(fold).filter(Boolean);
+      // key («… کس ادارے کے پاس ہے؟ (key: مقننہ)») is read a piece at a time: the options print between
+      // them, and the reader's own «key:» or «…» is not on the paper.
+      const quotes = (opts.split ? evidence.split(/\s*\|\s*/).flatMap((q) => q.split(/[؟?۔()…]+|\.{2,}|\b(?:key|answer)\s*:/i)) : [evidence]).map(fold).filter(Boolean);
       const real = quotes.length > 0 && quotes.some((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD))
         && (opts.split || quotes.every((q) => q.trim().split(' ').some((w) => w.length >= QUOTE_WORD)));
       const named = giversOf(by, blocks).filter((label) => label !== item);
