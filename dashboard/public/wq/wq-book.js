@@ -12,7 +12,7 @@
     en: {
       bookTitle: function (n) { return n + '\'s Jugnu Book'; }, bookLamps: 'My lamps', bookReading: 'Reading', bookNumbers: 'Numbers',
       bookDays: 'Days you played this week', bookStickers: 'Story stickers', bookStickersSub: 'One for every whole story',
-      bookTrailStickers: 'Trail stickers', bookDayLetters: 'M|T|W|T|F|S|S'.split('|'),
+      bookTrailStickers: 'Trail stickers', bookGameStickers: 'Game stickers', bookDayLetters: 'M|T|W|T|F|S|S'.split('|'),
       rungR1: 'Starting a story', rungR2: 'Reading a short story', rungR3: 'Understanding a short story', rungR4: 'Reading a longer story', rungR5: 'Understanding a longer story',
       rungN1: 'Finding numbers', rungN2: 'Comparing numbers', rungN3: 'Filling number gaps', rungN4: 'Counting past a hundred', rungN5: 'Filling every number gap',
       levelupHead: 'A new lamp is lit!', levelupOpen: function (t) { return 'Now open for you: ' + t; }, levelupSay: 'You read a story and answered its questions.', levelupSayNumbers: 'You filled in the number games!', levelupGo: 'Let\'s go',
@@ -24,7 +24,7 @@
     ur: {
       bookTitle: function (n) { return '⁨' + n + '⁩ کی جگنو کتاب'; }, bookLamps: 'میرے دیے', bookReading: 'پڑھنا', bookNumbers: 'گنتی',
       bookDays: 'اس ہفتے آپ نے کن دنوں کھیلا', bookStickers: 'کہانیوں کے اسٹیکر', bookStickersSub: 'ہر پوری کہانی پر ایک اسٹیکر',
-      bookTrailStickers: 'جگنو کے راستے کے اسٹیکر', bookDayLetters: 'پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ|اتوار'.split('|'),
+      bookTrailStickers: 'جگنو کے راستے کے اسٹیکر', bookGameStickers: 'کھیلوں کے اسٹیکر', bookDayLetters: 'پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ|اتوار'.split('|'),
       rungR1: 'کہانی شروع کرنا', rungR2: 'چھوٹی کہانی پڑھنا', rungR3: 'چھوٹی کہانی سمجھنا', rungR4: 'لمبی کہانی پڑھنا', rungR5: 'لمبی کہانی سمجھنا',
       rungN1: 'نمبر ڈھونڈنا', rungN2: 'بڑا چھوٹا نمبر پہچاننا', rungN3: 'غائب نمبر بھرنا', rungN4: 'سو سے آگے گننا', rungN5: 'سارے غائب نمبر بھرنا',
       levelupHead: 'ایک نیا دیا جل گیا!', levelupOpen: function (t) { return 'اب ⁨' + t + '⁩ بھی کھولیں!'; }, levelupSay: 'آپ نے کہانی پڑھی اور اس کے سوالوں کے جواب دیے۔', levelupSayNumbers: 'آپ نے گنتی کے کھیلوں میں نمبر بھر دیے!', levelupGo: 'چلیں',
@@ -108,7 +108,7 @@
     return '<div class="wq-bk-bar"><button class="wq-btn wq-ghost wq-bk-back" id="wq-bk-back">' + esc(t.back) + '</button></div>' +
       '<h1 class="wq-bk-title">' + esc(t.bookTitle(d.name || '')) + '</h1>' +
       (showUp && d.levelup ? levelupHtml(d.levelup, ctx) : '') +
-      (trail ? '<section class="wq-bk-trailbox"><h2>' + esc(t.bookTrailStickers) + '</h2><div class="wq-bk-trails">' + trail + '</div></section>' : '') +
+      (trail ? '<section class="wq-bk-trailbox"><h2>' + esc(ctx.v3 ? t.bookGameStickers : t.bookTrailStickers) + '</h2><div class="wq-bk-trails">' + trail + '</div></section>' : '') +
       '<section class="wq-bk-lamps"><h2>' + esc(t.bookLamps) + '</h2>' +
       ladderHtml('reading', Number(lamps.reading) || 0, nx.reading === true, ctx.lang) + ladderHtml('numbers', Number(lamps.numbers) || 0, nx.numbers === true, ctx.lang) + '</section>' +
       daysHtml(d.days_this_week, ctx.lang) +

@@ -98,6 +98,7 @@ describe('golden: a check run keeps its end card', () => {
 });
 
 describe('the turn\'s trail: the stored games are done and not started again', () => {
+  // renderChallengePage's wq-trail.js, with stored games and on a fresh profile (no storage at all)
   test.each([['a remembered profile', () => store()], ['a fresh profile (no storage)', () => null]])('a turn resumed after game 1 shows game 1 done (%s)', async (_what, mk) => {
     const p = H.page({ menu: TRAIL({ stored: ['missing'] }), freshEls: true, storage: mk(), session: mk(), pre: [TRAIL_SRC],
       routes: { 'ch/HUB.TOKEN/missing': ok(MISSING(ROUND())), 'ch/HUB.TOKEN/bigger': ok(BIGGER(ROUND())) } });

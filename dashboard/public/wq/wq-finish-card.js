@@ -66,9 +66,11 @@
   // headline by how it ended, and the count-up deed (on this screen only: never on the picture or in the share).
   var S = {
     en: { together: "Let's read it together", later: 'Just wait a little.', readSome: 'You read with Jugnu!', heardSome: 'You listened with Jugnu!', sticker: 'A new sticker!',
+      finished: 'You finished the story!', qsDone: function (s, n) { return s + (n === 1 ? ' question answered' : ' questions answered'); },
       pagesRead: function (s, n) { return s + (n === 1 ? ' page read' : ' pages read'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' page heard' : ' pages heard'); } },
     ur: { together: 'آئیں مل کر پڑھیں', later: 'بس تھوڑا سا انتظار کریں۔', readSome: 'آپ نے جگنو کے ساتھ پڑھا!', heardSome: 'آپ نے جگنو کے ساتھ سنا!', sticker: 'ایک نیا اسٹیکر!',
+      finished: 'آپ نے کہانی پوری کر لی!', qsDone: function (s, n) { return s + (n === 1 ? ' سوال کا جواب دیا' : ' سوالوں کے جواب دیے'); },
       pagesRead: function (s, n) { return s + (n === 1 ? ' صفحہ پڑھا' : ' صفحے پڑھے'); },
       pagesHeard: function (s, n) { return s + (n === 1 ? ' صفحہ سنا' : ' صفحے سنے'); } }
   };
@@ -118,8 +120,13 @@
       var heard = o.ended === 'listened';
       var tried = heard ? hd <= 0 && rd <= 0 : rd <= 0;
       var n = heard ? (hd || rd) : rd;
-      return { kind: 'book', deed: tried ? 'read_tried' : heard ? 'listen_done' : 'book_read', tried: tried,
-        head: tried ? S[l].together : heard ? S[l].heardSome : S[l].readSome,
+      // the end of the book reached (o.whole): the finish is the headline, and the questions answered are a deed too
+      // (a count, never a score); only answered: the story's own "answered" deed
+      var qa = o.whole === true ? Math.max(0, Math.floor(Number(o.answered) || 0)) : 0;
+      var qs = qa ? { n: qa, text: S[l].qsDone(l === 'ur' ? urDigits(qa) : String(qa), qa) } : null;
+      if (tried && qa) return { kind: 'story', deed: 'answered', tried: false, head: S[l].finished, count: null, qs: qs };
+      return { kind: 'book', deed: tried ? 'read_tried' : heard ? 'listen_done' : 'book_read', tried: tried, qs: tried ? null : qs,
+        head: tried ? S[l].together : o.whole === true ? S[l].finished : heard ? S[l].heardSome : S[l].readSome,
         count: tried || !n ? null : { n: n, text: function (k) { return S[l][heard ? 'pagesHeard' : 'pagesRead'](l === 'ur' ? urDigits(k) : String(k), k); } } };
     }
     if (o.source === 'quiz') return { kind: 'quiz', deed: 'quiz_done' };
@@ -153,7 +160,7 @@
   }
   function waHref(text) { return 'https://wa.me/?text=' + encodeURIComponent(text); }
 
-  // The Next tile (the ranked next_offer), only with a same-origin path to open.
+  // The Next tile (the ranked next_offer), only with a same-origin path to open; its art: /wq/ art or a storybook cover.
   function nextHtml(lang, nx, lead) {
     if (!nx || typeof nx.href !== 'string' || !/^\/[^/]/.test(nx.href)) return '';
     var l = L(lang);
@@ -161,14 +168,20 @@
     var sub = (l === 'ur' && nx.sub_ur) || nx.sub || '';
     if (!title) return '';
     var mins = nx.minutes >= 1 && nx.minutes <= 9 ? '<small class="wqfc-min">' + esc(W[l].mins(Math.round(nx.minutes))) + '</small>' : '';
-    var art = typeof nx.art === 'string' && /^\/wq\/[A-Za-z0-9/_.-]+$/.test(nx.art) ? '<img class="wqfc-art" src="' + esc(nx.art) + '" alt="" width="64" height="64" loading="lazy">' : '<span class="wqfc-art" aria-hidden="true">' + PLAY + '</span>';
+    var art = typeof nx.art === 'string' && /^\/(wq\/[A-Za-z0-9/_.-]+|s\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+)$/.test(nx.art) ? '<img class="wqfc-art" src="' + esc(nx.art) + '" alt="" width="64" height="64" loading="lazy">' : '<span class="wqfc-art" aria-hidden="true">' + PLAY + '</span>';
     return '<a class="wqfc-next' + (lead ? ' wqfc-lead" id="wqfc-next" data-primary' : '" id="wqfc-next"') + ' data-tap="next" href="' + esc(nx.href) + '">' + art +
       '<span class="wqfc-nt"><small>' + esc(W[l].next) + '</small><b dir="auto">' + esc(title) + '</b>' + (sub ? '<span dir="auto">' + esc(sub) + '</span>' : '') + mins + '</span></a>';
+  }
+  // The book's cover (a same-origin path only), its title as the words; one that fails to load leaves no box.
+  function coverHtml(src, title) {
+    if (typeof src !== 'string' || !/^\/[^/\\"'<>\s][^\\"'<>\s]*$/.test(src)) return '';
+    return '<img class="wqfc-cov" src="' + esc(src) + '" alt="' + esc(String(title == null ? '' : title).trim()) + '" width="96" height="144" onerror="this.hidden=true">';
   }
   function html(o) {
     var l = L(o.lang);
     // A card that certified nothing (the try card) leads with the next thing to do; sending it is a soft secondary.
-    var lead = o.deed === 'read_tried' && !!nextHtml(l, o.next);
+    // A host may ask the same (o.lead: a storybook's "More stories" is the child's next thing, never the share).
+    var lead = (o.lead === true || o.deed === 'read_tried') && !!nextHtml(l, o.next);
     var tile = nextHtml(l, o.next, lead);
     var text = shareText({ lang: l, deed: o.deed, title: o.title, ret: o.ret });
     return '<div class="wqfc" data-screen="card" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '">' + (o.top || '') +
@@ -187,6 +200,7 @@
     '.wqfc-share{display:block;text-align:center;text-decoration:none;min-height:56px}' +
     '.wqfc-next{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:#EFF6FF;border:2px solid var(--brand-ink,#1E3A8A);color:var(--brand-ink,#1E3A8A);text-decoration:none;min-height:72px}' +
     '.wqfc-lead{background:var(--brand,#47BA7D);border-color:var(--brand,#47BA7D);color:#fff}.wqfc-lead .wqfc-art{background:#fff;color:var(--brand-ink,#1E3A8A)}' +
+    '.wqfc-cov{display:block;justify-self:center;width:96px;height:144px;object-fit:cover;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,.18)}.wqfc-cov[hidden]{display:none}' +
     '.wqfc-art{width:64px;height:64px;flex:0 0 64px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#DBEAFE;object-fit:cover}' +
     '.wqfc-snd{justify-self:end;width:48px;height:48px;border-radius:24px;border:2px solid #CBD5E1;background:#fff;color:#334155;display:flex;align-items:center;justify-content:center;padding:0}' +
     '.wqfc-nt{display:grid;gap:2px;min-width:0}.wqfc-nt b{font-size:19px}.wqfc-nt small{opacity:.8}' +
@@ -318,10 +332,11 @@
       var f = fromSource(o);
       if (!f) return false;
       var l = L(o.lang);
-      var top = f.head ? '<h2 class="wqfc-head" dir="auto">' + esc(f.head) + '</h2>' +
+      var top = f.head ? coverHtml(o.cover, o.title) + '<h2 class="wqfc-head" dir="auto">' + esc(f.head) + '</h2>' +
         (f.count ? '<p class="wqfc-count" data-n>' + esc(f.count.text(f.count.n)) + '</p>' : '') +
+        (f.qs ? '<p class="wqfc-count" data-qs>' + esc(f.qs.text) + '</p>' : '') +
         (f.tried ? '' : '<p class="wqfc-st" data-sticker>' + STICKER + '<span>' + esc(S[l].sticker) + '</span></p>') : '';
-      o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
+      o = { kind: f.kind, deed: f.deed, lang: l, title: o.title, next: o.next, lead: o.lead, home: o.home, auth: o.auth, ev: o.ev, top: top, count: f.count };
     }
     if (!stack || typeof stack.insertAdjacentHTML !== 'function' || !o || !KIND_DEEDS[o.kind] || KIND_DEEDS[o.kind].indexOf(o.deed) < 0) return false;
     // drawn first, then the one request for its link: a card never waits for the network (a live read leaves it
