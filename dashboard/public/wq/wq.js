@@ -3008,6 +3008,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (S.queue.length) flushQueue();
   // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
   // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)
+  // a "Play again" tap (the hub's, the home's or the next thing's) never goes back home through link-home below
+  var AGAIN = params.again === '1';
   if (params.again === '1' && S.result && !S.queue.length && !S.pending) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
   if (params.again) { try { var u = new URLSearchParams(location.search); u.delete('again'); window.history.replaceState(window.history.state, '', location.pathname + (String(u) ? '?' + u : '')); } catch (e) {} }
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
@@ -3028,7 +3030,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
-  else if (B.link_home && !B.preview && !B.invited && !B.challenge && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
+  else if (B.link_home && !AGAIN && !B.preview && !B.invited && !B.challenge && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();

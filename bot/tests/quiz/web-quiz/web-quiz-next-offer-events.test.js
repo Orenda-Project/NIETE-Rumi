@@ -168,6 +168,20 @@ describe('events v3 on: the relay keeps the amended names (EVENTS v3 §2 and §4
   const by = (n) => logEvent.mock.calls.filter(([name]) => name === n).map(([, f]) => f);
   const hub = () => ({ ht: T.signHub([KID]), chip: T.chipId('h', KID) });
 
+  test('next_tap landed: where the tap took the child (home | target); anything else dropped', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
+    Svc.events({ ...hub(), events: [
+      { n: 'next_tap', ctx: 'home', kind: 'quiz', pos: 0, offer: 'AbCdEfGhIj', landed: 'home' },
+      { n: 'next_tap', ctx: 'home', kind: 'quiz', pos: 0, offer: 'AbCdEfGhIj', landed: 'target' },
+      { n: 'next_tap', ctx: 'home', kind: 'quiz', pos: 0, offer: 'AbCdEfGhIj', landed: 'elsewhere' },
+    ] }, { device: DEV });
+    await flush();
+    const [h, t, x] = by('web_quiz.next_tap');
+    expect(h.landed).toBe('home');
+    expect(t.landed).toBe('target');
+    expect(x).not.toHaveProperty('landed');
+  });
+
   test('next_shown kind door; rank_src ctrl', async () => {
     await seed([{ key: 'web_quiz_events_v3', value: true }]);
     Svc.events({ ...hub(), events: [
