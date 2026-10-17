@@ -85,6 +85,11 @@
   function section(title, rows) { return rows ? '<h3 class="wq-dsec"><bdi' + lat(title) + '>' + esc(title) + '</bdi></h3><ul class="wq-rows">' + rows + '</ul>' : ''; }
   // Exactly one primary per screen: the first row there is, else the screen's own fallback button.
   function primaryFirst(h) { return h.replace(/<(a|button) class="wq-row wq-drow"/, '<$1 class="wq-row wq-drow" data-primary'); }
+  // Stories: the first row the child has not finished (this week's story keeps its place and label once done), else the first.
+  function primaryOpen(h) {
+    var at = h.replace(/<li class="wq-dli"><(a|button) class="wq-row wq-drow"/, '<li class="wq-dli"><$1 class="wq-row wq-drow" data-primary');
+    return at !== h ? at : primaryFirst(h);
+  }
   function frame(B, ctx, name, title, body) {
     var H = home();
     var bar = H && typeof H.bar === 'function' ? H.bar(ctx, DOORS.indexOf(name) >= 0 ? name : 'videos') : '';
@@ -116,7 +121,7 @@
     if (!list.length && !shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
     // Only the storybooks: the screen still has its one primary until the shelf draws its own (then this one steps aside).
     if (!list.length) return h + '<div data-shelf-fallback="1">' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
-    return primaryFirst(h);
+    return primaryOpen(h);
   }
 
   /* ---------------- Games ---------------- */

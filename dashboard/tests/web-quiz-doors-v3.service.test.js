@@ -122,6 +122,31 @@ describe('Stories', () => {
     expect(h).toMatch(/class="wq-dli done"[\s\S]*My school bag/);
     expect(h).toMatch(/data-pos="2"/);
   });
+  test('this week\'s story already finished: it keeps its label and first place, the one primary is the first story not done', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: [], videos: null } };
+    const weekDone = [{ ...STORIES_MANY.stories[0], done: true, fresh: undefined }, ...STORIES_MANY.stories.slice(1)];
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'stories', { stories: weekDone, shelf: true });
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(h).toMatch(/<a class="wq-row wq-drow" data-primary[^>]*data-item="en\.read\.1\.k03"/);
+    expect(h).toMatch(/<ul class="wq-rows wq-week"><li class="wq-dli done"><a class="wq-row wq-drow" data-tap[^>]*data-item="en\.read\.1\.k02"/);
+    expect(h.indexOf('The red kite')).toBeLessThan(h.indexOf('A cat and a hat'));
+    expect(visible(h)).toContain('This week\'s story');
+    // every story finished: the first row stays the primary, as before
+    const allDone = STORIES_MANY.stories.map((s) => ({ ...s, done: true, fresh: undefined }));
+    const a = W.WQDOORS.html(B, ctxOf('ur'), 'stories', { stories: allDone, shelf: false });
+    expect(count(a, /data-primary/g)).toBe(1);
+    expect(a).toMatch(/<ul class="wq-rows wq-week"><li class="wq-dli done"><a class="wq-row wq-drow" data-primary[^>]*data-item="en\.read\.1\.k02"/);
+  });
+  test('GOLDEN: this week\'s story not finished -> the primary stays on the first row, every Stories screen as today', () => {
+    for (const lang of ['en', 'ur']) {
+      for (const [name, h] of Object.entries(screens(load(), lang)).filter(([k]) => /^stories/.test(k))) {
+        const first = h.indexOf('class="wq-row wq-drow"');
+        if (first < 0) continue;
+        expect([lang, name, h.indexOf('class="wq-row wq-drow" data-primary')]).toEqual([lang, name, first]);
+      }
+    }
+  });
   test('serve-able: a listen row opens the LISTEN (ex=listen), a read row the read; never the "more stories" dead end', () => {
     const h = screens(load(), 'en').storiesMany;
     expect(h).toContain('room=story&amp;pid=en.listen.1.k05&amp;ex=listen');
