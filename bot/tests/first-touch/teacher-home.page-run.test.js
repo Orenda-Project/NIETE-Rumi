@@ -375,7 +375,7 @@ describe('switch OFF: today\'s page', () => {
       const b = Page.buildShell({ token: 'a.b-c_D', lang, switchTo, asked });
       return { lang, switchTo, asked, sha256: crypto.createHash('sha256').update(`${b.html}\n${b.csp}`).digest('hex') };
     });
-    if (process.env.RECORD_GOLDEN === '1') require('fs').writeFileSync(require('path').join(__dirname, '__goldens__', 'teacher-home-shell-off.json'), `${JSON.stringify(now, null, 1)}\n`);
+    if (process.env.TEACHER_HOME_RECORD === '1') require('fs').writeFileSync(require('path').join(__dirname, '__goldens__', 'teacher-home-shell-off.json'), `${JSON.stringify(now, null, 1)}\n`);
     expect(now).toEqual(GOLD);
   });
   test('an answer that never comes: no timer of 15 s, no «Try again» (today\'s page)', async () => {

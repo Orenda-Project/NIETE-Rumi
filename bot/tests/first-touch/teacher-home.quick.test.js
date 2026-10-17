@@ -211,7 +211,7 @@ describe('switch OFF (absent, false, anything but true)', () => {
     expect(out.status).toBe(200);
     if (paged === null) todayReads = m.reads;
     expect(m.reads).toBe(todayReads);
-    if (process.env.RECORD_GOLDEN === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
+    if (process.env.TEACHER_HOME_RECORD === '1' && paged === null) fs.writeFileSync(GOLDEN, out.text);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
   });
 });
