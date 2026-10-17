@@ -95,7 +95,8 @@ describe('E2 names the teacher as the forwarded WhatsApp text does', () => {
 
   test('Urdu quiz: the Urdu form; no stored name: "your teacher"', async () => {
     seed({ teacherName: 'Example', language: 'ur' });
-    expect((await WQ.getQuiz('AB12CD')).cls.teacher).toBe('استاد Example');
+    // the child's page says «ٹیچر», never «استاد» (the forwarded WhatsApp text keeps its own label); a Latin name is bidi-isolated
+    expect((await WQ.getQuiz('AB12CD')).cls.teacher.replace(/[\u200f\u2066-\u2069]/g, '')).toBe('Example ٹیچر');
     seed({ teacherName: null });
     expect((await WQ.getQuiz('AB12CD')).cls.teacher).toBe('Your teacher');
   });
