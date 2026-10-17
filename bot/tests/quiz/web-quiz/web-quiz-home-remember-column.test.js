@@ -271,15 +271,16 @@ describe('the home render reads the binding rows once, and no setting twice', ()
     flushCache();
     HomeFlags._resetCache();
     fake.calls.length = 0;
+    touched.length = 0;
     const f = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src });
-    return { f, n: fake.calls.filter((c) => c.table === 'app_settings').length };
+    return { f, n: fake.calls.filter((c) => c.table === 'app_settings').length, deviceReads: touched.filter((t) => t === 'device_hash').length };
   };
   test('column on: one device read for the line and the corner together; the column key rides the home switches\' read', async () => {
-    const spy = jest.spyOn(Bindings, 'activeForDevice');
     const on = await settingsReads(true, 'join');
     expect(on.f.remember).toEqual({ s: 20 });
     expect(on.f.forget_phone).toBe(true);
-    expect(spy).toHaveBeenCalledTimes(1);
+    // one device read (a filter on device_hash) for the line and the corner together
+    expect(on.deviceReads).toBe(1);
     const off = await settingsReads('absent', 'join');
     expect(off.f).not.toHaveProperty('remember');
     expect(on.n).toBe(off.n);
