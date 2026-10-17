@@ -399,6 +399,13 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     p.nextEl.fire('click');
     expect(p.location.hash).toBe('#videos');
   });
+  test('the card and ONE next thing: the card\'s Next tile leads (lead: true), so Share is the soft secondary', async () => {
+    const mount = jest.fn(() => true);
+    const p = watchPage({ card: true, wqfc: { mount } });
+    await flush();
+    p.vEl.fire('ended');
+    expect(mount.mock.calls[0][1].lead).toBe(true);
+  });
   test('GOLDEN: no card_v3 -> today\'s end (our tile shown and primary, next_shown logged), the card never asked', async () => {
     const mount = jest.fn(() => true);
     const p = watchPage({ card: false, wqfc: { mount } });

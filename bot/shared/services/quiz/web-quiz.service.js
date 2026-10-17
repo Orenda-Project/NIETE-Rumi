@@ -2073,6 +2073,9 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
   // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
   // A friend's own run (card_view): 0/1.
   if (e.friend === 0 || e.friend === 1) props.friend = e.friend;
+  // The folded card (the child home on): card_view's fold 1, and the one next thing's kind on its next_pick.
+  if (e.n === 'card_view' && e.fold === 1) props.fold = 1;
+  if (e.n === 'next_pick' && typeof e.kind === 'string' && /^[a-z0-9_]{1,32}$/.test(e.kind)) props.kind = e.kind;
   if (e.iab === 0 || e.iab === 1) props.iab = e.iab;
   else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
   // A page_open's UA names the app: the page's own flag missed WhatsApp's browser (WA4A) and counted other apps'

@@ -168,7 +168,8 @@
   function html(o) {
     var l = L(o.lang);
     // A card that certified nothing (the try card) leads with the next thing to do; sending it is a soft secondary.
-    var lead = o.deed === 'read_tried' && !!nextHtml(l, o.next);
+    // A host may ask the same (o.lead: a storybook's "More stories" is the child's next thing, never the share).
+    var lead = (o.lead === true || o.deed === 'read_tried') && !!nextHtml(l, o.next);
     var tile = nextHtml(l, o.next, lead);
     var text = shareText({ lang: l, deed: o.deed, title: o.title, ret: o.ret });
     return '<div class="wqfc" data-screen="card" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '">' + (o.top || '') +
@@ -379,7 +380,8 @@
     else if (o.story) { kind = 'story'; deed = 'story_read'; }
     else { kind = 'game'; deed = 'game_done'; }
     var ttl = d.title && typeof d.title === 'object' ? (h.L === 'ur' && d.title.ur) || d.title.en || '' : '';
-    var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: r.next_offer || d.next_offer, auth: { ct: d.ct }, ev: h.ev });
+    // o.fold (the child home on): the host's one next thing leads (the share soft under it); none = the host's questions
+    var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: o.fold ? o.fold.next : r.next_offer || d.next_offer, lead: !!o.fold, auth: { ct: d.ct }, ev: h.ev });
     if (!on) return false;
     try {
       var old = document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;

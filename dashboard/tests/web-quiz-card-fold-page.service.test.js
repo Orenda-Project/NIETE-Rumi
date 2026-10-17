@@ -84,14 +84,22 @@ describe('home on: the card and one next thing', () => {
       expect(actions(h)).toEqual(['wq-fnext', 'wq-share', 'wq-fhome']);
       gone(p, lang);
     });
-    test(`${lang}: "Challenge a friend" is the slot's invite when it ranks first — the one primary, opening WhatsApp in a new window`, () => {
+    test(`${lang}: the slot's invite (a WhatsApp message) is never the tile — the next offer this page can open, else "Pick a story"`, () => {
       const INVITE = { kind: 'invite', id: 'invite', href: 'https://wa.me/?text=Come%20play', title: 'Invite a friend', title_ur: 'دوست کو بلائیں', minutes: 1 };
-      const p = cardPage(lang, { ...RESULT, card_v3: true, card_fold: true, next_offer: INVITE }, { fc: true });
-      const h = p.html();
-      expect(primaries(h)).toBe(1);
-      expect(h).toContain('<a class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary target="_blank" rel="noopener" href="https://wa.me/?text=Come%20play">' + (lang === 'ur' ? INVITE.title_ur : INVITE.title) + '</a>');
-      expect(actions(h)).toEqual(['wq-fnext', 'wq-share', 'wq-fhome']);
-      gone(p, lang);
+      for (const fc of [true, false]) {
+        let p = cardPage(lang, { ...RESULT, card_v3: true, card_fold: true, next_offer: { ...INVITE, alts: [NEXT] } }, { fc });
+        let h = p.html();
+        expect(primaries(h)).toBe(1);
+        expect(h).toContain('href="/h/tok.abc#missing"');
+        expect(h).not.toContain('wa.me/?text=Come');
+        expect(actions(h)).toEqual([fc ? 'wqfc-next' : 'wq-fnext', 'wq-share', 'wq-fhome']);
+        p = cardPage(lang, { ...RESULT, card_v3: true, card_fold: true, next_offer: INVITE }, { fc });
+        h = p.html();
+        expect(primaries(h)).toBe(1);
+        expect(h).toMatch(/<button class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary>/);
+        expect(h).not.toContain('wa.me/?text=Come');
+        gone(p, lang);
+      }
     });
     test(`${lang}: Jugnu's game card ("Play") is not asked for`, () => {
       const asked = (r) => page({ lang, store: store(r), lib: true }).head.some((e) => /wq-card\.js/.test(String(e.src)));
@@ -118,6 +126,19 @@ describe('home on: the card and one next thing', () => {
       expect(h).not.toContain(p.wq.T.classBtn);
       expect(h).not.toContain(p.wq.T.moreBtn);
     }
+  });
+  test('the results screen asks for no video list (nothing on it or on the card opens one); today it does', async () => {
+    const asked = async (result) => {
+      const p = page({ lang: 'en', store: store(null), lib: true, api: { finish: result } });
+      const pre = jest.fn();
+      p.ctx.WQL.prefetch = pre;
+      p.wq.results(0);
+      await flush(); await flush();
+      expect(p.html()).toContain('data-m="M9"');
+      return pre.mock.calls.length;
+    };
+    expect(await asked(RESULT)).toBe(1);
+    expect(await asked({ ...RESULT, card_fold: true })).toBe(0);
   });
 });
 
@@ -147,6 +168,17 @@ describe('home on: the taps', () => {
     p.els['#wq-fnext'].fire('click');
     await flush(); await flush(); await flush();
     expect(p.hist.assigned).toEqual(['/h/tok.abc?from=home#stories']);
+  });
+  test('the ranked tile (the page\'s, or the finish card\'s own) sends next_pick {src: fold, kind}', async () => {
+    for (const fc of [false, true]) {
+      const p = cardPage('en', { ...RESULT, card_v3: true, card_fold: true, next_offer: NEXT }, { fc });
+      p.els[fc ? '#wqfc-next' : '#wq-fnext'].fire('click');
+      await flush();
+      const sent = p.fetches.filter((f) => f.url === '/api/wq/e').map((f) => JSON.parse(f.init.body).events).flat();
+      // (the harness keeps one element per selector across the card's two draws, so a redrawn tile may count twice)
+      expect(sent.filter((e) => e.n === 'next_pick').length).toBeGreaterThanOrEqual(1);
+      expect(sent.find((e) => e.n === 'next_pick')).toMatchObject({ src: 'fold', kind: 'game' });
+    }
   });
   test('Share still shares the class card', () => {
     const p = cardPage('en', { ...RESULT, card_fold: true, next_offer: NEXT });

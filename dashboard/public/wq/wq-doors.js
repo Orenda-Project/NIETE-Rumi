@@ -412,7 +412,8 @@
     } catch (e) {}
   }
   // The card after a watched video: its block above the hidden tile holder, the one Next tile inside it (our own tile
-  // goes); its Next opens what ours would. false = no card (switch off, script not there): our own tile stays.
+  // goes); its Next opens what ours would, and leads (the card and ONE next thing: Share is the soft secondary).
+  // false = no card (switch off, script not there): our own tile stays.
   function endCard(root, B, ctx, ev) {
     if (B.card_v3 !== true || !window.WQFC || typeof window.WQFC.mount !== 'function') return false;
     var a = root.querySelector('.wq-after'); var w = view.watch || {}; var nx = view.next || {};
@@ -421,7 +422,7 @@
     var next = nx.path ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: nx.path }
       : /^\/[^/]/.test(here) ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: here + (nx.hash || '#videos') } : null;
     var ok = false;
-    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
+    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
     if (!ok) return false;
     if (a && a.parentNode) a.parentNode.removeChild(a);
     var t = document.getElementById('wqfc-next');

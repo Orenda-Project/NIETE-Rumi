@@ -8,6 +8,7 @@
  *   foldField(s)    finish()'s {card_fold: true} with the child home on (app_settings web_quiz_home_v3): a class child's
  *                   own card is the card and ONE next thing, and its Home row (POST /hubdoor {home}) opens on a
  *                   finished run without the card's door or the Home button switched on; else {} (today's payload)
+ *   menuFoldField() the Jugnu page's menu's {card_fold: true} with the child home on (its end cards fold too), else {}
  *   door({st, home}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
  *                   phone in the session token — the body's device_ref is never trusted — so a forwarded copy
  *                   meets the hub's lock on any other phone, like a forwarded /quiz hub link.
@@ -52,6 +53,15 @@ async function foldField(s) {
   }
 }
 
+// The Jugnu page's menu (GET /ch/:token): the same fold for its end cards (read, listen, the numbers games, Story Time).
+async function menuFoldField() {
+  try {
+    return (await HomeFlags.flags()).home ? { card_fold: true } : {};
+  } catch (_) {
+    return {};
+  }
+}
+
 async function door(body = {}, Err = Error) {
   const fail = async (status, error, why) => {
     await K.emit('web_quiz.hub_door', { ok: false, reason: why || error }, { kind: 'mark' });
@@ -82,4 +92,4 @@ async function door(body = {}, Err = Error) {
   return { href: `/h/${token}` };
 }
 
-module.exports = { field, foldField, door };
+module.exports = { field, foldField, menuFoldField, door };

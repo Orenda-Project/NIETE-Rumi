@@ -2282,7 +2282,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         // The home on (finish's card_fold): the card is the one way on from here; the class table and the videos live on the home.
         (foldOn(res) ? '' : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
       render(h, 'M9');
-      libPrefetch();
+      if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
       if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
       speak(done.text, done.url, null);
@@ -2557,19 +2557,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // as the secondary, one Home row. The doors, the class and the league live on the home; "Challenge a friend" is the
   // slot's invite when it ranks first. Without card_fold the card below is today's.
   function foldOn(res) { return Boolean(res && res.card_fold) && Boolean(S.st) && !friendRun() && !B.preview; }
-  // The slot's tile: the finish card's own when it can draw it; else this page's (a same-origin path, or the invite's
-  // WhatsApp message in a new window); with no answer from the slot, the home's own last Next: "Pick a story".
+  // The slot's offer, or the next of its alternatives, that opens on this site (an invite's WhatsApp message never).
+  function foldOffer(nx) {
+    var all = nx && typeof nx === 'object' ? [nx].concat(Array.isArray(nx.alts) ? nx.alts : []) : [];
+    for (var i = 0; i < all.length; i++) {
+      var x = all[i];
+      if (x && typeof x.href === 'string' && /^\/[^/]/.test(x.href) && ((LANG === 'ur' && x.title_ur) || x.title)) return x;
+    }
+    return null;
+  }
+  // Its tile: the finish card's own when it can draw it, else this page's; with nothing to open, the home's own last
+  // Next: "Pick a story".
   function foldNext(nx, fc) {
     var tile = fc && nx ? fc.nextHtml(LANG, nx, true) : '';
     if (tile) return tile;
-    var title = nx && ((LANG === 'ur' && nx.title_ur) || nx.title);
-    var href = nx && typeof nx.href === 'string' ? nx.href : '';
-    if (title && /^\/[^/]/.test(href)) return '<a class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary href="' + esc(href) + '">' + esc(title) + '</a>';
-    if (title && /^https:\/\/wa\.me\/\?text=/.test(href)) return '<a class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary target="_blank" rel="noopener" href="' + esc(href) + '">' + esc(title) + '</a>';
+    if (nx) return '<a class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary href="' + esc(nx.href) + '">' + esc((LANG === 'ur' && nx.title_ur) || nx.title) + '</a>';
     return '<button class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary>' + esc(T.foldPick) + '</button>';
   }
   function foldCard(res, c, total, fc) {
-    var nx = res.next_offer && typeof res.next_offer === 'object' ? res.next_offer : null;
+    var nx = foldOffer(res.next_offer);
     var kept = c.practice && c.kept ? c.kept : null;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var tile = foldNext(nx, fc);
@@ -2601,8 +2607,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-fhome', function () { homeGo('card'); });
     // No answer from the slot: the home, on its Stories door (the home's own Next when it has nothing ranked).
-    if (!nx || !/^(\/[^/]|https:\/\/wa\.me\/\?text=)/.test(String(nx.href || ''))) on('#wq-fnext', function () { homeGo('card', '#stories'); });
-    else on('#wq-fnext', function () { ev('next_pick', { src: 'fold', kind: String(nx.kind || '').replace(/[^a-z0-9_]/g, '').slice(0, 32) }); flushEv(true); });
+    if (!nx) on('#wq-fnext', function () { homeGo('card', '#stories'); });
+    else {
+      var pick = function () { ev('next_pick', { src: 'fold', kind: String(nx.kind || '').replace(/[^a-z0-9_]/g, '').slice(0, 32) }); flushEv(true); };
+      on('#wq-fnext', pick);
+      on('#wqfc-next', pick);   // the finish card's own tile, when it drew it
+    }
     if (res.card_v3) finishCard(classUrl);
   }
   /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */

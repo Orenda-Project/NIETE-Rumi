@@ -106,3 +106,44 @@ describe('the folded card\'s Home row: the door to the child\'s home on a finish
     expect(await err(Door.door({ st: st(), home: 1 }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
   });
 });
+
+describe('the Jugnu page\'s menu (GET /ch/:token): its end cards fold the same way with the home on', () => {
+  const express = require('express');
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  let server; let base; let menu;
+  beforeAll(async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+    await new Promise((r) => { server = app.listen(0, r); });
+    base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
+  });
+  afterAll(() => new Promise((r) => server.close(r)));
+  beforeEach(() => { menu = jest.spyOn(Ch, 'menu').mockResolvedValue({ form: 'G3', lang: 'en', exercises: [] }); });
+  afterEach(() => menu.mockRestore());
+  const get = async () => (await fetch(`${base}/ch/tok.sig`, { headers: { 'x-api-key': 'test-key' } })).json();
+
+  test('home on: card_fold', async () => {
+    seed({ home: true });
+    expect((await get()).card_fold).toBe(true);
+  });
+  test('home off, absent or the string "true": no key (the menu is today\'s)', async () => {
+    for (const home of [undefined, false, 'true']) {
+      HomeFlags._resetCache();
+      seed({ home });
+      expect(await get()).toEqual({ form: 'G3', lang: 'en', exercises: [] });
+    }
+  });
+});
+
+describe('the folded card\'s two event lines keep their fields (the after-quiz next thing, read against today\'s card)', () => {
+  test('card_view {fold: 1} and next_pick {src: fold, kind}', () => {
+    expect(WQ.cleanEvent({ n: 'card_view', band: 'mid', friend: 0, fold: 1 }).props).toEqual({ band: 'mid', friend: 0, fold: 1 });
+    expect(WQ.cleanEvent({ n: 'next_pick', src: 'fold', kind: 'storybook' }).props).toEqual({ src: 'fold', kind: 'storybook' });
+  });
+  test('only those shapes: another event\'s kind, a fold that is not 1, a kind that is not a slug are dropped (today\'s lines)', () => {
+    expect(WQ.cleanEvent({ n: 'card_share', src: 'card', kind: 'card_image' }).props).toEqual({ src: 'card' });
+    expect(WQ.cleanEvent({ n: 'card_view', band: 'mid', fold: true }).props).toEqual({ band: 'mid' });
+    expect(WQ.cleanEvent({ n: 'next_pick', src: 'fold', kind: 'Zara Testwala' }).props).toEqual({ src: 'fold' });
+  });
+});
