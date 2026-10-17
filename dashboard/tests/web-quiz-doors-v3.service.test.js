@@ -604,3 +604,24 @@ describe('the screenshot pass: door screens', () => {
     expect(rulesFor(ALL_CSS, /\.wq-nmin/)).toMatch(/white-space:\s*nowrap/);
   });
 });
+
+describe('a child with a class: a video row opens the lesson page marked as coming from the Videos door', () => {
+  test('videos/start answers a class code: the lesson link carries via=videos after its key', async () => {
+    const CODE = { code: 'ABC123', k: 'kk' };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(CODE)), json: () => Promise.resolve(CODE) });
+    const t = live({ fetchImpl: answer });
+    const go = jest.fn();
+    t.W.WQDOORS.mount(fakeRoot({ '.wq-vid': null }), { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {}, go }, `watch/${VID}`);
+    await flush();
+    expect(go).toHaveBeenCalledWith('/q/ABC123?k=kk&via=videos', 'door_video');
+  });
+  test('a code without a key still carries the mark', async () => {
+    const CODE = { code: 'ABC123' };
+    const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(CODE)), json: () => Promise.resolve(CODE) });
+    const t = live({ fetchImpl: answer });
+    const go = jest.fn();
+    t.W.WQDOORS.mount(fakeRoot({ '.wq-vid': null }), { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {}, go }, `watch/${VID}`);
+    await flush();
+    expect(go).toHaveBeenCalledWith('/q/ABC123?via=videos', 'door_video');
+  });
+});

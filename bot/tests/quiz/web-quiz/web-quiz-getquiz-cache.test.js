@@ -135,6 +135,21 @@ describe('library events and the video id on the lesson page', () => {
     expect(on.video.vid).toBe(V(1));
     expect(on.video.bytes).toBe(3170403);
   });
+
+  test('web_quiz_videos_v3 on: the lesson page is told (videos_v3) for the Videos door\'s play-first page; off: the payload is today\'s', async () => {
+    const off = await WQ.getQuiz('VID001');
+    expect('videos_v3' in off).toBe(false);
+    WQ._resetQuizCache();
+    require('../../../shared/services/quiz/web-quiz-library-flag')._reset();
+    fake.db.app_settings.push({ key: 'web_quiz_videos_v3', value: 'true' }); // only the JSON true turns it on
+    expect('videos_v3' in (await WQ.getQuiz('VID001'))).toBe(false);
+    WQ._resetQuizCache();
+    require('../../../shared/services/quiz/web-quiz-library-flag')._reset();
+    fake.db.app_settings[fake.db.app_settings.length - 1].value = true;
+    const on = await WQ.getQuiz('VID001');
+    expect(on.videos_v3).toBe(true);
+    expect(on.video.url).toMatch(/X-Amz-Signature/);
+  });
 });
 
 test('new clips in the quiz (the audio backfill) are signed at once, not served stale from the cache', async () => {
