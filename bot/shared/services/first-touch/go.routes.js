@@ -162,13 +162,15 @@ async function personaRow(lang, t) {
   } catch (_) { return ''; }
 }
 const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
+/** go.stale / go.error: never a dead end while the switch is on (ONE tap back to WhatsApp, with or without a number). */
+const deadEnd = async (res, id, lang) => page(res, Page.buildMessagePage({ id, lang, bot: botNumber(), door: (await Flags.on()) === true }));
 
-function render(res, d, t, lang) {
+async function render(res, d, t, lang) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
   if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber() }));
   if (d.page === 'role') return rolePage(res, t, lang);
   if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
-  return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
+  return deadEnd(res, 'go.error', lang);
 }
 
 router.get('/land/:token', async (req, res) => {
@@ -180,7 +182,7 @@ router.get('/land/:token', async (req, res) => {
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
       await v3('go_stale', { why: o.stale, lang });
-      return page(res, Page.buildMessagePage({ id: 'go.stale', lang, bot: botNumber() }));
+      return await deadEnd(res, 'go.stale', lang);
     }
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
@@ -189,10 +191,10 @@ router.get('/land/:token', async (req, res) => {
     }
     const d = await destination(o);
     event('one_door.landed', { side: d.side, src: d.src, how: d.next || d.page ? d.how : `${d.how}_missing` });
-    return render(res, d, t, lang);
+    return await render(res, d, t, lang);
   } catch (err) {
     logToFile('❌ one door: landing failed', { error: err && err.message }, 'error');
-    return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
+    return deadEnd(res, 'go.error', lang);
   }
 });
 
