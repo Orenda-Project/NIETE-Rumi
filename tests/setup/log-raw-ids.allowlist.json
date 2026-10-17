@@ -590,25 +590,6 @@
    "1963 userId (shorthand)"
   ]
  },
- "bot/shared/routes/transcript-quiz-flow-endpoint.js": {
-  "n": 13,
-  "area": "routes",
-  "at": [
-   "698 userId: teacher.id",
-   "723 userId: teacher.id",
-   "750 userId: teacher.id",
-   "760 userId: teacher.id",
-   "771 userId: teacher.id",
-   "777 userId: teacher.id",
-   "780 userId: teacher.id",
-   "818 userId: teacher.id",
-   "831 userId: teacher.id",
-   "880 userId: teacher.id",
-   "898 userId: teacher.id",
-   "916 userId: teacher.id",
-   "928 userId: teacher.id"
-  ]
- },
  "bot/shared/services/app-redirect.service.js": {
   "n": 14,
   "area": "services",
