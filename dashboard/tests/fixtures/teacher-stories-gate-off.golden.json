@@ -1,0 +1,2882 @@
+{
+ "true|\"absent\"|ok|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"absent\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"absent\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|false|ok|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|false|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|false|ok|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"true\"|ok|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"true\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"true\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|true|fail-all|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "true|true|fail-all|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "true|true|fail-all|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "true|\"absent\"|fail-shared|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"absent\"|fail-shared|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "true|\"absent\"|fail-shared|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "false|\"absent\"|ok|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"absent\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"absent\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|false|ok|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|false|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|false|ok|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"true\"|ok|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"true\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"true\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|true|fail-all|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|true|fail-all|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|true|fail-all|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"absent\"|fail-shared|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"absent\"|fail-shared|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "false|\"absent\"|fail-shared|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"true\"|\"absent\"|ok|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"absent\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"absent\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|false|ok|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|false|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|false|ok|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"true\"|ok|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"true\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"true\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|true|fail-all|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"true\"|true|fail-all|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"true\"|true|fail-all|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"true\"|\"absent\"|fail-shared|on": {
+  "responses": [
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"story\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"code\":\"AB12CD\",\"link\":\"https://quiz.example.org/q/AB12CD\",\"class_message\":\"A story for you\"}"
+   },
+   {
+    "status": 302,
+    "type": "text/plain; charset=utf-8",
+    "cache": "no-store",
+    "location": "https://wa.me/?text=A%20story%20for%20you",
+    "body": "Found. Redirecting to https://wa.me/?text=A%20story%20for%20you"
+   },
+   {
+    "status": 200,
+    "type": "text/html; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "<!doctype html><html lang=\"en\" dir=\"ltr\"><body><main data-screen=\"teacher-stories\">Book 1 Testwala</main></body></html>"
+   },
+   {
+    "status": 200,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"grade\":2,\"lang\":\"en\",\"books\":[{\"id\":\"bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"title\":\"Book 1 Testwala\"}]}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"absent\"|fail-shared|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"true\"|\"absent\"|fail-shared|5xx": {
+  "responses": [
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 502,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"upstream_error\"}"
+   }
+  ],
+  "botCalls": 6,
+  "reads": 2
+ },
+ "\"absent\"|\"absent\"|ok|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"absent\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"absent\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|false|ok|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|false|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|false|ok|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"true\"|ok|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"true\"|ok|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"true\"|ok|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|true|fail-all|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|true|fail-all|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|true|fail-all|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"absent\"|fail-shared|on": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"absent\"|fail-shared|off": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ },
+ "\"absent\"|\"absent\"|fail-shared|5xx": {
+  "responses": [
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   },
+   {
+    "status": 418,
+    "type": "text/html; charset=utf-8",
+    "cache": null,
+    "location": null,
+    "body": "fell through"
+   },
+   {
+    "status": 404,
+    "type": "application/json; charset=utf-8",
+    "cache": "no-store",
+    "location": null,
+    "body": "{\"error\":\"stories_off\"}"
+   }
+  ],
+  "botCalls": 0,
+  "reads": 2
+ }
+}
