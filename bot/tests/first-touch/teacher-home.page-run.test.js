@@ -36,17 +36,18 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
 /**
  * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`,
  * or never answering with `status: 'hang'` until the test calls `release(json)` on the oldest home fetch still open);
- * `paged` builds the page with the quick answer's switch ON;
+ * `paged` builds the page with the quick answer's switch ON; `wait` with the slow answer's wait (quiz_teacher_home_wait) ON;
  * `answer(path, body)` answers every other fetch.
- * → { q, tap(el), fetches, beacons, location, release }.
+ * → { q, tap(el), fetches, beacons, location, release, refuse } (`refuse()` answers the oldest held home fetch with a 500).
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, paged = false } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}) });
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, paged = false, wait = false } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(wait ? { wait: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
   const held = [];
   const release = async (json) => { held.shift()({ ok: true, status: 200, json: () => Promise.resolve(json) }); await flush(); };
+  const refuse = async () => { held.shift()({ ok: false, status: 500, json: () => Promise.resolve({}) }); await flush(); };
   const location = { assigned: [], reloads: 0, reload() { this.reloads += 1; }, set href(v) { this.assigned.push(v); }, get href() { return this.assigned[this.assigned.length - 1] || ''; } };
   class Blob { constructor(parts) { this.text = parts.join(''); } }
   const window = {
@@ -88,7 +89,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     for (let e = el; e; e = e.parentNode) (e.on || []).filter((h) => h.type === 'click').forEach((h) => h.fn({ target: el, preventDefault() {} }));
     await flush();
   };
-  return { q, tap, fetches, beacons, location, release };
+  return { q, tap, fetches, beacons, location, release, refuse };
 }
 
 const LIB = { grade: 4, stories: [] };
@@ -391,6 +392,108 @@ describe('switch OFF: today\'s page', () => {
     const on = Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true });
     expect(on.csp).toContain(`'sha256-${Page.SCRIPT_PAGED_HASH}'`);
     expect(on.html).toContain(`<script>${Page.SCRIPT_PAGED}</script>`);
+  });
+});
+
+describe('a slow home answer (switch quiz_teacher_home_wait ON), with the quick answer OFF and ON', () => {
+  const HOME = { primary: { kind: 'none' }, library: LIB };
+  const homeFetches = (p) => p.fetches.filter((f) => f.path.indexOf('/api/th/home?') === 0);
+  const shows = (p, sel) => { const e = p.q(sel); return Boolean(e) && !e.hidden; };
+  /** The page's clock: each timer the script sets fires once, when the test moves the clock past it. */
+  function pageClock() {
+    const c = { t: 0, list: [] };
+    c.push = (fn) => { c.list.push({ fn, due: c.t + fn.ms }); };
+    c.to = async (t) => {
+      c.t = t;
+      const due = c.list.filter((x) => x.due <= t);
+      c.list = c.list.filter((x) => x.due > t);
+      due.forEach((x) => x.fn());
+      await flush();
+    };
+    return c;
+  }
+  /**
+   * The home held 16 s, then 25 s, then answered late. The teacher taps «Try again» whenever it shows. One record of
+   * what the page showed, so a failure prints the whole story (the base: the error line at 16 s and two asks).
+   */
+  async function slowHome({ paged, wait }) {
+    const clock = pageClock();
+    const p = await open(HOME, { status: 'hang', timers: clock, paged, wait });
+    const seen = {};
+    await clock.to(16000);
+    seen.at16s = { line: shows(p, '#th-err'), retry: shows(p, '#th-retry') };
+    if (shows(p, '#th-retry')) await p.tap(p.q('#th-retry'));
+    await clock.to(25000);
+    seen.at25s = { line: shows(p, '#th-err'), retry: shows(p, '#th-retry'), skeleton: p.q('#th-top').querySelectorAll('.th-sk').length };
+    if (shows(p, '#th-retry')) await p.tap(p.q('#th-retry'));
+    seen.homeAsks = homeFetches(p).length;
+    await p.release({ primary: { kind: 'none' }, library: { grade: 4, stories: [] } });
+    seen.late = { ready: p.q('#th-main').getAttribute('data-ready'), line: shows(p, '#th-err'), retry: shows(p, '#th-retry'), chosen: /4/.test(p.q('#th-chosen').textContent) };
+    seen.steps = p.beacons.map((x) => x.body.step);
+    return { p, clock, seen };
+  }
+
+  test.each([[false], [true]])('quick answer %p: no error line at 16 s; at the wait the line and «Try again» over the skeleton; the tap re-uses the ask still on its way (ONE request); the late answer is drawn and clears the line', async (paged) => {
+    const { seen } = await slowHome({ paged, wait: true });
+    expect(seen).toEqual({
+      at16s: { line: false, retry: false },
+      at25s: { line: true, retry: true, skeleton: 3 },
+      homeAsks: 1,
+      late: { ready: '1', line: false, retry: false, chosen: true },
+      steps: ['home_slow', 'home_retry'],
+    });
+  });
+
+  test.each([[false], [true]])('quick answer %p: «Try again» while the ask is on its way waits again (the line again at the next wait), still ONE request', async (paged) => {
+    const clock = pageClock();
+    const p = await open(HOME, { status: 'hang', timers: clock, paged, wait: true });
+    await clock.to(25000);
+    await p.tap(p.q('#th-retry'));
+    expect([shows(p, '#th-err'), shows(p, '#th-retry')]).toEqual([false, false]);
+    await clock.to(49000);
+    expect([shows(p, '#th-err'), shows(p, '#th-retry')]).toEqual([false, false]);
+    await clock.to(50000);
+    expect([shows(p, '#th-err'), shows(p, '#th-retry')]).toEqual([true, true]);
+    expect(homeFetches(p)).toHaveLength(1);
+    expect(p.beacons.map((x) => x.body.step)).toEqual(['home_slow', 'home_retry', 'home_slow']);
+  });
+
+  test.each([[false, 500], [false, 'offline'], [true, 500], [true, 'offline']])('quick answer %p, a refusal (%s): the line at once, and «Try again» asks again (the first ask is over)', async (paged, status) => {
+    const p = await open({}, { status, paged, wait: true });
+    expect([shows(p, '#th-err'), shows(p, '#th-retry')]).toEqual([true, true]);
+    await p.tap(p.q('#th-retry'));
+    expect(homeFetches(p)).toHaveLength(2);
+  });
+
+  test('the ask refused after a «Try again» tap shows the line (the one live ask is what the page waits on)', async () => {
+    const clock = pageClock();
+    const p = await open(HOME, { status: 'hang', timers: clock, paged: true, wait: true });
+    await clock.to(25000);
+    await p.tap(p.q('#th-retry'));
+    expect(shows(p, '#th-err')).toBe(false);
+    await p.refuse(); // the one held ask is refused now
+    expect([shows(p, '#th-err'), shows(p, '#th-retry')]).toEqual([true, true]);
+    expect(homeFetches(p)).toHaveLength(1);
+  });
+
+  test('the switch\'s script is the quick answer\'s with only the wait parts swapped, under its own hash; the wait is max(measured p99 × 1.5, 25 s)', () => {
+    expect(Page.WAIT_MS).toBe(Math.max(Math.round(Page.HOME_P99_MS * 1.5), 25000));
+    expect(Page.WAIT_MS).toBe(25000);
+    expect(Page.SCRIPT_WAIT).not.toBe(Page.SCRIPT_PAGED);
+    expect(Page.SCRIPT_WAIT.replace(/var g0=store[\s\S]*?home\(\);/, 'X')).toBe(Page.SCRIPT_PAGED.replace(/var g0=store[\s\S]*?home\(\);/, 'X'));
+    expect(Page.SCRIPT_WAIT).toContain(`},${Page.WAIT_MS});`);
+    expect(Page.SCRIPT_WAIT).not.toContain('},15000);');
+    for (const paged of [false, true]) {
+      const on = Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged, wait: true });
+      expect(on.csp).toContain(`'sha256-${Page.SCRIPT_WAIT_HASH}'`);
+      expect(on.html).toContain(`<script>${Page.SCRIPT_WAIT}</script>`);
+      expect(on.html).toContain('id="th-retry" type="button" hidden>Try again</button>');
+    }
+  });
+
+  test('switch OFF (wait false): the quick answer\'s page and today\'s page as they are (the 15 s ask that asks again; no timer at all)', () => {
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true, wait: false }).html).toBe(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true }).html);
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, wait: false }).html).toBe(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html);
   });
 });
 

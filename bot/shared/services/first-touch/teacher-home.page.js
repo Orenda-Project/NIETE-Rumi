@@ -227,14 +227,35 @@ getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(f
 q('#th-retry').addEventListener('click',function(){q('#th-retry').hidden=true;err(false);q('#th-main').removeAttribute('data-ready');step('home_retry');home()});
 home();`],
 ]);
-function swapped(base, swaps) {
+function swapped(base, swaps, name = 'paged') {
   return swaps.reduce((out, [from, to]) => {
-    if (out.split(from).length !== 2) throw new Error('teacher home page: a paged part no longer matches the script');
+    if (out.split(from).length !== 2) throw new Error(`teacher home page: a ${name} part no longer matches the script`);
     return out.replace(from, () => to);
   }, base);
 }
 const SCRIPT_PAGED = swapped(SCRIPT, PAGED_SWAPS);
 const SCRIPT_PAGED_HASH = sha(SCRIPT_PAGED);
+
+/**
+ * The slow-answer wait (switch quiz_teacher_home_wait ON, with the quick answer OFF or ON): the quick answer's script
+ * with these parts swapped. The wait before the error line is max(measured p99 × 1.5, 25 s): HOME_P99_MS is the p99 of
+ * the page's load to the home's answer (document + /api/th/home) over the throttled-phone walks (9.41 s), so 25 s rules.
+ * «Try again» while the home read is still on its way re-uses that read (no second /api/th/home) and waits again; once
+ * the read is over (refused, offline) «Try again» asks again. The skeleton stays under the line; a late answer is drawn.
+ */
+const HOME_P99_MS = 9410;
+const WAIT_MS = Math.max(Math.round(HOME_P99_MS * 1.5), 25000);
+const WAIT_SWAPS = Object.freeze([
+  [`?'&g='+g0:''),ask=0;
+`, `?'&g='+g0:''),ask=0,live=null;
+`],
+  [`function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},15000);
+getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){if(e!==1&&!d&&n===ask)stuck()})}`,
+  `function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},${WAIT_MS});if(live)return;
+live=getj(hq).then(function(x){live=null;if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){live=null;if(e!==1&&!d)stuck()})}`],
+]);
+const SCRIPT_WAIT = swapped(SCRIPT_PAGED, WAIT_SWAPS, 'wait');
+const SCRIPT_WAIT_HASH = sha(SCRIPT_WAIT);
 
 function csp(styleHash, scriptHash, { meta = false } = {}) {
   return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
@@ -271,9 +292,9 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
  * the ?lang the page was opened with (bi tokens only). → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false }) {
-  const script = paged ? SCRIPT_PAGED : SCRIPT;
-  const scriptHash = paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH;
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, wait = false }) {
+  const script = wait ? SCRIPT_WAIT : paged ? SCRIPT_PAGED : SCRIPT;
+  const scriptHash = wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH;
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -290,7 +311,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <body>
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
-<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
+<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>
@@ -336,4 +357,4 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   return { html, csp: csp(styleHash, scriptHash) };
 }
 
-module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH, digits };
+module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, digits };

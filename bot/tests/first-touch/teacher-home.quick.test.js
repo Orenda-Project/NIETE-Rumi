@@ -225,6 +225,8 @@ function failSetting(key) {
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
     b.eq = (k, v) => { const r = eq0(k, v); if (v === key) r.maybeSingle = async () => ({ data: null, error: { message: 'settings down' } }); return r; };
+    // the page switches are read together (`.in`): that read fails when it carries `key`
+    if (typeof b.in === 'function') { const in0 = b.in.bind(b); b.in = (k, vs) => { const r = in0(k, vs); if ((vs || []).includes(key)) r.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'settings down' } }).then(res, rej); return r; }; }
     return b;
   };
 }
@@ -238,6 +240,7 @@ function watchSetting(key) {
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
     b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
+    if (typeof b.in === 'function') { const in0 = b.in.bind(b); b.in = (k, vs) => { if ((vs || []).includes(key)) seen.n += 1; return in0(k, vs); }; }
     return b;
   };
   return seen;

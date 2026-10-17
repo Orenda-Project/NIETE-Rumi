@@ -23,6 +23,8 @@
  * Switch quiz_teacher_home_paged ON: /api/th/home starts every read at once (the light list reads, the class report's
  * own-quiz rows, the send-again rows by teacher, the gate, the user, the prefill, the stories shelf) and answers the
  * same JSON as OFF in a few round trips. OFF: today's reads, one after another.
+ * Switch quiz_teacher_home_wait ON: the shell carries the slow-answer wait's script (Page.SCRIPT_WAIT: «Try again» re-uses
+ * the home read still on its way; the wait is Page.WAIT_MS); read in the quick answer's own settings read. OFF: today's.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
@@ -82,8 +84,11 @@ function createRouter(deps = null) {
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
-    // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
-    req.thPaged = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.paged().then((v) => v === true, () => false) : null;
+    // the page switches (the quick answer's and the slow-answer wait's, one read), asked only once the home is on (their
+    // own 30 s cache), by the home and its shell; the wait is the shell's alone
+    const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pageSwitches().then((v) => v, () => ({})) : null;
+    req.thPaged = sw ? sw.then((v) => v.paged === true) : null;
+    req.thWait = sw ? sw.then((v) => v.wait === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -247,7 +252,7 @@ function createRouter(deps = null) {
     if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
     if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}) });
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), ...(await req.thWait ? { wait: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));

@@ -1,0 +1,402 @@
+{
+ "route": [
+  {
+   "paged": null,
+   "lang": "en",
+   "asked": null,
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "25145",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-MpyjUhnqMqPTkXf3dW1RG2e0w/AnCj9Cu5dZVL681Eg='; script-src 'sha256-KIYbSunys4p52VBQU1JsN7f2CmlCPSGgOvRMGisQpGM='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6239-gVbCUnHBaVSRPpjszpV8Y27Uf2U\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "1602b7d24347feb51d4a0b60949ced1c75a8e1b2ad9759a3b90cbb972e7ed4e1"
+  },
+  {
+   "paged": null,
+   "lang": "ur",
+   "asked": null,
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "26496",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-cvtohPVpAp6RHLEQM/O6PUHk6HARYFFrM2TbmCOmzx8='; script-src 'sha256-KIYbSunys4p52VBQU1JsN7f2CmlCPSGgOvRMGisQpGM='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6780-w8ksPOI7FG486wXhVnw2nWsLBuY\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "cf285b386cca7d8c466feecc20876af81ddeadf739d90baf6eaa2b0060c6ab4c"
+  },
+  {
+   "paged": null,
+   "lang": "bi",
+   "asked": null,
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "26730",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-cvtohPVpAp6RHLEQM/O6PUHk6HARYFFrM2TbmCOmzx8='; script-src 'sha256-KIYbSunys4p52VBQU1JsN7f2CmlCPSGgOvRMGisQpGM='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"686a-8nVWa+Y8y9cN0ouF2d7byK3bsrI\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "c81ce1152a8fab0e0bedc1669f58830432140b58d254e69cbce728b87715cdc9"
+  },
+  {
+   "paged": null,
+   "lang": "bi",
+   "asked": "en",
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "25380",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-MpyjUhnqMqPTkXf3dW1RG2e0w/AnCj9Cu5dZVL681Eg='; script-src 'sha256-KIYbSunys4p52VBQU1JsN7f2CmlCPSGgOvRMGisQpGM='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6324-wO6m+A0tb/DgXUK8GJmvo9gfVwU\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "8590e2bd2754b1738980937ff163032c4075f88533bfcf79d74fc251a13bf118"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "asked": null,
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "25620",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-MpyjUhnqMqPTkXf3dW1RG2e0w/AnCj9Cu5dZVL681Eg='; script-src 'sha256-1l/mjM+wgN+LCh8pMLxhgutCpjVET0Tn9hc1JfaduSc='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6414-jrtV+fYC1dx0tHzzH2DzkFoC8pM\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "c5cf22c1eea0c395a1ff02b47a48f2c95a54945e9e3132d57078c5d3562f8d1f"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "asked": null,
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "26992",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-cvtohPVpAp6RHLEQM/O6PUHk6HARYFFrM2TbmCOmzx8='; script-src 'sha256-1l/mjM+wgN+LCh8pMLxhgutCpjVET0Tn9hc1JfaduSc='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6970-ZQR7ow36Sm7/11AHWTy1msZlk/E\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "2037cb6e4d5226167dd7672a726d7fcbb29c96def1bfc9cc3a0a7019036c9e37"
+  },
+  {
+   "paged": true,
+   "lang": "bi",
+   "asked": null,
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "27226",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-cvtohPVpAp6RHLEQM/O6PUHk6HARYFFrM2TbmCOmzx8='; script-src 'sha256-1l/mjM+wgN+LCh8pMLxhgutCpjVET0Tn9hc1JfaduSc='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6a5a-zsmBA0KcAuy3XNn2FtV9dD9lYT0\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "6effdd71343333a804185217d923a48567cabfadbded8013bac7e05f37778d37"
+  },
+  {
+   "paged": true,
+   "lang": "bi",
+   "asked": "en",
+   "status": 200,
+   "headers": {
+    "cache-control": "private, no-store",
+    "content-length": "25855",
+    "content-security-policy": "default-src 'none'; style-src 'sha256-MpyjUhnqMqPTkXf3dW1RG2e0w/AnCj9Cu5dZVL681Eg='; script-src 'sha256-1l/mjM+wgN+LCh8pMLxhgutCpjVET0Tn9hc1JfaduSc='; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"64ff-T6/UBw4whJIh/yr41AI1a/uwgNY\"",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-powered-by": "Express",
+    "x-robots-tag": "noindex, nofollow"
+   },
+   "sha256": "7b38f9a5de78ec5321a74fcfcdb508a30bc0222142a62fdded62a860d06f429c"
+  }
+ ],
+ "shell": [
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": null,
+   "asked": null,
+   "sha256": "659e35e328fc2ec66d8772aac4d6168340e519d12e1c484c43e4555a07cfb87f"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": null,
+   "asked": "en",
+   "sha256": "659e35e328fc2ec66d8772aac4d6168340e519d12e1c484c43e4555a07cfb87f"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": null,
+   "asked": "ur",
+   "sha256": "659e35e328fc2ec66d8772aac4d6168340e519d12e1c484c43e4555a07cfb87f"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": "en",
+   "asked": null,
+   "sha256": "ba9c45d674beeec5a4ec025d625b03256b07988f9a80f2c82d7aa30e134d532d"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": "en",
+   "asked": "en",
+   "sha256": "0676b4763222c3bd505027c1aef2f244455cc3696beb08c47db53c0348747c0c"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": "en",
+   "asked": "ur",
+   "sha256": "ba9c45d674beeec5a4ec025d625b03256b07988f9a80f2c82d7aa30e134d532d"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": "ur",
+   "asked": null,
+   "sha256": "5177c4125df5814b6faf1dc5258b2d290bd131c473801f56af8f1830c7ac7f48"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": "ur",
+   "asked": "en",
+   "sha256": "22f963d6a5d7eff56cf09f4b328d67e8d6ecc5a754da6d1b722e52ecc3aa1afc"
+  },
+  {
+   "paged": false,
+   "lang": "en",
+   "switchTo": "ur",
+   "asked": "ur",
+   "sha256": "5177c4125df5814b6faf1dc5258b2d290bd131c473801f56af8f1830c7ac7f48"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": null,
+   "asked": null,
+   "sha256": "e70a412cfab8f993398bde47977376fafe50f79066b2717e522cc72125d1308f"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": null,
+   "asked": "en",
+   "sha256": "e70a412cfab8f993398bde47977376fafe50f79066b2717e522cc72125d1308f"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": null,
+   "asked": "ur",
+   "sha256": "e70a412cfab8f993398bde47977376fafe50f79066b2717e522cc72125d1308f"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": "en",
+   "asked": null,
+   "sha256": "22b9cd19518c72640b3d7884f9bfa8c7295b114d20b77d8f29f9eb2dfc5e0cad"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": "en",
+   "asked": "en",
+   "sha256": "7855c47d16743981981422cf10e85a9a6dac5187c1031a2b8592f9df633be22b"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": "en",
+   "asked": "ur",
+   "sha256": "22b9cd19518c72640b3d7884f9bfa8c7295b114d20b77d8f29f9eb2dfc5e0cad"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": "ur",
+   "asked": null,
+   "sha256": "65bde12fd0402d6bb9e1b6bcebc22cbb37c05e03778d0612d5c308bac1f2c609"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": "ur",
+   "asked": "en",
+   "sha256": "91ca33e7b51a9f3f15478921b4335a5dd7c2a71705503b6e49170db12e28cc4a"
+  },
+  {
+   "paged": false,
+   "lang": "ur",
+   "switchTo": "ur",
+   "asked": "ur",
+   "sha256": "65bde12fd0402d6bb9e1b6bcebc22cbb37c05e03778d0612d5c308bac1f2c609"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": null,
+   "asked": null,
+   "sha256": "b5738cbc804071d15a93a4f2b1c94ff711d8c08af02b48320412316729130b54"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": null,
+   "asked": "en",
+   "sha256": "b5738cbc804071d15a93a4f2b1c94ff711d8c08af02b48320412316729130b54"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": null,
+   "asked": "ur",
+   "sha256": "b5738cbc804071d15a93a4f2b1c94ff711d8c08af02b48320412316729130b54"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": "en",
+   "asked": null,
+   "sha256": "11bf9ec0001354919b4db827be4e3f6f070edfb35c161080741d27d4714752d4"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": "en",
+   "asked": "en",
+   "sha256": "50edc69d16adeaf22207867890722169ce897d79eac5f18729d0f76dc63304d8"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": "en",
+   "asked": "ur",
+   "sha256": "11bf9ec0001354919b4db827be4e3f6f070edfb35c161080741d27d4714752d4"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": "ur",
+   "asked": null,
+   "sha256": "b551d840778feca8bd83db48c46b2465a10fda674eebab5eed772536656db21a"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": "ur",
+   "asked": "en",
+   "sha256": "8e559b6fae28098ec79f6b6cae99243a2eb24dd48177ae0ec8096119f25f4a22"
+  },
+  {
+   "paged": true,
+   "lang": "en",
+   "switchTo": "ur",
+   "asked": "ur",
+   "sha256": "b551d840778feca8bd83db48c46b2465a10fda674eebab5eed772536656db21a"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": null,
+   "asked": null,
+   "sha256": "58b081e457c28d08c5752a09e89d79ceef9641a5e7f623f3006add481ceced14"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": null,
+   "asked": "en",
+   "sha256": "58b081e457c28d08c5752a09e89d79ceef9641a5e7f623f3006add481ceced14"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": null,
+   "asked": "ur",
+   "sha256": "58b081e457c28d08c5752a09e89d79ceef9641a5e7f623f3006add481ceced14"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": "en",
+   "asked": null,
+   "sha256": "7ae6958c5686a8131be218e305d1e275adf7151d24e41cabd1bd9900064d16aa"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": "en",
+   "asked": "en",
+   "sha256": "f896907f134ba8a075924a4977b1d2d39b9574a0c0e89324c7d0201c518b5070"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": "en",
+   "asked": "ur",
+   "sha256": "7ae6958c5686a8131be218e305d1e275adf7151d24e41cabd1bd9900064d16aa"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": "ur",
+   "asked": null,
+   "sha256": "661cb72d6846f0d1c2bc1267687fcf406ff2c56bc99daa0a9c8004159a8a7b85"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": "ur",
+   "asked": "en",
+   "sha256": "6ffb0b5dc04d4a34a0ac13e9dd3e7e25f04c731a7513ac78c4d722d8dcf79bab"
+  },
+  {
+   "paged": true,
+   "lang": "ur",
+   "switchTo": "ur",
+   "asked": "ur",
+   "sha256": "661cb72d6846f0d1c2bc1267687fcf406ff2c56bc99daa0a9c8004159a8a7b85"
+  }
+ ]
+}
