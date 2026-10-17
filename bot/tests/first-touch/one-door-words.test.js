@@ -50,7 +50,7 @@ test('the reply body per side and script: teacher / unknown in Urdu or both; but
     }
   }
   expect(OneDoor.messageFor('teacher', 'ur')).toEqual({ body: expect.stringContaining('آپ کا کوئز ہوم'), button: 'کوئز ہوم کھولیں' });
-  expect(OneDoor.messageFor('child', 'en')).toEqual({ body: 'Your stories, videos and quizzes are here.', button: 'Open' });
+  expect(OneDoor.messageFor('child', 'en')).toEqual({ body: 'Your stories, games and videos are here.', button: 'Open' });
   expect(OneDoor.messageFor('child', 'ur').body).not.toContain('چیلنج');
 });
 
@@ -65,4 +65,29 @@ test('the three notice sentences are the child page\'s signed words, verbatim', 
       }
     }
   }
+});
+
+describe('the known child\'s /quiz reply names the home\'s doors, in the home\'s own words and order', () => {
+  // the home's door words, read from the child home's own copy (never copied here): stories · games · videos
+  const home = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dashboard', 'public', 'wq', 'wq-home.js'), 'utf8');
+  const doors = (lang) => {
+    const block = home.split(new RegExp(`\\n\\s*${lang}: \\{`))[1] || '';
+    const m = block.match(/stories: '([^']+)', games: '([^']+)', videos: '([^']+)'/);
+    return m ? m.slice(1, 4) : null;
+  };
+
+  test('the exact lines (EN and the signed Urdu)', () => {
+    expect(Strings.str('od.child.body', 'en')).toBe('Your stories, games and videos are here.');
+    expect(Strings.str('od.child.body', 'ur')).toBe('آپ کی کہانیاں، کھیل اور ویڈیوز یہاں ہیں۔');
+  });
+
+  test.each([['en'], ['ur']])('%s: the three door words appear in the bar\'s order, and no quiz word', (lang) => {
+    const words = doors(lang);
+    expect(words).toHaveLength(3);
+    const body = Strings.str('od.child.body', lang);
+    const at = words.map((w) => body.toLocaleLowerCase().indexOf(w.toLocaleLowerCase()));
+    at.forEach((i) => expect(i).toBeGreaterThanOrEqual(0));
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(body).not.toMatch(/quiz|کوئز/i);
+  });
 });
