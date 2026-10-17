@@ -15,9 +15,11 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => require('./
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../shared/services/whatsapp.service', () => require('./_ingress-mocks').whatsappMock(jest));
-// The walk-through persona module by its real name: a stand-in.
+// The walk-through persona: the persona tests hand `mockWalk` in through the module registry (`mockModules.load`), so
+// the real file is never required. The module by its path is a tripwire: a persona test that reaches it fails.
 const mockWalk = { forHome: undefined };
-jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalk);
+const mockWalkByPath = { forHome: jest.fn(async (phone, lists) => lists) };
+jest.mock('../../shared/services/first-touch/walk-persona', () => mockWalkByPath);
 // The one door's landing link and its module lookup: stand-ins, inert unless a test fills them.
 const mockDoor = { mintLanding: undefined };
 const mockModules = { load: undefined };
@@ -512,6 +514,8 @@ describe('the stories shelf and the other seams', () => {
       const t = tokenFor();
       const home = await (await get(`/api/th/home?t=${t}&g=3`)).json();
       const lib = await (await get(`/api/th/library?t=${t}&g=4`)).json();
+      expect(mockWalk.forHome).toHaveBeenCalled();
+      expect(mockWalkByPath.forHome).not.toHaveBeenCalled();
       expect(home.library.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.stories.every((b) => !('sent' in b))).toBe(true);
       expect(lib.pick).toMatchObject({ kind: 'story', id: 'b1' });
@@ -610,6 +614,7 @@ describe('the top card for a teacher with a fresh lesson, and story sends', () =
     await boot(deps);
     const walk = await (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
     expect(mockWalk.forHome).toHaveBeenCalledTimes(1);
+    expect(mockWalkByPath.forHome).not.toHaveBeenCalled();
     expect(walk.timeline).toEqual([]);
     expect(walk.primary.kind).toBe('video');
     expect(logEvent).toHaveBeenCalledWith('teacher_home_open', expect.objectContaining({ primary_kind: 'library' }));
