@@ -171,6 +171,17 @@ describe('a subject\'s lessons from the kid\'s hub', () => {
       expect(from.mock.calls.filter(([t]) => t === 'app_settings')).toHaveLength(0);
     } finally { from.mockRestore(); }
   });
+  test('the first Videos open, every subject\'s shelf asked at once: one watch-root read, not one per shelf', async () => {
+    F.seed(supabase, [LIB, SHELF, ROOT]);
+    mockKidFromHub.mockResolvedValue(SOLO_KID);
+    await Lib.libHub('hubtoken', { kid: 'chip' });          // the subjects list: no root read
+    const roots = jest.spyOn(Videos, 'watchRoot');
+    try {
+      const outs = await Promise.all(['Science', 'Maths', 'English'].map((s) => Lib.libHub('hubtoken', { kid: 'chip', s })));
+      expect(outs.map((o) => o.quiz)).toEqual([true, true, true]);
+      expect(roots).toHaveBeenCalledTimes(1);
+    } finally { roots.mockRestore(); }
+  });
   test('off: byte-identical to a library with no such switch; the subjects list never changes', async () => {
     mockKidFromHub.mockResolvedValue(CLASS_KID);
     F.seed(supabase, [LIB]);
@@ -188,6 +199,7 @@ describe('a subject\'s lessons from the kid\'s hub', () => {
 });
 
 describe('the thumbnail', () => {
+  const noSuchKey = () => Object.assign(new Error('The specified key does not exist.'), { name: 'NoSuchKey', $metadata: { httpStatusCode: 404 } });
   // a poster like the bank's: 1280 x 720, smooth colour with a little texture
   async function poster(noise = 12) {
     const w = 1280; const h = 720; const raw = Buffer.alloc(w * h * 3);
@@ -234,10 +246,10 @@ describe('the thumbnail', () => {
     let now = 1_000_000;
     const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
     try {
-      download.mockRejectedValue(new Error('NoSuchKey'));
+      download.mockRejectedValue(noSuchKey());
       expect(await Thumb.thumb(F.V(3))).toBeNull();
-      expect(Thumb.noPicture(F.V(3))).toBe(true);
-      expect(Thumb.noPicture(F.V(1))).toBe(false);
+      expect(await Thumb.noPicture(F.V(3))).toBe(true);
+      expect(await Thumb.noPicture(F.V(1))).toBe(false);
       download.mockResolvedValue(await poster());
       now += 9 * 60 * 1000;
       expect(await Thumb.thumb(F.V(3))).toBeNull();
@@ -260,5 +272,36 @@ describe('the thumbnail', () => {
     expect(download).toHaveBeenCalledTimes(3);
     await Thumb.thumb(F.V(2));
     expect(download).toHaveBeenCalledTimes(4);
+  });
+  test('only a true miss is remembered: a storage timeout, a failed lesson list or a lesson the library does not list is asked again next time', async () => {
+    F.seed(supabase, [LIB, SHELF]);
+    download.mockRejectedValueOnce(Object.assign(new Error('socket hang up'), { name: 'TimeoutError' }));
+    expect(await Thumb.thumb(F.V(3))).toBeNull();
+    expect(await Thumb.noPicture(F.V(3))).toBe(false);
+    download.mockResolvedValue(await poster());
+    expect(await Thumb.thumb(F.V(3))).not.toBeNull();
+    expect(download).toHaveBeenCalledTimes(2);
+    const stranger = 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa';   // a well-formed id the library does not list
+    expect(await Thumb.thumb(stranger)).toBeNull();
+    expect(await Thumb.noPicture(stranger)).toBe(false);
+    Lib._reset(); Thumb._reset();
+    const fake = F.seed(supabase, [LIB, SHELF]);
+    const bank = require('../../../shared/services/quiz/web-quiz-bank');
+    const failed = jest.spyOn(bank, 'bank').mockRejectedValueOnce(new Error('statement timeout'));
+    try {
+      expect(await Thumb.thumb(F.V(1))).toBeNull();
+      expect(await Thumb.noPicture(F.V(1))).toBe(false);
+      expect(await Thumb.thumb(F.V(1))).not.toBeNull();
+    } finally { failed.mockRestore(); }
+    expect(fake).toBeTruthy();
+  });
+  test('a remembered miss is not said once the switch is off (off never answers the kept variant)', async () => {
+    F.seed(supabase, [LIB, SHELF]);
+    download.mockRejectedValue(noSuchKey());
+    expect(await Thumb.thumb(F.V(3))).toBeNull();
+    expect(await Thumb.noPicture(F.V(3))).toBe(true);
+    Lib._reset();
+    F.seed(supabase, [LIB]);
+    expect(await Thumb.noPicture(F.V(3))).toBe(false);
   });
 });

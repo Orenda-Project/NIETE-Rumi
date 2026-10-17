@@ -59,6 +59,14 @@ describe('the thumbnail: /wq/vt/<lesson id>.webp', () => {
     await req(srv, `/wq/vt/${VID}.webp`);
     expect(calls).toHaveLength(2);
   });
+  test('the bot fails or is slow (5xx): never kept, so a kept picture is never pushed out by it and the next phone asks again', async () => {
+    answer = () => jsonRes(500, { error: 'server_error' });
+    const a = await req(srv, `/wq/vt/${VID}.webp`);
+    expect(a.status).toBe(502);
+    expect(a.headers['cache-control']).toBe('no-store');
+    await req(srv, `/wq/vt/${VID}.webp`);
+    expect(calls).toHaveLength(2);
+  });
   test('the bot says the lesson has no picture: a 404 kept 10 minutes at the edge (the bot is asked once) and by the phone', async () => {
     answer = () => jsonRes(404, { error: 'no_picture' });
     const a = await req(srv, `/wq/vt/${VID}.webp`);

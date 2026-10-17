@@ -69,8 +69,9 @@ html[lang=ur] .wq-rtext b:has(>.wq-lat),html[lang=ur] .wq-dsec:has(>.wq-lat){lin
 .wq-vrow .wq-voops{flex:1 1 auto;align-self:center;margin:0}
 .wq-vretry{flex:none;width:auto;align-self:center;min-height:48px;padding:0 16px;border-radius:999px}
 .wq-vskel .wq-vthumb{animation:wq-pulse 1.2s ease-in-out infinite;box-shadow:none}
+.wq-vbox.wq-vskel{background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
 .wq-vskh{display:block;height:20px;width:40%;margin:18px 0 12px;border-radius:10px;background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
 .wq-vskel b{display:block;height:14px;width:80%;border-radius:7px;background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
 html[lang=ur] .wq-vct,html[lang=ur] .wq-vsall,html[lang=ur] .wq-vq,html[lang=ur] .wq-vquiz,html[lang=ur] .wq-vretry{font-family:var(--fu);font-weight:400;line-height:1.9}
 html[lang=ur] .wq-vct .wq-lat{font-family:var(--f);font-weight:800;line-height:1.3}
-@media (prefers-reduced-motion:reduce){.wq-vskel .wq-vthumb,.wq-vskel b,.wq-vskh{animation:none}}
+@media (prefers-reduced-motion:reduce){.wq-vskel .wq-vthumb,.wq-vskel b,.wq-vskh,.wq-vbox.wq-vskel{animation:none}}

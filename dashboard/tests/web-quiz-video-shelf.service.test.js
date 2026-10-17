@@ -161,7 +161,8 @@ function live(answers) {
   const shelves = {};
   const taps = [];
   const root = {
-    innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
+    innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, removeAttribute(k) { delete this.attrs[k]; },
+    getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; },
     querySelector: (sel) => { const m = /^\[data-vshelf="(.+)"\]$/.exec(sel); if (m) return (shelves[m[1]] = shelves[m[1]] || el()); return null; },
     querySelectorAll: (sel) => (sel === '[data-tap]' ? taps : []),
   };
@@ -288,5 +289,92 @@ describe('a subject that does not load never leaves placeholders up (switch on)'
     expect(t.root.innerHTML).toContain('This did not load.');
     expect(t.root.innerHTML).not.toContain('No videos here yet.');
     expect(t.root.innerHTML).toMatch(/data-tap="vretry" data-item="Science"/);
+  });
+});
+
+describe('the watch screen while its lesson loads (switch on)', () => {
+  test.each(['en', 'ur'])('%s: a placeholder player, never "Opening the video…", one primary', (lang) => {
+    const W = F.load();
+    const h = W.WQDOORS.html(F.boot(lang, SHELF()), { token: TOKEN, lang }, `watch/${VID}`, null);
+    expect(h).not.toContain(lang === 'ur' ? 'ویڈیو کھل رہی ہے…' : 'Opening the video…');
+    expect(h).toMatch(/class="wq-vbox wq-vskel"[^>]*aria-busy="true"/);
+    expect(count(h, /data-primary/g)).toBe(1);
+  });
+});
+
+// The list-state contract every child list writes on its root: data-fetch pending|done|failed, when its placeholders
+// came and went (data-skel-from / data-skel-to), and when a true empty showed (data-empty-at, never while pending).
+describe('the Videos lists say their state on the door root (switch on)', () => {
+  const ctxOf = (lang = 'en') => ({ token: TOKEN, lang, ev() {}, go: jest.fn() });
+  test('subjects loading, then every shelf filled: pending with its placeholder start, then done with its end; no empty', async () => {
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? { ...CH, subject: 'Maths' } : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    expect(t.root.attrs['data-skel-from']).toMatch(/^\d+$/);
+    expect(t.root.attrs['data-skel-to']).toBeUndefined();
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('done');
+    expect(Number(t.root.attrs['data-skel-to'])).toBeGreaterThanOrEqual(Number(t.root.attrs['data-skel-from']));
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+    expect(t.shelves.Science.attrs['data-fetch']).toBe('done');
+    expect(t.shelves.Maths.attrs['data-fetch']).toBe('done');
+  });
+  test('the subjects in, one shelf still loading: the root still says pending', async () => {
+    let hold;
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? new Promise((r) => { hold = r; }) : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
+    await flush();
+    expect(t.shelves.Science.attrs['data-fetch']).toBe('done');
+    expect(t.shelves.Maths.attrs['data-fetch']).toBe('pending');
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    hold({ ...CH, subject: 'Maths' });
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('done');
+  });
+  test('a shelf that fails: failed, with its Try again present; the tap makes it pending, then done', async () => {
+    let maths = 0;
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? ((maths += 1) === 1 ? FAIL : { ...CH, subject: 'Maths' }) : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    const retry = el(); retry.setAttribute('data-tap', 'vretry'); retry.setAttribute('data-item', 'Maths'); retry.setAttribute('data-pos', '1');
+    t.shelves.Maths = el({ querySelectorAll: (sel) => (sel === '[data-tap]' ? [retry] : []) });
+    t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
+    await flush();
+    expect(t.shelves.Maths.attrs['data-fetch']).toBe('failed');
+    expect(t.root.attrs['data-fetch']).toBe('failed');
+    expect(t.shelves.Maths.innerHTML).toMatch(/data-tap="vretry"/);
+    retry.fire('click');
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('done');
+  });
+  test('no subjects at all (a true empty): done, and the empty moment is stamped', async () => {
+    const t = live(() => ({ ...LIB_SUBJECTS, subjects: [] }));
+    t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-empty-at']).toMatch(/^\d+$/);
+  });
+  test.each(['en', 'ur'])('%s: See all that fails says failed; its Try again reloads the subject, and the grid then says done', async (lang) => {
+    let back = false;                   // Science fails until the child taps Try again
+    const t = live((url) => (/[?&]s=Science/.test(url) ? (back ? CH : FAIL) : /[?&]s=/.test(url) ? { ...CH, subject: 'Maths' } : LIB_SUBJECTS));
+    const ctx = ctxOf(lang);
+    const all = el(); all.setAttribute('data-tap', 'subj'); all.setAttribute('data-item', 'Science');
+    t.taps.push(all);
+    t.W.WQDOORS.mount(t.root, F.boot(lang, SHELF()), ctx, 'videos');
+    await flush();
+    const retry = el(); retry.setAttribute('data-tap', 'vretry'); retry.setAttribute('data-item', 'Science');
+    all.fire('click');
+    t.taps.push(retry);                 // the failed grid's Try again, wired when that screen is drawn
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('failed');
+    expect(t.root.innerHTML).toMatch(/data-tap="vretry" data-item="Science"/);
+    back = true;
+    retry.fire('click');
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    await flush();
+    expect(t.root.innerHTML).toMatch(/class="wq-vgrid"/);
+    expect(t.root.innerHTML).not.toMatch(/vretry/);
+    expect(t.root.attrs['data-fetch']).toBe('done');
   });
 });
