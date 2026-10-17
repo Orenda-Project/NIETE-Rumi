@@ -146,10 +146,18 @@ describe('(d) the Urdu Section A prompt asks each grammar concept once, and none
     lang: U.medium, P: U, scope: { kind: 'chapters', chapters: [6, 7], pages: '50-60, 61-70' }, poem: null,
   });
 
+  // On chosen lessons the line names those lessons' concepts only (lessons 6–7: متشابہ الفاظ); the
+  // full syllabus keeps its list.
   test('Section A carries the line', () => {
     const a = prompt(sectionA);
-    expect(a).toContain('Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only');
+    expect(a).toContain('Q1 asks each grammar concept of these lessons (متشابہ الفاظ) in one item only');
     expect(a).toMatch(/Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these/);
+    const full = Gen.buildPatternUserPrompt({
+      grade: 5, subject: 'urdu', pageContent: mockPages, pageReference: '28-107', section: sectionA, slots: sectionA.slots,
+      lang: U.medium, P: U, scope: { kind: 'fde', chapters: null, pages: null }, poem: null,
+    });
+    expect(full).toContain('Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only');
+    expect(full).toMatch(/Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these/);
   });
 
   test('Section C does not', () => {
