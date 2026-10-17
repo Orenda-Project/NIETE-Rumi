@@ -37,7 +37,7 @@ const { scoreMixedPaper, decideIsapsModuleExamPass } = require('./isaps-crq-pape
 const { isPerModuleQuiz, allModuleExamsPassed } = require('./isaps-module-exam.rules');
 const { pointsPerQuestionFor } = require('./capstone-points.rules');
 const { cooldownUntilFor } = require('./retry-cooldown.rules');
-const { logToFile } = require('../../utils/logger');
+const { logError } = require('../../utils/logger');
 
 /** The one SQL that releases. A separate, explicit step — never run by this file. */
 const RELEASE_FLAG_SQL = [
@@ -216,7 +216,7 @@ async function releaseHeldAttempts({ supabase, apply = false, scoreAnswer, certi
       if (isPassed && !resolvedPassedByUserLevel.has(key)) resolvedPassedByUserLevel.set(key, a.id);
     } catch (e) {
       err(a.id, 'attempt', e);
-      logToFile('❌ isaps held release — attempt failed', { attemptId: a.id, error: e && e.message });
+      logError('❌ isaps held release — attempt failed', { attemptId: a.id, error: e && e.message });
     }
   }
   summary.users_touched = touched.size;
