@@ -301,3 +301,42 @@ describe('way back OFF in every state (door ON): byte-identical to today\'s page
     }
   });
 });
+
+describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, then the token\'s own lang, then today\'s choice', () => {
+  const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
+  const DAY = 2 * 24 * 60 * 60 * 1000;
+  const staleMaker = (lang) => MakerToken.signMaker({ uid: TEACHER.id, lang, tour: 0, via: 'door' }, { now: Date.now() - DAY * 30 });
+  const staleHome = (lang) => HomeToken.signTeacherHome({ uid: TEACHER.id, lang, via: 'go' }, { now: Date.now() - DAY });
+  // [name, path, the sentence ON, the sentence that must NOT be on the page ON]
+  const ROWS = [
+    ['go.stale forged + ?lang=ur → Urdu only', () => '/api/internal/go/land/garbage?lang=ur', UR, EN],
+    ['maker stale (token en) + ?lang=ur → Urdu', () => `/api/internal/ft/m/${staleMaker('en')}?lang=ur`, UR, EN],
+    ['maker stale (token ur) + ?lang=en → English', () => `/api/internal/ft/m/${staleMaker('ur')}?lang=en`, EN, UR],
+    ['home stale (token ur) + ?lang=en → English', () => `/api/internal/th/quiz/teacher/${staleHome('ur')}?lang=en`, EN, UR],
+    ['home stale (token en) + ?lang=ur → Urdu', () => `/api/internal/th/quiz/teacher/${staleHome('en')}?lang=ur`, UR, EN],
+  ];
+  test.each(ROWS)('ON: %s', async (name, p, say, never) => {
+    number(false);
+    seed('on');
+    const r = await get(p());
+    const words = expectOneTap(r.html, APP, [say]);
+    expect(words).not.toContain(never);
+  });
+  test('ON: no query and no language in the link → today\'s choice (the token\'s own lang)', async () => {
+    number(false);
+    seed('on');
+    const r = await get(`/api/internal/ft/m/${staleMaker('ur')}`);
+    expectOneTap(r.html, APP, [UR]);
+  });
+  test.each(['absent', 'false', 'string'])('OFF (%s): the ?lang= on a dead end changes nothing: today\'s bytes', async (state) => {
+    number(false);
+    for (const [, p] of ROWS) {
+      seed(state);
+      const withQ = await get(p());
+      seed(state);
+      const without = await get(p().replace(/[?&]lang=(ur|en)$/, ''));
+      // today the stale pages follow the token, not the query; the forged go page is bilingual either way
+      expect(withQ.html).toBe(without.html);
+    }
+  });
+});

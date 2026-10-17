@@ -26,6 +26,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
+const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
 const WayBackSwitch = require('../lib/closed-way-back-switch');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
@@ -59,7 +60,10 @@ const langOf = (req) => (/^\s*ur\b/i.test(String((req.get && req.get('accept-lan
 const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null;
 
 /** The go.error page for an answer the bot gave that this edge cannot pass on, with its one tap back to WhatsApp. */
-const errorPage = (req, door = false) => GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req), bot: botNumber(), door: door === true });
+// With the switch on the page speaks the link's language first (?lang=, then the token's): 'ur' → Urdu only, 'en' → the
+// page with its English lines (the door has no English-only page); else the phone's, as today.
+const linkGoLang = (req) => ({ ur: 'ur', en: 'bi' })[ChatTap.linkLang(req)] || null;
+const errorPage = (req, door = false) => GoPage.buildMessagePage({ id: 'go.error', lang: (door === true && linkGoLang(req)) || langOf(req), bot: botNumber(), door: door === true });
 
 function sendPage(res, built, status = 200) {
   res.set({ ...PRIVATE, 'Content-Security-Policy': built.csp });

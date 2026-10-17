@@ -85,12 +85,15 @@ function createRouter(deps = null) {
       'X-Content-Type-Options': 'nosniff', ...(csp ? { 'Content-Security-Policy': csp } : {}),
     });
   }
-  async function messagePage(res, status, id, lang) {
+  async function messagePage(res, status, id, lang, req = null) {
     // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown —
     // with web_quiz_closed_way_back ON always ONE tap: the signed go.back sentence, wa.me/<bot>?text=quiz or whatsapp://send?text=quiz
     let tap = null;
     try {
-      if ((await require('./closed-way-back.flags').on()) === true) tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), botDigits());
+      if ((await require('./closed-way-back.flags').on()) === true) {
+        lang = require('./chat-tap').linkLang(req) || lang; // the link's language (?lang=, the token's) before today's choice
+        tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), botDigits());
+      }
     } catch (_) { tap = null; }
     if (!tap) {
       const href = require('./teacher-home.copy').chatLink();
@@ -104,7 +107,7 @@ function createRouter(deps = null) {
   const handlePage = (fn) => async (req, res) => {
     try { await fn(req, res); } catch (err) {
       logToFile('❌ teacher home page failed', { error: err && err.message }, 'error');
-      if (!res.headersSent) await messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
+      if (!res.headersSent) await messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)), req);
     }
   };
   const handleJson = (fn) => async (req, res) => {
@@ -225,8 +228,8 @@ function createRouter(deps = null) {
 
   router.get('/quiz/teacher/:token', handlePage(async (req, res) => {
     const v = HomeToken.verifyTeacherHome(req.params.token);
-    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
-    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
+    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
     const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang) });
     headers(res, built.csp);
@@ -401,13 +404,13 @@ function createRouter(deps = null) {
   // error page, nothing marked.
   router.get('/quiz/teacher/:token/send', handlePage(async (req, res) => {
     const v = HomeToken.verifyTeacherHome(req.params.token);
-    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
-    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
+    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
     const p = v.ok;
     const lang = Page.pageLang(p.lang, asked(req.query.lang)).lang;
     const c = uuidIn(req.query.c);
     const out = c ? await Send.shareSend({ uid: p.uid, lang, shareCodeId: c }, deps) : null;
-    if (!out) return messagePage(res, 404, 'mk.error', lang);
+    if (!out) return messagePage(res, 404, 'mk.error', lang, req);
     const origin = ORIGINS.has(req.query.o) ? req.query.o : 'library';
     await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c }); // a failed mark never blocks the send
     headers(res);

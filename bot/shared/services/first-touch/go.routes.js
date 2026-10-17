@@ -163,14 +163,19 @@ async function personaRow(lang, t) {
 }
 const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
 /** go.stale / go.error: never a dead end while web_quiz_closed_way_back is on (ONE tap back to WhatsApp, number or not). */
-const deadEnd = async (res, id, lang) => page(res, Page.buildMessagePage({ id, lang, bot: botNumber(), door: (await require('./closed-way-back.flags').on()) === true }));
+/** ON: the link's language before today's choice (?lang= / the token's own: 'ur' → Urdu only, 'en' → with its English lines). */
+const deadEnd = async (res, id, lang, req = null) => {
+  const door = (await require('./closed-way-back.flags').on()) === true;
+  const l = (door && ({ ur: 'ur', en: 'bi' })[require('./chat-tap').linkLang(req)]) || lang;
+  return page(res, Page.buildMessagePage({ id, lang: l, bot: botNumber(), door }));
+};
 
-async function render(res, d, t, lang) {
+async function render(res, d, t, lang, req = null) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
   if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber() }));
   if (d.page === 'role') return rolePage(res, t, lang);
   if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
-  return deadEnd(res, 'go.error', lang);
+  return deadEnd(res, 'go.error', lang, req);
 }
 
 router.get('/land/:token', async (req, res) => {
@@ -182,7 +187,7 @@ router.get('/land/:token', async (req, res) => {
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
       await v3('go_stale', { why: o.stale, lang });
-      return await deadEnd(res, 'go.stale', lang);
+      return await deadEnd(res, 'go.stale', lang, req);
     }
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
@@ -191,10 +196,10 @@ router.get('/land/:token', async (req, res) => {
     }
     const d = await destination(o);
     event('one_door.landed', { side: d.side, src: d.src, how: d.next || d.page ? d.how : `${d.how}_missing` });
-    return await render(res, d, t, lang);
+    return await render(res, d, t, lang, req);
   } catch (err) {
     logToFile('❌ one door: landing failed', { error: err && err.message }, 'error');
-    return deadEnd(res, 'go.error', lang);
+    return deadEnd(res, 'go.error', lang, req);
   }
 });
 

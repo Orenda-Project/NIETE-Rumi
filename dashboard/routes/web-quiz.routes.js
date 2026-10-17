@@ -740,7 +740,11 @@ function createWebQuizRouter(opts = {}) {
       return ChatTap.chatHref(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null);
     } catch (_) { return null; }
   };
-  const closedHtml = (req, args) => renderClosedPage({ ...args, back: backFor(req) });
+  // ON: the page speaks the LINK's language before the phone's (?lang=, then the token's own lang, then today's choice)
+  const closedHtml = (req, args) => {
+    const back = backFor(req);
+    return renderClosedPage(back ? { ...args, lang: ChatTap.linkLang(req) || args.lang, back } : { ...args, back });
+  };
 
   // A child page on any host but the canonical one goes there first (one origin = one remembered child).
   router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));

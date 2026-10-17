@@ -320,3 +320,104 @@ describe('the closed page never waits on the switch (read from the cache only)',
     expectOneTap(second.body, WA, EN);
   });
 });
+
+describe('the /h/ closed page speaks the link\'s language (switch ON): ?lang=, then the token\'s own lang, then the phone', () => {
+  /** A hub token shaped like the join's (its payload carries `lang`); the signature is not checked by the page. */
+  const tokenWith = (payload) => `${Buffer.from(JSON.stringify(payload)).toString('base64url')}.AbCdEfGhIjKlMnOpQrStUv`;
+  const JOIN_UR = tokenWith({ k: 'h', ids: [], pr: 1, lang: 'ur', exp: 1 });
+  const JOIN_EN = tokenWith({ k: 'h', ids: [], pr: 1, lang: 'en', exp: 1 });
+  const ROWS = [
+    ['forged, ?lang=ur, an English phone → Urdu', '/h/not-a-token?lang=ur', { 'accept-language': 'en' }, null, UR],
+    ['expired, ?lang=ur, an English phone → Urdu', `/h/${TOKEN}?lang=ur`, { 'accept-language': 'en-US' }, () => jsonRes(401, { error: 'bad_token' }), UR],
+    ['expired, ?lang=en, an Urdu phone → English', `/h/${TOKEN}?lang=en`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
+    ['expired join token (lang ur), no query, an English phone → Urdu', `/h/${JOIN_UR}`, { 'accept-language': 'en' }, () => jsonRes(401, { error: 'bad_token' }), UR],
+    ['expired join token (lang en), no query, an Urdu phone → English', `/h/${JOIN_EN}`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
+    ['?lang= beats the token: join token (lang ur) + ?lang=en → English', `/h/${JOIN_UR}?lang=en`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
+    ['neither (no query, no lang in the token) → the phone, as today: Urdu phone', `/h/${TOKEN}`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), UR],
+    ['?lang=fr is not a language here → the phone: English', '/h/not-a-token?lang=fr', { 'accept-language': 'en' }, null, EN],
+  ];
+  test.each(ROWS)('%s', async (name, p, headers, answer, sentence) => {
+    number('whatsapp');
+    door = true;
+    next = answer || (() => jsonRes(500, {}));
+    await boot();
+    const r = await req(srv, p, headers);
+    const words = expectOneTap(r.body, WA, sentence);
+    expect(words).not.toContain(sentence === UR ? EN : UR);
+    expect(r.body).toContain(`lang="${sentence === UR ? 'ur' : 'en'}"`);
+  });
+
+  test('switch OFF: ?lang=ur on an English phone is today\'s English page, byte for byte', async () => {
+    number('whatsapp');
+    door = false;
+    for (const [p, answer] of [['/h/not-a-token?lang=ur', null], [`/h/${TOKEN}?lang=ur`, () => jsonRes(401, { error: 'bad_token' })], [`/h/${JOIN_UR}`, () => jsonRes(401, { error: 'bad_token' })]]) {
+      next = answer || (() => jsonRes(500, {}));
+      await boot();
+      const r = await req(srv, p, { 'accept-language': 'en' });
+      expect(r.body).toBe(plainPage('hub', 'en'));
+      await new Promise((res) => srv.close(res));
+      srv = null;
+    }
+  });
+});
+
+describe('every other closed-page kind speaks the link\'s language too (switch ON); OFF stays today\'s', () => {
+  const tokenWith = (payload) => `${Buffer.from(JSON.stringify(payload)).toString('base64url')}.AbCdEfGhIjKlMnOpQrStUv`;
+  const CH_UR = tokenWith({ k: 'c', sid: 'a', ex: 1, r: 'b', l: 'ur', exp: 1 });
+  const gone = () => jsonRes(401, { error: 'bad_token' });
+  // [name, path, headers, the bot's answer, the sentence ON, today's kind + lang (OFF)]
+  const KINDS = [
+    ['/q/ closed (the quiz says en) + ?lang=ur → Urdu', '/q/ABCD1234?lang=ur', {}, () => jsonRes(404, { error: 'not_found' }), UR, ['closed', 'en']],
+    ['/q/ closed (the quiz says ur) + ?lang=en → English', '/q/ABCD1234?lang=en', {}, () => jsonRes(410, { error: 'closed', lang: 'ur' }), EN, ['closed', 'ur']],
+    ['/c/ expired, the token\'s own l=ur, no query → Urdu', `/c/${CH_UR}`, {}, gone, UR, ['closed', 'en']],
+    ['/k/ forged + ?lang=ur → Urdu', '/k/x?lang=ur', {}, null, UR, ['closed', 'en']],
+    ['/lib/ forged + ?lang=ur → Urdu', '/lib/x?lang=ur', {}, null, UR, ['closed', 'en']],
+    ['/j/ forged + ?lang=ur → Urdu', '/j/x?lang=ur', {}, null, UR, ['closed', 'en']],
+  ];
+  test.each(KINDS)('ON: %s', async (name, p, headers, answer, sentence) => {
+    number('whatsapp');
+    door = true;
+    next = answer || (() => jsonRes(500, {}));
+    await boot();
+    const r = await req(srv, p, headers);
+    const words = expectOneTap(r.body, WA, sentence);
+    expect(words).not.toContain(sentence === UR ? EN : UR);
+    expect(r.body).toContain(`lang="${sentence === UR ? 'ur' : 'en'}"`);
+  });
+  test.each(KINDS)('OFF: %s is today\'s page, byte for byte', async (name, p, headers, answer, sentence, [kind, lang]) => {
+    number('whatsapp');
+    door = false;
+    next = answer || (() => jsonRes(500, {}));
+    await boot();
+    const r = await req(srv, p, headers);
+    expect(r.body).toBe(plainPage(kind, lang));
+  });
+
+  const goEdge = async (p, headers, wayBackOn) => {
+    resetSwitch();
+    const app = express();
+    app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), ...(wayBackOn ? { wayBackOn } : {}) }));
+    await new Promise((r) => { srv = app.listen(0, r); });
+    return req(srv, p, headers);
+  };
+  test('ON: the edge\'s go.error + ?lang=ur on an English phone → the Urdu-only page', async () => {
+    number(null);
+    const r = await goEdge(`/quiz/go/${GO_TOK}?lang=ur`, { 'accept-language': 'en' }, async () => true);
+    const words = expectOneTap(r.body, APP, [UR]);
+    expect(words).not.toContain(EN);
+  });
+  test('ON: the edge\'s go.error + ?lang=en on an Urdu phone → the page with its English lines (the door has no English-only page)', async () => {
+    number(null);
+    const r = await goEdge(`/quiz/go/${GO_TOK}?lang=en`, { 'accept-language': 'ur-PK' }, async () => true);
+    expectOneTap(r.body, APP, [UR, EN]);
+  });
+  test('OFF: the edge\'s go.error with ?lang= is today\'s (the phone decides)', async () => {
+    number(null);
+    let r = await goEdge(`/quiz/go/${GO_TOK}?lang=ur`, { 'accept-language': 'en' }, async () => false);
+    expect(r.body).toBe(GoPage.buildMessagePage({ id: 'go.error', lang: 'bi', bot: null }).html);
+    await new Promise((res) => srv.close(res));
+    srv = null;
+    r = await goEdge(`/quiz/go/${GO_TOK}?lang=en`, { 'accept-language': 'ur-PK' }, async () => false);
+    expect(r.body).toBe(GoPage.buildMessagePage({ id: 'go.error', lang: 'ur', bot: null }).html);
+  });
+});
