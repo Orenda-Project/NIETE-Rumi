@@ -163,6 +163,7 @@ async function watchRootId(now = Date.now()) {
     if (error) throw new Error(error.message);
     let v = data && data.value;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+    if (typeof v === 'string') v = v.trim().toLowerCase();   // one spelling, as the other watch-root readers parse it
     watchRootCache = { at: now, id: typeof v === 'string' && ID_RX.test(v) ? v : null };
     return watchRootCache.id;
   } catch (err) {
