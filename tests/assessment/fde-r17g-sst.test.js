@@ -102,9 +102,12 @@ describe('1. the reader names two Section D give-aways', () => {
     expect(prompt).toContain('unless that Q1 item asks which act is');
   });
 
-  test('a partly answered item stays unflagged only when an act or fact it needs is printed nowhere', () => {
+  test('a partly answered item stays unflagged: the only exception is every point\'s act a Q1 key, or every point a wrong act', () => {
     const { prompt } = Reader.buildReaderPrompt(exam, SST);
-    expect(prompt).toContain('when an act or fact its points need is printed nowhere in Section A');
+    expect(prompt).toContain('its answer without the reasons its points ask for');
+    expect(prompt).toContain('the one exception is the rule above where EACH point\'s act is a Q1 key');
+    expect(prompt).toContain('a C/D item EVERY one of whose points is one of those acts, not done');
+    expect(prompt).toContain('When even one point is an act no Q1 item prints, or a reason, a benefit or a definition of its own, it is partial');
   });
 
   test('a flag on Q6 1 that quotes three Q1 keys, all three named in `by`, is kept', () => {
