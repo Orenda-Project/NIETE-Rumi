@@ -56,7 +56,7 @@ describe('candidates', () => {
     const rows = await Next.candidates(ARGS);
     expect(rows[0]).toEqual({
       kind: 'storybook', id: F.BOOK(1), rule: 'resume',
-      href: `/h/${TOKEN}?kid=a&lang=en#story/${F.BOOK(1)}`,
+      href: `/h/${TOKEN}?kid=a&lang=en#story/${F.BOOK(1)}/p2`,   // the page after the last one heard: the reader opens there
       title: 'Book 1 Testwala', title_ur: 'Book 1 Testwala', minutes: 1, art: `/s/${F.BOOK(1)}/cover-aaaa0001.webp`,
     });
     const rest = rows.slice(1);

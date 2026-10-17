@@ -1137,6 +1137,7 @@ describe('the shipped files', () => {
     const zlib = require('zlib');
     expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
     expect(zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);
+    expect(zlib.gzipSync(fs.readFileSync(DSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);   // the questions + done file
     const css = fs.readFileSync(CSS, 'utf8');
     expect(zlib.gzipSync(css, { level: 9 }).length).toBeLessThanOrEqual(3 * 1024);
     expect(css).toContain('prefers-reduced-motion');
@@ -2648,9 +2649,9 @@ describe('a kind screen on every stall', () => {
     expect(ph.style.display).toBe('none');
   });
 
-  test('opening a book asks for no voice: the player is mounted with preload none; the Listen tap is the first audio request', async () => {
+  test('opening a book asks for no voice: the player\'s element is set to preload none in the mount\'s own task; the Listen tap is the first audio request', async () => {
     const e = env(); const root = await openReader(e);
-    expect(e.calls.ra[0].o.preload).toBe('none');
+    expect(e.calls.ra[0].audio.preload).toBe('none');
     expect(e.calls.audios).toHaveLength(0);
     expect(e.calls.preload).toBeUndefined();
     fire(root, 'main');
@@ -2679,6 +2680,10 @@ describe('a kind screen on every stall', () => {
     expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wqs-lk\{pointer-events:none\}/);
   });
 
+  test('an Urdu title is never cut at its first letter: the clipped title row keeps room at its start', () => {
+    const css = fs.readFileSync(CSS, 'utf8');
+    expect(css).toMatch(/\.wqs-top h2\[dir=rtl\]\{padding-inline-start:\.3em\}/);
+  });
   // every reader state: one visible button that leads somewhere, and no wait on the voice without an end
   test('the way-out lint: listening, echo, mic sheet, denied, the drop, together, questions, done — each has a way on; no state waits on the voice for ever', async () => {
     const WAYS = /data-tap="(main|next|prev|back|home|close|eend|again|more|retry|ans|qnext|lret|late)"/;

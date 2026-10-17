@@ -7,7 +7,8 @@
  *
  * First the newest half-read ready book of the last 7 days (`rule:'resume'`, the same rule as the hub's
  * `stories.resume`), then up to MAX_UNREAD unread ready books of the child's grade and language in the child's shelf
- * order; `minutes` is pages × 0.4, rounded, at least 1. `href` opens the reader on the child's own hub link. `[]` while `web_quiz_stories` is off, when no link can be
+ * order; `minutes` is pages × 0.4, rounded, at least 1. `href` opens the reader on the child's own hub link (the
+ * half-read book at its `resume.page_n`: `#story/<id>/p<N>`). `[]` while `web_quiz_stories` is off, when no link can be
  * built, or on any failure: it never throws.
  */
 const { clampLanguage } = require('../../config/ux-strings');
@@ -38,7 +39,8 @@ async function candidates({ studentId, lang, grade, token, chip, now = Date.now(
       S.orderedBooks(studentId, { grade: S.gradeOf(grade) || 1, lang: l, now }),
     ]);
     const out = [];
-    if (resume) out.push(row({ id: resume.book_id, title: resume.title, pages: resume.pages }, resume.cover, link, 'resume'));
+    // the half-read book opens on the page after the last one the child heard or read (the reader reads /p<N>)
+    if (resume) out.push(row({ id: resume.book_id, title: resume.title, pages: resume.pages }, resume.cover, (id) => `${link(id)}/p${resume.page_n}`, 'resume'));
     ordered.filter((b) => !done.has(b.id) && !(resume && b.id === resume.book_id)).slice(0, MAX_UNREAD)
       .forEach((b) => out.push(row(b, S.fileUrl(b.id, b.cover_file), link)));
     return out;
