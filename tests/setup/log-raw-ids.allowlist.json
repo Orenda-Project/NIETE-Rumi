@@ -1670,16 +1670,11 @@
   ]
  },
  "bot/shared/services/quiz/transcript-lesson-provider.js": {
-  "n": 7,
+  "n": 2,
   "area": "quiz",
   "at": [
-   "190 userId: user.id",
-   "201 userId: user.id",
-   "249 userId: user.id",
-   "256 userId: user.id",
-   "256 from: claimed.from",
-   "281 userId: user.id",
-   "281 from: claimed.from"
+   "257 from: claimed.from",
+   "282 from: claimed.from"
   ]
  },
  "bot/shared/services/quiz/transcript-quiz-digest.service.js": {
