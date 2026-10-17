@@ -213,7 +213,13 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     expect((html.match(/data-primary/g) || []).length).toBe(1);
     expect(html).toContain('href="https://wa.me/15550001111?text=quiz%20please%20jb3b9c1e2a"');
     expect(html).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
+    // the headline runs in the page's direction, the name isolated (a Latin name never turns an Urdu line around)
+    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi>Noor</bdi>: `);
     expect(html).not.toMatch(BANNED);
+    // the landing names what it lands on; with no name, no empty line
+    const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(named).toContain('<p class="it"><bdi>The lost kite &lt;b&gt;</bdi></p>');
+    expect(html).not.toContain('class="it"');
     // with no bot number (no chat link): still ONE way in — WhatsApp with the words typed, never a page without a door
     const none = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
     expect((none.match(/data-primary/g) || []).length).toBe(1);
@@ -297,6 +303,16 @@ describe('the one share never sends words without the card', () => {
     }
     // switch off: today's words, the return words quoted
     expect(FC.shareText({ lang: 'en', deed: 'book_read', url: 'u', ret: {} }).split('\n').pop()).toBe(`“${FC.W.en.words}”`);
+  });
+  test('with a bot number too: the card link is still the last line (tappable, the card its preview); the landing is the door', () => {
+    const FC = fcPage(MINT).FC;
+    for (const lang of ['en', 'ur']) {
+      const t = FC.shareText({ lang, deed: 'video_watched', title: 'Parts of a plant', url: `https://portal.example/k/${TOK}`, ret: { text: 'x', href: 'https://wa.me/15550001111?text=quiz%20please' }, v4: true });
+      expect(t.split('\n').pop()).toBe(`https://portal.example/k/${TOK}`);
+      expect(t).not.toContain('wa.me');
+    }
+    // switch off: today's words end with the chat link
+    expect(FC.shareText({ lang: 'en', deed: 'book_read', url: 'u', ret: { text: 'x', href: 'https://wa.me/1?text=q' } }).split('\n').pop()).toBe('https://wa.me/1?text=q');
   });
   test('the switch off (no v4 from the host): today\'s 2 s wait, then today\'s words', () => {
     const p = fcPage(() => new Promise(() => {}));

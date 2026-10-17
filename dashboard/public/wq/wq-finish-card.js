@@ -181,8 +181,9 @@
     var tl = titleLine(l, o.title);
     if (tl) lines.push(tl);
     if (o.url) lines.push(String(o.url));
-    // the one share with no bot chat to name: the link above is the friend's way in, never loose words
-    if (o.v4 === true && o.url && !ret.href) return lines.join('\n');
+    // the one share: the card's link is the last line (WhatsApp makes it tappable, the card is its preview); its landing
+    // is the friend's way in, so no chat line or loose words follow it
+    if (o.v4 === true && o.url) return lines.join('\n');
     lines.push(ret.text || W[l].ret);
     lines.push(ret.href || ('“' + (ret.words || W[l].words) + '”'));
     return lines.join('\n');
@@ -425,15 +426,19 @@
     st.wait.then(done, done);
   }
 
+  // The pictures a sheet may show and save: a card's, or a quiz screen's own art (the class table, the league).
+  var PIC_RX = /^\/wq\/card\/[A-Za-z0-9_-]+\.png$|^\/q\/[A-Za-z0-9]{4,12}\/art\/[a-z]+\.(jpg|png)\?a=[A-Za-z0-9._~%-]+(&f=[a-z]+)?$/;
+  function pic(s) { return typeof s === 'string' && PIC_RX.test(s) ? s : ''; }
   // The one share's sheet (pure): the picture first, then ONE primary (WhatsApp), the file where it can go, save, copy, back.
   function sheetHtml(o) {
     var l = L(o.lang), w = SH[l];
-    var img = typeof o.img === 'string' && /^\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(o.img) ? o.img : '';
+    var img = pic(o.img);
+    var save = img ? pic(o.save) || img : '';
     return '<div class="wqfc-sheet" id="wqfc-sheet" role="dialog" aria-modal="true" data-screen="share_sheet" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '"><div class="wqfc-sh-in">' +
       (img ? '<img class="wqfc-sh-pic" src="' + esc(img) + '" alt="" width="1200" height="630">' : '') +
       '<a class="wq-btn wq-go" id="wqfc-sh-wa" data-primary data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(o.text || '')) + '">' + esc(w.wa) + '</a>' +
       (o.file ? '<button class="wq-btn wq-soft" id="wqfc-sh-file" type="button" data-tap="card_file">' + esc(w.file) + '</button>' : '') +
-      (img ? '<a class="wq-btn wq-soft" id="wqfc-sh-save" data-tap="card_save" href="' + esc(img) + '" download="jugnu-card.png">' + esc(w.save) + '</a>' : '') +
+      (save ? '<a class="wq-btn wq-soft" id="wqfc-sh-save" data-tap="card_save" href="' + esc(save) + '" download="jugnu-card.png">' + esc(w.save) + '</a>' : '') +
       (o.url ? '<button class="wq-btn wq-soft" id="wqfc-sh-copy" type="button" data-tap="card_copy">' + esc(w.copy) + '</button>' : '') +
       '<p class="wqfc-sh-ok" id="wqfc-sh-ok" aria-live="polite"></p>' +
       '<button class="wq-btn wq-ghost" id="wqfc-sh-back" type="button" data-tap="sheet_back">' + esc(w.back) + '</button></div></div>';
@@ -446,7 +451,7 @@
       }
       var old = document.getElementById('wqfc-sheet');
       if (old && old.parentNode) old.parentNode.removeChild(old);
-      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, text: st.text, url: st.url, file: !!st.file }));
+      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, file: !!st.file }));
       ev('card_share', shareEv(o, 'sheet'));
       var sh = document.getElementById('wqfc-sheet');
       var close = function () { try { if (sh && sh.parentNode) sh.parentNode.removeChild(sh); } catch (x) { /* gone */ } };
@@ -610,7 +615,15 @@
     };
   }
 
-  window.WQFC = { mount: mount, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
+  // A share whose picture is the screen's own (the class table, the school league: wq.js, share_v4): the same sheet,
+  // with that picture, the words and then the link on its own line, the picture as a file where the phone has one.
+  function shareArt(o) {
+    var url = typeof o.url === 'string' && /^https?:\/\/[^\s"<>]+$/.test(o.url) ? o.url : null;
+    var text = String(o.text == null ? '' : o.text) + (url ? '\n' + url : '');
+    openSheet({ kind: o.src === 'schools' ? 'schools' : 'table', lang: o.lang, ev: o.ev }, { img: o.img, save: o.save, text: text, url: url, file: o.file || null });
+  }
+
+  window.WQFC = { mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
     html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS };
 })();

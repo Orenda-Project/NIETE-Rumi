@@ -34,7 +34,7 @@ function seed({ card = true, share = false } = {}) {
   return {
     app_settings: [...(card ? [{ key: 'web_quiz_card_v3', value: true }] : []), ...(share ? [{ key: 'web_quiz_share_v4', value: true }] : [])],
     quiz_share_codes: [{ id: 'sc-1', code: 'CLS001', quiz_id: 'qz-1', topic: 'Plants', language: 'en', active: true }],
-    students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Zarvish Testwala' }, { id: 'st-3', student_name: 'Noor Testwala', list_id: 'list-1' }],
+    students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Noor Testwala' }, { id: 'st-3', student_name: 'Noor Testwala', list_id: 'list-1' }],
     quiz_sessions: [{ id: '0f8e2c1a-1b2c-4d5e-8f90-a1b2c3d4e5f6', quiz_id: 'qz-1', student_id: 'st-1', student_name: 'Amal Testwala', share_code_id: 'sc-1', status: 'completed' }],
     story_books: [{ id: BOOK, status: 'ready', title: 'The lost kite' }, { id: DRAFT, status: 'draft', title: 'Not yet' }],
   };
@@ -60,7 +60,7 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 beforeEach(() => {
   useDb({ share: true });
-  bank.mockResolvedValue({ rows: [{ id: VID, r2_url: 'x' }] });
+  bank.mockResolvedValue({ rows: [{ id: VID, r2_url: 'x', clean_title: 'Parts of a plant' }] });
 });
 
 const ct = () => T.signChallenge({ studentId: 'st-2', ex: 'read', runId: 'run-1' });
@@ -77,9 +77,9 @@ describe('the switch', () => {
     expect(await Card.field()).toEqual({ card_v3: true });
     const { body } = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
     expect(Object.keys(body).sort()).toEqual(['img', 'ret', 'token', 'url']);
-    expect(Card.facts(body.token)).toEqual({ kind: 'book', deed: 'book_read', lang: 'en', first: 'Zarvish', code: null });
+    expect(Card.facts(body.token)).toEqual({ kind: 'book', deed: 'book_read', lang: 'en', first: 'Noor', code: null });
     const l = await landing(body.token);
-    expect(l).toEqual({ kind: 'book', lang: 'en', first: 'Zarvish', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en') });
+    expect(l).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en') });
   });
   test('on: the field says share_v4 (the pages read it), only beside the card', async () => {
     expect(await Card.field()).toEqual({ card_v3: true, share_v4: true });
@@ -153,11 +153,14 @@ describe('the item a share lands on', () => {
     }
     expect((await landing((await mint({ kind: 'game', deed: 'game_done' })).body.token)).mark).toBe('Game');
   });
-  test('the landing: the mark in its colour, today\'s return words (en and ur)', async () => {
+  test('the landing: the mark in its colour, the name of what it lands on, today\'s return words (en and ur)', async () => {
     const { body } = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
-    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Zarvish', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en'), v4: true, mark: 'Storybook', accent: Card.MARK.book.c });
+    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en'), v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite' });
     const ur = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
-    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: Card.returnLine('ur') });
+    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: Card.returnLine('ur'), item_title: 'Parts of a plant' });
+    // a door finish (a Jugnu read) names no item
+    const rd = await mint({ kind: 'read', deed: 'read_all' });
+    expect(await landing(rd.body.token)).not.toHaveProperty('item_title');
   });
 });
 

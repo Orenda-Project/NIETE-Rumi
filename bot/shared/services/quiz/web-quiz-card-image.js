@@ -350,15 +350,21 @@ const MARK = Object.freeze({
   game: { c: '#0F766E', en: 'Game', ur: 'کھیل' },
   video: { c: '#DC2626', en: 'Video', ur: 'ویڈیو' },
 });
+// The mark follows what was finished: a storybook finished on its questions alone (kind story) wears the book's.
+function markOf(f) {
+  if (!f.v4) return null;
+  const t = f.item && f.item.type;
+  return MARK[t === 'book' || t === 'video' ? t : f.kind] || null;
+}
 function markCss(f, rtl) {
-  const m = f.v4 && MARK[f.kind];
+  const m = markOf(f);
   if (!m) return '';
   return `.card{border-bottom-color:${m.c}}.name{color:${m.c}}.brand{color:${m.c}}
 .rib{position:absolute;top:0;${rtl ? 'right' : 'left'}:72px;padding:${rtl ? '6px 28px 14px' : '10px 28px 14px'};background:${m.c};color:#fff;font-weight:800;font-size:${rtl ? 30 : 32}px;line-height:${rtl ? 1.6 : 1};border-radius:0 0 18px 18px}
 `;
 }
 function markHtml(f, lang) {
-  const m = f.v4 && MARK[f.kind];
+  const m = markOf(f);
   return m ? `<div class="rib">${esc(m[lang])}</div>` : '';
 }
 
@@ -435,16 +441,35 @@ async function image(token) {
   return p;
 }
 
+// The name of the item a one-share card lands on (its book's title, its video's lesson), else ''. Never throws.
+async function itemTitle(item) {
+  try {
+    if (item && item.type === 'book') {
+      const { data } = await supabase.from('story_books').select('id, title, status').eq('id', item.id).maybeSingle();
+      return data && data.status === 'ready' ? String(data.title || '').trim().slice(0, 80) : '';
+    }
+    if (item && item.type === 'video') {
+      const ix = await require('./web-quiz-bank').bank();
+      const r = ix && Array.isArray(ix.rows) ? ix.rows.find((x) => x.id === item.id) : null;
+      return r ? String(r.clean_title || '').trim().slice(0, 80) : '';
+    }
+  } catch (_) { /* no name: the landing still has its card and its door */ }
+  return '';
+}
+
 /** The shared link's page (/k/<t> at the edge): the deed in words and the return line; CardError(404) else. */
-function landing(token) {
+async function landing(token) {
   const f = facts(token);
   if (!f) fail(404, 'not_found');
   const out = { kind: f.kind, lang: f.lang, first: f.first, deed_text: COPY[f.lang][f.deed], ret: returnLine(f.lang) };
   if (f.v4) {
-    // the one share's landing: the kind's mark in its colour
+    // the one share's landing: the finish's mark in its colour, and the name of what it lands on
+    const m = markOf(f);
     out.v4 = true;
-    out.mark = MARK[f.kind] ? MARK[f.kind][f.lang] : '';
-    out.accent = MARK[f.kind] ? MARK[f.kind].c : '#15803D';
+    out.mark = m ? m[f.lang] : '';
+    out.accent = m ? m.c : '#15803D';
+    const title = await itemTitle(f.item);
+    if (title) out.item_title = title;
   }
   return out;
 }
