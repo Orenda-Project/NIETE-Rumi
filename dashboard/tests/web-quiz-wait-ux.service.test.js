@@ -1,0 +1,171 @@
+/**
+ * The child pages' designed wait (app_settings web_quiz_wait_ux; the bot's hub answer says `wait_ux: true`;
+ * routes/web-quiz-wait-ux.js). On: the hub page's frame carries a thin progress bar for any wait over 400 ms and
+ * Jugnu's waiting moment for an opening over 1.5 s, on the buffered page and on the streamed (fast) page, which learns
+ * the switch from the last hub answer. Off: every hub page is today's, byte for byte (a golden captured from the
+ * code before this change). The piece's own script is run in a vm over a small fake DOM, with fake timers.
+ * The bot is the network boundary (a fake fetch). No first-party module is mocked.
+ */
+const http = require('http');
+const vm = require('vm');
+const express = require('express');
+const { createWebQuizRouter, renderHubPage } = require('../routes/web-quiz.routes');
+const WaitUx = require('../routes/web-quiz-wait-ux');
+const GOLDEN = require('./fixtures/wait-ux-off-hub-golden.json');
+
+const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
+const HUB = (extra = {}) => ({
+  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
+  teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
+});
+const ARGS = (payload) => ({ payload, token: TOKEN, origin: 'http://portal.example', assetV: 'v1' });
+
+describe('the hub page', () => {
+  test.each([['en', {}], ['ur', { lang: 'ur' }], ['fast', { fast: true }], ['not-true', { wait_ux: 'true' }]])('off (%s): today\'s page byte for byte', (name, extra) => {
+    const html = renderHubPage(ARGS(HUB(extra)));
+    expect(html).toBe(GOLDEN[name]);
+    expect(html).not.toMatch(/wq-wbar|wq-wait/);
+  });
+  test('on: the bar and Jugnu\'s moment ride the frame, right after it; nothing else changes but the boot\'s own key', () => {
+    const html = renderHubPage(ARGS(HUB({ wait_ux: true })));
+    expect(html).toContain(`</main>${WaitUx.TAG}\n<script id="boot"`);
+    expect(html.replace(WaitUx.TAG, '').replace(',"wait_ux":true', '')).toBe(GOLDEN.en);
+  });
+  test('the piece adds no words, takes no taps and calms down under reduced motion', () => {
+    expect(WaitUx.CSS).toMatch(/pointer-events:none/);
+    expect(WaitUx.JS).toMatch(/aria-hidden/);
+    expect(WaitUx.CSS).toMatch(/prefers-reduced-motion:reduce/);
+    expect(WaitUx.TAG).toBe(`<style id="wq-wait">${WaitUx.CSS}</style><script>${WaitUx.JS}</script>`);
+    expect(WaitUx.CSS.match(/content:"[^"]*"/g)).toEqual(['content:""']);
+    expect(WaitUx.JS).not.toMatch(/textContent|innerText|createTextNode/);
+    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2600);
+  });
+});
+
+function jsonRes(status, body) {
+  return { status, ok: status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) };
+}
+const get = (srv, path) => new Promise((resolve, reject) => {
+  http.get({ host: '127.0.0.1', port: srv.address().port, path, headers: { host: 'portal.example' } }, (res) => {
+    let out = '';
+    res.on('data', (c) => { out += c; });
+    res.on('end', () => resolve(out));
+  }).on('error', reject);
+});
+async function serve(answers, fn) {
+  const q = answers.slice();
+  const app = express();
+  app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => jsonRes(200, q.length > 1 ? q.shift() : q[0]), logEvent: () => {} }));
+  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  try { return await fn(srv); } finally { await new Promise((r) => srv.close(r)); }
+}
+
+describe('the edge learns the switch from the hub answer', () => {
+  test('the streamed page: once a hub answer said wait_ux, the next page\'s early frame carries the bar', async () => {
+    await serve([HUB({ fast: true, wait_ux: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const html = await get(srv, `/h/${TOKEN}`);
+      expect(html.split(WaitUx.TAG)).toHaveLength(2);
+      expect(html.indexOf(WaitUx.TAG)).toBeLessThan(html.indexOf('<script id="boot"'));
+    });
+  });
+  test('off: the streamed page carries nothing of it', async () => {
+    await serve([HUB({ fast: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      expect(await get(srv, `/h/${TOKEN}`)).not.toMatch(/wq-wbar|wq-wait/);
+    });
+  });
+});
+
+// ── the piece's script, in a vm over a small fake DOM ─────────────────────────────────────────────
+function page() {
+  const cls = (el) => ({ add: (c) => el.c.add(c), remove: (c) => el.c.delete(c), contains: (c) => el.c.has(c) });
+  const mk = (tag) => { const el = { tag, c: new Set(), style: {}, attrs: {}, kids: [], setAttribute(k, v) { el.attrs[k] = v; } }; el.classList = cls(el);
+    Object.defineProperty(el, 'innerHTML', { set() { el.firstChild = mk('i'); } }); Object.defineProperty(el, 'className', { set(v) { v.split(' ').forEach((c) => el.c.add(c)); } }); return el; };
+  let boot = mk('div');
+  const observers = [];
+  const pending = [];
+  const document = {
+    body: { appendChild(el) { document.bar = el; } },
+    createElement: mk,
+    querySelector: (s) => (s === '.wq-boot' ? boot : null),
+    getElementById: (id) => (id === 'wq' ? {} : null),
+  };
+  const window = {
+    MutationObserver: class { constructor(fn) { observers.push(fn); } observe() {} },
+    fetch: () => new Promise((res) => pending.push(res)),
+  };
+  vm.runInNewContext(WaitUx.JS, { document, window, setTimeout, clearTimeout, setInterval, clearInterval, String, RegExp });
+  return {
+    document, window, boot: () => boot,
+    removeBoot() { boot = null; observers.forEach((fn) => fn()); },
+    addBoot() { boot = mk('div'); observers.forEach((fn) => fn()); return boot; },
+    settle(i) { pending[i](); },
+  };
+}
+const flush = () => new Promise((r) => jest.requireActual('timers').setImmediate(r));
+
+describe('the bar and Jugnu\'s moment, run', () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
+  afterEach(() => jest.useRealTimers());
+
+  test('the opening frame: nothing before 400 ms, the bar after it, Jugnu\'s moment at 1.5 s, the bar finished and gone once the home draws', () => {
+    const p = page();
+    const bar = p.document.bar;
+    expect(bar.attrs['aria-hidden']).toBe('true');
+    jest.advanceTimersByTime(399);
+    expect(bar.classList.contains('on')).toBe(false);
+    jest.advanceTimersByTime(2);
+    expect(bar.classList.contains('on')).toBe(true);
+    jest.advanceTimersByTime(900);
+    const w = parseFloat(bar.firstChild.style.width);
+    expect(w).toBeGreaterThan(8);
+    expect(w).toBeLessThan(90);
+    expect(p.boot().classList.contains('wq-bwait')).toBe(false);
+    jest.advanceTimersByTime(200);
+    expect(p.boot().classList.contains('wq-bwait')).toBe(true);
+    p.removeBoot();
+    expect(bar.firstChild.style.width).toBe('100%');
+    jest.advanceTimersByTime(600);
+    expect(bar.classList.contains('on')).toBe(false);
+  });
+
+  test('an opening frame the page draws again later (it asks once more) brings the bar and Jugnu\'s moment back', () => {
+    const p = page();
+    jest.advanceTimersByTime(500);
+    p.removeBoot();
+    jest.advanceTimersByTime(1000);
+    expect(p.document.bar.classList.contains('on')).toBe(false);
+    const again = p.addBoot();
+    jest.advanceTimersByTime(401);
+    expect(p.document.bar.classList.contains('on')).toBe(true);
+    jest.advanceTimersByTime(1100);
+    expect(again.classList.contains('wq-bwait')).toBe(true);
+  });
+
+  test('a fast opening (under 400 ms) never shows the bar', () => {
+    const p = page();
+    jest.advanceTimersByTime(300);
+    p.removeBoot();
+    jest.advanceTimersByTime(2000);
+    expect(p.document.bar.classList.contains('on')).toBe(false);
+  });
+
+  test('a child data read over 400 ms shows the bar until it answers; a POST or another address never does', async () => {
+    const p = page();
+    p.removeBoot();
+    jest.advanceTimersByTime(1000);
+    p.window.fetch('/api/wq/doors/h/x?d=games');
+    p.window.fetch('/api/wq/hub/x', { method: 'POST' });
+    p.window.fetch('https://cdn.example/a.png');
+    jest.advanceTimersByTime(399);
+    expect(p.document.bar.classList.contains('on')).toBe(false);
+    jest.advanceTimersByTime(2);
+    expect(p.document.bar.classList.contains('on')).toBe(true);
+    p.settle(0);
+    await flush();
+    expect(p.document.bar.firstChild.style.width).toBe('100%');
+    jest.advanceTimersByTime(600);
+    expect(p.document.bar.classList.contains('on')).toBe(false);
+  });
+});
