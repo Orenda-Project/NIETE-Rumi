@@ -13,7 +13,7 @@ jest.mock('../../shared/services/quiz/video-quiz-share.service', () => ({
   botNumber: () => '15550001111',
   mintCode: jest.fn(async () => ({ id: 'f0000000-0000-4000-8000-0000000000e1', code: 'STORY1' })),
 }));
-jest.mock('../../shared/services/quiz/web-quiz-link', () => ({ quizLink: jest.fn(async (code) => `https://portal.example/q/${code}`) }));
+jest.mock('../../shared/services/quiz/web-quiz-link', () => ({ quizLink: jest.fn(async (code) => `https://portal.example/q/${code}`), webQuizOn: jest.fn(async () => true) }));
 jest.mock('../../shared/services/quiz/handout-class.service', () => ({ resolveClass: jest.fn(async () => ({ state: 'none' })), classIdToMint: () => null }));
 
 const fs = require('fs');

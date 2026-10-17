@@ -192,10 +192,29 @@ describe('start — the tap makes the quiz, once', () => {
     expect(quiz.meta.source).toBe('flow');
   });
 
+  test('a start from the teacher home ("Quiz this", via home) is the home\'s: meta.source home, funnel channel teacher_home', async () => {
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    expect(out.outcome).toBe('queued');
+    const [quiz] = mockDb.table('quizzes');
+    expect(quiz.meta.source).toBe('home');
+    const accepted = logEvent.mock.calls.filter((c) => c[0] === 'quiz_funnel.accepted');
+    expect(accepted[0][1]).toEqual(expect.objectContaining({ quiz_id: out.quizId, source: 'lp612', channel: 'teacher_home' }));
+  });
+
   test('a second tap makes no second quiz', async () => {
     const first = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE });
     const second = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE });
     expect(mockDb.table('quizzes')).toHaveLength(1);
+    expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
+  });
+
+  test('two taps on "Quiz this" from the teacher home make one quiz and queue one job', async () => {
+    const jobsBefore = mockJobs.length;
+    const first = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    const second = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    expect(mockDb.table('quizzes')).toHaveLength(1);
+    expect(mockJobs.length - jobsBefore).toBe(1);
     expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
   });
 
