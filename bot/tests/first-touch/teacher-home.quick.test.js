@@ -34,6 +34,9 @@ const Fx = require('./teacher-home-waves-fixture');
 const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-paged-off.json');
 const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shaped literal in the tree)
 const DAY = 86400000;
+// a gone teacher's refusal: today's reads vs the quick answer's (its reads start before the user is known)
+const OFF_GONE_READS = 3;
+const ON_GONE_READS = 32;
 
 let srv;
 let R; // the router module of the last boot
@@ -330,5 +333,27 @@ describe('the page (its shell)', () => {
     await boot({ paged: true });
     failSetting('quiz_teacher_home_paged');
     expect((await shell()).text).not.toContain('id="th-retry"');
+  });
+});
+
+describe('a token whose teacher is gone (users row absent)', () => {
+  test('today\'s refusal both ways; ON starts its reads before the user is known: the cost, pinned', async () => {
+    const run = async (paged) => {
+      const fake = await boot({ paged });
+      fake.db.users = [];
+      // every read the request started, counted once they have all settled (the ON reads keep running after the 404)
+      const settled = async (r) => {
+        let n = -1;
+        while (n !== Fx.S.reads.length) { n = Fx.S.reads.length; await new Promise((ok) => setTimeout(ok, Fx.READ_MS * 4)); }
+        return r;
+      };
+      const m = await Fx.measure(() => home().then(settled));
+      return { status: m.value.status, body: m.value.text, reads: m.reads, waves: m.waves };
+    };
+    const off = await run(null);
+    const on = await run(true);
+    expect(on.status).toBe(404);
+    expect(on.body).toBe(off.body);
+    expect({ off: off.reads, on: on.reads }).toEqual({ off: OFF_GONE_READS, on: ON_GONE_READS });
   });
 });
