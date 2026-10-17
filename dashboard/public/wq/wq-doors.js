@@ -145,11 +145,14 @@
     var body = (lib.chapters || []).map(function (ch) {
       return section(ch.name, (ch.videos || []).map(function (v) {
         var m = minsOf(v.secs);
-        return row({ title: v.title, sub: m ? t.mins(m) : '', mins: Boolean(m), done: v.done, kind: 'video', item: v.vid, pos: i++, art: art, tap: 'vid' }, ctx);
+        return row({ title: vTitle(v, ctx), sub: m ? t.mins(m) : '', mins: Boolean(m), done: v.done, kind: 'video', item: v.vid, pos: i++, art: art, tap: 'vid' }, ctx);
       }).join(''));
     }).join('');
     return body ? back + primaryFirst(body) : back.replace('type="button"', 'type="button" data-primary') + '<p class="wq-soon">' + esc(t.none) + '</p>';
   }
+
+  // a video's Urdu title for an Urdu child when the server sends one (only with web_quiz_videos_ur_titles on)
+  function vTitle(v, ctx) { return (langOf(ctx) === 'ur' && v.title_ur) || v.title; }
 
   /* ---------------- the watch screen (a child with no class) ---------------- */
   function watchHtml(w, ctx, next) {
@@ -158,7 +161,7 @@
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
     return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
-      '<p class="wq-vtitle"><bdi' + lat(w.title) + '>' + esc(w.title || '') + '</bdi></p>' +
+      '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' +
       '<div class="wq-after" hidden>' + nx + '</div>';
   }
 

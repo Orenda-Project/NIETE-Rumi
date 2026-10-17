@@ -108,6 +108,27 @@ describe('every door screen, both languages', () => {
   });
 });
 
+describe('a video\'s Urdu title (the server sends title_ur only with web_quiz_videos_ur_titles on)', () => {
+  const CH_UR = { grade: '3', subject: 'Science', chapters: [{ name: 'Chapter 1', videos: [{ vid: VID, title: 'Murghi ki zindagi', title_ur: 'مرغی کی زندگی', secs: 143 }] }] };
+  const B = () => ({ ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } });
+  test('an Urdu child sees title_ur on the chapter row and the watch screen; an English child the title', () => {
+    const W = load();
+    const ur = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), 'videos', { subject: 'Science', lib: CH_UR });
+    expect(ur).toContain('مرغی کی زندگی');
+    expect(ur).not.toContain('Murghi ki zindagi');
+    const en = W.WQDOORS.html({ ...B(), lang: 'en' }, ctxOf('en'), 'videos', { subject: 'Science', lib: CH_UR });
+    expect(en).toContain('Murghi ki zindagi');
+    expect(en).not.toContain('مرغی کی زندگی');
+    const w = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), `watch/${VID}`, { watch: { vid: VID, url: 'https://r2.example.test/v.mp4', title: 'Murghi ki zindagi', title_ur: 'مرغی کی زندگی' }, next: null });
+    expect(w).toContain('<p class="wq-vtitle"><bdi>مرغی کی زندگی</bdi></p>');
+  });
+  test('GOLDEN: no title_ur (the switch off) -> the Urdu screens print the title as today', () => {
+    const W = load();
+    const noUr = { ...CH_UR, chapters: [{ name: 'Chapter 1', videos: [{ vid: VID, title: 'Murghi ki zindagi', secs: 143 }] }] };
+    expect(W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), 'videos', { subject: 'Science', lib: noUr })).toContain('Murghi ki zindagi');
+  });
+});
+
 describe('the Stories door is the storybooks\' door (Jugnu\'s passages open from the Games door and the Next tile)', () => {
   test.each(['en', 'ur'])('%s: no passage or listen row and no /c/ link under the door, before and after the fetch; the shelf slot is the content', (lang) => {
     const s = screens(load(), lang);
