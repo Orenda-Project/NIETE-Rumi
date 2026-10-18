@@ -1637,6 +1637,8 @@ const nameCue = (a, b) => namePrinted(a, b) || namePrinted(b, a);
 // other text marks it so (followed by «صاحب / صاحبہ / نے», or after «محترم / محترمہ / جناب»): a
 // common word a key shares with another stem («بچے») is not one, nor is a word inside an example the
 // other stem quotes («جملے «بچے نے ٹھنڈا پانی پیا» میں …»). An item that asks about a word asks no name.
+// The item whose key is given away is the one held, never the stems that name it (the lesson's hero
+// may be named in many).
 const NAME_AFTER = new Set(['صاحب', 'صاحبہ', 'نے']);
 const NAME_BEFORE = new Set(['محترم', 'محترمہ', 'جناب']);
 const NOT_PERSONS = new Set('انھوں انہوں انھیں انہیں ہم تم آپ میں اس ان جس جن کسی سب لوگوں بچوں بچے بچہ لڑکا لڑکی لڑکے آدمی لوگ'.split(' ').map(plain));
@@ -1656,7 +1658,6 @@ function nameInKey(q, by) {
   const persons = personsIn(`${String(by.question || '').replace(QUOTE_SPAN, ' ')} ${told !== key ? told : ''}`);
   return words.some((w) => persons.has(w) && !own.has(w) && !others.some((o) => ` ${o} `.includes(` ${w} `)));
 }
-const keyNameCue = (a, b) => nameInKey(a, b) || nameInKey(b, a);
 // Urdu Section C against Q1: an item that asks a name or a place, keyed on one word only its key
 // option carries, whose word a Section C word list prints (Q3's or Q5's words, Q4's ارکان words:
 // «ارادہ، کراچی» beside «… کس شہر میں پیدا ہوئیں؟ → کراچی»).
@@ -1684,7 +1685,8 @@ function markEndsStem(q) {
   return Boolean(key) && !/[\p{L}\p{N}]/u.test(key) && asMark(q.question).endsWith(key);
 }
 // Urdu Q1: two options that are one word («مَن» and «من۔»: the same letters once its marks and
-// punctuation are set aside, one of them written without marks) are two right answers. Two words
+// punctuation are set aside, one of them written without marks), the key one of them, are two right
+// answers; two wrong options alike leave one right answer («عرض» / «عَرَض» beside «ارض»). Two words
 // that differ only by their marks, each written with them («مَن» / «مِن», «سَحَر» / «سِحر»), are two words.
 const MARKED = new RegExp(UR_MARKS.source);
 function twoRightOptions(q) {
@@ -1695,7 +1697,9 @@ function twoRightOptions(q) {
     const bare = t.replace(new RegExp(UR_MARKS.source, 'g'), '').split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(' ');
     return { bare, marks: MARKED.test(t) ? t.replace(/[^\u064B-\u065F\u0670]/g, '') : '' };
   });
-  return read.some((a, i) => a.bare && read.some((b, j) => j > i && b.bare === a.bare && !(a.marks && b.marks && a.marks !== b.marks)));
+  const at = keyAt(q);
+  const k = read[at];
+  return Boolean(k && k.bare) && read.some((b, j) => j !== at && b.bare === k.bare && !(k.marks && b.marks && k.marks !== b.marks));
 }
 // Urdu Q1: one grammar concept once on the paper. An item asks a concept when its key is the term
 // (… کیا کہلاتا ہے؟ → اسم معرفہ), when its stem names the term outside a quoted example (… میں
@@ -2120,6 +2124,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     } else if (storyIds.size && typeof entry.q.question === 'string' && storyIds.has(storyId(entry.q))) sources.set(entry.q, 'story');
   });
   const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
+  // Urdu Q1: the items whose key of several words another Q1 item names as a person (nameInKey).
+  const q1Items = P.key === 'urdu' ? all.map((e) => e.q).filter((q) => slotKey(q.slot) === slotKey('urdu.A.Q1')) : [];
+  const nameGiven = new Set(q1Items.filter((q) => q1Items.some((b) => b !== q && nameInKey(q, b))));
   // Urdu: the words the reply's first Q3 asks the meaning of (a Q5 never asks them again).
   const q3 = P.key === 'urdu' ? all.find((e) => slotKey(e.q.slot) === slotKey('urdu.C.Q3') && Array.isArray(e.q.words)) : null;
   const q3Words = q3 ? q3.q.words.filter((w) => typeof w === 'string') : [];
@@ -2158,7 +2165,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   };
   const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q) || (id === 'urdu.C.Q4' && sameQ4Kind(p, q))
-      || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || keyNameCue(p, q) || conceptTwin(p, q, hard)))));
+      || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || conceptTwin(p, q, hard)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
@@ -2213,6 +2220,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return no(slot, 'prints_own_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && lettersOfKey(q)) return no(slot, 'letters_of_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && markEndsStem(q)) return no(slot, 'mark_ends_stem');
+      if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && nameGiven.has(q)) return no(slot, 'name_in_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && twoRightOptions(q)) return no(slot, 'two_right_options');
       const outsideOf = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
       const outside = outsideOf && (counted || !LESSON_ONLY.has(outsideOf)) ? outsideOf : null;
