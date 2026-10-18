@@ -37,6 +37,7 @@ jest.mock('../../../shared/utils/structured-logger', () => ({
 const ReportList = require('../../../shared/services/quiz/teacher-report-list.service');
 const Settings = require('../../../shared/services/quiz/teacher-report-gate');
 const Token = require('../../../shared/services/quiz/teacher-report-token');
+const { tk: tkOf } = require('../../../shared/services/quiz/web-quiz-kid');
 
 const cp = (s) => [...String(s)].length;
 const day = (n) => `2026-10-${String(n).padStart(2, '0')}T08:00:00Z`;
@@ -183,7 +184,8 @@ describe('a tapped report row sends that quiz\'s report link', () => {
     expect(Token.verifyTeacherReport(decodeURIComponent(m[1]))).toEqual({ teacherId: T.id, quizId: 'qA' });
     expect(msg.text).toMatch(/Topic qA/);
     const ev = mockEvents.find((e) => e.name === 'teacher_report.link_sent');
-    expect(ev.props).toEqual({ userId: T.id, quizId: 'qA', scope: 'q', how: 'text' });
+    expect(ev.props).toEqual({ tk: tkOf(T.id), quizId: 'qA', scope: 'q', how: 'text' });
+    expect(ev.props).not.toHaveProperty('userId');
   });
 
   const counted = () => ({
@@ -271,7 +273,9 @@ describe('Class progress (tqh_class) sends the all-classes link', () => {
     const msg = mockSent.find((s) => s.kind === 'text');
     const m = msg.text.match(/https:\/\/portal\.example\/[tr]\/(\S+)/);
     expect(Token.verifyTeacherReport(decodeURIComponent(m[1]))).toEqual({ teacherId: T.id, quizId: null });
-    expect(mockEvents.find((e) => e.name === 'teacher_report.link_sent').props).toEqual({ userId: T.id, quizId: null, scope: 'all', how: 'text' });
+    const sent = mockEvents.find((e) => e.name === 'teacher_report.link_sent').props;
+    expect(sent).toEqual({ tk: tkOf(T.id), quizId: null, scope: 'all', how: 'text' });
+    expect(sent).not.toHaveProperty('userId');
   });
 
   test('tqh_reports opens the reports list', async () => {

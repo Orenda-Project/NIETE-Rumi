@@ -26,6 +26,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const StudentIdentity = require('./student-identity.service');
 const TeacherSelfTest = require('./teacher-self-test');
+const { tk: tkOf, kid: kidOf, qk: qkOf } = require('./web-quiz-kid');
 
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { isolateIfMixed } = require('./transcript-quiz-rows');
@@ -278,7 +279,7 @@ async function sendClassLink(ctx, phone, { classId = null } = {}) {
   }));
 
   logEvent('video_quiz.share_code_minted', {
-    userId: ctx.userId, quizId: ctx.quizId, code: minted.code, classBound: Boolean(minted.classId),
+    tk: tkOf(ctx.userId), quizId: ctx.quizId, code: minted.code, classBound: Boolean(minted.classId),
   });
   return { id: minted.id, code: minted.code };
 }
@@ -419,7 +420,7 @@ async function beginFromCode(phone, code) {
       { selfTestUserId: selfTest.userId, lead: ux('vqSelfTestStart', lang) });
     // The event carries ids only — never the phone and never the name.
     logEvent('video_quiz.teacher_self_test', {
-      shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, userId: selfTest.userId,
+      shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, tk: tkOf(selfTest.userId),
     });
     return true;
   }
@@ -561,10 +562,30 @@ async function handleJoinFlowReply(phone, flowToken, payload = {}) {
     id: student?.id || null, student_name: name, self_reported_class: className,
   }, { lead: ux('vqLetsBegin', lang, { who: whoLabel(name, className, lang) }) });
 
-  logEvent('video_quiz.join_flow_completed', {
-    shareCodeId: sc.id, quizId: sc.quiz_id, studentId: student?.id || null,
-  });
+  logJoinCompleted(sc.quiz_id, student?.id || null);
   return true;
+}
+
+/**
+ * The join's completion line: the child by the keyed reference of their merge-folded id, the quiz by its key. A quiz
+ * id is never logged beside a kid, and neither is the share code id. Not awaited: the fold reads the database, and the
+ * child's quiz has already started, so the line is written when the fold answers. No fold (or a failed one): the
+ * child's own id is keyed instead. Never throws.
+ */
+function logJoinCompleted(quizId, studentId) {
+  const write = (canonicalId) => {
+    logEvent('video_quiz.join_flow_completed', { kid: canonicalId ? kidOf(canonicalId) : null, qk: qkOf(quizId) });
+  };
+  let folded;
+  try {
+    folded = studentId ? require('./web-quiz-identity-roster').canonicalStudentId(studentId) : null;
+  } catch (_) {
+    folded = studentId;
+  }
+  return Promise.resolve(folded)
+    .then((id) => id || studentId, () => studentId)
+    .then(write)
+    .catch(() => { /* a lost line, never a lost join */ });
 }
 
 /**
