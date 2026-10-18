@@ -67,12 +67,20 @@ async function challengeForm(studentId) {
 // The stops this child's Trail has, by the challenge menu's own rule (web-quiz-challenge.js menu()): the grade-1 form's
 // one stop; else the Trail order, the warm-up only with its switches, listen only with its. Not today's read-aloud cap
 // nor a listen story still recording: those close a stop for a day, they never take it off the Trail.
-async function trailStops(form) {
+// tight (web_quiz_hub_waves2): the three switches are read side by side (the same stops).
+async function trailStops(form, tight = false) {
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
   if (form === G1.FORM) return [G1.EXERCISE];
-  const missing = (await Challenge.recordOn()) && (await Challenge.missingOn());
-  const listen = await Challenge.listenOn();
+  let missing; let listen;
+  if (tight) {
+    const [record, miss, lis] = await Promise.all([Challenge.recordOn(), Challenge.missingOn(), Challenge.listenOn()]);
+    missing = record && miss;
+    listen = lis;
+  } else {
+    missing = (await Challenge.recordOn()) && (await Challenge.missingOn());
+    listen = await Challenge.listenOn();
+  }
   return Challenge.TRAIL_ORDER.filter((id) => (id !== 'missing' || missing) && (id !== 'listen' || listen));
 }
 
@@ -143,15 +151,20 @@ function firstOfEach(rows, max = RECS_MAX) {
 // ─── reads ──────────────────────────────────────────────────────────────────
 
 /** The child's classes: active enrolments, plus the classes of the teacher codes they played (a loose prod child has only these). */
-async function kidClasses(studentId, history) {
+// tight (web_quiz_hub_waves2): the two reads side by side (neither needs the other); the same set.
+async function kidClasses(studentId, history, tight = false) {
   const ids = new Set();
+  const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
+  const enrol = () => ChildRows.read('class_enrollments', [studentId], 'class_id', () => dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true)));
+  const codes = () => dbRead('kidClasses:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
+  const codesP = tight && played.length ? codes() : null;
+  if (codesP) codesP.catch(() => {});
   try {
-    const { data } = await ChildRows.read('class_enrollments', [studentId], 'class_id', () => dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true)));
+    const { data } = await enrol();
     (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   } catch (_) { /* no roster: the played codes only */ }
-  const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
   if (played.length) {
-    const { data, error } = await dbRead('kidClasses:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
+    const { data, error } = await (codesP || codes());
     if (!error) (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   }
   return ids;
@@ -172,7 +185,8 @@ async function recentCodes(teachers) {
 
 const { lessonRefs } = require('./web-quiz-lesson-refs');
 
-async function teacherCard(kidRow, list, history, grade, homeP = null) {
+// quizOfCode (web_quiz_hub_waves2): told the chosen code's quiz id, so the next thing need not read that code again.
+async function teacherCard(kidRow, list, history, grade, homeP = null, quizOfCode = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
@@ -182,7 +196,7 @@ async function teacherCard(kidRow, list, history, grade, homeP = null) {
   if (!teachers.length) return null;
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
-  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
+  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, Boolean(quizOfCode))]);
   const listed = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!listed.length) return null;
   // The child home (web_quiz_home_v3): a storybook the teacher only previewed is not "from your teacher" — told apart
@@ -225,6 +239,7 @@ async function teacherCard(kidRow, list, history, grade, homeP = null) {
   ranked.sort((a, b) => (a.rank - b.rank) || (a.langMiss - b.langMiss) || String(b.c.created_at).localeCompare(String(a.c.created_at)));
   const hit = ranked[0];
   if (!hit) return null;
+  if (quizOfCode && hit.c.code && hit.c.quiz_id) quizOfCode.set(hit.c.code, hit.c.quiz_id);
   return { code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' };
 }
 
@@ -287,9 +302,22 @@ async function posterOf(row) {
   return { poster, secs: cached.secs || null };
 }
 
-async function recsFor(kidId, history, grade) {
+// tight (web_quiz_hub_waves2): the child's finished quizzes and the child's own grade's lessons are read beside the
+// last video's row instead of after it (the grade's lessons are read again only when that video is another grade's), so
+// the chain is 2 round trips, not 4. The same recommendations.
+const readGradeVids = (G) => dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
+  .select('id, grade, subject, clean_chapter, clean_title, r2_url')
+  .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400));
+const readDone = (kidId) => dbRead('recsFor:quiz_sessions:1', (db) => db.from('quiz_sessions').select('quiz_id')
+  .eq('student_id', kidId).eq('status', 'completed').limit(300));
+
+async function recsFor(kidId, history, grade, tight = false) {
   const lastDone = history.filter((e) => e.latest)
     .sort((a, b) => String(b.latest.completed_at || '').localeCompare(String(a.latest.completed_at || '')))[0] || null;
+  const doneP = tight ? readDone(kidId) : null;
+  const ownP = tight && grade ? readGradeVids(grade) : null;
+  if (doneP) doneP.catch(() => {});
+  if (ownP) ownP.catch(() => {});
   let last = null;
   let G = grade;
   if (lastDone) {
@@ -304,15 +332,12 @@ async function recsFor(kidId, history, grade) {
     }
   }
   if (!G) return [];
-  const { data: vids, error } = await dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
-    .select('id, grade, subject, clean_chapter, clean_title, r2_url')
-    .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400));
+  const { data: vids, error } = await (ownP && G === grade ? ownP : readGradeVids(G));
   if (error || !vids || !vids.length) return [];
   const { data: quizzes } = await dbRead('recsFor:quizzes:1', (db) => db.from('quizzes').select('id, video_id')
     .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready'));
   const quizOf = new Map((quizzes || []).map((q) => [q.video_id, q.id]));
-  const { data: done } = await dbRead('recsFor:quiz_sessions:1', (db) => db.from('quiz_sessions').select('quiz_id')
-    .eq('student_id', kidId).eq('status', 'completed').limit(300));
+  const { data: done } = await (doneP || readDone(kidId));
   const finished = new Set((done || []).map((r) => r.quiz_id));
   const playable = vids.filter((r) => quizOf.has(r.id) && !finished.has(quizOf.get(r.id)));
   const chosen = last ? recOrder(playable, last) : firstOfEach(playable);
@@ -628,9 +653,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
  * Step timings: the parts that run side by side are one step, timed as `teacher` (then `play` for the Book, `home`).
  */
 async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark }) {
+  const tight = f.waves2 === true; // web_quiz_hub_waves2: the longest chains below start earlier (the same answer)
+  const Join = require('./web-quiz-student-join');
+  const boundP = tight && chosen ? Join.boundRowsOf(chosen.id) : null;
   const extrasP = (async () => {
-    await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
-    if (chosen && out.bind && out.bind.offer) await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
+    await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src, tight, boundP });
+    if (chosen && out.bind && out.bind.offer) await Join.hideCardIfBound(out, chosen.id, boundP);
   })();
   if (!chosen) {
     await extrasP;
@@ -644,13 +672,33 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
     ? answeredSoFar(history.find((e) => e.code === last.code), last.answered).then((n) => { last.answered = n; })
     : Promise.resolve();
   const NO_RECS = {};
-  const recsP = recsFor(chosen.id, history, grade).catch((err) => {
+  const recsP = recsFor(chosen.id, history, grade, f.waves2 === true).catch((err) => {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
     return NO_RECS;
   });
   const collect = {};
+  // tight: the next thing's storybooks and "on its way" verdicts start now (they need only the child and the Trail's
+  // stops), and the teacher card tells it the quiz behind its code.
+  const quizOfCode = tight ? new Map() : null;
+  const NextSrc = require('./web-quiz-next-offer-sources');
+  const nextEarly = tight ? NextSrc.hubEarly({ token, lang: out.lang, chosenId: chosen.id, grade, chip: out.kid, stopsP: challengeP.then((form) => trailStops(form, true)) }) : null;
   const playP = Promise.all([challengeP, answeredP]).then(([form]) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: f.childHome ? last : undefined, lang: out.lang, challenge: form ? { on: true } : null, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect, together: true }));
-  const [, teacher, , recs, form, play] = await Promise.all([extrasP, teacherCard(chosen, ctx.list, history, grade, homeP), answeredP, recsP, challengeP, playP]);
+  const teacherP = teacherCard(chosen, ctx.list, history, grade, homeP, quizOfCode);
+  // tight: the next thing's quiz rows are asked once the teacher card is known (the codes it will name, worked out as
+  // `out` gets them below), not after the keep-my-place reads
+  if (nextEarly) {
+    const lastOut = f.childHome ? last : undefined;
+    nextEarly.rowsP = teacherP.then((t) => nextEarly.swP.then((sw) => {
+      if (!sw.on) return null;
+      let tc = t;
+      let again = againOf(history, chosen.id, t && t.code);
+      if (f.childHome && lastOut && tc && tc.code === lastOut.code) tc = null;
+      if (f.childHome && lastOut) again = again.filter((a) => a.code !== lastOut.code);
+      return NextSrc.quizIdsOf([tc && tc.code, lastOut && lastOut.code, ...again.map((a) => a.code)], { history, quizOfCode });
+    }));
+    nextEarly.rowsP.catch(() => {});
+  }
+  const [, teacher, , recs, form, play] = await Promise.all([extrasP, teacherP, answeredP, recsP, challengeP, playP]);
   mark('teacher');
   out.teacher = teacher;
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
@@ -667,7 +715,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${out.lang}` };
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  const nextPrep = require('./web-quiz-next-offer-sources').hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form) });
+  const nextPrep = NextSrc.hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form), early: nextEarly, quizOfCode });
   Object.assign(out, play);
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
@@ -697,26 +745,25 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
-  // the live reading meter (web_quiz_live_meter, read only under live reading v3): read beside the payload, never after it
-  const paceP = require('./web-quiz-live-read-v3').forHub();
   const out = await hubPayload(token, opts);
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
   const rt = await Tel.flag();
-  // its variant, so the edge loads the meter; off ⇒ nothing
-  const pace = out.locked ? {} : await paceP;
+  // the live reading meter (web_quiz_live_meter under live reading v3): its variant, so the edge loads it; off ⇒ nothing.
+  // Both keys ride the hub's own settings read (web-quiz-hub-flags.js), warm by now: no read of its own
+  const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
   return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 async function hubTogether(token, opts) {
   const fast = require('./web-quiz-fast').on();
-  const [ui, out, rt, paceF] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag(), require('./web-quiz-live-read-v3').forHub()]);
+  const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
   if (opts.st) opts.st.mark('other');
   const listen = !out.locked && (await Flags.flags()).readalong;
-  const pace = out.locked ? {} : paceF;
+  const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
   return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }

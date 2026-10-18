@@ -25,6 +25,8 @@
  * With `web_quiz_remember_column` on, the join also keeps the device's hash on the binding row (device_hash, the same
  * hash as the keys here) and the row is read first, the cache second: "Forget this phone" survives a cache flush or
  * outage, and a line the cache lost is still drawn once (the cache keeps only that it was shown). Off: cache only.
+ * With `web_quiz_remember_shown_row` on as well, "shown" is claimed on the row too (remember_shown_at, set once), so a
+ * cache flush inside the 30 min never draws the line a second time; a failed claim keeps the cache's rule.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -54,6 +56,7 @@ function store() {
 }
 
 const colOn = async () => Boolean((await require('./web-quiz-home-flags').flags()).column);
+const shownOn = async () => { const f = await require('./web-quiz-home-flags').flags(); return Boolean(f.column && f.shown); };
 const Bindings = () => require('./child-phone-bindings.repo');
 /** The live links this phone made, from the binding rows (web_quiz_remember_column on) → [{id, canonical_id, bound_at}]. */
 const rowsOf = async (d) => ((await colOn()) ? Bindings().activeForDevice(hashOf(d)) : []);
@@ -139,6 +142,8 @@ async function field({ device, chosenId, src, rows: shared = null } = {}) {
     // the cache lost the join's note: the row says which link this phone made in the last 30 min
     const o = kept || (fresh ? { b: String(fresh.id), c: String(fresh.canonical_id), u: null, s: 0 } : null);
     if (!o || o.s || o.c !== String(chosenId)) return {};
+    // the row's claim decides when it answers (another open already drew it → no line); unreadable → the cache's rule
+    if ((await shownOn()) && (await Bindings().markShown(o.b)) === false) return {};
     // shown now: never again on this phone (a reload, Back, the next /quiz); Undo stays possible a while
     // (with the row read on, kept as long as the row stays "fresh", so the row never draws it a second time)
     await redis.set(key, JSON.stringify({ ...o, s: 1 }), fresh ? KEEP_S : UNDO_S);

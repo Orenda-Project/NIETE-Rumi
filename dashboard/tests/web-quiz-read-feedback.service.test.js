@@ -99,7 +99,7 @@ describe('WQMoment, pure', () => {
     expect(M.level(fb, 3)).toEqual({ lights: 0, stars: 0, growth: null, badge: 'try' });
     const h = M.html(fb, lang, { grade: 3 });
     expect(h.replace(/&#39;/g, "'")).toContain(lang === 'ur' ? 'آئیں مل کر پڑھیں!' : "Let's read it together!");
-    expect(h).toContain(lang === 'ur' ? 'زبردست کوشش' : 'Brave try');
+    expect(h).toContain(lang === 'ur' ? 'ہمت والی کوشش' : 'Brave try');
     expect(h).not.toContain('wq-moment-star');
     expect(h).not.toContain('wq-moment-meter');
   });
@@ -162,7 +162,7 @@ describe('the reading bands (the reading sign-off)', () => {
 });
 
 describe('the Urdu words (after a native read)', () => {
-  test('badges name the badge, never the child: no gendered «والے / والی»; labels read right for every count', () => {
+  test('badges name the badge, never the child: no «والے / والی» that agrees with the child (only with the badge\'s own noun: «ہمت والی کوشش», the copy key stamp.brave_try); labels read right for every count', () => {
     const M = moment();
     const reads = [
       M.feedback({ score: { correct: 50, attempted: 50 }, wcpm: 60, previous: { wcpm: 40 } }),   // faster
@@ -172,11 +172,12 @@ describe('the Urdu words (after a native read)', () => {
     ];
     const ur = reads.map((fb) => M.html(fb, 'ur', { grade: 3 }));
     expect(ur.map((h) => /data-badge="(\w+)"/.exec(h)[1])).toEqual(['faster', 'star', 'reader', 'try']);
-    for (const h of ur) expect(h).not.toMatch(/والے|والی/);
+    for (const h of ur) expect(h.replace('ہمت والی کوشش', '')).not.toMatch(/والے|والی/);
+    expect(ur[3]).toContain('<span>ہمت والی کوشش</span>');
     expect(ur[0]).toContain('رفتار کا تمغہ');
     expect(ur[1]).toContain('پڑھائی کا ستارہ');
     expect(ur[2]).toContain('ہمت کا تمغہ');
-    expect(ur[3]).toContain('زبردست کوشش');
+    expect(ur[3]).toContain('ہمت والی کوشش');
     expect(ur[2]).toContain('aria-label="ستارے: ۳ میں سے ۱"');
   });
 });
@@ -542,7 +543,9 @@ describe('Read aloud without the Trail', () => {
   test('key on, another phone\'s 0-word read (read none): the kind card, no stars row', async () => {
     const { settled } = await live(plain('en', RF), { score: { attempted: 0, stopped: false }, feedback: { stars: 0, badge: 'try', read: 'none' } });
     const m = /<div id="wqc-rf">[\s\S]*?<\/section><\/div>/.exec(settled)[0];
-    expect(m.replace(/&#39;/g, "'")).toContain("Let's read it together!");
+    // no read-along on the page's own card: the line asks for what its button does
+    expect(m.replace(/&#39;/g, "'")).toContain("Let's read it once more!");
+    expect(m.replace(/&#39;/g, "'")).not.toContain('together');
     expect(m).not.toContain('data-stars');
     expect(m).toContain('data-badge="try"');
   });
@@ -561,7 +564,8 @@ describe('Read aloud without the Trail', () => {
     p.w.readResult({ failed: true, reason: 'unheard' });
     await p.flush();
     const h = p.html();
-    expect(h).toContain(lang === 'ur' ? 'آئیں مل کر پڑھیں!' : "Let's read it together!");
+    expect(h).toContain(lang === 'ur' ? 'آئیں، ایک بار پھر پڑھیں!' : "Let's read it once more!");
+    expect(h).not.toContain(lang === 'ur' ? 'مل کر' : 'together');
     expect(h).toContain('data-badge="try"');
     expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('id="wqc-again"'));
   });
@@ -833,7 +837,7 @@ describe('the folded card\'s Try again (web_quiz_fold_retry)', () => {
 
 // ---- the look's fixes on the cards (key on): Jugnu's line matches the button, the app's own words, a way Home ---------
 describe('a 0-word read on the folded card with NO read-along: Jugnu asks for what the button does', () => {
-  test.each([['en', "Let's read it once more!", "Let's read it together", 'Home', 'Brave try'], ['ur', 'آئیں، ایک بار پھر پڑھیں!', 'آئیں مل کر پڑھیں', 'گھر', 'زبردست کوشش']])('%s: "once more", the moment\'s Home word and the brave-try badge', (lang, once, together, home, badge) => {
+  test.each([['en', "Let's read it once more!", "Let's read it together", 'Home', 'Brave try'], ['ur', 'آئیں، ایک بار پھر پڑھیں!', 'آئیں مل کر پڑھیں', 'گھر', 'ہمت والی کوشش']])('%s: "once more", the moment\'s Home word and the brave-try badge', (lang, once, together, home, badge) => {
     const t = trail({ lang, menu: { ...FOLD, ...RF }, data: { next_offer: NEXT } });
     t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
     const h = t.html();
@@ -870,5 +874,41 @@ describe('the moment\'s stylesheet: the card balanced, the sound switch labelled
     expect(CSS).toMatch(/\.wq-screen\.wqc:has\(> #wqc-rf\) \{[^}]*justify-content: center/);
     expect(CSS).toMatch(/#wqfc-snd::after \{ content: attr\(aria-label\); \}/);
     expect(CSS).toMatch(/html\[lang=ur\] \.wqfc-nt b \{ font-size: 20px; line-height: 1\.8; \}/);
+  });
+});
+
+
+// ---- a storybook page after a low read: one practice offer at a time (the word chip, then "read it again for 3 stars";
+// "Hear Jugnu say it" lives in the chip's later taps) ------------------------------------------------------------------
+describe('the practise card offers one thing at a time', () => {
+  const PG = { words: [{ t: 'The', s_ms: 0, e_ms: 300 }, { t: 'kite', s_ms: 300, e_ms: 700 }, { t: 'flew.', s_ms: 700, e_ms: 1200 }], audio: 'a.mp3', quality: 'ok' };
+  const READ_LOW = { words_read: 2, words_total: 3, ms: 4000, marks: ['read', 'skipped', 'read'] };
+  const sents = () => [[0, 2]];
+  test('on the practise card the 3-star offer waits for the chip, and the sentence moves into it', () => {
+    const h = moment().page(READ_LOW, PG, 'en', { hear: true, sents }).html;
+    expect(h).toMatch(/<button class="wqs-sec" data-tap="rfagain" data-after-chip>/);
+    expect(h).toMatch(/<button class="wqs-sec" data-tap="rfhear" data-in-chip[^>]*>/);
+  });
+  test('without a chip (a read card, no practise): both offers as before, no new attributes', () => {
+    const h = moment().page(READ_LOW, PG, 'en', { sents }).html;
+    expect(h).toContain('<button class="wqs-sec" data-tap="rfagain">');
+    expect(h).not.toMatch(/data-after-chip|data-in-chip/);
+  });
+  test('the chip: its first tap is the word (and opens the 3-star offer); a later tap plays the sentence instead', () => {
+    const M = moment();
+    const clicks = [];
+    const box = { cls: new Set(), classList: { add(c) { box.cls.add(c); }, contains(c) { return box.cls.has(c); } }, querySelector: (s) => (s === '[data-in-chip]' ? { click() { clicks.push('hear'); } } : null) };
+    const chip = { parentNode: box, closest: (s) => (s === '.wqs-word' ? chip : null) };
+    const ev = () => { const e = { target: chip, stopped: 0, prevented: 0, stopPropagation() { e.stopped += 1; }, preventDefault() { e.prevented += 1; } }; return e; };
+    const e1 = ev(); M.chip(e1);
+    expect(box.cls.has('wq-moment-chipped')).toBe(true);
+    expect([e1.stopped, clicks.length]).toEqual([0, 0]);   // the word plays (the reader's own tap)
+    const e2 = ev(); M.chip(e2);
+    expect([e2.stopped, e2.prevented, clicks]).toEqual([1, 1, ['hear']]);
+  });
+  test('the stylesheet hides what waits and shows it once the chip is tapped', () => {
+    const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(CSS).toContain(':has(> .wq-moment):has(> .wqs-word) > [data-after-chip], :has(> .wq-moment):has(> .wqs-word) > [data-in-chip] { display: none; }');
+    expect(CSS).toMatch(/\.wq-moment-chipped > \[data-after-chip\] \{ display: revert; \}/);
   });
 });
