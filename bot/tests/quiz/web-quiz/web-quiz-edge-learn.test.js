@@ -47,6 +47,7 @@ function resetAll() {
   require('../../../shared/services/quiz/web-quiz-telemetry')._reset();
   require('../../../shared/services/quiz/web-quiz-ur-polish')._reset();
   require('../../../shared/services/quiz/web-quiz-one-face')._reset();
+  require('../../../shared/services/quiz/web-quiz-plain-paint')._reset();
   require('../../../shared/config/web-quiz-brand')._resetCache();
   supabase.__state.reads = [];
 }
@@ -94,15 +95,27 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, plain_paint: false });
+  });
+
+  test('(e) on, with the fast page and web_quiz_plain_paint on: plain_paint says true (its cached value, as the payloads)', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_fast: true, web_quiz_plain_paint: true };
+    await warmPageSwitches();
+    await require('../../../shared/services/quiz/web-quiz-plain-paint').flag();
+    expect((await ask()).body).toMatchObject({ learn: true, fast: true, plain_paint: true });
+    // the fast page off: plain_paint is false, whatever its own key says (a guessed head needs the fast page)
+    supabase.__state.rows = { [KEY]: true, web_quiz_plain_paint: true };
+    resetAll(); await warmPageSwitches();
+    await require('../../../shared/services/quiz/web-quiz-plain-paint').flag();
+    expect((await ask()).body).toMatchObject({ learn: true, fast: false, plain_paint: false });
   });
 
   test('(e) on with every page switch off: no ui; one_face, wait_ux and wait_share say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'one_face', 'rt', 'wait_share', 'wait_ux']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false });
+    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'one_face', 'plain_paint', 'rt', 'wait_share', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, plain_paint: false });
     expect(typeof body.brand).toBe('string');
   });
 

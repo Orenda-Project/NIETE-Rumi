@@ -144,3 +144,44 @@ describe('the first_head event (on only): how each early head was known, and not
     }
   });
 });
+
+// ── a fresh portal process that learns the page switches from the bot before its first page (web_quiz_edge_learn) ──
+describe('a fresh process learns plain_paint with the fast page (the bot\'s learn answer)', () => {
+  const http = require('http');
+  const express = require('express');
+  const { createWebQuizRouter } = require('../routes/web-quiz.routes');
+  const res = (status, body) => ({ status, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) });
+  const URDU = { quiz: { id: 'q-1', code: 'UR12CD', topic: 'پودے کے حصے', lang: 'ur', dir: 'rtl', grade: '3', subject: 'Science', n: 1, questions: [] }, cls: { label: 'Class 3', chips: [] }, brand: 'niete', rt: false, fast: true };
+  const timers = () => ({ set: () => ({ unref() {} }), clear() {}, after: () => ({ unref() {} }), cancel() {} });
+  async function firstQuizHead(learn) {
+    const fetchImpl = (url) => Promise.resolve(url.endsWith('/api/internal/wq/edge') ? res(200, learn) : res(200, URDU));
+    const app = express();
+    app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl, edgeLearn: { timers: timers() } }));
+    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    try {
+      await new Promise((r) => setTimeout(r, 30)); // the learn ask, at boot
+      const body = await new Promise((resolve, reject) => {
+        const q = http.request({ host: '127.0.0.1', port: srv.address().port, path: '/q/UR12CD', headers: { host: 'portal.example' } }, (rs) => {
+          let b = ''; rs.setEncoding('utf8'); rs.on('data', (c) => { b += c; }); rs.on('end', () => resolve(b));
+        });
+        q.on('error', reject); q.end();
+      });
+      return early(body);
+    } finally {
+      await new Promise((r) => srv.close(r));
+    }
+  }
+  const LEARN = { learn: true, fast: true, brand: 'niete', rt: false };
+
+  test('learn says plain_paint: true → the very first guessed head says no words', async () => {
+    const top = await firstQuizHead({ ...LEARN, plain_paint: true });
+    expect(top).toMatch(/<html lang="" dir="auto">/);
+    expect(english(top)).toEqual([]);
+  });
+
+  test.each([['false', { ...LEARN, plain_paint: false }], ['absent', LEARN]])('learn says plain_paint %s → today\'s guessed head', async (_n, learn) => {
+    const top = await firstQuizHead(learn);
+    expect(top).toMatch(/<html lang="en" dir="ltr">/);
+    expect(top).toMatch(/Opening the quiz…/);
+  });
+});
