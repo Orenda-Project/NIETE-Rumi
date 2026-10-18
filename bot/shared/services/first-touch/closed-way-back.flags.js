@@ -7,7 +7,8 @@
  *   OFF → every one of those pages is today's, byte for byte.
  *
  * Only the JSON boolean `true` (value === true) is on: the strings "true" / "\"true\"", 1, "yes", {}, null, no row and a
- * failed read are all OFF. ONE read of this key only, cached 30 s; a failed read is OFF and is not cached. Never throws.
+ * failed read are all OFF. ONE read of this key only, cached 30 s; a failed read is OFF for those 30 s too (an outage adds
+ * no read to every dead-end page). Never throws.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -25,6 +26,7 @@ async function on(now = Date.now()) {
     cache = { at: now, on: Boolean(data) && data.value === true };
     return cache.on;
   } catch (err) {
+    cache = { at: now, on: false };
     try { logToFile('⚠️ closed way back: settings lookup failed — switch off', { error: err && err.message }); } catch (_) { /* never throws */ }
     return false;
   }
