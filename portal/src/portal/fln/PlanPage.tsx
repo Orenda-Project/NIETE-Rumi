@@ -67,6 +67,27 @@ async function ownGrades(): Promise<number[]> {
   }
 }
 
+/**
+ * `?src=send` = a `/go` landing from a sent message (fln-go-target.js); `?src=wa` = a shared link (share/message.ts),
+ * counted only when opened from outside the portal (empty referrer).
+ */
+export function openLinkResult(search: string): 'send' | 'wa' | null {
+  const src = new URLSearchParams(search).get('src');
+  if (src === 'send') return 'send';
+  if (src === 'wa' && !document.referrer) return 'wa';
+  return null;
+}
+
+/** Drop `src` from the address bar without a router navigation (Back must still see a link-opened page). */
+function stripSrc() {
+  try {
+    const u = new URL(window.location.href);
+    if (!u.searchParams.has('src')) return;
+    u.searchParams.delete('src');
+    window.history.replaceState(window.history.state, '', `${u.pathname}${u.search}${u.hash}`);
+  } catch { /* history not writable: the param only stays visible */ }
+}
+
 function readOpen(planId: number): Set<number> {
   try {
     const st = window.history.state as { flnOpen?: { plan: number; open: number[] } } | null;
@@ -144,6 +165,17 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
   const planRef = useRef<number | string>(planId);
   planRef.current = plan?.id ?? planId;
   useEffect(() => player.onEvent((e) => push({ ...e, plan: planRef.current })), [player, push]);
+
+  // The receiver's open_link (contracts/deep-link.md, Events): once per landing, only for a plan that is there.
+  const linkLogged = useRef<number | string | null>(null);
+  useEffect(() => {
+    if (!plan || linkLogged.current === plan.id) return;
+    const result = openLinkResult(location.search);
+    if (!result) return;
+    linkLogged.current = plan.id;
+    flnApi.events([{ kind: 'open_link', plan: plan.id, result }]);
+    stripSrc();
+  }, [plan, location.search]);
 
   const [open, setOpen] = useState<Set<number>>(() => readOpen(planId));
   const toggle = useCallback((i: number) => {
