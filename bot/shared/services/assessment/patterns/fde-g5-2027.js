@@ -747,8 +747,8 @@ const URDU = {
   // `tags` are the layout's names for a concept it can recognise in an item; `q4` marks a kind Q4 asks
   // on every paper, which Q1 never asks.
   lessons: [
-    { lesson: 4, pages: '28-37', grammar: [{ ur: 'متضاد الفاظ' }] },
-    { lesson: 5, pages: '38-49', grammar: [{ ur: 'مترادف الفاظ' }, { ur: 'متضاد الفاظ' }, { ur: 'تمنائی اور شکیہ جملے', tags: ['wish', 'doubt'] }] },
+    { lesson: 4, pages: '28-37', grammar: [{ ur: 'متضاد الفاظ', tags: ['antonym'] }] },
+    { lesson: 5, pages: '38-49', grammar: [{ ur: 'مترادف الفاظ', tags: ['synonym'] }, { ur: 'متضاد الفاظ', tags: ['antonym'] }, { ur: 'تمنائی اور شکیہ جملے', tags: ['wish', 'doubt'] }] },
     { lesson: 6, pages: '50-60', grammar: [{ ur: 'متشابہ الفاظ', tags: ['homograph'] }] },
     { lesson: 7, pages: '61-70', grammar: [{ ur: 'گروہی الفاظ', q4: true }] },
     { lesson: 8, pages: '71-82', grammar: [{ ur: 'حروفِ عطف', tags: ['conjunction'] }, { ur: 'حروفِ شرط و جزا', tags: ['condition'], q4: true }] },
