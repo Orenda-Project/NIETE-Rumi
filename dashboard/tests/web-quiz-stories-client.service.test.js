@@ -3329,7 +3329,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(near().hidden).toBe(true);
     expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
   });
-  test.each(['en', 'ur'])('%s, the live meter on: Jugnu rides the bar in his own place above the page (never a second, glowing Jugnu, never inside the zoomed picture); the bar keeps this page\'s state; the silence lean moves to it', async (lang) => {
+  test.each(['en', 'ur'])('%s, the live meter on: Jugnu rides the bar in his own place above the page (never a second, glowing Jugnu, never inside the zoomed picture); the bar keeps this book\'s state; the silence lean moves to it', async (lang) => {
     const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } }));
     e.win.WQPace = { variant: 'sky', grade: '3' };
     const root = await openReader(e, { lang });

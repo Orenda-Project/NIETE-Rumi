@@ -111,7 +111,7 @@
     function spoken(ws) { return ws.filter(function (w) { return !w.silent; }); }
     function lrOn(ws, cb) {
       var p = P[m.i], o = {
-        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr, pace: { el: root.querySelector('[data-pace]'), keep: R.pk },
+        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr, pace: { el: root.querySelector('[data-pace]'), keep: R.pk || (R.pk = {}) },
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
         getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { if (!r.ok || r.body.error) R.keyNo = 1; return r.body; }, function (x) { R.keyNo = 1; throw x; }); },
@@ -131,7 +131,7 @@
 
     function readScreen() {
       var p = P[m.i], LR = W.WQLiveRead, c, lh = '<div class="wqs-lr" data-lr></div>', st;
-      if (!sum) { R.pk = {}; ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
+      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       // the live meter on (wq-pace.js): Jugnu rides its bar here, in his own place above the page, never inside the zoomed picture

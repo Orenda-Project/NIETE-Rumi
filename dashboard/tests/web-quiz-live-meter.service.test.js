@@ -52,15 +52,15 @@ describe('the meter: a sustained pace against the grade\'s target, never a burst
   test.each(['G1', 'G3', 'G5', null])('%s: one burst of 4 words (the recogniser lights a phrase at once) never fills it, and it falls after', (g) => {
     const P = pace();
     const lv = run(P, [[2000, 4]], g, 30000);
-    expect(max(lv)).toBeLessThan(0.6);
+    expect(max(lv)).toBeLessThan(0.65);   // 3 stars at most: never full
     expect(at(lv, 30000)).toBeLessThan(max(lv));
   });
-  test('it rises at a limited rate: even a very fast reader takes 10 s from empty to full', () => {
+  test('it rises at a limited rate: even a very fast reader takes 8 s from empty to full', () => {
     const P = pace();
     const lv = run(P, every(300, 2, 30000), 'G1', 30000);   // 400 a minute
-    expect(at(lv, 3000)).toBeLessThanOrEqual(0.31);
-    expect(at(lv, 9500)).toBeLessThan(1);
-    expect(at(lv, 12000)).toBe(1);
+    expect(at(lv, 3000)).toBeLessThanOrEqual(0.37);
+    expect(at(lv, 8000)).toBeLessThan(1);
+    expect(at(lv, 10000)).toBe(1);
   });
   test.each([['G1', 35], ['G3', 50], ['G5', 60]])('%s: phrase bursts AT the target (%i a minute) fill it, held; 80 %% of it never does; half sits near half', (g, wpm) => {
     const P = pace();
@@ -84,6 +84,26 @@ describe('the meter: a sustained pace against the grade\'s target, never a burst
     expect(at(lv, 30000)).toBeGreaterThan(0.4);   // gently: no cliff
     expect(at(lv, 40000)).toBeLessThan(0.3);
     expect(lv.every((x) => x[1] >= 0 && x[1] <= 1)).toBe(true);
+  });
+  test('the pages of one book: the clock stops while the meter is stopped, so the time between pages never counts as a pause', () => {
+    const made = [];
+    const El = function () { this.style = { setProperty() {} }; this.kids = []; this.attrs = {}; this.classList = { add() {}, remove() {}, toggle() {} }; this.offsetWidth = 1; };
+    El.prototype.setAttribute = function (k, v) { this.attrs[k] = v; }; El.prototype.appendChild = function (c) { this.kids.push(c); c.parentNode = this; };
+    El.prototype.removeChild = function () {};
+    const window = {}; let t = 0;
+    const document = { currentScript: null, createElement: () => { const e = new El(); made.push(e); return e; } };
+    const ctx = { window, document, Math, Number, String, Date, requestAnimationFrame: () => 1, cancelAnimationFrame() {} };
+    vm.createContext(ctx); vm.runInContext(PACE_SRC, ctx);
+    const P = window.WQPace; const keep = {}; const o = { variant: 'sky', grade: 'G3', keep, now: () => t };
+    let m = P.mount(new El(), o);
+    for (t = 1200; t <= 9600; t += 1200) m.word(1);   // page 1, at the grade's pace
+    t = 10000; m.stop();
+    const was = P.step(keep.s, t, 0, o).level;
+    t = 40000;                                        // the result, Next, the next page's picture: 30 s
+    m = P.mount(new El(), o);
+    expect(P.step(keep.s, t, 0, o).level).toBeCloseTo(was, 5);
+    for (let k = 1; k <= 4; k += 1) { t += 1200; m.word(1); }
+    expect(P.step(keep.s, t, 0, o).level).toBeGreaterThan(was);   // page 2 carries on from page 1
   });
   test('the variant and grade come from its own script tag; an unknown variant is none', () => {
     expect(pace({ 'data-meter': 'vine', 'data-grade': 'G4' })).toMatchObject({ variant: 'vine', grade: 'G4' });

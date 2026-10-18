@@ -7,14 +7,15 @@
  *   step(s, now, words, o)   the meter's state after `words` newly read words at `now` (ms); step(null, t0, 0) starts a
  *                            read. The level is a SUSTAINED pace against the grade's: the words read right in the last
  *                            20 s (each lit phrase spread over the time it took to say) over what a reader at the
- *                            grade's pace reads in that time (never under 15 s, so the first phrase cannot fill it).
+ *                            grade's pace reads in that time (never under 12 s, so the first phrase cannot fill it).
  *                            Between two lit phrases it holds (4.5 s: the recogniser lights a phrase at its end); a
- *                            longer pause lets it fall. It rises at most 0.1 a second (10 s from empty to full) and
+ *                            longer pause lets it fall. It rises at most 0.12 a second (8 s from empty to full) and
  *                            falls at most 0.2 a second.
  *                            → { t0, ev, lv, at, level 0–1 }. Pure: no DOM, no clock.
  *   mount(el, o)             draws the meter into el: o.variant 'sky' (a bar along the top, Jugnu riding its tip past
  *                            5 stars) or 'vine' (a glowing vine up the side, Jugnu climbing it past 5 leaves); o.grade,
- *                            o.keep (an object that holds the state across redraws). The read starts at mount.
+ *                            o.keep (an object that holds the state across redraws, and across the pages of one book:
+ *                            the clock stops while the meter is stopped or gone). The read starts at the first mount.
  *                            → { word(n), stop(), destroy(), level() }. word(n) is called with the words newly lit.
  *   variant / grade          the page's meter, from its own script tag (data-meter, data-grade; the edge writes them)
  * Never a number on screen and never "slower": the speed stays a picture. Only words read right move it (a skipped
@@ -23,10 +24,10 @@
 (function () {
   'use strict';
   var WIN = 20000;      // the window the pace is read over
-  var SPAN_MIN = 15000; // the shortest time a pace is judged on
+  var SPAN_MIN = 12000; // the shortest time a pace is judged on
   var HOLD = 4500;      // the wait for the next lit phrase before a pause counts
   var SAY_MS = 3000;    // a lit phrase is spread back over the time since the last one, at most this a word
-  var RISE = 0.1, FALL = 0.2;   // the most it moves a second
+  var RISE = 0.12, FALL = 0.2;   // the most it moves a second
   var FULL = { lo: 35, mid: 50, hi: 60 };
   var MARKS = [0.2, 0.4, 0.6, 0.8, 1];
 
@@ -56,6 +57,11 @@
     return { t0: s.t0, ev: ev, lv: lv, at: now, level: lv };
   }
 
+  // the read's clock moved on by d ms while no one was reading (between pages): every time in it moves with it
+  function shift(s, d) {
+    return d > 0 ? { t0: s.t0 + d, ev: s.ev.map(function (e) { return [e[0] + d, e[1] + d, e[2]]; }), lv: s.lv, at: s.at + d, level: s.lv } : s;
+  }
+
   function el(tag, cls, html) { var x = document.createElement(tag); x.className = cls; if (html) x.innerHTML = html; return x; }
   var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.2l-5.9 3.2 1.3-6.5-4.9-4.6 6.6-.8z"/></svg>';
   var LEAF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21C3 11 9 4 21 3c0 11-7 18-18 18z"/></svg>';
@@ -81,7 +87,8 @@
 
     var keep = o.keep || {};   // the state lives here, so a redrawn screen mounts the same meter where it was
     var now = o.now || function () { return Date.now(); };
-    var s = keep.s || (keep.s = step(null, now(), 0, o)), shown = keep.shown || 0, raf = 0, stopped = false, top = 0;
+    var s = keep.s ? shift(keep.s, keep.off != null ? now() - keep.off : 0) : step(null, now(), 0, o), shown = keep.shown || 0, raf = 0, stopped = false, top = 0;
+    keep.s = s; keep.off = null;
     function target() { s = keep.s = step(s, now(), 0, o); return s.level; }
     function paint() {
       raf = 0;
@@ -110,8 +117,8 @@
         kick();
       },
       level: function () { return shown; },
-      stop: function () { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; box.classList.add('wqp-done'); },
-      destroy: function () { stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; if (box.parentNode) box.parentNode.removeChild(box); }
+      stop: function () { if (!stopped) keep.off = now(); stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; box.classList.add('wqp-done'); },
+      destroy: function () { if (!stopped) keep.off = now(); stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0; if (box.parentNode) box.parentNode.removeChild(box); }
     };
   }
 
