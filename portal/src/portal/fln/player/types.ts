@@ -80,7 +80,7 @@ export type StateListener = (state: PlayerState, progress01: number, owner?: str
 export interface FlnPlayer {
   /** The page registers every clip once (grid + sections). Re-registering an id is a no-op. */
   register(clips: Clip[]): void;
-  /** Prefetch in order with fetch() into blob URLs, 2 at a time; the first 3 queue now, the rest at idle; ≤1.5 MB. */
+  /** Prefetch in order, one <audio preload="auto"> per clip, 2 at a time; the first 3 queue now, the rest at idle; ≤1.5 MB. */
   warm(ids: string[]): void;
   /**
    * MUST be called inside the tap handler. idle → play from 0 (stops any other); playing/loading → stop;
@@ -93,23 +93,20 @@ export interface FlnPlayer {
   subscribe(id: string, cb: StateListener): () => void;
   /** Telemetry for the events batch (m-app posts it to /api/portal/fln/events). Returns the unsubscribe. */
   onEvent(cb: (e: PlayerEvent) => void): () => void;
-  /** Releases elements, blob URLs and timers. */
+  /** Releases elements, their buffers and timers. */
   dispose(): void;
 }
 
 /** The network/clock seams. Production passes nothing; tests and the bench pass fakes. */
 export interface FlnPlayerDeps {
   createAudio?: () => HTMLAudioElement;
-  fetch?: typeof fetch;
   now?: () => number;
   setTimeout?: (fn: () => void, ms: number) => unknown;
   clearTimeout?: (handle: unknown) => void;
   requestIdle?: (fn: () => void) => void;
-  createObjectURL?: (b: Blob) => string;
-  revokeObjectURL?: (u: string) => void;
   /** Called once per mirror origin at register (default: <link rel=preconnect> ×2). */
   preconnect?: (origin: string) => void;
-  /** Overrides for the timing rules (defaults: firstByteMs 1500, giveUpMs 6000, warmNow 3, budgetBytes 1.5 MB, warmConcurrency 2). */
+  /** Overrides for the timing rules (defaults: firstByteMs 1500, giveUpMs 6000, warmNow 3, budgetBytes 1.5 MB, warmConcurrency 2, warmStepMs 8000). */
   timing?: Partial<FlnPlayerTiming>;
 }
 
@@ -118,6 +115,8 @@ export interface FlnPlayerTiming {
   giveUpMs: number;
   warmNow: number;
   budgetBytes: number;
-  /** Prefetches in flight at once, in order (the first `warmNow` start without waiting for idle). */
+  /** Clips warming at once, in order (the first `warmNow` start without waiting for idle). */
   warmConcurrency: number;
+  /** A clip whose head has not arrived by then stops holding the queue (it keeps loading). */
+  warmStepMs: number;
 }
