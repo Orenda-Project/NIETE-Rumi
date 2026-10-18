@@ -572,6 +572,7 @@ describe('one mark for a true empty, and two list writers that keep apart (switc
     W.WQDOORS.mount(r, B, C, 'videos'); // the shelves' own writer: pending until every shelf settles
     await flush();
     expect(r.attrs['data-vtrip']).toBe('videos');
+    expect(r.attrs['data-trip']).toBeUndefined(); // one list writer at a time: Games' key is gone
     expect(r.attrs['data-fetch']).toBe('pending');
     const videosFrom = r.attrs['data-skel-from'];
     expect(videosFrom).toMatch(/^\d+$/);
@@ -585,6 +586,7 @@ describe('one mark for a true empty, and two list writers that keep apart (switc
     W.WQDOORS.mount(r, B, C, 'videos');
     await flush();
     expect(r.attrs['data-vtrip']).toBe('videos');
+    expect(r.attrs['data-trip']).toBeUndefined(); // one list writer at a time: Games' key is gone
     expect(r.attrs['data-fetch']).toBe('pending');
     expect(r.attrs['data-skel-to']).toBeUndefined();
   });

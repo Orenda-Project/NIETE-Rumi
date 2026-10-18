@@ -484,7 +484,8 @@
     if (!root || typeof root.getAttribute !== 'function') return;
     if (root.getAttribute('data-vtrip') !== key) {
       root.setAttribute('data-vtrip', key);
-      ['data-skel-from', 'data-skel-to', 'data-empty-at'].forEach(function (k) { root.removeAttribute(k); });
+      // (data-trip is the doors' list writer's key, written only under list_states: the other writer's spell ends here)
+      ['data-trip', 'data-skel-from', 'data-skel-to', 'data-empty-at'].forEach(function (k) { root.removeAttribute(k); });
     }
     root.setAttribute('data-fetch', st);
     if (st === 'pending') {
