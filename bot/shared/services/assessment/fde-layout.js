@@ -1600,8 +1600,10 @@ const nameCue = (a, b) => namePrinted(a, b) || namePrinted(b, a);
 // A word meaning or a story fact asks no grammar concept. The متشابہ pair is one concept however the
 // stem asks it: one spelling with two meanings, two words that sound alike but are spelt apart
 // («آواز میں ایک جیسے مگر املا میں مختلف»), a word's «دوسرا معنی», «X بمعنی … اور Y بمعنی …». An
-// antonym or a synonym item is a concept on the full syllabus and on chosen lessons that teach it
-// (lessons 4–5: متضاد, مترادف); on other chosen lessons it is vocabulary.
+// item that asks which word tells a thing's quality («… کون سا لفظ خوبی بیان کر رہا ہے؟») asks صفت, and
+// one that asks the word whose quality is told («جس چیز کی خوبی …») asks موصوف. An antonym or a synonym
+// item («"X" کا متضاد / مترادف / الٹ کون سا لفظ ہے؟») is a concept on every scope: on chosen lessons
+// that do not teach it (lessons 4–5 do), it is grammar from another lesson.
 // Each row is written as the book writes it and folded as plain() folds the text it reads (آ as ا,
 // ئ as ی, …), so no row can be dead for a letter form.
 const foldPattern = (re) => new RegExp(UR_FORMS.reduce((src, [f, to]) => src.replace(new RegExp(f.source, 'g'), to), re.source.replace(UR_MARKS, '')), re.flags);
@@ -1610,29 +1612,27 @@ const CONCEPTS = [
   ['sound', /اسم صوت|آواز (?:کو )?ظاہر/],
   ['tool', /اسم آلہ|ہتھیار یا اوزار|اوزار کا نام/],
   ['place', /اسم ظرف/],
-  ['adjective', /اسم صفت|(?:^| )صفت(?: |$)/],
-  ['qualified', /موصوف/],
+  ['adjective', /اسم صفت|(?:^| )صفت(?: |$)|خوبی بیان (?:کر|کرتا|کرتی|کرتے)(?: |$)/],
+  ['qualified', /موصوف|جس چیز کی خوبی/],
   ['conjunction', /حرف عطف|(?:^| )عطف(?: |$)|جوڑت[ےا]|جوڑنے/],
   ['condition', /حرف (?:شرط|جزا)|شرط و جزا/],
   ['doubt', /شکیہ|شک (?:و شبہ|ظاہر|کا اظہار)/],
   ['wish', /تمنائی|آرزو (?:کا اظہار|ظاہر)/],
   ['homograph', new RegExp(`${HOMOGRAPH.source}|آواز میں ایک (?:جیسے|جیسا)|دوسرا معنی|بمعنی .+ اور (?:.+ )?بمعنی`)],
-  ['antonym', /متضاد|مخالف معنی|الٹ(?:ا|ے)? (?:معنی|مطلب)/],
+  ['antonym', /متضاد|مخالف معنی|الٹ(?:ا|ے)? (?:معنی|مطلب)|کا الٹ(?: |$)/],
   ['synonym', /مترادف|ہم معنی/],
 ].map(([name, re]) => [name, foldPattern(re)]);
 const LESSON_ONLY = new Set(['antonym', 'synonym']);
 // The holds a grammar concept may make (a repeat, or a tag the stem contradicts).
 const GRAMMAR_REPEAT = new Set(['concept_repeat', 'concept_tag_disagrees']);
-const teaches = (lessons, concept) => lessons.some((l) => l.grammar.some((g) => (g.tags || []).includes(concept)));
-// `lessons`: the chosen lessons (scopeLessons), or null for the full syllabus.
+// `lessons` is read by no row today: a concept is the same on every scope.
+// eslint-disable-next-line no-unused-vars
 function conceptOf(q, lessons = null) {
   if (!Array.isArray(q.options) || !q.options.length) return null;
   const read = [plain(keyOption(q)), plain(String(q.question || '').replace(QUOTE_SPAN, ' '))];
   const found = CONCEPTS.find(([, re]) => read.some((t) => re.test(t)));
-  if (!found || (LESSON_ONLY.has(found[0]) && !(lessons && teaches(lessons, found[0])))) return null;
-  return found[0];
+  return found ? found[0] : null;
 }
-const sameConcept = (a, b, lessons) => { const c = conceptOf(a, lessons); return Boolean(c) && c === conceptOf(b, lessons); };
 // Urdu Q1 on chosen lessons: the concept Section A says an item asks (its `concept`, never printed),
 // read as a CONCEPTS name or a lesson's grammar name; `grammar: false` for vocabulary, a word
 // meaning, comprehension, or a name the table does not hold.
@@ -2007,7 +2007,6 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the words the reply's first Q3 asks the meaning of (a Q5 never asks them again).
   const q3 = P.key === 'urdu' ? all.find((e) => slotKey(e.q.slot) === slotKey('urdu.C.Q3') && Array.isArray(e.q.words)) : null;
   const q3Words = q3 ? q3.q.words.filter((w) => typeof w === 'string') : [];
-  const sameDeclared = (p, q) => { const [a, b] = [declared.get(p), declared.get(q)]; return Boolean(a && b && a.grammar && b.grammar && !a.pair && a.name === b.name); };
   // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
   // declares its concepts; a reply written before it was never asked to keep them once. A paper
   // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
@@ -2020,10 +2019,24 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // name, and ask a grammar concept once.
   // A concept asked again is a twin. `hard`: only a twin that may never print; an antonym or a synonym
   // asked again on lessons 4–5 gives nothing away, and is the last item put back (below).
+  // The concepts an item asks: the one its stem or key names, and the one Section A declares for it,
+  // as one set (a declared vocabulary item whose stem names a concept still asks it). A lesson entry
+  // that names one concept («متشابہ الفاظ») is that concept's row; an entry of two is read by its stem.
+  const conceptsOf = (q) => {
+    const out = new Set();
+    const c = conceptOf(q, conceptLessons);
+    if (c) out.add(c);
+    const d = declared.get(q);
+    if (d && d.grammar && !d.pair) {
+      const entry = CONCEPTS.some(([name]) => name === d.name) ? null : entryOf(P.lessons || [], d.name);
+      out.add(entry && (entry.tags || []).length === 1 ? entry.tags[0] : d.name);
+    }
+    return out;
+  };
   const conceptTwin = (p, q, hard) => {
-    const c = sameConcept(p, q, conceptLessons) ? conceptOf(q, conceptLessons) : null;
-    const d = sameDeclared(p, q) ? declared.get(q).name : null;
-    return hard ? Boolean((c && !LESSON_ONLY.has(c)) || (d && !LESSON_ONLY.has(d))) : Boolean(c || d);
+    const mine = conceptsOf(q);
+    const shared = [...conceptsOf(p)].filter((c) => mine.has(c));
+    return hard ? shared.some((c) => !LESSON_ONLY.has(c)) : shared.length > 0;
   };
   const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)
