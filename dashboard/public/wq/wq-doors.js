@@ -104,8 +104,9 @@
     return '<div class="wq-dskel"' + (primary ? ' data-primary' : '') + ' aria-busy="true">' + r + '</div>';
   }
   function errNote(t) { return '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><button class="wq-btn wq-go" type="button" data-primary data-tap="retry">' + esc(t.retry) + '</button></div>'; }
-  function emptyNote(text, to, label) {
-    return '<div class="wq-dempty"><p class="wq-soon">' + esc(text) + '</p><a class="wq-btn wq-go" data-primary data-tap="door" data-door="' + to + '" href="#' + to + '">' + esc(label) + '</a></div>';
+  // `mark` (list_states): a true empty says so (data-empty), so a walker can tell it from a list still on its way
+  function emptyNote(text, to, label, mark) {
+    return '<div class="wq-dempty"' + (mark ? ' data-empty' : '') + '><p class="wq-soon">' + esc(text) + '</p><a class="wq-btn wq-go" data-primary data-tap="door" data-door="' + to + '" href="#' + to + '">' + esc(label) + '</a></div>';
   }
 
   /* ---------------- Stories ---------------- */
@@ -114,12 +115,12 @@
   function storiesBody(B, ctx, data) {
     var t = C(ctx);
     var shelfOn = data ? Boolean(data.shelf) : bootDoors(B).stories.some(function (s) { return s.kind === 'shelf'; });
-    if (!shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
+    if (!shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames, B.list_states);
     // the screen still has its one primary until the shelf draws its own (then this one steps aside); with `list_states`
     // the slot shows a skeleton and the note waits, hidden, until the shelf has answered (the reader fills the slot)
     var wait = Boolean(B.list_states && B.stories && B.stories.on);
     return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors">' + (wait ? skel(3) : '') + '</div></div>' +
-      '<div data-shelf-fallback="1"' + (wait ? ' hidden' : '') + '>' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
+      '<div data-shelf-fallback="1"' + (wait ? ' hidden' : '') + '>' + emptyNote(t.storiesNone, 'games', t.toGames, B.list_states) + '</div>';
   }
 
   /* ---------------- Games ---------------- */
@@ -155,7 +156,7 @@
       section(t.lastQ, last.map(function (g, i) { return row({ href: quizHref(g.code, g.k, false), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (failed) return errNote(t) + h;
-    if (!open.length && !reads.length && !nums.length && !done.length && !last.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
+    if (!open.length && !reads.length && !nums.length && !done.length && !last.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
     return primaryFirst(h);
   }
 
@@ -167,7 +168,7 @@
     if (!lib) return B.list_states ? skel(5, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     if (lib.err) return errNote(t);
     var subs = lib.subjects || [];
-    if (!subs.length) return emptyNote(t.none, 'stories', t.toStories);
+    if (!subs.length) return emptyNote(t.none, 'stories', t.toStories, B.list_states);
     return primaryFirst('<p class="wq-dsay">' + esc(t.pick) + '</p><ul class="wq-rows">' + subs.map(function (s, i) {
       return row({ title: t.subj(s.key), kind: 'subject', item: s.key, pos: i, art: s.art, tap: 'subj' }, ctx);
     }).join('') + '</ul>');

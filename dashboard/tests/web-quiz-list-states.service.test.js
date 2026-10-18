@@ -348,3 +348,45 @@ describe('the walkers\' tripwires (switch on only): data-fetch, data-skel-from|t
     expect(Object.keys(r.attrs).filter((k) => /^data-(fetch|skel|empty)/.test(k))).toEqual([]);
   });
 });
+
+describe('one mark for a true empty, and two list writers that keep apart (switch on only)', () => {
+  test.each(['en', 'ur'])('%s: a true empty note carries data-empty (the walkers\' "no empty while busy" mark); the waiting note does not', (lang) => {
+    const W = load();
+    const s = screensFor(lang, ON, W);
+    expect(s.gamesNone).toMatch(/class="wq-dempty" data-empty/);
+    expect(s.storiesNone).toMatch(/class="wq-dempty" data-empty/);
+    expect(s.gamesBoot).not.toMatch(/data-empty/);
+    expect(s.storiesBoot.split('data-shelf-fallback')[0]).not.toMatch(/data-empty/);
+  });
+  test('switch off: no data-empty mark anywhere', () => {
+    const s = screensFor('en', {});
+    Object.values(s).forEach((h) => expect(h).not.toMatch(/data-empty/));
+  });
+  test('Games, then the Videos shelves, then Games again: each list starts its own spell, neither keeps the other\'s stamps', async () => {
+    const B = { ...B_ON, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true, shelf: true } } };
+    const { W } = live({ fetchImpl: (u) => (/d=games/.test(u) ? OK(GAMES)() : new Promise(() => {})) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, B, C, 'games');
+    await flush();
+    expect(r.attrs['data-trip']).toBe('games');
+    expect(r.attrs['data-fetch']).toBe('done');
+    W.WQDOORS.mount(r, B, C, 'videos'); // the shelves' own writer: pending until every shelf settles
+    await flush();
+    expect(r.attrs['data-vtrip']).toBe('videos');
+    expect(r.attrs['data-fetch']).toBe('pending');
+    const videosFrom = r.attrs['data-skel-from'];
+    expect(videosFrom).toMatch(/^\d+$/);
+    W.WQDOORS.mount(r, B, C, 'games'); // the rows are kept: one paint, no skeleton
+    await flush();
+    expect(r.attrs['data-trip']).toBe('games');
+    expect(r.attrs['data-vtrip']).toBeUndefined();
+    expect(r.attrs['data-fetch']).toBe('done');
+    expect(r.attrs['data-skel-from']).toBeUndefined(); // not the Videos spell's start
+    expect(r.attrs['data-skel-to']).toBeUndefined();
+    W.WQDOORS.mount(r, B, C, 'videos');
+    await flush();
+    expect(r.attrs['data-vtrip']).toBe('videos');
+    expect(r.attrs['data-fetch']).toBe('pending');
+    expect(r.attrs['data-skel-to']).toBeUndefined();
+  });
+});
