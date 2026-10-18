@@ -52,12 +52,24 @@ async function pageSettings(now = Date.now()) {
 
 async function readSettings(now) {
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
+    // One voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) and the question read-along
+    // (`web_quiz_question_readalong`, web-quiz-question-readalong.js) ride this read, so the page pays no read for them.
+    // A failed read that names them reads the page's own two switches again alone, and both are off.
+    const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
+    let { data, error } = await supabase.from('app_settings').select('key, value')
+      .in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', 'web_quiz_question_readalong']);
+    const withRiders = !error;
+    if (!withRiders) {
+      logToFile('⚠️ web quiz identity: settings lookup with one voice and the question read-along failed — reading the page switches alone, both off', { error: error.message });
+      ({ data, error } = await two());
+    }
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)) };
+    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
+      oneVoice: withRiders ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null,
+      questionReadalong: withRiders ? questionReadalongOf(by.get('web_quiz_question_readalong'), now) : false };
     return flag;
   } catch (err) {
     logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
@@ -68,6 +80,26 @@ async function readSettings(now) {
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
 async function identityMode(now = Date.now()) {
   return (await pageSettings(now)).mode;
+}
+
+/** The one-voice plan this read carried (web-quiz-one-voice-flag.js), or null: off, or a failed read. */
+async function oneVoicePlan(now = Date.now()) {
+  return (await pageSettings(now)).oneVoice || null;
+}
+
+/** The plan a one-voice row names, kept as that module's reading so its other readers ask no read of their own. */
+function oneVoiceOf(value, now) {
+  try { return require('./web-quiz-one-voice-flag').take(value, now); } catch (_) { return null; }
+}
+
+/** Whether this read found the question read-along on (web-quiz-question-readalong.js): false when off or the read failed. */
+async function questionReadalongOn(now = Date.now()) {
+  return (await pageSettings(now)).questionReadalong === true;
+}
+
+/** The read-along row's reading, kept as that module's reading so its other readers (the publish step) ask no read. */
+function questionReadalongOf(value, now) {
+  try { return require('./web-quiz-question-readalong').take(value, now); } catch (_) { return false; }
 }
 
 /** The watch root's share code id, or null (absent, not an id, or a failed read). */
@@ -314,3 +346,5 @@ module.exports = {
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
   _resetCache: () => { flag = null; inflight = null; rosters.clear(); },
 };
+module.exports.oneVoicePlan = oneVoicePlan;
+module.exports.questionReadalongOn = questionReadalongOn;

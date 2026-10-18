@@ -1,7 +1,7 @@
 /**
  * Read-along: Jugnu reads, and a green pill moves from word to word as each word is spoken.
  *
- *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, tap, lines });
+ *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, canTap, tap, lines });
  *   p.play(); p.pause(); p.toggle(); p.replay(); p.seekToWord(i); p.playWord(i); p.destroy();
  *
  * `data` is a timing object {v, id, lang, dir, audio:{url, ms, mime}, words:[{i, t, s_ms, e_ms, box?}], image?:{url, w, h},
@@ -15,6 +15,7 @@
  * The clock is the audio element: while playing, one requestAnimationFrame loop reads audio.currentTime and moves the
  * pill only when the word changes (≤ 1 frame late, no layout work per frame). The pill leads the sound by `leadMs`.
  * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans; `lines`: the page's own), lit as it plays.
+ * canTap(i): asked first on a word tap; false = the tap does nothing.
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -354,6 +355,7 @@
     for (var j = 0; j < spans.length; j += 1) {
       (function (i) {
         spans[i].addEventListener('click', function () {
+          if (opts.canTap && opts.canTap(i) === false) return;
           // the sentence; a "low" page: its whole lines (their ends are the pauses we trust)
           if (opts.tap === 'sentence' && !dead) {
             var r = sentenceOf(words, i);

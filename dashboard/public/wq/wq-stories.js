@@ -284,7 +284,7 @@
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
   // the player (and lr3's live reader) come with the book
-  var got = {}, RA_V = 'be7fe1dc23';   // the player's content hash (a test pins it)
+  var got = {}, RA_V = '050a5500b8';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);

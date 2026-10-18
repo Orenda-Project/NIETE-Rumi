@@ -11,6 +11,9 @@ const {
 const { logToFile } = require('../utils/logger');
 const { normalizeForUrduTTS } = require('./urdu-tts-normalizer');
 
+// The Ogg Opus rates a caller may ask for by name (generateSpeechWithVoice opts.outputFormat); anything else is 64 kb/s.
+const OPUS_FORMATS = new Set(['opus_48000_32', 'opus_48000_64']);
+
 /**
  * ElevenLabs Service (Phase 3: Multi-language support)
  * Handles text-to-speech for English, Spanish, and Arabic with emotional expressiveness
@@ -32,10 +35,10 @@ class ElevenLabsService {
    *   remains the net for true outages. Never burn the fallback on a 500.
    * @private
    */
-  static async _postTts(url, body) {
+  static async _postTts(url, body, { json = false } = {}) {
     const post = (key) => axios.post(url, body, {
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      responseType: 'arraybuffer',
+      responseType: json ? 'json' : 'arraybuffer',
       timeout: 120000,
     });
 
@@ -52,6 +55,14 @@ class ElevenLabsService {
   }
 
   /**
+   * _postTts for an endpoint that answers JSON (the /with-timestamps call): the same primary → fallback-key rule.
+   * @private
+   */
+  static async _postTtsJson(url, body) {
+    return ElevenLabsService._postTts(url, body, { json: true });
+  }
+
+  /**
    * TRUE only when the key has genuinely RUN OUT of characters (operator,
    * 2026-08-23: "use fallback only if main NIETE key runs out"). A 429 is
    * load, not exhaustion — falling back on it would silently shift NIETE's
@@ -62,7 +73,10 @@ class ElevenLabsService {
   static _isQuotaError(error) {
     if (error.response?.status !== 401) return false;
     try {
-      const parsed = JSON.parse(Buffer.from(error.response?.data || '').toString('utf8'));
+      const data = error.response?.data;
+      // a JSON call's error body arrives parsed; an audio call's as bytes
+      const parsed = data && typeof data === 'object' && !Buffer.isBuffer(data) && !(data instanceof ArrayBuffer)
+        ? data : JSON.parse(Buffer.from(data || '').toString('utf8'));
       return parsed?.detail?.status === 'quota_exceeded';
     } catch (_) {
       return false;
@@ -230,9 +244,12 @@ class ElevenLabsService {
    * @param {string} languageCode - Language code for logging
    * @param {object} [voiceSettingsOverride] - replaces the per-language settings
    *   (video narration keeps its own expressive settings)
+   * @param {object} [opts] - { modelId, languageCode, outputFormat }: another model, the language named to it and
+   *   a smaller Ogg Opus rate (the web quiz's one voice: opus_48000_32 or opus_48000_64); without it the request
+   *   is exactly as before
    * @returns {Promise<Buffer>} Audio buffer (Ogg Opus)
    */
-  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride) {
+  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride, opts = {}) {
     try {
       logToFile('Generating speech with ElevenLabs', {
         textLength: text.length,
@@ -251,11 +268,12 @@ class ElevenLabsService {
 
       // bd-z5olm: Ogg Opus for the WhatsApp voice bubble — see generateSpeech.
       const response = await ElevenLabsService._postTts(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=opus_48000_64`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${OPUS_FORMATS.has(opts.outputFormat) ? opts.outputFormat : 'opus_48000_64'}`,
         {
           text: text,
-          model_id: 'eleven_v3', // v3 supports audio tags and emotion control
-          voice_settings: voiceSettings
+          model_id: opts.modelId || 'eleven_v3', // v3 supports audio tags and emotion control
+          voice_settings: voiceSettings,
+          ...(opts.modelId && opts.languageCode ? { language_code: opts.languageCode } : {}),
         }
       );
 
@@ -276,6 +294,59 @@ class ElevenLabsService {
         error: error.message,
         status: error.response?.status
       });
+      throw error;
+    }
+  }
+
+  /**
+   * generateSpeechWithVoice's pinned call, with the time of every character in the same generation (ElevenLabs
+   * /with-timestamps: no second call, no extra characters). The web quiz's one voice asks it for a question's clip,
+   * whose word times drive the read-along on the page.
+   *
+   * @param {string} text
+   * @param {string} voiceId
+   * @param {string} languageCode - for logging
+   * @param {object} [voiceSettings]
+   * @param {object} [opts] - { modelId, languageCode, outputFormat }, as generateSpeechWithVoice
+   * @returns {Promise<{audio: Buffer, alignment: {characters: string[], character_start_times_seconds: number[],
+   *   character_end_times_seconds: number[]}|null}>} the audio (Ogg Opus) and the provider's alignment of `text`
+   */
+  static async generateSpeechWithTimestamps(text, voiceId, languageCode, voiceSettings, opts = {}) {
+    try {
+      logToFile('Generating speech with timestamps with ElevenLabs', {
+        textLength: text.length,
+        voiceId,
+        language: languageCode
+      });
+
+      const response = await ElevenLabsService._postTtsJson(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=${OPUS_FORMATS.has(opts.outputFormat) ? opts.outputFormat : 'opus_48000_64'}`,
+        {
+          text: text,
+          model_id: opts.modelId || 'eleven_v3',
+          voice_settings: voiceSettings,
+          ...(opts.modelId && opts.languageCode ? { language_code: opts.languageCode } : {}),
+        }
+      );
+
+      const data = response.data || {};
+      const audioBuffer = Buffer.from(String(data.audio_base64 || ''), 'base64');
+
+      logToFile('✅ ElevenLabs speech with timestamps generated successfully', {
+        audioSize: audioBuffer.length,
+        voiceId,
+        language: languageCode
+      });
+
+      return { audio: audioBuffer, alignment: data.alignment || null };
+
+    } catch (error) {
+      logToFile('❌ Error generating speech with timestamps with ElevenLabs', {
+        language: languageCode,
+        voiceId,
+        error: error.message,
+        status: error.response?.status
+      }, 'error');
       throw error;
     }
   }
