@@ -9,10 +9,14 @@
  * Only JSON `true` is on; an absent row, `false`, any other value (the string "true", {enabled: true}, 1, "on") and a
  * failed read are all OFF, and OFF is today's send, stamp and order exactly. 30 s cache.
  *
- * Off reads no more app_settings than before. The switch is asked only when WhatsApp did not take a report (`send`),
- * and it rides the report's own settings reads: the fold switch (report-fold-flag, every story report and every
- * report with a finisher) and the teacher home switch (the stamp's quiz row, primeAlong) read it in the same query.
- * A quiz that has given up is known from the quiz row the report already reads (`triesIn`).
+ * Its settings read: this key rides the fold switch's read (report-fold-flag, settings-group): every fold read in a
+ * process that loaded this module (video-quiz-report does) fetches this key in the same query. The switch is asked
+ * only when WhatsApp did not take a report (`send`), or when a share code already holds three refused sends
+ * (`triesIn`, from the quiz row the report reads anyway), and on the story report and the report with finishers that
+ * is after the report's own fold read: no read of its own. When the fold switch has not been read within 30 s (a
+ * report nobody finished makes no fold read), the question costs ONE read of this key alone; it never answers from a
+ * read older than 30 s. A failed shared read leaves this switch off for 30 s (the fold switch reads its own key); a
+ * failed read of its own is off. It never rides the teacher home switch's read.
  *
  * The chat quiz's report (workers/quiz-job-handler, QuizReportService.generateReport) rides the same switch: its
  * "already fired" flag is set only when WhatsApp took the report; a refusal logs `quiz_report_send_failed` with
@@ -22,12 +26,15 @@ const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { settingsGroup } = require('../settings-group');
+const FoldFlag = require('./report-fold-flag');
 
 const KEY = 'quiz_report_send_checked';
 const TTL_MS = 30 * 1000;
 /** Tries per share code, the first send included. */
 const MAX_TRIES = 3;
-let cache = null; // { at, on }
+// rides the fold switch's read
+const group = settingsGroup(FoldFlag.KEY, [KEY], TTL_MS);
 
 // exactly JSON true — never a string
 function isTrue(value) {
@@ -36,12 +43,10 @@ function isTrue(value) {
 
 /** → true only when the switch reads a real true. Never throws. */
 async function on(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
+    const { data, error } = await group.rider(KEY, now);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    cache = { at: now, on: Boolean(data) && isTrue(data.value) };
-    return cache.on;
+    return Boolean(data) && isTrue(data.value);
   } catch (err) {
     logToFile('⚠️ class report: send-check setting unreadable — reports are stamped as before', { error: err && err.message });
     return false;
@@ -49,75 +54,37 @@ async function on(now = Date.now()) {
 }
 
 /** Tests only: forget the cached reading. */
-function reset() { cache = null; }
+function reset() { group.forget(KEY); }
 
 /** How old a reading known() still answers from. */
 const KNOWN_MAX_AGE_MS = 10 * 60 * 1000;
 
 /**
- * The switch as this process last read it, with NO read: true / false from a reading at most `maxAgeMs` old, null
- * when there is none. For a decision that must cost nothing when off (report-delivery remember).
+ * The switch as this process last read it, with NO read: true / false from a reading at most `maxAgeMs` old (its own
+ * read, or the fold switch's read that carried it), null when there is none. For a decision that must cost nothing
+ * when off (report-delivery remember).
  */
 function known(now = Date.now(), maxAgeMs = KNOWN_MAX_AGE_MS) {
-  return cache && now - cache.at < maxAgeMs ? cache.on : null;
-}
-
-/**
- * One app_settings read of `otherKey` together with this switch (`.in`), so a read the report makes anyway carries
- * the switch: this switch's cache is primed from it. → `{ found, value }` for `otherKey`, or null when the combined
- * read failed: the caller then reads its own key alone, as before (per-key fallback), and this switch stays unread,
- * so its own read decides (a failure there is OFF). Never throws.
- */
-async function readAlong(otherKey, now = Date.now()) {
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [otherKey, KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const rows = Array.isArray(data) ? data : [];
-    const mine = rows.find((r) => r && r.key === KEY);
-    cache = { at: now, on: Boolean(mine) && isTrue(mine.value) };
-    const other = rows.find((r) => r && r.key === otherKey);
-    return other ? { found: true, value: other.value } : { found: false, value: undefined };
-  } catch (err) {
-    logToFile('⚠️ class report: combined settings read failed — each key read alone', { key: otherKey, error: err && err.message });
-    return null;
-  }
-}
-
-/**
- * A cached switch module (`{ KEY, fresh(), prime(row) }`, e.g. first-touch/teacher-home.flags) about to read its key:
- * read it together with this switch instead. A fresh module, or one without fresh/prime, is left alone (no read is
- * added); a failed combined read leaves the module to read its key itself. Never throws.
- */
-async function primeAlong(flag, now = Date.now()) {
-  try {
-    if (!flag || typeof flag.fresh !== 'function' || typeof flag.prime !== 'function' || flag.fresh(now)) return;
-    const row = await readAlong(flag.KEY, now);
-    if (row) flag.prime(row, now);
-  } catch (_) { /* the module reads its own key */ }
+  const seen = group.seen(KEY);
+  return seen && now - seen.at < maxAgeMs ? Boolean(seen.data) && isTrue(seen.data.value) : null;
 }
 
 /**
  * A report send. → false only when the switch is on and WhatsApp did not take it (false, anything but a real true, or
  * a throw); then nothing may be stamped. Otherwise true, and a throw still throws when the switch is off: today's
- * `await send()`. An accepted send never asks the switch, so off reads nothing new; a refused one asks it after
- * `before()` (the path's own settings read, which carries the switch, run early).
+ * `await send()`. An accepted send never asks the switch, so it reads nothing new.
  */
-async function send(fn, { before = null } = {}) {
-  const onNow = async () => {
-    if (before) await before();
-    return on();
-  };
+async function send(fn) {
   let answer;
   try {
     answer = await fn();
   } catch (err) {
-    if (await onNow()) return false;
+    if (await on()) return false;
     throw err;
   }
   if (answer === true) return true;
-  return !(await onNow());
+  return !(await on());
 }
-
 
 /**
  * A share code as the logs may hold it: web-quiz.service codeHash's rule (the first 12 hex of HMAC-SHA256 under the
@@ -185,4 +152,4 @@ async function recordFailure({ path, sc, what = 'send', extra = null }) {
   return { tries, gaveUp: done };
 }
 
-module.exports = { on, reset, known, isTrue, readAlong, primeAlong, send, codeH, quizH, tkOf, triesIn, recordFailure, KEY, TTL_MS, MAX_TRIES, KNOWN_MAX_AGE_MS };
+module.exports = { on, reset, known, isTrue, send, codeH, quizH, tkOf, triesIn, recordFailure, KEY, TTL_MS, MAX_TRIES, KNOWN_MAX_AGE_MS };

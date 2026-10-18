@@ -139,6 +139,8 @@ function countReads() {
 }
 // The reads one generate() makes with the switch off, as the report-send-check suite pins them (cold caches).
 const BASE_COLD = { story: { app_settings: 1, quizzes: 4 }, noOne: { app_settings: 1, quizzes: 2 }, finished: { app_settings: 2, quizzes: 2 } };
+// a quiz report nobody took: no fold read, so no reading of the switch unless another read made one
+const noRead = (k) => k.source !== 'story' && !k.sessions;
 const baseOf = (k) => BASE_COLD[k.source === 'story' ? 'story' : (k.sessions ? 'finished' : 'noOne')];
 
 beforeEach(() => {
@@ -156,6 +158,8 @@ describe.each(KINDS)('%s', (_, kind) => {
   test('switch on, WhatsApp accepted: the report keeps its message id for 48 h', async () => {
     stubDb({ ...kind, setting: true });
     whatsappAccepts();
+    // a report nobody took makes no settings read: the worker's held reading is the fold switch's read (another report)
+    if (noRead(kind)) await FoldFlag.on();
     expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
     expect(db.quiz_share_codes[0].report_sent_at).not.toBeNull();
     expect(reportKeys()).toEqual(['report_msg:wamid.TEST1']);
@@ -165,6 +169,18 @@ describe.each(KINDS)('%s', (_, kind) => {
     expect(value).toMatchObject({ kind: kind.kind, share_code_id: SC, at: expect.any(String) });
     expect(JSON.stringify(value)).not.toMatch(/FIXTURE|TST7AB|Testwala/);
   });
+
+  if (noRead(kind)) {
+    test('switch on, accepted, no reading of the switch held (nothing read in this process): no id kept, and no read for it', async () => {
+      stubDb({ ...kind, setting: true });
+      whatsappAccepts();
+      const n = countReads();
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+      expect(db.quiz_share_codes[0].report_sent_at).not.toBeNull();
+      expect(reportWrites()).toHaveLength(0);
+      expect(reads(n)).toEqual(baseOf(kind));
+    });
+  }
 
   test.each(OFF)('switch off (%s): no Redis write, the sends called as today, the reads as today', async (_n, setting) => {
     stubDb({ ...kind, setting });
@@ -235,6 +251,23 @@ describe('the transport: the id reaches only a caller that collects it', () => {
     await Delivery.remember(['wamid.Y'], { kind: 'quiz', share_code_id: SC });
     expect(reportKeys()).toEqual(['report_msg:wamid.Y']);
   });
+
+  test.each([['this switch\'s own read', (t) => Flag.on(t)], ['the fold switch\'s read that carries it', (t) => FoldFlag.on(t)]])(
+    'remember() answers from %s up to 10 min old, never older, and reads nothing', async (_n, readAt) => {
+      const Delivery = require('../../shared/services/quiz/report-delivery');
+      stubDb({ source: 'video', sessions: 0, setting: true });
+      await readAt(Date.now() - 11 * MIN);
+      const n = countReads();
+      await Delivery.remember(['wamid.OLD'], { kind: 'quiz', share_code_id: SC });
+      expect(reportWrites()).toHaveLength(0);
+      expect(Flag.known()).toBeNull();
+      Flag.reset();
+      FoldFlag.reset();
+      await readAt(Date.now() - 9 * MIN);
+      await Delivery.remember(['wamid.NEW'], { kind: 'quiz', share_code_id: SC });
+      expect(reportKeys()).toEqual(['report_msg:wamid.NEW']);
+      expect(n.app_settings || 0).toBe(1);
+    });
 
   test('remember() with no reading of the switch in this process: nothing read, nothing written', async () => {
     const Delivery = (() => { try { return require('../../shared/services/quiz/report-delivery'); } catch (_) { return null; } })();

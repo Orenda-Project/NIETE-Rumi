@@ -298,7 +298,7 @@ describe('switch on (JSON true)', () => {
 
 // ─── the report's settings read is shared ───────────────────────────────────
 
-describe('the switch rides the fold switch\'s read (report-send-check readAlong)', () => {
+describe('the switch rides the fold switch\'s read (settings-group)', () => {
   test('host warm, rider cold: the refusal reads the switch itself, once, and it decides (on)', async () => {
     stubDb({ setting: true });
     await FoldFlag.on(); // the fold switch read, carrying this switch
