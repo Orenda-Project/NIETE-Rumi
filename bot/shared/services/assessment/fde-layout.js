@@ -1912,8 +1912,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
   });
   const sameDeclared = (p, q) => { const [a, b] = [declared.get(p), declared.get(q)]; return Boolean(a && b && a.grammar && b.grammar && !a.pair && a.name === b.name); };
   // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
-  // declares its concepts; a reply written before it was never asked to keep them once.
-  const counted = declared.size ? lessons : null;
+  // declares its concepts; a reply written before it was never asked to keep them once. A paper
+  // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
+  // their tags, and an item a top-up writes without one is still read by its stem.
+  const counted = declared.size || (src._layout && src._layout.counted === true) ? lessons : null;
   // `id`, the slot both items are placed in: Urdu Q1 items also give each other away by a story
   // name, and ask a grammar concept once.
   // A concept asked again is a twin. `hard`: only a twin that may never print; an antonym or a synonym
@@ -2169,6 +2171,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the holds by slot and rule, counts only. A paper laid out again from a laid paper (its held
   // items already gone) keeps the larger count the earlier layout recorded.
   if (P.key === 'urdu') {
+    if (counted) out._layout.counted = true;
     const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
     const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
     tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
