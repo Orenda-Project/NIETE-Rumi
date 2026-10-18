@@ -136,6 +136,51 @@ describe('switch ON (JSON true)', () => {
   });
 });
 
+describe('switch ON: each phase holds its own time (a slow read lands in its phase, never in the other)', () => {
+  const SLOW = 400; // ms; well above the in-memory fixture's own time for either phase
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** The video bank (a data-phase read on the full home, the quick home and the library) answering SLOW ms late. */
+  const slowBank = () => ({ ...deps(), Bank: { ...Bank, chipTree: async (...a) => { await sleep(SLOW); return Bank.chipTree(...a); } } });
+  /** The quick answer's switch read (a settings wait the home's route awaits) answering SLOW ms late. */
+  function slowPagedRead() {
+    const from1 = supabase.from;
+    supabase.from = (t) => {
+      const b = from1(t);
+      if (t !== 'app_settings') return b;
+      const eq1 = b.eq.bind(b);
+      b.eq = (k, v) => (v === PAGED ? { maybeSingle: async () => { await sleep(SLOW); return eq1(k, v).maybeSingle(); } } : eq1(k, v));
+      return b;
+    };
+  }
+  const phases = (res) => { expect(res.status).toBe(200); expect(res.headers['server-timing']).toMatch(TIMING_RX); return durs(res.headers['server-timing']); };
+
+  test.each([
+    ['home (full answer)', [], home],
+    ['home (quick answer)', [{ key: PAGED, value: true }], home],
+    ['library', [], library],
+  ])('%s: a slow data read is counted in db, not in settings', async (_, rows, ask) => {
+    seed({ rows: [...rows, { key: TIMING, value: true }] });
+    await boot(slowBank());
+    const d = phases(await ask());
+    expect(d.db).toBeGreaterThanOrEqual(SLOW - 20);
+    expect(d.settings).toBeLessThan(SLOW - 20);
+    expect(d.settings + d.db).toBeLessThanOrEqual(d.total + 2); // disjoint phases inside the whole (whole-ms rounding)
+  });
+
+  test.each([
+    ['home (full answer)', []],
+    ['home (quick answer)', [{ key: PAGED, value: true }]],
+  ])('%s: a slow quick-answer switch read is counted in settings, not in db', async (_, rows) => {
+    seed({ rows: [...rows, { key: TIMING, value: true }] });
+    slowPagedRead();
+    await boot();
+    const d = phases(await home());
+    expect(d.settings).toBeGreaterThanOrEqual(SLOW - 20);
+    expect(d.db).toBeLessThan(SLOW - 20);
+    expect(d.settings + d.db).toBeLessThanOrEqual(d.total + 2);
+  });
+});
+
 describe('switch OFF: today\'s headers and body (golden recorded on the base)', () => {
   test('absent row: home and library, every header but the volatile ones, and the body', async () => {
     seed();
