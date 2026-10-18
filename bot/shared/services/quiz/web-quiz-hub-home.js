@@ -153,11 +153,15 @@ async function phoneRows(binds, lang) {
   };
 }
 
-/** `{card_v3: true}` when the finish card's module is there and its switch is on, else `{}`. Never throws. */
+/** `{card_v3: true}` (+ `share_v4: true`) when the finish card's module is there and its switch is on, else `{}`. Never throws. */
 async function cardField() {
   const Card = optional('card', CARD_MODULE);
   if (!Card || typeof Card.field !== 'function') return {};
-  try { return (await Card.field()).card_v3 === true ? { card_v3: true } : {}; } catch (_) { return {}; }
+  try {
+    const f = await Card.field();
+    // the one share (web_quiz_share_v4) rides beside the card: the video's share waits for its card, never sends bare words
+    return f.card_v3 === true ? { card_v3: true, ...(f.share_v4 === true ? { share_v4: true } : {}) } : {};
+  } catch (_) { return {}; }
 }
 
 /**
