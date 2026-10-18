@@ -657,6 +657,77 @@ describe('E6 GET board (the class league table)', () => {
     const r = WQ.rankRows([{ first: 'a', pct: 50, correct: 2 }, { first: 'b', pct: 100, correct: 4 }, { first: 'c', pct: 100, correct: 4 }]);
     expect(r.map((x) => [x.first, x.place])).toEqual([['b', 1], ['c', 1], ['a', 3]]);
   });
+  // The watch quiz (app_settings VALUE web_quiz_watch_root) has no class, so it has no class table: its board, and the
+  // board of any code under it, is 404, as a friend's challenge code is. An unreadable root fails closed (404).
+  describe('the watch quiz has no class table', () => {
+    const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster');
+    const ROOT = '99999999-9999-4999-8999-999999999999';
+    const rootIs = (id) => { fake.db.app_settings = [{ key: 'web_quiz_watch_root', value: id }]; IdRoster._resetCache(); };
+    afterEach(() => { fake.db.app_settings = []; IdRoster._resetCache(); });
+    test('the root code itself: 404 (its finishers are every class-less child)', async () => {
+      rootIs(SC);
+      await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404, body: { error: 'not_found' } });
+    });
+    test('a code under the root: 404', async () => {
+      fake.db.quiz_share_codes.push({ id: ROOT, code: 'WATCH1', quiz_id: QUIZ, teacher_user_id: TEACHER, language: 'en', active: true, expires_at: ago(-240), invited_by_student_id: null, parent_share_code_id: null, created_at: ago(40) });
+      fake.db.quiz_share_codes.find((r) => r.id === SC).parent_share_code_id = ROOT;
+      rootIs(ROOT);
+      await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404 });
+    });
+    test('the root cannot be read: 404 (fails closed)', async () => {
+      rootIs(ROOT);
+      const from = supabase.from;
+      supabase.from = (t) => { if (t === 'app_settings') throw new Error('down'); return from(t); };
+      try {
+        await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404 });
+      } finally { supabase.from = from; }
+    });
+    // app_settings reads of the page's combined settings (the watch root's VALUE rides in it), failing the first n
+    const rootReads = (failFirst = 0) => {
+      const from = supabase.from;
+      const seen = { n: 0 };
+      supabase.from = (t) => {
+        const b = from(t);
+        if (t !== 'app_settings') return b;
+        const sel = b.select.bind(b);
+        b.select = (...a) => { const q = sel(...a); const inn = q.in && q.in.bind(q); if (inn) q.in = (k, v) => { if (Array.isArray(v) && v.includes('web_quiz_watch_root')) { seen.n += 1; if (seen.n <= failFirst) throw new Error('down'); } return inn(k, v); }; return q; };
+        return b;
+      };
+      seen.restore = () => { supabase.from = from; };
+      return seen;
+    };
+    test('one failed read, then a good one: the table\'s rows as today (a blip never closes a class\'s table)', async () => {
+      const base = await WQ.board('AB12CD');
+      rootIs(ROOT);
+      const r = rootReads(1);
+      try {
+        expect(await WQ.board('AB12CD')).toEqual(base);
+        expect(r.n).toBe(2);
+      } finally { r.restore(); }
+    });
+    test('two failed reads: 404', async () => {
+      rootIs(ROOT);
+      const r = rootReads(2);
+      try {
+        await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404 });
+        expect(r.n).toBe(2);
+      } finally { r.restore(); }
+    });
+    test('a good read: the watch root is read once, never twice', async () => {
+      rootIs(ROOT);
+      const r = rootReads(0);
+      try {
+        await WQ.board('AB12CD');
+        expect(r.n).toBe(1);
+      } finally { r.restore(); }
+    });
+    test('a class code with the root set elsewhere: its rows, as today', async () => {
+      const base = await WQ.board('AB12CD');
+      rootIs(ROOT);
+      expect(await WQ.board('AB12CD')).toEqual(base);
+      expect(base.finishers_n).toBe(1);
+    });
+  });
 });
 
 describe('E7 POST me', () => {
