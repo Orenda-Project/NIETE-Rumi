@@ -2845,6 +2845,7 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
 // bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the
@@ -3793,6 +3794,7 @@ app.get('*', (req, res, next) => {
   // - /api/* - Backend API routes (portal + observability APIs)
   // - /observability/* - Admin observability dashboard
   const isExcludedPath = req.path.startsWith('/api/') || req.path.startsWith('/observability/');
+  if (require('./routes/portal-fln.routes').flnPreview.wants(req)) return require('./routes/portal-fln.routes').flnPreview.send(req, res);
 
   if (!isExcludedPath) {
     // Serve portal frontend (teacher portal React app)
