@@ -108,6 +108,28 @@ describe('the shelves (switch on)', () => {
     expect([...names]).toEqual(['wq-vpulse']);
     names.forEach((n) => expect(count(all, new RegExp(`@keyframes\\s+${n}\\s*\\{`, 'g'))).toBe(1));
   });
+  test('the shelves look balanced: a third card peeks at 360, Quiz buttons line up, a failed shelf is one centred box with a button sized like See all', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-doors.css'), 'utf8');
+    const rule = (sel) => { const m = new RegExp(`(^|\\n|\\})${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{([^}]*)\\}`).exec(css); return m ? m[2] : ''; };
+    // a shelf card is about 2.3 to a row (so the next one shows), never narrower than 136 px or wider than 180 px
+    expect(rule('.wq-vrow .wq-vcard')).toMatch(/width:clamp\(136px,calc\(\(100% - 24px\) \/ 2\.3\),180px\)/);
+    // a card's Quiz sits at its bottom, so a two-line title never pushes one Quiz lower than its neighbour's
+    expect(rule('.wq-vcard .wq-vq')).toMatch(/margin-top:auto/);
+    // a failed shelf: one tinted box the height of a row, the words over the button, centred; no second grey box
+    expect(rule('.wq-vrow[data-fetch=failed]')).toMatch(/flex-direction:column/);
+    expect(rule('.wq-vrow[data-fetch=failed]')).toMatch(/min-height:150px/);
+    expect(rule('.wq-vrow[data-fetch=failed] .wq-voops')).toMatch(/background:none/);
+    expect(rule('.wq-vretry')).toMatch(/font-size:16px/);
+    // Urdu: the See all and Try again words sit clear of the pill's top border
+    expect(rule('html[lang=ur] .wq-vsall,html[lang=ur] .wq-vretry')).toMatch(/padding-top:6px/);
+  });
+  test.each(['en', 'ur'])('%s: the watch screen with the shelves on marks its player, so the play triangle is never mirrored (it points right in Urdu too)', (lang) => {
+    const W = F.load();
+    const on = W.WQDOORS.html(F.boot(lang, SHELF()), { token: TOKEN, lang }, `watch/${VID}`, { watch: WATCH, next: null });
+    expect(on).toMatch(/<div class="wq-vbox wq-vbox--s">/);
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-doors.css'), 'utf8');
+    expect(css).toContain('html[dir=rtl] .wq-vbox--s .wq-vplay{transform:none}');
+  });
   test('one record per card: the thumbnail, the title, the minutes and both taps name the same lesson', () => {
     const W = F.load();
     const h = W.WQDOORS.shelfHtml(CH, { token: TOKEN, lang: 'en' });
