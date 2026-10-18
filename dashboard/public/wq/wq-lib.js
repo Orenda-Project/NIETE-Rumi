@@ -109,6 +109,8 @@
         // The hub link is bound to the child's phone: on any other phone the bot answers 401.
         if (r.status === 401 && o.hub) { var e = new Error('lib_locked'); e.locked = true; throw e; }
         if (!r.ok || !j) throw new Error('lib_' + r.status);
+        // The one-button look (the bot's `one_button`): its class on <html> before the library draws (wq-tel.js).
+        try { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(j); } catch (e) {}
         put(k, j);
         return j;
       });
