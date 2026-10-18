@@ -377,6 +377,8 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
         return;
       }
       stopActive();
+      // An error means the original failed too, so preferring it is unproven: a retry walks mirror → orig again.
+      if (cur === 'error') e.preferOrig = undefined;
       start(e, owner);
     },
 
