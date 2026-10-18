@@ -1009,7 +1009,7 @@ const Q6_SLOT = 'social_studies.D.Q6';
 const ASK_WORDS = new Set(['کون', 'کونسا', 'کونسی', 'کیا', 'کیوں', 'کیسے', 'کتنے', 'کتنی', 'کتنا', 'کب', 'کہاں', 'کس', 'کن']);
 const FACT_WORDS = new Set(['کون', 'کونسا', 'کونسی', 'کتنے', 'کتنی', 'کتنا', 'کب', 'کہاں', 'کس', 'کن']);
 const ASKS = /بتائیں|بتاؤ|لکھیں|وضاحت|سمجھائیں|بیان کریں|جواب دیں|پوچھت|جاننا چاہت/;
-const APPLIES = /چاہیے|چاہئے|چاہییں|مشورہ|تجویز|اقدام|طریق|مراحل|اپنائیں|کرائیں|کریں گے|سکتے ہیں|سکتی ہے|سکتا ہے|ہوتے تو|فیصلہ کریں|منتخب کرے|لاگو|درست ہے|صحیح ہے|مناسب|استعمال|انتظامات|اپنا حل/;
+const APPLIES = /چاہیے|چاہئے|چاہییں|مشورہ|مشورے|مشوروں|رائے دیں|بتائیں کہ وہ کیا کرے|تجویز|اقدام|طریق|مراحل|اپنائیں|کرائیں|کریں گے|سکتے ہیں|سکتی ہے|سکتا ہے|ہوتے تو|فیصلہ کریں|منتخب کرے|لاگو|درست ہے|صحیح ہے|مناسب|استعمال|انتظامات|اپنا حل/;
 const EXPLAINS = /کیوں|وجہ|اثر|فائدہ|فائدے|نقصان|اہمیت|ضروری|فرق|موازنہ|جیسے|مشابہ|ملتا|ملتی|مختلف|خوبی|کیسے(?!\s*(چنا|چنے|چنی|منتخب))/;
 const WHICH_TIER = /(کون|کس)\s+(کس\s+)?(سی\s+|سا\s+)?(کام\s+)?(سطح\s+(کی\s+)?)?(مقامی\s+|صوبائی\s+|وفاقی\s+)?حکومت/;
 const DONE = /^(تھا|تھی|تھے|کیا|کی|کیے|اٹھایا|دیا|گیا|گئی|گئے|ہوا|ہوئی)$/;
@@ -1044,12 +1044,26 @@ function asksRecall(q) {
 // آپ بلال کو مفصل جواب دیں»; «حمزہ جاننا چاہتا ہے کہ صحرا میں کھیتی باڑی کیوں نہیں ہوتی …»): its answer is
 // the book's text in order, a Q5 in a story. The relayed question is read apart from the rest of the
 // stem, so what it asks («… کیا کرنا چاہیے») is not a decision the child makes. Held when no sentence
-// outside it asks the child to decide or advise. «بغیر پوچھے» relays nothing.
-const RELAYS = /(?:پوچھا|پوچھتا|پوچھتی|پوچھتے|پوچھنا|جاننا\s*چاہت[اےی]|معلوم\s*کرنا\s*چاہت[اےی])(?:\s*(?:ہے|ہیں|تھا|تھی|تھے))?\s*کہ(?:\s|$)/;
+// outside it asks the child to decide or advise. «بغیر پوچھے» relays nothing. A relay may end in a colon
+// («علی نے استاد سے پوچھا: زلزلہ کیا ہوتا ہے …؟»), and what the child is asked may follow it in the same
+// sentence, after a comma, spoken to the child («…، آپ اسے دو مشورے دیں کہ وہ کیا کرے»).
+const RELAYS = /(?:پوچھا|پوچھتا|پوچھتی|پوچھتے|پوچھنا|جاننا\s*چاہت[اےی]|معلوم\s*کرنا\s*چاہت[اےی])(?:\s*(?:ہے|ہیں|تھا|تھی|تھے))?\s*(?:کہ(?:\s|$)|[:：])/;
 function asksFrame(q) {
   const sentences = String((q && q.question) || '').split(/(?<=[۔؟?!])|\n/).map((x) => x.trim()).filter(Boolean);
   if (!sentences.some((x) => RELAYS.test(x))) return false;
-  return !sentences.filter((x) => !RELAYS.test(x)).some((x) => APPLIES.test(x));
+  const outside = sentences.flatMap((x) => (RELAYS.test(x) ? x.split(/[،,]/).slice(1).filter((c) => /^\s*آپ\s/.test(c)) : [x]));
+  return !outside.some((x) => APPLIES.test(x));
+}
+
+// Social Studies Q6: a story that only asks the child to tell someone what a place or a system is like
+// («زارا کو بتائیں کہ وہاں موسم کیسا ہو گا …», «دونوں نظاموں کا موازنہ کرتے ہوئے بتائیں کہ … کون سی سہولتیں …»):
+// its answer is the book's description in order, a Q5 in a story. Held when nothing in it asks the child to
+// decide or advise (what someone should do, whom to turn to: «کیا کرنا چاہیے», «مشورے», «کس سے بات کرے»).
+const TELLS = /کو\s+بتائیں\s+کہ[^۔؟?!]*(?:کیسا|کیسی|کیسے|کیا|کون\s*سی|کون\s*سے|کون\s*سا)|موازنہ\s+کرتے\s+ہوئے\s+بتائیں\s+کہ/;
+const DECIDES = /مشورہ|مشورے|مشوروں|رائے دیں|فیصلہ|تجویز|اقدام|کیا کرے|کیا کریں|کیا کرنا|(?:کرنا|کرنی|کرنے)\s*چاہی|(?:رکھے|کرے|کریں|اپنائے|کہے)(?![\p{L}])(?!\s*(?:سکت|گا|گی|گے))/u;
+function tellsWhat(q) {
+  const stem = String((q && q.question) || '');
+  return TELLS.test(stem) && !DECIDES.test(stem);
 }
 
 // Social Studies: a Q6 whose answer only names who does a job («تجاوزات ہٹانے کے لیے صوبائی حکومت کا
@@ -1845,14 +1859,15 @@ function heldNote(section, held) {
     + 'Never these: write none of them again, and no item answered by any of these answers or points, in any wording.';
 }
 // Social Studies: the Q6 items set aside as book-fact recall (asksRecall, namesBody), and what a Q6 is instead.
-const RECALL_RULES = new Set(['recall', 'names_body', 'asks_frame']);
+const RECALL_RULES = new Set(['recall', 'names_body', 'asks_frame', 'tells_what']);
 function recallNote(section, held) {
   if (!section.slots.some((s) => s.slot === Q6_SLOT)) return null;
   const list = (Array.isArray(held) ? held : []).filter((h) => h && RECALL_RULES.has(h.rule) && h.slot === Q6_SLOT && h.q && typeof h.q.question === 'string');
   const lines = list.map(({ q }) => `- ${q.question.trim()}`);
   if (!lines.length) return null;
   const why = (list.some((h) => h.rule === 'names_body') ? ', or only names a government, court or body as its answer' : '')
-    + (list.some((h) => h.rule === 'asks_frame') ? ', or only relays what someone asks («… نے پوچھا کہ …», «… جاننا چاہتا ہے کہ …») so its answer is the book\'s text' : '');
+    + (list.some((h) => h.rule === 'asks_frame') ? ', or only relays what someone asks («… نے پوچھا کہ …», «… جاننا چاہتا ہے کہ …») so its answer is the book\'s text' : '')
+    + (list.some((h) => h.rule === 'tells_what') ? ', or only asks to tell someone what a place or a system is like («… کو بتائیں کہ … کیسا …») so its answer is the book\'s description' : '');
   return `These Q6 items were set aside: each asks only book facts (who heads or chairs a body, what it is called, how many, when, what was done)${why}, whatever the story around them:\n${lines.join('\n')}\n`
     + 'A Q6 is a situation that needs two ideas applied; history recall goes to Q7. Write each new Q6 so the child decides, advises or explains what to do in the case, using two different ideas from these pages.';
 }
@@ -2088,6 +2103,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksRecall(q)) return hold(slot, q, 'recall');
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && namesBody(q)) return hold(slot, q, 'names_body');
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksFrame(q)) return hold(slot, q, 'asks_frame');
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && tellsWhat(q)) return hold(slot, q, 'tells_what');
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.
