@@ -197,6 +197,50 @@ describe('web_quiz_home_preload on the hub JSON', () => {
     expect([locked.locked, locked.home_pre]).toEqual([true, true]);
   });
 
+  // Every switch the services read (each 'web_quiz_...' string in shared/services) is on at once, so a field added to either
+  // hub builder (the serial one or the reads-together one) is in play: the preload switch changes `home_pre` and nothing
+  // else, and the reads-together switch changes nothing of the answer.
+  describe('every switch on', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : /\.js$/.test(e.name) ? [path.join(d, e.name)] : []));
+    const EVERY_KEY = [...new Set(walk(path.join(__dirname, '../../../shared/services')).flatMap((p) => fs.readFileSync(p, 'utf8').match(/['"]web_quiz_[a-z0-9_]+['"]/g) || []).map((k) => k.slice(1, -1)))];
+    const allOn = (except = []) => EVERY_KEY.filter((k) => !except.includes(k)).map((key) => ({ key, value: true }));
+    // Each shelf item's `offer` is a fresh random token per answer; the child-facing fast switch warms from its own read
+    // on the first answer (a throwaway first answer, then the one compared), so neither is a difference of ours.
+    const FastSwitch = require('../../../shared/services/quiz/web-quiz-fast');
+    const answer = async (rows) => {
+      again(); FastSwitch._reset(); db.app_settings = rows;
+      await carried(T.signHub([KID]), A); again(); db.app_settings = rows;
+      return JSON.parse(JSON.stringify(await carried(T.signHub([KID]), A), (k, v) => (k === 'offer' ? undefined : v)));
+    };
+
+    test('the list is real (it names the hub, the fan-out and the preload switches)', () => {
+      expect(EVERY_KEY).toEqual(expect.arrayContaining(['web_quiz_hub', 'web_quiz_hub_fanout', KEY]));
+    });
+
+    test('preload ON vs OFF with the reads-together path on: only `home_pre` differs', async () => {
+      const off = await answer(allOn([KEY]));
+      expect(Flags.fanoutNow()).toBe(true);
+      const on = await answer(allOn());
+      expect(Flags.fanoutNow()).toBe(true);
+      expect(off).not.toHaveProperty('home_pre');
+      expect(on.home_pre).toBe(true);
+      delete on.home_pre;
+      expect(on).toEqual(off);
+    });
+
+    test('reads-together ON vs OFF with the preload on: the same answer, `home_pre` on both', async () => {
+      const serial = await answer(allOn(['web_quiz_hub_fanout']));
+      expect(Flags.fanoutNow()).toBe(false);
+      const together = await answer(allOn());
+      expect(Flags.fanoutNow()).toBe(true);
+      expect(serial.home_pre).toBe(true);
+      expect(together.home_pre).toBe(true);
+      expect(together).toEqual(serial);
+    });
+  });
+
   test('the key rides the hub\'s one batched settings read: same app_settings reads ON as OFF', async () => {
     let n = counting();
     await carried(T.signHub([KID]), A);
