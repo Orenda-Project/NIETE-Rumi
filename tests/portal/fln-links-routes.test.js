@@ -1,6 +1,5 @@
 /**
  * bd-t7zk3t.12 (PR-D) — the leader routes of Reading Hour + Numeracy (contracts/api.md v2):
- *   GET /api/portal/fln/me         what this session may see (lessons, share, role, ui_lang)
  *   GET /api/portal/fln/links      the link builder's rows (leaders with the share switch only)
  *   GET /api/portal/fln/title/:id  the signed-out banner's title (no sign-in; title, lang, dir only)
  *
@@ -127,25 +126,9 @@ beforeEach(async () => {
 
 afterEach(() => new Promise((resolve) => server.close(resolve)));
 
-describe('GET /fln/me', () => {
-  it('answers the access shape for the session user, never cached', async () => {
-    const r = await get('/me', LEADER);
-    expect(r.status).toBe(200);
-    expect(r.body).toEqual({ lessons: true, share: true, role: 'coach', ui_lang: 'ur' });
-    expect(mockAccess).toHaveBeenCalledWith(LEADER);
-    expect(r.cache).toBe('no-store');
-  });
-  it('is 401 signed out, still no-store', async () => {
-    const r = await get('/me');
-    expect(r.status).toBe(401);
-    expect(r.cache).toBe('no-store');
-    expect(mockAccess).not.toHaveBeenCalled();
-  });
-  it('a failed access read is "nothing", not a 500', async () => {
-    mockAccess.mockRejectedValue(new Error('db down'));
-    const r = await get('/me', LEADER);
-    expect(r.status).toBe(200);
-    expect(r.body).toEqual({ lessons: false, share: false, role: null, ui_lang: 'en' });
+describe('GET /fln/me is not this router\'s (m-app, PR-C)', () => {
+  it('answers 404 here', async () => {
+    expect((await get('/me', LEADER)).status).toBe(404);
   });
 });
 
