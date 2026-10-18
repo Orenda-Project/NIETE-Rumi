@@ -617,7 +617,10 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   const p = hubPageParts({ payload, token, origin, assetV });
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+  // web_quiz_wait_ux on, but this portal process flushed the frame before it learnt so (each process learns from its own
+  // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once.
+  const lateWait = WaitUx.on(payload) && !String(guess.frame || '').includes(WaitUx.TAG) ? WaitUx.TAG : '';
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${lateWait}${p.tail}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
