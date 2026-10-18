@@ -1,0 +1,13 @@
+{
+  "about": "Every known source of a report on the child pages under the report-only policy (routes/child-csp.js), as (directive, file in public/wq, matched text, count). Read by tests/child-csp-known.service.test.js. ONLY EVER SHRINKS: fix a source, remove or lower its entry, and lower KNOWN_MAX / KNOWN_COUNT_MAX in the test.",
+  "entries": [
+    { "directive": "script-src-attr", "file": "hub.js", "match": " onerror=\"", "count": 2, "what": "video tile and poster pictures hide themselves when they fail" },
+    { "directive": "script-src-attr", "file": "wq-finish-card.js", "match": " onerror=\"", "count": 1, "what": "the finish card's book cover hides itself when it fails" },
+    { "directive": "script-src-attr", "file": "wq-lib.js", "match": " onerror=\"", "count": 2, "what": "library posters: hide, or try the fallback picture" },
+    { "directive": "script-src-attr", "file": "wq-stories.js", "match": " onerror=\"", "count": 1, "what": "story pictures report a broken picture" },
+    { "directive": "script-src-attr", "file": "wq.js", "match": " onerror=\"", "count": 3, "what": "question pictures clear their loading look, or hide their figure" },
+    { "directive": "script-src-attr", "file": "wq.js", "match": " onload=\"", "count": 3, "what": "question pictures clear their loading look" },
+    { "directive": "connect-src", "file": "wq-challenge.js", "match": "fetch(u.put_url", "count": 2, "origin": "the recording store's signed upload address (another origin)", "what": "a reading's recording is PUT straight to storage" },
+    { "directive": "connect-src", "file": "wq.js", "match": "mode: 'no-cors'", "count": 1, "origin": "a question's voice clip address, when it is not this site", "what": "the next questions' clips are warmed into the cache" }
+  ]
+}

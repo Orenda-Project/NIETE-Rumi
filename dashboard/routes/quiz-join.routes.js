@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const ChildCsp = require('./child-csp');
 const { createBotClient, bootJson, assetVersion } = require('./web-quiz.routes');
 
 // A signed j token (bot web-quiz-student-join.js signJoin): base64url payload "." 22-char signature.
@@ -187,6 +188,8 @@ function createQuizJoinRouter(opts = {}) {
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
   const logEvent = opts.logEvent || ((e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } });
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent });
+  // web_quiz_child_csp (child-csp.js): the drawn join page's report-only policy (the early tap's script by its hash)
+  const joinCsp = ChildCsp.createChildCsp({ on: typeof opts.childCspOn === 'function' ? opts.childCspOn : ChildCsp.childCspOn, hashes: [ChildCsp.scriptHash(EARLY_TAP)] });
   const router = express.Router();
   const read = rateLimit({ windowMs: 60 * 1000, standardHeaders: false, legacyHeaders: false, max: 300 });
   let assetV = null;
@@ -213,6 +216,7 @@ function createQuizJoinRouter(opts = {}) {
 
   function draw(req, res, token, out) {
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+    joinCsp(res);
     if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale', bot: cleanBot(out.body && out.body.bot) }));
     if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error', bot: lastBot }));
     assetV = assetV || assetVersion();

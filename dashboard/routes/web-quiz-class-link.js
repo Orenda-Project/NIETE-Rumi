@@ -66,7 +66,8 @@ function registerClassLink(router, d) {
     });
   }
 
-  router.get('/j/:code', d.limiters.read, d.unknownCode, async (req, res) => {
+  // d.childCsp: the child pages' report-only policy (web_quiz_child_csp; off, it sets nothing)
+  router.get('/j/:code', d.limiters.read, d.unknownCode, d.childCsp || ((req, res, next) => next()), async (req, res) => {
     d.pageHeaders(res);
     const origin = d.originOf(req);
     const code = String(req.params.code || '');
