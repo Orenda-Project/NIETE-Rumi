@@ -54,3 +54,33 @@ describe('web_quiz_stories_slow_gaps', () => {
     await expect(Stories.bookData(F.BOOK(1))).rejects.toMatchObject({ status: 404 });
   });
 });
+
+// The page-listened row says when the child listened with Slower on (`slow: 1`), only with the switch on; off, the row is
+// exactly today's (the read of Slower on vs off goes to the retention numbers).
+describe('story_page_listened says slow: 1, only with web_quiz_stories_slow_gaps on', () => {
+  async function listened(settings, data) {
+    Stories._reset();
+    seed(settings);
+    await Stories.event('hub-token', { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_listened', data });
+    return supabase.db.story_events.map((r) => r.data);
+  }
+  const ON = [{ key: 'web_quiz_stories_slow_gaps', value: true }];
+  test('on + Slower on: slow: 1 is kept with the page\'s numbers', async () => {
+    expect(await listened(ON, { ms: 5200, completed: true, slow: 1 })).toEqual([{ ms: 5200, completed: true, slow: 1 }]);
+  });
+  test('on, anything but the number 1 is dropped', async () => {
+    for (const slow of [true, '1', 2, 0, 'yes']) expect(await listened(ON, { ms: 10, completed: false, slow })).toEqual([{ ms: 10, completed: false }]);
+  });
+  test('off, absent or not a literal true: slow is dropped and the row is byte-identical to today\'s', async () => {
+    const base = JSON.stringify(await listened([], { ms: 5200, completed: true }));
+    for (const settings of [[], [{ key: 'web_quiz_stories_slow_gaps', value: false }], [{ key: 'web_quiz_stories_slow_gaps', value: 'true' }]]) {
+      expect(JSON.stringify(await listened(settings, { ms: 5200, completed: true, slow: 1 }))).toBe(base);
+    }
+  });
+  test('other events never keep slow', async () => {
+    Stories._reset();
+    seed(ON);
+    await Stories.event('hub-token', { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { ms: 10, slow: 1 } });
+    expect(supabase.db.story_events[0].data).toEqual({ ms: 10 });
+  });
+});

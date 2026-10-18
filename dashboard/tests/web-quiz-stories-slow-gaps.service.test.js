@@ -372,9 +372,10 @@ function reader({ lang = 'en', gapsKey, slowStored } = {}) {
   const store = { m: {}, getItem(k) { return k in this.m ? this.m[k] : null; }, setItem(k, v) { this.m[k] = String(v); } };
   if (slowStored) store.setItem('wq_st_slow:' + KID, slowStored);
   const posts = [];
+  const bodies = [];
   const fetch = (url, init) => {
     init = init || {};
-    if ((init.method || 'GET') === 'POST') posts.push(url);
+    if ((init.method || 'GET') === 'POST') { posts.push(url); bodies.push(init.body); }
     const r = /\/stories\/book\//.test(url) ? { status: 200, body: bk } : { status: 200, body: { ok: true } };
     return Promise.resolve({ status: r.status, ok: true, json: () => Promise.resolve(r.body) });
   };
@@ -396,7 +397,7 @@ function reader({ lang = 'en', gapsKey, slowStored } = {}) {
   const clock = { now: () => now, set: () => 0, clear() {} };
   const root = fakeEl('root');
   const open = async () => { win.WQSTORIES.open('b-1', { token: 'tok', kid: KID, lang, clock, root }); await flush(); await flush(); return root; };
-  return { w, win, root, open, store, posts };
+  return { w, win, root, open, store, posts, bodies };
 }
 // the clip of the page on screen (the player listens to it; the next page's warm-up copy has no listeners)
 const pl = (r) => r.w.audios.filter((a) => (a.l.ended || []).length).pop();
@@ -510,5 +511,32 @@ describe('the switch OFF: Slower is exactly today\'s (golden)', () => {
     await r.open();
     expect(pl(r)._r).toBe(1);
     expect(pl(r).preservesPitch).toBe(true);
+  });
+});
+
+// Slower in the page-listened event (`slow: 1`), only with the switch on; off, the posted body is today's, byte for byte.
+describe('story_page_listened says slow: 1 when the child listened with Slower on (switch on only)', () => {
+  async function listenedBodies(o) {
+    const r = reader(o);
+    const root = await r.open();
+    fire(root, 'main');
+    r.w.run(9000);
+    await flush();
+    return r.bodies.filter((b) => /story_page_listened/.test(String(b)));
+  }
+  test.each(['en', 'ur'])('%s: on + Slower on → slow: 1 with the page\'s numbers', async (lang) => {
+    const got = await listenedBodies({ lang, gapsKey: true, slowStored: '1' });
+    expect(got).toHaveLength(1);
+    expect(JSON.parse(got[0]).data).toEqual({ ms: 0, completed: true, slow: 1 });
+  });
+  test('on + Slower off → no slow', async () => {
+    const got = await listenedBodies({ gapsKey: true });
+    expect(JSON.parse(got[0]).data).toEqual({ ms: 0, completed: true });
+  });
+  test('off (absent or false), Slower on or off → the body is byte-identical to today\'s', async () => {
+    const base = await listenedBodies({});
+    expect(base).toHaveLength(1);
+    expect(base[0]).not.toContain('slow');
+    for (const o of [{ slowStored: '1' }, { gapsKey: false, slowStored: '1' }, { gapsKey: false }]) expect(await listenedBodies(o)).toEqual(base);
   });
 });

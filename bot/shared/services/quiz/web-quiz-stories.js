@@ -52,7 +52,7 @@ const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read'
 // What each event may keep (numbers and small enums only: never a word the child said, never a name).
 const KEEP = {
   story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
-  story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool' },
+  story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool', slow: 'one' },
   story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints' },
   story_questions_done: {},
   story_done: { pages_listened: 'int', pages_read: 'int', stars: 'int' },
@@ -205,6 +205,7 @@ function keep(event, data) {
     if (v === undefined || v === null) return;
     if (spec[k] === 'int' && int(v) !== null) out[k] = Math.max(0, Math.min(int(v), 10000000));
     else if (spec[k] === 'bool' && typeof v === 'boolean') out[k] = v;
+    else if (spec[k] === 'one' && v === 1) out[k] = 1;
     else if (spec[k] === 'lang' && (v === 'en' || v === 'ur')) out[k] = v;
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
     else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
@@ -447,6 +448,8 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 1 || page > (Number(b.pages) || 0))) fail(400, 'bad_page');
   let kept = keep(name, data);
+  // Listened with Slower on (`slow: 1`): kept only with the gaps switch on, else the row is today's
+  if (kept.slow && !(await flags()).gaps) delete kept.slow;
   const out = { ok: true };
   if (name === 'story_questions_done') {
     const qs = await reviewedQuestions(b.id);

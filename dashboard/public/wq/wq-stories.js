@@ -372,7 +372,7 @@
       acc = 0;
     }
     R.fl = flush;
-    var pp = R.pp = function (ev, d, k, ka) { var n = P[k] && P[k].n; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n, ka); };
+    var pp = R.pp = function (ev, d, k, ka) { var n = P[k] && P[k].n; if (b.slow_gaps && slow()) d.slow = 1; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n, ka); };
     function kill() {
       if (cur === R) { flush(); cur = null; }
       drop(); if (R.au) R.au.pause(); if (R.un) R.un();
@@ -482,7 +482,7 @@
     }
     R.mount = mount;
     function slow() { return ls('wq_st_slow:' + (ctx.kid || '')) === '1'; }
-    function rate() { var p = R.pl; if (p && p.slow) p.slow(slow(), b.slow_gaps); }
+    function rate() { if (R.pl && R.pl.slow) R.pl.slow(slow(), b.slow_gaps); }
     function extra() {
       var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';   // after Your turn: wq-stories-q.js
       if (a) h = '<button class="wqs-sec" data-tap="alt"' + (a === 'hearFirst' ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[a]) + '</button>' + h;
