@@ -52,6 +52,11 @@ function on(now = Date.now()) {
   return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
 }
 
+/** The cached value only: never starts a read (a cold or expired cache is off). The page answers keep it warm. */
+function peek(now = Date.now()) {
+  return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
+}
+
 /** The switch, waited for (tests). */
 async function flag(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
@@ -66,4 +71,4 @@ function carry(answerP) {
   return Promise.resolve(answerP).then((out) => (out && typeof out === 'object' && !Array.isArray(out) && out.fast === true && on() ? Object.assign(out, { [FIELD]: true }) : out));
 }
 
-module.exports = { on, flag, carry, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, peek, flag, carry, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };

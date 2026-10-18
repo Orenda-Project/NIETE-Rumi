@@ -6,7 +6,7 @@
  * Each portal process remembers a few switches it learns from a quiz or hub payload (`fast`, `brand`, `rt`, `ui`,
  * `one_face`, `wait_ux`); after a deploy it knows none of them until its first page. GET /api/internal/wq/edge answers:
  *   off → { learn: false } and nothing else (the portal then stops asking: one ask per process);
- *   on  → { learn: true, fast, brand, rt[, ui], one_face, wait_ux, wait_share }: exactly those payload fields, read through the same
+ *   on  → { learn: true, fast, brand, rt[, ui], one_face, wait_ux, wait_share, plain_paint }: exactly those payload fields, read through the same
  *         cached switches the payloads use (no child, teacher or class data, no ids). `one_face` and `wait_ux` are always
  *         there as true or false, so the portal can tell "off" from a bot that does not say (absent: it keeps what it had).
  *         `wait_ux` and `wait_share` (wait_ux and web_quiz_hub_fanout both on) come from the same batched read as this
@@ -56,7 +56,10 @@ async function answer() {
   const [brand, rt, ui] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui()]);
   // wait_share: the frame's read share, on with wait_ux AND web_quiz_hub_fanout (as web-quiz-wait-ux.js carry()), same read.
   const waitUx = f.waitUx === true;
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true };
+  // plain_paint: a guessed first paint says no words (web-quiz-plain-paint.js): its cached value only, with the fast page
+  // on (no read of its own; the quiz and hub answers keep that cache warm).
+  const plain = fast === true && require('./web-quiz-plain-paint').peek();
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, plain_paint: plain };
 }
 
 /** The hub answer (or its promise) with `edge_learn: true` added while on; the same answer, untouched, while off. */

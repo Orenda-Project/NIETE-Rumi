@@ -894,6 +894,7 @@ function createWebQuizRouter(opts = {}) {
     lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
+    if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
     lastFast = b.fast === true;
   };
   const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
