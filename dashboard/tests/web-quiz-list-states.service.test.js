@@ -328,6 +328,36 @@ describe('the Stories door: a server that answers its own failure keeps the boot
   });
 });
 
+describe('the Stories door: the doors read itself failing never reads as "no stories" (en, ur)', () => {
+  const NOTES = { en: 'New stories are on the way', ur: 'نئی کہانیاں آ رہی ہیں' };
+  // the markup a child sees: the fallback the page holds hidden (until the shelf answers with none) is cut out
+  const seen = (h) => h.replace(/<div data-shelf-fallback="1" hidden>[\s\S]*?<\/a><\/div><\/div>/, '');
+  const ANSWERS = {
+    'the fetch rejects': () => Promise.reject(new Error('offline')),
+    'a 500': () => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ error: 'oops' }) }),
+    'the server\'s own failure {stories: [], shelf: false, err: 1}': OK({ stories: [], shelf: false, err: 1 }),
+  };
+  const rows = [];
+  for (const lang of ['en', 'ur']) for (const a of Object.keys(ANSWERS)) rows.push([lang, a]);
+  test.each(rows)('%s, %s: no data-empty, no primary to Games, no "no stories" note; the boot\'s shelf (or the retry)', async (lang, a) => {
+    const { W, fetch } = live({ fetchImpl: (u) => (/d=stories/.test(u) ? ANSWERS[a]() : new Promise(() => {})) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, bootOf(lang, ON), { token: TOKEN, lang, ev() {} }, 'stories');
+    await flush();
+    expect(fetch.mock.calls.filter((c) => /d=stories/.test(c[0]))).toHaveLength(1);
+    expect(r.paints.length).toBeGreaterThan(0);
+    for (const p of r.paints) {
+      const h = seen(p);
+      expect(h).not.toMatch(/data-empty/);
+      expect(h).not.toMatch(/<a [^>]*data-primary[^>]*data-door="games"/);
+      expect(visible(h)).not.toContain(NOTES[lang]);
+    }
+    const last = r.paints[r.paints.length - 1];
+    expect(/data-stories-shelf="1"/.test(last) || /data-tap="retry"/.test(last)).toBe(true);
+    expect(r.attrs['data-empty-at']).toBeUndefined();
+  });
+});
+
 describe('one tap lights only the card', () => {
   const css = fs.readFileSync(path.join(WQ, 'wq.css'), 'utf8');
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter(Boolean);
