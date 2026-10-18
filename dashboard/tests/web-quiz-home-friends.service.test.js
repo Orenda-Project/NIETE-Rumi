@@ -11,6 +11,10 @@ const vm = require('vm');
 
 const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
 const KID = '0123456789abcdef';
+// the phone's own day: the count is today's (a day in Pakistan, the server's), so what was seen is kept per day
+const pad = (n) => (n < 10 ? '0' : '') + n;
+const DAY = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+const SEEN = `wq_fj_${KID}_${DAY}`;
 const HOME = {
   lang: 'en', kids: [{ chip: KID, first: 'Zara Testwala', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: { on: true }, lib: null,
   home_v3: 1, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: 'The red kite' }], games: [{ kind: 'numbers' }], videos: null },
@@ -51,13 +55,18 @@ describe('a friend joined from this child\'s card', () => {
     expect(html).toMatch(/<p class="wq-friend"[^>]*role="status"/);
     expect(visible(html)).not.toMatch(BANNED);
     // seen on this phone, for this child
-    expect(store[`wq_fj_${KID}`]).toBe('1');
+    expect(store[SEEN]).toBe('1');
     // a later render of the same page keeps it
     expect(H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang })).toContain('data-friends');
   });
   test('seen already on this phone: not again; a new friend (n goes up): again', () => {
-    expect(load({ [`wq_fj_${KID}`]: '1' }).H.html({ ...HOME, friends_joined: { n: 1, today: false } }, { token: TOKEN, lang: 'en' })).not.toContain('data-friends');
-    expect(load({ [`wq_fj_${KID}`]: '1' }).H.html({ ...HOME, friends_joined: { n: 2, today: true } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
+    expect(load({ [SEEN]: '1' }).H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang: 'en' })).not.toContain('data-friends');
+    expect(load({ [SEEN]: '1' }).H.html({ ...HOME, friends_joined: { n: 2, today: true } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
+  });
+  test('a new day: the first friend of the day shows, whatever was seen yesterday', () => {
+    const { H, store } = load({ [`wq_fj_${KID}_2026-01-01`]: '3' });
+    expect(H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
+    expect(store[SEEN]).toBe('1');
   });
   test('a coach\'s preview, a zero or a junk count: nothing', () => {
     for (const B of [{ ...HOME, practice: true, grade: 3, friends_joined: { n: 1 } }, { ...HOME, friends_joined: { n: 0 } }, { ...HOME, friends_joined: { n: 'x' } }, { ...HOME, friends_joined: 1 }]) {

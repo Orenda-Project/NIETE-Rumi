@@ -20,6 +20,7 @@
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const Card = require('./web-quiz-card-switch');
 
 const TTL_S = 24 * 60 * 60;
@@ -29,6 +30,9 @@ const REF_TOKEN_RX = /^j[bvg][0-9a-f]{8}([0-9a-f]{8})?$/;
 const JOINED_S = 90 * 24 * 60 * 60;
 const PKT_MS = 5 * 3600 * 1000;
 const dayPkt = (now = Date.now()) => new Date(now + PKT_MS).toISOString().slice(0, 10);
+// The sharer's friends are counted per day in Pakistan ("today"), kept two days so a late-evening count is still read
+const DAY_KEEP_S = 2 * 24 * 60 * 60;
+const friendsKey = (studentId, day = dayPkt()) => `wq:share:joined:n:${studentId}:${day}`;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HOME_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/h\/[A-Za-z0-9._~-]+(\?[^#\s]*)?$/;
 
@@ -110,9 +114,11 @@ async function credit(c, phone, fresh) {
     const s = card && typeof card.s === 'string' ? card.s : null;
     if (!s || s === String(fresh.id) || (fresh.set || []).map(String).includes(s)) return false;
     if (!(await redis().setNX(`wq:share:joined:once:${c}:${keyOf(phone).slice(-32)}`, 1, JOINED_S))) return false;
-    await redis().incr(`wq:share:joined:n:${s}`);
-    await redis().expire(`wq:share:joined:n:${s}`, JOINED_S);
-    await redis().set(`wq:share:joined:d:${s}`, dayPkt(), JOINED_S);
+    const k = friendsKey(s);
+    const count = Number(await redis().incr(k)) || 0;
+    await redis().expire(k, DAY_KEEP_S);
+    // the count and nothing else: no friend, no sharer, no phone
+    logEvent('share_joined', { count });
     return true;
   } catch (err) {
     logToFile('⚠️ share open: a friend\'s join was not counted', { error: err.message });
@@ -120,13 +126,13 @@ async function credit(c, phone, fresh) {
   }
 }
 
-/** The sharer's friends: {n, today} when web_quiz_share_joined is on and one joined, else null. A count, never who. */
+/** The sharer's friends today (a day in Pakistan): {n, today: true} when web_quiz_share_joined is on and one joined today,
+ * else null. A count, never who. */
 async function friendsOf(studentId) {
   try {
     if (!studentId || !(await Card.joinedOn())) return null;
-    const n = Number(await redis().get(`wq:share:joined:n:${studentId}`)) || 0;
-    if (n <= 0) return null;
-    return { n, today: (await redis().get(`wq:share:joined:d:${studentId}`)) === dayPkt() };
+    const n = Number(await redis().get(friendsKey(studentId))) || 0;
+    return n > 0 ? { n, today: true } : null;
   } catch (_) {
     return null;
   }

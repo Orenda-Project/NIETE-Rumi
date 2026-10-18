@@ -196,13 +196,19 @@
    * "who are you?" page. Absent `remember`: nothing here, the home is today's. */
   var rem = { until: 0, gone: false, timer: null, busy: false };
   /* A friend joined from this child's shared card (the boot's `friends_joined: {n}`, web_quiz_share_joined): ONE line
-   * with the "Guide" stamp, once per new count on this phone (the count seen is kept per child; a re-render of the same
-   * page keeps it). A count only: never who, never when. Absent: nothing, the home is today's. */
+   * with the "Guide" stamp, once per new count on this phone. The count is today's, so the count seen is kept per child
+   * and per day on this phone (a new day's first friend shows again); a re-render of the same page keeps it. A count
+   * only: never who, never when. Absent: nothing, the home is today's. */
   var fj = {};
+  function dayKey() {
+    var d = new Date();
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
   function friendsHtml(B, ctx) {
     var n = B.friends_joined && typeof B.friends_joined === 'object' ? Math.floor(Number(B.friends_joined.n)) : 0;
     if (!(n > 0) || B.practice) return '';
-    var k = 'wq_fj_' + String(B.kid || '');
+    var k = 'wq_fj_' + String(B.kid || '') + '_' + dayKey();
     if (fj[k] !== n) {
       var seen = 0;
       try { seen = Number(localStorage.getItem(k)) || 0; } catch (e) { seen = 0; }

@@ -68,9 +68,10 @@ const binding = (kid, extra = {}) => ({ id: `b-${kid.slice(-3)}`, canonical_id: 
   bound_at: iso(Date.now() - 86400000), expires_at: '2099-03-31T18:59:59.000Z', revoked_at: null, revoked_by: null, ...extra });
 
 let fake;
-function seed({ joined = true, share = true, join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early, books = [{ id: BOOK, status: 'ready' }] } = {}) {
+function seed({ home = false, joined = true, share = true, join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early, books = [{ id: BOOK, status: 'ready' }] } = {}) {
   const settings = { quiz_one_door: true, web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true, web_quiz_card_v3: true, ...(share ? { web_quiz_share_v4: true } : {}), ...(joined ? { web_quiz_share_joined: true } : {}) };
   if (join) settings.quiz_student_join = joinValue;
+  if (home) settings.web_quiz_home_v3 = true;
   if (early !== undefined) settings.quiz_join_early_tap = early;
   fake = makeFake({
     app_settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
@@ -94,13 +95,14 @@ function seed({ joined = true, share = true, join = true, joinValue = true, stud
   HubFlags._resetCache();
   Join._resetCache();
   require('../../../shared/services/quiz/web-quiz-card-image')._reset();
+  require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();
 }
 const writes = (table) => fake.calls.filter((c) => c.table === table && ['insert', 'update', 'delete'].includes(c.op));
 const inserts = (table) => fake.calls.filter((c) => c.table === table && c.op === 'insert');
 const events = (name) => logEvent.mock.calls.filter(([n]) => n === name).map(([, d]) => d);
 const sends = () => WhatsApp.sendMessage.mock.calls.length + WhatsApp.sendCtaUrl.mock.calls.length;
-async function landing(user = UNKNOWN_USER) {
-  const n = await GoNonce.mint({ phoneNorm: PHONE, userId: user.id });
+async function landing(user = UNKNOWN_USER, phone = PHONE) {
+  const n = await GoNonce.mint({ phoneNorm: phone, userId: user.id });
   const url = await Join.joinUrl({ n, lang: 'ur' });
   return { n, url, t: url ? url.slice(Join.JOIN_PATH.length) : Join.signJoin({ n, lang: 'ur' }) };
 }
@@ -139,6 +141,8 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     // the friend still lands on the book
     expect(out.next).toMatch(new RegExp(`#story/${BOOK}$`));
     expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    // one event, the count and nothing else (no friend, no sharer, no phone)
+    expect(events('share_joined')).toEqual([{ count: 1 }]);
     // the keys never carry a phone or the friend's id
     for (const k of redis.__keys.keys()) { expect(k).not.toContain(PHONE); expect(k).not.toContain(String(PHONE).slice(-7)); }
   });
@@ -175,13 +179,21 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     expect(out.next).toBeTruthy();
     expect(await friends()).toEqual({});
   });
-  test('a count from another day is a count, not "today"', async () => {
+  test('a new day in Pakistan starts at zero: yesterday\'s friends are not today\'s count', async () => {
     seed({ students: [sharerRow] });
     const { words } = await cardWords();
     await Open.note(PHONE, words);
     await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
-    for (const k of [...redis.__keys.keys()]) if (/joined:d:/.test(k)) redis.__keys.set(k, '2026-01-01');
-    expect(await friends()).toEqual({ friends_joined: { n: 1, today: false } });
+    expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    const now = Date.now();
+    jest.spyOn(Date, 'now').mockReturnValue(now + 24 * 3600 * 1000);
+    expect(await friends()).toEqual({});
+    // a friend on the new day (another phone, the same card): today's count is 1 again
+    const PHONE2 = fixturePhone(723);
+    await Open.note(PHONE2, words);
+    await Join.join({ t: (await landing(UNKNOWN_USER, PHONE2)).t, grade: 2, name: 'Ali', device: OTHER_DEVICE });
+    expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    expect(events('share_joined')).toEqual([{ count: 1 }, { count: 1 }]);
   });
 });
 
@@ -212,7 +224,7 @@ describe('the count rides only the sharer\'s own phone', () => {
 });
 
 describe('switch off (web_quiz_share_joined absent): today\'s one share, byte for byte', () => {
-  test.each([['absent', undefined], ['the string "true"', 'true']])('%s: the words have no card id, nothing is kept for the sharer, no count, no field', async (_, v) => {
+  test.each([['absent', undefined], ['the string "true"', 'true'], ['the JSON string \'"true"\'', '"true"'], ['1', 1], ['an object', {}]])('%s: the words have no card id, nothing is kept for the sharer, no count, no field', async (_, v) => {
     seed({ joined: false, students: [sharerRow] });
     if (v !== undefined) fake.db.app_settings.push({ key: 'web_quiz_share_joined', value: v });
     const { m, words } = await cardWords();
@@ -222,6 +234,7 @@ describe('switch off (web_quiz_share_joined absent): today\'s one share, byte fo
     await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
     expect([...redis.__keys.keys()].filter((k) => /wq:share:(card|joined)/.test(k))).toEqual([]);
     expect(await friends()).toEqual({});
+    expect(events('share_joined')).toEqual([]);
   });
   test('the switch rides the card\'s own settings read: no read of its own', async () => {
     seed({ joined: false });
@@ -229,5 +242,36 @@ describe('switch off (web_quiz_share_joined absent): today\'s one share, byte fo
     await Card.field();
     await Card.joinedOn();
     expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
+  });
+});
+
+describe('the count reaches only the sharer\'s own phone, through the real home field', () => {
+  const HubHome = () => require('../../../shared/services/quiz/web-quiz-hub-home');
+  const SHARER_PHONE = fixturePhone(724);
+  async function sharerWithAFriend() {
+    seed({ home: true });
+    // the sharer joins on their own phone (that phone may name them), then shares a storybook card
+    const n = await GoNonce.mint({ phoneNorm: SHARER_PHONE, userId: UNKNOWN_USER.id });
+    await Join.join({ t: Join.signJoin({ n, lang: 'en' }), grade: 3, name: 'Noor', device: DEVICE });
+    const sharerId = String(fake.db.students.find((x) => x.student_name === 'Noor').id);
+    // the sharer opened their own home on that phone (the hub trusts the phone with them)
+    await require('../../../shared/services/quiz/web-quiz-hub-device').rememberKids([sharerId], DEVICE);
+    const ct = T.signChallenge({ studentId: sharerId, ex: 'read', runId: 'run-h' });
+    const m = await Card.mint({ ct, kind: 'book', deed: 'book_read', lang: 'en', item: { type: 'book', id: BOOK } });
+    const words = (await Card.landing(m.token)).ret.words;
+    // a friend joins from those words on another phone
+    await Open.note(PHONE, words);
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: OTHER_DEVICE });
+    return sharerId;
+  }
+  const home = (chosenId, device) => HubHome().homeField({ out: { lang: 'en', kids: [], book_on: false }, chosenId, history: [], device, src: 'quiz' });
+  test('the sharer\'s own phone: the count on the home', async () => {
+    const sharerId = await sharerWithAFriend();
+    expect((await home(sharerId, DEVICE)).friends_joined).toEqual({ n: 1, today: true });
+  });
+  test('another phone (the friend\'s, a forwarded link) or no device: no key at all', async () => {
+    const sharerId = await sharerWithAFriend();
+    expect(await home(sharerId, OTHER_DEVICE)).not.toHaveProperty('friends_joined');
+    expect(await home(sharerId, null)).not.toHaveProperty('friends_joined');
   });
 });
