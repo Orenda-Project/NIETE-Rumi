@@ -107,6 +107,9 @@ const cardToken = (v) => (typeof v === 'string' && CARD_TOKEN_RX.test(v) ? v : n
 const CARD_KEEP_MS = 86400000;
 // a card answer waits at most this long on a slow re-read of its switch (the last value answers)
 const CARD_FLAG_WAIT_MS = 25;
+// a shared link's facts in Redis (web_quiz_card_fast): asked for at most this long, kept 14 days (as the bot keeps them)
+const CARD_CACHE_WAIT_MS = 60;
+const CARD_CACHE_TTL_S = 14 * 24 * 3600;
 function artId(v, kind) {
   const m = typeof v === 'string' ? ART_ID_RX.exec(v) : null;
   return m && m[1] === ART_KIND[kind] ? v : null;
@@ -1706,16 +1709,32 @@ function createWebQuizRouter(opts = {}) {
   const cardReadyOn = opts.cardReadyOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_ready' });
   const cardObject = opts.cardObject || StoryAssets.r2Object;
   const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
-  // The switch's read never makes a visitor wait: it is read when the edge starts, and a re-read slower than a moment
+  // A card switch's read never makes a visitor wait: it is read when the edge starts, and a re-read slower than a moment
   // (the settings table, once its cache is old) answers from the last value while it finishes.
-  let cardOnLast = null;
-  const readCardOn = () => Promise.resolve().then(cardReadyOn).then((v) => { cardOnLast = v === true; return cardOnLast; }, () => false);
-  if (botUrl && apiKey) readCardOn();
-  const cardOn = () => {
-    const fresh = readCardOn();
-    if (cardOnLast === null) return fresh;
-    return Promise.race([fresh, new Promise((r) => { const t = setTimeout(() => r(cardOnLast), CARD_FLAG_WAIT_MS); if (t.unref) t.unref(); })]);
+  const quickFlag = (reader) => {
+    let last = null;
+    const read = () => Promise.resolve().then(reader).then((v) => { last = v === true; return last; }, () => false);
+    if (botUrl && apiKey) read();
+    return () => {
+      const fresh = read();
+      if (last === null) return fresh;
+      return Promise.race([fresh, new Promise((r) => { const t = setTimeout(() => r(last), CARD_FLAG_WAIT_MS); if (t.unref) t.unref(); })]);
+    };
   };
+  const cardOn = quickFlag(cardReadyOn);
+  // web_quiz_card_fast: the page's facts in Redis (kept there by the bot at mint, shared by every portal copy) before
+  // storage; a storage or bot answer fills it. Redis away, slow or junk: storage, as before. Off: Redis is never asked.
+  const cardFastOn = quickFlag(opts.cardFastOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_fast' }));
+  const cardCache = opts.cardCache || require('../lib/edge-redis');
+  const cardCacheKey = (token) => `wq:card:${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}:${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}`;
+  const cachedFacts = async (token) => {
+    try {
+      const raw = await Promise.race([cardCache.get(cardCacheKey(token)), new Promise((r) => { const t = setTimeout(() => r(null), CARD_CACHE_WAIT_MS); if (t.unref) t.unref(); })]);
+      const f = raw ? JSON.parse(raw) : null;
+      return f && typeof f.deed_text === 'string' ? f : null;
+    } catch (_) { return null; }
+  };
+  const keepFacts = (token, f) => { try { Promise.resolve(cardCache.set(cardCacheKey(token), JSON.stringify(f), CARD_CACHE_TTL_S)).catch(() => {}); } catch (_) { /* Redis never breaks a page */ } };
   const stored = async (token, ext, on) => {
     try { return on ? await cardObject(cardStoreKey(token, ext)) : null; } catch (_) { return null; }
   };
@@ -1795,16 +1814,21 @@ function createWebQuizRouter(opts = {}) {
     const on = await cardOn();
     let facts = cardFacts.get(token);
     let from = facts ? 'edge' : null;
+    const fast = !facts && on && (await cardFastOn());
+    if (fast) {
+      facts = await cachedFacts(token);
+      if (facts) { from = 'redis'; cardFacts.set(token, facts, CARD_KEEP_MS); }
+    }
     if (!facts) {
       // the page's facts stored at mint (web_quiz_card_ready): the head never waits on the bot when cold
       const obj = await stored(token, 'json', on);
-      try { const f = obj && obj.bytes ? JSON.parse(obj.bytes.toString('utf8')) : null; if (f && typeof f.deed_text === 'string') { facts = f; from = 'store'; cardFacts.set(token, facts, CARD_KEEP_MS); } } catch (_) { facts = null; }
+      try { const f = obj && obj.bytes ? JSON.parse(obj.bytes.toString('utf8')) : null; if (f && typeof f.deed_text === 'string') { facts = f; from = 'store'; cardFacts.set(token, facts, CARD_KEEP_MS); if (fast) keepFacts(token, facts); } } catch (_) { facts = null; }
     }
     if (!facts) {
       from = 'bot';
       try {
         const out = await callBot('GET', `/api/internal/wq/card/${token}`, req, null, { route: '/api/internal/wq/card/:token' });
-        if (out.status === 200 && out.body && typeof out.body.deed_text === 'string') { facts = out.body; cardFacts.set(token, facts, CARD_KEEP_MS); }
+        if (out.status === 200 && out.body && typeof out.body.deed_text === 'string') { facts = out.body; cardFacts.set(token, facts, CARD_KEEP_MS); if (fast) keepFacts(token, facts); }
         else if (busy(req, res, out, 'en')) return undefined;
         else return closed(out.status === 404 ? 404 : 502);
       } catch (_) {
