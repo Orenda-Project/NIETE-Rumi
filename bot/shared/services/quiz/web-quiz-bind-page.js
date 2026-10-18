@@ -167,7 +167,7 @@ async function undo({ code } = {}) {
 
 /** The chips of these children, through the homonym guard ('who': the father's first name as line 2). */
 async function chipsOf(ids, { lang, played = [] } = {}) {
-  const { data } = await supabase.from('students').select('id, student_name, student_name_urdu, father_name, is_active').in('id', ids);
+  const { data } = await require('./web-quiz-hub-child-rows').read('students', ids, 'id, student_name, student_name_urdu, father_name, is_active', () => supabase.from('students').select('id, student_name, student_name_urdu, father_name, is_active').in('id', ids));
   const rows = ids.map((id) => (data || []).find((r) => String(r.id) === String(id))).filter((r) => r && r.is_active !== false);
   const named = rows.map((r) => ({
     id: String(r.id), first: firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name),
@@ -264,7 +264,7 @@ async function sessionPickOnDevice(canonicalId, device) {
  */
 async function rosterJoined(canonicalId) {
   try {
-    const { data, error } = await supabase.from('students').select('id, list_id, merged_into').eq('id', canonicalId).maybeSingle();
+    const { data, error } = await require('./web-quiz-hub-child-rows').read('students', [canonicalId], 'id, list_id, merged_into', () => supabase.from('students').select('id, list_id, merged_into').eq('id', canonicalId).maybeSingle(), { single: true });
     if (error) throw new Error(error.message || 'students read failed');
     return Boolean(data && (data.list_id || data.merged_into));
   } catch (err) {
