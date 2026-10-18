@@ -27,6 +27,11 @@ describe('clips: label chain', () => {
     expect(itemClips(item, 'en')[0].label).toBe('ck');
   });
 
+  it('takes the stem from orig: the mirror renames an Urdu file to file.mp3', () => {
+    const item = { text: 'no bold here', media: [aud('https://m.example/fln/audio/1a2b3c4d/file.mp3', { orig: `https://o.example/${UUID}_%D9%84.mp3` })] };
+    expect(itemClips(item, 'ur')[0].label).toBe('ل');
+  });
+
   it('keeps a plain filename stem', () => {
     expect(itemClips({ media: [aud('https://m.example/Apple.mp3')] })[0].label).toBe('Apple');
   });
