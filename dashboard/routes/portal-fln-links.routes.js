@@ -5,7 +5,8 @@
  * PR-C lands: `router.use(require('./portal-fln-links.routes'));`. `GET /fln/me` is m-app's (PR-C), not here.
  *
  *   GET /fln/links       the "Send a lesson plan" builder's rows — requireFln.share (404 for everyone else)
- *   GET /fln/title/:id   {title, lang, dir} for the signed-out sign-in banner; no sign-in, nothing else
+ *   GET /fln/title/:id   {title, lang, dir} for the signed-out sign-in banner; no sign-in, nothing else; 404 while
+ *                        both FLN switches are off for everyone
  *
  * Every answer, errors included, is `Cache-Control: no-store` (shared phones: a coach's rows must never be replayed
  * for the teacher who signs in next). The link a row carries is `<portal>/portal/fln/p/<id>` — no identity, no
@@ -17,6 +18,7 @@
 const express = require('express');
 const access = require('../lib/fln-access');
 const { portalUrl } = require('../../bot/shared/config/branding');
+const { isTeachersValue } = require('../../bot/shared/services/teacher-audience');
 
 const SUBJECTS = new Set(['rh-en', 'rh-ur', 'num']);
 const HAS = new Set(['sounds', 'narration', 'additional', 'textbook', 'screener']);
@@ -120,6 +122,33 @@ function byUse(rows) {
   return [...pinned, ...rest];
 }
 
+/**
+ * Is either FLN switch ON for anyone? `true`, "true", "teachers" (raw or as JSON text) or a non-empty list of ids.
+ * Anything else, a missing row or a failed read is OFF (fail closed, as isFlagEnabled). /fln/title has no signed-in
+ * user to ask about, so this is its switch: with both off it is 404 like every other FLN route (RT #2953, api.md).
+ */
+function switchValueOn(raw) {
+  let v = raw;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch (_) { /* a bare string */ }
+  }
+  if (v === true) return true;
+  if (typeof v === 'string') return v.trim().toLowerCase() === 'true' || isTeachersValue(v);
+  return Array.isArray(v) && v.some((id) => typeof id === 'string' && id.trim() !== '');
+}
+
+async function flnOnForAnyone() {
+  // eslint-disable-next-line global-require
+  const supabase = require('../config/supabase');
+  const keys = [access.FLN_LESSONS_KEY || 'portal_fln_lessons', access.FLN_SHARE_KEY || 'portal_fln_share'];
+  try {
+    const reads = await Promise.all(keys.map((k) => supabase.from('app_settings').select('value').eq('key', k).maybeSingle()));
+    return reads.some((r) => r && !r.error && r.data && switchValueOn(r.data.value));
+  } catch (_) {
+    return false;
+  }
+}
+
 function originOf(req, portalOrigin) {
   const configured = portalOrigin();
   if (configured) return String(configured).replace(/\/+$/, '');
@@ -132,7 +161,7 @@ function originOf(req, portalOrigin) {
  * @param {object} [deps.access]  fln-access (requireFln, noStore)
  * @param {() => string|null} [deps.portalOrigin]  the portal's public origin; default PORTAL_URL (branding)
  */
-function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = portalUrl } = {}) {
+function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = portalUrl, flnOn = flnOnForAnyone } = {}) {
   const router = express.Router();
   let svc = corpus || null;
   // eslint-disable-next-line global-require
@@ -173,6 +202,7 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
   router.get('/fln/title/:id', acc.noStore, async (req, res) => {
     const id = String(req.params.id || '');
     if (!/^\d{1,12}$/.test(id)) return res.status(404).json({ error: 'not_found' });
+    if (!(await flnOn())) return res.status(404).json({ error: 'not_found' });
     try {
       const c = getCorpus();
       if (await c.isHidden(id)) return res.status(404).json({ error: 'not_found' });
@@ -195,3 +225,4 @@ router.createFlnLinksRouter = createFlnLinksRouter;
 module.exports = router;
 module.exports.createFlnLinksRouter = createFlnLinksRouter;
 module.exports.parseLinksQuery = parseLinksQuery;
+module.exports.switchValueOn = switchValueOn;
