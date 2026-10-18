@@ -280,6 +280,14 @@
     var html = '<p class="wqa-got" role="status">' + s.svg + '<b>' + esc(say().got) + '</b></p>';
     if (head) head.insertAdjacentHTML('afterend', html); else card.insertAdjacentHTML('afterbegin', html);
   }
+  // the class table's "you moved up" line (data-climb="up"): the stamp ring at its start and the stamp blip, once;
+  // the same place gets nothing (only a climb is celebrated)
+  function climb(el) {
+    if (el.getAttribute('data-climb') !== 'up' || el.getAttribute('data-wqa')) return;
+    el.setAttribute('data-wqa', '1');
+    el.insertAdjacentHTML('afterbegin', '<span class="wqa-climb">' + stampSvg('games') + '</span>');
+    tone('stamp');
+  }
   // a land tile with no picture gets its icon (a game: numbers; a story: the book; a quiz: the star; a subject: its own)
   var ROW_I = { game: 'numbers', passage: 'stories', quiz: 'star', video: 'video', lesson: 'video', book: 'book' };
   function rowArt(row) {
@@ -295,11 +303,12 @@
     if (home) dress(home);
     var cards = root.matches && root.matches('.wqfc[data-screen=card],.wq-moment') ? [root] : Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wqfc[data-screen=card],.wq-moment') : []);
     cards.forEach(award);
+    Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wq-climb[data-climb=up]') : []).forEach(climb);
   }
 
   W.WQA = {
     icon: icon, animal: function (k) { return icon(P[k] ? k : 'star'); }, subject: function (s) { return icon(SUBJ[s] || 'star'); },
     bar: bar, badge: badge, move: move, cue: cue, burst: burst, muted: muted, mute: mute, still: still, swap: swap, P: P, EMO: EMO,
-    stamp: stamp, stamps: stamps, stampSvg: stampSvg, tone: tone, trail: trail, award: award
+    stamp: stamp, stamps: stamps, stampSvg: stampSvg, tone: tone, trail: trail, award: award, climb: climb
   };
 })(typeof window !== 'undefined' ? window : null);

@@ -183,6 +183,27 @@ describe('award: the stamp on a finish card', () => {
   });
 });
 
+describe('climb: Jugnu answers a move up the class table', () => {
+  const line = (dir) => { const at = { 'data-climb': dir }, ins = [];
+    return { ins, getAttribute: (k) => (k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = v; }, insertAdjacentHTML: (w, h) => ins.push([w, h]) }; };
+  it('a line that says the child moved up gets the stamp ring at its start, once, and the stamp blip', () => {
+    const a = fakeAudio();
+    const { WQA } = load({ audio: a.Ctx });
+    const up = line('up');
+    WQA.climb(up); WQA.climb(up);
+    expect(up.ins.length).toBe(1);
+    expect(up.ins[0][0]).toBe('afterbegin');
+    expect(up.ins[0][1]).toMatch(/class="wqa-climb"[\s\S]*<svg class="wqa-stamp/);
+    expect(a.tones).toEqual([['sine', 784], ['sine', 1175]]);
+  });
+  it('the same place: no ring, no sound (only a climb is celebrated)', () => {
+    const { WQA } = load();
+    const same = line('same');
+    WQA.climb(same);
+    expect(same.ins).toEqual([]);
+  });
+});
+
 describe('the trail of three land stops (Home)', () => {
   it('one stop per land, in order, the stamped land filled and the next stop glowing', () => {
     const { WQA } = load({ store: { wqa_stamps: JSON.stringify({ stories: { kind: 'story', at: 1 } }) } });

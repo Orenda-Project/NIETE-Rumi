@@ -209,7 +209,7 @@ html.wq-adv .wqa-bar>i{position:absolute;inset-block:0;inset-inline-start:0;bord
 html.wq-adv .wqa-badge{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 14px;border-radius:999px;background:var(--tint);color:var(--ink);font-weight:800;box-shadow:inset 0 0 0 2px var(--gold)}
 html.wq-adv .wqa-badge .wqa-i{color:var(--gold-d)}
 /* the designed wait: soft blocks in the real shapes, a shimmer; never an empty message while data is in flight */
-html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait{border-radius:var(--r-chip);background:linear-gradient(90deg,#efe3c4 0 40%,#f9f0d8 50%,#efe3c4 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
+html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b{border-radius:var(--r-chip);background:linear-gradient(90deg,var(--land-bg) 0 40%,#fffaf0 50%,var(--land-bg) 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
 
 /* 8 · motion (WQA.move): each a one-shot; reduced motion gets a 150 ms fade and no movement */
 html.wq-adv .wqa-m-pop{animation:wqa-pop var(--dur-pop) var(--ease-pop)}
@@ -225,7 +225,11 @@ html.wq-adv .wqa-m-fade{animation:wqa-fade 150ms ease-out}
 @keyframes wqa-fade{0%{opacity:.4}100%{opacity:1}}
 @keyframes wqa-sh{0%{background-position:100% 0}100%{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){
-  html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
+  html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqa-climb .wqa-stamp,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
   html.wq-adv .wq-btn:active,html.wq-adv .wq-next:active,html.wq-adv .wq-door:active,html.wq-adv .wqs-book:active,html.wq-adv .wq-dli:has(.wq-drow:active){transform:none}
   html.wq-adv .wq-gbtn.held::before{transition:box-shadow 2s steps(4)}
 }
+/* the class table's climb line: the stamp ring pops in at its start */
+html.wq-adv .wq-climb{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);font-weight:800}
+html.wq-adv .wqa-climb{display:inline-grid;flex:none}
+html.wq-adv .wqa-climb .wqa-stamp{width:36px;height:36px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
