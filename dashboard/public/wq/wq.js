@@ -2877,13 +2877,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return ' data-list="' + kind + '" data-fetch="' + state + '"' + (LS_FROM[kind] ? ' data-skel-from="' + LS_FROM[kind] + '" data-skel-to="' + now + '"' : '') + (empty ? ' data-empty-at="' + now + '"' : '');
   }
   // web_quiz_class_doors: while "See my class" is on screen, the class table is asked for once on idle, so the tap opens
-  // real rows, not a skeleton. Kept 60 s, one at a time, never on saveData or a 2g/3g line; board() takes it once (a
-  // failed or old one: board() asks itself, as today).
+  // real rows, not a skeleton. Kept 60 s, one at a time, never on saveData or a 2g line (a 3g reading is warmed: a real
+  // 4G line at a high round trip reads as 3g, and the table is one small answer); board() takes it once (a failed or
+  // old one: board() asks itself, as today).
   var BWARM = null;
   function boardPath() { return 'board/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : ''); }
   function warmBoard() {
     var c = navigator.connection || {};
-    if (BWARM || c.saveData || /(2g|3g)$/.test(c.effectiveType || '')) return;
+    if (BWARM || c.saveData || /2g$/.test(c.effectiveType || '')) return;
     var m = ROOT.getAttribute('data-m');
     var go = function () {
       if (BWARM || ROOT.getAttribute('data-m') !== m || !$('#wq-class')) return;

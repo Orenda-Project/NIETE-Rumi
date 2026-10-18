@@ -1541,7 +1541,7 @@ Feature: NIETE (ICT) Teacher Training
   Scenario: The class table opens at once from the card, and tells the child how they moved since last time
     Given app_settings "web_quiz_class_doors" is true
     And a class child's folded card or results show "See my class"
-    When the phone is idle on that screen, on a line that is not saveData, 2g or 3g
+    When the phone is idle on that screen, on a line that is not saveData or 2g (a 3g reading is warmed)
     Then the class table is asked for once, kept for 60 seconds, and the tap opens it from that answer without a second ask
     And a failed or older answer is never shown: the tap asks again, as today
     And the child's place on that table is kept on the phone, a number per quiz and child, never a name

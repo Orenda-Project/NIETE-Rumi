@@ -489,8 +489,8 @@ describe('the class table warmed while "See my class" is on screen, and the chil
       expect(boardHits(p)).toBe(2);
     });
   }
-  test('saveData or a 3g line: never warmed; the tap asks, as today', async () => {
-    for (const connection of [{ saveData: true, effectiveType: '4g' }, { effectiveType: '3g' }]) {
+  test('saveData or a 2g line: never warmed; the tap asks, as today', async () => {
+    for (const connection of [{ saveData: true, effectiveType: '4g' }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }]) {
       const p = page({ lang: 'en', store: store(FOLD), api: { 'board/': BOARD }, connection });
       p.runTimers();
       await flush();
@@ -499,6 +499,32 @@ describe('the class table warmed while "See my class" is on screen, and the chil
       await flush(); await flush();
       expect(boardHits(p)).toBe(1);
     }
+  });
+  test('a 3g line is warmed (a real 4G line at a high round trip reads as 3g; the table is one small answer)', async () => {
+    const p = page({ lang: 'en', store: store(FOLD), api: { 'board/': BOARD }, connection: { effectiveType: '3g' } });
+    p.runTimers();
+    await flush();
+    expect(boardHits(p)).toBe(1);
+  });
+  test('a warm-up older than 60 s is not used: the tap asks again', async () => {
+    const p = warmCard();
+    p.runTimers();
+    await flush(); await flush();
+    expect(boardHits(p)).toBe(1);
+    vm.runInContext('Date.now = (function (n) { return function () { return n() + 61000; }; })(Date.now);', p.ctx);
+    tap(p, '#wq-class');
+    await flush(); await flush();
+    expect(boardHits(p)).toBe(2);
+    expect(p.html()).toContain('wq-table');
+  });
+  test('"See my class" no longer on screen at idle: no warm-up', async () => {
+    const p = warmCard();
+    // as a browser answers once the button is gone from the screen
+    const qs = p.root.querySelector;
+    p.root.querySelector = (sel) => (sel === '#wq-class' ? null : qs(sel));
+    p.runTimers();
+    await flush();
+    expect(boardHits(p)).toBe(0);
   });
   test('the screen changed before idle: no warm-up', async () => {
     const p = warmCard();
