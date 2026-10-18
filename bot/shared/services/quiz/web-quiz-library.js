@@ -255,7 +255,8 @@ function shelfRoot() {
 
 /**
  * web_quiz_video_shelf: a grade's lesson lengths read in the background when a child of that grade opens the hub (the
- * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. Only the
+ * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. The reads
+ * are kept in Redis and read back after a restart, so a deploy does not send every lesson's file to be read again. Only the
  * lessons the child's language shows (web_quiz_videos_v3). Held for hours once every lesson was read; a bank that did
  * not load, or a lesson whose details did not come back, is held a minute only (that lesson is not kept), so one bad
  * read right after a restart never blanks a grade. Never throws.
@@ -275,10 +276,12 @@ function warmGrade(grade, { lang, fetchImpl } = {}) {
       const ix = (await videosV3On()) ? await inLanguage(await bank(), langOf(lang)) : await bank();
       const ids = ix.rows.filter((r) => String(r.grade) === g).map((r) => r.id);
       if (!ids.length) return retry();
-      await Videos.warmMeta(ids, { fetchImpl });
+      // what a bot before this restart read is read back first (once), and this warm-up's reads are kept in turn
+      await Videos.restoreMeta();
+      await Videos.warmMeta(ids, { fetchImpl, keep: true });
       const missed = ids.filter((id) => Videos.peekMeta(id) === null);
       if (!missed.length) return undefined;
-      missed.forEach((id) => Videos._metaCache.delete(id));
+      missed.forEach((id) => Videos.forgetMeta(id));
       return retry();
     }).catch(retry));
   } catch (_) { /* the hub never waits on this */ }
