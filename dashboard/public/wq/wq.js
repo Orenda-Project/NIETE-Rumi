@@ -1185,7 +1185,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     clearTimers();
     stopVoice();
     try { ROOT.classList.remove('wq-novoice'); ROOT.classList.remove('wq-phonevoice'); ROOT.classList.remove('wq-tap'); } catch (e) {}
-    ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
+    var land = LAND; LAND = '';
+    ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '"' + (land ? ' data-land="' + land + '"' : '') + '>' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
@@ -1243,6 +1244,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button>' +
       (home ? '<button class="wq-home" id="wq-home" type="button" aria-label="' + esc(T.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(T.homeBtn) + '</span></button>' : '') +
       '</div>' + (dotsRow ? '<div class="wq-dotrow">' + dotsRow + '</div>' : '');
+  }
+  // The adventure look (boot adv + <html class="wq-adv">, web_quiz_adventure_look): the lesson video page, the class table
+  // and the school league wear the land header of the hub's land screens (wq-doors.js frame) in place of bar(): the round
+  // Home, the screen's name on the land's colour, the sound. landBar() names the land; render() puts it on the screen.
+  var LAND = '';
+  function advOn() { try { return B.adv === true && document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
+  // The hub this tab came from (hub.js keeps its path with the look on): the way home from the class table or the league
+  // opened from My class, where the page has no session of its own to ask the hub door with.
+  function hubBack() {
+    var p = '';
+    try { p = String(window.sessionStorage.getItem('wq_hub_at') || ''); } catch (e) {}
+    return /^\/h\/[A-Za-z0-9._-]+$/.test(p) ? p : '';
+  }
+  function landBar(land, title) {
+    LAND = land;
+    var home = homeOk() || Boolean(hubBack());
+    return '<div class="wq-dtop wq-ltop">' + (home ? '<button class="wq-home" id="wq-home" type="button" aria-label="' + esc(T.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(T.homeBtn) + '</span></button>' : '') +
+      '<h2 dir="auto">' + title + '</h2>' +
+      '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button></div>';
   }
   function wireBar() {
     on('#wq-snd', function () {
@@ -1860,14 +1880,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // heading is not "optional"; "Go to the questions" waits in the secondary style until the video ends. Else today's.
     var door = Boolean(B.videos_v3 && params.via === 'videos');
     var vT = door ? T.vT3 : T.vT;
-    var h = bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>' +
+    // The look: the Videos land header, and the questions are the one primary from the start (the video stays a choice).
+    var adv = advOn();
+    var h = (adv ? landBar('videos', esc(T.vT3)) + jug('hello', T.vSay) : bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>') +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
       '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
-      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
+      '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door && !adv ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + jv(IMG + 'hello.webp') + '" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
-      '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
+      (adv ? '<button class="wq-btn wq-go" id="wq-skip" data-primary>' : '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">') + esc(T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
     if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
@@ -2236,6 +2258,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function homeTap() {
     var m = ROOT.getAttribute('data-m') || '';
+    // the look's header with no session here (the class table from My class): back to the hub this tab came from
+    if (!homeOk() && hubBack()) { ev('home_tap', { src: mSrc(m), how: 'hub' }); flushEv(true); location.assign(hubBack() + '?from=home'); return; }
     if (PLAYING[m] || m === 'M6-review') return homeSheet(mSrc(m));
     homeGo(mSrc(m));
   }
@@ -2969,7 +2993,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return '<p class="wq-move" data-move="' + (d > 0 ? 'up' : d < 0 ? 'down' : 'same') + '">' + esc(d > 0 ? T.movedUp(d) : d < 0 ? T.movedNow(you.place) : T.samePlace) + '</p>';
   }
   function board() {
-    render(bar() + (LS_ON ? lsWait('table') : '<div class="wq-boot"><img src="' + jv(IMG + 'thinking.webp') + '" alt="" width="96"></div>'), 'M11-wait');
+    render((advOn() ? landBar('games', '') : bar()) + (LS_ON ? lsWait('table') : '<div class="wq-boot"><img src="' + jv(IMG + 'thinking.webp') + '" alt="" width="96"></div>'), 'M11-wait');
     wireBar();
     boardGet().then(function (r) {
       if (!r.ok) throw new Error('board_' + r.status);
@@ -2983,14 +3007,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // with one way on; never "no internet" and a retry that cannot work. Home for a child on this page (the hub door
       // needs the session); a visitor from a link with no session has no home here, so Play.
       if (LS_ON && e && e.message === 'board_404') {
-        render(bar() + '<div' + lsMarks('table', 'failed') + ' data-why="not_found">' + jug('thinking', T.tableNone) + '</div>' +
+        render((advOn() ? landBar('games', esc(T.leagueT(CLASS_LABEL))) : bar()) + '<div' + lsMarks('table', 'failed') + ' data-why="not_found">' + jug('thinking', T.tableNone) + '</div>' +
           (S.st ? '<button class="wq-btn wq-go" id="wq-thome" data-primary data-home>' + esc(T.homeBtn) + '</button>' : '<button class="wq-btn wq-go" id="wq-play" data-primary>' + esc(T.play) + '</button>'), 'M11-none');
         wireBar();
         on('#wq-thome', function () { homeGo('table'); });
         on('#wq-play', landing);
         return;
       }
-      render(bar() + (LS_ON ? '<div' + lsMarks('table', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
+      render((advOn() ? landBar('games', esc(T.leagueT(CLASS_LABEL))) : bar()) + (LS_ON ? '<div' + lsMarks('table', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
       wireBar();
       on('#wq-retry', board);
     });
@@ -3016,7 +3040,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
     var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
-    var h = bar() + '<h2>' + title + '</h2>' + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
+    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
       (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
@@ -3068,7 +3092,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function schools(from) {
     SCH.back = typeof from === 'function' ? from : afterResult;
     NAV.schoolsBack = SCH.back;
-    render(bar() + (LS_ON ? lsWait('schools') : '<div class="wq-boot"><img src="' + jv(IMG + 'thinking.webp') + '" alt="" width="96"></div>'), 'M16-wait');
+    render((advOn() ? landBar('games', esc(T.schoolsT)) : bar()) + (LS_ON ? lsWait('schools') : '<div class="wq-boot"><img src="' + jv(IMG + 'thinking.webp') + '" alt="" width="96"></div>'), 'M16-wait');
     wireBar();
     api('GET', 'schools/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
       if (!r.ok) throw new Error('schools_' + r.status);
@@ -3080,7 +3104,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       drawSchools();
     }).catch(function (e) {
       ev('error', { err: (e && e.message) || 'schools' });
-      render(bar() + (LS_ON ? '<div' + lsMarks('schools', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M16-error');
+      render((advOn() ? landBar('games', esc(T.schoolsT)) : bar()) + (LS_ON ? '<div' + lsMarks('schools', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M16-error');
       wireBar();
       on('#wq-retry', function () { schools(SCH.back); });
     });
@@ -3114,7 +3138,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var zero = b.zero_n && !SCH.sector
       ? '<details class="wq-zero-list' + (cd ? ' wq-tall' : '') + '"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
         (zn.length ? '<ul>' + zn.map(function (n) { return '<li><bdi>' + esc(n) + '</bdi></li>'; }).join('') + '</ul>' : '') + '</details>' : '';
-    var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
+    var h = (advOn() ? landBar('games', esc(T.schoolsT)) : bar() + '<h2>' + esc(T.schoolsT) + '</h2>') + '<p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
       (list ? '<ol class="wq-slist"' + lsMarks('schools', 'done') + '>' + list + '</ol>' : mine ? (LS_ON ? '<div' + lsMarks('schools', 'done') + '></div>' : '') : '<div class="wq-card"' + lsMarks('schools', 'done', true) + '>' + esc(T.noSchools) + '</div>') + zero +
       // A cold recipient of the league link (never played here): the next step is to play, for their school.
       // (class_doors: the label is one flex item, never the words and the name side by side; the go button is the primary)
