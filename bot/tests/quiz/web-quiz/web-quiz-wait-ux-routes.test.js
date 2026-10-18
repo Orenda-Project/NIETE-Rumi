@@ -81,6 +81,7 @@ describe('the routes', () => {
       const out = await ask();
       for (const k of Object.keys(GOLDEN)) expect(out[k].st).toBeNull();
       expect(JSON.parse(out.hubGet.body).wait_ux).toBe(true);
+      expect(JSON.parse(out.hubPost.body).wait_ux).toBe(true);
       expect(out.hubGet.body.replace(/,"wait_ux":true/, '')).toBe(GOLDEN.hubGet);
       expect(out.hubPost.body.replace(/,"wait_ux":true/, '')).toBe(GOLDEN.hubPost);
       expect(out.doors.body).toBe(GOLDEN.doors);
