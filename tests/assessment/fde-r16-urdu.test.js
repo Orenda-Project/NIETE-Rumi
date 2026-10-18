@@ -132,7 +132,10 @@ describe('(c) a quoted word list that prints another item\'s key gives it away',
     q1[1].question = 'کون سا لفظ تمنائی جملے میں استعمال ہوتا ہے؟';
     q1[1].options = ['الف) کاش', 'ب) شاید', 'ج) اگر', 'د) تو'];
     q1[1].answer = 'الف) کاش';
-    const stems = q1Stems(lay(exam, false).examJson);
+    // تمنائی is lesson 5's grammar: on this lessons 6–7 paper the item is held for scope, so the point
+    // is read on lessons 4–5.
+    expect(q1Stems(lay(exam, false).examJson)).not.toContain(q1[0].question);
+    const stems = q1Stems(lay({ ...exam, _scope: { kind: 'chapters', chapters: [4, 5], pages: null } }, false).examJson);
     expect(stems).toContain(q1[0].question);
   });
 });
@@ -143,10 +146,18 @@ describe('(d) the Urdu Section A prompt asks each grammar concept once, and none
     lang: U.medium, P: U, scope: { kind: 'chapters', chapters: [6, 7], pages: '50-60, 61-70' }, poem: null,
   });
 
+  // On chosen lessons the line names those lessons' concepts only (lessons 6–7: متشابہ الفاظ); the
+  // full syllabus keeps its list.
   test('Section A carries the line', () => {
     const a = prompt(sectionA);
-    expect(a).toContain('Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only');
+    expect(a).toContain('Q1 asks each grammar concept of these lessons (متشابہ الفاظ) in one item only');
     expect(a).toMatch(/Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these/);
+    const full = Gen.buildPatternUserPrompt({
+      grade: 5, subject: 'urdu', pageContent: mockPages, pageReference: '28-107', section: sectionA, slots: sectionA.slots,
+      lang: U.medium, P: U, scope: { kind: 'fde', chapters: null, pages: null }, poem: null,
+    });
+    expect(full).toContain('Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only');
+    expect(full).toMatch(/Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these/);
   });
 
   test('Section C does not', () => {
@@ -184,7 +195,9 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
     const after = lay(exam, true);
     expect(q1Stems(after.examJson)).toContain(q.question);
     expect(q1Stems(after.examJson)).toHaveLength(q1Stems(before.examJson).length + 1);
-    expect(after.putBack).toEqual([{ slot: 'urdu.A.Q1', rule: 'asks_two' }]);
+    // Q1's put-back only (this recorded paper's Q4 ارکان item, whose key and accept split a word
+    // apart, is put back for its own place too).
+    expect(after.putBack.filter((x) => x.slot === 'urdu.A.Q1')).toEqual([{ slot: 'urdu.A.Q1', rule: 'asks_two' }]);
   });
 
   test('a two-question stem that is also held against Section C never comes back', () => {
@@ -194,7 +207,9 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
     q.question = '«بہت زیادہ غصے میں آ جانا» کے لیے کون سا محاورہ درست ہے؟ اس کا مطلب کیا ہے؟';
     const after = lay(exam, true);
     expect(q1Stems(after.examJson)).not.toContain(q.question);
-    expect(after.putBack).toBeUndefined();
+    // Q1's put-back only (this recorded paper's Q4 ارکان item, keyed «کر – کَ – را» and accepting
+    // «کر – کرا», is put back for its own place).
+    expect((after.putBack || []).filter((x) => x.slot === 'urdu.A.Q1')).toEqual([]);
   });
 
   test('a spelling item keyed on a function word in its stem\'s own frame stays («درج ذیل میں سے …» → میں)', () => {
@@ -226,6 +241,11 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
         const nA = asked.filter((a) => a.sec === 'A').length;
         let content = rec.replies[sec === 'A' ? 'A1' : sec];
         if (sec === 'A' && nA === 2) content = rec.replies.A2;
+        // Q4's «… متعلق ہیں: سورج، کرنیں، دھوپ، روشنی» → سورج is held (the key is the one option its
+        // list prints); a later C call writes that item with the group named in the stem.
+        if (sec === 'C' && asked.filter((a) => a.sec === 'C').length > 1) {
+          content = content.replace('گروہی الفاظ میں سے وہ لفظ چنیں جس سے یہ سب الفاظ متعلق ہیں: سورج، کرنیں، دھوپ، روشنی', '«کرنیں، دھوپ، روشنی، گرمی» یہ گروہی الفاظ کس لفظ سے متعلق ہیں؟');
+        }
         if (sec === 'A' && nA > 2) {
           const m = prompt.match(/Write (\d+) new items/);
           content = JSON.stringify({ unseen: { objective: { MCQs: clone(SPARES).slice(0, m ? Number(m[1]) : 0) } } });
@@ -249,7 +269,8 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
       // The first reply holds 8: the Q6-verse item, six Q3/Q5 meaning items and «آتش دان» (c).
       expect(a[1].prompt).toMatch(/Q1 needs 8 more\. Write 12 new items/);
       expect(a[2].prompt).toMatch(/Q1 needs \d+ more\. Write \d+ new items/);
-      expect(asked.filter((x) => x.sec !== 'A')).toHaveLength(2);
+      // B once; C twice: its Q4 «… سورج» item is held and Section C is asked once more for it.
+      expect(asked.filter((x) => x.sec !== 'A')).toHaveLength(3);
       expect(logToFile.mock.calls.some(([msg, data]) => msg === '[assessment] section topped up again' && data.section === 'A')).toBe(true);
     });
   });
