@@ -113,8 +113,11 @@ function reportText({ title, rows, lang }) {
  * The story send's report, from video-quiz-report.buildAndSend (same trigger, same teacher, same stamp). Never the
  * questions table or the guidance writer: a story has neither. Nobody joined: a story-worded "nobody opened it yet".
  * `live()` = the report's own web-report section (its link), `funnel` = the report's funnel.
+ * `sendChecked(fn)` (report-send-check send): false only when quiz_report_send_checked is on and WhatsApp did not
+ * take it; then `notAccepted()` (counts, logs, retries) is the answer and nothing is stamped. Off, or none given:
+ * today's send, stamp and order.
  */
-async function sendReport({ shareCodeId, sc, teacher, sessions, quizRow, reason, stamp, send, markSent, live, funnel }) {
+async function sendReport({ shareCodeId, sc, teacher, sessions, quizRow, reason, stamp, send, markSent, live, funnel, sendChecked = null, notAccepted = async () => false }) {
   const lang = clampLanguage((quizRow && quizRow.meta && quizRow.meta.story && quizRow.meta.story.lang) || (quizRow && quizRow.language) || (teacher && teacher.preferred_language));
   const title = (sc && sc.topic) || (quizRow && quizRow.topic) || '';
   const all = sessions || [];
@@ -130,7 +133,11 @@ async function sendReport({ shareCodeId, sc, teacher, sessions, quizRow, reason,
     const url = extras && extras.links ? extras.links.live : null;
     text = url ? `${body}\n\n${resolveUx('vqReportLiveLink', { language: lang, params: { url } })}` : body;
   }
-  await send(teacher.phone_number, text);
+  if (sendChecked) {
+    if (!(await sendChecked(() => send(teacher.phone_number, text)))) return notAccepted();
+  } else {
+    await send(teacher.phone_number, text);
+  }
   stamp.stamped = await markSent(shareCodeId, sc.quiz_id);
   logEvent('story_report_sent', { share_code_id: shareCodeId, n: rows.length, read: rows.filter((r) => r.read > 0).length });
   if (funnel) funnel.emit('report_sent', { quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: 'story', kind: all.length ? 'story' : 'no_one', reason, n: all.length });

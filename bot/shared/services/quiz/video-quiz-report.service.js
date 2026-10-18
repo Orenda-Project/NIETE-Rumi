@@ -45,6 +45,7 @@ const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child'
 const { scriptOf } = require('../../templates/niete-brand');
 const crypto = require('crypto');
 const { onUnlessOff } = require('../nudges/flags');
+const SendCheck = require('./report-send-check');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -411,7 +412,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   }
 
   if (!onUnlessOff('VIDEO_REPORT_SEND_CLAIM')) {
-    return buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: {} });
+    return buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: {}, force });
   }
 
   // Single-flight: one caller builds and sends; the rest stand down (see SEND_CLAIM_TTL_S).
@@ -441,7 +442,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
         : { shareCodeId, reason, why: 'already_reported' });
       return force;   // the teacher's ask was answered by the report that just went to them
     }
-    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp });
+    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force });
     return sent;
   } finally {
     // Kept only when a report went out but report_sent_at could not be stamped:
@@ -455,7 +456,19 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  * early-out has passed and (unless switched off) the send claim is held.
  * `stamp.stamped` tells the caller whether report_sent_at really landed.
  */
-async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp }) {
+async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force = false }) {
+  // quiz_report_send_checked (off by default): every send below that stamps the report counts only when WhatsApp
+  // accepted it (SendCheck.send); a refusal is reportNotAccepted (not stamped, counted, retried). Off: today's sends
+  // and stamps. The switch is asked only on a refusal (or for a code that already holds three refusals), after the
+  // report's own fold read where the report makes one (that read carries the switch).
+  // Three refused sends and the automatic runs stop (the web report stays); the teacher's own ask from /quiz still
+  // tries. The count is on the quiz row the report reads, so a code with no refusal counted asks nothing.
+  const givenUp = async (quizRow) => {
+    if (force || SendCheck.triesIn(quizRow && quizRow.meta, shareCodeId) < SendCheck.MAX_TRIES || !(await SendCheck.on())) return false;
+    logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'gave_up' });
+    return true;
+  };
+
   const { data: sessions } = await supabase
     .from('quiz_sessions')
     .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
@@ -585,7 +598,9 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     } catch (e) {
       logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
     }
-    return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel });
+    if (await givenUp(quizRow)) return false;
+    return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
+      sendChecked: (fn) => SendCheck.send(fn), notAccepted: () => reportNotAccepted(shareCodeId, sc, 'story', reason) });
   }
 
   // quiz_report_fold_by_child (off by default): a child not on the class list counts once per CHILD, as the quiz's web
@@ -595,10 +610,14 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   } catch (e) {
     logToFile('⚠️ video-quiz report: could not fold by child — one per record instead', { shareCodeId, error: e.message });
   }
+  // after the fold read (it carries the switch); before any model call or send for a report given up on
+  if (await givenUp(quizRow)) return false;
 
   if (!all.length) {
-    await WhatsAppService.sendMessage(teacher.phone_number,
-      resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
+    const noOne = resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } });
+    if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, noOne)))) {
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
+    }
     stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc));
     // Stamped as a report, so counted as one — of its own kind. Unlogged, this
     // branch was 17.5% of production's report stamps (189 of 1,082) and every
@@ -829,7 +848,9 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     // The PDF is the nicer artefact, not the report itself. If rendering fails
     // the teacher still gets every number — losing the results because a font did not
     // load would be the wrong trade.
-    await WhatsAppService.sendMessage(teacher.phone_number, summary);
+    if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, summary)))) {
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
+    }
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
         markLines(`${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`, lineMark));
@@ -878,6 +899,35 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     kind: 'report', reason, n: done.length,
   });
   return true;
+}
+
+/** How long a refused report waits before its next try (quiz_report_send_checked). */
+const SEND_RETRY_DELAY_S = 15 * 60;
+
+/**
+ * A report WhatsApp did not accept, with quiz_report_send_checked on: nothing is stamped (generate() gives the send
+ * claim back, report_sent_at stays empty), the refusal is counted and logged (report-send-check), and under three
+ * tries the scheduled job is queued again. The third refusal gives up: no further try; the web report stays.
+ * @returns {Promise<false>} buildAndSend's answer: not sent
+ */
+async function reportNotAccepted(shareCodeId, sc, path, reason) {
+  const r = await SendCheck.recordFailure({ path, sc: { ...sc, id: shareCodeId } });
+  Funnel.emit('report_failed', {
+    quiz_id: sc.quiz_id, share_code_id: shareCodeId, kind: path, reason: r.gaveUp ? 'gave_up' : 'send_failed', n: r.tries,
+  });
+  if (r.tries !== null && !r.gaveUp) {
+    try {
+      const SQSQueueService = require('../queue');
+      await SQSQueueService.queueJob(shareCodeId, JOB_TYPE, { shareCodeId }, {
+        delaySeconds: SEND_RETRY_DELAY_S,
+        deduplicationId: `${shareCodeId}-${JOB_TYPE}-retry-${r.tries}`,
+      });
+      logEvent('video_quiz.report_retry_queued', { shareCodeId, reason, tries: r.tries });
+    } catch (err) {
+      logToFile('❌ video-quiz report: refused report not queued again', { shareCodeId, error: err.message }, 'error');
+    }
+  }
+  return false;
 }
 
 /**
