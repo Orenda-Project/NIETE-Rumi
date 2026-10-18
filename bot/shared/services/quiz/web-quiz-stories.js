@@ -292,7 +292,8 @@ async function orderedBooks(studentId, { grade, lang, teacher = [], now = Date.n
 
 async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
   const who = await guard(token, kid, device);
-  const grade = gradeOf(g) || gradeOf(who.grade) || 1;
+  // web_quiz_grade_change: with no grade asked, a class child opens at the grade the family chose (off: the hub's, no read)
+  const grade = gradeOf(g) || gradeOf(g ? who.grade : await require('./web-quiz-grade-change').browseGrade(who)) || 1;
   const lang = clampLanguage(l);
   const teacher = String(t || '').split(',').map((s) => s.trim()).filter((s) => UUID_RX.test(s)).slice(0, MAX_TEACHER);
   const { ordered, done } = await orderedBooks(who.studentId, { grade, lang, teacher, now });

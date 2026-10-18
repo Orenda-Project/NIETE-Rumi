@@ -1309,6 +1309,32 @@ function createWebQuizRouter(opts = {}) {
 
   // With app_settings web_quiz_brotli on: br scripts/styles, a day for unversioned files, versioned Jugnu pictures (web-quiz-static.js).
   router.use(require('./web-quiz-static').createWqStatic({ publicDir: PUBLIC_DIR, on: opts.brotliOn }));
+  // The grown-ups sheet's Grade row (the bot's web_quiz_grade_change; it answers 404 while that is off), with this phone's
+  // device: GET ?hub=&kid= -> the bot's GET /hub/:token/grade?kid= ({now, cls}); POST {hub, kid, grade} -> its POST.
+  // Before the list, so /api/wq/hub/:token never takes them.
+  router.get('/api/wq/hub/grade', noStore, configured, limiters.read, async (req, res) => {
+    const hub = typeof req.query.hub === 'string' ? req.query.hub : '';
+    if (!HUB_TOKEN_RX.test(hub)) return res.status(401).json({ error: 'bad_token' });
+    const kid = typeof req.query.kid === 'string' ? req.query.kid.slice(0, 64) : '';
+    try {
+      const out = await callBot('GET', `/api/internal/wq/hub/${encodeURIComponent(hub)}/grade?kid=${encodeURIComponent(kid)}`, req, null, { route: '/api/internal/wq/hub/:token/grade' });
+      if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
+      return res.status(out.status).json(out.body == null ? {} : out.body);
+    } catch (err) {
+      return res.status(502).json({ error: 'bot_unreachable' });
+    }
+  });
+  router.post('/api/wq/hub/grade', noStore, configured, jsonBody, limiters.session, async (req, res) => {
+    const b = req.body || {};
+    if (typeof b.hub !== 'string' || !HUB_TOKEN_RX.test(b.hub)) return res.status(401).json({ error: 'bad_token' });
+    try {
+      const out = await callBot('POST', `/api/internal/wq/hub/${encodeURIComponent(b.hub)}/grade`, req, { kid: b.kid, grade: b.grade }, { route: '/api/internal/wq/hub/:token/grade' });
+      if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
+      return res.status(out.status).json(out.body == null ? {} : out.body);
+    } catch (err) {
+      return res.status(502).json({ error: 'bot_unreachable' });
+    }
+  });
   for (const r of API_ROUTES) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);
