@@ -346,6 +346,37 @@ describe('the Videos lists say their state on the door root (switch on)', () => 
     await flush();
     expect(t.root.attrs['data-fetch']).toBe('done');
   });
+  test.each(['en', 'ur'])('%s: the subjects list that fails: failed, the shelves\' own Try again (one primary, no old retry); the tap makes it pending, then done', async (lang) => {
+    let subs = 0;
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? { ...CH, subject: 'Maths' } : /[?&]s=/.test(url) ? CH : ((subs += 1) === 1 ? FAIL : LIB_SUBJECTS)));
+    const retry = el(); retry.setAttribute('data-tap', 'vretry');
+    t.taps.push(retry);                 // the failed screen's Try again, wired when that screen is drawn
+    t.W.WQDOORS.mount(t.root, F.boot(lang, SHELF()), ctxOf(lang), 'videos');
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('failed');
+    expect(count(t.root.innerHTML, /<button class="wq-btn wq-btn--secondary wq-vretry" type="button" data-primary data-tap="vretry"/g)).toBe(1);
+    expect(t.root.innerHTML).not.toMatch(/data-tap="retry"|wq-go/);
+    expect(count(t.root.innerHTML, /data-primary/g)).toBe(1);
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+    retry.fire('click');
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('done');
+    expect(t.shelves.Science.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+  });
+  test('a subject whose chapters hold no lessons: its shelf is taken away, the rest say done, and that is not an empty screen', async () => {
+    const none = { ...CH, subject: 'Maths', chapters: CH.chapters.map((c) => ({ ...c, videos: [] })) };
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? none : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    const sec = el(); const row = el(); row.parentNode = sec; sec.parentNode = el({ removeChild: jest.fn() });
+    t.shelves.Maths = row;
+    t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
+    await flush();
+    expect(sec.parentNode.removeChild).toHaveBeenCalledWith(sec);
+    expect(t.shelves.Science.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+  });
   test('no subjects at all (a true empty): done, and the empty moment is stamped', async () => {
     const t = live(() => ({ ...LIB_SUBJECTS, subjects: [] }));
     t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
