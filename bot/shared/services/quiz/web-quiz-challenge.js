@@ -168,7 +168,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); storyVoice = false; clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /**
  * An app_settings switch, true only when its value reads true (fails closed), cached for 30 s.
@@ -581,10 +581,26 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // (web-quiz-voice.js STORY_VOICE), never the voice the plan gives the quiz lines.
 // A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
 // rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
+// app_settings `web_quiz_challenge_story_voice` (default off, JSON true only): with one voice off, the challenge's clips
+// still take the storybook voice, at the one-voice rate: the keys the one-voice plan names, so one checked set serves
+// both. The quiz lines keep today's voice. Read in the background (as the one-voice switch): never on a child's request.
+const STORY_VOICE_FLAG_KEY = 'web_quiz_challenge_story_voice';
+const STORY_CLIP_PLAN = OneVoice.normalize({ voices: { en: STORY_VOICE.en, ur: STORY_VOICE.ur }, kbps: 32 });
+let storyVoice = false;
+async function storyVoiceOn() {
+  storyVoice = await settingOn(STORY_VOICE_FLAG_KEY, { strict: true });
+  return storyVoice;
+}
+// The plan the challenge's clips follow: the one-voice plan when it is on, else the storybook voice when this switch is.
+function clipPlan() {
+  storyVoiceOn().catch(() => null);
+  return OneVoice.currentPlan() || (storyVoice ? STORY_CLIP_PLAN : null);
+}
+
 function clipKey(ex, part, lang, text) {
   // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz); a language
   // it names takes the storybook voice (STORY_VOICE), whatever voice the plan gives the quiz lines.
-  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);
+  const plan = OneVoice.forQuiz(clipPlan(), null, lang);
   const one = plan ? STORY_VOICE[lang] || null : null;
   const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
   return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });
@@ -595,7 +611,7 @@ const KEY_VOICE = /-([a-z]{2}-[a-z0-9]+(?:-[0-9a-f]{6})?)(?:-k(\d+))?-[0-9a-f]{8
 // The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
 function voiceOfKey(key, lang) {
   const m = KEY_VOICE.exec(String(key || ''));
-  return (m && voiceOfTag(m[1], OneVoice.currentPlan())) || quizVoice(lang);
+  return (m && voiceOfTag(m[1], clipPlan())) || quizVoice(lang);
 }
 
 // The rate a clip's key names, else 64.
@@ -612,7 +628,7 @@ const LONG_KEY = /\/(listen|read)\/story-[^/]*\.ogg$/;
 const PART_OF_KEY = /\/challenge\/[^/]+\/([^/]+)\/(.+?)-(?:sx|el|oa)-/;
 const clipRefused = new Set();
 function refused(key, lang, batch) {
-  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);   // a language the plan leaves out: today's recorder
+  const plan = OneVoice.forQuiz(clipPlan(), null, lang);   // a language the plan leaves out: today's recorder
   if (!plan) return false;
   const long = LONG_KEY.exec(String(key || ''));
   if (!long && batch) return false;
@@ -635,7 +651,7 @@ async function recordClip(key, text, lang, now = Date.now(), { batch = false, le
   try {
     const tts = require('../tts');
     const v = voiceOfKey(key, lang);
-    const said = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
+    const said = OneVoice.forQuiz(clipPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
     const out = await tts.synthesize({
       text: said, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
@@ -2424,7 +2440,7 @@ module.exports = {
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   recordClip,      // the one-voice pre-flip recording of the short lines (scripts/quiz/one-voice-missing-keys.js)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
-  __reset,
+  __reset, storyVoiceOn,
 };
 // The passage's child-facing title {en, ur} | null: one home for the shelf and the stop's intro (RULING #100(a)(2)).
 module.exports.passageTitle = passageTitle;
