@@ -413,7 +413,9 @@ function page(lang, menuExtra, { withMoment = true } = {}) {
 }
 async function readAndSettle(p, body) {
   p.w.open('read'); await p.flush();
-  await p.click('wqc-help-no'); await p.click('wqc-go');
+  // the page's own card (no Trail) has no help question: it goes straight to Start
+  if (p.has('wqc-help-no')) await p.click('wqc-help-no');
+  if (p.has('wqc-go')) await p.click('wqc-go'); else if (p.has('wqc-start')) await p.click('wqc-start');
   const s = FakeSocket.all[0]; s.open(); await p.flush();
   s.msg({ tokens: toks(H.STORY.tokens) }); await p.flush();
   await p.click('wqc-stop');
@@ -826,5 +828,47 @@ describe('the folded card\'s Try again (web_quiz_fold_retry)', () => {
       const h = scene(lang, { fold_retry: true, ...RF }).html();
       expect((h.match(/id="wqc-(rf)?again"/g) || [])).toEqual(['id="wqc-rfagain"']);
     }
+  });
+});
+
+// ---- the look's fixes on the cards (key on): Jugnu's line matches the button, the app's own words, a way Home ---------
+describe('a 0-word read on the folded card with NO read-along: Jugnu asks for what the button does', () => {
+  test.each([['en', "Let's read it once more!", "Let's read it together", 'Home', 'Brave try'], ['ur', 'آئیں، ایک بار پھر پڑھیں!', 'آئیں مل کر پڑھیں', 'گھر', 'زبردست کوشش']])('%s: "once more", the moment\'s Home word and the brave-try badge', (lang, once, together, home, badge) => {
+    const t = trail({ lang, menu: { ...FOLD, ...RF }, data: { next_offer: NEXT } });
+    t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+    const h = t.html();
+    expect(h).toContain(`<p class="wq-say" data-pose="hello">${once.replace("'", '&#39;')}</p>`);
+    expect(h).not.toContain(together.replace("'", '&#39;'));
+    expect(h).toMatch(new RegExp(`id="wqc-fhome"[^>]*>${home}<`));
+    expect(h).toContain(`<span>${badge}</span>`);
+  });
+  test('with a read-along (zero_listen + timings): the line stays "let\'s read it together" (the button reads with Jugnu)', () => {
+    const t = trail({ lang: 'ur', along: [], menu: { ...FOLD, ...RF }, data: { next_offer: NEXT, zero_listen: true, readalong: { words: [{ w: 'a', s: 0, e: 300 }] } } });
+    t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+    expect(t.html()).toContain('<p class="wq-say" data-pose="hello">آئیں مل کر پڑھیں</p>');
+  });
+  test('key off: today\'s line and today\'s Home word', () => {
+    const t = trail({ lang: 'ur', menu: { ...FOLD }, data: { next_offer: NEXT } });
+    t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+    expect(t.html()).toContain('آئیں مل کر پڑھیں');
+    expect(t.html()).toMatch(/id="wqc-fhome"[^>]*>ہوم</);
+  });
+});
+
+describe('the page\'s own card (no Trail, key on): Home under the primary', () => {
+  test.each([['en', 'Home'], ['ur', 'گھر']])('%s: a soft Home to this token\'s hub after "More challenges"', async (lang, home) => {
+    const { settled } = await readAndSettle(page(lang, { ...RF, trail: false, v2: null }), SETTLE);
+    expect(settled).toContain('<div id="wqc-rf">');   // the page's own card, not the Trail's
+    expect(settled).toMatch(new RegExp(`<a class="wq-btn wq-soft" id="wqc-rfhome" data-home href="/h/[^"]+">${home}</a>`));
+    expect(settled.indexOf('id="wqc-menu"')).toBeLessThan(settled.indexOf('id="wqc-rfhome"'));
+  });
+});
+
+describe('the moment\'s stylesheet: the card balanced, the sound switch labelled, the Urdu Next tile compact', () => {
+  const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+  test('rules', () => {
+    expect(CSS).toMatch(/\.wq-screen\.wqc:has\(> #wqc-rf\) \{[^}]*justify-content: center/);
+    expect(CSS).toMatch(/#wqfc-snd::after \{ content: attr\(aria-label\); \}/);
+    expect(CSS).toMatch(/html\[lang=ur\] \.wqfc-nt b \{ font-size: 20px; line-height: 1\.8; \}/);
   });
 });
