@@ -10,11 +10,12 @@ import './player.css';
  * caption under it, ≥56×56. A narration tile spans two columns and says "Listen to the story". Same four states and
  * attributes as SoundPill; the state line replaces the caption while loading / playing / failed.
  */
-export interface SoundTileProps { clipId: string; label: string; caption?: string; lang?: string; dir?: string; role?: ClipRole }
+export interface SoundTileProps { clipId: string; label: string; caption?: string; lang?: string; dir?: string; role?: ClipRole; owner?: string }
 
-export function SoundTile({ clipId, label, caption, lang, dir, role }: SoundTileProps) {
+export function SoundTile({ clipId, label, caption, lang, dir, role, owner: ownerProp }: SoundTileProps) {
   const player = useFlnPlayerContext();
-  const owner = useId();
+  const autoOwner = useId();
+  const owner = ownerProp ?? autoOwner;
   const { state, progress } = useClipState(clipId, owner);
   const narration = role === 'narration';
   const main = narration ? audioStrings(lang).listenStory : label;

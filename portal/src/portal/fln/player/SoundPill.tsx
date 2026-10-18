@@ -10,7 +10,11 @@ import './player.css';
  * idle ▶ · loading ring + "Loading…" · playing ■ + progress bar + "Playing…" · error ↻ + the retry line.
  * The state is never colour alone (A10): every state changes the icon AND the text.
  */
-export interface SoundPillProps { clipId: string; label: string; caption?: string; lang?: string; dir?: string; first?: boolean }
+export interface SoundPillProps {
+  clipId: string; label: string; caption?: string; lang?: string; dir?: string; first?: boolean;
+  /** Tells two controls of one clip apart (PlanPage: `section:group:item:index`). Default: a per-control id. */
+  owner?: string;
+}
 
 /** The leading glyph for a state. ▶ keeps pointing right in both languages (the media convention). */
 export function SoundStateIcon({ state, size = 18 }: { state: PlayerState; size?: number }) {
@@ -28,9 +32,10 @@ function onIOS(): boolean {
   return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
 }
 
-export function SoundPill({ clipId, label, caption, lang, dir, first }: SoundPillProps) {
+export function SoundPill({ clipId, label, caption, lang, dir, first, owner: ownerProp }: SoundPillProps) {
   const player = useFlnPlayerContext();
-  const owner = useId();
+  const autoOwner = useId();
+  const owner = ownerProp ?? autoOwner;
   const { state, progress } = useClipState(clipId, owner);
   const s = audioStrings(lang);
   const textDir = audioDir(lang, dir);
