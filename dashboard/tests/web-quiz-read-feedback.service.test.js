@@ -99,7 +99,7 @@ describe('WQMoment, pure', () => {
     expect(M.level(fb, 3)).toEqual({ lights: 0, stars: 0, growth: null, badge: 'try' });
     const h = M.html(fb, lang, { grade: 3 });
     expect(h.replace(/&#39;/g, "'")).toContain(lang === 'ur' ? 'آئیں مل کر پڑھیں!' : "Let's read it together!");
-    expect(h).toContain(lang === 'ur' ? 'زبردست کوشش' : 'Brave try');
+    expect(h).toContain(lang === 'ur' ? 'ہمت والی کوشش' : 'Brave try');
     expect(h).not.toContain('wq-moment-star');
     expect(h).not.toContain('wq-moment-meter');
   });
@@ -162,7 +162,7 @@ describe('the reading bands (the reading sign-off)', () => {
 });
 
 describe('the Urdu words (after a native read)', () => {
-  test('badges name the badge, never the child: no gendered «والے / والی»; labels read right for every count', () => {
+  test('badges name the badge, never the child: no «والے / والی» that agrees with the child (only with the badge\'s own noun: «ہمت والی کوشش», the copy key stamp.brave_try); labels read right for every count', () => {
     const M = moment();
     const reads = [
       M.feedback({ score: { correct: 50, attempted: 50 }, wcpm: 60, previous: { wcpm: 40 } }),   // faster
@@ -172,11 +172,12 @@ describe('the Urdu words (after a native read)', () => {
     ];
     const ur = reads.map((fb) => M.html(fb, 'ur', { grade: 3 }));
     expect(ur.map((h) => /data-badge="(\w+)"/.exec(h)[1])).toEqual(['faster', 'star', 'reader', 'try']);
-    for (const h of ur) expect(h).not.toMatch(/والے|والی/);
+    for (const h of ur) expect(h.replace('ہمت والی کوشش', '')).not.toMatch(/والے|والی/);
+    expect(ur[3]).toContain('<span>ہمت والی کوشش</span>');
     expect(ur[0]).toContain('رفتار کا تمغہ');
     expect(ur[1]).toContain('پڑھائی کا ستارہ');
     expect(ur[2]).toContain('ہمت کا تمغہ');
-    expect(ur[3]).toContain('زبردست کوشش');
+    expect(ur[3]).toContain('ہمت والی کوشش');
     expect(ur[2]).toContain('aria-label="ستارے: ۳ میں سے ۱"');
   });
 });
@@ -833,7 +834,7 @@ describe('the folded card\'s Try again (web_quiz_fold_retry)', () => {
 
 // ---- the look's fixes on the cards (key on): Jugnu's line matches the button, the app's own words, a way Home ---------
 describe('a 0-word read on the folded card with NO read-along: Jugnu asks for what the button does', () => {
-  test.each([['en', "Let's read it once more!", "Let's read it together", 'Home', 'Brave try'], ['ur', 'آئیں، ایک بار پھر پڑھیں!', 'آئیں مل کر پڑھیں', 'گھر', 'زبردست کوشش']])('%s: "once more", the moment\'s Home word and the brave-try badge', (lang, once, together, home, badge) => {
+  test.each([['en', "Let's read it once more!", "Let's read it together", 'Home', 'Brave try'], ['ur', 'آئیں، ایک بار پھر پڑھیں!', 'آئیں مل کر پڑھیں', 'گھر', 'ہمت والی کوشش']])('%s: "once more", the moment\'s Home word and the brave-try badge', (lang, once, together, home, badge) => {
     const t = trail({ lang, menu: { ...FOLD, ...RF }, data: { next_offer: NEXT } });
     t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
     const h = t.html();
