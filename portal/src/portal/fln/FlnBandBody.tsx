@@ -16,7 +16,7 @@
  *
  * The band lives in the teacher app, so its language is the app's (`useLang()`), not /me's.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { flnApi } from './api';
 import { FLN_DIR, flnStrings, levelForGrade, type FlnSubjectKey } from './strings';
@@ -55,6 +55,18 @@ export function FlnBandBody() {
   const mine = useMemo(() => defaultGrade((dataOf(combos) ?? []).map((c) => c.grade)), [combos]);
   const grade = picked ?? (combosDone ? mine : null);
 
+  // The selected chip in the middle of its row (red-team 192944: a G5+ teacher's chip sat off-screen in the RTL
+  // scroller). Moves the row only, never the page; a scrollLeft delta works for LTR and RTL alike.
+  const chipsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = chipsRef.current;
+    const chip = row?.querySelector<HTMLElement>('.fln-chip.on');
+    if (!row || !chip) return;
+    const r = row.getBoundingClientRect();
+    const c = chip.getBoundingClientRect();
+    row.scrollLeft += (c.left + c.width / 2) - (r.left + r.width / 2);
+  }, [grade]);
+
   useEffect(() => {
     if (me !== 'on' || grade == null) return undefined;
     let live = true;
@@ -83,7 +95,7 @@ export function FlnBandBody() {
       </h2>
       <p className="fln-band-sub">{s.band.sub}</p>
 
-      <div className="fln-chips" role="radiogroup" aria-label={s.band.gradeLabel}>
+      <div ref={chipsRef} className="fln-chips" role="radiogroup" aria-label={s.band.gradeLabel}>
         {GRADES.map((g) => (
           <button
             key={g}
