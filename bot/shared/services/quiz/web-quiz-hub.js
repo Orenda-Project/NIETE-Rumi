@@ -806,7 +806,8 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
-  const listen = !out.locked && (await Flags.flags()).readalong;
+  const f = await Flags.flags();
+  const listen = !out.locked && f.readalong;
   // Minified page files (web-quiz-minify.js): named only when on (the hub's one switch read, just run), so a switched-off payload is today's.
   const min = require('./web-quiz-minify').on();
   const rt = await Tel.flag();
@@ -816,21 +817,23 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('tail');
   // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}) };
 }
 
 async function hubTogether(token, opts) {
   const fast = require('./web-quiz-fast').on();
   const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
   if (opts.st) opts.st.mark('other');
-  const listen = !out.locked && (await Flags.flags()).readalong;
+  const f = await Flags.flags();
+  const listen = !out.locked && f.readalong;
   // Minified page files (web-quiz-minify.js): named only when on (the hub's one switch read, just run), so a switched-off payload is today's.
   const min = require('./web-quiz-minify').on();
   const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
   // the light Urdu face (web_quiz_face_lite), as the serial path: from the switch read just awaited, ui.fl, else the ui
+  // the same later hub field as hub() above: reads started together must not drop the pack
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}) };
 }
 
 module.exports = {
