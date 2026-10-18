@@ -4,6 +4,7 @@
  * Games beyond the hub boot's few ids, fetched when a door opens so the home itself stays light.
  *
  *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
+ *                                         a failed read adds err: 1 (web_quiz_list_states on only)
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
  *   seededOrder(items, seed)              a stable shuffle (pure): the same seed, the same order
  *   daySeed(childId, now)                 the seed for one child on one Pakistan day (pure)
@@ -63,9 +64,16 @@ async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
   } finally { clearTimeout(timer); }
 }
 
-async function storiesDoor() {
-  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => false);
-  return { stories: [], shelf: storiesOn };
+async function storiesDoor(list) {
+  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => (list ? null : false));
+  // web_quiz_list_states: a shelf switch that could not be read is a failed read, not "the shelf is off"
+  return storiesOn === null ? { stories: [], shelf: false, err: 1 } : { stories: [], shelf: storiesOn };
+}
+
+// A grade or form read that failed: rethrown under web_quiz_list_states (the door answers err: 1), else today's null.
+async function formFailed(err) {
+  if (await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false)) throw err;
+  return null;
 }
 
 async function gamesDoor(who, lang, now) {
@@ -74,7 +82,8 @@ async function gamesDoor(who, lang, now) {
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
-  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(() => null);
+  // web_quiz_list_states: a form read that failed is a failed door (the page offers a retry), not a child with no games
+  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(formFailed);
   if (!form) return { games: [] };
   let ids;
   if (form === G1.FORM) ids = [G1.EXERCISE];
@@ -114,7 +123,8 @@ async function gamesDoorTogether(who, lang, now) {
   const swP = early(() => Play.switches());
   const rungP = early(() => Play.readingRungOf(who.studentId));
   const aloudP = early(() => require('./web-quiz-challenge-budget').readOpen()).catch(() => false);
-  const form = await Challenge.formForChild(await gradeP).catch(() => null);
+  // web_quiz_list_states: as gamesDoor, a grade or form read that failed is a failed door, not a child with no games
+  const form = await gradeP.then((g) => Challenge.formForChild(g)).catch(formFailed);
   if (!form) return { games: [] };
   const ids = form === G1.FORM ? [G1.EXERCISE] : [...((await recordP) && (await missingP) ? ['missing'] : []), 'bigger'];
   const warm = ids.includes('missing') && (await poolP);
@@ -196,17 +206,20 @@ function safeName(Challenge, id, lang) {
 async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
-  if (!(await require('./web-quiz-home-flags').flags()).home) fail(404, 'home_off');
+  const homeFlags = await require('./web-quiz-home-flags').flags();
+  if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
-    return d === 'stories' ? await storiesDoor() : await gamesDoor(who, l, now);
+    return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
-    return d === 'stories' ? { stories: [], shelf: false } : { games: [] };
+    // web_quiz_list_states: the page tells a failed read from an empty one (a retry, never "nothing here")
+    const list = await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false);
+    return { ...(d === 'stories' ? { stories: [], shelf: false } : { games: [] }), ...(list ? { err: 1 } : {}) };
   }
 }
 

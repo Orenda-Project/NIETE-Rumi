@@ -292,6 +292,20 @@ router.get('/hub/:token', handle((req, res) => {
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 // `l`: the page's language (en|ur, anything else dropped); read only under app_settings web_quiz_videos_v3.
 const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
+// web_quiz_video_shelf: a lesson's small thumbnail for the Videos door's shelves (off: 404 not_found, never kept; a
+// lesson with no picture: 404 no_picture, kept 10 minutes so its cards do not ask storage on every view)
+router.get('/vt/:vid.webp', async (req, res) => {
+  try {
+    const Thumb = require('../services/quiz/web-quiz-video-thumb');
+    const pic = await Thumb.thumb(req.params.vid);
+    if (!pic && (await Thumb.noPicture(req.params.vid))) return res.status(404).set('Cache-Control', `public, max-age=${Math.round(Thumb.NONE_MS / 1000)}`).json({ error: 'no_picture' });
+    if (!pic) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    return res.status(200).set({ 'Content-Type': pic.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' }).send(pic.bytes);
+  } catch (err) {
+    logToFile('❌ web-quiz video thumb failed', { error: err.message }, 'error');
+    return res.status(500).set('Cache-Control', 'no-store').json({ error: 'server_error' });
+  }
+});
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
 // the v3 home's door screens (web-quiz-hub-doors.js; web_quiz_home_v3, off -> 404 home_off): what is behind Stories / Games
 router.get('/doors/h/:token', handle((req) => require('../services/quiz/web-quiz-hub-doors').door(req.params.token, { kid: q1(req.query.kid), d: q1(req.query.d), lang: q1(req.query.l), device: req.get('x-wq-device') })));
