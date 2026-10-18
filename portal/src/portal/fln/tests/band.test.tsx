@@ -84,7 +84,8 @@ describe('FlnBand', () => {
     renderBand();
     const rows = await screen.findAllByRole('link');
     expect(rows[0].getAttribute('href')).toBe('/portal/fln/list/rh-en?grade=2');
-    expect(within(rows[0]).getByText(EN.bandRow(LEVELS[1].count, 2))).toBeInTheDocument();
+    // grade 2's own rows (66 in this fixture), never level 2's representative count (QT-counts)
+    expect(within(rows[0]).getByText(EN.bandRow(66, 2))).toBeInTheDocument();
     const radios = screen.getAllByRole('radio');
     expect(radios).toHaveLength(12);
     expect(radios[1].getAttribute('aria-checked')).toBe('true');

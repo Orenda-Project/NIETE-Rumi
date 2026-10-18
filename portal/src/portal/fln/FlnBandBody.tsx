@@ -12,7 +12,7 @@
  *   loading                → three skeleton rows (reserved height)
  *   503 / 5xx / network    → one calm line + Try again
  *   ok                     → three rows ≥56 px: name + "<count> lessons · Level n" (grade 1–5, count from the
- *                            level's placement count) or "By level · start with the screener" (6–12, never minutes)
+ *                            grade's own rows, as the list counts them) or "By level · start with the screener" (6–12, never minutes)
  *
  * The band lives in the teacher app, so its language is the app's (`useLang()`), not /me's.
  */
@@ -21,7 +21,7 @@ import { Link } from 'react-router-dom';
 import { flnApi } from './api';
 import { FLN_DIR, flnStrings, levelForGrade, type FlnSubjectKey } from './strings';
 import type { FlnCatalogue } from './types';
-import { FLN_SUBJECTS, listUrl } from './listShared';
+import { FLN_SUBJECTS, listUrl, rowsCount } from './listShared';
 import { useLang } from '../teacher/i18n';
 import { loadGradeSubjects } from '../lib/gradeSubjects';
 import { dataOf, useLoad } from '../newui/lessons/shared';
@@ -71,8 +71,8 @@ export function FlnBandBody() {
   const sub = (c: FlnCatalogue): string => {
     if (grade == null || grade >= 6) return s.band.subSenior;
     const level = c.level ?? levelForGrade(grade) ?? 1;
-    const count = c.levels.find((l) => l.level === level)?.count ?? 0;
-    return s.bandRow(count, level);
+    // The grade's own rows (as the list counts them), never the level's representative grade (QT-counts).
+    return s.bandRow(rowsCount(c, level), level);
   };
 
   return (

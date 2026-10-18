@@ -220,7 +220,7 @@ describe('GET /fln/plan/:id', () => {
     expect(Object.keys(r.json).sort()).toEqual(['placement', 'plan']);
     expect(r.json.plan.id).toBe(900010);
     expect(JSON.stringify(r.json)).not.toMatch(/"share"/);
-    expect(r.json.placement).toEqual([{ subject: 'rh-ur', level: 1, grades: [1], strand: 'daily', chapter_title_en: 'Letters', chapter_title_ur: 'حروف', pos: 1, count: 1, label: null }]);
+    expect(r.json.placement).toEqual([{ subject: 'rh-ur', level: 1, grades: [1], grade: 1, strand: 'daily', chapter_title_en: 'Letters', chapter_title_ur: 'حروف', pos: 1, count: 1, label: null }]);
     await flush();
     const opens = opensWritten();
     expect(opens).toHaveLength(1);

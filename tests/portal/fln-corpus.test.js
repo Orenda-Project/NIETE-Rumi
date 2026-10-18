@@ -184,7 +184,7 @@ describe('reads', () => {
 
   it('placementOf: every served row with the level grades, pos and count', () => {
     expect(C.placementOf(900003)).toEqual([{
-      subject: 'rh-en', level: 1, grades: [1], strand: 'daily', chapter_title_en: 'Sounds', chapter_title_ur: null, pos: 2, count: 5, label: null,
+      subject: 'rh-en', level: 1, grades: [1], grade: 1, strand: 'daily', chapter_title_en: 'Sounds', chapter_title_ur: null, pos: 2, count: 5, label: null,
     }]);
     expect(C.placementOf(900008)[0]).toMatchObject({ level: 2, grades: [2, 3], count: 40 });
     expect(C.placementOf(900007)).toEqual([]);
@@ -280,6 +280,16 @@ describe('reads', () => {
     const lv = C.levels('rh-en');
     expect(lv.map((l) => l.count)).toEqual([5, 1, 1]);
     expect(lv[0].screener_minutes).toBe(53);
+  });
+
+  it('placementOf: a lesson placed in two grades of one level → one row per grade, each with its own grade, pos and count', () => {
+    const b = build();
+    const g3 = b.placement.find((r) => r.lp_id === 900008);
+    b.placement.unshift({ ...g3, grade: 2, pos: 2, count: 38 });
+    C.__setForTests(b);
+    const rows = C.placementOf(900008);
+    expect(rows.map((r) => [r.grade, r.pos, r.count])).toEqual([[2, 2, 38], [3, 1, 40]]);
+    expect(rows[0]).toMatchObject({ level: 2, grades: [2, 3] });
   });
 
   it('levels(subject)', () => {
