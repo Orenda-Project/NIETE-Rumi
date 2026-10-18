@@ -461,3 +461,111 @@ describe('the class table and the league: a skeleton while loading, and the list
     expect(p.html()).not.toMatch(/data-(fetch|list|skel|empty)/);
   });
 });
+
+describe('the class table warmed while "See my class" is on screen, and the child\'s move since last time (class_doors)', () => {
+  const FOLD = { ...RESULT, card_v3: true, card_fold: true, class_doors: true, next_offer: NEXT };
+  // the harness keeps one element per id across screens; a phone's tap reaches only the button the screen drew last
+  const tap = (p, sel) => { const e = p.els[sel]; e.listeners.click = (e.listeners.click || []).slice(-1); e.fire('click'); };
+  const boardHits = (p) => p.fetches.filter((f) => f.url.indexOf('/api/wq/board/') >= 0).length;
+  const warmCard = (o = {}) => cardPage(o.lang || 'en', o.result || FOLD, { fc: true, api: { 'board/': o.board || BOARD } });
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: on idle the table is asked for once; the tap opens it from that answer, no second ask`, async () => {
+      const p = warmCard({ lang });
+      expect(boardHits(p)).toBe(0);
+      p.runTimers();
+      await flush();
+      expect(boardHits(p)).toBe(1);
+      p.runTimers();
+      expect(boardHits(p)).toBe(1);
+      tap(p, '#wq-class');
+      await flush(); await flush();
+      expect(p.html()).toContain('data-m="M11"');
+      expect(p.html()).toContain('wq-table');
+      expect(boardHits(p)).toBe(1);
+      // taken once: the next visit asks again, as today
+      p.wq.card();
+      tap(p, '#wq-class');
+      await flush(); await flush();
+      expect(boardHits(p)).toBe(2);
+    });
+  }
+  test('saveData or a 3g line: never warmed; the tap asks, as today', async () => {
+    for (const connection of [{ saveData: true, effectiveType: '4g' }, { effectiveType: '3g' }]) {
+      const p = page({ lang: 'en', store: store(FOLD), api: { 'board/': BOARD }, connection });
+      p.runTimers();
+      await flush();
+      expect(boardHits(p)).toBe(0);
+      tap(p, '#wq-class');
+      await flush(); await flush();
+      expect(boardHits(p)).toBe(1);
+    }
+  });
+  test('the screen changed before idle: no warm-up', async () => {
+    const p = warmCard();
+    // leave the card for the league, then let idle come
+    tap(p, '#wq-schools');
+    const before = boardHits(p);
+    p.runTimers();
+    await flush();
+    expect(boardHits(p)).toBe(before);
+  });
+  test('a failed warm-up: the tap asks again and shows the table', async () => {
+    let n = 0;
+    const p = warmCard({ board: () => (++n === 1 ? { __status: 500 } : BOARD) });
+    p.runTimers();
+    await flush(); await flush();
+    tap(p, '#wq-class');
+    await flush(); await flush(); await flush();
+    expect(n).toBe(2);
+    expect(p.html()).toContain('wq-table');
+  });
+  test('off (no class_doors): nothing is warmed', async () => {
+    const p = warmCard({ result: { ...RESULT, card_v3: true, card_fold: true, next_offer: NEXT } });
+    p.runTimers();
+    await flush();
+    expect(boardHits(p)).toBe(0);
+  });
+
+  const B3 = { ...BOARD, class_doors: true, my_class: '3', one_class: true, you: { place: 1, correct: 3, total: 5 } };
+  const view = async (o) => {
+    const p = page({ lang: o.lang || 'en', store: { ...store({ ...RESULT }), ...(o.was != null ? { wq_cp_TEST_c1: o.was } : {}) }, api: { 'board/': o.board || B3 }, htmlClass: o.adv === false ? [] : ['wq-adv'] });
+    p.wq.board();
+    await flush(); await flush();
+    return p;
+  };
+  test('with the adventure look: up 2 places -> "You moved up 2 places!" (EN) / Urdu digits (UR); the new place is kept', async () => {
+    const en = await view({ was: 3 });
+    expect(en.html()).toContain('<p class="wq-move" data-move="up">' + en.wq.T.movedUp(2) + '</p>');
+    expect(en.wq.T.movedUp(2)).toBe('You moved up 2 places!');
+    expect(en.wq.T.movedUp(1)).toBe('You moved up 1 place!');
+    expect(JSON.parse(en.ls.get('wq_cp_TEST_c1'))).toBe(1);
+    const ur = await view({ lang: 'ur', was: 3 });
+    expect(ur.html()).toContain('data-move="up"');
+    // the native read's words: neutral for every child (ہیں, never آ گئے), درجہ for one, درجے for more
+    expect(ur.wq.T.movedUp(2)).toBe('آپ اب ۲ درجے اوپر ہیں!');
+    expect(ur.wq.T.movedUp(1)).toBe('آپ اب ۱ درجہ اوپر ہیں!');
+    expect(ur.wq.T.samePlace).toBe('آپ پچھلی بار والی جگہ پر ہیں۔');
+    expect(ur.wq.T.movedNow(4)).toBe('کچھ اور دوستوں نے بھی کھیلا۔ اب آپ ۴ نمبر پر ہیں۔');
+  });
+  test('same place, or a lower one: a kind line, never a scolding one', async () => {
+    const same = await view({ was: 1 });
+    expect(same.html()).toContain('data-move="same"');
+    expect(same.html()).toContain(same.wq.T.samePlace);
+    const down = await view({ was: 1, board: { ...B3, you: { place: 4, correct: 1, total: 5 } } });
+    expect(down.html()).toContain('data-move="down"');
+    expect(down.html()).toContain(down.wq.T.movedNow(4));
+  });
+  test('first visit: no line, the place is kept; no look: no line, the place is still kept', async () => {
+    const first = await view({});
+    expect(first.html()).not.toContain('wq-move');
+    expect(JSON.parse(first.ls.get('wq_cp_TEST_c1'))).toBe(1);
+    const plain = await view({ was: 3, adv: false });
+    expect(plain.html()).not.toContain('wq-move');
+    expect(JSON.parse(plain.ls.get('wq_cp_TEST_c1'))).toBe(1);
+  });
+  test('off (no class_doors on the answer): nothing kept, no line', async () => {
+    const off = await view({ was: 3, board: BOARD });
+    expect(off.html()).not.toContain('wq-move');
+    expect(JSON.parse(off.ls.get('wq_cp_TEST_c1'))).toBe(3);
+  });
+});

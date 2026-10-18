@@ -38,7 +38,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {} } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {}, htmlClass = [] } = {}) {
   // tel: the page-session telemetry (wq-tel.js) loaded first, as the edge's template does, with the switch on.
   const tel = Boolean(arguments[0] && arguments[0].tel);
   const els = {};
@@ -82,8 +82,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const ctx = {
     console,
     document: {
-      // <html> as the edge renders it: lang/dir, and the Urdu polish class `wq-ur2` only for an Urdu page whose boot carries ui.ur2.
-      documentElement: { lang, dir: lang === 'ur' ? 'rtl' : 'ltr', classList: { contains: (c) => c === 'wq-ur2' && lang === 'ur' && Boolean(bootExtra.ui && bootExtra.ui.ur2 === true) } },
+      // <html> as the edge renders it: lang/dir, and the Urdu polish class `wq-ur2` only for an Urdu page whose boot carries ui.ur2;
+      // htmlClass: any other class the edge puts on <html> (the adventure look's `wq-adv`).
+      documentElement: { lang, dir: lang === 'ur' ? 'rtl' : 'ltr', classList: { contains: (c) => (c === 'wq-ur2' && lang === 'ur' && Boolean(bootExtra.ui && bootExtra.ui.ur2 === true)) || htmlClass.indexOf(c) >= 0 } },
       getElementById: (id) => (id === 'boot' ? boot : id === 'wq' ? root : id === 'wq-sheet' ? (root.innerHTML.indexOf('id="wq-sheet"') >= 0 ? sheet : null) : null),
       createElement: () => { const e = fakeEl('new'); created.push(e); return e; }, addEventListener(n, fn) { (dl[n] = dl[n] || []).push(fn); }, body: fakeEl('body'), visibilityState: 'visible',
     },
