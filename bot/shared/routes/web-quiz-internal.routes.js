@@ -53,6 +53,8 @@ const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).cat
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WaitUx = require('../services/quiz/web-quiz-wait-ux');
+// The child home's files in the portal's early head (web_quiz_home_preload): every hub answer says `home_pre: true` only when on.
+const HomePreload = require('../services/quiz/web-quiz-home-preload');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 const CardImage = require('../services/quiz/web-quiz-card-image');
 // One Urdu face (web_quiz_one_face): the quiz, hub and challenge menu answers say `one_face: true` only when on.
@@ -284,9 +286,9 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)));
+  if (!st) return HomePreload.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))));
   StepTiming.attach(res, st);
-  return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })));
+  return HomePreload.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))));
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
@@ -319,7 +321,7 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang })))));
+router.post('/hub/:token', handle((req) => HomePreload.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang }))))));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));

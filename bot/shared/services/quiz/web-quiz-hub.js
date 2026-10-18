@@ -563,13 +563,10 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
-  const f = await Flags.flags();
-  const listen = !out.locked && f.readalong;
+  const listen = !out.locked && (await Flags.flags()).readalong;
   const rt = await Tel.flag();
   if (opts.st) opts.st.mark('tail');
-  // The child home's files in the edge's early head (web_quiz_home_preload, in the same batched read): named on every
-  // answer, a locked one too, so the edge follows a flip on its next page. Off: no key, the hub JSON is today's.
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.homePreload ? { home_pre: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {

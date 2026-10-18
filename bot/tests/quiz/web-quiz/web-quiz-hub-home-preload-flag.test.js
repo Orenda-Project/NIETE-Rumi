@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The child home's preload switch (app_settings web_quiz_home_preload, default off): the hub JSON says `home_pre: true`
+ * The child home's preload switch (app_settings web_quiz_home_preload, default off): the hub answer says `home_pre: true`
  * only when the stored value is the JSON boolean true, on every hub answer (a locked one too, so a flip OFF reaches the
  * edge at once); the edge then preloads the home's files in the head it sends before the next hub answer.
  * The key rides the hub's ONE batched app_settings read (web-quiz-hub-flags.js KEYS): ON adds no settings read.
@@ -139,6 +139,9 @@ const stable = (o) => JSON.parse(JSON.stringify(o));
 
 const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
 const KEY = 'web_quiz_home_preload';
+// The hub routes wrap every hub answer with HomePreload.carry (web-quiz-internal.routes.js; the routes test pins that).
+const HomePreload = require('../../../shared/services/quiz/web-quiz-home-preload');
+const carried = (token, o) => HomePreload.carry(Hub.hub(token, o));
 
 describe('web_quiz_home_preload on the hub JSON', () => {
   const B = { device: 'BBBBBBBBBBBBBBBBBBBBBB' };
@@ -146,10 +149,10 @@ describe('web_quiz_home_preload on the hub JSON', () => {
   beforeEach(() => Flags._resetCache());
 
   test('switch on (JSON true): `home_pre: true`, and otherwise the switch-off payload key for key', async () => {
-    const off = stable(await Hub.hub(T.signHub([KID]), A));
+    const off = stable(await carried(T.signHub([KID]), A));
     again();
     db.app_settings.push({ key: KEY, value: true });
-    const on = stable(await Hub.hub(T.signHub([KID]), A));
+    const on = stable(await carried(T.signHub([KID]), A));
     expect(off).not.toHaveProperty('home_pre');
     expect(on.home_pre).toBe(true);
     delete on.home_pre;
@@ -160,7 +163,7 @@ describe('web_quiz_home_preload on the hub JSON', () => {
     for (const value of [undefined, false, 'true', 'false', 1, 'yes', null, { on: true }]) {
       again();
       seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, ...(value === undefined ? [] : [{ key: KEY, value }])] });
-      const out = stable(await Hub.hub(T.signHub([KID]), A));
+      const out = stable(await carried(T.signHub([KID]), A));
       expect([value, 'home_pre' in out]).toEqual([value, false]);
     }
   });
@@ -168,20 +171,20 @@ describe('web_quiz_home_preload on the hub JSON', () => {
   test('switch on, a locked hub (the link on another phone): `home_pre: true` too (the edge learns a flip from any answer)', async () => {
     db.app_settings.push({ key: KEY, value: true });
     const tok = T.signHub([KID]);
-    expect((await Hub.hub(tok, A)).home_pre).toBe(true);
-    const other = await Hub.hub(tok, B);
+    expect((await carried(tok, A)).home_pre).toBe(true);
+    const other = await carried(tok, B);
     expect(other.locked).toBe(true);
     expect(other.home_pre).toBe(true);
   });
 
   test('the key rides the hub\'s one batched settings read: same app_settings reads ON as OFF', async () => {
     let n = counting();
-    await Hub.hub(T.signHub([KID]), A);
+    await carried(T.signHub([KID]), A);
     const offReads = n.app_settings || 0;
     again();
     db.app_settings.push({ key: KEY, value: true });
     n = counting();
-    const on = await Hub.hub(T.signHub([KID]), A);
+    const on = await carried(T.signHub([KID]), A);
     expect(on.home_pre).toBe(true);
     expect(n.app_settings || 0).toBe(offReads);
   });

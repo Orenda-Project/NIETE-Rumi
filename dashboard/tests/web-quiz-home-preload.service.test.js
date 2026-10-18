@@ -190,6 +190,18 @@ describe('web_quiz_home_preload: the child home\'s files start in the flushed he
     expect(pre).toEqual(['wq-home.css', 'wq-home.js', 'wq-doors.css', 'wq-doors.js', 'wq-tel.js', 'hub.js']);
   });
 
+  test('the learned list is bounded to the home\'s own files: any other tag on a child\'s page is never preloaded for the next', () => {
+    const v = 'a474683122';
+    const tags = [
+      `<link rel="stylesheet" href="/wq/wq-home.css?v=${v}">`, `<script src="/wq/wq-home.js?v=${v}" defer></script>`,
+      `<link rel="stylesheet" href="/wq/wq-extra.css?v=${v}">`, `<script src="/wq/wq-juice.js?v=${v}" defer></script>`,
+      `<script src="/wq/wq-readalong-listen.js?v=8f48545243" defer></script>`,
+    ].join('\n');
+    HomePre.learn({ home_pre: true, kid: KID, kids: [], home_v3: 1 }, tags, v);
+    const pre = (HomePre.head().match(/href="[^"]+"/g) || []).map((h) => fileOf(h.slice(6, -1)));
+    expect(pre).toEqual(['wq-home.css', 'wq-home.js', 'wq-readalong-listen.js', 'wq-doors.css', 'wq-doors.js']);
+  });
+
   test('a locked answer (another phone) keeps what the edge learned; an answer without `home_pre` forgets it (flip OFF: one open later)', async () => {
     const bot = heldBot([
       jsonRes(200, HUB({ home_pre: true })),
