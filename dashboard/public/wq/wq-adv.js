@@ -3,21 +3,14 @@
  * when the page payload carries `adv: true` (app_settings web_quiz_adventure_look, default off). With it absent nothing
  * here runs, so every caller writes `if (window.WQA) …` and keeps today's path otherwise.
  *
- *   WQA.icon(name[, label])       one inline-SVG icon (currentColor; the class animals and subjects too); unknown = star
- *   WQA.animal(key) / WQA.subject(name)   the class avatar / the subject tile, as icons (the emoji maps' keys)
- *   WQA.bar(done, total[, label]) a progress bar (role=progressbar), WQA.badge(text[, icon]) a sticker
- *   WQA.move(el, name)            one motion (pop, rise, wobble, glow), a 150 ms fade under reduced motion
- *   WQA.cue(name[, el])           one sound from the sound kit (wq-juice.js, fetched on the first cue); never when muted
- *   WQA.burst(el)                 the celebration: the finish sound, el pops, confetti (none under reduced motion)
- *   WQA.muted() / WQA.mute(b)     the pages' ONE sound switch (the sound kit's own keys)
- *   WQA.still()                   true under prefers-reduced-motion
- *   WQA.stamp(kind[, quiet])      the ONE "you finished something" hook: keeps the land's stamp on this phone, plays the
- *                                 two blips (not when quiet), answers { kind, land, svg }
- *   WQA.award(card) / climb(line) a finish card's stamp (effort only; the moment's badge is its slot) / the class table's
- *                                 move up (both done by themselves)
- *   WQA.tone(name)                stamp (784 + 1175 Hz) or notyet (a soft 220 Hz), WebAudio, never when muted
- *   WQA.trail(names, next)        Home's three land stops (drawn by itself under the Next tile, with Jugnu's "Next stop!")
- *   WQA.swap(node)                the emoji in node's text become their icons (done by itself, page-wide)
+ *   icon(name[, label]) · animal(key) · subject(name)  inline-SVG icons (currentColor); unknown = star
+ *   bar(done, total[, label]) a progressbar · badge(text[, icon]) a sticker · move(el, name) one motion (a 150 ms fade
+ *   under reduced motion) · still() · cue(name[, el]) / burst(el) the sound kit's cues (wq-juice.js, fetched on the
+ *   first cue; never when muted) · muted() / mute(b) the ONE sound switch · tone(name) the stamp / not-yet blips
+ *   stamp(kind[, quiet])  the ONE "you finished something" hook: the land's stamp kept on this phone, two blips
+ *   award(card) / climb(line) / trail(names, next) / swap(node)  a finish card's stamp (effort only), the class
+ *   table's move up, Home's three land stops, the emoji as icons (all done by themselves)
+ * The finish cards' Jugnu and order, the trail's pictures and the Urdu Home word are the second part (wq-adv-more.js).
  */
 (function (W) {
   'use strict';
@@ -25,8 +18,10 @@
   var D = W.document;
   var ME = (D.currentScript && D.currentScript.src) || '';
   var V = (/[?&]v=([0-9a-f]+)/.exec(ME) || [])[1] || '0';
+  // the second part (wq-adv-more.js: finish cards, trail pictures), asked for now so it is here before a finish
+  if (D.documentElement.classList.contains('wq-adv') && D.head) { var mo = D.createElement('script'); mo.src = '/wq/wq-adv-more.js?v=' + V; D.head.appendChild(mo); }
 
-  // ── icons: 24×24, stroke 2, round joins; paths only ────────────────────────────────────────────────
+  // ── icons: 24×24, stroke 2, round joins; paths only
   var P = {
     stories: 'M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1zM21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z',
     book: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11',
@@ -94,7 +89,7 @@
       (label ? ' role="img" aria-label="' + esc(label) + '"' : ' aria-hidden="true" focusable="false"') + '><path d="' + d + '"/></svg>';
   }
 
-  // ── motion ─────────────────────────────────────────────────────────────────────────────────────────
+  // ── motion
   function still() { try { return !!(W.matchMedia && W.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } }
   function move(el, name) {
     if (!el || !el.classList) return;
@@ -105,7 +100,7 @@
     el.addEventListener('animationend', function off() { el.classList.remove(c); el.removeEventListener('animationend', off); });
   }
 
-  // ── sound: the sound kit, fetched on the first cue (its own one switch) ────────────────────────────
+  // ── sound: the sound kit, fetched on the first cue (its own one switch)
   var KEY = 'wq_sound', KEY2 = 'wq_snd', kit = null, wait = [];
   function get(k) { try { return W.localStorage.getItem(k); } catch (e) { return null; } }
   function muted() { return W.WQJ ? W.WQJ.muted() : get(KEY) === 'false' || get(KEY2) === '0'; }
@@ -140,7 +135,7 @@
     withKit(function (J) { if (!J.muted()) J.sentence(); J.confetti(); });
   }
 
-  // ── small parts ────────────────────────────────────────────────────────────────────────────────────
+  // ── small parts
   function bar(done, total, label) {
     var t = Math.max(1, Number(total) || 1), n = Math.max(0, Math.min(t, Number(done) || 0));
     return '<div class="wqa-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + t + '" aria-valuenow="' + n + '"' + (label ? ' aria-label="' + esc(label) + '"' : '') +
@@ -185,7 +180,7 @@
   }
   if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', watch); else watch();
 
-  // ── tones: WebAudio, no files (the stamp's two blips, the soft not-yet); after a gesture, never when muted ─────
+  // ── tones: WebAudio, no files (the stamp's two blips, the soft not-yet); after a gesture, never when muted
   var actx = null;
   var TONES = { stamp: [['sine', 784, 0], ['sine', 1175, 0.13]], notyet: [['triangle', 220, 0, 0.3]] };
   function tone(name) {
@@ -255,6 +250,7 @@
     if (go) go.insertAdjacentHTML('beforeend', '<b>' + esc(t.go) + '</b>');
     nx.insertAdjacentHTML('beforeend', '<span class="wqa-bub" aria-hidden="true"><span>' + esc(t.next) + '</span><img src="' + JUG_DIR + 'hello.webp" alt="" width="56" height="56"></span>');
     nx.insertAdjacentHTML('afterend', trail(names, LAND[nx.getAttribute('data-kind')] || 'games'));
+    if (W.WQAD) W.WQAD.home(home);
   }
   // a finished thing's card (the finish card, or the moment): its stamp pops in under the deed, once per card
   function deedOf(card) {
@@ -267,6 +263,7 @@
   function award(card) {
     if (card.getAttribute('data-wqa')) return;
     card.setAttribute('data-wqa', '1');
+    if (W.WQAD) W.WQAD.card(card);
     // a try that certified nothing (read_tried: no Share on the card; a 0-word read: the moment's try badge): no stamp
     if (card.querySelector('[data-badge=try]') || !card.querySelector('.wqfc-share,.wq-moment-deed')) return;
     // the reading moment: its badge is the stamp's slot (no row: a long Urdu read has ~5 px under Next at 360) and
@@ -310,6 +307,7 @@
     var cards = root.matches && root.matches('.wqfc[data-screen=card],.wq-moment') ? [root] : Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wqfc[data-screen=card],.wq-moment') : []);
     cards.forEach(award);
     Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wq-move[data-move=up]') : []).forEach(climb);
+    if (W.WQAD) W.WQAD.scan(root);
   }
 
   W.WQA = {
