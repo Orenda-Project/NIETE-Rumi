@@ -1,6 +1,6 @@
 'use strict';
 /**
- * FLN media → presigned URLs on the portal's OWN private R2 bucket (COS ruling 190012 item 2; red team 190210).
+ * FLN media → presigned URLs on the portal's OWN private R2 bucket, never the public mirror.
  *
  * The plan bundle addresses its media on the public content mirror. That mirror rate-limits (429s measured at 1.9%
  * from ONE client), so it is not the path a teacher's browser takes. The same content-addressed keys

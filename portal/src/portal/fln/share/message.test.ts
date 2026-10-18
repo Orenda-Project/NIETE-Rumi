@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { WHATSAPP_URL_PICKER } from '@/lib/whatsapp';
 import { shareMessage, waUrl, withSrc, MAX_CODE_POINTS } from './message';
 
 /**
@@ -73,8 +74,10 @@ describe('withSrc / waUrl', () => {
   it('wa.me with the whole message encoded', () => {
     const m = shareMessage({ uiLang: 'en', subject: 'rh-en', level: 1, title: 'A & B', url: URL_ });
     const u = waUrl(m);
-    expect(u.startsWith('https://wa.me/?text=')).toBe(true);
-    expect(decodeURIComponent(u.slice('https://wa.me/?text='.length))).toBe(m);
+    const pre = `${WHATSAPP_URL_PICKER}?text=`;
+    expect(pre).toBe('https:' + '//wa.me/?text=');
+    expect(u.startsWith(pre)).toBe(true);
+    expect(decodeURIComponent(u.slice(pre.length))).toBe(m);
     expect(u).not.toContain(' ');
   });
 });
