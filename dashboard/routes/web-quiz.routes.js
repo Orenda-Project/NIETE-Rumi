@@ -80,6 +80,18 @@ const TEACH_V_RX = /^[0-9a-f]{8}$/;
 const OG_KEEP_MS = 3600000;
 // Facts that name the class link's picture are remembered no longer than that picture is kept: its switch turned
 // off, a preview head stops naming it within the same 120 s. Facts naming none keep the hour.
+// The two languages a child page speaks, else null.
+const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
+// A home link's own language (`l` in its payload, set by the reply that sent it). Shown only: the bot checks the
+// signature; a language is all it can pick here, and the page names no child.
+function hubTokenLang(token) {
+  try {
+    const body = JSON.parse(Buffer.from(String(token).split('.')[0], 'base64url').toString('utf8'));
+    return langOf(body && body.l);
+  } catch (_) {
+    return null;
+  }
+}
 const ogKeepMs = (facts) => (facts && facts.art && facts.art.teach ? Math.min(OG_KEEP_MS, ART_KEEP_MS.teach) : OG_KEEP_MS);
 // A finish card's sealed token (the bot's web-quiz-card-image.js): base64url only. The edge checks its shape; the bot opens it.
 const CARD_TOKEN_RX = /^[A-Za-z0-9_-]{40,400}$/;
@@ -919,6 +931,15 @@ function createWebQuizRouter(opts = {}) {
   let lastRt = false;
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
+  // web_quiz_closed_lang (the last quiz or hub answer's `closed_lang`): a closed or "not open" page this edge draws
+  // without the bot's word on the language takes the child's language where the link says it (a home link's own `l`, the
+  // link's ?lang=, a class code's known language) instead of the phone's or English. Off: today's languages.
+  let lastClosedLang = false;
+  // A class code's language for its page drawn without the bot: what this process knows of the code, else the link's.
+  const codeLang = (code, req) => {
+    const f = ogKnown.get(code);
+    return (f && f.quiz && langOf(f.quiz.lang)) || langOf(req.query.lang) || 'en';
+  };
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
   let lastWaitShare = false; // and its `wait_share` (web_quiz_hub_fanout on too): the frame's read share
 
@@ -1105,14 +1126,16 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
-      if (flush) return wire.again(inlineClosed(req, { lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
-      return res.status(502).type('html').send(closedHtml(req, { lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      const away = lastClosedLang ? codeLang(upper, req) : 'en';
+      if (flush) return wire.again(inlineClosed(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      return res.status(502).type('html').send(closedHtml(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (flush && !(out.status === 200 && out.body && out.body.quiz)) {
       const contract = (out.status === 404 || out.status === 410) && out.body && typeof out.body.error === 'string';
       // a closed answer with `known: true` (web_quiz_link_known_child) asks again: the nf=1 page draws this phone's way home
       if (contract && out.body.known === true) return wire.again(null);
-      return wire.again(inlineClosed(req, { lang: out.body && out.body.lang === 'ur' ? 'ur' : 'en', kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      const said = langOf(out.body && out.body.lang);
+      return wire.again(inlineClosed(req, { lang: said || (lastClosedLang ? codeLang(upper, req) : 'en'), kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
@@ -1123,6 +1146,7 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
+      lastClosedLang = out.body.closed_lang === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
       // Step timings (the bot's answer carried them: web_quiz_server_timing on), as on the hub page: the flushed page's
       // ride its boot JSON (`st`); a page whose headers have not gone yet says them as one Server-Timing: this edge's
@@ -1141,7 +1165,7 @@ function createWebQuizRouter(opts = {}) {
       TimingNames.appendTiming(res, TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', ')));
       return res.status(200).type('html').send(html);
     }
-    const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
+    const lang = langOf(out.body && out.body.lang) || (lastClosedLang ? codeLang(upper, req) : 'en');
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
     // endpoint is not deployed yet, which is "not open right now", not the child's fault.
     const contractAnswer = out.body && typeof out.body.error === 'string';
@@ -1177,7 +1201,10 @@ function createWebQuizRouter(opts = {}) {
     const token = String(req.params.token || '');
     // No hub JSON on a closed link, so the phone's own language picks the page's (an Urdu phone reads Urdu).
     const phoneLang = /^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en';
-    const closed = (status, kind) => res.status(status).type('html').send(closedHtml(req, { lang: phoneLang, kind, origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    const closed = (status, kind, lang = phoneLang) => res.status(status).type('html').send(closedHtml(req, { lang, kind, origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    // web_quiz_closed_lang: a page drawn without the bot's word (the bot away) in the link's language, else the phone's;
+    // a 401's own `lang` (the children's, sent only while on) wins.
+    const away = () => (lastClosedLang && HUB_TOKEN_RX.test(token) ? hubTokenLang(token) || langOf(req.query.lang) || phoneLang : phoneLang);
     if (!HUB_TOKEN_RX.test(token)) return closed(401, 'hub');
     if (!botUrl || !apiKey) return closed(503, 'off');
     const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
@@ -1196,15 +1223,16 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
-      if (flush) return wire.again(inlineClosed(req, { lang: phoneLang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
-      return closed(502, 'off');
+      if (flush) return wire.again(inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      return closed(502, 'off', away());
     }
-    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again(inlineClosed(req, { lang: phoneLang, kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again(inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
+      lastClosedLang = out.body.closed_lang === true;
       lastWaitUx = WaitUx.on(out.body);
       lastWaitShare = WaitUx.share(out.body);
       // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
@@ -1222,8 +1250,8 @@ function createWebQuizRouter(opts = {}) {
       TimingNames.appendTiming(res, items);
       return res.status(200).type('html').send(html);
     }
-    if (out.status === 401) return closed(401, 'hub');
-    return closed(out.status === 503 ? 503 : 502, 'off');
+    if (out.status === 401) return closed(401, 'hub', langOf(out.body && out.body.lang) || phoneLang);
+    return closed(out.status === 503 ? 503 : 502, 'off', away());
   });
   router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
   router.get('/q/:code/schools', limiters.read, unknownCode, (req, res) => page(req, res, 'schools'));
