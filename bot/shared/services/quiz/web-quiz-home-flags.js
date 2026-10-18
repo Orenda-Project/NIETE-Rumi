@@ -26,13 +26,31 @@ function isTrue(value) {
   return value === true;
 }
 
+const KEYS = Object.freeze([KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY]);
+
+function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  return { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]), column: isTrue(by[COLUMN_KEY]), shelf: isTrue(by[SHELF_KEY]), list: isTrue(by[LIST_KEY]) };
+}
+
+/**
+ * Another module's one app_settings read that asked for KEYS too (the join's, quiz_join_fast) fills an empty or
+ * expired cache from its rows, so no second read follows; a live cache is left as it is. `asked` is the key list that
+ * read asked for: a list missing one of KEYS throws; a key asked for with no row is the normal off.
+ */
+function prime(rows, now = Date.now(), asked = KEYS) {
+  const missing = KEYS.filter((k) => !asked.includes(k));
+  if (missing.length) throw new Error(`home flags primed by a read that did not ask for ${missing.join(', ')}`);
+  if (cache && now - cache.at < TTL_MS) return;
+  cache = fromRows(rows, now);
+}
+
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]), column: isTrue(by[COLUMN_KEY]), shelf: isTrue(by[SHELF_KEY]), list: isTrue(by[LIST_KEY]) };
+    cache = fromRows(data, now);
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
@@ -40,4 +58,4 @@ async function flags(now = Date.now()) {
   }
 }
 
-module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, prime, KEYS, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; } };

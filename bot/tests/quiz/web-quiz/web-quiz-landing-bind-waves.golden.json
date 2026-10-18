@@ -1,0 +1,651 @@
+{
+  "autoBind": {
+    "chat": [
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.class_enrollments",
+          "db.students",
+          "db.child_phone_bindings"
+        ],
+        "out": "{\"confirm\":{\"src\":\"quiz\",\"kids\":[{\"chip\":\"a0e4b812c34294f5\",\"first\":\"Sara\",\"animal\":\"owl\"}]}}"
+      },
+      {
+        "seq": [
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.class_enrollments",
+          "db.students",
+          "db.child_phone_bindings"
+        ],
+        "out": "{\"confirm\":{\"src\":\"quiz\",\"kids\":[{\"chip\":\"9675e21252c35dbb\",\"first\":\"Sara\",\"animal\":\"horse\"}]}}"
+      },
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.class_enrollments",
+          "db.students",
+          "db.child_phone_bindings"
+        ],
+        "out": "{\"confirm\":{\"src\":\"quiz\",\"kids\":[{\"chip\":\"3b0f55e31abedee3\",\"first\":\"Sara\",\"animal\":\"horse\"}]}}"
+      }
+    ],
+    "bound": [
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.class_enrollments",
+          "db.students",
+          "db.child_phone_bindings"
+        ],
+        "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWNoYXQtNCJdLCJleHAiOjE3OTI4MjE2MDB9.HWmIlyhD-cxojeW6iHojId?from=quiz&kid=393d0e1adada9edb&lang=ur\"}"
+      }
+    ],
+    "roster": [
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.students",
+          "db.student_lists"
+        ],
+        "out": "{\"confirm\":{\"src\":\"roster\",\"kids\":[{\"chip\":\"a8b8dce62176e25c\",\"first\":\"Ali\",\"animal\":\"lion\"}]}}"
+      },
+      {
+        "seq": [
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.students",
+          "db.student_lists"
+        ],
+        "out": "{\"confirm\":{\"src\":\"roster\",\"kids\":[{\"chip\":\"08873da96406d46d\",\"first\":\"Ali\",\"animal\":\"cat\"}]}}"
+      },
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.students",
+          "db.student_lists"
+        ],
+        "out": "{\"confirm\":{\"src\":\"roster\",\"kids\":[{\"chip\":\"66400ea5064d686c\",\"first\":\"Ali\",\"animal\":\"owl\"}]}}"
+      }
+    ],
+    "twoSchools": [
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.students",
+          "db.student_lists",
+          "db.students",
+          "db.student_lists"
+        ],
+        "out": "{\"none\":true}"
+      }
+    ],
+    "nothing": [
+      {
+        "seq": [
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "db.app_settings",
+          "redis.get",
+          "db.students",
+          "db.child_phone_bindings",
+          "db.students",
+          "db.students"
+        ],
+        "out": "{\"join\":\"/quiz/join/eyJrIjoiaiIsIm4iOiJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRIiwibCI6InVyIiwiZXhwIjoxNzkyMjIwNDAwfQ.7KG6t1jYPYyVoGTZGodSB7\"}"
+      }
+    ]
+  },
+  "bindPick": {
+    "chat": {
+      "rows": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.app_settings",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWNoYXQtMSJdLCJleHAiOjE3OTI4MjE2MDB9.aM_nNNORhOsL44S4RgAPSf?from=bind&kid=b310041c78fb18e6&lang=ur\"}"
+        },
+        {
+          "seq": [
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWNoYXQtMiJdLCJleHAiOjE3OTI4MjE2MDB9.pL8nQu6dSCxPYw-Vm8Pp3R?from=bind&kid=dd498a7f0cf2619b&lang=ur\"}"
+        },
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.app_settings",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWNoYXQtMyJdLCJleHAiOjE3OTI4MjE2MzF9.csWHYMJd1Mvb4m3PxONZtJ?from=bind&kid=a14f189c040f22f5&lang=ur\"}"
+        }
+      ],
+      "writes": [
+        "child_phone_bindings.insert",
+        "child_phone_bindings.insert",
+        "child_phone_bindings.insert"
+      ]
+    },
+    "bound": {
+      "rows": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWNoYXQtNCJdLCJleHAiOjE3OTI4MjE2MDB9.HWmIlyhD-cxojeW6iHojId?from=quiz&kid=393d0e1adada9edb&lang=ur\"}"
+        }
+      ],
+      "writes": []
+    },
+    "roster": {
+      "rows": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.student_lists",
+            "db.child_phone_bindings",
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.student_lists",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.student_lists",
+            "db.students",
+            "db.app_settings",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLXJvcy01YSJdLCJleHAiOjE3OTI4MjE2MDB9.Jifk_mCyeYmgeECJnH6inF?from=bind&kid=ccb5ac8c380c7a33&lang=ur\"}"
+        },
+        {
+          "seq": [
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.student_lists",
+            "db.child_phone_bindings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.student_lists",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.student_lists",
+            "db.students",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLXJvcy02YSJdLCJleHAiOjE3OTI4MjE2MDB9.piRXO0euePcz683tD_BNH-?from=bind&kid=587aa0c59e12bbf0&lang=ur\"}"
+        },
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.student_lists",
+            "db.child_phone_bindings",
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.student_lists",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.student_lists",
+            "db.students",
+            "db.app_settings",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLXJvcy03YSJdLCJleHAiOjE3OTI4MjE2MzF9.ypb_lwzjhTULD6Q1Ye7_Jr?from=bind&kid=a133ebe076370300&lang=ur\"}"
+        }
+      ],
+      "writes": [
+        "child_phone_bindings.insert",
+        "child_phone_bindings.insert",
+        "child_phone_bindings.insert"
+      ]
+    },
+    "teacher": {
+      "rows": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.app_settings",
+            "db.users"
+          ],
+          "out": "{\"refused\":\"teacher_phone\",\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWNoYXQtOSJdLCJleHAiOjE3OTI4MjE2MDB9.5D77n5XZ-GjQuiZX5asdZs?from=quiz&kid=5de16de4074b4b78&lang=ur\"}"
+        }
+      ],
+      "writes": []
+    },
+    "device": {
+      "rows": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.quiz_sessions",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.class_teachers",
+            "db.class_enrollments",
+            "db.students",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "db.child_phone_bindings",
+            "redis.delete",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.class_enrollments",
+            "db.students",
+            "db.students",
+            "db.app_settings",
+            "redis.set",
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"next\":\"/h/eyJrIjoiaCIsImlkcyI6WyJzLWRldi0xMSJdLCJleHAiOjE3OTI4MjE2MDB9.34Y2yVpLUQZCr5JTi9h-aI?from=bind&kid=7b754e89a6d3b261&lang=ur\"}"
+        }
+      ],
+      "writes": [
+        "child_phone_bindings.insert"
+      ]
+    },
+    "stranger": {
+      "rows": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "db.app_settings",
+            "redis.get",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.students"
+          ],
+          "out": "{\"refused\":\"child_unknown\"}"
+        }
+      ],
+      "writes": []
+    }
+  },
+  "grade": [
+    {
+      "seq": [
+        "db.app_settings",
+        "db.app_settings",
+        "db.app_settings",
+        "db.app_settings",
+        "redis.setNX",
+        "redis.get"
+      ],
+      "out": "{\"ok\":true,\"prefetch\":[\"/wq/hub.js\",\"/wq/wq.css\",\"/wq/hub-play.js\",\"/wq/wq-tel.js\"]}"
+    },
+    {
+      "seq": [
+        "redis.setNX",
+        "redis.get"
+      ],
+      "out": "{\"ok\":true,\"prefetch\":[\"/wq/hub.js\",\"/wq/wq.css\",\"/wq/hub-play.js\",\"/wq/wq-tel.js\"]}"
+    },
+    {
+      "seq": [
+        "db.app_settings",
+        "db.app_settings",
+        "db.app_settings",
+        "db.app_settings",
+        "redis.setNX",
+        "redis.get"
+      ],
+      "out": "{\"ok\":true,\"prefetch\":[\"/wq/hub.js\",\"/wq/wq.css\",\"/wq/hub-play.js\",\"/wq/wq-tel.js\"]}"
+    }
+  ],
+  "door": {
+    "role": {
+      "fresh": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.app_settings",
+            "db.app_settings",
+            "db.class_teachers",
+            "db.child_phone_bindings",
+            "db.students",
+            "db.students",
+            "db.user_feature_first_use"
+          ],
+          "out": "{\"role\":\"unknown\",\"side\":\"unknown\",\"src\":\"none\",\"children\":[],\"kids\":[],\"uid\":\"u-fam-12\",\"lang\":\"bi\"}"
+        }
+      ],
+      "active": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.users",
+            "db.quizzes",
+            "db.coaching_sessions"
+          ],
+          "out": "{\"role\":\"teacher\",\"side\":\"teacher\",\"src\":\"activity\",\"children\":[],\"kids\":[],\"uid\":\"u-active-13\",\"lang\":\"bi\"}"
+        }
+      ],
+      "registered": [
+        {
+          "seq": [
+            "db.app_settings",
+            "db.users"
+          ],
+          "out": "{\"role\":\"teacher\",\"side\":\"teacher\",\"src\":\"identity\",\"children\":[],\"kids\":[],\"uid\":\"u-teacher-9\",\"lang\":\"bi\"}"
+        }
+      ]
+    },
+    "classify": {
+      "fresh": [
+        {
+          "seq": [
+            "redis.get",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "db.lesson_plans",
+            "db.student_lists",
+            "db.training_assessment_attempts",
+            "db.assessment_requests",
+            "db.app_settings",
+            "db.app_settings",
+            "db.class_teachers",
+            "db.students",
+            "db.child_phone_bindings",
+            "db.user_feature_first_use",
+            "redis.set"
+          ],
+          "out": "{\"persona\":null,\"mode\":\"unknown\",\"reason\":\"first_door\",\"door\":\"chooser\",\"language\":null,\"studentClass\":null}"
+        }
+      ],
+      "active": [
+        {
+          "seq": [
+            "redis.get",
+            "db.quizzes",
+            "db.coaching_sessions",
+            "redis.set"
+          ],
+          "out": "{\"persona\":null,\"mode\":\"teacher\",\"reason\":\"activity\",\"language\":null,\"studentClass\":null}"
+        }
+      ],
+      "registered": [
+        {
+          "seq": [
+            "redis.get",
+            "redis.set"
+          ],
+          "out": "{\"persona\":null,\"mode\":\"teacher\",\"reason\":\"identity\",\"language\":null,\"studentClass\":null}"
+        }
+      ]
+    }
+  }
+}

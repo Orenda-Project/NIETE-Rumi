@@ -173,6 +173,11 @@ async function soft(label, fn, fallback) {
   }
 }
 
+/** quiz_door_activity_once as the door last read its switches (the live cache only, never a read); off on any error. */
+function doorActivityOnce() {
+  try { return Boolean(require('./one-door.flags').activityOnceNow()); } catch (_) { return false; }
+}
+
 /**
  * The one read. `user` = the users row (getOrCreateUser's, or `{ id }` on the landing); `phone` = the sender.
  * @returns {Promise<{role, side, src, uid, children, kids, lang}>}
@@ -197,7 +202,8 @@ async function resolveRole({ user, phone, body = '' } = {}) {
     if (!full) throw new Error('users row not read');
     if (Signs.identity(full)) teacher = 'identity';
     else {
-      const act = await Signs.activity(uid);
+      // quiz_door_activity_once, as the door last read its switches: every count in one round trip; else today's count
+      const act = await (doorActivityOnce() ? Signs.activityAll(uid) : Signs.activity(uid));
       if (act === null) failed = true;
       else if (act) teacher = 'activity';
     }

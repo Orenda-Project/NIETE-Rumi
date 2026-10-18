@@ -86,20 +86,20 @@ async function activity(userId) {
 /**
  * activity() with every count started together (the self-join's fast path, quiz_join_fast): the same verdict, read in
  * the same order — the first failed read before any hit is null, the first hit is true — in one round trip instead of
- * seven. The class-teacher count is read beside the others and weighed only when the phone-binding switch is on.
+ * seven. The class-teacher count is read beside the others and weighed only when the phone-binding switch is on; that
+ * switch is asked only when no other count decided, as activity() asks it (a cold switch costs a hit nothing).
  */
 async function activityAll(userId) {
   if (!userId) return false;
-  const [counts, bindOn, classTeacher] = await Promise.all([
+  const [counts, classTeacher] = await Promise.all([
     Promise.all(ACTIVITY_CHECKS.map(([table, column, orFilter]) => hasAnyRow(table, column, userId, orFilter))),
-    phoneBindOn(),
     hasAnyRow('class_teachers', 'teacher_user_id', userId, null, { is_active: true }),
   ]);
   for (const r of counts) {
     if (r === null) return null;
     if (r) return true;
   }
-  if (bindOn) {
+  if (await phoneBindOn()) {
     if (classTeacher === null) return null;
     if (classTeacher) return true;
   }

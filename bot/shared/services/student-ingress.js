@@ -57,7 +57,12 @@ const { CACHE_KEY, CACHE_TTL_SECS } = VerdictCache;
 
 // identity() / activity() / withIdentityFields() live in a leaf module so the one door's role resolver can read the
 // same signs without requiring this file (no require cycle); re-exported below, byte-identical behaviour.
-const { IDENTITY_FIELDS, identity, activity, withIdentityFields } = require('./student-ingress-identity');
+const { IDENTITY_FIELDS, identity, activity, activityAll, withIdentityFields } = require('./student-ingress-identity');
+
+/** quiz_door_activity_once as the door last read its switches (the live cache only, never a read); off on any error. */
+function doorActivityOnce() {
+  try { return Boolean(require('./first-touch/one-door.flags').activityOnceNow()); } catch (_) { return false; }
+}
 
 const NONE = (mode, reason) => ({ persona: null, mode, reason, language: null, studentClass: null });
 
@@ -156,7 +161,8 @@ async function classify({ user, phone, body } = {}) {
     if (identity(full)) {
       verdict = NONE('teacher', 'identity');
     } else {
-      const act = await activity(full.id);
+      // quiz_door_activity_once, as the door last read its switches: every count in one round trip; else today's count
+      const act = await (doorActivityOnce() ? activityAll(full.id) : activity(full.id));
       if (act === null) return NONE('unknown', 'lookup_failed');      // not cached
       if (act) {
         verdict = NONE('teacher', 'activity');

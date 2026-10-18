@@ -43,6 +43,7 @@ const T = require('./web-quiz-token');
 const K = require('./web-quiz-kid');
 const IdFlags = require('./web-quiz-identity-flags');
 const HubFlags = require('./web-quiz-hub-flags');
+const HomeFlags = require('./web-quiz-home-flags');
 const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
@@ -59,8 +60,8 @@ const FAST_KEY = 'quiz_join_fast';
 // The go button says "Getting your games ready…" while the join runs (the page draws it; join.js shows it). Read in the
 // join's own switch read (no read of its own); JSON true only, and only with the join switch on.
 const WAIT_WORD_KEY = 'quiz_join_wait_word';
-// The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
-const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
+// The one read asks for every key the join's flags need, so ON fills the identity, hub and home caches from it.
+const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || []), ...(HomeFlags.KEYS || [])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -108,8 +109,9 @@ async function flags(now = Date.now()) {
     const on = isTrue(by[SWITCH_KEY]);
     const wait = on && by[WAIT_WORD_KEY] === true ? { waitWord: true } : {};
     if (on && by[FAST_KEY] === true) {
-      // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
+      // the identity, hub and home flags from these same rows (an expired cache only), so the line below reads nothing
       if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now, asked);
+      if (typeof HomeFlags.prime === 'function') HomeFlags.prime(data, now, asked);
       const bind = Boolean((await IdFlags.flags()).phoneBind);
       cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait };
       return cache;
@@ -505,6 +507,45 @@ async function offerFor(phoneNorm) {
 }
 
 /**
+ * rosterForPhone and rosterHits from one pair of reads (quiz_join_fast): the same filters, the same lists, the same
+ * school-year rule → { kids, hits }, each what its serial twin answers ([] / false on any read error). Never throws.
+ */
+async function rosterScan(phoneNorm, now = new Date()) {
+  try {
+    const local = `0${String(phoneNorm).slice(2)}`;
+    const { data, error } = await supabase.from('students').select('id, student_name, school_id, list_id')
+      .in('parent_phone', [`+${phoneNorm}`, String(phoneNorm), local])
+      .eq('is_active', true).eq('status', 'active').is('merged_into', null).not('list_id', 'is', null)
+      .limit(ROSTER_SCAN);
+    if (error || !(data || []).length) return { kids: [], hits: false };
+    const listIds = [...new Set(data.map((k) => String(k.list_id)))];
+    const { data: lists, error: lerr } = await supabase.from('student_lists').select('id, is_active, created_at').in('id', listIds);
+    if (lerr) return { kids: [], hits: false };
+    const since = schoolYearStart(now).getTime();
+    const live = new Set((lists || []).filter((l) => l.is_active !== false && l.created_at && new Date(l.created_at).getTime() >= since).map((l) => String(l.id)));
+    const hits = live.size > 0;
+    if (data.length >= ROSTER_SCAN) return { kids: [], hits };
+    const kids = data.filter((k) => live.has(String(k.list_id)));
+    const schools = new Set(kids.map((k) => k.school_id || null));
+    return { kids: !kids.length || kids.length > MAX_KIDS || schools.size !== 1 ? [] : kids, hits };
+  } catch (_) {
+    return { kids: [], hits: false };
+  }
+}
+
+/**
+ * offerFor with every read started together (quiz_join_fast): the phone's children, its roster scan and its active
+ * bindings side by side → offerFor's { set, kids, src } + { bound, hits } (the landing's and the sheet's next reads).
+ */
+async function offerTogether(phoneNorm) {
+  const [set, roster, bound] = await Promise.all([
+    BindRepo.childrenForPhone(phoneNorm, { together: true }), rosterScan(phoneNorm), BindRepo.activeForPhone(phoneNorm),
+  ]);
+  if (set.length) return { set, kids: set, src: 'quiz', bound, hits: roster.hits };
+  return { set, kids: roster.kids, src: 'roster', bound, hits: roster.hits };
+}
+
+/**
  * A `/quiz` landing for a phone the resolver called `child`. Never a silent bind (IDENTITY §8): every
  * child already bound → home (from=quiz, no toast); a child not yet bound → the confirm sheet's chips ("Is it
  * <First>?" + the three notice sentences + "Yes, it's me"; the landing draws it); none at all → the join screen;
@@ -517,6 +558,13 @@ async function autoBind({ n, lang = null } = {}) {
     if (!f.bind) return { off: true };
     const who = await GoNonce.peek(n);
     if (!who) return { stale: true };
+    if (f.fast) {
+      // the phone's children, its roster and its bindings together; the same answers in the same order
+      const o = await offerTogether(who.phoneNorm);
+      if (o.set.length && o.set.every((k) => o.bound.some((b) => String(b.canonical_id) === String(k.id)))) return { next: homeUrl(o.set, o.set.length === 1 ? o.set[0].id : null, 'quiz', lang) };
+      if (!o.kids.length) return o.src === 'roster' && o.hits ? { none: true } : { join: await joinUrl({ n, lang: lang || 'en' }) };
+      return { confirm: { src: o.src, kids: pickChips(o.kids) } };
+    }
     const { set, kids, src } = await offerFor(who.phoneNorm);
     if (set.length) {
       const bound = await BindRepo.activeForPhone(who.phoneNorm);
@@ -583,6 +631,7 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
     if (!f.bind) return { off: true };
     const who = await GoNonce.peek(n);
     if (!who) return { stale: true };
+    if (f.fast) return await bindPickFast({ who, chip, kidId, askedSrc, device, quizDevice, lang });
     const offer = await offerFor(who.phoneNorm);
     const { set, kids } = offer;
     let src = offer.src;
@@ -605,6 +654,35 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
     logToFile('⚠️ student join: bind pick threw', { error: err.message });
     return { error: 'unavailable' };
   }
+}
+
+/**
+ * bindPick with the reads started together (quiz_join_fast): the offer, the teacher check and the remember line's
+ * switches at once, the binder's reads beside the teacher verdict. The same answers, refusals in the same order (an
+ * unknown child, then a saved one, then a teacher's phone) and the same writes in the same order.
+ */
+async function bindPickFast({ who, chip, kidId, askedSrc, device, quizDevice, lang }) {
+  const teacherP = teacherPhoneTogether(who.userId, who.phoneNorm);
+  const rememberP = require('./web-quiz-home-flags').flags().catch(() => null);
+  const offer = await offerTogether(who.phoneNorm);
+  const { set, kids, bound } = offer;
+  let src = offer.src;
+  let kid = kids.find((k) => (chip && T.chipId('go', k.id) === String(chip)) || (kidId && String(k.id) === String(kidId))) || null;
+  if (!kid && kidId && askedSrc === 'device') {
+    kid = await playedHere(kidId, quizDevice || device);
+    if (kid) src = 'device';
+  }
+  if (!kid) return { refused: 'child_unknown' };
+  const home = [kid, ...set.filter((k) => String(k.id) !== String(kid.id))];
+  if (bound.some((b) => String(b.canonical_id) === String(kid.id))) return { next: homeUrl(home, kid.id, 'quiz', lang) };
+  const pre = require('./web-quiz-bind.service').prefetch({ phone: who.phoneNorm, canonicalId: String(kid.id) });
+  if (await teacherP) return { refused: 'teacher_phone', next: homeUrl(home, kid.id, 'quiz', lang) };
+  const b = await bindChild(who.phoneNorm, String(kid.id), true, pre);
+  if (!b || !b.ok) return { refused: (b && b.reason) || 'unavailable', next: set.length ? homeUrl(set, set[0].id, 'quiz', lang) : null };
+  await emit('bind_confirm', { src }, String(kid.id));
+  await rememberP;
+  if (!b.renewed) await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: String(kid.id), userId: who.userId });
+  return { next: homeUrl(home, kid.id, 'bind', lang) };
 }
 
 /**
