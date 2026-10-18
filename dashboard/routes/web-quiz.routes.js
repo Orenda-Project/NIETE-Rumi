@@ -105,6 +105,8 @@ const CARD_TOKEN_RX = /^[A-Za-z0-9_-]{40,400}$/;
 const cardToken = (v) => (typeof v === 'string' && CARD_TOKEN_RX.test(v) ? v : null);
 // A drawn card never changes: a day at the edge, a year in any cache.
 const CARD_KEEP_MS = 86400000;
+// a card answer waits at most this long on a slow re-read of its switch (the last value answers)
+const CARD_FLAG_WAIT_MS = 25;
 function artId(v, kind) {
   const m = typeof v === 'string' ? ART_ID_RX.exec(v) : null;
   return m && m[1] === ART_KIND[kind] ? v : null;
@@ -1700,9 +1702,21 @@ function createWebQuizRouter(opts = {}) {
   const cardReadyOn = opts.cardReadyOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_ready' });
   const cardObject = opts.cardObject || StoryAssets.r2Object;
   const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
-  const stored = async (token, ext) => {
-    try { return (await cardReadyOn()) === true ? await cardObject(cardStoreKey(token, ext)) : null; } catch (_) { return null; }
+  // The switch's read never makes a visitor wait: it is read when the edge starts, and a re-read slower than a moment
+  // (the settings table, once its cache is old) answers from the last value while it finishes.
+  let cardOnLast = null;
+  const readCardOn = () => Promise.resolve().then(cardReadyOn).then((v) => { cardOnLast = v === true; return cardOnLast; }, () => false);
+  if (botUrl && apiKey) readCardOn();
+  const cardOn = () => {
+    const fresh = readCardOn();
+    if (cardOnLast === null) return fresh;
+    return Promise.race([fresh, new Promise((r) => { const t = setTimeout(() => r(cardOnLast), CARD_FLAG_WAIT_MS); if (t.unref) t.unref(); })]);
   };
+  const stored = async (token, ext, on) => {
+    try { return on ? await cardObject(cardStoreKey(token, ext)) : null; } catch (_) { return null; }
+  };
+  // switch on: the answer says where it came from (edge, store, bot) and how long this edge took, for a cold proof
+  const cardTiming = (res, on, from, t0) => { if (on) res.set('Server-Timing', `card;desc="${from}";dur=${Date.now() - t0}`); };
   // the card's edge lines also go to the process log (the event sink alone did not reach the deploy's logs)
   const cardTrace = (evt, props) => {
     logEvent(evt, props);
@@ -1713,11 +1727,12 @@ function createWebQuizRouter(opts = {}) {
     if (!token) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const t0 = Date.now();
-    const seen = (from, extra = {}) => cardTrace('web_quiz.card_edge', { from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra });
+    const on = await cardOn();
+    const seen = (from, extra = {}) => { cardTiming(res, on, from, t0); cardTrace('web_quiz.card_edge', { from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra }); };
     const send = (pic) => res.status(200).set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     const kept = cardKept.get(token);
     if (kept) { seen('edge'); return send(kept); }
-    const obj = await stored(token, 'png');
+    const obj = await stored(token, 'png', on);
     if (obj && obj.bytes && obj.bytes.length) {
       const pic = { bytes: obj.bytes, contentType: 'image/png' };
       cardKept.set(token, pic, CARD_KEEP_MS);
@@ -1773,11 +1788,12 @@ function createWebQuizRouter(opts = {}) {
     if (!token) return closed(404);
     if (!botUrl || !apiKey) return res.status(503).type('html').send(closedHtml(req, { lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     const t0 = Date.now();
+    const on = await cardOn();
     let facts = cardFacts.get(token);
     let from = facts ? 'edge' : null;
     if (!facts) {
       // the page's facts stored at mint (web_quiz_card_ready): the head never waits on the bot when cold
-      const obj = await stored(token, 'json');
+      const obj = await stored(token, 'json', on);
       try { const f = obj && obj.bytes ? JSON.parse(obj.bytes.toString('utf8')) : null; if (f && typeof f.deed_text === 'string') { facts = f; from = 'store'; cardFacts.set(token, facts, CARD_KEEP_MS); } } catch (_) { facts = null; }
     }
     if (!facts) {
@@ -1796,6 +1812,7 @@ function createWebQuizRouter(opts = {}) {
     const open = { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' };
     logEvent('web_quiz.card_open', open);
     try { console.log(JSON.stringify({ evt: 'web_quiz.card_open', ...open, from, ms: Date.now() - t0 })); } catch (_) { /* a log line never breaks a page */ }
+    cardTiming(res, on, from, t0);
     return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand, oneFace: Boolean(lastUi && lastUi.uf === true) }));
   }
   router.get('/k/:token', limiters.read, (req, res) => {
