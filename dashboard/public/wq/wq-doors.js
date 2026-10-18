@@ -52,6 +52,9 @@
   var PLAY = '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
   var TICK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   var SPK = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  var BACKI = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M10 5l-7 7 7 7v-4.5h11v-5H10z"/></svg>';
+  // the adventure look on this page (<html class="wq-adv">)
+  function advOn() { try { return document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
   var HOMEI = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>';
 
   function urDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); }
@@ -90,12 +93,16 @@
   function section(title, rows) { return rows ? '<h3 class="wq-dsec"><bdi' + lat(title) + '>' + esc(title) + '</bdi></h3><ul class="wq-rows">' + rows + '</ul>' : ''; }
   // Exactly one primary per screen: the first row there is, else the screen's own fallback button.
   function primaryFirst(h) { return h.replace(/<(a|button) class="wq-row wq-drow"/, '<$1 class="wq-row wq-drow" data-primary'); }
-  function frame(B, ctx, name, title, body) {
+  // `back` (the adventure look's see-all): the head's round button steps back to that tap's screen instead of Home, so the
+  // screen has one back control.
+  function frame(B, ctx, name, title, body, back) {
     var H = home();
     var bar = H && typeof H.bar === 'function' ? H.bar(ctx, DOORS.indexOf(name) >= 0 ? name : 'videos') : '';
     var t = (H && H.COPY && H.COPY[langOf(ctx)]) || {};
+    var lead = back ? '<a class="wq-homebtn wq-backbtn" href="#" data-tap="' + back + '" aria-label="' + esc(C(ctx).back) + '">' + BACKI + '</a>'
+      : '<a class="wq-homebtn" href="#" data-home data-tap="home" aria-label="' + esc(t.home || 'Home') + '">' + HOMEI + '</a>';
     return '<section class="wq-screen wq-home wq-droom" data-screen="' + esc(name.split('/')[0]) + '" data-m="H3-' + esc(name.split('/')[0]) + '" lang="' + langOf(ctx) + '" dir="' + (langOf(ctx) === 'ur' ? 'rtl' : 'ltr') + '">' +
-      '<div class="wq-dtop"><a class="wq-homebtn" href="#" data-home data-tap="home" aria-label="' + esc(t.home || 'Home') + '">' + HOMEI + '</a><h2 dir="auto">' + esc(title) + '</h2></div>' +
+      '<div class="wq-dtop">' + lead + '<h2 dir="auto">' + esc(title) + '</h2></div>' +
       body + '</section>' + bar;
   }
   // A list still on its way (`list_states`): row-shaped blocks, never an empty note; `primary` when it is the screen's one.
@@ -185,8 +192,10 @@
   }
   function chaptersBody(ctx, lib, subj, B) {
     var t = C(ctx);
-    var back = '<button class="wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
-    if (shelfOn(B) && lib && (lib.chapters || []).length) return back + gridBody(ctx, lib);
+    // the look: the head's round button is the way back (frame's `back`), and the subject's lessons are one grid
+    var adv = advOn() && shelfOn(B);
+    var back = adv ? '' : '<button class="wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
+    if (shelfOn(B) && lib && (lib.chapters || []).length) return back + gridBody(ctx, lib, adv);
     if (shelfOn(B) && !lib) return back + '<div class="wq-vgrid" data-primary aria-busy="true">' + SKEL + SKEL + SKEL + SKEL + '</div>';
     if (shelfOn(B) && lib && lib.err) return back + '<div class="wq-dempty">' + oopsHtml(ctx, subj, 0).replace('type="button"', 'type="button" data-primary') + '</div>';
     if (!lib) return back + (B.list_states ? skel(4, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>');
@@ -236,9 +245,16 @@
   }
   // `eager`: how many of the first pictures load at once (the first shelf's visible row); the rest are lazy.
   function shelfHtml(lib, ctx, eager) { return lessonsOf(lib).map(function (v, i) { return card(v, ctx, lib.quiz === true, i, i < (eager || 0)); }).join(''); }
-  function gridBody(ctx, lib) {
+  // `one` (the look): every lesson of the subject in one two-column grid, its chapter a small line on its card, so a
+  // chapter of one lesson never leaves half a row empty.
+  function gridBody(ctx, lib, one) {
     var i = 0;
-    var h = (lib.chapters || []).map(function (ch) {
+    var chName = function (ch) { return (langOf(ctx) === 'ur' && ch.name_ur) || ch.name; };
+    var h = one ? '<div class="wq-vgrid wq-vgrid--one">' + (lib.chapters || []).map(function (ch) {
+      return (ch.videos || []).map(function (v) {
+        return card(v, ctx, lib.quiz === true, i++).replace('<b class="wq-vct">', (chName(ch) ? '<small class="wq-vch"><bdi' + lat(chName(ch)) + '>' + esc(chName(ch)) + '</bdi></small>' : '') + '<b class="wq-vct">');
+      }).join('');
+    }).join('') + '</div>' : (lib.chapters || []).map(function (ch) {
       var cards = (ch.videos || []).map(function (v) { return card(v, ctx, lib.quiz === true, i++); }).join('');
       return cards ? '<h3 class="wq-dsec"><bdi' + lat((langOf(ctx) === 'ur' && ch.name_ur) || ch.name) + '>' + esc((langOf(ctx) === 'ur' && ch.name_ur) || ch.name) + '</bdi></h3><div class="wq-vgrid">' + cards + '</div>' : '';
     }).join('');
@@ -270,6 +286,7 @@
     if (B.practice && (name === 'videos' || /^watch\//.test(name))) return frame(B, ctx, 'videos', ht.videos || 'Videos', previewVideosBody(ctx));
     if (name === 'stories') return frame(B, ctx, name, ht.stories || 'Stories', storiesBody(B, ctx, data));
     if (name === 'games') return frame(B, ctx, name, ht.games || 'Games', gamesBody(B, ctx, data));
+    if (name === 'videos' && data && data.subject && advOn() && shelfOn(B)) return frame(B, ctx, name, C(ctx).subj(data.subject), chaptersBody(ctx, data.lib, data.subject, B), 'subjects');
     if (name === 'videos') return frame(B, ctx, name, ht.videos || 'Videos', data && data.subject ? chaptersBody(ctx, data.lib, data.subject, B) : subjectsBody(ctx, data && data.lib, B));
     if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B)) : shelfOn(B) ? WATCH_WAIT : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
     return '';
