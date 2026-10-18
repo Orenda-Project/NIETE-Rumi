@@ -46,6 +46,10 @@ const USER = { id: 'u-family', registration_completed: false, registration_state
 const UR_PREFILL = 'جگنو ✨ میری جگہ محفوظ کریں';
 const EN_PREFILL = 'Jugnu ✨ keep my place';
 const iso = (ms) => new Date(Date.now() + ms).toISOString();
+const FIXED_NOW = Date.UTC(2026, 9, 15, 10, 0, 0);
+// the clock is pinned from load time so a Pakistan-day or expiry check never depends on the date the suite runs
+jest.useFakeTimers({ now: FIXED_NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
 let fake;
 
 // the child's class quiz is in `quizLang`: that is what languageFor() reads today

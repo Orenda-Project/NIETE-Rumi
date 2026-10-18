@@ -78,6 +78,7 @@
       slowNet: 'Slow internet. Keep reading, your voice is being recorded.',
       checked: function (m, w) { return m + ' listened again: ' + w + ' words a minute!'; },
       qaStart: 'Answer questions about the story',
+      qaShort: 'Answer questions',
       listenGo: 'Listen',
       listenWrong: "The story won't play right now. Try another challenge.",
       qaRight: 'Yes!',
@@ -134,6 +135,7 @@
       slowNet: 'انٹرنیٹ آہستہ ہے۔ پڑھتے رہیں، آپ کی آواز ریکارڈ ہو رہی ہے۔',
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
+      qaShort: 'سوالوں کے جواب دیں',
       listenGo: 'سنیں',
       listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
@@ -162,6 +164,7 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function oneButton() { try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; } }
   function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   function q(id) { return root.querySelector('#' + id); }
   function on(id, fn) { var el = q(id); if (el) el.addEventListener('click', fn); }
@@ -1173,6 +1176,7 @@
       show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrT().view()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
         + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
+      if (lr3()) lrT().meter();
       livePaint();
     } else if (liveOk()) {
       var prev = d.previous_wcpm;
@@ -1281,7 +1285,7 @@
     if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(rfWith(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }), null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
-    var rfh = rfBlock(rfWith({}).rf);
+    var rfh = rfBlock(rfWith({}).rf, false, false, true);
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true) + rfh
       // live reading v3: no rate on a child's screen (the number goes to the teacher); the moment says it beside its jar
       + (good && !lr3() && !rfh ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
@@ -1298,7 +1302,7 @@
   }
   // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
   function qaButtons() {
-    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(t.qaStart) + '</button>'
+    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(oneButton() && t.qaShort || t.qaStart) + '</button>'
       + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>';
   }
   var qa = {
@@ -1396,13 +1400,14 @@
   }
   // the page's own card (no Trail): the moment just under Jugnu, in one box the checked result redraws; inner: the
   // moment alone (the redraw). Key off or the file not here: '' (today's card)
-  // still: a redraw of this run's result (no motion again)
+  // still: a redraw of this run's result (no motion again); hold: the live card before the check ("read it again"
+  // waits for the checked result)
   var rfLast = null;
-  function rfBlock(o, inner, still) {
+  function rfBlock(o, inner, still, hold) {
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())) });
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }

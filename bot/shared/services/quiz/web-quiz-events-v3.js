@@ -117,7 +117,7 @@ const BY_NAME = Object.freeze({
 // Small whole numbers a name keeps ([min, max]) and its true/false keys (booleans only, never a string).
 const INTS = Object.freeze({
   who_open: { kids: [0, 20], jn: [0, 1] }, known_ask: { kids: [0, 4] },
-  link_known_answer: { ms: [0, 600000], kids: [0, 4] }, link_known_late: { ms: [0, 600000] },
+  link_known_answer: { ms: [0, 600000], kids: [0, 4], shown: [0, 4], asked: [0, 4] }, link_known_late: { ms: [0, 600000] },
 });
 const BOOLS = Object.freeze({ card_shown: ['share_ok', 'tried'] });
 const POS_MAX = { door_row_tap: 99 };
