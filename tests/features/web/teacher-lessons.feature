@@ -72,3 +72,34 @@ Feature: Teacher lesson plans
     And every other section stays closed
     When they tap the same band again
     Then it closes
+
+  # FLN03 (PR-D, m-links): a shared plan link opened signed out → sign-in → back on the plan (next=, replace).
+  # Covers portal/src/portal/fln/lib/safeNext.ts, fln/login/FlnLoginBanner.tsx, TeacherGate.tsx:29, PortalLogin.tsx.
+  @FLN03
+  Scenario: A signed-out teacher opens a shared Reading Hour link, signs in, and lands on that plan
+    Given portal_fln_lessons is on for the demo teacher
+    And the demo teacher is signed out
+    When the teacher opens /portal/fln/p/11156
+    Then the sign-in page shows the plan's title with "Sign in to open" and «کھولنے کے لیے سائن اِن کریں»
+    When the teacher signs in with a code
+    Then /portal/fln/p/11156 opens
+    And Back from the plan does not return to the sign-in page
+    And a sign-in link whose next= points at another site lands on the teacher's home instead
+
+  # FLN04 (PR-D, m-links): Share is for leaders only, and the builder makes a plain link.
+  # Covers dashboard/routes/portal-fln-links.routes.js, fln/share/*, fln/send/SendPage.tsx, FlnSendCard, FlnSendTile.
+  @FLN04
+  Scenario: A coach sees Share on a plan and finds a plan in the link builder; a teacher sees neither
+    Given portal_fln_lessons and portal_fln_share are on for the demo coach and the demo teacher
+    And the demo coach is signed in
+    When the coach opens /portal/fln/p/11156
+    Then a bar with "Send to teacher" and "Share link" sits at the bottom of the plan
+    When the coach taps "Share link"
+    Then the sheet offers "Send on WhatsApp" and "Copy link"
+    And the message names the plan and its level, never a grade, with the link alone on its last line
+    When the coach opens "Send a lesson plan" from My Patch
+    And picks Grade 1, Reading Hour English
+    Then each row shows its position in the level, with Copy and WhatsApp buttons
+    When the demo teacher signs in and opens /portal/fln/p/11156
+    Then there is no Share bar
+    And GET /api/portal/fln/links answers 404 for the teacher
