@@ -145,6 +145,16 @@ describe('wq.css: the one button component', () => {
     expect(CSS).toContain('html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--secondary,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
     expect(CSS).not.toMatch(/--btn-h2-ur/);
   });
+  test('the school league\'s chips and its "still to start" fold row are full-size targets (--tap) under wq-1b, with or without the class doors', () => {
+    expect(CSS).toContain('html.wq-1b .wq-schips .wq-chip{min-height:var(--tap);min-width:var(--tap);justify-content:center}');
+    // a list-item, never flex: a flex <summary> loses its ▸ marker, the only cue that the row opens
+    expect(CSS).toContain('html.wq-1b .wq-zero-list summary{display:list-item;min-height:var(--tap);padding-block:12px;line-height:24px}');
+    expect(CSS).toContain('html.wq-1b[lang=ur] .wq-zero-list summary{padding-block:6px;line-height:inherit}');
+    // the fold box is a card, so the league draws three radii
+    expect(CSS).toContain('html.wq-1b .wq-zero-list{border-radius:var(--r-card)}');
+    // off: today's 40 px chip is untouched
+    expect(CSS).toContain('.wq-schips .wq-chip{border:2px solid var(--line);font-size:14px;min-height:40px}');
+  });
   test('the Urdu button sizes come from the tokens, not literals', () => {
     expect(CSS).toContain('html[lang=ur] .wq-btn{font-weight:700;font-size:var(--btn-fs-ur);line-height:1.9}');
     expect(CSS).toContain('html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur);');

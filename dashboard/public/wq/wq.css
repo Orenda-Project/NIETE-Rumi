@@ -575,6 +575,11 @@ html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(-
 html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile{border-radius:var(--r-btn)}
 html.wq-1b .wq-soon,html.wq-1b .wqs-skel{border-radius:var(--r-card)}
 html.wq-1b .wq-prstrip{border-radius:var(--r-card)}
+/* the school league: its sector chips and its "still to start" fold row are full-size targets (today 40 px and 18 px); the row stays a list-item, so its ▸ marker (the cue that it opens) stays */
+html.wq-1b .wq-zero-list{border-radius:var(--r-card)}
+html.wq-1b .wq-schips .wq-chip{min-height:var(--tap);min-width:var(--tap);justify-content:center}
+html.wq-1b .wq-zero-list summary{display:list-item;min-height:var(--tap);padding-block:12px;line-height:24px}
+html.wq-1b[lang=ur] .wq-zero-list summary{padding-block:6px;line-height:inherit}
 /* one height per list: every door row (the teacher's week row keeps its green ring, at the same height); a long title
    stays on one line */
 html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:var(--row-h);min-height:0;overflow:hidden}
