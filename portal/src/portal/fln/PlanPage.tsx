@@ -13,12 +13,13 @@
  * - Player events get the plan id and go to `flnApi.events` in batches: at most one batch per 5 s, flushed on pagehide.
  * - Which bands are open lives here (keyed by section index), so it survives a sound playing, and is mirrored to
  *   `history.state` with replaceState so Back/forward restores it.
- * - Back: an in-app previous entry → navigate(-1); opened by a link → the level list of the plan's subject for the
- *   first grade of its level (`placement[0].grades[0]`).
+ * - Back: an in-app previous entry → navigate(-1); opened by a link → the plan's subject list for the teacher's own
+ *   lowest grade (`loadGradeSubjects('lessons')`; 6–12 shows the level chooser), else `placement[0].grades[0]`.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { flnApi } from './api';
+import { loadGradeSubjects } from '../lib/gradeSubjects';
 import { useFln } from './FlnContext';
 import { FlnPlayerProvider, SoundGrid, gridClips, useFlnPlayer } from './player';
 import { Details } from './plan/Details';
@@ -41,13 +42,28 @@ type Load =
 
 type QueuedEvent = { kind: string; plan: number | string; clip?: string; ms?: number; result?: string };
 
-/** Where Back goes when the plan was opened by a link (no list behind it in history). */
-export function linkBackTarget(subject: string | undefined, placement: FlnPlacement[] | undefined): string {
+/**
+ * Where Back goes when the plan was opened by a link (no list behind it in history) — DESIGN v2 ruling 15:
+ * the teacher's OWN lowest grade when she has one (6–12 → the server answers with the level chooser; 1–5 → her level
+ * list), else (a leader, no classes, a failed read) the first grade of the plan's level.
+ */
+export function linkBackTarget(subject: string | undefined, placement: FlnPlacement[] | undefined, ownGrades: number[] = []): string {
   const p = placement?.[0];
   const sub = p?.subject ?? subject;
   if (!sub) return LESSONS_HOME;
-  const grade = p?.grades?.[0];
-  return `/portal/fln/list/${sub}?grade=${grade && grade >= 1 && grade <= 5 ? grade : 6}`;
+  const own = ownGrades.filter((g) => Number.isInteger(g) && g >= 1 && g <= 12);
+  const grade = own.length ? Math.min(...own) : p?.grades?.[0];
+  return `/portal/fln/list/${sub}?grade=${grade && grade >= 1 && grade <= 12 ? grade : 6}`;
+}
+
+/** Her grades from her classes/history; empty for a leader or on a failed read (never blocks Back). */
+async function ownGrades(): Promise<number[]> {
+  try {
+    const pairs = await loadGradeSubjects('lessons');
+    return pairs.map((x) => x.grade).filter((g): g is number => typeof g === 'number');
+  } catch {
+    return [];
+  }
 }
 
 function readOpen(planId: number): Set<number> {
@@ -143,8 +159,9 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
   const hasGrid = useMemo(() => !!plan && !screener && gridClips(plan).length > 0, [plan, screener]);
 
   const goBack = () => {
-    if (location.key !== 'default') navigate(-1);
-    else navigate(linkBackTarget(plan?.subject, placement));
+    if (location.key !== 'default') { navigate(-1); return; }
+    const subject = plan?.subject;
+    void ownGrades().then((grades) => navigate(linkBackTarget(subject, placement, grades)));
   };
 
   const shareClass = me.share ? ' fln-plan--share' : '';
