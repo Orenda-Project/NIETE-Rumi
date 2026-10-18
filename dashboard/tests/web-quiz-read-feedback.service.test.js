@@ -914,6 +914,16 @@ describe('the practise card offers one thing at a time', () => {
     expect(CSS).toContain(':has(> .wq-moment):has(> .wqs-word) > [data-after-chip], :has(> .wq-moment):has(> .wqs-word) > [data-in-chip] { display: none; }');
     expect(CSS).toMatch(/\.wq-moment-chipped > \[data-after-chip\] \{ display: revert; \}/);
   });
+  test('once the chip is tapped the 3-star offer really shows: the rule that shows it outranks the rule that hides it', () => {
+    const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    // the hiding rule weighs three classes (:has takes its argument's weight); a two-class rule lost to it on the phone
+    const show = CSS.indexOf('.wq-moment-chipped:has(> .wq-moment):has(> .wqs-word) > [data-after-chip] { display: revert; }');
+    expect(show).toBeGreaterThan(CSS.indexOf(':has(> .wq-moment):has(> .wqs-word) > [data-after-chip], '));
+    // and the practise line steps aside for it, so the chip and the offer share the room the line had
+    expect(CSS).toContain('.wq-moment-chipped:has(> .wq-moment):has(> .wqs-word) > p { display: none; }');
+    // the lines under the card keep the page's 16 px gutter
+    expect(CSS).toContain('.wqs-extra:has(> .wq-moment){padding-inline:4px}');
+  });
 });
 
 describe('the answered card on a short phone (860 px tall or less): Next, Share and Home on the first screen', () => {
@@ -923,6 +933,8 @@ describe('the answered card on a short phone (860 px tall or less): Next, Share 
     expect(block).toContain('.wq-screen:has([data-rf]) { row-gap: 8px; }');
     expect(block).toContain('.wq-screen:has([data-rf]) > .wqc-fold:empty { display: none; }');
     expect(block).toContain('.wq-screen:has([data-rf]) .wq-jug.wq-big .wq-jimg { width: 96px; height: 96px; }');
+    // Jugnu's line on the answered card wraps evenly (no word left alone on its last line)
+    expect(CSS).toContain('.wq-screen:has([data-rf]) .wq-say { text-wrap: balance; }');
     expect(block.split('\n').filter((l) => l.trim() && !/^\s*(html\[lang=ur\] )?\.wq-screen:has\(\[data-rf\]\)/.test(l))).toEqual([]);
   });
 });
