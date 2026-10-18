@@ -220,6 +220,16 @@ describe('with the join\'s one switch read on (quiz_join_fast): the child\'s lan
     expect(asked.filter((keys) => keys.includes('web_quiz_return_lang'))).toEqual([expect.arrayContaining(['quiz_join_fast', 'web_quiz_return_lang'])]);
   });
 
+  test('fast join → the first home\'s return-lang read makes 0 settings calls (it rides the join\'s one read)', async () => {
+    const asked = fast(true);
+    await joinIn('ur', 'Zara Testwala');
+    const before = reads('app_settings').length;
+    expect(await Ret.on()).toBe(true);
+    expect(reads('app_settings').length - before).toBe(0);
+    // from the join through the home: no app_settings read of its own for the switch, only the join's grouped one
+    expect(asked.filter((keys) => keys.includes('web_quiz_return_lang') && !keys.includes('quiz_join_fast')).length).toBe(0);
+  });
+
   test.each([['absent', undefined], ['false', false], ['the string "true"', 'true']])('switch row %s → nothing kept and no read of its own', async (_l, value) => {
     const asked = fast(value);
     await joinIn('en');
