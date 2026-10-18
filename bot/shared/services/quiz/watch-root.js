@@ -76,4 +76,4 @@ async function underWatchRoot(codes, root, readCodes) {
   return under;
 }
 
-module.exports = { WATCH_ROOT_KEY, rootOf, watchRootId, notUnderWatchRoot, underWatchRoot };
+module.exports = { WATCH_ROOT_KEY, rootOf, watchRootId, notUnderWatchRoot, underWatchRoot, _resetCache: () => { watchRootCache = null; } };

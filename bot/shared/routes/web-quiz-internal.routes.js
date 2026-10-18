@@ -57,6 +57,8 @@ const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 const CardImage = require('../services/quiz/web-quiz-card-image');
 // One Urdu face (web_quiz_one_face): the quiz, hub and challenge menu answers say `one_face: true` only when on.
 const OneFace = require('../services/quiz/web-quiz-one-face');
+// The child home's step timings (web_quiz_server_timing): the hub answer's Server-Timing items, only when on.
+const StepTiming = require('../services/quiz/web-quiz-server-timing');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -276,11 +278,34 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
 // `src`: the route that brought the child (hub_open.src), read by the hub_open emit as opts.src.
 // `lang`: the language the page that sent the child was in (?lang=, the edge forwards only en|ur); the hub checks it again.
-router.get('/hub/:token', handle((req) => WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang })))));
+// Step timings (app_settings web_quiz_server_timing, default off, JSON true only): Server-Timing items, one
+// `name;dur=<ms>` per awaited step of the build (web-quiz-server-timing.js), added after any timing already on the
+// answer. A header only: the JSON is the hub's own. Off: no stopwatch and no header, the call exactly as before.
+router.get('/hub/:token', handle((req, res) => {
+  const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
+  const st = StepTiming.on() ? StepTiming.steps() : null;
+  if (!st) return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)));
+  StepTiming.attach(res, st);
+  return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })));
+}));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 // `l`: the page's language (en|ur, anything else dropped); read only under app_settings web_quiz_videos_v3.
 const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
+// web_quiz_video_shelf: a lesson's small thumbnail for the Videos door's shelves (off: 404 not_found, never kept; a
+// lesson with no picture: 404 no_picture, kept 10 minutes so its cards do not ask storage on every view)
+router.get('/vt/:vid.webp', async (req, res) => {
+  try {
+    const Thumb = require('../services/quiz/web-quiz-video-thumb');
+    const pic = await Thumb.thumb(req.params.vid);
+    if (!pic && (await Thumb.noPicture(req.params.vid))) return res.status(404).set('Cache-Control', `public, max-age=${Math.round(Thumb.NONE_MS / 1000)}`).json({ error: 'no_picture' });
+    if (!pic) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    return res.status(200).set({ 'Content-Type': pic.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' }).send(pic.bytes);
+  } catch (err) {
+    logToFile('❌ web-quiz video thumb failed', { error: err.message }, 'error');
+    return res.status(500).set('Cache-Control', 'no-store').json({ error: 'server_error' });
+  }
+});
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
 // the v3 home's door screens (web-quiz-hub-doors.js; web_quiz_home_v3, off -> 404 home_off): what is behind Stories / Games
 router.get('/doors/h/:token', handle((req) => require('../services/quiz/web-quiz-hub-doors').door(req.params.token, { kid: q1(req.query.kid), d: q1(req.query.d), lang: q1(req.query.l), device: req.get('x-wq-device') })));
