@@ -289,6 +289,14 @@ describe('8. Q7 never asks what every child knows; a Q7 whose answer is in its o
     expect(note).toContain('prints its own answer in its question');
   });
 
+  test('control: «… دنیا کی کون سی بڑی نمک کی کان ہے؟ → دنیا کی دوسری بڑی نمک کی کان» stays: «دوسری» is the fact', () => {
+    const e = local('full_2');
+    const q = items(e, Q7)[0];
+    q.question = 'کھیوڑہ کی نمک کی کان دنیا کی کون سی بڑی نمک کی کان ہے؟';
+    q.answer = 'دنیا کی دوسری بڑی نمک کی کان۔';
+    expect(heldRules(lay(e, true), q.question)).not.toContain('key_in_own_stem');
+  });
+
   test('controls: an answer that only restates its stem around a new fact stays', () => {
     const laid = lay(local('chapters_4'), true);
     for (const q of items(local('chapters_4'), Q7)) expect(heldRules(laid, q.question)).not.toContain('key_in_own_stem');
