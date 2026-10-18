@@ -125,10 +125,23 @@ describe('golden: any other period, every run on a period', () => {
   test('November: rows and notes byte-identical to before; no October note, no period_missing', async () => {
     install(world(NOV));
     const out = await strip(NOV);
-    expect(rowsOut()).toEqual(GOLDEN.rows);
-    expect(out.notes).toEqual(GOLDEN.notes);
+    // every row the golden holds, unchanged and in the same order; the too-fast warm-up line is new beside them
+    expect(rowsOut().filter((r) => r.line !== 'rapid')).toEqual(GOLDEN.rows);
+    const notes = { ...out.notes };
+    delete notes.rapid;
+    expect(notes).toEqual(GOLDEN.notes);
     expect(out.skipped).toEqual(GOLDEN.skipped);
     expect(rowsOut().some((r) => r.line === 'cells_n30')).toBe(true);
     expect(rowsOut().some((r) => r.line === 'period_missing')).toBe(false);
+  });
+
+  test('November, the new too-fast warm-up rows: the three anchor check rows, none marked, none all right', async () => {
+    install(world(NOV));
+    const out = await strip(NOV);
+    expect(rowsOut().filter((r) => r.line === 'rapid').map(({ cell, value, n: k }) => ({ cell, value, n: k }))).toEqual([
+      { cell: 'G23|ur|numbers', value: 0, n: 3 },
+      { cell: 'G23|ur|numbers|all_right', value: 0, n: 3 },
+    ]);
+    expect(out.notes.rapid).toBe(Strip.LINE_NOTES.rapid);
   });
 });

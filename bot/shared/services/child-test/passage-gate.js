@@ -28,6 +28,11 @@
  *
  * A Set A pointer file ({v3_ref, questions_extra}) points at the v3 story; its numbers come from that text, and its
  * extra questions are held to the tap rules. Its line-1 count is reported as a warning: the v3 text is frozen.
+ *
+ * A listening title never holds an accepted answer of its own questions (whole word, either language): the listener sees
+ * the title before hearing the story and never sees the text. A problem on a check-pool listening passage (a pointer's
+ * v3 questions included), a warning on a practice one (retitle it before any promotion). A read stop is not held to it:
+ * the text is on screen anyway.
  */
 
 const fs = require('fs');
@@ -252,6 +257,27 @@ function checkQuestion(q, nLines, lang, problems) {
   for (const a of q.accept || []) for (const w of wrong) if (norm(a) === norm(w)) problems.push(`tap: ${id} "${w}" is both accepted and wrong`);
 }
 
+// whole-word containment after folding case, Urdu diacritics and punctuation (the same rule as the title gate test)
+const titleFold = (s) => String(s || '').toLowerCase().replace(DIACRITICS, '').replace(/[^\p{L}\p{N}\s']/gu, ' ').replace(/\s+/g, ' ').trim();
+function titleAnswers(p, questions) {
+  const out = [];
+  for (const field of ['title_en', 'title_ur']) {
+    if (typeof p[field] !== 'string' || !p[field].trim()) continue;
+    const t = ` ${titleFold(p[field])} `;
+    for (const q of questions) {
+      for (const a of new Set([...(q.accept || []), ...(typeof q.right === 'string' ? [q.right] : [])])) {
+        const f = titleFold(a);
+        if (f && t.includes(` ${f} `)) out.push(`title_answer: ${field} holds "${a}", an answer of ${q.id}`);
+      }
+    }
+  }
+  return out;
+}
+function checkListenTitle(p, questions, problems, warnings) {
+  if (p.kind !== 'listen') return;
+  for (const x of titleAnswers(p, questions)) (p.pool === 'check' ? problems : warnings).push(x);
+}
+
 function checkPointer(p, problems, warnings) {
   const block = v3Block(p.v3_ref);
   if (!block || !block.story || !block.story.text) problems.push(`pointer: ${p.passage_id} v3_ref does not resolve to a v3 story`);
@@ -266,6 +292,7 @@ function checkPointer(p, problems, warnings) {
   }
   if (p.kind === 'read' && m.q_reach_2 < 3) problems.push(`reach: ${m.q_reach_2} questions on lines 1–2 (needs ≥ 3)`);
   if (p.kind === 'read' && m.q_reach_1 < 2) warnings.push(`reach: ${m.q_reach_1} question on line 1 (the rule asks ≥ 2; the v3 text is frozen)`);
+  checkListenTitle(p, [...((block && block.questions) || []), ...(p.questions_extra || [])], problems, warnings);
   return m;
 }
 
@@ -346,6 +373,7 @@ function checkPassage(p) {
     problems.push(`reach: ${m.q_reach_1} literal tap questions on line 1 and ${m.q_reach_2} on lines 1–2 (needs ≥ 2 and ≥ 3)`);
   }
   if (p.kind === 'listen' && qs.filter((q) => q.tap_ok === true).length < 3) problems.push('reach: a listening passage needs ≥ 3 tap questions');
+  checkListenTitle(p, qs, problems, warnings);
 
   // what the file records must be what the text gives
   for (const k of ['tokens', 'sentences', 'mean_sent_len', 'max_word_len', 'readability', 'readability_band_above',
