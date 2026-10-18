@@ -15,12 +15,13 @@
  * body is capped (REPORT_BODY_LIMIT; over it, nothing is read) and so is its rate per address (REPORTS_PER_MIN).
  *
  * ON only when the stored value is the JSON boolean true: the string 'true', '"true"', 1, {}, no row, no database
- * client or a failed read are all OFF. Read through the web quiz's switch reader (web-quiz-brotli-flag.js): never per
- * request, at most one background read per 30 s per process. OFF: every page's headers and bytes are exactly today's
- * (no nonce attribute is written), and the report path answers today's 404.
+ * client or a failed read are all OFF. Read in the web quiz's one grouped settings read (web-quiz-brotli-flag.js KEYS,
+ * with web_quiz_brotli): never per request, no read of its own, at most one read per 30 s per process for all of them.
+ * OFF: every page's headers and bytes are exactly today's (no nonce attribute is written), and the report path answers
+ * today's 404. ON also sends X-Content-Type-Options: nosniff, which browsers enforce (it is not report-only).
  */
 const crypto = require('crypto');
-const { createBrotliFlag } = require('./web-quiz-brotli-flag');
+const { createBrotliFlag, settingOn } = require('./web-quiz-brotli-flag');
 
 const KEY = 'web_quiz_child_csp';
 const REPORT_PATH = '/api/wq/csp-report';
@@ -133,11 +134,12 @@ function createChildCspFlag(opts = {}) {
   return createBrotliFlag({ ...opts, key: KEY });
 }
 
-let shared = null;
-/** The process's one switch (the web quiz router's and the join page's). */
+/**
+ * The process's one switch (the web quiz router's and the join page's): its value rides the web quiz's one grouped
+ * settings read (web-quiz-brotli-flag.js KEYS), so it never adds a read of its own.
+ */
 function childCspOn() {
-  if (!shared) shared = createChildCspFlag();
-  return shared();
+  return settingOn(KEY);
 }
 
 module.exports = {
