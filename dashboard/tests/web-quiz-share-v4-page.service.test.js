@@ -256,6 +256,38 @@ describe('the shared link\'s landing (/k/<t>)', () => {
   });
 });
 
+describe('the landing shows the finish\'s result (web_quiz_share_data tokens)', () => {
+  const facts = (lang, extra = {}) => ({ kind: 'quiz', lang, first: firstOf('Noor Testwala'), deed_text: 'I finished my teacher\'s quiz today!', v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: 'https://wa.me/15550001111?text=quiz%20please' }, ...extra });
+  const page = (f) => renderCardPage({ facts: f, token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+  test.each(['en', 'ur'])('%s: stars, the score, the badge, and the dare in place of the invite line', (lang) => {
+    const rt = lang === 'ur'
+      ? { stars: 2, stars_text: '۲ ستارے', score: '۱۰ میں سے ۸ صحیح', badge: 'کوئز کا چیمپئن', dare: 'آپ ۱۰ کے ۱۰ صحیح کر کے دکھائیں!' }
+      : { stars: 2, stars_text: '2 stars', score: '8 out of 10 right', badge: 'Quiz <champ>', dare: 'Can you get 10 out of 10?' };
+    const html = page(facts(lang, { result: { r: 8, o: 10, s: 2 }, result_text: rt }));
+    expect(html).toContain(`<div class="res" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><span class="stars" role="img" aria-label="${rt.stars_text}"><i class="on">★</i><i class="on">★</i><i>★</i></span>`);
+    expect(html).toContain(`<p class="sc">${lang === 'ur' ? rt.score : '8 out of 10 right'}</p>`);
+    expect(html).toContain(lang === 'ur' ? '<span class="bd">کوئز کا چیمپئن</span>' : '<span class="bd">Quiz &lt;champ&gt;</span>');
+    expect(html).toContain(`<p class="dare">${rt.dare}</p>`);
+    // the dare is the invite: the general line goes
+    expect(html).not.toContain(lang === 'ur' ? 'آپ بھی آئیں اور کھیلیں!' : 'Join in and play it too!');
+    expect((html.match(/data-primary/g) || []).length).toBe(1);
+    expect(html).not.toMatch(BANNED);
+    expect(html).not.toMatch(/wcpm|per minute|undefined|null/);
+  });
+  test('words instead of a score; no stars known: no star row', () => {
+    const html = page(facts('en', { result: { w: 50 }, result_text: { words: '50 words read', dare: 'Can you read 50 words too?' } }));
+    expect(html).toContain('<p class="sc">50 words read</p>');
+    expect(html).not.toContain('class="stars"');
+    expect(html).not.toContain('class="bd"');
+  });
+  test('a token with no result: the one share\'s landing, byte for byte', () => {
+    const plain = page(facts('en'));
+    expect(page(facts('en', { result_text: {} }))).toBe(plain);
+    expect(plain).not.toContain('class="res"');
+    expect(plain).toContain('Join in and play it too!');
+  });
+});
+
 describe('the one share never sends words without the card', () => {
   const BOOK_O = { kind: 'book', deed: 'book_read', lang: 'en', title: 'The lost kite', auth: { hub: 'h', kid: 'k' }, item: { type: 'book', id: BOOK } };
   test.each(['en', 'ur'])('%s: a slow card (> 2 s): the button says it is getting the card, then the sheet opens with it', async (lang) => {
