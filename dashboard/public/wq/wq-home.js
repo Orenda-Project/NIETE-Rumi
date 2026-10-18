@@ -26,6 +26,7 @@
       sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
       who: 'Who is playing?', someoneNew: 'Someone new?',
       remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
+      friendJoined: 'A friend joined Jugnu from your card!', friendStamp: 'Guide',
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
       myClass: 'My class', mySchool: 'My school', social: 'My class and my school',
     },
@@ -44,6 +45,7 @@
       sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
+      friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', friendStamp: 'رہنما',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
       myClass: 'میری کلاس', mySchool: 'میرا اسکول', social: 'میری کلاس اور میرا اسکول',
     },
@@ -186,7 +188,7 @@
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
   }
   /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
    * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
@@ -194,6 +196,31 @@
    * POST /api/wq/bind/undo {from:'join'}: the bot erases that phone's binding (the child stays) and answers the
    * "who are you?" page. Absent `remember`: nothing here, the home is today's. */
   var rem = { until: 0, gone: false, timer: null, busy: false };
+  /* A friend joined from this child's shared card (the boot's `friends_joined: {n}`, web_quiz_share_joined): ONE line
+   * with the "Guide" stamp, once per new count on this phone. The count is today's, so the count seen is kept per child
+   * and per day on this phone (a new day's first friend shows again); a re-render of the same page keeps it. A count
+   * only: never who, never when. Absent: nothing, the home is today's. */
+  var fj = {};
+  function dayKey() {
+    var d = new Date();
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  function friendsHtml(B, ctx) {
+    var n = B.friends_joined && typeof B.friends_joined === 'object' ? Math.floor(Number(B.friends_joined.n)) : 0;
+    if (!(n > 0) || B.practice) return '';
+    var k = 'wq_fj_' + String(B.kid || '') + '_' + dayKey();
+    if (fj[k] !== n) {
+      var seen = 0;
+      try { seen = Number(localStorage.getItem(k)) || 0; } catch (e) { seen = 0; }
+      if (n <= seen) return '';
+      fj[k] = n;
+      try { localStorage.setItem(k, String(n)); } catch (e) { /* shown this page only */ }
+    }
+    var t = C(ctx);
+    return '<p class="wq-friend" data-friends role="status"><span class="wq-fstamp"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#FDE68A" stroke="#F59E0B" stroke-width="2"/><path d="M14 6l2.4 5 5.4.6-4 3.7 1.1 5.3L14 18l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6z" fill="#F59E0B"/></svg>' +
+      esc(t.friendStamp) + '</span><span>' + esc(t.friendJoined) + '</span></p>';
+  }
   var GO_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/quiz\/go\/[A-Za-z0-9._~-]{4,600}$/;
   function remOn(B) { return Boolean(B.remember) && !B.practice && !rem.gone && (!rem.until || Date.now() < rem.until); }
   function rememberHtml(B, ctx) {

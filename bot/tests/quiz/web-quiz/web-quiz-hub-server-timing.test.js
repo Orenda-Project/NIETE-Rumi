@@ -197,6 +197,19 @@ describe('on (JSON true): Server-Timing on the internal hub answer', () => {
     expect(batch[0].keys).toEqual(expect.arrayContaining(['web_quiz_hub', 'web_quiz_wait_ux']));
   });
 
+  test('with the hub\'s reads together too: the header still names the steps (the side-by-side part as one), the body is the off answer', async () => {
+    const off = (await warmHub()).text;
+    seed([...BASE, { key: ST_KEY, value: true }, { key: 'web_quiz_hub_fanout', value: true }]);
+    const { r, text } = await warmHub();
+    const v = String(r.headers.get('server-timing'));
+    const names = v.split(', ').map((i) => i.split(';')[0]);
+    expect(names).toEqual(expect.arrayContaining(['gate', 'kids', 'ctx', 'teacher', 'play', 'home', 'other', 'tail', 'total']));
+    expect(names[names.length - 1]).toBe('total');
+    expect(names.every((n) => Names.NAMES.includes(n))).toBe(true);
+    expect(norm(text)).toBe(norm(off));
+    require('../../../shared/services/quiz/web-quiz-hub-warm')._stop();
+  });
+
   test('GOLDEN: the JSON body is byte for byte the off answer', async () => {
     const off = (await warmHub()).text;
     withSwitch(true);
