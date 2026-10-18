@@ -139,6 +139,13 @@ describe('what the picture says', () => {
     expect((h.match(/>Reading</g) || []).length).toBe(1);
     expect(h).toContain('<div class="cap" data-ink></div>');
   });
+  test('the deed and the dare wrap balanced, so a long line never leaves its last word alone (EN and UR)', () => {
+    for (const lang of ['en', 'ur']) {
+      const h = A.renderCardA(f({ lang, first: lang === 'ur' ? 'محمدعبداللہ' : 'Muhammadabd', kind: 'book', deed: 'book_read' }), { fonts: false });
+      expect(h).toMatch(/\.deed\{[^}]*text-wrap:balance/);
+      expect(h).toMatch(/\.dare\{[^}]*text-wrap:balance/);
+    }
+  });
   test('a name that is markup is only text', () => {
     expect(html({ first: '<img src=x>' })).not.toContain('<img src=x>');
   });
