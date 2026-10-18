@@ -17,6 +17,7 @@
  * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans; `lines`: the page's own), lit as it plays.
  * gaps {sentence, comma} [target, least] ms (true: [700,500]/[400,250]), opt-in: the clip waits after a sentence end, a comma
  * or a line end, the pill on its word, for the target less its own pause, never under the least; play, pause, a seek or destroy drops it.
+ * p.slowed is set once the clip has waited at one (the storybook's slow: 1 in its page-listened event).
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -324,7 +325,7 @@
       var i = indexAt(words, t + lead);
       // the next gap the clip has not reached (none while one word or sentence plays): the pill never passes it
       // the clip stops mid-silence after the word (an early end time never clips the word)
-      for (var k in gapAt) if (stopAt == null && gapAt[k] && words[k].e > gf) { var at = Math.max(words[k].e, (words[k].e + words[+k + 1].s) / 2); if (i > k) i = +k; if (t >= at) { paint(+k); audio.pause(); gf = words[k].e; hold = setTimeout(resume, gapAt[k]); return; } break; }
+      for (var k in gapAt) if (stopAt == null && gapAt[k] && words[k].e > gf) { var at = Math.max(words[k].e, (words[k].e + words[+k + 1].s) / 2); if (i > k) i = +k; if (t >= at) { paint(+k); audio.pause(); gf = words[k].e; api.slowed = 1; hold = setTimeout(resume, gapAt[k]); return; } break; }
       paint(i);
       // the end: the audio's own 'ended', or (a stream that never says it) the clock past the stored length
       if (!finished && d.audio.ms > 0 && t >= d.audio.ms) { finish(); return; }

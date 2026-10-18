@@ -284,7 +284,7 @@
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
   // the player (and lr3's live reader) come with the book
-  var got = {}, RA_V = '0881304b50';   // the player's content hash (a test pins it)
+  var got = {}, RA_V = '49978aeb6a';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
@@ -372,7 +372,7 @@
       acc = 0;
     }
     R.fl = flush;
-    var pp = R.pp = function (ev, d, k, ka) { var n = P[k] && P[k].n; if (b.slow_gaps && slow()) d.slow = 1; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n, ka); };
+    var pp = R.pp = function (ev, d, k, ka) { var n = P[k] && P[k].n; if (b.slow_gaps && R.pl && R.pl.slowed) d.slow = 1; if (n >= 1 && n <= P.length) post(ctx, id, ev, d, n, ka); };
     function kill() {
       if (cur === R) { flush(); cur = null; }
       drop(); if (R.au) R.au.pause(); if (R.un) R.un();

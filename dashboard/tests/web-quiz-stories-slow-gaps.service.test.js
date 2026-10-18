@@ -397,7 +397,7 @@ function reader({ lang = 'en', gapsKey, slowStored } = {}) {
   const clock = { now: () => now, set: () => 0, clear() {} };
   const root = fakeEl('root');
   const open = async () => { win.WQSTORIES.open('b-1', { token: 'tok', kid: KID, lang, clock, root }); await flush(); await flush(); return root; };
-  return { w, win, root, open, store, posts, bodies };
+  return { w, win, root, open, store, posts, bodies, adv: (ms) => { now += ms; } };
 }
 // the clip of the page on screen (the player listens to it; the next page's warm-up copy has no listeners)
 const pl = (r) => r.w.audios.filter((a) => (a.l.ended || []).length).pop();
@@ -448,6 +448,17 @@ describe('the reader\'s Slower with the switch ON (the book says slow_gaps)', ()
       expect(r.w.live()).toBe(1);
       return { r, root, a: pl(r) };
     }
+    // ruled fine: the child asked to go on, so Play after a Pause in a pause skips the rest of it (no timer left behind)
+    test('Pause, then Play: the voice goes on at once, the rest of the pause is skipped', async () => {
+      const { r, root, a } = await inGap();
+      fire(root, 'main'); fire(root, 'main');
+      expect(a.paused).toBe(false);
+      expect(r.w.live()).toBe(0);
+      const t = a.t;
+      r.w.run(100);
+      expect(a.paused).toBe(false);
+      expect(a.t).toBeGreaterThan(t);
+    });
     test('Pause', async () => {
       const { r, root, a } = await inGap();
       fire(root, 'main');
@@ -538,6 +549,32 @@ describe('story_page_listened says slow: 1 when the child listened with Slower o
     expect(base).toHaveLength(1);
     expect(base[0]).not.toContain('slow');
     for (const o of [{ slowStored: '1' }, { gapsKey: false, slowStored: '1' }, { gapsKey: false }]) expect(await listenedBodies(o)).toEqual(base);
+  });
+  // slow: 1 means a Slower pause was heard on that page, not where the toggle sat when the page was left
+  async function leftBody(r, root) {
+    fire(root, 'next'); await flush();
+    const got = r.bodies.filter((b) => /story_page_listened/.test(String(b)));
+    expect(got).toHaveLength(1);
+    return JSON.parse(got[0]).data;
+  }
+  test.each(['en', 'ur'])('%s: heard at its own speed, Slower turned on just before Next (no pause reached) → no slow', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    fire(root, 'main'); r.w.run(300); r.adv(300);
+    fire(root, 'slow');
+    expect(r.store.getItem('wq_st_slow:' + KID)).toBe('1');
+    expect(await leftBody(r, root)).toEqual({ ms: 300, completed: false });
+  });
+  test.each(['en', 'ur'])('%s: a Slower pause heard, then Slower off before Next → slow: 1', async (lang) => {
+    const r = reader({ lang, gapsKey: true, slowStored: '1' });
+    const root = await r.open();
+    const end = lang === 'ur' ? 1500 : 1100;
+    fire(root, 'main'); r.w.run(end + 20);
+    expect(pl(r).paused).toBe(true);
+    r.w.run(700); r.adv(1800);
+    fire(root, 'slow');
+    expect(r.store.getItem('wq_st_slow:' + KID)).toBe('0');
+    expect(await leftBody(r, root)).toEqual({ ms: 1800, completed: false, slow: 1 });
   });
 });
 

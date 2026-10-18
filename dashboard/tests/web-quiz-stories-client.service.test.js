@@ -1149,7 +1149,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12280);   // the ruled core budget (12,288 less 8)
     expect(zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);
     expect(zlib.gzipSync(fs.readFileSync(DSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);   // the questions + done file
     const css = fs.readFileSync(CSS, 'utf8');
