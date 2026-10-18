@@ -601,6 +601,13 @@ function renderQuizFlushTail({ guess, payload, code, origin, assetV, url, a, v, 
 const FLUSH_AGAIN = `<script>location.replace(location.pathname+(location.search?location.search+"&":"?")+"nf=1"+location.hash)</script>
 </body>
 </html>`;
+// web_quiz_edge_warm on: a streamed page whose bot answer failed asks again itself after a short wait, keeping its early
+// frame (and the designed wait's bar), up to EDGE_RETRY_MAX times; then FLUSH_AGAIN (the plain page), as today.
+const EDGE_RETRY_MAX = 2;
+const EDGE_RETRY_MS = 1200;
+const flushRetry = (next) => `<script>setTimeout(function(){location.replace(${jsStr(next)}+location.hash)},${EDGE_RETRY_MS})</script>
+</body>
+</html>`;
 
 // The finish card's picture is a PNG; every other share picture is a JPEG (head's default).
 const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) || /\/art\/teach\.png\?/.test(image)) ? { imageType: 'image/png' } : {});
@@ -1042,6 +1049,7 @@ function createWebQuizRouter(opts = {}) {
   };
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
   let lastWaitShare = false; // and its `wait_share` (web_quiz_hub_fanout on too): the frame's read share
+  let lastEdgeWarm = false; // the learner's `edge_warm` (app_settings web_quiz_edge_warm): a failed streamed page asks again
   let lastWaitHops = false; // and its `wait_hops` (web_quiz_wait_hops on too): the bar also shows while the page is left
   let lastWaitHome = false; // and its `wait_home` (web_quiz_wait_home on too): the frame's kept Home
 
@@ -1062,6 +1070,7 @@ function createWebQuizRouter(opts = {}) {
     lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
+    lastEdgeWarm = b.edge_warm === true; // absent = off (the learner's field is {} while web_quiz_edge_warm is off)
     if (typeof b.wait_hops === 'boolean') lastWaitHops = b.wait_hops;
     if (typeof b.closed_lang === 'boolean') lastClosedLang = b.closed_lang;
     if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
@@ -1076,6 +1085,17 @@ function createWebQuizRouter(opts = {}) {
   // asking had stopped). The key is the edge's alone: neither the hub page nor the page's own /api/wq/hub call sees it.
   const edgeKey = (body) => {
     if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'edge_learn')) { if (edge && body.edge_learn === true) edge.arm(); delete body.edge_learn; }
+  };
+  // A streamed page whose bot answer failed: with edge warm on and the bot unreachable, timed out or a 5xx other than
+  // the switch-off 503, the page asks again itself (r=1, r=2) and keeps its early frame; else today's again(closedPage).
+  const failedAgain = (wire, req, out, closedPage) => {
+    const r = Number(req.query.r) || 0;
+    const bad = !out || (out.status >= 500 && out.status !== 503);
+    if (!lastEdgeWarm || !bad || r >= EDGE_RETRY_MAX) return wire.again(closedPage);
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(req.query || {})) if (k !== 'r' && typeof v === 'string') q.set(k, v);
+    q.set('r', String(r + 1));
+    return wire.page(flushRetry(`${req.path}?${q}`));
   };
 
   // web_quiz_closed_way_back (app_settings, default OFF): ON → a 'hub' / 'closed' page carries ONE tap back to
@@ -1259,7 +1279,7 @@ function createWebQuizRouter(opts = {}) {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
       const away = lastClosedLang ? codeLang(upper, req) : 'en';
-      if (flush) return wire.again(inlineClosed(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      if (flush) return failedAgain(wire, req, null, inlineClosed(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
       return res.status(502).type('html').send(closedHtml(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (flush && !(out.status === 200 && out.body && out.body.quiz)) {
@@ -1267,7 +1287,7 @@ function createWebQuizRouter(opts = {}) {
       // a closed answer with `known: true` (web_quiz_link_known_child) asks again: the nf=1 page draws this phone's way home
       if (contract && out.body.known === true) return wire.again(null);
       const said = langOf(out.body && out.body.lang);
-      return wire.again(inlineClosed(req, { lang: said || (lastClosedLang ? codeLang(upper, req) : 'en'), kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      return failedAgain(wire, req, out, inlineClosed(req, { lang: said || (lastClosedLang ? codeLang(upper, req) : 'en'), kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
@@ -1359,10 +1379,10 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
-      if (flush) return wire.again(inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      if (flush) return failedAgain(wire, req, null, inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
       return closed(502, 'off', away());
     }
-    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again(inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out, inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       edgeKey(out.body);
