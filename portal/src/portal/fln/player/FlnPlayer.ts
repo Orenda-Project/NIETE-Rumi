@@ -14,15 +14,17 @@ import type {
  * - One sound at a time (A4): a tap stops whatever plays, then starts its clip from 0 (A5).
  * - The tap handler calls `play()` before it returns (the in-app browser only plays on a gesture) and tells the
  *   control `loading` in the same tick (A3).
- * - Warm path: `warm()` fetches clips into blob URLs, so the HTTP status is visible: a 429/5xx/network error on the
- *   mirror re-fetches `orig` at once, before any tap. The original bucket sends no CORS headers, so when that second
- *   fetch fails too the clip is marked to stream straight from `orig` on the tap.
+ * - Warm path: `warm()` loads each clip into its own <audio preload="auto">, in grid order; a tap on a warming clip
+ *   plays from the head it already has (see the warm section for the bench numbers). A mirror error during the warm
+ *   moves that element to `orig` at once, before any tap.
  * - Cold tap: stream `src`; no first byte within 1.5 s → switch the SAME element to `orig` (never race two streams on
  *   a 400 kbps line). After `orig` fails, or 6 s with no `playing`, the control shows the retry state (A6).
  * - Every tap ends in one event: `audio_play` (`ok-mirror` | `ok-orig`) or `audio_error` (`error-<code>`), A12.
  */
 
-const DEFAULT_TIMING: FlnPlayerTiming = { firstByteMs: 1500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2 };
+const DEFAULT_TIMING: FlnPlayerTiming = {
+  firstByteMs: 1500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2, warmStepMs: 8000,
+};
 
 type Source = 'mirror' | 'orig';
 type WarmState = 'none' | 'queued' | 'loading' | 'done' | 'failed';
@@ -30,14 +32,13 @@ type WarmState = 'none' | 'queued' | 'loading' | 'done' | 'failed';
 interface Entry {
   clip: Clip;
   el?: HTMLAudioElement;
-  blobUrl?: string;
-  blobSource?: Source;
+  /** The URL last given to `el.src`, as given (the getter returns it re-encoded, so it cannot be compared). */
+  url?: string;
   warm: WarmState;
-  abort?: AbortController;
-  /** The mirror already failed for this clip (warm saw a 429/5xx/404/network error): a tap goes straight to `orig`. */
+  /** Detaches the warm listeners (a tap takes the element over, or the warm step ends). */
+  warmOff?: () => void;
+  /** The mirror already failed for this clip (the warm load errored): a tap goes straight to `orig`. */
   preferOrig?: boolean;
-  /** A cold tap on another clip paused this fetch: it goes back to the front of the queue. */
-  yielded?: boolean;
 }
 
 interface Session {
@@ -48,20 +49,22 @@ interface Session {
   t0: number;
   gotByte: boolean;
   triedOrig: boolean;
+  /** Nothing of this clip was buffered at the tap: it streams over the line and the warm queue waits for it. */
+  cold: boolean;
   timers: unknown[];
   off: () => void;
 }
 
+const HAVE_METADATA = 1;
+const HAVE_FUTURE_DATA = 3;
+
 export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   const timing = { ...DEFAULT_TIMING, ...deps.timing };
   const createAudio = deps.createAudio ?? (() => new Audio());
-  const doFetch = deps.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
   const now = deps.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
   const setT = deps.setTimeout ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
   const clearT = deps.clearTimeout ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>));
   const requestIdle = deps.requestIdle ?? defaultRequestIdle;
-  const toUrl = deps.createObjectURL ?? ((b: Blob) => URL.createObjectURL(b));
-  const revokeUrl = deps.revokeObjectURL ?? ((u: string) => URL.revokeObjectURL(u));
   const preconnect = deps.preconnect ?? defaultPreconnect;
 
   const entries = new Map<string, Entry>();
@@ -72,7 +75,6 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   let active: Session | null = null;
   let spent = 0;
   let inflight = 0;
-  const warming = new Set<Entry>();
   const origins = new Set<string>();
   let nowQueue: string[] = [];
   let idleQueue: string[] = [];
@@ -89,66 +91,70 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   }
 
   // ---------- warm ----------
+  //
+  // An <audio preload="auto"> per clip, in grid order, `warmConcurrency` at a time. The queue moves on as soon as a
+  // clip can start (its head is in), not when the whole file is: a tap only needs the head, and the browser keeps
+  // filling the rest. Bench 18 Oct 16:24Z: the phonics clips are ~200 KB / 12 s, so on a 400 kbps line a whole-file
+  // fetch() lands one clip per 4 s while a teacher taps one per 2 s, and a tap on a half-fetched clip had to start
+  // over. A tap on a warming element plays from what it has. A mirror error during the warm (429/5xx/404/network) moves
+  // the element to `orig` at once.
 
   function canSpend(e: Entry) {
     return spent + (e.clip.bytes ?? 0) <= timing.budgetBytes;
   }
 
-  async function fetchBlob(url: string, signal: AbortSignal): Promise<Blob | { status: number }> {
-    const res = await doFetch(url, { signal, mode: 'cors', credentials: 'omit' });
-    if (!res.ok) return { status: res.status };
-    return res.blob();
-  }
-
-  async function warmOne(e: Entry) {
+  function warmOne(e: Entry) {
+    const el = elementFor(e);
     e.warm = 'loading';
     inflight += 1;
-    warming.add(e);
-    const ac = new AbortController();
-    e.abort = ac;
     spent += e.clip.bytes ?? 0;
-    try {
-      let got: Blob | { status: number } | null = null;
-      let source: Source = 'mirror';
-      try {
-        got = await fetchBlob(e.clip.src, ac.signal);
-      } catch (err) {
-        if (ac.signal.aborted) throw err;
-        got = { status: 0 };
-      }
-      if (!(got instanceof Blob) && e.clip.orig !== e.clip.src) {
-        e.preferOrig = true;
-        source = 'orig';
-        try {
-          got = await fetchBlob(e.clip.orig, ac.signal);
-        } catch (err) {
-          if (ac.signal.aborted) throw err;
-          got = { status: 0 };
-        }
-      }
-      if (got instanceof Blob) {
-        spent += Math.max(0, got.size - (e.clip.bytes ?? 0));
-        e.blobUrl = toUrl(got);
-        e.blobSource = source;
-        e.warm = 'done';
-      } else {
-        e.warm = 'failed';
-      }
-    } catch {
-      // Aborted: a tap took this clip over (it streams instead), a cold tap on another clip took the line, or the
-      // page went away.
-      spent -= e.clip.bytes ?? 0;
-      if (e.yielded && e.warm === 'loading') {
-        e.warm = 'queued';
-        nowQueue.unshift(e.clip.id);
-      } else if (e.warm === 'loading') e.warm = 'none';
-      e.yielded = undefined;
-    } finally {
-      if (e.abort === ac) e.abort = undefined;
-      warming.delete(e);
+    let source: Source = e.preferOrig ? 'orig' : 'mirror';
+    let ended = false;
+    const end = (state: WarmState) => {
+      if (ended) return;
+      ended = true;
+      off();
+      e.warm = state;
       inflight -= 1;
       pumpIdle();
-    }
+    };
+    const onReady = () => { if (el.readyState >= HAVE_FUTURE_DATA) end('done'); };
+    const onSuspend = () => { if (el.readyState >= HAVE_METADATA) end('done'); };
+    const onError = () => {
+      if (source === 'mirror' && e.clip.orig !== e.clip.src) {
+        source = 'orig';
+        e.preferOrig = true;
+        setSrc(e, el, e.clip.orig);
+        el.load();
+        return;
+      }
+      end('failed');
+    };
+    // A slow head must not hold the queue: after warmStepMs the next clip starts beside it.
+    const step = setT(() => end(el.readyState >= HAVE_METADATA ? 'done' : 'loading'), timing.warmStepMs);
+    const off = () => {
+      clearT(step);
+      el.removeEventListener('canplay', onReady);
+      el.removeEventListener('canplaythrough', onReady);
+      el.removeEventListener('suspend', onSuspend);
+      el.removeEventListener('error', onError);
+      if (e.warmOff === stop) e.warmOff = undefined;
+    };
+    const stop = () => {
+      if (ended) return;
+      ended = true;
+      off();
+      inflight -= 1;
+      if (e.warm === 'loading') e.warm = 'done';
+    };
+    e.warmOff = stop;
+    el.addEventListener('canplay', onReady);
+    el.addEventListener('canplaythrough', onReady);
+    el.addEventListener('suspend', onSuspend);
+    el.addEventListener('error', onError);
+    el.preload = 'auto';
+    setSrc(e, el, source === 'orig' ? e.clip.orig : e.clip.src);
+    el.load();
   }
 
   function armIdle() {
@@ -163,13 +169,9 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
 
   /** A cold tap is loading over the same line: it gets the bandwidth until it plays or fails. */
   function coldTapLoading() {
-    return !!active && states.get(active.id)?.state === 'loading' && !active.el.src.startsWith('blob:');
+    return !!active && active.cold && states.get(active.id)?.state === 'loading';
   }
 
-  /**
-   * In order, at most `warmConcurrency` at a time: on a slow line the clip a teacher taps first is whole after one
-   * clip's download, not after all of them (three parallel fetches each finish at three times the cost).
-   */
   function pumpIdle() {
     if (!idleOpen && idleQueue.length) armIdle();
     if (coldTapLoading()) return;
@@ -186,16 +188,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
         idleQueue = [];
         break;
       }
-      void warmOne(e);
-    }
-  }
-
-  /** A cold tap pauses every other prefetch; each goes back to the front of the queue and resumes after the tap. */
-  function yieldWarming(except: Entry) {
-    for (const w of [...warming].reverse()) {
-      if (w === except || !w.abort) continue;
-      w.yielded = true;
-      w.abort.abort();
+      warmOne(e);
     }
   }
 
@@ -206,9 +199,15 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       const el = createAudio();
       el.preload = 'auto';
       el.loop = false;
+      if (el.dataset) el.dataset.flnClip = e.clip.id; // the bench reads it
       e.el = el;
     }
     return e.el;
+  }
+
+  function setSrc(e: Entry, el: HTMLAudioElement, url: string) {
+    e.url = url;
+    el.src = url;
   }
 
   function finish(s: Session) {
@@ -262,7 +261,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     s.triedOrig = true;
     s.source = 'orig';
     s.gotByte = false;
-    s.el.src = e.clip.orig;
+    setSrc(e, s.el, e.clip.orig);
     try { s.el.currentTime = 0; } catch { /* ignore */ }
     startPlay(s);
   }
@@ -284,28 +283,16 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     const t0 = now();
     setState(id, 'loading', 0, owner);
 
-    // A warm fetch still running for this clip: stop it and stream (the tap must not wait for a full download).
-    if (e.warm === 'loading' && e.abort) e.abort.abort();
-    if (!e.blobUrl) yieldWarming(e);
-
-    let url: string;
-    let source: Source;
-    let fromBlob = false;
-    if (e.blobUrl) {
-      url = e.blobUrl;
-      source = e.blobSource ?? 'mirror';
-      fromBlob = true;
-    } else if (e.preferOrig) {
-      url = e.clip.orig;
-      source = 'orig';
-    } else {
-      url = e.clip.src;
-      source = 'mirror';
-    }
+    // The tap takes the element over from its warm step (it keeps what it has buffered).
+    e.warmOff?.();
+    const url = e.preferOrig ? e.clip.orig : e.clip.src;
+    const source: Source = e.preferOrig ? 'orig' : 'mirror';
+    const buffered = e.url === url && el.readyState >= HAVE_METADATA;
 
     const s: Session = {
       id, owner, el, source, t0,
-      gotByte: false,
+      gotByte: buffered,
+      cold: !buffered,
       triedOrig: source === 'orig' || e.clip.orig === e.clip.src,
       timers: [],
       off: () => {},
@@ -331,17 +318,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       setState(id, 'idle', 0);
       pumpIdle();
     };
-    const onError = () => {
-      const code = el.error?.code;
-      if (fromBlob && s.source === (e.blobSource ?? 'mirror') && el.src.startsWith('blob:')) {
-        // The cached bytes did not decode: drop them and stream.
-        dropBlob(e);
-        fromBlob = false;
-        s.gotByte = false;
-        if (s.source === 'mirror') { el.src = e.clip.src; startPlay(s); return; }
-      }
-      onMediaError(s, `error-media${code ?? 0}`);
-    };
+    const onError = () => { onMediaError(s, `error-media${el.error?.code ?? 0}`); };
     const byteEvents = ['loadedmetadata', 'loadeddata', 'progress', 'canplay'] as const;
     byteEvents.forEach((n) => el.addEventListener(n, onByte));
     el.addEventListener('playing', onPlaying);
@@ -358,11 +335,11 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     active = s;
 
     el.loop = false;
-    if (el.src !== url) el.src = url;
+    if (e.url !== url) setSrc(e, el, url);
     try { el.currentTime = 0; } catch { /* not seekable yet: it starts at 0 anyway */ }
     startPlay(s);
 
-    if (!fromBlob && !s.triedOrig) {
+    if (!buffered && !s.triedOrig) {
       s.timers.push(setT(() => {
         if (active === s && !s.gotByte && s.source === 'mirror' && states.get(id)?.state === 'loading') switchToOrig(s);
       }, timing.firstByteMs));
@@ -370,13 +347,6 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     s.timers.push(setT(() => {
       if (active === s && states.get(id)?.state !== 'playing') fail(s, 'error-timeout');
     }, timing.giveUpMs));
-  }
-
-  function dropBlob(e: Entry) {
-    if (e.blobUrl) revokeUrl(e.blobUrl);
-    e.blobUrl = undefined;
-    e.blobSource = undefined;
-    if (e.warm === 'done') e.warm = 'failed';
   }
 
   return {
@@ -398,7 +368,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       let immediate = 0;
       for (const id of ids) {
         const e = entries.get(id);
-        if (!e || e.blobUrl || e.warm !== 'none') continue;
+        if (!e || e.warm !== 'none') continue;
         e.warm = 'queued';
         if (immediate < timing.warmNow) {
           immediate += 1;
@@ -447,8 +417,12 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       nowQueue = [];
       idleQueue = [];
       for (const e of entries.values()) {
-        e.abort?.abort();
-        dropBlob(e);
+        e.warmOff?.();
+        if (e.el) {
+          // Let the browser drop the buffer and the connection.
+          try { e.el.pause(); e.el.removeAttribute('src'); e.el.load(); } catch { /* ignore */ }
+        }
+        e.url = undefined;
         e.warm = 'none';
         e.preferOrig = undefined;
       }

@@ -15,33 +15,19 @@ class FakeAudio extends EventTarget {
   paused = true;
   preload = '';
   loop = false;
+  readyState = 0;
+  dataset: Record<string, string> = {};
   playCalls = 0;
+  loads = 0;
+  /** every src this element was given, in order (the network boundary) */
+  srcs: string[] = [];
   play(): Promise<void> { this.paused = false; this.playCalls += 1; playLog.push(this); return Promise.resolve(); }
   pause(): void { this.paused = true; }
-  load(): void { /* no-op */ }
+  load(): void { this.loads += 1; if (this.src) this.srcs.push(this.src); }
   removeAttribute(name: string): void { if (name === 'src') this.src = ''; }
   fire(type: string): void { this.dispatchEvent(new Event(type)); }
-}
-
-type Script = { ok: number } | { status: number } | 'throw' | 'hang';
-const okResponse = (n: number) => ({ ok: true, status: 200, blob: async () => new Blob([new Uint8Array(n)]) });
-
-function makeFetch(scripts: Record<string, Script | Script[]>, calls: string[]) {
-  const seen: Record<string, number> = {};
-  return ((url: string, init?: { signal?: AbortSignal }) => {
-    calls.push(url);
-    const s = scripts[url] ?? { ok: 100 };
-    const i = (seen[url] = (seen[url] ?? -1) + 1);
-    const one = Array.isArray(s) ? s[Math.min(i, s.length - 1)] : s;
-    if (one === 'throw') return Promise.reject(new TypeError('Failed to fetch'));
-    if (one === 'hang') {
-      return new Promise((_res, rej) => {
-        init?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')));
-      });
-    }
-    if ('status' in one) return Promise.resolve({ ok: false, status: one.status, blob: async () => new Blob([]) });
-    return Promise.resolve(okResponse(one.ok));
-  }) as unknown as typeof fetch;
+  /** the head arrived: the element can start */
+  head(): void { this.readyState = 3; this.fire('loadedmetadata'); this.fire('canplay'); }
 }
 
 const clip = (id: string, role: Clip['role'] = 'sound'): Clip => ({
@@ -51,33 +37,29 @@ const clip = (id: string, role: Clip['role'] = 'sound'): Clip => ({
 interface Rig {
   deps: FlnPlayerDeps;
   audios: FakeAudio[];
-  fetchCalls: string[];
   idleQ: Array<() => void>;
-  revoked: string[];
-  created: string[];
   events: PlayerEvent[];
 }
 
-function rig(scripts: Record<string, Script | Script[]> = {}, timing?: FlnPlayerDeps['timing']): Rig {
+function rig(timing?: FlnPlayerDeps['timing']): Rig {
   const audios: FakeAudio[] = [];
-  const fetchCalls: string[] = [];
   const idleQ: Array<() => void> = [];
-  const revoked: string[] = [];
-  const created: string[] = [];
-  let n = 0;
   const deps: FlnPlayerDeps = {
     createAudio: () => { const a = new FakeAudio(); audios.push(a); return a as unknown as HTMLAudioElement; },
-    fetch: makeFetch(scripts, fetchCalls),
     now: () => Date.now(),
     setTimeout: (fn, ms) => setTimeout(fn, ms),
     clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     requestIdle: (fn) => { idleQ.push(fn); },
-    createObjectURL: () => { const u = `blob:${++n}`; created.push(u); return u; },
-    revokeObjectURL: (u) => { revoked.push(u); },
+    preconnect: () => {},
     ...(timing ? { timing } : {}),
   };
-  return { deps, audios, fetchCalls, idleQ, revoked, created, events: [] };
+  return { deps, audios, idleQ, events: [] };
 }
+
+/** the element the player made for clip `id` */
+const elOf = (r: Rig, id: string) => r.audios.find((a) => a.dataset.flnClip === id);
+/** every URL the warm loaded, in order */
+const loaded = (r: Rig) => r.audios.flatMap((a) => a.srcs);
 
 async function flush(): Promise<void> {
   for (let i = 0; i < 4; i += 1) await vi.advanceTimersByTimeAsync(0);
@@ -90,8 +72,8 @@ async function flushIdle(r: Rig): Promise<void> {
 const unpaused = (r: Rig) => r.audios.filter((a) => !a.paused);
 const lastPlayed = () => playLog[playLog.length - 1];
 
-function setup(ids: string[], scripts: Record<string, Script | Script[]> = {}, timing?: FlnPlayerDeps['timing']) {
-  const r = rig(scripts, timing);
+function setup(ids: string[], timing?: FlnPlayerDeps['timing']) {
+  const r = rig(timing);
   const player = createFlnPlayer(r.deps);
   const clips = ids.map((i) => clip(i));
   player.register(clips);
@@ -216,13 +198,14 @@ describe('A3 synchronous feedback and the gesture rule', () => {
     expect(r.audios.some((a) => a.playCalls === 1)).toBe(true);
   });
 
-  it('play() is called before toggle returns (warmed clip, blob src)', async () => {
+  it('play() is called before toggle returns (warmed clip)', async () => {
     const { r, player } = setup(['a']);
     player.warm(['a']);
     await flush();
+    elOf(r, 'a')!.head();
     player.toggle('a');
     expect(playLog.length).toBe(1);
-    expect(r.audios.length).toBeGreaterThan(0);
+    expect(playLog[0]).toBe(elOf(r, 'a'));
   });
 });
 
@@ -230,63 +213,167 @@ describe('A3 synchronous feedback and the gesture rule', () => {
 
 describe('warm', () => {
   const five = ['a', 'b', 'c', 'd', 'e'];
+  const m = (i: string) => `https://m.example/${i}.mp3`;
 
-  it('fetches the first 3 at once and the rest only after the idle callback', async () => {
+  it('one <audio preload=auto> per clip, in order, 2 at a time; the next starts when a head arrives', async () => {
     const { r, player } = setup(five);
     player.warm(five);
     await flush();
-    expect(r.fetchCalls).toEqual(['a', 'b', 'c'].map((i) => `https://m.example/${i}.mp3`));
+    expect(loaded(r)).toEqual([m('a'), m('b')]);
+    expect(r.audios.every((a) => a.preload === 'auto')).toBe(true);
+    elOf(r, 'a')!.head();
+    await flush();
+    expect(loaded(r)).toEqual([m('a'), m('b'), m('c')]);
+  });
+
+  it('the first 3 start without idle; the rest wait for the idle callback', async () => {
+    const { r, player } = setup(five);
+    player.warm(five);
+    await flush();
+    elOf(r, 'a')!.head();
+    elOf(r, 'b')!.head();
+    elOf(r, 'c')?.head();
+    await flush();
+    expect(loaded(r)).toEqual([m('a'), m('b'), m('c')]);
     await flushIdle(r);
-    expect(r.fetchCalls).toEqual(five.map((i) => `https://m.example/${i}.mp3`));
+    expect(loaded(r)).toEqual([m('a'), m('b'), m('c'), m('d'), m('e')]);
+  });
+
+  it('a head that never arrives stops holding the queue after warmStepMs', async () => {
+    const { r, player } = setup(five, { warmStepMs: 8000 });
+    player.warm(five);
+    await flush();
+    vi.advanceTimersByTime(7999);
+    expect(loaded(r)).toHaveLength(2);
+    vi.advanceTimersByTime(1);
+    await flush();
+    expect(loaded(r)).toEqual([m('a'), m('b'), m('c')]);
   });
 
   it('stops when the byte budget is spent', async () => {
-    const scripts: Record<string, Script> = {};
-    five.forEach((i) => { scripts[`https://m.example/${i}.mp3`] = { ok: 1000 }; });
-    const { r, player } = setup(five, scripts, { budgetBytes: 2500 });
+    const r = rig({ budgetBytes: 2500 });
+    const player = createFlnPlayer(r.deps);
+    player.register(five.map((i) => ({ ...clip(i), bytes: 1000 })));
     player.warm(five);
     await flush();
+    r.audios.forEach((a) => a.head());
+    await flush();
     await flushIdle(r);
-    await flushIdle(r);
-    expect(r.fetchCalls).toEqual(['a', 'b', 'c'].map((i) => `https://m.example/${i}.mp3`));
+    r.audios.forEach((a) => a.head());
+    await flush();
+    expect(loaded(r)).toEqual([m('a'), m('b')]);
   });
 
-  it('a warmed clip plays from a blob: src and the audio_play result is ok-mirror', async () => {
+  it('a tap on a warmed clip plays the same element from what it has: no reload, no 1.5 s switch, ok-mirror', async () => {
     const { r, player } = setup(['a']);
     player.warm(['a']);
     await flush();
+    const el = elOf(r, 'a')!;
+    el.head();
+    const loads = el.loads;
     player.toggle('a');
-    const el = lastPlayed();
-    expect(el.src).toMatch(/^blob:\d+$/);
-    expect(r.created.length).toBeGreaterThan(0);
+    expect(lastPlayed()).toBe(el);
+    expect(el.loads).toBe(loads);
+    vi.advanceTimersByTime(2000);
+    expect(el.src).toBe(m('a'));
     el.fire('playing');
-    const play = r.events.find((e) => e.kind === 'audio_play');
-    expect(play).toMatchObject({ clip: 'a', result: 'ok-mirror' });
+    expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ clip: 'a', result: 'ok-mirror' });
   });
 
-  it('warm alone never plays, and a hanging prefetch does not block another clip', async () => {
-    const { r, player } = setup(['a', 'b'], { 'https://m.example/a.mp3': 'hang' });
+  it('a tap on a clip whose head is still on its way keeps that download (no restart)', async () => {
+    const { r, player } = setup(['a']);
     player.warm(['a']);
     await flush();
+    const el = elOf(r, 'a')!;
+    el.readyState = 1; // metadata only
+    player.toggle('a');
+    expect(el.loads).toBe(1);
+    expect(el.srcs).toEqual([m('a')]);
+  });
+
+  it('warm alone never plays', async () => {
+    const { r, player } = setup(['a', 'b']);
+    player.warm(['a', 'b']);
+    await flush();
+    r.audios.forEach((a) => a.head());
+    await flushIdle(r);
     expect(playLog).toHaveLength(0);
-    player.toggle('b');
-    expect(playLog).toHaveLength(1);
     expect(r.audios.every((x) => x.loop === false)).toBe(true);
+  });
+
+  it('a cold tap holds the queue until it plays', async () => {
+    const { r, player } = setup(['a', 'b', 'c', 'd']);
+    player.warm(['a', 'b', 'c', 'd']);
+    await flush();
+    player.toggle('d');
+    elOf(r, 'a')!.head();
+    elOf(r, 'b')!.head();
+    await flush();
+    expect(loaded(r)).not.toContain(m('c'));
+    lastPlayed().fire('playing');
+    await flush();
+    expect(loaded(r)).toContain(m('c'));
+  });
+
+  it('the element keeps the URL as given even when the browser re-encodes src (an Urdu filename)', async () => {
+    const r = rig();
+    r.deps.createAudio = () => {
+      const a = new FakeAudio();
+      let raw = '';
+      Object.defineProperty(a, 'src', { get: () => encodeURI(raw), set: (v: string) => { raw = v; } });
+      r.audios.push(a);
+      return a as unknown as HTMLAudioElement;
+    };
+    const player = createFlnPlayer(r.deps);
+    const url = 'https://m.example/4037_ب.mp3';
+    player.register([{ id: 'u', src: url, orig: url, label: 'ب', role: 'sound' }]);
+    player.warm(['u']);
+    await flush();
+    const el = elOf(r, 'u')!;
+    el.head();
+    player.toggle('u');
+    expect(el.loads).toBe(1); // the tap did not reset src and start the download again
   });
 });
 
-describe('warm fallback: the mirror fails, the original is fetched at once', () => {
-  const cases: Array<[string, Script]> = [['429', { status: 429 }], ['503', { status: 503 }], ['network error', 'throw']];
-  it.each(cases)('mirror %s then orig, plays the orig blob with ok-orig', async (_n, script) => {
-    const { r, player } = setup(['a'], { 'https://m.example/a.mp3': script });
+describe('warm fallback: the mirror errors, the element moves to the original at once', () => {
+  it('mirror error during the warm → orig loaded before any tap; the tap plays it with ok-orig', async () => {
+    const { r, player } = setup(['a']);
     player.warm(['a']);
     await flush();
-    expect(r.fetchCalls).toEqual(['https://m.example/a.mp3', 'https://o.example/a.mp3']);
+    const el = elOf(r, 'a')!;
+    el.fire('error');
+    expect(el.srcs).toEqual(['https://m.example/a.mp3', 'https://o.example/a.mp3']);
+    el.head();
     player.toggle('a');
-    const el = lastPlayed();
-    expect(el.src).toMatch(/^blob:\d+$/);
+    expect(el.loads).toBe(2);
     el.fire('playing');
     expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ clip: 'a', result: 'ok-orig' });
+  });
+
+  it('both fail during the warm: the tap still tries (from orig) and ends in error, never a spinner', async () => {
+    const { r, player, last } = setup(['a']);
+    player.warm(['a']);
+    await flush();
+    const el = elOf(r, 'a')!;
+    el.fire('error');
+    el.fire('error');
+    player.toggle('a');
+    vi.advanceTimersByTime(6000);
+    expect(last('a').s).toBe('error');
+    expect(r.events.some((e) => e.kind === 'audio_error')).toBe(true);
+  });
+});
+
+describe('preconnect', () => {
+  it('once per mirror origin, at register', () => {
+    const got: string[] = [];
+    const r = rig();
+    r.deps.preconnect = (o) => { got.push(o); };
+    const player = createFlnPlayer(r.deps);
+    player.register([clip('a'), clip('b'), { ...clip('c'), src: 'https://other.example/c.mp3' }]);
+    player.register([clip('d')]);
+    expect(got).toEqual(['https://m.example', 'https://other.example']);
   });
 });
 
@@ -501,13 +588,13 @@ describe('src exactly as given', () => {
     expect(lastPlayed().src).toBe('https://o.example/a+b.mp3');
   });
 
-  it('the warm fetch uses the URL untouched', async () => {
+  it('the warm load uses the URL untouched', async () => {
     const r = rig();
     const player = createFlnPlayer(r.deps);
     player.register([{ id: 'p', src: 'https://m.example/a+b.mp3', orig: 'https://o.example/a+b.mp3', label: 'p', role: 'sound' }]);
     player.warm(['p']);
     await flush();
-    expect(r.fetchCalls).toEqual(['https://m.example/a+b.mp3']);
+    expect(loaded(r)).toEqual(['https://m.example/a+b.mp3']);
   });
 });
 
@@ -536,12 +623,12 @@ describe('audio_play.ms', () => {
 });
 
 describe('dispose', () => {
-  it('revokes every blob URL it created', async () => {
+  it('releases every element: src removed and load() called, so the browser drops the buffer and the connection', async () => {
     const { r, player } = setup(['a', 'b']);
     player.warm(['a', 'b']);
     await flush();
-    expect(r.created.length).toBe(2);
+    expect(r.audios).toHaveLength(2);
     player.dispose();
-    expect([...r.revoked].sort()).toEqual([...r.created].sort());
+    expect(r.audios.every((a) => a.src === '' && a.loads === 2)).toBe(true);
   });
 });
