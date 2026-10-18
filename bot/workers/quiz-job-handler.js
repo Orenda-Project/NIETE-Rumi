@@ -71,7 +71,18 @@ async function handleQuizReport(body) {
   // loser short-circuits cleanly. 24h TTL > the 12h cascade ceiling so a stale
   // cascade can't slip through after the report's already gone out.
   const SENT_FLAG_KEY = `quiz_report_sent:${quizId}`;
-  if (await RedisService.get(SENT_FLAG_KEY)) {
+  const sentFlag = await RedisService.get(SENT_FLAG_KEY);
+  // quiz_report_send_checked: a report given up on (three refusals) is recorded in this same key as GAVE_UP — never
+  // '1', so it is never "fired" — and a later cascade message sends nothing and queues nothing. Recorded here, not
+  // read from the tries counter, so the switch off costs no read: off, the value is never written.
+  if (sentFlag === GAVE_UP) {
+    const SendCheck = require('../shared/services/quiz/report-send-check');
+    if (await SendCheck.on()) {
+      logEvent('quiz_report_send_skipped_gave_up', { quiz_h: SendCheck.quizH(quizId), tk: await teacherTkOf(quizId, SendCheck) });
+      return { skipped: true, reason: 'gave_up' };
+    }
+  }
+  if (sentFlag && sentFlag !== GAVE_UP) {
     logToFile('🔁 quiz_report already fired for this quiz — skipping (cascade dedup)', { quizId });
     logEvent('quiz.report.skipped', { quizId, reason: 'already_fired' });
     return { skipped: true, reason: 'already_fired' };
@@ -149,7 +160,12 @@ async function handleQuizReport(body) {
   // Generate the report (12h timeout safety OR all sessions terminal)
   logEvent('quiz.report.generation_started', { quizId, allFinal, past12h, peerCount: peers?.length || 0 });
   const QuizReportService = require('../shared/services/quiz/quiz-report.service');
-  await QuizReportService.generateReport(quizId, { ...payload, teacherPhone });
+  // quiz_report_send_checked (off by default): generateReport answers whether WhatsApp took the report. Off, today:
+  // the flag below is set whatever it answered (and a throw still throws). On, a refusal (or a throw) is not marked
+  // fired: it is counted and the job queued again (chatReportRefused). The switch is asked only on a refusal.
+  const SendCheck = require('../shared/services/quiz/report-send-check');
+  const accepted = await SendCheck.send(() => QuizReportService.generateReport(quizId, { ...payload, teacherPhone }));
+  if (!accepted) return chatReportRefused(quizId, quiz, payload, SendCheck);
   logEvent('quiz.report.fired', { quizId });
 
   // Mark fired so cascade dedup short-circuits any future dequeue for this
@@ -161,6 +177,65 @@ async function handleQuizReport(body) {
   }
 
   return { ok: true };
+}
+
+/** A chat quiz report WhatsApp refused stays in Redis this long, like the fired flag (past the 12h cascade). */
+const SEND_TRIES_TTL_S = 86400;
+/** The fired-flag key's value for a report given up on (quiz_report_send_checked): not fired, not to be tried again. */
+const GAVE_UP = 'gave_up';
+
+/** The teacher's tk for a quiz, for a log line (never the phone). Null when unreadable. */
+async function teacherTkOf(quizId, SendCheck) {
+  try {
+    const { data } = await supabase.from('quizzes').select('teacher_id').eq('id', quizId).maybeSingle();
+    return data && data.teacher_id ? SendCheck.tkOf(data.teacher_id) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * A chat quiz report WhatsApp did not take, with quiz_report_send_checked on: the fired flag stays unset, the refusal
+ * is counted (Redis `quiz_report_send_tries:<quizId>`) and logged as quiz_report_send_failed — the quiz id hashed,
+ * the teacher's tk, the try count, never a phone — and, under MAX_TRIES tries, the job is queued again in 15 min (the
+ * cascade's own re-queue). The third refusal logs report_gave_up and nothing is queued again. A count that could not
+ * be kept queues nothing (a retry with no count could go on for ever).
+ */
+async function chatReportRefused(quizId, quiz, payload, SendCheck) {
+  const fields = { quiz_h: SendCheck.quizH(quizId), tk: SendCheck.tkOf(quiz.teacher_id) };
+  const triesKey = `quiz_report_send_tries:${quizId}`;
+  let tries = null;
+  try {
+    const n = await RedisService.incr(triesKey);
+    if (Number.isFinite(n) && n > 0) {
+      tries = n;
+      await RedisService.expire(triesKey, SEND_TRIES_TTL_S);
+    }
+  } catch (err) {
+    logToFile('❌ quiz_report: refused report not counted — no retry', { ...fields, error: err.message }, 'error');
+  }
+  logEvent('quiz_report_send_failed', { ...fields, tries });
+  const gaveUp = tries !== null && tries >= SendCheck.MAX_TRIES;
+  if (gaveUp) {
+    if (tries === SendCheck.MAX_TRIES) logEvent('report_gave_up', { ...fields, path: 'chat', tries });
+    try {
+      await RedisService.set(`quiz_report_sent:${quizId}`, GAVE_UP, SEND_TRIES_TTL_S);
+    } catch (err) {
+      logToFile('⚠️ quiz_report: give-up not recorded (a later cascade message may try once more)', { ...fields, error: err.message });
+    }
+    return { skipped: true, reason: 'gave_up', tries };
+  }
+  if (tries !== null) {
+    try {
+      await SQSQueueService.queueJob(quizId, 'quiz_report', payload, {
+        delaySeconds: SQS_MAX_DELAY_SECONDS,
+        deduplicationId: `${quizId}-quiz_report-retry-${tries}`
+      });
+    } catch (err) {
+      logToFile('❌ quiz_report: refused report not queued again', { ...fields, error: err.message }, 'error');
+    }
+  }
+  return { skipped: true, reason: 'send_failed', tries };
 }
 
 // ─── quiz_expire ────────────────────────────────────────────────────────────
