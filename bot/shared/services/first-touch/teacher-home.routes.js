@@ -204,6 +204,20 @@ function createRouter(deps = null) {
     const S = Data.dep(deps, 'Stories');
     return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories?lang=${lang === 'en' ? 'en' : 'ur'}` : null;
   }
+  /**
+   * The library card's one counts line for the whole teacher: { sent, read } once at least one story went out; null
+   * otherwise (its own switch off, no stories module, the stories switch off, nothing sent, a failed read).
+   */
+  async function storyCountsOf(uid) {
+    if (!(await Data.dep(deps, 'CountsFlag').on())) return null;
+    const S = Data.dep(deps, 'Stories');
+    if (!S || typeof S.storyCounts !== 'function') return null;
+    const c = await S.storyCounts(uid);
+    const sent = c && Number(c.sent);
+    if (!Number.isInteger(sent) || sent < 1) return null;
+    const read = Number(c.read);
+    return { sent, read: Number.isInteger(read) && read > 0 ? read : 0 };
+  }
   function cardsFor(lang) {
     const Cards = byName('cardsPage', './cards.page');
     if (!Cards || typeof Cards.cardsFor !== 'function') return [];
@@ -278,8 +292,8 @@ function createRouter(deps = null) {
     if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
     // the script's switched parts (each OFF unless JSON true; off, today's shell byte for byte)
-    const [named, early] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn()]);
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early });
+    const [named, early, counts] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on()]);
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -339,12 +353,15 @@ function createRouter(deps = null) {
     const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
+    const countsP = Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'); // the same, as on the full answer
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
       againable: lists.againable, named: await namedP,
     });
+    const counts = await countsP;
+    if (counts && home.library) home.library.counts = counts;
     if (walk) home.walk = walk;
     // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
     const top = home.primary;
@@ -396,7 +413,7 @@ function createRouter(deps = null) {
     const lessonsP = Data.within(Data.lessons(p.uid, deps), Data.REPORT_BUDGET_MS, [], 'lessons');
     const playedP = Data.within(playedOwn(p.uid), Data.REPORT_BUDGET_MS, new Map(), 'class report');
     // the gate and the send-again check start as soon as their own inputs are in, alongside the other reads
-    const [lessons0, played0, shares0, pf, tree, children, confirm, maker, on0, againable0] = await Promise.all([
+    const [lessons0, played0, shares0, pf, tree, children, confirm, maker, on0, againable0, counts] = await Promise.all([
       lessonsP,
       playedP,
       Data.within(Data.libraryShares(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'library shares'),
@@ -407,6 +424,7 @@ function createRouter(deps = null) {
       makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null)),
       lessonsP.then((l) => gate(ownSentOf(l))),
       sendable(lessonsP.then(ownSentOf), playedP),
+      Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'),
     ]);
     // a listed test phone walking as "a teacher with no lessons yet" (sandbox walk-through only): the lists hidden, never touched
     const { lessons, played, shares } = await walkLists(user, { lessons: lessons0, played: played0, shares: shares0 });
@@ -427,6 +445,8 @@ function createRouter(deps = null) {
       maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
       named: await namedP,
     });
+    // the teacher's story sends and their readers: only once a story went out, else no key (the JSON is as it was)
+    if (counts && home.library) home.library.counts = counts;
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
