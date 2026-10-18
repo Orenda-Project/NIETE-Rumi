@@ -15,7 +15,7 @@
  *   - Memoised per (bucket, key, day): a plan with ~60 clips is signed once a day, not on every GET.
  *   - Fails closed: a missing bucket/credential env or a signing error leaves the plan served, with `src` moved to the
  *     item's S3 `orig` when it has one (the player's own fallback), else unchanged. Logged once per reason, plan id
- *     only (no URL, no key).
+ *     only (no URL, no key), once per reason per UTC day.
  *   - Never mutates its input: the corpus plan is shared by every request; the answer is a new object tree.
  *
  * Same credentials as dashboard/services/r2.service.js (R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
@@ -69,9 +69,11 @@ function r2(cfg) {
   return client;
 }
 
+// Once per reason per UTC day (not once per process): a fallback that lasts days must keep showing in the logs.
 function logOnce(reason, planId, n) {
-  if (logged.has(reason)) return;
-  logged.add(reason);
+  const tag = `${reason}|${Math.floor(Date.now() / DAY_MS)}`;
+  if (logged.has(tag)) return;
+  logged.add(tag);
   console.error('❌ FLN media: presign unavailable, served the S3 originals', { reason, plan: planId, n });
 }
 
