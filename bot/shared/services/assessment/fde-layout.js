@@ -1508,6 +1508,40 @@ function sameLine(a, b) {
   const line = bookLineOf(a.question);
   return line !== null && line === bookLineOf(b.question);
 }
+// Social Studies: the book's page text (`opts.book`, the pages the section prompts were given) read as its
+// sentences, in order, each as its words. A page's lines are joined first: the page store breaks a sentence
+// across lines, so a line is no sentence; a sentence ends at «۔», «؟», «!» or «?», and at a page's end.
+let bookCache = null;
+function bookSentences(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  if (bookCache && bookCache.text === text) return bookCache.sentences;
+  const sentences = text.split(/^=== Page [^\n]*===\s*$/m)
+    .flatMap((page) => page.replace(/\s*\n\s*/g, ' ').split(/[۔؟?!]+/))
+    .map((t) => new Set(tokensOf(t))).filter((w) => w.size >= 2);
+  bookCache = { text, sentences };
+  return sentences;
+}
+// The sentences that hold `words` (at least two of them, and at least half), by index: a fact the book states
+// twice (its lesson, then its exercise) sits in both.
+const PASSAGE_WORDS = 2;
+function sentencesHolding(words, sentences) {
+  if (!sentences || words.length < PASSAGE_WORDS) return [];
+  return sentences.flatMap((s, i) => { const n = words.filter((w) => s.has(w)).length; return n >= PASSAGE_WORDS && n * 2 >= words.length ? [i] : []; });
+}
+// Social Studies: two MCQs with the same key whose facts sit in one book sentence or two sentences side by side
+// are one fact asked twice («پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟» beside «1973ء میں سندھ کی گورنر کون
+// بنیں؟», both → بیگم رعنا لیاقت علی خان, from «1973ء میں وہ صوبہ سندھ کی گورنر بن گئیں۔ وہ پاکستان کی پہلی خاتون
+// صوبائی گورنر تھیں۔»). Each stem is placed by its own words, its key and the words every stem shares aside.
+// Facts from sentences further apart stay two questions (APWA, founded four sentences before). A tier is read
+// by its table line instead (`sameLine`): the table's lines stand side by side, and each is its own job.
+function samePassage(a, b, sentences) {
+  if (!sentences || !Array.isArray(a.options) || !Array.isArray(b.options)) return false;
+  const key = plain(keyText(a));
+  if (!key || key !== plain(keyText(b)) || tiersIn(flatUr(keyText(a))).size) return false;
+  const at = (q) => { const k = new Set(tokensOf(keyText(q))); return sentencesHolding([...new Set(tokensOf(q.question))].filter((w) => !k.has(w) && !backGeneric.has(w)), sentences); };
+  const [x, y] = [at(a), at(b)];
+  return x.some((i) => y.some((j) => Math.abs(i - j) <= 1));
+}
 // Urdu: a Q1 stem that prints another Q1 item's key gives that item away («سدرہ نے اپنی تھیڑ کمپنی
 // کس مقصد کے لیے بنائی؟» beside «… کیا بنایا؟ → تھیڑ کمپنی»): a key of two words or more, all in the
 // stem. A one-word key a stem merely names («… کس چیز کی علامت ہیں؟ → امن» beside ««امن» کا متضاد …»)
@@ -2200,7 +2234,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const d = sameDeclared(p, q) ? declared.get(q).name : null;
     return hard ? Boolean((c && !LESSON_ONLY.has(c)) || (d && !LESSON_ONLY.has(d))) : Boolean(c || d);
   };
-  const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q) || sameLine(p, q)))
+  // Social Studies: the book's sentences, when the engine passes its pages.
+  const sentences = P.key === 'social_studies' ? bookSentences(opts.book) : null;
+  const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q) || sameLine(p, q) || samePassage(p, q, sentences)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)
       || (id === 'urdu.A.Q1' && (storyCue(p, q) || conceptTwin(p, q, hard)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
@@ -2208,7 +2244,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
   // Social Studies: the items set aside as a repeat of one already placed, with the test that matched.
   let repeated = [];
-  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : sameTask(p, q) ? 'same_task' : 'same_line');
+  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : sameTask(p, q) ? 'same_task'
+    : sameLine(p, q) ? 'same_line' : 'same_passage');
   // `back`: Social Studies, the Q1 items a placed C/D stem gives away (givenBack), with the test that matched.
   const place = (cross, within, back = null) => {
     bySlot.forEach((list) => { list.length = 0; });

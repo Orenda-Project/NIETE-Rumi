@@ -7,11 +7,21 @@
  *   4. The reader is handed every Q1 key code finds printed in a Q5, Q6 or Q7 stem, to judge beside its open read.
  *   5. A Q1 stem never names its own key, nor another printed Q1 item's key (the item whose key is named is held);
  *      Section A is asked again.
+ *   6. Two Q1 items with the same key whose facts sit in one book sentence or two side by side are one question:
+ *      the second is held, and Section A is asked again. The engine passes the pages it loaded to the layout.
  * The papers are local model output; the people in their stories are the model's own.
  */
 
-jest.mock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({ chat: { completions: { create: jest.fn() } } }) }));
-jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+const mockCreate = jest.fn();
+jest.mock('../../bot/shared/services/llm-client', () => ({ getClient: () => ({ chat: { completions: { create: (...a) => mockCreate(...a) } } }) }));
+const mockLog = jest.fn();
+jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockLog(...a), logError: jest.fn(), logWarn: jest.fn() }));
+// The pages the section prompts are given; a test sets the book's own text where it reads it.
+const mockBook = { text: '=== Page 4 ===\nسبق کا متن' };
+jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
+  loadPageRangeContent: async ({ pageRanges }) => ({ content: mockBook.text, pageReference: String(pageRanges), chapterTitle: null }),
+  loadChapterContent: async () => { throw new Error('not used'); },
+}));
 
 const fs = require('fs');
 const path = require('path');
@@ -266,5 +276,89 @@ describe('5. a Q1 stem that names its own key, or another Q1 item\'s', () => {
       const printed = new Set(items(lay(exam).examJson, Q1).map((q) => q.question));
       for (const n of ns) expect([name, n, printed.has(nth(exam, Q1, n).question)]).toEqual([name, n, false]);
     }
+  });
+});
+
+const BOOK_CH46 = fs.readFileSync(path.join(FIX, 'r17j-sst-book-ch4-6.txt'), 'utf8');
+const repeatedAs = (laid, q) => laid.repeated.filter((h) => h.q && h.q.question === q.question).map((h) => h.rule);
+
+describe('6. two Q1 items from one book passage are one question', () => {
+  const exam = local('chapters_5');
+  const first = nth(exam, Q1, 10);
+  const second = nth(exam, Q1, 18);
+
+  test('setup: chapters_5 Q1 10 «… پہلی خاتون صوبائی گورنر …» and Q1 18 «1973ء میں سندھ کی گورنر …», both → بیگم رعنا لیاقت علی خان', () => {
+    expect(first.question).toBe('پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟');
+    expect(second.question).toBe('1973ء میں سندھ کی گورنر کون بنیں؟');
+    expect(BOOK_CH46).toContain('1973ء میں وہ صوبہ سندھ کی گورنر بن');
+  });
+
+  test('read with the pages: the second is held as same_passage and never prints; the first prints', () => {
+    const laid = lay(exam, { book: BOOK_CH46 });
+    expect(repeatedAs(laid, second)).toEqual(['same_passage']);
+    const printed = items(laid.examJson, Q1).map((q) => q.question);
+    expect(printed).not.toContain(second.question);
+    expect(printed).toContain(first.question);
+  });
+
+  test('two facts about her from sentences further apart stay two questions (APWA, four sentences before)', () => {
+    const e = clone(exam);
+    Object.assign(nth(e, Q1, 18), { question: 'آل پاکستان ویمن ایسوسی ایشن (APWA) کس نے قائم کی؟' });
+    const laid = lay(e, { book: BOOK_CH46 });
+    expect(repeatedAs(laid, nth(e, Q1, 18))).toEqual([]);
+    expect(items(laid.examJson, Q1).map((q) => q.question)).toContain('آل پاکستان ویمن ایسوسی ایشن (APWA) کس نے قائم کی؟');
+  });
+
+  test('two jobs of one tier from two table lines stay two (the table lines stand side by side)', () => {
+    const e = clone(exam);
+    const tier = { options: ['الف) وفاقی حکومت', 'ب) صوبائی حکومت', 'ج) مقامی حکومت', 'د) عدلیہ'], answer: 'ج) مقامی حکومت' };
+    Object.assign(nth(e, Q1, 17), { question: 'مویشی منڈیوں اور عوامی میلوں کا انتظام کون سی حکومت کرتی ہے؟', ...tier });
+    Object.assign(nth(e, Q1, 18), { question: 'پینے کے پانی کا بندوبست کون سی حکومت کرتی ہے؟', ...tier });
+    const laid = lay(e, { book: BOOK_CH46 });
+    expect(repeatedAs(laid, nth(e, Q1, 18))).not.toContain('same_passage');
+  });
+
+  test('without the pages nothing is read as one passage', () => {
+    expect(repeatedAs(lay(exam), second)).toEqual([]);
+  });
+});
+
+describe('6. through the engine: the pages it loads reach the layout', () => {
+  const rec = fixture('r17j-sst-replies-chapters_5');
+  const textOf = (req) => req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
+  const sectionOf = (text) => ['A', 'B', 'C', 'D'].find((x) => text.includes(`"slot": "social_studies.${x}.`));
+  async function replay(book) {
+    mockBook.text = book;
+    const queue = { A: [...rec.replies.A], B: [...rec.replies.B], C: [...rec.replies.C], D: [...rec.replies.D] };
+    mockCreate.mockReset();
+    mockLog.mockReset();
+    mockCreate.mockImplementation(async (req) => {
+      const sec = sectionOf(textOf(req));
+      const content = queue[sec].length > 1 ? queue[sec].shift() : queue[sec][0];
+      return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
+    });
+    return Gen.generatePatternExam({
+      grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027', scope: rec.scope, pageRanges: rec.scope.pages, requestId: 'req-r17j',
+    }).catch((e) => ({ error: e }));
+  }
+  const heldRows = () => mockLog.mock.calls.filter((c) => c[0] === '[assessment] held items').flatMap((c) => c[1].held);
+  const stems = (out) => items((out.examJson || out.error.examJson), Q1).map((q) => q.question);
+  afterEach(() => { mockBook.text = '=== Page 4 ===\nسبق کا متن'; });
+
+  test('the recorded first Section A reply asks both items', () => {
+    const a = JSON.parse(rec.replies.A[0]).unseen.objective.MCQs.map((q) => q.question);
+    expect(a).toEqual(expect.arrayContaining(['پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟', '1973ء میں سندھ کی گورنر کون بنیں؟']));
+  });
+
+  test('with the book\'s pages loaded, the paper never prints both, and the log names same_passage', async () => {
+    const out = await replay(BOOK_CH46);
+    const printed = stems(out);
+    expect(printed.includes('پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟') && printed.includes('1973ء میں سندھ کی گورنر کون بنیں؟')).toBe(false);
+    expect(heldRows()).toEqual(expect.arrayContaining([expect.objectContaining({ slot: Q1, rule: 'same_passage' })]));
+  });
+
+  test('with pages that do not hold the passage, the same replies hold nothing as one passage', async () => {
+    await replay('=== Page 4 ===\nسبق کا متن');
+    expect(heldRows().filter((h) => h.rule === 'same_passage')).toEqual([]);
   });
 });

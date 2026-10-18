@@ -2224,7 +2224,7 @@ async function _readerPassSst({ examJson, source = null, P, key, layoutScope, no
   const stats = { flagged: 0, replaced: 0, still_flagged: 0, taken_off: 0, spares_read: 0, spares: 0 };
   const items = [];
   const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
-  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true, ...(loaded ? { book: loaded.content } : {}) });
   const done = (exam, laid, error = null) => {
     logToFile('[assessment] reader pass', {
       requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
@@ -2512,6 +2512,8 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   const versesRef = key === 'urdu' ? _versesReference(P, poem, loaded.content) : '';
   results.forEach((r) => _dropProseVerses(r.tree, versesRef, requestId));
   const now = new Date().toISOString();
+  // Social Studies' layout reads the pages the prompts were given (two Q1 items from one passage; a Q6 that is the book's list).
+  const layOpts = (reasked) => ({ now, presetId: pattern, reasked, ...(key === 'social_studies' ? { book: loaded.content } : {}) });
   const merged = () => {
     const tree = _mergeSections(results.map((r) => r.tree));
     stripImageKeys(tree);
@@ -2523,7 +2525,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // is one whole block of a section (Maths C's Q4–8), and the same call usually comes back
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
-  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+  const firstLaid = applyLayout(merged(), P, layoutScope, layOpts(false));
   // Social Studies always returns `held` (Section D reads it) and logs its own rows per rule after the last layout.
   if (firstLaid.held && key !== 'social_studies') logToFile('[assessment] held items', { requestId, pattern, held: firstLaid.held });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
@@ -2579,7 +2581,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     await Promise.all(again.filter((b) => !(afterC && inSection(b, 'D')))
       .map((b) => reask(b, firstLaid, short, layoutShort)));
     if (afterC) {
-      const midLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+      const midLaid = applyLayout(merged(), P, layoutScope, layOpts(false));
       const midShort = new Set(midLaid.shortfall.map((f) => f.slot));
       const otherShort = short.filter((f) => !firstLaid.shortfall.includes(f));
       // A D that C's second reply left whole (the Q5 its Q6 restated is gone) keeps its first reply;
@@ -2593,7 +2595,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     // out D is asked once more, a top-up told what was held. A slot still short of a held item after it
     // prints fewer items when it is a choice (applyLayout).
     if (key === 'social_studies' && iD >= 0) {
-      const preLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+      const preLaid = applyLayout(merged(), P, layoutScope, layOpts(false));
       const dShort = preLaid.shortfall.filter((f) => f.slot.startsWith('social_studies.D.') && preLaid.held.some((h) => h.slot === f.slot));
       if (dShort.length) {
         logToFile('[assessment] D asked once more', {
@@ -2609,7 +2611,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     // as they finally stand, and Q1 is compulsory, so the place is refilled rather than the paper failed.
     const sstA = key === 'social_studies';
     const a = key === 'urdu' || sstA ? built.find(({ section }) => section.slots.some((s) => s.slot === `${key}.A.Q1`)) : null;
-    const check = a && applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
+    const check = a && applyLayout(merged(), P, layoutScope, layOpts(false));
     const shortA = check ? check.shortfall.filter((f) => a.section.slots.some((s) => s.slot === f.slot)) : [];
     if (shortA.length) {
       logToFile('[assessment] section topped up again', { requestId, pattern, section: a.section.id, shortfall: shortA, ...(check.held ? { held: check.held } : {}) });
@@ -2633,14 +2635,14 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // then lays the paper out again, and the emptied place is a shortfall — the
   // extras the model wrote were already set aside and never fill it.
   let examJson = merged();
-  let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
+  let laid = applyLayout(examJson, P, layoutScope, layOpts(again.length > 0));
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
   _blankWordsStems(examJson, P, key);
   const quotes = [];
   const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId, quotes });
   if (dropped.length) {
-    laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern, reasked: again.length > 0 });
+    laid = applyLayout(examJson, P, layoutScope, layOpts(again.length > 0));
     examJson = laid.examJson;
   }
   // Urdu: a place the lessons 1–3 filter emptied is asked again once, told the run it matched.
