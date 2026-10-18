@@ -1680,6 +1680,13 @@ function scopeLessons(P, scope) {
 // poem. Section A says where each item comes from (its `source`, never printed).
 const STORY_ITEMS = 8;
 const oneStory = (lessons) => Boolean(lessons) && lessons.filter((l) => !l.poem).length <= 1;
+// A story item by its stem alone, as a short hash (no text): a paper laid out again from a laid one has
+// lost its tags, and `_layout.story_ids` tells the layout which of its printed items ask the story.
+const storyId = (q) => {
+  let h = 0x811c9dc5;
+  for (const c of plain(q.question)) { h ^= c.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
+};
 // Urdu Q1 on chosen lessons: the grammar concept an item asks, when it is not one those lessons teach.
 function outsideLessons(q, lessons) {
   const concept = lessons && conceptOf(q, lessons);
@@ -1982,6 +1989,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu on one story: the source each Q1 item declares, read and taken off the same way.
   const story = P.key === 'urdu' && oneStory(lessons);
   const sources = new Map();
+  const storyIds = new Set(story && src._layout && Array.isArray(src._layout.story_ids) ? src._layout.story_ids : []);
   all.forEach((entry) => {
     stripTags(entry.q); stripStemOptions(entry.q);
     if (P.key !== 'urdu') return;
@@ -1993,7 +2001,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     if (Object.prototype.hasOwnProperty.call(entry.q, 'source')) {
       if (story) sources.set(entry.q, String(entry.q.source || '').trim().toLowerCase());
       delete entry.q.source;
-    }
+    } else if (storyIds.size && typeof entry.q.question === 'string' && storyIds.has(storyId(entry.q))) sources.set(entry.q, 'story');
   });
   const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
   // Urdu: the words the reply's first Q3 asks the meaning of (a Q5 never asks them again).
@@ -2282,6 +2290,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     // paper laid out again from a laid one (its sources already gone) keeps the count it had.
     const told = sources.size ? storyCount(bySlot.get('urdu.A.Q1') || []) : src._layout && src._layout.story_items;
     if (story && Number.isInteger(told)) out._layout.story_items = told;
+    if (story && sources.size) out._layout.story_ids = (bySlot.get('urdu.A.Q1') || []).filter((p) => sources.get(p) === 'story').map(storyId);
     const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
     const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
     tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
