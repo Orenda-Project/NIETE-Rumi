@@ -43,6 +43,7 @@ function defaults() {
     Queue: () => require('../quiz/web-quiz-join-queue'),
     Stories: () => optional(STORIES_MODULE),
     Keys: () => require('./door.keys'),
+    CountsFlag: () => require('./teacher-home-counts.flag'),
   };
 }
 const dep = (deps, name) => (deps && deps[name] ? deps[name] : defaults()[name]());
