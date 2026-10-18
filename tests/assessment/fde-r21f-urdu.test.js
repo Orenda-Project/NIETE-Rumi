@@ -12,6 +12,9 @@
  * 3. The reader is handed code's own candidates: each short key's printed places, and the pairs of Q1
  *    items whose keys stand in the same or neighbouring book sentences.
  * 4. On the full syllabus too, a grammar concept is asked once, antonym and synonym included.
+ * 5. A Q4 ارکان key that splits a word the book itself splits («دامن» دا – من, «غلاظت» غ – لا – ظت) must
+ *    split it the book's way; the Section C prompt quotes the book's splits. «فاختہ» is split nowhere in
+ *    the book, so it is not checked.
  *
  * The papers are the sandbox's own (content only). The model boundary and the book store are mocked,
  * never the chain.
@@ -361,5 +364,46 @@ describe('4. the engine on the full syllabus', () => {
     const out = await run(FDE);
     expect(out.err && out.err.code).toBe('PATTERN_SHORT_SLOT');
     expect(antonyms(out.err.examJson)).toHaveLength(1);
+  });
+});
+
+// ── 5. ارکان from the book's own splits ────────────────────────────────────────────────────────
+
+const syllableItem = (answer, accept = [answer]) => ({
+  slot: 'urdu.C.Q4', question: 'درج ذیل الفاظ کی ارکان سازی کریں: دامن، غلاظت', main_question: 'ارکان سازی', answer, scheme: { accept },
+});
+const q4Held = (q, rule) => (lay({ unseen: { subjective: { 'Rewrite Sentences': [q] } } }, FDE).examJson._layout.holds || []).filter((h) => h.rule === rule).length;
+
+describe('5. a Q4 ارکان key against the book\'s own splits', () => {
+  test('a key that splits «دامن» as دام – ن (key and accept agree) is held', () => {
+    expect(q4Held(syllableItem('دام – ن، غ – لا – ظت'), 'book_split')).toBe(1);
+  });
+
+  test('«غلاظت» split غلا – ظت is held too', () => {
+    expect(q4Held(syllableItem('دا – من، غلا – ظت'), 'book_split')).toBe(1);
+  });
+
+  test('the book\'s own splits, written with «+» or marks, stay', () => {
+    expect(q4Held(syllableItem('دا – من، غ – لا – ظت'), 'book_split')).toBe(0);
+    expect(q4Held(syllableItem('دا + مَن\nغَ + لا + ظت'), 'book_split')).toBe(0);
+  });
+
+  test('a word the book never splits is not checked: «فاختہ: فا – ختہ» stays (control)', () => {
+    const q = { slot: 'urdu.C.Q4', question: 'درج ذیل الفاظ کی ارکان سازی کریں: فاختہ، مشغول', answer: 'فا – ختہ، مش – غول', scheme: { accept: ['فا – ختہ، مش – غول'] } };
+    expect(q4Held(q, 'book_split')).toBe(0);
+  });
+
+  test('an item that is no ارکان item is not read (control)', () => {
+    const q = { slot: 'urdu.C.Q4', question: 'فعلِ حال کو فعلِ مستقبل میں تبدیل کریں: دامن صاف ہے۔', answer: 'دامن صاف ہو گا۔', scheme: { accept: ['دامن صاف ہو گا۔'] } };
+    expect(q4Held(q, 'book_split')).toBe(0);
+  });
+
+  test('the Section C prompt quotes the book\'s splits; Section A and B do not', async () => {
+    const asked = serve(() => mcqs(MORE.map(meaning)));
+    await run(FDE);
+    const c = asked.find((x) => x.sec === 'C').prompt;
+    expect(c).toContain('The book splits «دامن» as دا – من and «غلاظت» as غ – لا – ظت.');
+    expect(asked.find((x) => x.sec === 'A').prompt).not.toContain('The book splits');
+    expect(asked.find((x) => x.sec === 'B').prompt).not.toContain('The book splits');
   });
 });
