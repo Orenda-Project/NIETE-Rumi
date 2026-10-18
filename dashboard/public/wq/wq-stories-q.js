@@ -164,7 +164,9 @@
       sum = null;
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
-      R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, m.i);
+      var d = { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, n = micO.notice;
+      if (n.shown && n.keep) { d.notice = 2; n.shown = 0; }   // the kept notice was shown: once, for the Trail (TrailPage.NOTICE_V)
+      R.pp('story_page_read', d, m.i);
       rd = { s: s, i: m.i };
       m.result(s);
       // Jugnu's sound for it (the badge jingle; the soft chime after a 0-word try)
