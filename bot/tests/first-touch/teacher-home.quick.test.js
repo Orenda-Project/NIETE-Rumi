@@ -224,7 +224,9 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
   // The send-again check in two halves: long and big ask the lessons' quizzes and their codes as their own pair (+2 reads);
   // small makes the same reads, its lessons' half starting as soon as the lessons are in (2 round trips sooner).
-  const PINS = { long: { reads: 48, waves: 15 }, small: { reads: 45, waves: 13 }, big: { reads: 48, waves: 15 }, shell: { reads: 2, waves: 2 } };
+  // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
+  // beside a read already in flight (no new round trip)
+  const PINS = { long: { reads: 49, waves: 15 }, small: { reads: 46, waves: 13 }, big: { reads: 49, waves: 15 }, shell: { reads: 4, waves: 2 } };
   test.each([
     ['long', {}],
     ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
