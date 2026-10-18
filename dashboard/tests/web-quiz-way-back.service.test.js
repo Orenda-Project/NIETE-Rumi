@@ -11,7 +11,7 @@
  * Switch OFF in every state (absent, false, a garbage string, the string "true", a read that throws): every page is byte-identical to the
  * page before this change — the route's bytes equal the renderer's with no tap, and the renderer's bytes are pinned
  * (sha256) in __golden__/way-back-closed-off.json, recorded by running this file on the code before the change
- * (WAY_BACK_RECORD=1). The bot is the network boundary (a fake fetch); the switch's table read is a fake client.
+ * (delete the file and run this once: that run records it and fails, the next run checks it). The bot is the network boundary (a fake fetch); the switch's table read is a fake client.
  */
 const fs = require('fs');
 const path = require('path');
@@ -35,7 +35,8 @@ const UR = 'واٹس ایپ کھولیں اور جگنو کو "کوئز" لکھ
 const HOST = 'portal.example';
 
 const GOLDEN_FILE = path.join(__dirname, '__golden__', 'way-back-closed-off.json');
-const RECORD = process.env.WAY_BACK_RECORD === '1';
+// no golden file → this run records one and fails (never a silent pass); no env knob
+const RECORD = !fs.existsSync(GOLDEN_FILE);
 const recorded = {};
 const golden = RECORD ? {} : JSON.parse(fs.readFileSync(GOLDEN_FILE, 'utf8'));
 // hex in groups of 8 (no long digit run in the pinned file)
@@ -335,6 +336,9 @@ describe('the /h/ closed page speaks the link\'s language (switch ON): ?lang=, t
     ['?lang= beats the token: join token (lang ur) + ?lang=en → English', `/h/${JOIN_UR}?lang=en`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
     ['neither (no query, no lang in the token) → the phone, as today: Urdu phone', `/h/${TOKEN}`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), UR],
     ['?lang=fr is not a language here → the phone: English', '/h/not-a-token?lang=fr', { 'accept-language': 'en' }, null, EN],
+    ['?lang=fr is not a language here → the phone: an Urdu phone keeps today\'s Urdu page (forged)', '/h/not-a-token?lang=fr', { 'accept-language': 'ur-PK' }, null, UR],
+    ['?lang=fr is not a language here → the phone: an Urdu phone keeps today\'s Urdu page (expired)', `/h/${TOKEN}?lang=fr`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), UR],
+    ['?lang=fr is skipped, the token\'s own lang is next: join token (lang en) + ?lang=fr, an Urdu phone → English', `/h/${JOIN_EN}?lang=fr`, { 'accept-language': 'ur-PK' }, () => jsonRes(401, { error: 'bad_token' }), EN],
   ];
   test.each(ROWS)('%s', async (name, p, headers, answer, sentence) => {
     number('whatsapp');
@@ -420,4 +424,8 @@ describe('every other closed-page kind speaks the link\'s language too (switch O
     r = await goEdge(`/quiz/go/${GO_TOK}?lang=en`, { 'accept-language': 'ur-PK' }, async () => false);
     expect(r.body).toBe(GoPage.buildMessagePage({ id: 'go.error', lang: 'ur', bot: null }).html);
   });
+});
+
+test('the switch-off goldens are pinned (a missing file is recorded by this run, which then fails)', () => {
+  expect({ goldenFile: path.basename(GOLDEN_FILE), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN_FILE), recorded: false });
 });
