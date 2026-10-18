@@ -3,15 +3,18 @@
  * Keyed ids for FLN Send to teacher (PR-E): what leaves the server, or reaches a log or an event row, instead of
  * a users.id or a phone number.
  *
- *   teacherKey(id) = hex(HMAC-SHA256(K, 'fln-teacher|' + users.id))[0:16]   a teacher in a leader's picker
- *   userKey(id)    = hex(HMAC-SHA256(K, 'fln-user|'    + users.id))[0:16]   a user on a log line / event row
+ *   teacherKey(id) = hex(HMAC-SHA256(K, 'fln-teacher|' + users.id))[0:16]        a teacher in a leader's picker
+ *   userKey(id)    = hex(HMAC-SHA256(WEB_QUIZ_KID_KEY, 't|' + users.id))[0:16]   a user on a log line / event row
  *
- * K is derived from INTERNAL_API_KEY (the bot and the portal both hold it) and this environment's Supabase host,
- * under its OWN label — the app-login-link.js pattern — so a key from one environment means nothing in another and
- * no other token family can be derived from it. A key is not reversible: the portal maps a picker key back by
- * recomputing it over the leader's own scope, so a key outside that scope matches nobody. No key here → null.
+ * userKey is byte-for-byte m-app's userKeyOf (dashboard/routes/portal-fln.routes.js) and web-quiz-kid `tk`, so a
+ * `send` row's clip (the recipient's userKey) joins that recipient's own `open_link` row. Null without a
+ * WEB_QUIZ_KID_KEY of at least 32 bytes — never an unkeyed hash. (Computed here, not required from web-quiz-kid:
+ * `tk` is on sandbox only, and that module loads the bot logger at require time.)
  *
- * (PR #2767 brings web-quiz-kid `tk` into the portal, but `tk` is on sandbox only; this module is on both.)
+ * teacherKey's K is derived from INTERNAL_API_KEY (the bot and the portal both hold it) and this environment's
+ * Supabase host, under its OWN label — the app-login-link.js pattern — so a picker key from one environment means
+ * nothing in another, and it is never the event-row key. The portal maps a picker key back by recomputing it over
+ * the leader's own scope, so a key outside that scope matches nobody. No key here → null.
  */
 const crypto = require('crypto');
 
@@ -44,7 +47,12 @@ function mac(domain, userId) {
 }
 
 const teacherKey = (userId) => mac('fln-teacher', userId);
-const userKey = (userId) => mac('fln-user', userId);
+function userKey(userId) {
+  const k = process.env.WEB_QUIZ_KID_KEY;
+  const id = userId == null ? '' : String(userId).trim();
+  if (!id || typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
+  return crypto.createHmac('sha256', k).update(`t|${id}`).digest('hex').slice(0, 16);
+}
 const KEY_RX = /^[0-9a-f]{16}$/;
 
 module.exports = { teacherKey, userKey, KEY_RX };
