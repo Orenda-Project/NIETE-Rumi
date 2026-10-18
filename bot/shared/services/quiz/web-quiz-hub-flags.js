@@ -83,8 +83,10 @@ function meterOf(value) {
 // The light Urdu face (wq-nastaliq-7: the polished face with its outlines on a coarser grid) rides this one read too:
 // the page payload's `ui.fl` (web-quiz-ur-polish.js lite()). Only the stored JSON boolean true is on.
 const FACE_LITE_KEY = 'web_quiz_face_lite';
+// Minified page files (web-quiz-minify.js) ride this one read: only the stored JSON boolean true is on.
+const MINIFY_KEY = 'web_quiz_minify';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, earlyKid, childMemo, shareOpen, adv, homePreload, waves2, hops, prefetch, home, faceLite, offlineGuard }
+let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, earlyKid, childMemo, shareOpen, adv, homePreload, waves2, hops, prefetch, home, faceLite, offlineGuard, minify }
 
 function isTrue(value) {
   let v = value;
@@ -92,7 +94,7 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY, PREFETCH_KEY, HOME_KEY, FACE_LITE_KEY, OFFLINE_GUARD_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY, PREFETCH_KEY, HOME_KEY, FACE_LITE_KEY, OFFLINE_GUARD_KEY, MINIFY_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -101,7 +103,7 @@ function fromRows(data, now) {
     challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), oneButton: by[ONE_BUTTON_KEY] === true, waitUx: by[WAIT_UX_KEY] === true,
     // only the JSON boolean true (the string 'true', 1 or an object are off)
     serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true, earlyKid: by[EARLY_KID_KEY] === true, childMemo: by[CHILD_MEMO_KEY] === true,
-    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true, faceLite: by[FACE_LITE_KEY] === true, offlineGuard: by[OFFLINE_GUARD_KEY] === true,
+    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true, faceLite: by[FACE_LITE_KEY] === true, offlineGuard: by[OFFLINE_GUARD_KEY] === true, minify: by[MINIFY_KEY] === true,
     edgeLearn: by[EDGE_LEARN_KEY] === true,
     homePreload: by[HOME_PRELOAD_KEY] === true, closedLang: by[CLOSED_LANG_KEY] === true, plainPaint: by[PLAIN_PAINT_KEY] === true, waves2: by[WAVES2_KEY] === true, liveMeter: meterOf(by[LIVE_METER_KEY]), liveReadV3: isTrue(by[LIVE_READ_V3_KEY]), hops: by[HOPS_KEY] === true, prefetch: by[PREFETCH_KEY] === true, home: by[HOME_KEY] === true };
 }
@@ -135,7 +137,7 @@ async function read(now) {
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false, edgeLearn: false, hops: false, prefetch: false, home: false, faceLite: false, offlineGuard: false };
+    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false, edgeLearn: false, hops: false, prefetch: false, home: false, faceLite: false, offlineGuard: false, minify: false };
   }
 }
 
@@ -259,6 +261,14 @@ function offlineGuardNow(now = Date.now()) {
   return Boolean(cache && cache.offlineGuard && now - cache.at < TTL_MS);
 }
 
+/**
+ * web_quiz_minify, never waited for and never read on its own: only the cache this module's read keeps warm (the hub's
+ * and the quiz page's own switch read run before the answer is built). Off when that cache is empty or older than 2 TTLs.
+ */
+function minifyNow(now = Date.now()) {
+  return Boolean(cache && cache.minify && now - cache.at < 2 * TTL_MS);
+}
+
 /** web_quiz_plain_paint from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
 function plainPaintNow(now = Date.now()) {
   return Boolean(cache && cache.plainPaint && now - cache.at < 2 * TTL_MS);
@@ -302,4 +312,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, homeNow, HOME_KEY, prefetchNow, PREFETCH_KEY, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, earlyKidNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY, faceLiteNow, FACE_LITE_KEY, offlineGuardNow, OFFLINE_GUARD_KEY };
+module.exports = { flags, prime, KEYS, homeNow, HOME_KEY, prefetchNow, PREFETCH_KEY, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, earlyKidNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY, faceLiteNow, FACE_LITE_KEY, offlineGuardNow, OFFLINE_GUARD_KEY, minifyNow, MINIFY_KEY };
