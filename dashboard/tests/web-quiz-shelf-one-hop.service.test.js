@@ -42,7 +42,7 @@ function jsonRes(status, body) {
   return { status, ok: status >= 200 && status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) };
 }
 const HUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: KID, first: 'Sana', animal: 'owl', grade: '3' }], kid: KID,
+  lang: 'en', kids: [{ chip: KID, first: '<Name> Testwala', animal: 'owl', grade: '3' }], kid: KID,
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, home_v3: 1, stories: { on: 1 },
   doors: { stories: [{ kind: 'shelf' }], games: [], videos: { watch: true } }, ...extra,
 });

@@ -16,7 +16,7 @@ const KID = '0123456789abcdef';
 const ORIGIN = 'http://portal.example';
 const ASSET_V = 'abcdef0123';
 const HUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: KID, first: 'Sana', animal: 'owl', grade: '3' }], kid: KID,
+  lang: 'en', kids: [{ chip: KID, first: '<Name> Testwala', animal: 'owl', grade: '3' }], kid: KID,
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, home_v3: 1, stories: { on: 1 },
   doors: { stories: [{ kind: 'shelf' }], games: [], videos: { watch: true } }, ...extra,
 });

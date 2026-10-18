@@ -1,8 +1,8 @@
 {
  "_note": "sha256 (base64) of each page as rendered by the code before the one-hop change (fixtures/one-hop-off-cases.js); streamed pages with ?v= written as __V__",
  "off_en_default": {
-  "bytes": 11346,
-  "sha256": "koZnQ5hcmfBYNOCAs/Ta+blcFhl/ItQf4+6h4uzzinA="
+  "bytes": 11367,
+  "sha256": "alOjcBhGLLxZODnmxlmScE7aMSF4Jo6aUlDdMZpov90="
  },
  "fast_en_default": {
   "early": {
@@ -10,13 +10,13 @@
    "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
   },
   "body": {
-   "bytes": 11454,
-   "sha256": "cg3h06r0YBgrxR1X4I4y8BjmKfy2Ywvhl9/Y/VyCfH0="
+   "bytes": 11475,
+   "sha256": "fK/gvk643ncp/0w0nkgZnk0sGmONU2xI1qBJSuYk6Sg="
   }
  },
  "off_en_home_v3_0": {
-  "bytes": 11228,
-  "sha256": "bs3qGOif1oh1BPGeR/Brg6tI16pnhBUPZDH0vECGm+s="
+  "bytes": 11249,
+  "sha256": "516lXH6vD3Uggyapj5po30loXbvCSJXWwxXDh53YneE="
  },
  "fast_en_home_v3_0": {
   "early": {
@@ -24,8 +24,8 @@
    "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
   },
   "body": {
-   "bytes": 11346,
-   "sha256": "6ydizqcsoJ7K8QFsXL7FjS440377Zu5RMou7P6k9d/U="
+   "bytes": 11367,
+   "sha256": "Na97ItuOzuLFG7QjVKfIYDVvP+V1+JhvqtEb2HRTrT8="
   }
  },
  "off_en_locked": {
@@ -43,8 +43,8 @@
   }
  },
  "off_ur_default": {
-  "bytes": 11515,
-  "sha256": "RBG/sURf5q8lj06PqFYzNPlIgZH0SYgP66JCqP34yto="
+  "bytes": 11536,
+  "sha256": "6Vw59q/QG5mIHSaDPADG8Nlg5A6W5MmobsvVHaouuTU="
  },
  "fast_ur_default": {
   "early": {
@@ -52,13 +52,13 @@
    "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
   },
   "body": {
-   "bytes": 11679,
-   "sha256": "JMh7dxSk0/uqu63ik5KPGQWm/6PxnqHB7NSk8IL26MI="
+   "bytes": 11700,
+   "sha256": "RIQwGggH61TAKNe8LLkLTWya5NkDulAeXWn2BcCYwDI="
   }
  },
  "off_ur_home_v3_0": {
-  "bytes": 11397,
-  "sha256": "bzVkziCOs5U03IbRkI8JwIZopChuvM8Hh/z+MJTGz0k="
+  "bytes": 11418,
+  "sha256": "y/ZOfeOPpRD3FpPddObuR7f02N57Eh2PUYN5IDPIYVI="
  },
  "fast_ur_home_v3_0": {
   "early": {
@@ -66,8 +66,8 @@
    "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
   },
   "body": {
-   "bytes": 11571,
-   "sha256": "WLH5BT6FMpvjvCDbU6JPVQDJ65A+U9GOYF6ZsOyPc7s="
+   "bytes": 11592,
+   "sha256": "yJRPdc26G+ERbBceIS3BttULwytiUUtWudsEttoJMRU="
   }
  },
  "off_ur_locked": {
