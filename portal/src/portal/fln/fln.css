@@ -29,7 +29,10 @@
   color: var(--fln-ink);
 }
 
-.fln-root { background: var(--fln-ground); min-height: 100vh; font-size: 17px; line-height: 1.45; }
+.fln-root { font-size: 17px; line-height: 1.45; }
+/* The page ground is the gate root's alone: embedded .fln-root surfaces (Share bar, sign-in banner, leader card,
+   coach tile, sheet) carry the class for lang/dir/type only (R5 RT5-ROOT100VH). */
+.fln-root.fln-app { background: var(--fln-ground); min-height: 100vh; }
 .fln-root[lang="ur"], .fln-band[lang="ur"] { line-height: 1.95; }
 
 /* An English run on an Urdu page: the Latin font beats index.css's !important Nastaliq rule. */
