@@ -567,10 +567,14 @@ function stripStemOptions(q, urdu = false) {
 // a stem with no instruction is the topic as written, and one that cannot be read is left as it is.
 const B_SLOTS = { 'social_studies.b.q3': 'social_studies.B.Q3', 'social_studies.b.q4': 'social_studies.B.Q4' };
 const B_INSTRUCTS = /ذہنی\s*خاکہ|مائنڈ\s*میپ|شاخ|چارٹ|خاکہ|خانے|خانوں|تیر|بنائیں|شامل\s*کریں/;
-const B_TAIL = /\s*(?:(?:کے|کی)\s*(?:موضوع|عنوان)\s*پر|کے\s*لیے|پر\s*مشتمل|پر\s*ایک|پر|کا|کی|کے)?\s*(?:ایک\s*)?(?:\d+\s*سے\s*\d+\s*شاخوں\s*والا\s*)?(?:ذہنی\s*خاکہ|مائنڈ\s*میپ|فلو\s*چارٹ|بہاؤ\s*چارٹ|خاکہ)[\s\S]*$/;
+const B_TAIL = /\s*(?:(?:کے|کی)\s*(?:موضوع|عنوان)\s*پر|کے\s*بارے\s*میں|کے\s*لیے|پر\s*مشتمل|پر\s*ایک|پر|کا|کی|کے)?\s*(?:ایک\s*)?(?:[\d۰-۹]+\s*سے\s*[\d۰-۹]+\s*شاخوں\s*(?:والا|پر\s*مشتمل)\s*)?(?:ذہنی\s*خاکہ|ذہنی\s*نقشہ|مائنڈ\s*میپ|فلو\s*چارٹ|بہاؤ\s*چارٹ|خاکہ)[\s\S]*$/;
+// An instruction in brackets after the topic («جمہوریت کی اہمیت (مرکزی خیال کے گرد 4 سے 6 شاخیں بنا کر …)»).
+const B_BRACKET = /\s*\(([^()]*)\)\s*[۔.]?\s*$/;
 const topicBare = (t) => t.replace(/^['‘"“\s]+|['’"”\s]+$/g, '').replace(/[۔.]+$/, '').trim();
 function sectionBTopic(text) {
-  const t = String(text || '').trim();
+  const raw = String(text || '').trim();
+  const bracket = raw.match(B_BRACKET);
+  const t = bracket && B_INSTRUCTS.test(bracket[1]) ? raw.slice(0, bracket.index).trim() : raw;
   const quoted = t.match(/«([^»]+)»/);
   if (quoted) return quoted[1].trim();
   if (!B_INSTRUCTS.test(t)) return t;
@@ -587,6 +591,13 @@ function sectionBStem(q, P) {
   if (!topic) return;
   const slot = P.sections.flatMap((sec) => sec.slots).find((x) => x.slot === id);
   q.question = id === 'social_studies.B.Q3' && slot && slot.topic_line_ur ? fill(slot.topic_line_ur, { q: topic }) : topic;
+}
+
+// Social Studies: the label the model gives a spare it writes for a slot («سوال نمبر 5 کا اضافی سوال: …»)
+// never prints.
+const SPARE_LABEL = /^\s*(?:سوال\s*(?:نمبر\s*)?[\d۰-۹]+\s*کا\s*)?اضافی\s*سوال\s*(?:[\d۰-۹]+\s*)?[:：۔-]\s*/;
+function stripSpareLabel(q) {
+  if (q && typeof q.question === 'string' && SPARE_LABEL.test(q.question)) q.question = q.question.replace(SPARE_LABEL, '');
 }
 
 function stripTags(holder) {
@@ -2083,7 +2094,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const declared = new Map();
   all.forEach((entry) => {
     stripTags(entry.q); stripStemOptions(entry.q);
-    if (P.key === 'social_studies') sectionBStem(entry.q, P);
+    if (P.key === 'social_studies') { stripSpareLabel(entry.q); sectionBStem(entry.q, P); }
     if (P.key !== 'urdu') return;
     stripStemOptions(entry.q, true);
     if (Object.prototype.hasOwnProperty.call(entry.q, 'concept')) {
