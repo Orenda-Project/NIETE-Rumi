@@ -93,6 +93,8 @@ function meterOf(value) {
 const FACE_LITE_KEY = 'web_quiz_face_lite';
 // Minified page files (web-quiz-minify.js) ride this one read: only the stored JSON boolean true is on.
 const MINIFY_KEY = 'web_quiz_minify';
+// The child home's scripts and styles as one file each (the edge's pack): the hub JSON names it (`pack`).
+const PACK_KEY = 'web_quiz_pack';
 // The child pages' busy page (web-quiz-busy-page.js) rides this one read too: only the stored JSON boolean true is on.
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
 const TTL_MS = 30 * 1000;
@@ -140,6 +142,7 @@ const SWITCHES = Object.freeze([
   ['minify',       MINIFY_KEY,            'json'],
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
+  ['pack',         PACK_KEY,              'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
   ['readalong',    READALONG_KEY,         'loose'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
@@ -467,6 +470,7 @@ module.exports = {
   offlineGuardNow,
   ONE_BUTTON_KEY,
   oneButtonNow,
+  PACK_KEY,
   pageNav,
   PLAIN_PAINT_KEY,
   plainPaintNow,
