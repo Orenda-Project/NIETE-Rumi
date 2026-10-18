@@ -2,7 +2,7 @@ import { useId, type CSSProperties } from 'react';
 import { useClipState, useFlnPlayerContext } from './useFlnPlayer';
 import { SoundStateIcon } from './SoundPill';
 import type { ClipRole } from './types';
-import { audioActionFor, audioActionLabel, audioStateText, audioStrings, audioDir } from '../strings.audio';
+import { audioControlName, audioControlTitle, audioStateText, audioStrings, audioDir } from '../strings.audio';
 import './player.css';
 
 /**
@@ -36,7 +36,8 @@ export function SoundTile({ clipId, label, caption, lang, dir, role, owner: owne
       data-fln-role={role || 'sound'}
       aria-pressed={state === 'playing'}
       aria-busy={state === 'loading' || undefined}
-      aria-label={audioActionLabel(lang, audioActionFor(state), main)}
+      aria-label={audioControlName(lang, state, main)}
+      title={audioControlTitle(lang, state)}
       onClick={onClick}
     >
       <span className="fln-snd__corner"><SoundStateIcon state={state} size={narration ? 18 : 13} /></span>
