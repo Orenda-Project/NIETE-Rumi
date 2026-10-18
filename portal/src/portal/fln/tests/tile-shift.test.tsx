@@ -11,7 +11,7 @@ import { AUDIO_STRINGS } from '../strings.audio';
  * AUDIO_BAR A11 (RT5-URTILE-SHIFT): a sound tile's box must not change when its state changes. On an Urdu plan the
  * state line «چل رہی ہے…» used to appear only on tap and wrap to two Nastaliq lines, growing the grid row 77 → 125 px.
  * jsdom has no layout, so this pins the structural guarantee: the state line is the SAME element in every state, it is
- * there while idle too, and its own rule keeps it to one line of fixed height (the real stylesheet, read from disk).
+ * there while idle too, and its own rule keeps it a fixed two-line box (RT5-CAPTION-CLIP; the real stylesheet, read from disk).
  */
 
 const css = readFileSync(resolve(__dirname, '../player/player.css'), 'utf8');
@@ -71,7 +71,7 @@ describe.each([
     expect(sub0).toHaveTextContent(strings.error);
   });
 
-  it('the state line is one line of fixed height (nowrap + ellipsis + height)', () => {
+  it('the state line is a fixed TWO-line box in every state (RT5-CAPTION-CLIP: "as in Monkey", «Couldn\'t play» fit)', () => {
     const f = fakePlayer();
     render(<FlnPlayerProvider player={f.player}><SoundTile clipId="x001" label={label} caption={caption} lang={lang} dir={dir} /></FlnPlayerProvider>);
     const btn = screen.getByRole('button');
@@ -79,11 +79,12 @@ describe.each([
       f.emit('x001', s);
       const sub = btn.querySelector('.fln-snd__sub') as HTMLElement;
       const cs = getComputedStyle(sub);
-      expect(cs.whiteSpace).toBe('nowrap');
+      const fs = parseFloat(cs.fontSize);
+      const lh = cs.lineHeight.endsWith('px') ? parseFloat(cs.lineHeight) : parseFloat(cs.lineHeight) * fs;
+      const h = cs.height.endsWith('em') ? parseFloat(cs.height) * fs : parseFloat(cs.height);
+      expect(cs.whiteSpace).not.toBe('nowrap'); // a keyword caption wraps to its second line instead of "as in Mo…"
       expect(cs.overflow).toBe('hidden');
-      expect(cs.textOverflow).toBe('ellipsis');
-      expect(cs.display).toBe('block');
-      expect(cs.height).toMatch(/^\d+(\.\d+)?(px|em)$/);
+      expect(h).toBeCloseTo(2 * lh, 3); // exactly two lines, whatever the state: a tap moves the grid 0 px
       expect(cs.flexShrink).toBe('0');
     }
   });
