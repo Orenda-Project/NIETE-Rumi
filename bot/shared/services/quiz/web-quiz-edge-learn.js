@@ -69,8 +69,9 @@ async function answer() {
   // As the payloads read them: fast and one_face never wait (their cached value); rt, ui and the brand from their caches.
   const fast = require('./web-quiz-fast').on();
   const oneFace = require('./web-quiz-one-face').on();
-  const [brand, rt, ui] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui()]);
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), ...(oneFace ? { one_face: true } : {}) };
+  // web_quiz_edge_warm (web-quiz-edge-warm.js): `edge_warm: true` and the hub's switches touched, while on
+  const [brand, rt, ui, warm] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui(), require('./web-quiz-edge-warm').field()]);
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), ...(oneFace ? { one_face: true } : {}), ...warm };
 }
 
 const ageOf = (now) => (!cache ? 'cold' : now - cache.at < TTL_MS ? 'fresh' : 'stale');

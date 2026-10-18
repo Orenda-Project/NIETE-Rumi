@@ -455,6 +455,13 @@ function renderQuizFlushTail({ guess, payload, code, origin, assetV, url, a, v, 
 const FLUSH_AGAIN = `<script>location.replace(location.pathname+(location.search?location.search+"&":"?")+"nf=1"+location.hash)</script>
 </body>
 </html>`;
+// web_quiz_edge_warm on: a streamed page whose bot answer failed asks again itself after a short wait, keeping its early
+// frame (and the designed wait's bar), up to EDGE_RETRY_MAX times; then FLUSH_AGAIN (the plain page), as today.
+const EDGE_RETRY_MAX = 2;
+const EDGE_RETRY_MS = 1200;
+const flushRetry = (next) => `<script>setTimeout(function(){location.replace(${jsStr(next)}+location.hash)},${EDGE_RETRY_MS})</script>
+</body>
+</html>`;
 
 // The finish card's picture is a PNG; every other share picture is a JPEG (head's default).
 const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) || /\/art\/teach\.png\?/.test(image)) ? { imageType: 'image/png' } : {});
@@ -814,6 +821,7 @@ function createWebQuizRouter(opts = {}) {
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
+  let lastEdgeWarm = false; // the learner's `edge_warm` (app_settings web_quiz_edge_warm): a failed streamed page asks again
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -823,7 +831,18 @@ function createWebQuizRouter(opts = {}) {
   // A fresh process asks the bot for the switches it would learn from a first payload (web_quiz_edge_learn, read by the bot;
   // lib/edge-learn.js): in the background, every 60 s; a payload still wins. A test's own fake bot opts in with edgeLearn.
   const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl) && botUrl && apiKey ? require('../lib/edge-learn').startEdgeLearn({ callBot, timers: opts.edgeLearn && opts.edgeLearn.timers,
-    apply: (b) => { if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand; if (typeof b.rt === 'boolean') lastRt = b.rt; lastUi = shellUi(b); lastFast = b.fast === true; } }) : null;
+    apply: (b) => { if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand; if (typeof b.rt === 'boolean') lastRt = b.rt; lastUi = shellUi(b); lastFast = b.fast === true; lastEdgeWarm = b.edge_warm === true; } }) : null;
+  // A streamed page whose bot answer failed: with edge warm on and the bot unreachable, timed out or a 5xx other than
+  // the switch-off 503, the page asks again itself (r=1, r=2) and keeps its early frame; else today's again().
+  const failedAgain = (wire, req, out) => {
+    const r = Number(req.query.r) || 0;
+    const bad = !out || (out.status >= 500 && out.status !== 503);
+    if (!lastEdgeWarm || !bad || r >= EDGE_RETRY_MAX) return wire.again();
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(req.query || {})) if (k !== 'r' && typeof v === 'string') q.set(k, v);
+    q.set('r', String(r + 1));
+    return wire.page(flushRetry(`${req.path}?${q}`));
+  };
 
   // A child page on any host but the canonical one goes there first (one origin = one remembered child).
   router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));
@@ -954,10 +973,10 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
-      if (flush) return wire.again();
+      if (flush) return failedAgain(wire, req, null);
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
-    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return wire.again();
+    if (flush && !(out.status === 200 && out.body && out.body.quiz)) return failedAgain(wire, req, out);
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
       return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -1023,10 +1042,10 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
-      if (flush) return wire.again();
+      if (flush) return failedAgain(wire, req, null);
       return closed(502, 'off');
     }
-    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again();
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out);
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
