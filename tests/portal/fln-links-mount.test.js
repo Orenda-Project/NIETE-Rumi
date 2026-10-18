@@ -27,3 +27,14 @@ test('m-app\'s FLN router carries /fln/links and /fln/title/:id, each behind no-
     expect(r.first).toBe(noStore);
   }
 });
+
+test('…and PR-E\'s /fln/teachers (GET) and /fln/send (POST), also behind no-store first', () => {
+  const router = require('../../dashboard/routes/portal-fln.routes');
+  const { noStore } = require('../../dashboard/lib/fln-access');
+  const all = routesOf(router.stack);
+  for (const [p, m] of [['/fln/teachers', 'get'], ['/fln/send', 'post']]) {
+    const r = all.find((x) => x.path === p);
+    expect(r && r.methods).toEqual([m]);
+    expect(r.first).toBe(noStore);
+  }
+});
