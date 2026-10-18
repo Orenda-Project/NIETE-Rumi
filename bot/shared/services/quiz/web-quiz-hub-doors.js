@@ -70,6 +70,12 @@ async function storiesDoor(list) {
   return storiesOn === null ? { stories: [], shelf: false, err: 1 } : { stories: [], shelf: storiesOn };
 }
 
+// A grade or form read that failed: rethrown under web_quiz_list_states (the door answers err: 1), else today's null.
+async function formFailed(err) {
+  if (await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false)) throw err;
+  return null;
+}
+
 async function gamesDoor(who, lang, now) {
   if (require('./web-quiz-wait-ux').on()) return gamesDoorTogether(who, lang, now);
   const Hub = require('./web-quiz-hub');
@@ -77,10 +83,7 @@ async function gamesDoor(who, lang, now) {
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
   // web_quiz_list_states: a form read that failed is a failed door (the page offers a retry), not a child with no games
-  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(async (err) => {
-    if (await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false)) throw err;
-    return null;
-  });
+  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(formFailed);
   if (!form) return { games: [] };
   let ids;
   if (form === G1.FORM) ids = [G1.EXERCISE];
@@ -111,7 +114,8 @@ async function gamesDoorTogether(who, lang, now) {
   const soft = (p) => Promise.resolve(p).catch(() => null);
   const [flags, form, record, missing, pool, sw, rung, aloud] = await Promise.all([
     Hub.flags(),
-    Challenge.gradeOf({ studentId: who.studentId }).then((g) => Challenge.formForChild(g)).catch(() => null),
+    // web_quiz_list_states: as gamesDoor, a grade or form read that failed is a failed door, not a child with no games
+    Challenge.gradeOf({ studentId: who.studentId }).then((g) => Challenge.formForChild(g)).catch(formFailed),
     soft(Challenge.recordOn()), soft(Challenge.missingOn()), soft(Challenge.poolOn()),
     soft(Play.switches()), soft(Play.readingRungOf(who.studentId)),
     require('./web-quiz-challenge-budget').readOpen().catch(() => false),
