@@ -716,7 +716,12 @@ describe('the link\'s language through the one door', () => {
     const t = await mint(UNKNOWN, PH.unknown, 'unknown', 'ur');
     const html = await (await land(t, DEV, '?ll=en')).text();
     expect(boot(html).l).toBe('en');
+    // the door itself in English only: the page's language, its heading and tiles, no Urdu line
+    expect(html).toContain('<html lang="en" dir="ltr"');
     expect(html).toContain('Tell Jugnu who you are');
+    expect(html).toContain('I want to play');
+    const visible = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
+    expect(visible).not.toMatch(/[\u0600-\u06FF]/);
     expect(joinLang((await (await post('role', { t, side: 'child', l: 'en' })).json()).next)).toBe('bi');
   });
   test('on: an English link opened with ?lang=ur joins in Urdu; a remembered child answer (who) carries it too', async () => {

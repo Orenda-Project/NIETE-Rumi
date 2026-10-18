@@ -143,8 +143,8 @@ async function linkLangOf(raw) {
   if (raw !== 'en' && raw !== 'ur') return null;
   try { return (await Flags.flags()).linkLang === true ? raw : null; } catch (_) { return null; }
 }
-/** The one door's language for a link language: Urdu only, or English with its Urdu lines; none → the link's own. */
-const doorLang = (ll, own) => (ll === 'ur' ? 'ur' : ll === 'en' ? 'bi' : own);
+/** The one door's language for a link language: Urdu only, or English only; none → the link's own. */
+const doorLang = (ll, own) => (ll === 'ur' ? 'ur' : ll === 'en' ? 'en' : own);
 
 /** Re-resolve on the server: { side, src, how, next?, page?, kids? }, in the link's language (else the token's). */
 async function destination(o, lang = o.p.lang) {

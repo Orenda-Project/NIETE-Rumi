@@ -163,13 +163,14 @@ function csp(css = CSS, script = SCRIPT) {
   return `default-src 'none'; style-src 'sha256-${sha(css)}'; script-src 'sha256-${sha(script)}'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
 }
 
-function shell({ title, body, script = '', withScript = false, adv = false, linkLang = null }) {
+function shell({ title, body, script = '', withScript = false, adv = false, linkLang = null, lang = null }) {
   const css = adv ? ADV_CSS : CSS;
   // the way-back pages have no script; in the adventure look they show Jugnu's picture, from this site only
   const policy = withScript ? csp(css, linkLang ? SCRIPT_L : SCRIPT) : `default-src 'none'; style-src 'sha256-${sha(css)}';${adv ? " img-src 'self';" : ''} base-uri 'none'; frame-ancestors 'none'`;
   return {
     csp: policy,
-    html: `<!doctype html><html lang="ur" dir="rtl"${adv ? ' class="wq-adv"' : ''}><head><meta charset="utf-8">`
+    // an English-only door ('en': a link opened with ?lang=en, web_quiz_go_link_lang) is an English page; else today's
+    html: `<!doctype html><html ${lang === 'en' ? 'lang="en" dir="ltr"' : 'lang="ur" dir="rtl"'}${adv ? ' class="wq-adv"' : ''}><head><meta charset="utf-8">`
       + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
       // the <meta> copy (the edge forwards only the page): frame-ancestors is header-only, so it is left out here
       + `<meta http-equiv="Content-Security-Policy" content="${esc(policy.replace(/; frame-ancestors 'none'/, ''))}">`
@@ -178,14 +179,14 @@ function shell({ title, body, script = '', withScript = false, adv = false, link
   };
 }
 
-/** Urdu first, the English under it (the English line is dropped for an Urdu-only page). */
-const two = (id, lang, tag = 'span', params = null) => `<${tag} lang="ur">${esc(str(id, 'ur', params))}</${tag}>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr">${esc(str(id, 'en', params))}</span>`}`;
+/** Urdu first, the English under it (the English line is dropped for an Urdu-only page; an English-only page has only it). */
+const two = (id, lang, tag = 'span', params = null) => lang === 'en' ? `<${tag} lang="en" dir="ltr">${esc(str(id, 'en', params))}</${tag}>` : `<${tag} lang="ur">${esc(str(id, 'ur', params))}</${tag}>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr">${esc(str(id, 'en', params))}</span>`}`;
 /** The same, filled on the page from a template (a name the server sent after paint, or the chip a child tapped). */
-const twoTpl = (id, lang) => `<span lang="ur" data-tpl="${esc(str(id, 'ur'))}"></span>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr" data-tpl="${esc(str(id, 'en'))}"></span>`}`;
+const twoTpl = (id, lang) => lang === 'en' ? `<span lang="en" dir="ltr" data-tpl="${esc(str(id, 'en'))}"></span>` : `<span lang="ur" data-tpl="${esc(str(id, 'ur'))}"></span>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr" data-tpl="${esc(str(id, 'en'))}"></span>`}`;
 
 function wordsFor(lang) {
   const words = {};
-  ['go.error', 'go.stale'].forEach((id) => { words[id] = lang === 'ur' ? str(id, 'ur') : `${str(id, 'ur')} · ${str(id, 'en')}`; });
+  ['go.error', 'go.stale'].forEach((id) => { words[id] = lang === 'ur' ? str(id, 'ur') : lang === 'en' ? str(id, 'en') : `${str(id, 'ur')} · ${str(id, 'en')}`; });
   return words;
 }
 const NOTICE_IDS = ['cl.notice.save', 'cl.notice.stop', 'cl.notice.readings'];
@@ -228,7 +229,7 @@ function buildRolePage({ t, lang = 'bi', extra = '', bot = null, adv = false, li
     + (typeof extra === 'string' ? extra : '')
     + '</main>';
   const l = LINK_LANGS.includes(linkLang) ? linkLang : null;
-  return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang), ...(l ? { l } : {}) }), withScript: true, adv: a, linkLang: l });
+  return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang), ...(l ? { l } : {}) }), withScript: true, adv: a, linkLang: l, lang });
 }
 
 /**
@@ -254,7 +255,7 @@ function buildPickPage({ t, lang = 'bi', kids = [], bot = null, adv = false, lin
     + '</main>';
   return shell({
     title: one ? str('cl.confirm.q', clampLanguage(lang), { first: one.first }) : str('cl.confirm.who', clampLanguage(lang)),
-    body, script: bootTag({ kind: 'pick', t, pick: one ? one.pick : null, words: wordsFor(lang), ...(LINK_LANGS.includes(linkLang) ? { l: linkLang } : {}) }), withScript: true, adv: a, linkLang: LINK_LANGS.includes(linkLang) ? linkLang : null,
+    body, script: bootTag({ kind: 'pick', t, pick: one ? one.pick : null, words: wordsFor(lang), ...(LINK_LANGS.includes(linkLang) ? { l: linkLang } : {}) }), withScript: true, adv: a, linkLang: LINK_LANGS.includes(linkLang) ? linkLang : null, lang,
   });
 }
 
@@ -272,7 +273,7 @@ function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null, door = fal
   const dead = id === 'go.stale' || id === 'go.error';
   const wa = dead ? (door === true ? backTap(lang, bot, a) : waTap(lang, bot, false, a)) : '';
   const body = `<main class="go" data-screen="${esc(id)}">${a ? JUGNU : ''}${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
-  return shell({ title: str(ids[0], clampLanguage(lang)), body, adv: a });
+  return shell({ title: str(ids[0], clampLanguage(lang)), body, adv: a, lang });
 }
 
 module.exports = { buildRolePage, buildPickPage, buildMessagePage, csp, _CSS: CSS, _SCRIPT: SCRIPT, _ADV_CSS: ADV_CSS };
