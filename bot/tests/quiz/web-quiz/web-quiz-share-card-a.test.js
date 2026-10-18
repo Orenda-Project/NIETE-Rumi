@@ -60,12 +60,15 @@ describe('the switch', () => {
     seed(o);
     const { token } = await Card.mint({ kind: 'read', deed: 'read_all', ct: ct(), lang: 'en' });
     expect(Card.facts(token)).not.toHaveProperty('a');
+    expect(await Card.landing(token)).not.toHaveProperty('a');
     await Card.image(token);
     expect(htmlToImage.mock.calls[0][0]).not.toContain('class="med"');
   });
   test('on: the token is marked and its picture is design A, under its own budget', async () => {
     const { token } = await Card.mint({ kind: 'read', deed: 'read_all', ct: ct(), lang: 'en' });
     expect(Card.facts(token).a).toBe(true);
+    // the landing is told, so it does not repeat what the picture shows
+    expect((await Card.landing(token)).a).toBe(true);
     const out = await Card.image(token);
     const page = htmlToImage.mock.calls[0][0];
     expect(page).toContain('class="med"');

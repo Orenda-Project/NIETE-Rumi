@@ -170,7 +170,7 @@ describe('a game, a listen', () => {
 
 describe('a storybook: the child\'s events for it, since it was last opened, in the last 30 minutes', () => {
   const ev = (event, page, data, min) => ({ child_id: 'st-2', book_id: BOOK, page_n: page, event, data, at: ago(min) });
-  test('questions, effort stars and each page\'s best words (at most its words)', async () => {
+  test('questions, the stars of their score (never the effort stars beside it) and each page\'s best words (at most its words)', async () => {
     seed({ events: [
       ev('story_opened', null, {}, 50), ev('story_page_read', 1, { words_read: 40, words_total: 40 }, 49),
       ev('story_opened', null, {}, 12),
@@ -179,8 +179,14 @@ describe('a storybook: the child\'s events for it, since it was last opened, in 
       ev('story_questions_done', null, { correct: 3, total: 4, stars: 3 }, 8), ev('story_done', null, { pages_listened: 0, pages_read: 2, stars: 3 }, 7),
     ] });
     const { body } = await mint({ kind: 'book', deed: 'book_read', ct: ct(), item: { type: 'book', id: BOOK } });
-    expect(body.data).toEqual({ r: 3, o: 4, s: 3, w: 60, b: 'star_reader' });
+    expect(body.data).toEqual({ r: 3, o: 4, s: 2, w: 60 });
     expect((await landing(body.token)).result_text.dare).toBe('Can you get 4 out of 4?');
+  });
+  test('the stars a friend sees agree with the score: 4 of 5 is 2 stars, 5 of 5 is 3 and the badge, whatever the effort stars', async () => {
+    seed({ events: [ev('story_opened', null, {}, 9), ev('story_questions_done', null, { correct: 4, total: 5, stars: 1 }, 8), ev('story_done', null, { pages_read: 1, stars: 1 }, 7)] });
+    expect((await mint({ kind: 'book', deed: 'book_read', ct: ct(), item: { type: 'book', id: BOOK } })).body.data).toEqual({ r: 4, o: 5, s: 2 });
+    seed({ events: [ev('story_opened', null, {}, 9), ev('story_questions_done', null, { correct: 5, total: 5, stars: 1 }, 8)] });
+    expect((await mint({ kind: 'book', deed: 'book_read', ct: ct(), item: { type: 'book', id: BOOK } })).body.data).toEqual({ r: 5, o: 5, s: 3, b: 'star_reader' });
   });
   test('only listened, nothing older than 30 minutes counted: the stars, the story dare', async () => {
     seed({ events: [ev('story_page_read', 1, { words_read: 40, words_total: 40 }, 45), ev('story_done', null, { pages_listened: 3, pages_read: 0, stars: 1 }, 5)] });
