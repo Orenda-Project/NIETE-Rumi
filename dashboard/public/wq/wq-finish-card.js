@@ -238,13 +238,15 @@
     '.wqfc-deed{font-weight:800;font-size:22px;margin:8px 0 0}[lang="ur"] .wqfc-nt b,[lang="ur"] .wqfc-nt small,[lang="ur"] .wqfc-nt span,[lang="ur"] .wqfc-deed,html[lang="ur"] .wqfc-share{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc{animation:wqfc-in .4s ease-out .3s both}@keyframes wqfc-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}}';
   // the sheet's own styles, added only when a sheet opens (the card's CSS above stays today's)
-  var SHEET_CSS = '.wqfc-sheet{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto}' +
-    '.wqfc-sh-in{width:100%;max-width:480px;display:grid;gap:12px;padding:16px;border-radius:24px;background:var(--bg,#FFF8E7);box-sizing:border-box;box-shadow:0 8px 24px rgba(15,23,42,.25)}' +
+  // A sheet taller than the screen scrolls from its top (the picture never above the screen): the panel sits at the
+  // bottom by its own auto margin, not by flex-end.
+  var SHEET_CSS = '.wqfc-sheet{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.55);display:flex;flex-direction:column;align-items:center;padding:16px;box-sizing:border-box;overflow-y:auto}' +
+    '.wqfc-sh-in{width:100%;max-width:480px;margin-top:auto;display:grid;gap:10px;padding:16px;border-radius:24px;background:var(--bg,#FFF8E7);box-sizing:border-box;box-shadow:0 8px 24px rgba(15,23,42,.25)}' +
+    '.wqfc-sh-in .wq-ghost{min-height:48px}.wqfc-sh-ok:empty{display:none}' +
     '.wqfc-sh-pic{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:16px;background:#FDE68A;object-fit:cover}' +
     '.wqfc-sh-in .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:56px;box-sizing:border-box}' +
     '.wqfc-sh-msg{background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 rgba(15,23,42,.08);display:grid;gap:6px}' +
     '.wqfc-sh-msg p{margin:0;font-size:16px;line-height:1.4;color:#1F2937}[lang="ur"] .wqfc-sh-msg p[dir="auto"]{font-size:18px;line-height:1.9}' +
-    '.wqfc-sh-msg .wqfc-sh-url{font-size:14px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}' +
     '.wqfc-sh-ok{text-align:center;font-weight:700;margin:0;min-height:1.5em}[lang="ur"] .wqfc-sh-in .wq-btn{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
   function css() {
@@ -297,6 +299,14 @@
       .catch(function () { return null; });
     return minted[k];
   }
+  // Can this browser share a picture file at all? One rule for every sheet, whatever its language and however far the
+  // picture's download has got (the button then waits for the file on its tap).
+  function canFiles() {
+    try {
+      if (!(navigator.canShare && navigator.share && typeof File === 'function')) return false;
+      return Boolean(navigator.canShare({ files: [new File([''], 'jugnu-card.png', { type: 'image/png' })] }));
+    } catch (e) { return false; }
+  }
   // The picture as a file, only where the browser can share one (never in WhatsApp's own browser today).
   function fileOf(img) {
     try {
@@ -333,7 +343,7 @@
           if (!st.waiting) a.innerHTML = labels[k];
         }
       } catch (e) { /* the tap still shares st.text */ }
-      fileOf(j.img).then(function (f) { st.file = f; });
+      st.fileP = fileOf(j.img).then(function (f) { st.file = f; return f; });
     });
     return st;
   }
@@ -439,21 +449,14 @@
   var PIC_RX = /^\/wq\/card\/[A-Za-z0-9_-]+\.png$|^\/q\/[A-Za-z0-9]{4,12}\/art\/[a-z]+\.(jpg|png)\?a=[A-Za-z0-9._~%-]+(&f=[a-z]+)?$/;
   function pic(s) { return typeof s === 'string' && PIC_RX.test(s) ? s : ''; }
   // The one share's sheet (pure): the picture first, then ONE primary (WhatsApp), the file where it can go, save, copy, back.
-  // What the sheet sends, shown under the picture: the words (the link taken off their end), then the link on its own
-  // left-to-right line, as the send screen showed it. Nothing to show: no box.
-  // The link is shown short, on one line (its host and the start of its path): a card's link is a long sealed token, and
-  // a child should not see a wall of code. What is sent is the whole link.
-  function shortUrl(url) {
-    var m = /^https?:\/\/([^/?#]+)([^?#]*)/.exec(String(url));
-    if (!m) return String(url).slice(0, 32);
-    var p = m[2].length > 12 ? m[2].slice(0, 10) + '\u2026' : m[2];
-    return m[1] + p;
-  }
+  // What the sheet sends, shown under the picture: the words, the link taken off their end. The link itself is never
+  // printed on a child's screen (a sealed token is a wall of code): it is in what WhatsApp sends, and behind "Copy link".
+  // Nothing to show: no box.
   function msgHtml(text, url) {
     var t = String(text == null ? '' : text);
     if (url && t.slice(-url.length) === url) t = t.slice(0, -url.length).replace(/\s+$/, '');
-    if (!t && !url) return '';
-    return '<div class="wqfc-sh-msg">' + (t ? '<p dir="auto">' + esc(t) + '</p>' : '') + (url ? '<p class="wqfc-sh-url" dir="ltr">' + esc(shortUrl(url)) + '</p>' : '') + '</div>';
+    if (!t) return '';
+    return '<div class="wqfc-sh-msg"><p dir="auto">' + esc(t) + '</p></div>';
   }
   function sheetHtml(o) {
     var l = L(o.lang), w = SH[l];
@@ -477,15 +480,21 @@
       }
       var old = document.getElementById('wqfc-sheet');
       if (old && old.parentNode) old.parentNode.removeChild(old);
-      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, file: !!st.file }));
+      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, file: !!st.file || (Boolean(pic(st.img)) && canFiles()) }));
       ev('card_share', shareEv(o, 'sheet'));
       var sh = document.getElementById('wqfc-sheet');
       var close = function () { try { if (sh && sh.parentNode) sh.parentNode.removeChild(sh); } catch (x) { /* gone */ } };
       var bind = function (id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
       bind('wqfc-sh-wa', function () { ev('card_share', shareEv(o, 'wa')); });
       bind('wqfc-sh-file', function () {
-        if (!st.file || !navigator.share) return;
-        navigator.share({ files: [st.file], text: st.text }).then(function () { ev('card_share', shareEv(o, 'file')); }, function () { /* the WhatsApp button stays */ });
+        if (!navigator.share) return;
+        var send = function (f) {
+          if (!f) return;
+          navigator.share({ files: [f], text: st.text }).then(function () { ev('card_share', shareEv(o, 'file')); }, function () { /* the WhatsApp button stays */ });
+        };
+        if (st.file) { send(st.file); return; }
+        // the picture still downloading: shared the moment it is in (the WhatsApp button stays if it never comes)
+        (st.fileP || fileOf(st.img).then(function (f) { st.file = f; return f; })).then(send, function () {});
       });
       bind('wqfc-sh-copy', function () {
         var ok = document.getElementById('wqfc-sh-ok');
