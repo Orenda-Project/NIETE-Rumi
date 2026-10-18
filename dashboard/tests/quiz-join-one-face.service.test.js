@@ -7,7 +7,7 @@
 const http = require('http');
 const express = require('express');
 const { createWebQuizRouter } = require('../routes/web-quiz.routes');
-const { createQuizJoinRouter, renderJoinPage, renderJoinNote } = require('../routes/quiz-join.routes');
+const { createQuizJoinRouter, renderJoinPage, renderJoinNote, WAIT_CSS, EARLY_TAP } = require('../routes/quiz-join.routes');
 const GOLDEN = require('./fixtures/join-off-golden.json');
 
 const F5 = 'wq-nastaliq-5.woff2';
@@ -70,6 +70,32 @@ describe('off: every page is today\'s, byte for byte', () => {
       expect(res.body).not.toContain(F6);
       expect(res.body.replace(/\/wq\/join\.js\?v=[^"]*/, '').replace(/"v":"[^"]*"/, '').replace(/"t":"[^"]*"/, ''))
         .toBe(GOLDEN['page|ur|false'].replace(/\/wq\/join\.js\?v=[^"]*/, '').replace(/"v":"[^"]*"/, '').replace(/"t":"[^"]*"/, ''));
+    });
+  });
+});
+
+describe('wait word x one face x early tap: the wait rule rides the sheet exactly once whenever the wait word is on', () => {
+  const style = (h) => h.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const base = (extra) => renderJoinPage({ token: T, lang: 'ur', practice: false, assetV: 'av', jsV: 'jv', ...extra });
+  const ROWS = [];
+  [false, true].forEach((waitWord) => [false, true].forEach((oneFace) => [false, true].forEach((earlyTap) => ROWS.push([waitWord, oneFace, earlyTap]))));
+  test.each(ROWS)('wait %s, one face %s, early tap %s', (waitWord, oneFace, earlyTap) => {
+    const html = base({ waitWord, oneFace, earlyTap });
+    expect(style(html).split(WAIT_CSS).length - 1).toBe(waitWord ? 1 : 0);
+    if (waitWord) expect(style(html).endsWith(WAIT_CSS)).toBe(true);
+    expect(html).toContain(oneFace ? F6 : F5);
+    expect(html).not.toContain(oneFace ? F5 : F6);
+    expect(html.includes(EARLY_TAP)).toBe(earlyTap);
+  });
+  test('wait word alone keeps today\'s sheet plus the rule', () => {
+    expect(style(base({ waitWord: true }))).toBe(style(unbot(GOLDEN['page|ur|false'])) + WAIT_CSS);
+  });
+  test('through the route: wait word and one face say both, and the page carries the rule once on -6', async () => {
+    await withPage(200, { ok: true, lang: 'ur', practice: false, waitWord: true, one_face: true }, async (srv) => {
+      const res = await get(srv, `/quiz/join/${J}`);
+      expect(style(res.body).split(WAIT_CSS).length - 1).toBe(1);
+      expect(res.body).toContain(F6);
+      expect(res.body).not.toContain(F5);
     });
   });
 });
