@@ -632,3 +632,23 @@ describe('dispose', () => {
     expect(r.audios.every((a) => a.src === '' && a.loads === 2)).toBe(true);
   });
 });
+
+describe('no needless seek', () => {
+  it('a first tap on a warmed element at 0 does not assign currentTime (a seek costs ~200 ms on some mp3s)', async () => {
+    const { r, player } = setup(['a']);
+    player.warm(['a']);
+    await flush();
+    const el = elOf(r, 'a')!;
+    el.head();
+    let seeks = 0;
+    let t = 0;
+    Object.defineProperty(el, 'currentTime', { get: () => t, set: (v: number) => { seeks += 1; t = v; } });
+    player.toggle('a');
+    expect(seeks).toBe(0);
+    el.fire('playing');
+    t = 1.2; // it played some
+    player.toggle('a'); // stop
+    player.toggle('a'); // restart from 0 (A5)
+    expect(t).toBe(0);
+  });
+});
