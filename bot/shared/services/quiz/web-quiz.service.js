@@ -1729,6 +1729,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     prior: Fast.early(priorFinish(s.share_code_id, s.student_id, s.id)),
     names: Fast.early((async () => shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]))()),
     classCode: Fast.early(classCodeOf(s)),
+    storyBoard: Fast.early(require('./story-board').refused(s.quiz_id)),
     best: s.user_id ? null : Fast.early(bestField(s)),
     vs: s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? Fast.early(versus(s, { correct, total })) : null,
     next: Fast.early(nextLesson(s)),
@@ -1772,6 +1773,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   const challengeCode = await got('challenge', () => challengeCodeFor(s));
   mark('challenge');
   const classCode = await got('classCode', () => classCodeOf(s));
+  // A storybook has no class table (story-board.js, switch off: never read): its finish mints no class picture.
+  const classArt = classCode && !s.invited_by_student_id && !(await got('storyBoard', () => require('./story-board').refused(s.quiz_id)));
   mark('class_code');
   // The card's remaining reads, in the order the payload used to await them, each timed.
   const best = earlier && !s.user_id ? await got('best', () => bestField(s)) : {};
@@ -1808,9 +1811,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...vs,
     // The signed ids of the pictures this child can share (web-quiz-art.js).
-    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null,
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classArt ? Art.artId('l', s.id) : null,
       // The class picture (nobody named) the shared table link /q/<CODE>/class previews as: getQuiz's art.class.
-      table: classCode && !s.invited_by_student_id ? Art.artId('l', classCode) : null },
+      table: classArt ? Art.artId('l', classCode) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
     ...next,
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
@@ -1895,6 +1898,8 @@ async function board(code, { st } = {}) {
   // The watch quiz (and any code under it) has no class: its table would be every class-less child. No root set: today's.
   // First, so a watch code never starts the twin read.
   if (await watchBoard(ctx)) fail(404, 'not_found');
+  // A storybook the teacher sent has no class table (web_quiz_story_board_refuse; off: today's board, no extra read).
+  if (await require('./story-board').refused(ctx.quizId)) fail(404, 'no_board');
   // The quiz's twin in the other language, read beside the table only with the switch on (web-quiz-class-twin).
   const Twin = require('./web-quiz-class-twin');
   const twinP = doors.then((on) => (on ? Twin.find(ctx) : null));

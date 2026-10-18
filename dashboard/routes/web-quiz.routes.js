@@ -41,6 +41,7 @@ const Stream = require('./web-quiz-stream');
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
 const WayBackSwitch = require('../lib/closed-way-back-switch');
 const ClosedInlineSwitch = require('../lib/closed-inline-switch');
+const { securityOf } = require('./edge-security-headers');
 const WaitUx = require('./web-quiz-wait-ux');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
@@ -505,6 +506,7 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
   const accent = /^#[0-9A-Fa-f]{6}$/.test(String(facts.accent || '')) ? facts.accent : '#15803D';
   const href = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href) ? ret.href : `https://wa.me/?text=${encodeURIComponent(ret.words || '')}`;
   // what the card lands on, by name (its book's title, its video's lesson), in its own script
+  // Urdu is drawn at the Regular weight (a bold Nastaliq breaks joins: «پڑھی» as «پڑ ھی»); the name is its own line.
   const item = facts.item_title ? `<p class="it"><bdi>${esc(String(facts.item_title).slice(0, 80))}</bdi></p>` : '';
   const go = `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(href)}">${esc(ret.cta || '')}</a><p class="hint">${esc(c.hint)}</p>`;
   return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
@@ -512,9 +514,10 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
 .k img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}.mark{justify-self:start;padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px}
 .k h1{margin:0;font-size:24px;line-height:${lang === 'ur' ? 2 : 1.25};color:${accent}}.k .it{font-weight:800;font-size:21px;color:#1F2937}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
 .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}
-.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}</style>
+.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}.k h1 .nm{display:block}${lang === 'ur' ? `
+.k h1,.k .it,.mark,.wq-btn{font-weight:400}` : ''}</style>
 </head>
-<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="${dir}">${facts.first ? `<bdi>${esc(facts.first)}</bdi>: ` : ''}${esc(facts.deed_text)}</h1>${item}<p>${esc(c.sub)}</p>${go}</main></body>
+<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="${dir}">${facts.first ? `<bdi class="nm">${esc(facts.first)}</bdi>` : ''}${esc(facts.deed_text)}</h1>${item}<p>${esc(c.sub)}</p>${go}</main></body>
 </html>`;
 }
 
@@ -718,7 +721,8 @@ function clientIp(req) {
  * timeout, redirects never followed. Shared by the child quiz and the teacher report.
  * Returns { status, body, location } (JSON parsed), or { status, bytes, contentType,
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
- * PDF; with `timing` when the bot sent its timing headers, and `disposition` when it named a download). Throws { unreachable: true } when the bot cannot be reached.
+ * PDF; with `timing` when the bot sent its timing headers, `disposition` when it named a download, and `security` when it
+ * sent a page security header). Throws { unreachable: true } when the bot cannot be reached.
  */
 const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
 function deviceCookie(req) {
@@ -782,7 +786,10 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
         const timing = timingOf(res);
         const disposition = raw && res.headers && res.headers.get ? res.headers.get('content-disposition') : null; // a report PDF's name
         const serverTiming = raw && res.headers && res.headers.get ? res.headers.get('server-timing') : null; // the teacher home's, as sent
-        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}), ...(serverTiming ? { serverTiming } : {}) };
+        // The bot's own page security headers (CSP, nosniff, X-Frame-Options, Referrer-Policy) for the relays to carry
+        // when quiz_edge_security_headers is on (edge-security-headers.js); absent when the bot sent none.
+        const security = raw ? securityOf(res.headers) : null;
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location, ...(timing ? { timing } : {}), ...(disposition ? { disposition } : {}), ...(serverTiming ? { serverTiming } : {}), ...(security ? { security } : {}) };
       }
       const text = await res.text();
       let json = null;

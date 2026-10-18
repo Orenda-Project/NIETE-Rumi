@@ -182,12 +182,20 @@
       // web_quiz_fold_retry: a 0-word try (card.r.again, never on a held card) gets one soft Try again above Next; the
       // reading moment's own (wqc-rfagain) stays the only one when it is drawn
       var md = h.md() || {};
-      var retry = md.fold_retry === true && card && card.r && card.r.again && !card.r.hold && top.indexOf('id="wqc-rfagain"') < 0;
-      h.show(name, top + (retry ? btn('wqc-again', h.t.again, 'wq-soft') : '') + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
+      var rfa = top.indexOf('id="wqc-rfagain"') >= 0;
+      var retry = md.fold_retry === true && card && card.r && card.r.again && !card.r.hold && !rfa;
+      // the reading moment's own button (wqc-rfagain) with a read-along: ONE button for ONE action — "Read with Jugnu"
+      // reads with the words lit, then opens the read; the card's Next stays its one primary (no separate "Hear it again")
+      var rfRa = rfa && ra && window.WQMoment && window.WQMoment.label ? ra : null;
+      if (rfRa) top = top.replace(/(id="wqc-rfagain"[^>]*>)[^<]*/, '$1' + esc(window.WQMoment.label(L, 'withJ')));
+      var replay = ra && !rfRa;
+      h.show(name, top + (retry ? btn('wqc-again', h.t.again, 'wq-soft') : '') + (replay ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
       if (retry) h.on('wqc-again', function () { h.open(d.ex); });
-      if (ra) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
-      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || ra ? null : fx } }));
+      // bound here, so a redraw (the timings landing later) binds it again
+      if (rfa) h.on('wqc-rfagain', function () { if (rfRa) timedAlong(rfRa, function () { h.open(d.ex); }); else h.open(d.ex); });
+      if (replay) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
+      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || replay ? null : fx } }));
       foldAfter(qa);
       // no timings on the serve (a counted read): asked for now (once the recording is up); drawn again with "Hear it again"
       var redraw = function () { if (h.S.data === d && h.S.screen === name) foldEnd(name, top, qa, nx, card); };
@@ -653,7 +661,7 @@
       }
       // folded, the card has no Try again of its own: a 0-word try gets it in the moment
       var rf = rfHtml(r, !once, line, fold() && r.again && !hold ? h.t.again : null, hold);
-      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(once && rf); rfAgain(rf, d); return; }
+      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(once && rf); return; }
       h.show(name, h.jug(pose, line, true) + wait + rf + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
       rfSound(once && rf); rfAgain(rf, d);
       h.on('wqc-menu', h.refreshMenu);
