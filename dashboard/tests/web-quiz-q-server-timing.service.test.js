@@ -106,3 +106,33 @@ describe('the flushed class link page (the fast switch learnt)', () => {
     } finally { await close(off); await close(on); }
   });
 });
+
+// The boot JSON's `st` is the step timings (this file, the hub page's since its timing car), while the quiz page's own
+// `st` (wq.js S.st, the finish card's auth) is the session token from the start answer. No page script may read the
+// boot's `st`, or a timing string could reach the auth path one day. Each boot reader's variable is found in the source.
+describe('no page script reads the boot JSON\'s `st` (step timings, not the session token)', () => {
+  test('every /wq/*.js boot reader: no `<boot>.st`, `<boot>[\'st\']`, `boot().st` or `{ st } = <boot>`', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const dir = path.join(__dirname, '../public/wq');
+    const hits = [];
+    let readers = 0;
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
+      const src = fs.readFileSync(path.join(dir, f), 'utf8');
+      const names = new Set();
+      const rx = /(\w+)\s*=\s*(?:\w+\s*\?\s*)?JSON\.parse\(\s*(?:document\.getElementById\(['"]boot['"]\)|bootEl)/g;
+      let m;
+      while ((m = rx.exec(src))) names.add(m[1]);
+      if (/function boot\(\)\s*\{[^}]*JSON\.parse\(document\.getElementById\(['"]boot['"]\)/.test(src)) names.add('boot()');
+      if (!names.size) continue;
+      readers += 1;
+      for (const n of names) {
+        const e = n.replace(/[()]/g, '\\$&');
+        const bad = [new RegExp(`(^|[^\\w.])${e}\\s*\\.\\s*st\\b`), new RegExp(`(^|[^\\w.])${e}\\s*\\[\\s*['"]st['"]\\s*\\]`), new RegExp(`\\{[^}=]*\\bst\\b[^}=]*\\}\\s*=\\s*${e}\\b`)];
+        if (bad.some((r) => r.test(src))) hits.push(`${f}: ${n}`);
+      }
+    }
+    expect(readers).toBeGreaterThanOrEqual(8);
+    expect(hits).toEqual([]);
+  });
+});
