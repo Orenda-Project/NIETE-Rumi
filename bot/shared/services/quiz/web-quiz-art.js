@@ -151,7 +151,8 @@ async function classFacts(ref) {
     me = s;
   } else if (!CODE_RX.test(code)) notFound();
   const ctx = await WebQuiz.resolveCode(code).catch(() => notFound());
-  const b = await WebQuiz.board(code, me ? { st: stFor(me) } : {});
+  // A storybook code has no class table (story-board.js): its board's 404 is this picture's 404, never a 500.
+  const b = await WebQuiz.board(code, me ? { st: stFor(me) } : {}).catch((e) => (e && e.status === 404 ? notFound() : Promise.reject(e)));
   const cls = await require('./video-quiz-report.service').loadClassRows(ctx.shareCodeId).catch(() => null);
   // Classmates appear as place + animal + score only: the picture outlives the link and gets forwarded.
   const rows = (b.rows || []).slice(0, CLASS_ROWS).map((r) => ({ place: r.place, animal: r.animal, correct: r.correct, total: r.total }));

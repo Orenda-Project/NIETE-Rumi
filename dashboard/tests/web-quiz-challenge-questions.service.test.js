@@ -25,7 +25,7 @@ function fakeEl(id) {
     click() { (this.listeners.click || []).forEach((fn) => fn({})); } };
 }
 
-function page({ lang = 'en', routes = {} } = {}) {
+function page({ lang = 'en', routes = {}, oneButton = false } = {}) {
   const els = {};
   const root = { innerHTML: '', querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
   const fetches = []; const timers = []; const played = [];
@@ -49,7 +49,7 @@ function page({ lang = 'en', routes = {} } = {}) {
     window, navigator: { userAgent: 'Android WhatsApp', mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } }, fetch, Audio, console, MediaRecorder,
     Blob: function Blob(parts, o) { this.size = parts.reduce((a, p) => a + (p.size || 0), 0); this.type = o && o.type; },
     location: { href: 'https://portal.test/c/HUB.TOKEN', host: 'portal.test', pathname: '/c/HUB.TOKEN', search: '' },
-    document: { getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? boot : null), createElement: () => ({}), head: { appendChild() {} }, visibilityState: 'visible', addEventListener() {} },
+    document: { documentElement: { classList: { contains: (c) => oneButton && c === 'wq-1b' } }, getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? boot : null), createElement: () => ({}), head: { appendChild() {} }, visibilityState: 'visible', addEventListener() {} },
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     Date, JSON, Math, String, Number, Promise, Error, RegExp, Object, Array, encodeURIComponent,
   };
@@ -85,6 +85,14 @@ describe('the button', () => {
     expect(p.screen()).toBe('read-result');
     expect(p.html()).toMatch(/id="wqc-qa"[^>]*>Answer questions about the story</);
     expect(p.html().indexOf('id="wqc-qa"')).toBeLessThan(p.html().indexOf('id="wqc-menu"'));
+  });
+  test('the one button system draws the one-line label: EN "Answer questions", UR «سوالوں کے جواب دیں»', async () => {
+    const p = page({ routes: routes(), oneButton: true });
+    await readThrough(p);
+    expect(p.html()).toMatch(/id="wqc-qa"[^>]*>Answer questions</);
+    const u = page({ lang: 'ur', routes: routes(), oneButton: true });
+    await readThrough(u);
+    expect(u.html()).toMatch(/id="wqc-qa"[^>]*>سوالوں کے جواب دیں</);
   });
   test('switch off, a stopped reader, or a reading not heard: no questions', async () => {
     for (const o of [{ read: { questions_on: false } }, { result: { score: { correct: 0, attempted: 4, stopped: true }, wcpm: 0 } }, { result: { failed: true, reason: 'unheard' } }]) {
