@@ -12,6 +12,12 @@
  * It adds no words (no new copy to translate), takes no taps (pointer-events none, aria-hidden) and honours reduced
  * motion (the bar still shows; nothing bobs or pulses).
  * Off: the key is absent from the hub answer, nothing is added, every page is today's, byte for byte.
+ *
+ * With web_quiz_hub_fanout on as well (the answer's `wait_share`), one more small inline script follows the piece: the
+ * same child data read (GET /api/wq/…, a plain address, no signal of the caller's) asked again while the first is still
+ * out rides the first. The home and the Stories door both ask for the shelf, so one request goes out and the later
+ * caller gets its own copy of the same answer (Response.clone). Nothing is kept once the answer is in; a failure fails
+ * every caller. Fanout off: the piece alone, exactly as above.
  */
 
 const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s}'
@@ -48,11 +54,22 @@ const JS = '(function(d,w){try{'
 
 const TAG = `<style id="wq-wait">${CSS}</style><script>${JS}</script>`;
 
-const on = (payload) => Boolean(payload && payload.wait_ux === true);
+// The read share (web_quiz_hub_fanout): wraps the fetch the piece above set up, so the first caller's wait still shows
+// the bar and the later callers wait on that same request. Never throws.
+const SHARE_JS = '(function(w){try{var f=w.fetch,q={};if(!f)return;w.fetch=function(u,o){'
+  + 'if(typeof u!="string"||(o&&o.signal)||!/^get$/i.test(o&&o.method||"GET")||!/\\/api\\/wq\\//.test(u))return f.apply(this,arguments);'
+  + 'if(q.hasOwnProperty(u)){var e=q[u];return new Promise(function(y,x){e.push([y,x])})}'
+  + 'var r=f.apply(this,arguments),ws=q[u]=[];'
+  + 'r.then(function(v){delete q[u];ws.forEach(function(p){p[0](v&&v.clone?v.clone():v)})},function(x){delete q[u];ws.forEach(function(p){p[1](x)})});'
+  + 'return r}}catch(e){}})(window)';
+const SHARE = `<script>${SHARE_JS}</script>`;
 
-/** The piece for the hub page's frame: the inline style and script while on, nothing while off. */
+const on = (payload) => Boolean(payload && payload.wait_ux === true);
+const share = (payload) => on(payload) && payload.wait_share === true;
+
+/** The piece for the hub page's frame: the inline style and script while on (the read share after it with fanout), nothing while off. */
 function tag(payload) {
-  return on(payload) ? TAG : '';
+  return on(payload) ? TAG + (share(payload) ? SHARE : '') : '';
 }
 
-module.exports = { on, tag, TAG, CSS, JS };
+module.exports = { on, share, tag, TAG, SHARE, SHARE_JS, CSS, JS };
