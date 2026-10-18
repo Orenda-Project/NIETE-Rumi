@@ -1407,6 +1407,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
   // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
   function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
+  // Each part isolated, a dash between: an English quiz name beside an Urdu count would pull the count's digit into
+  // the English run, next to the dot, and the dot reads as the Urdu zero (۱ · -> "۱۰").
+  function bdiJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(function (x) { return '<bdi>' + esc(x) + '</bdi>'; }).join(' — '); }
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
@@ -2984,7 +2987,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
     var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
-    var h = bar() + '<h2>' + title + '</h2>' + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
+    var h = bar() + '<h2>' + title + '</h2>' + (first ? moveLine(b, v.you) : '') + (b.class_doors ? '<p class="wq-sub wq-parts">' + bdiJoin(Q.topic, T.finN(v.finishers_n || 0)) : '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0))) + '</p>' +
       (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +

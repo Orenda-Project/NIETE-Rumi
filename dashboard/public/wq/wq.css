@@ -64,6 +64,7 @@ h1{font-size:28px;line-height:1.2}
 h2{font-size:24px;line-height:1.25}
 html[lang=ur] h1,html[lang=ur] h2{font-weight:700;line-height:2}
 .wq-sub{color:var(--muted);font-weight:700;font-size:16px;margin:0}
+.wq-parts>bdi{display:inline-block}
 .wq-small{color:var(--muted);font-size:14px;margin:0}
 .wq-jug{display:flex;align-items:flex-end;gap:10px}
 .wq-jug>img{width:92px;height:92px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 6px 8px rgba(51,55,72,.2));animation:wq-bob 3s ease-in-out infinite}
