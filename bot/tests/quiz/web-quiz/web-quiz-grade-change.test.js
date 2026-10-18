@@ -53,6 +53,11 @@ function seed() {
         in(c, v) { if (t !== 'app_settings') st.f.push([c, v, true]); return b; },
         order() { return b; },
         limit() { return b; },
+        gte() { return b; },
+        lte() { return b; },
+        neq() { return b; },
+        is() { return b; },
+        not() { return b; },
         async maybeSingle() { st.one = true; return answer(); },
         then(res, rej) { return Promise.resolve(answer()).then(res, rej); },
       };
@@ -122,32 +127,19 @@ describe('the switch rides the hub switches\' one read', () => {
   });
 });
 
-describe('carry: the hub answer names the grade only while on', () => {
+describe('carry: the hub answer says grade_on only while on, and reads nothing', () => {
   const answer = (id, extra = {}) => ({ lang: 'en', kids: [{ chip: chip(id), first: 'Noor', grade: '3' }], kid: chip(id), ...extra });
-  test('on, a loose child: grownups.grade = {now: 3, cls: null}', async () => {
+  test('on: grownups.grade_on = true, and no student, class or grade read (counted)', async () => {
     await turnOn();
-    const out = await Grade.carry(answer(LOOSE), tokenOf());
-    expect(out.grownups).toEqual({ grade: { now: 3, cls: null } });
-  });
-  test('on, a listed child: the class grade is cls; the family has none yet, so now is the class grade', async () => {
-    await turnOn();
+    const n = reads.length;
     const out = await Grade.carry(answer(LISTED), tokenOf());
-    expect(out.grownups.grade).toEqual({ now: 4, cls: 4 });
-  });
-  test('on, a listed child whose family chose Grade 2: now 2, cls 4', async () => {
-    db.students[1].self_reported_class = 'Grade 2';
-    await turnOn();
-    expect((await Grade.carry(answer(LISTED), tokenOf())).grownups.grade).toEqual({ now: 2, cls: 4 });
+    expect(out.grownups).toEqual({ grade_on: true });
+    expect(reads.slice(n)).toEqual([]);
   });
   test('on: merges into the grownups the hub already sent (the teacher switch stays)', async () => {
     await turnOn();
     const out = await Grade.carry(Promise.resolve(answer(LOOSE, { grownups: { teacher_href: '/quiz/teacher/abc', teacher_label: 'Back' } })), tokenOf());
-    expect(out.grownups).toEqual({ teacher_href: '/quiz/teacher/abc', teacher_label: 'Back', grade: { now: 3, cls: null } });
-  });
-  test('on, a merged record: the canonical row\'s grade', async () => {
-    await turnOn();
-    db.students[3].self_reported_class = 'Grade 5';
-    expect((await Grade.carry(answer(MERGED), tokenOf())).grownups.grade).toEqual({ now: 5, cls: null });
+    expect(out.grownups).toEqual({ teacher_href: '/quiz/teacher/abc', teacher_label: 'Back', grade_on: true });
   });
   test('on, no chosen child, a locked page or a coach\'s preview: untouched', async () => {
     await turnOn();
@@ -157,11 +149,6 @@ describe('carry: the hub answer names the grade only while on', () => {
     expect(JSON.stringify(await Grade.carry({ ...locked }, tokenOf()))).toBe(JSON.stringify(locked));
     const pr = { practice: 1, grade: 3, kid: null };
     expect(JSON.stringify(await Grade.carry({ ...pr }, tokenOf()))).toBe(JSON.stringify(pr));
-  });
-  test('on, a chip that is not one of this link\'s children: untouched', async () => {
-    await turnOn();
-    const a = answer(OTHER);
-    expect(JSON.stringify(await Grade.carry(answer(OTHER), tokenOf()))).toBe(JSON.stringify(a));
   });
   test.each(OFF_VALUES)('%s: the answer as it came, byte for byte, and no read', async (_n, value) => {
     await turnOn(value);
@@ -174,6 +161,94 @@ describe('carry: the hub answer names the grade only while on', () => {
     await turnOn();
     expect(await Grade.carry(null, tokenOf())).toBeNull();
     expect(await Grade.carry([1], tokenOf())).toEqual([1]);
+  });
+});
+
+describe('get: the sheet asks the grade when it opens, behind the same guards as the write', () => {
+  const ask = (id, device = DEVICE, token = tokenOf()) => Grade.get({ token, kid: chip(id), device });
+  test('a loose child: {now: 3, cls: null}', async () => {
+    await turnOn();
+    expect(await ask(LOOSE)).toEqual({ now: 3, cls: null });
+  });
+  test('a listed child: the class grade is cls; the family has none yet, so now is the class grade', async () => {
+    await turnOn();
+    expect(await ask(LISTED)).toEqual({ now: 4, cls: 4 });
+  });
+  test('a listed child whose family chose Grade 2: now 2, cls 4', async () => {
+    db.students[1].self_reported_class = 'Grade 2';
+    await turnOn();
+    expect(await ask(LISTED)).toEqual({ now: 2, cls: 4 });
+  });
+  test('a merged record: the canonical row\'s grade', async () => {
+    db.students[3].self_reported_class = 'Grade 5';
+    await turnOn();
+    expect(await ask(MERGED)).toEqual({ now: 5, cls: null });
+  });
+  test.each(OFF_VALUES)('%s: 404, no child read', async (_n, value) => {
+    await turnOn(value);
+    expect(await statusOf(ask(LOOSE))).toBe(404);
+    expect(reads).toEqual([]);
+  });
+  test('a chip of another child, a forged token: 403', async () => {
+    await turnOn();
+    expect(await statusOf(ask(OTHER))).toBe(403);
+    expect(await statusOf(ask(LOOSE, DEVICE, `${tokenOf().split('.')[0]}.AAAAAAAAAAAAAAAAAAAAAA`))).toBe(403);
+  });
+  test('an untrusted phone (or none): 403', async () => {
+    await turnOn();
+    expect(await statusOf(ask(LOOSE, 'ZzZzZzZzZzZzZzZzZzZzZz'))).toBe(403);
+    expect(await statusOf(ask(LOOSE, null))).toBe(403);
+  });
+});
+
+describe('browse: a class child\'s Stories and Videos default grade is the family\'s (only while on)', () => {
+  test('on, a class child whose family chose 2: 2; no family grade: the class grade', async () => {
+    db.students[1].self_reported_class = 'Grade 2';
+    await turnOn();
+    expect(await Grade.browseGrade({ studentId: LISTED, grade: '4' })).toBe('2');
+    db.students[1].self_reported_class = null;
+    expect(await Grade.browseGrade({ studentId: LISTED, grade: '4' })).toBe('4');
+  });
+  test.each(OFF_VALUES)('%s: the hub\'s own grade, and no read', async (_n, value) => {
+    db.students[1].self_reported_class = 'Grade 2';
+    await turnOn(value);
+    expect(await Grade.browseGrade({ studentId: LISTED, grade: '4' })).toBe('4');
+    expect(reads).toEqual([]);
+  });
+  const STORIES = { key: 'web_quiz_stories', value: true };
+  const shelfGrade = async () => {
+    const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+    jest.spyOn(Hub, 'kidFromHub').mockImplementation(async () => ({ studentId: LISTED, grade: '4', rootId: null, lang: 'en' }));
+    return (await require('../../../shared/services/quiz/web-quiz-stories').shelf('tok', { kid: 'k', l: 'en', device: DEVICE })).grade;
+  };
+  test('the Stories shelf (no grade asked): on -> the family\'s 2; off -> the class 4; a grade the page asks still wins', async () => {
+    db.students[1].self_reported_class = 'Grade 2';
+    rows = [STORIES, { key: KEY, value: true }]; await Flags.flags();
+    expect(await shelfGrade()).toBe(2);
+    const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+    expect((await require('../../../shared/services/quiz/web-quiz-stories').shelf('tok', { kid: 'k', g: '5', l: 'en', device: DEVICE })).grade).toBe(5);
+    expect(Hub.kidFromHub).toHaveBeenCalled();
+  });
+  test.each(OFF_VALUES)('the Stories shelf, %s: the class grade, as today', async (_n, value) => {
+    db.students[1].self_reported_class = 'Grade 2';
+    rows = [STORIES, ...(value === undefined ? [] : [{ key: KEY, value }])]; await Flags.flags();
+    expect(await shelfGrade()).toBe(4);
+  });
+  const LIB = { key: 'web_quiz_library', value: true };
+  const libGrade = async () => {
+    const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+    jest.spyOn(Hub, 'kidFromHub').mockImplementation(async () => ({ studentId: LISTED, grade: '4', rootId: null, lang: 'en' }));
+    return (await require('../../../shared/services/quiz/web-quiz-library').libHub('tok', { kid: 'k', device: DEVICE })).grade;
+  };
+  test('the Videos library from the hub: on -> the family\'s 2; off values -> the class 4', async () => {
+    db.students[1].self_reported_class = 'Grade 2';
+    rows = [LIB, { key: KEY, value: true }]; await Flags.flags();
+    expect(await libGrade()).toBe('2');
+  });
+  test.each(OFF_VALUES)('the Videos library, %s: the class grade, as today', async (_n, value) => {
+    db.students[1].self_reported_class = 'Grade 2';
+    rows = [LIB, ...(value === undefined ? [] : [{ key: KEY, value }])]; await Flags.flags();
+    expect(await libGrade()).toBe('4');
   });
 });
 
@@ -247,11 +322,10 @@ describe('set: the write, the caches, the event', () => {
     expect(a).toHaveBeenCalledWith(expect.arrayContaining([MERGED, CANON]));
     expect(b.mock.calls.map(([id]) => id)).toEqual(expect.arrayContaining([MERGED, CANON]));
   });
-  test('the next hub answer reads the new grade', async () => {
+  test('the next ask reads the new grade', async () => {
     await turnOn();
     await Grade.set({ token: tokenOf(), kid: chip(LOOSE), device: DEVICE, grade: 5 });
-    const out = await Grade.carry({ kid: chip(LOOSE), kids: [] }, tokenOf());
-    expect(out.grownups.grade).toEqual({ now: 5, cls: null });
+    expect(await Grade.get({ token: tokenOf(), kid: chip(LOOSE), device: DEVICE })).toEqual({ now: 5, cls: null });
   });
 });
 
@@ -302,6 +376,10 @@ async function serve(fn, hubOut) {
     tok,
     hubGet: async () => (await fetch(`${base}/hub/${tok}`, { headers: h })).text(),
     hubPost: async () => (await fetch(`${base}/hub/${tok}`, { method: 'POST', headers: { ...h, 'content-type': 'application/json' }, body: '{}' })).text(),
+    gradeGet: async (kid, device = DEVICE) => {
+      const r = await fetch(`${base}/hub/${tok}/grade?kid=${kid}`, { headers: { ...h, ...(device ? { 'x-wq-device': device } : {}) } });
+      return { status: r.status, body: await r.json() };
+    },
     grade: async (body, device = DEVICE) => {
       const r = await fetch(`${base}/hub/${tok}/grade`, { method: 'POST', headers: { ...h, 'content-type': 'application/json', ...(device ? { 'x-wq-device': device } : {}) }, body: JSON.stringify(body) });
       return { status: r.status, body: await r.json() };
@@ -312,14 +390,16 @@ async function serve(fn, hubOut) {
 
 describe('the routes', () => {
   const HUB = () => ({ lang: 'en', kids: [{ chip: chip(LOOSE), first: 'Noor', animal: 'owl', grade: '3' }], kid: chip(LOOSE), rt: false, grownups: { teacher_href: '/quiz/teacher/abc', teacher_label: 'Back' } });
-  test('on: the hub GET and POST answers carry grownups.grade, and nothing else changes', async () => {
+  test('on: the hub GET and POST answers carry grownups.grade_on, nothing else changes, and no child read is added', async () => {
     await turnOn();
     const golden = JSON.stringify(HUB());
     await serve(async (api) => {
+      const n = reads.length;
       for (const out of [await api.hubGet(), await api.hubPost()]) {
-        expect(JSON.parse(out).grownups.grade).toEqual({ now: 3, cls: null });
-        expect(out.replace(/,"grade":\{"now":3,"cls":null\}/, '')).toBe(golden);
+        expect(JSON.parse(out).grownups.grade_on).toBe(true);
+        expect(out.replace(/,"grade_on":true/, '')).toBe(golden);
       }
+      expect(reads.slice(n)).toEqual([]);
     }, HUB());
   });
   test.each(OFF_VALUES)('%s: the hub GET and POST answers byte for byte the OFF golden; the grade route 404', async (_n, value) => {
@@ -329,6 +409,7 @@ describe('the routes', () => {
       expect(await api.hubGet()).toBe(golden);
       expect(await api.hubPost()).toBe(golden);
       expect((await api.grade({ kid: chip(LOOSE), grade: 4 })).status).toBe(404);
+      expect((await api.gradeGet(chip(LOOSE))).status).toBe(404);
     }, HUB());
     expect(updates).toEqual([]);
   });
@@ -345,5 +426,14 @@ describe('the routes', () => {
       expect((await api.grade({ kid: chip(LOOSE), grade: 1 })).status).toBe(429);
     }, HUB());
     expect(updates).toHaveLength(5);
+  });
+  test('GET /hub/:token/grade?kid=: 200 {now, cls}; 403 a foreign chip or an untrusted phone', async () => {
+    await turnOn();
+    await serve(async (api) => {
+      expect(await api.gradeGet(chip(LISTED))).toEqual({ status: 200, body: { now: 4, cls: 4 } });
+      expect((await api.gradeGet(chip(OTHER))).status).toBe(403);
+      expect((await api.gradeGet(chip(LOOSE), 'ZzZzZzZzZzZzZzZzZzZzZz')).status).toBe(403);
+      expect((await api.gradeGet(chip(LOOSE), null)).status).toBe(403);
+    }, HUB());
   });
 });

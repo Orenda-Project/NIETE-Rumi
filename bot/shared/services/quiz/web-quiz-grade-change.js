@@ -2,20 +2,25 @@
 /**
  * A grown-up changes the child's grade, for good (app_settings web_quiz_grade_change, default off, fail off).
  *
- * On: the hub answer carries `grownups.grade = { now, cls }` for the chosen child (now: the grade the hub goes by, the
- * family's own choice first; cls: the class grade when the child is on a teacher's class or list, else null), and the
- * grown-ups sheet (dashboard wq-home.js) shows a Grade row whose chips post set(). The grade is kept in the existing
- * students.self_reported_class as 'Grade N', the hub's grade wherever the child has no class; a class child's class
- * still wins for class quizzes, the class table and the league (web-quiz-challenge.js gradeInfo order, unchanged).
- * child_identity.fixed_grade, the year's measured grade, is never read or written here. Off: the key is absent, so
- * every hub answer is today's, byte for byte, and set() answers 404. Only the stored JSON boolean true turns it on.
+ * On: the hub answer says `grownups.grade_on: true` (from the hub switches' cache, no read), and the grown-ups sheet
+ * (dashboard wq-home.js) asks get() for the chosen child's grade when it opens: { now, cls } (now: the family's own
+ * choice first, else the grade the hub goes by; cls: the class grade when the child is on a teacher's class or list,
+ * else null). Its chips post set(). The grade is kept in the existing students.self_reported_class as 'Grade N', the
+ * hub's grade wherever the child has no class. A class child's class still wins for class quizzes, the class table,
+ * the league and Home (web-quiz-challenge.js gradeInfo order, unchanged); only the Stories shelf and the Videos library
+ * open at the family's grade by default (browseGrade). child_identity.fixed_grade, the year's measured grade, is never
+ * read or written here. Off: the key is absent, so every answer is today's, byte for byte, and get() and set() answer
+ * 404. Only the stored JSON boolean true turns it on.
  *
  * The key rides the hub switches' one app_settings read (web-quiz-hub-flags.js): carry() looks at that cache once the
- * hub answer is in (no read of its own; cold or expired is off); set() asks the same shared read (30 s cache).
+ * hub answer is in (cold or expired is off), and so does browseGrade(); get() and set() ask the same shared read (30 s
+ * cache), since a grown-up may hold the sheet open past the cache's life.
  *
  *   on()                                the switch, never waited for and never read here
- *   carry(hubAnswerP, token)            the hub answer with grownups.grade while on; untouched while off
+ *   carry(hubAnswerP)                   the hub answer with grownups.grade_on while on; untouched while off
+ *   get({ token, kid, device })         { now, cls } for the child a hub chip names, else a WqError (403 / 404)
  *   set({ token, kid, device, grade })  the write: {ok: true, grade}, else a WqError (400 / 403 / 404 / 429)
+ *   browseGrade({ studentId, grade })   the Stories / Videos default grade: the family's while on, else `grade`
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -25,7 +30,6 @@ const Flags = require('./web-quiz-hub-flags');
 const T = require('./web-quiz-token');
 
 const KEY = Flags.GRADE_CHANGE_KEY;
-const FIELD = 'grade';
 // The grades the child app serves everywhere (the Stories chips, the challenge bands, the fixed_grade CHECK).
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
 const DAY_MAX = 5;                         // changes per child per Pakistan day; more answer 429
@@ -85,24 +89,52 @@ async function gradesOf(row) {
 }
 
 /**
- * A hub answer (or its promise) with `grownups.grade` for its chosen child while on, merged into any `grownups` the
- * hub already sent; the same answer, untouched, while off, with no chosen child, on a locked page or a coach's preview.
- * A failed read leaves the answer as it came.
+ * A hub answer (or its promise) with `grownups.grade_on: true` while on, merged into any `grownups` the hub already
+ * sent; the same answer, untouched, while off, with no chosen child, on a locked page or a coach's preview. No read:
+ * the sheet asks get() for the grade when a grown-up opens it.
  */
-function carry(hubAnswerP, token) {
-  return Promise.resolve(hubAnswerP).then(async (out) => {
+function carry(hubAnswerP) {
+  return Promise.resolve(hubAnswerP).then((out) => {
     if (!on() || !out || typeof out !== 'object' || Array.isArray(out) || !out.kid || out.locked || out.practice) return out;
-    try {
-      const who = await chipChild(token, out.kid);
-      const row = who ? await ownRow(who.studentId) : null;
-      if (!row || row.is_active === false) return out;
-      const grade = await gradesOf(row);
-      out.grownups = Object.assign(out.grownups && typeof out.grownups === 'object' ? out.grownups : {}, { [FIELD]: grade });
-    } catch (err) {
-      logToFile('⚠️ web quiz grade change: no grade on the hub answer', { error: err.message });
-    }
+    out.grownups = Object.assign(out.grownups && typeof out.grownups === 'object' ? out.grownups : {}, { grade_on: true });
     return out;
   });
+}
+
+/** The guards get() and set() share: the chip is one of the token's children (403), this phone is trusted for it (403). */
+async function guardedChild(token, kid, device) {
+  const who = await chipChild(token, kid);
+  if (!who) fail(403, 'not_your_child');
+  const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
+  if (!trust || !trust.ok || !who.rawIds.some((id) => (trust.ids || []).map(String).includes(id))) fail(403, 'other_device');
+  let row;
+  try { row = await ownRow(who.studentId); } catch (_) { fail(502, 'db_unavailable'); }
+  if (!row || row.is_active === false) fail(403, 'not_your_child');
+  return { who, row };
+}
+
+/** The grade the sheet shows when it opens: { now, cls }. Off: 404. */
+async function get({ token, kid, device } = {}) {
+  if (!(await onNow())) fail(404, 'not_found');
+  const { row } = await guardedChild(token, kid, device);
+  return gradesOf(row);
+}
+
+/**
+ * The Stories shelf's and the Videos library's default grade for the hub's child (`grade`: the hub's own, kidFromHub):
+ * while on, the family's grade (students.self_reported_class, 1-5) when it differs from it, as a string like the hub's;
+ * else `grade`, untouched. The switch comes from the hub switches' cache only (as carry), so off (or a cold cache) adds
+ * no read of any kind and the shelf and library ask exactly what they asked before. Never throws.
+ */
+async function browseGrade({ studentId, grade } = {}) {
+  try {
+    if (!studentId || !on()) return grade;
+    const row = await ownRow(studentId);
+    const own = row ? gradeOf(row.self_reported_class) : null;
+    return own && String(own) !== String(grade) ? String(own) : grade;
+  } catch (_) {
+    return grade;
+  }
 }
 
 // When Redis cannot count, this process counts (lost on a restart, per instance): the ceiling still holds on one box.
@@ -135,13 +167,7 @@ async function underDayCap(childId, now = Date.now()) {
 async function set({ token, kid, device, grade } = {}) {
   if (!(await onNow())) fail(404, 'not_found');
   if (typeof grade !== 'number' || !GRADES.includes(grade)) fail(400, 'bad_grade');
-  const who = await chipChild(token, kid);
-  if (!who) fail(403, 'not_your_child');
-  const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
-  if (!trust || !trust.ok || !who.rawIds.some((id) => (trust.ids || []).map(String).includes(id))) fail(403, 'other_device');
-  let row;
-  try { row = await ownRow(who.studentId); } catch (_) { fail(502, 'db_unavailable'); }
-  if (!row || row.is_active === false) fail(403, 'not_your_child');
+  const { who, row } = await guardedChild(token, kid, device);
   const before = await gradesOf(row);
   if (gradeOf(row.self_reported_class) === grade) return { ok: true, grade };
   if (!(await underDayCap(row.id))) fail(429, 'try_tomorrow');
@@ -161,4 +187,4 @@ async function set({ token, kid, device, grade } = {}) {
   return { ok: true, grade };
 }
 
-module.exports = { on, carry, set, KEY, FIELD, GRADES, DAY_MAX };
+module.exports = { on, carry, get, set, browseGrade, KEY, GRADES, DAY_MAX };

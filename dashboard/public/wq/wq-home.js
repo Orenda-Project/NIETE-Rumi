@@ -32,6 +32,7 @@
       myClass: 'My class', mySchool: 'My school', social: 'My class and my school',
       grade: 'Grade', gradeN: function (n) { return 'Grade ' + n; }, inClass: function (n) { return 'In class: Grade ' + n; },
       gradeSaved: function (n) { return 'Saved. Home now shows Grade ' + n + '.'; }, gradeLater: 'Try again tomorrow.',
+      gradeSavedCls: function (n, c) { return 'Saved. Stories and videos now open at Grade ' + n + '. Class quizzes stay Grade ' + c + '.'; },
     },
     ur: {
       hi: function (n) { return n ? '⁨' + n + '⁩، السلام علیکم!' : 'السلام علیکم!'; },
@@ -52,8 +53,9 @@
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
       off: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', offAgain: 'دوبارہ کوشش کریں',
       myClass: 'میری کلاس', mySchool: 'میرا اسکول', social: 'میری کلاس اور میرا اسکول',
-      grade: 'جماعت', gradeN: function (n) { return 'جماعت ' + urDigits(n); }, inClass: function (n) { return 'کلاس میں: جماعت ' + urDigits(n); },
-      gradeSaved: function (n) { return 'محفوظ ہو گیا۔ اب ہوم پر جماعت ' + urDigits(n) + ' ہے۔'; }, gradeLater: 'کل دوبارہ کوشش کریں۔',
+      grade: 'جماعت', gradeN: function (n) { return 'جماعت ' + urDigits(n); }, inClass: function (n) { return 'اسکول میں: جماعت ' + urDigits(n); },
+      gradeSaved: function (n) { return 'محفوظ ہو گیا۔ اب ہوم پر جماعت ' + urDigits(n) + ' نظر آئے گی۔'; }, gradeLater: 'کل دوبارہ کوشش کریں۔',
+      gradeSavedCls: function (n, c) { return 'محفوظ ہو گیا۔ اب کہانیاں اور ویڈیوز جماعت ' + urDigits(n) + ' کی کھلیں گی۔ کلاس کے کوئز جماعت ' + urDigits(c) + ' کے رہیں گے۔'; },
     },
   };
   // The door icons (inline, one colour, currentColor): a book, a die, a play button.
@@ -508,9 +510,11 @@
     ['pointerdown', 'touchstart'].forEach(function (n) { el.addEventListener(n, start); });
     ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (n) { el.addEventListener(n, stop); });
   }
-  // The sheet's Grade row (the server's `grownups.grade` {now, cls}, web_quiz_grade_change): a label and a value button
-  // that opens the Stories grade chips 1-5; `pick` = the chips are open, `said` = the line under them (saved / tomorrow).
+  // The sheet's Grade row (the server's `grownups.grade_on`, web_quiz_grade_change): a label and a value button that
+  // opens the Stories grade chips 1-5; `gr` = {now, cls} once the bot answered (until then a skeleton), `pick` = the chips
+  // are open, `said` = the line under them (saved / tomorrow).
   function gradeRow(t, l, gr, pick, said) {
+    if (!gr) return '<span class="wq-glabel">' + esc(t.grade) + '</span><span class="wq-gskel" aria-hidden="true"></span>';
     var chips = '';
     if (pick) [1, 2, 3, 4, 5].forEach(function (n) { chips += '<button class="wqs-chip" data-tap="g" data-arg="' + n + '" aria-pressed="' + (n === gr.now) + '">' + (l === 'ur' ? urDigits(n) : n) + '</button>'; });
     return '<span class="wq-glabel">' + esc(t.grade) + '</span>' +
@@ -523,12 +527,11 @@
   function grownups(root, B, ctx) {
     var t = C(ctx); var other = langOf(ctx) === 'ur' ? 'en' : 'ur';
     var g = B.grownups || {};
-    var gr = g.grade && typeof g.grade === 'object' ? { now: +g.grade.now || null, cls: +g.grade.cls || null } : null;
     var box = document.createElement('div');
     box.className = 'wq-gsheet'; box.setAttribute('role', 'dialog'); box.setAttribute('data-screen', 'grownups');
     box.innerHTML = '<b>' + esc(t.grown) + '</b>' +
       '<a class="wq-btn wq-go" data-primary data-tap="lang" href="' + esc(withLang('/h/' + encodeURIComponent(ctx.token || '') + '?kid=' + encodeURIComponent(B.kid || ''), other) + '&keep=1') + '">' + esc(t.grownLang) + '</a>' +
-      (gr ? '<div class="wq-ggrade" data-grade>' + gradeRow(t, langOf(ctx), gr) + '</div>' : '') +
+      (g.grade_on === true ? '<div class="wq-ggrade" data-grade>' + gradeRow(t, langOf(ctx), null) + '</div>' : '') +
       (g.teacher_href ? '<a class="wq-btn wq-ghost" data-tap="teacher" href="' + esc(g.teacher_href) + '">' + esc(g.teacher_label || '') + '</a>' : '') +
       (g.stop_href ? '<a class="wq-btn wq-ghost" data-tap="stop" href="' + esc(g.stop_href) + '">' + esc(g.stop_label || '') + '</a>' : '') +
       // the phone that made this child's link (the boot's `forget_phone`, the link's whole life): one tap forgets it
@@ -561,17 +564,22 @@
         .then(function (j) { if (!j || !j.ok) throw new Error('forget'); location.reload(); })
         .catch(function () { fg.disabled = false; });
     });
-    // A chip tap saves the grade for good (POST /api/wq/hub/grade); the saved line shows for 2 s, and Close redraws Home.
+    // The grade is asked when the sheet opens (GET /api/wq/hub/grade; a skeleton until it answers; no answer: no row).
+    // A chip tap saves it for good (POST); the saved line shows for 2 s, and Close redraws Home.
     var saved = false;
-    var row = gr ? box.querySelector('[data-grade]') : null;
+    var row = g.grade_on === true ? box.querySelector('[data-grade]') : null;
     if (row) {
-      var pick = false; var said = ''; var saidT = null; var busy = false;
+      var gr = null; var pick = false; var said = ''; var saidT = null; var busy = false;
       var draw = function () { row.innerHTML = gradeRow(t, langOf(ctx), gr, pick, said); };
       var say = function (line, ms) { said = line; clearTimeout(saidT); draw(); if (ms) saidT = setTimeout(function () { said = ''; draw(); }, ms); };
       draw();
+      fetch('/api/wq/hub/grade?hub=' + encodeURIComponent(ctx.token || '') + '&kid=' + encodeURIComponent(B.kid || ''), { headers: { accept: 'application/json' } })
+        .then(function (r) { if (r.status !== 200) throw new Error('grade'); return r.json(); })
+        .then(function (j) { gr = { now: +(j && j.now) || null, cls: +(j && j.cls) || null }; draw(); })
+        .catch(function () { row.innerHTML = ''; row.hidden = true; });
       row.addEventListener('click', function (e) {
         var b = e && e.target && e.target.closest ? e.target.closest('[data-tap]') : null;
-        var tap = b ? b.getAttribute('data-tap') : null;
+        var tap = b && gr ? b.getAttribute('data-tap') : null;
         if (tap === 'grade') { pick = !pick; said = ''; return draw(); }
         var n = tap === 'g' ? +b.getAttribute('data-arg') : 0;
         if (!n || n === gr.now || busy) return;
@@ -582,8 +590,9 @@
             busy = false;
             if (a.s === 429) { pick = false; return say(t.gradeLater); }
             if (!a.j || !a.j.ok) throw new Error('grade');
-            gr.now = n; g.grade.now = n; saved = true; pick = false;
-            say(t.gradeSaved(n), 2000);
+            gr.now = n; saved = true; pick = false;
+            // a class child: Stories and Videos open at the new grade, class quizzes stay at the class's
+            say(gr.cls && gr.cls !== n ? t.gradeSavedCls(n, gr.cls) : t.gradeSaved(n), 2000);
           })
           .catch(function () { busy = false; });
       });
