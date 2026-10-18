@@ -907,6 +907,7 @@ const RULE = {
   urduTermWord: 'A grammar-term item (اسم صفت، حرفِ عطف، فعل …) never prints a word of its own answer in its stem: describe what the term does, and quote an example.',
   urduConceptOnce: `Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only: no other Q1 item names its words, states its rule or gives its example. Each of these is a concept of its own: اسم صوت، اسم آلہ، اسم معرفہ، اسم نکرہ، صفت، موصوف; a definition item asks its concept, so an item that says what a term is («جو لفظ … آواز ظاہر کرے») and an item that asks for that term are one concept asked twice. ${URDU_Q4_NEVER} An antonym item and a synonym item are concepts too: at most one of each.`,
   urduHomograph: 'A homograph (ایک ہی املا) item never quotes the pair\'s word in its stem, not even inside a longer word or phrase; it gives both meanings only.',
+  urduPunctuation: 'A رموزِ اوقاف item quotes a sentence printed without its mark and asks which mark it takes; its stem never ends with the mark it asks for (an item keyed «؟» ends «… درست علامت منتخب کریں۔»).',
   urduVerbSense: 'Give a verb sense by a paraphrase or a sentence, never by its infinitive («بننا», «ڈالنا»): the infinitive prints the letters of the word it asks for.',
   urduFormFamily: 'In a واحد/جمع or مذکر/مؤنث item, every option is a form of the asked word\'s family.',
   urduOneTable: 'Q1 takes at most 3 items from one word table of the book (a متشابہ، متضاد or مترادف list), and a distractor is never another Q1 item\'s key.',
@@ -1293,7 +1294,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
         ? [URDU_LESSONS_RULES.conceptOnce(urduTerms), URDU_LESSONS_RULES.termWord(urduTerms),
           URDU_LESSONS_RULES.budget(urduTerms, urduConcepts, q1.generate, urduPairs), URDU_LESSONS_RULES.concept(urduTerms)].filter(Boolean)
         : [RULE.urduConceptOnce, RULE.urduTermWord];
-      rules.push(...concepts, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduFormFamily, RULE.urduOneTable);
+      rules.push(...concepts, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduPunctuation, RULE.urduFormFamily, RULE.urduOneTable);
       if (urduLessons && oneStory(urduLessons)) rules.push(URDU_LESSONS_RULES.story(q1.generate));
     }
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
