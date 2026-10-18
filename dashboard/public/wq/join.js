@@ -16,6 +16,9 @@
   var goEl = document.getElementById('jn-go');
   var outEl = document.getElementById('jn-out');
   if (!goEl || !outEl) return;   // not the join screen (the file is public): nothing to do
+  // quiz_join_wait_word: the button says the waiting line while the join runs (off: today's button)
+  var going = boot.waitWord === true && typeof C.going === 'string' && C.going ? C.going : null;
+  var goText = goEl.textContent;
   // the home's own animals (hub.js ANIMALS): two children with one name are told apart by the animal they know
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
 
@@ -83,6 +86,11 @@
   }
   function sync() { notice(); goEl.disabled = busy || !grade || (!practice && !okName(name())); }
   function go(url) { try { location.replace(url); } catch (e) { location.href = url; } }
+  function waiting(on) {
+    if (!going) return;
+    goEl.textContent = on ? going : goText;
+    if (on) goEl.setAttribute('aria-busy', 'true'); else goEl.removeAttribute('aria-busy');
+  }
 
   // The home's files, fetched at low priority while the child types (cancelled by the browser if the page leaves).
   function warm(list) {
@@ -99,6 +107,8 @@
 
   function answer(status, b) {
     busy = false;
+    // the line stays only while the home opens
+    if (!(b.next && typeof b.next === 'string' && b.next.charAt(0) === '/' && !b.refused)) waiting(false);
     if (b.next && typeof b.next === 'string' && b.next.charAt(0) === '/') {
       if (b.refused === 'max_kids') return say('<p class="line">' + esc(C.full) + '</p><a class="go" href="' + esc(b.next) + '">' + esc(C.open) + '</a>');
       if (b.refused === 'teacher_phone') { line(C.teacher); return setTimeout(function () { go(b.next); }, 1800); }
@@ -126,7 +136,7 @@
     if (busy) return;
     busy = true;
     sync();
-    say('<p class="small">' + esc(C.wait) + '</p>');
+    if (going) { waiting(true); say(''); } else say('<p class="small">' + esc(C.wait) + '</p>');
     var body = { t: boot.t, grade: grade };
     if (!practice) body.name = name();
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) body[k] = extra[k];

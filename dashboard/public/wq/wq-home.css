@@ -67,3 +67,8 @@ html[lang=ur] .wq-gsheet .wq-ghost{text-decoration:none;border-bottom:2px solid 
 .wq-remember.wq-remgone{opacity:0}
 html[lang=ur] .wq-remember{font-family:var(--fu);font-size:17px;line-height:1.9}
 html[lang=ur] .wq-remundo{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0}
+/* My class + my school (web_quiz_class_doors): two equal tiles under the Next tile. The look is today's button
+   (.wq-btn.wq-soft in wq.css); these rules only lay the pair out. TODO(one button system): the sweep swaps wq-soft. */
+.wq-social{display:flex;gap:12px;margin:16px 0 0}
+.wq-social .wq-soc{flex:1;flex-direction:column;gap:4px;min-height:84px;width:auto;padding:10px 8px;-webkit-tap-highlight-color:transparent}
+.wq-soc svg{color:var(--brand)}
