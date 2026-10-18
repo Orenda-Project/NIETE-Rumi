@@ -86,6 +86,30 @@ describe('on', () => {
     const out = await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), event: 'story_done', data: { pages_listened: 1, pages_read: 0 } });
     expect(out).not.toHaveProperty('reading');
   });
+  test('the speed only on an honest read: 15 words AND 6 s (14 words in a minute, or 30 words in 5.9 s: no speed)', async () => {
+    for (const [w, ms] of [[14, 60000], [30, 5900]]) {
+      seed({ rf: true, events: [read(1, w, 40, ms)] });
+      expect((await done()).reading).toMatchObject({ words_read: w, ms, wcpm: null });
+    }
+    seed({ rf: true, events: [read(1, 15, 40, 6000)] });
+    expect((await done()).reading.wcpm).toBe(150);
+  });
+  test('"last time" is the child\'s newest book with a speed, never an older one', async () => {
+    const doneRow = (book, wcpm, h) => ({ child_id: KID, book_id: F.BOOK(book), page_n: null, event: 'story_done', data: { pages_listened: 0, pages_read: 2, stars: 2, wcpm }, at: at(h) });
+    seed({ rf: true, events: [...READS, doneRow(2, 25, 0), { ...doneRow(2, 55, 1), at: new Date(Date.UTC(2026, 9, 17, 0, 30)).toISOString() }] });
+    expect((await done()).reading.prev_wcpm).toBe(55);
+  });
+  test('the book\'s end answers THIS open of the book: a read from an earlier open (yesterday) is not today\'s, and its speed is not kept as today\'s', async () => {
+    const opened = (h) => ({ child_id: KID, book_id: F.BOOK(1), page_n: null, event: 'story_opened', data: { grade: 2, lang: 'en' }, at: at(h) });
+    // yesterday (before this open): pages 1 and 2 read well; today: only page 3, 9 of 14 words in 8 s
+    seed({ rf: true, events: [read(1, 10, 10, 7000, 0), read(2, 12, 12, 9000, 0), opened(3), read(3, 9, 14, 8000, 4)] });
+    const out = await done();
+    expect(out.reading).toEqual({ words_read: 9, words_total: 14, ms: 8000, wcpm: null, prev_wcpm: null });
+    expect(fake.db.story_events.find((e) => e.event === 'story_done').data).not.toHaveProperty('wcpm');
+    // no open on record (an older page): every read of the book, as before
+    seed({ rf: true, events: [read(1, 10, 10, 7000, 0), read(3, 9, 14, 8000, 4)] });
+    expect((await done()).reading.words_read).toBe(19);
+  });
   test('another phone (the hub refuses it): no body at all, so no reading and no speed', async () => {
     seed({ rf: true, events: READS });
     mockKidFromHub.mockResolvedValue(null);
