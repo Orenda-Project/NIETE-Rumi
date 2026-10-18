@@ -12,8 +12,8 @@
  *  - who / role / bind: the remembered answer ONCE per link (writer role_page); the users row and the students rows are
  *    never written; a bind's pick must be one of THIS phone's (or this device's) children; the binding itself is the
  *    join page's write (a stub here).
- * With ONE_DOOR_DUMP_DIR set, the rendered pages are written there (role.html, pick-one.html, pick-many.html,
- * family.html, stale.html) for the page audit.
+ * When the folder <os tmpdir>/one-door-pages exists, the rendered pages are written there (role.html, pick-one.html,
+ * pick-many.html, family.html, stale.html) for the page audit: create the folder to get them. No env name is read.
  */
 process.env.WEB_QUIZ_BASE_URL = 'https://portal.example';
 process.env.WEB_QUIZ_TOKEN_SECRET = 'unit-secret-not-a-secret';
@@ -78,7 +78,8 @@ const DEV2 = 'BBBBBBBBBBBBBBBBBBBBBB';
 const QDEV = 'QQQQQQQQQQQQQQQQQQQQQQ';
 const THIS_YEAR = new Date().toISOString();
 const LAST_YEAR = new Date(Date.now() - 400 * 86400000).toISOString();
-const DUMP = process.env.ONE_DOOR_DUMP_DIR || null;
+const DUMP_DIR = path.join(require('os').tmpdir(), 'one-door-pages');
+const DUMP = fs.existsSync(DUMP_DIR) ? DUMP_DIR : null;
 const dump = (name, html) => { if (DUMP) { fs.mkdirSync(DUMP, { recursive: true }); fs.writeFileSync(path.join(DUMP, name), html); } };
 
 let server;

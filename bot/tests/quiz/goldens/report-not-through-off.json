@@ -1,0 +1,188 @@
+{
+  "list: 20 finished, WhatsApp refuses the report": {
+    "texts": [
+      "Recounting now — every student who has finished since the last report is included. One moment…",
+      "‎📊 *Quiz results — Electric circuits*\n‎Class 4\n\n‎20 of 20 students finished.\n‎Class average: *74%*\n\n‎*How each student did*\n‎• Child3 Testwala — 4/4 (100%)\n‎• Child6 Testwala — 4/4 (100%)\n‎• Child9 Testwala — 4/4 (100%)\n‎• Child12 Testwala — 4/4 (100%)\n‎• Child15 Testwala — 4/4 (100%)\n‎• Child18 Testwala — 4/4 (100%)\n‎• Child2 Testwala — 3/4 (75%)\n‎• Child5 Testwala — 3/4 (75%)\n‎• Child8 Testwala — 3/4 (75%)\n‎• Child11 Testwala — 3/4 (75%)\n‎• Child14 Testwala — 3/4 (75%)\n‎• Child17 Testwala — 3/4 (75%)\n‎• Child20 Testwala — 3/4 (75%)\n‎• Child1 Testwala — 2/4 (50%)\n‎• Child4 Testwala — 2/4 (50%)\n‎• Child7 Testwala — 2/4 (50%)\n‎• Child10 Testwala — 2/4 (50%)\n‎• Child13 Testwala — 2/4 (50%)\n‎• Child16 Testwala — 2/4 (50%)\n‎• Child19 Testwala — 2/4 (50%)\n"
+    ],
+    "events": [
+      [
+        "transcript_quiz.report_requested",
+        {
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "sent": true
+        }
+      ]
+    ]
+  },
+  "list: 20 finished, WhatsApp takes the report": {
+    "texts": [
+      "Recounting now — every student who has finished since the last report is included. One moment…",
+      "‎📊 *Quiz results — Electric circuits*\n‎Class 4\n\n‎20 of 20 students finished.\n‎Class average: *74%*\n\n‎*How each student did*\n‎• Child3 Testwala — 4/4 (100%)\n‎• Child6 Testwala — 4/4 (100%)\n‎• Child9 Testwala — 4/4 (100%)\n‎• Child12 Testwala — 4/4 (100%)\n‎• Child15 Testwala — 4/4 (100%)\n‎• Child18 Testwala — 4/4 (100%)\n‎• Child2 Testwala — 3/4 (75%)\n‎• Child5 Testwala — 3/4 (75%)\n‎• Child8 Testwala — 3/4 (75%)\n‎• Child11 Testwala — 3/4 (75%)\n‎• Child14 Testwala — 3/4 (75%)\n‎• Child17 Testwala — 3/4 (75%)\n‎• Child20 Testwala — 3/4 (75%)\n‎• Child1 Testwala — 2/4 (50%)\n‎• Child4 Testwala — 2/4 (50%)\n‎• Child7 Testwala — 2/4 (50%)\n‎• Child10 Testwala — 2/4 (50%)\n‎• Child13 Testwala — 2/4 (50%)\n‎• Child16 Testwala — 2/4 (50%)\n‎• Child19 Testwala — 2/4 (50%)\n"
+    ],
+    "events": [
+      [
+        "transcript_quiz.report_requested",
+        {
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "sent": true
+        }
+      ]
+    ]
+  },
+  "list: 20 finished, refused, a page link known": {
+    "texts": [
+      "Recounting now — every student who has finished since the last report is included. One moment…",
+      "‎📊 *Quiz results — Electric circuits*\n‎Class 4\n\n‎20 of 20 students finished.\n‎Class average: *74%*\n\n‎*How each student did*\n‎• Child3 Testwala — 4/4 (100%)\n‎• Child6 Testwala — 4/4 (100%)\n‎• Child9 Testwala — 4/4 (100%)\n‎• Child12 Testwala — 4/4 (100%)\n‎• Child15 Testwala — 4/4 (100%)\n‎• Child18 Testwala — 4/4 (100%)\n‎• Child2 Testwala — 3/4 (75%)\n‎• Child5 Testwala — 3/4 (75%)\n‎• Child8 Testwala — 3/4 (75%)\n‎• Child11 Testwala — 3/4 (75%)\n‎• Child14 Testwala — 3/4 (75%)\n‎• Child17 Testwala — 3/4 (75%)\n‎• Child20 Testwala — 3/4 (75%)\n‎• Child1 Testwala — 2/4 (50%)\n‎• Child4 Testwala — 2/4 (50%)\n‎• Child7 Testwala — 2/4 (50%)\n‎• Child10 Testwala — 2/4 (50%)\n‎• Child13 Testwala — 2/4 (50%)\n‎• Child16 Testwala — 2/4 (50%)\n‎• Child19 Testwala — 2/4 (50%)\n",
+      "📣 Remind the class (the message names no child):\nhttps://report.example/r/tok/remind\n\n📈 Live report (it updates as more children play):\nhttps://report.example/r/tok"
+    ],
+    "events": [
+      [
+        "transcript_quiz.report_requested",
+        {
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "sent": true
+        }
+      ]
+    ]
+  },
+  "list: nobody finished on the report's code": {
+    "texts": [
+      "Recounting now — every student who has finished since the last report is included. One moment…",
+      "No one has finished this quiz yet, so there is nothing to report. Resend the link?"
+    ],
+    "events": [
+      [
+        "transcript_quiz.report_requested",
+        {
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "sent": false
+        }
+      ]
+    ]
+  },
+  "flow: 20 finished, WhatsApp refuses the report": {
+    "texts": [
+      "‎📊 *Quiz results — Electric circuits*\n‎Class 4\n\n‎20 of 20 students finished.\n‎Class average: *74%*\n\n‎*How each student did*\n‎• Child3 Testwala — 4/4 (100%)\n‎• Child6 Testwala — 4/4 (100%)\n‎• Child9 Testwala — 4/4 (100%)\n‎• Child12 Testwala — 4/4 (100%)\n‎• Child15 Testwala — 4/4 (100%)\n‎• Child18 Testwala — 4/4 (100%)\n‎• Child2 Testwala — 3/4 (75%)\n‎• Child5 Testwala — 3/4 (75%)\n‎• Child8 Testwala — 3/4 (75%)\n‎• Child11 Testwala — 3/4 (75%)\n‎• Child14 Testwala — 3/4 (75%)\n‎• Child17 Testwala — 3/4 (75%)\n‎• Child20 Testwala — 3/4 (75%)\n‎• Child1 Testwala — 2/4 (50%)\n‎• Child4 Testwala — 2/4 (50%)\n‎• Child7 Testwala — 2/4 (50%)\n‎• Child10 Testwala — 2/4 (50%)\n‎• Child13 Testwala — 2/4 (50%)\n‎• Child16 Testwala — 2/4 (50%)\n‎• Child19 Testwala — 2/4 (50%)\n"
+    ],
+    "events": [
+      [
+        "transcript_quiz.flow_action",
+        {
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_closed",
+        {
+          "kind": "report",
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_action_done",
+        {
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "ok": true
+        }
+      ]
+    ]
+  },
+  "flow: 20 finished, WhatsApp takes the report": {
+    "texts": [
+      "‎📊 *Quiz results — Electric circuits*\n‎Class 4\n\n‎20 of 20 students finished.\n‎Class average: *74%*\n\n‎*How each student did*\n‎• Child3 Testwala — 4/4 (100%)\n‎• Child6 Testwala — 4/4 (100%)\n‎• Child9 Testwala — 4/4 (100%)\n‎• Child12 Testwala — 4/4 (100%)\n‎• Child15 Testwala — 4/4 (100%)\n‎• Child18 Testwala — 4/4 (100%)\n‎• Child2 Testwala — 3/4 (75%)\n‎• Child5 Testwala — 3/4 (75%)\n‎• Child8 Testwala — 3/4 (75%)\n‎• Child11 Testwala — 3/4 (75%)\n‎• Child14 Testwala — 3/4 (75%)\n‎• Child17 Testwala — 3/4 (75%)\n‎• Child20 Testwala — 3/4 (75%)\n‎• Child1 Testwala — 2/4 (50%)\n‎• Child4 Testwala — 2/4 (50%)\n‎• Child7 Testwala — 2/4 (50%)\n‎• Child10 Testwala — 2/4 (50%)\n‎• Child13 Testwala — 2/4 (50%)\n‎• Child16 Testwala — 2/4 (50%)\n‎• Child19 Testwala — 2/4 (50%)\n"
+    ],
+    "events": [
+      [
+        "transcript_quiz.flow_action",
+        {
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_closed",
+        {
+          "kind": "report",
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_action_done",
+        {
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "ok": true
+        }
+      ]
+    ]
+  },
+  "flow: 20 finished, refused, a page link known": {
+    "texts": [
+      "‎📊 *Quiz results — Electric circuits*\n‎Class 4\n\n‎20 of 20 students finished.\n‎Class average: *74%*\n\n‎*How each student did*\n‎• Child3 Testwala — 4/4 (100%)\n‎• Child6 Testwala — 4/4 (100%)\n‎• Child9 Testwala — 4/4 (100%)\n‎• Child12 Testwala — 4/4 (100%)\n‎• Child15 Testwala — 4/4 (100%)\n‎• Child18 Testwala — 4/4 (100%)\n‎• Child2 Testwala — 3/4 (75%)\n‎• Child5 Testwala — 3/4 (75%)\n‎• Child8 Testwala — 3/4 (75%)\n‎• Child11 Testwala — 3/4 (75%)\n‎• Child14 Testwala — 3/4 (75%)\n‎• Child17 Testwala — 3/4 (75%)\n‎• Child20 Testwala — 3/4 (75%)\n‎• Child1 Testwala — 2/4 (50%)\n‎• Child4 Testwala — 2/4 (50%)\n‎• Child7 Testwala — 2/4 (50%)\n‎• Child10 Testwala — 2/4 (50%)\n‎• Child13 Testwala — 2/4 (50%)\n‎• Child16 Testwala — 2/4 (50%)\n‎• Child19 Testwala — 2/4 (50%)\n",
+      "📣 Remind the class (the message names no child):\nhttps://report.example/r/tok/remind\n\n📈 Live report (it updates as more children play):\nhttps://report.example/r/tok"
+    ],
+    "events": [
+      [
+        "transcript_quiz.flow_action",
+        {
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_closed",
+        {
+          "kind": "report",
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_action_done",
+        {
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "ok": true
+        }
+      ]
+    ]
+  },
+  "flow: nobody finished on the report's code": {
+    "texts": [
+      "No one has finished this quiz yet, so there is nothing to report. Resend the link?"
+    ],
+    "events": [
+      [
+        "transcript_quiz.flow_action",
+        {
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_closed",
+        {
+          "kind": "report",
+          "userId": "8d3e2a2a-0000-4000-8000-0000000000d4",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4"
+        }
+      ],
+      [
+        "transcript_quiz.flow_action_done",
+        {
+          "action": "report",
+          "quizId": "7c2d1f1f-0000-4000-8000-0000000000d4",
+          "ok": false
+        }
+      ]
+    ]
+  }
+}
