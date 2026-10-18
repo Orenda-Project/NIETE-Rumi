@@ -215,8 +215,12 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     expect((html.match(/data-primary/g) || []).length).toBe(1);
     expect(html).toContain('href="https://wa.me/15550001111?text=quiz%20please%20jb3b9c1e2a"');
     expect(html).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
-    // the headline runs in the page's direction, the name isolated (a Latin name never turns an Urdu line around)
-    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi>${firstOf('Noor Testwala')}</bdi>: `);
+    // the headline runs in the page's direction, the name isolated on its own line (a Latin name never turns an Urdu
+    // line around, and no "Name:" crowds the deed)
+    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi class="nm">${firstOf('Noor Testwala')}</bdi>I read`);
+    expect(html).toContain('.k h1 .nm{display:block}');
+    // Urdu at the Regular weight only: a bold Nastaliq breaks «پڑھی» into «پڑ ھی»
+    expect(html.includes('.k h1,.k .it,.mark,.wq-btn{font-weight:400}')).toBe(lang === 'ur');
     expect(html).not.toMatch(BANNED);
     // the landing names what it lands on; with no name, no empty line
     const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });

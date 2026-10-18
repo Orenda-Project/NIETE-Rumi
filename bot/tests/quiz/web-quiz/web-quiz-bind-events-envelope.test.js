@@ -56,6 +56,10 @@ const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
 const KEY = 'unit-kid-key-not-a-secret-32-bytes!!';
 const USER = { id: 'u-family', registration_completed: false, registration_state: 'unregistered', name: null, role: 'teacher', preferred_language: 'en' };
 const iso = (ms) => new Date(Date.now() + ms).toISOString();
+const FIXED_NOW = Date.UTC(2026, 9, 15, 10, 0, 0);
+// the clock is pinned from load time so a Pakistan-day or expiry check never depends on the date the suite runs
+jest.useFakeTimers({ now: FIXED_NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
 const student = (id, name) => ({ id, student_name: name, phone: null, list_id: LIST, is_active: true, status: 'active', self_reported_class: '3', created_at: iso(-600000) });
 const code = (c, kid) => ({ code: c, canonical_id: kid, minted_at: iso(-60000), expires_at: iso(59 * 60000), used_at: null, outcome: null });
 const binding = (kid, extra = {}) => ({ id: `b-${kid.slice(-2)}`, canonical_id: kid, phone_norm: PHONE, phone_tomb: 'tomb', via: 'save', bound_at: iso(-86400000),

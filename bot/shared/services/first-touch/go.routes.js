@@ -21,6 +21,8 @@
  *
  * Switch quiz_one_door OFF: EVERY route answers 404 {off:true} before anything is read; the edge then falls through.
  * Never a 500: a thrown read → the go.error page (200) on /land, 503 {error:'go.error'} on the JSON routes.
+ * The adventure look (web_quiz_adventure_look AND web_quiz_one_button, both JSON true only) comes with the switch's own
+ * cached read: every page drawn here carries it or none does, with no read added.
  * Nothing here writes the users row (role, registration, language). 0 WhatsApp messages.
  *
  * Events (ids only): one_door.landed{side, src, how}, one_door.role{side, writer}, one_door.bind{src, ok}; with
@@ -163,20 +165,25 @@ async function personaRow(lang, t) {
     return typeof row === 'string' ? row : '';
   } catch (_) { return ''; }
 }
-const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
+/** The adventure look: the switch's cached answer (the router read it before this request); false on anything else. */
+async function advOf() {
+  try { return (await Flags.flags()).adv === true; } catch (_) { return false; }
+}
+const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber(), adv: await advOf() }));
 /** go.stale / go.error: never a dead end while web_quiz_closed_way_back is on (ONE tap back to WhatsApp, number or not). */
 /** ON: the link's language before today's choice (?lang= / the token's own: 'ur' → Urdu only, 'en' → with its English lines). */
 const deadEnd = async (res, id, lang, req = null) => {
   const door = (await require('./closed-way-back.flags').on()) === true;
   const l = (door && ({ ur: 'ur', en: 'bi' })[require('./chat-tap').linkLang(req)]) || lang;
-  return page(res, Page.buildMessagePage({ id, lang: l, bot: botNumber(), door }));
+  return page(res, Page.buildMessagePage({ id, lang: l, bot: botNumber(), door, adv: await advOf() }));
 };
 
 async function render(res, d, t, lang, req = null) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
-  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber() }));
+  const adv = await advOf();
+  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber(), adv }));
   if (d.page === 'role') return rolePage(res, t, lang);
-  if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
+  if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang, adv }));
   return deadEnd(res, 'go.error', lang, req);
 }
 

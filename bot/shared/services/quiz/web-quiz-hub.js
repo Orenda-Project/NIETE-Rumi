@@ -38,6 +38,7 @@
  */
 const supabase = require('../../config/supabase');
 const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
+const ChildRows = require('./web-quiz-hub-child-rows'); // the children's own rows once per answer (web_quiz_hub_child_memo)
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const Tel = require('./web-quiz-telemetry');
@@ -145,7 +146,7 @@ function firstOfEach(rows, max = RECS_MAX) {
 async function kidClasses(studentId, history) {
   const ids = new Set();
   try {
-    const { data } = await dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
+    const { data } = await ChildRows.read('class_enrollments', [studentId], 'class_id', () => dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true)));
     (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   } catch (_) { /* no roster: the played codes only */ }
   const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
@@ -356,11 +357,11 @@ async function kidFromHub(token, chip, device) {
 
 // `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
 async function kidContext(studentId, known = null) {
-  const { data: row } = known ? { data: known.row } : await dbRead('kidContext:students:1', (db) => db.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
+  const { data: row } = known ? { data: known.row } : await ChildRows.read('students', [studentId], 'id, student_name, student_name_urdu, self_reported_class, list_id, is_active', () => dbRead('kidContext:students:1', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle()), { single: true });
   if (!row || row.is_active === false) return null;
   const { data: list } = known ? { data: known.list } : row.list_id
-    ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
+    ? await ChildRows.read('student_lists', [row.list_id], 'id, user_id, class_name, section', () => dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle()), { single: true })
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
   const history = await StudentQuiz.quizzesForStudents([row]);
@@ -501,9 +502,9 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
   if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
-  const readRows = (them) => dbRead('hubPayload:students:1', (db) => db.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', them));
-  const readLists = (listIds) => dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', listIds));
+  const readRows = (them) => ChildRows.read('students', them, 'id, student_name, student_name_urdu, self_reported_class, list_id, is_active', () => dbRead('hubPayload:students:1', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', them)));
+  const readLists = (listIds) => ChildRows.read('student_lists', listIds, 'id, user_id, class_name, section', () => dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', listIds)));
   // web_quiz_hub_fanout: the children's rows and lists for the ids as given are read beside the identity lookup below;
   // used only when every id it gives is one of them (the usual case), else read again for its ids, as off.
   const early = together ? earlyRows(mine, readRows, readLists) : null;
@@ -686,6 +687,9 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
+  // web_quiz_hub_child_memo on (the hub's own switch cache; never read here): the children's own rows are read once for
+  // the whole answer, shared by every part that asks for them (web-quiz-hub-child-rows.js). The same JSON, byte for byte.
+  if (Flags.childMemoNow() && !ChildRows.inside()) return ChildRows.run(() => hub(token, opts));
   // web_quiz_hub_fanout on (the hub's own switch cache; never read here): the Urdu polish, the answer and the telemetry
   // switch side by side, and the hub's switches kept warm for the next child. The same JSON, byte for byte.
   if (Flags.fanoutNow()) return hubTogether(token, opts);
@@ -693,23 +697,28 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
+  // the live reading meter (web_quiz_live_meter, read only under live reading v3): read beside the payload, never after it
+  const paceP = require('./web-quiz-live-read-v3').forHub();
   const out = await hubPayload(token, opts);
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
   const rt = await Tel.flag();
+  // its variant, so the edge loads the meter; off ⇒ nothing
+  const pace = out.locked ? {} : await paceP;
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 async function hubTogether(token, opts) {
   const fast = require('./web-quiz-fast').on();
-  const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
+  const [ui, out, rt, paceF] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag(), require('./web-quiz-live-read-v3').forHub()]);
   if (opts.st) opts.st.mark('other');
   const listen = !out.locked && (await Flags.flags()).readalong;
+  const pace = out.locked ? {} : paceF;
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 module.exports = {
