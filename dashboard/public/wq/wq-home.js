@@ -183,10 +183,14 @@
   // The one-button look (the bot's `one_button`, web_quiz_one_button): the hold says what it is ("Hold for grown-ups"),
   // a ring around the lock fills over the 2 s, the words stay above the fill, and a short tap says "Keep holding".
   var LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>';
+  function lookOn() {
+    try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; }
+  }
   function grownHtml(ctx, B) {
     var t = C(ctx);
-    if (B && B.one_button === true) {
-      return '<footer class="wq-grown"><button class="wq-btn wq-btn--hold" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '">' +
+    // the hold whenever the page has the look (a boot that said on keeps it when a later answer's cache went stale)
+    if ((B && B.one_button === true) || lookOn()) {
+      return '<footer class="wq-grown"><button class="wq-btn wq-btn--hold" type="button" data-tap="grownups" aria-label="' + esc(t.grownTap) + '">' +
         '<span class="wq-gring" data-hold-ring aria-hidden="true"><svg viewBox="0 0 36 36" width="36" height="36"><circle class="wq-gtrack" cx="18" cy="18" r="16"/><circle class="wq-garc" cx="18" cy="18" r="16" pathLength="100"/></svg>' + LOCK + '</span>' +
         '<span class="wq-glab" data-hold-label>' + esc(t.grownTap) + '</span></button>' +
         '<p class="wq-ghint" data-hold-hint role="status" hidden>' + esc(t.grownKeep) + '</p></footer>';
@@ -285,6 +289,7 @@
   var wired = false;
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
+    markFailed = Boolean(B.list_states);
     if (B.practice) ctx = practiceCtx(ctx);
     hashOnce(root, B, ctx);
     // The door screens (wq-doors.js, fetched after the home paints): theirs once loaded; until then the rows below.
@@ -462,7 +467,9 @@
     loadOnce('wq-book', open, 'wq-bk-js');
   }
   // /wq/<name>.css + .js at hub.js's own ?v=, at most once per page.
+  // `list_states`: a script that failed is marked (data-failed), so a screen that comes after the error can tell
   var asked = {};
+  var markFailed = false;
   function loadOnce(name, onload, id) {
     if (asked[name]) return;
     asked[name] = true;
@@ -471,7 +478,9 @@
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
       var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l);
-      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload); document.head.appendChild(s);
+      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload);
+      if (markFailed) s.addEventListener('error', function () { s.setAttribute('data-failed', '1'); });
+      document.head.appendChild(s);
     } catch (e) {}
   }
 
