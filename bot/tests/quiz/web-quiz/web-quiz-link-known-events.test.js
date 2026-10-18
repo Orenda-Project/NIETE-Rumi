@@ -142,6 +142,17 @@ describe('the page\'s /known timing lines (link_known_answer, link_known_late) u
     expect(by('web_quiz.link_known_late').map((f) => f.ms)).toEqual([undefined, 600000]);
   });
 
+  test('the answer also keeps shown and asked (whole numbers 0-4): kids 1 shown 1 asked 0 is not a miss', async () => {
+    await seed([{ key: 'web_quiz_events_v3', value: true }]);
+    Svc.events({ events: [
+      { n: 'link_known_answer', ms: 900, kids: 1, shown: 1, asked: 0 },
+      { n: 'link_known_answer', ms: 900, kids: 2, shown: 5, asked: -1 },
+      { n: 'link_known_answer', ms: 900, kids: 2, shown: '1', asked: 1.5 },
+    ] }, { device: DEV });
+    await flush();
+    expect(by('web_quiz.link_known_answer').map((f) => [f.kids, f.shown, f.asked])).toEqual([[1, 1, 0], [2, undefined, undefined], [2, undefined, undefined]]);
+  });
+
   test('events v3 off: today\'s path (no v3 envelope)', async () => {
     await seed([]);
     Svc.events({ events: [{ n: 'link_known_answer', ms: 3480, kids: 1 }, { n: 'link_known_late', ms: 5120 }] }, { device: DEV });
