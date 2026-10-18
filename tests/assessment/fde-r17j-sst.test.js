@@ -9,6 +9,8 @@
  *      Section A is asked again.
  *   6. Two Q1 items with the same key whose facts sit in one book sentence or two side by side are one question:
  *      the second is held, and Section A is asked again. The engine passes the pages it loaded to the layout.
+ *   7. A Q6 whose marking points restate three sentences of the book side by side is recall (book_list): held, and
+ *      Section D is told why; Section D's prompt says a Q6 answer is never a list the book gives.
  * The papers are local model output; the people in their stories are the model's own.
  */
 
@@ -360,5 +362,46 @@ describe('6. through the engine: the pages it loads reach the layout', () => {
   test('with pages that do not hold the passage, the same replies hold nothing as one passage', async () => {
     await replay('=== Page 4 ===\nسبق کا متن');
     expect(heldRows().filter((h) => h.rule === 'same_passage')).toEqual([]);
+  });
+});
+
+describe('7. a Q6 answered by a list the book gives', () => {
+  const Q6_LIST = 'A Q6 answer is never a list the book gives, nor the name of a tier or a body.';
+  const promptOf = (S, id, subject) => { const sec = S.sections.find((x) => x.id === id); return Gen.buildPatternUserPrompt({ grade: 5, subject, pageContent: 'متن', pageReference: '1-9', section: sec, slots: sec.slots, lang: S.medium, P: S, scope: { kind: 'fde' } }); };
+
+  test.each([['chapters_4', 5], ['chapters_5', 3]])('%s Q6 %i (its points the book\'s sentences in order) is held as book_list with the pages', (name, n) => {
+    const exam = local(name);
+    const q = nth(exam, Q6, n);
+    const laid = lay(exam, { book: BOOK_CH46 });
+    expect(heldAs(laid, q)).toEqual(['book_list']);
+    expect(items(laid.examJson, Q6).map((x) => x.question)).not.toContain(q.question);
+  });
+
+  test('control: chapters_6 Q6 5 uses the book\'s ideas in its own story and order (an Apply item), and is not held', () => {
+    const exam = local('chapters_6');
+    expect(heldAs(lay(exam, { book: BOOK_CH46 }), nth(exam, Q6, 5))).not.toContain('book_list');
+  });
+
+  test('control: without the pages no Q6 is read as the book\'s list', () => {
+    const exam = local('chapters_4');
+    expect(heldAs(lay(exam), nth(exam, Q6, 5))).not.toContain('book_list');
+  });
+
+  test('Section D\'s re-ask is told why the item was set aside', () => {
+    const exam = local('chapters_5');
+    const laid = lay(exam, { book: BOOK_CH46, reasked: false });
+    const D = SST.sections.find((s) => s.slots.some((x) => x.slot === Q6));
+    const note = takenNote(SST, D, laid.examJson, { topUp: true, shortfall: laid.shortfall, held: laid.held });
+    expect(note).toContain(nth(exam, Q6, 3).question.trim());
+    expect(note).toContain('or is answered by a list the book gives');
+  });
+
+  test('Section D\'s prompt says it; Sections A to C and every other subject\'s prompts do not', () => {
+    expect(promptOf(SST, 'D', 'social_studies')).toContain(Q6_LIST);
+    for (const id of ['A', 'B', 'C']) expect(promptOf(SST, id, 'social_studies')).not.toContain(Q6_LIST);
+    for (const key of ['maths', 'science', 'english', 'urdu']) {
+      const S = Patterns.get('fde_g5_2027').subjects[key];
+      for (const sec of S.sections) expect(promptOf(S, sec.id, key)).not.toContain(Q6_LIST);
+    }
   });
 });
