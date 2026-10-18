@@ -242,7 +242,8 @@ const SCRIPT_PAGED_HASH = sha(SCRIPT_PAGED);
 /**
  * The slow-answer wait (switch quiz_teacher_home_wait ON, with the quick answer OFF or ON): the quick answer's script
  * with these parts swapped. The wait before the error line is max(measured p99 × 1.5, 25 s): HOME_P99_MS is the p99 of
- * the page's load to the home's answer (document + /api/th/home) over the throttled-phone walks (9.41 s), so 25 s rules.
+ * the page's load to the home's answer (document + /api/th/home): the slowest measured load, 9.41 s (a cold throttled
+ * 4G walk; the Slow 3G walks measured at most 7.85 s, most of it the server's /api/th/home), so 25 s rules.
  * «Try again» while the home read is still on its way re-uses that read (no second /api/th/home) and waits again; once
  * the read is over (refused, offline) «Try again» asks again. The skeleton stays under the line; a late answer is drawn.
  */
