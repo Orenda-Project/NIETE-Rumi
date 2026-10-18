@@ -25,6 +25,7 @@ const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
 const WayBackSwitch = require('../lib/closed-way-back-switch');
@@ -96,6 +97,8 @@ function createQuizGoRouter(opts = {}) {
   const router = express.Router();
   // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired page; OFF = today
   const cutLinkOn = CutLink.switchOf(opts);
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: false, legacyHeaders: false, validate: false,
@@ -138,6 +141,7 @@ function createQuizGoRouter(opts = {}) {
     }
     if (out.status >= 500) return sendPage(res, errorPage(req, await doorOf(req)), 503);
     res.set(PRIVATE);   // the bot's page carries its own Content-Security-Policy <meta>
+    carryBotSecurity(res, out, securityOn);   // and, with quiz_edge_security_headers on, the bot's header (frame-ancestors)
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   });
 

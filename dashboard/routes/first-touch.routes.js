@@ -21,6 +21,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
 
 // base64url(payload) "." base64url(HMAC)[:22] — web-quiz-token's format (the report edge's TOKEN_RX).
@@ -94,6 +95,8 @@ function createFirstTouchRouter(opts = {}) {
     configured = Boolean(botUrl && apiKey);
   }
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   // Per caller address (the bot sees only this edge's). No rate headers: a request that falls through is untouched.
   const limiter = rateLimit({
@@ -122,6 +125,7 @@ function createFirstTouchRouter(opts = {}) {
     }
     if (out.status >= 500) { if (json) errorJson(res); else errorPage(req, res); return true; }
     res.set(PRIVATE);
+    carryBotSecurity(res, out, securityOn);
     if (out.status === 204) { res.status(204).end(); return true; }
     res.status(out.status).type(out.contentType || (json ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8')).send(out.bytes || Buffer.alloc(0));
     return true;
