@@ -9,6 +9,8 @@ import './player.css';
  * One tile of "Sounds in this lesson" (DESIGN_v2 §6): the grapheme big (EN `ck`, UR «ب» in Nastaliq), the keyword
  * caption under it, ≥56×56. A narration tile spans two columns and says "Listen to the story". Same four states and
  * attributes as SoundPill; the state line replaces the caption while loading / playing / failed.
+ * The state line is ALWAYS rendered, one line of fixed height (empty while idle with no caption), so a tap never
+ * changes the tile's box (AUDIO_BAR A11: the Urdu «چل رہی ہے…» used to wrap to two Nastaliq lines and grow the row).
  */
 export interface SoundTileProps { clipId: string; label: string; caption?: string; lang?: string; dir?: string; role?: ClipRole; owner?: string }
 
@@ -39,7 +41,7 @@ export function SoundTile({ clipId, label, caption, lang, dir, role, owner: owne
     >
       <span className="fln-snd__corner"><SoundStateIcon state={state} size={narration ? 18 : 13} /></span>
       <bdi className={narration ? 'fln-snd__story' : 'fln-snd__g'}>{main}</bdi>
-      {sub ? <span className="fln-snd__sub">{sub}</span> : null}
+      <span className="fln-snd__sub">{sub ?? ''}</span>
       {state === 'playing' ? <span className="fln-snd__bar" style={bar} aria-hidden="true"><b /></span> : null}
     </button>
   );
