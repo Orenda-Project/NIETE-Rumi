@@ -29,7 +29,9 @@
  * head already guesses every other look class. Nothing kept, or off: the frame as above.
  */
 
-const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s}'
+// The bar runs over a lighter track of its own colour (a plain 8-digit hex first, for a WebView without color-mix).
+const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s;'
+  + 'background:#47ba7d38;background:color-mix(in srgb,var(--brand,#47BA7D) 22%,#0000)}'
   + '.wq-wbar.on{opacity:1}.wq-wbar i{display:block;height:100%;width:0;background:var(--brand,#47BA7D);border-radius:0 4px 4px 0;'
   + 'box-shadow:0 0 8px var(--brand,#47BA7D);transition:width .4s ease-out}'
   + '[dir=rtl] .wq-wbar i{margin-left:auto;border-radius:4px 0 0 4px}'

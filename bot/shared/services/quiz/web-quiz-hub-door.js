@@ -110,15 +110,17 @@ async function door(body = {}, Err = Error) {
   if (!home && !story && !fold && !(await isOn())) await fail(404, 'no_door', 'off');
   if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress') && !story)) await fail(404, 'no_door', 'not_own_finished_run');
   // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
-  const kid = (await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id;
+  const hubId = (await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id;
   // web_quiz_return_lang: the child's own language rides the link (off: today's token)
-  const lang = await require('./web-quiz-child-lang').childLang(kid);
-  const token = lang ? T.signHub([kid], undefined, { lang }) : T.signHub([kid]);
+  const lang = await require('./web-quiz-child-lang').childLang(hubId);
+  const token = lang ? T.signHub([hubId], undefined, { lang }) : T.signHub([hubId]);
   if (!token) await fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) await fail(404, 'no_door', bound.why);
   await K.emit('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}), ...(story ? { story: true } : {}) }, { kind: 'mark' });
-  return { href: `/h/${token}` };
+  // A story with the one-hop open on (web_quiz_one_hop, with web_quiz_fast): the child's hub chip too, so the hub's head
+  // can ask for the book while the hub itself is still being worked out (the hub honours ?kid=<chip>). Off: today's answer.
+  return story && require('./web-quiz-one-hop').on() ? { href: `/h/${token}`, kid: T.chipId('h', hubId) } : { href: `/h/${token}` };
 }
 
 module.exports = { field, foldField, menuFoldField, noClassField, door };

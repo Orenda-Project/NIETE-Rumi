@@ -805,6 +805,8 @@ async function hub(token, opts = {}) {
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
+  // Minified page files (web-quiz-minify.js): named only when on (the hub's one switch read, just run), so a switched-off payload is today's.
+  const min = require('./web-quiz-minify').on();
   const rt = await Tel.flag();
   // the live reading meter (web_quiz_live_meter under live reading v3): its variant, so the edge loads it; off ⇒ nothing.
   // Both keys ride the hub's own settings read (web-quiz-hub-flags.js), warm by now: no read of its own
@@ -812,7 +814,7 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('tail');
   // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 async function hubTogether(token, opts) {
@@ -820,9 +822,11 @@ async function hubTogether(token, opts) {
   const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
   if (opts.st) opts.st.mark('other');
   const listen = !out.locked && (await Flags.flags()).readalong;
+  // Minified page files (web-quiz-minify.js): named only when on (the hub's one switch read, just run), so a switched-off payload is today's.
+  const min = require('./web-quiz-minify').on();
   const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 module.exports = {
