@@ -388,7 +388,8 @@ async function kidFromHub(token, chip, device) {
 }
 
 // `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
-async function kidContext(studentId, known = null) {
+// `historyP`: this child's history already started from their id alone (earlyChild); the row's two fields are put in.
+async function kidContext(studentId, known = null, historyP = null) {
   const { data: row } = known ? { data: known.row } : await ChildRows.read('students', [studentId], 'id, student_name, student_name_urdu, self_reported_class, list_id, is_active', () => dbRead('kidContext:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle()), { single: true });
   if (!row || row.is_active === false) return null;
@@ -396,11 +397,16 @@ async function kidContext(studentId, known = null) {
     ? await ChildRows.read('student_lists', [row.list_id], 'id, user_id, class_name, section', () => dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle()), { single: true })
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
-  const history = await StudentQuiz.quizzesForStudents([row]);
+  const history = historyP ? withRow(await historyP, row) : await StudentQuiz.quizzesForStudents([row]);
   const grade = gradeNum((list || {}).class_name) || gradeNum(row.self_reported_class)
     || gradeNum((history.find((e) => e.className) || {}).className)
     || (history[0] ? (Videos.gradesFor(history[0].grade)[0] || null) : null);
   return { row, list, history, grade: grade || null };
+}
+
+// quizzesForStudents([{ id }]) entries given the child's row afterwards: the only two fields it takes from the row.
+function withRow(history, row) {
+  return history.map((e) => ({ ...e, studentName: row.student_name || '', className: e.className || row.self_reported_class || null }));
 }
 
 async function brandKey() {
@@ -498,6 +504,26 @@ function earlyRows(given, readRows, readLists) {
   };
 }
 
+/**
+ * web_quiz_hub_early_kid (with fanout): the child the link picks, from its ids alone (the kid chip, or its one id), and
+ * that child's own reads started now: their history and the reads keyed on them alone. hubPayload uses them only when
+ * the identity lookup and the children's rows pick that same child; else they are dropped (never awaited) and read
+ * again for the child picked, as off. Null when the link picks no one yet (the picker).
+ */
+function earlyChild(ids, kid, f) {
+  const id = ids.find((x) => kidChip(x) === String(kid || '')) || (ids.length === 1 ? ids[0] : null);
+  if (!id) return null;
+  const quiet = (p) => { if (p && typeof p.catch === 'function') p.catch(() => {}); return p; };
+  return {
+    id,
+    historyP: quiet(require('./student-quiz.service').quizzesForStudents([{ id }])),
+    challengeP: quiet(f.challenge ? challengeForm(id) : Promise.resolve(null)),
+    homeP: require('./web-quiz-hub-home').prefetch(id),
+    storiesP: quiet(require('./web-quiz-stories').hubBits({ studentId: id })),
+    bookP: quiet(require('./web-quiz-book').hubBits({ studentId: id })),
+  };
+}
+
 // web_quiz_hub_fanout: the cached switch readers on the hub's path, kept warm by web-quiz-hub-warm.js between visits
 // (each answers from its own cache while fresh). They live here, not in the keeper, so the keeper needs no module that
 // leads back to the hub.
@@ -547,6 +573,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   // web_quiz_hub_fanout: the children's rows and lists for the ids as given are read beside the identity lookup below;
   // used only when every id it gives is one of them (the usual case), else read again for its ids, as off.
   const early = together ? earlyRows(mine, readRows, readLists) : null;
+  const guess = early && Flags.earlyKidNow() ? earlyChild(mine, kid, f) : null;
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
   if ((idFlags || await require('./web-quiz-identity-flags').flags()).canon) {
     const canon = await require('./web-quiz-identity-roster').canonicalStudentIdsShared(mine);
@@ -566,12 +593,14 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
+  // web_quiz_hub_early_kid: the reads below were started from the link when it picked this same child.
+  const g = guess && chosen && String(chosen.id) === String(guess.id) ? guess : null;
   // Started now, beside the rest of the hub's reads (challengeForm never rejects): it is a few reads of its own.
-  const challengeP = f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
+  const challengeP = g ? g.challengeP : f.challenge && chosen ? challengeForm(chosen.id) : Promise.resolve(null);
   // The child home's reads (web_quiz_home_v3), started here too: keyed on the child alone, so they add no wait.
-  const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
+  const homeP = g ? g.homeP : chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
   // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
-  const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
+  const storiesP = g ? g.storiesP : chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
   // The child's kept language (web_quiz_return_lang; child_language), started here too: a grown-up's tap on the grown-ups
   // corner (`keep`, this trusted phone, the child the request names) is kept, else the child's row is read. Off: null.
   const CL = require('./child-language.repo');
@@ -580,10 +609,10 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
       ? CL.choose(chosen.id, asked).then((kept) => (kept ? { language: asked, source: 'chosen' } : CL.stored(chosen.id)))
       : CL.stored(chosen.id);
   // Jugnu's Book needs the child alone: started here too when the reads go together (awaited in today's place).
-  const bookP = together && chosen ? require('./web-quiz-book').hubBits({ studentId: chosen.id }) : null;
+  const bookP = g ? g.bookP : together && chosen ? require('./web-quiz-book').hubBits({ studentId: chosen.id }) : null;
   if (bookP) bookP.catch(() => {});
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
-  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
+  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null, g ? g.historyP : null) : null;
   const history = ctx ? ctx.history : [];
   // web_quiz_return_lang: the one order (web-quiz-child-lang.js ladder) over the child's kept row: a kept choice outranks
   // even a `?lang=` the URL still carries (a join's redirect is reopened for days), the link's `l` sits before the
@@ -781,7 +810,9 @@ async function hub(token, opts = {}) {
   // Both keys ride the hub's own settings read (web-quiz-hub-flags.js), warm by now: no read of its own
   const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
+  const look = require('./web-quiz-ur-polish').lite(ui);
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 async function hubTogether(token, opts) {
