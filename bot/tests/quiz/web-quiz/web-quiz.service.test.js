@@ -494,6 +494,22 @@ describe('E6 GET board (the class league table)', () => {
     expect(out.you).toEqual({ place: 1, correct: 4, total: 4, pct: 100 });
   });
 
+  test('app_settings web_quiz_class_doors on: class_doors on the table; off, absent or the string "true": today\'s table', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    CD._resetCache();
+    const before = await WQ.board('AB12CD');
+    expect(before).not.toHaveProperty('class_doors');
+    for (const value of [false, 'true']) {
+      CD._resetCache();
+      fake.db.app_settings = [{ key: 'web_quiz_class_doors', value }];
+      expect(await WQ.board('AB12CD')).toEqual(before);
+    }
+    CD._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    expect(await WQ.board('AB12CD')).toEqual({ ...before, class_doors: true });
+    CD._resetCache();
+  });
+
   test('rankRows is competition ranking (1,1,3)', () => {
     const r = WQ.rankRows([{ first: 'a', pct: 50, correct: 2 }, { first: 'b', pct: 100, correct: 4 }, { first: 'c', pct: 100, correct: 4 }]);
     expect(r.map((x) => [x.first, x.place])).toEqual([['b', 1], ['c', 1], ['a', 3]]);
