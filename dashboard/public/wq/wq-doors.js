@@ -174,6 +174,7 @@
     var t = C(ctx);
     if (shelfOn(B) && lib && !lib.err && (lib.subjects || []).length) return shelvesBody(ctx, lib);
     if (shelfOn(B) && !lib) return waitShelves();
+    if (shelfOn(B) && lib.err) return '<div class="wq-dempty">' + oopsHtml(ctx, '', 0).replace('type="button"', 'type="button" data-primary').replace(/ data-item="" data-pos="0"/, '') + '</div>';
     if (!lib) return B.list_states ? skel(5, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     if (lib.err) return errNote(t);
     var subs = lib.subjects || [];
@@ -254,7 +255,7 @@
     var q = shelf && w.after ? '<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="' + esc(w.vid) + '">' + esc(t.vquiz) + '</button>' : '';
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
-    return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
+    return '<div class="wq-vbox' + (shelf ? ' wq-vbox--s' : '') + '"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
       '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' + q +
       '<div class="wq-after" hidden>' + nx + '</div>';
@@ -687,6 +688,7 @@
           e.preventDefault();
           var rk = el.getAttribute('data-item');
           if (view.subject) return videos(root, B, ctx, view.subject);
+          if (!rk) { lib.subjects = null; return videos(root, B, ctx, null); }
           var rs = root.querySelector('[data-vshelf="' + String(rk).replace(/["\\]/g, '') + '"]');
           if (rs) rs.innerHTML = SKEL + SKEL + SKEL;
           return shelf(root, B, ctx, rk, Number(el.getAttribute('data-pos')) || 0);
@@ -788,6 +790,6 @@
 
   if (typeof window !== 'undefined') {
     window.WQDOORS = { owns: owns, html: html, watchHtml: watchHtml, shelfHtml: shelfHtml, mount: mountKeep, warm: warm, COPY: COPY, storyHref: storyHref,
-      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
+      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; vrows = {}; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
   }
 })();

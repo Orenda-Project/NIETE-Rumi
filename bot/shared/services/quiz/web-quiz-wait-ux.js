@@ -41,6 +41,8 @@ function on(now = Date.now()) {
  * is out then rides the first (dashboard/routes/web-quiz-wait-ux.js). Fanout off: today's answer, `wait_ux` alone.
  * With web_quiz_doors_prefetch on as well, `wait_pre: true`: the page asks the Videos door's lists once the home has
  * painted (dashboard wq-doors.js warm), so a Videos tap paints whole.
+ * web_quiz_wait_hops on as well (web-quiz-wait-hops.js, the same batched read, never waited for), `wait_hops: true` too:
+ * the bar also shows while the page is being left.
  */
 function carry(outP) {
   return Promise.resolve(outP).then((out) => {
@@ -48,6 +50,7 @@ function carry(outP) {
       out[FIELD] = true;
       try { if (Flags.fanoutNow()) out[SHARE_FIELD] = true; } catch (_) { /* fanout unknown: no share */ }
       try { if (Flags.prefetchNow()) out[PREFETCH_FIELD] = true; } catch (_) { /* prefetch unknown: none */ }
+      try { const Hops = require('./web-quiz-wait-hops'); if (Hops.on()) out[Hops.FIELD] = true; } catch (_) { /* hops unknown: none */ }
     }
     return out;
   });

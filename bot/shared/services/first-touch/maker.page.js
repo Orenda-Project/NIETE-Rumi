@@ -325,11 +325,12 @@ ${addonScripts.map((x) => `<script>${x}</script>\n`).join('')}<script>${SCRIPT}<
 
 /**
  * A one-line page: `mk.stale` or `mk.error` (no form, no script). `tap` ({ href, text }, a caller's one link back, e.g.
- * the chat) adds that one link under the line; without it the page is exactly as before. → { html, csp }.
+ * the chat) adds that one link under the line; `say` (a caller's own reviewed line, already in the page's language)
+ * replaces the line; without them the page is exactly as before. → { html, csp }.
  */
-function buildMessagePage({ lang = 'en', id = 'mk.error', tap = null } = {}) {
+function buildMessagePage({ lang = 'en', id = 'mk.error', tap = null, say = null } = {}) {
   const l = clampLanguage(lang === 'bi' ? 'ur' : lang);
-  const line = str(id === 'mk.stale' ? 'mk.stale' : 'mk.error', l);
+  const line = typeof say === 'string' && say ? say : str(id === 'mk.stale' ? 'mk.stale' : 'mk.error', l);
   const withTap = Boolean(tap && tap.href && tap.text);
   const style = `${fontFace(l)}${CSS}${withTap ? '\na.mk-go{display:flex;align-items:center;justify-content:center;text-decoration:none}' : ''}`;
   const styleHash = sha(style);
