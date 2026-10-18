@@ -111,7 +111,7 @@
     function spoken(ws) { return ws.filter(function (w) { return !w.silent; }); }
     function lrOn(ws, cb) {
       var p = P[m.i], o = {
-        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr,
+        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr, pace: { el: root.querySelector('[data-pace]'), keep: R.pk || (R.pk = {}) },
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
         getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { if (!r.ok || r.body.error) R.keyNo = 1; return r.body; }, function (x) { R.keyNo = 1; throw x; }); },
@@ -134,7 +134,8 @@
       if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
-      paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
+      // the live meter on (wq-pace.js): Jugnu rides its bar here, in his own place above the page, never inside the zoomed picture
+      paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + (W.WQPace && W.WQPace.variant ? '<div class="wqs-pace" data-pace></div>' : img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg')) +
         (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + Mq('line') + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
       // the camera frames every line of the part being read, whole (both edges, any writing direction), once, and holds
@@ -150,7 +151,7 @@
       R.poll = C.set(function tick() {
         var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]');
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
-        Mq('tick', { g: g, v: v, ms: C.now() - r0 });
+        Mq('tick', { g: g || root.querySelector('[data-pace]'), v: v, ms: C.now() - r0 });
         if (R.lr) R.poll = C.set(tick, 500);
       }, 500);
     }

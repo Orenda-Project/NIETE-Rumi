@@ -124,7 +124,9 @@ function renderCardA(f, opt = {}) {
   const lines = x ? Data.words(x, f.kind, l) : {};
   const COPY = require('./web-quiz-card-image').COPY;
   const deedKey = SAME_AS[f.deed] || f.deed;
-  const who = f.first ? `<bdi>${esc(f.first)}</bdi>` : '';
+  // a long first name is clamped (12 letters at most, then …) so the deed keeps its line and the CTA stays on the card
+  const letters = Array.from(String(f.first || ''));
+  const who = letters.length ? `<bdi>${esc(letters.length > 12 ? `${letters.slice(0, 11).join('')}…` : letters.join(''))}</bdi>` : '';
   const deed = who && DEED3[l][deedKey] ? DEED3[l][deedKey](who) : esc(COPY[l][f.deed] || '');
   const fallbackDare = { read: Data.LINES[l].dareStory, story: Data.LINES[l].dareStory, book: Data.LINES[l].dareStory, listen: Data.LINES[l].dareStory, video: t.dareVideo };
   const dare = lines.dare || fallbackDare[f.kind] || t.darePlay;
@@ -142,7 +144,8 @@ function renderCardA(f, opt = {}) {
     cap = esc(f.kind === 'read' ? t.wordsAloud : t.words);
   } else {
     big = `<span class="bigstar">${STAR()}</span>`;
-    cap = f.deed === 'read_tried' || /_practice$/.test(f.deed) ? esc(markWord) : esc(COPY[l].sticker);
+    // a try or a stop played again earns no sticker; the ribbon already names the activity, so the medal says nothing more
+    cap = f.deed === 'read_tried' || /_practice$/.test(f.deed) ? '' : esc(COPY[l].sticker);
   }
   const stars = x && x.s != null ? `<div class="stars">${[0, 1, 2].map((i) => `<span class="st">${i < x.s ? STAR() : STAR('rgba(255,255,255,.35)', 'rgba(0,0,0,.18)')}</span>`).join('')}</div>` : '';
   const pic = opt.art && opt.art.b64 ? `data:${opt.art.type};base64,${opt.art.b64}` : null;
@@ -168,8 +171,8 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#222}
 .chip{display:inline-flex;align-items:center;gap:10px;background:#fff;color:var(--edge);font-weight:800;font-size:20px;letter-spacing:${ur ? 0 : '.06em'};text-transform:uppercase;padding:${ur ? '13px 18px 12px' : '9px 18px'};border-radius:999px;box-shadow:0 4px 0 rgba(0,0,0,.18)}
 .chip svg{width:28px;height:28px;color:var(--c);flex:none}
 .mid{display:flex;flex-direction:column;gap:${ur ? 0 : 14}px}
-.deed{color:#fff;font-weight:800;font-size:${ur ? 36 : 40}px;line-height:1.1;padding-block:.06em .16em;text-shadow:0 3px 0 rgba(0,0,0,.22)}
-.dare{color:#ffe55c;font-weight:800;font-size:${ur ? 52 : 68}px;line-height:1.04;padding-block:.06em .18em;letter-spacing:-.01em;text-shadow:0 5px 0 var(--deep),0 0 30px rgba(0,0,0,.25)}
+.deed{color:#fff;font-weight:800;text-wrap:balance;font-size:${ur ? 36 : 40}px;line-height:1.1;padding-block:.06em .16em;text-shadow:0 3px 0 rgba(0,0,0,.22)}
+.dare{color:#ffe55c;font-weight:800;text-wrap:balance;font-size:${ur ? 52 : 68}px;line-height:1.04;padding-block:.06em .18em;letter-spacing:-.01em;text-shadow:0 5px 0 var(--deep),0 0 30px rgba(0,0,0,.25)}
 .ctarow{display:flex;align-items:center;gap:20px}
 .cta{display:inline-flex;align-items:center;gap:14px;background:var(--gold);color:var(--ink);font-weight:800;font-size:34px;line-height:1;padding:${ur ? '12px 30px 14px 18px' : '16px 32px 16px 18px'};border-radius:999px;box-shadow:0 7px 0 var(--gold-d),0 12px 24px rgba(0,0,0,.25);border:4px solid #fff3b8}
 .cta svg{width:48px;height:48px;color:var(--ink);flex:none}
@@ -184,7 +187,7 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#222}
 .ribbon{position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);white-space:nowrap;background:#e8394d;color:#fff;font-weight:800;font-size:30px;letter-spacing:${ur ? 0 : '.04em'};text-transform:uppercase;padding:12px 44px;line-height:1.1;clip-path:polygon(0 0,100% 0,calc(100% - 22px) 50%,100% 100%,0 100%,22px 50%);filter:drop-shadow(0 6px 0 #8f1d2c)}
 .side{position:absolute;z-index:3}
 .side.cover{width:130px;height:184px;inset-inline-end:-56px;top:-34px;transform:rotate(${ur ? -12 : 12}deg);border-radius:12px;border:6px solid #fff;box-shadow:0 10px 0 rgba(0,0,0,.22);object-fit:cover}
-.side.frame{width:150px;height:86px;inset-inline-end:-70px;top:-40px;transform:rotate(${ur ? -9 : 9}deg);border-radius:14px;border:6px solid #fff;box-shadow:0 10px 0 rgba(0,0,0,.22);object-fit:cover}
+.side.frame{width:216px;height:122px;inset-inline-end:-84px;top:-58px;transform:rotate(${ur ? -9 : 9}deg);border-radius:14px;border:6px solid #fff;box-shadow:0 10px 0 rgba(0,0,0,.22);object-fit:cover}
 .side.jar{width:120px;height:150px;inset-inline-end:-50px;top:-30px;z-index:2;filter:drop-shadow(0 8px 0 rgba(0,0,0,.2))}
 .side.pad{width:130px;height:130px;inset-inline-end:-44px;top:-26px;transform:rotate(${ur ? -14 : 14}deg);color:var(--c);background:#fff;border-radius:50%;padding:18px;box-shadow:0 8px 0 rgba(0,0,0,.22)}
 .side.pad svg{width:100%;height:100%}
@@ -194,6 +197,7 @@ ${ur ? `[data-ink]{font-weight:400;line-height:2.1;padding-block:.38em .4em;padd
 .chip[data-ink]{font-size:22px;line-height:2;padding:6px 18px 4px}.deed[data-ink]{line-height:2}.dare[data-ink]{line-height:2.05}.cta[data-ink]{font-size:32px;line-height:2;padding:12px 18px 14px 30px}.cta svg{transform:translateY(5px)}
 .big[data-ink]{line-height:2.1;padding-block:.05em .25em;margin-top:-34px;margin-bottom:-40px;-webkit-text-stroke:3px #fff;paint-order:stroke fill}.cap[data-ink]{line-height:2;white-space:nowrap;max-width:320px;padding-block:.35em .3em}
 .ribbon[data-ink]{line-height:2;padding:10px 48px 10px}.watched[data-ink]{line-height:2;padding:0 16px 4px}.join[data-ink]{line-height:2;padding-block:.2em .3em}.ex{margin-inline-start:-.08em}.sah{margin-inline-start:-.32em}
+.jug{width:170px;height:170px;top:4px}
 .cta>span,.chip>span{line-height:2;padding-block:.35em .2em}` : ''}
 </style></head><body><div class="card" data-land="${land}">
 <div class="layer mirror" aria-hidden="true">${art}</div><div class="layer rays"></div>
@@ -221,6 +225,19 @@ async function artOf(f) {
       return { type: 'image/jpeg', b64: small.toString('base64') };
     }
     if (it.type === 'video') {
+      // the lesson's own poster, wide enough for the medal's corner at full size; else the shelf's small picture
+      try {
+        const ix = await require('./web-quiz-bank').bank();
+        const row = ix && Array.isArray(ix.rows) ? ix.rows.find((r) => r.id === it.id) : null;
+        if (row && row.r2_url) {
+          const key = require('./web-quiz-media').videoKey(row.r2_url).key.replace(/\.[a-z0-9]+$/i, '_poster.jpg');
+          const raw = await require('../../storage/r2').downloadFromR2(key);
+          if (raw && raw.length) {
+            const wide = await sharp(raw).rotate().resize(480, 270, { fit: 'cover', position: 'attention' }).jpeg({ quality: 76 }).toBuffer();
+            return { type: 'image/jpeg', b64: wide.toString('base64') };
+          }
+        }
+      } catch (_) { /* the small picture below */ }
       const pic = await require('./web-quiz-video-thumb').thumb(it.id);
       return pic && pic.bytes ? { type: pic.contentType || 'image/webp', b64: Buffer.from(pic.bytes).toString('base64') } : null;
     }

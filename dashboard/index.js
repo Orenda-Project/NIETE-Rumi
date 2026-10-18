@@ -221,6 +221,8 @@ if (process.env.REDIS_URL) {
       redisConnected = true;
  // Initialize GPT cache with Redis client 
       setGptCacheRedisClient(redisClient);
+      // the web quiz edge's shared answers (a shared link's page facts)
+      require('./lib/edge-redis').setClient(redisClient);
     });
 
     redisClient.on('reconnecting', () => {
@@ -232,6 +234,7 @@ if (process.env.REDIS_URL) {
       redisConnected = false;
  // Disable GPT cache when Redis disconnects 
       setGptCacheRedisClient(null);
+      require('./lib/edge-redis').setClient(null);
     });
 
     // Attempt connection with timeout

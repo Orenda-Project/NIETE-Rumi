@@ -14,6 +14,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-hub-device', () => ({ deviceTr
 jest.mock('../../../shared/services/quiz/web-quiz-bank', () => ({ bank: jest.fn(async () => ({ rows: [] })) }));
 jest.mock('../../../shared/services/quiz/web-quiz-video-thumb', () => ({ thumb: jest.fn(async () => null), VERSION: '1' }));
 jest.mock('../../../shared/storage/r2', () => ({ downloadFromR2: jest.fn() }));
+jest.mock('../../../shared/services/quiz/web-quiz-media', () => ({ videoKey: () => ({ key: 'student-videos/lesson-1.mp4', foreign: false }) }));
 
 const sharp = require('sharp');
 const { makeFake } = require('./fake-supabase');
@@ -21,6 +22,7 @@ const supabase = require('../../../shared/config/supabase');
 const { htmlToImage } = require('../../../shared/utils/html-to-pdf');
 const { thumb } = require('../../../shared/services/quiz/web-quiz-video-thumb');
 const r2 = require('../../../shared/storage/r2');
+const { bank } = require('../../../shared/services/quiz/web-quiz-bank');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 
 const BOOK = '3b9c1e2a-7d4f-4a1b-9c2d-5e6f7a8b9c0d';
@@ -127,6 +129,23 @@ describe('what the picture says', () => {
     expect(h).not.toMatch(BANNED);
     expect(A.renderCardA(f({ lang: 'ur', first: 'نور', kind: 'read', deed: 'read_tried' }), { fonts: false })).toContain('<bdi>نور</bdi> نے ایک نئی کہانی پڑھی');
   });
+  test('a long first name is clamped (at most 12 letters, then …) so the deed and the CTA stay on the card', () => {
+    expect(html({ first: 'Muhammadabdullah' })).toContain('<bdi>Muhammadabd…</bdi> finished a quiz!');
+    expect(A.renderCardA(f({ lang: 'ur', first: 'محمدعبداللہخانصاحب' }), { fonts: false })).toContain('<bdi>محمدعبداللہ…</bdi> نے کوئز مکمل کیا');
+    expect(html({ first: 'Noor' })).toContain('<bdi>Noor</bdi>');
+  });
+  test('no result and no badge: the activity\'s word once (the ribbon), never again on the medal', () => {
+    const h = html({ kind: 'read', deed: 'read_tried' });
+    expect((h.match(/>Reading</g) || []).length).toBe(1);
+    expect(h).toContain('<div class="cap" data-ink></div>');
+  });
+  test('the deed and the dare wrap balanced, so a long line never leaves its last word alone (EN and UR)', () => {
+    for (const lang of ['en', 'ur']) {
+      const h = A.renderCardA(f({ lang, first: lang === 'ur' ? 'محمدعبداللہ' : 'Muhammadabd', kind: 'book', deed: 'book_read' }), { fonts: false });
+      expect(h).toMatch(/\.deed\{[^}]*text-wrap:balance/);
+      expect(h).toMatch(/\.dare\{[^}]*text-wrap:balance/);
+    }
+  });
   test('a name that is markup is only text', () => {
     expect(html({ first: '<img src=x>' })).not.toContain('<img src=x>');
   });
@@ -140,6 +159,31 @@ describe('the item\'s picture (artOf)', () => {
     expect((await sharp(Buffer.from(art.b64, 'base64')).metadata()).width).toBe(260);
     r2.downloadFromR2.mockRejectedValue(new Error('down'));
     expect(await A.artOf({ item: { type: 'book', id: BOOK } })).toBeNull();
+  });
+  test('a lesson\'s own poster, 480 px wide for the medal\'s corner; no poster: the shelf\'s small picture', async () => {
+    bank.mockResolvedValueOnce({ rows: [{ id: VID, r2_url: 'https://x/student-videos/lesson-1.mp4' }] });
+    r2.downloadFromR2.mockResolvedValueOnce(await sharp({ create: { width: 1280, height: 720, channels: 3, background: '#2a86de' } }).jpeg().toBuffer());
+    const art = await A.artOf({ item: { type: 'video', id: VID } });
+    expect(r2.downloadFromR2).toHaveBeenCalledWith('student-videos/lesson-1_poster.jpg');
+    expect(art.type).toBe('image/jpeg');
+    expect((await sharp(Buffer.from(art.b64, 'base64')).metadata()).width).toBe(480);
+    bank.mockResolvedValueOnce({ rows: [{ id: VID, r2_url: 'https://x/student-videos/lesson-1.mp4' }] });
+    r2.downloadFromR2.mockRejectedValueOnce(new Error('NoSuchKey'));
+    thumb.mockResolvedValueOnce({ bytes: Buffer.from('w'), contentType: 'image/webp' });
+    expect(await A.artOf({ item: { type: 'video', id: VID } })).toEqual({ type: 'image/webp', b64: Buffer.from('w').toString('base64') });
+  });
+  test('the frame\'s slot is wide; an Urdu card\'s Jugnu sits higher and smaller, clear of the deed', () => {
+    expect(html({ kind: 'video', deed: 'video_watched', item: { type: 'video', id: VID } }, { type: 'image/jpeg', b64: 'QUJD' })).toContain('.side.frame{width:216px;height:122px;');
+    expect(A.renderCardA(f({ lang: 'ur', first: 'نور' }), { fonts: false })).toContain('.jug{width:170px;height:170px;top:4px}');
+    expect(html({})).not.toContain('.jug{width:170px');
+  });
+  test('the rays are drawn without dithering, within the budget', async () => {
+    const sharpMod = require('sharp');
+    const big = await sharpMod({ create: { width: 1200, height: 630, channels: 3, background: '#3a9d4f' } }).png().toBuffer();
+    const spy = jest.spyOn(sharpMod.prototype, 'png');
+    await Card.toPngA(big, {});
+    expect(spy.mock.calls[0][0]).toMatchObject({ palette: true, colors: 192, dither: 0 });
+    spy.mockRestore();
   });
   test('a lesson\'s small picture; none: none', async () => {
     thumb.mockResolvedValueOnce({ bytes: Buffer.from('w'), contentType: 'image/webp' });

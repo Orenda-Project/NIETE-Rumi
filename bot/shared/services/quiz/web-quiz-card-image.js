@@ -449,11 +449,12 @@ const MAX_BYTES_A = 120 * 1024;
 async function toPngA(png, f) {
   const sharp = require('sharp');
   let out = null;
-  for (const colors of [128, 96, 64]) {
-    out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, dither: 0.6, compressionLevel: 9, effort: 8 }).toBuffer();
+  // no dithering: the rays' soft gradients stay smooth bands instead of a speckled grain
+  for (const colors of [192, 128, 96]) {
+    out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, dither: 0, compressionLevel: 9, effort: 8 }).toBuffer();
     if (out.length <= MAX_BYTES_A) return out;
   }
-  logToFile('⚠️ web quiz card A: picture over 120 KB at 64 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
+  logToFile('⚠️ web quiz card A: picture over 120 KB at 96 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
   return out;
 }
 
@@ -493,6 +494,23 @@ function storeKey(token, ext) {
   const StoryStore = require('./story-store');
   return `wq-card/${StoryStore.deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
 }
+// web_quiz_card_fast: the page's facts also kept in Redis (shared by every portal copy) under the same hash, 14 days.
+const CACHE_TTL_S = 14 * 24 * 3600;
+function cardCacheKey(token) {
+  const StoryStore = require('./story-store');
+  return `wq:card:${StoryStore.deployEnv()}:${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}`;
+}
+/** The page's facts into Redis; false when Redis is away or the write fails. Never throws. */
+async function keepFast(token, page) {
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return false;
+    return (await redis.set(cardCacheKey(token), JSON.stringify(page), CACHE_TTL_S)) !== false;
+  } catch (err) {
+    logToFile('⚠️ web quiz card: page not kept in Redis (storage still has it)', { error: err.message });
+    return false;
+  }
+}
 const prepared = new Map();
 /** Draw the card's picture and its page's facts and store both (immutable); once per token per process. Never throws. */
 function prepare(token) {
@@ -506,6 +524,7 @@ function prepare(token) {
       const r2 = require('../../storage/r2');
       const bucket = StoryStore.storyBucket() || undefined;
       const [pic, page] = await Promise.all([image(token), landing(token)]);
+      if (Switch.fastCached()) keepFast(token, page);
       await Promise.all([
         r2.uploadBuffer(pic.bytes, storeKey(token, 'png'), 'image/png', { bucket, cacheControl: StoryStore.IMMUTABLE }),
         r2.uploadBuffer(Buffer.from(JSON.stringify(page)), storeKey(token, 'json'), 'application/json', { bucket, cacheControl: StoryStore.IMMUTABLE }),
@@ -587,6 +606,6 @@ async function landing(token) {
 function _reset() { Switch._reset(); mem.clear(); inflight.clear(); prepared.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MAX_BYTES_A, MARK, REF_RX, toPngA, prepare, storeKey,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MAX_BYTES_A, MARK, REF_RX, toPngA, prepare, storeKey, cardCacheKey,
   JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, byShort, _reset, _seal: seal,
 };

@@ -102,14 +102,33 @@ describe('on, one voice off: the challenge clips are the storybook voice', () =>
     expect(await Ch.storyClip('ur', 'ایک دن بارش ہوئی۔')).toMatch(/\/listen\/story-el-sara-k32-[0-9a-f]{8}\.ogg$/);
   });
 
-  test('the batch records a short Urdu line in Sara, its words respelled; on the fly it is refused', async () => {
+  test('a short line (an exercise\'s intro, a door label) is recorded on the fly in Sara at 32 kb/s, as today\'s voice is', async () => {
     seed([{ key: KEY, value: true }]);
     await OneVoice.on(); await Ch.storyVoiceOn();
-    const key = Ch.clipKey('listen', 'q1', 'ur', 'بچے کہاں رہے؟');
-    expect(await Ch.recordClip(key, 'بچے کہاں رہے؟', 'ur')).toBeNull();
-    expect(tts.synthesize).not.toHaveBeenCalled();
-    expect(await Ch.recordClip(key, 'بچے کہاں رہے؟', 'ur', undefined, { batch: true })).not.toBeNull();
+    const key = Ch.clipKey('listen', 'intro', 'ur', 'کہانی سنو۔');
+    expect(await Ch.recordClip(key, 'کہانی سنو۔', 'ur')).not.toBeNull();
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', model: 'eleven_v4', outputFormat: 'opus_48000_32' });
+    expect(r2.uploadBuffer.mock.calls[0][1]).toBe(key);
+    expect(events('web_quiz.ch_clip_ungated_refused')).toHaveLength(0);
+  });
+
+  test('a door label on a child\'s open: missing, it is recorded in the background in the storybook voice', async () => {
+    seed([{ key: KEY, value: true }]);
+    await OneVoice.on(); await Ch.storyVoiceOn();
+    expect(await Ch.sayClip('Stories', 'en')).toBeNull();   // this open: not there yet
+    await new Promise((r) => setImmediate(r));
+    expect(tts.synthesize).toHaveBeenCalled();
+    tts.synthesize.mock.calls.forEach(([a]) => expect(a).toMatchObject({ voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_multilingual_v2' }));
+    expect(r2.uploadBuffer.mock.calls.every(([, k]) => /-el-bella-cff2e4-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  });
+
+  test('one voice on: a short line is still recorded only by the pre-flip batch (unchanged)', async () => {
+    seed([{ key: 'web_quiz_one_voice', value: REYNA }, { key: KEY, value: true }]);
+    await OneVoice.on(); await Ch.storyVoiceOn();
+    const key = Ch.clipKey('listen', 'intro', 'en', 'Listen to the story.');
+    expect(await Ch.recordClip(key, 'Listen to the story.', 'en')).toBeNull();
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(await Ch.recordClip(key, 'Listen to the story.', 'en', undefined, { batch: true })).not.toBeNull();
   });
 });
 

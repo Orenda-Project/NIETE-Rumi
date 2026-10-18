@@ -46,14 +46,17 @@ beforeEach(async () => {
 });
 const ct = () => T.signChallenge({ studentId: 'st-2', ex: 'read', runId: 'run-1' });
 const mint = () => Card.mint({ kind: 'read', deed: 'read_all', ct: ct(), lang: 'ur' });
-const settle = () => new Promise((r) => setTimeout(r, 30));
+// the card's own work at mint, awaited (a marked token's prepare is the one the mint started; an unmarked one does
+// nothing), never a fixed wait that a loaded machine outruns
+const settle = (token) => Card.prepare(token);
+const until = async (ok) => { for (const t0 = Date.now(); !ok() && Date.now() - t0 < 5000;) await new Promise((r) => setTimeout(r, 5)); };
 const keyOf = (token, ext) => `wq-card/${StoryStore.deployEnv()}/${crypto.createHash('sha256').update(token).digest('hex').slice(0, 32)}.${ext}`;
 
 describe('the switch', () => {
   test.each([['absent', { ready: false }], ['false', { readyValue: false }], ['the string "true"', { readyValue: 'true' }]])('%s: nothing is drawn or stored at mint; the token is unmarked', async (_, o) => {
     seed(o);
     const { token } = await mint();
-    await settle();
+    await settle(token);
     expect(Card.facts(token)).not.toHaveProperty('ready');
     expect(htmlToImage).not.toHaveBeenCalled();
     expect(r2.uploadBuffer).not.toHaveBeenCalled();
@@ -64,7 +67,7 @@ describe('on', () => {
   test('at mint: the picture and the page\'s facts are stored under the token\'s hash, immutable, never the token itself', async () => {
     const { token } = await mint();
     expect(Card.facts(token).ready).toBe(true);
-    await settle();
+    await settle(token);
     expect(r2.uploadBuffer).toHaveBeenCalledTimes(2);
     const [png, json] = ['png', 'json'].map((ext) => r2.uploadBuffer.mock.calls.find((c) => c[1] === keyOf(token, ext)));
     expect(png[2]).toBe('image/png');
@@ -79,7 +82,7 @@ describe('on', () => {
     r2.uploadBuffer.mockImplementation(() => new Promise((r) => { held.push(r); }));
     const { token } = await mint();
     expect(token).toEqual(expect.any(String));
-    await settle();
+    await until(() => held.length === 2);
     expect(held).toHaveLength(2);
     const again = Card.prepare(token);
     held.forEach((r) => r('u'));
@@ -89,7 +92,7 @@ describe('on', () => {
   test('storage away: the mint still answers, and the next ask tries again', async () => {
     r2.uploadBuffer.mockRejectedValue(new Error('down'));
     const { token } = await mint();
-    await settle();
+    await settle(token);
     expect(await Card.prepare(token)).toBe(false);
     r2.uploadBuffer.mockResolvedValue('u');
     expect(await Card.prepare(token)).toBe(true);
