@@ -305,3 +305,47 @@ describe('the thumbnail', () => {
     expect(await Thumb.noPicture(F.V(3))).toBe(false);
   });
 });
+
+// A grade's lesson lengths read in the background (the hub asks when a child of that grade opens it): once per grade
+// until they would go stale, only that grade's lessons, a bank that does not load asked again next time; never throws.
+describe('the library warms a grade\'s lesson lengths', () => {
+  const Bank = require('../../../shared/services/quiz/web-quiz-bank');
+  let warm;
+  beforeEach(() => { warm = jest.spyOn(Videos, 'warmMeta').mockResolvedValue(undefined); });
+  afterEach(() => warm.mockRestore());
+  test('its own grade\'s lessons only, once however many children of it open the hub; another grade is its own', async () => {
+    F.seed(supabase, [LIB]);
+    Lib.warmGrade(3);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(1);
+    const ids = warm.mock.calls[0][0];
+    const want = (await Bank.bank()).rows.filter((r) => String(r.grade) === '3').map((r) => r.id);
+    expect(want.length).toBeGreaterThan(3);
+    expect([...ids].sort()).toEqual([...want].sort());
+    expect(ids).not.toContain(F.V(9));
+    Lib.warmGrade('Grade 4');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(2);
+    expect(warm.mock.calls[1][0]).toEqual([F.V(9)]);
+  });
+  test('no grade, or one the bank does not have: nothing is read', async () => {
+    F.seed(supabase, [LIB]);
+    Lib.warmGrade(null);
+    Lib.warmGrade('');
+    await Lib._idle();
+    expect(warm).not.toHaveBeenCalled();
+  });
+  test('a bank that does not load: no throw, nothing kept, and the next open warms', async () => {
+    supabase.from = () => { throw new Error('down'); };
+    expect(() => Lib.warmGrade('3')).not.toThrow();
+    await Lib._idle();
+    expect(warm).not.toHaveBeenCalled();
+    Lib._reset();
+    F.seed(supabase, [LIB]);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(1);
+  });
+});
+

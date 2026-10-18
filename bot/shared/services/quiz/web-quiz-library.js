@@ -254,6 +254,27 @@ function shelfRoot() {
 }
 
 /**
+ * web_quiz_video_shelf: a grade's lesson lengths read in the background when a child of that grade opens the hub (the
+ * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. Once per
+ * grade until the lengths would go stale; a bank that does not load is asked again next time. Never throws.
+ */
+const WARM_AGAIN_MS = 3 * 60 * 60 * 1000; // half the lengths' life in web-quiz-videos.js
+const warmed = new Map();                  // grade -> when its lengths were asked for
+function warmGrade(grade, { fetchImpl } = {}) {
+  try {
+    const Videos = require('./web-quiz-videos');
+    const g = Videos.gradesFor(grade)[0];
+    const at = warmed.get(g);
+    if (!g || (at && Date.now() - at < WARM_AGAIN_MS)) return;
+    warmed.set(g, Date.now());
+    track(new Promise((res) => setImmediate(res)).then(async () => {
+      const ids = (await bank()).rows.filter((r) => String(r.grade) === g).map((r) => r.id);
+      if (ids.length) await Videos.warmMeta(ids, { fetchImpl });
+    }).catch(() => { warmed.delete(g); }));
+  } catch (_) { /* the hub never waits on this */ }
+}
+
+/**
  * The lesson to watch after a watched one: the next in its grade and subject, in the subject screen's order (the
  * child's language as the library shows it), that this child has not finished — the rest of the list, then wrapping.
  * -> {vid, title, poster?} | null. Never throws (a suggestion never fails a video).
@@ -307,8 +328,8 @@ async function download(code, { st, vid } = {}) {
 }
 
 module.exports = {
-  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH,
+  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH, warmGrade,
   inLanguage,
-  _reset: () => { rootHeld = null; require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
+  _reset: () => { rootHeld = null; warmed.clear(); require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
 };
