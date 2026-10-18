@@ -121,7 +121,7 @@ async function closedKnows(err) {
 // (`app;dur`, the round-trip count), as the hub's does, a closed link's answer too; this route reads no switch itself,
 // so the hub's batched switch read is refreshed in the background, never waited for. Off: no header, the call as before.
 router.get('/quiz/:code', handle(async (req, res) => {
-  const out = await PageLang.carry(PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }))))))))).catch(async (err) => {
+  const out = await PageLang.carry(PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p, k: req.query.k }))))))))).catch(async (err) => {
     StepTiming.timeRequest(res, [], { refresh: true });
     throw await closedKnows(err);
   });
