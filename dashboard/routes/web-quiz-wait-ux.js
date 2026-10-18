@@ -8,7 +8,9 @@
  *     while any child data read (GET /api/wq/…: the Games and Stories doors, the shelf, the videos) is in flight;
  *     it creeps towards 90 % and runs to the end and fades when the wait is over; a read still unanswered at 15 s is
  *     called off (the screen then shows its own try-again) and the bar lets it go, so it never creeps forever;
- *   - Jugnu's waiting moment for an opening over 1.5 s: Jugnu bobs and three dots pulse under the opening line.
+ *   - Jugnu's waiting moment for an opening over 1.5 s: Jugnu bobs and three dots pulse under the opening line;
+ *   - the same child data read asked again while the first is still out (the home and the Stories door both ask for
+ *     the shelf) rides the first: the later caller gets its own copy of the same answer, and one request goes out.
  * It adds no words (no new copy to translate), takes no taps (pointer-events none, aria-hidden) and honours reduced
  * motion (the bar still shows; nothing bobs or pulses).
  * Off: the key is absent from the hub answer, nothing is added, every page is today's, byte for byte.
@@ -39,10 +41,13 @@ const JS = '(function(d,w){try{'
   + 'var jt=null;function jm(){if(!jt)jt=setTimeout(function(){jt=null;var x=boot();if(x)x.classList.add("wq-bwait")},1500)}'
   + 'start();jm();'
   + 'var m=d.getElementById("wq");if(m&&w.MutationObserver)new w.MutationObserver(function(){if(boot()){start();jm()}else end()}).observe(m,{childList:true,subtree:true});'
-  + 'var f=w.fetch;if(f)w.fetch=function(u,o){var s=String(u&&u.url||u||""),'
+  + 'var f=w.fetch,q={};if(f)w.fetch=function(u,o){var s=String(u&&u.url||u||""),'
   + 'g=/^get$/i.test(o&&o.method||u&&u.method||"GET")&&/\\/api\\/wq\\//.test(s);if(!g)return f.apply(this,arguments);'
+  + 'var sh1=typeof u=="string"&&!(o&&o.signal),e=sh1&&q.hasOwnProperty(u)?q[u]:null;'
+  + 'if(e)return new Promise(function(y,x){e.push([y,x])});'
   + 'var a,args=arguments;var C=w.AbortController;if(typeof u=="string"&&!(o&&o.signal)&&C){a=new C();args=[u,Object.assign({},o,{signal:a.signal})]}'
   + 'var r=f.apply(this,args),k=0,z=function(){if(k)return;k=1;clearTimeout(t);n--;end()},t=setTimeout(function(){if(a)a.abort();z()},15000);'
+  + 'if(sh1){var ws=q[u]=[];r.then(function(v){delete q[u];ws.forEach(function(p){p[0](v&&v.clone?v.clone():v)})},function(x){delete q[u];ws.forEach(function(p){p[1](x)})})}'
   + 'n++;start();r.then(z,z);return r};'
   + '}catch(e){}})(document,window)';
 

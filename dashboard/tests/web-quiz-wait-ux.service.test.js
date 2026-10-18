@@ -38,7 +38,7 @@ describe('the hub page', () => {
     expect(WaitUx.TAG).toBe(`<style id="wq-wait">${WaitUx.CSS}</style><script>${WaitUx.JS}</script>`);
     expect(WaitUx.CSS.match(/content:"[^"]*"/g)).toEqual(['content:""']);
     expect(WaitUx.JS).not.toMatch(/textContent|innerText|createTextNode/);
-    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2600);
+    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(3000); // one small inline piece (the read share is about 300 bytes of it)
   });
 });
 
@@ -106,7 +106,7 @@ function page() {
     document, window, calls, boot: () => boot,
     removeBoot() { boot = null; observers.forEach((fn) => fn()); },
     addBoot() { boot = mk('div'); observers.forEach((fn) => fn()); return boot; },
-    settle(i) { pending[i](); },
+    settle(i, v) { pending[i](v); },
   };
 }
 const flush = () => new Promise((r) => jest.requireActual('timers').setImmediate(r));
@@ -218,5 +218,50 @@ describe('the bar and Jugnu\'s moment, run', () => {
     await flush();
     expect(own.signal.aborted).toBe(false);
     expect(p.document.bar.firstChild.style.width).toBe('100%');
+  });
+});
+
+describe('the same child data read asked twice while the first is out', () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
+  afterEach(() => jest.useRealTimers());
+  const answer = (body) => { const r = { body, clones: 0, clone() { r.clones += 1; return { body, copy: true }; } }; return r; };
+
+  test('rides the first: one request goes out, the first caller gets the answer, the later one its own copy', async () => {
+    const p = page();
+    p.removeBoot();
+    const one = p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    const two = p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    expect(p.calls.length).toBe(1);
+    const res = answer({ books: [1] });
+    p.settle(0, res);
+    expect(await one).toBe(res);
+    expect(await two).toEqual({ body: { books: [1] }, copy: true });
+    expect(res.clones).toBe(1);
+  });
+
+  test('once answered, the same read goes out again (nothing is kept); another address, a caller\'s own signal or a POST never rides', async () => {
+    const p = page();
+    p.removeBoot();
+    const one = p.window.fetch('/api/wq/doors/h/x?d=stories');
+    p.settle(0, answer({}));
+    await one;
+    p.window.fetch('/api/wq/doors/h/x?d=stories');
+    expect(p.calls.length).toBe(2);
+    p.window.fetch('/api/wq/doors/h/x?d=games');
+    p.window.fetch('/api/wq/doors/h/x?d=games', { signal: new AbortController().signal });
+    p.window.fetch('/api/wq/doors/h/x?d=games', { method: 'POST' });
+    expect(p.calls.length).toBe(5);
+  });
+
+  test('a read called off at 15 s fails for the later caller too (each screen shows its own try-again)', async () => {
+    const p = page();
+    p.removeBoot();
+    const why = [];
+    p.window.fetch('/api/wq/lib/h/x').catch((e) => why.push(e.name));
+    p.window.fetch('/api/wq/lib/h/x').catch((e) => why.push(e.name));
+    expect(p.calls.length).toBe(1);
+    jest.advanceTimersByTime(15001);
+    await flush();
+    expect(why).toEqual(['AbortError', 'AbortError']);
   });
 });
