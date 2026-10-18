@@ -25,9 +25,11 @@
   // inside a box that scrolls sideways on its own (a shelf), the box is measured, not what scrolls in it
   const inScroller = (e) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const o = cs(p).overflowX; if (o === 'auto' || o === 'scroll') return true; } return false; };
   const frame = (e) => { const s = cs(e); const r = e.getBoundingClientRect(); return (s.position === 'fixed' || s.position === 'sticky') && r.width >= vw - 1; };
+  // inside a decorative full-width bar (aria-hidden, e.g. the designed wait's progress line): part of the frame
+  const inDecor = (e) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) if (p.getAttribute('aria-hidden') === 'true' && frame(p)) return true; return false; };
   const gutter = [];
   document.querySelectorAll('body *').forEach((e) => {
-    if (!vis(e) || !boxy(e) || frame(e) || inScroller(e)) return;
+    if (!vis(e) || !boxy(e) || frame(e) || inScroller(e) || inDecor(e)) return;
     if (/^(HTML|BODY|SCRIPT|STYLE|SVG|PATH|IMG)$/i.test(e.tagName) && !boxy(e)) return;
     if (e.closest('svg') && e.tagName.toLowerCase() !== 'svg') return;
     if (e.matches('.wq-app,.wq-boot,.wq-boot *')) return;
