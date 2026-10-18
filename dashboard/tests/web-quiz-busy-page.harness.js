@@ -82,12 +82,16 @@ function get(srv, path, headers = {}) {
   });
 }
 
-// The response as compared: status, every header but the clock and the socket's, the body.
+// The response as compared: status, every header but the clock and the socket's, the body. The stylesheet's version
+// token (a hash of wq.css) and the etag (a hash of the body) are masked: a style change elsewhere moves both and says
+// nothing about these pages; the body itself is still compared byte for byte.
 const SKIP = new Set(['date', 'connection', 'keep-alive']);
+const ASSET_V = /(\/wq\/[\w.-]+\?v=)[0-9a-f]+/g;
 function shape(r) {
   const headers = {};
   Object.keys(r.headers).sort().forEach((k) => { if (!SKIP.has(k)) headers[k] = r.headers[k]; });
-  return { status: r.status, headers, body: r.body };
+  if (headers.etag) headers.etag = '<body hash>';
+  return { status: r.status, headers, body: r.body.replace(ASSET_V, '$1<asset>') };
 }
 
 /**
