@@ -208,6 +208,8 @@ function renderArt({ kind, size, brand, lang, d, ui }, opt = {}) {
   // The Urdu polish switch (app_settings web_quiz_ur_polish, carried as `ui.ur2`): the Urdu lines a step larger, the quiz name
   // the headline, the CTA readable at WhatsApp's ~300 px preview. Off (or English), every size below is today's.
   const UR2 = RTL && Boolean(ui && ui.ur2 === true);
+  // The one share (app_settings web_quiz_share_v4, carried as `ui.ink`): Urdu text keeps all its ink. Off, every line below is today's.
+  const INK = RTL && Boolean(ui && ui.ink === true);
   const C = COPY[L];
   // The wide picture (1200×630) has no height to spare: under the polish its stack is budgeted — no kicker on the card and
   // the invite, the name 56/1.7, the topic 44 (36 when long), the invite's scored line 32, every line at 1.9 — so the
@@ -284,7 +286,11 @@ ${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1
 .crow li{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.08);border-radius:12px;padding:${RTL ? '0 16px' : '4px 16px'};font-size:${Math.round((sq ? 34 : 26) * S)}px;line-height:${RTL ? 1.6 : 1.25}}
 .crow li.me{background:${t.brand};color:${t['brand-on']}}
 .crow .rk{flex:0 0 40px}.crow .who{flex:1;min-width:0;white-space:nowrap;overflow:hidden}.crow .ani{margin:0}
-.dot{font-family:'Lexend',sans-serif;unicode-bidi:isolate}`;
+.dot{font-family:'Lexend',sans-serif;unicode-bidi:isolate}${INK ? `
+/* Room for the ink (the one share): a clipped Urdu name keeps the stroke a ک or گ throws past its line, and a pill's word
+   keeps its tall letters inside the pill. The padding is given back as margin, so nothing else moves. */
+.name,.crow .who,.sn{padding:.5em .5em;margin:-.5em -.5em}
+.pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}`;
   const top = `<div class="top"><span class="mark" aria-hidden="true">${B.mark.svg}</span><span class="brand">${esc(B.label[L])}</span></div>`;
   const side = parts.pic ? `<div class="side">${parts.pic}</div>` : '';
   const cta = parts.cta ? `<div class="cta">${esc(parts.cta)}</div>` : '';

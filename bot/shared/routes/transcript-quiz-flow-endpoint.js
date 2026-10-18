@@ -785,7 +785,16 @@ async function stepAction(teacher, screenData) {
     runAfterResponse('report', quiz.id, async () => {
       const Report = require('../services/quiz/video-quiz-report.service');
       const sent = await Report.generate(shareCodeId, { reason: 'requested', force: true });
-      if (!sent) {
+      // quiz_report_send_checked on: a false may also be WhatsApp refusing the
+      // report — children did finish, so never "no one has finished" then.
+      // lastRefusal() tells it apart (a stub with generate alone has none).
+      const refused = !sent && typeof Report.lastRefusal === 'function' ? Report.lastRefusal(shareCodeId) : null;
+      if (refused) {
+        const WhatsAppService = require('../services/whatsapp.service');
+        await WhatsAppService.sendMessage(phone, refused.link
+          ? resolveUx('tqReportNotThrough', { language, params: { link: refused.link } })
+          : resolveUx('tqReportNotThroughNoLink', { language }));
+      } else if (!sent) {
         // The screen already said the report is coming. For a teacher-asked
         // report the service declines only when it counts no finished child
         // (share code and teacher phone are both known here), so the chat says

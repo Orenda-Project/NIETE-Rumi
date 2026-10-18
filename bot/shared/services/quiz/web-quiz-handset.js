@@ -43,6 +43,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const { clampLanguage } = require('../../config/ux-strings');
 const HubDevice = require('./web-quiz-hub-device');
 
 const LINK_KEY = 'web_quiz_handset_link';
@@ -254,7 +255,7 @@ async function bind(body = {}, WqError = null) {
     logEvent('web_quiz.handset_would_merge', { from: c.from, to: c.to, shareCodeId: sc.id });
     if (f.merge && await mergeNow(c.from, c.to)) merged += 1;
   }
-  const lang = String(sc.language || 'en').toLowerCase() === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(String(sc.language || 'en').toLowerCase());
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     kids: kids.map((k) => ({ chip: T.chipId(sc.id, k.id), first: nameOf(k), animal: T.animalFor(k.id) })),
