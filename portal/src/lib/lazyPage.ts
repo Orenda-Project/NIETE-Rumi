@@ -47,7 +47,7 @@ export function lazyPage<T extends ComponentType<any>>(load: Loader<T>) {
  */
 export function prefetchPages(): void {
   if (import.meta.env.MODE === "test") return;
-  // qa-audio 202011: on data saver or a 3g-or-slower line, ~790 KB of page chunks starved an
+  // On data saver or a 3g-or-slower line, ~790 KB of page chunks starved an
   // FLN plan's audio, so skip the prefetch there. No navigator.connection (iOS, Firefox): as before.
   try {
     const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
