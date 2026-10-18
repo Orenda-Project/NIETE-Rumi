@@ -449,11 +449,12 @@ const MAX_BYTES_A = 120 * 1024;
 async function toPngA(png, f) {
   const sharp = require('sharp');
   let out = null;
-  for (const colors of [128, 96, 64]) {
-    out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, dither: 0.6, compressionLevel: 9, effort: 8 }).toBuffer();
+  // no dithering: the rays' soft gradients stay smooth bands instead of a speckled grain
+  for (const colors of [192, 128, 96]) {
+    out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, dither: 0, compressionLevel: 9, effort: 8 }).toBuffer();
     if (out.length <= MAX_BYTES_A) return out;
   }
-  logToFile('⚠️ web quiz card A: picture over 120 KB at 64 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
+  logToFile('⚠️ web quiz card A: picture over 120 KB at 96 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
   return out;
 }
 
