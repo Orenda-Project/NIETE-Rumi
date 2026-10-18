@@ -174,4 +174,25 @@ describe('the internal routes hand the hub its lang', () => {
       expect(spy.mock.calls[1][1]).toMatchObject({ kid: 'k', device: 'd', lang: 'en' });
     } finally { spy.mockRestore(); await new Promise((r) => server.close(r)); }
   });
+  // the grown-ups corner's link (?lang=..&keep=1) on a phone the page render already knows: the page draws that answer
+  // and asks no second time, so the GET itself carries keep (only with a language, as the POST's rule)
+  test('GET /hub/:token?kid&lang=ur&keep=1 -> opts.keep true; keep without lang, or any other keep value, -> no keep', async () => {
+    const express = require('express');
+    process.env.INTERNAL_API_KEY = 'route-key';
+    const app = express();
+    app.use(express.json());
+    app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const spy = jest.spyOn(Hub, 'hub').mockResolvedValue({ kids: [] });
+    try {
+      const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
+      const h = { headers: { 'x-api-key': 'route-key' } };
+      await fetch(`${base}/hub/abc.def?kid=0123456789abcdef&lang=ur&keep=1`, h);
+      await fetch(`${base}/hub/abc.def?kid=0123456789abcdef&keep=1`, h);
+      await fetch(`${base}/hub/abc.def?kid=0123456789abcdef&lang=ur&keep=yes`, h);
+      await fetch(`${base}/hub/abc.def?kid=0123456789abcdef&lang=ur`, h);
+      expect(spy.mock.calls[0][1]).toMatchObject({ kid: '0123456789abcdef', lang: 'ur', keep: true });
+      spy.mock.calls.slice(1).forEach((c) => expect(c[1]).not.toHaveProperty('keep'));
+    } finally { spy.mockRestore(); await new Promise((r) => server.close(r)); }
+  });
 });

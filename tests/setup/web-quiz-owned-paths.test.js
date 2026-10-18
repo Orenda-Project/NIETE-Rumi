@@ -19,6 +19,13 @@ describe('the owned-paths filter', () => {
     expect(ownedOnly(listed.slice(1))).not.toEqual(ownedOnly(listed));
   });
 
+  test('the shared switch cache is ours as the exact file, not its folder', () => {
+    // Our switch modules read through it, so a change to it alone must still reach the train tool.
+    expect(OWNED).toContain('bot/shared/services/settings/switch-cache.js');
+    expect(ownedOnly(['bot/shared/services/settings/switch-cache.js'])).toEqual(['bot/shared/services/settings/switch-cache.js']);
+    expect(ownedOnly(['bot/shared/services/settings/other-settings.js'])).toEqual([]);
+  });
+
   test('the owned prefixes, sorted output, no duplicates', () => {
     expect(OWNED).toEqual(expect.arrayContaining(['bot/shared/services/quiz/', 'bot/shared/services/child-test/', 'bot/shared/config/copy',
       'bot/shared/templates/class-round', 'bot/shared/templates/teacher-jugnu', 'dashboard/public/wq/', 'scripts/web-quiz/']));

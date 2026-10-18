@@ -377,11 +377,12 @@
     var doneFrom = o.counted ? (typeof o.doneFrom === 'number' ? o.doneFrom : 0.8) : 0;
     var maxMs = o.maxMs || 60000;
     // the live meter (wq-pace.js, web_quiz_live_meter): in the glow's place, rising with every word heard
-    var pv = window.WQPace && window.WQPace.variant;
+    // o.pace {el, keep}: the host's own slot for the sky bar (a story page's, outside its zoomed picture) and its state
+    var pv = window.WQPace && window.WQPace.variant, ph = pv === 'sky' && o.pace && o.pace.el;
     var s = { started: Date.now(), lastAt: Date.now(), v: m.view(), sock: null, live: false, queue: [], chunks: [], ended: null, mr: null, tick: null, quietT: null };
     el.innerHTML = '<div class="lr' + (pv === 'vine' ? ' lr-vine' : '') + '" dir="' + (o.dir === 'rtl' || lang === 'ur' ? 'rtl' : 'ltr') + '" lang="' + lang + '">'
       + '<p class="lr-nudge">' + esc(t.readNow) + '</p>'
-      + (pv === 'sky' ? '<div class="lr-pace"></div>' : '')   // the bar above the words, where the eye starts
+      + (pv === 'sky' && !ph ? '<div class="lr-pace"></div>' : '')   // the bar above the words, where the eye starts
       + (img
         ? '<div class="lr-ov" style="aspect-ratio:' + img.w + '/' + img.h + '"><img src="' + esc(img.url) + '" alt="" width="' + img.w + '" height="' + img.h + '">'
           + items.map(function (x, i) { var b = x.box; return '<span class="lr-w lr-box" data-i="' + i + '" style="left:' + pc(b[0], img.w) + ';top:' + pc(b[1], img.h) + ';width:' + pc(b[2], img.w) + ';height:' + pc(b[3], img.h) + '" aria-label="' + esc(x.t) + '"></span>'; }).join('') + '</div>'
@@ -390,7 +391,7 @@
       + '<div class="lr-bar"><button class="wq-btn wq-navy lr-done" type="button"' + (doneFrom > 0 ? ' hidden' : '') + '>' + doneHtml(t) + '</button>'
       + (o.counted ? '<button class="wq-btn wq-soft lr-stop" type="button">' + esc(t.stop) + '</button>' : '') + '</div></div>';
     var spans = el.querySelectorAll ? el.querySelectorAll('.lr-w') : [];
-    var pace = pv ? window.WQPace.mount(pv === 'vine' ? el.querySelector('.lr') : el.querySelector('.lr-pace'), { variant: pv, grade: o.grade || window.WQPace.grade }) : null;
+    var pace = pv ? window.WQPace.mount(pv === 'vine' ? el.querySelector('.lr') : ph || el.querySelector('.lr-pace'), { variant: pv, grade: o.grade || window.WQPace.grade, keep: o.pace && o.pace.keep }) : null;
     var nudge = el.querySelector('.lr-nudge');
     var doneBtn = el.querySelector('.lr-done');
     function paint() {

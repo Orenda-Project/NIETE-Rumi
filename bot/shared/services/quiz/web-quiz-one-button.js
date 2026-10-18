@@ -23,6 +23,14 @@ function on(now = Date.now()) {
   try { return Flags.oneButtonNow(now); } catch (_) { return false; }
 }
 
+/**
+ * web_quiz_look_after on: the switch looked at again once the answer lands (the hub's own read has filled the cache by
+ * then), so a cold or stale cache does not drop the field from the first answer after idle. Off: false (the look before only).
+ */
+function late() {
+  try { return Flags.nowOf('lookAfter') && on(); } catch (_) { return false; }
+}
+
 /** The switch, waited for (tests). */
 async function flag(now = Date.now()) {
   try { return Boolean((await Flags.flags(now)).oneButton); } catch (_) { return false; }
@@ -34,7 +42,7 @@ async function flag(now = Date.now()) {
  */
 function carry(answerP) {
   const one = on();
-  return Promise.resolve(answerP).then((out) => (one && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
+  return Promise.resolve(answerP).then((out) => ((one || late()) && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
 }
 
-module.exports = { on, flag, carry, KEY, FIELD };
+module.exports = { on, late, flag, carry, KEY, FIELD };

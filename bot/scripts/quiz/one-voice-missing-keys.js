@@ -47,7 +47,7 @@ const LENGTH_RANGE = [0.25, 3.0];
 const MAX_WER = { en: 0.20, ur: 0.25 };
 const USD_PER_CHAR = 0.30 / 1000;
 const STT_USD_PER_S = 0.135 / 3600;
-const SHORT_PART = /^q\d+(-opt)?$/;
+const SHORT_PART = /^(q\d+(-opt)?|intro|start|stop|done)$/;
 const LONG_PART = /^(listen|read)\/story$/;
 
 function parseArgs(argv) {
@@ -92,6 +92,8 @@ function wer(text, heard) {
   return prev[hyp.length] / ref.length;
 }
 
+const SPEAKER_LABEL = /^[ \t]*\[\d{1,2}:\d{2}(?::\d{2})?\][ \t]*[^:\n]{1,40}:[ \t]*/gm;
+
 // The default hearing: Soniox async through the child test's own transcription (the audio in a private temp file).
 async function sonioxHears(audio, lang) {
   const fs = require('fs');
@@ -101,7 +103,9 @@ async function sonioxHears(audio, lang) {
   const file = path.join(dir, 'clip.ogg');
   try {
     fs.writeFileSync(file, audio, { mode: 0o600 });
-    return (await require('../../shared/services/child-test/scoring/stt').transcribe(file, lang)).text || '';
+    // the transcript is diarised ("[00:00] Teacher (EN): …" a turn): only the words heard are judged, never the labels
+    const text = (await require('../../shared/services/child-test/scoring/stt').transcribe(file, lang)).text || '';
+    return text.replace(SPEAKER_LABEL, '').trim();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -172,6 +176,11 @@ async function main(argv, deps = {}) {
     if (!p) { print(`no_file\t${r.passage_id}`); continue; }
     for (const c of CW.clipsOf(p, optAudio, r.pool || p.pool)) if (!clips.has(c.key)) clips.set(c.key, { ...c, id: r.passage_id });
   }
+  // Jugnu's own lines of each exercise (its intro, start, stop and done), in every language the plan voices
+  ['en', 'ur'].filter((lang) => args.plan.voices[lang] !== null).forEach((lang) => Ch.exerciseLines(lang).forEach((l) => {
+    const key = Ch.clipKey(l.ex, l.part, lang, l.text);
+    if (!clips.has(key)) clips.set(key, { key, text: l.text, lang, id: 'exercise' });
+  }));
   const rec = { recorded: 0, gateFailed: 0, usd: 0, chars: 0, stopped: null };
   const failed = new Set();   // takes that failed the gate were deleted: missing, whatever this process remembers
   if (args.recordShort) {

@@ -25,12 +25,14 @@
  *   POST /lr/key                a story page's one-read speech key (web-quiz-live-read-keys.js, web_quiz_live_read_v3)
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   POST /card  GET /card/:t.png  the finish card (web_quiz_card_v3): a card token for this child's finish, its picture
+ *   GET  /card/s/:id            a short share link's card (web_quiz_share_short): {token, url}; 404 + the door's words
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
  *   GET  /lib/h/:token          the same from the kid's hub
  *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
  *   GET  /stories/shelf  GET /stories/shelf/h/:token  GET /stories/book/:id/h/:token  POST /stories/event/h/:token   storybooks (web-quiz-stories.js; web_quiz_stories, off -> 404 stories_off)
  *   POST /hub/:token            the same, from the page with this phone's device_ref (names only for a trusted phone)
+ *   GET|POST /hub/:token/grade  the child's grade for the grown-ups sheet, and a grown-up's change for good (web-quiz-grade-change.js; web_quiz_grade_change, off -> 404)
  *   POST /hubdoor               the results card's door: {href: /h/<token>} for this session's child, bound to its phone
  *   GET  /cl/:code  POST /cl/*  the standing class link /j/<code> (web-quiz-class-link.routes.js)
  *   GET  /juice                 {on}: whether the sound + motion kit is on (the edge's demo page asks)
@@ -73,6 +75,8 @@ const OneButton = require('../services/quiz/web-quiz-one-button');
 // The adventure look (web_quiz_adventure_look): the same three answers say `adv: true` only when on.
 const AdvLook = require('../services/quiz/web-quiz-adventure-look');
 const PageLang = require('../services/quiz/web-quiz-page-lang');
+// A grown-up changes the child's grade (web_quiz_grade_change, JSON true only): the hub answers say `grownups.grade`.
+const GradeChange = require('../services/quiz/web-quiz-grade-change');
 // The child home's step timings (web_quiz_server_timing): the hub answer's Server-Timing items, only when on.
 const StepTiming = require('../services/quiz/web-quiz-server-timing');
 
@@ -120,7 +124,7 @@ async function closedKnows(err) {
 // (`app;dur`, the round-trip count), as the hub's does, a closed link's answer too; this route reads no switch itself,
 // so the hub's batched switch read is refreshed in the background, never waited for. Off: no header, the call as before.
 router.get('/quiz/:code', handle(async (req, res) => {
-  const out = await PageLang.carry(PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }))))))))).catch(async (err) => {
+  const out = await PageLang.carry(PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p, k: req.query.k }))))))))).catch(async (err) => {
     StepTiming.timeRequest(res, [], { refresh: true });
     throw await closedKnows(err);
   });
@@ -321,6 +325,18 @@ const cardServe = (fn) => async (req, res) => {
 };
 router.post('/card', cardServe((req) => CardImage.mint(req.body || {}, { device: req.get('x-wq-device') || null })));
 router.get('/card/:token.png', cardServe((req) => CardImage.image(req.params.token)));
+// A short link's id (web_quiz_share_short): the token and its long path; unknown or expired, a 404 that carries the
+// join door's words, so the edge opens the door, never a dead end
+router.get('/card/s/:id', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.status(200).json(await CardImage.byShort(req.params.id));
+  } catch (err) {
+    if (err instanceof CardImage.CardError) return res.status(404).json({ error: 'not_found', ret: CardImage.returnLine('en') });
+    logToFile('❌ web-quiz card short link failed', { error: err.message }, 'error');
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
 router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params.token)));
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
 // `src`: the route that brought the child (hub_open.src), read by the hub_open emit as opts.src.
@@ -333,10 +349,12 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
+  // the grown-ups corner's language tap on a phone the page render already knows (keep=1, only with a language): kept now
+  if (req.query.keep === '1' && (req.query.lang === 'en' || req.query.lang === 'ur')) opts.keep = true;
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return ClosedLang.closedHub(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))))))))))), req.params.token);
+  if (!st) return ClosedLang.closedHub(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))))), req.params.token);
   StepTiming.attach(res, st);
-  return ClosedLang.closedHub(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))))))))))), req.params.token);
+  return ClosedLang.closedHub(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })))))))))))), req.params.token);
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
@@ -369,7 +387,12 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => PageLang.carry(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, ...((req.body || {}).keep === 1 ? { keep: true } : {}) })))))))))));
+router.post('/hub/:token', handle((req) => GradeChange.carry(PageLang.carry(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, ...((req.body || {}).keep === 1 ? { keep: true } : {}) }))))))))))));
+// The grown-ups sheet's Grade row, for the child a hub chip names on a phone the hub trusts (x-wq-device, never the body):
+// GET ?kid= -> {now, cls} when the sheet opens; POST {kid, grade} -> 200 {ok, grade}; 400 bad grade; 403 not this link's
+// child or another phone; 404 switch off; 429 the day's 6th.
+router.get('/hub/:token/grade', handle((req) => GradeChange.get({ token: req.params.token, kid: q1(req.query.kid), device: req.get('x-wq-device') || undefined })));
+router.post('/hub/:token/grade', handle((req) => GradeChange.set({ token: req.params.token, kid: (req.body || {}).kid, device: req.get('x-wq-device') || undefined, grade: (req.body || {}).grade })));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));

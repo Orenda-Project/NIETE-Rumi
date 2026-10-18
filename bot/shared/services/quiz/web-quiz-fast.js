@@ -54,6 +54,17 @@ function on(now = Date.now()) {
   return Boolean(cache && cache.on);
 }
 
+/**
+ * web_quiz_look_after on (the hub's switch cache, never read here): the read on() started before the hub's reads, awaited
+ * once they are done (no new read when the cache is fresh), so a cold cache does not drop `fast` from the first answer.
+ * Off: false at once (the hub keeps the look before only).
+ */
+async function late() {
+  if (!require('./web-quiz-hub-flags').nowOf('lookAfter')) return false;
+  if (reading) await reading.catch(() => {});
+  return on();
+}
+
 /** web_quiz_story_board_refuse (JSON `true` only; a failed read is off): the cache, else this module's read, waited for. */
 async function storyBoard(db = supabase, now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return Boolean(cache.storyBoard);
@@ -70,4 +81,4 @@ function early(promise) {
   return promise;
 }
 
-module.exports = { on, storyBoard, early, KEY, STORY_BOARD_KEY, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, late, storyBoard, early, KEY, STORY_BOARD_KEY, _reset: () => { cache = null; reading = null; } };

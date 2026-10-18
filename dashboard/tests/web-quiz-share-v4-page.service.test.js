@@ -119,6 +119,22 @@ describe('the tap', () => {
     expect(p.body()).toBe('');
     expect(decodeURIComponent(p.a.attrs.href)).toContain(`https://portal.example/k/${TOK}`);
   });
+  test('a short link from the mint (web_quiz_share_short): the share carries /s/<id>; any other shape is refused', async () => {
+    const p = fcPage({ ...MINT, url: '/s/0a1b2c3d', v4: true, item: 'book' });
+    p.FC.mount(p.stack, { kind: 'book', deed: 'book_read', lang: 'en', auth: { hub: 'h', kid: 'k' }, item: { type: 'book', id: BOOK } });
+    await flush(); await flush();
+    p.a.tap();
+    expect(p.body()).toContain('src="/wq/card/');
+    expect(p.body()).toContain(encodeURIComponent('https://portal.example/s/0a1b2c3d'));
+    for (const url of ['/s/0A1B2C3D', '/s/0a1b2c3', '/s/0a1b2c3d/x', '//evil.example/s/0a1b2c3d']) {
+      const q = fcPage({ ...MINT, url, v4: true, item: 'book' });
+      q.FC.mount(q.stack, { kind: 'book', deed: 'book_read', lang: 'en', auth: { hub: 'h', kid: 'k' }, item: { type: 'book', id: BOOK } });
+      await flush(); await flush();
+      q.a.tap();
+      expect(q.body()).not.toContain(url);
+      expect(q.body()).not.toContain(encodeURIComponent(url));
+    }
+  });
   test('the quiz\'s class share (quizShareTap): with v4 the sheet has the picture (no picture-less fallback)', async () => {
     const p = fcPage({ ...MINT, url: `/q/CLS001?k=${TOK}`, v4: true, item: 'quiz' });
     const fb = jest.fn();
@@ -279,6 +295,16 @@ describe('the landing shows the finish\'s result (web_quiz_share_data tokens)', 
     expect(html).toContain('<p class="sc">50 words read</p>');
     expect(html).not.toContain('class="stars"');
     expect(html).not.toContain('class="bd"');
+  });
+  test.each(['en', 'ur'])('%s, card A (its picture already shows the score, the stars and the dare): the picture, the item and the CTA, no repeat below', (lang) => {
+    const rt = { stars: 2, stars_text: '2 stars', score: '8 out of 10 right', badge: 'Quiz champ', dare: 'Can you get 10 out of 10?' };
+    const html = page(facts(lang, { a: true, item_title: 'The lost kite', result: { r: 8, o: 10, s: 2 }, result_text: rt }));
+    expect(html).not.toContain('class="res"');
+    expect(html).not.toContain('class="dare"');
+    expect(html).not.toContain(lang === 'ur' ? 'آپ بھی آئیں اور کھیلیں!' : 'Join in and play it too!');
+    expect(html).toContain('<bdi>The lost kite</bdi>');
+    expect((html.match(/data-primary/g) || []).length).toBe(1);
+    expect(html).toContain('class="hint"');
   });
   test('a token with no result: the one share\'s landing, byte for byte', () => {
     const plain = page(facts('en'));

@@ -135,10 +135,20 @@ async function releaseBind(n) {
   try { await require('../cache/railway-redis.service').delete(GoNonce._key.used(n, 'bind')); } catch (_) { /* used stays used */ }
 }
 
-/** Re-resolve on the server: { side, src, how, next?, page?, kids? }. */
-async function destination(o) {
+/**
+ * web_quiz_go_link_lang: the link's own language, en|ur (the edge's ?ll= on the landing, the page's `l` on its posts),
+ * else null (the link's minted language stands). Off: never read.
+ */
+async function linkLangOf(raw) {
+  if (raw !== 'en' && raw !== 'ur') return null;
+  try { return (await Flags.flags()).linkLang === true ? raw : null; } catch (_) { return null; }
+}
+/** The one door's language for a link language: Urdu only, or English with its Urdu lines; none → the link's own. */
+const doorLang = (ll, own) => (ll === 'ur' ? 'ur' : ll === 'en' ? 'bi' : own);
+
+/** Re-resolve on the server: { side, src, how, next?, page?, kids? }, in the link's language (else the token's). */
+async function destination(o, lang = o.p.lang) {
   const who = await Role.resolveRole({ user: { id: o.userId }, phone: o.phoneNorm });
-  const lang = o.p.lang;
   const base = { side: who.side, src: who.src };
   if (who.side === 'teacher') return { ...base, how: 'teacher_home', next: await Targets.teacher({ uid: o.userId, lang }) };
   if (who.side === 'child') {
@@ -169,7 +179,7 @@ async function personaRow(lang, t) {
 async function advOf() {
   try { return (await Flags.flags()).adv === true; } catch (_) { return false; }
 }
-const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber(), adv: await advOf() }));
+const rolePage = async (res, t, lang, linkLang = null) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber(), adv: await advOf(), linkLang }));
 /** go.stale / go.error: never a dead end while web_quiz_closed_way_back is on (ONE tap back to WhatsApp, number or not). */
 /** ON: the link's language before today's choice (?lang= / the token's own: 'ur' → Urdu only, 'en' → with its English lines). */
 const deadEnd = async (res, id, lang, req = null) => {
@@ -178,11 +188,11 @@ const deadEnd = async (res, id, lang, req = null) => {
   return page(res, Page.buildMessagePage({ id, lang: l, bot: botNumber(), door, adv: await advOf() }));
 };
 
-async function render(res, d, t, lang, req = null) {
+async function render(res, d, t, lang, req = null, linkLang = null) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
   const adv = await advOf();
-  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber(), adv }));
-  if (d.page === 'role') return rolePage(res, t, lang);
+  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber(), adv, linkLang }));
+  if (d.page === 'role') return rolePage(res, t, lang, linkLang);
   if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang, adv }));
   return deadEnd(res, 'go.error', lang, req);
 }
@@ -193,6 +203,8 @@ router.get('/land/:token', async (req, res) => {
   try {
     const o = await open(t, deviceOf(req));
     if (o.p) lang = o.p.lang;
+    const ll = o.p ? await linkLangOf(req.query.ll) : null;
+    lang = doorLang(ll, lang);
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
       await v3('go_stale', { why: o.stale, lang }, deviceOf(req));
@@ -201,11 +213,11 @@ router.get('/land/:token', async (req, res) => {
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
       event('one_door.landed', { side: 'unknown', src: null, how: req.query.ask === '1' ? 'ask_again' : 'ask' });
-      return rolePage(res, t, lang);
+      return rolePage(res, t, lang, ll);
     }
-    const d = await destination(o);
+    const d = await destination(o, lang);
     event('one_door.landed', { side: d.side, src: d.src, how: d.next || d.page ? d.how : `${d.how}_missing` });
-    return await render(res, d, t, lang, req);
+    return await render(res, d, t, lang, req, ll);
   } catch (err) {
     logToFile('❌ one door: landing failed', { error: err && err.message }, 'error');
     return deadEnd(res, 'go.error', lang, req);
@@ -219,7 +231,7 @@ router.post('/who', async (req, res) => {
     const o = await open(t, deviceOf(req));
     if (o.stale) return json(res, 410, { error: 'go.stale' });
     // "Not a teacher? Change": the person asked to answer again, so the question stays (the tap meets the server's answer)
-    const d = o.p.side === 'unknown' && o.p.src === 'change' ? { side: 'unknown' } : await destination(o);
+    const d = o.p.side === 'unknown' && o.p.src === 'change' ? { side: 'unknown' } : await destination(o, doorLang(await linkLangOf(b.l), o.p.lang));
     if (d.next) return json(res, 200, { side: d.side, next: d.next });
     if (d.page === 'pick') return json(res, 200, { side: d.side, next: `/quiz/go/${encodeURIComponent(t)}` });
     await v3('role_asked', { lang: o.p.lang }, deviceOf(req));
@@ -250,7 +262,7 @@ router.post('/role', async (req, res) => {
       await v3('role_answered', { role: side === 'teacher' ? 'teacher' : 'student', lang: o.p.lang }, deviceOf(req));
       event('one_door.role', { side, writer: 'role_page' });
     }
-    const d = await destination(o);
+    const d = await destination(o, doorLang(await linkLangOf(b.l), o.p.lang));
     // the server's answer wins (a registered teacher who taps "I want to play" still has a teacher home)
     const next = d.next || `/quiz/go/${encodeURIComponent(t)}`;
     return json(res, 200, { next, side: d.side });
@@ -287,7 +299,7 @@ router.post('/bind', async (req, res) => {
     try {
       out = await Targets.bindPick({
         n: o.p.n, kid: kid.id, device: deviceOf(req), src: src === 'family' ? 'roster' : (src === 'device' ? 'device' : 'quiz'),
-        ...(qd ? { quizDevice: qd } : {}), ...(o.p.lang === 'ur' ? { lang: 'ur' } : {}),
+        ...(qd ? { quizDevice: qd } : {}), ...(doorLang(await linkLangOf(b.l), o.p.lang) === 'ur' ? { lang: 'ur' } : {}),
       });
     } catch (err) {
       await releaseBind(o.p.n);

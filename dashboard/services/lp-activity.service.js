@@ -37,7 +37,7 @@
  * logged at error level (console.error → the error monitor), never swallowed silently.
  */
 
-const KINDS = Object.freeze(['k5', 'g612']);
+const KINDS = Object.freeze(['k5', 'g612', 'fln']);
 const SOURCES = Object.freeze(['viewer', 'external']);
 const LANGS = Object.freeze(['en', 'ur']);
 
@@ -71,7 +71,7 @@ function cleanOpen({ userId, kind, ref, lang = null, source } = {}) {
   if (!KINDS.includes(kind) || !SOURCES.includes(source)) return null;
   if (!r || r.length > 200) return null;
   // A K-5 plan has no document language; a 6-12 one without a known language is still an open.
-  const l = kind === 'g612' && LANGS.includes(lang) ? lang : null;
+  const l = (kind === 'g612' || kind === 'fln') && LANGS.includes(lang) ? lang : null;
   return { userId, kind, ref: r, lang: l, source };
 }
 
@@ -183,7 +183,7 @@ async function namePlans(rows, describe) {
     return {
       planKey: `${r.kind}:${r.ref}`,
       kind: r.kind,
-      ...(k5 ? { lessonId: r.ref } : { segmentId: r.ref, lang }),
+      ...(k5 ? { lessonId: r.ref } : r.kind === 'fln' ? { planId: r.ref, lang } : { segmentId: r.ref, lang }),
       found: n.found === true,
       title: n.title || null,
       grade: n.grade ?? null,
@@ -196,7 +196,7 @@ async function namePlans(rows, describe) {
       lastOpenedAt: iso(r.last_opened_at),
       lastReceivedAt: iso(r.last_received_at),
       // What the portal needs to open it again — and what Coaching's lesson-plan pick takes.
-      open: k5 ? { lane: 'k5', lessonId: r.ref } : { lane: 'g612', segmentId: r.ref, lang: lang || 'en' },
+      open: k5 ? { lane: 'k5', lessonId: r.ref } : r.kind === 'fln' ? { lane: 'fln', planId: r.ref } : { lane: 'g612', segmentId: r.ref, lang: lang || 'en' },
     };
   });
 }

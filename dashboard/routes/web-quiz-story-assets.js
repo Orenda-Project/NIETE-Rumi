@@ -43,15 +43,15 @@ function createByteLru(maxBytes = LRU_BYTES) {
   };
 }
 
-/** app_settings web_quiz_stories, read through the portal's own client, remembered for 30 s; any failure = off. */
-function flagReader({ now = Date.now } = {}) {
+/** app_settings web_quiz_stories (or `key`), read through the portal's own client, remembered for 30 s; any failure = off. */
+function flagReader({ now = Date.now, key = FLAG_KEY } = {}) {
   let at = -Infinity;
   let val = false;
   return async () => {
     if (now() - at < FLAG_TTL_MS) return val;
     try {
       const supabase = require('../config/supabase');
-      val = supabase ? await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY) : false;
+      val = supabase ? await require('../lib/feature-flags').isFlagEnabled(supabase, key) : false;
     } catch (_) { val = false; }
     at = now();
     return val;
@@ -115,4 +115,4 @@ function createStoryAssetHandler(opts = {}) {
   };
 }
 
-module.exports = { createStoryAssetHandler, createByteLru, flagReader, FLAG_KEY };
+module.exports = { createStoryAssetHandler, createByteLru, flagReader, r2Object, FLAG_KEY };

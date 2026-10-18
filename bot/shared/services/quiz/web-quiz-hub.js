@@ -801,8 +801,10 @@ async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
   if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
-  const fast = require('./web-quiz-fast').on();
+  let fast = require('./web-quiz-fast').on();
   const out = await hubPayload(token, opts);
+  // web_quiz_look_after on: a cold fast cache is looked at again now its read has had the hub's reads to land
+  if (!fast) fast = await require('./web-quiz-fast').late();
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
@@ -821,8 +823,10 @@ async function hub(token, opts = {}) {
 }
 
 async function hubTogether(token, opts) {
-  const fast = require('./web-quiz-fast').on();
+  let fast = require('./web-quiz-fast').on();
   const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
+  // web_quiz_look_after on: as hub() above
+  if (!fast) fast = await require('./web-quiz-fast').late();
   if (opts.st) opts.st.mark('other');
   const f = await Flags.flags();
   const listen = !out.locked && f.readalong;
