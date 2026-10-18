@@ -156,6 +156,8 @@ describe('RT-4 through generatePatternExam (lessons 4–5): the same printed ite
   const again = (mode) => [['صلح', 'جنگ'], ['اجالا', 'اندھیرا'], ['دوست', 'دشمن'], ['امید', 'مایوسی'], ['آغاز', 'انجام'], ['قریب', 'دور']]
     .map(([w, k]) => ({ slot: 'urdu.A.Q1', question: `لفظ «${w}» کا متضاد کون سا ہے؟`, options: [`الف) ${k}`, 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: `الف) ${k}`, concept: mode === 'honest' ? 'متضاد الفاظ' : VOCAB }))
     .concat([['شیر', 'جنگل'], ['لومڑی', 'چالاکی']].map(([w, k]) => ({ slot: 'urdu.A.Q1', question: `کہانی میں ${w} کس بات کی علامت ہے؟`, options: [`الف) ${k}`, 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: `الف) ${k}`, concept: VOCAB })));
+  const usedUp = [['ندی', 'صفائی'], ['بادل', 'بارش'], ['کسان', 'کھیت'], ['درزی', 'کپڑا'], ['مالی', 'باغ'], ['ملاح', 'کشتی'], ['ڈاکیا', 'خط'], ['چوکیدار', 'پہرا']]
+    .map(([w, k]) => ({ slot: 'urdu.A.Q1', question: `سبق میں ${w} کا تعلق کس چیز سے ہے؟`, options: [`الف) ${k}`, 'ب) پہاڑ', 'ج) ستارہ', 'د) ریت'], answer: `الف) ${k}`, concept: VOCAB }));
   const run = async (mode) => {
     const paper = tagged(mode);
     const asked = [];
@@ -164,18 +166,24 @@ describe('RT-4 through generatePatternExam (lessons 4–5): the same printed ite
       const sec = ['A', 'B', 'C'].find((x) => textOf(req).includes(`"slot": "urdu.${x}.`));
       asked.push(sec);
       const tree = treeOf(paper, sec);
-      if (sec === 'A' && asked.filter((a) => a === 'A').length > 1) tree.objective.MCQs = again(mode);
+      // Told grammar is used up, Section A writes comprehension items only.
+      if (sec === 'A' && /grammar is used up/i.test(textOf(req))) tree.objective.MCQs = usedUp;
+      else if (sec === 'A' && asked.filter((a) => a === 'A').length > 1) tree.objective.MCQs = again(mode);
       return { choices: [{ message: { content: JSON.stringify({ unseen: tree }) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } };
     });
     return Gen.generatePatternExam({ grade: 5, subject: 'urdu', pattern: 'fde_g5_2027', scope: { kind: 'chapters', chapters: [4, 5], pages: '28-49' }, requestId: `rt-${mode}` })
       .then((r) => ({ ok: r, asked }), (err) => ({ err, asked }));
   };
-  test('control: antonym repeats tagged متضاد → a paper is made', async () => {
+  // A repeat never fills a place: the paper is made from the grammar-is-used-up top-up, with one antonym item.
+  const antonyms = (exam) => Object.values(exam.unseen).flatMap((t) => Object.values(t || {})).flat().filter((q) => q && q.slot === 'urdu.A.Q1' && /کا متضاد/.test(q.question));
+  test('control: antonym repeats tagged متضاد → a paper is made, one antonym printed', async () => {
     const r = await run('honest');
     expect(r.err && { code: r.err.code, shortfall: r.err.shortfall }).toBeUndefined();
+    expect(antonyms(r.ok.examJson)).toHaveLength(1);
   });
-  test('the same items with the repeats tagged vocabulary → a paper is made too', async () => {
+  test('the same items with the repeats tagged vocabulary → a paper is made too, one antonym printed', async () => {
     const r = await run('byCount');
     expect(r.err && { code: r.err.code, shortfall: r.err.shortfall, asked: r.asked }).toBeUndefined();
+    expect(antonyms(r.ok.examJson)).toHaveLength(1);
   });
 });

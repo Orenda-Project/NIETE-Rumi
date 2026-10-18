@@ -242,3 +242,53 @@ describe('web_quiz_list_states: a Games read that failed says so (the page shows
     expect(await games()).not.toHaveProperty('err');
   });
 });
+
+describe('web_quiz_list_states: a Stories read that failed is not "no stories" (the page keeps its own shelf)', () => {
+  const Flags = require('../../../shared/services/quiz/web-quiz-home-flags');
+  const real = Flags.flags;
+  // The home's read (the first) is the real one; the next reads are the given ones, then real again.
+  const flagsThen = (...next) => {
+    const spy = jest.spyOn(Flags, 'flags');
+    [real, ...next].forEach((f) => spy.mockImplementationOnce(f));
+    spy.mockImplementation(real);
+  };
+  const down = () => Promise.reject(new Error('settings down'));
+  const broken = () => undefined; // not a promise: the door itself throws, past its own catch
+  const LS_ON = [ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_stories'), ON('web_quiz_list_states')];
+  const LS_OFF = [[ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_stories')], [ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_stories'), { key: 'web_quiz_list_states', value: 'true' }]];
+  afterEach(() => jest.restoreAllMocks());
+
+  test('on: the shelf switch read fails -> {stories: [], shelf: false, err: 1}', async () => {
+    seed(LS_ON);
+    flagsThen(down);
+    expect(await stories()).toEqual({ stories: [], shelf: false, err: 1 });
+  });
+  test('on: an internal failure -> {stories: [], shelf: false, err: 1}', async () => {
+    seed(LS_ON);
+    flagsThen(broken);
+    expect(await stories()).toEqual({ stories: [], shelf: false, err: 1 });
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith('⚠️ web quiz doors: unavailable', expect.objectContaining({ door: 'stories' }));
+  });
+  test('on: a whole read carries no err (shelf on, and shelf off)', async () => {
+    seed(LS_ON);
+    expect(await stories()).toEqual({ stories: [], shelf: true });
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_list_states')]);
+    expect(await stories()).toEqual({ stories: [], shelf: false });
+  });
+  test('GOLDEN off (absent, or the string \'true\'): both failures and the whole reads answer today\'s bytes', async () => {
+    for (const settings of LS_OFF) {
+      seed(settings);
+      flagsThen(down);
+      expect(JSON.stringify(await stories())).toBe('{"stories":[],"shelf":false}');
+      jest.restoreAllMocks();
+      seed(settings);
+      flagsThen(broken);
+      expect(JSON.stringify(await stories())).toBe('{"stories":[],"shelf":false}');
+      jest.restoreAllMocks();
+      seed(settings);
+      expect(JSON.stringify(await stories())).toBe('{"stories":[],"shelf":true}');
+      seed(settings.filter((r) => r.key !== 'web_quiz_stories'));
+      expect(JSON.stringify(await stories())).toBe('{"stories":[],"shelf":false}');
+    }
+  });
+});

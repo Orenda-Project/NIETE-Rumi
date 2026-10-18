@@ -276,6 +276,7 @@
   var wired = false;
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
+    markFailed = Boolean(B.list_states);
     if (B.practice) ctx = practiceCtx(ctx);
     hashOnce(root, B, ctx);
     // The door screens (wq-doors.js, fetched after the home paints): theirs once loaded; until then the rows below.
@@ -451,7 +452,9 @@
     loadOnce('wq-book', open, 'wq-bk-js');
   }
   // /wq/<name>.css + .js at hub.js's own ?v=, at most once per page.
+  // `list_states`: a script that failed is marked (data-failed), so a screen that comes after the error can tell
   var asked = {};
+  var markFailed = false;
   function loadOnce(name, onload, id) {
     if (asked[name]) return;
     asked[name] = true;
@@ -460,7 +463,9 @@
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
       var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l);
-      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload); document.head.appendChild(s);
+      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload);
+      if (markFailed) s.addEventListener('error', function () { s.setAttribute('data-failed', '1'); });
+      document.head.appendChild(s);
     } catch (e) {}
   }
 
