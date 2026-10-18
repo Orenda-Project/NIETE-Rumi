@@ -35,11 +35,23 @@
 .fln-root.fln-app { background: var(--fln-ground); min-height: 100vh; }
 .fln-root[lang="ur"], .fln-band[lang="ur"] { line-height: 1.95; }
 
-/* An English run on an Urdu page: the Latin font beats index.css's !important Nastaliq rule. */
-.fln-root [lang="en"],
-.fln-band [lang="en"],
+/* Urdu chrome in Nastaliq from the FLN root's own lang (/me's), never from <html lang> (the teacher app's): R5
+   RT5-NASKH. --font-urdu's Nastaliq face is unicode-range limited to Arabic script, so a Latin letter or ASCII digit
+   inside it (a <bdi> run) still falls through to the Latin font; Urdu letters and digits stay Nastaliq. */
+.fln-root[lang="ur"],
+.fln-root[lang="ur"] *,
+.fln-band[lang="ur"],
+.fln-band[lang="ur"] * {
+  font-family: var(--font-urdu) !important;
+}
 .fln-root[lang="ur"] bdi,
-.fln-band[lang="ur"] bdi {
+.fln-band[lang="ur"] bdi { unicode-bidi: isolate; }
+
+/* An English run on an Urdu page: the Latin font beats the Nastaliq rules (here and index.css's). */
+.fln-root [lang="en"],
+.fln-root [lang="en"] *,
+.fln-band [lang="en"],
+.fln-band [lang="en"] * {
   font-family: var(--font-latin) !important;
   unicode-bidi: isolate;
 }

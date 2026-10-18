@@ -22,9 +22,10 @@
 
 /* Language: Nastaliq rhythm for Urdu plan text; the Latin font for English runs and isolated numbers on an Urdu page */
 .fln-root .fln-plan [lang="ur"] { line-height: 1.95; }
-.fln-root[lang="ur"] .fln-plan [lang="en"],
+/* A <bdi> run keeps the Urdu stack (R5 RT5-NASKH): Urdu digits/letters in Nastaliq, ASCII falls through to Latin. */
+.fln-root[lang="ur"] .fln-plan [lang="en"] { font-family: var(--font-latin) !important; unicode-bidi: isolate; }
 .fln-root[lang="ur"] .fln-plan bdi,
-.fln-root .fln-plan [lang="ur"] bdi { font-family: var(--font-latin) !important; unicode-bidi: isolate; }
+.fln-root .fln-plan [lang="ur"] bdi { unicode-bidi: isolate; }
 .fln-root .fln-plan [lang="ur"] bdi.n { line-height: 1.45; margin-inline: .2em; }
 
 /* back bar */
