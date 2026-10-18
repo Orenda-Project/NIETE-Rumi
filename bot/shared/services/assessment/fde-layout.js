@@ -1267,7 +1267,7 @@ function keyInPoints(others) {
 // in the answer (an English gloss) is set aside; an answer that adds a word of its own stays.
 const Q7_SLOT = 'social_studies.D.Q7';
 function keyInOwnStem(q) {
-  const key = tokensOf(keyText(q).replace(/\([^()]*\)/g, ' ')).filter((w) => !QUIET_WORDS.has(w));
+  const key = tokensOf(keyText(q).replace(/\([^()]*\)/g, ' '));
   const stem = tokensOf(q.question);
   return key.length > 0 && key.every((w) => holdsWord(stem, w));
 }
