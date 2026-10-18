@@ -23,9 +23,10 @@
  *   cap in app_settings still apply: "disabled" or "capped" stops the run).
  * - Stops before starting another quiz once the run's spend reaches --max-usd (default 15).
  * - Refuses to run unless SUPABASE_URL's project ref equals --expect-ref. Neither ref is printed.
- * - --one-voice: records every spoken part in the one voice, the parts the bank recorded too, and counts a
- *   quiz current only once it is stamped so (web-quiz-one-voice-flag.js). --plan '<json>': the same under the
- *   plan that value names (its voices, and the bank parts it keeps), i.e. exactly what the switch will serve. Run it before app_settings
+ * - --one-voice: records every line the quiz makes (the why, the wrong-answer lines, the hint, a question or option
+ *   the bank did not record) in the one voice; the bank's recordings of people keep the question and the options.
+ *   It counts a quiz current only once it is stamped so (web-quiz-one-voice-flag.js). --plan '<json>': the same under
+ *   the plan that value names (its voices, and the bank parts it keeps), i.e. exactly what the switch will serve. Run it before app_settings
  *   web_quiz_one_voice goes on and the first child after the flip hears one voice at once. With the switch
  *   still off the page plays exactly what it played before (the recorded clips win), so it is safe early.
  * - Prints ids, grades and subjects only — never a child's or a teacher's name.
@@ -178,6 +179,12 @@ async function main(argv, deps = {}) {
   for (let i = 0; i < chosen.length; i += 1) {
     const b = chosen[i];
     const p = await planQuiz(db, Publish, b, { oneVoice: args.oneVoice });
+    // A quiz the plan leaves to today's voice (a language it does not voice) is not recorded under it: "keep".
+    if (plan && !require('../../shared/services/quiz/web-quiz-one-voice-flag').forQuiz(plan, b.id, p.language)) {
+      print([i + 1, b.id, p.language, b.grade, b.subject, b.opens, 0, 0, usd(0), 'keep'].join('\t'));
+      sum.skipped += 1;
+      continue;
+    }
     const current = Publish.isCurrent(b.web, { oneVoice: args.oneVoice });
     const est = (p.chars / 1000) * per1k;
     const status = current ? 'current' : (p.clips ? 'record' : 'no_clips');

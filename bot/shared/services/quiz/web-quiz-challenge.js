@@ -570,7 +570,8 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
 // rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
 function clipKey(ex, part, lang, text) {
-  const plan = OneVoice.currentPlan();
+  // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz).
+  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);
   const one = plan ? quizVoice(lang, { oneVoice: plan }) : null;
   const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
   return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });

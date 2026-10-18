@@ -200,6 +200,16 @@ describe('--one-voice: the lines the quiz makes are recorded in the one voice; t
     expect(stamped.audio_one).toBe(require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(value).sig);
     await expect(run(['--expect-ref', REF, '--plan', 'true-ish'], { db })).rejects.toThrow(/no voice plan/);
   });
+  test('--plan naming Urdu only: an English quiz keeps today\'s voice, listed "keep" and never recorded under the plan', async () => {
+    const reva = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
+      settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 } };
+    const db = fakeDb(world());
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '3', '--apply', '--plan', JSON.stringify({ voices: { ur: reva } })], { db });
+    expect(lines.filter((l) => /^\d+\t/.test(l)).every((l) => /\ten\t.*\tkeep$/.test(l))).toBe(true);
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(db.writes).toEqual([]);
+    expect(r).toMatchObject({ done: 0, skipped: 3, planned: 0 });
+  });
   test('the dry run prices one voice at the one voice\'s rate (ElevenLabs per character), not the old voice\'s', async () => {
     const { r, lines } = await run(['--expect-ref', REF, '--limit', '5', '--one-voice'], { db: fakeDb(world()) });
     const line = lines[lines.length - 1];

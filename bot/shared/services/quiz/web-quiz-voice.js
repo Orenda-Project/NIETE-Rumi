@@ -67,6 +67,24 @@ function setIdOf(voice) {
 const SHARED_SETS = Object.freeze({
   'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef',
   'el-bella-cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
+  // Urdu Reva (eleven_v4), matched to the bank's recordings of people, each line levelled to -21 LUFS.
+  'el-reva-cc0c3b': 'cbfa2478',
+  // English Shanaya (eleven_v4, stability 0.75), matched to the bank's recordings of people, levelled to -21 LUFS.
+  'el-shanaya-e228e6': '4da1fca4',
+  // English Anjura (same rendering), for the quizzes whose recordings are nearer it (a plan's quiz_voices).
+  'el-anjura-e228e6': 'cb014e5e',
+});
+
+// The voice each recorded set was recorded in, for a plan that names a set by its name alone (`quiz_voices`):
+// the set's name (setIdOf) → its voice, as the set's manifest names it (a test holds both).
+const SET_VOICES = Object.freeze({
+  'el-bella-cff2e4': Object.freeze({ ...ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: Object.freeze({ ...ONE_SETTINGS, speed: 0.9 }) }),
+  'el-reva-cc0c3b': Object.freeze({ provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
+    settings: Object.freeze({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 }) }),
+  'el-shanaya-e228e6': Object.freeze({ provider: 'elevenlabs', voice: 'ZeK6O9RfGNGj0cJT2HoJ', name: 'Shanaya', model: 'eleven_v4',
+    settings: Object.freeze({ stability: 0.75, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 }) }),
+  'el-anjura-e228e6': Object.freeze({ provider: 'elevenlabs', voice: 'a6XidOEnTywSiWFoBUhm', name: 'Anjura', model: 'eleven_v4',
+    settings: Object.freeze({ stability: 0.75, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 }) }),
 });
 
 /**
@@ -76,6 +94,8 @@ const SHARED_SETS = Object.freeze({
 function quizVoice(language, { oneVoice = false } = {}) {
   const lang = baseLang(language);
   if (!oneVoice) return QUIZ_VOICE[lang] || null;
+  // A language the plan leaves out (its voice null) keeps today's quiz voice.
+  if (typeof oneVoice === 'object' && oneVoice.voices && oneVoice.voices[lang] === null) return QUIZ_VOICE[lang] || null;
   return (typeof oneVoice === 'object' && oneVoice.voices && oneVoice.voices[lang]) || ONE_VOICE[lang] || null;
 }
 
@@ -94,7 +114,7 @@ function voiceTag(language, opts) {
 /** The voice a tag or a rendering's name (setIdOf) names ({ provider, voice, … }): in `plan`'s voices, else either table; or null. */
 function voiceOfTag(tag, plan) {
   const planVoices = plan && typeof plan === 'object' && plan.voices ? Object.values(plan.voices) : [];
-  const all = [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE)].filter(Boolean);
+  const all = [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE), ...Object.values(SET_VOICES)].filter(Boolean);
   return all.find((v) => setIdOf(v) === tag) || all.find((v) => tagOf(v) === tag) || null;
 }
 
@@ -102,10 +122,11 @@ function voiceOfTag(tag, plan) {
 function sharedSets(plan) {
   const out = {};
   ['en', 'ur'].forEach((lang) => {
+    if (plan && typeof plan === 'object' && plan.voices && plan.voices[lang] === null) return;   // today's voice, today's lines
     const id = setIdOf(quizVoice(lang, { oneVoice: plan || true }));
     if (SHARED_SETS[id]) out[lang] = { path: id, v: SHARED_SETS[id] };
   });
   return out;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };
+module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };

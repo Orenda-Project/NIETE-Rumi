@@ -58,7 +58,9 @@ const DAY = 24 * 3600 * 1000;
 const row = (id, lang, kind) => ({ passage_id: id, lang, kind, pool: 'check', band: 2, status: 'calibrated', released_at: new Date(NOW - DAY).toISOString(), withdrawn_at: null });
 const V2_BELLA = { provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', name: 'Bella', model: 'eleven_multilingual_v2',
   settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 0.9 } };
-const PLAN = JSON.stringify({ voices: { en: V2_BELLA }, kbps: 32 });
+const SARA = { provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', name: 'Sara', model: 'eleven_v4',
+  settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true } };
+const PLAN = JSON.stringify({ voices: { en: V2_BELLA, ur: SARA }, kbps: 32 });
 
 let dir;
 const pointer = (id, lang, kind, v3kind) => ({ passage_id: id, lang, kind, band: 2, pool: 'check', is_reference: true, v3_ref: { lang, kind: v3kind }, questions_extra: [], bank_version: 'child-test-items-v3' });
@@ -122,7 +124,7 @@ test('the rate is in the key: clips present at 64 kb/s under a 32 kb/s plan are 
   expect(at32.r).toMatchObject({ ok: false, present: 0 });
   expect(at32.r.missing).toBe(at32.r.total);
   OneVoice.reset(); r2.headObject.mockClear();
-  const at64 = await run(['--expect-ref', REF, '--plan', JSON.stringify({ voices: { en: V2_BELLA }, kbps: 64 })]);
+  const at64 = await run(['--expect-ref', REF, '--plan', JSON.stringify({ voices: { en: V2_BELLA, ur: SARA }, kbps: 64 })]);
   expect(at64.r).toMatchObject({ ok: true, missing: 0 });
   expect(r2.headObject.mock.calls.some(([k]) => /-k\d+-/.test(k))).toBe(false);
 });
@@ -131,8 +133,21 @@ test('a plan voice with no shared-line set is not ok, even with every clip prese
   r2.headObject.mockResolvedValue({ exists: true });
   const jessica = JSON.stringify({ voices: { en: { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', model: 'eleven_v4' } } });
   const { r, lines } = await run(['--expect-ref', REF, '--plan', jessica]);
-  expect(r).toMatchObject({ ok: false, missing: 0, shared: { en: null, ur: 'el-sara' } });
+  expect(r).toMatchObject({ ok: false, missing: 0, shared: { en: null, ur: 'today' } });
   expect(lines).toContain('missing\tshared-lines\ten\tel-jessica');
+});
+
+test('a language the plan leaves out is today\'s: its clips are looked up under today\'s keys, its shared lines are today\'s', async () => {
+  r2.headObject.mockResolvedValue({ exists: true });
+  const reva = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
+    settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 } };
+  const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify({ voices: { ur: reva } })]);
+  expect(lines[0]).toMatch(/ en=today ur=el-reva-cc0c3b$/);
+  expect(r).toMatchObject({ ok: true, missing: 0, shared: { en: 'today', ur: 'el-reva-cc0c3b' } });
+  const asked = r2.headObject.mock.calls.map(([k]) => k);
+  expect(asked.filter((k) => k.includes('/en/')).length).toBeGreaterThan(0);
+  expect(asked.filter((k) => k.includes('/en/')).every((k) => k.includes(`-${Voice.voiceTag('en')}-`))).toBe(true);
+  expect(asked.filter((k) => k.includes('/ur/')).every((k) => k.includes('-el-reva-cc0c3b-'))).toBe(true);
 });
 
 /*
