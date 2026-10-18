@@ -1960,6 +1960,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
       const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
       if (outside) { held.push({ slot: slot.slot, rule: 'grammar_outside_lessons', concept: outside }); return no(slot, 'grammar_outside_lessons'); }
       const miss = slot.slot === 'urdu.A.Q1' && counted && declaredMiss(q, declared.get(q), counted);
+      // A tag the stem contradicts gives nothing away: the item is asked again first, and comes back
+      // as a concept repeat would, so a label never leaves the paper short.
+      if (miss === 'concept_tag_disagrees') { keep(slot.slot, q, miss); return false; }
       if (miss) return no(slot, miss);
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q, 'asks_two'); return false; }
       // Urdu Q1's own twin rules run on every pass, not only once Section C gives a rule: a paper laid
@@ -2028,7 +2031,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         const order = list.filter((x) => x.rule === 'asks_two').concat(list.filter((x) => x.rule !== 'asks_two'));
         for (const { q, rule } of order) {
           if (!room(slot)) return;
-          if (bySlot.get(id).some((p) => twin(p, q, id, rule === 'concept_repeat')) || (holds(slot) && cross.rule(q))) continue;
+          if (bySlot.get(id).some((p) => twin(p, q, id, rule === 'concept_repeat' || rule === 'concept_tag_disagrees')) || (holds(slot) && cross.rule(q))) continue;
           bySlot.get(id).push(q);
           putBack.push({ slot: id, rule });
           unplaced -= 1;
