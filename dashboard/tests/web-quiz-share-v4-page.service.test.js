@@ -224,6 +224,15 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     const none = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
     expect((none.match(/data-primary/g) || []).length).toBe(1);
     expect(none).toContain(`href="https://wa.me/?text=${encodeURIComponent(RET.words)}"`);
+    // no bot number and no words at all: still the one way in, a well-formed link, nothing undefined on the page
+    const bare = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null, words: '' } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect((bare.match(/data-primary/g) || []).length).toBe(1);
+    expect(bare).toContain('data-tap="card_return" href="https://wa.me/?text="');
+    expect(bare).not.toMatch(/undefined|null/);
+    const noWords = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null, words: undefined } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(noWords).toContain('data-tap="card_return" href="https://wa.me/?text="');
+    // «واٹس ایپ» keeps its two words together on a narrow phone (U+00A0), in the hint under the door
+    if (lang === 'ur') expect(html).toContain('واٹس\u00A0ایپ میں');
     // a colour that is not a colour never reaches the style
     const bad = renderCardPage({ facts: facts(lang, { v4: true, accent: 'red;}</style><script>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
     expect(bad).not.toContain('<script>');

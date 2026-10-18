@@ -2459,6 +2459,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-back', function () { ev('share_click', { src: what, step: 'fb_back' }); back(); });
   }
 
+  // The one share (web_quiz_share_v4: the quiz payload's or the finish's share_v4): the class table and the league open
+  // the finish card's sheet (wq-finish-card.js WQFC.shareArt), their own picture and the same words and link. Off, or
+  // the sheet's script not here yet: today's share above.
+  function oneShare() { return B.share_v4 === true || Boolean(S.result && S.result.share_v4 === true); }
+  function needSheet() { if (oneShare() && !window.WQFC) loadFC(); }
+  function shareScreen(text, url, what, art) {
+    if (!oneShare() || !window.WQFC || typeof window.WQFC.shareArt !== 'function') { share(text, url, what, art); return; }
+    var a = art && ART[art];
+    window.WQFC.shareArt({ lang: LANG, src: what, img: art ? artUrl(art) : '', save: art ? artUrl(art, 'sq') : '', file: (a && a.file) || null, text: text, url: url, ev: ev });
+  }
+
   /* ---------------- M10 scorecard ---------------- */
   // "6 children in your class finished this quiz today.": the copy's text escaped, the number isolated (<bdi>).
   function nthHtml(n) {
@@ -2662,6 +2673,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function fcOpts(url, v4) { var o = { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; if (v4) o.v4 = true; return o; }
   function finishCard(url, v4) {
     if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url, v4)); return; }
+    loadFC();
+  }
+  function loadFC() {
     if (fcAsked) return;
     fcAsked = true;
     try {
@@ -2894,10 +2908,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // ?v=<finishers>: WhatsApp caches a preview per URL, so a group that shared the table earlier would see an old one.
       var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
       warmArt('class', tArt);
+      needSheet();
       // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
       // sender's WhatsApp finds it ready instead of waiting for a draw.
       warmPreviewArt('class', B.art && B.art.class);
-      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')), 'table', tArt); });
+      on('#wq-share-t', function () { shareScreen(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')), 'table', tArt); });
       on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);
       on('#wq-play', landing);
@@ -2982,10 +2997,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // preview per URL and the board moves every hour.
     var sArt = (B.art && B.art.schools) || null;
     warmArt('schools', sArt);
+    needSheet();
     on('#wq-share-s', function () {
       ev('leaderboard_share', { src: 'schools', i: (mine && mine.place) || 0 });
       var hour = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 13).replace(/[-T]/g, '');
-      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), link('/q/' + CODE + '/schools?v=' + hour), 'schools', sArt);
+      shareScreen(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), link('/q/' + CODE + '/schools?v=' + hour), 'schools', sArt);
     });
     on('#wq-play-s', landing);
     on('#wq-back', SCH.back);
