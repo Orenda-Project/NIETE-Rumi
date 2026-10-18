@@ -57,6 +57,19 @@ test('GET /h/:token: 200, the hub JSON as boot JSON (escaped), hub.js, the page 
   expect(r.headers['x-robots-tag']).toMatch(/noindex/);
 });
 
+// the grown-ups corner's language link on a phone the page render already knows: the bot gets keep on this first ask
+// (the page draws that answer and asks no second time); keep rides only with an en|ur language
+test('GET /h/:token?kid&lang=ur&keep=1: the bot call carries keep=1; keep without a language, or keep=yes, does not', async () => {
+  await req(srv, `/h/${TOKEN}?kid=0123456789abcdef&lang=ur&keep=1`);
+  expect(calls[0].url).toBe(`${BOT}/api/internal/wq/hub/${TOKEN}?kid=0123456789abcdef&lang=ur&keep=1`);
+  await req(srv, `/h/${TOKEN}?kid=0123456789abcdef&keep=1`);
+  expect(calls[1].url).toBe(`${BOT}/api/internal/wq/hub/${TOKEN}?kid=0123456789abcdef`);
+  await req(srv, `/h/${TOKEN}?kid=0123456789abcdef&lang=ur&keep=yes`);
+  expect(calls[2].url).toBe(`${BOT}/api/internal/wq/hub/${TOKEN}?kid=0123456789abcdef&lang=ur`);
+  await req(srv, `/h/${TOKEN}?lang=ur&keep=1`);
+  expect(calls[3].url).toBe(`${BOT}/api/internal/wq/hub/${TOKEN}?lang=ur&keep=1`);
+});
+
 test('an expired or forged link (bot 401): the closed page, asking for a new /quiz link, never the hub', async () => {
   next = jsonRes(401, { error: 'bad_token' });
   const r = await req(srv, `/h/${TOKEN}`);
