@@ -33,3 +33,9 @@ test('existing lessons paths are unchanged', () => {
   expect(through('lessons', 'GET', '/curriculum/books')).toBe('next');
   expect(through('lessons', 'POST', '/lp612/request')).toBe('next');
 });
+
+test('a lessons-scoped session cannot read the leader teacher list (red-team 165713 note 3)', () => {
+  expect(through('lessons', 'GET', '/fln/teachers')).toBe(403);
+  expect(through('lessons', 'GET', '/fln/teachers/x')).toBe(403);
+  expect(through('lessons', 'GET', '/fln/title/900003')).toBe('next');
+});
