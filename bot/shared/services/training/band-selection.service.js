@@ -50,6 +50,11 @@ function deps() {
   };
 }
 
+// Pure (no requires of its own, no I/O), so this stays importable from the
+// dashboard and from tests with no bot dependencies present — the constraint
+// the lazy deps() above exists to protect.
+const { teacherLevelOf } = require('../../utils/teacher-level');
+
 const PROGRAM_PRIMARY = 'niete_primary';
 const PROGRAM_MIDDLE_HIGH = 'niete_middle_high';
 
@@ -245,9 +250,29 @@ async function applyBandSelection(userId, selection, now = Date.now()) {
   const toAdd = wantedIds.filter(id => !activeIds.includes(id));
   const toDrop = activeIds.filter(id => !wantedIds.includes(id));
 
-  // Nothing to reconcile — do not stamp a new timestamp, or re-saving an
+  // Nothing changed AT ALL — do not stamp a new timestamp, or re-saving an
   // unchanged selection would start a 48h cooldown for no reason.
-  if (toAdd.length === 0 && toDrop.length === 0) {
+  //
+  // The band comparison is load-bearing, not belt-and-braces: MIDDLE and HIGH
+  // collapse to the SAME programme (bandsToPrograms), so a real level change
+  // such as ['MIDDLE'] -> ['MIDDLE','HIGH'] moves no assignments at all. Asking
+  // only "are the assignments the same?" let that edit fall into this early
+  // return and skipped the users.teacher_level write below, while still
+  // returning ok:true — the coach was told "Saved" and nothing was (bd-vpznza:
+  // 330 edit_level audit rows, zero teacher_level changes in record_history).
+  //
+  // BOTH sides go through teacherLevelOf(), which normalises and imposes the
+  // canonical PRIMARY/MIDDLE/HIGH order. normalizeBands() above preserves the
+  // caller's INPUT order, so comparing it directly would read a reordered but
+  // identical selection (['HIGH','MIDDLE'] vs stored ['MIDDLE','HIGH']) as a
+  // change and stamp the spurious cooldown this guard exists to prevent.
+  const currentBands = teacherLevelOf(user);
+  const wantedBands = teacherLevelOf({ teacher_level: bands });
+  const bandsUnchanged =
+    currentBands.length === wantedBands.length &&
+    currentBands.every((b, i) => b === wantedBands[i]);
+
+  if (bandsUnchanged && toAdd.length === 0 && toDrop.length === 0) {
     return { ok: true, unchanged: true, programs: wantedKeys };
   }
 
