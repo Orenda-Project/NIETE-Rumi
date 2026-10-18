@@ -40,7 +40,7 @@ export function Move({ item, n, planLang, planDir, uiLang }: MoveProps) {
         {clips.length ? (
           <div className="fln-pills">
             {clips.map((c, i) => (
-              <SoundPill key={`${c.id}:${i}`} clipId={c.id} label={c.label} caption={c.caption} lang={planLang} dir={planDir} />
+              <SoundPill key={`${c.id}:${i}`} clipId={c.id} label={c.label} caption={c.caption} lang={planLang} dir={planDir} role={c.role} />
             ))}
           </div>
         ) : null}
