@@ -228,6 +228,9 @@
     // keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never re-keeps an old choice
     if (URL_KEEP) {
       body.keep = 1;
+      // the server keeps a choice only for the child the request names: the link's own kid when none is picked yet
+      // (the server render had no device, so the page asks again as this phone before any pick)
+      if (!body.kid) { var uk = (/[?&]kid=([^&#]+)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1]; if (uk) { try { body.kid = decodeURIComponent(uk); } catch (e) { body.kid = uk; } } }
       URL_KEEP = false;
       try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + (kid ? '?kid=' + encodeURIComponent(kid) : ''))); } catch (e) {}
     }
