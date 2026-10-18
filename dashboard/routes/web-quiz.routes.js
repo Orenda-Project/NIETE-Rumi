@@ -107,6 +107,8 @@ const cardToken = (v) => (typeof v === 'string' && CARD_TOKEN_RX.test(v) ? v : n
 const CARD_KEEP_MS = 86400000;
 // a card answer waits at most this long on a slow re-read of its switch (the last value answers)
 const CARD_FLAG_WAIT_MS = 25;
+// and how often each portal copy re-reads its card switches in the background
+const CARD_FLAG_REFRESH_MS = 30 * 1000;
 // a shared link's facts in Redis (web_quiz_card_fast): asked for at most this long, kept 14 days (as the bot keeps them)
 const CARD_CACHE_WAIT_MS = 60;
 const CARD_CACHE_TTL_S = 14 * 24 * 3600;
@@ -1709,12 +1711,19 @@ function createWebQuizRouter(opts = {}) {
   const cardReadyOn = opts.cardReadyOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_ready' });
   const cardObject = opts.cardObject || StoryAssets.r2Object;
   const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
-  // A card switch's read never makes a visitor wait: it is read when the edge starts, and a re-read slower than a moment
-  // (the settings table, once its cache is old) answers from the last value while it finishes.
+  // A card switch's read never makes a visitor wait: it is read when the edge starts and again every 30 s in the
+  // background (so a flip, on or off, reaches every copy within 30 s), and a re-read slower than a moment answers from
+  // the last value while it finishes.
   const quickFlag = (reader) => {
     let last = null;
+    let busy = false;
     const read = () => Promise.resolve().then(reader).then((v) => { last = v === true; return last; }, () => false);
-    if (botUrl && apiKey) read();
+    const refresh = () => { if (busy) return; busy = true; read().finally(() => { busy = false; }); };
+    if (botUrl && apiKey) {
+      refresh();
+      const t = setInterval(refresh, opts.cardFlagRefreshMs || CARD_FLAG_REFRESH_MS);
+      if (t.unref) t.unref();
+    }
     return () => {
       const fresh = read();
       if (last === null) return fresh;
