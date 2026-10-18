@@ -3329,6 +3329,30 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(near().hidden).toBe(true);
     expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
   });
+  test.each(['en', 'ur'])('%s, the live meter on: Jugnu rides the bar in his own place above the page (never a second, glowing Jugnu, never inside the zoomed picture); the bar keeps this page\'s state; the silence lean moves to it', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } }));
+    e.win.WQPace = { variant: 'sky', grade: '3' };
+    const root = await openReader(e, { lang });
+    toMic(e, root); e.calls.ask[0].onStream({});
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+    const h = root.innerHTML;
+    expect(h).not.toContain('data-jg');
+    expect(h).not.toContain('/wq/jugnu/hello.webp');
+    expect(h.indexOf('<div class="wqs-pace" data-pace></div>')).toBeGreaterThan(0);
+    expect(h.indexOf('data-pace')).toBeLessThan(h.indexOf('data-stage'));   // above the page, outside its camera
+    const lr = e.calls.lr[0];
+    expect(lr.o.pace.el).toBe(root.querySelector('[data-pace]'));
+    expect(lr.o.pace.keep).toEqual({});
+    lr.view = () => ({ heard: 0, total: 5 });
+    e.advance(6500);
+    expect(root.querySelector('[data-pace]').className).toContain('wq-moment-lean');
+  });
+  test('the live meter off: Jugnu and his glow above the page, as today', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    expect(root.innerHTML).toContain('<img class="wqs-jg wqs-g0" src="/wq/jugnu/hello.webp" width="72" height="72" alt="" data-jg');
+    expect(root.innerHTML).not.toContain('data-pace');
+  });
   test('read_fb: "Read with Jugnu" ends the quiet read and Jugnu reads the page at once (one tap, never a dead end)', async () => {
     const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
     toMic(e, root); e.calls.ask[0].onStream({});

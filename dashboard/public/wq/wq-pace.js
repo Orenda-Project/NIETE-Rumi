@@ -3,13 +3,18 @@
  * `pace`, app_settings web_quiz_live_meter). Without it the reader keeps Jugnu's glow, unchanged.
  *
  *   full(grade)              the pace (words read right a minute) that fills the meter: G1–2 35, G3 50, G4–5 60; an
- *                            unknown grade is G1–2's (the kinder scale). The bands' 4th light, so most children fill it.
- *   step(s, now, words, o)   the meter's state after `words` newly read words at `now` (ms): a leaky count of the words
- *                            read right, each one decaying over o.tau (6 s). A word lifts it at once, a pause lets it
- *                            fall gently. → { e, at, level 0–1 }. Pure: no DOM, no clock.
+ *                            unknown grade is G3's (the middle, never the easiest). The bands' 4th light.
+ *   step(s, now, words, o)   the meter's state after `words` newly read words at `now` (ms); step(null, t0, 0) starts a
+ *                            read. The level is a SUSTAINED pace against the grade's: the words read right in the last
+ *                            20 s (each lit phrase spread over the time it took to say) over what a reader at the
+ *                            grade's pace reads in that time (never under 15 s, so the first phrase cannot fill it).
+ *                            Between two lit phrases it holds (4.5 s: the recogniser lights a phrase at its end); a
+ *                            longer pause lets it fall. It rises at most 0.1 a second (10 s from empty to full) and
+ *                            falls at most 0.2 a second.
+ *                            → { t0, ev, lv, at, level 0–1 }. Pure: no DOM, no clock.
  *   mount(el, o)             draws the meter into el: o.variant 'sky' (a bar along the top, Jugnu riding its tip past
  *                            5 stars) or 'vine' (a glowing vine up the side, Jugnu climbing it past 5 leaves); o.grade,
- *                            o.keep (an object that holds the state across redraws).
+ *                            o.keep (an object that holds the state across redraws). The read starts at mount.
  *                            → { word(n), stop(), destroy(), level() }. word(n) is called with the words newly lit.
  *   variant / grade          the page's meter, from its own script tag (data-meter, data-grade; the edge writes them)
  * Never a number on screen and never "slower": the speed stays a picture. Only words read right move it (a skipped
@@ -17,20 +22,38 @@
  */
 (function () {
   'use strict';
-  var TAU = 6000;
+  var WIN = 20000;      // the window the pace is read over
+  var SPAN_MIN = 15000; // the shortest time a pace is judged on
+  var HOLD = 4500;      // the wait for the next lit phrase before a pause counts
+  var SAY_MS = 3000;    // a lit phrase is spread back over the time since the last one, at most this a word
+  var RISE = 0.1, FALL = 0.2;   // the most it moves a second
   var FULL = { lo: 35, mid: 50, hi: 60 };
   var MARKS = [0.2, 0.4, 0.6, 0.8, 1];
 
   function full(grade) {
     var g = Number(String(grade == null ? '' : grade).replace(/\D/g, ''));
-    return !(g >= 3) ? FULL.lo : g === 3 ? FULL.mid : FULL.hi;
+    return !(g >= 1) ? FULL.mid : g <= 2 ? FULL.lo : g === 3 ? FULL.mid : FULL.hi;
+  }
+  // the words said inside (now - WIN, now]: a phrase [from, to, n] counts by the share of its time inside
+  function said(ev, now) {
+    var n = 0, lo = now - WIN;
+    ev.forEach(function (e) { var d = e[1] - e[0]; n += d > 0 ? e[2] * Math.max(0, Math.min(e[1], now) - Math.max(e[0], lo)) / d : e[1] > lo ? e[2] : 0; });
+    return n;
   }
   function step(s, now, words, o) {
-    var tau = (o && o.tau) || TAU;
-    var cap = full(o && o.grade) / 60000 * tau;   // the leaky count at a steady full pace
-    var e = s && s.at != null ? s.e * Math.exp(-Math.max(0, now - s.at) / tau) : 0;
-    e += Math.max(0, words || 0);
-    return { e: e, at: now, level: Math.min(1, e / cap) };
+    s = s && s.ev ? s : { t0: now, ev: [], lv: 0, at: now };
+    var ev = s.ev.filter(function (e) { return e[1] > now - WIN - HOLD; });
+    var w = Math.max(0, words || 0);
+    if (w) {
+      var last = ev.length ? ev[ev.length - 1][1] : s.t0;
+      ev.push([Math.max(last, now - w * SAY_MS, s.t0), now, w]);
+    }
+    // judged up to the last lit phrase while the next may still be on its way; 5 % short of the grade's pace still fills it
+    var end = Math.min(now, Math.max(ev.length ? ev[ev.length - 1][1] : s.t0, now - HOLD));
+    var cap = full(o && o.grade) / 60000 * Math.min(WIN, Math.max(SPAN_MIN, end - s.t0)) * 0.95;
+    var raw = Math.min(1, said(ev, end) / cap), dt = Math.max(0, now - s.at) / 1000;
+    var lv = raw > s.lv ? Math.min(raw, s.lv + RISE * dt) : Math.max(raw, s.lv - FALL * dt);
+    return { t0: s.t0, ev: ev, lv: lv, at: now, level: lv };
   }
 
   function el(tag, cls, html) { var x = document.createElement(tag); x.className = cls; if (html) x.innerHTML = html; return x; }
@@ -57,9 +80,9 @@
     root.appendChild(box);
 
     var keep = o.keep || {};   // the state lives here, so a redrawn screen mounts the same meter where it was
-    var s = keep.s || null, shown = keep.shown || 0, raf = 0, stopped = false, top = 0;
     var now = o.now || function () { return Date.now(); };
-    function target() { return s ? step(s, now(), 0, o).level : 0; }
+    var s = keep.s || (keep.s = step(null, now(), 0, o)), shown = keep.shown || 0, raf = 0, stopped = false, top = 0;
+    function target() { s = keep.s = step(s, now(), 0, o); return s.level; }
     function paint() {
       raf = 0;
       var t = stopped ? shown : target();
@@ -78,7 +101,7 @@
       if (!stopped && (shown > 0.001 || t > 0)) raf = requestAnimationFrame(paint);
     }
     function kick() { if (!raf) raf = requestAnimationFrame(paint); }
-    if (s || shown) kick();
+    kick();
     return {
       word: function (n) {
         if (stopped || !(n > 0)) return;
@@ -94,6 +117,6 @@
 
   var me = typeof document !== 'undefined' && document.currentScript;
   var mv = me && me.getAttribute ? me.getAttribute('data-meter') : null;
-  window.WQPace = { full: full, step: step, mount: mount, TAU: TAU,
+  window.WQPace = { full: full, step: step, mount: mount, WIN: WIN,
     variant: mv === 'sky' || mv === 'vine' ? mv : null, grade: me && me.getAttribute ? me.getAttribute('data-grade') : null };
 })();

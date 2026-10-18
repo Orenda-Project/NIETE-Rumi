@@ -46,3 +46,9 @@
 .wqp-full .wqp-rider img { animation: wqp-glow 900ms ease-in-out infinite alternate; }
 @keyframes wqp-glow { from { transform: scale(1); } to { transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { .wqp-mark.pop, .wqp-rider.hop, .wqp-full .wqp-rider img { animation: none; } }
+
+/* a story page: the bar stands in Jugnu's own place above the page (wq-stories-q.js [data-pace]), the page's width */
+.wqs-pace { width: 100%; max-width: 560px; margin: 0 auto; }
+.wqs-pace > .wqp-sky { margin-bottom: 8px; }
+.wqs-pace.wq-moment-lean .wqp-rider img { animation: wq-moment-lean 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wqs-pace.wq-moment-lean .wqp-rider img { animation: none; } }
