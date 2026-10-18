@@ -697,23 +697,28 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
+  // the live reading meter (web_quiz_live_meter, read only under live reading v3): read beside the payload, never after it
+  const paceP = require('./web-quiz-live-read-v3').forHub();
   const out = await hubPayload(token, opts);
   if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
   const rt = await Tel.flag();
+  // its variant, so the edge loads the meter; off ⇒ nothing
+  const pace = out.locked ? {} : await paceP;
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 async function hubTogether(token, opts) {
   const fast = require('./web-quiz-fast').on();
-  const [ui, out, rt] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag()]);
+  const [ui, out, rt, paceF] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag(), require('./web-quiz-live-read-v3').forHub()]);
   if (opts.st) opts.st.mark('other');
   const listen = !out.locked && (await Flags.flags()).readalong;
+  const pace = out.locked ? {} : paceF;
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 module.exports = {
