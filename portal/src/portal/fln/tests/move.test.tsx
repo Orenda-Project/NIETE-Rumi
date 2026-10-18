@@ -15,7 +15,7 @@ import { MediaVideo } from '../plan/MediaVideo';
 import type { FlnItem, FlnMedia } from '../types';
 
 const A = 'https://media.example.org/fln/audio';
-const au = (sha8: string, extra: Partial<FlnMedia> = {}): FlnMedia => ({ kind: 'audio', src: `${A}/${sha8}/f_${sha8}.mp3`, orig: `${A}/o/${sha8}.mp3`, sha8, role: 'sound', ...extra });
+const au = (sha8: string, extra: Partial<FlnMedia> = {}): FlnMedia => ({ kind: 'audio', src: `${A}/${sha8}/f_${sha8}.mp3`, orig: `${A}/o/f_${sha8}.mp3`, sha8, role: 'sound', ...extra });
 
 function mv(item: FlnItem, lang: 'en' | 'ur' = 'en', n = 1) {
   return render(<Move item={item} n={n} planLang={lang} planDir={lang === 'ur' ? 'rtl' : 'ltr'} uiLang="en" />);
