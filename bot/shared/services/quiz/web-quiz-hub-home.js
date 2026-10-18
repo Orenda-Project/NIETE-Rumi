@@ -4,7 +4,7 @@
  * the hub's boot JSON — one Next thing, three doors (Stories, Games, Videos) and the header's day-dots and sticker jar.
  * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
  *
- *   homeField({ out, chosenId, history, pre, device, src })    {} | { home_v3: 1, doors, head, remember? }
+ *   homeField({ out, chosenId, history, pre, device, src, grade })  {} | { home_v3: 1, doors, head, remember? }
  *   doorsOf({ out, stories, hasRoot, videoShelf }) the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
@@ -191,11 +191,13 @@ async function classDoorsOf(history, chosenId, onP, rootP, lang) {
 }
 
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
-async function homeField({ out, chosenId, history, now = Date.now(), pre, device = null, src = null } = {}) {
+async function homeField({ out, chosenId, history, now = Date.now(), pre, device = null, src = null, grade = null } = {}) {
   try {
     const p = pre || prefetch(chosenId, now);
     const f = await p.flags;
     if (!f.home || !chosenId || !out) return {};
+    // web_quiz_video_shelf: the child's grade's lesson lengths, read after this answer (the Videos door's library shows them)
+    if (f.shelf === true && grade && out.lib && /^\/lib\//.test(out.lib.href || '')) { try { require('./web-quiz-library').warmGrade(grade, { lang: out.lang }); } catch (_) { /* never the home's */ } }
     const d = await p.data;
     if (!d) return {};
     const hasRoot = (history || []).some((e) => e && e.teacherSent);
