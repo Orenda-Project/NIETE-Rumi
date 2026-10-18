@@ -540,3 +540,21 @@ describe('story_page_listened says slow: 1 when the child listened with Slower o
     for (const o of [{ slowStored: '1' }, { gapsKey: false, slowStored: '1' }, { gapsKey: false }]) expect(await listenedBodies(o)).toEqual(base);
   });
 });
+
+// The numbers from settings: the book's slow_gaps may be {sentence: [target, least], comma: [target, least]}, and the
+// reader hands it to the player as it is (no client code reads the numbers).
+describe('the book carries the Slower numbers', () => {
+  test.each(['en', 'ur'])('%s: slow_gaps {sentence: [900, 600], comma: [500, 300]} → 880 ms after the sentence end (900 less its own 20), rate 1', async (lang) => {
+    const r = reader({ lang, gapsKey: { sentence: [900, 600], comma: [500, 300] }, slowStored: '1' });
+    const root = await r.open();
+    fire(root, 'main');
+    const end = lang === 'ur' ? 1500 : 1100;
+    r.w.run(end + 20);
+    expect(pl(r).paused).toBe(true);
+    r.w.run(860);
+    expect(pl(r).paused).toBe(true);
+    r.w.run(30);
+    expect(pl(r).paused).toBe(false);
+    expect(r.w.rates.every((x) => x === 1)).toBe(true);
+  });
+});
