@@ -621,16 +621,34 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
  * (an active binding via 'guest'): `out.bind` becomes { offer:false, state:'bound' } — the claim never shows on an
  * old or new link for that child. Switch off, no such binding, or a failed read: `out` untouched. Never throws.
  */
-async function hideCardIfBound(out, studentId) {
+async function hideCardIfBound(out, studentId, pre = null) {
   try {
-    if (!out || !studentId || !(await flags()).bind) return out;
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
-    const id = canon.get(String(studentId)) || String(studentId);
-    const rows = await BindRepo.activeForChild(id);
+    if (!out || !studentId) return out;
+    // pre (web_quiz_hub_waves2): boundRowsOf's answer, read beside the hub's other reads; null = off or a failed read
+    const rows = pre ? await pre : await (async () => {
+      if (!(await flags()).bind) return null;
+      const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
+      return BindRepo.activeForChild(canon.get(String(studentId)) || String(studentId));
+    })();
+    if (!rows) return out;
     if (rows.some((b) => b.via === 'guest')) out.bind = { offer: false, state: 'bound' };
     return out;
   } catch (_) {
     return out;
+  }
+}
+
+/**
+ * hideCardIfBound's reads started early (web_quiz_hub_waves2): the child's active phone bindings under their canonical
+ * id (the hub visit's shared lookup), or null when the switch is off or a read fails. Never rejects.
+ */
+async function boundRowsOf(studentId) {
+  try {
+    if (!studentId || !(await flags()).bind) return null;
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIdsShared([String(studentId)]);
+    return await BindRepo.activeForChild(canon.get(String(studentId)) || String(studentId));
+  } catch (_) {
+    return null;
   }
 }
 
@@ -686,7 +704,7 @@ const bindPickOpen = opening(bindPick, (a) => a.n);
 
 module.exports = {
   SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join: joinOpen, autoBind: autoBindOpen, bindPick: bindPickOpen, noteRecognised, hideCardIfBound,
+  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join: joinOpen, autoBind: autoBindOpen, bindPick: bindPickOpen, noteRecognised, hideCardIfBound, boundRowsOf,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
 };

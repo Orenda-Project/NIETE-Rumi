@@ -109,6 +109,11 @@ async () => {
   const g = document.querySelector('[data-tap="grownups"]');
   if (!g) return { present: false };
   const out = { present: true, text: (g.innerText || '').trim(), label: g.getAttribute('aria-label') };
+  // a grown-up scrolls to it first: on a short phone it may sit under the fixed doors at rest (still reachable)
+  const doors = document.querySelector('.wq-doors');
+  const above = () => !doors || g.getBoundingClientRect().bottom <= doors.getBoundingClientRect().top;
+  if (!above()) { window.scrollTo(0, document.documentElement.scrollHeight); await new Promise((r) => setTimeout(r, 100)); }
+  out.reachable = above();
   const fire = (t) => { try { g.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 1, isPrimary: true })); } catch (e) { g.dispatchEvent(new Event(t, { bubbles: true })); } };
   fire('pointerdown'); await new Promise((r) => setTimeout(r, 150)); fire('pointerup');
   await new Promise((r) => setTimeout(r, 120));
@@ -325,6 +330,8 @@ def verdict(results):
                     why.append('hold: the words do not say hold (%r)' % (h.get('text') or '')[:30])
                 if not h.get('tapHint'):
                     why.append('hold: a short tap says nothing')
+                if h.get('reachable') is False:
+                    why.append('hold: under the doors even scrolled to the bottom')
                 if not h.get('labelOnTop'):
                     why.append('hold: the label is covered while held')
                 if not (h.get('ring') and h.get('ringOffset') is not None and 0 < h['ringOffset'] < 100):

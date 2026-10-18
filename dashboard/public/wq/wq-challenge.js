@@ -408,7 +408,8 @@
   function show(name, html) {
     S.screen = name;
     // a stop played again on the trail: every screen of it says it is practice, scored into nothing
-    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
+    // (under live reading v3 never on the microphone notice: "just for fun" and "Jugnu keeps the recordings" are never one screen)
+    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round && !(name === 'mic-notice' && lr3()) ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
     root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + roundSay + '</section>';
@@ -1413,7 +1414,7 @@
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold });
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold, once: true });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }

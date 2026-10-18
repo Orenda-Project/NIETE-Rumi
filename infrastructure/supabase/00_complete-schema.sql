@@ -7384,6 +7384,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
   code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
   device_hash    text,                              -- hex(sha256(device_ref))[:32] of the browser a child joined on; NULL once revoked (child_phone_bindings_device.sql)
+  remember_shown_at timestamptz,                     -- when the first home drew "Jugnu will remember you on this phone"; set once (child_phone_bindings_remember_shown.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
