@@ -322,12 +322,10 @@ describe('the shared piece any route can call in one line', () => {
 });
 
 describe('switch on: only a route that writes its timings carries the header', () => {
-  test('another answer of the same router (an unknown quiz code, the page\'s own hub POST) and a plain route: no Server-Timing', async () => {
+  test('another answer of the same router (the page\'s own hub POST) and a plain route: no Server-Timing', async () => {
     withSwitch(true);
     await warmHub();
     expect(Timing.on()).toBe(true);
-    const q = await fetch(`${base}/quiz/NOPE99`, { headers: KEY });
-    expect(q.headers.get('server-timing')).toBeNull();
     const p = await fetch(`${base}/hub/${T.signHub([KID])}`, { method: 'POST', headers: { ...KEY, 'content-type': 'application/json' }, body: JSON.stringify({ device_ref: DEV }) });
     expect(p.status).toBe(200);
     expect(p.headers.get('server-timing')).toBeNull();
@@ -360,6 +358,24 @@ describe('the class link\'s answer (GET /quiz/:code)', () => {
     expect(h).toMatch(/^app;dur=\d+, dbq;desc="\d+"$/);
     expect(Names.clean(h)).toBe(h);
     expect(on.text).toBe(off.text);
+  });
+  test('on: an unknown code\'s answer says it too (a slow "not open" is measured like a quiz)', async () => {
+    withSwitch(true);
+    await warmHub();
+    const q = await fetch(`${base}/quiz/NOPE99`, { headers: KEY });
+    expect(q.status).toBe(404);
+    expect(q.headers.get('server-timing')).toMatch(/^app;dur=\d+, dbq;desc="\d+"$/);
+  });
+  test('on, with the known-child switch on: a closed link still says known: true, and its timing line', async () => {
+    seed([...BASE, { key: 'web_quiz_teachers', value: '"all"' }, { key: ST_KEY, value: true }, { key: 'web_quiz_link_known_child', value: true }]);
+    await warmHub();
+    require('../../../shared/services/quiz/web-quiz-link-known')._resetCache(); // an earlier row's cached off
+    await fetch(`${base}/quiz/NOPE99`, { headers: KEY }); // the known-child switch's cache warms in the background
+    await tick();
+    const q = await fetch(`${base}/quiz/NOPE99`, { headers: KEY });
+    expect(q.status).toBe(404);
+    expect(await q.json()).toMatchObject({ known: true });
+    expect(q.headers.get('server-timing')).toMatch(/^app;dur=\d+, dbq;desc="\d+"$/);
   });
   test('off: the answer adds no settings read while the hub\'s switch cache is fresh', async () => {
     withSwitch(false);
