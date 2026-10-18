@@ -637,6 +637,18 @@ html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-slow{row-gap:11px}
 html.wq-1b[lang=ur] .wq-btn,html.wq-1b[lang=ur] .wq-door{font-weight:400}
 /* a list row (Games, Stories, Videos) and the skeleton that stands in for it while the list loads: the button corner */
 html.wq-1b .wq-row,html.wq-1b .wq-skrow{border-radius:var(--r-btn)}
+/* a Jugnu bubble with no words yet is not drawn (an empty white pill reads as broken) */
+html.wq-1b .wq-say:empty{display:none}
+/* a list (or a book page) loading in the page: Jugnu flies over its skeleton 1.5 s in (still, at once, with reduced motion) */
+html.wq-1b .wq-dskel,html.wq-1b .wqs-grid[aria-busy=true],html.wq-1b .wqs-skel.wqs-big{position:relative}
+html.wq-1b .wq-dskel::after,html.wq-1b .wqs-grid[aria-busy=true]::after,html.wq-1b .wqs-skel.wqs-big::after{content:"";position:absolute;left:50%;top:24px;width:88px;height:88px;margin-left:-44px;background:url(/wq/jugnu/idle.webp) center/contain no-repeat;opacity:0;animation:wq-skjug 1.6s ease-in-out 1.5s infinite alternate both;pointer-events:none}
+@media (prefers-reduced-motion:reduce){html.wq-1b .wq-dskel::after,html.wq-1b .wqs-grid[aria-busy=true]::after,html.wq-1b .wqs-skel.wqs-big::after{animation:none;opacity:1}}
+/* the reader shows one "next": when its main button says Next, the › page arrow steps aside (its slot kept) */
+html.wq-1b .wqs-ctl:has(.wqs-main.wqs-next) .wqs-arr[data-tap=next]{visibility:hidden}
+/* the quiz question wraps balanced: a «؟» or a short last word never sits alone on line 2 */
+html.wq-1b .wq-qtext{text-wrap:balance}
+/* the storybook done screen: the finish card stretches to the column, so Next, Share and Home are one width */
+html.wq-1b .wqs-sheet>.wqfc{align-self:stretch}
 @media (prefers-reduced-motion:reduce){html.wq-1b .wq-btn:active,html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wqs-ic:active,html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active,html.wq-1b .wqs-again:active{transform:none}}
 /* The ONE button component for new markup: `.wq-btn` + exactly one kind. Every kind rule sits under wq-1b: the Videos
    shelf and the class table already draw .wq-btn--secondary and .wq-btn-t, so with the switch off they stay today's. Each kind sets only --fill (box), --on
@@ -858,3 +870,5 @@ html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m 
 html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
 html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
+/* Jugnu over a loading list's skeleton (html.wq-1b .wq-dskel::after) */
+@keyframes wq-skjug{from{opacity:1;transform:translateY(0)}to{opacity:1;transform:translateY(-12px)}}
