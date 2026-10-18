@@ -322,7 +322,8 @@
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
     else if (B.stories && B.stories.on && !window.WQSTORIES && (sh || /^story\//.test(name))) loadOnce('wq-stories');
     if (name === 'book' && B.head && B.head.jar) book(root, B, ctx);
-    if (!window.WQDOORS) loadOnce('wq-doors', function () { var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
+    // the doors ask for their rows as they load (web_quiz_list_states), so a door tap paints its whole list at once
+    if (!window.WQDOORS) loadOnce('wq-doors', function () { if (window.WQDOORS && typeof window.WQDOORS.warm === 'function') window.WQDOORS.warm(B, ctx); var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   // An empty hash (the reader's way home) reads as '' — home again; a door or #watch/<video id> draws its screen;

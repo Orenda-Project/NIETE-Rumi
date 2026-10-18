@@ -160,3 +160,24 @@ describe('app_settings web_quiz_ur_class_digits ON: every Urdu screen that names
     expect(on.replace(/(?:جماعتیں|جماعت)[\s\u00a0۰-۹،]+/g, latin)).toBe(off);
   });
 });
+
+// The league heading after the class table's drawBoard (web_quiz_class_doors): the class_doors heading names the class
+// with the table's own Urdu-digit form, whatever this switch says; the plain league heading takes this switch.
+describe('the league heading with the class table switch', () => {
+  const ONE = { ...BOARD, class_doors: true, my_class: '4', one_class: true };
+  // Recorded on the class table's own code (before this change met it).
+  const CLASS_DOORS_H2 = '<h2>کلاس <bdi>۴</bdi></h2>';
+  const h2 = async (board, extra) => {
+    const p = page({ lang: 'ur', cls: UR_CLS, brand: BRAND, board, bootExtra: extra }); p.wq.board();
+    await flush(); await flush();
+    return (p.html().match(/<h2>[\s\S]*?<\/h2>/) || [''])[0];
+  };
+  test('class table OFF, Urdu digits ON: «جماعتیں ۱، ۳، ۵ کی لیگ ٹیبل»', async () => {
+    expect(await h2(BOARD, ON)).toBe('<h2>جماعتیں ۱، ۳، ۵ کی لیگ ٹیبل</h2>');
+  });
+  test('class table ON, Urdu digits OFF: the class table\'s own heading, unchanged by this switch', async () => {
+    const off = await h2(ONE, {});
+    expect(off).toBe(CLASS_DOORS_H2);
+    expect(await h2(ONE, ON)).toBe(off);
+  });
+});

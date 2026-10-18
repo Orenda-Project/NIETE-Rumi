@@ -74,7 +74,11 @@ async function gamesDoor(who, lang, now) {
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
-  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(() => null);
+  // web_quiz_list_states: a form read that failed is a failed door (the page offers a retry), not a child with no games
+  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(async (err) => {
+    if (await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false)) throw err;
+    return null;
+  });
   if (!form) return { games: [] };
   let ids;
   if (form === G1.FORM) ids = [G1.EXERCISE];
@@ -200,7 +204,9 @@ async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
-    return d === 'stories' ? { stories: [], shelf: false } : { games: [] };
+    // web_quiz_list_states: the page tells a failed read from an empty one (a retry, never "nothing here")
+    const list = await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false);
+    return d === 'stories' ? { stories: [], shelf: false } : { games: [], ...(list ? { err: 1 } : {}) };
   }
 }
 
