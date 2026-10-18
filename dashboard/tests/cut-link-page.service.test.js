@@ -205,31 +205,37 @@ describe('the switch is asked only on the junk path, with one cached read', () =
     expect(b.calls).toEqual([]);
   });
 
-  test('50 cold junk requests → each answered at once with today\'s page (no wait on the read), ONE read; ON once it lands', async () => {
-    let land;
+  test('50 cold junk requests while the settings read is HELD → all 50 answered with today\'s page before it is released, ONE read; ON once it lands', async () => {
+    let release;
     let reads = 0;
-    const db = () => ({ from: () => ({ select: () => ({ in: () => { reads += 1; return new Promise((r) => { land = r; }); } }) }) });
+    const held = new Promise((r) => { release = r; });
+    const db = () => ({ from: () => ({ select: () => ({ in: () => { reads += 1; return held; } }) }) });
     const on = CutLink.createCutLinkFlag({ db, now: () => 5000 });
     await boot(on);
-    const paths = ['/quiz/go/', '/quiz/join/', '/quiz/teacher/'];
-    for (let i = 0; i < 50; i += 1) {
-      const p = `${paths[i % 3]}coldjunk${i}`;
-      const t0 = process.hrtime.bigint();
-      const r = await get(p);
-      const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-      expect(ms).toBeLessThan(250);   // answered without waiting on the read in flight
-      expect(r.status).toBe(200);     // the portal's shell, as today
+    // timers are frozen so nothing but the read itself can let a waiting request go; real I/O and setImmediate run
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'queueMicrotask', 'Date', 'hrtime', 'performance', 'setInterval', 'clearInterval'] });
+    let done = 0;
+    let reqs;
+    try {
+      reqs = Array.from({ length: 50 }, (_, i) => {
+        const p = H.OFF_PROBES[i % H.OFF_PROBES.length];
+        return get(p).then((r) => { done += 1; return [p, r]; });
+      });
+      const t0 = Date.now();
+      while (done < 50 && Date.now() - t0 < 5000) await new Promise((r) => setImmediate(r));
+      expect({ answeredBeforeRelease: done, reads }).toEqual({ answeredBeforeRelease: 50, reads: 1 });
+    } finally {
+      jest.useRealTimers();
+      release(cutRow(true));
     }
-    expect(reads).toBe(1);
-    expect(H.row(await get('/quiz/go/abc'))).toEqual(GOLDEN['/quiz/go/abc']);   // OFF bytes and headers, the golden
-    land(cutRow(true));
+    for (const [p, r] of await Promise.all(reqs)) expect(H.row(r)).toEqual(GOLDEN[p]);   // today's bytes and headers
     await on.ready();
     const r = await get(`/quiz/go/${CUT}`);
     expect(r.status).toBe(410);
     expect(r.body).toBe(GoPage.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: WA_BOT }).html);
     expect(reads).toBe(1);
     expect(b.calls).toEqual([]);
-  });
+  }, 20000);
 
   test('the first junk link on a cold process with the switch ON gets today\'s page (never an error), the next one the way back', async () => {
     const s = settings(cutRow(true));
