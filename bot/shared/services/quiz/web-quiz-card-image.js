@@ -289,11 +289,39 @@ async function mint(body = {}, { device = null } = {}) {
       logToFile('⚠️ web quiz card: the card was not kept for "a friend joined" (the share still works)', { error: err.message });
     }
   }
-  const url = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
+  const long = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
+  // short links on (web_quiz_share_short, the same read): /s/<the card's short id>, else the long link
+  const url = v4 && Switch.shortCached() ? (await shortUrl(token)) || long : long;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
   if (x) out.data = x;
   return out;
+}
+
+// ─── short links (web_quiz_share_short) ─────────────────────────────────────
+
+const SHORT_RX = /^[0-9a-f]{8}$/;
+const shortKey = (id) => `wq:share:short:${id}`;
+/** /s/<id>: the card's short id kept 90 days against its token (first come keeps it); null when taken or Redis away. */
+async function shortUrl(token) {
+  try {
+    const id = cardId(token);
+    const redis = require('../cache/railway-redis.service');
+    if (await redis.setNX(shortKey(id), token, CARD_KEEP_S)) return `/s/${id}`;
+    return (await redis.get(shortKey(id))) === token ? `/s/${id}` : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz card: no short link (the long one goes)', { error: err.message });
+    return null;
+  }
+}
+/** A short id back to its card: {token, url} (the long path) for a token that still opens; CardError(404) else. */
+async function byShort(id) {
+  if (!SHORT_RX.test(String(id || ''))) fail(404, 'not_found');
+  let token = null;
+  try { token = await require('../cache/railway-redis.service').get(shortKey(id)); } catch (_) { token = null; }
+  const f = typeof token === 'string' ? facts(token) : null;
+  if (!f) fail(404, 'not_found');
+  return { token, url: f.kind === 'quiz' && f.code ? `/q/${f.code}?k=${token}` : `/k/${token}` };
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────
@@ -497,5 +525,5 @@ function _reset() { Switch._reset(); mem.clear(); inflight.clear(); }
 
 module.exports = {
   KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK, REF_RX,
-  JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, _reset, _seal: seal,
+  JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, byShort, _reset, _seal: seal,
 };

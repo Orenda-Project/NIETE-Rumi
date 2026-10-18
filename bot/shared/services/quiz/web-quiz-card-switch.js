@@ -18,6 +18,8 @@ const SHARE_KEY = 'web_quiz_share_v4';
 const JOINED_KEY = 'web_quiz_share_joined';
 // The card's result (score, stars, words, badge) sealed at mint (web-quiz-card-data.js): the same read and cache.
 const DATA_KEY = 'web_quiz_share_data';
+// Short share links /s/<id> (web-quiz-card-image.js shortUrl): the same read and cache.
+const SHORT_KEY = 'web_quiz_share_short';
 const TTL_MS = 30 * 1000;
 // Both reads failed (the settings store down): the card stays off, and that answer is kept 10 s, so an outage costs at
 // most two reads per 10 s per worker and the card comes back within 10 s of the store.
@@ -35,10 +37,10 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < (cache.down ? DOWN_TTL_MS : TTL_MS)) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
-    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), data: isTrue(val(DATA_KEY)) };
+    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), data: isTrue(val(DATA_KEY)), short: isTrue(val(SHORT_KEY)) };
     return cache.on;
   } catch (err) {
     // the read that names the share failed: the card reads its own key as before, and only the share is off
@@ -66,6 +68,10 @@ async function joinedOn(now = Date.now()) {
 /** The result switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
 function dataCached() {
   return Boolean(cache && cache.share === true && cache.data === true);
+}
+/** The short-link switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+function shortCached() {
+  return Boolean(cache && cache.share === true && cache.short === true);
 }
 function joinedCached() {
   return Boolean(cache && cache.joined === true);
@@ -110,4 +116,4 @@ async function byRef(r) {
 
 function _reset() { cache = null; }
 
-module.exports = { KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, dataCached, field, ref, byRef, _reset };
+module.exports = { KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, dataCached, shortCached, field, ref, byRef, _reset };

@@ -119,6 +119,22 @@ describe('the tap', () => {
     expect(p.body()).toBe('');
     expect(decodeURIComponent(p.a.attrs.href)).toContain(`https://portal.example/k/${TOK}`);
   });
+  test('a short link from the mint (web_quiz_share_short): the share carries /s/<id>; any other shape is refused', async () => {
+    const p = fcPage({ ...MINT, url: '/s/0a1b2c3d', v4: true, item: 'book' });
+    p.FC.mount(p.stack, { kind: 'book', deed: 'book_read', lang: 'en', auth: { hub: 'h', kid: 'k' }, item: { type: 'book', id: BOOK } });
+    await flush(); await flush();
+    p.a.tap();
+    expect(p.body()).toContain('src="/wq/card/');
+    expect(p.body()).toContain(encodeURIComponent('https://portal.example/s/0a1b2c3d'));
+    for (const url of ['/s/0A1B2C3D', '/s/0a1b2c3', '/s/0a1b2c3d/x', '//evil.example/s/0a1b2c3d']) {
+      const q = fcPage({ ...MINT, url, v4: true, item: 'book' });
+      q.FC.mount(q.stack, { kind: 'book', deed: 'book_read', lang: 'en', auth: { hub: 'h', kid: 'k' }, item: { type: 'book', id: BOOK } });
+      await flush(); await flush();
+      q.a.tap();
+      expect(q.body()).not.toContain(url);
+      expect(q.body()).not.toContain(encodeURIComponent(url));
+    }
+  });
   test('the quiz\'s class share (quizShareTap): with v4 the sheet has the picture (no picture-less fallback)', async () => {
     const p = fcPage({ ...MINT, url: `/q/CLS001?k=${TOK}`, v4: true, item: 'quiz' });
     const fb = jest.fn();
