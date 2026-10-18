@@ -32,6 +32,10 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const WARM = ['/wq/hub.js', '/wq/wq.css', '/wq/hub-play.js', '/wq/wq-tel.js'];
 // The Urdu face the child home's wq.css already uses (same URL, so the join's download is the home's cache hit).
 const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
+// web_quiz_one_face on (the bot's join answer says `one_face: true`): the one face every other child page uses, so the
+// join → home pair fetches one Urdu file. Same URL, family and letters as wq.css's "WQ Nastaliq 2".
+const UR_FONT_ONE = '/wq/fonts/wq-nastaliq-6.woff2';
+const ONE_FACE_RANGE = 'U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021';
 
 // Every line had a native Urdu read; the existing strings reused are named beside each.
 const COPY = {
@@ -155,12 +159,21 @@ const EARLY_TAP = '<script>(function(){var d=document;d.addEventListener("click"
   + 'for(var i=0;i<a.length;i++)a[i].setAttribute("aria-pressed",a[i]===c?"true":"false");'
   + 'd.documentElement.setAttribute("data-early",c.getAttribute("data-grade"))},true)})();</script>';
 
+// The one-face stylesheet: the first rule (the face) and the Urdu body stack are the only lines that differ.
+const CSS_ONE = CSS
+  .replace(/^@font-face\{[^}]*\}/, `@font-face{font-family:"WQ Nastaliq 2";src:url(${UR_FONT_ONE}) format("woff2");font-weight:400;font-display:swap;unicode-range:${ONE_FACE_RANGE}}`)
+  .replace('[lang=ur] body{font-family:"WQ Nastaliq",', '[lang=ur] body{font-family:"WQ Nastaliq 2",');
+
+// The adventure look on the one-face sheet (the same layers, the one face).
+const ADV_CSS_ONE = `${CSS_ONE}\n${TOKENS_CSS}${ADV_LAYER}`;
+
 // quiz_join_wait_word: the go button keeps its colour while it waits (join.js marks it aria-busy); on the page only then.
 const WAIT_CSS = '.go[aria-busy=true]:disabled{background:#2a9d8f}';
 // ... and in the adventure look, its own primary colour (the look's disabled rule is the more specific one).
 const ADV_WAIT_CSS = 'html.wq-adv .go[aria-busy=true]:disabled{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}';
 
-function shell({ l, title, body, fontPreload, css = CSS, adv = false }) {
+function shell({ l, title, body, fontPreload, oneFace, css = oneFace ? CSS_ONE : CSS, adv = false }) {
+  const font = oneFace ? UR_FONT_ONE : UR_FONT;
   return `<!doctype html>
 <html lang="${l}" dir="${l === 'ur' ? 'rtl' : 'ltr'}"${adv ? ' class="wq-adv"' : ''}>
 <head>
@@ -169,15 +182,16 @@ function shell({ l, title, body, fontPreload, css = CSS, adv = false }) {
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="same-origin">
 <title>${esc(title)}</title>
-${fontPreload && l === 'ur' ? `<link rel="preload" href="${UR_FONT}" as="font" type="font/woff2" crossorigin>\n` : ''}<style>${css}</style>
+${fontPreload && l === 'ur' ? `<link rel="preload" href="${font}" as="font" type="font/woff2" crossorigin>\n` : ''}<style>${css}</style>
 </head>
 ${body}
 </html>`;
 }
 
 /** The join screen. Practice: the strip, the grade only (no name, no notice). */
-function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyTap = false, waitWord = false, adv = false }) {
+function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyTap = false, waitWord = false, adv = false, oneFace = false }) {
   const a = adv === true;
+  const one = oneFace === true;
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
   const b = cleanBot(bot);
@@ -203,20 +217,21 @@ ${practice ? '' : `<p class="note">${esc(c.later)}</p>\n`}</main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/join.js?v=${esc(jsV || assetV)}" defer></script>
 </body>`;
-  const css = a ? `${ADV_CSS}${wait ? WAIT_CSS + ADV_WAIT_CSS : ''}` : (wait ? CSS + WAIT_CSS : CSS);
-  return shell({ l, title: c.title, body, fontPreload: !practice, css, adv: a });
+  const css = a ? `${one ? ADV_CSS_ONE : ADV_CSS}${wait ? WAIT_CSS + ADV_WAIT_CSS : ''}` : ((one ? CSS_ONE : CSS) + (wait ? WAIT_CSS : ''));
+  return shell({ l, title: c.title, body, fontPreload: !practice, oneFace: one, css, adv: a });
 }
 
 /** The expired (or failed) link: the signed words and ONE tap back to WhatsApp (when the bot's number is known). */
-function renderJoinNote({ lang, kind, bot = null, adv = false }) {
+function renderJoinNote({ lang, kind, bot = null, adv = false, oneFace = false }) {
   const a = adv === true;
+  const one = oneFace === true;
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
   const b = cleanBot(bot);
   const tap = b ? `<a class="${btn(a, 'go', 'primary')}" href="${esc(waLink(b))}">${esc(c.openWa)}</a>` : '';
   return shell({ l, title: c.title, body: `<body>
 <main data-screen="join_note"><img class="jg" src="/wq/jugnu/hello.webp" alt="" width="96" height="96"><p class="line">${esc(kind === 'stale' ? c.stale : c.error)}</p>${tap}</main>
-</body>`, css: a ? ADV_CSS : CSS, adv: a });
+</body>`, oneFace: one, css: a ? (one ? ADV_CSS_ONE : ADV_CSS) : (one ? CSS_ONE : CSS), adv: a });
 }
 
 function createQuizJoinRouter(opts = {}) {
@@ -262,13 +277,13 @@ function createQuizJoinRouter(opts = {}) {
 
   function draw(req, res, token, out) {
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
-    if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale', bot: cleanBot(out.body && out.body.bot), adv: Boolean(out.body && out.body.adv === true) }));
+    if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale', bot: cleanBot(out.body && out.body.bot), adv: Boolean(out.body && out.body.adv === true), oneFace: Boolean(out.body && out.body.one_face === true) }));
     if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error', bot: lastBot }));
     assetV = assetV || assetVersion();
     jsV = jsV || fileVersion('join.js');
-    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, earlyTap: out.body.earlyTap === true, waitWord: out.body.waitWord === true, adv: out.body.adv === true }));
+    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, earlyTap: out.body.earlyTap === true, waitWord: out.body.waitWord === true, adv: out.body.adv === true, oneFace: out.body.one_face === true }));
   }
   return router;
 }
 
-module.exports = { createQuizJoinRouter, renderJoinPage, renderJoinNote, COPY, WARM, JOIN_TOKEN_RX, UR_FONT, EARLY_TAP, WAIT_CSS };
+module.exports = { createQuizJoinRouter, renderJoinPage, renderJoinNote, COPY, WARM, JOIN_TOKEN_RX, UR_FONT, UR_FONT_ONE, EARLY_TAP, WAIT_CSS };
