@@ -22,7 +22,7 @@ const HOME = {
 };
 const GOLDEN = JSON.parse(fs.readFileSync(path.join(__dirname, 'web-quiz-home-remember-golden.json'), 'utf8'));
 const BANNED = /\b(test|tests|exam|assess\w*)\b|امتحان|ٹیسٹ/i;
-const WORDS = { en: ['A friend joined Jugnu from your card!', 'Guide'], ur: ['آپ کے کارڈ سے ایک دوست نے جگنو سے دوستی کر لی!', 'رہنما'] };
+const WORDS = { en: ['A friend joined Jugnu from your card!', 'Guide'], ur: ['آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', 'رہنما'] };
 const visible = (html) => html.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
 function load(store = {}) {

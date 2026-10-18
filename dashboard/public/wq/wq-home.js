@@ -45,7 +45,7 @@
       sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
-      friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو سے دوستی کر لی!', friendStamp: 'رہنما',
+      friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', friendStamp: 'رہنما',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
       myClass: 'میری کلاس', mySchool: 'میرا اسکول', social: 'میری کلاس اور میرا اسکول',
     },
