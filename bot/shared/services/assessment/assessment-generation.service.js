@@ -916,6 +916,11 @@ const RULE = {
   urduQ4Group: 'In the Q4 group-word item the group word is one of its four options and is its key; its scheme `accept` names that option only, never another one.',
   urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا، ڈاکٹر → اسپتال), never the odd one out.',
   urduQ6Points: 'Q6 (ب) scheme: one idea per point, no point above 2 marks.',
+  urduQ4Syllables: 'In the Q4 ارکان سازی item, split every word into its spoken syllables, as the book does (غ – لا – ظت); every answer `accept` lists splits each word exactly as the key does.',
+  urduRelationNouns: 'In Q2 (ب), relation words (امی، ابو، بھائی) are اسم نکرہ, never اسم معرفہ: اسم معرفہ is the own name of one person or place.',
+  // On chosen lessons, Q1 asks each of their grammar concepts once; a place left after that is never
+  // filled with a concept asked again.
+  urduGrammarUsedUp: 'Grammar is used up: these lessons\' grammar concepts are each asked once on this paper already. Write every new Q1 item as vocabulary, word-meaning or comprehension from these lessons; never another antonym, synonym or other grammar item.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
   scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
@@ -1298,8 +1303,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
-  if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group, RULE.urduQ4GroupNotListed);
+  if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group, RULE.urduQ4GroupNotListed, RULE.urduQ4Syllables);
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduQ6Points);
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.B.Q2')) rules.push(RULE.urduRelationNouns);
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
@@ -2025,7 +2031,10 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
       // Ask twice what is missing (plus the note's spares): on a narrow scope the layout holds most of a
       // top-up's items (5 asked, 4 held on a local lessons 6-7 paper), and the extras never print.
       const ask2 = shortfall.map((f) => ({ ...f, missing: f.missing * 2 }));
-      const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall: ask2 }), Reader.readerNote(taken)]
+      // The one more top-up on chosen lessons is told grammar is used up: the first one's place was
+      // left by a grammar concept asked again, which never comes back.
+      const usedUp = round > 0 && _grammarUsedUp(P, layoutScope) ? RULE.urduGrammarUsedUp : null;
+      const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall: ask2 }), Reader.readerNote(taken), usedUp]
         .filter(Boolean).join('\n\n');
       logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, reader: taken.map(({ q, partner, ...f }) => f) });
       stats.top_ups += 1;
@@ -2291,6 +2300,37 @@ async function _reaskQuoted({ examJson, laid, quotes, P, key, layoutScope, now, 
 }
 
 /**
+ * Urdu on chosen lessons: a Q1 place the re-asks left empty is never filled with a grammar concept
+ * asked again (applyLayout keeps it out). Section A is topped up once more, for what Q1 lacks plus
+ * spares, told grammar is used up, and the paper is laid out again; a place still empty fails the
+ * paper as a short slot. Runs only when Q1 is the one slot short.
+ */
+const _grammarUsedUp = (P, scope) => Boolean(P && P.key === 'urdu' && scopeLessons(P, scope));
+async function _topUpGrammarUsedUp({ examJson, laid, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef }) {
+  const usages = [];
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const b = built.find((x) => x.section.slots.some((s) => s.slot === READ_SLOT));
+  const shortfall = laid.shortfall.filter((f) => f.slot === READ_SLOT);
+  const note = [takenNote(P, b.section, examJson, { topUp: true, shortfall }), RULE.urduGrammarUsedUp].filter(Boolean).join('\n\n');
+  logToFile('[assessment] section topped up again', { requestId, pattern, section: b.section.id, shortfall, grammar: 'used_up' });
+  try {
+    const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+    usages.push(...second.usages);
+    if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return { examJson, laid, usages };
+    stripImageKeys(second.tree);
+    normaliseAnswers(second.tree);
+    _dropProseVerses(second.tree, versesRef, requestId);
+    let next = lay(_topUp(examJson, second.tree, new Set([READ_SLOT])));
+    _blankWordsStems(next.examJson, P, key);
+    if ((await religiousFilter(next.examJson, P, { grade, subject, allowedText: loaded.content, requestId })).length) next = lay(next.examJson);
+    return { examJson: next.examJson, laid: next, usages };
+  } catch (err) {
+    logToFile('[assessment] grammar top-up failed', { requestId, section: b.section.id, error: err.message });
+    return { examJson, laid, usages };
+  }
+}
+
+/**
  * A board-pattern paper: one call per section, in parallel, merged and laid out
  * in the pattern's shape. A slot left short after the checks fails the paper
  * (PATTERN_SHORT_SLOT): a board rehearsal missing a question is not one.
@@ -2503,6 +2543,15 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   if (quotes.length && laid.shortfall.length) {
     const re = await _reaskQuoted({
       examJson, laid, quotes, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef,
+    });
+    examJson = re.examJson;
+    laid = re.laid;
+    extraUsages.push(...re.usages);
+  }
+  // Urdu on chosen lessons: Q1 still short after the re-asks is topped up once more, told grammar is used up.
+  if (_grammarUsedUp(P, layoutScope) && laid.shortfall.length && laid.shortfall.every((f) => f.slot === READ_SLOT)) {
+    const re = await _topUpGrammarUsedUp({
+      examJson, laid, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef,
     });
     examJson = re.examJson;
     laid = re.laid;
