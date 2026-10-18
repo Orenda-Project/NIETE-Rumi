@@ -10,17 +10,7 @@
 const { logToFile } = require('../../utils/logger');
 const R = require('./web-quiz-return-lang');
 const Repo = require('./child-language.repo');
-
-/**
- * The order itself. `own`: the child's child_language row ({ language, source }, null with the switch off); `asked`:
- * the page's ?lang= (en|ur, already checked); `history`: the child's quizzesForStudents() list; `linked`: the link's
- * `l`; `lessons: false` stops before the library lesson's language. → 'en' | 'ur' | null.
- */
-function ladder({ own = null, asked = null, history = null, linked = null, lessons = true } = {}) {
-  const SQ = require('./student-quiz.service');
-  const kept = (s) => (own && own.source === s ? own.language : null);
-  return kept('chosen') || asked || SQ.classLanguage(history) || linked || kept('join') || (lessons ? SQ.childLanguage(history) : null) || null;
-}
+const { ladder } = require('./child-language-of');
 
 /**
  * The child's kept row, by the id it is kept under: with `raw` (an id read from a quiz run or a link, which may be a
