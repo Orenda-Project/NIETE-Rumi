@@ -44,8 +44,10 @@ export function OpenPlanPage() {
     const grade = Number.isInteger(g) && g >= 1 && g <= 12 ? g : null;
     const lang = lane === 'g612' ? (q.get('lang') === 'ur' ? 'ur' : 'en') : null;
     const dc = { grade, subjectKey: null, plan: `${lane}:${ref}`, lang };
+    // Opened from Digital Coaching's attached plan (bd-fgj73x.5): to read it, no Start DC on it.
+    const fromDc = q.get('from') === 'dc';
     const toViewer = (source: Parameters<typeof openPlan>[0]) =>
-      openPlan(source, title, { replace: true, page: LESSONS_VIEWER, state: { dc } });
+      openPlan(source, title, { replace: true, page: LESSONS_VIEWER, state: { dc, ...(fromDc ? { fromDc: true } : {}) } });
 
     if (lane === 'k5') {
       void toViewer({ lane: 'k5', lessonId: ref, assetKind: 'lesson' });

@@ -127,6 +127,31 @@ CMD="$ROOT/.claude/commands/e2e-web.md"
 grep -q 'bash scripts/qa/e2e-web.sh \$ARGUMENTS' "$CMD" 2>/dev/null && ok "W13e /e2e-web command runs e2e-web.sh with its arguments" \
   || no "W13e /e2e-web command" "missing or not wired: $CMD"
 
+# W16 — the row a run appends is COMMITTED on the branch being tested (operator, 15 Oct: "you need to commit that file
+# as well automatically"): only runs.jsonl, never on main/staging/sandbox/develop or a detached HEAD, never pushed,
+# other changes left alone, and E2E_NO_COMMIT=1 turns it off. scripts/qa/commit-ledger-row.sh does it.
+CLR="$ROOT/scripts/qa/commit-ledger-row.sh"
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+mkrepo(){ local d="$T/$1"; mkdir -p "$d/.claude/qa/ledgers"; git -C "$d" init -q -b "$2"; git -C "$d" config user.email t@t; git -C "$d" config user.name t
+  echo '{"run_id":"old"}' > "$d/.claude/qa/ledgers/runs.jsonl"; echo a > "$d/other.txt"; git -C "$d" add -A; git -C "$d" commit -q -m base; echo "$d"; }
+R=$(mkrepo feat bd-x1-123); echo '{"run_id":"new"}' >> "$R/.claude/qa/ledgers/runs.jsonl"; echo b >> "$R/other.txt"; git -C "$R" add other.txt
+out=$(bash "$CLR" "$R" "teacher-coaching HEALTHY 4/4 (run-1)" 2>&1); rc=$?
+chk "W16 a feature branch: the row is committed" "$rc" "0"
+chk "W16b the commit holds ONLY runs.jsonl" "$(git -C "$R" show --name-only --format= HEAD)" ".claude/qa/ledgers/runs.jsonl"
+case "$(git -C "$R" log -1 --format=%s)" in *teacher-coaching*HEALTHY*4/4*) ok "W16c the message names feature, status, count";; *) no "W16c message" "$(git -C "$R" log -1 --format=%s)";; esac
+chk "W16d the other staged change is left staged" "$(git -C "$R" diff --cached --name-only)" "other.txt"
+R=$(mkrepo shared sandbox); echo '{"run_id":"new"}' >> "$R/.claude/qa/ledgers/runs.jsonl"
+out=$(bash "$CLR" "$R" "x" 2>&1)
+chk "W16e sandbox: nothing committed" "$(git -C "$R" rev-list --count HEAD)" "1"
+case "$out" in *sandbox*) ok "W16f says why it did not commit";; *) no "W16f says why" "$out";; esac
+R=$(mkrepo off bd-x2-1); echo '{"run_id":"new"}' >> "$R/.claude/qa/ledgers/runs.jsonl"
+E2E_NO_COMMIT=1 bash "$CLR" "$R" "x" >/dev/null 2>&1
+chk "W16g E2E_NO_COMMIT=1: nothing committed" "$(git -C "$R" rev-list --count HEAD)" "1"
+R=$(mkrepo clean bd-x3-1)
+bash "$CLR" "$R" "x" >/dev/null 2>&1
+chk "W16h no new row: no empty commit" "$(git -C "$R" rev-list --count HEAD)" "1"
+grep -q 'commit-ledger-row.sh' "$SH" && ok "W16i e2e-web.sh calls it after the row is appended" || no "W16i e2e-web.sh calls commit-ledger-row.sh"
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 
