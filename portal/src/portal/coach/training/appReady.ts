@@ -43,6 +43,7 @@ const ALWAYS_OPEN: readonly RegExp[] = [
   /^\/portal\/reset-password(\/|$)/,
   /^\/portal\/privacy$/,
   /^\/portal\/delete-account$/,
+  /^\/portal\/fln(\/|$)/,
 ];
 
 const trimmed = (p: string) => p.replace(/\/+$/, "") || "/";
