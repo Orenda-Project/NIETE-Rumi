@@ -184,3 +184,45 @@ describe('1. the engine on lessons 6–7', () => {
     expect(a).not.toMatch(SOURCE_FIELD);
   });
 });
+
+// ── 2. The proper-noun name cue ────────────────────────────────────────────────────────────────
+
+// An item that asks a name or a place, keyed on one word only its key option carries, is given away by
+// another Q1 stem or correct option that prints the word. No shared topic word is needed.
+describe('2. sandbox chapters_4 (lessons 6–7): two stems print another item\'s one-word name', () => {
+  const paper = fixture('r21f-urdu-sandbox-chapters_4');
+  const HIRO_KEY = /ایٹم بم کا حملہ جاپان کے کس شہر/;
+  const HIRO_STEM = /ہیروشیما پر نظر آنے والے/;
+  const AMINA_KEY = /سدرہ کی بہن کا نام/;
+  const AMINA_STEM = /امینہ گلی میں کس طرف/;
+
+  test('the paper as printed has both pairs', () => {
+    expect([HIRO_KEY, HIRO_STEM, AMINA_KEY, AMINA_STEM].every((re) => has(paper, re))).toBe(true);
+  });
+
+  test.each([['lessons 6–7', ch(6, 7)], ['the full syllabus', FDE]])('%s: the layout prints only one item of each pair', (_, scope) => {
+    const out = lay(paper, scope).examJson;
+    expect(has(out, HIRO_KEY) && has(out, HIRO_STEM)).toBe(false);
+    expect(has(out, AMINA_KEY) && has(out, AMINA_STEM)).toBe(false);
+  });
+
+  test('a wrong option that names the key is no cue (control)', () => {
+    const p = clone(paper);
+    const stem = q1(p).find((q) => AMINA_STEM.test(q.question));
+    stem.question = 'سالگرہ کی صبح سدرہ کی سہیلی گلی میں کس طرف جا رہی تھی؟';
+    stem.options = ['الف) اسکول کی طرف', 'ب) امینہ کے گھر کی طرف', 'ج) باغ کی طرف', 'د) اسپتال کی طرف'];
+    const out = lay(p, ch(6, 7)).examJson;
+    expect(has(out, AMINA_KEY)).toBe(true);
+    expect(has(out, /سدرہ کی سہیلی گلی میں/)).toBe(true);
+  });
+
+  test('a one-word key of an item that asks about a word (its opposite) is no name: «امن» کا متضاد → جنگ stays (control)', () => {
+    const p = clone(paper);
+    const [a, b] = q1(p).filter((q) => /تاب کاری کے اثر|سدرہ کو دور افق/.test(q.question));
+    Object.assign(a, { question: '«امن» کا متضاد کون سا لفظ ہے؟', options: ['الف) جنگ', 'ب) سکون', 'ج) صلح', 'د) خوشی'], answer: 'الف) جنگ' });
+    Object.assign(b, { question: 'جنگ ختم ہونے کے بعد بچوں نے میدان میں کیا لگایا؟', options: ['الف) درخت', 'ب) جھنڈے', 'ج) خیمے', 'د) جھولے'], answer: 'الف) درخت' });
+    const out = lay(p, ch(6, 7)).examJson;
+    expect(has(out, /«امن» کا متضاد/)).toBe(true);
+    expect(has(out, /جنگ ختم ہونے کے بعد/)).toBe(true);
+  });
+});
