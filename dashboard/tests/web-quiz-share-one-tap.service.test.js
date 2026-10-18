@@ -1,8 +1,9 @@
 /**
  * The quiz card's "Share to class group" with the one share on (app_settings web_quiz_share_v4, the finish's
- * `share_v4`; default OFF): one tap is ONE share, the page's own — the picture as a file (or the phone's share sheet,
- * or the send screen with the picture and "Save picture") and the class link that carries the picture (?a=). The
- * finish card's own class share (WQFC.quizShareTap) is not registered, so it neither runs nor stops the page's.
+ * `share_v4`; default OFF): one tap is ONE share. With the one share's card (the mint says v4) it is the sheet
+ * (web-quiz-share-v4-page.service.test.js); without it (here: the mint answers no v4) it is the page's own — the picture
+ * as a file (or the phone's share sheet, or the send screen with the picture and "Save picture") and the class link
+ * that carries the picture (?a=).
  * Switch off (absent, false, or the string "true"): today's tap, the finish card's share, byte for byte.
  */
 jest.mock('../../bot/shared/config/supabase', () => ({}));
@@ -15,8 +16,8 @@ const { page, flush } = require('./wq-page-harness');
 const FC_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-finish-card.js'), 'utf8');
 const TOK = 'Qm9va2Nhc2VfdG9rZW5fZm9yX3Rlc3RzX29ubHlfMDEyMzQ1Njc4OWFiY2RlZg';
 const CARD = 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl';
-const CHILD = { first: 'Zara Testwala', chip: 'c1', animal: 'owl' };
-const RESULT = { card: { first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 }, art: { card: CARD }, card_v3: true };
+const CHILD = { first: 'Noor Testwala', chip: 'c1', animal: 'owl' };
+const RESULT = { card: { first: 'Noor Testwala', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 }, art: { card: CARD }, card_v3: true };
 const RET = { text: 'Play with Jugnu any day. Tap, then send:', words: 'quiz please', href: 'https://wa.me/15550001111?text=quiz%20please' };
 const MINT = { '/api/wq/card': { token: TOK, url: `/q/TEST?k=${TOK}`, img: `/wq/card/${TOK}.png`, ret: RET } };
 const store = (result) => ({ wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result, vdone: true } });
