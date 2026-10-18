@@ -33,14 +33,15 @@ const { makeFake } = require('./fake-supabase');
 
 // OFF(base): the hub's waves and app_settings reads through GET /hub/:token on the code before this switch (sandbox
 // e35285276 (the landed sandbox with C42: home-on settingsStale re-measured there, 20; home-off 16; measured with this PR's route line removed, evidence/offline_s9_basewaves.txt), the same fixture through the same route; printed by this file's own log line on that code).
+// Re-measured after the home preload's own switch read joined the hub answer on sandbox (one more stale settings read, 17 and 21; the waves are unchanged).
 const BASE = {
   class: {
-    homeOff: { fastOff: { warm: 26, stale: 39, settingsWarm: 0, settingsStale: 16 }, fastOn: { warm: 24, stale: 37, settingsWarm: 0, settingsStale: 16 } },
-    homeOn: { fastOff: { warm: 26, stale: 39, settingsWarm: 0, settingsStale: 20 }, fastOn: { warm: 24, stale: 37, settingsWarm: 0, settingsStale: 20 } },
+    homeOff: { fastOff: { warm: 26, stale: 39, settingsWarm: 0, settingsStale: 17 }, fastOn: { warm: 24, stale: 37, settingsWarm: 0, settingsStale: 17 } },
+    homeOn: { fastOff: { warm: 26, stale: 39, settingsWarm: 0, settingsStale: 21 }, fastOn: { warm: 24, stale: 37, settingsWarm: 0, settingsStale: 21 } },
   },
   loose: {
-    homeOff: { fastOff: { warm: 21, stale: 32, settingsWarm: 0, settingsStale: 16 }, fastOn: { warm: 20, stale: 31, settingsWarm: 0, settingsStale: 16 } },
-    homeOn: { fastOff: { warm: 21, stale: 32, settingsWarm: 0, settingsStale: 20 }, fastOn: { warm: 20, stale: 31, settingsWarm: 0, settingsStale: 20 } },
+    homeOff: { fastOff: { warm: 21, stale: 32, settingsWarm: 0, settingsStale: 17 }, fastOn: { warm: 20, stale: 31, settingsWarm: 0, settingsStale: 17 } },
+    homeOn: { fastOff: { warm: 21, stale: 32, settingsWarm: 0, settingsStale: 21 }, fastOn: { warm: 20, stale: 31, settingsWarm: 0, settingsStale: 21 } },
   },
 };
 

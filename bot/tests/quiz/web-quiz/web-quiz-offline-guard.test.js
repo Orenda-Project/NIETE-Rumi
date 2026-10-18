@@ -157,6 +157,9 @@ async function serve(fn, warm) {
     jest.spyOn(CardImage, 'field').mockResolvedValue({}),
     jest.spyOn(require('../../../shared/services/quiz/web-quiz-hub-door'), 'menuFoldField').mockResolvedValue({}),
     jest.spyOn(require('../../../shared/services/quiz/web-quiz-read-feedback'), 'menuField').mockResolvedValue({}), // reads its own switch: not this guard's read
+    jest.spyOn(require('../../../shared/services/quiz/web-quiz-server-timing'), 'timeRequest').mockImplementation(() => {}), // refreshes the hub switch read in the background: not this guard's read
+    jest.spyOn(require('../../../shared/services/quiz/web-quiz-fold-retry'), 'menuField').mockResolvedValue({}), // reads its own switch: not this guard's read
+    jest.spyOn(require('../../../shared/services/quiz/web-quiz-home-preload'), 'carry').mockImplementation(async (p) => p), // reads the hub switches itself: not this guard's read
   ];
   const app = express();
   app.use(express.json());
