@@ -294,9 +294,23 @@ function compactClip(audio) {
   });
 }
 
+// Under this many seconds loudnorm drops its one-gain (linear) mode; such a clip gets one plain gain (levelClip).
+const SHORT_CLIP_S = 3;
+const TRUE_PEAK_DB = -1.5;
+
+/** The one gain (dB) a short clip measured at `inputI` LUFS / `inputTp` dBTP takes toward `lufs`, true peak capped. */
+function shortGainDb(lufs, inputI, inputTp) {
+  if (!Number.isFinite(inputI)) return 0;   // silence: nothing to level
+  const want = lufs - inputI;
+  return Number.isFinite(inputTp) ? Math.min(want, TRUE_PEAK_DB - inputTp) : want;
+}
+
 /**
  * The clip levelled to `lufs` (ffmpeg loudnorm, two passes, linear: one gain for the clip, true peak at most -1.5 dB),
  * as mono Ogg Opus at `kbps`: a plan's `loudness_lufs`, so the AI lines sit at the loudness of the bank's recordings.
+ * A clip under 3 s (a one-word option): loudnorm cannot keep one gain there (it falls back to its dynamic mode and
+ * leaves the clip far too quiet), so the same first pass's loudness and true peak give one plain gain toward `lufs`,
+ * capped so the true peak stays at most -1.5 dB.
  * Throws when ffmpeg fails: the clip is then counted failed and recorded again on the next publish.
  */
 function levelClip(audio, lufs, kbps) {
@@ -304,7 +318,7 @@ function levelClip(audio, lufs, kbps) {
   const src = `${base}.in`;
   const out = `${base}.ogg`;
   const cleanup = () => { [src, out].forEach((f) => { try { fs.unlinkSync(f); } catch (_) { /* gone */ } }); };
-  const target = `I=${lufs}:TP=-1.5:LRA=11`;
+  const target = `I=${lufs}:TP=${TRUE_PEAK_DB}:LRA=11`;
   const ff = (args) => new Promise((resolve, reject) => {
     execFile(ffmpegPath(), args, { timeout: 20000, maxBuffer: 4 * 1024 * 1024 }, (err, _out, stderr) => (err ? reject(err) : resolve(String(stderr || ''))));
   });
@@ -313,9 +327,14 @@ function levelClip(audio, lufs, kbps) {
       fs.writeFileSync(src, audio);
       const said = await ff(['-hide_banner', '-nostats', '-i', src, '-af', `loudnorm=${target}:print_format=json`, '-f', 'null', '-']);
       const m = JSON.parse((said.match(/\{[^{}]*\}/g) || []).pop());
-      await ff(['-y', '-loglevel', 'error', '-i', src, '-af', `loudnorm=${target}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:`
-        + `measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`,
-      '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', `${kbps}k`, '-f', 'ogg', out]);
+      const d = said.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);
+      const sec = d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : null;
+      const af = sec !== null && sec < SHORT_CLIP_S
+        ? `volume=${shortGainDb(lufs, Number(m.input_i), Number(m.input_tp)).toFixed(2)}dB`
+        : `loudnorm=${target}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:`
+          + `measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
+      await ff(['-y', '-loglevel', 'error', '-i', src, '-af', af,
+        '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', `${kbps}k`, '-f', 'ogg', out]);
       const levelled = fs.readFileSync(out);
       if (levelled.slice(0, 4).toString() !== 'OggS') throw new Error('levelled clip is not Ogg');
       return levelled;
