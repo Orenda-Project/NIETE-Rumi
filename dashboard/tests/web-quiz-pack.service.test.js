@@ -64,7 +64,7 @@ function jsonRes(status, body) {
 }
 // The hub answer as sandbox sends it today (fast, the v3 home, keep my place, Jugnu's corner, the read-along preview).
 const HUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: KID, first: 'Sana', animal: 'owl', grade: '3' }], kid: KID,
+  lang: 'en', kids: [{ chip: KID, first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: KID,
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, fast: true,
   home_v3: 1, bind: { offer: false }, play: { first: null }, listen: true,
   doors: { stories: [{ kind: 'shelf' }], games: [], videos: { watch: true } }, ...extra,
@@ -394,7 +394,7 @@ describe('the flushed head preloads the two pack files (exact hrefs) in place of
 // ── the page's own scripts with the pack on (a vm, the shipped files as the edge serves them) ───────────────────────
 // A payload with Stories and the corner's install card (the fixture of the earlier pack PR), for the door screens.
 const VHUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID,
+  lang: 'en', kids: [{ chip: KID, first: 'Zara Testwala', animal: 'owl', grade: '3' }], kid: KID,
   teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false,
   bind: { on: true }, home_v3: 1, play: { install: true }, stories: { on: true },
   doors: { stories: [{ kind: 'shelf' }], games: [], videos: null },
