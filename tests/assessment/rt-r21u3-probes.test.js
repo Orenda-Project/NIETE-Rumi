@@ -87,10 +87,11 @@ describe('RT-2 controls that should hold on the head', () => {
     expect(() => Renderer.renderPaper({ examJson: r.examJson, grade: 5, subject: 'urdu', allowShort: true })).not.toThrow();
   });
 
-  test('the full syllabus: no Q1 item is held for an antonym or a synonym, tagged or not', () => {
+  test('the full syllabus asks the antonym once too, tagged or not: one prints, the rest are held as concept repeats', () => {
     const full = lay(tagged('byCount'), { kind: 'fde' }, { reasked: true }).examJson;
-    expect(q1Of(full).filter(isAnt)).toHaveLength(6);
-    expect((full._layout.holds || []).filter((h) => /concept/.test(h.rule))).toHaveLength(0);
+    expect(q1Of(full).filter(isAnt)).toHaveLength(1);
+    // Five antonyms and two synonyms asked again.
+    expect((full._layout.holds || []).filter((h) => h.rule === 'concept_repeat').map((h) => h.n)).toEqual([7]);
   });
 
   test('Q4 ارکان: a key and an accept that cut the same way, written with «-» or diacritics, are not held', () => {

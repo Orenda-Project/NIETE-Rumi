@@ -140,9 +140,14 @@
         // replaces on the page; its cached cover; no request)
         var sb = nx && (S.shelf.d || {}).books || [], x;
         for (x = 0; x < sb.length; x++) if (!sb[x].done && sb[x].id !== id && sb[x].cover) { nx.art = sb[x].cover; break; }
+        // the book's whole read answered (read_fb; the server's reading from the child's own page reads): above the
+        // card and its buttons, beside a card that hides our own head (then the compact strip: the card's Next stays on
+        // the first screen)
+        var rfb = b.read_fb && rd && r && r.reading && W.WQMoment ? W.WQMoment.feedback(r.reading) : null;
         var draw = function (fc) {
           paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
             (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
+            (rfb ? W.WQMoment.html(rfb, L, { grade: b.grade, moment: 'story-done', size: fc ? 's' : '' }) : '') +
             '<div class="wqs-col" data-col>' + (fc && nx ? '' : '<button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>') +
             '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         };
@@ -160,6 +165,8 @@
         }
         var own = root.querySelector('[data-own]');
         if (own) own.hidden = ok;
+        // one sound: the moment's with the finish card; without it, the book's finish fanfare below says it
+        if (rfb && ok) W.WQMoment.sound(root.querySelector('[data-rf]'), rfb);
         if (ok || !n) return;
         juice('finish', { stars: 3, kind: 'story' });
         var el = root.querySelector('[data-n]'), j = 0;

@@ -38,7 +38,19 @@ describe('the hub page', () => {
     expect(WaitUx.TAG).toBe(`<style id="wq-wait">${WaitUx.CSS}</style><script>${WaitUx.JS}</script>`);
     expect(WaitUx.CSS.match(/content:"[^"]*"/g)).toEqual(['content:""']);
     expect(WaitUx.JS).not.toMatch(/textContent|innerText|createTextNode/);
-    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2600);
+    // the bar's track (B4) added ~80 bytes: still under 0.1 ms of a 1.6 Mbps line
+    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2700);
+  });
+  // A bar a child can see (the design review's B4): 4 px, the brand colour at full opacity, running over a lighter track of
+  // the same colour across the whole width, so a 10 % bar still reads as "loading" and not as a stray line.
+  test('the bar is 4 px of the brand colour at full opacity over a visible track', () => {
+    const bar = WaitUx.CSS.match(/\.wq-wbar\{[^}]*\}/)[0];
+    expect(bar).toMatch(/height:4px/);
+    expect(bar).toMatch(/background:#47ba7d[0-9a-f]{2};/);
+    expect(bar).toMatch(/background:color-mix\(in srgb,var\(--brand,#47BA7D\) 2\d%,#0000\)/);
+    const fill = WaitUx.CSS.match(/\.wq-wbar i\{[^}]*\}/)[0];
+    expect(fill).toMatch(/background:var\(--brand,#47BA7D\)/);
+    expect(fill).not.toMatch(/opacity/);
   });
 });
 
@@ -69,6 +81,19 @@ describe('the edge learns the switch from the hub answer', () => {
       expect(html.indexOf(WaitUx.TAG)).toBeLessThan(html.indexOf('<script id="boot"'));
     });
   });
+  test('a portal worker that learnt the switch before it was turned on: the early frame goes without the piece, so the tail carries it, once', async () => {
+    // the portal runs one process per core, and each learns from its own last hub answer
+    await serve([HUB({ fast: true }), HUB({ fast: true, wait_ux: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const late = await get(srv, `/h/${TOKEN}`);
+      expect(late.split(WaitUx.TAG)).toHaveLength(2);
+      expect(late.indexOf(WaitUx.TAG)).toBeGreaterThan(late.indexOf('<div class="wq-boot">'));
+      expect(late.indexOf(WaitUx.TAG)).toBeLessThan(late.indexOf('<script id="boot"'));
+      const next = await get(srv, `/h/${TOKEN}`);
+      expect(next.split(WaitUx.TAG)).toHaveLength(2); // the frame carries it now; the tail adds no second one
+      expect(next.indexOf(WaitUx.TAG)).toBeLessThan(next.indexOf('<div class="wq-boot">') + 400);
+    });
+  });
   test('off: the streamed page carries nothing of it', async () => {
     await serve([HUB({ fast: true })], async (srv) => {
       await get(srv, `/h/${TOKEN}`);
@@ -78,7 +103,7 @@ describe('the edge learns the switch from the hub answer', () => {
 });
 
 // ── the piece's script, in a vm over a small fake DOM ─────────────────────────────────────────────
-function page() {
+function page({ share = false } = {}) {
   const cls = (el) => ({ add: (c) => el.c.add(c), remove: (c) => el.c.delete(c), contains: (c) => el.c.has(c) });
   const mk = (tag) => { const el = { tag, c: new Set(), style: {}, attrs: {}, kids: [], setAttribute(k, v) { el.attrs[k] = v; } }; el.classList = cls(el);
     Object.defineProperty(el, 'innerHTML', { set() { el.firstChild = mk('i'); } }); Object.defineProperty(el, 'className', { set(v) { v.split(' ').forEach((c) => el.c.add(c)); } }); return el; };
@@ -102,11 +127,12 @@ function page() {
     }),
   };
   vm.runInNewContext(WaitUx.JS, { document, window, setTimeout, clearTimeout, setInterval, clearInterval, String, RegExp, Object });
+  if (share) vm.runInNewContext(WaitUx.SHARE_JS, { window, Promise });
   return {
     document, window, calls, boot: () => boot,
     removeBoot() { boot = null; observers.forEach((fn) => fn()); },
     addBoot() { boot = mk('div'); observers.forEach((fn) => fn()); return boot; },
-    settle(i) { pending[i](); },
+    settle(i, v) { pending[i](v); },
   };
 }
 const flush = () => new Promise((r) => jest.requireActual('timers').setImmediate(r));
@@ -218,5 +244,90 @@ describe('the bar and Jugnu\'s moment, run', () => {
     await flush();
     expect(own.signal.aborted).toBe(false);
     expect(p.document.bar.firstChild.style.width).toBe('100%');
+  });
+});
+
+describe('the same child data read asked twice while the first is out (web_quiz_hub_fanout on too: the share line)', () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
+  afterEach(() => jest.useRealTimers());
+  const answer = (body) => { const r = { body, clones: 0, clone() { r.clones += 1; return { body, copy: true }; } }; return r; };
+
+  test('rides the first: one request goes out, the first caller gets the answer, the later one its own copy', async () => {
+    const p = page({ share: true });
+    p.removeBoot();
+    const one = p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    const two = p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    expect(p.calls.length).toBe(1);
+    const res = answer({ books: [1] });
+    p.settle(0, res);
+    expect(await one).toBe(res);
+    expect(await two).toEqual({ body: { books: [1] }, copy: true });
+    expect(res.clones).toBe(1);
+  });
+
+  test('once answered, the same read goes out again (nothing is kept); another address, a caller\'s own signal or a POST never rides', async () => {
+    const p = page({ share: true });
+    p.removeBoot();
+    const one = p.window.fetch('/api/wq/doors/h/x?d=stories');
+    p.settle(0, answer({}));
+    await one;
+    p.window.fetch('/api/wq/doors/h/x?d=stories');
+    expect(p.calls.length).toBe(2);
+    p.window.fetch('/api/wq/doors/h/x?d=games');
+    p.window.fetch('/api/wq/doors/h/x?d=games', { signal: new AbortController().signal });
+    p.window.fetch('/api/wq/doors/h/x?d=games', { method: 'POST' });
+    expect(p.calls.length).toBe(5);
+  });
+
+  test('a read called off at 15 s fails for the later caller too (each screen shows its own try-again)', async () => {
+    const p = page({ share: true });
+    p.removeBoot();
+    const why = [];
+    p.window.fetch('/api/wq/lib/h/x').catch((e) => why.push(e.name));
+    p.window.fetch('/api/wq/lib/h/x').catch((e) => why.push(e.name));
+    expect(p.calls.length).toBe(1);
+    jest.advanceTimersByTime(15001);
+    await flush();
+    expect(why).toEqual(['AbortError', 'AbortError']);
+  });
+});
+
+describe('fanout off: the piece alone, today\'s reads', () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
+  afterEach(() => jest.useRealTimers());
+
+  test('wait_ux on, fanout off: two identical reads both go out, as today', () => {
+    const p = page();
+    p.removeBoot();
+    p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    expect(p.calls.length).toBe(2);
+  });
+
+  test('the page gets the share line only when the answer says wait_share (and wait_ux); the piece itself never changes', () => {
+    expect(WaitUx.tag({ wait_ux: true })).toBe(WaitUx.TAG);
+    expect(WaitUx.tag({ wait_ux: true, wait_share: true })).toBe(WaitUx.TAG + WaitUx.SHARE);
+    expect(WaitUx.tag({ wait_share: true })).toBe('');
+    expect(WaitUx.tag({ wait_ux: true, wait_share: 'true' })).toBe(WaitUx.TAG);
+  });
+});
+
+describe('the edge learns the share from the hub answer', () => {
+  test('the streamed page: after an answer with wait_share, the early frame carries the piece and the share line, once each', async () => {
+    await serve([HUB({ fast: true, wait_ux: true, wait_share: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const html = await get(srv, `/h/${TOKEN}`);
+      expect(html.split(WaitUx.TAG)).toHaveLength(2);
+      expect(html.split(WaitUx.SHARE)).toHaveLength(2);
+      expect(html.indexOf(WaitUx.SHARE)).toBe(html.indexOf(WaitUx.TAG) + WaitUx.TAG.length);
+    });
+  });
+  test('wait_ux without wait_share: the piece alone', async () => {
+    await serve([HUB({ fast: true, wait_ux: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const html = await get(srv, `/h/${TOKEN}`);
+      expect(html).not.toContain(WaitUx.SHARE);
+      expect(html.split(WaitUx.TAG)).toHaveLength(2);
+    });
   });
 });

@@ -6,7 +6,8 @@
 .lr-text { font-size: 24px; line-height: 2; word-spacing: 2px; }
 html[lang=ur] .lr-text, .lr[lang=ur] .lr-text { font-size: 26px; line-height: 2.3; }
 /* Nastaliq's tall glyph box would make a word's pill cover the lines above and below: each Urdu word is its own box */
-html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-block; line-height: 1.9; padding: 0 6px; margin: 2px 0; }
+/* … and its chip holds Nastaliq's tails and dots: line-height 2 and more room below the baseline than above */
+html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-block; line-height: 2; padding: 0 6px; padding-block: .15em .45em; margin: 2px 0; }
 .lr-w { padding: 2px 4px; border-radius: 8px; transition: background-color 120ms ease-out; }
 .lr-read { background: #BBF7D0; color: #15803D; }
 .lr-heard { background: #BBF7D0; color: #15803D; }
@@ -17,15 +18,17 @@ html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-bloc
 /* the Challenge page's own words under live reading v3: the same one green, a skip is an amber underline (never a fill) */
 .lr3 .wqc-w.wqc-ok { background: #BBF7D0; color: #15803D; }
 .lr3 .wqc-w.wqc-miss { background: none; color: inherit; box-shadow: inset 0 -3px 0 #E65100; }
-/* a story page: each word's state over the illustration — read = a green bar in the bottom 22 % of the word's box,
-   skipped = a dashed amber bar there, current = the only filled and outlined box, ahead = nothing */
+/* a story page: each word's state over the illustration — read = a green bar just below the word's box (an outer shadow:
+   never over the ink, a Nastaliq tail or a first letter), skipped = a dashed amber bar there, current = the only filled
+   box, its outline padded clear of the letters, ahead = nothing */
 .lr-ov { position: relative; width: 100%; border-radius: 12px; overflow: hidden; }
 .lr-ov img { display: block; width: 100%; height: auto; }
 .lr-box { position: absolute; padding: 0; border-radius: 6px; }
-.lr-box.lr-read { background: linear-gradient(to top, #15803D 0, #15803D 22%, transparent 22%); box-shadow: none; }
-.lr-box.lr-heard { background: linear-gradient(to top, #15803D 0, #15803D 22%, transparent 22%); box-shadow: none; }
-.lr-box.lr-skipped { background: repeating-linear-gradient(90deg, #E65100 0 6px, transparent 6px 10px); background-size: 100% 22%; background-position: bottom; background-repeat: no-repeat; box-shadow: none; }
-.lr-box.lr-current { background: rgba(187, 247, 208, .3); box-shadow: inset 0 0 0 3px #15803D; }
+.lr-box.lr-read { background: none; box-shadow: 0 5px 0 #15803D; }
+.lr-box.lr-heard { background: none; box-shadow: 0 5px 0 #15803D; }
+.lr-box.lr-skipped { background: none; box-shadow: none; }
+.lr-box.lr-skipped::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + 1px); border-bottom: 4px dashed #E65100; }
+.lr-box.lr-current { background: rgba(187, 247, 208, .3); box-shadow: none; outline: 3px solid #15803D; outline-offset: .15em; }
 .lr-box.lr-ahead { background: none; box-shadow: none; }
 /* Jugnu's glow: brighter per word lit, never per second, never a number */
 .lr-glow { width: 56px; height: 56px; margin: 0 auto 8px; border-radius: 50%; background: radial-gradient(circle, #fffbe0 0, #ffd84d 40%, rgba(255, 216, 77, 0) 70%); opacity: .25; transform: scale(.8); transition: opacity 300ms ease-out, transform 300ms ease-out; }

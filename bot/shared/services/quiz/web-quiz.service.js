@@ -537,20 +537,28 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
+  // One voice per quiz (web-quiz-one-voice-flag.js): no recorded person's voice beside the quiz voice. Its clips are
+  // in their own slot (meta.web_one): the page is served from it, and meta.web is left as it is. Read in the page's
+  // own settings read (web-quiz-identity-roster.js), so the switch costs the page no read.
+  // The plan as it applies to this quiz (its language): null keeps today's voice, as with the switch off.
+  const oneVoice = story ? null : require('./web-quiz-one-voice-flag').forQuiz(await IdRoster.oneVoicePlan(), ctx.quizId, voiceLang);
+  const quizMeta = (quizRow && quizRow.meta) || {};
+  const audioMeta = oneVoice ? { ...quizMeta, web: quizMeta.web_one || {} } : quizMeta;
   // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and
   // the tap that follows it, or a class opening the same link together, sign them once. The key is
   // everything the links are made from, so new clips or edited questions are signed at once.
   const mediaKey = require('crypto').createHash('sha1').update(JSON.stringify([
     ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
-    (quizRow && quizRow.meta && quizRow.meta.web) || null,
+    audioMeta.web || null,   // the slot the page is served from (meta.web_one with one voice)
     questions.map((q) => [q.id, q.question_text, q.media || null]),
+    ...(oneVoice ? ['one_voice', oneVoice.sig] : []),
   ])).digest('base64');
   const cached = quizMediaCache.get(mediaKey);
   const hit = Boolean(cached && Date.now() - cached.at < QUIZ_MEDIA_CACHE_MS);
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio((quizRow && quizRow.meta) || {}, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
@@ -567,12 +575,19 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   let audioPending = false;
   if (!story) try {
     const Publish = require('./web-quiz-publish.service');
-    audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
-    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+    audioPending = !Publish.isCurrent(Publish.webOf(quizMeta, { oneVoice }), { oneVoice });
+    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
-    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S, oneVoice }); } catch { /* the page reads aloud */ }
+    // The voice-mix alarm: a one-voice page that still carries two voices (clips of an older plan, a shared-line set
+    // in another voice). The plan's kept bank recordings are expected and do not count. A quiz key, never its id.
+    if (oneVoice) try {
+      const set = require('./web-quiz-voice').sharedSets(oneVoice)[voiceLang];
+      const mix = require('./web-quiz-one-voice-flag').mixOf(audio, { sharedTag: set ? set.path : null });
+      if (mix.mixed) logEvent('web_quiz.voice_mix', { qk: require('./web-quiz-kid').qk(ctx.quizId), tags: mix.tags, bank: [...oneVoice.bank] });
+    } catch { /* an alarm never breaks the page */ }
     if (helpers) {
       if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
       quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
@@ -645,7 +660,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   out.rt = await got('rt', () => Tel.flag());
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
   const ui = await got('ui', () => require('./web-quiz-ur-polish').ui());
-  if (ui) out.ui = ui;
+  // the light Urdu face (web_quiz_face_lite), from the hub-flags read pageNav just awaited: ui.fl, else the ui as it was
+  if (ui) out.ui = require('./web-quiz-ur-polish').lite(ui);
   // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-juice').field()) out.juice = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
@@ -661,10 +677,15 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  // One voice per quiz: the page shows a line with no clip instead of reading it in the phone's voice, and plays the
+  // shared lines from the plan voice's set (named only when on).
+  if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
   // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  if (require('./web-quiz-minify').on()) out.min = true;
   return out;
 }
 
@@ -1711,6 +1732,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     prior: Fast.early(priorFinish(s.share_code_id, s.student_id, s.id)),
     names: Fast.early((async () => shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]))()),
     classCode: Fast.early(classCodeOf(s)),
+    storyBoard: Fast.early(require('./story-board').refused(s.quiz_id)),
     best: s.user_id ? null : Fast.early(bestField(s)),
     vs: s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? Fast.early(versus(s, { correct, total })) : null,
     next: Fast.early(nextLesson(s)),
@@ -1754,6 +1776,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   const challengeCode = await got('challenge', () => challengeCodeFor(s));
   mark('challenge');
   const classCode = await got('classCode', () => classCodeOf(s));
+  // A storybook has no class table (story-board.js, switch off: never read): its finish mints no class picture.
+  const classArt = classCode && !s.invited_by_student_id && !(await got('storyBoard', () => require('./story-board').refused(s.quiz_id)));
   mark('class_code');
   // The card's remaining reads, in the order the payload used to await them, each timed.
   const best = earlier && !s.user_id ? await got('best', () => bestField(s)) : {};
@@ -1790,9 +1814,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...vs,
     // The signed ids of the pictures this child can share (web-quiz-art.js).
-    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null,
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classArt ? Art.artId('l', s.id) : null,
       // The class picture (nobody named) the shared table link /q/<CODE>/class previews as: getQuiz's art.class.
-      table: classCode && !s.invited_by_student_id ? Art.artId('l', classCode) : null },
+      table: classArt ? Art.artId('l', classCode) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
     ...next,
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
@@ -1877,6 +1901,8 @@ async function board(code, { st } = {}) {
   // The watch quiz (and any code under it) has no class: its table would be every class-less child. No root set: today's.
   // First, so a watch code never starts the twin read.
   if (await watchBoard(ctx)) fail(404, 'not_found');
+  // A storybook the teacher sent has no class table (web_quiz_story_board_refuse; off: today's board, no extra read).
+  if (await require('./story-board').refused(ctx.quizId)) fail(404, 'no_board');
   // The quiz's twin in the other language, read beside the table only with the switch on (web-quiz-class-twin).
   const Twin = require('./web-quiz-class-twin');
   const twinP = doors.then((on) => (on ? Twin.find(ctx) : null));

@@ -81,6 +81,7 @@ describe('the routes', () => {
       const out = await ask();
       for (const k of Object.keys(GOLDEN)) expect(out[k].st).toBeNull();
       expect(JSON.parse(out.hubGet.body).wait_ux).toBe(true);
+      expect(JSON.parse(out.hubPost.body).wait_ux).toBe(true);
       expect(out.hubGet.body.replace(/,"wait_ux":true/, '')).toBe(GOLDEN.hubGet);
       expect(out.hubPost.body.replace(/,"wait_ux":true/, '')).toBe(GOLDEN.hubPost);
       expect(out.doors.body).toBe(GOLDEN.doors);
@@ -93,6 +94,81 @@ describe('the routes', () => {
     await serve(async (ask) => {
       const out = await ask();
       for (const k of Object.keys(GOLDEN)) { expect(out[k].st).toBeNull(); expect(out[k].body).toBe(GOLDEN[k]); }
+    });
+  });
+});
+
+describe('the read share rides only with the hub\'s reads together (web_quiz_hub_fanout)', () => {
+  test('wait_ux and fanout on: the hub answers also say wait_share: true; nothing else changes', async () => {
+    rows = [{ key: KEY, value: true }, { key: 'web_quiz_hub_fanout', value: true }];
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of ['hubGet', 'hubPost']) {
+        expect(JSON.parse(out[k].body)).toMatchObject({ wait_ux: true, wait_share: true });
+        expect(out[k].body.replace(/,"wait_ux":true,"wait_share":true/, '')).toBe(GOLDEN[k]);
+      }
+      expect(out.doors.body).toBe(GOLDEN.doors);
+    });
+  });
+  test('fanout on, wait_ux off: no wait_share (and no wait_ux), every answer the golden', async () => {
+    rows = [{ key: 'web_quiz_hub_fanout', value: true }];
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of Object.keys(GOLDEN)) expect(out[k].body).toBe(GOLDEN[k]);
+    });
+  });
+});
+
+// web_quiz_doors_prefetch: the page asks the Videos door's lists once the home has painted (dashboard wq-doors.js warm)
+describe('the Videos lists asked early ride only with the designed wait (web_quiz_doors_prefetch)', () => {
+  const PRE = 'web_quiz_doors_prefetch';
+  test('wait_ux and prefetch on: the hub answers also say wait_pre: true; nothing else changes', async () => {
+    rows = [{ key: KEY, value: true }, { key: PRE, value: true }];
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of ['hubGet', 'hubPost']) {
+        expect(JSON.parse(out[k].body)).toMatchObject({ wait_ux: true, wait_pre: true });
+        expect(JSON.parse(out[k].body)).not.toHaveProperty('wait_share');
+        expect(out[k].body.replace(/,"wait_ux":true,"wait_pre":true/, '')).toBe(GOLDEN[k]);
+      }
+      expect(out.doors.body).toBe(GOLDEN.doors);
+    });
+  });
+  test.each([['wait_ux off', [{ key: PRE, value: true }]], ['the string true', [{ key: KEY, value: true }, { key: PRE, value: 'true' }]], ['no row', [{ key: KEY, value: true }]]])('%s: no wait_pre', async (_n, given) => {
+    rows = given;
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of ['hubGet', 'hubPost']) expect(JSON.parse(out[k].body)).not.toHaveProperty('wait_pre');
+      expect(out.doors.body).toBe(GOLDEN.doors);
+    });
+  });
+});
+
+// web_quiz_wait_home: the early page draws Home as the child last saw it in this tab (dashboard web-quiz-wait-ux.js)
+describe('Home drawn at once from this tab rides only with the designed wait (web_quiz_wait_home)', () => {
+  const HOME = 'web_quiz_wait_home';
+  test('wait_ux and wait_home on: the hub answers also say wait_home: true; nothing else changes', async () => {
+    rows = [{ key: KEY, value: true }, { key: HOME, value: true }];
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of ['hubGet', 'hubPost']) {
+        expect(JSON.parse(out[k].body)).toMatchObject({ wait_ux: true, wait_home: true });
+        expect(out[k].body.replace(/,"wait_ux":true,"wait_home":true/, '')).toBe(GOLDEN[k]);
+      }
+      expect(out.doors.body).toBe(GOLDEN.doors);
+    });
+  });
+  test.each([['wait_ux off', [{ key: HOME, value: true }]], ['the string true', [{ key: KEY, value: true }, { key: HOME, value: 'true' }]], ['no row', [{ key: KEY, value: true }]]])('%s: no wait_home', async (_n, given) => {
+    rows = given;
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of ['hubGet', 'hubPost']) expect(JSON.parse(out[k].body)).not.toHaveProperty('wait_home');
     });
   });
 });

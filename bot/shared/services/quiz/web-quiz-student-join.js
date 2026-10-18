@@ -46,7 +46,9 @@ const HubFlags = require('./web-quiz-hub-flags');
 const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
+const CardSwitch = require('./web-quiz-card-switch');
 const { clampLanguage } = require('../../config/ux-strings');
+const Adv = require('../first-touch/adventure-look');
 
 const SWITCH_KEY = 'quiz_student_join';
 // The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
@@ -59,8 +61,15 @@ const FAST_KEY = 'quiz_join_fast';
 // The go button says "Getting your games ready…" while the join runs (the page draws it; join.js shows it). Read in the
 // join's own switch read (no read of its own); JSON true only, and only with the join switch on.
 const WAIT_WORD_KEY = 'quiz_join_wait_word';
-// The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
-const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
+// One Urdu face on the join page too (the child pages' face). Read in the join's own switch read (no read of its own); JSON
+// true only, and only with the join switch on; the page shell answer then says `one_face: true`.
+const ONE_FACE_KEY = 'web_quiz_one_face';
+// The child's language switch (web-quiz-return-lang.js KEY): the join reads it once the child row is written.
+const RETURN_LANG_KEY = 'web_quiz_return_lang';
+// The one read asks for every key the join's flags need, so ON fills the identity, hub and child-language caches from it.
+// The one share (web_quiz_card_v3 + web_quiz_share_v4, both JSON true) rides the same read through HubFlags.KEYS: off,
+// a join asks nothing more. The adventure look's two keys (Adv.KEYS) ride it too; the Set drops any duplicate key.
+const flagKeys = () => [...new Set([SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ONE_FACE_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || []), ...Adv.KEYS, RETURN_LANG_KEY])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -97,29 +106,37 @@ async function earlyTapOn() {
   }
 }
 
-/** → { on, bind, earlyTap, fast?, waitWord? }; all false on a failed read. Never throws. */
+/**
+ * → { on, bind, earlyTap, fast?, waitWord?, share?, adv? }; all false on a failed read. Never throws. The adventure look
+ * (web_quiz_adventure_look AND web_quiz_one_button, both JSON true only) rides the switch's own read: no read is added.
+ */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', flagKeys());
+    const asked = flagKeys();
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', asked);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const on = isTrue(by[SWITCH_KEY]);
     const wait = on && by[WAIT_WORD_KEY] === true ? { waitWord: true } : {};
+    const face = on && by[ONE_FACE_KEY] === true ? { oneFace: true } : {};
+    const share = on && by[CardSwitch.KEY] === true && by[CardSwitch.SHARE_KEY] === true ? { share: true } : {};
+    const look = on && Adv.advDrawn(by) ? { adv: true } : {};
     if (on && by[FAST_KEY] === true) {
       // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
-      if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now);
+      if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now, asked);
+      require('./web-quiz-return-lang').prime(by[RETURN_LANG_KEY], now);
       const bind = Boolean((await IdFlags.flags()).phoneBind);
-      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait };
+      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait, ...face, ...share, ...look };
       return cache;
     }
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
     const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap, ...wait };
+    cache = { at: now, on, bind, earlyTap, ...wait, ...face, ...share, ...look };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
-    return { on: false, bind: false, earlyTap: false };
+    return { on: false, bind: false, earlyTap: false, adv: false };
   }
 }
 
@@ -306,9 +323,9 @@ async function pageInfo({ t } = {}) {
   const r = readToken(t);
   if (!r) {
     const old = T.verify(t, 'j', { allowExpired: true });
-    return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
+    return { stale: true, lang: old ? langOf(old.l) : null, ...botField(), ...(f.adv ? { adv: true } : {}), ...(f.oneFace ? { one_face: true } : {}) };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}), ...(f.waitWord ? { waitWord: true } : {}) };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}), ...(f.waitWord ? { waitWord: true } : {}), ...(f.adv ? { adv: true } : {}), ...(f.oneFace ? { one_face: true } : {}) };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
@@ -436,12 +453,16 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       if (b && b.outcome === 'refused') return { refused: b.reason, next: set.length ? homeUrl(set, null, 'join', lang) : null };
       return { error: 'unavailable' };
     }
+    // web_quiz_return_lang: the child keeps the language they joined in (child_language 'join'; off: nothing written)
+    const Ret = require('./web-quiz-return-lang');
+    if (Ret.linkLang(r.tok.l) && (await Ret.on())) await require('./child-language.repo').joined(id, r.tok.l);
     try {
       await require('../first-touch/door.keys').markChild(who.userId, who.phoneNorm);
     } catch (err) {
       logToFile('⚠️ student join: the door key was not written (the binding answers the next /quiz)', { error: err.message });
     }
     const kids = [{ id }, ...set];
+    fresh(r.tok.n, id, set);
     await emit('join_done', { grade: g, kids_n: kids.length }, id, device);
     // the home this opens says once "Jugnu will remember you on this phone", with Undo (web_quiz_home_v3; off: nothing)
     await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: id, userId: who.userId });
@@ -611,16 +632,34 @@ async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = nul
  * (an active binding via 'guest'): `out.bind` becomes { offer:false, state:'bound' } — the claim never shows on an
  * old or new link for that child. Switch off, no such binding, or a failed read: `out` untouched. Never throws.
  */
-async function hideCardIfBound(out, studentId) {
+async function hideCardIfBound(out, studentId, pre = null) {
   try {
-    if (!out || !studentId || !(await flags()).bind) return out;
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
-    const id = canon.get(String(studentId)) || String(studentId);
-    const rows = await BindRepo.activeForChild(id);
+    if (!out || !studentId) return out;
+    // pre (web_quiz_hub_waves2): boundRowsOf's answer, read beside the hub's other reads; null = off or a failed read
+    const rows = pre ? await pre : await (async () => {
+      if (!(await flags()).bind) return null;
+      const canon = await require('./web-quiz-identity-roster').canonicalStudentIds([String(studentId)]);
+      return BindRepo.activeForChild(canon.get(String(studentId)) || String(studentId));
+    })();
+    if (!rows) return out;
     if (rows.some((b) => b.via === 'guest')) out.bind = { offer: false, state: 'bound' };
     return out;
   } catch (_) {
     return out;
+  }
+}
+
+/**
+ * hideCardIfBound's reads started early (web_quiz_hub_waves2): the child's active phone bindings under their canonical
+ * id (the hub visit's shared lookup), or null when the switch is off or a read fails. Never rejects.
+ */
+async function boundRowsOf(studentId) {
+  try {
+    if (!studentId || !(await flags()).bind) return null;
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIdsShared([String(studentId)]);
+    return await BindRepo.activeForChild(canon.get(String(studentId)) || String(studentId));
+  } catch (_) {
+    return null;
   }
 }
 
@@ -643,9 +682,40 @@ async function noteRecognised({ phoneNorm } = {}) {
   }
 }
 
+// The NEW child a join just made, by its link's nonce (in this process, read once by opening() below): a shared card's
+// sharer gains a friend only for a new child (web_quiz_share_joined), never for a child the phone already had.
+const FRESH = new Map();
+function fresh(n, id, set) {
+  if (FRESH.size > 500) FRESH.clear();
+  FRESH.set(String(n), { id: String(id), set: (set || []).map((k) => String(k.id)) });
+}
+
+// A shared card's item kept for this phone (web_quiz_share_v4, web-quiz-share-open.js): the home link a join, a
+// landing or a pick answers with opens on it. The nonce names the phone; nothing kept, or the switch off: today's link.
+function opening(fn, nonceOf) {
+  return async (args = {}) => {
+    const out = await fn(args);
+    const n = nonceOf(args);
+    const made = n ? FRESH.get(String(n)) : null;
+    if (made) FRESH.delete(String(n));
+    // the switch from the join's own read (its cache, warm from this join): off, nothing more is asked
+    if (!out || typeof out.next !== 'string' || !(cache && cache.share === true)) return out;
+    try {
+      const who = n ? await GoNonce.peek(n) : null;
+      if (who && who.phoneNorm) out.next = await require('./web-quiz-share-open').withOpen(who.phoneNorm, out.next, made ? { fresh: made } : null);
+    } catch (err) {
+      logToFile('⚠️ student join: the shared item was not added (the home opens as today)', { error: err.message });
+    }
+    return out;
+  };
+}
+const joinOpen = opening(join, (a) => { const r = readToken(a.t); return r && r.tok ? r.tok.n : null; });
+const autoBindOpen = opening(autoBind, (a) => a.n);
+const bindPickOpen = opening(bindPick, (a) => a.n);
+
 module.exports = {
   SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
+  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join: joinOpen, autoBind: autoBindOpen, bindPick: bindPickOpen, noteRecognised, hideCardIfBound, boundRowsOf,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
 };

@@ -110,3 +110,16 @@ test('get(now, { retryFailed: true }) reads once more past a cached failed read;
   expect(await sw.get(3, { retryFailed: true })).toBe(true);
   expect(store.reads).toBe(2);
 });
+
+test('peek(now): the good value while fresh, else undefined; it never reads', async () => {
+  const { sw, store } = make();
+  expect(sw.peek(0)).toBeUndefined();
+  expect(store.reads).toBe(0);
+  await sw.get(0);
+  expect(sw.peek(1)).toBe(true);
+  expect(sw.peek(TTL)).toBeUndefined();
+  store.mode = 'down';
+  await sw.get(TTL);
+  expect(sw.peek(TTL + 1)).toBeUndefined();
+  expect(store.reads).toBe(2);
+});

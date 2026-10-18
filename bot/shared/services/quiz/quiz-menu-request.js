@@ -47,6 +47,13 @@ const REQUEST_WORDS = new Set([
   'مہربانی', 'کرم',
 ]);
 
+/**
+ * A shared card's ref (`jb` | `jv` | `jg` + 8 hex: web-quiz-card-switch.js ref(); + the card's 8-hex short id when
+ * "a friend joined" was on), which its landing types after the words.
+ * Skipped (at most one) only when the caller asks ({ref: true}: web-quiz-share-open.js refMenu, the one share on).
+ */
+const SHARE_REF_RX = /^j[bvg][0-9a-f]{8}([0-9a-f]{8})?$/;
+
 /** A message longer than this is a sentence, not a request for a menu. */
 const MAX_TOKENS = 6;
 
@@ -69,9 +76,10 @@ function tokens(text) {
 
 /**
  * @param {string} text the message as the teacher (or child) typed it
+ * @param {{ref?: boolean}} [opts] ref: one shared card's ref may stand among the words (default: today's words only)
  * @returns {boolean} true when the message asks for the quiz menu and nothing else
  */
-function isQuizMenuRequest(text) {
+function isQuizMenuRequest(text, { ref = false } = {}) {
   const raw = String(text == null ? '' : text).trim();
   if (!raw) return false;
   // `/quiz` with anything after it has always been the command (the topic is
@@ -80,8 +88,10 @@ function isQuizMenuRequest(text) {
   const toks = tokens(raw);
   if (!toks.length || toks.length > MAX_TOKENS) return false;
   let quizWords = 0;
+  let refs = 0;
   for (const tok of toks) {
     if (QUIZ_WORD_RX.test(tok)) { quizWords += 1; continue; }
+    if (ref === true && refs === 0 && SHARE_REF_RX.test(tok)) { refs += 1; continue; }
     if (!REQUEST_WORDS.has(tok)) return false;
   }
   return quizWords > 0;

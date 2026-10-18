@@ -24,6 +24,7 @@
   var UR2 = false;
   try { UR2 = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('wq-ur2')); } catch (e) { UR2 = false; }
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   var JUG = '/wq/jugnu/';
 
   var T = {
@@ -78,6 +79,7 @@
       slowNet: 'Slow internet. Keep reading, your voice is being recorded.',
       checked: function (m, w) { return m + ' listened again: ' + w + ' words a minute!'; },
       qaStart: 'Answer questions about the story',
+      qaShort: 'Answer questions',
       listenGo: 'Listen',
       listenWrong: "The story won't play right now. Try another challenge.",
       qaRight: 'Yes!',
@@ -134,6 +136,7 @@
       slowNet: 'انٹرنیٹ آہستہ ہے۔ پڑھتے رہیں، آپ کی آواز ریکارڈ ہو رہی ہے۔',
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
+      qaShort: 'سوالوں کے جواب دیں',
       listenGo: 'سنیں',
       listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
@@ -162,6 +165,7 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function oneButton() { try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; } }
   function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   function q(id) { return root.querySelector('#' + id); }
   function on(id, fn) { var el = q(id); if (el) el.addEventListener('click', fn); }
@@ -362,7 +366,7 @@
   // ── the mascot: a bubble and, when there is one, its recorded clip ────────────────────────────────
   var player = null;
   function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + JUG + pose + '.webp" alt="" width="92" height="92"></span>'
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + jv(JUG + pose + '.webp') + '" alt="" width="92" height="92"></span>'
       + '<div class="wq-say" id="wqc-say">' + esc(line) + '</div></div>';
   }
   function say(clip, cb) {
@@ -405,7 +409,8 @@
   function show(name, html) {
     S.screen = name;
     // a stop played again on the trail: every screen of it says it is practice, scored into nothing
-    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
+    // (under live reading v3 never on the microphone notice: "just for fun" and "Jugnu keeps the recordings" are never one screen)
+    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round && !(name === 'mic-notice' && lr3()) ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
     root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + roundSay + '</section>';
@@ -1173,6 +1178,7 @@
       show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrT().view()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
         + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
+      if (lr3()) lrT().meter();
       livePaint();
     } else if (liveOk()) {
       var prev = d.previous_wcpm;
@@ -1267,6 +1273,7 @@
       }
       var w = r.secs > 0 ? Math.round(live.v.correct / r.secs * 60) : 0;
       live.wpm = w;
+      live.secs = r.secs;
       liveResult(w);
       uploadQuiet(lc);
     });
@@ -1277,17 +1284,19 @@
     // the Trail's line follows the words heard (heardOk): the live cursor can run to the end on words never heard
     // the first card waits for the server's result before it draws a button the result could change (liveSettle)
     // live reading v3: a held card never shows a sticker before the reading is judged
-    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }, null, live.v.heardOk); return; }
+    if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(rfWith(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }), null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
-    show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
-      // live reading v3: no rate on a child's screen (the number goes to the teacher)
-      + (good && !lr3() ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
+    var rfh = rfBlock(rfWith({}).rf, false, false, true);
+    show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true) + rfh
+      // live reading v3: no rate on a child's screen (the number goes to the teacher); the moment says it beside its jar
+      + (good && !lr3() && !rfh ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
       + '<p class="wq-sub" id="wqc-growth"></p>'
       + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
       + '<p class="wqc-key"><span><i style="background:' + (lr3() ? '#BBF7D0' : 'var(--right-bg)') + '"></i>' + esc(t.readGreen) + '</span><span><i style="' + (lr3() ? 'box-shadow:inset 0 -3px 0 #E65100' : 'background:#FFF1D6') + '"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
-      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>') + '</div>');
+      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + rfHome(rfh) + '</div>' : (rfh ? '<div class="wq-stack">' : '') + '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>' + (rfh ? rfHome(rfh) + '</div>' : '')) + '</div>');
     if (good) say(d.clips.done);
+    rfSound();
     qa.attempted = live.v.attempted;
     on('wqc-menu', refreshMenu);
     on('wqc-qa', qa.open);
@@ -1295,7 +1304,7 @@
   }
   // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
   function qaButtons() {
-    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(t.qaStart) + '</button>'
+    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(oneButton() && t.qaShort || t.qaStart) + '</button>'
       + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>';
   }
   var qa = {
@@ -1382,7 +1391,40 @@
   function liveSettle() {
     if (!(live && live.held)) return;
     live.held = false;
-    if (S.screen === 'read-result') TR.readEnd({ score: { attempted: live.v.attempted } }, null, live.v.heardOk);
+    if (S.screen === 'read-result') TR.readEnd(rfWith({ score: { attempted: live.v.attempted } }), null, live.v.heardOk);
+  }
+  // The reading moment (web_quiz_read_feedback; the Trail draws it): the read as this page knows it rides with the card
+  // as r.rf — the live count first, the checked result (its speed, its last read, the words read right) once it is back
+  function rfOn() { return menuData.read_feedback === true; }
+  function rfWith(o) {
+    if (rfOn() && live && live.v) o.rf = live.checked || { score: { correct: live.v.correct, attempted: live.v.attempted }, secs: live.secs };
+    return o;
+  }
+  // the page's own card (no Trail): the moment just under Jugnu, in one box the checked result redraws; inner: the
+  // moment alone (the redraw). Key off or the file not here: '' (today's card)
+  // still: a redraw of this run's result (no motion again); hold: the live card before the check ("read it again"
+  // waits for the checked result)
+  var rfLast = null;
+  // the moment's card ends with a way Home (the hub of this token), like the Trail's card: never only "More challenges"
+  function rfHome(rf) {
+    if (!rf || !boot.token || !window.WQMoment || !window.WQMoment.label) return '';
+    var href = '/h/' + encodeURIComponent(boot.token) + (boot.kid ? '?kid=' + encodeURIComponent(boot.kid) : '');
+    return '<a class="wq-btn wq-soft" id="wqc-rfhome" data-home href="' + esc(href) + '">' + esc(window.WQMoment.label(L, 'home')) + '</a>';
+  }
+  function rfBlock(o, inner, still, hold) {
+    rfLast = null;
+    if (!rfOn() || !window.WQMoment || !o) return '';
+    rfLast = window.WQMoment.feedback(o);
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold, once: true });
+    return inner ? h : '<div id="wqc-rf">' + h + '</div>';
+  }
+  function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }
+  // Jugnu's sound for it, once per run (a redraw is silent), and "read it again to light one more!" (in the box)
+  // opening the read again
+  function rfSound() {
+    if (!rfLast || !window.WQMoment) return;
+    if (!window.WQMoment.once || window.WQMoment.once(rfKey())) window.WQMoment.sound(q('wqc-rf'), rfLast);
+    on('wqc-rfagain', function () { open('read'); });
   }
   function liveChecked(r) {
     if (!r || r.pending || r.later) { liveSettle(); return; }
@@ -1391,12 +1433,15 @@
     if (TR) {
       if (live && live.zero) return;
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
+      if (rfOn() && live && r.score) live.checked = r;
       if (TR.storySettled) TR.storySettled(r);
       liveSettle();
       return;
     }
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
     if (TR) return;
+    // key on: the moment's own box takes the checked read (still, silent); a speed there leaves the old lines empty
+    if (rfOn() && r.score && q('wqc-rf') && window.WQMoment) { live.checked = r; q('wqc-rf').innerHTML = rfBlock(r, true, true); on('wqc-rfagain', function () { open('read'); }); if (r.wcpm > 0) return; }
     if (r.failed || !(r.wcpm >= 0)) return;
     if (!(r.wcpm > 0)) { readResult(r); return; }
     var sc = q('wqc-score');
@@ -1487,9 +1532,10 @@
     if (rec.gaveUp && !(TR && lr3() && S.screen === 'read-result' && r && !r.pending && !r.later && window.WQFC && window.WQFC.unheard(r, null, null, 0))) return;
     // live reading v3: the card judges how the reading ended (a silent start is never a reading), so it always has it
     if (lr3() && r && r.ended == null && rec.ended) r = Object.assign({}, r, { ended: rec.ended });
-    if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
+    if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(rfOn() && r && !r.later && !r.pending && (r.score || r.failed) ? Object.assign({}, r, { rf: r }) : r); return; }
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = ''; var heard = false;
+    var rf = r.later ? '' : rfBlock(r);
     if (r.later) { line = t.later; pose = 'hello'; }
     // Nothing heard (attempted 0) is "try again", whatever the server called it; heard but nothing right is
     // encouragement. Only a reading with words per minute above 0 is praised.
@@ -1500,7 +1546,8 @@
       pose = 'notyet'; r = { failed: true };
     }
     else if (guardOn() && r.ended === 'silent') { line = t.readStopped; pose = 'notyet'; r = { score: r.score, wcpm: 0 }; }
-    else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = t.unheard; pose = 'notyet'; }
+    // key on: Jugnu says what happened only (the moment's line and the button already ask to read it again)
+    else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = rf ? t.unheard.replace(/\s*[^.!۔]*[?؟]\s*$/, '') : t.unheard; pose = 'notyet'; }
     // a scored body without the speed (the server sends it only to the child's own phone) reads as done when words were heard
     else if ((r.score && r.score.stopped) || !(r.wcpm > 0 || (!('wcpm' in r) && r.score && r.score.attempted > 0))) { line = t.readStopped; pose = 'notyet'; }
     else {
@@ -1510,15 +1557,19 @@
       else if (prev != null && r.wcpm === prev) growth = t.same_words;
     }
     var heardWell = heard;
-    if (lr3()) { score = ''; growth = ''; }   // live reading v3: no rate and no rate change on a child's screen
-    show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
+    // live reading v3: no rate and no rate change on a child's screen; key on: the moment says them, once
+    if (lr3() || rf) { score = ''; growth = ''; }
+    // Jugnu's "done" and the questions' part follow a heard read (key on: the speed line no longer stands for it)
+    var said = score || (rf && heard);
+    show('read-result', jug(pose, line, true) + rf + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
         ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
-        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
-    if (score) say(d.clips.done);
-    if (score) qa.attempted = r.score && r.score.attempted;
+        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + rfHome(rf) + '</div>');
+    if (said) say(d.clips.done);
+    if (rf) rfSound();
+    if (said) qa.attempted = r.score && r.score.attempted;
     on('wqc-menu', refreshMenu);
     on('wqc-again', function () { open('read'); });
     on('wqc-qa', qa.open);
