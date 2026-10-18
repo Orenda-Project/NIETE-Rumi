@@ -93,3 +93,6 @@ html[dir=rtl] .wq-vbox--s .wq-vplay{transform:none}
 .wq-dskel-bk .wq-skrow{height:auto;aspect-ratio:2/3}
 @keyframes wq-shim{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.wq-skrow{animation:none}}
+/* the Videos grade picker (the adventure look only draws it): "Grade 3 ▾" at the start of the line, the chips under it */
+.wq-vgrade{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.wq-vgrade .wq-vgl{width:auto;padding-inline:24px}

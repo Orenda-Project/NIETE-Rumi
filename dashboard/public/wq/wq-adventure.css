@@ -282,3 +282,5 @@ html.wq-adv .wq-ltop h2:empty{visibility:hidden}
 html.wq-adv .wq-droom[dir=rtl] .wq-backbtn::before,html.wq-adv .wq-droom[dir=rtl] .wq-backbtn svg{transform:scaleX(-1)}
 html.wq-adv .wq-vgrid--one{grid-template-columns:repeat(2,minmax(0,1fr))}
 html.wq-adv .wq-vch{display:block;color:var(--muted);font-size:var(--fs-1);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the Videos grade picker (wq-doors.js gradePick; its shape in wq-doors.css): the picked grade in the land's colour */
+html.wq-adv .wq-vpick .wq-chip.wq-on{background:var(--land);border-color:var(--land);color:var(--land-on)}
