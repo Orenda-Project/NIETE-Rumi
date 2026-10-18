@@ -1811,7 +1811,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
   // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
-  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone); }
+  // A lesson's Quiz button on the Videos door (?to=q, web_quiz_video_shelf on) opens straight at the questions.
+  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone && !(B.video_shelf === true && params.to === 'q')); }
 
   /* ---------------- M5 video (optional) ---------------- */
   // Where the lesson video is, kept every few seconds and whenever it pauses or the page hides.
