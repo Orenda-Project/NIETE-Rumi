@@ -144,7 +144,18 @@ describe('the orchestrator tells the engine to read only when the setting names 
     expect('readerPass' in args).toBe(false);
   });
 
-  test.each(['maths', 'science', 'english', 'social_studies'])('%s, setting naming it: never read, no readerPass key', async (subject) => {
+  test('social_studies, setting ["social_studies"]: readerPass is passed', async () => {
+    setting(['social_studies']);
+    expect(await argsOf('social_studies')).toMatchObject({ subject: 'social_studies', readerPass: true });
+    expect(settingReads()).toHaveLength(1);
+  });
+
+  test('social_studies, setting ["urdu"]: no readerPass key at all', async () => {
+    setting(['urdu']);
+    expect('readerPass' in (await argsOf('social_studies'))).toBe(false);
+  });
+
+  test.each(['maths', 'science', 'english'])('%s, setting naming it: never read, no readerPass key', async (subject) => {
     setting([subject, 'urdu']);
     const args = await argsOf(subject);
     expect('readerPass' in args).toBe(false);

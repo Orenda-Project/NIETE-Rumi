@@ -70,7 +70,7 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   const form = f.challenge ? await parts.challengeForm(canonical) : null;
   if (form) out.challenge = { on: true };
   const collect = {};
-  await require('./web-quiz-hub-play').playFor({ chosenId: canonical, last: out.last, lang, now: new Date().toISOString(), challenge: out.challenge, grade, stopsOf: () => parts.trailStops(form), collect });
+  await require('./web-quiz-hub-play').playFor({ chosenId: canonical, last: out.last, lang, now: new Date().toISOString(), challenge: out.challenge, grade, stopsOf: () => parts.trailStops(form), steps: () => require('./web-quiz-challenge'), collect });
   return { canonical, token, out, history, collect, grade, lang };
 }
 

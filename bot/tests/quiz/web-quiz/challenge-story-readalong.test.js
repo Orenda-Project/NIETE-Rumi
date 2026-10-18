@@ -365,6 +365,90 @@ describe('(d) a practice listen: "show me the words" after the questions', () =>
   });
 });
 
+// (e) "Hear it again" on a read that certified nothing (its own switch, web_quiz_zero_read_listen, JSON true only): a
+// read run's token gets the passage's timings only once its result has settled as not a reading (0 words, unheard) —
+// never before the read, never after a heard read. Off: a read run's answer is today's (400), whatever its state.
+const ZERO_LISTEN = 'web_quiz_zero_read_listen';
+describe('(e) a read run whose result settled as not a reading: "Hear it again"', () => {
+  const counted = async () => {
+    const { body } = await get('read');
+    expect(body).toMatchObject({ ex: 'read', mode: 'check' });
+    const row = rowOf(body.ct);
+    putFile(`${dirOf(row.passage_id)}/current.json`, fileFor(row.passage_id, Bank.getPassage(row.passage_id).text));
+    return { ct: body.ct, row };
+  };
+  const STATES = {
+    served: () => {},
+    scoring: (row) => { row.status = 'scoring'; },
+    zero: (row) => Object.assign(row, { status: 'scored', score: { correct: 0, attempted: 0 }, wcpm: null }),
+    unheard: (row) => Object.assign(row, { status: 'failed', meta: { ...(row.meta || {}), reason: 'unheard' } }),
+    heard: (row) => Object.assign(row, { status: 'scored', score: { correct: 5, attempted: 6 }, wcpm: 30 }),
+  };
+  test('on: before the reading 400; while it is scored 409; settled at 0 words → the timing file', async () => {
+    on(...STORY_ON, READALONG, ZERO_LISTEN);
+    const { ct, row } = await counted();
+    expect((await words(ct)).status).toBe(400);
+    row.status = 'scoring';
+    expect((await words(ct)).status).toBe(409);
+    Object.assign(row, { status: 'scored', score: { correct: 0, attempted: 0 }, wcpm: null });
+    const w = await words(ct);
+    expect(w.status).toBe(200);
+    expect(w.body.readalong).toMatchObject({ v: 1, id: row.passage_id, audio: { url: `https://signed.test/${dirOf(row.passage_id)}/sx-grace-ab12cd34.ogg` } });
+  });
+  test('settled unheard (failed) → the timing file too', async () => {
+    on(...STORY_ON, READALONG, ZERO_LISTEN);
+    const { ct, row } = await counted();
+    STATES.unheard(row);
+    expect((await words(ct)).status).toBe(200);
+  });
+  test('a heard read (words read) is refused', async () => {
+    on(...STORY_ON, READALONG, ZERO_LISTEN);
+    const { ct, row } = await counted();
+    STATES.heard(row);
+    expect((await words(ct)).status).toBe(403);
+  });
+  test('the read-along switch off: 404 and no timing file is read', async () => {
+    on(...STORY_ON, ZERO_LISTEN);
+    const { ct, row } = await counted();
+    STATES.zero(row);
+    r2.downloadFromR2.mockClear();
+    expect((await words(ct)).status).toBe(404);
+    expect(readalongReads()).toHaveLength(0);
+  });
+  test.each([
+    ['absent', null], ['the string "true"', 'true'], ['the quoted string \'"true"\'', '"true"'], ['1', 1], ['{}', {}], ['false', false],
+  ])('its own switch %s: a read run\'s answer is today\'s — 400 bad_request in every state, no timing file read', async (_, value) => {
+    for (const [state, set] of Object.entries(STATES)) {
+      fresh();
+      on(...STORY_ON, READALONG);
+      if (value !== null) db.app_settings.push({ key: ZERO_LISTEN, value });
+      const { ct, row } = await counted();
+      set(row);
+      r2.downloadFromR2.mockClear();
+      const w = await words(ct);
+      expect({ state, ...w }).toEqual({ state, status: 400, body: { error: 'bad_request' } });
+      expect(readalongReads()).toHaveLength(0);
+    }
+  });
+  test('its own switch unreadable (the settings read fails): off — 400, as today', async () => {
+    on(...STORY_ON, READALONG, ZERO_LISTEN);
+    const { ct, row } = await counted();
+    STATES.zero(row);
+    Ch.__reset();
+    const from = supabase.from.bind(supabase);
+    supabase.from = (t) => {
+      const q = from(t);
+      if (t !== 'app_settings') return q;
+      const eq = q.eq.bind(q);
+      q.eq = (k, v) => (v === ZERO_LISTEN ? { then: (res, rej) => Promise.resolve({ data: null, error: { message: 'down' } }).then(res, rej) } : eq(k, v));
+      return q;
+    };
+    try {
+      expect(await words(ct)).toEqual({ status: 400, body: { error: 'bad_request' } });
+    } finally { supabase.from = from; }
+  });
+});
+
 describe('the coach\'s preview: #listen/<pid> (stored clip + highlight, no run)', () => {
   test('on: a practice passage\'s timing for a hub token on its own phone; no run row is written', async () => {
     on(...STORY_ON, READALONG);

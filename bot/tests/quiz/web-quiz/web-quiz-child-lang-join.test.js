@@ -191,3 +191,39 @@ describe('switch off: nothing kept, today\'s identity row, and nothing read', ()
     expect(langWrites()).toEqual([]);
   });
 });
+
+describe('with the join\'s one switch read on (quiz_join_fast): the child\'s language switch rides that read', () => {
+  // every app_settings read the join makes, by the keys it asks for (`.eq('key', …)` or `.in('key', […])`)
+  function settingsReads() {
+    const asked = [];
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'app_settings') return b;
+      const eq = b.eq; const inn = b.in;
+      b.eq = (c, v) => { if (c === 'key') asked.push([v]); return eq.call(b, c, v); };
+      b.in = (c, vs) => { if (c === 'key') asked.push([...vs]); return inn.call(b, c, vs); };
+      return b;
+    };
+    return asked;
+  }
+  function fast(ret) {
+    seed(ret);
+    fake.db.app_settings.push({ key: 'quiz_join_fast', value: true });
+    return settingsReads();
+  }
+
+  test('an English join link → child_language {en, join}; web_quiz_return_lang is read only inside the join\'s one read', async () => {
+    const asked = fast(true);
+    const kid = await joinIn('en');
+    expect(fake.db.child_language).toEqual([expect.objectContaining({ canonical_id: kid, language: 'en', source: 'join' })]);
+    expect(asked.filter((keys) => keys.includes('web_quiz_return_lang'))).toEqual([expect.arrayContaining(['quiz_join_fast', 'web_quiz_return_lang'])]);
+  });
+
+  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true']])('switch row %s → nothing kept and no read of its own', async (_l, value) => {
+    const asked = fast(value);
+    await joinIn('en');
+    expect(fake.calls.filter((c) => c.table === 'child_language')).toEqual([]);
+    expect(asked.filter((keys) => keys.length === 1 && keys[0] === 'web_quiz_return_lang')).toEqual([]);
+  });
+});

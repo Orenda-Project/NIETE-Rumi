@@ -1251,7 +1251,20 @@
       var r = liveWpm(live.v);
       var lc = { correct: live.v.correct, attempted: live.v.attempted, secs: r.secs };
       // Nothing heard live is no result: the checked count decides, on today's screens.
-      if (!live.v.attempted) { upload(); return; }
+      if (!live.v.attempted) {
+        // live reading v3 with the card: nothing heard live is the kind card at once, never "Listening…" then "wait";
+        // the recording still goes up for the record, and its check moves nothing on this card (live.zero). With
+        // "Hear it again" on (zero_listen) the recording starts up first, so the card can wait for it before asking
+        if (lr3() && TR && menuData.card_v3 && window.WQFC) {
+          live.zero = true; lrT().hand(true);
+          if (d.zero_listen === true) {
+            try { uploadQuiet(lc); } catch (e) { /* the card still comes */ }
+            readResult({ score: { correct: 0, attempted: 0 }, sticker: false });
+          } else { readResult({ score: { correct: 0, attempted: 0 }, sticker: false }); uploadQuiet(lc); }
+          return;
+        }
+        upload(); return;
+      }
       var w = r.secs > 0 ? Math.round(live.v.correct / r.secs * 60) : 0;
       live.wpm = w;
       liveResult(w);
@@ -1376,6 +1389,7 @@
     // the Trail: a settled "not a reading" (not heard, or no word) redraws its card as the zero line, only while
     // that card is still open; a child who has gone on is never pulled back to it
     if (TR) {
+      if (live && live.zero) return;
       if (S.screen === 'read-result' && ((r.failed && r.reason === 'unheard') || (r.score && (r.score.stopped || r.score.attempted === 0)))) { if (live) live.held = false; readResult(r); return; }
       if (TR.storySettled) TR.storySettled(r);
       liveSettle();
@@ -1399,6 +1413,7 @@
     // the questions wait for this reading's result call (qa.open), so no answer can be written before it
     var settle;
     live.submitted = new Promise(function (res) { settle = res; });
+    d.sent = live.submitted;   // the read's card asks for its words only once this has gone up
     api('ch/upload', cons({ ct: d.ct, type: type, size: blob.size })).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
         if (!r.ok) { var e = new Error('put_' + r.status); e.status = r.status; throw e; }
@@ -1467,12 +1482,14 @@
   }
 
   function readResult(r) {
-    if (rec.gaveUp) return;   // live reading v3: the card was shown at the 10-s mark; a late answer moves nothing
+    // live reading v3: the card was shown at the 10-s mark; a late answer moves nothing — except a settled "nothing read"
+    // while that card is still open: it becomes the kind card, never "wait a little" forever
+    if (rec.gaveUp && !(TR && lr3() && S.screen === 'read-result' && r && !r.pending && !r.later && window.WQFC && window.WQFC.unheard(r, null, null, 0))) return;
     // live reading v3: the card judges how the reading ended (a silent start is never a reading), so it always has it
     if (lr3() && r && r.ended == null && rec.ended) r = Object.assign({}, r, { ended: rec.ended });
     if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
     var d = S.data;
-    var line; var pose = 'celebrate'; var score = ''; var growth = '';
+    var line; var pose = 'celebrate'; var score = ''; var growth = ''; var heard = false;
     if (r.later) { line = t.later; pose = 'hello'; }
     // Nothing heard (attempted 0) is "try again", whatever the server called it; heard but nothing right is
     // encouragement. Only a reading with words per minute above 0 is praised.
@@ -1484,14 +1501,15 @@
     }
     else if (guardOn() && r.ended === 'silent') { line = t.readStopped; pose = 'notyet'; r = { score: r.score, wcpm: 0 }; }
     else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = t.unheard; pose = 'notyet'; }
-    else if ((r.score && r.score.stopped) || !(r.wcpm > 0)) { line = t.readStopped; pose = 'notyet'; }
+    // a scored body without the speed (the server sends it only to the child's own phone) reads as done when words were heard
+    else if ((r.score && r.score.stopped) || !(r.wcpm > 0 || (!('wcpm' in r) && r.score && r.score.attempted > 0))) { line = t.readStopped; pose = 'notyet'; }
     else {
-      line = guardOn() && r.ended === 'timer' ? cp('wholeMinute') : d.clips.done.text; score = t.wcpm(r.wcpm);
+      line = guardOn() && r.ended === 'timer' ? cp('wholeMinute') : d.clips.done.text; score = r.wcpm > 0 ? t.wcpm(r.wcpm) : ''; heard = true;
       var prev = r.previous && r.previous.wcpm;
       if (prev != null && r.wcpm > prev) growth = t.more_words(r.wcpm - prev);
       else if (prev != null && r.wcpm === prev) growth = t.same_words;
     }
-    var heardWell = !!score;
+    var heardWell = heard;
     if (lr3()) { score = ''; growth = ''; }   // live reading v3: no rate and no rate change on a child's screen
     show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')

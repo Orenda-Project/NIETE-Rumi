@@ -281,14 +281,13 @@ async function lessonLanguage(vq) {
 
 // ─── watch-only: a child with no class code yet (web_quiz_home_v3) ──────────
 
-const WATCH_ROOT_KEY = 'web_quiz_watch_root';
+const { WATCH_ROOT_KEY, rootOf } = require('./watch-root');   // the one spelling of the key and one parser
 
-/** The watch root: a share code id from the VALUE key (a JSON string or plain; one spelling, trimmed and lower case,
- * as the other watch-root readers parse it), or null. Fails closed. */
+/** The watch root: a share code id from the VALUE key (watch-root.js's parser), or null. Fails closed. */
 async function watchRoot() {
   try {
     const { data } = await supabase.from('app_settings').select('value').eq('key', WATCH_ROOT_KEY).maybeSingle();
-    return require('./web-quiz-identity-roster').rootOf(data && data.value);
+    return rootOf(data && data.value);
   } catch (_) {
     return null;
   }
