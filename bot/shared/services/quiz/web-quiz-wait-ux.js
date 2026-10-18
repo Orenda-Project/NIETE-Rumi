@@ -20,6 +20,7 @@ const Flags = require('./web-quiz-hub-flags');
 
 const KEY = Flags.WAIT_UX_KEY;
 const FIELD = 'wait_ux';
+const SHARE_FIELD = 'wait_share';
 const TTL_MS = 30 * 1000;
 const SAY_WAIT_MS = 150;
 
@@ -33,12 +34,19 @@ function on(now = Date.now()) {
   try { return Flags.waitUxNow(now); } catch (_) { return false; }
 }
 
-/** The hub answer (or its promise) with the page's field added while on; the same answer, untouched, while off. */
+/**
+ * The hub answer (or its promise) with the page's field added while on; the same answer, untouched, while off. With
+ * web_quiz_hub_fanout on as well, `wait_share: true` too: the page's same child data read asked twice while the first
+ * is out then rides the first (dashboard/routes/web-quiz-wait-ux.js). Fanout off: today's answer, `wait_ux` alone.
+ */
 function carry(outP) {
   return Promise.resolve(outP).then((out) => {
-    if (on() && out && typeof out === 'object' && !Array.isArray(out)) out[FIELD] = true;
+    if (on() && out && typeof out === 'object' && !Array.isArray(out)) {
+      out[FIELD] = true;
+      try { if (Flags.fanoutNow()) out[SHARE_FIELD] = true; } catch (_) { /* fanout unknown: no share */ }
+    }
     return out;
   });
 }
 
-module.exports = { on, carry, refresh, KEY, FIELD, SAY_WAIT_MS, TTL_MS, _resetCache: () => Flags._resetCache() };
+module.exports = { on, carry, refresh, KEY, FIELD, SHARE_FIELD, SAY_WAIT_MS, TTL_MS, _resetCache: () => Flags._resetCache() };
