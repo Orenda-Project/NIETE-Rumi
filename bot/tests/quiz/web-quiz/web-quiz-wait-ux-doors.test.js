@@ -163,3 +163,54 @@ describe('the Games door: same rows, reads side by side, a short label wait', ()
     expect((await games()).games).toEqual([]);
   });
 });
+
+// web_quiz_list_states with the faster door on (its live path: gamesDoor hands over to the side-by-side reads at once).
+// A grade or form read that fails is a failed door (err: 1, the page's retry), never a child with no games.
+describe('web_quiz_list_states, wait_ux on: a failed grade or form read says so', () => {
+  const LS = [...BASE, ON('web_quiz_wait_ux'), ON('web_quiz_list_states')];
+  const logged = () => require('../../../shared/utils/logger').logToFile.mock.calls.filter((c) => /doors: unavailable/.test(c[0]) && c[1] && c[1].door === 'games');
+  // the side-by-side path ran: it asks the switches beside the grade, which the one-after-another path never does on a failed grade
+  const together = () => { expect(WaitUx.on()).toBe(true); expect(mockCh.recordOn).toHaveBeenCalled(); };
+  test('on: a grade read that rejects answers {games: [], err: 1}, not a child with no games', async () => {
+    await seed(LS);
+    mockCh.gradeOf.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+    expect(logged()).toHaveLength(1);
+  });
+  test('on: a form read that rejects answers {games: [], err: 1}', async () => {
+    await seed(LS);
+    mockCh.formForChild.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+  });
+  test('on: a form read that throws answers {games: [], err: 1}', async () => {
+    await seed(LS);
+    mockCh.formForChild.mockImplementationOnce(() => { throw new Error('db down'); });
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+  });
+  test('GOLDEN off (absent, or the string \'true\'): a grade or form read that fails answers today\'s {games: []}, byte for byte', async () => {
+    for (const ls of [[], [{ key: 'web_quiz_list_states', value: 'true' }]]) {
+      await seed([...BASE, ON('web_quiz_wait_ux'), ...ls]);
+      mockCh.gradeOf.mockRejectedValueOnce(new Error('db down'));
+      expect(JSON.stringify(await games())).toBe('{"games":[]}');
+      together();
+      mockCh.formForChild.mockRejectedValueOnce(new Error('db down'));
+      expect(JSON.stringify(await games())).toBe('{"games":[]}');
+    }
+    expect(logged()).toHaveLength(0);
+  });
+  test('on: no form for the grade (a real answer) stays a true empty with no err', async () => {
+    await seed(LS);
+    mockCh.formForChild.mockResolvedValueOnce(null);
+    expect(JSON.stringify(await games())).toBe('{"games":[]}');
+    together();
+  });
+  test('on: rows that came back whole carry no err', async () => {
+    await seed(LS);
+    const g = await games();
+    expect(g).not.toHaveProperty('err');
+    expect(g.games.length).toBeGreaterThan(0);
+  });
+});
