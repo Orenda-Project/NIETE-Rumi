@@ -363,16 +363,71 @@ describe('a settings outage: the retry, never an empty shelf (web_quiz_list_stat
       }
     }
   });
-  test('a failed read is not kept: the next read that works answers fresh, with no down', async () => {
+  test('a failed read is kept for the 30 s cache only: the first read that works after it answers fresh, with no down', async () => {
     seed(LS_ON);
     await Flags.flags();
     at(31 * SEC);
     settingsDown('error');
     await Flags.flags();
     settingsBack();
+    expect((await Flags.flags()).down).toBe(true); // inside the failed read's 30 s
+    at(62 * SEC);
     const f = await Flags.flags();
     expect(f).toMatchObject({ home: true, stories: true, list: true });
     expect(f).not.toHaveProperty('down');
+  });
+
+  // An outage costs one settings read (and one log line) per 30 s, not one per request.
+  const countReads = () => {
+    const from = supabase.from;
+    const n = { reads: 0 };
+    supabase.from = (t) => { if (t === 'app_settings') n.reads += 1; return from(t); };
+    return n;
+  };
+  const failLogs = () => require('../../../shared/utils/logger').logToFile.mock.calls.filter((c) => /web quiz home: settings lookup failed/.test(c[0])).length;
+  const twenty = async () => { const out = []; for (let i = 0; i < 20; i += 1) out.push(JSON.stringify(await Flags.flags())); return out; };
+  test.each(['error', 'throw'])('switch on, the read fails (%s): 20 calls -> 1 read and 1 log line; 1 more of each after 30 s', async (mode) => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(31 * SEC);
+    settingsDown(mode);
+    const n = countReads();
+    const logs0 = failLogs();
+    const out = await twenty();
+    expect(n.reads).toBe(1);
+    expect(failLogs() - logs0).toBe(1);
+    expect(new Set(out).size).toBe(1);
+    expect(JSON.parse(out[0])).toMatchObject({ home: true, list: true, down: true });
+    at(62 * SEC);
+    await twenty();
+    expect(n.reads).toBe(2);
+    expect(failLogs() - logs0).toBe(2);
+  });
+  test.each(['error', 'throw'])('cold, or the switch off, the read fails (%s): 20 calls -> 1 read, 1 log line, today\'s all-off bytes each time; 1 more after 30 s', async (mode) => {
+    for (const settings of [LS_ON, ...OFF_SETS]) {
+      jest.setSystemTime(NOW);
+      seed(settings);
+      if (settings !== LS_ON) await Flags.flags(); // the switch off in the last good read; LS_ON here is the cold process
+      at(31 * SEC);
+      settingsDown(mode);
+      const n = countReads();
+      const logs0 = failLogs();
+      const out = await twenty();
+      expect(n.reads).toBe(1);
+      expect(failLogs() - logs0).toBe(1);
+      out.forEach((o) => expect(o).toBe(ALL_OFF));
+      at(62 * SEC);
+      expect(JSON.stringify(await Flags.flags())).toBe(ALL_OFF);
+      expect(n.reads).toBe(2);
+    }
+  });
+  test('the settings come back inside the failed read\'s 30 s: the next read after it is the fresh one', async () => {
+    seed(LS_ON);
+    settingsDown('error');
+    expect(JSON.stringify(await Flags.flags())).toBe(ALL_OFF);
+    settingsBack();
+    at(31 * SEC);
+    expect(await Flags.flags()).toMatchObject({ home: true, stories: true, list: true });
   });
 
   // the doors, an outage longer than the 30 s cache

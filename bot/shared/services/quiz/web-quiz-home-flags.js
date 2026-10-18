@@ -11,7 +11,8 @@
  * `list_states`, the doors' `err`); read in the same query too.
  * A failed read under `list` (the last good read had it on, and is at most 10 min old): that last good read, marked
  * `down`, so a settings outage is a failed read (the doors answer err: 1, the page's retry), never an empty list. A
- * cold process, an older read, or `list` off: every switch off, as before. A failed read is never cached.
+ * cold process, an older read, or `list` off: every switch off, as before. A failed read is kept for the same 30 s
+ * (one read and one log line per 30 s in an outage, not one per request); its answer is the same either way.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -25,6 +26,7 @@ const TTL_MS = 30 * 1000;
 const KEEP_MS = 10 * 60 * 1000;
 let cache = null;
 let lastGood = null;
+let failed = null; // { at, out }: a failed read's answer, kept TTL_MS
 
 /** Only the JSON boolean the flip writes turns a switch on (app_settings.value is jsonb); the string 'true' is off. */
 function isTrue(value) {
@@ -33,6 +35,7 @@ function isTrue(value) {
 
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
+  if (failed && now - failed.at < TTL_MS) return failed.out;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
@@ -44,11 +47,13 @@ async function flags(now = Date.now()) {
     // web_quiz_list_states: the last good read, marked down (the doors say "failed", not "nothing here")
     if (lastGood && lastGood.list && now - lastGood.at < KEEP_MS) {
       logToFile('⚠️ web quiz home: settings lookup failed — last good read kept', { error: err.message });
-      return { ...lastGood, down: true };
+      failed = { at: now, out: { ...lastGood, down: true } };
+      return failed.out;
     }
     logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
-    return { home: false, stories: false, column: false, shelf: false, list: false };
+    failed = { at: now, out: { home: false, stories: false, column: false, shelf: false, list: false } };
+    return failed.out;
   }
 }
 
-module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; lastGood = null; } };
+module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; lastGood = null; failed = null; } };
