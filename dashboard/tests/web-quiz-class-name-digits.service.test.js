@@ -69,6 +69,13 @@ describe('the score card (M10): the header beside the score', () => {
   test('English with the switch on: the label exactly as sent', () => {
     expect(headerOf(page({ lang: 'en', cls: EN_CLS, brand: BRAND, store: finished(), bootExtra: ON }))).toBe('NIETE · Classes 1, 3, 5');
   });
+  test('English with the switch on: a label with no Latin letter («4») is kept as sent, never Urdu digits', () => {
+    const cls = { ...EN_CLS, label: '4' };
+    const sub = subOf(page({ lang: 'en', cls, brand: BRAND, bootExtra: ON }));
+    expect(sub).toContain('4');
+    expect(sub).not.toMatch(/[۰-۹]/);
+    expect(headerOf(page({ lang: 'en', cls, brand: BRAND, store: finished(), bootExtra: ON }))).toBe('NIETE · 4');
+  });
   test('English: «NIETE · Classes 1, 3, 5»', () => {
     const p = page({ lang: 'en', cls: EN_CLS, brand: BRAND, store: finished() });
     expect(headerOf(p)).toBe('NIETE · Classes 1, 3, 5');
@@ -98,10 +105,10 @@ describe('English pages are untouched', () => {
 // picker's "in <class>" line, the league heading and the score card's header.
 const UR_G = { ...UR_CLS, teacher: 'Ms Teacher' };
 const PICK_CLS = { ...UR_G, roster: { lists: 2, classes: [{ key: 'k1', label: 'جماعت 4' }, { key: 'k2', label: '4-B' }] } };
-const CHIP_CLS = { ...UR_G, chips: [{ chip: 'c1', first: 'Testchild', animal: 'owl' }] };
+const CHIP_CLS = { ...UR_G, chips: [{ chip: 'c1', first: 'Sana Testwala', animal: 'owl' }] };
 const V2_UR = { ...UR_G, identity: { mode: 'v2', class: { state: 'known', label: UR_G.label, ask: null }, roster: true, invited: false } };
-const doneG = () => ({ wq_s_TEST: { st: 's1', child: { first: 'Testchild', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result: { ...RESULT, card: { ...RESULT.card, first: 'Testchild' } } } });
-const BOARD = { finishers_n: 3, class_avg_pct: 50, rows: [{ place: 1, first: 'Testchild', animal: 'owl', correct: 2, total: 5 }], more_n: 0 };
+const doneG = () => ({ wq_s_TEST: { st: 's1', child: { first: 'Sana Testwala', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result: { ...RESULT, card: { ...RESULT.card, first: 'Sana Testwala' } } } });
+const BOARD = { finishers_n: 3, class_avg_pct: 50, rows: [{ place: 1, first: 'Sana Testwala', animal: 'owl', correct: 2, total: 5 }], more_n: 0 };
 async function urScreens(extra) {
   const at = (o, go) => { const p = page({ lang: 'ur', brand: BRAND, bootExtra: extra, ...o }); if (go) go(p); return p; };
   const league = at({ cls: UR_G, board: BOARD }, (p) => p.wq.board());
