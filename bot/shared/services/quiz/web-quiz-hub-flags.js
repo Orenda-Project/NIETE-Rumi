@@ -112,11 +112,12 @@ function eventsV2Now(now = Date.now()) {
 }
 
 /**
- * web_quiz_one_button, never waited for: the cached answer, refreshed in the background when stale; off until the
- * first read lands, and off once the value is older than twice the cache time (a refresh that never comes back).
+ * web_quiz_one_button, never waited for and never read on its own from a cold cache: off until the hub's (or the
+ * join's) one read fills the cache; a stale value answers at once and is refreshed in the background; off once it is
+ * older than twice the cache time (a refresh that never comes back).
  */
 function oneButtonNow(now = Date.now()) {
-  if (!cache || now - cache.at >= TTL_MS) flags(now).catch(() => {});
+  if (cache && now - cache.at >= TTL_MS) flags(now).catch(() => {});
   return Boolean(cache && cache.oneButton && now - cache.at < 2 * TTL_MS);
 }
 
