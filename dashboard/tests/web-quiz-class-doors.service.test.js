@@ -609,15 +609,27 @@ describe('a class table that is not there (404) says so, with the page\'s own wa
       expect(attr(h, 'data-list="table"', 'data-why')).toBe('not_found');
       expect(h).not.toContain('id="wq-retry"');
       expect(h).not.toContain(p.wq.T.offline);
-      expect(h).toContain('id="wq-play"');
+      // a visitor from a link has no session, so no home here: Play is the one way on
+      expect(h).toContain('id="wq-play" data-primary');
+      expect(h).not.toContain('id="wq-thome"');
     });
   }
-  test('a child who has just played: "My scores", not Play', async () => {
-    const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': { __status: 404 } } });
+  test('the lines, as the lead and the native read set them', () => {
+    const en = page({ lang: 'en' }); const ur = page({ lang: 'ur' });
+    expect(en.wq.T.tableNone).toBe('This table opens for a class quiz.');
+    expect(ur.wq.T.tableNone).toBe('کلاس ٹیبل صرف کلاس کے کوئز میں ہوتی ہے۔');
+  });
+  test('a child with a session on the page: one Home button (the hub door), never Play', async () => {
+    const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': { __status: 404 }, hubdoor: { href: '/h/tok.abc' } } });
     p.wq.board();
     await flush(); await flush();
-    expect(p.html()).toContain('id="wq-next"');
-    expect(p.html()).not.toContain('id="wq-play"');
+    const h = p.html();
+    expect(h).toContain('<button class="wq-btn wq-go" id="wq-thome" data-primary data-home>' + p.wq.T.homeBtn + '</button>');
+    expect(h).not.toContain('id="wq-play"');
+    expect((h.match(/\sdata-primary[\s>=]/g) || []).length).toBe(1);
+    p.els['#wq-thome'].fire('click');
+    await flush(); await flush(); await flush();
+    expect(p.hist.assigned[0]).toMatch(/^\/h\/tok\.abc\?from=home/);
   });
   test('a 5xx or a dropped line: today\'s offline line and retry', async () => {
     for (const r of [{ __status: 503 }, { __offline: true }]) {
