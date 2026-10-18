@@ -125,12 +125,16 @@ describe.each([
     render(<FlnPlayerProvider player={f.player}><SoundPill clipId="p001" label={label} caption={caption} lang={lang} dir={dir} /></FlnPlayerProvider>);
     const btn = screen.getByRole('button');
     const idle = { sk: skeleton(btn), text: inFlowText(btn), pad: pad(btn) };
+    // A11 covers loading/playing (and back to idle). A failure is not "audio loading": A6 requires its retry line to
+    // be SHOWN, so the error state may swap the caption for the retry text (checked separately below); its padding
+    // still never changes.
     for (const s of STATES) {
       f.emit('p001', s, 0.5);
       expect(btn).toHaveAttribute('data-fln-state', s);
+      expect.soft(pad(btn), `padding in ${s}`).toBe(idle.pad);
+      if (s === 'error') continue;
       expect.soft(skeleton(btn), `elements in ${s}`).toEqual(idle.sk);
       expect.soft(inFlowText(btn), `in-flow text in ${s}`).toBe(idle.text);
-      expect.soft(pad(btn), `padding in ${s}`).toBe(idle.pad);
     }
   });
 
@@ -144,6 +148,9 @@ describe.each([
     expect(btn).toHaveTextContent(strings.playing);
     f.emit('p001', 'error');
     expect(btn).toHaveTextContent(strings.error);
+    // A6: the retry line is SHOWN — in flow, not only in the visually-hidden state element — in place of the caption.
+    expect(inFlowText(btn)).toContain(strings.error);
+    if (caption) expect(inFlowText(btn)).not.toContain(caption);
     expect(btn.getAttribute('aria-label')).toContain(strings.error);
     expect(btn.getAttribute('title')).toBe(strings.error);
   });
