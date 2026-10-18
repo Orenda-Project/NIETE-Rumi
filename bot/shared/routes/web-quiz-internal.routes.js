@@ -89,10 +89,14 @@ const serve = async (fn, req, res) => {
 // The finish card's switch rides the page and its preview facts (named only when on): the edge then counts an Urdu
 // link's preview in Urdu digits. Read beside the quiz, never after it; off, the payload is today's.
 const withCard = (quizP) => Promise.all([quizP, CardImage.field()]).then(([out, card]) => (out && typeof out === 'object' ? Object.assign(out, card) : out));
-router.get('/quiz/:code', handle(async (req) => {
+// Step timings (web_quiz_server_timing, JSON true only): the class link's answer carries this request's own numbers
+// (`app;dur`, the round-trip count), as the hub's does; this route reads no switch itself, so the hub's batched
+// switch read is refreshed in the background, never waited for. Off: no header, the call exactly as before.
+router.get('/quiz/:code', handle(async (req, res) => {
   const out = await OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })));
   // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
   if (!req.query.p) WebQuizOg.remember(req.params.code, out);
+  StepTiming.timeRequest(res, [], { refresh: true });
   return out;
 }));
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
