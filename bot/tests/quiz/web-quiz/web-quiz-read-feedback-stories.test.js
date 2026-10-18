@@ -103,6 +103,22 @@ describe('on', () => {
     const opened = (h) => ({ child_id: KID, book_id: F.BOOK(1), page_n: null, event: 'story_opened', data: { grade: 2, lang: 'en' }, at: at(h) });
     // yesterday (before this open): pages 1 and 2 read well; today: only page 3, 9 of 14 words in 8 s
     seed({ rf: true, events: [read(1, 10, 10, 7000, 0), read(2, 12, 12, 9000, 0), opened(3), read(3, 9, 14, 8000, 4)] });
+    // the database sends back only the columns asked for (the fake sends every one): a read that forgets `at` is caught
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const q = from(t);
+      if (t !== 'story_events') return q;
+      const sel = q.select;
+      q.select = (cols, ...rest) => {
+        const b = sel.call(q, cols, ...rest);
+        if (!cols || cols === '*') return b;
+        const keep = String(cols).split(',').map((c) => c.trim());
+        const then = b.then.bind(b);
+        b.then = (ok, bad) => then((r) => ok({ ...r, data: Array.isArray(r.data) ? r.data.map((row) => Object.fromEntries(keep.filter((k) => k in row).map((k) => [k, row[k]]))) : r.data }), bad);
+        return b;
+      };
+      return q;
+    };
     const out = await done();
     expect(out.reading).toEqual({ words_read: 9, words_total: 14, ms: 8000, wcpm: null, prev_wcpm: null });
     expect(fake.db.story_events.find((e) => e.event === 'story_done').data).not.toHaveProperty('wcpm');

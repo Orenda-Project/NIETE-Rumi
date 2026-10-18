@@ -3246,6 +3246,15 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
       expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۷۲ لفظ' : '72 words a minute');
     }
   });
+  test('read_fb, the first screen: the strip is one grid row-set, and only while a page\'s strip is there does the picture give up height (capped at today\'s 62vh)', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(css).toMatch(/\.wqs \.wq-moment--s\{display:grid;grid-template-columns:auto 1fr auto;/);
+    expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
+    expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:160px\}/);
+    // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
+    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/^\.wqs-near/.test(sel));
+    expect(outside).toEqual([]);
+  });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
     const done = { status: 200, body: { ok: true, sticker: true } };
     const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
