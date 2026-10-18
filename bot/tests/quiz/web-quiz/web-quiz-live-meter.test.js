@@ -5,8 +5,13 @@
  * Supabase's app_settings read is the faked boundary.
  */
 const mockRows = new Map();
+const mockReads = { in: 0 };
 jest.mock('../../../shared/config/supabase', () => ({
-  from: () => ({ select: () => ({ eq: async (_c, key) => ({ data: mockRows.has(key) ? [{ key, value: mockRows.get(key) }] : [], error: null }) }) }),
+  from: () => ({ select: () => ({
+    eq: async (_c, key) => ({ data: mockRows.has(key) ? [{ key, value: mockRows.get(key) }] : [], error: null }),
+    // the kid hub's one settings read (web-quiz-hub-flags.js): the meter and its parent ride it
+    in: async (_c, keys) => { mockReads.in += 1; return { data: keys.filter((k) => mockRows.has(k)).map((key) => ({ key, value: mockRows.get(key) })), error: null }; },
+  }) }),
 }));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 
@@ -52,5 +57,19 @@ describe('web_quiz_live_meter', () => {
     const M = fresh();
     expect(await M.forHub()).toEqual({});
     expect(await M.forMenu()).toEqual({});
+  });
+
+  test('the hub learns the meter from its one settings read: forHub makes no read of its own beside it', async () => {
+    mockRows.set('web_quiz_live_read_v3', true);
+    mockRows.set('web_quiz_live_meter', 'sky');
+    jest.resetModules();
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    const M = require('../../../shared/services/quiz/web-quiz-live-read-v3');
+    mockReads.in = 0;
+    const [f, pace] = await Promise.all([Flags.flags(), M.forHub()]);
+    expect(pace).toEqual({ pace: 'sky' });
+    expect(f.liveMeter).toBe('sky');
+    expect(mockReads.in).toBe(1);   // the hub's own read, shared
+    expect(Flags.KEYS).toEqual(expect.arrayContaining(['web_quiz_live_meter', 'web_quiz_live_read_v3']));
   });
 });
