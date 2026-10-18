@@ -4,7 +4,8 @@
  * the same teacher's open code of the same lesson (web-quiz-lesson-refs: the lesson plan or the coaching session)
  * in the other language. Play from a table shown in the child's language then opens the quiz in it too.
  *
- *   twinOf(ctx, studentId)   {code[, k]} or null; never throws. k: the twin's hub key for the child, when known.
+ *   twinOf(ctx, studentId)   {code[, k][, topic]} or null; never throws. k: the twin's hub key for the child, when known;
+ *                            topic: the twin's own lesson name.
  *   find(ctx) / shown(twin, studentId)   the same in two steps (start the read beside others, add the key after).
  *
  * Read only with the switch on, and only by the table and the league. No new table: quizzes + quiz_share_codes,
@@ -26,7 +27,7 @@ async function lookup(ctx) {
   if (!ref) return null;
   const [col, val] = ref.startsWith('lp:') ? ['lesson_plan_id', ref.slice(3)] : ['coaching_session_id', ref.slice(3)];
   const lang = clampLanguage(q.language);
-  const { data: qs } = await dbRead('classTwin:quizzes:2', (db) => db.from('quizzes').select('id, language, lesson_plan_id, coaching_session_id').eq(col, val));
+  const { data: qs } = await dbRead('classTwin:quizzes:2', (db) => db.from('quizzes').select('id, language, lesson_plan_id, coaching_session_id, topic').eq(col, val));
   const ids = (qs || []).filter((x) => x.id !== q.id && clampLanguage(x.language) !== lang).map((x) => x.id);
   if (!ids.length) return null;
   const { data: codes } = await dbRead('classTwin:quiz_share_codes:1', (db) => db.from('quiz_share_codes')
@@ -36,7 +37,11 @@ async function lookup(ctx) {
   const open = (codes || []).filter((c) => c.active && !c.invited_by_student_id && !c.parent_share_code_id
     && (!c.expires_at || Date.parse(c.expires_at) > now));
   open.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  return open[0] ? { id: open[0].id, code: open[0].code } : null;
+  if (!open[0]) return null;
+  // the twin's own lesson name (its language's), for the table's topic line
+  const tq = (qs || []).find((x) => x.id === open[0].quiz_id);
+  const topic = tq && typeof tq.topic === 'string' ? tq.topic.trim().slice(0, 160) : '';
+  return topic ? { id: open[0].id, code: open[0].code, topic } : { id: open[0].id, code: open[0].code };
 }
 
 // The lookup on its own ({id, code} or null; never throws), so a caller can start it beside its other reads.
@@ -60,7 +65,8 @@ async function find(ctx, now = Date.now()) {
 function shown(twin, studentId = null) {
   if (!twin) return null;
   const k = studentId ? T.chipId(twin.id, studentId) : null;
-  return k ? { code: twin.code, k } : { code: twin.code };
+  const out = k ? { code: twin.code, k } : { code: twin.code };
+  return twin.topic ? { ...out, topic: twin.topic } : out;
 }
 
 async function twinOf(ctx, studentId = null, now = Date.now()) {
