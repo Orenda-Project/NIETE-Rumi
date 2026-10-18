@@ -21,10 +21,10 @@ const FC_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-fi
 const HOME_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.js');
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 
-const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
+const CHILD = { first: 'Zara Testwala', chip: 'c1', animal: 'owl' };
 const NEXT = { kind: 'game', id: 'stop.missing', href: '/h/tok.abc#missing', title: 'Find the missing word', title_ur: 'گم شدہ لفظ ڈھونڈیں', minutes: 2, source: 'ranked' };
 const RESULT = {
-  card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3, nth: 6 },
+  card: { first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5, stars: 3, nth: 6 },
   challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 }, art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' },
   hub_door: true, jugnu_card: true,
 };
@@ -39,7 +39,7 @@ function cardPage(lang, result, o = {}) {
   if (o.fc) { vm.runInContext(FC_SRC, p.ctx); p.wq.card(); }
   return p;
 }
-const BOARD = { rows: [{ place: 1, first: 'Zara', animal: 'owl', correct: 3, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 1, class_avg_pct: 60 };
+const BOARD = { rows: [{ place: 1, first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 1, class_avg_pct: 60 };
 const SCHOOLS = { mine: { name: 'Model School Testwala', place: 2, points: 40, kids: 4 }, rows: [{ place: 1, name: 'Other School', points: 50, kids: 5 }, { place: 2, name: 'Model School Testwala', points: 40, kids: 4, mine: true }], ranked_n: 2 };
 
 describe('the folded card: the class and the league are back (class_doors)', () => {
@@ -161,6 +161,7 @@ describe('the home: "My class" and "My school" (wq-home.js)', () => {
   const H = win.WQHOME;
   const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
   const KID = '0123456789abcdef';
+  // (the golden hashes below were taken on the base with this exact fixture, so its first name stays as it was)
   const HUB = { lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false };
   const DOORS = { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: 'The red kite' }], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, { kind: 'numbers' }], videos: { href: '/lib/x' } };
   const HOME = { ...HUB, home_v3: 1, doors: DOORS, head: { dots: 2, today: false, jar: { fresh: true } } };
@@ -208,12 +209,12 @@ describe('the class table and the league in the child\'s language (ui_lang), tit
   test('an English quiz, ui_lang ur: the class table speaks Urdu and is titled with the child\'s class', async () => {
     const p = await boardPage({ ui: 'ur' });
     expect(p.wq.T.yourClass).toBe('آپ کی کلاس');
-    expect(h2(p.html()).replace(/<[^>]*>/g, '')).toBe('کلاس 3-B');
+    expect(h2(p.html())).toBe('کلاس <bdi>۳-B</bdi>');
   });
   test('ui_lang en on an Urdu quiz: English, "Class 3-B"', async () => {
     const p = page({ lang: 'ur', store: {}, view: 'class', bootExtra: { ui_lang: 'en' }, api: { '/board/TEST': MINE } });
     await flush(); await flush();
-    expect(h2(p.html())).toBe('Class 3-B');
+    expect(h2(p.html())).toBe('Class <bdi>3-B</bdi>');
   });
   test('the league with ui_lang ur: the league\'s Urdu title, never the class', async () => {
     const p = await boardPage({ ui: 'ur', view: 'schools' });
@@ -265,6 +266,15 @@ describe('the class table and the league in the child\'s language (ui_lang), tit
     expect(off[0]).toMatch(/\/q\/TEST\/class\?v=1$/);
     expect(off.every((u) => !u.includes('lang='))).toBe(true);
   });
+  test('on, the page in the quiz\'s own language: the share links leave lang out (it is the quiz\'s anyway)', async () => {
+    const got = [];
+    const p = page({ lang: 'en', store: store({ ...RESULT }), nav: { share: (d) => { got.push(d.url); return Promise.resolve(); } }, api: { 'board/': MINE } });
+    p.wq.board();
+    await flush(); await flush();
+    p.els['#wq-share-t'].fire('click');
+    await flush();
+    expect(got[0]).toMatch(/\/q\/TEST\/class\?v=1$/);
+  });
 });
 
 // The edge: /q/<code>/class and /schools open in the link's ?lang (en|ur) when the bot's quiz answer carries
@@ -309,5 +319,145 @@ describe('the edge: the class table and the league open in the link\'s language 
       expect(a.html).toBe(b.html);
       expect(a.html).toMatch(/<html[^>]*\slang="en"/);
     } finally { srv.close(); }
+  });
+});
+
+// A table that mixes classes (the board's `only`, web_quiz_class_doors): "All" / "Only Class 3", the league's own
+// chips; and Play from a table shown in the child's language opens the quiz's twin in it when there is one.
+describe('the class table: "Only Class 3" on a mixed table, and Play opens the quiz in the child\'s language', () => {
+  const MIXED = {
+    rows: [{ place: 1, first: 'Amna Testwala', animal: 'owl', correct: 5, total: 5 }, { place: 2, first: 'Zara Testwala', animal: 'cat', correct: 3, total: 5 }, { place: 3, first: 'Bano Testwala', animal: 'fox', correct: 2, total: 5 }],
+    you: { place: 2, correct: 3, total: 5 }, finishers_n: 3, class_avg_pct: 67, class_doors: true, my_class: '3', one_class: false,
+    only: { rows: [{ place: 1, first: 'Zara Testwala', animal: 'cat', correct: 3, total: 5 }, { place: 2, first: 'Bano Testwala', animal: 'fox', correct: 2, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 2, class_avg_pct: 50, more_n: 0 },
+  };
+  const open = async (lang, board, extra = {}) => {
+    const p = page({ lang, store: store({ ...RESULT }), api: { 'board/': board }, ...extra });
+    p.wq.board();
+    await flush(); await flush();
+    return p;
+  };
+  const places = (h) => (h.match(/<tr[^>]*><td>(\d+)<\/td>/g) || []).map((x) => Number(/<td>(\d+)/.exec(x)[1]));
+  test('a mixed table: "All" (on) and "Only Class 3" chips in the league\'s chip row; EN and UR', async () => {
+    const en = await open('en', MIXED);
+    expect(en.html()).toContain('<div class="wq-chips wq-schips"><button class="wq-chip wq-on" id="wq-call">All</button><button class="wq-chip" id="wq-conly">Only Class <bdi>3</bdi></button></div>');
+    expect(places(en.html())).toEqual([1, 2, 3]);
+    const ur = await open('ur', MIXED);
+    expect(ur.html()).toContain('id="wq-conly">صرف کلاس <bdi>۳</bdi></button>');
+  });
+  test('"Only Class 3": the child\'s class re-ranked, the child\'s own place and that class\'s average; "All" goes back', async () => {
+    const p = await open('en', MIXED);
+    p.els['#wq-conly'].fire('click');
+    let h = p.html();
+    expect(h).toContain('<button class="wq-chip wq-on" id="wq-conly">');
+    expect(places(h)).toEqual([1, 2]);
+    expect(h).toMatch(/<tr class="wq-you"><td>1<\/td>/);
+    expect(h).not.toContain('Amna Testwala');
+    expect(h).toContain('<span>50%</span>');
+    p.els['#wq-call'].fire('click');
+    h = p.html();
+    expect(places(h)).toEqual([1, 2, 3]);
+    expect(h).toContain('Amna Testwala');
+  });
+  test('one class, no `only`, or switch off: no chips (today\'s table)', async () => {
+    for (const b of [{ ...MIXED, one_class: true, only: undefined }, { ...MIXED, only: undefined }, { ...BOARD, only: MIXED.only }]) {
+      const p = await open('en', b);
+      expect(p.html()).not.toContain('wq-conly');
+    }
+  });
+  test('Play from a table in the other language: the twin\'s page with its key; no twin: the quiz page; same language: today\'s', async () => {
+    const tw = { ...MINE_TW, twin: { code: 'UR12CD', k: 'kk9' } };
+    let p = page({ lang: 'en', store: {}, view: 'class', search: '?lang=ur&k=abc123', bootExtra: { ui_lang: 'ur' }, api: { '/board/TEST': tw } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual(['/q/UR12CD?k=kk9']);
+    p = page({ lang: 'en', store: {}, view: 'class', search: '?lang=ur&k=abc123', bootExtra: { ui_lang: 'ur' }, api: { '/board/TEST': { ...tw, twin: { code: 'bad/../x' } } } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual(['/q/TEST?k=abc123']);
+    // a twin with no code is no twin: the quiz page, never "/q/null"
+    p = page({ lang: 'en', store: {}, view: 'class', search: '?lang=ur&k=abc123', bootExtra: { ui_lang: 'ur' }, api: { '/board/TEST': { ...tw, twin: { code: null } } } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual(['/q/TEST?k=abc123']);
+    p = page({ lang: 'en', store: {}, view: 'class', bootExtra: { ui_lang: 'en' }, api: { '/board/TEST': tw } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual([]);
+  });
+  test('the league\'s Play from the other language: the twin (no key on the league)', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'schools', search: '?lang=ur', bootExtra: { ui_lang: 'ur' }, api: { '/schools/TEST': { mine: { name: 'Model School Testwala', place: 1, points: 40, kids: 4, sector: 'ict' }, rows: [{ place: 1, name: 'Model School Testwala', points: 40, kids: 4, sector: 'ict', mine: true }], ranked_n: 1, class_doors: true, twin: { code: 'UR12CD' } } } });
+    await flush(); await flush();
+    p.els['#wq-play-s'].fire('click');
+    expect(p.hist.assigned).toEqual(['/q/UR12CD']);
+  });
+});
+const MINE_TW = { rows: [{ place: 1, first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5 }], finishers_n: 1, class_avg_pct: 60, class_doors: true };
+
+// The list-state contract on the class table and the league (web_quiz_class_doors on the quiz page's boot): a skeleton
+// of rows while the answer is in flight, then data-fetch pending|done|failed, data-skel-from/-to and data-empty-at on
+// the list's root. Never an empty note while pending; a failure always has a retry. Off: today's waiting Jugnu.
+describe('the class table and the league: a skeleton while loading, and the list-state marks', () => {
+  const later = () => { let go; const p = new Promise((r) => { go = r; }); return { fn: () => p, go }; };
+  const attr = (h, sel, a) => { const m = new RegExp('<[^>]*' + sel + '[^>]*\\s' + a + '="([^"]*)"').exec(h); return m ? m[1] : null; };
+  const LEAGUE = { mine: { name: 'Model School Testwala', place: 1, points: 40, kids: 4, sector: 'ict' }, rows: [{ place: 1, name: 'Model School Testwala', points: 40, kids: 4, sector: 'ict', mine: true }], ranked_n: 1, class_doors: true };
+  test('class table, on: skeleton rows + pending (no empty note); then the table: done, skel-from <= skel-to', async () => {
+    const w = later();
+    const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': w.fn } });
+    p.wq.board();
+    await flush();
+    let h = p.html();
+    expect(h).toContain('data-list="table"');
+    expect(attr(h, 'data-list="table"', 'data-fetch')).toBe('pending');
+    expect((h.match(/class="wq-skrow"/g) || []).length).toBe(5);
+    expect(h).not.toContain('data-empty-at');
+    expect(h).not.toContain(p.wq.T.noRows);
+    w.go({ ...BOARD, class_doors: true });
+    await flush(); await flush();
+    h = p.html();
+    expect(attr(h, 'data-list="table"', 'data-fetch')).toBe('done');
+    const from = Number(attr(h, 'data-list="table"', 'data-skel-from'));
+    const to = Number(attr(h, 'data-list="table"', 'data-skel-to'));
+    expect(from).toBeGreaterThan(0);
+    expect(to).toBeGreaterThanOrEqual(from);
+    expect(h).not.toContain('wq-skrow');
+    expect(h).not.toContain('data-empty-at');
+  });
+  test('class table, on: nobody yet -> the empty note carries data-empty-at; a failure -> failed + a retry', async () => {
+    let p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': { rows: [], finishers_n: 0, class_avg_pct: 0, class_doors: true } } });
+    p.wq.board();
+    await flush(); await flush();
+    expect(attr(p.html(), 'data-list="table"', 'data-fetch')).toBe('done');
+    expect(attr(p.html(), 'data-list="table"', 'data-empty-at')).toMatch(/^\d+$/);
+    p = page({ lang: 'ur', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': { __status: 500 } } });
+    p.wq.board();
+    await flush(); await flush();
+    expect(attr(p.html(), 'data-list="table"', 'data-fetch')).toBe('failed');
+    expect(p.html()).toContain('id="wq-retry"');
+  });
+  test('the league, on: skeleton + pending, then done; a failure -> failed + a retry', async () => {
+    const w = later();
+    let p = page({ lang: 'en', store: {}, view: 'schools', bootExtra: { class_doors: true }, api: { '/schools/TEST': w.fn } });
+    await flush();
+    expect(attr(p.html(), 'data-list="schools"', 'data-fetch')).toBe('pending');
+    expect(p.html()).toContain('wq-skrow');
+    w.go(LEAGUE);
+    await flush(); await flush();
+    expect(attr(p.html(), 'data-list="schools"', 'data-fetch')).toBe('done');
+    expect(Number(attr(p.html(), 'data-list="schools"', 'data-skel-to'))).toBeGreaterThanOrEqual(Number(attr(p.html(), 'data-list="schools"', 'data-skel-from')));
+    p = page({ lang: 'en', store: {}, view: 'schools', bootExtra: { class_doors: true }, api: { '/schools/TEST': { __status: 503 } } });
+    await flush(); await flush();
+    expect(attr(p.html(), 'data-list="schools"', 'data-fetch')).toBe('failed');
+    expect(p.html()).toContain('id="wq-retry"');
+  });
+  test('off (no class_doors on the boot): today\'s waiting Jugnu and no marks, start to end', async () => {
+    const w = later();
+    const p = page({ lang: 'en', store: store({ ...RESULT }), api: { 'board/': w.fn } });
+    p.wq.board();
+    await flush();
+    expect(p.html()).toContain('<div class="wq-boot"><img src="');
+    expect(p.html()).not.toContain('data-fetch');
+    w.go(BOARD);
+    await flush(); await flush();
+    expect(p.html()).not.toMatch(/data-(fetch|list|skel|empty)/);
   });
 });

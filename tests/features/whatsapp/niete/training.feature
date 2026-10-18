@@ -1438,6 +1438,20 @@ Feature: NIETE (ICT) Teacher Training
     # board -> my_class + one_class; web-quiz.routes uiLangOf -> payload.ui_lang; wq.js LANG/UI_SWAP/quizPage, board title.
     # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
+  @api @quiz @web @config-gated @wip @draft @P1 @T1174 @no-mock-driver
+  Scenario: A class table of more than one class lets the child see their own class; Play opens the quiz in the child's language
+    Given app_settings "web_quiz_class_doors" is true
+    And my class quiz's table holds children of class 3 and class 4, and the child viewing it is in class 3
+    When the child opens the class table
+    Then two chips sit under the title, "All" (on) and "Only Class 3"
+    And "Only Class 3" shows only class 3, re-ranked, with the child's own place and class 3's average
+    And no row ever carries a child's class
+    And when the table is shown in a language other than the quiz's and the teacher has the same lesson open in that language, Play opens that quiz
+    And with web_quiz_class_doors off, or a table of one class, the table is exactly as it is today
+    # web-quiz.service board -> only {rows, you, finishers_n, class_avg_pct, more_n} + twin; web-quiz-schools board -> twin;
+    # web-quiz-class-twin (web-quiz-hub lessonRefs); wq.js drawBoard chips + quizPage(twin).
+    # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-schools.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
   Scenario: The teacher's preview never counts as a child
     Given the teacher's signed preview link
