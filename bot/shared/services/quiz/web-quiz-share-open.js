@@ -20,10 +20,19 @@
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const Card = require('./web-quiz-card-switch');
 
 const TTL_S = 24 * 60 * 60;
-const REF_TOKEN_RX = /^j[bvg][0-9a-f]{8}$/;
+// the item's ref, and (web_quiz_share_joined when the card was minted) the card's short id right after it
+const REF_TOKEN_RX = /^j[bvg][0-9a-f]{8}([0-9a-f]{8})?$/;
+// "A friend joined from your card!": the sharer's count and its day (PKT), 90 days; once per card per friend phone
+const JOINED_S = 90 * 24 * 60 * 60;
+const PKT_MS = 5 * 3600 * 1000;
+const dayPkt = (now = Date.now()) => new Date(now + PKT_MS).toISOString().slice(0, 10);
+// The sharer's friends are counted per day in Pakistan ("today"), kept two days so a late-evening count is still read
+const DAY_KEEP_S = 2 * 24 * 60 * 60;
+const friendsKey = (studentId, day = dayPkt()) => `wq:share:joined:n:${studentId}:${day}`;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HOME_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/h\/[A-Za-z0-9._~-]+(\?[^#\s]*)?$/;
 
@@ -55,9 +64,9 @@ async function note(phone, text) {
   try {
     const r = refOf(text);
     if (!r || digits(phone).length < 10 || !(await Card.shareOn())) return false;
-    const item = await Card.byRef(r);
+    const item = await Card.byRef(r.slice(0, 10));
     if (!item) return false;
-    await redis().set(keyOf(phone), { type: item.type, id: item.id }, TTL_S);
+    await redis().set(keyOf(phone), { type: item.type, id: item.id, ...(r.length > 10 ? { c: r.slice(10) } : {}) }, TTL_S);
     return true;
   } catch (err) {
     logToFile('⚠️ share open: the item was not kept', { error: err.message });
@@ -65,7 +74,8 @@ async function note(phone, text) {
   }
 }
 
-async function hashFor(phone) {
+// opts.fresh {id, set}: a NEW child just joined on this phone (the join's own word; `set` the children it had before)
+async function hashFor(phone, opts = null) {
   try {
     if (digits(phone).length < 10) return '';
     // nothing kept (every message without a ref, and every phone with the switch off): no settings read at all
@@ -73,6 +83,7 @@ async function hashFor(phone) {
     const v = await redis().get(k);
     if (!v) return '';
     await redis().delete(k);
+    if (opts && opts.fresh && typeof v.c === 'string') await credit(v.c, phone, opts.fresh);
     if (!(await Card.shareOn())) return '';
     if (v.type === 'door' && v.id === 'games') return '#games';
     if (!UUID_RX.test(String(v.id || ''))) return '';
@@ -85,10 +96,46 @@ async function hashFor(phone) {
   }
 }
 
-async function withOpen(phone, url) {
+async function withOpen(phone, url, opts = null) {
   if (typeof url !== 'string' || !HOME_RX.test(url)) return url;
-  const h = await hashFor(phone);
+  const h = await hashFor(phone, opts);
   return h ? url + h : url;
 }
 
-module.exports = { refOf, refMenu, note, hashFor, withOpen, REF_TOKEN_RX, TTL_S, _keyOf: keyOf };
+/**
+ * A new child joined on the phone a card's words came from (web_quiz_share_joined): the card's sharer gains one friend
+ * — never when the sharer is already on that phone (a sibling is not a new friend), and once per card per phone.
+ * The keys carry the card's short id and the phone's hash, never the phone or the friend. Never throws.
+ */
+async function credit(c, phone, fresh) {
+  try {
+    if (!/^[0-9a-f]{8}$/.test(c) || !(await Card.joinedOn())) return false;
+    const card = await redis().get(`wq:share:card:${c}`);
+    const s = card && typeof card.s === 'string' ? card.s : null;
+    if (!s || s === String(fresh.id) || (fresh.set || []).map(String).includes(s)) return false;
+    if (!(await redis().setNX(`wq:share:joined:once:${c}:${keyOf(phone).slice(-32)}`, 1, JOINED_S))) return false;
+    const k = friendsKey(s);
+    const count = Number(await redis().incr(k)) || 0;
+    await redis().expire(k, DAY_KEEP_S);
+    // the count and nothing else: no friend, no sharer, no phone
+    logEvent('share_joined', { count });
+    return true;
+  } catch (err) {
+    logToFile('⚠️ share open: a friend\'s join was not counted', { error: err.message });
+    return false;
+  }
+}
+
+/** The sharer's friends today (a day in Pakistan): {n} when web_quiz_share_joined is on and one joined today, else null.
+ * A count, never who or when. */
+async function friendsOf(studentId) {
+  try {
+    if (!studentId || !(await Card.joinedOn())) return null;
+    const n = Number(await redis().get(friendsKey(studentId))) || 0;
+    return n > 0 ? { n } : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+module.exports = { refOf, refMenu, note, hashFor, withOpen, credit, friendsOf, REF_TOKEN_RX, TTL_S, _keyOf: keyOf };
