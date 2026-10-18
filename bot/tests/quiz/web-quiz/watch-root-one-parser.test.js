@@ -80,14 +80,20 @@ describe('a failed read: each reader\'s policy, named', () => {
     seed([]);
     expect(await IdRoster.watchRootState(clock)).toEqual({ root: null, unreadable: false });
   });
-  test('a failed read is not cached: the next read, at the same clock, sees the VALUE', async () => {
+  test('a failed read: the quiz page keeps it 30 s (one read per 30 s in an outage), then the store\'s VALUE; the report re-reads', async () => {
     seed([{ key: 'web_quiz_watch_root', value: ID }], { fail: true });
     expect(await IdRoster.watchRootState(clock)).toEqual({ root: null, unreadable: true });
     expect(await WatchRoot.watchRootId(clock)).toBeNull();
     const good = makeFake({ app_settings: [{ key: 'web_quiz_watch_root', value: ID }] });
-    supabase.from = (t) => good.from(t);   // the store is back; no cache reset, no clock move
-    expect(await IdRoster.watchRootState(clock)).toEqual({ root: ID, unreadable: false });
+    supabase.from = (t) => good.from(t);   // the store is back; no cache reset
+    expect(await IdRoster.watchRootState(clock)).toEqual({ root: null, unreadable: true });   // the failed read's 30 s
+    expect(await IdRoster.watchRootState(clock, { retryFailed: true })).toEqual({ root: ID, unreadable: false });   // the class table's guard reads once more
     expect(await WatchRoot.watchRootId(clock)).toBe(ID);
+    IdRoster._resetCache();
+    supabase.from = (t) => { if (t === 'app_settings') throw new Error('down'); return good.from(t); };
+    expect(await IdRoster.watchRootState(clock)).toEqual({ root: null, unreadable: true });
+    supabase.from = (t) => good.from(t);
+    expect(await IdRoster.watchRootState(clock + 30 * 1000)).toEqual({ root: ID, unreadable: false });
   });
   test('the videos module: no root, so no watch code is minted (fail closed, as today)', async () => {
     seed([{ key: 'web_quiz_watch_root', value: ID }], { fail: true });
