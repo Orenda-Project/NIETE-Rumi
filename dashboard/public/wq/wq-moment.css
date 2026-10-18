@@ -59,6 +59,8 @@
    sentence plays from the page's own taps and the word chip); one offer to read again (Read with Jugnu, or "for 3 stars") */
 .wqs:has(.wqs-extra > .wq-moment) .wqs-whole,.wqs:has(.wqs-extra > .wq-moment) .wqs-slow,.wqs:has(.wqs-extra > .wq-moment) .wqs-extra > .wqs-again{display:none}
 .wqs-extra:has(> .wq-moment):has(> [data-tap="echo"]) > [data-tap="rfagain"]{display:none}
+/* the main button already says Next: the › arrow beside it steps aside, its place kept so Next stays centred */
+.wqs:has(.wqs-extra > .wq-moment) .wqs-ctl:has(> .wqs-next) > [data-tap="next"]{visibility:hidden}
 /* the practise line sits beside its word chip when they fit on one row */
 .wqs-extra:has(> .wq-moment){padding-inline:4px}
 .wqs-extra:has(> .wq-moment) > p{width:auto;flex:1 1 auto;font-size:17px}

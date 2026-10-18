@@ -3221,6 +3221,16 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(h2).toContain('You read 3 words!');
     expect(h2).toContain('data-stars="1"');
   });
+  test('read_fb, a page\'s result keeps the whole page in view: the word chip\'s replay never zooms the art past the screen', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    e.advance(10);
+    const cam = root.querySelector('[data-cam]');
+    expect(root.querySelector('[data-whole]').getAttribute('aria-pressed')).toBe('true');
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    p.o.onWord(3);
+    expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
+  });
   test('read_fb, nothing read: the kind moment ("let\'s read it together", a brave-try badge), no stars', async () => {
     const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
     const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
@@ -3441,6 +3451,8 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(css).toContain('.wqs .wq-moment--s>.wq-moment-badge{grid-area:badge;flex-direction:row;gap:6px;padding:2px 10px 2px 4px;font-size:15px;line-height:1.4;white-space:nowrap}');
     expect(css).toContain('.wqs .wq-moment--s[lang="ur"]>.wq-moment-badge{padding:0 4px 0 10px;font-size:17px;line-height:1.7}');
     expect(css).not.toMatch(/font-size:11px/);
+    // when the main button already says Next, the › arrow beside it steps aside (its place kept, so Next stays centred)
+    expect(css).toContain('.wqs:has(.wqs-extra > .wq-moment) .wqs-ctl:has(> .wqs-next) > [data-tap="next"]{visibility:hidden}');
   });
   test('read_fb, the first screen: the strip is one grid row-set, and only while a page\'s strip is there does the picture give up height (capped at today\'s 62vh)', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
