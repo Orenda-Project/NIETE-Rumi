@@ -1538,6 +1538,9 @@ function createWebQuizRouter(opts = {}) {
     const src = typeof req.query.from === 'string' && HUB_SRC_RX.test(req.query.from) ? `${kid ? '&' : '?'}src=${req.query.from}` : '';
     // The language the page that sent the child here was in (?lang=, only en|ur): the bot decides whether it wins.
     const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? `${kid || src ? '&' : '?'}lang=${req.query.lang}` : '';
+    // The grown-ups corner's language tap (?keep=1, only with that language): the bot keeps it on this first ask, since a
+    // phone the render already knows draws this answer and the page asks no second time.
+    const keep = lang && req.query.keep === '1' ? '&keep=1' : '';
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
@@ -1548,7 +1551,7 @@ function createWebQuizRouter(opts = {}) {
     let out;
     const b0 = Date.now();
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
+      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}${keep}`, req);
     } catch (_) {
       if (flush) return failedAgain(wire, req, null, inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
       if (busy(req, res, null, away())) return undefined;

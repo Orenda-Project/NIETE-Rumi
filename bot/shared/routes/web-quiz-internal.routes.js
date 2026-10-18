@@ -347,6 +347,8 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
+  // the grown-ups corner's language tap on a phone the page render already knows (keep=1, only with a language): kept now
+  if (req.query.keep === '1' && (req.query.lang === 'en' || req.query.lang === 'ur')) opts.keep = true;
   const st = StepTiming.on() ? StepTiming.steps() : null;
   if (!st) return ClosedLang.closedHub(GradeChange.carry(PageLang.carry(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))))), req.params.token);
   StepTiming.attach(res, st);
