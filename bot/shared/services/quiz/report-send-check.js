@@ -17,6 +17,10 @@
  * report nobody finished makes no fold read), the question costs ONE read of this key alone; it never answers from a
  * read older than 30 s. A failed shared read leaves this switch off for 30 s (the fold switch reads its own key); a
  * failed read of its own is off. It never rides the teacher home switch's read.
+ *
+ * The chat quiz's report (workers/quiz-job-handler, QuizReportService.generateReport) rides the same switch: its
+ * "already fired" flag is set only when WhatsApp took the report; a refusal logs `quiz_report_send_failed` with
+ * `quiz_h` (quizH), `tk` and `tries` and is queued again by the job's own re-queue, at most MAX_TRIES tries.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -79,6 +83,16 @@ function codeH(code) {
   return crypto.createHmac('sha256', key).update(`wqcode|${code.toUpperCase()}`).digest('hex').slice(0, 12);
 }
 
+/**
+ * A chat quiz's id as the logs may hold it (the chat quiz report, workers/quiz-job-handler): the first 12 hex of
+ * HMAC-SHA256 under the same secret as codeH, over `quiz|<id>`. Null without a secret.
+ */
+function quizH(quizId) {
+  const key = require('./web-quiz-token').secret();
+  if (!key || typeof quizId !== 'string' || !quizId) return null;
+  return crypto.createHmac('sha256', key).update(`quiz|${quizId}`).digest('hex').slice(0, 12);
+}
+
 /** The teacher's keyed id (web-quiz-kid tk), never the phone or the raw id. Null without a key. */
 function tkOf(teacherUserId) {
   try { return require('./web-quiz-kid').tk(teacherUserId); } catch (_) { return null; }
@@ -122,4 +136,4 @@ async function recordFailure({ path, sc }) {
   return { tries, gaveUp: done };
 }
 
-module.exports = { on, reset, isTrue, send, codeH, triesIn, recordFailure, KEY, TTL_MS, MAX_TRIES };
+module.exports = { on, reset, isTrue, send, codeH, quizH, tkOf, triesIn, recordFailure, KEY, TTL_MS, MAX_TRIES };

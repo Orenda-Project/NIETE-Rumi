@@ -363,6 +363,13 @@ Off: today's sends, stamps and their order exactly. The switch is asked only whe
 already holds three refusals), and it rides the fold switch's read (`quiz_report_fold_by_child`) in the same query, so the story
 report and the report with finishers read nothing new. A report nobody finished makes no fold read: there a refusal costs one
 read of this key (at most once per 30 s per process). It never rides the `quiz_teacher_home` read.
+The chat quiz's report (`quiz_report` job) rides the same switch: on, its "already fired" flag (`quiz_report_sent:<quizId>`) is set only
+when WhatsApp took the report; a refusal logs `quiz_report_send_failed` (`quiz_h`, `tk`, `tries`; counted in Redis
+`quiz_report_send_tries:<quizId>`), the job is queued again in 15 min, and the third refusal logs `report_gave_up`
+and records `gave_up` in the fired-flag key: a later cascade message sends nothing and logs `quiz_report_send_skipped_gave_up`
+(`quiz_h`, `tk`). A refused chat report leaves the `quizzes` row as it was (no `report_sent` status).
+A teacher who asked from /quiz and whose report WhatsApp refused is told so (`tqReportNotThrough`, with the class report page
+link when there is one, else `tqReportNotThroughNoLink`), never "no one has finished" (`tqNoReportYet`).
 
 **The funnel per stream, for any window:**
 
