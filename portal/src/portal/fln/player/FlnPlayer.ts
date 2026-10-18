@@ -336,7 +336,8 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
 
     el.loop = false;
     if (e.url !== url) setSrc(e, el, url);
-    try { el.currentTime = 0; } catch { /* not seekable yet: it starts at 0 anyway */ }
+    // Only when it is not already at 0: assigning 0 still seeks, ~220 ms on some mp3s (bench 18 Oct 17:20Z, plan 10601).
+    try { if (el.currentTime !== 0) el.currentTime = 0; } catch { /* not seekable yet: it starts at 0 anyway */ }
     startPlay(s);
 
     if (!buffered && !s.triedOrig) {
