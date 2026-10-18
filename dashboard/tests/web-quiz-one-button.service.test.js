@@ -25,7 +25,7 @@ const HOME = {
 };
 const KINDS = ['primary', 'secondary', 'icon', 'home', 'share', 'speaker', 'hold', 'st', 'gm', 'vd'];
 
-// Every rule whose whole selector is one `.wq-btn--<kind>`: the kind's own definition.
+// Every rule whose whole selector is one `html.wq-1b .wq-btn--<kind>`: the kind's own definition.
 // (A rule is `selector{body}` with no brace inside; a rule inside an @media block is found the same way.)
 const rulesOf = (css) => {
   const out = [];
@@ -37,7 +37,7 @@ const rulesOf = (css) => {
 const kindRules = () => {
   const out = {};
   rulesOf(CSS).forEach(({ sel, body }) => {
-    const m = /^\.wq-btn--([a-z0-9]+)$/.exec(sel);
+    const m = /^html\.wq-1b \.wq-btn--([a-z0-9]+)$/.exec(sel);
     if (m) out[m[1]] = (out[m[1]] || '') + body;
   });
   return out;
@@ -68,13 +68,18 @@ describe('wq.css: the one button component', () => {
     Object.values(kindRules()).forEach((b) => expect(b).not.toMatch(/var\(--s[1-4]/));
   });
   test('every kind centres its label both ways and kills the tap flash', () => {
-    const shared = /\.wq-btn--primary,\.wq-btn--secondary,\.wq-btn--share,\.wq-btn--icon,\.wq-btn--speaker,\.wq-btn--home,\.wq-btn--hold\{([^}]*)\}/.exec(CSS);
+    const shared = /html\.wq-1b \.wq-btn--primary,html\.wq-1b \.wq-btn--secondary,html\.wq-1b \.wq-btn--share,html\.wq-1b \.wq-btn--icon,html\.wq-1b \.wq-btn--speaker,html\.wq-1b \.wq-btn--home,html\.wq-1b \.wq-btn--hold\{([^}]*)\}/.exec(CSS);
     expect(shared).not.toBeNull();
     expect(shared[1]).toMatch(/display:flex/);
     expect(shared[1]).toMatch(/align-items:center/);
     expect(shared[1]).toMatch(/justify-content:center/);
     expect(shared[1]).toMatch(/-webkit-tap-highlight-color:transparent/);
     expect(shared[1]).toMatch(/background:var\(--fill\);color:var\(--on\);box-shadow:var\(--sh-btn\)/);
+  });
+  test('switch off changes no button that already ships: every kind rule (and the label/icon parts) sits under wq-1b', () => {
+    // the Videos shelf (wq-doors.js) and the class table (wq.js) already draw .wq-btn--secondary and .wq-btn-t with the switch off
+    CSS.split('}').filter((r) => r.includes('{')).map((r) => { const p = r.split('{'); return p[p.length - 2].replace(/^[\s\S]*\*\//, '').trim(); }).filter((sel) => /\.wq-btn(--|-t\b|-i\b)/.test(sel))
+      .forEach((sel) => sel.split(',').filter((x) => /\.wq-btn(--|-t\b|-i\b)/.test(x)).forEach((x) => expect([x.trim(), /^html\.wq-1b[\[ ]/.test(x.trim())]).toEqual([x.trim(), true])));
   });
   test('the tokens live in :root: main 56, second 52, two-line 76, icon a 48 circle; the Urdu sizes at today\'s values', () => {
     const root = CSS.slice(CSS.indexOf(':root{'), CSS.indexOf('}', CSS.indexOf(':root{')));
@@ -89,7 +94,7 @@ describe('wq.css: the one button component', () => {
   test('a button\'s height is the token, set as height (a label line never grows it), in both languages', () => {
     expect(CSS).toContain('html.wq-1b .wq-btn:not([class*="wq-btn--"]){display:flex;align-items:center;justify-content:center;height:var(--btn-h);min-height:0;');
     expect(CSS).toMatch(/html\.wq-1b\[lang=ur\] \.wq-btn:not\(\[class\*="wq-btn--"\]\)\{[^}]*height:var\(--btn-h\);min-height:0/);
-    expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;');
+    expect(CSS).toContain('html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;');
   });
   test('three radii per screen under wq-1b: cards --r-card, buttons and the tiles inside boxes --r-btn, icons a circle', () => {
     expect(CSS).toContain('--r-card:22px');
@@ -98,6 +103,17 @@ describe('wq.css: the one button component', () => {
   });
   test('the Stories wait and empty boxes are cards too: the note and the cover placeholders take --r-card (3 radii while the shelf loads)', () => {
     expect(CSS).toContain('html.wq-1b .wq-soon,html.wq-1b .wqs-skel{border-radius:var(--r-card)}');
+  });
+  test('My class / My school tiles (an icon over a label) take the two-line token, in both languages, never the 56 a one-line button gets', () => {
+    const rule = 'html.wq-1b .wq-social .wq-btn.wq-soft.wq-soc,html.wq-1b[lang=ur] .wq-social .wq-btn.wq-soft.wq-soc{height:var(--btn-h-2l);min-height:0}';
+    expect(CSS).toContain(rule);
+    // later than the second height (same weight would lose to it otherwise)
+    // the Urdu word's line box hangs low (Nastaliq): lifted 5 px so the icon and the word sit centred together
+    expect(CSS).toContain('html.wq-1b[lang=ur] .wq-social .wq-soc span{position:relative;top:-5px}');
+    expect(CSS.indexOf(rule)).toBeGreaterThan(CSS.indexOf('html.wq-1b .wq-btn.wq-soft:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-soft:not([class*="wq-btn--"]){height:var(--btn-h2)}'));
+  });
+  test('the teacher\'s practice preview: its "what your class sees" strip is a card (--r-card), so the preview draws three radii', () => {
+    expect(CSS).toContain('html.wq-1b .wq-prstrip{border-radius:var(--r-card)}');
   });
   test('the answer shapes keep their own corners (a colour-blind cue, a glyph, not a box): no wq-1b rule rounds .wq-shp', () => {
     expect(CSS).not.toMatch(/html\.wq-1b[^{}]*\.wq-shp[^{}]*\{[^}]*border-radius/);
@@ -126,7 +142,7 @@ describe('wq.css: the one button component', () => {
     ['icon', 'speaker'].forEach((k) => expect(kindRules()[k]).toMatch(/border-radius:var\(--r-icon\)/));
   });
   test('one secondary height in both languages (the Urdu face\'s 60 px button line does not stretch it)', () => {
-    expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--secondary,html[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
+    expect(CSS).toContain('html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--secondary,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
     expect(CSS).not.toMatch(/--btn-h2-ur/);
   });
   test('the Urdu button sizes come from the tokens, not literals', () => {
@@ -155,6 +171,11 @@ describe('wq-tel.js: the class on <html>', () => {
     return { cls, W: win.WQT };
   };
   test('JSON true: wq-1b', () => expect(run({ one_button: true }).cls.has('wq-1b')).toBe(true));
+  test('the Challenge page (its boot carries the menu answer under `menu`): JSON true there is wq-1b; anything else, no class', () => {
+    expect(run({ token: 't', kid: null, menu: { lang: 'en', one_button: true } }).cls.has('wq-1b')).toBe(true);
+    for (const v of ['true', 1, false, undefined]) expect(run({ token: 't', menu: { lang: 'en', one_button: v } }).cls.size).toBe(0);
+    expect(run({ token: 't', menu: null }).cls.size).toBe(0);
+  });
   test.each([['absent', {}], ['the string true', { one_button: 'true' }], ['1', { one_button: 1 }], ['false', { one_button: false }]])('%s: no class', (_n, boot) => {
     expect(run(boot).cls.size).toBe(0);
   });

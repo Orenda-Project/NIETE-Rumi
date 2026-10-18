@@ -193,7 +193,9 @@ describe('(5) Q4: a key and an accepted answer that name two different options',
   });
 
   test('the other three papers keep all four Q4 items', () => {
-    for (const name of ['full_1', 'full_2', 'chapters_1']) expect(q4(laid(name))).toHaveLength(4);
+    // An ارکان item whose key and accepted answer split a word apart is held by its own rule; left aside here.
+    const own = (list) => list.filter((q) => !String(q.answer).includes('+'));
+    for (const name of ['full_1', 'full_2', 'chapters_1']) expect(own(q4(laid(name)))).toHaveLength(own(q4(papers[name])).length);
   });
 
   test('the Urdu Section C prompt says the group word is one of the four options and is the key', () => {

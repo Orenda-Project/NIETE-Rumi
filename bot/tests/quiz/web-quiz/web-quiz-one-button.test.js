@@ -80,6 +80,9 @@ describe('the switch', () => {
     fail = false;
     expect(OneButton.on()).toBe(false);
     await new Promise((r) => setImmediate(r));
+    expect(OneButton.on()).toBe(false);
+    // the next read that lands (the hub's own) turns it on
+    await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
     expect(OneButton.on()).toBe(true);
   });
 
@@ -92,10 +95,13 @@ describe('the switch', () => {
     expect(settingsReads).toBe(1);
   });
 
-  test('never waited for: the first answer after a start is off, the next one (read in the background) on', async () => {
+  test('never waited for, and no read of its own from a cold cache: off with 0 reads until the hub\'s (or the join\'s) one read fills it', async () => {
     rows = [{ key: KEY, value: true }];
     expect(OneButton.on()).toBe(false);
     await new Promise((r) => setImmediate(r));
+    expect(OneButton.on()).toBe(false);
+    expect(settingsReads).toBe(0);
+    await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
     expect(OneButton.on()).toBe(true);
     expect(settingsReads).toBe(1);
   });
@@ -189,10 +195,12 @@ describe('the routes', () => {
     });
   });
 
-  test('a cold switch never holds the answer: the first answers are today\'s while the read runs behind them', async () => {
+  test('a cold switch never holds the answer and reads nothing of its own: today\'s answers until the hub\'s one read lands', async () => {
     rows = [{ key: KEY, value: true }];
     await serve(async (ask) => {
-      expect((await ask()).quiz).toBe(GOLDEN.quiz);
+      expect(await ask()).toEqual(GOLDEN);
+      expect(settingsReads).toBe(0);
+      await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
       const later = await ask();
       expect(JSON.parse(later.hubGet).one_button).toBe(true);
       expect(JSON.parse(later.libHub).one_button).toBe(true);
