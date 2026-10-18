@@ -44,7 +44,7 @@ async function on(now = Date.now()) {
       cache = { at: now, on: isTrue(((data || [])[0] || {}).value), share: false };
       return cache.on;
     } catch (err2) {
-      logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message });
+      logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message, first: err.message });
       cache = { at: now, on: false, share: false, down: true };
       return false;
     }
