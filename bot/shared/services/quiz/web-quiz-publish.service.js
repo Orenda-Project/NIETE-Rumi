@@ -37,7 +37,10 @@
  *
  * - Idempotent: a clip already in R2 is not recorded again.
  * - Records only what is missing: a question or option the bank already voices (its own recorded
- *   clip, web-quiz-sound recordedParts) is not recorded — the page plays the recorded one.
+ *   clip, web-quiz-sound recordedParts) is not recorded — the page plays the recorded one. With one
+ *   voice per quiz (web-quiz-one-voice-flag.js) those are recorded too, in the one voice, and the map is
+ *   written to its own slot, quizzes.meta.web_one (same fields, plus audio_one = the voice tag once the
+ *   whole quiz is in it): meta.web is never touched, so turning the switch off serves exactly today's clips.
  * - Capped per quiz (maxClips), so a bad quiz cannot spend without limit.
  * - Fails soft: a clip that cannot be made is counted and skipped; the page
  *   falls back to the phone's own voice for it. Never throws.
@@ -55,6 +58,7 @@ const { mathToText } = require('./quiz-math');
 const { cleanWrongFeedback } = require('./web-quiz-feedback');
 const r2 = require('../../storage/r2');
 const Voice = require('./web-quiz-voice');
+const OneVoice = require('./web-quiz-one-voice-flag');
 const Store = require('./web-quiz-audio-store');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
@@ -86,6 +90,13 @@ function clipCostUsd(res, text) {
 // in another format gets new clips on its next publish.
 const CLIP_KBPS = 24;
 const CLIP_FORMAT = `opus${CLIP_KBPS}m`;
+// The one voice's clips (web-quiz-one-voice-flag.js) are the provider's own bytes (Ogg Opus 48 kHz at the plan's
+// rate, 64 or 32 kb/s), never re-encoded: a second encode at 24 kb/s is the loss the storybook voice-overs dropped
+// (Oct 2026). Their format tag names the rate and the voice's rendering, so a change of either gets new clips.
+const oneFormat = (plan, voice) => `opus${plan.kbps || 64}.${OneVoice.renderOf(voice)}`
+  + (plan.loudness_lufs === undefined ? '' : `.lufs${plan.loudness_lufs}`);
+// ElevenLabs v4 at its published per-character rate, for the one voice's clips (the estimate the backfill stops on).
+const ONE_USD_PER_CHAR = 0.30 / 1000;
 
 /** A clip's key (web-quiz-audio-store.js), in the quiz voice of `language`, for this deployment. */
 function audioKey(quizId, questionId, part, text, language, { env } = {}) {
@@ -220,10 +231,18 @@ function recordedParts(q) {
   try { return require('./web-quiz-sound').recordedParts(q); } catch (_) { return new Set(); }
 }
 
-/** The clips one question needs, in order: [{ part, text }]. A part the bank already has a recorded clip for is not one. */
-function partsFor(q) {
+/**
+ * The clips one question needs, in order: [{ part, text }]. A part the bank already has a recorded clip for is
+ * not one, unless the quiz has one voice (`oneVoice`, a plan or true): then only the plan's `bank` parts are left
+ * to the recording, every other part is the plan voice's.
+ */
+function partsFor(q, { oneVoice = null } = {}) {
   const parts = [];
-  const have = recordedParts(q || {});
+  // A plan's `bank` (web-quiz-one-voice-flag.js); `true` or a plan naming none keeps the question and the options.
+  const bank = oneVoice && Array.isArray(oneVoice.bank) ? oneVoice.bank : OneVoice.DEFAULT_BANK;
+  const have = oneVoice
+    ? new Set([...recordedParts(q || {})].filter((p) => (p === 'q' ? bank.includes('q') : bank.includes('opts'))))
+    : recordedParts(q || {});
   const add = (part, text) => { if (text && SAYABLE.test(text) && !have.has(part)) parts.push({ part, text }); };
   const w = webItemOf(q);
   if (w) {
@@ -275,6 +294,56 @@ function compactClip(audio) {
   });
 }
 
+// Under this many seconds loudnorm drops its one-gain (linear) mode; such a clip gets one plain gain (levelClip).
+const SHORT_CLIP_S = 3;
+const TRUE_PEAK_DB = -1.5;
+
+/** The one gain (dB) a short clip measured at `inputI` LUFS / `inputTp` dBTP takes toward `lufs`, true peak capped. */
+function shortGainDb(lufs, inputI, inputTp) {
+  if (!Number.isFinite(inputI)) return 0;   // silence: nothing to level
+  const want = lufs - inputI;
+  return Number.isFinite(inputTp) ? Math.min(want, TRUE_PEAK_DB - inputTp) : want;
+}
+
+/**
+ * The clip levelled to `lufs` (ffmpeg loudnorm, two passes, linear: one gain for the clip, true peak at most -1.5 dB),
+ * as mono Ogg Opus at `kbps`: a plan's `loudness_lufs`, so the AI lines sit at the loudness of the bank's recordings.
+ * A clip under 3 s (a one-word option): loudnorm cannot keep one gain there (it falls back to its dynamic mode and
+ * leaves the clip far too quiet), so the same first pass's loudness and true peak give one plain gain toward `lufs`,
+ * capped so the true peak stays at most -1.5 dB.
+ * Throws when ffmpeg fails: the clip is then counted failed and recorded again on the next publish.
+ */
+function levelClip(audio, lufs, kbps) {
+  const base = path.join(os.tmpdir(), `wq-level-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const src = `${base}.in`;
+  const out = `${base}.ogg`;
+  const cleanup = () => { [src, out].forEach((f) => { try { fs.unlinkSync(f); } catch (_) { /* gone */ } }); };
+  const target = `I=${lufs}:TP=${TRUE_PEAK_DB}:LRA=11`;
+  const ff = (args) => new Promise((resolve, reject) => {
+    execFile(ffmpegPath(), args, { timeout: 20000, maxBuffer: 4 * 1024 * 1024 }, (err, _out, stderr) => (err ? reject(err) : resolve(String(stderr || ''))));
+  });
+  return (async () => {
+    try {
+      fs.writeFileSync(src, audio);
+      const said = await ff(['-hide_banner', '-nostats', '-i', src, '-af', `loudnorm=${target}:print_format=json`, '-f', 'null', '-']);
+      const m = JSON.parse((said.match(/\{[^{}]*\}/g) || []).pop());
+      const d = said.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);
+      const sec = d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : null;
+      const af = sec !== null && sec < SHORT_CLIP_S
+        ? `volume=${shortGainDb(lufs, Number(m.input_i), Number(m.input_tp)).toFixed(2)}dB`
+        : `loudnorm=${target}:measured_I=${m.input_i}:measured_TP=${m.input_tp}:`
+          + `measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
+      await ff(['-y', '-loglevel', 'error', '-i', src, '-af', af,
+        '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', `${kbps}k`, '-f', 'ogg', out]);
+      const levelled = fs.readFileSync(out);
+      if (levelled.slice(0, 4).toString() !== 'OggS') throw new Error('levelled clip is not Ogg');
+      return levelled;
+    } finally {
+      cleanup();
+    }
+  })();
+}
+
 async function exists(key, bucket) {
   try {
     return (await r2.headObject(key, { bucket })).exists;
@@ -291,7 +360,7 @@ async function exists(key, bucket) {
  * @returns {Promise<{ok:boolean, reason?:string, synthesized:number, skipped:number, failed:number,
  *   capped:boolean, chars:number, bytes:number, estimatedCostUsd:number}>}
  */
-async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {}) {
+async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneVoice } = {}) {
   const client = db || require('../../config/supabase');
   const stats = { synthesized: 0, skipped: 0, failed: 0, capped: false, chars: 0, bytes: 0, audioSec: 0, providers: {} };
   let costUsd = 0;
@@ -314,12 +383,17 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     if (qsErr) throw qsErr;
 
     const language = quizLanguage(quiz, questions);
+    // The plan as it applies to this quiz (web-quiz-one-voice-flag.js forQuiz): null records it as today.
+    const one = OneVoice.forQuiz(oneVoice === undefined ? await OneVoice.plan({ db: client }) : planOf(oneVoice), quizId, language);
     const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
     if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
-    const voice = Voice.quizVoice(language);
+    const voice = Voice.quizVoice(language, { oneVoice: one });
     // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
     if (!voice) return done({ ok: false, reason: 'no_voice', language: language || null });
-    const voiceTag = Voice.voiceTag(language);
+    // With one voice, the name of the plan voice's exact rendering (tag, model, settings): web-quiz-voice.js setIdOf.
+    const voiceTag = one ? Voice.setIdOf(voice) : Voice.voiceTag(language);
+    const format = one ? oneFormat(one, voice) : CLIP_FORMAT;
+    const slot = one ? 'web_one' : 'web';
     const bucket = Store.quizAudioBucket();
     const env = Store.deployEnv();
     // Every clip of the quiz is one task; CLIP_WORKERS run at once (the vendor caps a process's calls
@@ -328,10 +402,11 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     const tasks = [];
     for (const q of questions || []) {
       entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null], hint: null });
-      for (const { part, text } of partsFor(q)) {
+      for (const { part, text } of partsFor(q, { oneVoice: one })) {
         // The key is made from the words the voice is given: a clip recorded with other words is recorded again.
-        const say = voiceText(text, language);
-        tasks.push({ q, part, text: say, key: clipKey({ env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
+        // With one voice, a word the voice misreads is spelled for it (web-quiz-voice.js sayAs, the shared Urdu list); the page keeps the text.
+        const say = one ? Voice.sayAs(voiceText(text, language), language, { voice: voice && voice.voice }) : voiceText(text, language);
+        tasks.push({ q, part, text: say, key: Store.clipKey({ format, env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
       }
     }
     // The quiz's clips in meta.web: the map of every entry so far, merged into the freshest meta so a
@@ -345,11 +420,12 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
       }
       const { data: fresh } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
       const meta = (fresh && fresh.meta) || quiz.meta || {};
-      const web = meta.web && typeof meta.web === 'object' ? meta.web : {};
+      const web = meta[slot] && typeof meta[slot] === 'object' ? meta[slot] : {};
       const complete = final && stats.failed === 0 && !stats.capped;
-      const nextMeta = { ...meta, web: {
+      const nextMeta = { ...meta, [slot]: {
         ...web, audio: { ...(web.audio || {}), ...audio }, audio_bucket: bucket, audio_voice: voiceTag,
         ...(stats.synthesized ? { audio_day: allowed.day } : {}), ...(complete ? { audio_v: AUDIO_VERSION } : {}),
+        ...(complete && one ? { audio_one: one.sig } : {}),
       } };
       const { error: uErr } = await client.from('quizzes').update({ meta: nextMeta }).eq('id', quizId);
       if (uErr) throw uErr;
@@ -372,15 +448,17 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         try {
           const res = await tts.synthesize({
             text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
+            ...(one ? { model: voice.model, voiceSettings: voice.settings, outputFormat: `opus_48000_${one.kbps || 64}` } : {}),
           });
-          const clip = await compactClip(res.audio);
+          const clip = !one ? await compactClip(res.audio)
+            : one.loudness_lufs === undefined ? res.audio : await levelClip(res.audio, one.loudness_lufs, one.kbps || 64);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
           stats.synthesized += 1;
           stats.chars += text.length;
           stats.bytes += clip.length;
           stats.audioSec += res.durationSec || 0;
           stats.providers[res.provider] = (stats.providers[res.provider] || 0) + 1;
-          costUsd += clipCostUsd(res, text);
+          costUsd += one && res.provider === 'elevenlabs' ? text.length * ONE_USD_PER_CHAR : clipCostUsd(res, text);
           have = true;
         } catch (error) {
           stats.failed += 1;
@@ -447,19 +525,35 @@ function quizLanguage(quiz, questions) {
   return /[\u0600-\u06FF]/.test(text) ? 'ur' : 'en';
 }
 
-/** Recorded at this version, in a real quiz voice (a "default" voice is a quiz to record again). */
-function isCurrent(web) {
-  return Number(web && web.audio_v) >= AUDIO_VERSION && (web.audio_voice || '') !== 'default';
+/** A plan (web-quiz-one-voice-flag.js) from a plan, `true` (the default plan) or nothing (null). */
+function planOf(oneVoice) {
+  if (!oneVoice) return null;
+  return oneVoice === true ? OneVoice.normalize(true) : oneVoice;
 }
 
-function ensureQuizAudio(quizId, { meta, db, publish = module.exports.publishQuizAudio } = {}) {
-  const web = (meta && meta.web) || {};
-  if (!quizId || isCurrent(web)) return Promise.resolve({ skipped: 'current' });
+/**
+ * Recorded at this version, in a real quiz voice (a "default" voice is a quiz to record again). With one voice
+ * per quiz (`oneVoice`, a plan or true), also stamped as recorded whole under THIS plan (meta.web_one.audio_one).
+ */
+function isCurrent(web, { oneVoice = null } = {}) {
+  const current = Number(web && web.audio_v) >= AUDIO_VERSION && (web.audio_voice || '') !== 'default';
+  const plan = planOf(oneVoice);
+  return plan ? current && web.audio_one === plan.sig : current;
+}
+
+/** The clip map a quiz is served from: meta.web, or with one voice meta.web_one (its own slot). */
+function webOf(meta, { oneVoice = false } = {}) {
+  return (meta && (oneVoice ? meta.web_one : meta.web)) || {};
+}
+
+function ensureQuizAudio(quizId, { meta, db, oneVoice = false, publish = module.exports.publishQuizAudio } = {}) {
+  const web = webOf(meta, { oneVoice });
+  if (!quizId || isCurrent(web, { oneVoice })) return Promise.resolve({ skipped: 'current' });
   if (inflight.has(quizId)) return inflight.get(quizId);
   const failedAt = lastFail.get(quizId);
   if (failedAt && Date.now() - failedAt < RETRY_AFTER_MS) return Promise.resolve({ skipped: 'cooldown' });
   const run = Promise.resolve()
-    .then(() => publish(quizId, { db }))
+    .then(() => publish(quizId, oneVoice ? { db, oneVoice } : { db }))
     .then((out) => { if (!out || !out.ok) lastFail.set(quizId, Date.now()); else lastFail.delete(quizId); return out || {}; })
     .catch((error) => {
       lastFail.set(quizId, Date.now());
@@ -483,19 +577,24 @@ const REQUEST_AGAIN_MS = 10 * 60 * 1000;
  * AUDIO_VERSION is not queued. If the queue cannot take the job, the clips are made here instead
  * (ensureQuizAudio), so a child is never left without them. Never throws.
  */
-async function requestQuizAudio(quizId, { meta, queue, publish, db } = {}) {
-  const web = (meta && meta.web) || {};
-  if (!quizId || isCurrent(web)) return { skipped: 'current' };
-  const at = requested.get(quizId);
+async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false } = {}) {
+  const web = webOf(meta, { oneVoice });
+  if (!quizId || isCurrent(web, { oneVoice })) return { skipped: 'current' };
+  // A one-voice request is not the same request: a quiz asked for just before the switch went on (or under
+  // another plan) is asked again.
+  const plan = planOf(oneVoice);
+  const ask = plan ? `${quizId}:${plan.sig}` : quizId;
+  const at = requested.get(ask);
   if (at && Date.now() - at < REQUEST_AGAIN_MS) return { skipped: 'requested' };
-  requested.set(quizId, Date.now());
+  requested.set(ask, Date.now());
   try {
     const q = queue || require('../queue');
-    await q.queueJob(quizId, JOB, { quizId }, { deduplicationId: `${quizId}-${JOB}-v${AUDIO_VERSION}` });
+    // One voice is its own job: the queue must not drop it as a repeat of the quiz's earlier recording.
+    await q.queueJob(quizId, JOB, { quizId }, { deduplicationId: `${quizId}-${JOB}-v${AUDIO_VERSION}${plan ? `-one-${plan.sig}` : ''}` });
     return { queued: true };
   } catch (error) {
     logError('web_quiz.publish_audio.queue_failed', { event: 'web_quiz.publish_audio.queue_failed', quizId, error: String(error.message || error).slice(0, 200) });
-    return ensureQuizAudio(quizId, { meta, db, ...(publish ? { publish } : {}) });
+    return ensureQuizAudio(quizId, { meta, db, ...(oneVoice ? { oneVoice } : {}), ...(publish ? { publish } : {}) });
   }
 }
 
@@ -510,10 +609,12 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
   if (!quizId) return { ok: false, reason: 'no_quiz' };
   const attempt = Number(payload.attempt) || 0;
   const client = db || require('../../config/supabase');
-  const { data } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
-  const web = (data && data.meta && data.meta.web) || {};
-  if (isCurrent(web)) return { skipped: 'current' };
-  const out = (await publish(quizId, { db: client })) || {};
+  const { data } = await client.from('quizzes').select('meta, language').eq('id', quizId).maybeSingle();
+  // The plan as it applies to this quiz (its language when the row names one): null keeps today's voice.
+  const oneVoice = OneVoice.forQuiz(await OneVoice.plan({ db: client }), quizId, data && data.language);
+  const web = webOf(data && data.meta, { oneVoice });
+  if (isCurrent(web, { oneVoice })) return { skipped: 'current' };
+  const out = (await publish(quizId, oneVoice ? { db: client, oneVoice } : { db: client })) || {};
   if (out.ok && !out.failed) return out;
   // Switched off or over today's cap: a retry would only be refused again (the next page open asks anew).
   if (out.reason === 'disabled' || out.reason === 'capped' || out.reason === 'no_voice') return out;
@@ -529,5 +630,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, spokenOperators, voiceText, whyText, withoutPraise, AUDIO_VERSION,
+  quizLanguage, isCurrent, webOf, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, spokenOperators, voiceText, whyText, withoutPraise, AUDIO_VERSION,
 };

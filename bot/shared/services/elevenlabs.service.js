@@ -11,6 +11,9 @@ const {
 const { logToFile } = require('../utils/logger');
 const { normalizeForUrduTTS } = require('./urdu-tts-normalizer');
 
+// The Ogg Opus rates a caller may ask for by name (generateSpeechWithVoice opts.outputFormat); anything else is 64 kb/s.
+const OPUS_FORMATS = new Set(['opus_48000_32', 'opus_48000_64']);
+
 /**
  * ElevenLabs Service (Phase 3: Multi-language support)
  * Handles text-to-speech for English, Spanish, and Arabic with emotional expressiveness
@@ -230,9 +233,12 @@ class ElevenLabsService {
    * @param {string} languageCode - Language code for logging
    * @param {object} [voiceSettingsOverride] - replaces the per-language settings
    *   (video narration keeps its own expressive settings)
+   * @param {object} [opts] - { modelId, languageCode, outputFormat }: another model, the language named to it and
+   *   a smaller Ogg Opus rate (the web quiz's one voice: opus_48000_32 or opus_48000_64); without it the request
+   *   is exactly as before
    * @returns {Promise<Buffer>} Audio buffer (Ogg Opus)
    */
-  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride) {
+  static async generateSpeechWithVoice(text, voiceId, languageCode, voiceSettingsOverride, opts = {}) {
     try {
       logToFile('Generating speech with ElevenLabs', {
         textLength: text.length,
@@ -251,11 +257,12 @@ class ElevenLabsService {
 
       // bd-z5olm: Ogg Opus for the WhatsApp voice bubble — see generateSpeech.
       const response = await ElevenLabsService._postTts(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=opus_48000_64`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${OPUS_FORMATS.has(opts.outputFormat) ? opts.outputFormat : 'opus_48000_64'}`,
         {
           text: text,
-          model_id: 'eleven_v3', // v3 supports audio tags and emotion control
-          voice_settings: voiceSettings
+          model_id: opts.modelId || 'eleven_v3', // v3 supports audio tags and emotion control
+          voice_settings: voiceSettings,
+          ...(opts.modelId && opts.languageCode ? { language_code: opts.languageCode } : {}),
         }
       );
 
