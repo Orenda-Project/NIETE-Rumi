@@ -1,5 +1,5 @@
 /*
- * bd-t7zk3t.11 — the plan page (v10 card look, ported from design/mockups/fln_mock.css v2 and the v10 a-plan.html
+ * The plan page (v10 card look, ported from design/mockups/fln_mock.css v2 and the v10 a-plan.html
  * tokens). EVERYTHING is scoped under `.fln-root .fln-plan`. Urdu (Nastaliq) plan text gets line-height >= 1.9; an
  * English run on an Urdu page uses var(--font-latin) !important (index.css forces Nastaliq with !important).
  * Every tappable control >= 48 px; the band header >= 64 px.

@@ -3,7 +3,7 @@ import { act, render, screen, waitFor, fireEvent, cleanup } from '@testing-libra
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 /**
- * bd-t7zk3t.12 — the one-line hooks PR-D adds to shared pages (SPEC v2 §3 "Sign-in return — HOOKs", "Entry points for
+ * The one-line hooks PR-D adds to shared pages (SPEC v2 §3 "Sign-in return — HOOKs", "Entry points for
  * leaders"), each driven through the real page:
  *   TeacherGate.tsx:29          a signed-out visit goes to /portal/login?next=<the page it wanted>
  *   PortalLogin.tsx :60/:124/:175  after sign-in (already signed in · code · password) → safeNext(next) ?? home

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — where sign-in may send the user back to (`/portal/login?next=…`, contracts/deep-link.md v2).
+ * Where sign-in may send the user back to (`/portal/login?next=…`, contracts/deep-link.md v2).
  *
  * Only a same-origin PATH under `/portal/fln/` or `/portal/teacher/` is kept; everything else is `null`, and the caller
  * goes to the user's home as before. Refused: other origins (`//host`, `/\host`, `\\host`), any scheme (`https:`,

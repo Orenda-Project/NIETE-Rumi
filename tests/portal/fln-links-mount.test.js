@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.12 (PR-D) — the ONE hook line in m-app's `dashboard/routes/portal-fln.routes.js`:
+ * The ONE hook line in m-app's `dashboard/routes/portal-fln.routes.js`:
  *   router.use(require('./portal-fln-links.routes'));
  * Loads m-app's router as dashboard/index.js does (DB + telemetry mocked at the boundary) and walks its stack: the
  * leader routes must be reachable through it, each behind no-store.

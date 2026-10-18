@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 
 /**
- * bd-t7zk3t.11 — the plan page: 404 → "This lesson isn't available" + the list button; 503 → calm line + retry;
+ * The plan page: 404 → "This lesson isn't available" + the list button; 503 → calm line + retry;
  * kicker from placement pos/count (never `seq`); no Share slot for a teacher; Back for a link-opened plan; telemetry
  * batched (plan id added, ≤1 batch / 5 s, flush on pagehide); the page never logs an open itself.
  */

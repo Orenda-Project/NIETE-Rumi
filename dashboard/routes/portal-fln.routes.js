@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — Reading Hour + Numeracy (FLN) in the teacher app: the server routes (SPEC v2 §3, §5;
+ * Reading Hour + Numeracy (FLN) in the teacher app: the server routes (SPEC v2 §3, §5;
  * contracts/api.md v2). Mounted at /api/portal by ONE line in dashboard/index.js.
  *
  *   GET  /fln/me           {lessons, share, role, ui_lang}         auth only
@@ -52,7 +52,7 @@ const ID_RX = /^\d{1,9}$/;
 const SUBJECTS = new Set(['rh-en', 'rh-ur', 'num']);
 const MAX_EVENTS = 50;
 const INSERTED_KINDS = new Set(['share', 'link_copy', 'open_link']);
-// COS schema ruling: audio events are logged as structured events, not stored (`send` is server-written only, m-links).
+// Audio events are logged as structured events, not stored (`send` is server-written only, m-links).
 const LOGGED_KINDS = Object.freeze({ audio_play: 'fln.audio.play', audio_error: 'fln.audio.error' });
 const PREVIEW_PATH = /^\/portal\/fln\/p\/(\d{1,9})\/?$/;
 // Anchored as in web-quiz-preview.js: WhatsApp's link FETCHER sends a bare "WhatsApp/2.x A"; its in-app BROWSER sends

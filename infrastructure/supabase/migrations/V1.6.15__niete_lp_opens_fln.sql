@@ -9,7 +9,7 @@
 -- 'k5' and 'g612', so an 'fln' open would be refused. The CHECK is widened to 'k5','g612','fln'.
 -- plan_ref for 'fln' is the plan id (text, digits); lang is the plan's language; source 'viewer'.
 --
--- WHY A NEW TABLE (Rule 15, last resort; COS schema ruling 18 Oct 2026). Leaders' sharing
+-- WHY A NEW TABLE (a new table is the last resort). Leaders' sharing
 -- actions are product records the team queries (who sent which plan, did it open): share, link
 -- copy, open-link, and a leader-to-teacher send (a coach, principal or AEO sends a plan to a
 -- teacher). No existing table fits (ab_test_events is the A/B framework, FLN is outside it;

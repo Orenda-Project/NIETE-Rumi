@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — S3b, "Which level?" for grades 6–12 (DESIGN v2 §3, mockup levels_g8_en).
+ * S3b, "Which level?" for grades 6–12 (DESIGN v2 §3, mockup levels_g8_en).
  *
  * The screener comes first, highlighted, with ITS OWN minutes (`levels[].screener_minutes`, e.g. 53 — never an
  * invented "10 min") and its own one-line note (`note_en/ur`), the chip "Answer key audio · teacher only" and no ✓.

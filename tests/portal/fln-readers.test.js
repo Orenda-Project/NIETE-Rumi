@@ -1,10 +1,10 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — every reader of lesson-plan opens survives an FLN open, BEFORE anything writes one.
+ * Every reader of lesson-plan opens survives an FLN open, BEFORE anything writes one.
  *
  * When lesson-plan reading moved into the app on 12 Oct, a dozen features that read plan usage went
  * blind or broke in turn. Reading Hour + Numeracy (FLN) adds a third plan kind to niete_lp_opens
- * (`fln`, plan_ref = the taleemabad_core lesson id), so the readers land first (SPEC_v2 §5 ship order):
+ * (`fln`, plan_ref = the FLN source-corpus lesson id), so the readers land first (SPEC_v2 §5 ship order):
  *
  *   POST /api/internal/lp/describe   names `fln` plans from the sidecar index (fln-index.service) —
  *                                    before this, kind `fln` was a 400, and the portal turns that into
@@ -131,7 +131,7 @@ describe('describe — fln', () => {
     expect(payload.plans[0]).toMatchObject({ lang: 'ur', found: true, subjectKey: 'rh-ur', subject: 'Reading Hour · Urdu', planLang: 'ur' });
   });
 
-  test('a subject given as the taleemabad_core id is still named', async () => {
+  test('a subject given as the FLN source-corpus id is still named', async () => {
     const { payload } = await describeViaRoute([{ kind: 'fln', ref: '10230', lang: 'en' }]);
     expect(payload.plans[0]).toMatchObject({ subject: 'Numeracy', subjectKey: 'num', chapterTitle: 'Level 2 · Grades 2–3' });
   });

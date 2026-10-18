@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the builder's entry on the leader home ("My Patch", LeaderHome): one card in the page's own card
+ * The builder's entry on the leader home ("My Patch", LeaderHome): one card in the page's own card
  * style that opens /portal/fln/send. NOTHING unless GET /api/portal/fln/me says share:true, so the home is unchanged
  * for everyone else and whenever FLN is off. `lang` = the page's language when it has one (My Patch is English).
  */

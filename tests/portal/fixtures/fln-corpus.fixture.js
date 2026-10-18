@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — a SYNTHETIC FLN corpus bundle with the shape of contracts/plan-json.md v2 and the hazards of the
+ * A SYNTHETIC FLN corpus bundle with the shape of contracts/plan-json.md v2 and the hazards of the
  * real one (a guide at pos 0, a screener with its note, hidden and additional rows, an Urdu header with a trailing
  * Latin token, mixed Urdu/Latin digits, `**bold**`). No text here comes from the real corpus; the ids are made up.
  */

@@ -6,7 +6,7 @@ import SendPage from './SendPage';
 import { stubFetch, callsTo, ME_LEADER, ME_LEADER_UR, ME_TEACHER } from '../share/testFetch';
 
 /**
- * bd-t7zk3t.12 — the "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade → subject → level
+ * The "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade → subject → level
  * (pre-selected for 1–5, NONE for 6–12 with the screener on top) → search + filters → rows with Send to teacher and
  * Share link. State lives in the URL so Back works. 404 → "not available"; no rows → the §7 empty line.
  */

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — what a Reading Hour / Numeracy (FLN) plan IS, for the bot's readers.
+ * What a Reading Hour / Numeracy (FLN) plan IS, for the bot's readers.
  *
  * The FLN corpus is a versioned, immutable bundle on the content bucket (`fln/corpus/<ver>/`), read by
  * the portal's corpus service. The bot only ever needs to NAME a plan (recent lists, "All lesson

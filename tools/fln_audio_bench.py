@@ -212,7 +212,7 @@ _LIVE_BASE: list = []
 
 
 def live_base():
-    """The COS's live public base (root .env CONTENT_R2_PUBLIC_URL, read as ONE key), scheme+host only."""
+    """The live public base (root .env CONTENT_R2_PUBLIC_URL, read as ONE key), scheme+host only."""
     if not _LIVE_BASE:
         v = read_env_key('CONTENT_R2_PUBLIC_URL', pathlib.Path(__file__).resolve().parent)
         m = re.match(r'^(https?://[^/]+)', v or '')

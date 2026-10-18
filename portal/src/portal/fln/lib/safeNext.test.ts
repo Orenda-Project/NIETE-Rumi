@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { safeNext } from './safeNext';
 
 /**
- * bd-t7zk3t.12 — `next=` after sign-in: a same-origin PATH under /portal/fln/ or /portal/teacher/, or null (the caller
+ * `next=` after sign-in: a same-origin PATH under /portal/fln/ or /portal/teacher/, or null (the caller
  * then goes home). Anything that could leave the site, or reach another part of it, is null.
  */
 describe('safeNext — allowed', () => {

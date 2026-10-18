@@ -11,7 +11,7 @@ const FLN_SEND_STRINGS = Object.freeze({
   en: Object.freeze({
     body: 'Your {{1}} has sent you a lesson plan: *{{2}}*. Tap the button to open it in the teacher app. The button works for 24 hours.',
     button: 'Open the lesson',
-    // The template's language code as the COS submitted it (NOT config/languages templateCodeFor → 'en_US').
+    // The template's language code as it was submitted to Meta (NOT config/languages templateCodeFor → 'en_US').
     templateLang: 'en',
     roles: Object.freeze({
       coach: 'coach', principal: 'principal', aeo: 'AEO', school_leader: 'school leader', supervisor: 'supervisor',

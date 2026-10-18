@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — SPEC v2 §6 row 30: the FLN lane is invisible to the ch3-10 A/B (lp-ab-ch310) by construction.
+ * SPEC v2 §6 row 30: the FLN lane is invisible to the ch3-10 A/B (lp-ab-ch310) by construction.
  *  1. Loading the FLN routes and corpus service never loads lp-ab-ch310 (require.cache).
  *  2. Every niete_lp_opens read in lp-app-opens.store.js (the A/B's open readers) filters plan_kind = 'k5', so an
  *     `fln` open row is never in what they read. The readers are EXECUTED against a fake supabase that records every

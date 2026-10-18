@@ -3,7 +3,7 @@ import { WHATSAPP_URL_PICKER } from '@/lib/whatsapp';
 import { shareMessage, waUrl, withSrc, MAX_CODE_POINTS } from './message';
 
 /**
- * bd-t7zk3t.12 — the WhatsApp text a leader shares (contracts/deep-link.md v2): line 1 the subject and the LEVEL (never
+ * The WhatsApp text a leader shares (contracts/deep-link.md v2): line 1 the subject and the LEVEL (never
  * a grade) in the leader's language, line 2 the title in the PLAN's language, line 3 the URL alone with ?src=wa.
  * Urdu chrome: «—» separators, Urdu digits. ≤300 code points; the title is cut, never the URL.
  */

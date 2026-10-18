@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the sign-in page's banner when a shared plan link brought the user here (DESIGN v2 §4 L4, ruling 19):
+ * The sign-in page's banner when a shared plan link brought the user here (DESIGN v2 §4 L4, decision 19):
  * bilingual by construction, because the receiver's language is unknown before sign-in — the plan's title in ITS
  * language (GET /api/portal/fln/title/:id, left out on any error) + "Sign in to open" + «کھولنے کے لیے سائن اِن
  * کریں», always both. Nothing at all unless `next=` is a safe /portal/fln/p/<id> path.

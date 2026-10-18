@@ -8,7 +8,7 @@ import { ME_TEACHER, numG2, rhEnG1, rhUrG1, stubFetch } from './listFixtures';
 import type { FlnMe } from '../types';
 
 /**
- * bd-t7zk3t.11 — S3, the lesson list (DESIGN v2 §2 S3/S5): running number = `pos` (never an index), the guide
+ * S3, the lesson list (DESIGN v2 §2 S3/S5): running number = `pos` (never an index), the guide
  * pinned on top unnumbered, the screener's chip is the answer key (never a sounds count), a "Next" marker on the
  * first unopened numbered row, ✓ when opened, "Other levels", Numeracy strand tabs, Back, scroll restore, and on an
  * Urdu page no «·» and every ASCII run inside <bdi> (or a dir=ltr island).
