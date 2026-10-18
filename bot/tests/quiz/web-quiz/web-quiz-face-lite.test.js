@@ -28,7 +28,8 @@ describe('web_quiz_face_lite in the hub flags read', () => {
     expect(Flags.KEYS).toContain('web_quiz_face_lite');
     await Flags.flags(NOW);
     expect(supabase.__state.reads).toHaveLength(1);
-    expect(supabase.__state.reads[0]).toEqual({ t: 'app_settings', keys: Flags.KEYS });
+    // the child's language row rides the same one read, after KEYS (web-quiz-hub-flags.js readWithChildLang)
+    expect(supabase.__state.reads[0]).toEqual({ t: 'app_settings', keys: [...Flags.KEYS, 'web_quiz_return_lang'] });
   });
 
   test('JSON true → on after the read; faceLiteNow itself never reads', async () => {
