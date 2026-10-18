@@ -26,6 +26,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const { renderMessagePage, REPORT_PATH } = require('../../bot/shared/templates/teacher-report.page');
 
 // base64url(payload) "." base64url(HMAC)[:22] — web-quiz-token's format.
@@ -87,6 +88,8 @@ function createTeacherReportRouter(opts = {}) {
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -133,6 +136,7 @@ function createTeacherReportRouter(opts = {}) {
         if (out.timing.queue != null) res.set('x-queue-age', out.timing.queue);
         res.set('x-edge-ms', String(Date.now() - t0));
       }
+      carryBotSecurity(res, out, securityOn);
       return res.status(out.status).type(type).send(out.bytes || Buffer.alloc(0));
     };
   }
@@ -154,6 +158,7 @@ function createTeacherReportRouter(opts = {}) {
       if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
       if (out.status >= 300 && out.status < 400) return fail(502, 'error');
       if (out.status >= 500) return fail(502, 'error');
+      carryBotSecurity(res, out, securityOn);
       return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
     };
   }
@@ -190,6 +195,7 @@ function createTeacherReportRouter(opts = {}) {
     if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
     if (out.status >= 300 && out.status < 400) return fail(502, 'error');
     if (out.status >= 500) return fail(502, 'error');
+    carryBotSecurity(res, out, securityOn);
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   }
 

@@ -43,6 +43,8 @@ function on(now = Date.now()) {
  * With web_quiz_doors_prefetch on as well, `wait_pre: true`: the page asks the Videos door's lists once the home has
  * painted (dashboard wq-doors.js warm), so a Videos tap paints whole. With web_quiz_wait_home on as well,
  * `wait_home: true`: the early page draws Home as the child last saw it in this tab, until this answer draws it again.
+ * web_quiz_wait_hops on as well (web-quiz-wait-hops.js, the same batched read, never waited for), `wait_hops: true` too:
+ * the bar also shows while the page is being left.
  */
 function carry(outP) {
   return Promise.resolve(outP).then((out) => {
@@ -51,6 +53,7 @@ function carry(outP) {
       try { if (Flags.fanoutNow()) out[SHARE_FIELD] = true; } catch (_) { /* fanout unknown: no share */ }
       try { if (Flags.prefetchNow()) out[PREFETCH_FIELD] = true; } catch (_) { /* prefetch unknown: none */ }
       try { if (Flags.homeNow()) out[HOME_FIELD] = true; } catch (_) { /* home unknown: none */ }
+      try { const Hops = require('./web-quiz-wait-hops'); if (Hops.on()) out[Hops.FIELD] = true; } catch (_) { /* hops unknown: none */ }
     }
     return out;
   });

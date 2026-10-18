@@ -11,8 +11,8 @@
  *                   Never the speed nor anything worked out from it (the lights, the growth line, a "faster" badge).
  *   withBand(out)   out + {feedback: band(out)} with the key on and a scored read; anything else back untouched
  *   storyReading(studentId, rows)  a storybook's read at its end, from the child's own page reads (`rows`: the
- *                   stories' counted events): {words_read, words_total, ms, wcpm|null, prev_wcpm|null}, the best read
- *                   of each page; the speed only on an honest read, the last book's speed from the child's own done
+ *                   stories' counted events, with `at`): {words_read, words_total, ms, wcpm|null, prev_wcpm|null}, the
+ *                   best read of each page since the book's last open; the speed only on an honest read, the last book's speed from the child's own done
  *                   rows. null when no page was read aloud. Only on the child's own phone (the stories hub guard).
  *   OWNER_ONLY      the keys only the reading child's own phone may receive (the speed and what gives it back)
  */
@@ -52,7 +52,8 @@ function band(out) {
   if (!s || typeof s !== 'object' || !('attempted' in s)) return null;
   const tried = num(s.attempted);
   const right = s.correct == null ? tried : Math.min(num(s.correct), tried);
-  if (!right || s.stopped || out.implausible) return { stars: 0, badge: 'try', words_heard: 0 };
+  // a read stopped by the rule after some words still read them: the band says so, as the owner's page does
+  if (!right || out.implausible) return { stars: 0, badge: 'try', words_heard: 0 };
   const acc = right / tried;
   const stars = acc >= STAR_AT[1] ? 3 : acc >= STAR_AT[0] ? 2 : 1;
   return { stars, badge: stars === 3 ? 'star' : 'reader', words_heard: tried };
@@ -65,9 +66,11 @@ async function withBand(out) {
 }
 
 async function storyReading(studentId, rows) {
+  // this open of the book only: the reads since its last story_opened (an older page that posted none: every read)
+  const opened = Math.max(-1, ...(rows || []).filter((r) => r.event === 'story_opened' && r.at).map((r) => Date.parse(r.at) || -1));
   const best = new Map();
   for (const r of rows || []) {
-    if (r.event !== 'story_page_read') continue;
+    if (r.event !== 'story_page_read' || (opened >= 0 && !(Date.parse(r.at) >= opened))) continue;
     const d = r.data || {};
     const cur = best.get(r.page_n);
     if (!cur || num(d.words_read) > num(cur.words_read)) best.set(r.page_n, d);
