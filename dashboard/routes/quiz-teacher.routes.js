@@ -9,6 +9,7 @@
  *                                        tile's book: its send sheet), ?grade (1-5) and ?lang reach it
  *   GET  /api/th/home  ?t&g&lang         the home's JSON
  *   GET  /api/th/library ?t&g&lang       the library card for a grade
+ *                                        (these two pass the bot's Server-Timing header on, verbatim, when it sent one)
  *   GET  /api/th/quiz/:id ?t&lang        the "Quiz this" poll
  *   POST /api/th/send | quiz/make | confirm | step    JSON in, JSON (or 204) out
  *
@@ -125,7 +126,7 @@ function createQuizTeacherRouter(opts = {}) {
   const parse = express.json();
 
   /** Sends the bot's answer on; → false when the caller should fall through (switch off). */
-  function relay(req, res, out, { json }) {
+  function relay(req, res, out, { json, timing = false }) {
     if (isOff(out)) return false;
     if (out.status >= 300 && out.status < 400) {
       if (!okLocation(out.location)) {
@@ -138,6 +139,7 @@ function createQuizTeacherRouter(opts = {}) {
     }
     if (out.status >= 500) { if (json) errorJson(res); else fail(req, res, 503); return true; }
     res.set(PRIVATE);
+    if (timing && out.serverTiming) res.set('Server-Timing', out.serverTiming);
     if (out.status === 204) { res.status(204).end(); return true; }
     res.status(out.status).type(out.contentType || (json ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8')).send(out.bytes || Buffer.alloc(0));
     return true;
@@ -174,7 +176,7 @@ function createQuizTeacherRouter(opts = {}) {
       if (path === '/api/th/home' && out && out.status === 200) {
         try { lastBot = cleanBot(JSON.parse(Buffer.from(out.bytes || '').toString('utf8')).bot) || lastBot; } catch (_) { /* keep the last */ }
       }
-      if (!relay(req, res, out, { json: true })) return next();
+      if (!relay(req, res, out, { json: true, timing: path === '/api/th/home' || path === '/api/th/library' })) return next();
       return undefined;
     };
   }

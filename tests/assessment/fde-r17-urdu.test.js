@@ -108,6 +108,11 @@ describe('(b) a Q1 key of two words or more printed in another Q1 item\'s option
     const fill = recorded(ch1, /ہم سب کو کامیابی ملے/);
     expect(fill.answer).toBe('ج) اللہ کرے');
     expect(recorded(ch1, /کون سا جملہ شکیہ ہے/).options).toContain('ج) اللہ کرے امتحان آسان ہو۔');
+    // The paper also asks «کون سا جملہ تمنائی ہے؟», so the fill (also تمنائی) is held as one grammar
+    // concept asked twice. With that item out, the sample-sentence option alone holds nothing.
+    for (const reasked of [false, true]) expect(q1Stems(lay(ch1, reasked).examJson)).not.toContain(fill.question);
+    const other = recorded(ch1, /^کون سا جملہ تمنائی ہے/);
+    Object.assign(other, { question: 'لفظ «دوست» کا متضاد کون سا ہے؟', options: ['الف) دشمن', 'ب) یار', 'ج) ساتھی', 'د) بھائی'], answer: 'الف) دشمن' });
     for (const reasked of [false, true]) expect(q1Stems(lay(ch1, reasked).examJson)).toContain(fill.question);
   });
 
