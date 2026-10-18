@@ -134,7 +134,9 @@ async function reply({ user, from, door = 'text', body = '', language = null } =
   const src = srcOf(body, d);
   const userId = (user && user.id) || null;
   try {
-    const who = await Role.resolveRole({ user, phone: from, body });
+    // a shared card's ref in the words (web_quiz_share_v4): its item is kept for this phone, and the home link opens it;
+    // kept alongside the role answer, never before it (note never throws, and reads nothing without a ref)
+    const [, who] = await Promise.all([require('../quiz/web-quiz-share-open').note(from, body), Role.resolveRole({ user, phone: from, body })]);
     const lang = who.lang;
     const event = (reply_, extra = {}) => logEvent('onboard.quiz_door', {
       door: d, verdict: who.side, src: who.src, reply: reply_, lang, userId, ...(who.persona ? { persona: who.persona } : {}), ...extra,
