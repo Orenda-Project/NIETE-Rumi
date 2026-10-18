@@ -204,11 +204,22 @@
   line-height: 1.25;
   color: var(--fln-mut);
   padding-inline: 0;
+  /* A11: the state line is one line of fixed height in every state (present, empty, while idle), so "Playing…" or
+     the retry line never grows the tile; a long line ends in an ellipsis (the corner icon and bar carry the state). */
+  display: block;
+  box-sizing: content-box;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: 0;
+  height: 1.25em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Urdu tile: the letter in Nastaliq at 30 px with room above and below for its tall ink (never clipped). */
 .fln-snd.fln-snd-tile[lang="ur"] .fln-snd__g { font-size: 30px; font-weight: 400; line-height: 1.75; }
 .fln-snd.fln-snd-tile[lang="ur"] .fln-snd__story { font-size: 20px; font-weight: 400; line-height: 1.9; }
-.fln-snd.fln-snd-tile[lang="ur"] .fln-snd__sub { font-size: 13px; font-weight: 400; line-height: 1.8; }
+.fln-snd.fln-snd-tile[lang="ur"] .fln-snd__sub { font-size: 13px; font-weight: 400; line-height: 2; height: 2em; }
 .fln-snd.fln-snd-tile[lang="ur"] { gap: 2px; padding-top: 12px; padding-bottom: 8px; }
 
 .fln-snd.fln-snd-tile .fln-snd__bar { inset-inline: 0; bottom: 0; height: 5px; border-radius: 0; }
