@@ -595,3 +595,43 @@ describe('the class table warmed while "See my class" is on screen, and the chil
     expect(JSON.parse(off.ls.get('wq_cp_TEST_c1'))).toBe(3);
   });
 });
+
+describe('a class table that is not there (404) says so, with the page\'s own way on (class_doors)', () => {
+  const attr = (h, sel, a) => { const m = new RegExp('<[^>]*' + sel + '[^>]*\\s' + a + '="([^"]*)"').exec(h); return m ? m[1] : null; };
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: 404 -> Jugnu says this one has no class table; failed + not_found marks; Play, never a retry`, async () => {
+      const p = page({ lang, store: {}, view: 'class', bootExtra: { class_doors: true }, api: { '/board/TEST': { __status: 404, error: 'not_found' } } });
+      await flush(); await flush();
+      const h = p.html();
+      expect(h).toContain('data-m="M11-none"');
+      expect(h).toContain(p.wq.T.tableNone);
+      expect(attr(h, 'data-list="table"', 'data-fetch')).toBe('failed');
+      expect(attr(h, 'data-list="table"', 'data-why')).toBe('not_found');
+      expect(h).not.toContain('id="wq-retry"');
+      expect(h).not.toContain(p.wq.T.offline);
+      expect(h).toContain('id="wq-play"');
+    });
+  }
+  test('a child who has just played: "My scores", not Play', async () => {
+    const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': { __status: 404 } } });
+    p.wq.board();
+    await flush(); await flush();
+    expect(p.html()).toContain('id="wq-next"');
+    expect(p.html()).not.toContain('id="wq-play"');
+  });
+  test('a 5xx or a dropped line: today\'s offline line and retry', async () => {
+    for (const r of [{ __status: 503 }, { __offline: true }]) {
+      const p = page({ lang: 'en', store: {}, view: 'class', bootExtra: { class_doors: true }, api: { '/board/TEST': r } });
+      await flush(); await flush();
+      expect(p.html()).toContain('data-m="M11-error"');
+      expect(p.html()).toContain('id="wq-retry"');
+    }
+  });
+  test('off (no class_doors on the boot): a 404 is today\'s offline screen, start to end', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'class', api: { '/board/TEST': { __status: 404 } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('data-m="M11-error"');
+    expect(p.html()).toContain('id="wq-retry"');
+    expect(p.html()).not.toMatch(/data-(why|fetch)/);
+  });
+});
