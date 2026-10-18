@@ -231,6 +231,9 @@ describe('the sheet (wq-adventure.css)', () => {
     const r = (CSS.match(/^html\.wq-adv \.wqs\{[^}]*\}/m) || [''])[0];
     expect(r).toMatch(/padding-inline:var\(--gutter\)/);
   });
+  it('three corner radii only: the pill (a circle to the eye), the card and the chip; no other px radius in the sheet', () => {
+    expect((CSS.match(/border-radius:\s*[0-9.]+px/g) || []).filter((d) => !/999px/.test(d))).toEqual([]);
+  });
   it('no shadow reads a root-level edge: a token built from var(--edge) at :root freezes the root colour for every land', () => {
     expect(CSS).not.toMatch(/var\(--sh-(btn|press)\)/);
     expect(root.replace(/--edge:var\(--land-edge\);/, '')).not.toMatch(/var\(--edge\)/);

@@ -85,7 +85,9 @@ html.wq-adv [data-screen=stories],html.wq-adv [data-screen^=stories-],html.wq-ad
 html.wq-adv [data-screen=games]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
 html.wq-adv [data-screen=videos],html.wq-adv [data-screen^=video]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge)}
 /* tiles and pictures inside a box take the small radius, so the pill radius stays with the buttons */
-html.wq-adv .wq-door,html.wq-adv .wq-nart,html.wq-adv .wq-tile,html.wq-adv .wq-opt .wq-shp,html.wq-adv .wq-ptile .wq-shp,html.wq-adv .wq-shear .wq-shp{border-radius:var(--r-chip)}
+html.wq-adv .wq-nart,html.wq-adv .wq-tile,html.wq-adv .wq-opt .wq-shp,html.wq-adv .wq-ptile .wq-shp,html.wq-adv .wq-shear .wq-shp{border-radius:var(--r-chip)}
+html.wq-adv .wq-opt{border-radius:var(--r-card)}
+html.wq-adv .wq-soon{border-radius:var(--r-chip)}
 html.wq-adv .wq-card{background:var(--card);border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)}
 html.wq-adv .wq-say{border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-btn-soft);color:var(--ink)}
 html.wq-adv .wq-jimg,html.wq-adv .wq-hjug{filter:drop-shadow(0 4px 8px var(--glow))}
@@ -114,7 +116,7 @@ html.wq-adv .wq-next{--edge:var(--land-edge);position:relative;display:grid;grid
 html.wq-adv .wq-next[data-kind=quiz],html.wq-adv .wq-next[data-kind=game],html.wq-adv .wq-next[data-kind=passage]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
 html.wq-adv .wq-next[data-kind=video],html.wq-adv .wq-next[data-kind=lesson]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge)}
 html.wq-adv .wq-next:active{transform:translateY(4px);box-shadow:0 2px 0 var(--edge)}
-html.wq-adv .wq-nart{width:104px;height:136px;border-radius:14px;background:var(--land-bg);box-shadow:0 3px 0 rgba(0,0,0,.15);transform:rotate(-3deg)}
+html.wq-adv .wq-nart{width:104px;height:136px;border-radius:var(--r-chip);background:var(--land-bg);box-shadow:0 3px 0 rgba(0,0,0,.15);transform:rotate(-3deg)}
 html.wq-adv[dir=rtl] .wq-nart{transform:rotate(3deg)}
 html.wq-adv .wq-ntext b{color:var(--ink)}
 html.wq-adv .wq-ntext small{color:var(--muted)}
@@ -131,7 +133,7 @@ html.wq-adv .wq-gbtn>*:not(.wq-gfill){position:relative;z-index:1}
 html.wq-adv .wq-gfill{background:var(--land-vd-bg)}
 /* the bottom bar: three land doors, each in its own colour; the land you are in is filled */
 html.wq-adv .wq-doors{gap:var(--sp-2);padding:var(--sp-2) var(--gutter) calc(var(--sp-3) + env(safe-area-inset-bottom,0px));background:var(--card);border-top:3px solid var(--line)}
-html.wq-adv .wq-door{--edge:var(--line);max-width:160px;min-height:60px;margin-bottom:4px;border:2px solid var(--line);border-radius:20px;background:var(--card);color:var(--ink);box-shadow:0 4px 0 var(--edge);transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
+html.wq-adv .wq-door{--edge:var(--line);max-width:160px;min-height:60px;margin-bottom:4px;border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);color:var(--ink);box-shadow:0 4px 0 var(--edge);transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
 html.wq-adv .wq-doors{justify-content:center}
 html.wq-adv .wq-door:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)}
 html.wq-adv .wq-door[data-door=stories]{--dc:var(--land-st);--dd:var(--land-st-edge)}
@@ -159,8 +161,8 @@ html.wq-adv .wq-dli:has(.wq-drow:active){transform:translateY(3px);box-shadow:0 
 html.wq-adv .wq-dli .wq-drow:active{transform:none}
 html.wq-adv .wq-dli.done{background:var(--right-bg)}
 html.wq-adv .wq-dli.done .wq-drow{background:transparent}
-html.wq-adv .wq-rart{width:56px;height:56px;border-radius:16px;background:var(--land-bg)}
-html.wq-adv .wqa-art{flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:var(--land-bg);color:var(--land)}
+html.wq-adv .wq-rart{width:56px;height:56px;border-radius:var(--r-chip);background:var(--land-bg)}
+html.wq-adv .wqa-art{flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:var(--r-chip);background:var(--land-bg);color:var(--land)}
 html.wq-adv .wqa-art .wqa-i{width:30px;height:30px}
 html.wq-adv .wq-dspk{color:var(--land-vd)}
 html.wq-adv .wq-row{border-color:var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card)}
@@ -171,7 +173,7 @@ html.wq-adv .wqs-gl{--edge:#c9920b;background:var(--gold);color:#3b2a00;box-shad
 html.wq-adv .wqs-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3)}
 html.wq-adv .wqs-book{padding:var(--sp-2);border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card);-webkit-tap-highlight-color:transparent;transition:transform var(--dur-tap)}
 html.wq-adv .wqs-book:active{transform:translateY(3px)}
-html.wq-adv .wqs-cov{border-radius:14px;aspect-ratio:3/4}
+html.wq-adv .wqs-cov{border-radius:var(--r-chip);aspect-ratio:3/4}
 /* the reader's controls and the story page sit on the same paper */
 html.wq-adv .wqs-page,html.wq-adv .wq-bk-page{border:3px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card);overflow:hidden}
 
@@ -196,7 +198,7 @@ html.wq-adv .wqa-stamp{width:44px;height:44px;transform:rotate(-10deg)}
 html.wq-adv .wqa-stop .wqa-i{width:28px;height:28px}
 /* Jugnu on the Next tile's corner: "Next stop!" */
 html.wq-adv .wqa-bub{position:absolute;top:-30px;inset-inline-end:6px;display:flex;align-items:flex-end;gap:2px;pointer-events:none}
-html.wq-adv .wqa-bub span{margin-bottom:30px;padding:2px 10px;border-radius:12px;background:var(--ink);color:#fff;font-size:var(--fs-1);font-weight:800;white-space:nowrap}
+html.wq-adv .wqa-bub span{margin-bottom:30px;padding:2px 10px;border-radius:var(--r-chip);background:var(--ink);color:#fff;font-size:var(--fs-1);font-weight:800;white-space:nowrap}
 html.wq-adv .wqa-bub img{width:56px;height:56px}
 /* the stamp that pops on a finished thing */
 html.wq-adv .wqa-got{display:flex;align-items:center;justify-content:center;gap:var(--sp-3);margin:var(--sp-2) auto;padding:var(--sp-2) var(--sp-4);max-width:100%;border:2px solid var(--gold);border-radius:var(--r-card);background:var(--tint);font-weight:900;color:var(--ink)}
@@ -206,7 +208,7 @@ html.wq-adv .wqa-bar>i{position:absolute;inset-block:0;inset-inline-start:0;bord
 html.wq-adv .wqa-badge{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 14px;border-radius:999px;background:var(--tint);color:var(--ink);font-weight:800;box-shadow:inset 0 0 0 2px var(--gold)}
 html.wq-adv .wqa-badge .wqa-i{color:var(--gold-d)}
 /* the designed wait: soft blocks in the real shapes, a shimmer; never an empty message while data is in flight */
-html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait{border-radius:14px;background:linear-gradient(90deg,#efe3c4 0 40%,#f9f0d8 50%,#efe3c4 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
+html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait{border-radius:var(--r-chip);background:linear-gradient(90deg,#efe3c4 0 40%,#f9f0d8 50%,#efe3c4 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
 
 /* 8 · motion (WQA.move): each a one-shot; reduced motion gets a 150 ms fade and no movement */
 html.wq-adv .wqa-m-pop{animation:wqa-pop var(--dur-pop) var(--ease-pop)}

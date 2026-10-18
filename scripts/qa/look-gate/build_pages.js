@@ -3,9 +3,10 @@
  * The look gate's pages: the REAL page shells (dashboard renderHubPage / renderQuizPage) around invented boots, so
  * run_look.py can open every child screen as a phone and measure it (the page gutter, the button system, the
  * grown-ups hold). `--on` adds the one-button switch's field (`one_button: true`) to every boot, exactly as the bot's
- * answers carry it when app_settings web_quiz_one_button is on; without it the boots are today's.
+ * answers carry it when app_settings web_quiz_one_button is on; without it the boots are today's. `--adv` adds the
+ * adventure look's field (`adv: true`, web_quiz_adventure_look) on top of `--on` (the look is drawn only with it).
  *
- *   node build_pages.js <out_dir> [--on]   → <out_dir>/pages/<name>-<lang>.html + manifest.json
+ *   node build_pages.js <out_dir> [--on] [--adv]   → <out_dir>/pages/<name>-<lang>.html + manifest.json
  *
  * Invented children only ("Sana Testwala"). Needs no network, no database.
  */
@@ -40,8 +41,9 @@ function hubBoot(lang) {
 
 function main() {
   const out = path.resolve(process.argv[2] || path.join(__dirname, 'out'));
-  const on = process.argv.includes('--on');
-  const field = (p) => (on ? { ...p, one_button: true } : p);
+  const adv = process.argv.includes('--adv');
+  const on = adv || process.argv.includes('--on');
+  const field = (p) => (on ? { ...p, one_button: true, ...(adv ? { adv: true } : {}) } : p);
   fs.mkdirSync(path.join(out, 'pages'), { recursive: true });
   const manifest = [];
   for (const lang of ['en', 'ur']) {
@@ -62,8 +64,8 @@ function main() {
     fs.writeFileSync(path.join(out, 'pages', `quiz-${lang}.html`), html);
     manifest.push({ name: `quiz-${lang}`, kind: 'quiz', lang, path: `/q/quiz-${lang}`, code: q.code, filler: q.fillerQid, answer: Matrix.answers(q.item).right });
   }
-  fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ on, token: TOKEN, kid: KID, pages: manifest }, null, 1));
-  process.stdout.write(`look gate: ${manifest.length} pages (${on ? 'one_button on' : 'today'}) → ${out}\n`);
+  fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ on, adv, token: TOKEN, kid: KID, pages: manifest }, null, 1));
+  process.stdout.write(`look gate: ${manifest.length} pages (${adv ? 'one_button + adventure look on' : on ? 'one_button on' : 'today'}) → ${out}\n`);
 }
 
 if (require.main === module) main();
