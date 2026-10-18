@@ -141,14 +141,14 @@ describe('switch ON: each phase holds its own time (a slow read lands in its pha
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   /** The video bank (a data-phase read on the full home, the quick home and the library) answering SLOW ms late. */
   const slowBank = () => ({ ...deps(), Bank: { ...Bank, chipTree: async (...a) => { await sleep(SLOW); return Bank.chipTree(...a); } } });
-  /** The quick answer's switch read (a settings wait the home's route awaits) answering SLOW ms late. */
+  /** The quick answer's switch read (the page switches' one `.in` read, a settings wait the home's route awaits) answering SLOW ms late. */
   function slowPagedRead() {
     const from1 = supabase.from;
     supabase.from = (t) => {
       const b = from1(t);
       if (t !== 'app_settings') return b;
-      const eq1 = b.eq.bind(b);
-      b.eq = (k, v) => (v === PAGED ? { maybeSingle: async () => { await sleep(SLOW); return eq1(k, v).maybeSingle(); } } : eq1(k, v));
+      const in1 = b.in.bind(b);
+      b.in = (k, vs) => ([].concat(vs || []).includes(PAGED) ? { then: (ok, no) => sleep(SLOW).then(() => in1(k, vs)).then(ok, no) } : in1(k, vs));
       return b;
     };
   }
@@ -269,7 +269,7 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
     await new Promise((r) => srv.close(r)); srv = null;
     const cold = await warmHostRequest({ riderCold: true, rows: [{ key: TIMING, value: true }] });
     expect(cold.reads).toBe(today.reads);
-    expect(cold.switches).toEqual([PAGED]); // today: only the quick answer's switch (cold) is read
+    expect(cold.switches).toEqual([Flags.PAGE_KEYS.join('+')]); // today: only the quick answer's switch read (cold), the page switches' one read
     expect(cold.res.headers['server-timing']).toBeUndefined();
     expect(typeof Flags.resetTiming).toBe('function');
   });
@@ -294,7 +294,8 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
   });
 
   // today's app_settings reads per request (the base's product, the same fixture): every switch and flag cache cold, then warm
-  const TODAY = { homeCold: 6, homeWarm: 0, libraryWarm: 0, libraryCold: 1 };
+  // (home cold 5: the hub switches' read is shared by its concurrent callers, web-quiz-hub-flags flags(), one read not two)
+  const TODAY = { homeCold: 5, homeWarm: 0, libraryWarm: 0, libraryCold: 1 };
   test.each([['absent', []], ['the string "true"', [{ key: TIMING, value: 'true' }]], ['false', [{ key: TIMING, value: false }]]])('switch OFF (%s): today\'s settings reads per request, exactly (home cold / warm, library warm, library cold)', async (_, rows) => {
     const reads = async (ask) => { const before = tableReads(fake, 'app_settings'); await ask(); return tableReads(fake, 'app_settings') - before; };
     seed({ rows });
@@ -311,8 +312,9 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
 
   // the first home of a fresh process (every deploy restarts one): the file's warm-up above hides the reads of modules
   // loaded on first use, so this row loads every module new and pins that first answer's settings reads too
-  // (9 with the named-item switch's own first read, 10 with the story-counts switch's)
-  const FIRST_BOOT = { homeFirst: 10 };
+  // (9 with the named-item switch's own first read, 10 with the story-counts switch's, 9 with the hub switches' read shared
+  // by its concurrent callers)
+  const FIRST_BOOT = { homeFirst: 9 };
   test.each([['absent', []], ['the string "true"', [{ key: TIMING, value: 'true' }]], ['false', [{ key: TIMING, value: false }]]])('switch OFF (%s): the first home of a fresh process, today\'s settings reads exactly', async (_, rows) => {
     let homeFirst;
     await jest.isolateModulesAsync(async () => {
