@@ -57,12 +57,12 @@ function get(srv, path, headers = {}) {
   });
 }
 
-/** A portal process whose bot answers each call in turn from `answers`. */
-async function edge(answers) {
+/** A portal process whose bot answers each call in turn from `answers` (`logEvent`: the portal's log, when given). */
+async function edge(answers, logEvent) {
   const fetchImpl = () => Promise.resolve(answers.shift());
   const app = express();
   app.set('trust proxy', 1);
-  app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'test-internal-key', fetchImpl }));
+  app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'test-internal-key', fetchImpl, ...(logEvent ? { logEvent } : {}) }));
   return start(app);
 }
 
@@ -89,10 +89,13 @@ const SCENARIOS = {
   h_en_ur_phone: (plain) => [[jsonRes(200, HUB(on(plain))), jsonRes(200, HUB(on(plain)))], [`/h/${TOKEN}`, `/h/${TOKEN}`], { 'accept-language': 'ur-PK' }],
 };
 
-/** The second open's page, with the asset version written as V (it changes with any asset, not with this switch). */
-async function run(name, plain) {
+/**
+ * The second open's page, with the asset version written as V (it changes with any asset, not with this switch).
+ * `logEvent`: the portal's log for both opens (the default logger when not given).
+ */
+async function run(name, plain, { logEvent } = {}) {
   const [answers, paths, headers = {}] = SCENARIOS[name](plain);
-  const srv = await edge(answers);
+  const srv = await edge(answers, logEvent);
   try {
     await get(srv, paths[0], headers);
     const res = await get(srv, paths[1], headers);

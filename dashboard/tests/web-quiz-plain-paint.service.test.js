@@ -6,9 +6,10 @@
  * has not seen; a child's home from a link with no ?lang=), today it guesses English, so an Urdu child sees English,
  * left-to-right, with an English opening line and an English tab title for the whole wait. On, a guessed head says no
  * words in any language: the brand's name as the title, an empty opening line, and the language and direction from the
- * link's ?lang= or else left to the one fix line the page already gets when the bot answers. A head that is known (a
- * code this process has seen, a home link with ?lang=) is today's, and off every page is today's, byte for byte
- * (plain-paint-off-golden.json, recorded on the code before this switch).
+ * link's ?lang= or else left to the one fix line the page already gets when the bot answers (a link's ?lang= is a
+ * guess too: the bot decides whether it wins). A head that is known (a code this process has seen) is today's, and off
+ * every page is today's, byte for byte (plain-paint-off-golden.json, recorded on the code before this switch).
+ * On, each early head also logs one `web_quiz.first_head` event { path, guess, plain }, and nothing else.
  */
 const GOLDEN = require('./fixtures/plain-paint-off-golden.json');
 const { SCENARIOS, run } = require('./fixtures/plain-paint-scenarios');
@@ -97,15 +98,49 @@ describe('switch on: a guessed head says no words', () => {
     expect(res.body).toMatch(/h\.lang="en";h\.dir="ltr"/);
   });
 
-  test('a home link that names its language (?lang=ur): today\'s head, byte for byte', async () => {
+  test('a home link that names its language (?lang=ur, a guess too): that language and direction, still no words', async () => {
     const res = await run('h_ur_lang', true);
-    expect(early(res.body)).toBe(early(GOLDEN.h_ur_lang.body));
+    const top = early(res.body);
+    expect(top).toMatch(/<html lang="ur" dir="rtl"/);
+    expect(english(top)).toEqual([]);
+    expect(top).toMatch(/<title>NIETE<\/title>/);
+    expect(res.body).not.toMatch(/h\.lang=/);
+    expect(res.body).toMatch(/b\.textContent="کھل رہا ہے…"/);
   });
 
   test('the rest of the page (the boot JSON aside) is today\'s: the same scripts in the same order', async () => {
     const tags = (s) => s.match(/<script src="[^"]+" defer><\/script>|<link rel="stylesheet" href="[^"]+">/g);
     for (const name of ['q_miss_ur', 'h_ur_en_phone']) {
       expect(tags((await run(name, true)).body)).toEqual(tags(GOLDEN[name].body));
+    }
+  });
+});
+
+describe('the first_head event (on only): how each early head was known, and nothing else', () => {
+  const heads = async (name, plain) => {
+    const seen = [];
+    await run(name, plain, { logEvent: (e, p) => { if (e === 'web_quiz.first_head') seen.push(p); } });
+    return seen;
+  };
+  test.each([
+    ['q_miss_ur', { path: 'q', guess: 'miss', plain: true }],
+    ['q_miss_en', { path: 'q', guess: 'miss', plain: true }],
+    ['q_miss_ur_lang', { path: 'q', guess: 'lang', plain: true }],
+    ['q_hit_ur', { path: 'q', guess: 'hit', plain: true }],
+    ['h_ur_en_phone', { path: 'h', guess: 'miss', plain: true }],
+    ['h_ur_lang', { path: 'h', guess: 'lang', plain: true }],
+  ])('%s: one event for the early head, with exactly path, guess and plain', async (name, want) => {
+    expect(await heads(name, true)).toEqual([want]);
+  });
+
+  test.each(Object.keys(SCENARIOS))('switch off, %s: no first_head event', async (name) => {
+    expect(await heads(name, false)).toEqual([]);
+  });
+
+  test('the event changes no byte of the page', async () => {
+    for (const name of Object.keys(SCENARIOS)) {
+      const logged = await run(name, true, { logEvent: () => {} });
+      expect(logged).toEqual(await run(name, true));
     }
   });
 });
