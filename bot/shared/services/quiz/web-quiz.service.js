@@ -1892,8 +1892,9 @@ async function board(code, { st } = {}) {
   if (await doors) {
     out.class_doors = true;
     // The child's own class as the teacher's report reads it (what the child typed, one format), and whether every
-    // row is of it: the page titles the table "Class 3" only then.
-    const classOf = (r) => normaliseClasses([r.studentClass])[0] || null;
+    // row is of it: the page titles the table "Class 3" only then. Only a grade number counts: the field is free text,
+    // and on real rows it sometimes holds a word or a name, which must never become a title.
+    const classOf = (r) => { const c = normaliseClasses([r.studentClass])[0]; return /^(1[0-2]|[1-9])$/.test(c || '') ? c : null; };
     const mc = me && classOf(me);
     if (mc) { out.my_class = mc; out.one_class = ranked.every((r) => classOf(r) === mc); }
   }

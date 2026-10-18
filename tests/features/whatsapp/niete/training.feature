@@ -1514,6 +1514,7 @@ Feature: NIETE (ICT) Teacher Training
     And Play from that table opens the quiz page itself, in the quiz's own language
     And the class table is titled with the child's own class when every child on it is in that class, else "Your class"
     And a viewer the table does not know sees today's title
+    And a class field that is not a grade number (a word, a name) never becomes the title: the child sees "Your class"
     And the class table's and the league's share links carry the language of the page they were shared from
     But a link with no language, or with a language other than English or Urdu, opens in the quiz's language as today
     And with web_quiz_class_doors off every page, answer and link is exactly as it is today

@@ -536,6 +536,12 @@ describe('E6 GET board (the class league table)', () => {
     expect(cold).not.toHaveProperty('my_class');
     // the rows never carry a child's class
     expect(Object.keys(mixed.rows[0]).sort()).toEqual(['animal', 'correct', 'first', 'place', 'total']);
+    // free text in the class field (a word, a name) is never the child's class: no title, no chip
+    fake.db.quiz_sessions.find((r) => r.id === sid).student_class = 'Iqra Testwala';
+    const typed = await WQ.board('AB12CD', { st: s.st });
+    expect(typed).not.toHaveProperty('my_class');
+    expect(typed).not.toHaveProperty('only');
+    expect(JSON.stringify(typed)).not.toContain('Testwala"');
     CD._resetCache();
   });
 
