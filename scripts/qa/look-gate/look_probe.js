@@ -9,7 +9,7 @@
  *            middle sits from the box's middle
  *   primary  the [data-primary]'s bottom against innerHeight
  *   radii    the distinct corner radii of the boxes a child sees (a circle counts once, as 'circle'); a glyph
- *            ([aria-hidden=true]: a shape marker, the brand mark) is not a box and is not counted
+ *            ([aria-hidden=true] or an answer's shape marker .wq-shp; the brand mark) is not a box and is not counted
  * It reads only; it changes nothing on the page.
  */
 () => {
@@ -76,7 +76,7 @@
   }
   const radii = new Set();
   document.querySelectorAll('body *').forEach((e) => {
-    if (!vis(e) || !boxy(e) || e.closest('svg,[aria-hidden=true]') || e.matches('.wq-app,.wq-boot,.wq-boot *')) return;
+    if (!vis(e) || !boxy(e) || e.closest('svg,[aria-hidden=true],.wq-shp') || e.matches('.wq-app,.wq-boot,.wq-boot *')) return;
     const s = cs(e); const r = e.getBoundingClientRect(); const v = parseFloat(s.borderTopLeftRadius) || 0;
     if (v <= 0) return;
     radii.add(/%$/.test(s.borderTopLeftRadius) || v >= Math.min(r.width, r.height) / 2 - EPS ? 'circle' : Math.round(v) + 'px');
