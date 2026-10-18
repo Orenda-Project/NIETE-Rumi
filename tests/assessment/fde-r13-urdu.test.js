@@ -37,6 +37,7 @@ const Gen = require('../../bot/shared/services/assessment/assessment-generation.
 
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const U = Patterns.get('fde_g5_2027').subjects.urdu;
 const FDE = { kind: 'fde', chapters: null, pages: null };
@@ -85,7 +86,9 @@ describe('Section A never gives Section C away', () => {
     const after = q1Stems(laid(name));
     for (const s of HELD[name]) expect(after).not.toContain(s);
     // Nothing else is held: every other first-reply item stays (full_2's repeated MCQ once).
-    const kept = q1Stems(papers[name]).filter((s) => !HELD[name].includes(s));
+    // The full syllabus asks the antonym and the synonym once: their later items are held too.
+    const again = conceptRepeats(items(papers[name], 'urdu.A.Q1'));
+    const kept = q1Stems(papers[name]).filter((s) => !HELD[name].includes(s) && !again.includes(s));
     if (name === 'full_2') kept.splice(kept.lastIndexOf(BIRTH_NAME), 1);
     // A stem that prints another Q1 item's key holds that item: Q1 ۱۹ asks the name for a word group three earlier stems print
     // («… یہ الفاظ کس کے متلازم ہیں؟» → «متلازم الفاظ»).

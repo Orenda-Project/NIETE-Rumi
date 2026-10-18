@@ -145,6 +145,16 @@ describe('wq.css: the one button component', () => {
     expect(CSS).toContain('html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--secondary,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
     expect(CSS).not.toMatch(/--btn-h2-ur/);
   });
+  test('the school league\'s chips and its "still to start" fold row are full-size targets (--tap) under wq-1b, with or without the class doors', () => {
+    expect(CSS).toContain('html.wq-1b .wq-schips .wq-chip{min-height:var(--tap);min-width:var(--tap);justify-content:center}');
+    // a list-item, never flex: a flex <summary> loses its ▸ marker, the only cue that the row opens
+    expect(CSS).toContain('html.wq-1b .wq-zero-list summary{display:list-item;min-height:var(--tap);padding-block:12px;line-height:24px}');
+    expect(CSS).toContain('html.wq-1b[lang=ur] .wq-zero-list summary{padding-block:6px;line-height:inherit}');
+    // the fold box is a card, so the league draws three radii
+    expect(CSS).toContain('html.wq-1b .wq-zero-list{border-radius:var(--r-card)}');
+    // off: today's 40 px chip is untouched
+    expect(CSS).toContain('.wq-schips .wq-chip{border:2px solid var(--line);font-size:14px;min-height:40px}');
+  });
   test('the Urdu button sizes come from the tokens, not literals', () => {
     expect(CSS).toContain('html[lang=ur] .wq-btn{font-weight:700;font-size:var(--btn-fs-ur);line-height:1.9}');
     expect(CSS).toContain('html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur);');
@@ -163,7 +173,7 @@ describe('wq-tel.js: the class on <html>', () => {
   const run = (boot) => {
     const cls = new Set();
     const doc = {
-      documentElement: { classList: { add: (c) => cls.add(c) } },
+      documentElement: { classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c) } },
       getElementById: (id) => (id === 'boot' ? { textContent: JSON.stringify(boot) } : null),
     };
     const win = {};
@@ -184,6 +194,25 @@ describe('wq-tel.js: the class on <html>', () => {
     W.oneButton({ one_button: 'yes' });
     expect(cls.size).toBe(0);
     W.oneButton({ one_button: true });
+    expect(cls.has('wq-1b')).toBe(true);
+  });
+  test('by default a later answer never takes the class off (a page\'s own calls only add)', () => {
+    const { cls, W } = run({ one_button: true });
+    W.oneButton({});
+    W.oneButton(null);
+    expect(cls.has('wq-1b')).toBe(true);
+  });
+  test('exact (a page that drew a kept copy re-reads its live answer): the class follows the answer both ways', () => {
+    const { cls, W } = run({ one_button: true });
+    W.oneButton({ kids: [] }, true);
+    expect(cls.has('wq-1b')).toBe(false);
+    W.oneButton({ one_button: true }, true);
+    expect(cls.has('wq-1b')).toBe(true);
+    W.oneButton({ one_button: 'true' }, true);
+    expect(cls.has('wq-1b')).toBe(false);
+    // no answer at all (a failed read) is not an answer: nothing changes
+    W.oneButton({ one_button: true }, true);
+    W.oneButton(null, true);
     expect(cls.has('wq-1b')).toBe(true);
   });
 });

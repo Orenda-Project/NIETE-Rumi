@@ -397,8 +397,11 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
       // "quiz" in any bare spelling is the child's /quiz, not a school
       // question for the tutor: 121 of 126 children who typed it in the two
       // weeks to 24 Sep 2026 got a chat answer instead of their quizzes.
-      if (!isCommand && QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(body)) {
+      // a shared card's words with its ref (web_quiz_share_v4 on) are the menu too; without a ref nothing is read
+      if (!isCommand && QuizMenuFlags.bareTextToMenu() && (isQuizMenuRequest(body) || await require('./quiz/web-quiz-share-open').refMenu(body))) {
         logEvent('quiz_menu.requested', { userId: user.id || null, route: 'child_quizzes', trigger: 'ingress' });
+        // the card's item is kept for this phone, so the home link this sends opens it
+        await require('./quiz/web-quiz-share-open').note(from, body);
         await openQuizzes(from, language);
         return true;
       }

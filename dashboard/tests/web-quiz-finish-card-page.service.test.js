@@ -720,6 +720,12 @@ describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-car
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect(l.trim()).toMatch(/^if \(window\.WQFC/);
   });
+  test('one button switch: the sound button shares the main button\'s row (its own row was ~60 px of a 360 x 800 screen)', () => {
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc{grid-template-columns:minmax(0,1fr) auto;grid-auto-flow:row dense}');
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc>*{grid-column:1/-1}');
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc>.wqfc-snd{grid-column:2;align-self:center}');
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc>[data-primary]{grid-column:1}');
+  });
   test('the stylesheet the story reader asks for is the card\'s own CSS (the one button lines apply only under wq-1b)', () => {
     expect(FC.CSS_1B.split('}').filter(Boolean).every((r) => r.startsWith('html.wq-1b'))).toBe(true);
     expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS + FC.CSS_1B);

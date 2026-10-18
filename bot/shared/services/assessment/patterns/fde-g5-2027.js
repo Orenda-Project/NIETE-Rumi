@@ -742,15 +742,24 @@ const URDU = {
   poems: [
     { unit: 7, pages: '63-64', title: 'ندی کی فریاد', poet: 'کوثر صدیقی' },
   ],
+  // The book's own worked ارکان splits, as the page store prints them: each lesson's ارکان exercise
+  // splits only its first word, and these two are the ones whose parts the store has whole (p.51
+  // «دامن» دا / من; p.62 «غلاظت» غ / لا / ظت). A Q4 key that splits one of these words splits it so.
+  syllables: [
+    { word: 'دامن', parts: ['دا', 'من'], page: 51 },
+    { word: 'غلاظت', parts: ['غ', 'لا', 'ظت'], page: 62 },
+  ],
   // Each lesson's book pages and the grammar its own «قواعد کا میدان» section teaches, as the page
   // store has them. On chosen lessons or pages, Q1 asks grammar from the chosen lessons' list only.
   // `tags` are the layout's names for a concept it can recognise in an item; `q4` marks a kind Q4 asks
   // on every paper, which Q1 never asks.
+  // `poem`: the lesson's text is a poem, not prose (lesson 7, «ندی کی فریاد»); lessons with one prose text
+  // among them are one story.
   lessons: [
     { lesson: 4, pages: '28-37', grammar: [{ ur: 'متضاد الفاظ', tags: ['antonym'] }] },
     { lesson: 5, pages: '38-49', grammar: [{ ur: 'مترادف الفاظ', tags: ['synonym'] }, { ur: 'متضاد الفاظ', tags: ['antonym'] }, { ur: 'تمنائی اور شکیہ جملے', tags: ['wish', 'doubt'] }] },
     { lesson: 6, pages: '50-60', grammar: [{ ur: 'متشابہ الفاظ', tags: ['homograph'] }] },
-    { lesson: 7, pages: '61-70', grammar: [{ ur: 'گروہی الفاظ', q4: true }] },
+    { lesson: 7, pages: '61-70', poem: true, grammar: [{ ur: 'گروہی الفاظ', q4: true }] },
     { lesson: 8, pages: '71-82', grammar: [{ ur: 'حروفِ عطف', tags: ['conjunction'] }, { ur: 'حروفِ شرط و جزا', tags: ['condition'], q4: true }] },
     { lesson: 9, pages: '83-94', grammar: [{ ur: 'رموزِ اوقاف' }] },
     {
