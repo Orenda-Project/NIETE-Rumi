@@ -61,6 +61,7 @@ const Flag = (() => { try { return require('../../shared/services/quiz/report-se
 const FoldFlag = require('../../shared/services/quiz/report-fold-flag');
 const HomeFlag = require('../../shared/services/first-touch/teacher-home.flags');
 const { throwOn } = require('../helpers/switch-off-matrix');
+const Group = (() => { try { return require('../../shared/services/settings-group'); } catch (_) { return null; } })();
 
 const KEY = 'quiz_report_send_checked';
 const SC = '6b1c0f0e-0000-4000-8000-0000000005c2';
@@ -80,15 +81,16 @@ const KINDS = [
 let order = [];
 let db = null;
 
-function stubDb({ source, sessions, setting }) {
+function stubDb({ source, sessions, setting, settings = null, meta = null }) {
   db = {
-    app_settings: setting === undefined ? [] : [{ key: KEY, value: setting }],
+    // `settings` = every app_settings row, in this order (a row's place in the answer); else this key's row alone
+    app_settings: settings || (setting === undefined ? [] : [{ key: KEY, value: setting }]),
     quiz_share_codes: [{
       id: SC, code: 'TST7AB', quiz_id: QUIZ, teacher_user_id: TEACHER, teacher_name: 'Sana Testwala',
       topic: 'Fractions', language: 'en', created_at: iso(20 * 60 * MIN), report_sent_at: null,
     }],
     users: [{ id: TEACHER, phone_number: TEACHER_PHONE, preferred_language: 'en', name: 'Sana Testwala' }],
-    quizzes: [{ id: QUIZ, teacher_id: TEACHER, meta: source === 'story' ? { story: { book_id: 'b1', lang: 'en' } } : {}, quiz_source: source, topic: 'Fractions', language: 'en', subject: 'maths', grade: '4' }],
+    quizzes: [{ id: QUIZ, teacher_id: TEACHER, meta: { ...(source === 'story' ? { story: { book_id: 'b1', lang: 'en' } } : {}), ...(meta || {}) }, quiz_source: source, topic: 'Fractions', language: 'en', subject: 'maths', grade: '4' }],
     quiz_sessions: Array.from({ length: sessions }, (_, i) => ({
       id: `s${i}`, share_code_id: SC, user_id: null, invited_by_student_id: null, student_id: null,
       student_name: `Child${i + 1} Testwala`, student_class: '4', parent_phone: null, status: 'completed', device_ref: null,
@@ -153,6 +155,28 @@ const BASE_READS = {
 const baseReadsOf = (kind) => BASE_READS[kind.source === 'story' ? 'story' : (kind.sessions ? 'finished' : 'noOne')];
 const reads = (n) => ({ app_settings: n.app_settings || 0, quizzes: n.quizzes || 0 });
 
+// The same with one host switch read first (as another caller in the process would), recorded on the code before the
+// switch: `fold` = report-fold-flag on(), `home` = first-touch/teacher-home.flags on(), `both` = the two.
+const HOSTS = ['fold', 'home', 'both'];
+const warmHost = async (host) => {
+  if (host !== 'home') await FoldFlag.on();
+  if (host !== 'fold') await HomeFlag.on();
+};
+const BASE_HOST_WARM = {
+  story: { fold: { app_settings: 0, quizzes: 4 }, home: { app_settings: 1, quizzes: 4 }, both: { app_settings: 0, quizzes: 4 } },
+  noOne: { fold: { app_settings: 1, quizzes: 2 }, home: { app_settings: 0, quizzes: 2 }, both: { app_settings: 0, quizzes: 2 } },
+  finished: { fold: { app_settings: 1, quizzes: 2 }, home: { app_settings: 1, quizzes: 2 }, both: { app_settings: 0, quizzes: 2 } },
+};
+// The one named extra read: a quiz nobody took (it makes no fold read, so nothing has carried this key), the fold
+// switch not read by another caller within 30 s, and the switch asked (WhatsApp refused the report). This key never
+// rides the teacher home switch's read, so the question reads this key alone: 1, at most once per 30 s per process.
+const noFoldRead = (kind) => kind.source !== 'story' && !kind.sessions;
+const namedExtra = (kind, host, answer) => (noFoldRead(kind) && host !== 'fold' && host !== 'both' && answer !== true ? 1 : 0);
+// Switch on and the send refused, nothing is stamped, so a quiz report skips the stamp's teacher home read (when that
+// switch is not already fresh): one read fewer than the base.
+const noStampRead = (kind, host) => (kind.source !== 'story' && host !== 'home' && host !== 'both' ? 1 : 0);
+const baseHostWarmOf = (kind, host) => BASE_HOST_WARM[kind.source === 'story' ? 'story' : (kind.sessions ? 'finished' : 'noOne')][host];
+
 const stamped = () => db.quiz_share_codes[0].report_sent_at;
 const events = (name) => logEvent.mock.calls.filter((c) => c[0] === name);
 const retries = () => Queue.queueJob.mock.calls.filter((c) => /retry/.test(String((c[3] || {}).deduplicationId)));
@@ -208,7 +232,7 @@ describe.each(KINDS)('%s', (_, kind) => {
       const base = baseReadsOf(kind);
       const cold = countReads();
       expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
-      expect(reads(cold)).toEqual(base.cold);
+      expect(reads(cold)).toEqual({ ...base.cold, app_settings: base.cold.app_settings + namedExtra(kind, 'cold', answer) });
       // the next report (a fresh code row), the 30 s caches still warm
       stubDb({ ...kind, setting });
       whatsappAnswers(answer);
@@ -216,6 +240,55 @@ describe.each(KINDS)('%s', (_, kind) => {
       expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
       expect(reads(warm)).toEqual(base.warm);
       expect(order).toEqual(['send', 'markSent', 'event', 'send', 'markSent', 'event']);
+    });
+  });
+
+  describe('a host switch read first by another caller, this switch never read: today\'s reads, exactly', () => {
+    test.each(HOSTS.flatMap((h) => [[h, 'absent', true, undefined], [h, 'absent', false, undefined], [h, 'JSON false', false, false]]))(
+      '%s read first; key %s; send answers %s: reads == the base with that host warm', async (host, _n, answer, setting) => {
+        stubDb({ ...kind, setting });
+        whatsappAnswers(answer);
+        await warmHost(host);
+        const n = countReads();
+        expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+        expect(order).toEqual(['send', 'markSent', 'event']);
+        const base = baseHostWarmOf(kind, host);
+        expect(reads(n)).toEqual({ ...base, app_settings: base.app_settings + namedExtra(kind, host, answer) });
+      });
+
+    test.each(HOSTS)('%s read first; switch on, send refused: the base\'s reads, less the stamp\'s, plus only the named one', async (host) => {
+      stubDb({ ...kind, setting: true });
+      whatsappAnswers(false);
+      await warmHost(host);
+      const n = countReads();
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(false);
+      expect(stamped()).toBeNull();
+      expect(events(kind.failed)).toHaveLength(1);
+      expect(reads(n).app_settings).toBe(baseHostWarmOf(kind, host).app_settings - noStampRead(kind, host) + namedExtra(kind, host, false));
+    });
+  });
+
+  describe('switch off after an on period: three refusals left on the quiz row change nothing', () => {
+    test.each([['absent', undefined], ['JSON false', false]])('key %s, the code holds 3 refused sends: the report is still sent and stamped, as today', async (_n, setting) => {
+      stubDb({ ...kind, setting, meta: { report_send_failures: { [SC]: 3 } } });
+      whatsappAnswers(true);
+      const n = countReads();
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+      expect(order).toEqual(['send', 'markSent', 'event']);
+      expect(stamped()).not.toBeNull();
+      expect(events('video_quiz.report_suppressed')).toHaveLength(0);
+      // cold: the fold read (story, finished) carries the question; a report nobody finished pays the one named read
+      const base = baseReadsOf(kind).cold;
+      expect(reads(n)).toEqual({ ...base, app_settings: base.app_settings + (noFoldRead(kind) ? 1 : 0) });
+    });
+
+    test('key on, the code holds 3 refused sends: nothing is sent', async () => {
+      stubDb({ ...kind, setting: true, meta: { report_send_failures: { [SC]: 3 } } });
+      whatsappAnswers(true);
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(false);
+      expect(teacherSends()).toBe(0);
+      expect(stamped()).toBeNull();
+      expect(events('video_quiz.report_suppressed')).toHaveLength(1);
     });
   });
 
@@ -319,5 +392,160 @@ describe.each(KINDS)('%s', (_, kind) => {
       expect(stamped()).not.toBeNull();
       expect(events('quiz_funnel.report_sent')).toHaveLength(1);
     });
+  });
+});
+
+// The fold switch's one settings read carries this key: the read itself, a prime from outside, and its failure.
+describe('the fold switch\'s read carries the send check', () => {
+  const FOLD = 'quiz_report_fold_by_child';
+  /** app_settings queries from here on: `eq:<key>` or `in:<k1,k2>`. */
+  function settingsQueries() {
+    const inner = supabase.from.getMockImplementation();
+    const q = [];
+    supabase.from.mockImplementation((table) => {
+      const b = inner(table);
+      if (table !== 'app_settings') return b;
+      const { eq, in: within } = b;
+      b.eq = (col, v) => { if (col === 'key') q.push(`eq:${v}`); return eq.call(b, col, v); };
+      b.in = (col, vs) => { if (col === 'key') q.push(`in:${[].concat(vs).join(',')}`); return within.call(b, col, vs); };
+      return b;
+    });
+    return q;
+  }
+  const kindOf = (name) => KINDS.find(([n]) => n === name)[1];
+
+  test('one query for both keys: the fold read primes the switch, which then answers with no read', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it'), settings: [{ key: FOLD, value: false }, { key: KEY, value: true }] });
+    const q = settingsQueries();
+    expect(await FoldFlag.on()).toBe(false);
+    expect(q).toEqual([`in:${FOLD},${KEY}`]);
+    expect(await Flag.on()).toBe(true);
+    expect(q).toHaveLength(1);
+  });
+
+  test.each([
+    ['fold row first: fold true, this key false', [{ key: FOLD, value: true }, { key: KEY, value: false }], true, false],
+    ['this key first: this key false, fold true', [{ key: KEY, value: false }, { key: FOLD, value: true }], true, false],
+    ['fold row first: fold false, this key true', [{ key: FOLD, value: false }, { key: KEY, value: true }], false, true],
+    ['this key first: this key true, fold false', [{ key: KEY, value: true }, { key: FOLD, value: false }], false, true],
+  ])('each switch answers its own row, never the row in a given place (%s)', async (_n, settings, fold, mine) => {
+    stubDb({ ...kindOf('quiz report, nobody took it'), settings });
+    expect(await FoldFlag.on()).toBe(fold);
+    expect(await Flag.on()).toBe(mine);
+  });
+
+  test('only this key\'s read fails: the fold switch\'s own answer is unchanged (true), read alone; this switch is off, held 30 s', async () => {
+    stubDb({ ...kindOf('quiz report, the class finished'), settings: [{ key: FOLD, value: true }, { key: KEY, value: true }] });
+    supabase.from.mockImplementation(throwOn(supabase.from.getMockImplementation(), KEY));
+    const q = settingsQueries();
+    expect(await FoldFlag.on()).toBe(true);
+    // the fallback reads the fold key alone: no rider rides it
+    expect(q).toEqual([`in:${FOLD},${KEY}`, `eq:${FOLD}`]);
+    expect(await Flag.on()).toBe(false);
+    expect(q).toHaveLength(2);
+  });
+
+  test('only this key\'s read fails, a refused report with the class finished: still stamped, as today; fold answered true', async () => {
+    stubDb({ ...kindOf('quiz report, the class finished'), settings: [{ key: FOLD, value: true }, { key: KEY, value: true }] });
+    supabase.from.mockImplementation(throwOn(supabase.from.getMockImplementation(), KEY));
+    whatsappAnswers(false);
+    expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+    expect(stamped()).not.toBeNull();
+    expect(await FoldFlag.on()).toBe(true);
+  });
+
+  test('(a) a prime that asked for the whole group: the switch is seen ON with 0 reads', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it') });
+    const q = settingsQueries();
+    const asked = Group.groupKeys(FOLD);
+    expect(asked).toEqual([FOLD, KEY]);
+    expect(FoldFlag.prime([{ key: KEY, value: true }], Date.now(), asked)).toBe(false);
+    expect(await Flag.on()).toBe(true);
+    expect(await FoldFlag.on()).toBe(false);
+    expect(q).toEqual([]);
+  });
+
+  test('(a) an asked key with no row is off, with no read', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it') });
+    const q = settingsQueries();
+    FoldFlag.prime([{ key: FOLD, value: true }], Date.now(), [FOLD, KEY]);
+    expect(await Flag.on()).toBe(false);
+    expect(await FoldFlag.on()).toBe(true);
+    expect(q).toEqual([]);
+  });
+
+  test.each([['undefined', undefined], ['null', null], ['{}', {}], ['the fold key alone', [FOLD]], ['this key alone', [KEY]]])(
+    '(b) a prime whose asked list is %s throws, and primes nothing', async (_n, asked) => {
+      stubDb({ ...kindOf('quiz report, nobody took it'), setting: true });
+      expect(() => FoldFlag.prime([{ key: FOLD, value: true }, { key: KEY, value: false }], Date.now(), asked)).toThrow(/every key/);
+      const q = settingsQueries();
+      // nothing was primed: the switch reads its own (true) row
+      expect(await Flag.on()).toBe(true);
+      expect(q).toEqual([`eq:${KEY}`]);
+    });
+
+  test.each([['quiz report, nobody took it'], ['quiz report, the class finished'], ['story report']])(
+    '(c) %s: the fold switch fresh, this switch\'s row cold, switch on, send refused: exactly one read more, and not stamped', async (name) => {
+      const kind = kindOf(name);
+      stubDb({ ...kind, setting: true });
+      whatsappAnswers(false);
+      await FoldFlag.on();
+      Flag.reset();
+      const n = countReads();
+      expect(await report.generate(SC, { reason: 'scheduled' })).toBe(false);
+      expect(stamped()).toBeNull();
+      expect(reads(n).app_settings).toBe(baseHostWarmOf(kind, 'fold').app_settings - noStampRead(kind, 'fold') + 1);
+    });
+
+  test('past the 30 s edge the switch never answers from the old read: one read of its own', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it'), settings: [{ key: FOLD, value: false }, { key: KEY, value: false }] });
+    const t0 = Date.now();
+    await FoldFlag.on(t0);
+    db.app_settings = [{ key: FOLD, value: false }, { key: KEY, value: true }];
+    const q = settingsQueries();
+    expect(await Flag.on(t0 + 29 * 1000)).toBe(false);
+    expect(q).toEqual([]);
+    expect(await Flag.on(t0 + 30 * 1000)).toBe(true);
+    expect(q).toEqual([`eq:${KEY}`]);
+    expect(await Flag.on(t0 + 31 * 1000)).toBe(true);
+    expect(q).toHaveLength(1);
+  });
+
+  test('the fold switch stale (past 30 s), this switch cold: it reads its own row and answers the fresh value', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it'), settings: [{ key: FOLD, value: false }, { key: KEY, value: true }] });
+    const t0 = Date.now();
+    await FoldFlag.on(t0);
+    db.app_settings = [{ key: FOLD, value: false }, { key: KEY, value: false }];
+    const q = settingsQueries();
+    expect(await Flag.on(t0 + 31 * 1000)).toBe(false);
+    expect(q).toEqual([`eq:${KEY}`]);
+  });
+
+  test('a good read at t0, the shared read failing at t0 + 31 s: this switch never answers the t0 value', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it'), settings: [{ key: FOLD, value: false }, { key: KEY, value: true }] });
+    const t0 = Date.now();
+    await FoldFlag.on(t0);
+    expect(await Flag.on(t0)).toBe(true);
+    supabase.from.mockImplementation(throwOn(supabase.from.getMockImplementation(), KEY));
+    expect(await FoldFlag.on(t0 + 31 * 1000)).toBe(false);
+    expect(await Flag.on(t0 + 31 * 1000)).toBe(false);
+  });
+
+  test.each([['the string "true"', 'true'], ['the string "\\"true\\""', '"true"'], ['1', 1], ['{enabled: true}', { enabled: true }]])(
+    'on the shared read, %s is OFF', async (_n, value) => {
+      stubDb({ ...kindOf('quiz report, nobody took it'), settings: [{ key: FOLD, value: false }, { key: KEY, value }] });
+      const q = settingsQueries();
+      await FoldFlag.on();
+      expect(await Flag.on()).toBe(false);
+      expect(q).toEqual([`in:${FOLD},${KEY}`]);
+    });
+
+  test('the teacher home switch\'s read never carries this key', async () => {
+    stubDb({ ...kindOf('quiz report, nobody took it'), setting: true });
+    const q = settingsQueries();
+    await HomeFlag.on();
+    expect(q).toEqual(['eq:quiz_teacher_home']);
+    expect(await Flag.on()).toBe(true);
+    expect(q).toEqual(['eq:quiz_teacher_home', `eq:${KEY}`]);
   });
 });

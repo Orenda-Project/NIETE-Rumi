@@ -359,8 +359,10 @@ quiz_funnel.<stage>  { quiz_id, source, channel, teacher_id?, nudge_id?, session
 a teacher's class report (quiz or storybook) is stamped sent (`report_sent_at`, `report_sent`) only when WhatsApp accepted it.
 A refusal (or a throw) is not stamped, is counted on `quizzes.meta.report_send_failures`, and the report is queued again in
 15 min; the third refusal logs `report_gave_up` and automatic runs stop (the web report stays; the teacher's /quiz ask still tries).
-Off: today's sends, stamps and their order exactly, and no app_settings read of its own: the switch is asked only when WhatsApp
-refused a report, and it rides the report's existing reads (`quiz_report_fold_by_child`, `quiz_teacher_home`) in the same query.
+Off: today's sends, stamps and their order exactly. The switch is asked only when WhatsApp refused a report (or for a code that
+already holds three refusals), and it rides the fold switch's read (`quiz_report_fold_by_child`) in the same query, so the story
+report and the report with finishers read nothing new. A report nobody finished makes no fold read: there a refusal costs one
+read of this key (at most once per 30 s per process). It never rides the `quiz_teacher_home` read.
 The chat quiz's report (`quiz_report` job) rides the same switch: on, its "already fired" flag (`quiz_report_sent:<quizId>`) is set only
 when WhatsApp took the report; a refusal logs `quiz_report_send_failed` (`quiz_h`, `tk`, `tries`; counted in Redis
 `quiz_report_send_tries:<quizId>`), the job is queued again in 15 min, and the third refusal logs `report_gave_up`
