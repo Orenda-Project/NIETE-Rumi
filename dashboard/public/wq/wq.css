@@ -515,6 +515,8 @@ html[lang=ur] .wq-who .wq-kid{font-weight:700;line-height:1.7;font-size:16px}
 .wq-askon .wq-in{gap:4px;padding:10px 14px}
 html[lang=ur] .wq-askon .wq-name,html[lang=ur] .wq-askon .wq-praise{line-height:1.5;margin:0}
 
+/* Jugnu over a loading list's skeleton (html.wq-1b .wq-dskel::after) */
+@keyframes wq-skjug{from{opacity:1;transform:translateY(0)}to{opacity:1;transform:translateY(-12px)}}
 /* ONE button system (app_settings web_quiz_one_button → the bot's `one_button` → wq-tel.js puts `wq-1b` on <html>).
    Every value is a :root token above, so a look changes tokens only. Three kinds, one skin family:
      main     .wq-btn (.wq-go / .wq-navy): --btn-h tall, --r-btn round, a --btn-d ledge that presses down;
@@ -873,5 +875,3 @@ html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m 
 html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
 html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
-/* Jugnu over a loading list's skeleton (html.wq-1b .wq-dskel::after) */
-@keyframes wq-skjug{from{opacity:1;transform:translateY(0)}to{opacity:1;transform:translateY(-12px)}}
