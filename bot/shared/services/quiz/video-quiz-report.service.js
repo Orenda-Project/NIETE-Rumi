@@ -946,6 +946,7 @@ async function loadClassRows(shareCodeId) {
       sessionId: s.id, studentId: s.student_id || null, name: s.student_name || '',
       correct: s.correct_answers || 0, total: s.total_questions_answered || 0,
       pct: s.mastery_percentage || 0, completedAt: s.completed_at || null, phone: s.parent_phone || null,
+      studentClass: s.student_class || null,
     })),
   };
 }
