@@ -177,3 +177,20 @@ describe('the switch read (closed-inline-switch)', () => {
   });
   it('reads the closed_inline row', () => { expect(Sw.INLINE_KEY).toBe('web_quiz_closed_inline'); });
 });
+
+describe('ON, a closed class link the bot says this phone may be known on (`known: true`, web_quiz_link_known_child)', () => {
+  it('/q/ closed after the head: asks again (the nf=1 page draws the way home), never inlined without it', async () => {
+    await boot({ inline: true, learn: jsonRes(200, QUIZ()), after: [jsonRes(410, { error: 'expired', lang: 'en', known: true })] });
+    await get('/q/AB12CD');
+    const res = await get('/q/AB12CD');
+    expect(res.body).toMatch(/nf=1/);
+    expect(res.body).not.toMatch(/outerHTML/);
+  });
+  it('/q/ closed without `known`: still one load (the inline page)', async () => {
+    await boot({ inline: true, learn: jsonRes(200, QUIZ()), after: [jsonRes(410, { error: 'expired', lang: 'en' })] });
+    await get('/q/AB12CD');
+    const res = await get('/q/AB12CD');
+    expect(res.body).not.toMatch(/nf=1/);
+    expect(inlineMain(res.body)).toBe(mainOf(closed('en', 'closed')));
+  });
+});

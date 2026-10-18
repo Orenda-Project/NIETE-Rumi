@@ -1040,6 +1040,8 @@ function createWebQuizRouter(opts = {}) {
     }
     if (flush && !(out.status === 200 && out.body && out.body.quiz)) {
       const contract = (out.status === 404 || out.status === 410) && out.body && typeof out.body.error === 'string';
+      // a closed answer with `known: true` (web_quiz_link_known_child) asks again: the nf=1 page draws this phone's way home
+      if (contract && out.body.known === true) return wire.again(null);
       return wire.again(inlineClosed(req, { lang: out.body && out.body.lang === 'ur' ? 'ur' : 'en', kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
