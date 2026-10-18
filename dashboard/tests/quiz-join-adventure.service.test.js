@@ -1,6 +1,6 @@
 /**
  * The join screen and its expired / failed note in the adventure look (switch web_quiz_adventure_look, decided by the
- * BOT: its page answer carries adv:true only when the stored value is JSON true).
+ * BOT: its page answer carries adv:true only when it and web_quiz_one_button are both stored as JSON true).
  *  - OFF (no field, false, the string 'true', 1, …): every page is today's, byte for byte (sha256 pinned on the base).
  *  - ON: <html> carries wq-adv in the first byte of the page (no script adds it later), the shared token layer is inlined
  *    in the page's own <style> (no stylesheet link), the grade chips are the one button's secondary, "Let's go!" and the
@@ -118,5 +118,22 @@ describe('the edge passes the bot\'s word on: adv:true only', () => {
   test('the expired note', async () => {
     expect(htmlTag(await draw(410, { stale: true, lang: 'ur', adv: true }))).toMatch(/class="wq-adv"/);
     expect(htmlTag(await draw(410, { stale: true, lang: 'ur', adv: 'true' }))).toBe('<html lang="ur" dir="rtl">');
+  });
+});
+
+describe('the look with the waiting word (quiz_join_wait_word)', () => {
+  test('ON: the busy "Let\'s go!" keeps the look\'s primary colour; OFF: today\'s waiting rule only', () => {
+    const { WAIT_CSS } = require('../routes/quiz-join.routes');
+    for (const lang of ['en', 'ur']) {
+      const base = { token: 'j.AAAA', lang, practice: false, assetV: 'v1', jsV: 'j1', bot: BOT };
+      const css = styleOf(renderJoinPage({ ...base, waitWord: true, adv: true }));
+      expect(css).toContain(TOKENS_CSS);
+      expect(css).toContain(WAIT_CSS);
+      expect(css).toContain('html.wq-adv .go[aria-busy=true]:disabled{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}');
+      expect(styleOf(renderJoinPage({ ...base, adv: true }))).not.toContain('aria-busy');
+      const off = styleOf(renderJoinPage({ ...base, waitWord: true }));
+      expect(off).toContain(WAIT_CSS);
+      expect(off).not.toContain('wq-adv');
+    }
   });
 });
