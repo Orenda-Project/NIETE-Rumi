@@ -379,6 +379,13 @@ describe('the switch web_quiz_brotli: JSON true only, remembered 30 s, never rea
     const hub = await get(srv, `/h/${TOKEN}`, { 'accept-encoding': AE });
     expect(hub.body.toString('utf8')).toContain('src="/wq/jugnu/hello.webp"');
     expect(hub.body.toString('utf8')).not.toContain('hello.webp?v=');
+    // nothing the switch adds: no picture map for the page scripts (they build today's bare URLs)
+    for (const page of [hub, await get(srv, '/q/AB12CD', { 'accept-encoding': AE })]) {
+      expect(page.body.toString('utf8')).not.toMatch(/WQJV|wqjv/);
+      expect(page.body.toString('utf8')).not.toMatch(/jugnu[^"]*\?v=/);
+    }
+    const unv = await get(srv, '/wq/jugnu/thinking.webp', { 'accept-encoding': AE });
+    expect(unv.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
 });
 

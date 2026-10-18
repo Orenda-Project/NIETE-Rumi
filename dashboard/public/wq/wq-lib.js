@@ -255,9 +255,10 @@
 
   var cur = null;   // the open library: { o, g, s }
 
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function waitHtml(o) {
     var t = tFor(o);
-    return '<div class="wq-boot"><img src="/wq/jugnu/thinking.webp" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
+    return '<div class="wq-boot"><img src="' + jv('/wq/jugnu/thinking.webp') + '" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
   }
   // Leaving the library: nothing still on its way may paint afterwards.
   function leave(o) { seq++; cur = null; o.onBack(); }

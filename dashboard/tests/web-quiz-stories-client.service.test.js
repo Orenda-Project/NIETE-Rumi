@@ -14,6 +14,13 @@ const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const KID = 'kidchipabcdefghi';
 const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|استاد/i;
+// the live reader's own practice-word choice (wq-liveread.js practice), run as shipped: the fake reader below hands it on
+const PRACTICE = (() => {
+  const window = {}; const ctx = { window, console, Date, Math, JSON, String, Number, Object, Array, RegExp, setTimeout, clearTimeout };
+  vm.createContext(ctx);
+  ['wq-read-live.js', 'wq-liveread.js'].forEach((f) => vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', f), 'utf8'), ctx));
+  return window.WQLiveRead.practice;
+})();
 
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
 // the stall setting (web_quiz_stories_steady): the book says `steady`; on only inside its own describe
@@ -148,6 +155,7 @@ function env(opt = {}) {
       mount(el, o) { const c = { el, o, log: [], stop(w) { c.log.push('stop:' + w); }, destroy() { c.log.push('destroy'); }, view: () => ({ heard: 2, total: 5 }) }; calls.lr.push(c); return c; },
       askMic: opt.noAsk ? undefined : (el, o) => { el.innerHTML = '<button class="lr-go">go</button>'; calls.ask.push(o); calls.askEl = el; },
       glowLevel: () => 2,
+      practice: PRACTICE,
       ...(opt.doneHtml ? { COPY: { en: { done: 'X' }, ur: { done: 'Y' } }, doneHtml: (c) => '<span class="lr-done-ok">' + c.done + '</span>' } : {}),
     };
   }
@@ -860,6 +868,33 @@ describe('the reader', () => {
     fire(root, 'word', 3);
     expect(p2.log).toContain('word:3');
     expect(root.querySelector('[data-main]').textContent).toBe('Next');
+  });
+  test('lrr on: two words skipped ("The" and "game") → practise the longest, "game" (a tie keeps the earlier); the reader gets repeat; the page event carries the absorbed count only', async () => {
+    const page = (ws, lrr) => { const bk = book(); if (lrr !== undefined) bk.lrr = lrr; bk.pages[0] = { ...bk.pages[0], text: ws.join(' '), words: ws.map((x, i) => W(i, x, 100 + 500 * i, [110 + 60 * i, 810, 40, 50])) }; return bk; };
+    const run = async (ws, marks, extra = {}, ...off) => {
+      const lrr = off.length ? off[0] : true;
+      const e = env({ replies: { book: { status: 200, body: page(ws, lrr) } } }); const root = await openReader(e);
+      toMic(e, root); fire(root, 'mic'); e.calls.ask[0].onStream({});
+      e.calls.lr[0].o.onResult({ words_total: ws.length, words_read: marks.filter((x) => x === 'read').length, skipped: marks.filter((x) => x === 'skipped').length, ms: 5000, ended: 'quiet', marks, ...extra });
+      return { e, root, h: root.innerHTML, o: e.calls.lr[0].o, ev: e.calls.posts.find((x) => x.body.event === 'story_page_read') };
+    };
+    const GAME = ['The', 'game', 'is', 'so', 'fun.'];
+    const a = await run(GAME, ['skipped', 'skipped', 'read', 'read', 'read'], { absorbed: 2 });
+    expect(a.o.repeat).toBe(true);
+    expect(a.h).toContain('Let&#39;s practise this word');
+    expect(a.h).toContain('game</button>');
+    expect(a.h).not.toContain('The</button>');
+    expect(a.ev.body.data).toEqual({ words_total: 5, words_read: 3, skipped: 2, ms: 5000, ended: 'quiet', skipped_words: [0, 1], first: 'listen', absorbed: 2 });
+    const b = await run(GAME, ['read', 'read', 'skipped', 'skipped', 'read']);
+    expect(b.h).toContain('is</button>');   // "is" and "so": a tie, the earlier one
+    expect(b.ev.body.data).not.toHaveProperty('absorbed');
+    // lrr off (absent, or anything but true): today's reader — the first skipped word, no repeat, no absorbed key
+    for (const lrr of [undefined, false]) {
+      const c = await run(GAME, ['skipped', 'skipped', 'read', 'read', 'read'], {}, lrr); // eslint-disable-line no-await-in-loop
+      expect(c.o.repeat).toBe(lrr);
+      expect(c.h).toContain('The</button>');
+      expect(c.ev.body.data).toEqual({ words_total: 5, words_read: 3, skipped: 2, ms: 5000, ended: 'quiet', skipped_words: [0, 1], first: 'listen' });
+    }
   });
   test('0 words heard: no praise, "Let\'s read it together", Listen offered again', async () => {
     const e = env(); const root = await openReader(e);
