@@ -234,6 +234,10 @@ describe('the sheet (wq-adventure.css)', () => {
   it('three corner radii only: the pill (a circle to the eye), the card and the chip; no other px radius in the sheet', () => {
     expect((CSS.match(/border-radius:\s*[0-9.]+px/g) || []).filter((d) => !/999px/.test(d))).toEqual([]);
   });
+  it('a quiz page sits in the games land, and a main button\'s words take its land\'s own readable colour (never white on gold)', () => {
+    expect(CSS).toMatch(/html\.wq-adv \.wq-app:not\(\.wq-hub\)\{--land:var\(--land-gm\);[^}]*--land-on:var\(--land-gm-on\)/);
+    expect((CSS.match(/^html\.wq-adv \.wq-go\{[^}]*\}/m) || [''])[0]).toMatch(/color:var\(--land-on/);
+  });
   it('no shadow reads a root-level edge: a token built from var(--edge) at :root freezes the root colour for every land', () => {
     expect(CSS).not.toMatch(/var\(--sh-(btn|press)\)/);
     expect(root.replace(/--edge:var\(--land-edge\);/, '')).not.toMatch(/var\(--edge\)/);

@@ -80,6 +80,7 @@ html.wq-adv{background-color:var(--ground);background-image:radial-gradient(circ
 html.wq-adv .wq-app::after{display:none}
 html.wq-adv .wq-screen{gap:var(--sp-3);padding-inline:max(var(--gutter),env(safe-area-inset-left,0px)) max(var(--gutter),env(safe-area-inset-right,0px))}
 /* the land of a screen: its colour, its pale ground, its own darker edge */
+html.wq-adv .wq-app:not(.wq-hub){--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge);--land-on:var(--land-gm-on)}
 html.wq-adv [data-screen=home]{--land:var(--land-st);--land-bg:var(--land-st-bg);--land-edge:var(--land-st-edge)}
 html.wq-adv [data-screen=stories],html.wq-adv [data-screen^=stories-],html.wq-adv .wqs{--land:var(--land-st);--land-bg:var(--land-st-bg);--land-edge:var(--land-st-edge)}
 html.wq-adv [data-screen=games]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
@@ -94,7 +95,7 @@ html.wq-adv .wq-jimg,html.wq-adv .wq-hjug{filter:drop-shadow(0 4px 8px var(--glo
 
 /* 3 · one button system: the look only re-colours it. Size, radius, padding, press and the ledge's shape are wq.css's
    (html.wq-1b), and the look is never on without it. Each kind names its fill, its label and its ledge (--edge). */
-html.wq-adv .wq-go{background:var(--land,var(--brand));color:#fff;--edge:var(--land-edge,var(--brand-d))}
+html.wq-adv .wq-go{background:var(--land,var(--brand));color:var(--land-on,#fff);--edge:var(--land-edge,var(--brand-d))}
 html.wq-adv .wq-navy{background:var(--brand-ink);color:#fff;--edge:var(--brand-ink-d)}
 html.wq-adv .wq-soft,html.wq-adv .wqs-sec,html.wq-adv .wqs-again,html.wq-adv .wq-dback,html.wq-adv .wq-prback{background:var(--card);color:var(--ink);border-color:var(--line);--edge:var(--line)}
 html.wq-adv .wq-ghost{--edge:transparent}
