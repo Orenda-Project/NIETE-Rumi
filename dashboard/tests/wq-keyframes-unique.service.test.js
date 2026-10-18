@@ -23,3 +23,11 @@ test('the doors\' waiting pulse runs its own keyframes', () => {
   expect(css).toMatch(/\.wq-wait\{animation:wq-dpulse /);
   expect(css).toMatch(/@keyframes wq-dpulse\{/);
 });
+
+test('every animation in the doors\' sheet runs keyframes the doors\' sheet defines', () => {
+  const css = fs.readFileSync(path.join(WQ, 'wq-doors.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const defined = new Set([...css.matchAll(/@(?:-webkit-)?keyframes\s+([-\w]+)/g)].map((m) => m[1]));
+  const used = [...css.matchAll(/animation(?:-name)?\s*:\s*([-\w]+)/g)].map((m) => m[1]).filter((n) => n !== 'none');
+  expect(used.length).toBeGreaterThan(0);
+  expect(used.filter((n) => !defined.has(n))).toEqual([]);
+});
