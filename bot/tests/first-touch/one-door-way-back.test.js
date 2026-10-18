@@ -13,7 +13,7 @@
  * web_quiz_closed_way_back varies. Way back OFF in every state (absent, false, the string "true", "\"true\"", "yes", a
  * read of that key that throws): every page is byte-identical to today's page with the door ON —
  * sha256(html + "\n" + csp) pinned in __goldens__/way-back-off.json, recorded by running this file on the code before
- * the change (WAY_BACK_RECORD=1). Door OFF: the landing is still 404 {off:true}. Only the network boundary is faked.
+ * the change (delete the file and run this once: that run records it and fails, the next run checks it). Door OFF: the landing is still 404 {off:true}. Only the network boundary is faked.
  */
 process.env.INTERNAL_API_KEY = 'unit-internal-key-not-a-secret';
 process.env.PORTAL_URL = 'https://portal.example';
@@ -48,7 +48,8 @@ const EN = "Open WhatsApp and send 'quiz' to Jugnu.";
 const UR = 'واٹس ایپ کھولیں اور جگنو کو "کوئز" لکھ کر بھیجیں۔';
 
 const GOLDEN_FILE = path.join(__dirname, '__goldens__', 'way-back-off.json');
-const RECORD = process.env.WAY_BACK_RECORD === '1';
+// no golden file → this run records one and fails (never a silent pass); no env knob
+const RECORD = !fs.existsSync(GOLDEN_FILE);
 const recorded = {};
 const golden = RECORD ? {} : JSON.parse(fs.readFileSync(GOLDEN_FILE, 'utf8'));
 // hex in groups of 8 (no long digit run in the pinned file)
@@ -314,6 +315,8 @@ describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, the
     ['maker stale (token ur) + ?lang=en → English', () => `/api/internal/ft/m/${staleMaker('ur')}?lang=en`, EN, UR],
     ['home stale (token ur) + ?lang=en → English', () => `/api/internal/th/quiz/teacher/${staleHome('ur')}?lang=en`, EN, UR],
     ['home stale (token en) + ?lang=ur → Urdu', () => `/api/internal/th/quiz/teacher/${staleHome('en')}?lang=ur`, UR, EN],
+    ['maker stale (token ur) + ?lang=fr → the token\'s Urdu (fr is not a language here)', () => `/api/internal/ft/m/${staleMaker('ur')}?lang=fr`, UR, EN],
+    ['home stale (token ur) + ?lang=fr → the token\'s Urdu (fr is not a language here)', () => `/api/internal/th/quiz/teacher/${staleHome('ur')}?lang=fr`, UR, EN],
   ];
   test.each(ROWS)('ON: %s', async (name, p, say, never) => {
     number(false);
@@ -334,9 +337,30 @@ describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, the
       seed(state);
       const withQ = await get(p());
       seed(state);
-      const without = await get(p().replace(/[?&]lang=(ur|en)$/, ''));
+      const without = await get(p().replace(/[?&]lang=(ur|en|fr)$/, ''));
       // today the stale pages follow the token, not the query; the forged go page is bilingual either way
       expect(withQ.html).toBe(without.html);
     }
   });
+});
+
+describe('the way-back switch read (closed-way-back.flags)', () => {
+  test('a failing read is OFF and is not tried again for 30 s: 20 dead-end pages make ONE read; after 30 s, one more', async () => {
+    seed('absent');
+    const Flags = require('../../shared/services/first-touch/closed-way-back.flags');
+    const from = supabase.from;
+    let reads = 0;
+    supabase.from = (t) => { if (t === 'app_settings') { reads += 1; throw new Error('app_settings down'); } return from(t); };
+    const t0 = Date.now();
+    try {
+      for (let i = 0; i < 20; i += 1) expect(await Flags.on(t0 + i)).toBe(false);
+      expect(reads).toBe(1);
+      expect(await Flags.on(t0 + 30 * 1000 + 1)).toBe(false);
+    } finally { supabase.from = from; }
+    expect(reads).toBe(2);
+  });
+});
+
+test('the switch-off goldens are pinned (a missing file is recorded by this run, which then fails)', () => {
+  expect({ goldenFile: path.basename(GOLDEN_FILE), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN_FILE), recorded: false });
 });
