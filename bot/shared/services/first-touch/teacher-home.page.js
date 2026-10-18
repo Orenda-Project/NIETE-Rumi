@@ -240,6 +240,28 @@ function swapped(base, swaps, what = 'a paged part') {
 const SCRIPT_PAGED = swapped(SCRIPT, PAGED_SWAPS);
 const SCRIPT_PAGED_HASH = sha(SCRIPT_PAGED);
 
+/**
+ * The slow-answer wait (switch quiz_teacher_home_wait ON, with the quick answer OFF or ON): the quick answer's script
+ * with these parts swapped. The wait before the error line is max(measured p99 × 1.5, 25 s): HOME_P99_MS is the p99 of
+ * the page's load to the home's answer (document + /api/th/home): the slowest measured load, 9.41 s (a cold throttled
+ * 4G walk; the Slow 3G walks measured at most 7.85 s, most of it the server's /api/th/home), so 25 s rules.
+ * «Try again» while the home read is still on its way re-uses that read (no second /api/th/home) and waits again; once
+ * the read is over (refused, offline) «Try again» asks again. The skeleton stays under the line; a late answer is drawn.
+ */
+const HOME_P99_MS = 9410;
+const WAIT_MS = Math.max(Math.round(HOME_P99_MS * 1.5), 25000);
+const WAIT_SWAPS = Object.freeze([
+  [`?'&g='+g0:''),ask=0;
+`, `?'&g='+g0:''),ask=0,live=null;
+`],
+  [`function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},15000);
+getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){if(e!==1&&!d&&n===ask)stuck()})}`,
+  `function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},${WAIT_MS});if(live)return;
+live=getj(hq).then(function(x){live=null;if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){live=null;if(e!==1&&!d)stuck()})}`],
+]);
+const SCRIPT_WAIT = swapped(SCRIPT_PAGED, WAIT_SWAPS, 'wait');
+const SCRIPT_WAIT_HASH = sha(SCRIPT_WAIT);
+
 // app_settings quiz_teacher_home_grade_fast ON: the grade chips answer from the page. The tapped chip is pressed at the
 // tap (the story list is aria-busy and dimmed until its answer is drawn); each grade's library answer is kept in memory for this page (this token, this language); once the home is
 // painted and the page is idle, the neighbouring grades are asked for ONE AT A TIME (none while another library request
@@ -307,14 +329,14 @@ const COUNTS_SWAPS = Object.freeze([
 // grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch on the
 // counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
 const SCRIPTS = new Map();
-[false, true].forEach((paged) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => {
-  let text = paged ? SCRIPT_PAGED : SCRIPT;
-  if (fast) text = paged ? SCRIPT_PAGED_FAST : FAST_SCRIPT;
+[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => {
+  let text = wait ? SCRIPT_WAIT : paged ? SCRIPT_PAGED : SCRIPT;
+  if (fast) text = wait ? swapped(SCRIPT_WAIT, FAST_SWAPS) : paged ? SCRIPT_PAGED_FAST : FAST_SCRIPT;
   if (counts) text = swapped(text, COUNTS_SWAPS, 'a story-counts part');
   if (named) text = swapped(text, NAMED_SWAPS, 'a named-item part');
   if (early) text = swapped(text, EARLY_SWAPS, 'an early-pick part');
-  SCRIPTS.set(`${paged}|${named}|${early}|${counts}|${fast}`, { text, hash: paged && !named && !early && !counts && !fast ? SCRIPT_PAGED_HASH : sha(text) });
-})))));
+  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}`, { text, hash: !fast && !counts && !named && !early ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
+}))))));
 
 /**
  * The page policy. A hash, or a list of them (the stories page has more than one inline style); `media` adds
@@ -361,8 +383,8 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * the ?lang the page was opened with (bi tokens only); `gradeFast` (only a real true) swaps in the fast grade chips'
  * script and its own hash. → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false }) {
-  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}`);
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false }) {
+  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -381,7 +403,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <body>
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
-<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
+<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait === true ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>
@@ -429,5 +451,5 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 
 module.exports = {
   buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
-  FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, swapped, digits, csp, sha,
+  FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
 };
