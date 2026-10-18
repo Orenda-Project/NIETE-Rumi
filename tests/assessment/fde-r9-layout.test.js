@@ -165,7 +165,9 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question).filter((q) => q !== WRONG_TIER && !GIVEN.includes(q));
     expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 3);
     const out = lay(exam, 'social_studies');
-    expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.sort());
+    // Q1 items whose key (a name or a term) a C/D stem names are held by that rule as well, Q1 against C and D again.
+    const named = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && h.rule === 'key_named_in_stem').map((h) => h.q.question);
+    expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.filter((q) => !named.includes(q)).sort());
     const q1Held = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && h.rule === 'key_in_stem').map((h) => h.q.question);
     expect(q1Held.sort()).toEqual([...GIVEN].sort());
   });

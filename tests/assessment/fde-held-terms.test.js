@@ -72,7 +72,14 @@ beforeEach(() => {
 
 // ───────────────────────────── Social Studies ─────────────────────────────
 
-const SST_REAL = () => fixture('r6-sst-held');
+// Its Q1 «عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟ → ایدھی فاؤنڈیشن» is given away by a C/D stem that names
+// its key, and held by that rule; an item no stem names stands in, so these tests read the held terms alone.
+const SST_REAL = () => {
+  const src = fixture('r6-sst-held');
+  const q = src.unseen.objective.MCQs.find((x) => x.question === 'عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟');
+  Object.assign(q, { question: 'پاکستان کا قومی پھول کون سا ہے؟', options: ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], answer: 'ب) چنبیلی' });
+  return src;
+};
 // Where the three Sermon items sit in the recorded reply.
 const SERMON = [
   ['objective', 'MCQs', 4],
