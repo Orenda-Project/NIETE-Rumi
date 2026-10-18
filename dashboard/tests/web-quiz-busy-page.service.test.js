@@ -75,6 +75,24 @@ describe('on: an upstream failure is the busy page', () => {
   });
 });
 
+describe('the busy page look (design review B1, B2)', () => {
+  const css = (body) => (body.match(/<style id="wq-busy">([^<]*)<\/style>/) || [])[1] || '';
+  test.each([['en', 'h', 'throw'], ['ur', 'hur', 'throw']])('%s: the title is balanced and the line under it is large enough to read', async (l, site, fail) => {
+    const r = await H.runCase(site, fail, { busy_page: true });
+    const c = css(r.body);
+    expect(c).toMatch(/\.wq-closed h1\{text-wrap:balance\}/);
+    const sub = Number((c.match(/\.wq-closed \.wq-sub\{font-size:(\d+)px/) || [])[1]);
+    expect(sub).toBeGreaterThanOrEqual(15);
+    if (l === 'ur') {
+      expect(c).toMatch(/\[lang=ur\] \.wq-closed \.wq-sub\{font-size:17px;line-height:2\}/);
+      expect(c).toMatch(/\[lang=ur\] \.wq-closed h1\{font-size:22px\}/);
+    }
+  });
+  test('the look rides the busy page only: the failure pages with the switch off carry none of it', async () => {
+    expect((await H.runCase('h', 'throw', {})).body).not.toContain('wq-busy');
+  });
+});
+
 describe('how the portal learns it', () => {
   test('the last answer wins: on, then a hub answer without the key, is off again', async () => {
     const steps = [{ status: 200, body: H.HUB({ busy_page: true }) }, { status: 200, body: H.HUB() }, { throw: true }];

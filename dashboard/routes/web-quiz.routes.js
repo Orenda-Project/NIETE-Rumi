@@ -795,12 +795,16 @@ const BUSY_COPY = {
   ur: { title: 'جگنو کو ابھی تھوڑی دیر لگ رہی ہے', say: 'تھوڑی دیر بعد بٹن دبائیں۔', go: 'دوبارہ کوشش کریں' },
 };
 const BUSY_RETRY_S = '5';
+// The busy page's own look (only this page): the title breaks evenly (no lone word on line 2), the line under it reads at
+// 16 px (Urdu 17 px, line-height 2). Placed after the stylesheet; :root lifts it over the Urdu face's rules.
+const BUSY_STYLE = '<style id="wq-busy">.wq-closed h1{text-wrap:balance}.wq-closed .wq-sub{font-size:16px}html:root[lang=ur] .wq-closed h1{font-size:22px}html:root[lang=ur] .wq-closed .wq-sub{font-size:17px;line-height:2}</style>';
 
 function renderBusyPage({ lang, href, origin, assetV, brandKey, ui = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
   const c = BUSY_COPY[l];
   return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: c.title, desc: c.say, origin, url: origin, assetV, brand, ui })}
+${BUSY_STYLE}
 </head>
 <body>
 <main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><section class="wq-screen wq-closed">
@@ -1326,7 +1330,7 @@ function createWebQuizRouter(opts = {}) {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
       if (flush) return wire.again(inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
-      if (busy(req, res, null, phoneLang)) return undefined;
+      if (busy(req, res, null, away())) return undefined;
       return closed(502, 'off', away());
     }
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again(inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
@@ -1360,7 +1364,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub', langOf(out.body && out.body.lang) || phoneLang);
-    if (busy(req, res, out, phoneLang)) return undefined;
+    if (busy(req, res, out, away())) return undefined;
     return closed(out.status === 503 ? 503 : 502, 'off', away());
   });
   router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
