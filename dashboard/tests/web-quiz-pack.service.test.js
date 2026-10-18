@@ -168,7 +168,7 @@ describe('switch on: the hub page links one stylesheet and one script for the ho
     const html = renderHubPage({ payload: HUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
     expect(tagsOf(html)).toEqual([`/wq/wq.css?v=${HEX}`, CSS_HREF, JS_HREF, `/wq/hub.js?v=${HEX}`]);
     expect(html).not.toMatch(/<script src="\/wq\/(wq-tel|wq-bind|wq-home|hub-play|wq-readalong-listen)\.js/);
-    expect(html).toContain('&amp;in=/wq/wq-readalong-listen.js" defer>');   // the html escapes its own &
+    expect(html).toContain('&amp;in=/wq/wq-readalong-listen.js" defer onerror="');   // the html escapes its own &; the tag counts its own failure
   });
 
   test('execution order: the pack runs today\'s tags in today\'s order (the door screens right after the home)', async () => {
@@ -577,6 +577,78 @@ describe('the pack fails to load: the home\'s files by name, each once', () => {
     expect(homeJs()).toHaveLength(2);
     homeJs()[1].l.error();
     expect(H.root.innerHTML).toContain('wq-fbdoor');
+  });
+});
+
+// ── a pack file that fails is counted, by hub.js's ev() itself ──────────────────────────────────────────────────────
+// The home's own counter (homeErr) counts the home's own asks and returns once the home is in, so a failed pack file is
+// counted with ev() directly: home_load_failed {file: 'pack.js' | 'pack.css'}, once per failed file, before or after
+// hub.js runs; the home's own count (i) and retry are unchanged by it.
+function packScript(html, sandbox) {
+  const m = /<script src="(\/wq\/pack\/[^"]+)" defer( onerror="([^"]*)")?><\/script>/.exec(html);
+  expect(m).toBeTruthy();
+  const s = { src: m[1], onerror: m[3] ? vm.runInContext(`(function () { ${m[3].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')} })`, sandbox) : null };
+  return { fail: () => { if (s.onerror) s.onerror.call(s, { type: 'error' }); } };
+}
+const packFails = (H) => H.beacons.flatMap((b) => b.events).filter((e) => e.n === 'home_load_failed');
+
+describe('a pack file that fails is counted with ev() (home_load_failed, file pack.js / pack.css)', () => {
+  test('pack script fails before hub.js runs: one {file: pack.js}; the home is then asked for by name, once', () => {
+    const html = renderHubPage({ payload: BARE({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    packScript(html, H.sandbox).fail();
+    H.run();
+    expect(packFails(H).map((e) => e.file)).toEqual(['pack.js']);
+    expect(packFails(H)[0].i).toBeUndefined();
+    expect(count(H.urls(), `/wq/wq-home.js?v=${HEX}`)).toBe(1);
+  });
+
+  test('the fallback home on: the pack failure does not use up the home\'s own count or its retry', () => {
+    const html = renderHubPage({ payload: BARE({ pack: true, home_fb: 1 }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    packScript(html, H.sandbox).fail();
+    H.run();
+    const homeJs = () => H.asked.filter((x) => x.src === `/wq/wq-home.js?v=${HEX}`);
+    homeJs()[0].l.error();
+    H.timers.filter((t) => t.ms === 1500).forEach((t) => t.fn());
+    expect(homeJs()).toHaveLength(2);
+    expect(packFails(H).map((e) => [e.file, e.i])).toEqual([['pack.js', undefined], ['wq-home.js', 1]]);
+  });
+
+  test('pack stylesheet fails AFTER hub.js ran and the home is in: still counted, once', () => {
+    const html = renderHubPage({ payload: VHUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    const { fail } = packLink(html, H.sandbox);
+    H.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };
+    H.run();
+    expect(packFails(H)).toEqual([]);
+    fail();
+    fail();
+    expect(packFails(H).map((e) => e.file)).toEqual(['pack.css']);
+  });
+
+  test('pack stylesheet fails before hub.js runs: counted once at boot', () => {
+    const html = renderHubPage({ payload: VHUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(html);
+    packLink(html, H.sandbox).fail();
+    H.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };
+    H.run();
+    expect(packFails(H).map((e) => e.file)).toEqual(['pack.css']);
+  });
+
+  test('both pack files load: no count; pack off: no count and no hook on the page', () => {
+    const on = renderHubPage({ payload: VHUB({ pack: true }), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const H = hubVm(on);
+    H.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };
+    H.run();
+    expect(packFails(H)).toEqual([]);
+    const off = renderHubPage({ payload: VHUB({}), token: TOKEN, origin: ORIGIN, assetV: HEX });
+    const O = hubVm(off);
+    O.sandbox.window.WQHOME = { mount() {}, loadOnce() {} };
+    O.run();
+    expect(packFails(O)).toEqual([]);
+    expect(O.sandbox.window.WQPACKEV).toBeUndefined();
+    expect(off).not.toContain('WQPACKERR');
   });
 });
 

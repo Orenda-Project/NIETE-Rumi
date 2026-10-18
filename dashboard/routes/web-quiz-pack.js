@@ -24,7 +24,8 @@
  *
  * A pack that fails falls back to the files by name: the stylesheet's error handler asks once for each style it held
  * (at the hub's ?v=, today's addresses); a failed script leaves no window.WQHOME, so hub.js asks for wq-home.js/.css
- * itself (its own loader, retry and plain home), as when wq-home.js alone fails today.
+ * itself (its own loader, retry and plain home), as when wq-home.js alone fails today. Each failed pack file is counted
+ * once by hub.js's ev() (home_load_failed {file: 'pack.js' | 'pack.css'}), not by the home's own counter.
  *
  * With the fallback home (`home_fb`) the home's own files stay out of the pack: hub.js asks for wq-home.js itself (its
  * 5 s wait, retry and plain home), so the edge writes today's home tags (its stylesheet and a preload) after the pack.
@@ -49,6 +50,14 @@ const YEAR = 'public, max-age=31536000, immutable';
 // a pack holding the preview names that path (`in=`) and hashes the player too.
 const LISTEN_FILE = 'wq-readalong-listen.js';
 const PLAYER_FILE = 'wq-readalong.js';
+
+/**
+ * A pack file's error handler (inline, on its tag): queue the file for hub.js's count (home_load_failed {file}, with its
+ * ev(); hub.js counts the queue when it runs, and calls WQPACKEV for a failure that comes after it ran).
+ */
+function counted(file) {
+  return `(window.WQPACKERR=window.WQPACKERR||[]).push('${file}');window.WQPACKEV&&window.WQPACKEV();`;
+}
 
 /** The hub answer asks for the pack (JSON true only). */
 function on(payload) {
@@ -132,8 +141,8 @@ function createPack({ dir }) {
     const { css } = parts(payload);
     const h = hrefs(payload);
     const files = css.map((k) => `'${PACK.css.find(([n]) => n === k)[1]}'`).join(',');
-    const fallback = `this.onerror=null;[${files}].forEach(function(f){var l=document.createElement('link');l.rel='stylesheet';l.href='/wq/'+f+'?v=${assetV}';document.head.appendChild(l)})`;
-    return `${h.css ? `<link rel="stylesheet" href="${h.css}" onerror="${fallback}">\n` : ''}<script src="${h.js}" defer></script>\n`;
+    const fallback = `this.onerror=null;${counted('pack.css')}[${files}].forEach(function(f){var l=document.createElement('link');l.rel='stylesheet';l.href='/wq/'+f+'?v=${assetV}';document.head.appendChild(l)})`;
+    return `${h.css ? `<link rel="stylesheet" href="${h.css}" onerror="${fallback}">\n` : ''}<script src="${h.js}" defer onerror="${counted('pack.js')}"></script>\n`;
   }
 
   /** The flushed head's preloads for a pack page (the set the edge last linked), at the tags' exact addresses. */

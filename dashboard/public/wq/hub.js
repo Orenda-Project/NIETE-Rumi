@@ -511,5 +511,12 @@
     else if (!B.kid) picker();
     else hub();
   }
+  // The home's pack (B.pack, web_quiz_pack): a pack file that fails to load is counted here with ev() itself, once per
+  // file, before or after this runs (its tag's error handler queues it in WQPACKERR and calls WQPACKEV); homeErr()
+  // counts only the home's own asks, and not once the home is in.
+  if (B.pack === true || window.WQPACKERR) {
+    window.WQPACKEV = function () { var q = window.WQPACKERR || []; window.WQPACKERR = []; for (var i = 0; i < q.length; i++) ev('home_load_failed', { file: q[i] }); };
+    window.WQPACKEV();
+  }
   if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();
