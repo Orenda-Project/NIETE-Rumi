@@ -13,7 +13,8 @@
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
- *   library     "Chosen for Grade n", grade chips 1–5, up to four stories (links to the stories page; one sent this month
+ *   library     "Chosen for Grade n", one quiet line once a story went out ("3 stories sent · 7 children read"; the
+ *               home's, kept across grade changes), grade chips 1–5, up to four stories (links to the stories page; one sent this month
  *               says "Sent ✓ <day/month>" by its title) + "All stories",
  *               then one card "Ready video quizzes" → the maker page
  *   foot        "Make a new quiz", the maker's three cards (lesson plans / coaching / test paper), "Try it as a student"
@@ -215,9 +216,138 @@ getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='
 })();`;
 const SCRIPT_HASH = sha(SCRIPT);
 
-function csp(styleHash, scriptHash, { meta = false } = {}) {
-  return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
-    + `img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'${meta ? '' : "; frame-ancestors 'none'"}`;
+/**
+ * The page with the quick answer (switch quiz_teacher_home_paged ON): today's script with these parts swapped, so the
+ * page with the switch OFF is today's byte for byte. The home's answer is waited for 15 s at most: after that (or on a
+ * refusal) the error line and «Try again», which asks again; a late answer is still drawn, a stale timer stays quiet.
+ */
+const PAGED_SWAPS = Object.freeze([
+  [`var g0=store('th.grade');
+getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''))
+.then(function(x){d=x;grade=x.library&&x.library.grade;render()}).catch(function(e){if(e!==1){err(true);q('#th-main').setAttribute('data-ready','err')}});`, `var g0=store('th.grade'),hq='/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='+g0:''),ask=0;
+function stuck(){err(true);q('#th-retry').hidden=false;q('#th-main').setAttribute('data-ready','err')}
+function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},15000);
+getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){if(e!==1&&!d&&n===ask)stuck()})}
+q('#th-retry').addEventListener('click',function(){q('#th-retry').hidden=true;err(false);q('#th-main').removeAttribute('data-ready');step('home_retry');home()});
+home();`],
+]);
+function swapped(base, swaps, what = 'a paged part') {
+  return swaps.reduce((out, [from, to]) => {
+    if (out.split(from).length !== 2) throw new Error(`teacher home page: ${what} no longer matches the script`);
+    return out.replace(from, () => to);
+  }, base);
+}
+const SCRIPT_PAGED = swapped(SCRIPT, PAGED_SWAPS);
+const SCRIPT_PAGED_HASH = sha(SCRIPT_PAGED);
+
+/**
+ * The slow-answer wait (switch quiz_teacher_home_wait ON, with the quick answer OFF or ON): the quick answer's script
+ * with these parts swapped. The wait before the error line is max(measured p99 × 1.5, 25 s): HOME_P99_MS is the p99 of
+ * the page's load to the home's answer (document + /api/th/home): the slowest measured load, 9.41 s (a cold throttled
+ * 4G walk; the Slow 3G walks measured at most 7.85 s, most of it the server's /api/th/home), so 25 s rules.
+ * «Try again» while the home read is still on its way re-uses that read (no second /api/th/home) and waits again; once
+ * the read is over (refused, offline) «Try again» asks again. The skeleton stays under the line; a late answer is drawn.
+ */
+const HOME_P99_MS = 9410;
+const WAIT_MS = Math.max(Math.round(HOME_P99_MS * 1.5), 25000);
+const WAIT_SWAPS = Object.freeze([
+  [`?'&g='+g0:''),ask=0;
+`, `?'&g='+g0:''),ask=0,live=null;
+`],
+  [`function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},15000);
+getj(hq).then(function(x){if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){if(e!==1&&!d&&n===ask)stuck()})}`,
+  `function home(){var n=++ask;setTimeout(function(){if(!d&&n===ask){step('home_slow');stuck()}},${WAIT_MS});if(live)return;
+live=getj(hq).then(function(x){live=null;if(d)return;d=x;grade=x.library&&x.library.grade;err(false);q('#th-retry').hidden=true;render()}).catch(function(e){live=null;if(e!==1&&!d)stuck()})}`],
+]);
+const SCRIPT_WAIT = swapped(SCRIPT_PAGED, WAIT_SWAPS, 'wait');
+const SCRIPT_WAIT_HASH = sha(SCRIPT_WAIT);
+
+// app_settings quiz_teacher_home_grade_fast ON: the grade chips answer from the page. The tapped chip is pressed at the
+// tap (the story list is aria-busy and dimmed until its answer is drawn); each grade's library answer is kept in memory for this page (this token, this language); once the home is
+// painted and the page is idle, the neighbouring grades are asked for ONE AT A TIME (none while another library request
+// is open, none at all when the phone saves data or is on 2G); a tap on a grade already held (the home's own grade is,
+// from its answer) draws at once, with no request.
+const FAST_SWAPS = Object.freeze([
+  [`function pickGrade(n){if(String(n)===String(grade))return;grade=n;store('th.grade',String(n));step('grade');
+getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}).catch(function(e){if(e!==1)err(true)})}`,
+  `var C={},P={},pf=[],pfOn=false;
+function ck(n){return T+'|'+(b.ask||'')+'|'+n}
+function libGet(n){var k=ck(n);if(P[k])return P[k];P[k]=getj('/api/th/library?t='+T+'&g='+n+(b.ask?'&lang='+b.ask:'')).then(function(L){delete P[k];C[k]=L;return L},function(e){delete P[k];throw e});return P[k]}
+function press(n){Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(n)))})}
+function libWait(on){var u=q('#th-stories');if(on)u.setAttribute('aria-busy','true');else u.removeAttribute('aria-busy');u.style.opacity=on?'.5':''}
+function show(L){libWait(false);d.library=L;if(d.primary&&(d.primary.kind==='story'||d.primary.kind==='video')&&L.pick){d.primary=L.pick;top()}lib(L)}
+function pickGrade(n){if(String(n)===String(grade))return;grade=n;press(n);store('th.grade',String(n));step('grade');
+var L=C[ck(n)];if(L){show(L);soon();return}
+libWait(true);
+libGet(n).then(function(L){if(String(grade)!==String(n))return;show(L);soon()}).catch(function(e){if(String(grade)!==String(n))return;libWait(false);grade=d.library&&d.library.grade;press(grade);if(e!==1)err(true)})}
+// the home's own grade is held from the start: its library card, and its top card when that is the library's pick
+function seed(){var L=d.library,p=d.primary||{},o={},k;if(!L||!L.grade||C[ck(L.grade)])return;for(k in L)o[k]=L[k];o.pick=p.kind==='story'||p.kind==='video'?p:null;C[ck(L.grade)]=o}
+function lite(){var c=navigator.connection;return !!(c&&(c.saveData===true||/(^|-)2g$/.test(String(c.effectiveType||''))))}
+function soon(){if(lite())return;var g=+grade;[g+1,g-1].forEach(function(x){if(x>=1&&x<=5&&!C[ck(x)]&&pf.indexOf(x)<0)pf.push(x)});
+if(pfOn||!pf.length)return;pfOn=true;(window.requestIdleCallback||function(f){return setTimeout(f,300)})(next)}
+function next(){var k;for(k in P){P[k].then(next,next);return}var x=pf.shift();if(x==null){pfOn=false;return}if(C[ck(x)])return next();libGet(x).then(next,next)}`],
+  [`foot();q('#th-main').setAttribute('data-ready','1')}`, `foot();q('#th-main').setAttribute('data-ready','1');seed();soon()}`],
+]);
+// Each part is found exactly once in today's script and in the quick answer's (swapped() throws at load otherwise):
+// the two switches compose, each variant under its own hash.
+const FAST_SCRIPT = swapped(SCRIPT, FAST_SWAPS);
+const FAST_SCRIPT_HASH = sha(FAST_SCRIPT);
+const SCRIPT_PAGED_FAST = swapped(SCRIPT_PAGED, FAST_SWAPS);
+const SCRIPT_PAGED_FAST_HASH = sha(SCRIPT_PAGED_FAST);
+/**
+ * Two more switched parts, swapped the same way on either page above (each must match once):
+ *   named (quiz_teacher_home_named_item): the class card says what it sends again, from the home's `primary.item`
+ *     ("Story:"/"Quiz:" before the isolated title; "Send this story again"); a card without `item` reads as today.
+ *   early (quiz_teacher_home_early_pick): a grade tapped before the home answers is kept (pressed + stored) and asked
+ *     once the home is drawn; the library answer never writes into a home that is not there; a render clears the
+ *     error line.
+ */
+const NAMED_SWAPS = Object.freeze([
+  ["var t=el('p','th-sub');t.appendChild(topic(p.title));c.appendChild(t);\nif(p.again&&p.again.href)c.appendChild(link('th-go',S['th.again'],p.again.href,'again',true));\nelse if(p.send)c.appendChild(btn('th-go',S['th.again'],'again',",
+    "var t=el('p','th-sub');var kw=p.item&&S['th.kind.'+p.item];if(kw)t.appendChild(document.createTextNode(kw+' '));t.appendChild(topic(p.title));c.appendChild(t);var ag=(kw&&S['th.again.'+p.item])||S['th.again'];\nif(p.again&&p.again.href)c.appendChild(link('th-go',ag,p.again.href,'again',true));\nelse if(p.send)c.appendChild(btn('th-go',ag,'again',"],
+]);
+const EARLY_SWAPS = Object.freeze([
+  ["var S=b.s||{},d=null,grade=null,", "var S=b.s||{},d=null,pend=null,grade=null,"],
+  ["function pickGrade(n){if(String(n)===String(grade))return;",
+    "function pickGrade(n){if(!d){pend=n;store('th.grade',String(n));Array.prototype.forEach.call(q('#th-grades').querySelectorAll('[data-grade]'),function(x){x.setAttribute('aria-pressed',String(x.getAttribute('data-grade')===String(n)))});return}if(String(n)===String(grade))return;"],
+  // anchored on the library ask itself, so a line added at the head of its answer (the story counts carry) still matches
+  ["(b.ask?'&lang='+b.ask:'')).then(function(L){", "(b.ask?'&lang='+b.ask:'')).then(function(L){if(!d)return;"],
+  // the render's head and its ready mark, apart, so the fast grade chips' tail (seed();soon()) may follow the mark
+  ["function render(){hello();", "function render(){err(false);hello();"],
+  ["q('#th-main').setAttribute('data-ready','1')", "q('#th-main').setAttribute('data-ready','1');var n=pend;pend=null;if(n!=null)pickGrade(n)"],
+]);
+/**
+ * counts (quiz_teacher_story_counts): the library card's one counts line from the home's `library.counts` ("3 stories
+ * sent · children who read: 7"), kept across a grade change (a grade's library answer carries no counts). Swapped
+ * first, so the early pick's guard still comes before the carry.
+ */
+const COUNTS_SWAPS = Object.freeze([
+  ["q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});\n", "q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});\nvar k=L.counts,kc=q('#th-counts'),kn=k&&k.sent>=1;kc.textContent=kn?fill(k.sent===1?'th.stories.counts.one':'th.stories.counts',{sent:dg(k.sent),read:dg(k.read||0)}):'';kc.hidden=!kn;\n"],
+  ["(b.ask?'&lang='+b.ask:'')).then(function(L){", "(b.ask?'&lang='+b.ask:'')).then(function(L){if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;"],
+]);
+// Every page the switches can ask for: paged × named × early × counts × grade-fast, each under its own hash. The fast
+// grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch on the
+// counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
+const SCRIPTS = new Map();
+[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => {
+  let text = wait ? SCRIPT_WAIT : paged ? SCRIPT_PAGED : SCRIPT;
+  if (fast) text = wait ? swapped(SCRIPT_WAIT, FAST_SWAPS) : paged ? SCRIPT_PAGED_FAST : FAST_SCRIPT;
+  if (counts) text = swapped(text, COUNTS_SWAPS, 'a story-counts part');
+  if (named) text = swapped(text, NAMED_SWAPS, 'a named-item part');
+  if (early) text = swapped(text, EARLY_SWAPS, 'an early-pick part');
+  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}`, { text, hash: !fast && !counts && !named && !early ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
+}))))));
+
+/**
+ * The page policy. A hash, or a list of them (the stories page has more than one inline style); `media` adds
+ * media-src 'self' (a page with an <audio>); `formTo`, origins a form's post may redirect to (browsers check
+ * form-action on the redirect too). `meta`: the <meta> copy, which cannot carry frame-ancestors.
+ */
+function csp(styleHash, scriptHash, { meta = false, media = false, formTo = [] } = {}) {
+  const hashes = (h) => [].concat(h || []).map((x) => `'sha256-${x}'`).join(' ');
+  const scripts = hashes(scriptHash);
+  return `default-src 'none'; style-src ${hashes(styleHash)}; ${scripts ? `script-src ${scripts}; connect-src 'self'; ` : ''}`
+    + `img-src 'self'; ${media ? "media-src 'self'; " : ''}font-src 'self'; form-action ${["'self'", ...formTo].join(' ')}; base-uri 'none'${meta ? '' : "; frame-ancestors 'none'"}`;
 }
 
 function head(lang, title, style, styleHash, scriptHash) {
@@ -243,14 +373,18 @@ function pageLang(tokenLang, asked) {
 }
 
 // The strings the script fills with (textContent only), by id. The page's own static words are not repeated.
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa'].includes(id)));
+const NAMED_IDS = Object.freeze(['th.kind.story', 'th.kind.quiz', 'th.again.story', 'th.again.quiz']);
+const COUNTS_IDS = Object.freeze(['th.stories.counts', 'th.stories.counts.one']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', ...NAMED_IDS, ...COUNTS_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
- * the ?lang the page was opened with (bi tokens only). → { html, csp } (the header value for the response).
+ * the ?lang the page was opened with (bi tokens only); `gradeFast` (only a real true) swaps in the fast grade chips'
+ * script and its own hash. → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false }) {
+  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -258,16 +392,18 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
   const chat = require('./teacher-home.copy').chatLink();
   const s = {};
   SCRIPT_IDS.forEach((id) => { s[id] = str(id, l); });
+  if (named === true) NAMED_IDS.forEach((id) => { s[id] = str(id, l); });
+  if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
     ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
   const chips = [1, 2, 3, 4, 5].map((g) => `<button type="button" class="th-chip" data-grade="${g}" data-tap="grade" aria-pressed="false" aria-label="${esc(str('th.grade.n', l).replace('{n}', digits(g, l)))}">${esc(digits(g, l))}</button>`).join('');
   const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s };
-  const html = `${head(l, str('th.title', l), style, styleHash, SCRIPT_HASH)}
+  const html = `${head(l, str('th.title', l), style, styleHash, scriptHash)}
 <body>
 <main class="th" id="th-main" data-screen="teacher_home" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
-<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
+<p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait === true ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>
@@ -278,7 +414,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 </section>
 <section class="th-card" id="th-lib">
 <h2>${esc(str('th.sec.library', l))}</h2>
-<p class="th-note" id="th-chosen"></p>
+<p class="th-note" id="th-chosen"></p>${counts === true ? '\n<p class="th-note" id="th-counts" hidden></p>' : ''}
 <div class="th-chips" id="th-grades">${chips}</div>
 <ul class="th-rows" id="th-stories" hidden></ul>
 <a class="th-link" id="th-all" data-tap="all_stories" hidden>${esc(str('th.all.stories', l))}</a>
@@ -307,10 +443,13 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
 </div>
 </section>
 <script type="application/json" id="th-boot">${bootJson(boot)}</script>
-<script>${SCRIPT}</script>
+<script>${script}</script>
 </body>
 </html>`;
-  return { html, csp: csp(styleHash, SCRIPT_HASH) };
+  return { html, csp: csp(styleHash, scriptHash) };
 }
 
-module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, digits };
+module.exports = {
+  buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
+  FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
+};

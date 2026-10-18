@@ -36,9 +36,23 @@ const FLAG_KEY = 'web_quiz_stories';
 const BAND_KEY = 'web_quiz_stories_band';
 // "Read it together" needs the live reader's story keys: offered only when both of its switches are on.
 const LR3_KEYS = ['web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
+// Your turn's word rules (a word said again absorbed, words run together, the longest skipped word to practise, the page
+// event's absorbed count): the book's lrr, only with live reading on and this switch the boolean true; off ⇒ today's reader.
+const REPEAT_KEY = 'web_quiz_lr_repeat';
 // The reader's kind screen on every stall (a dropped voice, a missing book, the page kept in the address, the mic per
 // page, the never-blank stage, no voice before Listen, the 600 ms button hold): the book says `steady: 1`. Off ⇒ no key.
 const STEADY_KEY = 'web_quiz_stories_steady';
+// "Slower" waits between phrases instead of slowing the voice: on, the book says slow_gaps (off: the payload is unchanged).
+const GAPS_KEY = 'web_quiz_stories_slow_gaps';
+// Slower's numbers {sentence: [target, least], comma: [target, least]} in ms (ints 0–2,000, least ≤ target), sent only with
+// the gaps switch; absent or junk, the book says `true` and the player keeps its own.
+const MS_KEY = 'web_quiz_stories_slow_ms';
+// Jugnu keeps its passage recordings (web-quiz-challenge.js keepAudioOn): the microphone notice says so (book.lr3_keep)
+const KEEP_KEY = 'web_quiz_challenge_keep_audio';
+// Keys that ride the stories read. A read naming them that fails is made again without them, the last first (they are off),
+// so a rider's failure never turns stories off.
+const RIDERS = [GAPS_KEY, MS_KEY, REPEAT_KEY, KEEP_KEY];
+const HOST_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -50,8 +64,8 @@ const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read'
 // What each event may keep (numbers and small enums only: never a word the child said, never a name).
 const KEEP = {
   story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
-  story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool' },
-  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints' },
+  story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool', slow: 'one' },
+  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints', absorbed: 'count' },
   story_questions_done: {},
   story_done: { pages_listened: 'int', pages_read: 'int', stars: 'int' },
   story_shared: {},
@@ -72,17 +86,46 @@ function counted(row) {
   return (Number(d.pages_listened) || 0) + (Number(d.pages_read) || 0) > 0;
 }
 
+function slowMs(v) {
+  const pair = (p) => Array.isArray(p) && p.length === 2 && p.every((n) => Number.isInteger(n) && n >= 0 && n <= 2000) && p[1] <= p[0];
+  return v && typeof v === 'object' && pair(v.sentence) && pair(v.comma) ? { sentence: [...v.sentence], comma: [...v.comma] } : null;
+}
+
+async function readRows(keys) {
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  return new Map((data || []).map((r) => [r.key, r.value]));
+}
+
+// One read on the normal path. If it fails, a fault on a switch folded into it never turns the stories off: the read is
+// tried again without the riders (the last first: keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two
+// (lr3 off), then the main switch alone (band and steady off too). Only a failed read of the main switch itself is off.
+const READS = [
+  ...RIDERS.map((_, i) => [...HOST_KEYS, ...RIDERS.slice(0, RIDERS.length - i)]),
+  HOST_KEYS,
+  [FLAG_KEY, BAND_KEY, STEADY_KEY],
+  [FLAG_KEY],
+];
+
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = new Map((data || []).map((r) => [r.key, r.value]));
+    let by = null;
+    let last = null;
+    for (const keys of READS) {
+      try { by = await readRows(keys); break; } catch (err) {
+        last = err;
+        logToFile('⚠️ web quiz stories: settings lookup failed — reading fewer switches', { error: err.message, keys: keys.length });
+      }
+    }
+    if (!by) throw last;
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)) };
+    const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
+    const gaps = on && isTrue(by.get(GAPS_KEY));
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)), keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, steady: false };
+    cache = { at: now, on: false, band: false, lr3: false, lrr: false, keep: false, steady: false, gaps: false, ms: null };
   }
   return cache;
 }
@@ -176,6 +219,9 @@ function mergeWords(words, timings, endMs) {
     if (w.silent === true) out.silent = true;
     else if (tm && Number.isFinite(Number(tm.s_ms)) && Number.isFinite(Number(tm.e_ms))) { out.s_ms = Number(tm.s_ms); out.e_ms = Number(tm.e_ms); }
     if (Array.isArray(w.box) && w.box.length === 4) out.box = w.box.map(Number);
+    // the printed spelling(s) of a word stored in its dictionary form: Your turn counts them as the word
+    const alt = Array.isArray(w.alt) ? w.alt.filter((x) => typeof x === 'string' && x).slice(0, 3) : [];
+    if (alt.length) out.alt = alt;
     return out;
   });
   // The player needs every word timed and in order: a silent word gets zero length at the next spoken word's start
@@ -203,10 +249,12 @@ function keep(event, data) {
     if (v === undefined || v === null) return;
     if (spec[k] === 'int' && int(v) !== null) out[k] = Math.max(0, Math.min(int(v), 10000000));
     else if (spec[k] === 'bool' && typeof v === 'boolean') out[k] = v;
+    else if (spec[k] === 'one' && v === 1) out[k] = 1;
     else if (spec[k] === 'lang' && (v === 'en' || v === 'ur')) out[k] = v;
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
     else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
     else if (spec[k] === 'first' && (v === 'listen' || v === 'read')) out[k] = v;
+    else if (spec[k] === 'count' && Number.isInteger(v) && v >= 0) out[k] = Math.min(v, 2000);   // words said again, absorbed
     else if (spec[k] === 'ints' && Array.isArray(v)) out[k] = v.filter((n) => Number.isInteger(n) && n >= 0 && n < 2000).slice(0, 10);
   });
   return out;
@@ -382,7 +430,9 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
+    // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
+    ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
@@ -404,7 +454,7 @@ async function bookData(id) {
 // ─── events ────────────────────────────────────────────────────────────────────────────────────────────
 
 async function childEvents(studentId, bookId) {
-  const { data } = await supabase.from('story_events').select('event, page_n, data').eq('child_id', studentId).eq('book_id', bookId);
+  const { data } = await supabase.from('story_events').select('event, page_n, data, at').eq('child_id', studentId).eq('book_id', bookId);
   // Only real effort counts: a read with at least 10 % of its words heard, a listen to a page that had a voice.
   return (data || []).filter((r) => {
     const d = r.data || {};
@@ -421,6 +471,18 @@ function effortOf(rows, answered) {
 
 async function bookOn() {
   try { return Boolean((await require('./web-quiz-book').flags()).book); } catch (_) { return false; }
+}
+
+// The storybook sheet showed the microphone notice (wq-liveread.js), and this page read says so (`notice`: its version):
+// the Trail's own record "this child has seen it on this phone", only with lr3 + the notice and keep switches + the exact
+// version. The story_events row never carries the field (keep() drops it). Best effort, never throws.
+async function noticeShown(studentId, device, v) {
+  try {
+    const TrailPage = require('./web-quiz-trail-page');
+    if (v !== TrailPage.NOTICE_V || !(await flags()).keep) return;
+    const tp = await TrailPage.flags();
+    if (tp.consent && tp.keep) await TrailPage.noteNoticeShown(studentId, device);
+  } catch (_) { /* the phone's own mark still holds */ }
 }
 
 async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, data } = {}, { device } = {}) {
@@ -444,7 +506,10 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   }
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 1 || page > (Number(b.pages) || 0))) fail(400, 'bad_page');
+  if (name === 'story_page_read' && data && data.notice != null) await noticeShown(who.studentId, device, data.notice);
   let kept = keep(name, data);
+  // Listened with Slower on (`slow: 1`): kept only with the gaps switch on, else the row is today's
+  if (kept.slow && !(await flags()).gaps) delete kept.slow;
   const out = { ok: true };
   if (name === 'story_questions_done') {
     const qs = await reviewedQuestions(b.id);
@@ -519,7 +584,7 @@ async function stickersFor(studentId) {
 
 module.exports = {
   shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
-  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
+  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, RIDERS, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
   _reset: () => { cache = null; },
   _cardField: (fn) => { cardField = fn; },
 };

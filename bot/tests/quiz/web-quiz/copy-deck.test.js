@@ -126,15 +126,21 @@ describe('copy deck v2.2: the new and retired keys', () => {
     expect([d['jg.round.t_yes'].en, d['jg.round.t_not_yet'].en]).toEqual(['Yes', 'Not yet']);
   });
 
-  test('the mic notice keeps its three facts and makes no deletion claim', () => {
+  test('the mic notice says what the code does (kept, no end date yet, who can listen, what STOP removes and what stays), in a parent\'s words', () => {
     const n = load()['jg.keep.notice'];
-    expect(n.en).toContain('One checker');
-    expect(n.en).toContain('any time');
-    expect(n.en).toContain('STOP');
+    expect(n.en).toMatch(/keeps \{name\}'s reading recordings/);
+    expect(n.en).toMatch(/no end date yet/);
+    expect(n.en).toMatch(/Only the people who make Jugnu can listen/);
+    expect(n.en).toMatch(/STOP on WhatsApp removes this phone number; the recordings stay/);
     expect(n.ur).toContain(`${LRI}STOP${PDI}`);
-    expect(n.ur).toContain('ایک');
-    expect(n.ur).toContain('کسی بھی وقت');
+    expect(n.ur).toContain('صرف جگنو بنانے والے سن سکتے');
+    expect(n.ur).toContain('فون نمبر ہٹا دیا جاتا');
     expect(load()['jg.keep.notice_ok'].en).toBe('Got it');
+  });
+
+  test('the mic notice carries no assessment word and no "just for fun" (a parent reads it before a child\'s reading)', () => {
+    const n = load()['jg.keep.notice'];
+    for (const l of ['en', 'ur']) expect(n[l]).not.toMatch(/checker|examiner|assess|\btests?\b|\bexams?\b|fun|checked|جانچ|امتحان|ٹیسٹ|مزے/i);
   });
 
   test('the keep-my-place card has a try-again line for a failed save', () => {
@@ -198,14 +204,12 @@ describe('copy deck v2.3: the new keys and the read FIXes', () => {
     expect(d()['jg.trail.welcome_back'].ur.endsWith(`چلتے${NBSP}ہیں۔`)).toBe(true);
   });
 
-  test('the mic notice names the grown-up and says the reading stays, in both languages', () => {
+  test('the mic notice says the recordings stay after STOP, in both languages, within its cap (230: the native-signed Urdu is 212 + a long name)', () => {
     const n = d()['jg.keep.notice'];
-    expect(n.en).toMatch(/A grown-up/);
-    expect(n.en).toMatch(/the reading stays/);
-    expect(n.ur).toContain('گھر کے بڑے');
-    expect(n.ur).toContain('ریکارڈنگ پھر بھی');
-    expect(cp(n.en)).toBeLessThanOrEqual(200);
-    expect(cp(n.ur)).toBeLessThanOrEqual(200);
+    expect(n.en).toMatch(/the recordings stay/);
+    expect(n.ur).toContain('لیکن ریکارڈنگ موجود رہتی');
+    expect(cp(n.en)).toBeLessThanOrEqual(230);
+    expect(cp(n.ur)).toBeLessThanOrEqual(230);
   });
 
   test('the failed save says what failed; the whose-turn exit says what it does', () => {

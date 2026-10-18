@@ -115,7 +115,9 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
   }
 }
 
-async function cardState({ canonicalId, device, now = new Date() } = {}) {
+// bound (web_quiz_hub_waves2): a promise of this child's active bindings already being read by the hub (the same read);
+// null rows from it (its own switch off, or a failed read) → read here, as without it
+async function cardState({ canonicalId, device, now = new Date(), bound = null } = {}) {
   try {
     const dev = require('./web-quiz-token').cleanDeviceRef(device);
     if (!canonicalId || !dev || !(await on())) return null;
@@ -128,7 +130,8 @@ async function cardState({ canonicalId, device, now = new Date() } = {}) {
     if (!row.used_at) return ms(row.expires_at) > t ? { state: 'pending' } : { state: 'none' };
     if (row.outcome === 'bound') {
       const Bindings = require('./child-phone-bindings.repo');
-      const active = (await Bindings.activeForChild(String(canonicalId), now)) || [];
+      const early = bound ? await bound : null;
+      const active = early || (await Bindings.activeForChild(String(canonicalId), now)) || [];
       return active.some((b) => String(b.code_id || '') === row.code) ? { state: 'bound' } : { state: 'none' };
     }
     if (PAGE_REFUSALS.has(row.outcome)) {

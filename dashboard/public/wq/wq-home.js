@@ -23,7 +23,7 @@
       fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', newQuiz: 'New', openVideos: 'Open the videos',
       mins: function (m) { return m + ' min'; },
       jar: 'My stickers', jarNew: 'A new sticker', sndOn: 'Sound on', sndOff: 'Sound off',
-      sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
+      sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownTap: 'Hold for grown-ups', grownKeep: 'Keep holding…', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
       who: 'Who is playing?', someoneNew: 'Someone new?',
       remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
       friendJoined: 'A friend joined Jugnu from your card!', friendStamp: 'Guide',
@@ -42,7 +42,7 @@
       fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', newTag: 'نئی', newQuiz: 'نیا', openVideos: 'ویڈیوز کھولیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       jar: 'میرے اسٹیکرز', jarNew: 'نیا اسٹیکر', sndOn: 'آواز چالو', sndOff: 'آواز بند',
-      sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
+      sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownTap: 'بڑوں کے لیے دبائے رکھیں', grownKeep: 'تھوڑی دیر اور دبائے رکھیں…', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
       friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', friendStamp: 'رہنما',
@@ -122,7 +122,7 @@
     var t = C(ctx); var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var hi = B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '');
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
-    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="/wq/jugnu/hello.webp" alt="" width="48" height="48">' +
+    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48">' +
       '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + esc(hi) + '</button>' : esc(hi)) + dotsHtml(B, t) + '</span>' + jar +
       '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? ICON.sndOff : ICON.sndOn) + '</button></header>';
   }
@@ -153,9 +153,10 @@
     var back = B.practice_back ? '<a class="wq-prback" data-tap="prback" href="' + esc(B.practice_back) + '">' + esc(t.prBack) + '</a>' : '<button class="wq-prback" type="button" data-tap="prback">' + esc(t.prBack) + '</button>';
     return '<div class="wq-prstrip" data-practice-strip="1"><span>' + esc(t.prSees) + '</span>' + back + '</div>';
   }
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function nextHtml(nx, ctx) {
     var t = C(ctx);
-    var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp" alt="" width="96" height="96">';
+    var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="' + jv('/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp') + '" alt="" width="96" height="96">';
     var meta = [nx.sub ? '<bdi>' + esc(nx.sub) + '</bdi>' : '', nx.minutes ? '<span class="wq-nmin">' + esc(t.mins(nx.minutes)) + '</span>' : ''].filter(Boolean).join(langOf(ctx) === 'ur' ? '، ' : ' · ');
     var tag = nx.tag ? '<i class="wq-new">' + esc(nx.tag) + '</i>' : '';
     var inner = art + '<span class="wq-ntext">' + tag + '<b>' + esc(nx.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + (nx.href ? '<span class="wq-ngo" aria-hidden="true">' + ICON.go + '</span>' : '');
@@ -182,12 +183,25 @@
       return '<a class="wq-btn wq-soft wq-soc" data-tap="social" data-social="' + x[0] + '" href="' + esc(withLang(x[1], langOf(ctx))) + '">' + ICON[x[0]] + '<span>' + esc(t[x[0]]) + '</span></a>';
     }).join('') + '</nav>';
   }
-  function grownHtml(ctx) {
+  // The one-button look (the bot's `one_button`, web_quiz_one_button): the hold says what it is ("Hold for grown-ups"),
+  // a ring around the lock fills over the 2 s, the words stay above the fill, and a short tap says "Keep holding".
+  var LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>';
+  function lookOn() {
+    try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; }
+  }
+  function grownHtml(ctx, B) {
     var t = C(ctx);
+    // the hold whenever the page has the look (a boot that said on keeps it when a later answer's cache went stale)
+    if ((B && B.one_button === true) || lookOn()) {
+      return '<footer class="wq-grown"><button class="wq-btn wq-btn--hold" type="button" data-tap="grownups" aria-label="' + esc(t.grownTap) + '">' +
+        '<span class="wq-gring" data-hold-ring aria-hidden="true"><svg viewBox="0 0 36 36" width="36" height="36"><circle class="wq-gtrack" cx="18" cy="18" r="16"/><circle class="wq-garc" cx="18" cy="18" r="16" pathLength="100"/></svg>' + LOCK + '</span>' +
+        '<span class="wq-glab" data-hold-label>' + esc(t.grownTap) + '</span></button>' +
+        '<p class="wq-ghint" data-hold-hint role="status" hidden>' + esc(t.grownKeep) + '</p></footer>';
+    }
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
   }
   /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
    * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
@@ -341,7 +355,7 @@
       });
     });
     var g = root.querySelector('[data-tap="grownups"]');
-    if (g) hold(g, function () { grownups(root, B, ctx); });
+    if (g) hold(g, function () { grownups(root, B, ctx); }, B.one_button === true ? root.querySelector('[data-hold-hint]') : null);
     // The stories reader (wq-stories.js, web_quiz_stories: the boot's `stories.on`) fills [data-shelf] and owns #story/<id>.
     var sh = root.querySelector('[data-stories-shelf]');
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
@@ -418,11 +432,13 @@
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
   // The grown-ups corner opens only on a ~2 s press-and-hold (IA §2; never a tap, never arithmetic).
-  function hold(el, done) {
-    var timer = null;
+  // With `hint` (the one-button look): a press let go early shows "Keep holding" for 1.5 s, and the open is felt (a short
+  // buzz where the phone has one) and heard (the sound kit's tap, muted with the rest).
+  function hold(el, done, hint) {
+    var timer = null; var hintT = null;
     // One finger fires pointerdown AND touchstart on Android: the second start is ignored, so a tap never leaves a timer.
-    var start = function (e) { if (e && e.preventDefault) e.preventDefault(); if (timer) return; el.classList.add('held'); timer = setTimeout(function () { timer = null; el.classList.remove('held'); done(); }, 2000); };
-    var stop = function () { if (timer) { clearTimeout(timer); timer = null; } el.classList.remove('held'); };
+    var start = function (e) { if (e && e.preventDefault) e.preventDefault(); if (timer) return; if (hint) { hint.hidden = true; clearTimeout(hintT); } el.classList.add('held'); timer = setTimeout(function () { timer = null; el.classList.remove('held'); if (hint) { try { if (navigator.vibrate) navigator.vibrate(30); } catch (x) {} juice('tap'); } done(); }, 2000); };
+    var stop = function () { if (timer) { clearTimeout(timer); timer = null; if (hint) { hint.hidden = false; clearTimeout(hintT); hintT = setTimeout(function () { hint.hidden = true; }, 1500); } } el.classList.remove('held'); };
     ['pointerdown', 'touchstart'].forEach(function (n) { el.addEventListener(n, start); });
     ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (n) { el.addEventListener(n, stop); });
   }

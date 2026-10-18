@@ -39,6 +39,7 @@ function harness() {
     LANG: 'en',
     VLANG: 'en', // the shared lines' language (the questions' language), set at boot by the page
     SOUND: true,
+    ONE_VOICE: false, // boot one_voice (web_quiz_one_voice), off as today
     ROOT: { classList: { add() {}, remove() {} } },
     speakable: (t) => /[A-Za-z0-9\u0600-\u06FF]/.test(String(t || '')),
     ev: (name, data) => events.push({ name, data }),

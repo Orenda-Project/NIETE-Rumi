@@ -66,12 +66,31 @@ const run = (over) => ({ id: `r-${Math.random().toString(36).slice(2, 10)}`, stu
 const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: 'en', band, kind, pool: 'practice', status: 'reviewed',
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
+// Every switch the quiz services name (each 'web_quiz_…' string in bot/shared/services/quiz, read from the source, so a
+// switch added tomorrow is in this list too), for the standing parity rows: fanout on and off must give the same answer
+// whatever else is on. The fanout key itself is set by the fixture.
+const EVERY_KEY = (() => {
+  const fs = require('fs');
+  const path = require('path');
+  const keys = new Set();
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) walk(f);
+    else if (f.endsWith('.js')) (fs.readFileSync(f, 'utf8').match(/'web_quiz_[a-z0-9_]+'/g) || []).forEach((k) => keys.add(k.slice(1, -1)));
+  });
+  walk(path.join(__dirname, '../../../shared/services/quiz'));
+  keys.delete('web_quiz_hub_fanout');
+  return [...keys].sort();
+})();
+
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
 // ret: web_quiz_return_lang on; kept: the child's kept language row (child_language); urClass: the class quizzes are
 // Urdu, and the class has an Urdu twin of its open hand-out, sent after the English one.
-function tables({ fast, loose = false, home = false, stories = false, fanout = false, merged = false, ret = false, kept = null, urClass = false }) {
+// every: every switch in EVERY_KEY on (as JSON true), beside the fixture's own.
+function tables({ fast, loose = false, home = false, stories = false, fanout = false, merged = false, ret = false, kept = null, urClass = false, every = false }) {
   const t = {
-    app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []),
+    app_settings: [...(every ? EVERY_KEY.filter((key) => key !== 'web_quiz_fast').map((key) => ({ key, value: true })) : ON_KEYS.map((key) => ({ key, value: 'true' }))),
+      ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []),
       ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : []), ...(stories ? [{ key: 'web_quiz_stories', value: true }] : []),
       ...(fanout === true ? [{ key: 'web_quiz_hub_fanout', value: true }] : fanout ? [{ key: 'web_quiz_hub_fanout', value: fanout }] : []),
       ...(ret ? [{ key: 'web_quiz_return_lang', value: true }] : [])],
@@ -186,7 +205,9 @@ async function measure(token, opts) {
   reads.forEach((r) => { perTable[r.t] = (perTable[r.t] || 0) + 1; });
   const open = logEvent.mock.calls.filter(([name]) => name === 'web_quiz.hub_open').map(([, f]) => f);
   await settle();
-  return { out, open: JSON.stringify(open), waves, perTable };
+  // the tables read by this request, the reads it starts after its answer (a read-ahead) included
+  const tablesRead = [...new Set(reads.map((r) => r.t))].sort();
+  return { out, open: JSON.stringify(open), waves, perTable, tablesRead };
 }
 
 const SAVED = { ...process.env };
@@ -261,6 +282,46 @@ describe.each(FIXTURES)('the hub, reads together: %s', (_name, fx) => {
     const on = await warmAndStale({ fast: true, ...fx, fanout: true }, { keepWarm: true });
     console.log(`hub waves kept warm (${_name}): ${on.warm.waves} warm / ${on.stale.waves} after 31 s`);
     expect(on.stale.waves).toBeLessThanOrEqual(on.warm.waves + (fx.loose ? 0 : 2));
+  });
+});
+
+// #N108 (c): the whole class of "a field the fanout path forgets" (a part not handed the grade, the page language,
+// a sheet the serial path asks for): with every switch on, fanout on is the same answer as fanout off.
+describe.each([['a child on a class list', { loose: false }], ['a loose child', { loose: true }]])('every switch on: %s', (_name, fx) => {
+  test('the answer and its hub_open line are byte for byte the same with fanout on as off, warm and stale', async () => {
+    const off = await warmAndStale({ fast: true, every: true, ...fx });
+    const on = await warmAndStale({ fast: true, every: true, ...fx, fanout: true });
+    expect(EVERY_KEY.length).toBeGreaterThan(40);
+    // the ranked next thing's offer ids are new on every answer (web-quiz-next-offer.js offerId), fanout or not
+    const same = (json) => json.replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"*"');
+    expect(JSON.parse(same(on.warm.out))).toEqual(JSON.parse(same(off.warm.out)));
+    expect(same(on.warm.out)).toBe(same(off.warm.out));
+    expect(same(on.stale.out)).toBe(same(off.stale.out));
+    expect(on.warm.open).toBe(off.warm.open);
+    expect(on.stale.open).toBe(off.stale.open);
+  });
+
+  test('every table read with fanout off is read with it on too, read-aheads after the answer included', async () => {
+    const off = await warmAndStale({ fast: true, every: true, ...fx });
+    const on = await warmAndStale({ fast: true, every: true, ...fx, fanout: true });
+    expect(on.warm.tablesRead).toEqual(off.warm.tablesRead);
+    expect(on.stale.tablesRead).toEqual(off.stale.tablesRead);
+  });
+
+  test('the Videos door\'s lesson lengths are read ahead for the child\'s grade, fanout on as off', async () => {
+    const calls = {};
+    for (const fanout of [false, true]) {
+      boot({ fast: true, every: true, ...fx, fanout });
+      const Lib = require('../../../shared/services/quiz/web-quiz-library');
+      const spy = jest.spyOn(Lib, 'warmGrade');
+      const tok = tokenOne();
+      await measure(tok, { device: DEVICE });
+      await measure(tok, { device: DEVICE });
+      calls[fanout] = spy.mock.calls.map((c) => JSON.stringify(c));
+      spy.mockRestore();
+    }
+    expect(calls.false.length).toBeGreaterThan(0);
+    expect(calls.true).toEqual(calls.false);
   });
 });
 

@@ -174,6 +174,7 @@
     var t = C(ctx);
     if (shelfOn(B) && lib && !lib.err && (lib.subjects || []).length) return shelvesBody(ctx, lib);
     if (shelfOn(B) && !lib) return waitShelves();
+    if (shelfOn(B) && lib.err) return '<div class="wq-dempty">' + oopsHtml(ctx, '', 0).replace('type="button"', 'type="button" data-primary').replace(/ data-item="" data-pos="0"/, '') + '</div>';
     if (!lib) return B.list_states ? skel(5, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     if (lib.err) return errNote(t);
     var subs = lib.subjects || [];
@@ -254,7 +255,7 @@
     var q = shelf && w.after ? '<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="' + esc(w.vid) + '">' + esc(t.vquiz) + '</button>' : '';
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
-    return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
+    return '<div class="wq-vbox' + (shelf ? ' wq-vbox--s' : '') + '"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
       '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' + q +
       '<div class="wq-after" hidden>' + nx + '</div>';
@@ -307,6 +308,7 @@
   }
   // Asked by the home when this file loads: the Games and Stories rows, so a door tap paints its whole list at once.
   function warm(B, ctx) {
+    if (B && B.wait_pre === true && !B.practice) warmVideos(B, ctx);
     if (!B || !B.list_states || B.practice) return;
     ['games', 'stories'].forEach(function (n) { if (!cache[n]) ask(B, ctx, n, function () {}); });
   }
@@ -460,12 +462,46 @@
     if (name === 'videos') return videos(root, B, ctx, view.subject);
     if (/^watch\//.test(name)) return start(root, B, ctx, { vid: name.slice(6) });
   }
+  // web_quiz_doors_prefetch (the boot's `wait_pre`): the Videos door's subjects, asked once the home has painted, then
+  // with the shelves each subject's shelf one at a time (each when the phone is idle after the last has answered), so a
+  // Videos tap paints from rows already here and a home open never asks every shelf at once. Never on Data Saver or 2G,
+  // the subjects only on 3G; a read that failed is not kept. A tap joins a read on its way (libGet: one read per list).
+  var libAsking = {};
+  function libGet(url, done) {
+    if (libAsking[url]) return libAsking[url].push(done);
+    libAsking[url] = [done];
+    getJson(url, function (err, j) { var all = libAsking[url] || []; libAsking[url] = null; all.forEach(function (fn) { fn(err, j); }); });
+  }
+  function libRead(B) { return B && B.wait_pre === true ? libGet : getJson; }
+  function idle(fn) {
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout: 2000 });
+    if (typeof setTimeout === 'function') return setTimeout(fn, 200);
+    fn();
+  }
+  function warmVideos(B, ctx) {
+    var c = (typeof navigator !== 'undefined' && navigator && navigator.connection) || {};
+    var net = String(c.effectiveType || '');
+    if (c.saveData || /(^|-)2g$/.test(net)) return;
+    if (lib.subjects && !lib.subjects.err) return;
+    libGet(libUrl(B, ctx), function (err, j) {
+      if (err || !j || j.err) return;
+      lib.subjects = j;
+      if (!shelfOn(B) || net === '3g') return;
+      var keys = (j.subjects || []).map(function (s) { return s.key; });
+      (function next() {
+        var k = keys.shift();
+        while (k !== undefined && lib.chapters[k]) k = keys.shift();
+        if (k === undefined) return;
+        idle(function () { if (lib.chapters[k]) return next(); libGet(libUrl(B, ctx, k), function (e, x) { if (!e && x && !x.err && !lib.chapters[k]) lib.chapters[k] = x; next(); }); });
+      })();
+    });
+  }
   function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (s ? '&s=' + encodeURIComponent(s) : ''); }
   function videos(root, B, ctx, subject) {
     view.subject = subject || null;
     if (!subject) {
       draw(root, B, ctx, 'videos', { lib: lib.subjects });
-      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); getJson(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
+      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); libRead(B)(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
       else { shelves(root, B, ctx); subjState(root, B); }
       return;
     }
@@ -473,7 +509,7 @@
     var see = function (st, l) { if (shelfOn(B)) vtrip(root, 'videos/' + subject, st, st === 'done' && !lessonsOf(l).length); };
     if (lib.chapters[subject]) return see('done', lib.chapters[subject]);
     see('pending');
-    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
+    libRead(B)(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
   }
   // The walkers' list-state tripwires on the door root (web_quiz_video_shelf; the four attributes every child list
   // writes): data-fetch pending|done|failed, when its placeholders came and went (a Try again starts a new spell), and
@@ -526,7 +562,7 @@
     };
     if (lib.chapters[key]) return fill(lib.chapters[key]);
     state(at(), 'pending');
-    getJson(libUrl(B, ctx, key), function (err, j) {
+    libRead(B)(libUrl(B, ctx, key), function (err, j) {
       if (err || !j) { var sh = at(); if (sh) { put(sh, oopsHtml(ctx, key, si)); state(sh, 'failed'); } return; }
       lib.chapters[key] = j; fill(j);
     });
@@ -652,6 +688,7 @@
           e.preventDefault();
           var rk = el.getAttribute('data-item');
           if (view.subject) return videos(root, B, ctx, view.subject);
+          if (!rk) { lib.subjects = null; return videos(root, B, ctx, null); }
           var rs = root.querySelector('[data-vshelf="' + String(rk).replace(/["\\]/g, '') + '"]');
           if (rs) rs.innerHTML = SKEL + SKEL + SKEL;
           return shelf(root, B, ctx, rk, Number(el.getAttribute('data-pos')) || 0);
@@ -753,6 +790,6 @@
 
   if (typeof window !== 'undefined') {
     window.WQDOORS = { owns: owns, html: html, watchHtml: watchHtml, shelfHtml: shelfHtml, mount: mountKeep, warm: warm, COPY: COPY, storyHref: storyHref,
-      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
+      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; vrows = {}; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
   }
 })();
