@@ -33,10 +33,11 @@
 /* vine: a glowing vine up the side of the passage; Jugnu climbs it past 5 leaves. Everything stays in the vine's own
    48 px box (leaves on both sides of the stem, Jugnu over it), so nothing crosses the page's gutter */
 .wqp-vine { position: absolute; inset-block: 8px; inset-inline-end: 0; width: 48px; }
-.wqp-vine .wqp-track { position: absolute; inset-block: 24px 0; left: 17px; width: 14px; border-radius: 999px; background: linear-gradient(0deg, #1f4d2c, #2b3a63); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .35); }
-.wqp-vine .wqp-fill { left: 0; right: 0; bottom: 0; height: 0; border-radius: 999px; background: linear-gradient(0deg, #3a9d4f, #b8e86a 70%, #ffe58a); box-shadow: 0 0 calc(4px + 12px * var(--lv)) rgba(184, 232, 106, .85); }
-.wqp-vine .wqp-mark { bottom: calc(var(--at) - 11px); left: 26px; color: #c9bd99; }
-.wqp-vine .wqp-mark:nth-of-type(2n) { left: 0; transform: scaleX(-1); }
+.wqp-vine .wqp-track { position: absolute; inset: 0; }   /* the whole box: leaves and Jugnu are placed in it */
+.wqp-vine .wqp-track::before { content: ""; position: absolute; inset-block: 24px 0; left: 17px; width: 14px; border-radius: 999px; background: linear-gradient(0deg, #1f4d2c, #2b3a63); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .35); }
+.wqp-vine .wqp-fill { left: 17px; width: 14px; bottom: 0; height: 0; max-height: calc(100% - 24px); border-radius: 999px; background: linear-gradient(0deg, #3a9d4f, #b8e86a 70%, #ffe58a); box-shadow: 0 0 calc(4px + 12px * var(--lv)) rgba(184, 232, 106, .85); }
+.wqp-vine .wqp-mark { bottom: calc(var(--at) - 11px); left: 19px; color: #c9bd99; }   /* 7 px from each side: room for the pop */
+.wqp-vine .wqp-mark:nth-of-type(2n) { left: 7px; transform: scaleX(-1); }
 .wqp-vine .wqp-mark.on { color: #7fd36b; filter: drop-shadow(0 0 6px rgba(184, 232, 106, .95)); }
 .wqp-vine .wqp-mark:last-of-type { bottom: calc(100% - 22px); left: 13px; }
 .wqp-vine .wqp-mark:last-of-type.on { color: #ffc83a; }
