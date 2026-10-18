@@ -183,7 +183,7 @@ describe('the Urdu words (after a native read)', () => {
 
 // ---- the Jugnu page's end cards (wq-trail.js with a small host) --------------------------------------------------
 const STORY_HREF = 'https://portal.example/c/tok?room=story&pid=p1';
-function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok', words = {} } = {}) {
+function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok', words = {}, along = null } = {}) {
   let screen = '';
   const listeners = {};
   const posts = [];
@@ -213,6 +213,8 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = 
     },
     WQJ: { finish: (o) => juice.push(`finish:${o.kind}`), badge: () => juice.push('badge'), sentence: () => juice.push('sentence') },
   };
+  // along: the read-along player is here; it records the timings it was mounted with and each play
+  if (along) ctx.WQReadAlong = { mount: (el, ra) => { along.push(ra); return { play() { along.push('play'); }, destroy() {} }; } };
   ctx.window = ctx;
   vm.createContext(ctx);
   if (withFc) vm.runInContext(FC_SRC, ctx);
@@ -733,12 +735,32 @@ describe('a 0-word read on the folded card (key on)', () => {
       if (o.story) t.TR.menu();
       t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
       const h = t.html();
-      expect(h).toMatch(/id="wqc-rfagain"[^>]*>Again</);
+      // the button says what Jugnu's line asks ("let's read it together"): read it again, never a bare "try again"
+      expect(h).toMatch(new RegExp(`id="wqc-rfagain"[^>]*>${lang === 'ur' ? 'پھر سے پڑھیں' : 'Read it again'}<`));
       expect(h.indexOf('id="wqc-rfagain"')).toBeLessThan(h.indexOf('</section>', h.indexOf('data-rf')));
       const n = t.opened.length;   // the story room opened its story once already
       t.tap('wqc-rfagain');
       expect(t.opened.slice(n)).toEqual(['read']);
     }
+  });
+});
+
+// ---- the same card with a read-along (zero_listen on, the passage's timings here): ONE button for ONE action ---------
+describe('a 0-word read on the folded card with a read-along (key on)', () => {
+  const RA = { words: [{ w: 'a', s: 0, e: 300 }] };
+  test.each([['en', 'Read with Jugnu', 'Hear it again'], ['ur', 'جگنو کے ساتھ پڑھیں', 'دوبارہ سنیں']])('%s: the moment\'s button reads with Jugnu, then opens the read; no separate "Hear it again"', (lang, withJ, replay) => {
+    const along = [];
+    const t = trail({ lang, along, menu: { ...FOLD, ...RF }, data: { next_offer: NEXT, zero_listen: true, readalong: RA } });
+    t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+    const h = t.html();
+    expect(h).toMatch(new RegExp(`id="wqc-rfagain"[^>]*>${withJ}<`));
+    expect(h).not.toContain(`>${replay}<`);
+    expect(primaries(h)).toBe(1);   // the card's own Next stays the one primary
+    t.tap('wqc-rfagain');
+    expect(along).toEqual([RA, 'play']);
+    expect(t.opened).toEqual([]);   // the read waits for "I'm ready", never opened under the read-along
+    t.tap('wqc-along-read');
+    expect(t.opened).toEqual(['read']);
   });
 });
 

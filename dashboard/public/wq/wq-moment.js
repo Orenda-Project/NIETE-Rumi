@@ -43,7 +43,7 @@
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
       again: 'Read it again to light one more!', again3: 'Read it again for 3 stars!',
-      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu',
+      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu', readAgain: 'Read it again',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
@@ -55,7 +55,7 @@
       stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
       up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
       again: 'ایک اور روشنی کے لیے پھر سے پڑھیں!', again3: 'تین ستاروں کے لیے پھر سے پڑھیں!',
-      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں',
+      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں', readAgain: 'پھر سے پڑھیں',
       badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
     }
   };
@@ -221,9 +221,10 @@
     return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)][lv.stars < 3 ? 'again3' : 'again']) + '</button>' : '';
   }
 
-  // o.retry: the host's own "Try again" label for a 0-word try on a card with no Try again of its own (the folded card)
+  // o.retry: a 0-word try on a card with no Try again of its own (the folded card) gets one; it says "read it again", as
+  // Jugnu's line asks ("let's read it together"), never a bare "try again"
   function card(fb, lang, o) {
-    var a = fb && fb.zero && o && o.retry ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(o.retry) + '</button>' : again(fb, lang, o), h = html(fb, lang, o);
+    var a = fb && fb.zero && o && o.retry ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].readAgain) + '</button>' : again(fb, lang, o), h = html(fb, lang, o);
     return a ? h.replace(/<\/section>$/, '<div class="wq-moment-again">' + a + '</div></section>') : h;
   }
 
@@ -261,5 +262,7 @@
     if (R.rfw) { R.rfw = 0; if (m.label() === 'listen') m.primary(); }
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
+  // label(lang, key): one of the moment's own words, for a host button that does the moment's action (the folded card)
+  function label(lang, k) { return C[L(lang)][k]; }
+  window.WQMoment = { label: label, feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
 })();
