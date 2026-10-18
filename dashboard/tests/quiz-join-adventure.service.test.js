@@ -63,7 +63,11 @@ describe('switch ON: the adventure look', () => {
     expect(visible(html)).not.toMatch(/\btest\b|\bexam\b|assessment|امتحان|ٹیسٹ/i);
     // the page's own layer: fixed edges only, no bare color-mix, and the quiz's colours are never redefined
     expect(styleOf(html)).not.toMatch(/color-mix\(/);
-    expect(styleOf(html).replace(TOKENS_CSS, '')).not.toMatch(/--(s[1-4]|right|notyet|ink)(-[\w-]*)?\s*:/);
+    // --ink is declared once, as today's join text colour (#2b2118, the body's colour), so the token layer's var(--ink) resolves
+    const layer = styleOf(html).replace(TOKENS_CSS, '');
+    expect(layer).toContain('html.wq-adv{--ink:#2b2118;');
+    expect(layer.replace('html.wq-adv{--ink:#2b2118;', 'html.wq-adv{')).not.toMatch(/--(s[1-4]|right|notyet|ink)(-[\w-]*)?\s*:/);
+    expect(layer).not.toContain('var(--ink,');
     // the gutter: main keeps 16 px on both sides, and nothing in the layer widens it away
     expect(styleOf(html)).toContain('main{max-width:480px;margin:0 auto;padding:16px 16px 32px}');
     expect(styleOf(html).replace(TOKENS_CSS, '')).not.toMatch(/html\.wq-adv[^{]*\bmain\{[^}]*padding/);

@@ -51,7 +51,7 @@ const QUIZ_COLOURS = /--(s[1-4]|right|notyet|ink)(-[\w-]*)?\s*:/;
 
 describe('the token layer', () => {
   test('the shared layer, copied once: sha256 pinned, every rule under html.wq-adv, no color-mix, the quiz\'s colours untouched', () => {
-    expect(sha(Adv.TOKENS_CSS)).toBe('8875c7639bc40c8f1faae1ebfaf9aec1a3399517b61cd6cfff07710bdf460c47');
+    expect(sha(Adv.TOKENS_CSS)).toBe('a4d6c3bbdd02d2bd2696ff5bb1dafd6b704de79c986d1a8d0b66263a21559e67');
     expect(Adv.TOKENS_CSS).not.toMatch(/color-mix\(/);
     expect(Adv.TOKENS_CSS).not.toMatch(QUIZ_COLOURS);
     expect(Adv.TOKENS_CSS).not.toMatch(/\/\*/);

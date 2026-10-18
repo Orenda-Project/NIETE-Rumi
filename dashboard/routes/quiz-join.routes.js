@@ -123,10 +123,11 @@ input{width:100%;height:56px;border-radius:14px;border:2px solid #e3c48a;padding
 // paints from the variant's --fill / --on / --edge: a primary is 56 px, a secondary 52; .go / .pick (join.js) are the same.
 // The fold: "Let's go!" is on screen at first paint on a 360 x 780 phone with the notice open, words unchanged (Jugnu
 // 64 px, a tighter rhythm, the notice a size smaller; Urdu keeps line-height 1.9).
+// --ink is today's join text colour, declared on <html> so the token layer's var(--ink) (the gold primary's label) resolves.
 // The map is painted on <html> (at least the screen's height, and as tall as the page): no flat band under a short body.
-const ADV_LAYER = `html.wq-adv{min-height:100%;background-color:var(--ground);color:var(--ink,#2b2118);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}
-html.wq-adv body{background:transparent;color:var(--ink,#2b2118)}
-html.wq-adv .go{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}html.wq-adv .pick{--fill:var(--card);--on:var(--ink,#2b2118);--edge:var(--line)}
+const ADV_LAYER = `html.wq-adv{--ink:#2b2118;min-height:100%;background-color:var(--ground);color:var(--ink);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}
+html.wq-adv body{background:transparent;color:var(--ink)}
+html.wq-adv .go{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}html.wq-adv .pick{--fill:var(--card);--on:var(--ink);--edge:var(--line)}
 html.wq-adv .wq-btn,html.wq-adv .go,html.wq-adv .pick{display:flex;align-items:center;justify-content:center;min-height:var(--btn-h2);height:auto;padding:var(--sp-2) var(--sp-4);border:0;border-radius:var(--r-btn);background:var(--fill);color:var(--on);box-shadow:var(--sh-btn);line-height:1.3;text-align:center;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--dur-tap),box-shadow var(--dur-tap)}
 html.wq-adv .wq-btn:active,html.wq-adv .go:active,html.wq-adv .pick:active{transform:translateY(var(--press-y));box-shadow:var(--sh-press)}
 html.wq-adv .wq-btn--primary,html.wq-adv .go{min-height:var(--btn-h);font-weight:800}html.wq-adv[lang=ur] .go,html.wq-adv[lang=ur] .pick{line-height:1.6}
