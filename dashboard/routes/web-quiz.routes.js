@@ -1220,7 +1220,7 @@ function createWebQuizRouter(opts = {}) {
     } catch (_) {
       const away = lastClosedLang ? codeLang(upper, req) : 'en';
       if (flush) return wire.again(inlineClosed(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
-      if (busy(req, res, null, 'en')) return undefined;
+      if (busy(req, res, null, away)) return undefined;
       return res.status(502).type('html').send(closedHtml(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (flush && !(out.status === 200 && out.body && out.body.quiz)) {
