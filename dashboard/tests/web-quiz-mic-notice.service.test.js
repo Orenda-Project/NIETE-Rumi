@@ -206,6 +206,22 @@ describe('keeping switched off or on later', () => {
     b.el.tap('.lr-go');
     expect(sheet(storage, { keep: false }).el.innerHTML).not.toContain('lr-notice');
   });
+  test('"Start reading" under a shown notice flags the host\'s notice object once (shown), so the storybook can tell its server; no notice shown, no flag', () => {
+    const storage = store();
+    const LR = sheetLib(storage);
+    const n1 = { kid: 'c1', keep: true }, a = sheetEl();
+    LR.askMic(a, { lang: 'en', src: 'story', onStream() {}, onNotNow() {}, notice: n1 });
+    a.tap('.lr-go');
+    expect(n1.shown).toBe(1);
+    const n2 = { kid: 'c1', keep: true }, b = sheetEl();
+    LR.askMic(b, { lang: 'en', src: 'story', onStream() {}, onNotNow() {}, notice: n2 });
+    b.tap('.lr-go');
+    expect(n2).toEqual({ kid: 'c1', keep: true });                 // already seen on this phone: nothing shown, nothing flagged
+    const n3 = { kid: 'c2', keep: true }, c = sheetEl();
+    LR.askMic(c, { lang: 'en', src: 'story', onStream() {}, onNotNow() {}, notice: n3 });
+    c.tap('.lr-listen');
+    expect(n3).toEqual({ kid: 'c2', keep: true });                 // "Not now": the notice is still owed, not flagged
+  });
   test('no notice option (a host that does not pass one): the sheet is today\'s', () => {
     const LR = sheetLib(store());
     const a = sheetEl(); LR.askMic(a, { lang: 'en', src: 'story' });
