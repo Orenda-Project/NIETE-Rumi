@@ -1043,7 +1043,7 @@ function createWebQuizRouter(opts = {}) {
       const html = renderHubPage({ payload: out.body, token, origin, assetV: version() });
       const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
       const items = TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', '));
-      if (!res.headersSent) res.set('Server-Timing', [res.get('Server-Timing'), items].filter(Boolean).join(', '));
+      TimingNames.appendTiming(res, items);
       return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub');
