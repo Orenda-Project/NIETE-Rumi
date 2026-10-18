@@ -40,7 +40,7 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release, refuse } (`refuse()` answers the oldest held home fetch with a 500).
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, paged = false, wait = false } = {}) {
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, wait = false } = {}) {
   const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(wait ? { wait: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
@@ -61,7 +61,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     },
     addEventListener() {},
     scrollTo() {},
-    history: { pushState() {}, back() {} },
+    history: { pushState() {}, back() { if (backThrows) throw new Error('no history'); } },
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
@@ -547,5 +547,62 @@ describe('the words while a quiz is made', () => {
   test('no number of minutes is promised; the chat is named as the other way it arrives', () => {
     expect(Strings.str('th.job', 'en')).toBe('Your quiz is on its way — it takes a few minutes and arrives in this chat too');
     expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
+  });
+});
+
+describe('one primary action on the screen', () => {
+  const MSG = 'Assalam o Alaikum class! Your teacher sent you a quiz.';
+  const home = () => ({ primary: { kind: 'class', played: 0, title: 'Seasons', again: { id: 'own1' }, send: { message: MSG, wa: `https://wa.me/?text=${encodeURIComponent(MSG)}`, c: 'own-code', sendKind: 'again' } }, library: LIB });
+  const primaries = (p) => p.q('main').parentNode.querySelectorAll('[data-primary]');
+
+  test('the home carries ONE data-primary: the top card\'s; the closed send sheet carries none', async () => {
+    const p = await open(home());
+    const all = primaries(p);
+    expect(all).toHaveLength(1);
+    expect(all[0].getAttribute('data-tap')).toBe('again');
+    expect(p.q('#th-sheet-go').getAttribute('data-primary')).toBeNull();
+  });
+
+  test('with the sheet open its "Send to my class" is the one primary; closed again, the top card\'s is', async () => {
+    const p = await open(home(), { backThrows: true });
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(p.q('#th-sheet').hidden).toBe(true);
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['again']);
+  });
+
+  test('a quiz that lands while the sheet is open repaints the top card without a second primary; closed, the new card\'s is the one', async () => {
+    const timers = [];
+    const p = await open({ ...home(), timeline: [{ kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' }] }, {
+      timers, backThrows: true,
+      answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' } : {}),
+    });
+    await p.tap(p.q('#th-rows').querySelector('[data-tap="quiz_this"]'));
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    timers.splice(0).forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').getAttribute('data-kind')).toBe('made');
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
+  });
+
+  test('a grade change while the sheet is open repaints the top card without a second primary', async () => {
+    const VIDEO = { kind: 'video', id: 'v1', title: 'Rain', send: { message: 'V', wa: 'https://wa.me/?text=V', c: 'vc' } };
+    const p = await open({ primary: VIDEO, library: LIB }, {
+      backThrows: true,
+      answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { ...LIB, grade: 3, pick: { ...VIDEO, id: 'v2', title: 'Sun' } } : {}),
+    });
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="3"]'));
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').textContent).toContain('Sun');
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
   });
 });

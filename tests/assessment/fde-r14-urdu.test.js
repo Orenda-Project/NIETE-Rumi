@@ -94,9 +94,15 @@ describe('(1) a kept fact asked again under a new stem, keyed the same, is a twi
     const list = items(exam, 'urdu.A.Q1');
     Object.assign(list[18], { question: 'درج ذیل میں سے کون سا جملہ تمنائی ہے؟', options: ['الف) کاش میں پرندہ ہوتا', 'ب) وہ گھر گیا', 'ج) کیا تم آؤ گے؟', 'د) شاید بارش ہو'], answer: 'الف) کاش میں پرندہ ہوتا' });
     Object.assign(list[19], { question: 'خالی جگہ کے لیے درست لفظ منتخب کریں: «___ ہم بھی ستاروں تک جا سکتے!» (تمنائی جملہ)', options: ['الف) کاش', 'ب) اگر', 'ج) شاید', 'د) جب'], answer: 'الف) کاش' });
+    // Both ask تمنائی, so the second is held as one grammar concept asked twice.
     const stems = q1Stems(lay(exam).examJson);
     expect(stems).toContain(list[18].question);
-    expect(stems).toContain(list[19].question);
+    expect(stems).not.toContain(list[19].question);
+    // The key rule alone holds neither: with the sentence asked as a story fact, both stay.
+    Object.assign(list[18], { question: 'نظم میں بچہ کیا کہتا ہے؟' });
+    const alone = q1Stems(lay(exam).examJson);
+    expect(alone).toContain(list[18].question);
+    expect(alone).toContain(list[19].question);
   });
 });
 
@@ -119,9 +125,10 @@ describe('(3) a Q1 stem that prints another Q1 item\'s key', () => {
     const list = items(exam, 'urdu.A.Q1');
     Object.assign(list[18], { question: "'میری دعا ہے کہ ہم سب خوش رہیں۔' یہ کس قسم کا جملہ ہے؟", options: ['الف) تمنائی جملہ', 'ب) شکیہ جملہ', 'ج) سوالیہ جملہ', 'د) خبریہ جملہ'], answer: 'الف) تمنائی جملہ' });
     Object.assign(list[19], { question: 'کون سا لفظ تمنائی جملے میں استعمال ہوتا ہے؟', options: ['الف) کاش', 'ب) شاید', 'ج) کیا', 'د) اور'], answer: 'الف) کاش' });
+    // Both ask تمنائی: the second is held as one grammar concept asked twice, not as a given-away key.
     const stems = q1Stems(lay(exam).examJson);
     expect(stems).toContain(list[18].question);
-    expect(stems).toContain(list[19].question);
+    expect(stems).not.toContain(list[19].question);
   });
 
   test('a stem that prints the name a definition item asks for gives it away («… یہ الفاظ کس کے متلازم ہیں؟» / «… کیا کہتے ہیں؟ → متلازم الفاظ»)', () => {
@@ -208,7 +215,8 @@ describe('(2) the Section A re-ask is told the items Q1 keeps, with their keys',
 
   test('a top-up names every kept Q1 item and its key, and never to key a new item on them', () => {
     const first = firstReply();
-    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 6 });
+    // Six re-asked items, and one more: the second شرط و جزا item («جوں جوں» …) asks a concept Q1 already asks.
+    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 7 });
     const note = takenNote(U, sectionA, first.examJson, { topUp: true, shortfall: first.shortfall });
     expect(note).toContain(`- ${recorded('full_1', 2).question} → دندان سازی`);
     expect(note).toContain(`- ${recorded('full_1', 3).question} → گلستان`);

@@ -283,12 +283,11 @@ function createRouter(deps = null) {
   }
 
   /** The quick home: the same JSON as today's, its reads started together. */
-  async function quickHome(req, res, p) {
+  async function quickHome(req, res, p, userP) {
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
-    const userP = Data.teacherOf(p.uid, deps);
     const soon = quickReads(p.uid);
     const pfP = Data.within(Cta.prefillOf(p.uid), Data.SIDE_BUDGET_MS, null, 'prefill');
     const treeP = Data.within(Bank.chipTree(Date.now(), { quick: true }), Data.SIDE_BUDGET_MS, {}, 'video bank');
@@ -337,10 +336,14 @@ function createRouter(deps = null) {
   router.get('/api/th/home', handleJson(async (req, res) => {
     const p = authorise(req.query.t, res);
     if (!p) return;
-    if (await req.thPaged) { await quickHome(req, res, p); return; }
+    // the user read starts alongside the quick answer's switch read (one round trip, not a serial one after it); a
+    // failed read is answered where it is awaited (the route's 503), never left unheard
+    const userP = Data.teacherOf(p.uid, deps);
+    userP.catch(() => {});
+    if (await req.thPaged) { await quickHome(req, res, p, userP); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
-    const user = await Data.teacherOf(p.uid, deps);
+    const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');

@@ -65,41 +65,37 @@ describe('round-5 Social Studies prompt rule', () => {
     const d = prompt('social_studies', 'D', CHAPTERS);
     for (const text of [c, d]) {
       expect(text).toContain('No item repeats another item\'s content, numbers or answer on this paper, in any section.');
-      expect(text).toContain('Q5 and Q6 are situations, \'why\' questions and comparisons');
+      // Round 14: one thinking level per choice group replaced the mixed Q5/Q6 kinds rule.
+      expect(text).toMatch(/Every Q[56] item is (Understand|Apply)/);
     }
   });
 });
 
-// Social Studies T4: the abstract sstQ56 rule left full papers' Q6 as six book-list explanations
-// (attempt-weighted Apply 7 %); the model follows counted slot rules, as Maths Q2 showed.
-describe('round-5 Social Studies counted situations', () => {
-  const slot = (id) => P.social_studies.sections.flatMap((s) => s.slots).find((s) => s.slot === id);
-  const Q5 = 'Of the 9 Q5 items, at least 5 give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.';
-  const Q6 = 'Of the 6 Q6 items, at least 3 give a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and ask the child to use a concept from these pages to decide or explain; the rest may explain or compare book facts.';
+// Social Studies T4: the abstract kinds rule left full papers' Q6 as six book-list explanations
+// (attempt-weighted Apply 7 %); round 5 counted situations in Q5 and Q6. Round 14 (T6 E: one
+// book-recall item among situations in 8 of 12 choice groups) gives each group one thinking level
+// instead, as FDE's own paper does: Q6's six situations carry the Apply marks.
+describe('round-14 Social Studies one level per choice group', () => {
+  const COUNTED = /Q[56] items, at least \d+ give a situation/;
 
-  test('sst situations: counted Q5 in C and Q6 in D, every scope', () => {
-    // Counts read from the pattern: half of each slot's generated items, rounded up.
-    expect([slot('social_studies.C.Q5').generate, slot('social_studies.D.Q6').generate]).toEqual([9, 6]);
+  test('sst bands: Q5 Understand in C, Q6 Apply and Q7 Remember in D, every scope; no counted mix', () => {
     for (const scope of ALL_SCOPES) {
       const c = prompt('social_studies', 'C', scope);
       const d = prompt('social_studies', 'D', scope);
-      expect(c).toContain(Q5);
-      expect(c).not.toContain(Q6);
-      expect(d).toContain(Q6);
-      expect(d).not.toContain(Q5);
-      for (const id of ['A', 'B']) {
-        expect(prompt('social_studies', id, scope)).not.toContain(Q5);
-        expect(prompt('social_studies', id, scope)).not.toContain(Q6);
-      }
-      // Marks and counts stay as the pattern has them.
-      expect(c).toContain('generate EXACTLY 9 items');
-      expect(d).toContain('generate EXACTLY 6 items');
+      expect(c).toContain('Every Q5 item is Understand');
+      expect(d).toContain('Every Q6 item is Apply');
+      expect(d).toContain('Every Q7 item is Remember');
+      for (const text of [c, d]) expect(text).not.toMatch(COUNTED);
+      for (const id of ['A', 'B']) expect(prompt('social_studies', id, scope)).not.toMatch(/Every Q[567] item is/);
+      // Marks and counts stay as the pattern has them; the first ask adds two spares to each C/D slot.
+      expect(c).toContain('generate EXACTLY 11 items'); // 9 print, 2 spares
+      expect(d).toContain('generate EXACTLY 8 items'); // 6 print, 2 spares
     }
   });
 
-  test('sst situations: no other subject carries them', () => {
+  test('sst bands: no other subject carries them', () => {
     for (const subject of SUBJECTS.filter((s) => s !== 'social_studies')) {
-      for (const id of sectionIds(subject)) expect(prompt(subject, id, CHAPTERS)).not.toMatch(/Q[56] items, at least/);
+      for (const id of sectionIds(subject)) expect(prompt(subject, id, CHAPTERS)).not.toMatch(/Every Q[567] item is|Q[56] items, at least/);
     }
   });
 });

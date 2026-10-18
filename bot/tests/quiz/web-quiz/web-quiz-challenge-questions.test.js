@@ -288,3 +288,38 @@ describe('a question is read aloud by the mascot in the quiz voice (recorded onc
     out.questions.forEach((q) => expect(q).toHaveProperty('clip'));
   });
 });
+
+// Another phone's result carries the words attempted only as a coarse count (web-quiz-read-coarse.js); the page posts
+// that count back as /ch/qs `attempted`. The server's own count decides the questions, so they never change.
+describe('a coarse count of the words attempted from the page never changes the questions reached', () => {
+  const coarse = () => require('../../../shared/services/quiz/web-quiz-read-coarse').coarseAttempted;
+  const ids = async (ct, attempted) => (await Ch.questions({ ct, attempted })).questions.map((q) => q.id);
+  beforeEach(() => { db.app_settings.push(QA); });
+
+  test("the story's length is its words as the reading page counts them (story.tokens), in both languages; 0 when unknown", async () => {
+    for (const lang of ['en', 'ur']) {
+      const x = await Ch.exercise(hub(), 'read', { ...D, lang });
+      expect(x.story.tokens.length).toBeGreaterThan(10);
+      expect(await Ch.readLength(x.ct)).toBe(x.story.tokens.length);
+    }
+    const b = await Ch.exercise(hub(), 'bigger', { ...D, lang: 'en' });
+    expect(await Ch.readLength(b.ct)).toBe(0);
+    expect(await Ch.readLength('not-a-token')).toBe(0);
+  });
+
+  test('a scored reading, or a live count on its row: the raw and the coarse count reach the same questions', async () => {
+    const L = enStory().story.tokens.length;
+    for (const raw of [1, 2, 5, 9, 12, 20, 30, 40, L - 1, L, L + 10]) {
+      const c = coarse()(raw, L);
+      let ct = await readCt('en');
+      scored(ct, { correct: Math.min(raw, L), attempted: Math.min(raw, L), stopped: false, finished_early: false });
+      const want = await ids(ct, undefined);
+      expect([raw, await ids(ct, raw)]).toEqual([raw, want]);
+      expect([raw, await ids(ct, c)]).toEqual([raw, want]);
+      ct = await readCt('en');
+      db.web_quiz_challenge_runs.push({ id: runIdOf(ct), student_id: KID, exercise: 'read', lang: 'en', status: 'scoring', meta: { live: { correct: Math.min(raw, L), attempted: Math.min(raw, L), secs: 60, v: 1 } }, created_at: new Date().toISOString() });
+      const live = await ids(ct, undefined);
+      expect([raw, await ids(ct, c)]).toEqual([raw, live]);
+    }
+  });
+});

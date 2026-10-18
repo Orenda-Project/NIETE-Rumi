@@ -132,9 +132,11 @@ function err(on){q('#th-err').hidden=!on;var g=q('#th-err-go');if(g)g.hidden=!on
 function hello(){var h=q('#th-h');clear(h);if(d&&d.first){var p=String(S['th.h']||'').split('{first}');h.appendChild(document.createTextNode(p[0]||''));h.appendChild(topic(d.first));h.appendChild(document.createTextNode(p[1]||''))}else h.textContent=S['th.hello.noname']||''}
 var cur=null;
 function srv(x){return x.c&&(x.sendKind==='video'||x.sendKind==='share')?'/quiz/teacher/'+T+'/send?c='+encodeURIComponent(x.c)+'&o='+encodeURIComponent(x.origin||'library')+'&lang='+b.lang:''}
-function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;m.rows=msgRows(x.message,b.lang==='ur');q('#th-sheet-go').setAttribute('href',srv(x)||x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');try{m.style.height='auto';m.style.height=(m.scrollHeight+4)+'px'}catch(e){}
+function sheet(x,title){cur=x;q('#th-sheet-t').textContent='';q('#th-sheet-t').appendChild(topic(title));var m=q('#th-msg');m.value=x.message;m.rows=msgRows(x.message,b.lang==='ur');q('#th-sheet-go').setAttribute('href',srv(x)||x.wa);q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-sheet').hidden=false;q('#th-main').setAttribute('aria-hidden','true');held(true);try{m.style.height='auto';m.style.height=(m.scrollHeight+4)+'px'}catch(e){}
 try{history.pushState({sheet:1},'')}catch(e){}window.scrollTo(0,0)}
-function unsheet(){q('#th-sheet').hidden=true;q('#th-main').removeAttribute('aria-hidden')}
+function unsheet(){q('#th-sheet').hidden=true;q('#th-main').removeAttribute('aria-hidden');held(false)}
+// one primary on the screen: the open sheet's send holds it, and the home's goes back when the sheet closes
+var held0=[];function held(open){var g=q('#th-sheet-go');if(open){held0=Array.prototype.slice.call(q('#th-main').querySelectorAll('[data-primary]'));held0.forEach(function(e){e.removeAttribute('data-primary')});g.setAttribute('data-primary','')}else{g.removeAttribute('data-primary');held0.forEach(function(e){e.setAttribute('data-primary','')});held0=[]}}
 window.addEventListener('popstate',function(){unsheet()});
 function copied(ok){q('#th-copied').hidden=!ok;q('#th-long').hidden=ok;step(ok?'share_copy':'copy_failed')}
 function copy(){var m=q('#th-msg');try{m.focus();m.select();m.setSelectionRange(0,m.value.length)}catch(e){}
@@ -143,7 +145,8 @@ try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.w
 function fetchSend(kind,id,title,origin){if(busy)return;busy=true;err(false);
 post('/api/th/send',{t:b.t,kind:kind,id:id,lang:b.lang}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(x){if(!x||typeof x.message!=='string'||typeof x.wa!=='string')throw 0;x.sendKind=kind;x.id=id;x.origin=origin;sheet(x,title)})
 .catch(function(){err(true)}).then(function(){busy=false})}
-function top(){var c=q('#th-top');clear(c);var p=d.primary||{};c.setAttribute('data-kind',p.kind||'none');
+function top(){paint();if(!q('#th-sheet').hidden)Array.prototype.forEach.call(q('#th-top').querySelectorAll('[data-primary]'),function(e){e.removeAttribute('data-primary');held0.push(e)})}
+function paint(){var c=q('#th-top');clear(c);var p=d.primary||{};c.setAttribute('data-kind',p.kind||'none');
 if(p.kind==='class'){c.appendChild(el('p','th-say',p.played>0?fill('th.played.n',{n:dg(p.played)}):S['th.zero']));
 var t=el('p','th-sub');t.appendChild(topic(p.title));c.appendChild(t);
 if(p.again&&p.again.href)c.appendChild(link('th-go',S['th.again'],p.again.href,'again',true));
@@ -344,7 +347,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <button type="button" class="th-go2" id="th-copy" data-tap="copy">${esc(str('th.copy', l))}</button>
 <p class="th-ok" id="th-copied" role="status" hidden>${esc(str('th.copied', l))}</p>
 <p class="th-note" id="th-long" role="status" hidden>${esc(str('th.copy.long', l))}</p>
-<a class="th-go" id="th-sheet-go" data-primary data-tap="share_tap">${esc(str('th.send', l))}</a>
+<a class="th-go" id="th-sheet-go" data-tap="share_tap">${esc(str('th.send', l))}</a>
 <p class="th-note">${esc(str('th.send.note1', l))}</p>
 <p class="th-note">${esc(str('th.send.note2', l))}</p>
 <p class="th-note">${esc(str('th.back.note', l))}</p>

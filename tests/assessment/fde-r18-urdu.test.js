@@ -174,8 +174,31 @@ describe('a Section A item that quotes the held lessons', () => {
 // ── 2. A reader-caught item never prints ───────────────────────────────────────────────────────
 
 describe('sandbox chapters_2 (lessons 6–7): ۱۱ prints ۲۰\'s answer, and the reader caught it', () => {
-  const rec = fixture('r18-urdu-sandbox-chapters2');
   const SCOPE = { kind: 'chapters', chapters: [6, 7], pages: '50-70' };
+  // The recorded Section A asks two lesson-10 grammar items (۱۰ اسمِ معرفہ, ۱۵ اسمِ صوت), which a
+  // lessons 6–7 paper now holds. Here they are two vocabulary items from lesson 7, as the prompt now
+  // asks (words that are not the paper's Q3/Q5 words), so the reader pass is read on a paper whose
+  // Q1 is otherwise as recorded.
+  const LESSON_7 = [
+    { question: 'لفظ «افق» کے معنی کیا ہیں؟', options: ['الف) آسمان کا کنارہ', 'ب) پہاڑ کی چوٹی', 'ج) گہرا کنواں', 'د) گھنا جنگل'], answer: 'الف) آسمان کا کنارہ' },
+    { question: 'لفظ «ندی» کے معنی کیا ہیں؟', options: ['الف) بڑا سمندر', 'ب) چھوٹا دریا', 'ج) اونچا ٹیلا', 'د) کھلا میدان'], answer: 'ب) چھوٹا دریا' },
+  ];
+  const LESSON_10 = [/^کون سا لفظ اسمِ معرفہ ہے؟/, /^کون سا لفظ اسمِ صوت ہے؟/];
+  const recorded = fixture('r18-urdu-sandbox-chapters2');
+  const rec = clone(recorded);
+  const a = JSON.parse(rec.replies.A);
+  const mcqsOf = (x) => (Array.isArray(x) ? x.flatMap(mcqsOf) : x && typeof x === 'object' ? (Array.isArray(x.options) ? [x] : Object.values(x).flatMap(mcqsOf)) : []);
+  LESSON_10.forEach((re, i) => Object.assign(mcqsOf(a).find((q) => re.test(q.question)), LESSON_7[i]));
+  rec.replies.A = JSON.stringify(a);
+
+  test('the reply as recorded asks lesson-10 grammar, which a lessons 6–7 paper holds', () => {
+    const asRecorded = JSON.parse(recorded.replies.A);
+    const laid = applyLayout(asRecorded, U, SCOPE, { reasked: false });
+    expect(laid.held.map((h) => h.concept)).toEqual(['naming', 'sound']);
+    expect(q1Stems(laid.examJson).some((s) => LESSON_10.some((re) => re.test(s)))).toBe(false);
+    const swapped = q1Stems(applyLayout(JSON.parse(rec.replies.A), U, SCOPE, { reasked: false }).examJson);
+    expect(swapped).toEqual(expect.arrayContaining(LESSON_7.map((q) => q.question)));
+  });
   const GIVEN = /ندی کا دم کیوں گھٹ رہا ہے/; // ۲۰: keyed «اس میں شہر کا گندا نالہ گرتا ہے»
   const GIVER = /گندا نالہ ندی میں گرتا ہے/; // ۱۱ quotes that sentence
   const labelOf = (prompt, re) => { const l = prompt.split('\n').find((x) => /^Q1\.\d+ /.test(x) && re.test(x)); return l ? l.split(' ')[0] : null; };
