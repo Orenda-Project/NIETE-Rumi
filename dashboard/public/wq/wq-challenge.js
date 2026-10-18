@@ -274,6 +274,25 @@
         '.wqc-ohear-none{border-color:transparent;background:transparent}',
         '.wqc-opt.wqc-reading{border-color:var(--navy)}',
         '.wqc-sticky{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:14px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(255,255,255,0),var(--paper) 30%)}',
+        // Story Time under the adventure look (show(): .wqc-land): the land header on top, the rest centred below it
+        'html.wq-adv .wqc-land{min-height:100dvh;box-sizing:border-box;padding-top:var(--sp-3,12px);justify-content:flex-start}',
+        'html.wq-adv .wqc-land>.wqc-ltop+*{margin-top:auto}',
+        'html.wq-adv .wqc-land>:not(.wqc-sticky):last-child,html.wq-adv .wqc-land>:not(.wqc-sticky):nth-last-child(2):has(+.wqc-sticky){margin-bottom:auto}',
+        'html.wq-adv .wqc-land .wq-ltop h2{font-size:var(--fs-4,22px)}',
+        'html.wq-adv[lang=ur] .wqc-land .wq-ltop h2{font-size:19px;line-height:1.8}',
+        'html.wq-adv .wqc-land .wq-ltop a.wq-home{color:var(--land-edge)}',
+        // the story's cover: its title on the land's pale ground with a book drawn above it
+        'html.wq-adv .wqc-land #wqc-ptitle{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2,8px);margin-inline:0;padding:var(--sp-4,16px);background:var(--land-bg);border:2px solid var(--land);border-radius:var(--r-card);box-shadow:0 4px 0 var(--land-edge);color:var(--land-edge);font-size:var(--fs-5,26px);font-weight:800;line-height:1.25;text-align:center;text-wrap:balance}',
+        'html.wq-adv .wqc-land #wqc-ptitle::before{content:"";width:96px;height:96px;border-radius:50%;background:var(--card) center/60px 60px no-repeat url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23296e37\' stroke-width=\'1.8\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z\'/%3E%3C/svg%3E");box-shadow:0 0 0 6px rgba(255,255,255,.6),0 4px 12px var(--glow,rgba(0,0,0,.12))}',
+        'html.wq-adv[lang=ur] .wqc-land #wqc-ptitle{font-family:var(--fu);font-weight:400;line-height:1.9}',
+        // the options: the secondary button (card, line edge, ledge, the button radius); being read = the selected state
+        'html.wq-adv .wqc-land .wqc-opt,html.wq-adv .wqc-land .wqc-ohear{background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:var(--r-btn);box-shadow:0 var(--btn-d2) 0 var(--line)}',
+        'html.wq-adv .wqc-land .wqc-opt{padding-inline:var(--sp-5,24px);text-align:start}',
+        'html.wq-adv .wqc-land .wqc-ohear{flex-basis:var(--btn-icon,56px);color:var(--land-edge)}',
+        'html.wq-adv .wqc-land .wqc-ohear-none{border-color:transparent;background:transparent;box-shadow:none}',
+        'html.wq-adv .wqc-land .wqc-opt.wqc-reading{background:var(--land-bg);border-color:var(--land-edge);box-shadow:0 var(--btn-d2) 0 var(--land-edge)}',
+        'html.wq-adv .wqc-land .wqc-opt.wqc-ok{background:var(--right-bg);border-color:var(--right);box-shadow:0 var(--btn-d2) 0 var(--right)}',
+        'html.wq-adv .wqc-land .wqc-opt.wqc-no{background:var(--notyet-bg);border-color:var(--notyet);box-shadow:0 var(--btn-d2) 0 var(--notyet)}',
       ].join('\n');
       document.head.appendChild(s);
     } catch (e) { /* the page still works unstyled */ }
@@ -406,6 +425,16 @@
     var href = '/h/' + encodeURIComponent(boot.token) + '?' + (boot.kid ? 'kid=' + encodeURIComponent(boot.kid) + '&' : '') + 'from=home';
     return '<div class="wq-hometop"><a class="wq-home wq-home-top" id="wq-home" href="' + esc(href) + '" aria-label="' + esc(t.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(t.homeBtn) + '</span></a></div>';
   }
+  // the adventure look (the menu's adv with <html class="wq-adv">, web_quiz_adventure_look) on a Story Time run: the
+  // Games land header, the round Home and the banner's words on the land's colour, in place of the strip and the Home row
+  function storyLand() {
+    try { return menuData.adv === true && document.documentElement.classList.contains('wq-adv') && !!TR && TR.isStory() && !!boot.token; } catch (e) { return false; }
+  }
+  function landTop() {
+    var href = '/h/' + encodeURIComponent(boot.token) + '?' + (boot.kid ? 'kid=' + encodeURIComponent(boot.kid) + '&' : '') + 'from=home';
+    return '<div class="wq-dtop wq-ltop wqc-ltop"><a class="wq-home" id="wq-home" href="' + esc(href) + '" aria-label="' + esc(t.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(t.homeBtn) + '</span></a>'
+      + '<h2 dir="auto" id="wqc-practice">' + esc(tc('practice')) + '</h2></div>';
+  }
   function show(name, html) {
     S.screen = name;
     // a stop played again on the trail: every screen of it says it is practice, scored into nothing
@@ -413,7 +442,8 @@
     var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round && !(name === 'mic-notice' && lr3()) ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
-    root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + roundSay + '</section>';
+    var land = name !== 'menu' && name !== 'trail' && storyLand();
+    root.innerHTML = '<section class="wq-screen wqc' + (land ? ' wqc-land' : '') + '" data-screen="' + name + '"' + (land ? ' data-land="games">' + landTop() : '>' + homeTop() + banner) + html + roundSay + '</section>';
     try { window.scrollTo(0, 0); } catch (e) {}
   }
 
