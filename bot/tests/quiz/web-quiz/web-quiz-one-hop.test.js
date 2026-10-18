@@ -280,6 +280,68 @@ describe('the hub\'s answer', () => {
   });
 });
 
+// The hub's reads started together (app_settings web_quiz_hub_fanout): Hub.hub answers through its second builder
+// (web-quiz-hub.js hubTogether). `one_hop` is not a field either builder makes: the internal route marks whatever the hub
+// answered, so it rides that answer too, as long as the answer still names the fast first page.
+describe('with the hub\'s reads started together (web_quiz_hub_fanout on)', () => {
+  const FANOUT = TRUE('web_quiz_hub_fanout');
+  afterEach(() => { require('../../../shared/services/quiz/web-quiz-hub-warm')._stop(); });
+
+  test('the together answer carries `one_hop: true`; otherwise it is the together answer without the switch, with the same settings reads and waves', async () => {
+    const HubFlags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    const off = await warmed([...HOME, FANOUT]);
+    expect(HubFlags.fanoutNow()).toBe(true); // this open went through the together builder
+    expect(off.out.fast).toBe(true);
+    expect(off.out).not.toHaveProperty('one_hop');
+    const on = await warmed([...HOME, FANOUT, TRUE('web_quiz_one_hop')]);
+    expect(HubFlags.fanoutNow()).toBe(true);
+    expect(on.out.fast).toBe(true);
+    expect(on.out.one_hop).toBe(true);
+    const { one_hop: _, ...rest } = on.out;
+    expect(bytes(rest)).toBe(bytes(off.out));
+    expect(on.settingsReads).toBe(off.settingsReads);
+    expect(on.waves).toBe(off.waves);
+  });
+
+  test('the switches kept warm between children: the keeper\'s one hub read refreshes `one_hop` too (no read of its own, the same reads on and off)', async () => {
+    const HubFlags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    const Warm = require('../../../shared/services/quiz/web-quiz-hub-warm');
+    const keeperPass = async (settings) => {
+      await warmed(settings);
+      const H = Hop();
+      HubFlags._resetCache(); H._reset(); // both caches gone, as after a child's 30 s away
+      let ownReads = 0; // a read of web_quiz_one_hop alone (web-quiz-one-hop.js's own .eq read)
+      const from = supabase.from;
+      supabase.from = (t) => {
+        const q = from(t);
+        if (t !== 'app_settings') return q;
+        const eq = q.eq.bind(q);
+        q.eq = (c, v) => { if (v === 'web_quiz_one_hop') ownReads += 1; return eq(c, v); };
+        return q;
+      };
+      Warm.touch(); // a hub answer was just asked for with the switch on
+      settingsReads = 0;
+      await Warm.tick();
+      const reads = settingsReads;
+      supabase.from = from;
+      return { reads, ownReads, age: H.hubSwitches.age(), on: H.hubSwitches.peek() && H.hubSwitches.peek().on, out: await answer(T.signHub([KID])) };
+    };
+    // a first pass fills the other readers' caches this fixture's hub never asks (cold, they would read once here alone)
+    await keeperPass([...HOME, FANOUT]);
+    Warm._stop();
+    const off = await keeperPass([...HOME, FANOUT]);
+    Warm._stop();
+    const on = await keeperPass([...HOME, FANOUT, TRUE('web_quiz_one_hop')]);
+    expect(on.ownReads).toBe(0);
+    expect(on.reads).toBe(off.reads);
+    expect(on.age).toBe('fresh');
+    expect(on.on).toBe(true);
+    expect(off.on).toBe(false);
+    expect(on.out).toHaveProperty('one_hop', true);
+    expect(off.out).not.toHaveProperty('one_hop');
+  });
+});
+
 describe('the internal route', () => {
   test('GET /hub/:token answers with the switch\'s mark; POST /hub/:token (the page\'s own call) is today\'s', async () => {
     const express = require('express');
