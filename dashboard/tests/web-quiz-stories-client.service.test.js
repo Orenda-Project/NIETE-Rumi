@@ -1420,8 +1420,9 @@ describe('the reader zooms to the printed line', () => {
     expect(css).not.toMatch(/wqra-pill|wqra-band/);
     expect(css).toMatch(/\.wqs-mk\{[^}]*background:rgba\(187,247,208,\.3\)[^}]*box-shadow:inset 0 0 0 3px #15803D[^}]*border-radius:8px/);
     expect(css).not.toMatch(/\.wqs-print/);
-    expect(css).toMatch(/\.lr-read[^{]*\{background:linear-gradient\(transparent/);
-    expect(css).toMatch(/\.lr-skipped\{[^}]*dashed/);
+    // read marks are underlines drawn below the word (an outer shadow), never a bar over the ink
+    expect(css).toMatch(/\.lr-read[^{]*\{background:none;box-shadow:0 5px 0 /);
+    expect(css).toMatch(/\.lr-skipped::after\{[^}]*dashed/);
     expect(css).toMatch(/\.wqs-cam\{[^}]*transition:transform \.6s/);
   });
   test('Urdu: the toggle reads «پورا صفحہ»', async () => {
@@ -1953,13 +1954,14 @@ describe('lines without a box (the full export)', () => {
 });
 
 describe('marks, teacher links, copy', () => {
-  test('one green: heard draws like read (a bar in the bottom 22 %), skipped a dashed amber bar, only current is a box', () => {
+  test('one green: heard draws like read (a bar just BELOW the word, never over its ink), skipped a dashed amber bar below it, only current is a box padded clear of the letters', () => {
     const css = fs.readFileSync(CSS, 'utf8');
     const rule = (sel) => (new RegExp(sel.replace(/[.]/g, '\\.') + '[^{]*\\{([^}]*)\\}').exec(css) || [])[1] || '';
     expect(css).toMatch(/\.wqs-cam \.lr-box\.lr-read,\s*\.wqs-cam \.lr-box\.lr-heard\{/);
-    expect(rule('.wqs-cam .lr-box.lr-heard')).toMatch(/linear-gradient\(transparent 78%,\s*rgba\(21,\s*128,\s*61,\s*\.85\) 78%\)/);
-    expect(rule('.wqs-cam .lr-box.lr-skipped')).toMatch(/dashed #E65100/i);
-    expect(rule('.wqs-cam .lr-box.lr-cur')).toMatch(/border|outline/);
+    // an outer shadow offset down paints only outside the box: under the word, never over a Nastaliq tail or a first letter
+    expect(rule('.wqs-cam .lr-box.lr-heard')).toMatch(/background:none;box-shadow:0 5px 0 rgba\(21,128,61,\.85\)/);
+    expect(rule('.wqs-cam .lr-box.lr-skipped::after')).toMatch(/top:calc\(100% \+ 1px\);[^}]*dashed #E65100/i);
+    expect(rule('.wqs-cam .lr-box.lr-cur')).toMatch(/outline:3px solid #15803D;outline-offset:\.15em/);
     expect(css).not.toMatch(/lr-heard\{[^}]*\.4\)/);
   });
   test('a teacher link without boot.story (?from=link#story/<id>): remembered as a teacher book, story_opened from_teacher:true, no code', async () => {
