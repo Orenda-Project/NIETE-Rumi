@@ -200,7 +200,9 @@ async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
-    return d === 'stories' ? { stories: [], shelf: false } : { games: [] };
+    // web_quiz_list_states: the page tells a failed read from an empty one (a retry, never "nothing here")
+    const list = await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false);
+    return d === 'stories' ? { stories: [], shelf: false } : { games: [], ...(list ? { err: 1 } : {}) };
   }
 }
 
