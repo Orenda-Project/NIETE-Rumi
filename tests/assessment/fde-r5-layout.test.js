@@ -155,7 +155,9 @@ describe('MCQ keys are spread across the letters (item 1)', () => {
     const examJson = applyLayout(urduMcqs, P.social_studies, FDE, { now: NOW }).examJson;
     const scheme = R.renderMarkingScheme({ examJson, grade: 5, subject: 'social_studies', allowShort: true });
     const letters = stripLetters(scheme, 'social_studies.A.Q1');
-    expect(letters).toHaveLength(20);
+    // Two of this set's stems name another item's key («درخت», «دریا»), and those two items are held.
+    expect(letters).toHaveLength(mcqsOf(examJson).length);
+    expect(letters).toHaveLength(18);
     expect(Math.max(...Object.values(tally(letters)))).toBeLessThanOrEqual(7);
     const before = new Map(mcqsOf(urduMcqs).map((q) => [q.question, q]));
     for (const q of mcqsOf(examJson)) {

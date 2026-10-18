@@ -278,7 +278,7 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
     expect(aPrompts[1].text).toContain(`- ${radio} →`);
     const reasked = logged('[assessment] section re-asked').filter((l) => l.section === 'A');
     expect(reasked).toHaveLength(1);
-    expect(reasked[0].why).toEqual([expect.objectContaining({ slot: Q1, held: { asked_in_c: 2, key_in_stem: 1, key_named_in_stem: 3 } })]);
+    expect(reasked[0].why).toEqual([expect.objectContaining({ slot: Q1, held: { asked_in_c: 2, key_in_own_stem: 1, key_in_stem: 1, key_named_in_stem: 2 } })]);
     // Q1 is compulsory and full, and none of the items set aside prints.
     const q1 = items(out.examJson, Q1).map((q) => q.question);
     expect(q1).toHaveLength(20);
