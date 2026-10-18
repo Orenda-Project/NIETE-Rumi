@@ -160,6 +160,9 @@ describe('wq.css: the one button component', () => {
     expect(CSS).toContain('html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur);');
     expect(CSS).toContain('html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur-sm)}');
   });
+  test('the stories pages (shelf, reader card, the reading meter) keep the 16 px gutter under wq-1b, not their own 12 px', () => {
+    expect(CSS).toMatch(/html\.wq-1b \.wqs\{[^}]*padding-inline:var\(--gutter\)[^}]*\}/);
+  });
   test('the re-skin of today\'s buttons and the gutter apply only under wq-1b', () => {
     const tail = CSS.slice(CSS.indexOf('/* ONE button system'));
     const rules = rulesOf(tail.slice(0, tail.indexOf('/* The ONE button component for new markup')));
