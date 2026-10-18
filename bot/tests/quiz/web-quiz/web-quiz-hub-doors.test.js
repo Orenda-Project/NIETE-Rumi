@@ -203,3 +203,42 @@ describe('Games: the number games by the Trail\'s own rule', () => {
     expect((await games()).games).toEqual([]);
   });
 });
+
+describe('web_quiz_list_states: a Games read that failed says so (the page shows a retry, never "nothing here")', () => {
+  const games = () => Doors.door('tok', { kid: 'chip', d: 'games', lang: 'en' });
+  test('on: an internal failure answers {games: [], err: 1}', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_list_states')]);
+    mockCh.formForChild.mockImplementation(() => { throw new Error('db down'); });
+    expect(await games()).toEqual({ games: [], err: 1 });
+  });
+  test('GOLDEN off: the same failure answers today\'s {games: []}', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), { key: 'web_quiz_list_states', value: 'true' }]);
+    mockCh.formForChild.mockImplementation(() => { throw new Error('db down'); });
+    expect(await games()).toEqual({ games: [] });
+  });
+  // The grade and form reads are async: a rejection (not a throw) is how they fail live.
+  test('on: a grade read that rejects answers {games: [], err: 1}, not a child with no games', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_list_states')]);
+    mockCh.gradeOf.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [], err: 1 });
+  });
+  test('on: a form read that rejects answers {games: [], err: 1}', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_list_states')]);
+    mockCh.formForChild.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [], err: 1 });
+  });
+  test('GOLDEN off: a grade read that rejects answers today\'s {games: []}', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3')]);
+    mockCh.gradeOf.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [] });
+  });
+  test('on: no form for the grade (a real answer) stays a true empty with no err', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_list_states')]);
+    mockCh.formForChild.mockResolvedValueOnce(null);
+    expect(await games()).toEqual({ games: [] });
+  });
+  test('on: rows that came back whole carry no err', async () => {
+    seed([ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_list_states')]);
+    expect(await games()).not.toHaveProperty('err');
+  });
+});

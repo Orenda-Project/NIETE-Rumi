@@ -540,8 +540,11 @@ describe('E6 GET board (the class league table)', () => {
     fake.db.quiz_sessions.find((r) => r.id === sid).student_class = 'Iqra Testwala';
     const typed = await WQ.board('AB12CD', { st: s.st });
     expect(typed).not.toHaveProperty('my_class');
-    expect(typed).not.toHaveProperty('only');
+    expect(typed).not.toHaveProperty('one_class');
     expect(JSON.stringify(typed)).not.toContain('Testwala"');
+    // a number past the grades is not a class either
+    fake.db.quiz_sessions.find((r) => r.id === sid).student_class = '15';
+    expect(await WQ.board('AB12CD', { st: s.st })).not.toHaveProperty('my_class');
     CD._resetCache();
   });
 
