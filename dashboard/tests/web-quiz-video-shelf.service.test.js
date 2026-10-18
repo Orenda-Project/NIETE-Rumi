@@ -99,6 +99,15 @@ describe('the shelves (switch on)', () => {
     ['.wq-vrow', '.wq-vgrid', '.wq-vcard', '.wq-vthumb', '.wq-vskel', '.wq-vq', '.wq-vquiz'].forEach((c) => expect(css).toContain(c));
     expect(fs.existsSync(path.join(__dirname, '..', 'public', 'wq', 'wq-vshelf.css'))).toBe(false);
   });
+  test('the placeholders pulse with a keyframes name of their own, defined once across every child stylesheet', () => {
+    const dir = path.join(__dirname, '..', 'public', 'wq');
+    const all = fs.readdirSync(dir).filter((f) => f.endsWith('.css')).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+    const css = fs.readFileSync(path.join(dir, 'wq-doors.css'), 'utf8');
+    const names = new Set();
+    css.replace(/\.wq-v(?:skel|skh|box\.wq-vskel)[^{]*\{[^}]*animation:\s*([\w-]+)/g, (m, n) => (n === 'none' ? m : names.add(n)));
+    expect([...names]).toEqual(['wq-vpulse']);
+    names.forEach((n) => expect(count(all, new RegExp(`@keyframes\\s+${n}\\s*\\{`, 'g'))).toBe(1));
+  });
   test('one record per card: the thumbnail, the title, the minutes and both taps name the same lesson', () => {
     const W = F.load();
     const h = W.WQDOORS.shelfHtml(CH, { token: TOKEN, lang: 'en' });
