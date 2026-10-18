@@ -87,6 +87,8 @@ html.wq-adv [data-screen=home]{--land:var(--land-st);--land-bg:var(--land-st-bg)
 html.wq-adv [data-screen=stories],html.wq-adv [data-screen^=stories-],html.wq-adv .wqs{--land:var(--land-st);--land-bg:var(--land-st-bg);--land-edge:var(--land-st-edge)}
 html.wq-adv [data-screen=games]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
 html.wq-adv [data-screen=videos],html.wq-adv [data-screen^=video]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge)}
+/* tiles and pictures inside a box take the small radius, so the pill radius stays with the buttons */
+html.wq-adv .wq-door,html.wq-adv .wq-nart,html.wq-adv .wq-tile,html.wq-adv .wq-opt .wq-shp,html.wq-adv .wq-ptile .wq-shp,html.wq-adv .wq-shear .wq-shp{border-radius:var(--r-chip)}
 html.wq-adv .wq-card{background:var(--card);border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)}
 html.wq-adv .wq-say{border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-btn-soft);color:var(--ink)}
 html.wq-adv .wq-jimg,html.wq-adv .wq-hjug{filter:drop-shadow(0 4px 8px var(--glow))}
