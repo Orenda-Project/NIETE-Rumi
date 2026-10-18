@@ -259,7 +259,7 @@ describe('the chat quiz report (quiz-job-handler): the id kept beside its sent f
   beforeEach(() => {
     QUIZ_REPORT.generateReport.mockImplementation(async () => {
       if (SentIds) SentIds.report('wamid.CHAT1');
-      return undefined;
+      return true;   // WhatsApp took it (generateReport answers the send)
     });
   });
 
@@ -292,10 +292,10 @@ describe('the chat quiz report (quiz-job-handler): the id kept beside its sent f
     redis._store.delete(`quiz_report_sent:${QUIZ}`);
     await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
     expect(n.app_settings || 0).toBe(1);   // the 30 s cache
-    // a report WhatsApp did not accept (no id): no read at all
+    // an accepted report with no id to keep: no read at all
     Flag.reset();
     redis._store.delete(`quiz_report_sent:${QUIZ}`);
-    QUIZ_REPORT.generateReport.mockImplementation(async () => undefined);
+    QUIZ_REPORT.generateReport.mockImplementation(async () => true);
     await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
     expect(n.app_settings || 0).toBe(1);
     expect(reportWrites()).toHaveLength(0);

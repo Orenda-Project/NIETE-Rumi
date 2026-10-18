@@ -361,14 +361,22 @@ A refusal (or a throw) is not stamped, is counted on `quizzes.meta.report_send_f
 15 min; the third refusal logs `report_gave_up` and automatic runs stop (the web report stays; the teacher's /quiz ask still tries).
 Off: today's sends, stamps and their order exactly, and no app_settings read of its own: the switch is asked only when WhatsApp
 refused a report, and it rides the report's existing reads (`quiz_report_fold_by_child`, `quiz_teacher_home`) in the same query.
+The chat quiz's report (`quiz_report` job) rides the same switch: on, its "already fired" flag (`quiz_report_sent:<quizId>`) is set only
+when WhatsApp took the report; a refusal logs `quiz_report_send_failed` (`quiz_h`, `tk`, `tries`; counted in Redis
+`quiz_report_send_tries:<quizId>`), the job is queued again in 15 min, and the third refusal logs `report_gave_up`
+and records `gave_up` in the fired-flag key: a later cascade message sends nothing and logs `quiz_report_send_skipped_gave_up`
+(`quiz_h`, `tk`). A refused chat report leaves the `quizzes` row as it was (no `report_sent` status).
+A teacher who asked from /quiz and whose report WhatsApp refused is told so (`tqReportNotThrough`, with the class report page
+link when there is one, else `tqReportNotThroughNoLink`), never "no one has finished" (`tqNoReportYet`).
 
 With the same switch on, a report WhatsApp **accepted** and then could not deliver is caught too (`quiz/report-delivery.js`):
 every teacher report send (the class report, quiz or storybook, and the chat quiz's report) keeps its message id in Redis
 `report_msg:<id>` → `{kind, share_code_id | quiz_id, at}` for 48 h (the class report decides from the switch reading the worker
 already holds, no read of its own; the chat quiz asks the switch's 30 s cached reading after an accepted send). A `failed` status for that id (WhatsApp status webhook) un-stamps the report (`report_sent_at` back to
 null while it is still that report's stamp; a chat quiz's `quiz_report_sent:<quiz id>` deleted), counts toward the same three
-tries, and logs `quiz_report_delivery_failed` / `story_report_delivery_failed` / `chat_quiz_report_delivery_failed`
-(`code`, `code_h`, `tk`, `tries`; never the phone or the message id). 131047 and 131026 are not tried again and set
+tries (a chat quiz: its `quiz_report_send_tries` count, and a `gave_up` flag is never deleted), and logs
+`quiz_report_delivery_failed` / `story_report_delivery_failed` / `chat_quiz_report_delivery_failed`
+(`code`, `code_h` or `quiz_h`, `tk`, `tries`; never the phone or the message id). 131047 and 131026 are not tried again and set
 `report_needs_template:<share code id | quiz id>` (Redis, 7 days) until the teacher's next /quiz; any other code is queued
 again in 15 min. Switch off: no new call on delivered/read/sent; a failed status reads the cached switch at most once per 30 s.
 

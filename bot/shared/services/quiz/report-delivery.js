@@ -13,15 +13,17 @@
  * Act on `failed` (onFailedStatus, from the WhatsApp status webhook, failed statuses only): with the switch on (its
  * own 30 s cached reading, asked only for a failed status), one Redis GET of `report_msg:<id>`. Not a report: nothing
  * else. A report: the record is dropped (handled once), the report un-stamped (the share code's report_sent_at back to
- * null while it is still that report's stamp; the chat quiz's `quiz_report_sent:<quiz id>` deleted), the failure
- * counted toward the same three tries as a refused send and logged as `<kind>_report_delivery_failed`
- * { code, code_h, tk, tries } (no phone, no message id). Then by code: 131047 (outside the 24 h window) and 131026
+ * null while it is still that report's stamp; the chat quiz's `quiz_report_sent:<quiz id>` deleted while it is '1',
+ * never a 'gave_up'), the failure counted toward the same three tries as a refused send (the class report's
+ * quizzes.meta.report_send_failures, the chat quiz's quiz_report_send_tries) and logged as
+ * `<kind>_report_delivery_failed` { code, code_h | quiz_h, tk, tries } (no phone, no message id). Then by code: 131047 (outside the 24 h window) and 131026
  * (undeliverable) are not tried again: `report_needs_template:<share code id | quiz id>` (Redis, 7 days) waits for
  * the teacher's next /quiz; any other code is queued again in 15 min, as a refusal is, until the third try.
  */
 const supabase = require('../../config/supabase');
 const RedisService = require('../cache/railway-redis.service');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const SendCheck = require('./report-send-check');
 
 const PREFIX = 'report_msg:';
@@ -86,12 +88,45 @@ async function unstampClass(rec) {
   return sc;
 }
 
-/** Un-stamp a chat quiz report; → the quiz as a counting row ({ id: quiz id }), or null. */
+/** The chat quiz's fired flag value for a report given up on (workers/quiz-job-handler GAVE_UP). */
+const CHAT_GAVE_UP = 'gave_up';
+/** The chat quiz's refusal count (workers/quiz-job-handler chatReportRefused) and its TTL. */
+const CHAT_TRIES_TTL_S = 86400;
+
+/** Un-stamp a chat quiz report: its fired flag goes only while it is '1' (a 'gave_up' stays); → the quiz, or null. */
 async function unstampChat(rec) {
   const { data: quiz, error } = await supabase.from('quizzes').select('id, teacher_id').eq('id', rec.quiz_id).maybeSingle();
   if (error || !quiz) return null;
-  await RedisService.delete(`quiz_report_sent:${quiz.id}`);
+  const flagKey = `quiz_report_sent:${quiz.id}`;
+  const flag = await RedisService.get(flagKey);
+  if (flag !== null && flag !== undefined && String(flag) === '1') await RedisService.delete(flagKey);
   return { id: quiz.id, code: null, quiz_id: quiz.id, teacher_user_id: quiz.teacher_id };
+}
+
+/**
+ * A chat quiz's failed report counted with its refusals: the same Redis count (`quiz_report_send_tries:<quiz id>`, 24 h)
+ * and the same give-up (the third try records 'gave_up' in the fired flag, so no later cascade message tries again).
+ * Logged as chat_quiz_report_delivery_failed { code, quiz_h, tk, tries }.
+ */
+async function recordChatFailure(row, code) {
+  const fields = { quiz_h: SendCheck.quizH(row.id), tk: SendCheck.tkOf(row.teacher_user_id) };
+  let tries = null;
+  try {
+    const n = await RedisService.incr(`quiz_report_send_tries:${row.id}`);
+    if (Number.isFinite(n) && n > 0) {
+      tries = n;
+      await RedisService.expire(`quiz_report_send_tries:${row.id}`, CHAT_TRIES_TTL_S);
+    }
+  } catch (err) {
+    logToFile('❌ report delivery: failed chat quiz report not counted — no retry', { ...fields, error: err.message }, 'error');
+  }
+  logEvent('chat_quiz_report_delivery_failed', { code, ...fields, tries });
+  const gaveUp = tries !== null && tries >= SendCheck.MAX_TRIES;
+  if (gaveUp) {
+    if (tries === SendCheck.MAX_TRIES) logEvent('report_gave_up', { ...fields, path: 'chat', tries });
+    await RedisService.set(`quiz_report_sent:${row.id}`, CHAT_GAVE_UP, CHAT_TRIES_TTL_S);
+  }
+  return { tries, gaveUp };
 }
 
 /**
@@ -110,7 +145,9 @@ async function onFailedStatus(status) {
     const row = kind === 'chat_quiz' ? await unstampChat(rec) : await unstampClass(rec);
     if (!row) return false;
     const code = codeOf(status);
-    const r = await SendCheck.recordFailure({ path: kind, sc: row, what: 'delivery', extra: { code } });
+    const r = kind === 'chat_quiz'
+      ? await recordChatFailure(row, code)
+      : await SendCheck.recordFailure({ path: kind, sc: row, what: 'delivery', extra: { code } });
     if (NO_RETRY_CODES.has(code)) {
       await RedisService.set(`${NEEDS_TEMPLATE_PREFIX}${row.id}`, { code, kind, at: new Date().toISOString() }, NEEDS_TEMPLATE_TTL_S);
     } else if (r.tries !== null && !r.gaveUp) {

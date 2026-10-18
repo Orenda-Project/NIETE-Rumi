@@ -67,6 +67,8 @@ function recordingRedis(log) {
     get: async (k) => { log.push(['redis.get', k]); return m.has(k) ? m.get(k) : null; },
     set: async (k, v, ttl) => { log.push(['redis.set', k, ttl]); m.set(k, v); return true; },
     setex: async (k, ttl, v) => { log.push(['redis.setex', k, ttl]); m.set(k, v); return true; },
+    incr: async (k) => { log.push(['redis.incr', k]); const n = (Number(m.get(k)) || 0) + 1; m.set(k, n); return n; },
+    expire: async (k, ttl) => { log.push(['redis.expire', k, ttl]); return true; },
     setNX: async (k, v) => { log.push(['redis.setNX', k]); if (m.has(k)) return false; m.set(k, v); return true; },
     delete: async (k) => { log.push(['redis.delete', k]); m.delete(k); return true; },
     del: async (k) => { log.push(['redis.del', k]); m.delete(k); return true; },
@@ -133,12 +135,13 @@ const plain = (id, status) => ({ id, status, timestamp: '1792230213', recipient_
 const reportRecord = (kind = 'quiz') => (kind === 'chat_quiz' ? { kind, quiz_id: QUIZ, at: STAMP } : { kind, share_code_id: SC, quiz_id: QUIZ, at: STAMP });
 
 /** Seed Redis, settle the switch's cache as asked, then run the handler over `statuses`; → the call log. */
-async function run(statuses, { setting, seed = true, kind = 'quiz', warm = true, source = 'video', meta = {} } = {}) {
+async function run(statuses, { setting, seed = true, kind = 'quiz', warm = true, source = 'video', meta = {}, sentFlag = '1', chatTries = 0 } = {}) {
   log = [];   // a fresh array: the log an earlier run returned is never appended to
   freshTables(setting, { source, meta });
   world.redis._map.clear();
   if (seed) world.redis._map.set(`report_msg:${REPORT_ID}`, reportRecord(kind));
-  if (kind === 'chat_quiz') world.redis._map.set(`quiz_report_sent:${QUIZ}`, '1');
+  if (kind === 'chat_quiz') world.redis._map.set(`quiz_report_sent:${QUIZ}`, sentFlag);
+  if (chatTries) world.redis._map.set(`quiz_report_send_tries:${QUIZ}`, chatTries);
   Flag.reset();
   // warm: another caller in the process read the switch within the last 30 s
   if (warm) await Flag.on();
@@ -275,16 +278,33 @@ describe('switch on (JSON true)', () => {
     expect(reportEvents()).toHaveLength(1);
   });
 
-  test('a chat quiz report: its sent flag deleted, counted on the quiz, chat_quiz_report_delivery_failed, quiz_report again in 15 min', async () => {
+  test('a chat quiz report: its sent flag deleted, counted with its refusals (quiz_report_send_tries), chat_quiz_report_delivery_failed, quiz_report again in 15 min', async () => {
     await run([failed(REPORT_ID, 131000)], { setting: true, kind: 'chat_quiz' });
     expect(world.redis._map.has(`quiz_report_sent:${QUIZ}`)).toBe(false);
-    expect(world.db.tables.quizzes[0].meta.report_send_failures).toEqual({ [QUIZ]: 1 });
+    expect(world.redis._map.get(`quiz_report_send_tries:${QUIZ}`)).toBe(1);
+    expect(log.find((e) => e[0] === 'redis.expire' && e[1] === `quiz_report_send_tries:${QUIZ}`)[2]).toBe(86400);
+    expect(world.db.tables.quizzes[0].meta.report_send_failures).toBeUndefined();
     expect(world.db.tables.quiz_share_codes[0].report_sent_at).toBe(STAMP);
     expect(reportEvents().map((e) => e[0])).toEqual(['chat_quiz_report_delivery_failed']);
-    expect(reportEvents()[0][1]).toMatchObject({ code: 131000, tries: 1, tk: expect.stringMatching(/^[0-9a-f]{16}$/) });
+    expect(reportEvents()[0][1]).toMatchObject({ code: 131000, tries: 1, quiz_h: expect.stringMatching(/^[0-9a-f]{12}$/), tk: expect.stringMatching(/^[0-9a-f]{16}$/) });
+    expect(JSON.stringify(events)).not.toMatch(new RegExp(QUIZ));
     expect(queued()).toHaveLength(1);
     expect(queued()[0].slice(1, 3)).toEqual([QUIZ, 'quiz_report']);
     expect(queued()[0][4]).toEqual({ delaySeconds: 900, deduplicationId: `${QUIZ}-quiz_report-retry-1` });
+  });
+
+  test('a chat quiz given up on (quiz_report_sent = gave_up): the failure leaves gave_up in place', async () => {
+    await run([failed(REPORT_ID, 131000)], { setting: true, kind: 'chat_quiz', sentFlag: 'gave_up' });
+    expect(world.redis._map.get(`quiz_report_sent:${QUIZ}`)).toBe('gave_up');
+    expect(log.filter((e) => e[0] === 'redis.delete' && e[1] === `quiz_report_sent:${QUIZ}`)).toHaveLength(0);
+  });
+
+  test('a chat quiz report failing on its third try (two refusals before): report_gave_up, gave_up recorded, nothing queued', async () => {
+    await run([failed(REPORT_ID, 131000)], { setting: true, kind: 'chat_quiz', chatTries: 2 });
+    expect(reportEvents()[0][1].tries).toBe(3);
+    expect(events.filter(([n]) => n === 'report_gave_up')).toHaveLength(1);
+    expect(world.redis._map.get(`quiz_report_sent:${QUIZ}`)).toBe('gave_up');
+    expect(queued()).toHaveLength(0);
   });
 
   test('a chat quiz report, 131047: no retry, report_needs_template on the quiz', async () => {
