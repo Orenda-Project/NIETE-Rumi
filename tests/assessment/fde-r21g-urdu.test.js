@@ -87,12 +87,12 @@ describe('1. sandbox chapters_5 (lesson 10): صفت asked twice', () => {
     expect(conceptOf(find(PAHAR))).toBe('qualified');
   });
 
-  test('the second صفت is held; the first and the موصوف item print, and Q1 is one short', () => {
+  test('the second صفت is held; the first and the موصوف item print, and Q1 is short by it (and by ۱۶, rule 5)', () => {
     const r = lay(p, ch(10));
     expect(prints(r.examJson, NANHI)).toBe(true);
     expect(prints(r.examJson, SURKH)).toBe(false);
     expect(prints(r.examJson, PAHAR)).toBe(true);
-    expect(r.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
+    expect(r.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 2 }]);
   });
 
   test('after the re-ask the repeat never comes back', () => {
