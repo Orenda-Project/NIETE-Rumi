@@ -15,6 +15,10 @@
  * 5. A Q4 ارکان key that splits a word the book itself splits («دامن» دا – من, «غلاظت» غ – لا – ظت) must
  *    split it the book's way; the Section C prompt quotes the book's splits. «فاختہ» is split nowhere in
  *    the book, so it is not checked.
+ * 6. One word, one place in Section C: a Q5 that asks a sentence with a word Q3 asks the meaning of
+ *    («شانہ بشانہ» in both) is held and Section C is asked again, told Q3's words; if the re-ask writes it
+ *    again it is put back (it gives nothing away). An idiom built on a Q3 word («شانہ بشانہ کام کرنا») is
+ *    another entry.
  *
  * The papers are the sandbox's own (content only). The model boundary and the book store are mocked,
  * never the chain.
@@ -405,5 +409,96 @@ describe('5. a Q4 ارکان key against the book\'s own splits', () => {
     expect(c).toContain('The book splits «دامن» as دا – من and «غلاظت» as غ – لا – ظت.');
     expect(asked.find((x) => x.sec === 'A').prompt).not.toContain('The book splits');
     expect(asked.find((x) => x.sec === 'B').prompt).not.toContain('The book splits');
+  });
+});
+
+// ── 6. One word, one place in Section C ────────────────────────────────────────────────────────
+
+const words = (exam, slot) => items(exam, slot).flatMap((q) => q.words || []);
+describe('6. sandbox chapters_1 (lessons 4–5): «شانہ بشانہ» in Q3 and in Q5', () => {
+  const paper = fixture('r21f-urdu-sandbox-chapters_1');
+
+  test('the paper as printed asks it in both', () => {
+    expect(words(paper, 'urdu.C.Q3')).toContain('شانہ بشانہ');
+    expect(words(paper, 'urdu.C.Q5')).toContain('شانہ بشانہ');
+  });
+
+  test('before the re-ask Q5 is held and Section C is short', () => {
+    const r = lay(paper, ch(4, 5));
+    expect(items(r.examJson, 'urdu.C.Q5')).toHaveLength(0);
+    expect(r.shortfall).toContainEqual({ slot: 'urdu.C.Q5', missing: 1 });
+    expect(r.examJson._layout.holds).toEqual(expect.arrayContaining([{ slot: 'urdu.C.Q5', rule: 'word_twice', n: 1 }]));
+  });
+
+  test('after the re-ask, a Q5 that still repeats the word is put back: it gives nothing away', () => {
+    const r = lay(paper, ch(4, 5), { reasked: true });
+    expect(items(r.examJson, 'urdu.C.Q5')).toHaveLength(1);
+    expect(r.putBack).toEqual(expect.arrayContaining([{ slot: 'urdu.C.Q5', rule: 'word_twice' }]));
+    expect(r.shortfall.find((f) => f.slot === 'urdu.C.Q5')).toBeUndefined();
+  });
+
+  test('a Q5 held for a Q3 word may come back, so a Q1 item asking the meaning of a Q5 word is still held', () => {
+    const p = clone(paper);
+    const w = items(p, 'urdu.C.Q5')[0].words.find((x) => x !== 'شانہ بشانہ' && !words(p, 'urdu.C.Q3').includes(x));
+    const q = q1(p)[0];
+    Object.assign(q, { question: `لفظ «${w}» کا کیا مطلب ہے؟`, options: ['الف) پکا ارادہ', 'ب) کمزوری', 'ج) خوف', 'د) غصہ'], answer: 'الف) پکا ارادہ' });
+    for (const reasked of [false, true]) expect(has(lay(p, ch(4, 5), { reasked }).examJson, new RegExp(`«${w}» کا کیا مطلب`))).toBe(false);
+  });
+
+  test('an idiom built on a Q3 word is another entry: «شانہ بشانہ کام کرنا» stays (control)', () => {
+    const p = clone(paper);
+    const q5 = items(p, 'urdu.C.Q5')[0];
+    q5.words = q5.words.map((w) => (w === 'شانہ بشانہ' ? 'شانہ بشانہ کام کرنا' : w));
+    expect(items(lay(p, ch(4, 5)).examJson, 'urdu.C.Q5')).toHaveLength(1);
+  });
+
+  test('the same idiom with another verb form is the same entry («دھوم مچ جانا» / «دھوم مچانا»)', () => {
+    const p = clone(paper);
+    items(p, 'urdu.C.Q3')[0].words[0] = 'دھوم مچ جانا';
+    const q5 = items(p, 'urdu.C.Q5')[0];
+    q5.words = q5.words.map((w) => (w === 'شانہ بشانہ' ? 'دھوم مچانا' : w));
+    expect(items(lay(p, ch(4, 5)).examJson, 'urdu.C.Q5')).toHaveLength(0);
+  });
+});
+
+describe('6. the engine: Section C asked again, told Q3\'s words', () => {
+  // The recorded lessons 4–5 Section C, with Q5's «شانہ بشانہ کام کرنا» written as the Q3 word itself.
+  const twice = (() => {
+    const c = JSON.parse(REPLY_C);
+    for (const list of Object.values(c.unseen.subjective)) for (const q of list) if (q.slot === 'urdu.C.Q5') q.words = q.words.map((w) => (/^شانہ بشانہ/.test(w) ? 'شانہ بشانہ' : w));
+    return JSON.stringify(c);
+  })();
+  const L45 = { kind: 'chapters', chapters: [4, 5], pages: '28-37, 38-49' };
+  function serveC(cReply) {
+    const asked = [];
+    mockCreate.mockImplementation(async (req) => {
+      const prompt = textOf(req);
+      const sec = sectionOf(prompt);
+      asked.push({ sec, prompt });
+      const n = asked.filter((x) => x.sec === sec).length;
+      const content = sec === 'A' ? mcqs(MORE.map(meaning)) : sec === 'B' ? REPLY_B : cReply(n);
+      return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 } };
+    });
+    return asked;
+  }
+  const NOTE = /Q3 of this paper asks the meaning of these words: [^\n]*شانہ بشانہ/;
+
+  test('the re-ask is told Q3\'s words and its Q5 prints; the paper is whole', async () => {
+    const asked = serveC((n) => (n === 1 ? twice : REPLY_C));
+    const out = await run(L45);
+    expect(out.err && { code: out.err.code, shortfall: out.err.shortfall }).toBeUndefined();
+    const cs = asked.filter((x) => x.sec === 'C');
+    expect(cs).toHaveLength(2);
+    expect(cs[0].prompt).not.toMatch(NOTE);
+    expect(cs[1].prompt).toMatch(NOTE);
+    expect(words(out.ok.examJson, 'urdu.C.Q5')).not.toContain('شانہ بشانہ');
+  });
+
+  test('every first Section C ask says Q3 and Q5 never share a word; A and B do not', async () => {
+    const asked = serveC(() => REPLY_C);
+    await run(L45);
+    expect(asked.find((x) => x.sec === 'C').prompt).toContain('Q3 and Q5 never share a word or idiom');
+    expect(asked.find((x) => x.sec === 'A').prompt).not.toContain('Q3 and Q5 never share');
+    expect(asked.find((x) => x.sec === 'B').prompt).not.toContain('Q3 and Q5 never share');
   });
 });
