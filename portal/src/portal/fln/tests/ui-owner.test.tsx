@@ -72,3 +72,20 @@ describe('SoundGrid heading', () => {
     expect(container.querySelector('h3')?.textContent).toContain('Sounds in this lesson');
   });
 });
+
+describe('a narration pill (red-team-pr 165715, A10)', () => {
+  it('says "Listen to the story" in the plan language, never the filename', () => {
+    const f = fakePlayer();
+    render(
+      <FlnPlayerProvider player={f.player}>
+        <SoundPill clipId="n1" label="Paragraph_2" lang="en" role="narration" />
+        <SoundPill clipId="n2" label="file" lang="ur" role="narration" />
+      </FlnPlayerProvider>,
+    );
+    const [en, ur] = screen.getAllByRole('button');
+    expect(en.textContent).toContain('Listen to the story');
+    expect(en.textContent).not.toContain('Paragraph_2');
+    expect(ur.textContent).toContain('کہانی سنیں');
+    expect(ur.textContent).not.toContain('file');
+  });
+});

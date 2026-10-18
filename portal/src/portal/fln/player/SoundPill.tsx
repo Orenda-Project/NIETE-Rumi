@@ -1,7 +1,7 @@
 import { useId, type CSSProperties } from 'react';
 import { Loader2, Play, RotateCcw, Square } from 'lucide-react';
 import { useClipState, useFlnPlayerContext } from './useFlnPlayer';
-import type { PlayerState } from './types';
+import type { ClipRole, PlayerState } from './types';
 import { audioActionFor, audioActionLabel, audioStateText, audioStrings, audioDir } from '../strings.audio';
 import './player.css';
 
@@ -14,6 +14,8 @@ export interface SoundPillProps {
   clipId: string; label: string; caption?: string; lang?: string; dir?: string; first?: boolean;
   /** Tells two controls of one clip apart (PlanPage: `section:group:item:index`). Default: a per-control id. */
   owner?: string;
+  /** A narration says "Listen to the story" whatever its label (most narrations carry none: the stem is a filename). */
+  role?: ClipRole;
 }
 
 /** The leading glyph for a state. ▶ keeps pointing right in both languages (the media convention). */
@@ -32,12 +34,13 @@ function onIOS(): boolean {
   return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
 }
 
-export function SoundPill({ clipId, label, caption, lang, dir, first, owner: ownerProp }: SoundPillProps) {
+export function SoundPill({ clipId, label: givenLabel, caption, lang, dir, first, owner: ownerProp, role }: SoundPillProps) {
   const player = useFlnPlayerContext();
   const autoOwner = useId();
   const owner = ownerProp ?? autoOwner;
   const { state, progress } = useClipState(clipId, owner);
   const s = audioStrings(lang);
+  const label = role === 'narration' ? s.listenStory : givenLabel;
   const textDir = audioDir(lang, dir);
   const stateText = audioStateText(lang, state);
   // The gesture must reach the player untouched: nothing awaited before toggle (the in-app browser needs it).
