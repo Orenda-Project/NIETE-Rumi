@@ -1577,8 +1577,8 @@ const nameCue = (a, b) => namePrinted(a, b) || namePrinted(b, a);
 // A word meaning or a story fact asks no grammar concept. The متشابہ pair is one concept however the
 // stem asks it: one spelling with two meanings, two words that sound alike but are spelt apart
 // («آواز میں ایک جیسے مگر املا میں مختلف»), a word's «دوسرا معنی», «X بمعنی … اور Y بمعنی …». An
-// antonym or a synonym item is a concept only on chosen lessons that teach it (lessons 4–5: متضاد,
-// مترادف); anywhere else it is vocabulary.
+// antonym or a synonym item is a concept on the full syllabus and on chosen lessons that teach it
+// (lessons 4–5: متضاد, مترادف); on other chosen lessons it is vocabulary.
 // Each row is written as the book writes it and folded as plain() folds the text it reads (آ as ا,
 // ئ as ی, …), so no row can be dead for a letter form.
 const foldPattern = (re) => new RegExp(UR_FORMS.reduce((src, [f, to]) => src.replace(new RegExp(f.source, 'g'), to), re.source.replace(UR_MARKS, '')), re.flags);
@@ -1594,7 +1594,7 @@ const CONCEPTS = [
   ['doubt', /شکیہ|شک (?:و شبہ|ظاہر|کا اظہار)/],
   ['wish', /تمنائی|آرزو (?:کا اظہار|ظاہر)/],
   ['homograph', new RegExp(`${HOMOGRAPH.source}|آواز میں ایک (?:جیسے|جیسا)|دوسرا معنی|بمعنی .+ اور (?:.+ )?بمعنی`)],
-  ['antonym', /متضاد|مخالف معنی/],
+  ['antonym', /متضاد|مخالف معنی|الٹ(?:ا|ے)? (?:معنی|مطلب)/],
   ['synonym', /مترادف|ہم معنی/],
 ].map(([name, re]) => [name, foldPattern(re)]);
 const LESSON_ONLY = new Set(['antonym', 'synonym']);
@@ -1964,12 +1964,15 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
   // their tags, and an item a top-up writes without one is still read by its stem.
   const counted = declared.size || (src._layout && src._layout.counted === true) ? lessons : null;
+  // The lessons a concept is read against: the counted ones, or on the full syllabus all of them (it
+  // teaches the antonym and the synonym, lessons 4–5), so a concept is asked once on every scope.
+  const conceptLessons = counted || (P.key === 'urdu' && !lessons ? P.lessons : null);
   // `id`, the slot both items are placed in: Urdu Q1 items also give each other away by a story
   // name, and ask a grammar concept once.
   // A concept asked again is a twin. `hard`: only a twin that may never print; an antonym or a synonym
   // asked again on lessons 4–5 gives nothing away, and is the last item put back (below).
   const conceptTwin = (p, q, hard) => {
-    const c = sameConcept(p, q, counted) ? conceptOf(q, counted) : null;
+    const c = sameConcept(p, q, conceptLessons) ? conceptOf(q, conceptLessons) : null;
     const d = sameDeclared(p, q) ? declared.get(q).name : null;
     return hard ? Boolean((c && !LESSON_ONLY.has(c)) || (d && !LESSON_ONLY.has(d))) : Boolean(c || d);
   };
@@ -2093,17 +2096,17 @@ function applyLayout(examJson, P, scope, opts = {}) {
     // asks two questions, then an antonym or synonym asked again (a repeat, not a give-away). A twin of
     // a kept item, or a stem that prints a key, never comes back. Q4's ارکان item whose key and
     // accepted answer split a word apart is asked again first, and comes back only if the re-ask leaves
-    // its place empty (it printed so before; a paper that refuses is worse). On chosen lessons a
-    // grammar concept a printed item already asks never comes back (a tag the stem contradicts on
-    // the only item of its concept still may): the engine tops Section A up once more, told grammar
-    // is used up, and a place still empty after that fails the paper.
+    // its place empty (it printed so before; a paper that refuses is worse). On every scope a grammar
+    // concept a printed item already asks never comes back (a tag the stem contradicts on the only item
+    // of its concept still may): the engine tops Section A up once more, told grammar is used up, and a
+    // place still empty after that fails the paper.
     if (P.key === 'urdu') {
       inSlot.forEach((list, id) => {
         const slot = slots.find((s) => s.slot === id);
         const order = list.filter((x) => x.rule === 'asks_two').concat(list.filter((x) => x.rule !== 'asks_two'));
         for (const { q, rule } of order) {
           if (!room(slot)) return;
-          if (lessons && GRAMMAR_REPEAT.has(rule) && bySlot.get(id).some((p) => conceptTwin(p, q, false))) continue;
+          if (GRAMMAR_REPEAT.has(rule) && bySlot.get(id).some((p) => conceptTwin(p, q, false))) continue;
           if (bySlot.get(id).some((p) => twin(p, q, id, rule === 'concept_repeat' || rule === 'concept_tag_disagrees')) || (holds(slot) && cross.rule(q))) continue;
           bySlot.get(id).push(q);
           putBack.push({ slot: id, rule });
