@@ -6,7 +6,7 @@ import ShareBar from './ShareBar';
 import { stubFetch, callsTo, ME_LEADER, ME_LEADER_UR, ME_TEACHER, PLAN_DATA } from './testFetch';
 
 /**
- * bd-t7zk3t.12 — the leaders' Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L2a/L2b). Props {plan, placement, me}:
+ * The leaders' Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L2a/L2b). Props {plan, placement, me}:
  * the plan page fetches /me on every mount and passes it in; the bar renders ONLY when me.share is true, and never asks
  * /me itself. Two ≥48 px buttons in a ≤56 px bar.
  */

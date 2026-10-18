@@ -5,7 +5,7 @@ import FlnLoginBanner from './FlnLoginBanner';
 import { stubFetch, callsTo } from '../share/testFetch';
 
 /**
- * bd-t7zk3t.12 — the sign-in page's banner for a shared plan link (DESIGN v2 §4 L4): bilingual by construction — the
+ * The sign-in page's banner for a shared plan link (DESIGN v2 §4 L4): bilingual by construction — the
  * plan title in ITS language (from /api/portal/fln/title/:id, hidden on error) + "Sign in to open" + «کھولنے کے لیے
  * سائن اِن کریں», both always shown, whatever the page language. Nothing at all for any other `next=`.
  */

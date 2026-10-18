@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the shapes the FLN pages read (contracts/api.md v2, contracts/plan-json.md v2, r-data FLN_PLAN_SHAPE).
+ * The shapes the FLN pages read (contracts/api.md v2, contracts/plan-json.md v2, r-data FLN_PLAN_SHAPE).
  * Server-owned; the client never derives a number (position, count, minutes) on its own.
  */
 import type { FlnLang, FlnSubjectKey, GroupLevel, ItemKind, Strand } from './strings';

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 (PR-D) — the leader routes on m-app's REAL corpus service (PR-C `dashboard/services/fln-corpus.service.js`)
+ * The leader routes on m-app's REAL corpus service (PR-C `dashboard/services/fln-corpus.service.js`)
  * with its own fixture bundle, not a mock of it (RT BLOCK #2953 reason 2: a mock that copied the wrong call shape hid an
  * empty builder). Only the DB boundary (app_settings) and the access middleware are stubbed. The service and fixture are
  * PR-C's files: on a branch without them this suite is skipped and says so; once PR-C lands beside PR-D it runs.

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, screen } from '@testing-library/react';
 
 /**
- * bd-t7zk3t.18 (R5 Q1 FAIL QL-openlink) — the receiver's `open_link` event (contracts/deep-link.md, Events):
+ * The receiver's `open_link` event (contracts/deep-link.md, Events):
  *  - a `/go` landing (`?src=send`, from fln-go-target.js) → ONE `open_link` with result `send`;
  *  - a shared link (`?src=wa`, from share/message.ts withSrc) opened with an empty referrer → ONE `open_link`, result `wa`;
  *  - never on a 404 (no open is logged for a hidden/unknown plan), never without `src`, never twice for one landing;

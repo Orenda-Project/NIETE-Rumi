@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — the ONE access rule for Reading Hour + Numeracy (FLN) in the teacher app.
+ * The ONE access rule for Reading Hour + Numeracy (FLN) in the teacher app.
  *
  * Two switches in app_settings (missing = OFF, read through isFlagEnabledForUser):
  *   portal_fln_lessons — the band, the lists, the plan page

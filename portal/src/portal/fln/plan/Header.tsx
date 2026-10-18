@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the navy plan header (DESIGN v2 §2 S4.1). Kicker on TWO lines: the subject, then the level and the
+ * The navy plan header (DESIGN v2 §2 S4.1). Kicker on TWO lines: the subject, then the level and the
  * lesson's place in it from the placement row of the grade it was opened from (`pos` / `count` — NEVER the plan's `seq`; a guide, pos 0, shows the level
  * only). The title in the plan's own language; the chip row as the list shows it; `⏱ <total>` from the plan.
  */

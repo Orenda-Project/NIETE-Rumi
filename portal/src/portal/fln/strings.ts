@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — every word the Reading Hour + Numeracy (FLN) pages show, EN + UR (DESIGN v2 §1, §7).
+ * Every word the Reading Hour + Numeracy (FLN) pages show, EN + UR (DESIGN v2 §1, §7).
  *
  * NIETE is flat en/ur (language-protocol): the page language is the user's `preferred_language` (GET /fln/me
  * `ui_lang`); a plan's OWN text keeps its own language. Rules for Urdu chrome: the separator is «—», never «·»;

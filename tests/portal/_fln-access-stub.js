@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — a FAITHFUL stub of m-app's `dashboard/lib/fln-access.js` (PR-C) for the FLN route suites: the same
+ * A FAITHFUL stub of m-app's `dashboard/lib/fln-access.js` (PR-C) for the FLN route suites: the same
  * exports and the same middleware order [noStore, requirePortalAuth (401), gate (404 when the access answer says no)].
  * Only `flnAccess` is supplied by the test. Suites INJECT it (`createFlnLinksRouter({ access })`) rather than mocking
  * the module: a `{ virtual: true }` mock of a path that exists once PR-C lands is not reliably applied when another

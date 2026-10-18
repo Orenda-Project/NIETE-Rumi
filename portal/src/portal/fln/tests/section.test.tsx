@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 
 /**
- * bd-t7zk3t.11 — SPEC_v2 §7 `section.test.tsx` (OPERATOR DECISION: the plan opens COLLAPSED; a band expands in place).
+ * SPEC_v2 §7 `section.test.tsx` (the plan opens COLLAPSED; a band expands in place).
  * Rendered through PlanScreen (the real page) with the plan fetched over a mocked `fetch`; the audio lane's pill/grid
  * stubs are swapped for stand-ins that render `button[data-fln-clip]` / the grid testid.
  */

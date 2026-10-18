@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — "Send a lesson plan", the leaders' link builder at /portal/fln/send (DESIGN v2 §4 L3, §7).
+ * "Send a lesson plan", the leaders' link builder at /portal/fln/send (DESIGN v2 §4 L3, §7).
  *
  *   grade chips 1–12 → subject chips (3) → level chips (pre-selected for 1–5: G1→1, G2–3→2, G4–5→3; NONE for 6–12,
  *   where the server puts the screener rows on top) → search + filter chips (Screener · Has sounds · Story audio ·

@@ -8,7 +8,7 @@ import FlnRoutes from '../FlnRoutes';
 import { stubFetch, ME_LEADER } from '../share/testFetch';
 
 /**
- * bd-t7zk3t.12 (PR-D) — the two one-line hooks m-links adds to m-app's FLN pages, executed through the real pages:
+ * The two one-line hooks m-links adds to m-app's FLN pages, executed through the real pages:
  *   PlanPage.tsx   `{me.share ? <ShareBar plan={p} placement={placement} me={me} /> : null}`
  *   FlnRoutes.tsx  `<Route path="send" element={<SendPage />} />`
  */

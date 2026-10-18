@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 
 /**
- * bd-t7zk3t.11 — port of the red team's `rt_bidi_check.py` (RUBRIC B2, DESIGN v2 §1 rules) onto the rendered DOM of
+ * Port of the red team's `rt_bidi_check.py` (RUBRIC B2, DESIGN v2 §1 rules) onto the rendered DOM of
  * the plan page for an Urdu plan on an Urdu page, with every band and "Full details" opened:
  *   FAIL  a run of ASCII letters/digits in an rtl context that is not inside <bdi> / dir=ltr / unicode-bidi:isolate
  *   FAIL  the «·» separator anywhere in rtl text (Urdu chrome uses «—»)

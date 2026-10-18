@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — S3, a level's lesson list (DESIGN v2 §2 S3 + S5, mockups list_l1_en / list_l1_ur).
+ * S3, a level's lesson list (DESIGN v2 §2 S3 + S5, mockups list_l1_en / list_l1_ur).
  *
  *   sub-header     listSub(level, grades, count) — count from the placement table for this strand (the guide is not
  *                  counted), + "Other levels ▾" (≥48 px) opening the three levels inline

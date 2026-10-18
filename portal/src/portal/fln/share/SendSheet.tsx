@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — "Send to teacher" (DESIGN v2 §4 L2a, primary): the plan card, the leader's own teachers, Send →
+ * "Send to teacher" (DESIGN v2 §4 L2a, primary): the plan card, the leader's own teachers, Send →
  * POST /api/portal/fln/send {plan, teachers} (PR-E). The bot then sends each chosen teacher THEIR OWN sign-in link to
  * the plan, so it opens inside WhatsApp's browser, signed in. Answers drawn (§7): Sent ✓ · n teachers; the partial
  * failure line (the rest are marked sent); the 429 rate-limit line; no teachers in scope. When the server routes are

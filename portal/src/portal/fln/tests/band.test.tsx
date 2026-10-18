@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 const css = readFileSync(resolve(__dirname, '../fln.css'), 'utf8');
 
 /**
- * bd-t7zk3t.11 — the Reading Hour & Numeracy band on the New-lesson page (DESIGN v2 §0, §2 S2, §7).
+ * The Reading Hour & Numeracy band on the New-lesson page (DESIGN v2 §0, §2 S2, §7).
  * Network boundary only: `fetch` for /api/portal/fln/*, the axios client for /me/grade-subjects.
  */
 

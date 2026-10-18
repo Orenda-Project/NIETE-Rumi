@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 (PR-D) — the leader routes with the REAL `dashboard/lib/fln-access.js` middleware order
+ * The leader routes with the REAL `dashboard/lib/fln-access.js` middleware order
  * ([noStore, requirePortalAuth, gate]); only the DB boundary (dashboard/config/supabase) and the switch reader
  * (dashboard/lib/feature-flags) are mocked. fln-access is m-app's file (PR-C): on a branch without it this suite is
  * skipped and says so; once PR-C lands beside PR-D it runs.

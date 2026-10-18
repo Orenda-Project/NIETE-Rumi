@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the leaders' sticky Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L1–L2b).
+ * The leaders' sticky Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L1–L2b).
  *
  * Props `{plan, placement, me}`: the plan page (m-app, PR-C) fetches GET /api/portal/fln/me on every mount (no-store)
  * and passes it in, so the bar never asks or caches it itself. It renders NOTHING unless `me.share === true` (a teacher,

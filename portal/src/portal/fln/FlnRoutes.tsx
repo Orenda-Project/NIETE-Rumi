@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the FLN pages' route table, relative to `/portal/fln/*` (App.tsx mounts it with ONE hook line).
+ * The FLN pages' route table, relative to `/portal/fln/*` (App.tsx mounts it with ONE hook line).
  * Every page is behind FlnGate (sign-in with next=, the feature switch, the FLN context).
  *
  *   p/:id                    the plan (PlanPage, worker `plan`)

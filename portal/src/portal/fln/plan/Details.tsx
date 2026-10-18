@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the lesson goal (the first SLO) and "Full details ▾", which expands IN PLACE (the v10 mechanism) to
+ * The lesson goal (the first SLO) and "Full details ▾", which expands IN PLACE (the v10 mechanism) to
  * every SLO, Bring (resources), Before class (setup items, with their pictures) and Summary. Reference fields only;
  * the steps are the lesson, so they live in the section bands.
  */

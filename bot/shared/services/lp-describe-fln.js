@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — describe a Reading Hour / Numeracy (FLN) plan, for lp-describe.service.
+ * Describe a Reading Hour / Numeracy (FLN) plan, for lp-describe.service.
  *
  * An FLN open is `fln:<id>` (the plan's id in the FLN source corpus). Its name comes from the sidecar
  * index (fln-index.service), never from the corpus. The answer has the same fields as a k5/g612

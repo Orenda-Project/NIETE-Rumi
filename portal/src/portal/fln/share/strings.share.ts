@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — every word of Share, Send to teacher, the "Send a lesson plan" builder and the sign-in banner, EN + UR
+ * Every word of Share, Send to teacher, the "Send a lesson plan" builder and the sign-in banner, EN + UR
  * (DESIGN v2 §1 Share/Send/Builder/Kicker rows, §7 Send/builder states).
  *
  * NIETE is flat en/ur (language-protocol): the chrome follows the user's `preferred_language` (GET /fln/me `ui_lang`);

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the WhatsApp text "Share link" opens (contracts/deep-link.md v2):
+ * The WhatsApp text "Share link" opens (contracts/deep-link.md v2):
  *
  *   📘 <subject> · Level <n>         ← the leader's chrome language; the LEVEL, never a grade
  *   <the plan's title>               ← the plan's own language, never translated
