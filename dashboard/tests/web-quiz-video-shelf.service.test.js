@@ -301,6 +301,17 @@ describe('a subject that does not load never leaves placeholders up (switch on)'
   });
 });
 
+describe('the watch screen while its lesson loads, switch off or not strictly true', () => {
+  test.each(['en', 'ur'])('%s: today\'s waiting line, no placeholder player', (lang) => {
+    const W = F.load();
+    for (const v of [{ href: '/lib/x', watch: true }, { href: '/lib/x', watch: true, shelf: 'true' }]) {
+      const h = W.WQDOORS.html(F.boot(lang, v), { token: TOKEN, lang }, `watch/${VID}`, null);
+      expect(h).toContain('wq-soon wq-wait');
+      expect(h).not.toContain('wq-vskel');
+    }
+  });
+});
+
 describe('the watch screen while its lesson loads (switch on)', () => {
   test.each(['en', 'ur'])('%s: a placeholder player, never "Opening the video…", one primary', (lang) => {
     const W = F.load();
