@@ -48,13 +48,14 @@ beforeEach(async () => {
 });
 const ct = () => T.signChallenge({ studentId: 'st-2', ex: 'read', runId: 'run-1' });
 const mint = () => Card.mint({ kind: 'read', deed: 'read_all', ct: ct(), lang: 'ur' });
-const settle = () => new Promise((r) => setTimeout(r, 30));
+// the card's own work at mint, awaited (the prepare the mint started), never a fixed wait a loaded machine outruns
+const settle = (token) => Card.prepare(token);
 const cacheKey = (token) => `wq:card:${StoryStore.deployEnv()}:${crypto.createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
 const cardWrites = () => redis.set.mock.calls.filter((c) => String(c[0]).startsWith('wq:card:'));
 
 test('on: at mint the page\'s facts are kept in Redis under the token\'s hash, 14 days, the same facts as storage', async () => {
   const { token } = await mint();
-  await settle();
+  await settle(token);
   const w = cardWrites();
   expect(w).toHaveLength(1);
   expect(w[0][0]).toBe(cacheKey(token));
@@ -66,15 +67,15 @@ test('on: at mint the page\'s facts are kept in Redis under the token\'s hash, 1
 });
 test.each([['absent', null], ['false', false], ['the string "true"', 'true']])('%s: Redis is never written; storage as today', async (_, fast) => {
   seed({ fast });
-  await mint();
-  await settle();
+  const { token } = await mint();
+  await settle(token);
   expect(cardWrites()).toHaveLength(0);
   expect(r2.uploadBuffer).toHaveBeenCalledTimes(2);
 });
 test.each([['Redis away', () => redis.isAvailable.mockReturnValue(false)], ['the write failing', () => redis.set.mockRejectedValue(new Error('down'))]])('%s: the card is still stored, prepare answers true', async (_, set) => {
   set();
   const { token } = await mint();
-  await settle();
+  await settle(token);
   expect(await Card.prepare(token)).toBe(true);
   expect(r2.uploadBuffer).toHaveBeenCalledTimes(2);
 });
