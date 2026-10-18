@@ -67,11 +67,14 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
-function tables({ fast, loose = false, home = false, stories = false, fanout = false, merged = false }) {
+// ret: web_quiz_return_lang on; kept: the child's kept language row (child_language); urClass: the class quizzes are
+// Urdu, and the class has an Urdu twin of its open hand-out, sent after the English one.
+function tables({ fast, loose = false, home = false, stories = false, fanout = false, merged = false, ret = false, kept = null, urClass = false }) {
   const t = {
     app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []),
       ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : []), ...(stories ? [{ key: 'web_quiz_stories', value: true }] : []),
-      ...(fanout === true ? [{ key: 'web_quiz_hub_fanout', value: true }] : fanout ? [{ key: 'web_quiz_hub_fanout', value: fanout }] : [])],
+      ...(fanout === true ? [{ key: 'web_quiz_hub_fanout', value: true }] : fanout ? [{ key: 'web_quiz_hub_fanout', value: fanout }] : []),
+      ...(ret ? [{ key: 'web_quiz_return_lang', value: true }] : [])],
     students: [
       { id: KID, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: LIST, is_active: true, merged_into: null, status: null, created_at: ago(500) },
       { id: SIB, student_name: 'Bilal Testwala', student_name_urdu: null, self_reported_class: '5', list_id: null, is_active: true, merged_into: null, status: null, created_at: ago(400) },
@@ -122,6 +125,12 @@ function tables({ fast, loose = false, home = false, stories = false, fanout = f
       passage('en.read.1.story03', 'read', 1, -24 * 2),
     ],
   };
+  if (kept) t.child_language = [{ canonical_id: KID, ...kept }];
+  if (urClass) {
+    t.quizzes.forEach((q) => { if (q.id !== 'q-new') q.language = 'ur'; });
+    t.quizzes.push({ id: 'q-new-ur', topic: 'Shapes (Urdu)', subject: 'maths', language: 'ur', grade: '3', video_id: null });
+    t.quiz_share_codes.push(code('sc-new-ur', 'NEWQ02', 'q-new-ur', { created_at: ago(4), class_id: CLASS, language: 'ur' }));
+  }
   // merged: the link names an older record of this child, merged into KID (the identity lookup gives another id)
   if (merged) t.students.push({ id: OLD, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: null, is_active: true, merged_into: KID, status: 'merged', created_at: ago(900) });
   if (loose) {
@@ -296,5 +305,22 @@ describe('the identity lookup gives another id (a merged record on the link)', (
     // the early read for the link's own id is the only extra one
     expect(on.perTable.students).toBeLessThanOrEqual(off.perTable.students + 1);
     console.log('merged students reads', off.perTable.students, on.perTable.students, JSON.parse(on.out).kid);
+  });
+});
+
+describe('with web_quiz_return_lang on too: the teacher card speaks the page\'s language on both paths', () => {
+  test('an English kept child under an Urdu class: the reads-together teacher card deep-equals the one-by-one card', async () => {
+    const one = async (fanout) => {
+      boot({ fast: true, fanout, ret: true, kept: { language: 'en', source: 'chosen' }, urClass: true });
+      const tok = tokenOne();
+      await measure(tok, { device: DEVICE });
+      return JSON.parse((await measure(tok, { device: DEVICE })).out);
+    };
+    const serial = await one(false);
+    const together = await one(true);
+    // the fixture reaches the page's language: the page is English, its class's newest hand-out is the Urdu twin
+    expect(serial.lang).toBe('en');
+    expect(serial.teacher).toEqual(expect.objectContaining({ code: 'NEWQ01', src: 'class' }));
+    expect(together.teacher).toEqual(serial.teacher);
   });
 });
