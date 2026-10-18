@@ -24,6 +24,11 @@ const express = require('express');
 const { makeFake } = require('./fake-supabase');
 const { strictFrom } = require('./class-round-strict-fake');
 
+// The clock is pinned from load time so a Pakistan-day or expiry check never depends on the date the suite runs.
+const PIN = Date.parse('2026-10-15T09:30:00Z');
+jest.useFakeTimers({ now: PIN, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
+
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const OTHER_TEACHER = '11111111-1111-4111-8111-1111111111ff';
 const CLASS = 'c0000000-0000-4000-8000-0000000000c1';

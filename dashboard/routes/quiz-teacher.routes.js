@@ -26,6 +26,8 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const CutLink = require('./cut-link-page');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
 const { str } = require('../../bot/shared/services/first-touch/teacher-home.strings');
 
@@ -77,10 +79,10 @@ const PRIVATE = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex
 /** The bot's number as the bot gave it: 10-15 digits, or null (never a link built from anything else). */
 const cleanBot = (v) => (typeof v === 'string' && /^\d{10,15}$/.test(v) ? v : null);
 
-function errorPage(req, res, status = 503, bot = null) {
+function errorPage(req, res, status = 503, bot = null, id = 'mk.error') {
   const lang = langOf(req);
   const tap = bot ? { href: `https://wa.me/${bot}?text=quiz`, text: str('th.open.wa', lang) } : null;
-  const built = buildMessagePage({ lang, id: 'mk.error', tap });
+  const built = buildMessagePage({ lang, id, tap });
   res.set({ ...PRIVATE, 'Content-Security-Policy': built.csp });
   return res.status(status).type('html').send(built.html);
 }
@@ -110,9 +112,13 @@ function createQuizTeacherRouter(opts = {}) {
     configured = Boolean(botUrl && apiKey);
   }
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
   // the number for the edge's own error page: the portal's own setting (digits only), then what the bot's home answers say
   let lastBot = cleanBot(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, ''));
   const fail = (req, res, status) => errorPage(req, res, status, lastBot);
+  // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired page; OFF = today
+  const cutLinkOn = CutLink.switchOf(opts);
 
   // Per caller address. Over the limit → this route is skipped (next('route')) and the request falls through to
   // today's handling untouched, exactly as with the switch off: no 429, no rate headers, no bot call.
@@ -140,6 +146,7 @@ function createQuizTeacherRouter(opts = {}) {
     if (out.status >= 500) { if (json) errorJson(res); else fail(req, res, 503); return true; }
     res.set(PRIVATE);
     if (timing && out.serverTiming) res.set('Server-Timing', out.serverTiming);
+    carryBotSecurity(res, out, securityOn);
     if (out.status === 204) { res.status(204).end(); return true; }
     res.status(out.status).type(out.contentType || (json ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8')).send(out.bytes || Buffer.alloc(0));
     return true;
@@ -148,7 +155,11 @@ function createQuizTeacherRouter(opts = {}) {
   function forwardPage(suffix = '') {
     return async (req, res, next) => {
       const token = String(req.params.token || '');
-      if (!TOKEN_RX.test(token) || !configured) return next();
+      if (!TOKEN_RX.test(token) || !configured) {
+        // a cut-short or junk link, with quiz_cut_link_page on: the teacher's expired page with its tap, no bot call
+        if (configured && CutLink.isOn(cutLinkOn)) return errorPage(req, res, 410, lastBot, 'mk.stale');
+        return next();
+      }
       const query = forwardQuery(req.query || {}, PAGE_KEYS[suffix]);
       let out;
       try {

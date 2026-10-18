@@ -413,12 +413,15 @@ describe('the fold switch\'s read carries the send check', () => {
     return q;
   }
   const kindOf = (name) => KINDS.find(([n]) => n === name)[1];
+  // the group's keys as loaded in this process: the fold key, then its riders (this key among them; other riders join
+  // from their own modules, e.g. the reminder's live preview through the report data)
+  const GK = () => Group.groupKeys(FOLD);
 
   test('one query for both keys: the fold read primes the switch, which then answers with no read', async () => {
     stubDb({ ...kindOf('quiz report, nobody took it'), settings: [{ key: FOLD, value: false }, { key: KEY, value: true }] });
     const q = settingsQueries();
     expect(await FoldFlag.on()).toBe(false);
-    expect(q).toEqual([`in:${FOLD},${KEY}`]);
+    expect(q).toEqual([`in:${GK().join(',')}`]);
     expect(await Flag.on()).toBe(true);
     expect(q).toHaveLength(1);
   });
@@ -440,7 +443,7 @@ describe('the fold switch\'s read carries the send check', () => {
     const q = settingsQueries();
     expect(await FoldFlag.on()).toBe(true);
     // the fallback reads the fold key alone: no rider rides it
-    expect(q).toEqual([`in:${FOLD},${KEY}`, `eq:${FOLD}`]);
+    expect(q).toEqual([`in:${GK().join(',')}`, `eq:${FOLD}`]);
     expect(await Flag.on()).toBe(false);
     expect(q).toHaveLength(2);
   });
@@ -458,7 +461,8 @@ describe('the fold switch\'s read carries the send check', () => {
     stubDb({ ...kindOf('quiz report, nobody took it') });
     const q = settingsQueries();
     const asked = Group.groupKeys(FOLD);
-    expect(asked).toEqual([FOLD, KEY]);
+    expect(asked[0]).toBe(FOLD);
+    expect(asked).toContain(KEY);
     expect(FoldFlag.prime([{ key: KEY, value: true }], Date.now(), asked)).toBe(false);
     expect(await Flag.on()).toBe(true);
     expect(await FoldFlag.on()).toBe(false);
@@ -468,7 +472,7 @@ describe('the fold switch\'s read carries the send check', () => {
   test('(a) an asked key with no row is off, with no read', async () => {
     stubDb({ ...kindOf('quiz report, nobody took it') });
     const q = settingsQueries();
-    FoldFlag.prime([{ key: FOLD, value: true }], Date.now(), [FOLD, KEY]);
+    FoldFlag.prime([{ key: FOLD, value: true }], Date.now(), GK());
     expect(await Flag.on()).toBe(false);
     expect(await FoldFlag.on()).toBe(true);
     expect(q).toEqual([]);
@@ -537,15 +541,18 @@ describe('the fold switch\'s read carries the send check', () => {
       const q = settingsQueries();
       await FoldFlag.on();
       expect(await Flag.on()).toBe(false);
-      expect(q).toEqual([`in:${FOLD},${KEY}`]);
+      expect(q).toEqual([`in:${GK().join(',')}`]);
     });
 
   test('the teacher home switch\'s read never carries this key', async () => {
     stubDb({ ...kindOf('quiz report, nobody took it'), setting: true });
     const q = settingsQueries();
     await HomeFlag.on();
-    expect(q).toEqual(['eq:quiz_teacher_home']);
+    // the teacher home's own group (its riders, e.g. its timing switch, may share its read), never this key
+    expect(q).toHaveLength(1);
+    expect(q[0]).toMatch(/^(eq|in):quiz_teacher_home\b/);
+    expect(q[0]).not.toContain(KEY);
     expect(await Flag.on()).toBe(true);
-    expect(q).toEqual(['eq:quiz_teacher_home', `eq:${KEY}`]);
+    expect(q.slice(1)).toEqual([`eq:${KEY}`]);
   });
 });
