@@ -220,3 +220,27 @@ describe('switch OFF: the response is byte-identical to a build WITHOUT this rou
     expect(withRouter.headers['set-cookie']).toBeUndefined();
   });
 });
+
+// the link's own language (the bot reads it only with web_quiz_go_link_lang on): ?lang=en|ur goes to the landing as
+// ?ll=, and the page's `l` (en|ur) rides its posts; any other value is dropped
+test('the link\'s ?lang=en|ur reaches the landing as ?ll=; another value never does', async () => {
+  await boot(() => botRes(200, { body: '<p>ok</p>', type: 'text/html' }));
+  await req(srv, 'GET', `/quiz/go/${TOK}?lang=en`);
+  await req(srv, 'GET', `/quiz/go/${TOK}?ask=1&lang=ur`);
+  await req(srv, 'GET', `/quiz/go/${TOK}?lang=fr`);
+  expect(calls.map((c) => c.url)).toEqual([
+    `${BOT}/api/internal/go/land/${TOK}?ll=en`,
+    `${BOT}/api/internal/go/land/${TOK}?ask=1&ll=ur`,
+    `${BOT}/api/internal/go/land/${TOK}`,
+  ]);
+});
+test('who, role and bind carry the page\'s l (en|ur) and drop any other', async () => {
+  await boot(() => botRes(200, { body: JSON.stringify({ side: 'unknown', next: null }) }));
+  await req(srv, 'POST', '/api/go/who', { body: { t: TOK, l: 'en' } });
+  await req(srv, 'POST', '/api/go/role', { body: { t: TOK, side: 'child', l: 'ur' } });
+  await req(srv, 'POST', '/api/go/bind', { body: { t: TOK, pick: '0123456789abcdef', l: 'en' } });
+  await req(srv, 'POST', '/api/go/role', { body: { t: TOK, side: 'child', l: 'fr' } });
+  expect(calls.map((c) => JSON.parse(c.init.body))).toEqual([
+    { t: TOK, l: 'en' }, { t: TOK, side: 'child', l: 'ur' }, { t: TOK, pick: '0123456789abcdef', l: 'en' }, { t: TOK, side: 'child' },
+  ]);
+});
