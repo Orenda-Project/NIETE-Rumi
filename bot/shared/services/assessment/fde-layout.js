@@ -1298,7 +1298,7 @@ const CROSS_HOLD = {
 //     بہترین طرزِ حکومت کیوں سمجھا جاتا ہے؟» beside «جمہوریت کو بہترین نظام حکومت کیوں کہا جاتا ہے؟ دو
 //     وجوہات لکھیں۔»). Words are read without the question's frame («کیا مراد ہے», «وضاحت کریں», «آپ»).
 const SST_A_Q1 = 'social_studies.A.Q1';
-const BACK_RULES = new Set(['key_in_stem', 'asked_in_c']);
+const BACK_RULES = new Set(['key_in_stem', 'key_named_in_stem', 'asked_in_c']);
 const BACK_CONCEPT = /حکومت|جمہوری|شہنشاہ|آمری|مقننہ|انتظامیہ|عدلیہ|عدالت|کورٹ|اسمبلی|سینی?ٹ|ایوان|شہری|ذمہ دار|قانون|آئین/;
 const BACK_ASKS = new Set(['کیوں', 'کیا', 'کون', 'کب', 'کہاں', 'کتنے', 'کتنی', 'کتنا', 'کیسے', 'کس']);
 const asksOf = (text) => new Set(String(text || '').split(/[\s؟?،,۔:]+/).filter((w) => BACK_ASKS.has(w)));
@@ -1328,10 +1328,62 @@ function glossed(key, stemWords, text) {
     return ` ${before} `.endsWith(` ${k} `) && inStem(tokensOf(m[2]));
   });
 }
+// (3) Its key is a name or a term that sits in one of its options and no other, and a C/D stem names that
+//     option («… → عبدالستار ایدھی» beside «ایدھی فاؤنڈیشن نے …»; «… → سپریم کورٹ» beside «سپریم کورٹ آف
+//     پاکستان کے سربراہ کو کیا کہا جاتا ہے؟»). No shared topic is needed, and a concept term is no exception:
+//     a child who reads that stem knows which option to pick. A stem names an option when it prints all of its
+//     words, or all the words no other option has (two or more: «علی گڑھ» for «تحریک علی گڑھ» beside «تحریک
+//     خلافت»), or at least half of those words of four letters or more, the parts many names share («محمد»,
+//     «علی», «خان») aside («ایدھی» for «عبدالستار ایدھی»; «گڑھ» is not «مہر گڑھ»), or the one such word of four
+//     letters or more («سپریم», «کراچی»; «قومی» of «قومی اسمبلی» is not). A key that sits in two options
+//     («لیاقت علی خان» inside «بیگم رعنا لیاقت علی خان») names no one, and neither does a stem that prints it
+//     only inside a wife's name («بیگم رعنا لیاقت علی خان» carries «لیاقت علی خان»). A key that is no name is
+//     not read here: a phrase of three words or more with a function word («ٹیلی وژن میں آواز کے ساتھ تصویر …»,
+//     «کم ہوتا ہے»; «کے ٹو» is a name), an act («بات کرنا»), a number word, a word marking points use for any
+//     fact («نقصان», «فائدہ»), or a key with a digit (that is (1)). A tier («مقامی
+//     حکومت») is the three-tier chapter's own word, which every Q6 there names: the which-government items are
+//     read by their book line (`sameLine`) and the tier slip, not here.
+const NAME_PARTS = new Set(tokensOf('محمد علی خان احمد سید شاہ بیگم حضرت سر قائد اعظم'));
+const NAME_LETTERS = 4;
+// A stem that names three of the item's options or more lists them («مقننہ، انتظامیہ اور عدلیہ») and picks none.
+const LISTS_OPTIONS = 3;
+const WIFE = 'بیگم';
+const NUMBER_WORDS = new Set('ایک دو تین چار پانچ چھ چھے سات آٹھ نو دس'.split(' '));
+const notAName = (key) => {
+  const words = plain(key).split(' ').filter(Boolean);
+  return words.some((w) => NUMBER_WORDS.has(w)) || (words.length >= 3 && words.some((w) => STOP.has(w)))
+    || (words.length >= 2 && /نا$/.test(words[words.length - 1]));
+};
+// Where the words `t` stand in a row in `line` (a stem's tokens in order), none inside a wife's name.
+const printsRun = (t, line) => line.some((_, i) => t.every((w, j) => line[i + j] === w) && !line.slice(Math.max(0, i - 2), i).includes(WIFE));
+// `seen`: the Q1 stem's own words. Part of a name the Q1 stem prints itself («ایدھی» in «عبدالستار ایدھی نے کون
+// سی تنظیم قائم کی؟ → ایدھی فاؤنڈیشن») tells the child nothing new when a C/D stem prints it too.
+function namesOption(t, others, words, line, seen) {
+  if (t.length && t.every((w) => words.has(w))) return printsRun(t, line);
+  const own = t.filter((w) => !others.has(w) && !backGeneric.has(w));
+  const fresh = (w) => words.has(w) && !seen.has(w);
+  if (own.length >= 2 && own.every((w) => words.has(w)) && own.some(fresh)) return true;
+  const strong = own.filter((w) => !NAME_PARTS.has(w));
+  const long = strong.filter((w) => w.length >= NAME_LETTERS);
+  if (strong.length >= 2) { const printed = long.filter(fresh).length; return printed > 0 && printed * 2 >= strong.length; }
+  return strong.length === 1 && long.length === 1 && fresh(long[0]);
+}
+function keyNamedIn(m, stems) {
+  if (!Array.isArray(m.options) || m.options.length < 3 || /\d/.test(keyText(m)) || notAName(keyText(m))) return false;
+  const key = tokensOf(keyText(m));
+  if (!key.length || key.every((w) => backGeneric.has(w) || PLACEHOLDER_WORDS.has(w)) || tiersIn(flatUr(keyText(m))).size) return false;
+  const opts = m.options.map((o) => tokensOf(String(o).replace(OPTION_HEAD, '')));
+  const at = m.options.findIndex((o) => plain(String(o).replace(OPTION_HEAD, '')) === plain(keyText(m)));
+  if (at < 0 || opts.filter((t) => key.every((w) => t.includes(w))).length !== 1) return false;
+  const others = (i) => new Set(opts.filter((_, j) => j !== i).flat());
+  const seen = new Set(tokensOf(m.question));
+  return stems.some((x) => namesOption(opts[at], others(at), x.words, x.tokens, seen)
+    && opts.filter((t, i) => namesOption(t, others(i), x.words, x.tokens, seen)).length < LISTS_OPTIONS);
+}
 function givenBack(placed) {
   backGeneric = backGeneric || new Set(tokensOf('حکومت ملک کام پاکستان ادارہ ادارے لوگ لوگوں کسی کوئی نام کرنا معاملات علاقہ علاقے شخص شخصیت سال'));
   const stems = placed.filter((q) => typeof q.question === 'string' && q.question.trim())
-    .map((q) => ({ slot: q.slot, text: q.question, line: ` ${tokensOf(q.question).join(' ')} `, words: new Set(tokensOf(q.question)), asks: asksOf(q.question) }));
+    .map((q) => ({ slot: q.slot, text: q.question, line: ` ${tokensOf(q.question).join(' ')} `, tokens: tokensOf(q.question), words: new Set(tokensOf(q.question)), asks: asksOf(q.question) }));
   backFrame = backFrame || new Set(tokensOf('مراد وضاحت بیان کریں کیجیے جاتا جاتی جاتے سمجھا کہا دو تین کوئی وجہ وجوہات بات طور آپ چاہیے کرنا مختصر جواب'));
   const contentOf = (text) => [...new Set(tokensOf(text).filter((w) => !backFrame.has(w)))];
   if (!stems.length) return null;
@@ -1348,6 +1400,7 @@ function givenBack(placed) {
       const stemWords = tokensOf(m.question).filter((w) => !key.includes(w));
       if (stems.some((x) => glossed(keyText(m), stemWords, x.text))) return 'key_in_stem';
     }
+    if (keyNamedIn(m, stems)) return 'key_named_in_stem';
     const own = contentOf(m.question);
     const asks = asksOf(m.question);
     const same = q5s.some((x) => {
@@ -1932,7 +1985,7 @@ function backNote(section, examJson, held) {
   const aside = set.map(({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
   return `${asked.length ? `Sections C and D of this paper ask these questions:\n${asked.join('\n')}\n` : ''}`
     + `These Q1 items were set aside, because one of those questions prints their answer or asks the same thing:\n${aside.join('\n')}\n`
-    + 'No Q1 item may be keyed on a name, year or number those questions print, or ask what any of them asks.';
+    + 'No Q1 item may be keyed on a name, term, year or number those questions print, or ask what any of them asks.';
 }
 // Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
 function heldNote(section, held) {

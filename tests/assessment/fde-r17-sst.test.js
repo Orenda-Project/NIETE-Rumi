@@ -52,6 +52,10 @@ const C5 = 'social_studies.C.Q5';
 const D6 = 'social_studies.D.Q6';
 const D7 = 'social_studies.D.Q7';
 const section = (id) => SST.sections.find((s) => s.id === id);
+// A Q1 item whose key a C/D stem names is held by its own rule, and Section A is asked again; these tests
+// read the choice slots, so they set Section A's places aside.
+const notQ1 = (shortfall) => shortfall.filter((f) => f.slot !== Q1);
+const namedQ1 = (r) => r.held.filter((h) => h.slot === Q1 && h.rule === 'key_named_in_stem').length;
 const textOf = (req) => req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 const isReader = (text) => text.includes(Reader.READER_MARK);
 const sectionOf = (text) => ['A', 'B', 'C', 'D'].find((s) => text.includes(`"slot": "social_studies.${s}.`));
@@ -157,7 +161,7 @@ describe('2. a caught question never prints', () => {
     expect(printed).not.toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
     expect(printed.some((s) => /اسلامیہ کالج پشاور کا سنگ بنیاد/.test(s))).toBe(false);
     expect(printed).toHaveLength(6);
-    expect(r.shortfall).toEqual([{ slot: D7, missing: 1 }]);
+    expect(notQ1(r.shortfall)).toEqual([{ slot: D7, missing: 1 }]);
     expect(r.held.filter((h) => h.printed)).toEqual([]);
   });
 
@@ -165,7 +169,7 @@ describe('2. a caught question never prints', () => {
     const r = lay(oneHeldQ7(), { reasked: true });
     expect(stems(r.examJson, D7)).not.toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
     expect(stems(r.examJson, D7)).toHaveLength(7);
-    expect(r.shortfall).toEqual([]);
+    expect(notQ1(r.shortfall)).toEqual([]);
     // Q6 «… گلگت بلتستان … تین جون کے منصوبے …» asks only what was done (book recall), so Q6 prints 5 of 6 too.
     expect(r.examJson._layout.short_choice).toEqual([{ slot: D6, printed: 5, generate: 6 }, { slot: D7, printed: 7, generate: 8 }]);
   });
@@ -176,14 +180,14 @@ describe('2. a caught question never prints', () => {
     expect(stems(f1.examJson, D6).some((s) => /صفائی مہم/.test(s))).toBe(true);
     expect(stems(f1.examJson, D6).some((s) => /مویشی منڈی کا انتظام کون سی حکومت/.test(s))).toBe(false);
     expect(stems(f1.examJson, D6)).toHaveLength(5);
-    expect(f1.shortfall).toEqual([]);
+    expect(notQ1(f1.shortfall)).toEqual([]);
   });
 
   test('a choice slot below its count to answer plus one is short', () => {
     const cut = clone(CH6);
     const kept = items(lay(CH6, { reasked: true }).examJson, D7).slice(0, 5).map((q) => q.question);
     for (const types of Object.values(cut.unseen)) for (const [t, l] of Object.entries(types)) types[t] = l.filter((q) => q.slot !== D7 || kept.includes(q.question));
-    expect(lay(cut, { reasked: true }).shortfall).toEqual([{ slot: D7, missing: 2 }]);
+    expect(notQ1(lay(cut, { reasked: true }).shortfall)).toEqual([{ slot: D7, missing: 2 }]);
   });
 
   test('a compulsory slot never prints a repeat to fill its place: A.Q1 is short', () => {
@@ -191,8 +195,9 @@ describe('2. a caught question never prints', () => {
     const mcqs = dup.unseen.objective.MCQs;
     mcqs[19] = clone(mcqs[0]);
     const r = lay(dup, { reasked: true });
-    expect(stems(r.examJson, Q1)).toHaveLength(19);
-    expect(r.shortfall).toEqual([{ slot: Q1, missing: 1 }]);
+    expect(stems(r.examJson, Q1).filter((s) => s === mcqs[0].question)).toHaveLength(1);
+    expect(stems(r.examJson, Q1)).toHaveLength(19 - namedQ1(r));
+    expect(r.shortfall).toEqual([{ slot: Q1, missing: 1 + namedQ1(r) }]);
   });
 
   test('before the re-ask a choice slot is still short of what it offers (so it is asked again)', () => {
@@ -248,7 +253,7 @@ describe('3. an empty mind map: B\'s re-ask names it', () => {
 
   test('the re-ask asks for exactly one "Mind Map" item under its slot, and the paper builds', async () => {
     const { asked, out } = await run(exam, {
-      replies: { A: rec.replies.A, B: [rec.replies.B[0], withMap(rec.replies.B[1])], C: rec.replies.C, D: rec.replies.D.map(explained) },
+      replies: { A: [...rec.replies.A, fixture('sst-a-reask-fresh').reply], B: [rec.replies.B[0], withMap(rec.replies.B[1])], C: rec.replies.C, D: rec.replies.D.map(explained) },
     });
     const bs = asked.filter((a) => a.sec === 'B');
     expect(bs).toHaveLength(2);

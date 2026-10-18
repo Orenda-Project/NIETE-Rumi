@@ -67,9 +67,9 @@ async function replay(rec, { reader = {} } = {}) {
 }
 
 // The stems a reader reply flags, read from the prompt it answered (label → printed line).
-function flaggedStems(prompt, reply) {
+function flaggedStems(prompt, reply, stale = []) {
   const lines = prompt.split('\n');
-  return JSON.parse(reply).candidates.filter((c) => c.given_away === true).map((c) => {
+  return JSON.parse(reply).candidates.filter((c) => c.given_away === true && !stale.includes(c.by)).map((c) => {
     const line = lines.find((l) => l.startsWith(`${c.item} `));
     return line ? line.slice(c.item.length + 1).trim() : null;
   }).filter(Boolean);
@@ -84,10 +84,37 @@ beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 // one Q5 on a religious premise («اللہ تعالیٰ نے تمام انسان برابر پیدا کیے …»), which is now held, so it
 // takes that item's civic answer; chapters_7's D stems print the Q1 key «ایدھی فاؤنڈیشن», which now holds
 // that Q1 item before the reader can catch the pair, so they name the organisation without it.
+// Q1 items whose key a C/D stem (or their own stem) names are held now too, so each takes the place of an item
+// no stem names, in its own position: Q1's numbering, which the recorded reader replies use, stays as printed.
+const NEUTRAL = [
+  ['پاکستان کا قومی پھول کون سا ہے؟', ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], 'ب) چنبیلی'],
+  ['پاکستان کا قومی جانور کون سا ہے؟', ['الف) شیر', 'ب) ہاتھی', 'ج) مارخور', 'د) ہرن'], 'ج) مارخور'],
+  ['پاکستان کا قومی درخت کون سا ہے؟', ['الف) دیودار', 'ب) نیم', 'ج) شیشم', 'د) پیپل'], 'الف) دیودار'],
+];
+const neutralQ1 = (r, stems) => {
+  r.replies.A = r.replies.A.map((json) => {
+    const tree = JSON.parse(json);
+    const mcqs = (tree.unseen.objective || {}).MCQs || [];
+    stems.forEach((stem, i) => {
+      const q = mcqs.find((x) => x.question === stem);
+      if (q) Object.assign(q, { question: NEUTRAL[i][0], options: NEUTRAL[i][1], answer: NEUTRAL[i][2] });
+    });
+    return JSON.stringify(tree);
+  });
+};
 const asRecorded = {
-  chapters_1: (r) => { r.replies.C = r.replies.C.map((c) => c.replace('اللہ تعالیٰ نے تمام انسان برابر پیدا کیے ہیں اور سب آدم و حوا علیھما السلام کی اولاد ہیں۔', 'اقوام متحدہ کے منشور کے مطابق تمام انسان برابر ہیں اور سب کی عزت برابر ہے۔')); },
+  chapters_1: (r) => {
+    r.replies.C = r.replies.C.map((c) => c.replace('اللہ تعالیٰ نے تمام انسان برابر پیدا کیے ہیں اور سب آدم و حوا علیھما السلام کی اولاد ہیں۔', 'اقوام متحدہ کے منشور کے مطابق تمام انسان برابر ہیں اور سب کی عزت برابر ہے۔'));
+    // Q5 «پرنٹ میڈیا اور الیکٹرانک میڈیا میں فرق …» names Q1 «ٹیلی وژن اور ریڈیو …»'s key, a giver the recorded reader
+    // cites: the Q5 names the two media by an example each instead.
+    r.replies.C = r.replies.C.map((c) => c.split('پرنٹ میڈیا اور الیکٹرانک میڈیا میں فرق').join('اخبار اور ٹیلی وژن میں فرق'));
+    neutralQ1(r, ['ایدھی فاؤنڈیشن کے بانی کون تھے؟',
+      'ایک بچہ اسکول میں اپنے ہم جماعت کے مذہب کی وجہ سے اسے کھیل میں شامل نہیں کرتا۔ یہ کس اصول کے خلاف ہے؟']);
+  },
   chapters_7: (r) => { r.replies.D = r.replies.D.map((d) => d.split('ایدھی فاؤنڈیشن').join('ایدھی کی تنظیم')); },
 };
+// The recorded flags whose giver is a Q1 item that now never prints (above): what it gave away is no give-away.
+const STALE = { chapters_1: ['Q1.5'], chapters_7: [] };
 
 describe('1. a D slot the reader would leave short takes its unplaced first-ask spares, read in the same re-check', () => {
   for (const name of ['chapters_1', 'chapters_7']) {
@@ -104,8 +131,8 @@ describe('1. a D slot the reader would leave short takes its unplaced first-ask 
       // still held Q6 items they did not restate; D now lays out other Q6s, so those labels name other
       // items and only chapters_1's replies still read this paper.
       if (name === 'chapters_1') {
-        const caught = [...flaggedStems(reads[0].text, rec.reader[0]), ...flaggedStems(reads[1].text, rec.reader[1])];
-        expect(caught.length).toBeGreaterThanOrEqual(5);
+        const caught = [...flaggedStems(reads[0].text, rec.reader[0], STALE[name]), ...flaggedStems(reads[1].text, rec.reader[1], STALE[name])];
+        expect(caught.length).toBeGreaterThanOrEqual(5 - STALE[name].length);
         const printed = [C5, D6, D7].flatMap((s) => items(out.examJson, s)).map((q) => lead(q.question));
         expect(caught.map(lead).filter((s) => printed.includes(s))).toEqual([]);
       }
@@ -155,7 +182,8 @@ describe('1. a D slot the reader would leave short takes its unplaced first-ask 
   }
 
   test('chapters_1: a re-check that clears every replacement prints no spare', async () => {
-    const rec = fixture('r17c-sst-refused-chapters_1');
+    const rec = clone(fixture('r17c-sst-refused-chapters_1'));
+    asRecorded.chapters_1(rec);
     const { asked, out } = await replay(rec, { reader: { 2: () => JSON.stringify({ candidates: [] }) } });
     const reads = asked.filter((a) => a.sec === 'reader');
     expect(out.error && out.error.code).toBeUndefined();
