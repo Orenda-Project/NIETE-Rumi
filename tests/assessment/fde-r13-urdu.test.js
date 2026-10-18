@@ -90,6 +90,8 @@ describe('Section A never gives Section C away', () => {
     // A stem that prints another Q1 item's key holds that item: Q1 ۱۹ asks the name for a word group three earlier stems print
     // («… یہ الفاظ کس کے متلازم ہیں؟» → «متلازم الفاظ»).
     if (name === 'chapters_2') kept.splice(kept.indexOf(GROUP_NAME), 1);
+    // One grammar concept once: chapters_1's second شکیہ item is held («کون سا جملہ شکیہ ہے؟» stays).
+    if (name === 'chapters_1') kept.splice(kept.indexOf('کون سا لفظ شکیہ جملے میں استعمال ہوتا ہے؟'), 1);
     expect(after.slice().sort()).toEqual(kept.sort());
   });
 
@@ -123,7 +125,9 @@ describe('Section A never gives Section C away', () => {
   test('Q3, Q4, Q5 and Q6 are untouched', () => {
     for (const name of Object.keys(papers)) {
       const out = laid(name);
-      for (const slot of ['urdu.C.Q3', 'urdu.C.Q4', 'urdu.C.Q5', 'urdu.C.Q6']) expect(items(out, slot)).toEqual(items(papers[name], slot));
+      // An ارکان item whose key and accepted answer split a word apart is held by its own rule; left aside here.
+      const own = (list) => list.filter((q) => !String(q.answer).includes('+'));
+      for (const slot of ['urdu.C.Q3', 'urdu.C.Q4', 'urdu.C.Q5', 'urdu.C.Q6']) expect(own(items(out, slot))).toEqual(own(items(papers[name], slot)));
     }
   });
 

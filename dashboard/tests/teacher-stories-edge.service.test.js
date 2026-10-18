@@ -209,4 +209,31 @@ describe('the class link of a story send, as WhatsApp previews it', () => {
     const ur = { ...noLabel, quiz: { ...noLabel.quiz, lang: 'ur', dir: 'rtl' } };
     expect(renderQuizPage({ payload: ur, code: 'AB12CD', view: 'quiz', origin: 'https://x', assetV: 'v1' })).toContain('Book 1 Testwala · جماعت کے لیے کہانی');
   });
+  // A story code opened on its class view (/q/<code>/class): a story has no league table and no scoreboard.
+  test('a story\'s /class link previews as the story (title, words, picture), never a "league table" or the scoreboard picture', () => {
+    const html = renderQuizPage({ payload: { ...STORY, art: ART }, code: 'AB12CD', view: 'class', origin: 'https://x', assetV: 'v1' });
+    expect(ogMeta(html, 'og:title')).toBe('Book 1 Testwala · a story for Class 2');
+    expect(ogMeta(html, 'og:description')).toBe('Listen and read along with Jugnu');
+    expect(ogMeta(html, 'og:image')).toBe(`https://x/q/AB12CD/art/teach.png?a=${encodeURIComponent(TEACH)}&v=0a1b2c3d`);
+    expect(html).not.toMatch(/league table|art\/class\.jpg/);
+    const pre = renderPreviewPage({ facts: BotOg.facts({ ...STORY, art: ART }), code: 'AB12CD', view: 'class', origin: 'https://x', assetV: 'v1' });
+    expect(ogMeta(pre, 'og:title')).toBe('Book 1 Testwala · a story for Class 2');
+    expect(pre).not.toMatch(/league table|art\/class\.jpg/);
+    // no class link picture (its switch off): the brand's picture, still never the scoreboard
+    const bare = renderQuizPage({ payload: { ...STORY, art: { class: ART.class } }, code: 'AB12CD', view: 'class', origin: 'https://x', assetV: 'v1' });
+    expect(ogMeta(bare, 'og:image')).not.toMatch(/art\/class\.jpg/);
+  });
+  test('a story\'s /class link in Urdu (the finish card\'s Urdu digits on): the story\'s own line, never the class table\'s', () => {
+    const ur = { ...STORY, quiz: { ...STORY.quiz, lang: 'ur', dir: 'rtl' }, card_v3: true, art: ART };
+    const html = renderQuizPage({ payload: ur, code: 'AB12CD', view: 'class', origin: 'https://x', assetV: 'v1' });
+    expect(ogMeta(html, 'og:title')).toBe('Book ۱ Testwala · Class ۲ کے لیے کہانی');
+    expect(ogMeta(html, 'og:description')).toBe('جگنو کے ساتھ سنیں اور پڑھیں');
+    expect(html).not.toMatch(/لیگ ٹیبل|کھیلنا باقی ہے/);
+  });
+  test('a quiz\'s /class link is as before: the league table and its class picture', () => {
+    const { story, ...quiz } = STORY;
+    const html = renderQuizPage({ payload: { ...quiz, art: ART }, code: 'AB12CD', view: 'class', origin: 'https://x', assetV: 'v1' });
+    expect(ogMeta(html, 'og:title')).toBe('Book 1 Testwala · Class 2 league table');
+    expect(ogMeta(html, 'og:image')).toBe('https://x/q/AB12CD/art/class.jpg?a=l.AB12CD.v1bw_tRX32tq');
+  });
 });
