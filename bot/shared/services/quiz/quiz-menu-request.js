@@ -48,10 +48,11 @@ const REQUEST_WORDS = new Set([
 ]);
 
 /**
- * A shared card's ref (`jb` | `jv` | `jg` + 8 hex: web-quiz-card-image.js ref()), which its landing types after the words.
+ * A shared card's ref (`jb` | `jv` | `jg` + 8 hex: web-quiz-card-switch.js ref(); + the card's 8-hex short id when
+ * "a friend joined" was on), which its landing types after the words.
  * Skipped (at most one) only when the caller asks ({ref: true}: web-quiz-share-open.js refMenu, the one share on).
  */
-const SHARE_REF_RX = /^j[bvg][0-9a-f]{8}$/;
+const SHARE_REF_RX = /^j[bvg][0-9a-f]{8}([0-9a-f]{8})?$/;
 
 /** A message longer than this is a sentence, not a request for a menu. */
 const MAX_TOKENS = 6;
