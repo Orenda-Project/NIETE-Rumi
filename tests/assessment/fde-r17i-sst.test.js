@@ -195,12 +195,13 @@ describe('4. key_in_stem: a date needs no topic word; a gloss gives a concept aw
     }
   });
 
-  test('a body named for its work, with no gloss, is no gloss: only the named-key rule holds it', () => {
+  test('a body named for its work, with no gloss, is no gloss, and a term only named is not held', () => {
     const e = local('chapters_6');
     const q5 = items(e, Q5).find((q) => q.question.includes('ایوانِ زیریں (قومی اسمبلی)'));
     q5.question = 'ایوانِ بالا اور قومی اسمبلی میں دو فرق بیان کریں۔';
-    // The stem names the key «قومی اسمبلی» (one option of four), which tells the child the option to pick.
-    expect(heldRules(lay(e, true), 'ایوانِ زیریں کا دوسرا نام کیا ہے؟')).toEqual(['key_named_in_stem']);
+    // The stem names the key «قومی اسمبلی», a term the chapter teaches, and states nothing the Q1 asks: it is
+    // reported, not held.
+    expect(heldRules(lay(e, true), 'ایوانِ زیریں کا دوسرا نام کیا ہے؟')).toEqual([]);
   });
 
   test('«کسی» is no topic: a tax Q6 does not give «بغیر تصدیق … خبر … → نقصان» away', () => {
