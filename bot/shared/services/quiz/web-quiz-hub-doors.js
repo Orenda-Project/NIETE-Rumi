@@ -51,13 +51,13 @@ function seededOrder(items, seed) {
 }
 
 /** A recorded clip of a row's words, when there is one in time (null otherwise: the page says it another way). */
-async function sayAll(texts, lang) {
+async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
   let Challenge;
   try { Challenge = require('./web-quiz-challenge'); } catch (_) { return texts.map(() => null); }
   if (typeof Challenge.sayClip !== 'function') return texts.map(() => null);
   const all = Promise.all(texts.map((t) => Challenge.sayClip(t, lang).catch(() => null)));
   let timer = null;
-  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), SAY_WAIT_MS); });
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), waitMs); });
   try {
     return (await Promise.race([all, late])) || texts.map(() => null);
   } finally { clearTimeout(timer); }
@@ -69,6 +69,7 @@ async function storiesDoor() {
 }
 
 async function gamesDoor(who, lang, now) {
+  if (require('./web-quiz-wait-ux').on()) return gamesDoorTogether(who, lang, now);
   const Hub = require('./web-quiz-hub');
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
@@ -92,6 +93,51 @@ async function gamesDoor(who, lang, now) {
   ] };
 }
 
+// web_quiz_wait_ux on: the same rows as gamesDoor, but every read that does not need another's answer starts at once
+// (the switches, the grade, the read cap, the passages' switch and the child's rung), and the spoken labels are waited
+// for at most WaitUx.SAY_WAIT_MS (a label late here is recorded in the background and ready on the next open).
+async function gamesDoorTogether(who, lang, now) {
+  const Hub = require('./web-quiz-hub');
+  const Challenge = require('./web-quiz-challenge');
+  const G1 = require('./web-quiz-challenge-grade1');
+  const Play = require('./web-quiz-hub-play');
+  const WaitUx = require('./web-quiz-wait-ux');
+  const soft = (p) => Promise.resolve(p).catch(() => null);
+  const [flags, form, record, missing, pool, sw, rung, aloud] = await Promise.all([
+    Hub.flags(),
+    Challenge.gradeOf({ studentId: who.studentId }).then((g) => Challenge.formForChild(g)).catch(() => null),
+    soft(Challenge.recordOn()), soft(Challenge.missingOn()), soft(Challenge.poolOn()),
+    soft(Play.switches()), soft(Play.readingRungOf(who.studentId)),
+    require('./web-quiz-challenge-budget').readOpen().catch(() => false),
+  ]);
+  if (!flags.challenge || !form) return { games: [] };
+  const ids = form === G1.FORM ? [G1.EXERCISE] : [...(record && missing ? ['missing'] : []), 'bigger'];
+  const warm = ids.includes('missing') && Boolean(pool);
+  const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
+  const reads = form === G1.FORM ? [] : await readRowsFrom(Challenge, who, lang, now, { story: Boolean(sw && sw.story), rung, aloud });
+  const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.name || r.title)], lang, WaitUx.SAY_WAIT_MS);
+  return { games: [
+    ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
+    ...reads.map((r, j) => ({ ...r, ...(say[ids.length + j] ? { say: say[ids.length + j] } : {}) })),
+  ] };
+}
+
+// readRows with its switch, rung and read cap already read (gamesDoorTogether): the same rows in the same order.
+async function readRowsFrom(Challenge, who, lang, now, { story, rung, aloud: open }) {
+  const found = { read: null, listen: null };
+  if (story) {
+    const Play = require('./web-quiz-hub-play');
+    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), Play.openBands(who.grade, rung));
+    pickPassages(live, lang, found);
+  }
+  let aloud = null;
+  if (open) {
+    const name = (() => { try { return typeof Challenge.nameOf === 'function' ? Challenge.nameOf('read', lang) || null : null; } catch (_) { return null; } })();
+    if (name) aloud = { kind: 'read', stop: 'read', name };
+  }
+  return [found.read, aloud, found.listen].filter(Boolean);
+}
+
 // Jugnu's passages beside the games (the Stories door shows storybooks only): this week's read passage (read along, in
 // the story room) and the newest listening story, each only when its text is in the bank (no clip is asked here: the
 // listen's clip is asked when the child opens it, as the story room does), and the games page's counted read aloud
@@ -102,14 +148,7 @@ async function readRows(Challenge, who, lang, now) {
   if ((await Play.switches()).story) {
     const bands = Play.openBands(who.grade, await Play.readingRungOf(who.studentId));
     const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), bands);
-    const { titleFor } = require('./web-quiz-passage-title');
-    for (const kind of ['read', 'listen']) {
-      const rows = live.filter((r) => r.kind === kind).sort((x, y) => Date.parse(y.released_at) - Date.parse(x.released_at));
-      for (const r of rows) {
-        const title = titleFor(r.passage_id, lang);
-        if (title && opens(r)) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
-      }
-    }
+    pickPassages(live, lang, found);
   }
   let aloud = null;
   if (await require('./web-quiz-challenge-budget').readOpen().catch(() => false)) {
@@ -118,6 +157,18 @@ async function readRows(Challenge, who, lang, now) {
   }
   // read along, read aloud, listen
   return [found.read, aloud, found.listen].filter(Boolean);
+}
+
+// The newest read and listen whose words are in the bank, each with its child-facing title (into found).
+function pickPassages(live, lang, found) {
+  const { titleFor } = require('./web-quiz-passage-title');
+  for (const kind of ['read', 'listen']) {
+    const rows = live.filter((r) => r.kind === kind).sort((x, y) => Date.parse(y.released_at) - Date.parse(x.released_at));
+    for (const r of rows) {
+      const title = titleFor(r.passage_id, lang);
+      if (title && opens(r)) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
+    }
+  }
 }
 
 function bank() {
