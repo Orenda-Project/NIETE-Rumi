@@ -259,6 +259,11 @@ describe('the sheet (wq-adventure.css)', () => {
     expect(CSS).toMatch(/html\.wq-adv \.wq-app:not\(\.wq-hub\)\{--land:var\(--land-gm\);[^}]*--land-on:var\(--land-gm-on\)/);
     expect((CSS.match(/^html\.wq-adv \.wq-go\{[^}]*\}/m) || [''])[0]).toMatch(/color:var\(--land-on/);
   });
+  it('the designed wait (its top bar and Jugnu\'s dots) is painted in the land colours, never a second bar of its own', () => {
+    expect(CSS).toMatch(/html\.wq-adv \.wq-wbar i\{background:linear-gradient\(90deg,var\(--land-st\),var\(--land-gm\),var\(--land-vd\)\)/);
+    expect(CSS).toMatch(/html\.wq-adv \.wq-boot\.wq-bwait \.wq-bootsay::after\{background:radial-gradient\(circle,var\(--land-st\)/);
+    expect(SRC).not.toMatch(/wq-wbar/);
+  });
   it('no shadow reads a root-level edge: a token built from var(--edge) at :root freezes the root colour for every land', () => {
     expect(CSS).not.toMatch(/var\(--sh-(btn|press)\)/);
     expect(root.replace(/--edge:var\(--land-edge\);/, '')).not.toMatch(/var\(--edge\)/);

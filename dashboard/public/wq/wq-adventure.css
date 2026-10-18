@@ -233,3 +233,6 @@ html.wq-adv .wqa-m-fade{animation:wqa-fade 150ms ease-out}
 html.wq-adv .wq-climb{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);font-weight:800}
 html.wq-adv .wqa-climb{display:inline-grid;flex:none}
 html.wq-adv .wqa-climb .wqa-stamp{width:36px;height:36px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
+/* the designed wait (its own switch): its top bar runs through the three lands, Jugnu's dots in the story colour */
+html.wq-adv .wq-wbar i{background:linear-gradient(90deg,var(--land-st),var(--land-gm),var(--land-vd));box-shadow:0 0 8px var(--glow)}
+html.wq-adv .wq-boot.wq-bwait .wq-bootsay::after{background:radial-gradient(circle,var(--land-st) 3px,transparent 3.5px) 0 50%/12px 8px repeat-x}
