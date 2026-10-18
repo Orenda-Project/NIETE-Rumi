@@ -11,13 +11,15 @@
  * a refused send; false and a throw both count as failed.
  *
  * Logs and event rows carry keyed ids only (fln-keys.js): never a phone number, a name, a raw users.id or the token.
- * One `niete_fln_events` row per recipient: {user_key: the SENDER's keyed id, kind: 'send', plan_ref, clip: the
- * recipient's keyed id, result: 'sent' | 'failed'}. A failed event write never fails a send.
+ * One `niete_fln_events` row per recipient: {user_key: userKey(the SENDER), kind: 'send', plan_ref,
+ * clip: userKey(the RECIPIENT), result: 'sent' | 'failed'}. userKey is m-app's userKeyOf (fln-keys.js), NOT the
+ * picker key, so clip joins the recipient's own `open_link` row. A failed event write never fails a send.
  *
  * Scope, the 30-recipient caps and the rate limit are the portal route's job (dashboard/routes/portal-fln-send.routes.js);
  * the bot reaches this through POST /api/internal/fln/send (bot/shared/routes/internal-fln-send.routes.js).
  */
 const { FLN_SEND_STRINGS, FLN_SEND_LANG } = require('./fln-send.strings');
+const { userKey } = require('./fln-keys');
 
 const DEFAULT_TEMPLATE = 'fln_plan_open_v1';
 const TITLE_MAX = 120;
@@ -100,16 +102,17 @@ async function sendPlanToTeachers({ sender, plan, teachers, deps } = {}) {
       out = { ok: false, via: null, why: 'send_threw' };
     }
     if (out.ok) queued += 1; else failed.push(teacher && teacher.key);
+    const recipient = (teacher && userKey(teacher.id)) || null;
     try {
       d.log(out.ok ? 'FLN send: delivered to Meta' : 'FLN send: not delivered', {
-        sender: (sender && sender.keyedId) || null, plan: planRef, recipient: (teacher && teacher.key) || null,
+        sender: (sender && sender.keyedId) || null, plan: planRef, recipient,
         via: out.via, ...(out.why ? { why: out.why } : {}),
       }, out.ok ? 'info' : 'warn');
     } catch (_) { /* logging never decides */ }
     try {
       await d.recordEvent({
         user_key: (sender && sender.keyedId) || null, kind: 'send', plan_ref: planRef,
-        clip: (teacher && teacher.key) || null, result: out.ok ? 'sent' : 'failed',
+        clip: recipient, result: out.ok ? 'sent' : 'failed',
       });
     } catch (_) { /* the event row is telemetry; it never fails a send */ }
   }

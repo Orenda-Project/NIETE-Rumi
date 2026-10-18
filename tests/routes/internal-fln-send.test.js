@@ -20,7 +20,7 @@ const USERS = {
 let WA; let inserted; let servers = [];
 beforeEach(() => {
   jest.resetModules();
-  process.env = { ...ENV, INTERNAL_API_KEY: KEY, SUPABASE_URL: 'https://envone.supabase.co', PORTAL_URL: 'https://portal.example.test' };
+  process.env = { ...ENV, INTERNAL_API_KEY: KEY, SUPABASE_URL: 'https://envone.supabase.co', PORTAL_URL: 'https://portal.example.test', WEB_QUIZ_KID_KEY: 'q'.repeat(32) };
   inserted = [];
   WA = { sendCtaUrl: jest.fn(async () => true), sendTemplate: jest.fn(async () => true) };
   jest.doMock('../../bot/shared/services/whatsapp.service', () => WA);
@@ -71,11 +71,12 @@ test('sends to each live teacher; a deleted or unknown user is failed; one event
   expect(comps[0].parameters[0].text).toBe('پرنسپل');
   const tok = comps[1].parameters[0].text;
   expect(require('../../bot/shared/services/app-login-link').verifyAppLink(tok)).toEqual(expect.objectContaining({ u: T1, f: 'fln:11156' }));
-  const senderKey = require('../../bot/shared/services/fln-keys').userKey(SENDER);
+  // user_key = userKeyOf(sender), clip = userKeyOf(recipient) — m-app's formula, so clip joins the recipient's open_link
+  const userKeyOf = (id) => require('crypto').createHmac('sha256', 'q'.repeat(32)).update(`t|${id}`).digest('hex').slice(0, 16);
   expect(inserted.map((i) => [i.table, i.row.user_key, i.row.clip, i.row.result])).toEqual([
-    ['niete_fln_events', senderKey, 'aaaaaaaaaaaaaaaa', 'sent'],
-    ['niete_fln_events', senderKey, 'bbbbbbbbbbbbbbbb', 'failed'],
-    ['niete_fln_events', senderKey, 'cccccccccccccccc', 'failed'],
+    ['niete_fln_events', userKeyOf(SENDER), userKeyOf(T1), 'sent'],
+    ['niete_fln_events', userKeyOf(SENDER), userKeyOf(T2), 'failed'],
+    ['niete_fln_events', userKeyOf(SENDER), userKeyOf('33333333-3333-4333-8333-333333333333'), 'failed'],
   ]);
 });
 
