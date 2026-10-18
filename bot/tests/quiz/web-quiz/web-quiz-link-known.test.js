@@ -556,7 +556,7 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
       expect(body).toEqual({ on: true, home: null });
     });
 
-    // The closed path never reads the switch itself: it answers from the 30 s cache the open-link loads keep warm.
+    // The closed path never waits on a switch read: it answers from the 30 s cache, and on a cold cache starts one read.
     const switchReads = () => {
       const from = supabase.from;
       const n = { reads: 0 };
@@ -584,29 +584,66 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
       expect(n.reads).toBe(0);
     });
 
-    test('switch on, cold cache: the closed answer is today\'s and the closed GET reads no setting', async () => {
+    test('switch on, cold cache: the first closed GET is today\'s and starts one read; the next one says `known: true`', async () => {
       seed();
       closeCode();
       const n = switchReads();
-      let body;
-      try { body = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json(); } finally { n.restore(); }
-      expect(Object.prototype.hasOwnProperty.call(body, 'known')).toBe(false);
-      expect(n.reads).toBe(0);
+      let first; let second;
+      try {
+        first = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+        await new Promise((r) => setTimeout(r, 20));
+        second = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+      } finally { n.restore(); }
+      expect(Object.prototype.hasOwnProperty.call(first, 'known')).toBe(false);
+      expect(second).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+      expect(n.reads).toBe(1);
     });
 
-    for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true']]) {
+    test('a switch read that never answers: closed links still answer at once (the read is never awaited), and only one is started', async () => {
+      seed();
+      closeCode();
+      const from = supabase.from;
+      let reads = 0;
+      supabase.from = (t) => {
+        const q = from(t);
+        if (t !== 'app_settings') return q;
+        const select = q.select.bind(q);
+        return { ...q, select: (...a) => { const r = select(...a); const inn = r.in.bind(r); return { ...r, in: (col, keys) => { if (!keys.includes(KEY)) return inn(col, keys); reads += 1; return new Promise(() => {}); } }; } };
+      };
+      try {
+        for (let i = 0; i < 50; i += 1) {
+          const t0 = Date.now();
+          const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+          expect(res.status).toBe(410);
+          expect(Object.prototype.hasOwnProperty.call(await res.json(), 'known')).toBe(false);
+          expect(Date.now() - t0).toBeLessThan(1000);
+        }
+      } finally { supabase.from = from; }
+      expect(reads).toBe(1);
+    });
+
+    for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true'], ['the quoted string', '"true"'], ['a number', 1], ['an object', {}]]) {
       for (const fail of [false, true]) {
-        test(`switch off (${name})${fail ? ', settings read failing' : ''}: a closed GET makes 0 switch reads and 0 log lines, every time`, async () => {
+        test(`switch off (${name})${fail ? ', settings read failing' : ''}: 50 closed GETs in 30 s make at most 1 switch read and at most 1 log line, and answer today's`, async () => {
+          seed({ known: false });
+          db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+          closeCode();
+          const today = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).text();
+          expect(today).toBe('{"error":"expired","lang":"en"}');   // the closed body recorded on the base
           seed({ known: value });
           if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
           closeCode();
           const n = switchReads();
           n.fail = fail;
           try {
-            for (let i = 0; i < 3; i += 1) expect((await fetch(`${base}/quiz/AB12CD`, { headers: H })).status).toBe(410);
+            for (let i = 0; i < 50; i += 1) {
+              const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+              expect(res.status).toBe(410);
+              expect(await res.text()).toBe(today);
+            }
           } finally { n.restore(); }
-          expect(n.reads).toBe(0);
-          expect(switchLogs()).toBe(0);
+          expect(n.reads).toBeLessThanOrEqual(1);
+          expect(switchLogs()).toBeLessThanOrEqual(1);
         });
       }
     }

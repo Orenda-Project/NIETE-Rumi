@@ -85,11 +85,11 @@ const serve = async (fn, req, res) => {
 // link's preview in Urdu digits. Read beside the quiz, never after it; off, the payload is today's.
 const withCard = (quizP) => Promise.all([quizP, CardImage.field()]).then(([out, card]) => (out && typeof out === 'object' ? Object.assign(out, card) : out));
 // A closed class link (404 / 410 with its reason) says `known: true` while web_quiz_link_known_child is ON, so the edge asks
-// /known/home for this phone's way home only then. The switch comes from its 30 s cache (kept warm by open-link loads),
-// never a read of its own: switch off or a cold cache, the answer is today's, byte for byte, with no settings read.
+// /known/home for this phone's way home only then. The switch comes from its 30 s cache and is never waited on (a cold
+// cache starts one background read and answers today's); switch off, the answer is today's, byte for byte.
 async function closedKnows(err) {
   if (err instanceof WebQuiz.WqError && (err.status === 404 || err.status === 410) && err.body && typeof err.body.error === 'string'
-    && require('../services/quiz/web-quiz-link-known').cachedOn()) err.body = { ...err.body, known: true };
+    && require('../services/quiz/web-quiz-link-known').peekOn()) err.body = { ...err.body, known: true };
   return err;
 }
 router.get('/quiz/:code', handle(async (req) => {

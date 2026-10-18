@@ -50,27 +50,44 @@ const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 // A grade digit in a class label ("Grade 4", "4-B"), as the join queue reads it; null when there is none.
 const gradeOf = (txt) => { const m = /[1-8]/.exec(String(txt == null ? '' : txt)); return m ? Number(m[0]) : null; };
 
+// The one switch read: caches the answer, throws on a read error (never cached then).
+async function readSwitch(now) {
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  const row = (data || []).find((r) => r.key === KEY);
+  cache = { at: now, on: Boolean(row) && isTrue(row.value) };
+  return cache.on;
+}
+
 /** The switch. Off on any read error (never cached then). */
 async function isOn(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || []).find((r) => r.key === KEY);
-    cache = { at: now, on: Boolean(row) && isTrue(row.value) };
-    return cache.on;
+    return await readSwitch(now);
   } catch (err) {
     logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message });
     return false;
   }
 }
 
+let peekAt = -Infinity;   // when the closed path last started a read of its own
+let peekLogged = false;
 /**
- * The switch as the last read left it, without reading (a closed link's answer): on only while a read in the last
- * 30 s said so. A cold or failed cache is off, so a closed link pays no settings read and no log line.
+ * The switch for a closed link's answer, never waited on: the 30 s cache as it stands. On a cold cache it starts ONE
+ * read in the background (at most one per 30 s per process, failing or not) and answers off, so that GET is today's and
+ * the next one within the window knows. A failing background read logs once per process.
  */
-function cachedOn(now = Date.now()) {
-  return Boolean(cache && now - cache.at < TTL_MS && cache.on);
+function peekOn(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return cache.on;
+  if (now - peekAt >= TTL_MS) {
+    peekAt = now;
+    readSwitch(now).catch((err) => {
+      if (peekLogged) return;
+      peekLogged = true;
+      logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message });
+    });
+  }
+  return false;
 }
 
 /** May the quiz payload carry `link_known`? Never on a friend's challenge or the teacher's preview. Never throws. */
@@ -234,4 +251,4 @@ async function closedHome({ device } = {}) {
   }
 }
 
-module.exports = { field, known, kidFor, closedHome, isOn, cachedOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
+module.exports = { field, known, kidFor, closedHome, isOn, peekOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; peekAt = -Infinity; peekLogged = false; } };
