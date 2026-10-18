@@ -41,7 +41,7 @@ const QUIZ = (extra = {}) => ({
 });
 const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
 const HUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Star', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
+  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Star Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
 const ver = (body) => body.match(/wq\.css\?v=([0-9a-f]+)/)[1];
