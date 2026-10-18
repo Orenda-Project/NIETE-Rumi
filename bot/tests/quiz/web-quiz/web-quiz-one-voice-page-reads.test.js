@@ -37,11 +37,12 @@ const KID = (n) => `44444444-4444-4444-8444-44444444444${n}`;
 const future = new Date(Date.now() + 864e6).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 
-// app_settings reads of one page, recorded on the page before the switch existed (cold = first page after a start).
+// app_settings reads of one page, recorded on the page before the switch existed (cold = first page after a start;
+// the class doors switch added one read to every page).
 const OFF_READS = {
-  library: { cold: 13, warm: 0 },
-  teacher: { cold: 13, warm: 0 },
-  classLink: { cold: 13, warm: 0 },
+  library: { cold: 14, warm: 0 },
+  teacher: { cold: 14, warm: 0 },
+  classLink: { cold: 14, warm: 0 },
 };
 // Rows a key of this change may add with it ON (none: the switch rides the page's own read).
 const NAMED_ON = [];
@@ -161,7 +162,7 @@ describe.each(Object.keys(KINDS))('%s page: app_settings reads', (kind) => {
 // often as today, because its plan comes from the host's row, never from a read of the switch alone. The base is
 // measured in the same run: the same page after the same host read, with no switch row and nothing forgotten.
 // HOST_WARM_READS is that base recorded on the page before the switch existed; OFF reads exactly that.
-const HOST_WARM_READS = { library: 12, teacher: 12, classLink: 12 };
+const HOST_WARM_READS = { library: 13, teacher: 13, classLink: 13 };
 
 describe.each(Object.keys(KINDS))('%s page, identity read warm and the switch\'s own reading cold (the switch rides the identity read)', (kind) => {
   async function hostWarmRiderCold(flag) {
