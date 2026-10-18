@@ -255,12 +255,12 @@ describe('(e) switch on: only a versioned URL is kept for a year', () => {
 });
 
 describe('(f) a minified copy\'s URL (?v=<hex>m) is not this handler\'s', () => {
-  test('passes to whatever serves it next (today: the plain file, a year)', async () => {
+  test('passes to whatever serves it next (the plain file, not kept: no-cache, so a minified copy replaces it once the switch is on)', async () => {
     await brOn();
     await getBr(srv, `/wq/wq.js?v=${V}`);
     const res = await get(srv, `/wq/wq.js?v=${V}m`, { 'accept-encoding': AE });
     expect(res.headers['content-encoding']).toBeUndefined();
-    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    expect(res.headers['cache-control']).toBe('no-cache');
     expect(res.body.equals(fs.readFileSync(path.join(PUB, 'wq.js')))).toBe(true);
   });
 });

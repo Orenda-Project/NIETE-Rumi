@@ -241,9 +241,9 @@ describe.each([['a child on a class list', 'class', false], ['a loose child', 'l
       // OFF(head) <= OFF(base)
       expect(off.warm.waves).toBeLessThanOrEqual(b.warm);
       expect(off.stale.waves).toBeLessThanOrEqual(b.stale);
-      // warm: no settings read at all of its own; stale: at most its own row, read in the background beside the hub's first wave
+      // warm: no settings read at all of its own; stale: at most its own row and the minified files' switch row (its own 30 s cache), read in the background beside the hub's first wave
       expect(settingsOf(off.warm)).toBeLessThanOrEqual(b.settingsWarm);
-      expect(settingsOf(off.stale)).toBeLessThanOrEqual(b.settingsStale + 1);
+      expect(settingsOf(off.stale)).toBeLessThanOrEqual(b.settingsStale + 2);
     });
   });
 });

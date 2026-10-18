@@ -245,7 +245,7 @@ describe('switch on (`min: true` in the payload): minified files at their own UR
       expect([f, r.buf.length < raw(f).length]).toEqual([f, true]);
       expect(compiles(r.body)).toBe(true);
       // The sources are ES5 for old phones: the minifier must not write newer syntax (`??`, `?.`, `=>`, template strings).
-      expect([f, /\?\?|\?\.|=>|`/.test(r.body)]).toEqual([f, false]);
+      expect([f, /\?\?|\?\.(?![0-9])|=>|`/.test(r.body)]).toEqual([f, false]);
     }
   });
 

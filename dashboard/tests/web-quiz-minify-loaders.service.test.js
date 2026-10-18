@@ -82,10 +82,10 @@ describe('wq.js jugnuCard: wq-card.js at wq.js\'s own ?v=', () => {
 });
 
 describe('wq.js finishCard: wq-finish-card.js at wq.js\'s own ?v=', () => {
-  const FN = cut(read('wq.js'), 'finishCard');
+  const FN = `${cut(read('wq.js'), 'finishCard')}\n${cut(read('wq.js'), 'loadFC')}`;
   const run = (ownSrc) => {
     const { document, head } = fakeDoc('/wq/wq.js', ownSrc);
-    const ctx = { document, window: {} };
+    const ctx = { document, window: {}, ROOT: { getAttribute: () => null } };
     vm.createContext(ctx);
     vm.runInContext(`var fcAsked = false;\n${FN}\nfinishCard();`, ctx);
     return head.map((e) => e.src);
@@ -129,7 +129,7 @@ describe('wq-trail.js raLoad: the read-along player at its own fixed version (ra
     expect(RA_V).toBe(crypto.createHash('sha256').update(fs.readFileSync(path.join(WQ, 'wq-readalong.js'))).digest('hex').slice(0, 10));
     const FN = cut(SRC, 'raLoad');
     const { document, head } = fakeDoc('/wq/wq-trail.js', '/wq/wq-trail.js?v=abc123def0m');
-    const ctx = { document, window: {}, RA_V };
+    const ctx = { document, window: {}, RA_V, warm: () => {}, raLanded: () => {} };
     vm.createContext(ctx);
     vm.runInContext(`${FN}\nraLoad();`, ctx);
     expect(head.map((e) => e.src)).toEqual([`/wq/wq-readalong.js?v=${RA_V}`]);
