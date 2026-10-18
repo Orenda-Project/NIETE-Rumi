@@ -66,4 +66,12 @@ function carry(answerP) {
   return Promise.resolve(answerP).then((out) => (out && typeof out === 'object' && !Array.isArray(out) && out.fast === true && on() ? Object.assign(out, { [FIELD]: true }) : out));
 }
 
-module.exports = { on, flag, carry, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };
+/**
+ * The hub's answer: the same field, from the hub's one switch read (web-quiz-hub-flags.js carries this key), so a
+ * child's home makes no settings read of its own for it. The hub's flags() has run by the time its answer resolves.
+ */
+function carryHub(answerP) {
+  return Promise.resolve(answerP).then((out) => (out && typeof out === 'object' && !Array.isArray(out) && out.fast === true && require('./web-quiz-hub-flags').plainPaintNow() ? Object.assign(out, { [FIELD]: true }) : out));
+}
+
+module.exports = { on, flag, carry, carryHub, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };

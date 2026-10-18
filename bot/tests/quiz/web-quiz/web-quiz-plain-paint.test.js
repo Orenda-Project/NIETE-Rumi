@@ -31,7 +31,11 @@ function seed() {
           if (fail && st.key === KEY) return { data: null, error: { message: 'down' } };
           return { data: rows.find((r) => r.key === st.key) || null, error: null };
         },
-        then(res, rej) { return Promise.resolve({ data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej); },
+        then(res, rej) {
+          // the hub's one switch read (.in(KEYS)) fails with this key's own read
+          if (fail && t === 'app_settings' && !st.key) return Promise.resolve({ data: null, error: { message: 'down' } }).then(res, rej);
+          return Promise.resolve({ data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej);
+        },
       };
       return b;
     },
@@ -48,9 +52,12 @@ beforeEach(() => {
   Plain = require('../../../shared/services/quiz/web-quiz-plain-paint');
 });
 const tick = () => new Promise((r) => setImmediate(r));
-// The switch read once, then the reads counted from zero.
+// The switch read once (its own cache for the quiz page, the hub's one switch read for the home), then the reads
+// counted from zero.
+const hubFlags = () => require('../../../shared/services/quiz/web-quiz-hub-flags');
 async function warm() {
   await Plain.flag();
+  await hubFlags().flags();
   reads = [];
 }
 
@@ -126,7 +133,8 @@ async function serve(fn, { quiz = QUIZ, hub = HUB } = {}) {
     quiz: await (await fetch(`${base}/quiz/AB12CD`, { headers: h })).text(),
     hubGet: await (await fetch(`${base}/hub/abc.def`, { headers: h })).text(),
   });
-  try { return await fn(ask); } finally { spies.forEach((s) => s.mockRestore()); await new Promise((r) => server.close(r)); }
+  const hubOnly = async () => (await fetch(`${base}/hub/abc.def`, { headers: h })).text();
+  try { return await fn(ask, hubOnly); } finally { spies.forEach((s) => s.mockRestore()); await new Promise((r) => server.close(r)); }
 }
 // The OFF golden: each page module's own answer, as the route sent it before this switch.
 const GOLDEN = { quiz: JSON.stringify(QUIZ), hubGet: JSON.stringify(HUB) };
@@ -166,10 +174,36 @@ describe('the routes', () => {
   test('a cold switch never holds the answer: the first answers are today\'s while the read runs behind them', async () => {
     rows = [{ key: KEY, value: true }];
     await serve(async (ask) => {
-      expect((await ask()).quiz).toBe(GOLDEN.quiz);
+      expect(await ask()).toEqual(GOLDEN);
+      await hubFlags().flags(); // the hub's own switch read (the stood-in hub does not make it)
       const later = await ask();
+      expect(JSON.parse(later.quiz).plain_paint).toBe(true);
       expect(JSON.parse(later.hubGet).plain_paint).toBe(true);
     });
     expect(reads.filter((k) => k === KEY)).toHaveLength(1);
+  });
+
+  test('the home takes the switch from the hub\'s one settings read (it carries this key): no read of its own', async () => {
+    rows = [{ key: KEY, value: true }];
+    expect(hubFlags().KEYS).toContain(KEY);
+    await hubFlags().flags();
+    reads = [];
+    await serve(async (_ask, hubOnly) => {
+      expect(JSON.parse(await hubOnly()).plain_paint).toBe(true);
+      expect(JSON.parse(await hubOnly()).plain_paint).toBe(true);
+    });
+    expect(reads.filter((k) => k === KEY)).toEqual([]);
+  });
+
+  test('the hub\'s read off, failed or empty: the home is today\'s', async () => {
+    rows = [{ key: KEY, value: 'true' }];
+    await hubFlags().flags();
+    await serve(async (_ask, hubOnly) => {
+      expect(await hubOnly()).toBe(GOLDEN.hubGet);
+    });
+    hubFlags()._resetCache();
+    await serve(async (_ask, hubOnly) => {
+      expect(await hubOnly()).toBe(GOLDEN.hubGet);
+    });
   });
 });
