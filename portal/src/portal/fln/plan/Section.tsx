@@ -12,7 +12,7 @@ import { sectionClipIds, useWarmOnOpen } from '../player';
 import { flnStrings, type FlnLang, type SectionKind } from '../strings';
 import type { FlnGroup, FlnPlan } from '../types';
 import { Move } from './Move';
-import { Chrome, isolate, oneLine } from './text';
+import { Chrome, isolate, oneLine, ownNumbered } from './text';
 
 export interface SectionProps {
   plan: FlnPlan;
@@ -59,10 +59,14 @@ export function Section({ plan, index, kind, minutes, groups, open, onToggle, ui
                   {g.level ? <span className={`fln-lvl fln-lvl--${g.level}`}>{ps.groupLevel[g.level]}</span> : null}
                 </h3>
               ) : null}
-              {g.items.map((it, ii) => {
-                n += 1;
-                return <Move key={ii} item={it} n={n} planLang={plan.lang} planDir={plan.dir} uiLang={uiLang} />;
-              })}
+              {(() => {
+                // A group whose steps carry their own numbers keeps the plan's numbers and gets no badges.
+                const own = g.items.some((it) => ownNumbered(it.text));
+                return g.items.map((it, ii) => {
+                  if (!own) n += 1;
+                  return <Move key={ii} item={it} n={own ? undefined : n} planLang={plan.lang} planDir={plan.dir} uiLang={uiLang} />;
+                });
+              })()}
             </div>
           ))
           : null}

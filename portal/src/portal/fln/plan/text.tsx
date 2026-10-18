@@ -12,7 +12,7 @@
 import { Fragment, type ReactNode } from 'react';
 
 /** Latin/ASCII-digit runs (as Bdi.tsx / rt_bidi_check) or a run of Urdu digits ۰–۹ with its separators. */
-const RUN = /[A-Za-z0-9]+(?:[ .,:'’/+\-–()%]+[A-Za-z0-9]+)*%?|[۰-۹]+(?:[/–\-.,:][۰-۹]+)*/g;
+const RUN = /[A-Za-z0-9]+(?:[ .,:'’/+\-–()%]+[A-Za-z0-9]+)*[%+]?|[۰-۹]+(?:[/–\-.,:][۰-۹]+)*/g;
 
 export function isolate(text: string, rtl: boolean, keyPrefix = 'r'): ReactNode {
   if (!rtl || !text) return text;
@@ -52,6 +52,9 @@ function inline(text: string, rtl: boolean, key: string): ReactNode[] {
 }
 
 const NUM_LINE = /^\s*[0-9۰-۹]+[.)]\s/;
+
+/** The plan numbers this step itself ("1. There are…"): its group then gets no badges (qa r1 D4). */
+export const ownNumbered = (text: string | undefined | null): boolean => NUM_LINE.test(text || '');
 
 export function PlanText({ text, rtl }: { text: string; rtl: boolean }) {
   const lines = (text || '').split('\n');
