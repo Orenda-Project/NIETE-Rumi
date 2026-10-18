@@ -307,6 +307,17 @@
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
 
+    // Slower turned on (its switch) while the page waits is heard in the tap: before the first Listen it is that Listen;
+    // else this (or, heard to the end, the last) sentence again from its first word's own start; rate() keeps the pauses
+    function slw() {
+      var p = R.pl, ws = P[m.i].words, k = p && p.current, s = 0, o;
+      try { o = W.localStorage.getItem('wq_st_slow:' + (ctx.kid || '')) !== '1'; } catch (e) { /* off */ }
+      if (!b.slow_gaps || !o || !p || !/^(idle|paused|listened)$/.test(m.st)) return;
+      p.slow(1, b.slow_gaps);
+      if (k < 0 && m.st !== 'listened') return m.label() === 'listen' ? m.primary() : m.altTap();
+      sents(ws).forEach(function (x) { if (k < 0 || x[0] <= k && k <= x[1]) s = x[0]; });
+      R.ac(1); p.seekToWord(s); p.audio.currentTime = ws[s].s_ms / 1000; m.set('listening');
+    }
     var A = {
       mic: micScreen, read: function () { sum = null; readScreen(); }, q: dv('q'), d: dv('d'), e: eScreen,
       act: function (tap, arg) {
@@ -319,6 +330,7 @@
         else if (tap === 'echo') eGo();
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
+        else if (tap === 'slow') { slw(); return false; }   // wq-stories.js keeps the toggle
         else if (D) return D.act(tap, arg);
         else return false;
         return true;

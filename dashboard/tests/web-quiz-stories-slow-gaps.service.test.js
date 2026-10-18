@@ -558,3 +558,161 @@ describe('the book carries the Slower numbers', () => {
     expect(r.w.rates.every((x) => x === 1)).toBe(true);
   });
 });
+
+// The first tap on Slower is heard (switch on only): turned ON while the page waits (before the first Listen, paused,
+// or heard to its end), the reader says the current (or last) sentence again from its first word with the pauses;
+// before the first Listen the tap IS that Listen. After Your turn and on the questions: the toggle only. Turned OFF: nothing starts. While playing: no jump, the next phrase end already waits.
+// The switch off: the tap is today's, exactly. One stored toggle per tap, always (wq-stories.js keeps it).
+describe('the first tap on Slower is heard (switch on)', () => {
+  const mainText = (root) => root.querySelector('[data-main]').textContent;
+  const PAUSE = { en: 'Pause', ur: 'رکیں' };
+  const LISTEN = { en: 'Listen', ur: 'سنیں' };
+  // EN "It goes up, up and away." starts at word 4 (1120); UR «وہ اڑتی ہے، اوپر اور اوپر۔» at word 5 (1520), after the ۔
+  const MID = { en: { at: 1450, from: 1120, stop: 1610 }, ur: { at: 1800, from: 1520, stop: 2020 } };   // (2.01 s × 1000 lands on the next 10 ms frame)
+  function counted(r) {
+    const n = { slow: 0 };
+    const set = r.store.setItem;
+    r.store.setItem = function (k, v) { if (/^wq_st_slow:/.test(k)) n.slow += 1; return set.call(this, k, v); };
+    return n;
+  }
+
+  test.each(['en', 'ur'])('%s (1): paused mid-page, Slower ON says the current sentence again from its first word, with the pauses; one stored toggle', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    fire(root, 'main'); r.w.run(MID[lang].at);
+    fire(root, 'main');
+    expect(mainText(root)).toBe(LISTEN[lang]);
+    expect(pl(r).paused).toBe(true);
+    const n = counted(r);
+    fire(root, 'slow');
+    expect(n.slow).toBe(1);
+    expect(r.store.getItem('wq_st_slow:' + KID)).toBe('1');
+    expect(root.querySelector('.wqs-slow').getAttribute('aria-pressed')).toBe('true');
+    expect(pl(r).paused).toBe(false);                 // played inside the tap
+    expect(pl(r).t).toBe(MID[lang].from);             // from the sentence's first word, at its own start (no lead into the sentence before)
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    r.w.run(MID[lang].stop - MID[lang].from);         // the first phrase end of that sentence: it waits (gaps are on)
+    expect(pl(r).paused).toBe(true);
+    expect(pl(r).t).toBe(MID[lang].stop);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    expect(r.w.rates.filter((x) => x < 1)).toEqual([]);
+  });
+
+  test.each(['en', 'ur'])('%s (2): before the first Listen, Slower ON is that Listen (the main button says Pause, from word 0, the same listened event)', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    expect(pl(r).paused).toBe(true);                  // no voice before the child's tap
+    expect(mainText(root) || LISTEN[lang]).toBe(LISTEN[lang]);
+    const n = counted(r);
+    fire(root, 'slow');
+    expect(n.slow).toBe(1);
+    expect(pl(r).paused).toBe(false);
+    expect(pl(r).t).toBe(0);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    r.w.run(lang === 'ur' ? 1520 : 1120);             // the first sentence end waits
+    expect(pl(r).paused).toBe(true);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    r.w.run(9000); await flush();
+    const viaSlow = r.bodies.filter((b) => /story_page_listened/.test(String(b)));
+    // the same page heard through Listen with Slower already on
+    const r2 = reader({ lang, gapsKey: true, slowStored: '1' });
+    const root2 = await r2.open();
+    fire(root2, 'main'); r2.w.run(9000); await flush();
+    expect(viaSlow).toHaveLength(1);
+    expect(viaSlow).toEqual(r2.bodies.filter((b) => /story_page_listened/.test(String(b))));
+    expect(mainText(root)).toBe(mainText(root2));
+  });
+
+  test.each(['en', 'ur'])('%s (1b): the page heard to its end, Slower ON says its last sentence again, with the pauses', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    fire(root, 'main'); r.w.run(9000); await flush();
+    expect(pl(r).paused).toBe(true);
+    const n = counted(r);
+    fire(root, 'slow');
+    expect(n.slow).toBe(1);
+    expect(pl(r).paused).toBe(false);
+    expect(pl(r).t).toBe(MID[lang].from);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    r.w.run(MID[lang].stop - MID[lang].from);
+    expect(pl(r).paused).toBe(true);
+    expect(pl(r).t).toBe(MID[lang].stop);
+  });
+
+  test.each(['en', 'ur'])('%s (3): playing, Slower ON is only the toggle: no jump, no restart, and the next phrase end waits', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    fire(root, 'main'); r.w.run(MID[lang].at);
+    expect(pl(r).paused).toBe(false);
+    const n = counted(r);
+    fire(root, 'slow');
+    expect(n.slow).toBe(1);
+    expect(pl(r).t).toBe(MID[lang].at);
+    expect(pl(r).paused).toBe(false);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    r.w.run(MID[lang].stop - MID[lang].at);
+    expect(pl(r).paused).toBe(true);                  // gaps on from here
+    expect(pl(r).t).toBe(MID[lang].stop);
+  });
+
+  test.each(['en', 'ur'])('%s (4): Slower OFF while waiting starts nothing (before the first Listen, and paused)', async (lang) => {
+    const r = reader({ lang, gapsKey: true, slowStored: '1' });
+    const root = await r.open();
+    let n = counted(r);
+    fire(root, 'slow');
+    expect(n.slow).toBe(1);
+    expect(r.store.getItem('wq_st_slow:' + KID)).toBe('0');
+    expect(pl(r).paused).toBe(true);
+    expect(pl(r).t).toBe(0);
+    const r2 = reader({ lang, gapsKey: true, slowStored: '1' });
+    const root2 = await r2.open();
+    fire(root2, 'main'); r2.w.run(1050); fire(root2, 'main');
+    n = counted(r2);
+    fire(root2, 'slow');
+    expect(n.slow).toBe(1);
+    expect(pl(r2).paused).toBe(true);
+    expect(pl(r2).t).toBe(1050);
+    expect(mainText(root2)).toBe(LISTEN[lang]);
+    r2.w.run(2000);
+    expect(pl(r2).paused).toBe(true);
+  });
+
+  test.each(['en', 'ur'])('%s (5): the switch off (absent or false): a Slower tap is today\'s, exactly: no sound, the 0.85 stretch, the same page', async (lang) => {
+    const seen = {};
+    for (const k of ['absent', false]) {
+      const r = reader({ lang, gapsKey: k === 'absent' ? undefined : k });
+      const root = await r.open();
+      const n = counted(r);
+      fire(root, 'slow');
+      expect(n.slow).toBe(1);
+      expect(pl(r).paused).toBe(true);
+      expect(pl(r).t).toBe(0);
+      expect(pl(r)._r).toBe(0.85);
+      // paused mid-page, Slower off then on again: still no sound, no jump
+      fire(root, 'main'); r.w.run(MID[lang].at); fire(root, 'main');
+      fire(root, 'slow'); fire(root, 'slow');
+      expect(n.slow).toBe(3);
+      expect(pl(r).paused).toBe(true);
+      expect(pl(r).t).toBe(MID[lang].at);
+      expect(r.w.audios.filter((a) => !a.paused)).toEqual([]);
+      seen[String(k)] = [root.innerHTML, mainText(root), root.querySelector('.wqs-slow').getAttribute('aria-pressed'), r.bodies.join('|')];
+    }
+    expect(seen.false).toEqual(seen.absent);
+  });
+
+  test('(7) one stored toggle per tap, every state, the switch on: 6 taps, 6 writes, alternating', async () => {
+    const r = reader({ gapsKey: true });
+    const root = await r.open();
+    const n = counted(r);
+    const got = [];
+    const tap = () => { fire(root, 'slow'); got.push(r.store.getItem('wq_st_slow:' + KID) + (pl(r).paused ? '' : ' playing')); };
+    tap();                                    // idle → ON (plays)
+    r.w.run(500); tap();                      // playing → OFF
+    tap();                                    // playing → ON
+    fire(root, 'main'); tap();                // paused → OFF
+    tap();                                    // paused → ON (plays)
+    r.w.run(100); tap();                      // playing → OFF
+    expect(n.slow).toBe(6);
+    expect(got).toEqual(['1 playing', '0 playing', '1 playing', '0', '1 playing', '0 playing']);
+  });
+});
