@@ -127,6 +127,16 @@ describe('what the picture says', () => {
     expect(h).not.toMatch(BANNED);
     expect(A.renderCardA(f({ lang: 'ur', first: 'نور', kind: 'read', deed: 'read_tried' }), { fonts: false })).toContain('<bdi>نور</bdi> نے ایک نئی کہانی پڑھی');
   });
+  test('a long first name is clamped (at most 12 letters, then …) so the deed and the CTA stay on the card', () => {
+    expect(html({ first: 'Muhammadabdullah' })).toContain('<bdi>Muhammadabd…</bdi> finished a quiz!');
+    expect(A.renderCardA(f({ lang: 'ur', first: 'محمدعبداللہخانصاحب' }), { fonts: false })).toContain('<bdi>محمدعبداللہ…</bdi> نے کوئز مکمل کیا');
+    expect(html({ first: 'Noor' })).toContain('<bdi>Noor</bdi>');
+  });
+  test('no result and no badge: the activity\'s word once (the ribbon), never again on the medal', () => {
+    const h = html({ kind: 'read', deed: 'read_tried' });
+    expect((h.match(/>Reading</g) || []).length).toBe(1);
+    expect(h).toContain('<div class="cap" data-ink></div>');
+  });
   test('a name that is markup is only text', () => {
     expect(html({ first: '<img src=x>' })).not.toContain('<img src=x>');
   });

@@ -124,7 +124,9 @@ function renderCardA(f, opt = {}) {
   const lines = x ? Data.words(x, f.kind, l) : {};
   const COPY = require('./web-quiz-card-image').COPY;
   const deedKey = SAME_AS[f.deed] || f.deed;
-  const who = f.first ? `<bdi>${esc(f.first)}</bdi>` : '';
+  // a long first name is clamped (12 letters at most, then …) so the deed keeps its line and the CTA stays on the card
+  const letters = Array.from(String(f.first || ''));
+  const who = letters.length ? `<bdi>${esc(letters.length > 12 ? `${letters.slice(0, 11).join('')}…` : letters.join(''))}</bdi>` : '';
   const deed = who && DEED3[l][deedKey] ? DEED3[l][deedKey](who) : esc(COPY[l][f.deed] || '');
   const fallbackDare = { read: Data.LINES[l].dareStory, story: Data.LINES[l].dareStory, book: Data.LINES[l].dareStory, listen: Data.LINES[l].dareStory, video: t.dareVideo };
   const dare = lines.dare || fallbackDare[f.kind] || t.darePlay;
@@ -142,7 +144,8 @@ function renderCardA(f, opt = {}) {
     cap = esc(f.kind === 'read' ? t.wordsAloud : t.words);
   } else {
     big = `<span class="bigstar">${STAR()}</span>`;
-    cap = f.deed === 'read_tried' || /_practice$/.test(f.deed) ? esc(markWord) : esc(COPY[l].sticker);
+    // a try or a stop played again earns no sticker; the ribbon already names the activity, so the medal says nothing more
+    cap = f.deed === 'read_tried' || /_practice$/.test(f.deed) ? '' : esc(COPY[l].sticker);
   }
   const stars = x && x.s != null ? `<div class="stars">${[0, 1, 2].map((i) => `<span class="st">${i < x.s ? STAR() : STAR('rgba(255,255,255,.35)', 'rgba(0,0,0,.18)')}</span>`).join('')}</div>` : '';
   const pic = opt.art && opt.art.b64 ? `data:${opt.art.type};base64,${opt.art.b64}` : null;
