@@ -503,8 +503,11 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
 // default). storedLangOf is the named seam the child-language resolver fills when it lands; until then it reads
 // nothing and passes nothing.
 function storedLangOf(_req) { return null; }
+// The quiz page itself opens in the link's ?lang when the answer carries page_lang (app_settings web_quiz_page_lang): an
+// Urdu child's English lesson gets its page's own words in Urdu, the questions in the quiz's language.
 function uiLangOf(body, view, lang) {
-  if (!body || body.class_doors !== true || (view !== 'class' && view !== 'schools') || (lang !== 'en' && lang !== 'ur')) return body;
+  const door = body && ((body.class_doors === true && (view === 'class' || view === 'schools')) || (body.page_lang === true && view === 'quiz'));
+  if (!door || (lang !== 'en' && lang !== 'ur')) return body;
   return { ...body, ui_lang: lang };
 }
 
@@ -1386,7 +1389,7 @@ function createWebQuizRouter(opts = {}) {
       // ride its boot JSON (`st`); a page whose headers have not gone yet says them as one Server-Timing: this edge's
       // wait for the bot, the bot's items, this page's render. Off: no `st`, and the page and its headers are today's.
       // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
-      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: uiLangOf(out.steps ? { ...out.body, st: out.steps } : out.body, view, req.query.lang || storedLangOf(req)), code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }

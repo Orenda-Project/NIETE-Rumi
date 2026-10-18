@@ -64,6 +64,9 @@
   function withLang(h, l) { return typeof window !== 'undefined' && window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l) : h; }
   function withHome(B, h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function chHref(B, ctx) { return withHome(B, withLang('/c/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || ''), langOf(ctx))); }
+  // web_quiz_page_lang (the hub's `page_lang: true`): a link to a quiz page names the child's language, so the page's own
+  // words follow the child (the edge's ui_lang); off, the link as it was
+  function qLang(B, ctx, h) { return B && B.page_lang === true ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + langOf(ctx) : h; }
   function quizHref(code, k, again) { return '/q/' + encodeURIComponent(code) + '?' + (again ? 'again=1&' : '') + 'k=' + encodeURIComponent(k || ''); }
   // A Story Time passage opens in the room by its id; a LISTEN passage must say so (wq-trail.js storyRoom: ex=listen).
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
@@ -591,11 +594,11 @@
   function quizGo(root, B, ctx, vid) {
     if (going) return;
     var v = findLesson(vid) || {};
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos&to=q', 'door_quiz'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos&to=q'), 'door_quiz'); }
     going = true;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: vid, after: 1 }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + '?' + (j.k ? 'k=' + encodeURIComponent(j.k) + '&' : '') + 'to=q', 'door_quiz');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + '?' + (j.k ? 'k=' + encodeURIComponent(j.k) + '&' : '') + 'to=q'), 'door_quiz');
       videos(root, B, ctx, view.subject);
     });
   }
@@ -638,14 +641,14 @@
   function start(root, B, ctx, v) {
     if (going) return;
     // A class child's lesson page is told it was opened from this door (via=videos): with web_quiz_videos_v3 on it puts the play first.
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos', 'door_video'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos'), 'door_video'); }
     going = true;
     var t = C(ctx);
     if (view.name !== 'watch/' + v.vid) draw(root, B, ctx, 'watch/' + v.vid, null);
     view.name = 'watch/' + v.vid;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: v.vid }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos', 'door_video');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos'), 'door_video');
       if (!err && j && j.watch) {
         var after = nextInList(v.vid);
         var next = rankedNext(j.watch.next, ctx) || (j.watch.after ? { kind: 'quiz', title: t.quizAfter, sub: j.watch.title, href: '#', quiz: true }
@@ -720,7 +723,7 @@
     var nx = view.next || {};
     if (nx.quiz && view.watch) {
       return postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: view.watch.vid, after: 1 }, function (err, j) {
-        if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : ''), 'after_video');
+        if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')), 'after_video');
         videos(root, B, ctx, view.subject);
       });
     }
