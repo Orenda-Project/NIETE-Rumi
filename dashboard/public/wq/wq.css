@@ -569,6 +569,33 @@ html.wq-1b .wq-gsheet{left:var(--gutter);right:var(--gutter)}
 html.wq-1b .wqs-main{display:flex;align-items:center;justify-content:center;min-height:var(--btn-h);border-radius:var(--r-btn);-webkit-tap-highlight-color:transparent}
 html.wq-1b .wqs-ic{width:var(--btn-icon);height:var(--btn-icon);border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--edge,var(--line));-webkit-tap-highlight-color:transparent}
 html.wq-1b .wqs-ic:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--line))}
+/* the reader's own screens are the page: --gutter off both edges (the shelf sits in its door, which keeps it) */
+html.wq-1b .wqs:not(.wqs-shelf){padding-inline:var(--gutter)}
+/* the page arrows are the icon kind too (a --btn-icon circle, on every phone width). In Urdu the drawing turns, not
+   the box; the box's [dir=rtl] rule outweighs a plain :active, so the press is written for Urdu as well */
+html.wq-1b .wqs-arr{width:var(--btn-icon);min-width:var(--btn-icon);height:var(--btn-icon);padding:0;border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--line);-webkit-tap-highlight-color:transparent}
+html.wq-1b .wqs-arr .wqs-g{width:30px;height:30px}
+html.wq-1b .wqs[dir=rtl] .wqs-arr{transform:none}
+html.wq-1b .wqs[dir=rtl] .wqs-arr svg{transform:scaleX(-1)}
+html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--line)}
+html.wq-1b .wqs-arr:disabled:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:disabled:active{transform:none;filter:none;box-shadow:0 var(--btn-d2) 0 var(--line)}
+/* the shelf: a cover's title keeps two lines' room (clamped at two) so one- and two-line covers sit level in a row,
+   in English and in the Urdu face; its corners from the three tokens (the book a card, its picture and every button
+   --r-btn, the read tick a circle; the loading cover takes the waiting boxes' card radius, below) */
+html.wq-1b .wqs-book b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.25;height:calc(2em * 1.25)}
+html.wq-1b .wqs-book b[lang=ur]{font-family:var(--fu);font-weight:400;word-spacing:normal;line-height:var(--btn-lh-ur);height:calc(2em * var(--btn-lh-ur))}
+html.wq-1b .wqs-book{border-radius:var(--r-card)}
+html.wq-1b .wqs-tcard{border-radius:var(--r-card)}
+html.wq-1b .wqs-cov{border-radius:var(--r-btn)}
+html.wq-1b .wqs-tcard img{border-radius:var(--r-btn)}
+html.wq-1b .wqs-gl{border-radius:var(--r-btn)}
+html.wq-1b .wqs-chip{border-radius:var(--r-btn)}
+html.wq-1b .wqs-rib{border-start-end-radius:var(--r-btn);border-end-end-radius:var(--r-btn)}
+html.wq-1b .wqs-tcard .wqs-rib{border-radius:var(--r-btn)}
+html.wq-1b .wqs-tick{border-radius:var(--r-icon)}
+/* the reader's own boxes on the same three: the page and the question a card, its buttons and answers --r-btn */
+html.wq-1b .wqs-stage,html.wq-1b .wqs-qc{border-radius:var(--r-card)}
+html.wq-1b .wqs-whole,html.wq-1b .wqs-slow,html.wq-1b .wqs-opt,html.wq-1b .wqs-opt img{border-radius:var(--r-btn)}
 /* three radii per screen, from the tokens: a button (and every small tile or picture inside a box) --r-btn, a card
    --r-card, an icon or dot a circle (the answer shapes are glyphs, not boxes: they keep their own corners) */
 html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}
@@ -584,7 +611,7 @@ html.wq-1b .wq-drow .wq-rtext b{white-space:nowrap;overflow:hidden;text-overflow
 html.wq-1b body{-webkit-tap-highlight-color:transparent}
 html.wq-1b :is(a,button,[role=button],label,summary):active{filter:brightness(var(--press-dim))}
 html.wq-1b .wqs-word{display:flex;align-items:center;justify-content:center;border-radius:var(--r-btn);-webkit-tap-highlight-color:transparent}
-@media (prefers-reduced-motion:reduce){html.wq-1b .wq-btn:active,html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wqs-ic:active,html.wq-1b .wqs-again:active{transform:none}}
+@media (prefers-reduced-motion:reduce){html.wq-1b .wq-btn:active,html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wqs-ic:active,html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active,html.wq-1b .wqs-again:active{transform:none}}
 /* The ONE button component for new markup: `.wq-btn` + exactly one kind. Every kind rule sits under wq-1b: the Videos
    shelf and the class table already draw .wq-btn--secondary and .wq-btn-t, so with the switch off they stay today's. Each kind sets only --fill (box), --on
    (label) and --edge (the ledge under it, a darker shade of its own fill, never another colour's), and paints from
