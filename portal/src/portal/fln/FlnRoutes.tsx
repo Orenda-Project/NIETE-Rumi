@@ -17,6 +17,7 @@ import { LessonList } from './LessonList';
 import { LevelChooser } from './LevelChooser';
 import { isFlnSubject } from './listShared';
 import PlanPage from './PlanPage';
+import SendPage from './send/SendPage';
 
 const intIn = (v: string | null, lo: number, hi: number): number | null => {
   if (v == null || !/^\d{1,2}$/.test(v)) return null;
@@ -46,7 +47,7 @@ export default function FlnRoutes() {
       <Routes>
         <Route path="p/:id" element={<PlanPage />} />
         <Route path="list/:subject" element={<ListRoute />} />
-        {/* m-links PR-D: send route */}
+        <Route path="send" element={<SendPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </FlnGate>
