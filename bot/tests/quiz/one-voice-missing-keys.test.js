@@ -221,6 +221,21 @@ describe('--record-short', () => {
     expect(lines.filter((l) => l.startsWith('recorded\t')).length).toBe(keys.length);
   });
 
+  test('a plan with a loudness: each take is levelled to it at the plan\'s rate before it is stored; without one, never', async () => {
+    tts.synthesize.mockImplementation(async ({ text }) => ok(text));
+    const level = jest.fn(async () => Buffer.from('OggS-levelled'));
+    const loud = JSON.stringify({ voices: { en: V2_BELLA, ur: SARA }, kbps: 32, loudness_lufs: -21 });
+    const { r } = await rec(['--expect-ref', REF, '--plan', loud, '--record-short', '--max-usd', '5'], { stt: async (_a, _l, t) => t, level });
+    expect(r.recorded).toBeGreaterThan(0);
+    expect(level).toHaveBeenCalledTimes(r.recorded);
+    level.mock.calls.forEach(([audio, lufs, kbps]) => { expect(audio.slice(0, 4).toString()).toBe('OggS'); expect([lufs, kbps]).toEqual([-21, 32]); });
+    expect(r2.uploadBuffer.mock.calls.every(([buf]) => buf.toString() === 'OggS-levelled')).toBe(true);
+    OneVoice.reset(); Ch.__reset(); level.mockClear(); r2.uploadBuffer.mockClear();
+    await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { stt: async (_a, _l, t) => t, level });
+    expect(level).not.toHaveBeenCalled();
+    expect(r2.uploadBuffer.mock.calls.every(([buf]) => buf.toString() === 'OggS')).toBe(true);
+  });
+
   test('a question heard wrong is recorded once more, then deleted and listed (never kept, never dropped)', async () => {
     // The long clips are already in the store, and so is one short line: only the failed takes can be missing.
     let kept = null;

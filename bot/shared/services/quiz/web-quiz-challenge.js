@@ -615,8 +615,8 @@ function refused(key, lang, batch) {
 
 // → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy, refused or failed).
 // With one voice per quiz the Urdu words the voice misreads are respelled for it (web-quiz-ur-say.js); the key is the
-// screen text's.
-async function recordClip(key, text, lang, now = Date.now(), { batch = false } = {}) {
+// screen text's. `level`: (audio) → audio, applied before the clip is stored (the batch levels to the plan's loudness).
+async function recordClip(key, text, lang, now = Date.now(), { batch = false, level = null } = {}) {
   if (refused(key, lang, batch)) return null;
   if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return null;
   clipRecording.add(key);
@@ -631,6 +631,7 @@ async function recordClip(key, text, lang, now = Date.now(), { batch = false } =
       // the one voice: its model, settings and the key's rate, asked of the provider (its own bytes, never re-encoded)
       ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${kbpsOfKey(key)}` } : {}),
     });
+    if (level) out.audio = await level(out.audio);
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
     logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10, chars: [...String(text)].length, costUsd: clipCostUsd(out) });
