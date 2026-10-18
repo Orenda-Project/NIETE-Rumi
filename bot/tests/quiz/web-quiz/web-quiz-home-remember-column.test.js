@@ -415,9 +415,9 @@ describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cach
     expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
   });
 
-  test('the extras (column, shown) are listed as riders, and the read made again after a failure names none of them', async () => {
+  test('the extras (column, shown, shelf, list) are listed as riders, and the read made again after a failure names none of them', async () => {
     const { throwOn } = require('../../helpers/switch-off-matrix');
-    expect(HomeFlags.RIDERS).toEqual([HomeFlags.COLUMN_KEY, HomeFlags.SHOWN_KEY]);
+    expect(HomeFlags.RIDERS).toEqual([HomeFlags.COLUMN_KEY, HomeFlags.SHOWN_KEY, HomeFlags.SHELF_KEY, HomeFlags.LIST_KEY]);
     for (const failing of HomeFlags.RIDERS) {
       seed({ shown: true });
       const lists = [];
