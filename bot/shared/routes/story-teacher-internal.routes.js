@@ -97,6 +97,14 @@ async function servePage(req, res) {
     } else {
       html = Page.renderShelf({ th, shelf, ui: shelf.ui });
     }
+    // app_settings quiz_teacher_stories_csp (default off; read with the stories switch above): the hashed policy in
+    // the page and the header. Off: today's bytes and headers.
+    if (Stories.pageCspOn()) {
+      const p = Page.withPolicy(html);
+      html = p.html;
+      res.set('Content-Security-Policy', p.csp);
+      res.set('X-Content-Type-Options', 'nosniff');
+    }
     return res.status(200).type('html').send(html);
   } catch (err) {
     if (err instanceof Stories.StoryError) return res.status(err.status).json(err.body);
