@@ -1,0 +1,105 @@
+'use strict';
+/**
+ * A word the voice would misread is spelled for the voice only (web-quiz-voice.js SAY_AS), with one voice per quiz
+ * (app_settings `web_quiz_one_voice`, default off).
+ *
+ * «کیلا کا ہم آواز لفظ میلا ہو گا۔» means "the word that sounds like kela is mela (a fair)". Written without
+ * vowel marks, میلا is also maila (dirty), and the voice said maila. میلہ is only ever mela, so that is the spelling
+ * the voice is given; the child still reads میلا on the page, as the quiz wrote it.
+ *
+ * Off, everything is today's: the words the voice is given, so every clip key and the clip map.
+ *
+ * Boundaries faked: supabase (in-memory), R2 + the voice gateway, the loggers. The services run for real.
+ */
+jest.mock('../../../shared/config/supabase', () => ({}));
+jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
+jest.mock('../../../shared/storage/r2', () => ({
+  headObject: jest.fn(async () => ({ exists: false })),
+  uploadBuffer: jest.fn(async () => true),
+  getPresignedUrl: jest.fn(async (u) => u),
+}));
+jest.mock('../../../shared/services/tts', () => ({
+  synthesize: jest.fn(async ({ provider, voice }) => ({ audio: Buffer.from('OggS-fake'), provider, voice, durationSec: 2 })),
+}));
+
+const { makeFake } = require('./fake-supabase');
+const Publish = require('../../../shared/services/quiz/web-quiz-publish.service');
+const Voice = require('../../../shared/services/quiz/web-quiz-voice');
+const OneVoice = require('../../../shared/services/quiz/web-quiz-one-voice-flag');
+const tts = require('../../../shared/services/tts');
+
+const QUIZ = '22222222-2222-4222-8222-222222222222';
+const QID = '99999991-9999-4999-8999-999999999999';
+const WHY = 'کیلا کا ہم آواز لفظ میلا ہو گا۔';
+const SAID = 'کیلا کا ہم آواز لفظ میلہ ہو گا۔';
+
+const row = (extra = {}) => ({
+  id: QID, quiz_id: QUIZ, external_id: `vb:${QID}`, sort_order: 1, question_text: 'اس چیز کا ہم آواز لفظ کیا ہو سکتا ہے؟',
+  option_a: 'میلا', option_b: 'پتیلا', option_c: null, option_d: null, correct_option: 'A',
+  explanation: WHY, option_feedback: null, media: {}, render_pattern: 'P6a', ...extra,
+});
+
+function seed(rows) {
+  return makeFake({
+    quizzes: [{ id: QUIZ, topic: 'ہم آواز الفاظ', grade: '3', subject: 'Urdu', language: 'ur', meta: {}, quiz_source: 'video' }],
+    quiz_questions: rows, app_settings: [],
+  });
+}
+// The voice calls for the why (the only line with کیلا in it).
+const whyCalls = () => tts.synthesize.mock.calls.map(([a]) => a).filter((a) => a.text.includes('کیلا'));
+
+beforeEach(() => { OneVoice.reset(); tts.synthesize.mockClear(); });
+
+describe('one voice: the voice is given the spelling it reads right, the page keeps the words as written', () => {
+  test('the why «… میلا ہو گا» is sent to the voice as «… میلہ ہو گا»; the question row is unchanged', async () => {
+    const fake = seed([row()]);
+    const out = await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize(true) });
+    expect(out.ok).toBe(true);
+    const why = whyCalls();
+    expect(why.map((a) => a.text)).toEqual([SAID]);
+    expect(why[0].provider).toBe(Voice.ONE_VOICE.ur.provider);
+    // what the page shows is the question row, never the voice's words
+    expect(fake.db.quiz_questions[0].explanation).toBe(WHY);
+    expect(fake.db.quiz_questions[0].option_a).toBe('میلا');
+    // the clip's key is made from the words the voice was given: a clip recorded from «میلا» is recorded again
+    const key = fake.db.quizzes[0].meta.web_one.audio[QID].why;
+    expect(key).toMatch(/\/why-el-sara-[0-9a-f]{8}\.ogg$/);
+  });
+
+  test('off: the voice is given today\'s words, and every key is today\'s key', async () => {
+    const fake = seed([row()]);
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: null });
+    expect(whyCalls().map((a) => a.text)).toEqual([WHY]);
+    const web = fake.db.quizzes[0].meta.web;
+    expect(fake.db.quizzes[0].meta.web_one).toBeUndefined();
+    expect(web.audio[QID].why).toBe(Publish.audioKey(QUIZ, QID, 'why', WHY, 'ur'));
+  });
+});
+
+describe('sayAs: whole words only, in the line\'s language, and only where the line says which word it is', () => {
+  test('میلا next to کیلا (the rhyme) is mela', () => {
+    expect(Voice.sayAs(WHY, 'ur')).toBe(SAID);
+    expect(Voice.sayAs('کیلا اور میلا ہم آواز ہیں۔', 'ur-PK')).toBe('کیلا اور میلہ ہم آواز ہیں۔');
+  });
+
+  test('a line that does not say which word it is, a longer word, another language: unchanged', () => {
+    expect(Voice.sayAs('اس کا کپڑا میلا ہے۔', 'ur')).toBe('اس کا کپڑا میلا ہے۔');   // maila (dirty): no کیلا, left as written
+    expect(Voice.sayAs('کیلا اور میلاد', 'ur')).toBe('کیلا اور میلاد');                // a longer word is not the word
+    expect(Voice.sayAs('کیلا اور میلا', 'en')).toBe('کیلا اور میلا');
+    expect(Voice.sayAs('', 'ur')).toBe('');
+    expect(Voice.sayAs(null, 'ur')).toBe('');
+  });
+
+  test('every entry is a whole word that changes, said in the same script', () => {
+    Object.entries(Voice.SAY_AS).forEach(([lang, entries]) => {
+      expect(['en', 'ur']).toContain(lang);
+      entries.forEach((e) => {
+        expect(e.word).not.toBe(e.say);
+        expect(e.word).toMatch(/^[\p{L}\p{M}]+$/u);
+        expect(e.say).toMatch(/^[\p{L}\p{M}]+$/u);
+      });
+    });
+  });
+});
