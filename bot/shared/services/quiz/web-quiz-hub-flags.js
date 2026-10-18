@@ -73,7 +73,7 @@ function meterOf(value) {
   return METERS.indexOf(n) >= 0 ? n : null;
 }
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, childMemo, shareOpen, adv, homePreload, waves2, hops }
+let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 
 function isTrue(value) {
   let v = value;
@@ -81,18 +81,51 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY]);
+// The hub's switches, ONE LINE EACH, in the order of their app_settings key: [the field on flags(), the key, its rule].
+// A new switch adds one line here in its key's place (and its key constant above): KEYS, the cached answer and the
+// failed read's answer all follow from this list, and nowOf('<field>') reads it from the cache without a function of its own.
+// Rules: 'loose' = JSON true or the string 'true' (isTrue); 'json' = only the JSON boolean true (the string 'true', 1 or an
+// object are off); 'meter' = meterOf; 'read' = read in the same query for a field worked out below (shareOpen).
+const SWITCHES = Object.freeze([
+  ['adv',          ADV_KEY,               'json'],
+  ['backNav',      BACK_NAV_KEY,          'loose'],
+  [null,           CARD_KEY,              'read'],
+  ['challenge',    CHALLENGE_KEY,         'loose'],
+  ['rungs',        RUNGS_KEY,             'loose'],
+  ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
+  ['childHome',    CHILD_HOME_KEY,        'loose'],
+  ['closedLang',   CLOSED_LANG_KEY,       'json'],
+  ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
+  ['eventsV2',     EVENTS_V2_KEY,         'loose'],
+  ['homeButton',   HOME_BUTTON_KEY,       'loose'],
+  ['homePreload',  HOME_PRELOAD_KEY,      'json'],
+  ['hub',          HUB_KEY,               'loose'],
+  ['childMemo',    CHILD_MEMO_KEY,        'json'],
+  ['door',         DOOR_KEY,              'loose'],
+  ['fanout',       FANOUT_KEY,            'json'],
+  ['waves2',       WAVES2_KEY,            'json'],
+  ['library',      LIBRARY_KEY,           'loose'],
+  ['liveMeter',    LIVE_METER_KEY,        'meter'],
+  ['liveReadV3',   LIVE_READ_V3_KEY,      'loose'],
+  ['oneButton',    ONE_BUTTON_KEY,        'json'],
+  ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
+  ['readalong',    READALONG_KEY,         'loose'],
+  ['serverTiming', SERVER_TIMING_KEY,     'json'],
+  [null,           SHARE_KEY,             'read'],
+  ['hops',         HOPS_KEY,              'json'],
+  ['waitUx',       WAIT_UX_KEY,           'json'],
+]);
+const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
+
+const KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-  return { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
-    homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
-    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), oneButton: by[ONE_BUTTON_KEY] === true, waitUx: by[WAIT_UX_KEY] === true,
-    // only the JSON boolean true (the string 'true', 1 or an object are off)
-    serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true, childMemo: by[CHILD_MEMO_KEY] === true,
-    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true,
-    edgeLearn: by[EDGE_LEARN_KEY] === true,
-    homePreload: by[HOME_PRELOAD_KEY] === true, closedLang: by[CLOSED_LANG_KEY] === true, plainPaint: by[PLAIN_PAINT_KEY] === true, waves2: by[WAVES2_KEY] === true, liveMeter: meterOf(by[LIVE_METER_KEY]), liveReadV3: isTrue(by[LIVE_READ_V3_KEY]), hops: by[HOPS_KEY] === true };
+  const out = { at: now };
+  for (const [field, key, rule] of SWITCHES) if (field) out[field] = RULES[rule](by[key]);
+  // the one share: the card on AND the share on, each only as the JSON true
+  out.shareOpen = by[CARD_KEY] === true && by[SHARE_KEY] === true;
+  return out;
 }
 
 /**
@@ -121,7 +154,8 @@ async function read(now) {
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false, edgeLearn: false, hops: false };
+    // every field off (a meter: none), as an empty read would give; never cached
+    return Object.fromEntries(SWITCHES.filter(([field]) => field).map(([field, , rule]) => [field, rule === 'meter' ? null : false]));
   }
 }
 
@@ -182,6 +216,11 @@ function waitUxNow(now = Date.now()) {
 /** web_quiz_wait_hops from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
 function hopsNow(now = Date.now()) {
   return Boolean(cache && cache.hops && now - cache.at < 2 * TTL_MS);
+}
+
+/** Any SWITCHES field from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function nowOf(field, now = Date.now()) {
+  return Boolean(cache && cache[field] && now - cache.at < 2 * TTL_MS);
 }
 
 /** web_quiz_hub_fanout from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
@@ -264,4 +303,52 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY };
+// one export per line, in name order (two changes that add an export touch different lines)
+module.exports = {
+  ADV_KEY,
+  advNow,
+  BACK_NAV_KEY,
+  CHALLENGE_KEY,
+  CHILD_HOME_KEY,
+  CHILD_MEMO_KEY,
+  childMemoNow,
+  CLOSED_LANG_KEY,
+  closedLangNow,
+  DOOR_KEY,
+  EDGE_LEARN_KEY,
+  edgeLearnNow,
+  EVENTS_V2_KEY,
+  eventsV2Now,
+  eventsV2On,
+  FANOUT_KEY,
+  fanoutNow,
+  flags,
+  HOME_BUTTON_KEY,
+  HOME_PRELOAD_KEY,
+  HOPS_KEY,
+  hopsNow,
+  HUB_KEY,
+  hubLink,
+  KEYS,
+  LIBRARY_KEY,
+  LIVE_METER_KEY,
+  LIVE_READ_V3_KEY,
+  nowOf,
+  ONE_BUTTON_KEY,
+  oneButtonNow,
+  pageNav,
+  PLAIN_PAINT_KEY,
+  plainPaintNow,
+  prime,
+  RUNGS_KEY,
+  rungsOn,
+  SERVER_TIMING_KEY,
+  serverTimingNow,
+  shareOpenNow,
+  SWITCHES,
+  WAIT_UX_KEY,
+  waitUxNow,
+  WAVES2_KEY,
+  waves2Now,
+  _resetCache: () => { cache = null; reading = null; },
+};
