@@ -211,20 +211,31 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     const html = renderCardPage({ facts: facts(lang, { v4: true, mark: lang === 'ur' ? 'کہانی کی کتاب' : 'Storybook', accent: '#7C3AED', ref: 'jb3b9c1e2a', ret }), token: TOK, origin: 'https://portal.example', url: `https://portal.example/k/${TOK}`, brandKey: null });
     expect(html).toContain('data-screen="card_landing" data-v="4"');
     expect(html).toContain(`<meta property="og:image" content="https://portal.example/wq/card/${TOK}.png"`);
-    expect(html).toContain('class="mark"');
+    // each thing once: the activity's tag and who did what are on the card picture, never again in a pill or headline
+    expect(html).not.toContain('class="mark"');
+    const body = html.slice(html.indexOf('<main')).replace(/<img [^>]*>/g, '');
+    expect(body).not.toContain('I read a storybook');
+    expect(body).not.toContain(firstOf('Noor Testwala'));
+    expect(html).toContain(`alt="${firstOf('Noor Testwala')}: I read a storybook with Jugnu today!"`);
     expect((html.match(/data-primary/g) || []).length).toBe(1);
     expect(html).toContain('href="https://wa.me/15550001111?text=quiz%20please%20jb3b9c1e2a"');
     expect(html).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
-    // the headline runs in the page's direction, the name isolated on its own line (a Latin name never turns an Urdu
-    // line around, and no "Name:" crowds the deed)
-    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi class="nm">${firstOf('Noor Testwala')}</bdi>I read`);
-    expect(html).toContain('.k h1 .nm{display:block}');
     // Urdu at the Regular weight only: a bold Nastaliq breaks «پڑھی» into «پڑ ھی»
-    expect(html.includes('.k h1,.k .it,.mark,.wq-btn{font-weight:400}')).toBe(lang === 'ur');
+    expect(html.includes('.k h1,.wq-btn{font-weight:400}')).toBe(lang === 'ur');
     expect(html).not.toMatch(BANNED);
-    // the landing names what it lands on; with no name, no empty line
-    const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
-    expect(named).toContain('<p class="it"><bdi>The lost kite &lt;b&gt;</bdi></p>');
+    // the landing names what it lands on, in a line that runs in the page's direction (a Latin title sits at the
+    // start of an Urdu line, isolated), with its cover; with no name, no empty line
+    const dir = lang === 'ur' ? 'rtl' : 'ltr';
+    const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>', item_cover: `/s/${'3b9c1e2a-7d4f-4a1b-9c2d-5e6f7a8b9c0d'}/cover.webp` }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(named).toContain(`<div class="it" dir="${dir}"><img class="cv" src="/s/3b9c1e2a-7d4f-4a1b-9c2d-5e6f7a8b9c0d/cover.webp" alt="" width="96" height="144"><h1><bdi>The lost kite &lt;b&gt;</bdi></h1></div>`);
+    expect(named).toContain('.k .it{display:flex;align-items:center;gap:14px;text-align:start}');
+    // a video's small picture is wide
+    const vid = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'Parts of a plant', item_cover: '/wq/vt/a1b2c3d4-0000-4000-8000-00000000abcd.webp?v=1' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(vid).toContain('<img class="cv cv-w" src="/wq/vt/a1b2c3d4-0000-4000-8000-00000000abcd.webp?v=1" alt="" width="160" height="90">');
+    // a name with no cover: the name alone; a cover that is not one of ours: dropped
+    const bare1 = renderCardPage({ facts: facts(lang, { v4: true, ret, item_title: 'The lost kite', item_cover: 'https://evil.example/x.webp' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(bare1).toContain(`<div class="it" dir="${dir}"><h1><bdi>The lost kite</bdi></h1></div>`);
+    expect(bare1).not.toContain('evil');
     expect(html).not.toContain('class="it"');
     // with no bot number (no chat link): still ONE way in — WhatsApp with the words typed, never a page without a door
     const none = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
