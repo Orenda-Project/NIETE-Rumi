@@ -1,8 +1,8 @@
 'use strict';
 /**
  * The home's JSON answers as soon as its slowest read allows: the report gate starts with the other reads (it needs the
- * lessons only), the send-again check starts once the lessons and the class report are in (never after an unrelated
- * slow read), and the class report is held 60 s per teacher, dropped on any send, share or mark made from the page.
+ * lessons only), the send-again check is asked in two halves, the lessons' quizzes as soon as the lessons are in and the
+ * class report's as soon as it is in (never after an unrelated slow read, the lessons' half never after the report), and the class report is held 60 s per teacher, dropped on any send, share or mark made from the page.
  * The JSON is byte-identical to the base's (tests/first-touch/__goldens__/teacher-home-speed.json, RECORDED ON THE BASE).
  * Same harness as teacher-home.routes.test.js: the in-memory Supabase, /quiz's list stood in for, slow reads delayed.
  */
@@ -43,6 +43,7 @@ const AT = '2026-01-05T08:00:00.000Z';
 const MS = { report: 300, gate: 200, side: 500, sendable: 100 };
 const tokenFor = () => HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const realSendableOwn = Data.sendableOwn;
 
 let srv;
 let fake;
@@ -73,7 +74,7 @@ function setup({ report = null } = {}) {
   const realSendable = Data.sendableOwn;
   jest.spyOn(Data, 'sendableOwn').mockImplementation(async (...a) => { at('sendableStart'); await wait(MS.sendable); return realSendable(...a); });
   return {
-    List: { ...List, loadLessonPage: jest.fn(async () => ({ sessions: [{ id: SESSION, created_at: AT, transcript_text: 'x'.repeat(5000), analysis_data: { topic: 'Photosynthesis' } }], quizzes: [quiz], counts: {}, lessons: [] })) },
+    List: { ...List, loadLessonPage: jest.fn(async () => { at('lessonsDone'); return { sessions: [{ id: SESSION, created_at: AT, transcript_text: 'x'.repeat(5000), analysis_data: { topic: 'Photosynthesis' } }], quizzes: [quiz], counts: {}, lessons: [] }; }) },
     Report: { ...require('../../shared/services/quiz/teacher-report.data'), classReport },
     Gate: {
       ...Gate,
@@ -106,7 +107,7 @@ describe('the reads start together', () => {
     expect(deps.Gate.teacherReportOn).toHaveBeenCalledTimes(1);
     expect(log.gateStart).toBeLessThan(log.reportDone);
     expect(log.sendableStart).toBeLessThan(log.sideDone);
-    expect(log.sendableStart).toBeGreaterThanOrEqual(log.reportDone); // still after its own inputs
+    expect(log.sendableStart).toBeGreaterThanOrEqual(log.lessonsDone); // still after its own inputs
     // ≈ max(report + sendable, side) = 500, never report + gate + sendable after the side read (≥ 800)
     expect(log.total).toBeLessThan(MS.side + MS.gate + MS.sendable - 50);
   });
@@ -200,5 +201,104 @@ describe('the class report is held 60 s per teacher', () => {
       await home();
       expect(deps.Report.classReport).toHaveBeenCalledTimes(2);
     } finally { Data.REPORT_BUDGET_MS = budget; }
+  });
+});
+
+/** Two more own sent quizzes the class report shows but the lessons list does not: B can be sent again, C's code is expired. */
+const QUIZ_B = 'c0000000-0000-4000-8000-0000000000b2';
+const QUIZ_C = 'c0000000-0000-4000-8000-0000000000c3';
+function seedReportOnly() {
+  [[QUIZ_B, 'f0000000-0000-4000-8000-0000000000b2', 'BBBBBB', '2099-01-01T00:00:00.000Z'], [QUIZ_C, 'f0000000-0000-4000-8000-0000000000c3', 'CCCCCC', '2020-01-01T00:00:00.000Z']]
+    .forEach(([id, codeId, code, expires]) => {
+      fake.db.quizzes.push({
+        id, teacher_id: TEACHER.id, quiz_source: 'transcript', status: 'sent', topic: `Topic ${code}`, subject: 'Science', created_at: AT,
+        meta: { student_message: `Class, play this quiz: https://portal.example/q/${code}`, share_code_id: codeId, share_code: code },
+      });
+      fake.db.quiz_share_codes.push({ id: codeId, code, quiz_id: id, teacher_user_id: TEACHER.id, active: true, expires_at: expires, created_at: AT, invited_by_student_id: null });
+    });
+}
+const reportOnly = () => async () => ({ quizzes: [
+    { id: OWN_QUIZ, played: 2, of: 5, date: AT, topic: 'Photosynthesis', source: 'transcript' },
+    { id: QUIZ_B, played: 1, of: 5, date: '2026-01-04T08:00:00.000Z', topic: 'Topic BBBBBB', source: 'transcript' },
+    { id: QUIZ_C, played: 1, of: 5, date: '2026-01-03T08:00:00.000Z', topic: 'Topic CCCCCC', source: 'transcript' },
+  ] });
+const rowOf = (text, key) => JSON.parse(text).timeline.find((r) => r.key === key);
+
+describe('the send-again check: the lessons\' half does not wait for the class report', () => {
+  test('a slow class report and a slow check overlap: the home answers well before report + check', async () => {
+    const was = { ...MS };
+    Object.assign(MS, { report: 400, sendable: 250, gate: 0, side: 0 });
+    try {
+      const deps = setup();
+      await boot(deps);
+      const out = await home();
+      expect(out.status).toBe(200);
+      // ≈ max(report, check) = 400, never report then check (≥ 650)
+      expect(log.total).toBeLessThan(MS.report + MS.sendable - 50);
+      expect(log.sendableStart).toBeLessThan(log.reportDone); // the lessons' half is asked while the report is still out
+      expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+    } finally { Object.assign(MS, was); }
+  });
+
+  test('the class report held near 4 s and the check near 2.5 s (both inside their budgets), the rest fast: the home answers in at most 4.5 s', async () => {
+    const was = { ...MS };
+    Object.assign(MS, { report: 3900, sendable: 2400, gate: 0, side: 0 });
+    try {
+      const deps = setup();
+      await boot(deps);
+      const out = await home();
+      expect(out.status).toBe(200);
+      // today's chain asks the check only after the report: ≈ 3.9 + 2.4 = 6.3 s
+      expect(log.total).toBeLessThanOrEqual(4500);
+      expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
+    } finally { Object.assign(MS, was); }
+  }, 20000);
+
+  test('the two halves\' answers are joined: the lessons\' quiz and the report\'s quiz both offer "Send again"; an expired code does not', async () => {
+    const deps = setup({ report: reportOnly() });
+    seedReportOnly();
+    await boot(deps);
+    const out = await home();
+    expect(out.status).toBe(200);
+    expect(rowOf(out.text, 'e0000000-0000-4000-8000-0000000000c1')).toMatchObject({ verb: 'again', id: OWN_QUIZ, sendKind: 'again' });
+    expect(rowOf(out.text, `q_${QUIZ_B}`)).toMatchObject({ verb: 'again', id: QUIZ_B, sendKind: 'again' });
+    expect(rowOf(out.text, `q_${QUIZ_C}`)).toMatchObject({ verb: null, id: null, sendKind: null });
+  });
+
+  test('the report\'s half fails: offered as before, the same JSON as when the whole check fails', async () => {
+    const deps = setup({ report: reportOnly() });
+    seedReportOnly();
+    await boot(deps);
+    jest.spyOn(Data, 'sendableOwn').mockImplementation(async (uid, ids, ...rest) => {
+      if ((ids || []).includes(QUIZ_B)) throw new Error('down');
+      return realSendableOwn(uid, ids, ...rest);
+    });
+    const half = await home();
+    jest.spyOn(Data, 'sendableOwn').mockImplementation(async () => { throw new Error('down'); });
+    const whole = await home();
+    expect(half.status).toBe(200);
+    expect(rowOf(half.text, `q_${QUIZ_C}`)).toMatchObject({ verb: 'again', id: QUIZ_C, sendKind: 'again' }); // offered as before
+    expect(half.text).toBe(whole.text);
+  });
+
+  test('the lessons\' half fails: offered as before, the same JSON as when the whole check fails', async () => {
+    const open = async (failIf) => { // each open on a fresh server and seed: nothing held from the one before
+      jest.restoreAllMocks(); if (srv) { await new Promise((r) => srv.close(r)); srv = null; }
+      const deps = setup({ report: reportOnly() });
+      seedReportOnly();
+      await boot(deps);
+      jest.spyOn(Data, 'sendableOwn').mockImplementation(async (uid, ids, ...rest) => {
+        if (failIf(ids || [])) throw new Error('down');
+        return realSendableOwn(uid, ids, ...rest);
+      });
+      return home();
+    };
+    const both = await open(() => false);
+    const half = await open((ids) => ids.includes(OWN_QUIZ));
+    const whole = await open(() => true);
+    expect(rowOf(both.text, `q_${QUIZ_C}`)).toMatchObject({ verb: null }); // both halves answer: the expired code is not offered
+    expect(half.status).toBe(200);
+    expect(rowOf(half.text, `q_${QUIZ_C}`)).toMatchObject({ verb: 'again', id: QUIZ_C, sendKind: 'again' }); // offered as before
+    expect(half.text).toBe(whole.text);
   });
 });
