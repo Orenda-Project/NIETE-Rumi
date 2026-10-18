@@ -309,8 +309,9 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
   const img = image || `${origin}${brand.og.image}`;
   // web_quiz_one_face on: ONE face for both looks, so the preload below names the polished one either way (urduLook).
   const { ur2, cls, URDU_FONT, fl } = urduLook(ui, lang);
+  const adv = advOn(ui);
   return `<!doctype html>
-<html lang="${lang}" dir="${dir}"${cls}>
+<html lang="${lang}" dir="${dir}"${adv ? advClass(cls) : cls}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -328,7 +329,7 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <meta property="og:image:alt" content="${esc(title)}">
 <meta property="og:url" content="${esc(url)}">
 <link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? (fl ? URDU_FONT_LITE : URDU_FONT_2) : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
-<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
+<link rel="stylesheet" href="/wq/wq.css?v=${assetV}">${adv ? `\n${advTags()}` : ''}
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>${fl ? `\n${FACE_LITE_STYLE}` : ''}`;
 }
 
@@ -346,10 +347,35 @@ function urduLook(ui, lang) {
 const oneFaceOn = (payload) => Boolean(payload && payload.one_face === true);
 // The head reads the switch from `ui` (off: the payload itself, untouched).
 const withOneFace = (payload) => (oneFaceOn(payload) ? { ...payload, ui: { ...(payload.ui || {}), uf: true } } : payload);
-// What the shells that call no bot (library, closed, flush heads) keep of the last payload: the look and the one face.
+
+// The adventure look (app_settings web_quiz_adventure_look, decided by the bot: its quiz, hub and challenge menu answers
+// say `adv: true`, carried to head() as `ui.adv`): ONE class on <html> (wq-adv) and the look's stylesheet + kit right
+// after wq.css, so the look only overrides today's token layer. Off (the key absent, or anything but JSON true): today's
+// head, byte for byte.
+const advOnOf = (payload) => Boolean(payload && payload.adv === true);
+const advOn = (ui) => Boolean(ui && ui.adv === true);
+const advClass = (cls) => (cls ? cls.replace(/"$/, ' wq-adv"') : ' class="wq-adv"');
+let advV = null;
+function advVersion() {
+  if (advV) return advV;
+  const h = crypto.createHash('sha256');
+  // the sound kit the look fetches on its first cue rides this version too (wq-adv.js asks for it at its own ?v=)
+  for (const f of ['wq-adventure.css', 'wq-adv.js', 'wq-adv-more.js', 'wq-juice.js', 'wq-juice.css']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  return (advV = h.digest('hex').slice(0, 10));
+}
+// the kit is deferred in the head, so it runs before the page's own deferred scripts (document order)
+const advTags = () => `<link rel="stylesheet" href="/wq/wq-adventure.css?v=${advVersion()}">\n<script src="/wq/wq-adv.js?v=${advVersion()}" defer></script>`;
+const withAdv = (payload) => (advOnOf(payload) ? { ...payload, ui: { ...(payload.ui || {}), adv: true } } : payload);
+// Both head switches a bot answer can carry.
+const withLook = (payload) => withAdv(withOneFace(payload));
+// What the shells that call no bot (library, closed, flush heads) keep of the last payload: the look, the one face and
+// the adventure look.
 function shellUi(body) {
-  const ui = body.ui && body.ui.ur2 === true ? { ur2: true, ...(body.ui.fl === true ? { fl: true } : {}) } : null;
-  return oneFaceOn(body) ? { ...(ui || {}), uf: true } : ui;
+  let ui = body.ui && body.ui.ur2 === true ? { ur2: true, ...(body.ui.fl === true ? { fl: true } : {}) } : null;
+  if (oneFaceOn(body)) ui = { ...(ui || {}), uf: true };
+  return advOnOf(body) ? { ...(ui || {}), adv: true } : ui;
 }
 
 // The sound + motion kit (app_settings web_quiz_juice, decided by the bot): its stylesheet and script, before the page's
@@ -417,10 +443,10 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
   const brand = brandOf(payload && payload.brand);
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
-  payload = withOneFace(payload);
+  payload = withLook(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
   return {
-    lang, dir, ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), title: og.title, bootsay: BOOT_COPY[lang],
+    lang, dir, ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title: og.title, bootsay: BOOT_COPY[lang],
     head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image) }),
     frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
@@ -477,6 +503,10 @@ function flushFixes(guess, p) {
   // a head sent with the light face for a page without it goes back to -6; the other way the page keeps the face its
   // head declared and preloaded (-6), so it never draws with a face nobody declared
   if (guess.fl === true && p.fl !== true) fix.push('h.classList.remove("wq-fl")');
+  // the adventure look: the class, its sheet and its kit (a head guessed with the look and answered without it drops the class)
+  if (p.adv !== guess.adv) {
+    fix.push(p.adv ? `h.classList.add("wq-adv");var l=document.createElement("link");l.rel="stylesheet";l.href=${jsStr(`/wq/wq-adventure.css?v=${advVersion()}`)};document.head.appendChild(l);var s=document.createElement("script");s.src=${jsStr(`/wq/wq-adv.js?v=${advVersion()}`)};document.head.appendChild(s)` : 'h.classList.remove("wq-adv")');
+  }
   if (p.bootsay !== guess.bootsay) fix.push(`var b=document.querySelector(".wq-bootsay");if(b)b.textContent=${jsStr(p.bootsay)}`);
   if (p.title !== guess.title) fix.push(`document.title=${jsStr(p.title)}`);
   return fix;
@@ -612,6 +642,24 @@ function listenVersion() {
   }
   return (listenV = h.digest('hex').slice(0, 10));
 }
+// The live reading meter (wq-pace.js / .css): only when the bot names its variant (`pace`, web_quiz_live_meter under
+// live reading v3). Its own version, so the hub's and the Challenge's versions and pages stay today's while it is off.
+let paceV = null;
+function paceVersion() {
+  if (paceV) return paceV;
+  const h = crypto.createHash('sha256');
+  for (const f of ['wq-pace.js', 'wq-pace.css']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  return (paceV = h.digest('hex').slice(0, 10));
+}
+function paceTag(payload) {
+  const m = payload && (payload.pace === 'sky' || payload.pace === 'vine') ? payload.pace : null;
+  if (!m) return '';
+  // the Challenge's menu carries the child's form (G1…G5): the meter fills at that grade's pace (none ⇒ the kinder G1–2)
+  const g = payload && typeof payload.form === 'string' && /^[A-Za-z0-9-]{1,8}$/.test(payload.form) ? ` data-grade="${payload.form}"` : '';
+  return `<link rel="stylesheet" href="/wq/wq-pace.css?v=${paceVersion()}">\n<script src="/wq/wq-pace.js?v=${paceVersion()}" data-meter="${m}"${g} defer></script>\n`;
+}
 function listenTag(payload) {
   return payload && payload.listen === true ? `<script src="/wq/wq-readalong-listen.js?v=${listenVersion()}" defer></script>\n` : '';
 }
@@ -622,17 +670,17 @@ function hubPageParts({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
-  payload = withOneFace(payload);
+  payload = withLook(payload);
   // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   // The home's own tags (one string, so the head's preloads name the tail's addresses: web-quiz-home-preload.js). A bot
   // answer (it has `kids`) teaches the next early head what to preload (web_quiz_home_preload); the early head's guess
   // (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
-  const tags = `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`;
+  const tags = `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}${paceTag(payload)}`;
   const answer = Boolean(payload && Array.isArray(payload.kids));
   if (answer) HomePre.learn(payload, tags, assetV);
   return {
-    lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
+    lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
     head: `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}${answer ? '' : HomePre.head()}`,
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)
@@ -844,7 +892,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.lr3 ? paceTag(menu) : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -1007,7 +1055,9 @@ function createWebQuizRouter(opts = {}) {
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
         if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
-        return res.status(out.status).json(out.body == null ? {} : out.body);
+        // the hub answer a first open draws from (unlock, pick) names the look's files' version when it says adv: true
+        const body = r.path === '/api/wq/hub/:token' && advOnOf(out.body) ? { ...out.body, adv_v: advVersion() } : out.body;
+        return res.status(out.status).json(body == null ? {} : body);
       } catch (err) {
         return res.status(502).json({ error: 'bot_unreachable' });
       }
@@ -1230,7 +1280,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(502).type('html').send(closedHtml(req, { lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
     // One Urdu face: the menu's own `one_face` (the bot's word) reaches the head as `ui.uf`; off, the menu untouched.
-    if (out.body && typeof out.body === 'object') out.body = withOneFace(out.body);
+    if (out.body && typeof out.body === 'object') out.body = withLook(out.body);
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
       return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
     }

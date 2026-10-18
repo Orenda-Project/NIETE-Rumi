@@ -149,7 +149,9 @@
     function foldHtml(fx, qa) {
       var first = qa ? h.qaButtons().replace(/<button[^>]*id="wqc-menu"[\s\S]*?<\/button>/, '').replace('id="wqc-qa"', 'id="wqc-qa" data-primary')
         : '<a class="wq-btn wq-go" id="wqc-fnext" data-primary href="' + esc(fx.href) + '">' + esc((L === 'ur' && fx.title_ur) || fx.title) + '</a>';
-      return '<div class="wqc-fold">' + first + '</div><div class="wq-stack"><a class="wq-btn wq-soft" id="wqc-fhome" data-home href="' + esc(homeHref()) + '">' + esc(t.foldHome) + '</a></div>';
+      // the reading moment's own word for Home when it is on («گھر», the app's word; off: today's)
+      var hw = (h.md() || {}).read_feedback === true && window.WQMoment && window.WQMoment.label ? window.WQMoment.label(L, 'home') : t.foldHome;
+      return '<div class="wqc-fold">' + first + '</div><div class="wq-stack"><a class="wq-btn wq-soft" id="wqc-fhome" data-home href="' + esc(homeHref()) + '">' + esc(hw) + '</a></div>';
     }
     // after the card: one Home (the page's top link goes), one Next (the card's tile, or ours), Share soft under the questions
     function foldAfter(qa) {
@@ -189,6 +191,9 @@
       var rfRa = rfa && ra && window.WQMoment && window.WQMoment.label ? ra : null;
       if (rfRa) top = top.replace(/(id="wqc-rfagain"[^>]*>)[^<]*/, '$1' + esc(window.WQMoment.label(L, 'withJ')));
       var replay = ra && !rfRa;
+      // no read-along for this passage at all: Jugnu's line asks for what the button does ("let's read it once more"),
+      // never "let's read it together" with no one to read with (want null: no read-along switch, or none to come)
+      if (window.WQFC && rfa && want === null && card && card.line === window.WQFC.together(L)) top = top.split(esc(card.line)).join(esc(window.WQMoment.label(L, 'once')));
       h.show(name, top + (retry ? btn('wqc-again', h.t.again, 'wq-soft') : '') + (replay ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
       if (retry) h.on('wqc-again', function () { h.open(d.ex); });

@@ -1,0 +1,256 @@
+/* The adventure look (wq-adv.js's sheet): linked, with `wq-adv` on <html>, only when the page payload carries adv: true
+   (app_settings web_quiz_adventure_look, default off). Every rule sits under html.wq-adv, so it only overrides wq.css's
+   token layer and today's look comes back by the switch alone. Brand colours (--brand*) stay the deployment's.
+   The map: Stories, Games and Videos are three lands (--land-st orange, --land-gm green, --land-vd sky); a finished thing is a stamp.
+   One button: a pill with a 4 px bottom edge in a darker shade of ITS OWN fill (--edge, set in every variant), sinking
+   4 px on press. 1 tokens · 2 ground and lands · 3 buttons · 4 Home · 5 land screens · 6 done · 7 kit parts · 8 motion */
+
+/* 1 · tokens: the token layer of record, verbatim between the two markers (join and role pages inline the same text) */
+/* tokens:begin */
+/* Adventure look ("Explorer's Map") — the token layer.
+   Applies only when <html> carries the class wq-adv (switch web_quiz_adventure_look, default OFF), so with the
+   switch OFF nothing here matches and today's look is unchanged. Names are the wq.css :root names plus the new
+   ones listed at the end of wq.css :root (added there at today's values). Use the NAMES, never hex.
+   Not overridden on purpose: --brand* (set per deployment in #wq-brand), --f, --fu (the one Urdu face). */
+html.wq-adv{
+  /* ground and surfaces: a sunny paper map */
+  --ground:#fbf3dc;--card:#fffdf6;--line:#e6d6ae;--tint:#fff1c9;
+  --muted:#6d6450; /* --ink is today's #2A2D3A (not overridden: quiz text stays identical) */
+  --paper:var(--ground);--paper-2:var(--tint);
+  /* reward light */
+  --gold:#ffc83a;--gold-d:#b28c29;--star:#ffb000;--star-off:#e6d6ae;--glow:rgba(255,200,58,.55);
+  /* NOT overridden here: the quiz's semantic colours (--right* --notyet* and the answer-option colours --s1..--s4),
+     so a quiz looks the same with the switch ON; recolouring an option would hint at the answer.
+     The lands therefore have their own names. */
+  --land-st:#e97f2e;--land-st-bg:#ffe7cf;--land-st-edge:#a35920;--land-st-on:var(--ink); /* Stories: label is ink, white fails 3:1 */
+  --land-gm:#3a9d4f;--land-gm-bg:#dff3d9;--land-gm-edge:#296e37;--land-gm-on:#ffffff; /* Games */
+  --land-vd:#2a86de;--land-vd-bg:#dcefff;--land-vd-edge:#1d5e9b;--land-vd-on:#ffffff; /* Videos */
+  --land-sp:#8e5bd8;--land-sp-bg:#efe5ff;--land-sp-edge:#634097;--land-sp-on:#ffffff; /* spare */
+  /* the current land; a screen sets data-land on its root and these follow. Home = gold. */
+  --land:var(--gold);--land-bg:var(--tint);--land-edge:var(--gold-d);--land-on:var(--ink);
+  /* type: EN steps; Urdu steps are 2px larger, below */
+  --fs-1:13px;--fs-2:15px;--fs-3:17px;--fs-4:20px;--fs-5:24px;--fs-6:30px;
+  --lh:1.35;
+  /* space */
+  --gutter:16px;
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;
+  /* shape */
+  --r-btn:999px;--r-card:22px;--r-chip:14px;
+  /* depth: a solid bottom edge in the button's own darker hue; press sinks the button onto it */
+  --edge:var(--land-edge);
+    --sh-btn-soft:0 3px 0 var(--line);
+  --sh-card:0 4px 0 var(--line);
+    /* size: every button height, label size and press is the one button system's (wq.css), never set here */
+  /* motion */
+  --dur-tap:90ms;--dur-pop:220ms;--dur-celebrate:900ms;--dur-shimmer:1.4s;--dur-bob:1.6s;
+  --ease-pop:cubic-bezier(.34,1.56,.64,1);
+  --stamp-delay:300ms;
+  --hold-steps:linear; /* the hold ring fills smoothly */
+}
+html.wq-adv[lang=ur]{
+  --fs-1:15px;--fs-2:17px;--fs-3:19px;--fs-4:22px;--fs-5:26px;--fs-6:32px;
+  --lh:2;
+}
+/* the current land: data-land may sit on a screen root, a Next tile or a trail stop; the nearest one wins */
+html.wq-adv [data-land=stories]{--land:var(--land-st);--land-bg:var(--land-st-bg);--land-edge:var(--land-st-edge);--land-on:var(--land-st-on)}
+html.wq-adv [data-land=games]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge);--land-on:var(--land-gm-on)}
+html.wq-adv [data-land=videos]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge);--land-on:var(--land-vd-on)}
+/* the same land on one button (modifiers): a primary pointing into another land, e.g. a Home Next tile */
+html.wq-adv .wq-btn--st{--land:var(--land-st);--land-edge:var(--land-st-edge);--land-on:var(--land-st-on)}
+html.wq-adv .wq-btn--gm{--land:var(--land-gm);--land-edge:var(--land-gm-edge);--land-on:var(--land-gm-on)}
+html.wq-adv .wq-btn--vd{--land:var(--land-vd);--land-edge:var(--land-vd-edge);--land-on:var(--land-vd-on)}
+/* one button, its variants only set fill / label / edge (the edge is the fill's own darker hue) */
+html.wq-adv .wq-btn--primary{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}
+html.wq-adv .wq-btn--secondary,
+html.wq-adv .wq-btn--icon,
+html.wq-adv .wq-btn--home,
+html.wq-adv .wq-btn--hold,
+html.wq-adv .wq-btn--share{--fill:var(--card);--on:var(--ink);--edge:var(--line)}
+html.wq-adv .wq-btn--speaker{--fill:var(--card);--on:var(--land-edge);--edge:var(--line)}
+/* custom properties resolve where they are declared, so the shadows are re-declared on the button itself:
+   otherwise every button would inherit <html>'s edge colour */
+@media (prefers-reduced-motion:reduce){
+  html.wq-adv{--dur-tap:0ms;--dur-pop:0ms;--dur-celebrate:0ms;--dur-shimmer:0ms;--dur-bob:0ms;--stamp-delay:0ms;--hold-steps:steps(4)}
+}
+/* tokens:end */
+
+/* 2 · the paper-map ground (CSS only: a dot grid and two sets of contour rings) and the lands */
+html.wq-adv body{background:transparent}
+html.wq-adv{background-color:var(--ground);background-image:radial-gradient(circle,rgba(255,255,255,.75) 0 2px,transparent 3px),repeating-radial-gradient(circle at 88% 14%,transparent 0 38px,rgba(190,160,90,.13) 39px 40px),repeating-radial-gradient(circle at 6% 82%,transparent 0 30px,rgba(80,150,90,.1) 31px 32px);background-size:36px 36px,auto,auto}
+html.wq-adv .wq-app::after{display:none}
+html.wq-adv .wq-screen{gap:var(--sp-3);padding-inline:max(var(--gutter),env(safe-area-inset-left,0px)) max(var(--gutter),env(safe-area-inset-right,0px))}
+/* the land of a screen: its colour, its pale ground, its own darker edge */
+html.wq-adv .wq-app:not(.wq-hub){--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge);--land-on:var(--land-gm-on)}
+html.wq-adv [data-screen=home]{--land:var(--land-st);--land-bg:var(--land-st-bg);--land-edge:var(--land-st-edge)}
+html.wq-adv [data-screen=stories],html.wq-adv [data-screen^=stories-],html.wq-adv .wqs{--land:var(--land-st);--land-bg:var(--land-st-bg);--land-edge:var(--land-st-edge)}
+html.wq-adv [data-screen=games]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
+html.wq-adv [data-screen=videos],html.wq-adv [data-screen^=video]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge)}
+/* tiles and pictures inside a box take the small radius, so the pill radius stays with the buttons */
+html.wq-adv .wq-nart,html.wq-adv .wq-tile{border-radius:var(--r-chip)}
+html.wq-adv .wq-opt{border-radius:var(--r-card)}
+html.wq-adv .wq-soon{border-radius:var(--r-chip)}
+html.wq-adv .wq-card{background:var(--card);border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)}
+html.wq-adv .wq-say{border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-btn-soft);color:var(--ink)}
+html.wq-adv .wq-jimg,html.wq-adv .wq-hjug{filter:drop-shadow(0 4px 8px var(--glow))}
+
+/* 3 · one button system: the look only re-colours it. Size, radius, padding, press and the ledge's shape are wq.css's
+   (html.wq-1b), and the look is never on without it. Each kind names its fill, its label and its ledge (--edge). */
+html.wq-adv .wq-go{background:var(--land,var(--brand));color:var(--land-on,#fff);--edge:var(--land-edge,var(--brand-d))}
+html.wq-adv .wq-navy{background:var(--brand-ink);color:#fff;--edge:var(--brand-ink-d)}
+html.wq-adv .wq-soft,html.wq-adv .wqs-sec,html.wq-adv .wqs-again,html.wq-adv .wq-dback,html.wq-adv .wq-prback{background:var(--card);color:var(--ink);border-color:var(--line);--edge:var(--line)}
+html.wq-adv .wq-ghost{--edge:transparent}
+/* the round ones: home, sound, jar, speaker and the reader's own controls */
+html.wq-adv .wq-homebtn,html.wq-adv .wq-snd,html.wq-adv .wq-jar,html.wq-adv .wq-dspk,html.wq-adv a.wq-home,html.wq-adv button.wq-home,html.wq-adv .wqs-ic,html.wq-adv .wqs-arr{background:var(--card);color:var(--land-edge,var(--ink));border-color:var(--line);--edge:var(--line)}
+html.wq-adv .wq-jar{color:var(--land-st)}
+html.wq-adv .wq-hhead .wq-snd{color:var(--land-vd)}
+
+/* 4 · Home: header → the Next stop tile → the trail of three lands → my class → hold for grown-ups */
+html.wq-adv section.wq-home{min-height:calc(100dvh - 120px);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:var(--sp-4);margin:0;min-width:0;border:0;border-radius:0;background:transparent;color:var(--ink);font-size:inherit;font-weight:inherit;cursor:auto;-webkit-tap-highlight-color:transparent}
+html.wq-adv .wq-hhead{gap:var(--sp-3)}
+html.wq-adv .wq-hjug{width:52px;height:52px;border-radius:50%;background:var(--land-vd-bg);border:3px solid var(--card);box-shadow:0 2px 0 var(--line)}
+html.wq-adv .wq-hhi{color:var(--ink)}
+html.wq-adv .wq-hhead .wq-dot{flex:none;width:11px;height:11px;border-radius:50%}
+html.wq-adv .wq-dot.on{background:var(--land-gm)}
+html.wq-adv .wq-dot.ring{background:transparent;box-shadow:0 0 0 2px var(--land-gm) inset}
+html.wq-adv .wq-jarnew{background:var(--land-st)}
+html.wq-adv .wq-next{--edge:var(--land-edge);position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;margin-top:var(--sp-5);gap:var(--sp-3) var(--sp-4);padding:var(--sp-4);background:var(--card);color:var(--ink);border:3px solid var(--land);box-shadow:0 6px 0 var(--edge);border-radius:var(--r-card);transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
+html.wq-adv .wq-next[data-kind=quiz],html.wq-adv .wq-next[data-kind=game],html.wq-adv .wq-next[data-kind=passage]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
+html.wq-adv .wq-next[data-kind=video],html.wq-adv .wq-next[data-kind=lesson]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge)}
+html.wq-adv .wq-next:active{transform:translateY(4px);box-shadow:0 2px 0 var(--edge)}
+html.wq-adv .wq-nart{width:104px;height:136px;border-radius:var(--r-chip);background:var(--land-bg);box-shadow:0 3px 0 rgba(0,0,0,.15);transform:rotate(-3deg)}
+html.wq-adv[dir=rtl] .wq-nart{transform:rotate(3deg)}
+html.wq-adv .wq-ntext b{color:var(--ink)}
+html.wq-adv .wq-ntext small{color:var(--muted)}
+html.wq-adv .wq-nmin{display:table;margin-top:var(--sp-1);padding:0 10px;border-radius:var(--r-chip);background:var(--tint);color:var(--muted);font-weight:800}
+html.wq-adv .wq-next .wq-ngo{--edge:var(--land-edge);grid-column:1/-1;width:100%;height:var(--btn-h);gap:var(--sp-2);margin-bottom:4px;border-radius:var(--r-btn);background:var(--land);color:#fff;box-shadow:0 4px 0 var(--edge);font-size:var(--fs-4);font-weight:900;transform:none}
+html.wq-adv .wq-next .wq-ngo svg{width:24px;height:24px}
+html.wq-adv[dir=rtl] .wq-next .wq-ngo svg{transform:scaleX(-1)}
+html.wq-adv .wq-grown{margin-top:0;padding-top:var(--sp-2)}
+/* the room a tall phone has left is shared between the rows, never one dead band above the hold */
+html.wq-adv section.wq-home[data-screen=home]{justify-content:space-between}
+/* Urdu: bold Nastaliq breaks its joins, so buttons take the regular weight; below 420 px two Urdu buttons never share a row */
+html.wq-adv[lang=ur] .wq-btn{font-weight:400}
+html.wq-adv[lang=ur] .wq-next .wq-ngo{font-weight:400}
+@media (max-width:419px){html.wq-adv[lang=ur] .wq-social{flex-direction:column}}
+/* hold for grown-ups: a full-size pill, a hand, and a ring that fills while held (never a footnote) */
+html.wq-adv .wq-gbtn{--edge:var(--line);display:inline-flex;align-items:center;gap:var(--sp-2);min-height:var(--btn-h);padding-inline:var(--sp-2) var(--sp-4);border:2px solid var(--line);background:var(--card);color:var(--ink);font-size:var(--fs-2);font-weight:800;box-shadow:0 4px 0 var(--edge)}
+html.wq-adv .wq-gbtn::before{content:"";position:relative;z-index:1;flex:none;width:36px;height:36px;border-radius:50%;background:var(--tint) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d6450' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 13V5a2 2 0 0 1 4 0v6M12 10a2 2 0 0 1 4 0v2M16 12a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-3-5a2 2 0 0 1 3-2l1 1'/%3E%3C/svg%3E") center/22px no-repeat;box-shadow:inset 0 0 0 3px var(--line)}
+html.wq-adv .wq-gbtn.held::before{box-shadow:inset 0 0 0 3px var(--land-vd);transition:box-shadow 2s steps(4)}
+html.wq-adv .wq-gbtn>*:not(.wq-gfill){position:relative;z-index:1}
+html.wq-adv .wq-gfill{background:var(--land-vd-bg)}
+/* the bottom bar: three land doors, each in its own colour; the land you are in is filled */
+html.wq-adv .wq-doors{gap:var(--sp-2);padding:var(--sp-2) var(--gutter) calc(var(--sp-3) + env(safe-area-inset-bottom,0px));background:var(--card);border-top:3px solid var(--line)}
+html.wq-adv .wq-door{--edge:var(--line);max-width:160px;min-height:60px;margin-bottom:4px;border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);color:var(--ink);box-shadow:0 4px 0 var(--edge);transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
+html.wq-adv .wq-doors{justify-content:center}
+html.wq-adv .wq-door:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)}
+html.wq-adv .wq-door[data-door=stories]{--dc:var(--land-st);--dd:var(--land-st-edge)}
+html.wq-adv .wq-door[data-door=games]{--dc:var(--land-gm);--dd:var(--land-gm-edge)}
+html.wq-adv .wq-door[data-door=videos]{--dc:var(--land-vd);--dd:var(--land-vd-edge)}
+html.wq-adv .wq-door svg{color:var(--dc)}
+html.wq-adv .wq-door.at{--edge:var(--dd);background:var(--dc);border-color:var(--dc);color:#fff}
+html.wq-adv .wq-door.at svg{color:#fff}
+html.wq-adv .wq-door.at svg g,html.wq-adv .wq-door.at svg path[fill="#fff"]{fill:var(--dc)}
+html.wq-adv .wq-door.at svg path[stroke="#fff"]{stroke:var(--dc)}
+
+/* 5 · a land screen: the land banner with its hill, flagged sections, tiles with the speaker inside */
+html.wq-adv .wq-droom{gap:var(--sp-2)}
+html.wq-adv .wq-dtop{position:relative;overflow:hidden;min-height:84px;padding:var(--sp-3) var(--sp-4);gap:var(--sp-3);border-radius:var(--r-card);background:var(--land);color:#fff;box-shadow:0 4px 0 var(--land-edge)}
+html.wq-adv .wq-dtop::after{content:"";position:absolute;inset:auto -10% -34px -10%;height:64px;border-radius:50% 50% 0 0;background:rgba(255,255,255,.18);pointer-events:none}
+html.wq-adv .wq-dtop>*{position:relative;z-index:1}
+html.wq-adv .wq-dtop h2{color:#fff;font-size:var(--fs-6);text-shadow:0 2px 0 rgba(0,0,0,.18)}
+html.wq-adv .wq-dtop .wq-homebtn{color:var(--land-edge)}
+html.wq-adv .wq-dsec{display:flex;align-items:center;gap:var(--sp-2);margin:var(--sp-3) 0 var(--sp-1);color:var(--ink)}
+html.wq-adv .wq-dsec::before{content:"";flex:none;width:18px;height:20px;background:var(--land);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 20'%3E%3Cpath d='M2 1h2v18H2zM5 2h11l-3 4 3 4H5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 20'%3E%3Cpath d='M2 1h2v18H2zM5 2h11l-3 4 3 4H5z'/%3E%3C/svg%3E") center/contain no-repeat}
+html.wq-adv .wq-dsay{color:var(--muted)}
+html.wq-adv .wq-dli{position:relative;align-items:center;gap:var(--sp-2);padding:var(--sp-2);padding-inline-end:var(--sp-3);border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card)}
+html.wq-adv .wq-dli .wq-drow,html.wq-adv .wq-dli .wq-drow[data-primary]{padding:var(--sp-1);border:0;border-radius:var(--r-chip);background:transparent;box-shadow:none;-webkit-tap-highlight-color:transparent}
+html.wq-adv .wq-dli:has(.wq-drow:active){transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+html.wq-adv .wq-dli .wq-drow:active{transform:none}
+html.wq-adv .wq-dli.done{background:var(--right-bg)}
+html.wq-adv .wq-dli.done .wq-drow{background:transparent}
+html.wq-adv .wq-rart{width:56px;height:56px;border-radius:var(--r-chip);background:var(--land-bg)}
+html.wq-adv .wqa-art{flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:var(--r-chip);background:var(--land-bg);color:var(--land)}
+html.wq-adv .wqa-art .wqa-i{width:30px;height:30px}
+html.wq-adv .wq-dspk{color:var(--land-vd)}
+html.wq-adv .wq-row{border-color:var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card)}
+html.wq-adv .wq-row[data-primary]{border-color:var(--land,var(--line));box-shadow:0 4px 0 var(--land-edge,var(--line))}
+/* the stories shelf: the map's paper, 2-col covers, the read stamp on a finished book */
+html.wq-adv .wqs{background:transparent;padding-inline:var(--gutter)}
+html.wq-adv .wqs-gl{--edge:#c9920b;background:var(--gold);color:#3b2a00;box-shadow:0 4px 0 var(--edge)}
+html.wq-adv .wqs-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3)}
+html.wq-adv .wqs-book{padding:var(--sp-2);border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card);-webkit-tap-highlight-color:transparent;transition:transform var(--dur-tap)}
+html.wq-adv .wqs-book:active{transform:translateY(3px)}
+html.wq-adv .wqs-cov{border-radius:var(--r-chip);aspect-ratio:3/4}
+/* the reader's controls and the story page sit on the same paper */
+html.wq-adv .wqs-page,html.wq-adv .wq-bk-page{border:3px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card);overflow:hidden}
+
+/* 6 · the done card: the deed, Jugnu in a halo of light, the stamp popping in 300 ms after, ONE next */
+html.wq-adv .wqfc,html.wq-adv .wq-moment{text-align:center}
+html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug{position:relative;border-radius:50%;background:radial-gradient(circle,var(--glow) 0,rgba(255,200,58,0) 68%);animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
+html.wq-adv .wqfc-deed,html.wq-adv .wq-moment-deed{color:var(--ink);font-size:var(--fs-5);font-weight:900}
+html.wq-adv .wqfc-next,html.wq-adv .wq-moment-next{--edge:var(--land-edge,var(--land-st-edge))}
+/* Jugnu answers the finish (wq-adv-more.js): cheering beside the cover, or on top without one; Share + Home stacked under Next (a long Urdu share label never fits half a row) */
+html.wq-adv .wqa-jug{display:block;justify-self:center;width:96px;height:96px;margin:0 auto;border-radius:50%;background:radial-gradient(circle,var(--glow) 0,rgba(255,200,58,0) 68%);animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
+html.wq-adv .wqfc-cov+.wqa-jug{width:80px;height:80px;margin-top:-72px;margin-inline-start:calc(50% + 20px)}
+html.wq-adv .wqa-pair{display:grid;gap:var(--sp-3)}
+html.wq-adv .wqa-brave .wqa-heart{width:56px;height:56px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) .3s both}
+
+/* 7 · kit parts (wq-adv.js) */
+html.wq-adv .wqa-i{display:inline-block;width:1.25em;height:1.25em;vertical-align:-.25em;flex:none}
+/* the trail of three land stops on Home: each a round land badge with its newest stamp or an empty ring */
+html.wq-adv .wqa-trail{position:relative;display:flex;justify-content:space-between;align-items:flex-start;padding:var(--sp-2) var(--sp-3) 0}
+html.wq-adv .wqa-trail::before{content:"";position:absolute;top:44px;inset-inline:15%;border-top:4px dotted var(--line)}
+html.wq-adv .wqa-stop{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--sp-1);min-height:var(--tap);color:var(--ink);text-decoration:none;font-weight:800;font-size:var(--fs-2);-webkit-tap-highlight-color:transparent}
+html.wq-adv .wqa-stop i{position:relative;display:grid;place-items:center;width:76px;height:76px;border-radius:50%;background:var(--card);border:3px dashed var(--lc);color:var(--lc);box-shadow:0 3px 0 var(--line);transition:transform var(--dur-tap)}
+html.wq-adv .wqa-stop:active i{transform:translateY(3px)}
+html.wq-adv .wqa-stop.on i{border-style:solid;background:var(--lb)}
+html.wq-adv .wqa-stop.next i{box-shadow:0 3px 0 var(--line),0 0 0 6px var(--glow);animation:wqa-glow 1.8s ease-in-out infinite alternate}
+html.wq-adv .wqa-l1{--lc:var(--land-st);--lb:var(--land-st-bg)}html.wq-adv .wqa-l2{--lc:var(--land-gm);--lb:var(--land-gm-bg)}html.wq-adv .wqa-l3{--lc:var(--land-vd);--lb:var(--land-vd-bg)}
+html.wq-adv .wqa-stamp{width:44px;height:44px;transform:rotate(-10deg)}
+html.wq-adv .wqa-stop .wqa-i{width:28px;height:28px}
+/* a stop with the last thing finished in its land: its picture in the ring, the stamp on its rim */
+html.wq-adv .wqa-pic i{border-style:solid}
+html.wq-adv .wqa-sp{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);border-radius:50%;object-fit:cover}
+html.wq-adv .wqa-pic i>.wqa-i{display:none}
+html.wq-adv .wqa-pic i>.wqa-stamp{position:absolute;bottom:-10px;inset-inline-end:-12px;width:34px;height:34px}
+/* Jugnu on the Next tile's corner: "Next stop!" */
+html.wq-adv .wqa-bub{position:absolute;top:-30px;inset-inline-end:6px;display:flex;align-items:flex-end;gap:2px;pointer-events:none}
+html.wq-adv .wqa-bub span{margin-bottom:30px;padding:2px 10px;border-radius:var(--r-chip);background:var(--ink);color:#fff;font-size:var(--fs-1);font-weight:800;white-space:nowrap}
+html.wq-adv .wqa-bub img{width:56px;height:56px}
+/* the stamp that pops on a finished thing */
+html.wq-adv .wqa-got{display:flex;align-items:center;justify-content:center;gap:var(--sp-3);margin:var(--sp-2) auto;padding:var(--sp-2) var(--sp-4);max-width:100%;border:2px solid var(--gold);border-radius:var(--r-card);background:var(--tint);font-weight:900;color:var(--ink)}
+html.wq-adv .wqa-got .wqa-stamp{width:64px;height:64px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) .3s both}
+html.wq-adv .wqa-bar{position:relative;height:14px;border-radius:999px;background:var(--line);overflow:hidden;box-shadow:inset 0 2px 0 rgba(0,0,0,.08)}
+html.wq-adv .wqa-bar>i{position:absolute;inset-block:0;inset-inline-start:0;border-radius:inherit;background:var(--land,var(--land-st));box-shadow:inset 0 -4px 0 rgba(0,0,0,.15);transition:width var(--dur-pop) var(--ease-pop)}
+html.wq-adv .wqa-badge{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 14px;border-radius:999px;background:var(--tint);color:var(--ink);font-weight:800;box-shadow:inset 0 0 0 2px var(--gold)}
+html.wq-adv .wqa-badge .wqa-i{color:var(--gold-d)}
+/* the designed wait: soft blocks in the real shapes, a shimmer; never an empty message while data is in flight */
+html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b{border-radius:var(--r-chip);background:linear-gradient(90deg,var(--land-bg) 0 40%,#fffaf0 50%,var(--land-bg) 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
+
+/* 8 · motion (WQA.move): each a one-shot; reduced motion gets a 150 ms fade and no movement */
+html.wq-adv .wqa-m-pop{animation:wqa-pop var(--dur-pop) var(--ease-pop)}
+html.wq-adv .wqa-m-rise{animation:wqa-rise var(--dur-pop) ease-out}
+html.wq-adv .wqa-m-wobble{animation:wqa-wob 240ms ease-in-out}
+html.wq-adv .wqa-m-glow{animation:wqa-halo var(--dur-celebrate) ease-out}
+html.wq-adv .wqa-m-fade{animation:wqa-fade 150ms ease-out}
+@keyframes wqa-pop{0%{transform:scale(.3) rotate(-10deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes wqa-rise{0%{transform:translateY(16px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes wqa-wob{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+@keyframes wqa-halo{0%{box-shadow:0 0 0 0 var(--glow)}100%{box-shadow:0 0 0 22px transparent}}
+@keyframes wqa-glow{to{box-shadow:0 3px 0 var(--line),0 0 0 10px rgba(255,200,58,.25)}}
+@keyframes wqa-fade{0%{opacity:.4}100%{opacity:1}}
+@keyframes wqa-sh{0%{background-position:100% 0}100%{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){
+  html.wq-adv .wqa-jug,html.wq-adv .wqa-heart,html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqa-climb .wqa-stamp,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
+  html.wq-adv .wq-btn:active,html.wq-adv .wq-next:active,html.wq-adv .wq-door:active,html.wq-adv .wqs-book:active,html.wq-adv .wq-dli:has(.wq-drow:active){transform:none}
+  html.wq-adv .wq-gbtn.held::before{transition:box-shadow 2s steps(4)}
+}
+/* the class table's "how you moved" line: the stamp ring pops in at the start of a climb */
+html.wq-adv .wq-move{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);font-weight:800}
+html.wq-adv .wqa-climb{display:inline-grid;flex:none}
+html.wq-adv .wqa-climb .wqa-stamp{width:36px;height:36px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
+/* the designed wait (its own switch): its top bar runs through the three lands, Jugnu's dots in the story colour */
+html.wq-adv .wq-wbar i{background:linear-gradient(90deg,var(--land-st),var(--land-gm),var(--land-vd));box-shadow:0 0 8px var(--glow)}
+html.wq-adv .wq-boot.wq-bwait .wq-bootsay::after{background:radial-gradient(circle,var(--land-st) 3px,transparent 3.5px) 0 50%/12px 8px repeat-x}
+/* the reading moment's badge carries the stamp: the same box in the stories land's colours */
+html.wq-adv .wq-moment-badge[data-wqa-stamp]{border-color:var(--land-st);background:var(--land-st-bg);color:var(--land-st-edge)}
