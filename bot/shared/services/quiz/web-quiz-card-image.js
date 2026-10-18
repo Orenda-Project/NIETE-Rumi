@@ -159,6 +159,8 @@ function facts(token) {
   if (f.s === 4 && f.j === 1) out.joined = true;
   // minted with web_quiz_share_data on: the finish's result (score, stars, words, badge), from the server's rows
   if (f.s === 4 && f.x) { const x = require('./web-quiz-card-data').clean(f.x); if (x) out.data = x; }
+  // minted with web_quiz_share_card_a on: its picture is design A (web-quiz-card-a.js)
+  if (f.s === 4 && f.a === 1) out.a = true;
   return out;
 }
 
@@ -280,7 +282,7 @@ async function mint(body = {}, { device = null } = {}) {
   const joined = v4 && w.sid && Switch.joinedCached();
   const Data = data ? require('./web-quiz-card-data') : null;
   const x = Data ? Data.clean(await Data.resultOf({ kind, item, w, ct: body.ct })) : null;
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   if (joined) {
     try {
@@ -437,8 +439,26 @@ async function toPng(png, f = {}) {
   return out;
 }
 
+// Design A (web_quiz_share_card_a tokens): rays, confetti and the medal want more colours; its own budget
+const MAX_BYTES_A = 120 * 1024;
+async function toPngA(png, f) {
+  const sharp = require('sharp');
+  let out = null;
+  for (const colors of [128, 96, 64]) {
+    out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, dither: 0.6, compressionLevel: 9, effort: 8 }).toBuffer();
+    if (out.length <= MAX_BYTES_A) return out;
+  }
+  logToFile('⚠️ web quiz card A: picture over 120 KB at 64 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
+  return out;
+}
+
 async function drawNow(f) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
+  if (f.a) {
+    const A = require('./web-quiz-card-a');
+    const png = await htmlToImage(A.renderCardA(f, { art: await A.artOf(f) }), { width: W, height: H, deviceScaleFactor: 1, selector: '.card' });
+    return toPngA(png, f);
+  }
   const png = await htmlToImage(renderCard(f), { width: W, height: H, deviceScaleFactor: 1, selector: '.card' });
   return toPng(png, f);
 }
@@ -524,6 +544,6 @@ async function landing(token) {
 function _reset() { Switch._reset(); mem.clear(); inflight.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK, REF_RX,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MAX_BYTES_A, MARK, REF_RX, toPngA,
   JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, byShort, _reset, _seal: seal,
 };
