@@ -24,8 +24,20 @@
 -- SCOPE. The class must be active and, when p_school_id is given, belong to
 -- that school — the caller passes the school it is currently working in, so a
 -- class id that arrived in a Flow payload cannot reach another school's roster.
--- The teacher must be a users row that is not a leader: a coach cannot be made
--- a class teacher through here.
+-- The teacher must be a users row whose role can actually hold a class: a coach,
+-- a supervisor, an AEO or a school leader cannot be made a class teacher here.
+--
+-- bd-37lyd — A PRINCIPAL CAN. They were refused with the rest of LEADER_ROLES,
+-- and in a NIETE school the principal very often teaches a class: 262 principals
+-- across 229 schools. /observe has always offered them (PATCH_ROLES = teacher +
+-- principal) and /roster's picker now does too, so refusing the write here meant
+-- the repair screen offered the obvious answer and then rejected it. The scan-save
+-- path never had this guard (ClassService.assignTeacher does not read a role), so
+-- the two writers disagreed about the same person.
+--
+-- THIS FILE IS NOT APPLIED BY MERGING. It is CREATE OR REPLACE, so re-running it
+-- is the whole deploy step — but until it is run, a principal named through the
+-- hand-over screen still gets `not_a_teacher`.
 --
 -- LOCK. The SAME per-class advisory key as roster_import_students and
 -- roster_apply_edits, so a hand-over cannot interleave with a save or an edit
@@ -86,7 +98,9 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('error', 'unknown_teacher');
   END IF;
-  IF v_role IN ('school_leader', 'supervisor', 'coach', 'principal', 'aeo') THEN
+  -- LEADER_ROLES minus 'principal' — see the header. Kept as a literal list rather
+  -- than a lookup so this function stays self-contained and reviewable.
+  IF v_role IN ('school_leader', 'supervisor', 'coach', 'aeo') THEN
     RETURN jsonb_build_object('error', 'not_a_teacher');
   END IF;
 
