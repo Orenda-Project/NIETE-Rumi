@@ -233,6 +233,7 @@
     el.innerHTML = k ? '<span>' + esc(c.near) + '</span>' + (k === 2 ? ' <button class="wqs-sec" data-tap="rfwith">' + esc(c.withJ) + '</button>' : '') : '';
   }
   function say(k, lang) { return C[L(lang)][k]; }
+  function fit() { try { window.dispatchEvent(new Event('resize')); } catch (e) { /* the taps stay where they were */ } }
   // once per result: the sound, the fanfare and the moment's motion play on a result's first draw only (key: the run
   // token and the card); a redraw of the same result (live, then checked, then the words) is laid in still and silent
   var fired = {};
@@ -243,7 +244,8 @@
   //   (x {g, v, ms}); 'with': stop the quiet read; 'after': after the result, Jugnu reads the page when that was tapped
   function q(k, R, m, x) {
     var y;
-    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents, still: x.rd.drawn }); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
+    // its first draw: the picture has just given up height (wq-moment.css), so the page's word taps are placed again
+    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents, still: x.rd.drawn }); if (!x.rd.drawn) R.C.set(fit, 0); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
     if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear, live: R.live });
     if (k === 'withJ') return say(k, R.L);
     if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';

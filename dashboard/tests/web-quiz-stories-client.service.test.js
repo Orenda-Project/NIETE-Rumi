@@ -3193,7 +3193,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
   });
   test('read_fb: the page\'s moment plays its motion once; a redraw of the same read lays it in still, a new read moves again', async () => {
     const e = withMoment(env({ replies: { book: RFB() } })); await openReader(e);
-    const M = e.win.WQMoment, R = { P: book({ read_fb: 1 }).pages, L: 'en', b: { grade: 2 } }, m = { i: 0 };
+    const M = e.win.WQMoment, R = { P: book({ read_fb: 1 }).pages, L: 'en', b: { grade: 2 }, C: e.clock }, m = { i: 0 };
     const rd = { s: { words_read: 4, words_total: 5, ms: 3000, marks: ['read', 'read', 'read', 'skipped', 'read'] }, i: 0 };
     const x = { rd, st: 'read', sents: () => [] };
     expect(M.q('page', R, m, x)).not.toContain('wq-moment--still');
@@ -3234,6 +3234,17 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).toContain('data-rf');
     expect(e.calls.juice.filter((x) => /^(finish|badge|sentence)/.test(x))).toEqual(['finish:3']);
+  });
+  test.each(['en', 'ur'])('%s, read_fb: beside the finish card the book\'s read is the compact strip (the card\'s Next stays on the first screen); a card that refuses: the full moment', async (lang) => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    for (const [ok, small] of [[true, true], [false, false]]) {
+      const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', questions: [], card_v3: true }), done }, onLoad: (w) => { w.WQFC = { mount: () => ok }; } }));
+      const root = await openReader(e, { lang });
+      runBook(e, root); await flush(); await flush(); await flush();
+      const h = root.innerHTML;
+      expect([ok, /<section class="wq-moment[^"]*"/.exec(h)[0].includes('wq-moment--s')]).toEqual([ok, small]);
+      expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۷۲ لفظ' : '72 words a minute');
+    }
   });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
     const done = { status: 200, body: { ok: true, sticker: true } };

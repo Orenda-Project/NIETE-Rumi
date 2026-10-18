@@ -32,6 +32,26 @@
 .wq-moment--s .wq-moment-deed{font-size:var(--fs-3,18px);margin-bottom:6px}
 .wq-moment--s .wq-moment-star{width:28px;height:28px}
 .wq-moment--s .wq-moment-light{width:22px;height:22px}
+/* a storybook page's read (and the book's end beside the finish card): one strip (Jugnu, the words, the jar and the
+   stars, the badge); on a page the picture gives up height while it is there, so the page's Next stays on the first
+   screen */
+.wqs .wq-moment--s{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:8px;margin:0 auto;padding:8px 10px;text-align:start}
+.wqs .wq-moment--s>.wq-moment-sky{display:none}
+.wqs .wq-moment--s>.wq-moment-jg{grid-column:1;grid-row:1/span 3;width:44px;height:44px;margin:0}
+.wqs .wq-moment--s>.wq-moment-deed,.wqs .wq-moment--s>.wq-moment-meter,.wqs .wq-moment--s>.wq-moment-stars,.wqs .wq-moment--s>.wq-moment-growth{grid-column:2;justify-content:flex-start;margin:0}
+.wqs .wq-moment--s>.wq-moment-growth{font-size:15px;margin-top:8px}
+.wqs .wq-moment--s>.wq-moment-deed{font-size:17px;width:auto}
+.wqs .wq-moment--s>.wq-moment-meter{gap:4px 8px}
+.wqs .wq-moment--s .wq-moment-jar{padding:3px 6px;gap:2px}
+.wqs .wq-moment--s .wq-moment-light{width:16px;height:16px}
+.wqs .wq-moment--s .wq-moment-num{font-size:14px}
+.wqs .wq-moment--s .wq-moment-star{width:22px;height:22px}
+.wqs .wq-moment--s>.wq-moment-badge{grid-column:3;grid-row:1/span 3;flex-direction:column;gap:0;max-width:60px;padding:0;background:none;font-size:11px;line-height:1.3;text-align:center}
+.wqs .wq-moment--s .wq-moment-badge svg{width:32px;height:32px}
+.wqs .wq-moment--s[lang="ur"]>.wq-moment-deed{font-size:17px;line-height:1.7}
+.wqs .wq-moment--s[lang="ur"] span{line-height:1.6}
+.wqs:has(.wqs-extra .wq-moment--s){height:100vh;height:100svh;min-height:0}
+.wqs:has(.wqs-extra .wq-moment--s) .wqs-stage{flex:1 1 0;height:auto;max-height:62vh;min-height:160px}
 /* "read it again": the jar's own offer, inside the card under it */
 .wq-moment-again{margin:10px 0 0}
 .wq-moment-again .wq-btn{width:100%;margin:0}
