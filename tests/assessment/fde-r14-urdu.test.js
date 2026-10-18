@@ -114,7 +114,11 @@ describe('(3) a Q1 stem that prints another Q1 item\'s key', () => {
   });
 
   test('a one-word key a stem merely names stays («… علامت ہیں؟ → امن» beside ««امن» کا متضاد …»)', () => {
-    const stems = q1Stems(laid('chapters_2'));
+    // One antonym on the paper (۷): the full syllabus asks the concept once, so ۶ and ۸ are left out here.
+    const exam = clone(papers.chapters_2);
+    const others = [recorded('chapters_2', 6).question, recorded('chapters_2', 8).question];
+    for (const types of Object.values(exam.unseen)) for (const [t, list] of Object.entries(types)) types[t] = list.filter((q) => !others.includes(q.question));
+    const stems = q1Stems(lay(exam).examJson);
     expect(recorded('chapters_2', 3).answer).toMatch(/امن/);
     expect(stems).toContain(recorded('chapters_2', 3).question);
     expect(stems).toContain(recorded('chapters_2', 7).question);
@@ -162,14 +166,15 @@ describe('(6) a Q1 item whose blanks, filled with its key, print a Q4 sentence (
   test('full_4 after the re-ask: a new item takes its place; it comes back only when nothing else can', () => {
     const exam = clone(local);
     const mcqs = Object.values(exam.unseen).map((t) => t.MCQs).find(Array.isArray);
-    mcqs.push({ slot: 'urdu.A.Q1', question: 'لفظ «سچ» کا متضاد کون سا ہے؟', options: ['الف) جھوٹ', 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: 'الف) جھوٹ' });
+    mcqs.push({ slot: 'urdu.A.Q1', question: 'لفظ «صداقت» کا مطلب کیا ہے؟', options: ['الف) سچائی', 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: 'الف) سچائی' });
     const stems = q1Stems(lay(exam, true).examJson);
     expect(stems).not.toContain(pairQ);
-    expect(stems).toContain('لفظ «سچ» کا متضاد کون سا ہے؟');
+    expect(stems).toContain('لفظ «صداقت» کا مطلب کیا ہے؟');
   });
-  test('the other 19 Q1 items stay', () => {
+  test('the other Q1 items stay, but the antonyms asked again (the full syllabus asks a concept once: ۹, ۲۰)', () => {
     const stems = q1Stems(lay(clone(local)).examJson);
-    expect(stems).toEqual(items(local, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== pairQ));
+    const again = [9, 20].map((n) => items(local, 'urdu.A.Q1')[n - 1].question);
+    expect(stems).toEqual(items(local, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== pairQ && !again.includes(s)));
   });
 });
 
@@ -217,8 +222,9 @@ describe('(2) the Section A re-ask is told the items Q1 keeps, with their keys',
 
   test('a top-up names every kept Q1 item and its key, and never to key a new item on them', () => {
     const first = firstReply();
-    // Six re-asked items, and one more: the second شرط و جزا item («جوں جوں» …) asks a concept Q1 already asks.
-    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 7 });
+    // Six re-asked items, and two more: the second شرط و جزا item («جوں جوں» …) and the second antonym (۸)
+    // ask a concept Q1 already asks.
+    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 8 });
     const note = takenNote(U, sectionA, first.examJson, { topUp: true, shortfall: first.shortfall });
     expect(note).toContain(`- ${recorded('full_1', 2).question} → دندان سازی`);
     expect(note).toContain(`- ${recorded('full_1', 3).question} → گلستان`);
@@ -250,9 +256,10 @@ describe('(4) through generatePatternExam: the twins go, the next items take the
     return tree;
   };
   // Asked again, Section A writes the recorded tail (Q1 ۱۵–۲۰, two of them twins) and then new items.
-  const PAIRS_OF_WORDS = [['سچ', 'جھوٹ'], ['امیر', 'غریب'], ['خوشی', 'غم'], ['زمین', 'آسمان'], ['گرم', 'سرد'], ['نیا', 'پرانا'], ['آسان', 'مشکل'], ['جیت', 'ہار']];
+  // Word meanings: the full syllabus asks the antonym once, so spares that were all antonyms would be held.
+  const PAIRS_OF_WORDS = [['صداقت', 'سچائی'], ['دولت', 'مال'], ['مسرت', 'خوشی'], ['فلک', 'آسمان'], ['حرارت', 'گرمی'], ['جدید', 'نیا'], ['سہل', 'آسان'], ['فتح', 'جیت']];
   const SPARES = PAIRS_OF_WORDS.map(([w, k]) => ({
-    slot: 'urdu.A.Q1', question: `لفظ «${w}» کا متضاد کون سا ہے؟`,
+    slot: 'urdu.A.Q1', question: `لفظ «${w}» کا مطلب کیا ہے؟`,
     options: [`الف) ${k}`, 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: `الف) ${k}`,
   }));
   function serve() {

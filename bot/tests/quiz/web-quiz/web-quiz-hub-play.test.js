@@ -542,3 +542,74 @@ describe('the story tile names the story (one title home)', () => {
     expect(JSON.stringify(out.play)).not.toContain('title');
   });
 });
+
+describe('the hub\'s reads together (web_quiz_hub_fanout): Jugnu\'s corner reads in one round, the same answer', () => {
+  const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story'), ON('web_quiz_events_v2')];
+  const FANOUT = { key: 'web_quiz_hub_fanout', value: true }; // the JSON true the flip writes
+  const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const run = (exercise, passageId = null, extra = {}) => ({ student_id: KID, exercise, mode: 'check', record: true, status: 'scored', period_id: period, passage_id: passageId, ...extra });
+  const story = (id, band, h, extra = {}) => ({ passage_id: id, lang: 'en', band, kind: 'read', pool: 'practice', status: 'reviewed', released_at: ago(h), title_en: `Title ${id}`, title_ur: null, ...extra });
+  const broken = (table, answer) => () => {
+    const from = supabase.from;
+    supabase.from = (t) => (t === table ? answer() : from(t));
+  };
+  const CASES_ON = [
+    ['a trail stop waiting', STORY_ON, { web_quiz_challenge_runs: [run('read')] }],
+    ['a NEW story beside a seen twin and a future one', STORY_ON, {
+      web_quiz_challenge_runs: [run('read', 'p-check'), run('bigger'), run('listen', 'p-twin', { mode: 'practice', record: false })],
+      challenge_passages: [story('p-new', 1, 2), story('p-old', 1, 200, { kind: 'listen', twin_of: 'p-twin' }), story('p-future', 1, -20), story('p-draft', 1, 1, { status: 'draft' })],
+    }],
+    ['a reading rung that opens band 2', STORY_ON, {
+      web_quiz_challenge_runs: [run('read'), run('bigger')], challenge_passages: [story('b1', 1, 50), story('b2', 2, 5), story('b3', 3, 2)],
+      child_rungs: [{ canonical_id: KID, ladder: 'reading', rung: 3 }],
+    }, null, (d) => { d.student_lists[0].class_name = '2'; d.students[0].self_reported_class = '2'; d.quiz_sessions.forEach((x) => { x.student_class = '2'; }); }],
+    ['the rungs cannot be read', STORY_ON, { web_quiz_challenge_runs: [run('read'), run('bigger')], challenge_passages: [story('b1', 1, 50), story('b2', 2, 5)] },
+      broken('child_rungs', () => ({ select: () => ({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: { code: '42P01', message: 'relation does not exist' } }) }) }) }))],
+    ['the runs cannot be read (asked again as off)', STORY_ON, { challenge_passages: [story('p-new', 1, 2)] },
+      broken('web_quiz_challenge_runs', () => ({ select: () => ({ eq: () => ({ limit: () => Promise.resolve({ data: null, error: { code: '42703', message: 'column "mode" does not exist' } }) }) }) }))],
+    ['the passages table is missing', STORY_ON, { web_quiz_challenge_runs: [run('read'), run('bigger')] },
+      broken('challenge_passages', () => ({ select: () => { throw new Error('relation "challenge_passages" does not exist'); } }))],
+    ['story off (only the trail)', [...BASE_ON, ON('web_quiz_challenge_v2')], { web_quiz_challenge_runs: [run('read'), run('bigger')] }],
+  ].map((c) => [c[0], c[1], c[2], c[3] || null, c[4] || null]); // every row has all five (test.each reads a shorter row's spare argument as done)
+  afterEach(() => { try { require('../../../shared/services/quiz/web-quiz-hub-warm')._stop(); } catch (_) { /* not loaded */ } });
+
+  async function hubAs(settings, over, patch, shape, opts) {
+    redis._store.clear();
+    ['web-quiz-hub-flags', 'web-quiz-identity-flags', 'web-quiz-book'].forEach((m) => require(`../../../shared/services/quiz/${m}`)._resetCache());
+    seed(settings, JSON.parse(JSON.stringify(over)));
+    if (shape) shape(db);
+    if (patch) patch();
+    const counted = supabase.from;
+    let runs = 0;
+    supabase.from = (t) => { if (t === 'web_quiz_challenge_runs') runs += 1; return counted(t); };
+    const out = JSON.stringify(await Hub.hub(T.signHub([KID]), opts));
+    return { out, runs };
+  }
+
+  test.each(CASES_ON)('%s: on gives the off answer, byte for byte (EN and UR)', async (_n, settings, over, patch, shape) => {
+    for (const opts of [A, { ...A, lang: 'ur' }]) {
+      const off = await hubAs(settings, over, patch, shape, opts);
+      const on = await hubAs([...settings, FANOUT], over, patch, shape, opts);
+      expect(JSON.parse(off.out).play).toBeTruthy();
+      expect(on.out).toBe(off.out);
+    }
+  });
+
+  test.each(CASES_ON.filter(([n]) => !/runs cannot|story off/.test(n)))('%s: on reads the child\'s runs once for the trail and the seen stories', async (_n, settings, over, patch, shape) => {
+    const off = await hubAs(settings, over, patch, shape, A);
+    const on = await hubAs([...settings, FANOUT], over, patch, shape, A);
+    expect(on.runs).toBe(off.runs - 1);
+  });
+
+  test('a story opened and left: the one read together still names it for "Carry on reading", as the read off does', async () => {
+    const over = { web_quiz_challenge_runs: [run('read', 'p-done'), run('read', 'p-left', { mode: 'practice', record: false, status: 'served' })], challenge_passages: [story('p-left', 1, 5), story('p-done', 1, 6)] };
+    const openOf = async (together) => {
+      await hubAs(STORY_ON, over, null, null, A);
+      const collect = {};
+      await Play.playFor({ chosenId: KID, lang: 'en', challenge: { on: true }, grade: 3, stopsOf: async () => ['read'], steps: () => require('../../../shared/services/quiz/web-quiz-challenge'), collect, together });
+      return collect.open ? [...collect.open].sort() : collect.open;
+    };
+    expect(await openOf(false)).toEqual(['p-left']);
+    expect(await openOf(true)).toEqual(['p-left']);
+  });
+});
