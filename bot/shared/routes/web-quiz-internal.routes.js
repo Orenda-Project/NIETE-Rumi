@@ -54,10 +54,15 @@ const ReadFeedback = () => require('../services/quiz/web-quiz-read-feedback');
 const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).catch(() => {}); }); };
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
+const WaitUx = require('../services/quiz/web-quiz-wait-ux');
+// The child home's files in the portal's early head (web_quiz_home_preload): every hub answer says `home_pre: true` only when on.
+const HomePreload = require('../services/quiz/web-quiz-home-preload');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 const CardImage = require('../services/quiz/web-quiz-card-image');
 // One Urdu face (web_quiz_one_face): the quiz, hub and challenge menu answers say `one_face: true` only when on.
 const OneFace = require('../services/quiz/web-quiz-one-face');
+// The child home's step timings (web_quiz_server_timing): the hub answer's Server-Timing items, only when on.
+const StepTiming = require('../services/quiz/web-quiz-server-timing');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -86,10 +91,25 @@ const serve = async (fn, req, res) => {
 // The finish card's switch rides the page and its preview facts (named only when on): the edge then counts an Urdu
 // link's preview in Urdu digits. Read beside the quiz, never after it; off, the payload is today's.
 const withCard = (quizP) => Promise.all([quizP, CardImage.field()]).then(([out, card]) => (out && typeof out === 'object' ? Object.assign(out, card) : out));
-router.get('/quiz/:code', handle(async (req) => {
-  const out = await OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })));
+// A closed class link (404 / 410 with its reason) says `known: true` while web_quiz_link_known_child is ON, so the edge asks
+// /known/home for this phone's way home only then. The switch comes from its 30 s cache and is never waited on (a cold
+// cache starts one background read and answers today's); switch off, the answer is today's, byte for byte.
+async function closedKnows(err) {
+  if (err instanceof WebQuiz.WqError && (err.status === 404 || err.status === 410) && err.body && typeof err.body.error === 'string'
+    && require('../services/quiz/web-quiz-link-known').peekOn()) err.body = { ...err.body, known: true };
+  return err;
+}
+// Step timings (web_quiz_server_timing, JSON true only): the class link's answer carries this request's own numbers
+// (`app;dur`, the round-trip count), as the hub's does, a closed link's answer too; this route reads no switch itself,
+// so the hub's batched switch read is refreshed in the background, never waited for. Off: no header, the call as before.
+router.get('/quiz/:code', handle(async (req, res) => {
+  const out = await OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }))).catch(async (err) => {
+    StepTiming.timeRequest(res, [], { refresh: true });
+    throw await closedKnows(err);
+  });
   // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
   if (!req.query.p) WebQuizOg.remember(req.params.code, out);
+  StepTiming.timeRequest(res, [], { refresh: true });
   return out;
 }));
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
@@ -105,6 +125,8 @@ router.post('/session', handle(async (req) => {
 router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
 // A class link on a phone that holds a child: the children this browser holds, for "Is it <First>?" ({kids: []} when off).
 router.post('/known', handle((req) => WebQuiz.knownKids(req.body || {}, { device: req.get('x-wq-device') || null })));
+// A CLOSED class link on that phone: its way home ({on:false} when off). The device is x-wq-device, never the body.
+router.post('/known/home', handle((req) => require('../services/quiz/web-quiz-link-known').closedHome({ device: req.get('x-wq-device') || undefined })));
 // The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
 router.post('/bind', handle((req) => require('../services/quiz/web-quiz-handset').bind(req.body || {}, WebQuiz.WqError)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
@@ -285,11 +307,34 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
 // `src`: the route that brought the child (hub_open.src), read by the hub_open emit as opts.src.
 // `lang`: the language the page that sent the child was in (?lang=, the edge forwards only en|ur); the hub checks it again.
-router.get('/hub/:token', handle((req) => OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang }))));
+// Step timings (app_settings web_quiz_server_timing, default off, JSON true only): Server-Timing items, one
+// `name;dur=<ms>` per awaited step of the build (web-quiz-server-timing.js), added after any timing already on the
+// answer. A header only: the JSON is the hub's own. Off: no stopwatch and no header, the call exactly as before.
+router.get('/hub/:token', handle((req, res) => {
+  const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
+  const st = StepTiming.on() ? StepTiming.steps() : null;
+  if (!st) return HomePreload.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))));
+  StepTiming.attach(res, st);
+  return HomePreload.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))));
+}));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 // `l`: the page's language (en|ur, anything else dropped); read only under app_settings web_quiz_videos_v3.
 const ql = (v) => (v === 'en' || v === 'ur' ? v : undefined);
+// web_quiz_video_shelf: a lesson's small thumbnail for the Videos door's shelves (off: 404 not_found, never kept; a
+// lesson with no picture: 404 no_picture, kept 10 minutes so its cards do not ask storage on every view)
+router.get('/vt/:vid.webp', async (req, res) => {
+  try {
+    const Thumb = require('../services/quiz/web-quiz-video-thumb');
+    const pic = await Thumb.thumb(req.params.vid);
+    if (!pic && (await Thumb.noPicture(req.params.vid))) return res.status(404).set('Cache-Control', `public, max-age=${Math.round(Thumb.NONE_MS / 1000)}`).json({ error: 'no_picture' });
+    if (!pic) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    return res.status(200).set({ 'Content-Type': pic.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' }).send(pic.bytes);
+  } catch (err) {
+    logToFile('❌ web-quiz video thumb failed', { error: err.message }, 'error');
+    return res.status(500).set('Cache-Control', 'no-store').json({ error: 'server_error' });
+  }
+});
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), l: ql(req.query.l), device: req.get('x-wq-device') })));
 // the v3 home's door screens (web-quiz-hub-doors.js; web_quiz_home_v3, off -> 404 home_off): what is behind Stories / Games
 router.get('/doors/h/:token', handle((req) => require('../services/quiz/web-quiz-hub-doors').door(req.params.token, { kid: q1(req.query.kid), d: q1(req.query.d), lang: q1(req.query.l), device: req.get('x-wq-device') })));
@@ -303,7 +348,7 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang }))));
+router.post('/hub/:token', handle((req) => HomePreload.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang }))))));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));

@@ -1,0 +1,26 @@
+{
+  "home": {
+    "headers": {
+      "cache-control": "private, no-store",
+      "content-length": "453",
+      "content-type": "application/json; charset=utf-8",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "body": "{\"first\":\"Amina\",\"grade\":2,\"primary\":{\"kind\":\"none\"},\"timeline\":[{\"kind\":\"quiz\",\"key\":\"q_c0000000-0000-4000-8000-0000000000a1\",\"title\":\"Photosynthesis\",\"date\":\"2026-01-05T08:00:00.000Z\",\"verb\":\"again\",\"id\":\"c0000000-0000-4000-8000-0000000000a1\",\"sendKind\":\"again\",\"played\":2}],\"library\":{\"grade\":2,\"stories\":[],\"all\":null,\"video\":null},\"maker\":null,\"children\":null,\"confirm\":[],\"tryStudent\":null,\"change\":null,\"cards\":[],\"lang\":\"en\",\"bot\":\"15550001111\"}"
+  },
+  "library": {
+    "headers": {
+      "cache-control": "private, no-store",
+      "content-length": "60",
+      "content-type": "application/json; charset=utf-8",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "body": "{\"grade\":2,\"stories\":[],\"all\":null,\"video\":null,\"pick\":null}"
+  }
+}

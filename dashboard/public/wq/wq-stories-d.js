@@ -156,7 +156,10 @@
         var ok = false, fc = (n || qa) && b.card_v3 && W.WQFC && W.WQFC.mount;
         draw(fc);
         if (fc) {
-          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, whole: true, answered: qa, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
+          var fo = { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, whole: true, answered: qa, sticker: !!(r && r.sticker) };
+          // the one share (share_v4): the card names the book, so its link lands a new child on it
+          if (b.share_v4 === true) { fo.v4 = true; fo.item = { type: 'book', id: String(id) }; }
+          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), fo) !== false; } catch (e) {}
           if (!ok) draw(false);
           else fin = nx ? 1 : 0;
         }
