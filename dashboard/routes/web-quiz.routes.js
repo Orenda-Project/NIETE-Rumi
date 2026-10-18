@@ -33,6 +33,7 @@ const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const TimingNames = require('../../bot/shared/services/quiz/web-quiz-server-timing-names');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
+const HomePre = require('./web-quiz-home-preload');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
@@ -512,6 +513,7 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
   const accent = /^#[0-9A-Fa-f]{6}$/.test(String(facts.accent || '')) ? facts.accent : '#15803D';
   const href = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href) ? ret.href : `https://wa.me/?text=${encodeURIComponent(ret.words || '')}`;
   // what the card lands on, by name (its book's title, its video's lesson), in its own script
+  // Urdu is drawn at the Regular weight (a bold Nastaliq breaks joins: «پڑھی» as «پڑ ھی»); the name is its own line.
   const item = facts.item_title ? `<p class="it"><bdi>${esc(String(facts.item_title).slice(0, 80))}</bdi></p>` : '';
   const go = `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(href)}">${esc(ret.cta || '')}</a><p class="hint">${esc(c.hint)}</p>`;
   return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
@@ -519,9 +521,10 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
 .k img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}.mark{justify-self:start;padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px}
 .k h1{margin:0;font-size:24px;line-height:${lang === 'ur' ? 2 : 1.25};color:${accent}}.k .it{font-weight:800;font-size:21px;color:#1F2937}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
 .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}
-.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}</style>
+.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}.k h1 .nm{display:block}${lang === 'ur' ? `
+.k h1,.k .it,.mark,.wq-btn{font-weight:400}` : ''}</style>
 </head>
-<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="${dir}">${facts.first ? `<bdi>${esc(facts.first)}</bdi>: ` : ''}${esc(facts.deed_text)}</h1>${item}<p>${esc(c.sub)}</p>${go}</main></body>
+<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="${dir}">${facts.first ? `<bdi class="nm">${esc(facts.first)}</bdi>` : ''}${esc(facts.deed_text)}</h1>${item}<p>${esc(c.sub)}</p>${go}</main></body>
 </html>`;
 }
 
@@ -618,15 +621,21 @@ function hubPageParts({ payload, token, origin, assetV, plain = null }) {
   payload = withOneFace(payload);
   // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
+  // The home's own tags (one string, so the head's preloads name the tail's addresses: web-quiz-home-preload.js). A bot
+  // answer (it has `kids`) teaches the next early head what to preload (web_quiz_home_preload); the early head's guess
+  // (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
+  const tags = `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`;
+  const answer = Boolean(payload && Array.isArray(payload.kids));
+  if (answer) HomePre.learn(payload, tags, assetV);
   return {
     lang, dir: plainDir(lang), ur2: ur2On(payload && payload.ui, lang), title, bootsay,
-    head: head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui }),
+    head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui })}${answer ? '' : HomePre.head()}`,
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(bootsay)}</p></div></main>${WaitUx.tag(payload)}`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${tags}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -1024,6 +1033,7 @@ function createWebQuizRouter(opts = {}) {
   const pageHeaders = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
 
   async function page(req, res, view) {
+    const b0 = Date.now();
     pageHeaders(res);
     const origin = originOf(req);
     const code = String(req.params.code || '');
@@ -1079,11 +1089,22 @@ function createWebQuizRouter(opts = {}) {
       lastFast = out.body.fast === true;
       lastPlain = lastFast && out.body.plain_paint === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
-      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      // Step timings (the bot's answer carried them: web_quiz_server_timing on), as on the hub page: the flushed page's
+      // ride its boot JSON (`st`); a page whose headers have not gone yet says them as one Server-Timing: this edge's
+      // wait for the bot, the bot's items, this page's render. Off: no `st`, and the page and its headers are today's.
+      // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
+      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      const render = () => renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k });
+      if (!out.steps) return res.status(200).type('html').send(render());
+      const edgeMs = Date.now() - b0;
+      const r0 = process.hrtime.bigint();
+      const html = render();
+      const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
+      TimingNames.appendTiming(res, TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', ')));
+      return res.status(200).type('html').send(html);
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -1157,6 +1178,7 @@ function createWebQuizRouter(opts = {}) {
       // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
       // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
       // Off: no `st`, and the page and its headers are today's.
+      // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
       if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version() }));
       if (!out.steps) return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
       const edgeMs = Date.now() - b0;

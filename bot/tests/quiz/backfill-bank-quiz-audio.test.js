@@ -166,6 +166,68 @@ describe('--apply records through publishQuizAudio, idempotent on isCurrent', ()
   });
 });
 
+describe('--one-voice: the lines the quiz makes are recorded in the one voice; the recorded question is kept', () => {
+  test('a quiz current before (its recorded question skipped) is recorded again in the one voice, its recorded question still kept, then stamped and skipped', async () => {
+    const w = world();
+    w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };
+    w.quiz_questions.filter((q) => q.quiz_id === 'q-g3sci-2').forEach((q) => { q.media = { question_audio: ['https://clips.example/bank/q.ogg'] }; });
+    const db = fakeDb(w);
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '1', '--apply', '--one-voice'], { db });
+    expect(lines[0]).toMatch(/ one_voice=[0-9a-f]{10}$/);
+    const parts = r2.uploadBuffer.mock.calls.map((c) => c[1].split('/').pop().split('-')[0]);
+    expect(parts.filter((x) => x === 'q')).toHaveLength(0); // both questions' recorded question is kept (the person's voice)
+    expect(parts.length).toBeGreaterThan(0);
+    tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_v4' }));
+    expect(r).toMatchObject({ done: 1, skipped: 0, failed: 0 });
+    const meta = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta;
+    expect(meta.web).toEqual({ audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} }); // today's map untouched
+    const stamped = meta.web_one;
+    expect(stamped.audio_one).toBe(require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(true).sig);
+    expect(Publish.isCurrent(stamped, { oneVoice: true })).toBe(true);
+
+    jest.clearAllMocks();
+    const again = await run(['--expect-ref', REF, '--limit', '1', '--apply', '--one-voice'], { db });
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(again.r).toMatchObject({ done: 0, skipped: 1 });
+  });
+  test('--plan \'<json>\': records under exactly the switch value it names (voice, rate) and stamps that plan; not JSON is refused', async () => {
+    const value = { voices: { en: { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', model: 'eleven_v4' } }, kbps: 32 };
+    const db = fakeDb(world());
+    await run(['--expect-ref', REF, '--limit', '1', '--apply', '--plan', JSON.stringify(value)], { db });
+    tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ voice: 'cgSgspJ2msm6clMCkdW9', outputFormat: 'opus_48000_32' }));
+    expect(tts.synthesize).toHaveBeenCalled();
+    const stamped = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta.web_one;
+    expect(stamped.audio_one).toBe(require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(value).sig);
+    await expect(run(['--expect-ref', REF, '--plan', 'true-ish'], { db })).rejects.toThrow(/no voice plan/);
+  });
+  test('--plan naming Urdu only: an English quiz keeps today\'s voice, listed "keep" and never recorded under the plan', async () => {
+    const reva = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
+      settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 } };
+    const db = fakeDb(world());
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '3', '--apply', '--plan', JSON.stringify({ voices: { ur: reva } })], { db });
+    expect(lines.filter((l) => /^\d+\t/.test(l)).every((l) => /\ten\t.*\tkeep$/.test(l))).toBe(true);
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(db.writes).toEqual([]);
+    expect(r).toMatchObject({ done: 0, skipped: 3, planned: 0 });
+  });
+  test('the dry run prices one voice at the one voice\'s rate (ElevenLabs per character), not the old voice\'s', async () => {
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '5', '--one-voice'], { db: fakeDb(world()) });
+    const line = lines[lines.length - 1];
+    const chars = Number(/ chars=(\d+)/.exec(line)[1]);
+    expect(chars).toBeGreaterThan(0);
+    expect(Number(/ est_usd=([\d.]+)/.exec(line)[1])).toBeCloseTo((chars / 1000) * 0.30, 3);
+    expect(line).toMatch(/\(at 0\.3 per 1k chars\)/);
+    expect(r.estUsd).toBeCloseTo((chars / 1000) * 0.30, 6);
+  });
+  test('without it, the same quiz is current and nothing is recorded (today)', async () => {
+    const w = world();
+    w.quizzes.find((q) => q.id === 'q-g3sci-2').meta = { web: { audio_v: Publish.AUDIO_VERSION, audio_voice: 'sx-grace', audio: {} } };
+    const { r } = await run(['--expect-ref', REF, '--limit', '1', '--apply'], { db: fakeDb(w) });
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ done: 0, skipped: 1 });
+  });
+});
+
 describe('refuses a database it was not pointed at', () => {
   test.each([
     ['another project', { SUPABASE_URL: 'https://someotherref.supabase.co' }, ['--expect-ref', REF, '--apply', '--limit', '5']],
@@ -179,5 +241,52 @@ describe('refuses a database it was not pointed at', () => {
     expect(spy).not.toHaveBeenCalled();
     expect(tts.synthesize).not.toHaveBeenCalled();
     expect(lines.join('\n')).not.toMatch(new RegExp(`${REF}|someotherref`));
+  });
+});
+
+/*
+ * --lex hit|clear: the Urdu quizzes whose voiced lines a respelling of the shared Urdu spelling list touches
+ * (web-quiz-ur-say.js) run apart from the rest. English quizzes are always "clear". Without the option: today's run.
+ */
+describe('--lex: the quizzes a respelling touches run apart from the rest', () => {
+  const urQ = (quizId, n, text) => ({ ...question(quizId, n, text), option_a: 'ہاں', option_b: 'نہیں', explanation: 'کیونکہ یہی ہے۔' });
+  const lexWorld = () => {
+    const w = world();
+    w.quiz_questions = w.quiz_questions.filter((q) => !['q-g3sci-2', 'q-g1eng-2'].includes(q.quiz_id));
+    // q-g3sci-2 (rank 1): Urdu, a ruled word in a voiced line; q-g1eng-2 (rank 2): Urdu, none («ساتھی» is not «ساتھ»)
+    w.quiz_questions.push(urQ('q-g3sci-2', 1, 'بچے کس کے ساتھ کھیلتے ہیں؟'), urQ('q-g3sci-2', 2, 'سورج کیا ہے؟'));
+    w.quiz_questions.push(urQ('q-g1eng-2', 1, 'میرا ساتھی کون ہے؟'), urQ('q-g1eng-2', 2, 'پودے کو کیا چاہیے؟'));
+    return w;
+  };
+
+  test('--lex hit keeps only the Urdu quiz with a ruled word; the summary counts hit and clear per language', async () => {
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '3', '--lex', 'hit'], { db: fakeDb(lexWorld()) });
+    expect(ranked(lines)).toEqual(['q-g3sci-2']);
+    expect(r.planned).toBe(1);
+    expect(lines[lines.length - 1]).toMatch(/ lex=hit lex_hit=en:0,ur:1 lex_clear=en:1,ur:1 left_out=2$/);
+  });
+
+  test('--lex clear keeps the other Urdu quiz and the English one (English is always clear)', async () => {
+    const { lines } = await run(['--expect-ref', REF, '--limit', '3', '--lex', 'clear'], { db: fakeDb(lexWorld()) });
+    expect(ranked(lines)).toEqual(['q-g1eng-2', 'q-g1eng-1']);
+    expect(lines.filter((l) => /^\d+\t/.test(l)).map((l) => l.split('\t')[2])).toEqual(['ur', 'en']);
+  });
+
+  test('--lex hit --apply records only that quiz', async () => {
+    const { r } = await run(['--expect-ref', REF, '--limit', '3', '--lex', 'hit', '--apply'], { db: fakeDb(lexWorld()) });
+    expect(new Set(r2.uploadBuffer.mock.calls.map((c) => c[1].split('/')[2]))).toEqual(new Set(['q-g3sci-2']));
+    expect(r).toMatchObject({ done: 1, failed: 0 });
+  });
+
+  test('without --lex: every quiz, and the output is today\'s (no lex counts)', async () => {
+    const { lines } = await run(['--expect-ref', REF, '--limit', '3'], { db: fakeDb(lexWorld()) });
+    expect(ranked(lines)).toEqual(['q-g3sci-2', 'q-g1eng-2', 'q-g1eng-1']);
+    expect(lines.join('\n')).not.toMatch(/lex/);
+  });
+
+  test('--lex takes hit, clear or all only', () => {
+    expect(() => Backfill.parseArgs(['--lex', 'some'])).toThrow(/--lex/);
+    expect(Backfill.parseArgs(['--lex', 'all']).lex).toBe('all');
+    expect(Backfill.parseArgs([]).lex).toBe(null);
   });
 });

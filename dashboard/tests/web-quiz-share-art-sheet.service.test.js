@@ -14,7 +14,7 @@ const IMG = '/q/TEST01/art/class.jpg?a=c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl';
 const SAVE = `${IMG}&f=sq`;
 const URL_ = 'https://portal.example/q/TEST01/class?v=6';
 
-function fcPage() {
+function fcPage({ nav = {}, File: FileCtor } = {}) {
   let body = '';
   const els = {};
   const events = [];
@@ -25,7 +25,7 @@ function fcPage() {
     body: { insertAdjacentHTML(pos, h) { body += h; }, appendChild() {}, removeChild() {} },
     querySelector: () => null,
   };
-  const ctx = { window: {}, document: doc, location: { origin: 'https://portal.example' }, navigator: {}, localStorage: { getItem: () => null, setItem() {} }, setTimeout() {}, clearTimeout() {}, fetch: () => Promise.resolve({ ok: false }) };
+  const ctx = { window: {}, document: doc, location: { origin: 'https://portal.example' }, navigator: nav, File: FileCtor, localStorage: { getItem: () => null, setItem() {} }, setTimeout() {}, clearTimeout() {}, fetch: () => Promise.resolve({ ok: false }) };
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext(FC_SRC, ctx);
@@ -67,5 +67,28 @@ describe('the class table and the league in the one sheet', () => {
     p.FC.shareArt({ lang: 'en', src: 'table', img: IMG, text: 't', url: 'javascript:alert(1)' });
     expect(p.body()).not.toContain('javascript:');
     expect(p.body()).not.toContain('wqfc-sh-copy');
+  });
+});
+
+describe('one rule decides "Share picture": what the browser can share, the same in every language', () => {
+  class FakeFile { constructor(parts, name, o) { this.name = name; this.type = o && o.type; } }
+  const can = { share: () => Promise.resolve(), canShare: (d) => Boolean(d && d.files && d.files.length) };
+  test.each(['en', 'ur'])('%s: a browser that can share a picture file gets the button, the file downloaded yet or not', (lang) => {
+    const p = fcPage({ nav: can, File: FakeFile });
+    p.FC.shareArt({ lang, src: 'table', img: IMG, text: 't', url: URL_, ev: p.ev });
+    expect(p.body()).toContain('id="wqfc-sh-file"');
+  });
+  test.each(['en', 'ur'])('%s: a browser that cannot share files (WhatsApp\'s own) gets no button', (lang) => {
+    const p = fcPage({ nav: { share: () => Promise.resolve(), canShare: () => false }, File: FakeFile });
+    p.FC.shareArt({ lang, src: 'table', img: IMG, text: 't', url: URL_, ev: p.ev });
+    expect(p.body()).not.toContain('id="wqfc-sh-file"');
+    const q = fcPage();
+    q.FC.shareArt({ lang, src: 'table', img: IMG, text: 't', url: URL_, ev: q.ev });
+    expect(q.body()).not.toContain('id="wqfc-sh-file"');
+  });
+  test('no picture on the sheet: nothing to share as a file, no button', () => {
+    const p = fcPage({ nav: can, File: FakeFile });
+    p.FC.shareArt({ lang: 'en', src: 'table', img: 'https://evil.example/x.jpg', text: 't', url: URL_ });
+    expect(p.body()).not.toContain('id="wqfc-sh-file"');
   });
 });

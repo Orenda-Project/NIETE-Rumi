@@ -47,6 +47,9 @@ function seed(settings) {
     student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
     quizzes: [{ id: 'q-1', topic: 'Fractions quiz', subject: 'Maths', language: 'en', grade: '3', video_id: null }],
     quiz_share_codes: [{ id: 'sc-1', code: 'MATH01', quiz_id: 'q-1', active: true, expires_at: ahead(240), topic: 'Fractions quiz', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: null, invited_by_student_id: null, created_at: ago(30) }],
+    // the class link's questions (GET /quiz/MATH01 answers a playable quiz)
+    quiz_questions: [1, 2].map((n) => ({ id: `cccccc0${n}-cccc-4ccc-8ccc-cccccccccccc`, quiz_id: 'q-1', external_id: `q${n}`, sort_order: n, question_text: `Q${n}`,
+      option_a: 'A', option_b: 'B', option_c: null, option_d: null, correct_option: 'A', explanation: null, option_feedback: null, media: {}, render_pattern: null })),
     quiz_sessions: [{ id: 's1', share_code_id: 'sc-1', quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 8, total_questions_answered: 10, mastery_percentage: 80, completed_at: ago(20), created_at: ago(20), student_class: '3' }],
   };
   const fake = makeFake(db);
@@ -319,12 +322,10 @@ describe('the shared piece any route can call in one line', () => {
 });
 
 describe('switch on: only a route that writes its timings carries the header', () => {
-  test('another answer of the same router (a quiz code, the page\'s own hub POST) and a plain route: no Server-Timing', async () => {
+  test('another answer of the same router (the page\'s own hub POST) and a plain route: no Server-Timing', async () => {
     withSwitch(true);
     await warmHub();
     expect(Timing.on()).toBe(true);
-    const q = await fetch(`${base}/quiz/NOPE99`, { headers: KEY });
-    expect(q.headers.get('server-timing')).toBeNull();
     const p = await fetch(`${base}/hub/${T.signHub([KID])}`, { method: 'POST', headers: { ...KEY, 'content-type': 'application/json' }, body: JSON.stringify({ device_ref: DEV }) });
     expect(p.status).toBe(200);
     expect(p.headers.get('server-timing')).toBeNull();
@@ -335,5 +336,53 @@ describe('switch on: only a route that writes its timings carries the header', (
       const t = await fetch(`http://127.0.0.1:${srv.address().port}/th`);
       expect(t.headers.get('server-timing')).toBeNull();
     } finally { await new Promise((r) => srv.close(r)); }
+  });
+});
+
+// The class link's answer (GET /quiz/:code): the request's own numbers, as the teacher home's routes write them, so a
+// walker can split a slow /q/ open into the edge's wait and the bot's work. A header only; off, today's answer.
+describe('the class link\'s answer (GET /quiz/:code)', () => {
+  const getQuiz = async () => { const r = await fetch(`${base}/quiz/MATH01`, { headers: KEY }); return { r, text: await r.text() }; };
+  // the quiz's teacher may use web links (as on sandbox)
+  const withSwitch = (value) => seed([...BASE, { key: 'web_quiz_teachers', value: '"all"' }, { key: ST_KEY, value }]);
+  test('on: app;dur and the round-trip count, only listed items; the body byte for byte the off answer', async () => {
+    withSwitch(false);
+    await warmHub();
+    const off = await getQuiz();
+    withSwitch(true);
+    await warmHub();
+    const on = await getQuiz();
+    expect([off.r.status, on.r.status]).toEqual([200, 200]);
+    expect(off.r.headers.get('server-timing')).toBeNull();
+    const h = on.r.headers.get('server-timing');
+    expect(h).toMatch(/^app;dur=\d+, dbq;desc="\d+"$/);
+    expect(Names.clean(h)).toBe(h);
+    expect(on.text).toBe(off.text);
+  });
+  test('on: an unknown code\'s answer says it too (a slow "not open" is measured like a quiz)', async () => {
+    withSwitch(true);
+    await warmHub();
+    const q = await fetch(`${base}/quiz/NOPE99`, { headers: KEY });
+    expect(q.status).toBe(404);
+    expect(q.headers.get('server-timing')).toMatch(/^app;dur=\d+, dbq;desc="\d+"$/);
+  });
+  test('on, with the known-child switch on: a closed link still says known: true, and its timing line', async () => {
+    seed([...BASE, { key: 'web_quiz_teachers', value: '"all"' }, { key: ST_KEY, value: true }, { key: 'web_quiz_link_known_child', value: true }]);
+    await warmHub();
+    require('../../../shared/services/quiz/web-quiz-link-known')._resetCache(); // an earlier row's cached off
+    await fetch(`${base}/quiz/NOPE99`, { headers: KEY }); // the known-child switch's cache warms in the background
+    await tick();
+    const q = await fetch(`${base}/quiz/NOPE99`, { headers: KEY });
+    expect(q.status).toBe(404);
+    expect(await q.json()).toMatchObject({ known: true });
+    expect(q.headers.get('server-timing')).toMatch(/^app;dur=\d+, dbq;desc="\d+"$/);
+  });
+  test('off: the answer adds no settings read while the hub\'s switch cache is fresh', async () => {
+    withSwitch(false);
+    await warmHub();
+    reads.length = 0;
+    await getQuiz();
+    await tick();
+    expect(reads).toHaveLength(0);
   });
 });

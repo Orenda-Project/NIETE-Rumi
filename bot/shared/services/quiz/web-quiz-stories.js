@@ -404,7 +404,7 @@ async function bookData(id) {
 // ─── events ────────────────────────────────────────────────────────────────────────────────────────────
 
 async function childEvents(studentId, bookId) {
-  const { data } = await supabase.from('story_events').select('event, page_n, data').eq('child_id', studentId).eq('book_id', bookId);
+  const { data } = await supabase.from('story_events').select('event, page_n, data, at').eq('child_id', studentId).eq('book_id', bookId);
   // Only real effort counts: a read with at least 10 % of its words heard, a listen to a page that had a voice.
   return (data || []).filter((r) => {
     const d = r.data || {};
