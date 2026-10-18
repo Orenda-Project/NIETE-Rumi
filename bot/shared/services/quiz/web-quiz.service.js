@@ -368,6 +368,12 @@ async function isWatchCode(ctx) {
   return watchMemo.get(ctx);
 }
 const watchMemo = new WeakMap();
+// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (a failed read is not cached), so a
+// blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
+async function watchBoard(ctx) {
+  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState()).unreadable) return true;
+  return isWatchCode(ctx);
+}
 async function readCodeParents(ids) {
   const { data, error } = await dbRead('watchRoot:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, parent_share_code_id').in('id', ids));
   if (error) throw new Error(error.message);
@@ -656,6 +662,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
+  // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
@@ -1867,6 +1875,12 @@ async function board(code, { st } = {}) {
   const ctx = await resolveCode(code);
   // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
   if (ctx.invitedByStudentId) fail(404, 'not_found');
+  // The watch quiz (and any code under it) has no class: its table would be every class-less child. No root set: today's.
+  // First, so a watch code never starts the twin read.
+  if (await watchBoard(ctx)) fail(404, 'not_found');
+  // The quiz's twin in the other language, read beside the table only with the switch on (web-quiz-class-twin).
+  const Twin = require('./web-quiz-class-twin');
+  const twinP = doors.then((on) => (on ? Twin.find(ctx) : null));
   const report = require('./video-quiz-report.service');
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).
@@ -1901,6 +1915,22 @@ async function board(code, { st } = {}) {
     const classOf = (r) => { const c = normaliseClasses([r.studentClass])[0]; return /^(1[0-2]|[1-9])$/.test(c || '') ? c : null; };
     const mc = me && classOf(me);
     if (mc) { out.my_class = mc; out.one_class = ranked.every((r) => classOf(r) === mc); }
+    // A table of more than one class: the child's own class on its own, re-ranked (the page's "Only Class 3" chip).
+    // Its rows are the table's own shape; no row carries a class.
+    if (mc && !out.one_class) {
+      const own = rankRows(ranked.filter((r) => classOf(r) === mc).map(({ place, ...r }) => r));
+      const you = own.find((r) => r.sessionId === me.sessionId);
+      out.only = {
+        finishers_n: own.length,
+        class_avg_pct: Math.round(own.reduce((a, r) => a + (r.pct || 0), 0) / own.length),
+        rows: own.slice(0, BOARD_TOP).map((r) => ({ place: r.place, first: r.first, animal: r.animal, correct: r.correct, total: r.total })),
+        more_n: Math.max(0, own.length - BOARD_TOP),
+        ...(you ? { you: { place: you.place, correct: you.correct, total: you.total, pct: you.pct } } : {}),
+      };
+    }
+    // The same lesson in the other language (Play from a table shown in the child's language opens it).
+    const twin = Twin.shown(await twinP, me && me.studentId);
+    if (twin) out.twin = twin;
   }
   return out;
 }

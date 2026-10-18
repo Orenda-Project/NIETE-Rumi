@@ -169,7 +169,7 @@ async function recentCodes(teachers) {
   return plain.data || [];
 }
 
-const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
+const { lessonRefs } = require('./web-quiz-lesson-refs');
 
 async function teacherCard(kidRow, list, history, grade, homeP = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
@@ -577,5 +577,5 @@ module.exports = {
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
   // the per-child reads, for a result card's next thing (web-quiz-next-offer-sources.js snapshot)
-  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf },
+  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf, lessonRefs },
 };
