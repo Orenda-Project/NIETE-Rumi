@@ -10,7 +10,8 @@
  *                    -> {token, url, img, ret: {text, href}}  (url: /q/<CODE>?k=<t> for a class quiz, else /k/<t>)
  *   image(token)     GET /card/<t>.png: the 1200x630 picture (≤ 40 KB PNG), first name + the deed + one sticker,
  *                    drawn through web-quiz-art.js's own headless turn queue and kept in memory by token.
- *   field()          {card_v3: true} on the quiz finish and the Jugnu page's menu when the switch is on, else {}.
+ *   field()          {card_v3: true} on the quiz finish and the Jugnu page's menu when the switch is on, else {};
+ *                    with web_quiz_share_v4 on too, {card_v3: true, share_v4: true} (the quiz card's share is the page's own)
  *   facts(token)     {kind, deed, lang, first, code} for a genuine token, else null (the og head of /k/<t>).
  *
  * The token is the card's facts sealed with AES-256-GCM under a key derived from the web-quiz token secret: a
@@ -28,6 +29,8 @@ const { clampLanguage } = require('../../config/ux-strings');
 const LANG = (v) => clampLanguage(v, ['en', 'ur']);
 
 const KEY = 'web_quiz_card_v3';
+// The one share on top of the card (finish's `share_v4`): read in the card's own settings read, never a read of its own.
+const SHARE_KEY = 'web_quiz_share_v4';
 const TTL_MS = 30 * 1000;
 const W = 1200;
 const H = 630;
@@ -116,17 +119,33 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    cache = { at: now, on: isTrue(((data || [])[0] || {}).value) };
+    const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
+    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)) };
     return cache.on;
   } catch (err) {
-    logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err.message });
-    return false;
+    // the read that names the share failed: the card reads its own key as before, and only the share is off
+    try {
+      const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      cache = { at: now, on: isTrue(((data || [])[0] || {}).value), share: false };
+      return cache.on;
+    } catch (err2) {
+      logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message });
+      return false;
+    }
   }
 }
+/** true only with the card on AND app_settings web_quiz_share_v4 literally true (the same read and cache). */
+async function shareOn(now = Date.now()) {
+  return (await on(now)) && cache.share === true;
+}
 async function field() {
-  try { return (await on()) ? { card_v3: true } : {}; } catch (_) { return {}; }
+  try {
+    if (!(await on())) return {};
+    return cache.share === true ? { card_v3: true, share_v4: true } : { card_v3: true };
+  } catch (_) { return {}; }
 }
 
 // ─── the token ──────────────────────────────────────────────────────────────
@@ -346,6 +365,6 @@ function landing(token) {
 function _reset() { cache = null; mem.clear(); inflight.clear(); }
 
 module.exports = {
-  KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES,
-  on, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES,
+  on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
 };
