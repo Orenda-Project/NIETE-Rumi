@@ -136,7 +136,22 @@
 }
 .fln-snd.fln-snd-pill .fln-snd__bar {
   inset-inline: 20px;
-  bottom: 4px;
+  bottom: 2px;
+  height: 3px;
+}
+/* A11: the pill's state line is always present and out of flow (visually hidden), so a tap never changes the
+   pill's width or height and never re-wraps the sentence it sits in. */
+.fln-snd.fln-snd-pill .fln-snd__state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 /* Urdu pill: Nastaliq is drawn at 400 and needs ~1.9 line height; the state line stays ≥13 px (index.css rule 3). */
 .fln-snd.fln-snd-pill[lang="ur"] .fln-snd__label { font-size: 22px; font-weight: 400; line-height: 1.9; }
@@ -144,7 +159,7 @@
 
 .fln-snd.fln-snd-pill[data-fln-state="loading"] { background: #F1F3F7; }
 .fln-snd.fln-snd-pill[data-fln-state="loading"] .fln-snd__icon { background: #fff; color: var(--fln-navy); box-shadow: inset 0 0 0 2px var(--fln-line); }
-.fln-snd.fln-snd-pill[data-fln-state="playing"] { background: var(--fln-go); border-color: var(--fln-go); color: #fff; padding-bottom: 10px; }
+.fln-snd.fln-snd-pill[data-fln-state="playing"] { background: var(--fln-go); border-color: var(--fln-go); color: #fff; }
 .fln-snd.fln-snd-pill[data-fln-state="playing"] .fln-snd__icon { background: #fff; color: var(--fln-go); }
 .fln-snd.fln-snd-pill[data-fln-state="playing"] .fln-snd__sub { color: #fff; }
 .fln-snd.fln-snd-pill[data-fln-state="error"] { background: var(--fln-warn-bg); border-color: var(--fln-warn); color: var(--fln-warn); }
@@ -204,11 +219,22 @@
   line-height: 1.25;
   color: var(--fln-mut);
   padding-inline: 0;
+  /* A11: the state line is one line of fixed height in every state (present, empty, while idle), so "Playing…" or
+     the retry line never grows the tile; a long line ends in an ellipsis (the corner icon and bar carry the state). */
+  display: block;
+  box-sizing: content-box;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: 0;
+  height: 1.25em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Urdu tile: the letter in Nastaliq at 30 px with room above and below for its tall ink (never clipped). */
 .fln-snd.fln-snd-tile[lang="ur"] .fln-snd__g { font-size: 30px; font-weight: 400; line-height: 1.75; }
 .fln-snd.fln-snd-tile[lang="ur"] .fln-snd__story { font-size: 20px; font-weight: 400; line-height: 1.9; }
-.fln-snd.fln-snd-tile[lang="ur"] .fln-snd__sub { font-size: 13px; font-weight: 400; line-height: 1.8; }
+.fln-snd.fln-snd-tile[lang="ur"] .fln-snd__sub { font-size: 13px; font-weight: 400; line-height: 2; height: 2em; }
 .fln-snd.fln-snd-tile[lang="ur"] { gap: 2px; padding-top: 12px; padding-bottom: 8px; }
 
 .fln-snd.fln-snd-tile .fln-snd__bar { inset-inline: 0; bottom: 0; height: 5px; border-radius: 0; }
