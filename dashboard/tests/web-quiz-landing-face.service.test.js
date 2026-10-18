@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const LIB = path.join(__dirname, '..', 'lib');
-const { landingStrings, cardLanding, LANDING_OWN } = require('../scripts/landing-urdu-face/strings');
+const { landingStrings, cardLanding } = require('../scripts/landing-urdu-face/strings');
 const card = require('../../bot/shared/services/quiz/web-quiz-card-image');
 const face = require('../lib/web-quiz-landing-face');
 
@@ -43,10 +43,10 @@ describe('the landing face covers every Urdu word the landing and its card draw'
     const s = live();
     Object.values(card.COPY.ur).forEach((t) => expect(s).toContain(t));
     expect(s).toContain(card.CARD_RETURN_WORDS.ur);
-    if (card.MARK) Object.values(card.MARK).forEach((m) => expect(s).toContain(m.ur));
+    Object.values(card.MARK).forEach((m) => expect(s).toContain(m.ur));
     const cl = cardLanding(routesSrc);
-    if (cl) Object.values(cl.ur).forEach((t) => expect(s).toContain(t));
-    LANDING_OWN.forEach((t) => expect(s).toContain(t));
+    expect(Object.keys(cl.ur).sort()).toEqual(['hint', 'sub']);
+    Object.values(cl.ur).forEach((t) => expect(s).toContain(t));
   });
 
   test('a changed word is caught: an edited card line is not in the face', () => {
@@ -95,6 +95,28 @@ describe('the face and its one @font-face line', () => {
     }
     expect(cps).toEqual(meta.codepoints);
     expect(face.BYTES).toBe(woff2.length);
+  });
+
+  test('the lazy full face for open text: wq.css\'s own rule for -6, page-absolute URL, swap, no other change', () => {
+    const sheet = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8');
+    const rule = /@font-face\{font-family:"WQ Nastaliq 2";src:url\(fonts\/wq-nastaliq-6\.woff2\)[^}]*\}/.exec(sheet)[0];
+    const full = face.fullFace();
+    expect(full).toBe(rule.replace('url(fonts/', 'url(/wq/fonts/'));
+    expect(full.startsWith('@font-face{font-family:"WQ Nastaliq 2";src:url(/wq/fonts/wq-nastaliq-6.woff2) format("woff2");')).toBe(true);
+    expect(full).toContain('font-display:swap');
+    expect(full).toMatch(/unicode-range:U\+0020,[^}]*U\+0621-063A/);
+    expect(face.FULL_FAMILY).toBe('WQ Nastaliq 2');
+    expect(face.faces()).toBe(face.fontFace() + full);
+    expect(face.faces().match(/@font-face/g)).toHaveLength(2);
+    expect(face.faces()).not.toMatch(/[<>\n]/);
+  });
+
+  test('the exported character set: exactly the face\'s range; every built string is inside it', () => {
+    expect(face.CODEPOINTS).toEqual(meta.codepoints);
+    expect(Object.isFrozen(face.CODEPOINTS)).toBe(true);
+    meta.strings.filter((s) => !/:/.test(s)).forEach((s) => expect(face.covers(s)).toBe(true));
+    expect(face.covers('Amal')).toBe(false);
+    expect(face.covers('چاند کا سفر')).toBe(false); // ف is not in the face: open text never uses it
   });
 
 });

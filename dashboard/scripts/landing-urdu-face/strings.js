@@ -6,9 +6,8 @@
  *
  *   - the card's words, COPY.ur (each deed, the sticker line, the return line and its button), and the words the
  *     return link types (CARD_RETURN_WORDS.ur), from bot/shared/services/quiz/web-quiz-card-image.js
- *   - the activity marks (MARK[kind].ur) when that module has them
- *   - the landing's own words (CARD_LANDING.ur in dashboard/routes/web-quiz.routes.js) when the routes have them,
- *     and LANDING_OWN below, the same words for a base that does not have them yet
+ *   - the activity marks (MARK[kind].ur)
+ *   - the landing's own words (CARD_LANDING.ur in dashboard/routes/web-quiz.routes.js)
  *
  * NOT here, by design: the child's first name. It is open text (any name a teacher typed), which a closed cut cannot
  * shape, so the landing draws it in the system face (see the module's comment).
@@ -22,13 +21,6 @@ const Module = require('module');
 const REPO = path.join(__dirname, '..', '..', '..');
 const CARD = path.join(REPO, 'bot', 'shared', 'services', 'quiz', 'web-quiz-card-image.js');
 const ROUTES = path.join(REPO, 'dashboard', 'routes', 'web-quiz.routes.js');
-
-// The landing's own words and the activity marks, as the one share's landing draws them.
-const LANDING_OWN = Object.freeze([
-  'آپ بھی آئیں اور کھیلیں!',
-  'سبز بٹن دبائیں، پھر واٹس ایپ میں بھیجنے کا بٹن دبائیں۔',
-  'کوئز', 'پڑھنا', 'کہانی', 'کہانی کی کتاب', 'کھیل', 'ویڈیو',
-]);
 
 // The card module needs the database client and the logger only when it is called; for its word lists it loads
 // with both stubbed (no env, no network).
@@ -65,10 +57,9 @@ function landingStrings({ card = loadCard(), routesSrc = fs.readFileSync(ROUTES,
   if (card.MARK) Object.values(card.MARK).forEach((m) => add(m && m.ur));
   const cl = cardLanding(routesSrc);
   if (cl && cl.ur) Object.values(cl.ur).forEach(add);
-  LANDING_OWN.forEach(add);
   return [...new Set(out)].sort();
 }
 
-module.exports = { landingStrings, cardLanding, LANDING_OWN };
+module.exports = { landingStrings, cardLanding };
 
 if (require.main === module) process.stdout.write(`${JSON.stringify(landingStrings(), null, 1)}\n`);
