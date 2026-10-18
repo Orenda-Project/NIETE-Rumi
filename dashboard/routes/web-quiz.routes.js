@@ -1656,15 +1656,36 @@ function createWebQuizRouter(opts = {}) {
   // kept at the edge after the first answer, so the second fetch (and the HEAD) never reaches the bot. Never logs the token.
   const cardKept = Preview.ttlCache({ max: 200, now });
   const cardFacts = Preview.ttlCache({ max: 500, now });
+  // web_quiz_card_ready: the bot stores each card's picture and page at mint, so a cold edge (a new deploy, another
+  // replica) answers a preview from storage, never waiting on a draw. Off: storage is never asked.
+  const StoryAssets = require('./web-quiz-story-assets');
+  const cardReadyOn = opts.cardReadyOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_ready' });
+  const cardObject = opts.cardObject || StoryAssets.r2Object;
+  const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
+  const stored = async (token, ext) => {
+    try { return (await cardReadyOn()) === true ? await cardObject(cardStoreKey(token, ext)) : null; } catch (_) { return null; }
+  };
+  // the card's edge lines also go to the process log (the event sink alone did not reach the deploy's logs)
+  const cardTrace = (evt, props) => {
+    logEvent(evt, props);
+    try { console.log(JSON.stringify({ evt, ...props })); } catch (_) { /* a log line never breaks a page */ }
+  };
   router.get('/wq/card/:token.png', limiters.read, async (req, res) => {
     const token = cardToken(req.params.token);
     if (!token) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const t0 = Date.now();
-    const seen = (from, extra = {}) => logEvent('web_quiz.card_edge', { from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra });
+    const seen = (from, extra = {}) => cardTrace('web_quiz.card_edge', { from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra });
     const send = (pic) => res.status(200).set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     const kept = cardKept.get(token);
     if (kept) { seen('edge'); return send(kept); }
+    const obj = await stored(token, 'png');
+    if (obj && obj.bytes && obj.bytes.length) {
+      const pic = { bytes: obj.bytes, contentType: 'image/png' };
+      cardKept.set(token, pic, CARD_KEEP_MS);
+      seen('store');
+      return send(pic);
+    }
     try {
       const out = await callBot('GET', `/api/internal/wq/card/${token}.png`, req, null, { route: '/api/internal/wq/card/:token.png' });
       if (out.bytes) {
@@ -1713,8 +1734,16 @@ function createWebQuizRouter(opts = {}) {
     const closed = (status) => res.status(status).type('html').send(closedHtml(req, { lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (!token) return closed(404);
     if (!botUrl || !apiKey) return res.status(503).type('html').send(closedHtml(req, { lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    const t0 = Date.now();
     let facts = cardFacts.get(token);
+    let from = facts ? 'edge' : null;
     if (!facts) {
+      // the page's facts stored at mint (web_quiz_card_ready): the head never waits on the bot when cold
+      const obj = await stored(token, 'json');
+      try { const f = obj && obj.bytes ? JSON.parse(obj.bytes.toString('utf8')) : null; if (f && typeof f.deed_text === 'string') { facts = f; from = 'store'; cardFacts.set(token, facts, CARD_KEEP_MS); } } catch (_) { facts = null; }
+    }
+    if (!facts) {
+      from = 'bot';
       try {
         const out = await callBot('GET', `/api/internal/wq/card/${token}`, req, null, { route: '/api/internal/wq/card/:token' });
         if (out.status === 200 && out.body && typeof out.body.deed_text === 'string') { facts = out.body; cardFacts.set(token, facts, CARD_KEEP_MS); }
@@ -1726,7 +1755,9 @@ function createWebQuizRouter(opts = {}) {
       }
     }
     // A shared card opened (a classmate's tap, or the preview crawler): kind and who fetched it, never the token.
-    logEvent('web_quiz.card_open', { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' });
+    const open = { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' };
+    logEvent('web_quiz.card_open', open);
+    try { console.log(JSON.stringify({ evt: 'web_quiz.card_open', ...open, from, ms: Date.now() - t0 })); } catch (_) { /* a log line never breaks a page */ }
     return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand, oneFace: Boolean(lastUi && lastUi.uf === true) }));
   }
   router.get('/k/:token', limiters.read, (req, res) => {
