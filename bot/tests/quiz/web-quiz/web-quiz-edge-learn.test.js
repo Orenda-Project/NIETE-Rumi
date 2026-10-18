@@ -5,18 +5,24 @@
  * GET /api/internal/wq/edge → {learn:false} when off (nothing else), else {learn:true, fast, brand, rt[, ui][, one_face]}:
  * only the fields the edge learns from payloads, read through the same cached switches the payloads use.
  *
- * Reads (the three-assert shape): OFF reads exactly its own key; with the page switches already cached by a page
- * (same run), ON reads no more than OFF plus its own named key; a cold ON reads at most its own key and the five
- * named page switches.
+ * Reads (the three-assert shape): the key rides the hub's one batched read (web-quiz-hub-flags.js KEYS), never a read
+ * of its own. OFF cold reads exactly that one read; with the page switches already cached by a page (same run), ON reads
+ * no more than OFF; a cold ON reads at most that read and the five named page switches.
+ * The hub answer says `edge_learn: true` while on (carry, from that read's cache), so a portal that stopped asking
+ * (off is one ask per process) starts again; off, the hub answer is untouched.
  */
 jest.mock('../../../shared/config/supabase', () => {
   const state = { rows: {}, reads: [] };
   const from = () => {
     let key = null;
+    let keys = null;
     const q = {
       select: () => q,
       eq: (_c, k) => { key = k; return q; },
       maybeSingle: async () => { state.reads.push(key); return { data: key in state.rows ? { key, value: state.rows[key] } : null, error: null }; },
+      // the hub's one batched read (web-quiz-hub-flags.js): recorded as 'hub', its keys kept for the test to check
+      in: (_c, ks) => { keys = ks; return q; },
+      then: (res, rej) => { state.reads.push('hub'); state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
     };
     return q;
   };
@@ -31,8 +37,9 @@ const supabase = require('../../../shared/config/supabase');
 
 const KEY = 'web_quiz_edge_learn';
 const PAGE_KEYS = ['web_quiz_fast', 'web_quiz_rich_telemetry', 'web_quiz_ur_polish', 'web_quiz_one_face', 'web_quiz_brand'];
-// OFF: the endpoint reads its own key once, nothing else (recorded on this code; the constant the OFF row must equal).
+// OFF: the endpoint makes the hub's one batched read, nothing else (recorded on this code; the constant the OFF row must equal).
 const OFF_READS_COLD = 1;
+const HUB_READ = 'hub';
 
 function resetAll() {
   require('../../../shared/services/quiz/web-quiz-edge-learn')._reset();
@@ -103,27 +110,29 @@ describe('GET /api/internal/wq/edge', () => {
     // OFF, cold
     await ask();
     const off = supabase.__state.reads.slice();
-    expect(off).toEqual([KEY]);
+    expect(off).toEqual([HUB_READ]);
     expect(off.length).toBe(OFF_READS_COLD);
-    // OFF, the page switches cached by a page (same run) and the own key stale
+    expect(supabase.__state.hubKeys).toContain(KEY); // the key rides the hub's read
+    // OFF, the page switches cached by a page (same run) and the hub's read stale
     resetAll(); await warmPageSwitches(); supabase.__state.reads = [];
     await ask();
     const offWarm = supabase.__state.reads.slice();
-    expect(offWarm).toEqual([KEY]);
+    expect(offWarm).toEqual([HUB_READ]);
     // ON, the same warm state
     supabase.__state.rows = { [KEY]: true };
     resetAll(); await warmPageSwitches(); supabase.__state.reads = [];
     await ask();
     const onWarm = supabase.__state.reads.slice();
-    expect(onWarm.length).toBeLessThanOrEqual(offWarm.length + 1);
-    expect(onWarm.filter((k) => k !== KEY)).toEqual([]);
+    expect(onWarm.length).toBeLessThanOrEqual(offWarm.length);
+    expect(onWarm.filter((k) => k !== HUB_READ)).toEqual([]);
     // ON, everything cold: its own key and at most the five named page switches, each once
     resetAll();
     await ask(); await tick(); await tick();
     const cold = supabase.__state.reads.slice();
     expect(cold.length).toBeLessThanOrEqual(1 + PAGE_KEYS.length);
     expect(new Set(cold).size).toBe(cold.length);
-    cold.forEach((k) => expect([KEY, ...PAGE_KEYS]).toContain(k));
+    cold.forEach((k) => expect([HUB_READ, ...PAGE_KEYS]).toContain(k));
+    expect(cold).not.toContain(KEY); // never a read of its own
     // and a second ask within 30 s reads nothing
     supabase.__state.reads = [];
     await ask();
@@ -135,20 +144,52 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches(); supabase.__state.reads = [];
     const bodies = [];
     for (let i = 0; i < 8; i += 1) bodies.push((await ask()).body);
-    expect(supabase.__state.reads).toEqual([KEY]);
+    expect(supabase.__state.reads).toEqual([HUB_READ]);
     expect(new Set(bodies.map((b) => JSON.stringify(b))).size).toBe(1);
   });
 
-  test('the hub\'s one settings read can fill this switch (hubSwitches row): then no read of its own', async () => {
-    const EdgeLearn = require('../../../shared/services/quiz/web-quiz-edge-learn');
-    expect(EdgeLearn.hubSwitches).toMatchObject({ name: 'edge-learn', keys: [KEY] });
-    expect(EdgeLearn.hubSwitches.age(Date.now())).toBe('cold');
+  test('another read of the hub\'s KEYS (prime(rows), the join\'s) fills this switch: then no read at all', async () => {
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    expect(Flags.KEYS).toContain(KEY);
     await warmPageSwitches(); supabase.__state.reads = [];
-    EdgeLearn.hubSwitches.prime([{ key: 'web_quiz_fast', value: true }, { key: KEY, value: true }], Date.now());
-    expect(EdgeLearn.hubSwitches.age(Date.now())).toBe('fresh');
+    Flags.prime([{ key: 'web_quiz_fast', value: true }, { key: KEY, value: true }], Date.now());
     expect((await ask()).body.learn).toBe(true);
-    EdgeLearn.hubSwitches.prime([{ key: KEY, value: 'true' }], Date.now());
+    resetAll(); await warmPageSwitches(); supabase.__state.reads = [];
+    Flags.prime([{ key: KEY, value: 'true' }], Date.now());
     expect((await ask()).body).toEqual({ learn: false });
     expect(supabase.__state.reads).toEqual([]);
+  });
+
+});
+
+describe('the hub answer says edge_learn while on (so a portal that stopped asking starts again)', () => {
+  const EdgeLearn = () => require('../../../shared/services/quiz/web-quiz-edge-learn');
+  const Flags = () => require('../../../shared/services/quiz/web-quiz-hub-flags');
+  const HUB = () => ({ lang: 'en', kids: [{ chip: '0123456789abcdef' }], kid: '0123456789abcdef', brand: 'niete' });
+  beforeEach(() => { supabase.__state.rows = {}; resetAll(); });
+
+  test('on (the hub\'s read saw the key true): edge_learn: true, with no read of its own', async () => {
+    Flags().prime([{ key: KEY, value: true }], Date.now());
+    supabase.__state.reads = [];
+    expect(await EdgeLearn().carry(Promise.resolve(HUB()))).toEqual({ ...HUB(), edge_learn: true });
+    expect(supabase.__state.reads).toEqual([]);
+  });
+  test.each([['no row', null], ['the string "true"', 'true'], ['1', 1], ['false', false]])('off (%s): the hub answer untouched, byte for byte', async (_, v) => {
+    Flags().prime(v === null ? [] : [{ key: KEY, value: v }], Date.now());
+    expect(JSON.stringify(await EdgeLearn().carry(HUB()))).toBe(JSON.stringify(HUB()));
+  });
+  test('nothing cached (or older than 30 s): off', async () => {
+    expect(await EdgeLearn().carry(HUB())).toEqual(HUB());
+    Flags().prime([{ key: KEY, value: true }], Date.now() - 31 * 1000);
+    expect(await EdgeLearn().carry(HUB())).toEqual(HUB());
+  });
+  test('only a hub answer carries it (an error or another shape is untouched)', async () => {
+    Flags().prime([{ key: KEY, value: true }], Date.now());
+    expect(await EdgeLearn().carry({ error: 'not_found' })).toEqual({ error: 'not_found' });
+    expect(await EdgeLearn().carry(null)).toBe(null);
+  });
+  test('both hub routes (GET and POST /hub/:token) pass their answer through carry', () => {
+    const src = require('fs').readFileSync(require.resolve('../../../shared/routes/web-quiz-internal.routes'), 'utf8');
+    expect((src.match(/EdgeLearn\(\)\.carry\(WaitUx\.carry\(OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
   });
 });

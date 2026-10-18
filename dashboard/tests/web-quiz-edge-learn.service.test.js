@@ -197,13 +197,16 @@ describe('a fresh portal process: the bot says learn + fast on', () => {
     expect(before).toBe(false);
   });
 
-  it('the 60 s refresh: off at boot, on a minute later → the next page sends the head early', async () => {
+  it('the 60 s refresh: off at boot (one ask, then quiet); a hub answer saying edge_learn re-arms it → the next page sends the head early', async () => {
     let edge = { learn: false };
     const timers = testTimers();
-    const bot = fakeBot({ edge: () => edge, pages: [{ hold: true, res: jsonRes(200, QUIZ({ fast: true })) }] });
+    const bot = fakeBot({ edge: () => edge, pages: [jsonRes(200, HUB({ edge_learn: true })), { hold: true, res: jsonRes(200, QUIZ({ fast: true })) }] });
     srv = await start(build(bot.fetchImpl, { timers }));
     await settle();
     edge = LEARN_ON;
+    await timers.tick();
+    expect(bot.edgeCalls()).toBe(1); // off: no refresh
+    await get(srv, `/h/${TOKEN}`); // the switch flipped on: the hub's answer says so
     await timers.tick();
     expect(bot.edgeCalls()).toBe(2);
     const { before } = await firstByteBeforeAnswer(srv, bot, '/q/AB12CD');
@@ -279,5 +282,127 @@ describe('learn off, failed or hanging: every first page is today\'s, byte for b
     srv = await start(app);
     await settle();
     expect(bot.edgeCalls()).toBe(0);
+  });
+});
+
+// Switch OFF is one ask per process, never a stream (lead-chief-5 060928 MF1, redteam-n2 061309); the call's timeout never
+// holds a process open (MF2); a router built without a fake bot inside a test never calls out (MF3).
+describe('switch off: one boot ask per process lifetime; on: every 60 s; re-armed only by a hub answer carrying the key', () => {
+  let srv;
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+  const tenMinutes = async (timers) => { for (let i = 0; i < 10; i += 1) await timers.tick(); };
+
+  it('off (learn:false): exactly 1 bot call, then the timer is stopped: 0 more calls over 10 minutes', async () => {
+    const timers = testTimers();
+    const bot = fakeBot({ edge: { learn: false } });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    await tenMinutes(timers);
+    expect(bot.edgeCalls()).toBe(1);
+    expect(timers.fn).toBe(null);
+  });
+  it('on (learn:true): asked again every 60 s (boot + 10 over 10 minutes)', async () => {
+    const timers = testTimers();
+    const bot = fakeBot({ edge: LEARN_ON });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    await tenMinutes(timers);
+    expect(bot.edgeCalls()).toBe(11);
+  });
+  it('on, then flipped off: the first learn:false stops the asking', async () => {
+    let edge = LEARN_ON;
+    const timers = testTimers();
+    const bot = fakeBot({ edge: () => edge });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    await timers.tick();
+    edge = { learn: false };
+    await timers.tick();
+    await tenMinutes(timers);
+    expect(bot.edgeCalls()).toBe(3);
+  });
+  it('off → on through a hub answer carrying edge_learn: true re-arms the asking (once); the page is today\'s, without the key', async () => {
+    const timers = testTimers();
+    let edge = { learn: false };
+    const bot = fakeBot({ edge: () => edge, pages: [jsonRes(200, HUB({ edge_learn: true })), jsonRes(200, HUB({ edge_learn: true }))] });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    await tenMinutes(timers);
+    expect(bot.edgeCalls()).toBe(1);
+    const h = await get(srv, `/h/${TOKEN}`);
+    expect(h.body).toBe(renderHubPage({ payload: HUB(), token: TOKEN, origin: ORIGIN, assetV: ver(h.body) }));
+    await get(srv, `/h/${TOKEN}`); // a second answer saying so does not stack a second timer
+    edge = LEARN_ON;
+    await timers.tick();
+    expect(bot.edgeCalls()).toBe(2);
+    await timers.tick();
+    expect(bot.edgeCalls()).toBe(3);
+  });
+  it('the page\'s own hub calls (GET and POST /api/wq/hub/:token) re-arm it too, and their JSON never carries the key', async () => {
+    const timers = testTimers();
+    let edge = { learn: false };
+    const bot = fakeBot({ edge: () => edge, pages: [jsonRes(200, HUB({ edge_learn: true })), jsonRes(200, HUB({ edge_learn: true }))] });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    await tenMinutes(timers);
+    expect(bot.edgeCalls()).toBe(1);
+    const call = (method) => new Promise((resolve, reject) => {
+      const r = http.request({ host: '127.0.0.1', port: srv.address().port, method, path: `/api/wq/hub/${TOKEN}`, headers: { host: 'portal.example', 'content-type': 'application/json' } }, (res) => {
+        let b = ''; res.setEncoding('utf8'); res.on('data', (c) => { b += c; }); res.on('end', () => resolve({ status: res.statusCode, body: b }));
+      });
+      r.on('error', reject);
+      r.end(method === 'POST' ? JSON.stringify({ kid: '0123456789abcdef' }) : undefined);
+    });
+    const g = await call('GET');
+    expect(g.status).toBe(200);
+    expect(g.body).toBe(JSON.stringify(HUB()));
+    edge = LEARN_ON;
+    await timers.tick();
+    expect(bot.edgeCalls()).toBe(2);
+    const p = await call('POST');
+    expect(p.body).toBe(JSON.stringify(HUB()));
+    await timers.tick();
+    expect(bot.edgeCalls()).toBe(3);
+  });
+  it('a hub answer without the key never arms it', async () => {
+    const timers = testTimers();
+    const bot = fakeBot({ edge: { learn: false }, pages: [jsonRes(200, HUB())] });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    await get(srv, `/h/${TOKEN}`);
+    await tenMinutes(timers);
+    expect(bot.edgeCalls()).toBe(1);
+  });
+  it('the edge call\'s timeout timer is unref\'d (it never holds a process or a test run open)', async () => {
+    const real = global.setTimeout;
+    const made = [];
+    const spy = jest.spyOn(global, 'setTimeout').mockImplementation((fn, ms, ...a) => { const t = real(fn, ms, ...a); made.push({ ms, t }); return t; });
+    try {
+      const bot = fakeBot({ edge: 'hang' });
+      const app = express();
+      app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: bot.fetchImpl, botTimeoutMs: 7777, edgeLearn: { timers: testTimers() } }));
+      srv = await start(app);
+    } finally { spy.mockRestore(); }
+    const t = made.filter((m) => m.ms === 7777);
+    expect(t.length).toBe(1);
+    expect(t[0].t.hasRef()).toBe(false);
+    clearTimeout(t[0].t);
+  });
+  it('inside a test run, a router built like production (no fake bot, a bot address and key from a dev .env) makes 0 network calls', async () => {
+    const env = { MAIN_BOT_URL: process.env.MAIN_BOT_URL, INTERNAL_API_KEY: process.env.INTERNAL_API_KEY };
+    process.env.MAIN_BOT_URL = 'http://bot.invalid'; process.env.INTERNAL_API_KEY = 'dev-key-from-env';
+    const calls = [];
+    const had = global.fetch;
+    global.fetch = (...a) => { calls.push(a[0]); return new Promise(() => {}); };
+    try {
+      const app = express();
+      app.use(createWebQuizRouter({ botUrl: process.env.MAIN_BOT_URL, apiKey: process.env.INTERNAL_API_KEY }));
+      srv = await start(app);
+      await settle();
+    } finally {
+      global.fetch = had;
+      Object.entries(env).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; });
+    }
+    expect(calls).toEqual([]);
   });
 });
