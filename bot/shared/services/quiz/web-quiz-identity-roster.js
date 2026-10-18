@@ -52,12 +52,21 @@ async function pageSettings(now = Date.now()) {
 
 async function readSettings(now) {
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
+    // One voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) rides this read, so the page pays no read for
+    // it. A failed read that names it reads the page's own two switches again alone, and one voice is off.
+    const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
+    let { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice']);
+    const withOne = !error;
+    if (!withOne) {
+      logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });
+      ({ data, error } = await two());
+    }
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)) };
+    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
+      oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null };
     return flag;
   } catch (err) {
     logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
@@ -68,6 +77,16 @@ async function readSettings(now) {
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
 async function identityMode(now = Date.now()) {
   return (await pageSettings(now)).mode;
+}
+
+/** The one-voice plan this read carried (web-quiz-one-voice-flag.js), or null: off, or a failed read. */
+async function oneVoicePlan(now = Date.now()) {
+  return (await pageSettings(now)).oneVoice || null;
+}
+
+/** The plan a one-voice row names, kept as that module's reading so its other readers ask no read of their own. */
+function oneVoiceOf(value, now) {
+  try { return require('./web-quiz-one-voice-flag').take(value, now); } catch (_) { return null; }
 }
 
 /** The watch root's share code id, or null (absent, not an id, or a failed read). */
@@ -172,13 +191,16 @@ async function lookupIds(ids) {
   try {
     // child identity store (web_quiz_identity_canon): the same read also carries merged_into, status.
     const canon = Boolean((await require('./web-quiz-identity-flags').flags()).canon);
+    // inside a hub answer with web_quiz_hub_child_memo on, these rows are the answer's shared read (else read here)
+    const ChildRows = require('./web-quiz-hub-child-rows');
+    const stCols = canon ? 'id, list_id, merged_into, status' : 'id, list_id';
     const [{ data: enr }, { data: st }] = await Promise.all([
-      supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true),
-      supabase.from('students').select(canon ? 'id, list_id, merged_into, status' : 'id, list_id').in('id', ids),
+      ChildRows.read('class_enrollments', ids, 'student_id, class_id', () => supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true)),
+      ChildRows.read('students', ids, stCols, () => supabase.from('students').select(stCols).in('id', ids)),
     ]);
     const listIds = [...new Set((st || []).map((s) => s.list_id).filter(Boolean))];
     const { data: lists } = listIds.length
-      ? await supabase.from('student_lists').select('id, class_id').in('id', listIds)
+      ? await ChildRows.read('student_lists', listIds, 'id, class_id', () => supabase.from('student_lists').select('id, class_id').in('id', listIds))
       : { data: [] };
     const classIds = new Set((enr || []).map((e) => e.class_id).filter(Boolean));
     (lists || []).forEach((l) => { if (l.class_id) classIds.add(l.class_id); });
@@ -343,3 +365,4 @@ module.exports = {
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
   _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); },
 };
+module.exports.oneVoicePlan = oneVoicePlan;

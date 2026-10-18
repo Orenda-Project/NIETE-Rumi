@@ -11,12 +11,19 @@
  *
  * The page carries no phone, no school, no test word and no "register"; the name the child types goes in a POST body
  * only, never a URL. The edge holds no token secret and verifies nothing.
+ *
+ * The adventure look (switch web_quiz_adventure_look, decided by the bot: its page answer carries adv:true only when
+ * it and web_quiz_one_button are both stored as JSON true): <html class="wq-adv">, the shared token layer and this page's layer appended to the
+ * inline CSS, the grade chips as the one button's secondary, "Let's go!" and the way back as its primary. join.js is
+ * unchanged; the buttons it adds (.pick, .go) are painted by the same layer. Without it the page is today's, byte for byte.
  */
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createBotClient, bootJson, assetVersion } = require('./web-quiz.routes');
+const { TOKENS_CSS } = require('../../bot/shared/services/first-touch/adventure-look');
+const CutLink = require('./cut-link-page');
 
 // A signed j token (bot web-quiz-student-join.js signJoin): base64url payload "." 22-char signature.
 const JOIN_TOKEN_RX = /^[A-Za-z0-9_-]{16,700}\.[A-Za-z0-9_-]{22}$/;
@@ -113,6 +120,33 @@ input{width:100%;height:56px;border-radius:14px;border:2px solid #e3c48a;padding
 .pick{display:block;width:100%;min-height:56px;margin:8px 0;border-radius:14px;border:2px solid #e3c48a;background:#fff;font-size:20px;font-family:inherit}
 [dir=rtl] main{text-align:right}[dir=rtl] h1{text-align:center}bdi{unicode-bidi:isolate}`;
 
+// The adventure look: the shared token layer, then this page's own layer (everything under html.wq-adv). The one button
+// paints from the variant's --fill / --on / --edge: a primary is 56 px, a secondary 52; .go / .pick (join.js) are the same.
+// The fold: "Let's go!" is on screen at first paint on a 360 x 780 phone with the notice open, words unchanged (Jugnu
+// 64 px, a tighter rhythm, the notice a size smaller; Urdu keeps line-height 1.9).
+// --ink is today's join text colour, declared on <html> so the token layer's var(--ink) (the gold primary's label) resolves.
+// The map is painted on <html> (at least the screen's height, and as tall as the page): no flat band under a short body.
+const ADV_LAYER = `html.wq-adv{--ink:#2b2118;min-height:100%;background-color:var(--ground);color:var(--ink);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}
+html.wq-adv body{background:transparent;color:var(--ink)}
+html.wq-adv .go{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}html.wq-adv .pick{--fill:var(--card);--on:var(--ink);--edge:var(--line)}
+html.wq-adv .wq-btn,html.wq-adv .go,html.wq-adv .pick{display:flex;align-items:center;justify-content:center;min-height:var(--btn-h2);height:auto;padding:var(--sp-2) var(--sp-4);border:0;border-radius:var(--r-btn);background:var(--fill);color:var(--on);box-shadow:var(--sh-btn);line-height:1.3;text-align:center;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--dur-tap),box-shadow var(--dur-tap)}
+html.wq-adv .wq-btn:active,html.wq-adv .go:active,html.wq-adv .pick:active{transform:translateY(var(--press-y));box-shadow:var(--sh-press)}
+html.wq-adv .wq-btn--primary,html.wq-adv .go{min-height:var(--btn-h);font-weight:800}html.wq-adv[lang=ur] .go,html.wq-adv[lang=ur] .pick{line-height:1.6}
+html.wq-adv .wq-btn--secondary,html.wq-adv .pick{border:2px solid var(--line)}
+html.wq-adv .go:disabled{--fill:var(--line);--on:var(--muted);--edge:var(--line);transform:none;cursor:default}
+html.wq-adv .chip.wq-btn{width:56px;min-width:56px;height:56px;min-height:56px;padding:0;font:700 24px/1 system-ui,sans-serif}
+html.wq-adv .chip[aria-pressed=true]{--fill:var(--gold);--edge:var(--gold-d);border-color:var(--gold-d)}
+html.wq-adv input{border-color:var(--line);background:var(--card);border-radius:var(--r-chip);box-shadow:var(--sh-btn-soft)}
+html.wq-adv input:focus{outline:3px solid var(--gold);outline-offset:1px}
+html.wq-adv .notice,html.wq-adv .line{border:2px solid var(--line);background:var(--card);border-radius:var(--r-card);box-shadow:var(--sh-card)}
+html.wq-adv .hint,html.wq-adv .small,html.wq-adv .note{color:var(--muted)}
+html.wq-adv .jg{width:64px;height:64px;margin:0 auto 4px}html.wq-adv h1{margin:4px 0 10px}html.wq-adv .chips{margin-bottom:14px}
+html.wq-adv .notice{margin-top:12px;padding:8px 12px}html.wq-adv[lang=ur] .notice{font-size:17px;line-height:1.9}html.wq-adv .notice p{margin:2px 0}
+html.wq-adv .go{margin:12px 0 10px}`;
+const ADV_CSS = `${CSS}\n${TOKENS_CSS}${ADV_LAYER}`;
+/** The one button's classes after a class list, only in the adventure look. */
+const btn = (adv, cls, kind) => (adv ? `${cls} wq-btn wq-btn--${kind}` : cls);
+
 // quiz_join_early_tap: the chips are drawn before join.js (deferred) binds its listener, so a tap in that window was
 // lost. This runs before the chips exist: it presses the tapped chip at once and keeps its grade on <html data-early>;
 // join.js replays it once it has bound (window.__jnBound stops the keeping). ES5, inline, < 400 bytes.
@@ -123,10 +157,12 @@ const EARLY_TAP = '<script>(function(){var d=document;d.addEventListener("click"
 
 // quiz_join_wait_word: the go button keeps its colour while it waits (join.js marks it aria-busy); on the page only then.
 const WAIT_CSS = '.go[aria-busy=true]:disabled{background:#2a9d8f}';
+// ... and in the adventure look, its own primary colour (the look's disabled rule is the more specific one).
+const ADV_WAIT_CSS = 'html.wq-adv .go[aria-busy=true]:disabled{--fill:var(--land);--on:var(--land-on);--edge:var(--land-edge)}';
 
-function shell({ l, title, body, fontPreload, css = CSS }) {
+function shell({ l, title, body, fontPreload, css = CSS, adv = false }) {
   return `<!doctype html>
-<html lang="${l}" dir="${l === 'ur' ? 'rtl' : 'ltr'}">
+<html lang="${l}" dir="${l === 'ur' ? 'rtl' : 'ltr'}"${adv ? ' class="wq-adv"' : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -140,7 +176,8 @@ ${body}
 }
 
 /** The join screen. Practice: the strip, the grade only (no name, no notice). */
-function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyTap = false, waitWord = false }) {
+function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyTap = false, waitWord = false, adv = false }) {
+  const a = adv === true;
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
   const b = cleanBot(bot);
@@ -149,7 +186,7 @@ function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyT
     noticeSave: c.noticeSave, noticeReadings: c.noticeReadings, isYou: c.isYou, yesMe: c.yesMe, diff: c.diff, full: c.full, open: c.open,
     teacher: c.teacher, off: c.off, offNone: c.offNone, stale: c.stale, error: c.error, wait: c.wait, openWa: c.openWa, ...(wait ? { going: c.going } : {}),
   } };
-  const chips = c.grades.map((g, i) => `<li><button type="button" class="chip" data-tap="grade" data-grade="${i + 1}" aria-pressed="false">${esc(g)}</button></li>`).join('');
+  const chips = c.grades.map((g, i) => `<li><button type="button" class="${btn(a, 'chip', 'secondary')}" data-tap="grade" data-grade="${i + 1}" aria-pressed="false">${esc(g)}</button></li>`).join('');
   const name = practice ? '' : `<label for="jn-name">${esc(c.name)}</label>
 <input id="jn-name" name="first" type="text" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go">
 <p class="hint">${esc(c.hint)}</p>
@@ -160,24 +197,26 @@ ${practice ? `<p class="strip">${esc(c.practice)}</p>\n` : ''}<img class="jg" sr
 <h1 id="jn-h">${esc(c.h)}</h1>
 <ul class="chips" role="group" aria-labelledby="jn-h">${chips}</ul>
 ${name}
-<button type="button" class="go" id="jn-go" data-primary data-tap="go" disabled>${esc(c.go)}</button>
+<button type="button" class="${btn(a, 'go', 'primary')}" id="jn-go" data-primary data-tap="go" disabled>${esc(c.go)}</button>
 <div id="jn-out" aria-live="polite"></div>
 ${practice ? '' : `<p class="note">${esc(c.later)}</p>\n`}</main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/join.js?v=${esc(jsV || assetV)}" defer></script>
 </body>`;
-  return shell({ l, title: c.title, body, fontPreload: !practice, ...(wait ? { css: CSS + WAIT_CSS } : {}) });
+  const css = a ? `${ADV_CSS}${wait ? WAIT_CSS + ADV_WAIT_CSS : ''}` : (wait ? CSS + WAIT_CSS : CSS);
+  return shell({ l, title: c.title, body, fontPreload: !practice, css, adv: a });
 }
 
 /** The expired (or failed) link: the signed words and ONE tap back to WhatsApp (when the bot's number is known). */
-function renderJoinNote({ lang, kind, bot = null }) {
+function renderJoinNote({ lang, kind, bot = null, adv = false }) {
+  const a = adv === true;
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
   const b = cleanBot(bot);
-  const tap = b ? `<a class="go" href="${esc(waLink(b))}">${esc(c.openWa)}</a>` : '';
+  const tap = b ? `<a class="${btn(a, 'go', 'primary')}" href="${esc(waLink(b))}">${esc(c.openWa)}</a>` : '';
   return shell({ l, title: c.title, body: `<body>
 <main data-screen="join_note"><img class="jg" src="/wq/jugnu/hello.webp" alt="" width="96" height="96"><p class="line">${esc(kind === 'stale' ? c.stale : c.error)}</p>${tap}</main>
-</body>` });
+</body>`, css: a ? ADV_CSS : CSS, adv: a });
 }
 
 function createQuizJoinRouter(opts = {}) {
@@ -193,12 +232,22 @@ function createQuizJoinRouter(opts = {}) {
   let jsV = null;
   let lastBot = null;   // the number the bot gave last, for an error page drawn when the bot answers with a failure
   const phoneLang = (req) => (/^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en');
+  // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired note; OFF = today
+  const cutLinkOn = CutLink.switchOf(opts);
+  const envBot = () => cleanBot(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, ''));
 
   // The limiter counts only pages the bot agreed to draw: with the switch off, every request still falls through to the
   // portal's own answer (a school's shared connection never meets a 429 from a page that does not exist).
   router.get('/quiz/join/:token', async (req, res, next) => {
     const token = String(req.params.token || '');
-    if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) return next();
+    if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) {
+      // a cut-short or junk link, with quiz_cut_link_page on: the expired note a stale link gets, no bot call
+      if (botUrl && apiKey && CutLink.isOn(cutLinkOn)) {
+        res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+        return res.status(410).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'stale', bot: lastBot || envBot() }));
+      }
+      return next();
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/join/page/${token}`, req, null, { route: '/api/internal/wq/join/page/:token' });
@@ -213,11 +262,11 @@ function createQuizJoinRouter(opts = {}) {
 
   function draw(req, res, token, out) {
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
-    if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale', bot: cleanBot(out.body && out.body.bot) }));
+    if (out.status === 410) return res.status(410).type('html').send(renderJoinNote({ lang: (out.body && out.body.lang) || phoneLang(req), kind: 'stale', bot: cleanBot(out.body && out.body.bot), adv: Boolean(out.body && out.body.adv === true) }));
     if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error', bot: lastBot }));
     assetV = assetV || assetVersion();
     jsV = jsV || fileVersion('join.js');
-    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, earlyTap: out.body.earlyTap === true, waitWord: out.body.waitWord === true }));
+    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, earlyTap: out.body.earlyTap === true, waitWord: out.body.waitWord === true, adv: out.body.adv === true }));
   }
   return router;
 }
