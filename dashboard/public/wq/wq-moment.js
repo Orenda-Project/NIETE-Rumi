@@ -25,7 +25,7 @@
  */
 (function () {
   'use strict';
-  // Lights by words a minute, by grade (the reading lead's bands): the first light for any word read.
+  // Lights by words a minute, by grade (the reading bands): the first light for any word read.
   var BANDS = { lo: [1, 10, 20, 35, 50], mid: [1, 15, 30, 50, 70], hi: [1, 20, 40, 60, 85] };
   var STAR_AT = [0.7, 0.9];      // 2 stars from 70 % of the words read right, 3 from 90 %
   var GROWTH_UP = 2;             // "faster than last time" from 2 more words a minute; within 1 is "steady"
@@ -116,7 +116,7 @@
   function html(fb, lang, o) {
     o = o || {};
     var l = L(lang), c = C[l], lv = level(fb, o.grade), dir = l === 'ur' ? 'rtl' : 'ltr', i;
-    var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + '" data-deed="read" data-moment="' + esc(o.moment || 'read-result') + '" data-rf' + (lv.lights ? ' data-level="' + lv.lights + '"' : '') + ' role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
+    var out = '<section class="wq-moment' + (o.size === 's' ? ' wq-moment--s' : '') + (o.still ? ' wq-moment--still' : '') + '" data-deed="read" data-moment="' + esc(o.moment || 'read-result') + '" data-rf' + (lv.lights ? ' data-level="' + lv.lights + '"' : '') + ' role="status" aria-live="polite" lang="' + l + '" dir="' + dir + '">' +
       '<div class="wq-moment-sky" aria-hidden="true"></div>';
     // Jugnu stays and reacts (o.jg: a host with no Jugnu of its own on the result): cheering 3 stars, happy for fewer,
     // hello after a 0-word try
@@ -222,6 +222,11 @@
     el.innerHTML = k ? '<span>' + esc(c.near) + '</span>' + (k === 2 ? ' <button class="wqs-sec" data-tap="rfwith">' + esc(c.withJ) + '</button>' : '') : '';
   }
   function say(k, lang) { return C[L(lang)][k]; }
+  // once per result: the sound, the fanfare and the moment's motion play on a result's first draw only (key: the run
+  // token and the card); a redraw of the same result (live, then checked, then the words) is laid in still and silent
+  var fired = {};
+  function once(key) { if (fired[key]) return false; fired[key] = 1; return true; }
+  function fresh(key) { return !fired[key]; }
   // the storybook reader's glue (wq-stories-q.js keeps its size budget): q(k, R, m, x) with the reader R, its machine m
   //   'page': this page's read, drawn (x {rd, st, sents}); 'hear': its skipped sentence played; 'withJ': the chip's "Read with Jugnu"; 'line': the read screen's [data-near] line; 'tick': near() for this read
   //   (x {g, v, ms}); 'with': stop the quiet read; 'after': after the result, Jugnu reads the page when that was tapped
@@ -236,5 +241,5 @@
     if (R.rfw) { R.rfw = 0; if (m.label() === 'listen') m.primary(); }
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, q: q, BANDS: BANDS };
+  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
 })();

@@ -261,7 +261,7 @@ describe('the key on: the moment answers the read on the end card', () => {
       expect(h).toContain('id="wqc-again"');
     }
   });
-  test('Story Time\'s end (the operator\'s screen: "Read this story again any time."): the moment comes with it', () => {
+  test('Story Time\'s end (the story-done screen: "Read this story again any time."): the moment comes with it', () => {
     for (const lang of ['en', 'ur']) {
       const t = trail({ lang, href: STORY_HREF, menu: { v2: { story: true }, ...RF }, data: { story_room: true, practice_round: true } });
       t.TR.menu();
@@ -534,5 +534,79 @@ describe('Read aloud without the Trail', () => {
     p.w.readResult({ later: true });
     await p.flush();
     expect(p.html()).not.toContain('data-rf');
+  });
+
+  // the speed is said once: the moment carries it beside the jar; the old bare line and its growth line stay empty
+  const LONG = { score: { correct: 46, attempted: 50, stopped: false }, wcpm: 48, previous: { wcpm: 40 } };
+  const minutes = (h) => (text(h).match(/words (in )?a minute/g) || []).length;
+  test('key on (live reading v3 off): the live card and the checked card say the speed once, inside the moment', async () => {
+    const p = plain('en', RF);
+    const { held, settled } = await live(p, LONG);
+    expect(held).not.toMatch(/id="wqc-score">[^<]/);
+    expect((p.els['wqc-score'] && p.els['wqc-score'].textContent) || '').toBe('');
+    expect((p.els['wqc-growth'] && p.els['wqc-growth'].textContent) || '').toBe('');
+    expect(minutes(settled)).toBe(1);
+    expect(settled).toContain('48 words a minute');
+  });
+  test('key on (live reading v3 off), a checked read on the recording path: one "words a minute", in the moment', async () => {
+    const p = plain('en', RF);
+    p.w.open('read'); await p.flush();
+    p.w.readResult(LONG);
+    await p.flush();
+    expect(minutes(p.html())).toBe(1);
+    expect(p.html()).not.toContain('id="wqc-score"');
+    expect(p.html()).not.toContain('id="wqc-growth"');
+  });
+  // the sound plays once per result: a checked result that redraws the whole card (heard, but 0 a minute) is silent
+  const counter = (p) => { const n = []; p.win.WQJ = new Proxy({}, { get: (_o, k) => (typeof k === 'string' ? (...a) => { n.push(k); return a[0]; } : undefined) }); return n; };
+  test('key on: the badge jingle plays once from the live card to the checked one', async () => {
+    const p = plain('en', RF);
+    const n = counter(p);
+    await live(p, { score: { correct: 0, attempted: 10, stopped: false }, wcpm: 0 });
+    expect(n.filter((x) => x === 'badge' || x === 'sentence')).toHaveLength(1);
+  });
+  test('key on, live reading v3 on, a heard read on the recording path: Jugnu says "done" once and the questions ask about the part read', async () => {
+    FakeSocket.all = [];
+    const DONE = { ...H.CLIPS, done: { text: 'Great reading! Well done.', url: 'https://clip.test/done.mp3' } };
+    const p = H.page({ lang: 'en', menu: PLAIN_MENU('en', { ...RF, lr3: true }), freshEls: true, pre: [LIVE_SRC, LR_SRC, MOMENT_SRC], routes: {
+      'ch/HUB.TOKEN/read': H.ok({ ...PLAIN_READ('en'), clips: DONE, lr3: LR3, questions_on: true }), 'ch/qs': H.ok({ qs: [] }),
+    } });
+    p.w.open('read'); await p.flush();
+    p.w.readResult(LONG);
+    await p.flush();
+    expect(p.played.filter((u) => u === 'https://clip.test/done.mp3')).toHaveLength(1);
+    await p.click('wqc-qa'); await p.flush(); await p.flush();
+    const qs = p.fetches.find((f) => /ch\/qs/.test(f.url));
+    expect(qs && JSON.parse(qs.init.body).attempted).toBe(50);
+  });
+});
+
+// ---- once per result: the finish beat and the badge play on the first card; the checked redraw is silent --------------
+describe('once per result (key on)', () => {
+  const count = (t, k) => t.juice.filter((x) => x === k || x.indexOf(`${k}:`) === 0).length;
+  test('the Trail: the held card, then the checked card: one finish beat, one badge, the moment kept still on the redraw', () => {
+    const t = trail({ menu: RF, data: { questions_on: true } });
+    t.TR.readHold({ score: { attempted: 50 }, rf: { score: { correct: 50, attempted: 50 }, secs: 70 } }, null, 4);
+    t.TR.readEnd({ ...CHECKED, rf: CHECKED }, null, 4);
+    expect(count(t, 'finish')).toBe(1);
+    expect(count(t, 'badge')).toBe(1);
+    expect(t.html()).toContain('48 words a minute');
+    expect(t.html()).toContain('wq-moment--still');
+  });
+  test.each(['en', 'ur'])('%s: Story Time, held then checked (fold on, a practice run): one fanfare, one badge, the moment stays', (lang) => {
+    const t = trail({ lang, href: STORY_HREF, menu: { ...FOLD, v2: { story: true }, ...RF }, data: { story_room: true, practice_round: true } });
+    t.TR.menu();
+    t.TR.readHold({ score: { attempted: 50 }, rf: { score: { correct: 50, attempted: 50 }, secs: 70 } }, null, 50);
+    t.TR.storySettled({ ...CHECKED, next_offer: NEXT });
+    expect(count(t, 'finish')).toBe(1);
+    expect(count(t, 'badge')).toBe(1);
+    expect(t.html().match(/data-rf/g)).toHaveLength(1);
+    expect(t.html()).toContain('wq-moment--still');
+  });
+  test('the same result drawn twice (one run): one badge', () => {
+    const t = trail({ menu: RF });
+    t.TR.readEnd({ ...CHECKED, rf: CHECKED }, null, 4);
+    t.TR.readEnd({ ...CHECKED, rf: CHECKED }, null, 4);
+    expect(count(t, 'badge')).toBe(1);
   });
 });

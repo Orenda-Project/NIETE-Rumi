@@ -43,6 +43,8 @@
 .wq-moment-star:nth-child(1){animation-delay:.75s}.wq-moment-star:nth-child(2){animation-delay:.9s}.wq-moment-star:nth-child(3){animation-delay:1.05s}
 .wq-moment-badge{animation-delay:1.2s}
 @media (prefers-reduced-motion:reduce){.wq-moment *{animation:wq-moment-fade .15s both!important}}
+/* a redraw of the same result: the moment stays as it was, no motion again */
+.wq-moment--still,.wq-moment--still *{animation:none!important}
 @keyframes wq-moment-fade{from{opacity:0}to{opacity:1}}
 /* Jugnu on the result (a host with no Jugnu of its own) hops in; leaning in on a quiet read */
 .wq-moment-jg{display:block;margin:0 auto 6px;animation:wq-moment-hop 900ms var(--ease-pop,cubic-bezier(.34,1.56,.64,1)) both}
