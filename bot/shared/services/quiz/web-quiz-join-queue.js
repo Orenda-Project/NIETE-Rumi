@@ -44,13 +44,8 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
-// The teacher in an event is the events' keyed reference, never the id: HMAC(kid key, 't|' + users.id)[:16];
-// null without the key (never an unkeyed hash).
-const tkOf = (userId) => {
-  const k = process.env.WEB_QUIZ_KID_KEY;
-  if (typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-  return crypto.createHmac('sha256', k).update(`t|${userId}`).digest('hex').slice(0, 16);
-};
+// The teacher in an event is the events' keyed reference, never the id (null without the key, or without an id).
+const tkOf = (userId) => require('./web-quiz-kid').tk(userId);
 
 /** The keyed child id for an event (the event-key module, when present); nothing when it is not. Never a raw id. */
 function kidFor(canonicalId) {
@@ -64,6 +59,7 @@ function kidFor(canonicalId) {
 }
 const IdFlags = require('./web-quiz-identity-flags');
 const { inChunks } = require('./web-quiz-in-chunks');   // every `.in()` on a data-sized list: <= 200 ids a request
+const { watchRootId, notUnderWatchRoot } = require('./watch-root');   // the watch root: one parse, one rule (a leaf: not the report's stack)
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
 // Bounded labelling mode (IDENTITY §12 gate, ruled 15 Oct 2026): the queue serves roster_unique_with_loose only (0 wrong
@@ -118,6 +114,20 @@ async function rows(query) {
 }
 const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 
+// The watch root and every code whose parent chain reaches it copy its teacher but are not that teacher's class (a
+// class-less child's code, a friend's code under it, ...): never pooled or linked. No root: every code, as today. It
+// fails closed: an unreadable VALUE throws (an empty queue, nothing linked), a chain past the cap or a loop is out.
+async function codesOffWatchRoot(query) {
+  const root = await watchRootId(Date.now(), { strict: true });
+  const codes = await rows(notUnderWatchRoot(query, root));   // the root's own children leave in the query
+  if (!root) return codes;
+  const byId = new Map(codes.map((x) => [x.id, x]));
+  const up = uniq(codes.map((x) => x.parent_share_code_id)).filter((p) => !byId.has(p));
+  const watch = new Set((up.length ? await inChunks(() => supabase.from('quiz_share_codes').select('id').eq('parent_share_code_id', root), 'id', up) : []).map((x) => x.id));
+  const off = (x, n = 0) => x.id === root || watch.has(x.parent_share_code_id) || (byId.has(x.parent_share_code_id) && (n >= 50 || off(byId.get(x.parent_share_code_id), n + 1)));
+  return codes.filter((x) => !off(x));
+}
+
 /** The teacher's classes (class_teachers active ∪ the teacher's lists' classes) and lists (own ∪ on those classes). */
 async function teacherScope(t) {
   const ct = await rows(supabase.from('class_teachers').select('class_id').eq('teacher_user_id', t).eq('is_active', true));
@@ -164,7 +174,7 @@ async function teacherRoster(t, scope) {
  * it only keeps its same-name look-alike on another phone and device blocked in route(), as it did before the merge.
  */
 async function teacherLoose(t) {
-  const codes = await rows(supabase.from('quiz_share_codes').select('id').eq('teacher_user_id', t));
+  const codes = await codesOffWatchRoot(supabase.from('quiz_share_codes').select('id, parent_share_code_id').eq('teacher_user_id', t));
   const quizzes = await rows(supabase.from('quizzes').select('id').eq('teacher_id', t));
   const sCols = 'student_id, parent_phone, device_ref';
   const viaCode = codes.length ? await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'share_code_id', codes.map((x) => x.id)) : [];
@@ -776,8 +786,10 @@ async function linkClassCodes({ teacherUserId, classId } = {}) {
   try {
     const { classIds } = await teacherScope(teacherUserId);
     if (!classIds.includes(classId)) return { linked: 0, reason: 'not_your_class' };
-    const done = await rows(supabase.from('quiz_share_codes').update({ class_id: classId })
-      .eq('teacher_user_id', teacherUserId).is('class_id', null).select('id'));
+    const ids = (await codesOffWatchRoot(supabase.from('quiz_share_codes').select('id, parent_share_code_id')
+      .eq('teacher_user_id', teacherUserId).is('class_id', null))).map((x) => x.id);
+    const done = await inChunks(() => supabase.from('quiz_share_codes').update({ class_id: classId })
+      .eq('teacher_user_id', teacherUserId).is('class_id', null).select('id'), 'id', ids);
     logToFile('🔗 join queue: quiz codes linked to a class', { teacherUserId, classId, n: done.length });
     return { linked: done.length };
   } catch (err) {

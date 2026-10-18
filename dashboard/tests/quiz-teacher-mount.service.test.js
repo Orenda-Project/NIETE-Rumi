@@ -13,7 +13,12 @@ function codeOf(file) {
 
 test('dashboard/index.js mounts the teacher home edge before the static files and the SPA catch-all', () => {
   const code = codeOf(path.join(__dirname, '..', 'index.js'));
-  const at = code.indexOf("app.use(require('./routes/quiz-teacher.routes').createQuizTeacherRouter())");
+  // its own line, or its line in the edge list (routes/edge-mounts.js) that index.js mounts in one loop
+  const line = code.indexOf("app.use(require('./routes/quiz-teacher.routes').createQuizTeacherRouter())");
+  const at = line > -1 ? line : code.indexOf("require('./routes/edge-mounts')");
+  if (line === -1) {
+    expect(require('../routes/edge-mounts').some(([, f, m]) => f === 'quiz-teacher.routes' && m === 'createQuizTeacherRouter')).toBe(true);
+  }
   expect(at).toBeGreaterThan(-1);
   expect(at).toBeLessThan(code.indexOf("app.use(express.static(path.join(__dirname, 'public')))"));
   expect(at).toBeLessThan(code.indexOf("app.get('*'"));

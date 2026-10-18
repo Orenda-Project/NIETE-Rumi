@@ -83,7 +83,8 @@ async function canonical(ids) {
 }
 
 /**
- * The children this browser holds, newest first: [{id, student_name, student_name_urdu, self_reported_class}] (≤ KIDS_MAX).
+ * The children this browser holds, newest first: [{id, student_name, student_name_urdu, self_reported_class, list_id}]
+ * (all of them: the Redis list is ≤ 8; the cap of KIDS_MAX is applied AFTER the class filter, in namedOn).
  * [] with no device, nobody trusted, Redis down, or any read error.
  */
 async function heldBy(device, onHeld = null) {
@@ -94,21 +95,24 @@ async function heldBy(device, onHeld = null) {
   // the caller's reads that need no child start now, beside the reads below (only for a phone that holds someone)
   if (onHeld) onHeld();
   const map = await canonical(held);
-  const out = [];
+  // each child once, by the one id they are known by (the newest record the phone was trusted with decides)
+  const each = [];
   const seen = new Set();
   for (const id of held) {
     const c = String(map.get(String(id)) || id);
     if (seen.has(c)) continue;
     seen.add(c);
-    // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it
-    if (await Device.deviceMayName([...new Set([String(id), c])], d)) out.push({ c, rank: out.length });
+    each.push({ id: String(id), c });
   }
+  // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it — all at once
+  const may = await Promise.all(each.map((x) => Device.deviceMayName([...new Set([x.id, x.c])], d).catch(() => false)));
+  const out = each.filter((_, i) => may[i]);
   if (!out.length) return [];
   const { data, error } = await dbRead('linkKnown:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active, status').in('id', out.map((x) => x.c)));
   if (error) return [];
   const by = new Map((data || []).filter((r) => r.is_active !== false && r.status !== 'merged').map((r) => [String(r.id), r]));
-  return out.map((x) => by.get(x.c)).filter(Boolean).slice(0, KIDS_MAX);
+  return out.map((x) => by.get(x.c)).filter(Boolean);
 }
 
 const safe = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r.data || [] : []), () => []);
@@ -158,7 +162,8 @@ async function ofLink(ctx, kids, early) {
 async function namedOn(ctx, device) {
   let early = null;
   const kids = await heldBy(device, () => { early = linkReads(ctx); });
-  return early ? ofLink(ctx, kids, early) : [];
+  // filter THEN cap: an older held child of this class is never pushed out by newer children of other classes
+  return early ? (await ofLink(ctx, kids, early)).slice(0, KIDS_MAX) : [];
 }
 
 function shownFirst(lang, k) {

@@ -1,0 +1,1655 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "لفظ \"آتش زدہ\" کا کیا مطلب ہے؟",
+     "options": [
+      "الف) پرانا اور خستہ",
+      "ب) جس میں آگ لگ جائے",
+      "ج) راستہ چلنے والا",
+      "د) راضی اور آمادہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) جس میں آگ لگ جائے",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "محترمہ فاطمہ جناح نے کس پیشے کی تعلیم حاصل کی؟",
+     "options": [
+      "الف) وکالت",
+      "ب) دندان سازی",
+      "ج) تدریس",
+      "د) صحافت"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) دندان سازی",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "ہیروشیما پر ایٹم بم گرنے کے بعد سدرہ نے کیا بنایا؟",
+     "options": [
+      "الف) ایک اسکول",
+      "ب) ایک ہسپتال",
+      "ج) ایک تھیٹر کمپنی",
+      "د) ایک کتب خانہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) ایک تھیٹر کمپنی",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "نظم \"ندی کی فریاد\" کے شاعر کون ہیں؟",
+     "options": [
+      "الف) شیخ سعدی",
+      "ب) خالد مقبول",
+      "ج) میر تقی میر",
+      "د) کوثر صدیقی"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) کوثر صدیقی",
+     "blooms": "Remember"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "لفظ \"لبریز\" کا مطلب کیا ہے؟",
+     "options": [
+      "الف) کناروں تک بھرا ہوا",
+      "ب) بالکل خالی",
+      "ج) آدھا بھرا ہوا",
+      "د) ٹوٹا ہوا"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) کناروں تک بھرا ہوا",
+     "blooms": "Understand"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "شیخ سعدی کی حکایت میں لومڑی کو دیکھ کر آدمی کو کیا نصیحت ملی؟",
+     "options": [
+      "الف) محنت چھوڑ کر انتظار کرنا چاہیے",
+      "ب) شکار سے ڈرنا چاہیے",
+      "ج) محنت کر کے دوسروں کی مدد کرنی چاہیے",
+      "د) جنگل میں رہنا چاہیے"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) محنت کر کے دوسروں کی مدد کرنی چاہیے",
+     "blooms": "Understand"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "جامع نظامِ تعلیم کا مقصد کیا ہے؟",
+     "options": [
+      "الف) ہر قسم کے بچے کو اس کی ضرورت کے مطابق تعلیم دینا",
+      "ب) صرف امیر بچوں کو پڑھانا",
+      "ج) صرف کھیل سکھانا",
+      "د) صرف غریب بچوں کو پڑھانا"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) ہر قسم کے بچے کو اس کی ضرورت کے مطابق تعلیم دینا",
+     "blooms": "Understand"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "عبدالشکور کو ایدھی صاحب کی کس بات نے سب سے زیادہ متاثر کیا؟",
+     "options": [
+      "الف) ان کی دولت",
+      "ب) کام سے سچا لگاؤ اور محبت",
+      "ج) ان کا مشہور ہونا",
+      "د) ان کا بڑا گھر"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) کام سے سچا لگاؤ اور محبت",
+     "blooms": "Understand"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "\"اگر بارش ہوئی تو موسم اچھا ہو جائے گا\" میں حرفِ شرط کون سا ہے؟",
+     "options": [
+      "الف) تو",
+      "ب) ہو جائے گا",
+      "ج) موسم",
+      "د) اگر"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) اگر",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "\"چوں کہ\" کے ساتھ جزا کا کون سا حرف آتا ہے؟",
+     "options": [
+      "الف) توں توں",
+      "ب) اس لیے",
+      "ج) ویسے ویسے",
+      "د) مگر"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) اس لیے",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "\"چڑیا کی چیں چیں\" میں اسم کی کون سی قسم ہے؟",
+     "options": [
+      "الف) اسم آلہ",
+      "ب) اسم معرفہ",
+      "ج) اسم صوت",
+      "د) اسم صفت"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) اسم صوت",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "\"قینچی\" اسم کی کون سی قسم ہے؟",
+     "options": [
+      "الف) اسم صوت",
+      "ب) اسم آلہ",
+      "ج) اسم صفت",
+      "د) اسم معرفہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) اسم آلہ",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "\"نیلی گاڑی\" میں موصوف کون سا لفظ ہے؟",
+     "options": [
+      "الف) نیلی",
+      "ب) دونوں",
+      "ج) گاڑی",
+      "د) کوئی نہیں"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) گاڑی",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "لفظ \"دوست\" کا متضاد کون سا ہے؟",
+     "options": [
+      "الف) ساتھی",
+      "ب) دشمن",
+      "ج) یار",
+      "د) رفیق"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ب) دشمن",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "درست املا والا لفظ کون سا ہے؟",
+     "options": [
+      "الف) تربوض",
+      "ب) طربوز",
+      "ج) تربوز",
+      "د) طربوض"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) تربوز",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "محاورہ \"آگ بگولا ہونا\" کس موقع پر استعمال ہوگا؟",
+     "options": [
+      "الف) بہت غصے میں آنے پر",
+      "ب) بہت خوش ہونے پر",
+      "ج) بہت تھک جانے پر",
+      "د) بہت ڈر جانے پر"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) بہت غصے میں آنے پر",
+     "blooms": "Apply"
+    },
+    {
+     "slot": "urdu.A.Q1",
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "\"سحر\" (زبر کے ساتھ) کا مطلب کیا ہے؟",
+     "options": [
+      "الف) جادو",
+      "ب) رات",
+      "ج) دوپہر",
+      "د) صبح"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) صبح",
+     "blooms": "Apply"
+    },
+    {
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "محترمہ فاطمہ جناح نے مسلم لیگ کی مالی مدد کے لیے خواتین سے کس چیز کے انعقاد کو کہا؟",
+     "options": [
+      "الف) مینا بازار",
+      "ب) کتب میلہ",
+      "ج) کھیلوں کا مقابلہ",
+      "د) تقریری مقابلہ"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "الف) مینا بازار",
+     "blooms": "Remember",
+     "slot": "urdu.A.Q1"
+    },
+    {
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "شیخ سعدی کی حکایات جس کتاب میں موجود ہیں اس کا نام کیا ہے؟",
+     "options": [
+      "الف) شاہ نامہ",
+      "ب) مثنوی",
+      "ج) بوستان",
+      "د) گلستان"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "د) گلستان",
+     "blooms": "Remember",
+     "slot": "urdu.A.Q1"
+    },
+    {
+     "main_question": "صحیح جواب کا انتخاب کریں",
+     "question": "ہیروشیما پر ایٹم بم کے حملے کے وقت سدرہ کی عمر کا کون سا واقعہ اس کی سالگرہ کے دن پیش آیا؟ سدرہ کی بہن کا نام کیا تھا؟",
+     "options": [
+      "الف) سدرہ",
+      "ب) فاطمہ",
+      "ج) امینہ",
+      "د) پنکی"
+     ],
+     "marks": 1,
+     "lines": 0,
+     "answer": "ج) امینہ",
+     "blooms": "Remember",
+     "slot": "urdu.A.Q1"
+    }
+   ]
+  },
+  "subjective": {
+   "Comprehension Passage": [
+    {
+     "slot": "urdu.B.Q2",
+     "main_question": "عبارت پڑھ کر سوالوں کے جواب دیں",
+     "passage": "صبح کا وقت تھا۔ ثناء جلدی سے اٹھی اور اپنا بستہ تیار کیا۔ امی نے اس کے لیے گرم ناشتہ بنایا تھا۔ ابو اسے اسکول چھوڑنے گئے۔ راستے میں ہری بھری گھاس اور رنگین پھول نظر آئے۔ اسکول پہنچ کر ثناء نے اپنی سہیلی مریم کو سلام کیا۔ کلاس میں استانی صاحبہ نے نیا سبق پڑھایا۔ ثناء نے غور سے سنا اور کاپی میں خوب صورت لکھائی کی۔ آدھی چھٹی میں سب بچوں نے مل کر کھانا کھایا۔ شام کو ثناء گھر لوٹی تو دادی جان کہانی سنانے بیٹھ گئیں۔ پورا گھر ہنسی خوشی سے بھر گیا۔ ثناء نے سوچا کہ اسکول اور گھر دونوں میں محبت ملتی ہے۔",
+     "parts": [
+      {
+       "key": "questions",
+       "questions": [
+        {
+         "question": "ثناء کے لیے ناشتہ کس نے بنایا تھا؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "ثناء کے لیے ناشتہ امی نے بنایا تھا۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "ثناء کے لیے ناشتہ امی نے بنایا تھا۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "راستے میں ثناء نے کیا کیا دیکھا؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "راستے میں ثناء نے ہری بھری گھاس اور رنگین پھول دیکھے۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "راستے میں ثناء نے ہری بھری گھاس اور رنگین پھول دیکھے۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "آدھی چھٹی میں بچوں نے کیا کیا؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "آدھی چھٹی میں سب بچوں نے مل کر کھانا کھایا۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "آدھی چھٹی میں سب بچوں نے مل کر کھانا کھایا۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "شام کو دادی جان نے کیا کیا؟",
+         "marks": 2,
+         "lines": 2,
+         "answer": "شام کو دادی جان نے ثناء کو کہانی سنائی۔",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "شام کو دادی جان نے ثناء کو کہانی سنائی۔"
+           }
+          ]
+         }
+        },
+        {
+         "question": "اس عبارت کے لیے ایک مناسب عنوان لکھیں۔",
+         "marks": 2,
+         "lines": 2,
+         "answer": "ثناء کا دن (یا اسکول اور گھر کی محبت)",
+         "scheme": {
+          "checked": null,
+          "points": [
+           {
+            "kind": "A",
+            "marks": 2,
+            "text": "ثناء کا دن (یا اسکول اور گھر کی محبت)"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "key": "pick",
+       "pick": {
+        "اسم معرفہ": [
+         "ثناء",
+         "امی"
+        ],
+        "اسم نکرہ": [
+         "بستہ",
+         "ناشتہ"
+        ],
+        "اسم صفت": [
+         "گرم",
+         "ہری"
+        ],
+        "فعل": [
+         "اٹھی",
+         "بنایا"
+        ]
+       },
+       "marks": 8,
+       "lines": 6,
+       "answer": "اسم معرفہ: ثناء، امی؛ اسم نکرہ: بستہ، پھول؛ اسم صفت: گرم، رنگین؛ فعل: اٹھی، سنا۔ (دیے گئے الفاظ میں سے کوئی بھی درست دو)"
+      },
+      {
+       "key": "antonyms",
+       "antonyms": [
+        [
+         "گرم",
+         "ٹھنڈا"
+        ],
+        [
+         "نیا",
+         "پرانا"
+        ]
+       ],
+       "marks": 2,
+       "lines": 2,
+       "answer": "گرم: ٹھنڈا، نیا: پرانا"
+      }
+     ],
+     "marks": 20,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "سوالات کے جوابات عبارت کے مطابق؛ الفاظ کی چنائی درست اقسام کے مطابق؛ متضاد: گرم، ٹھنڈا اور نیا، پرانا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "پانچ سوالات کے درست مکمل جوابات (ہر ایک کے 2 نمبر)",
+        "marks": 10,
+        "kind": "A"
+       },
+       {
+        "text": "آٹھ الفاظ کی درست چنائی (ہر ایک کا 1 نمبر)",
+        "marks": 8,
+        "kind": "A"
+       },
+       {
+        "text": "دو متضاد الفاظ کے درست جوڑے (ہر ایک کا 1 نمبر)",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "عنوان کے لیے: ثناء کا دن، اسکول اور گھر، میرا پیارا دن",
+       "اسم نکرہ میں گھاس، پھول، بستہ، ناشتہ یا کاپی میں سے کوئی بھی",
+       "متضاد: گرم کا ٹھنڈا یا سرد؛ نیا کا پرانا"
+      ],
+      "common_error": "اسم معرفہ اور اسم نکرہ کو آپس میں ملا دینا، یا فعل کی جگہ اسم لکھ دینا۔",
+      "checked": null
+     }
+    }
+   ],
+   "Word Meanings": [
+    {
+     "slot": "urdu.C.Q3",
+     "main_question": "دیے گئے الفاظ کے معنی لکھیں (کوئی سے پانچ)",
+     "question": "",
+     "words": [
+      "شانہ بشانہ",
+      "اقتصادی",
+      "لقب",
+      "حریص",
+      "معذور",
+      "جھکڑ",
+      "رائج"
+     ],
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Remember",
+     "answer": "شانہ بشانہ: ساتھ ساتھ، ہم راہ\nاقتصادی: معاشی، مالیاتی، آمدنی اور خرچ سے متعلق\nلقب: خطاب، اعزازی نام\nحریص: لالچی، لالچ کرنے والا\nمعذور: اپاہج، محتاج\nجھکڑ: تند و تیز ہوا جس میں غبار بھی اڑے، آندھی\nرائج: دستور یا معمول کے مطابق، جاری یا نافذ",
+     "scheme": {
+      "points": [
+       {
+        "text": "ہر درست معنی (پانچ الفاظ)",
+        "marks": 5,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "کتاب میں دیے گئے معنی میں سے کوئی بھی درست مترادف"
+      ],
+      "common_error": "لفظ کا مفہوم الٹ یا غلط لکھ دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Rewrite Sentences": [
+    {
+     "slot": "urdu.C.Q4",
+     "main_question": "گروہی الفاظ",
+     "question": "گروہی الفاظ پڑھ کر بتائیں کہ یہ کس لفظ کے متلازم ہیں: قلم، کاپی، کتاب، بستہ۔",
+     "options": [
+      "الف) باورچی خانہ",
+      "ب) تعلیم",
+      "ج) بازار",
+      "د) کھیل"
+     ],
+     "marks": 1.25,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "ب) تعلیم",
+     "scheme": {
+      "points": [
+       {
+        "text": "درست گروہی لفظ کا انتخاب",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "ب) تعلیم"
+      ],
+      "common_error": "الفاظ کے مشترک تصور کو نہ پہچاننا",
+      "checked": null
+     }
+    },
+    {
+     "slot": "urdu.C.Q4",
+     "main_question": "حروفِ شرط و جزا",
+     "question": "درست حرفِ جزا کا انتخاب کریں: اگر تم محنت کرو گے ___ کامیاب ہو جاؤ گے۔",
+     "options": [
+      "الف) تو",
+      "ب) اور",
+      "ج) مگر",
+      "د) پھر"
+     ],
+     "marks": 1.25,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "الف) تو",
+     "scheme": {
+      "points": [
+       {
+        "text": "درست حرفِ جزا کا انتخاب",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "الف) تو"
+      ],
+      "common_error": "حرفِ عطف کو حرفِ جزا سمجھ لینا",
+      "checked": null
+     }
+    },
+    {
+     "slot": "urdu.C.Q4",
+     "main_question": "فعلِ حال کو فعلِ مستقبل میں تبدیل کریں",
+     "question": "فعلِ حال کو فعلِ مستقبل میں تبدیل کریں: علی روز صبح پارک میں سیر کرتا ہے۔",
+     "marks": 1.25,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "علی روز صبح پارک میں سیر کرے گا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "فعل کو درست مستقبل میں بدلنا",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "علی روز صبح پارک میں سیر کرے گا۔"
+      ],
+      "common_error": "فعل کی جنس یا زمانہ غلط لکھنا",
+      "checked": null
+     }
+    },
+    {
+     "slot": "urdu.C.Q4",
+     "main_question": "ارکان سازی",
+     "question": "دیے گئے الفاظ کے ارکان الگ کریں: دوستی، کتاب",
+     "marks": 1.25,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "دوستی: دو ست ی\nکتاب: کِ تاب",
+     "scheme": {
+      "points": [
+       {
+        "text": "دونوں الفاظ کے ارکان درست الگ کرنا",
+        "marks": 1.25,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "دوس تی، کِ تاب"
+      ],
+      "common_error": "ارکان کی تعداد غلط کر دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Word Sentences": [
+    {
+     "slot": "urdu.C.Q5",
+     "main_question": "دیے گئے الفاظ کو جملوں میں استعمال کریں (کوئی سے پانچ)",
+     "question": "",
+     "words": [
+      "ارادہ",
+      "مشغول",
+      "سانحہ",
+      "بوسیدہ",
+      "دل باغ باغ ہونا",
+      "آگ بگولا ہونا",
+      "پانی پانی ہونا"
+     ],
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "ارادہ: میں نے روزانہ پڑھنے کا ارادہ کیا۔\nمشغول: امی کھانا پکانے میں مشغول تھیں۔\nسانحہ: اس سانحے نے سب کو غمگین کر دیا۔\nبوسیدہ: یہ بوسیدہ کتاب پھٹ گئی۔\nدل باغ باغ ہونا: انعام ملا تو میرا دل باغ باغ ہو گیا۔\nآگ بگولا ہونا: شرارت دیکھ کر استاد آگ بگولا ہو گئے۔\nپانی پانی ہونا: جھوٹ پکڑا گیا تو وہ شرم سے پانی پانی ہو گیا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "ہر درست جملہ جس میں لفظ یا محاورہ درست مفہوم میں آئے (پانچ جملے)",
+        "marks": 5,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "کوئی بھی درست اور بامعنی جملہ"
+      ],
+      "common_error": "لفظ یا محاورے کو غلط مفہوم میں استعمال کرنا",
+      "checked": null
+     }
+    }
+   ],
+   "Poem Explanation": [
+    {
+     "slot": "urdu.C.Q6",
+     "main_question": "اشعار کا مفہوم",
+     "passage": "پاکیزہ مجھ کو کر دو کرکے مری صفائی\nمیرا بھی فائدہ ہے انساں کی بھی بھلائی\nتم مجھ کو صاف رکھ کے خود بھی سکھی رہوگے\nپانی جو صاف ہوگا بیماری سے بچوگے",
+     "question": "درج ذیل اشعار کا مفہوم واضح کریں۔",
+     "marks": 5,
+     "lines": 0,
+     "blooms": "Understand",
+     "answer": "ندی انسانوں سے کہتی ہے کہ مجھے صاف کر دو۔ اس میں میرا بھی فائدہ ہے اور انسان کا بھی۔ اگر ندی کا پانی صاف رہے گا تو لوگ بیماریوں سے بچیں گے اور خوش رہیں گے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "ندی کی صفائی کی درخواست کا ذکر (صفائی سے انسان اور ندی دونوں کے فائدے کا بیان) (صاف پانی سے بیماریوں سے بچاؤ کا ذکر)",
+        "marks": 5,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "اپنے الفاظ میں درست مفہوم"
+      ],
+      "common_error": "اشعار کا لفظی ترجمہ لکھنا اور مفہوم نہ بتانا",
+      "checked": null
+     }
+    }
+   ],
+   "Picture Description": [
+    {
+     "slot": "urdu.C.Q7",
+     "main_question": "تصویر کی وضاحت",
+     "question": "چڑیا گھر کی سیر",
+     "words": [
+      "شیر",
+      "بندر",
+      "ٹکٹ",
+      "بچے",
+      "پنجرہ",
+      "ہاتھی",
+      "خوشی"
+     ],
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "ہم اتوار کو چڑیا گھر گئے۔ ٹکٹ لے کر اندر پہنچے۔ بہت سے بچے خوش تھے۔ پنجرے میں شیر ٹہل رہا تھا۔ بندر درخت پر کود رہے تھے۔ ہاتھی کو دیکھ کر سب ہنسے۔ ہمیں بہت مزہ آیا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "موضوع سے متعلق مربوط جملے",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "دیے گئے الفاظ کا درست استعمال",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "درست زبان، املا اور رموزِ اوقاف",
+        "marks": 3,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "کوئی بھی مناسب ترتیب سے لکھی گئی وضاحت"
+      ],
+      "common_error": "الفاظ کو جملوں میں جوڑے بغیر فہرست لکھ دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Paragraph Writing": [
+    {
+     "slot": "urdu.C.Q8",
+     "main_question": "کوئی سا ایک سوال حل کریں",
+     "question": "ماحولیاتی آلودگی",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "آلودگی ہمارے ماحول کو گندا کرتی ہے۔ گاڑیوں کا دھواں، کچرا اور گندا پانی اس کی وجہیں ہیں۔ اس سے بیماریاں پھیلتی ہیں۔ ہمیں کچرا ڈبے میں ڈالنا چاہیے۔ پودے لگانے چاہییں۔ پانی صاف رکھنا چاہیے۔ صاف ماحول سے صحت اچھی رہتی ہے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "موضوع کا تعارف",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "وجوہات اور نقصانات کا بیان",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "حل اور اختتام",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "زبان، املا اور ترتیب",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "دس سے بارہ مربوط جملے"
+      ],
+      "common_error": "جملوں کی تعداد کم یا موضوع سے ہٹ جانا",
+      "checked": null
+     }
+    },
+    {
+     "slot": "urdu.C.Q8",
+     "main_question": "کوئی سا ایک سوال حل کریں",
+     "question": "دو دوستوں کے درمیان وقت کی پابندی پر مکالمہ تحریر کریں۔",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "احمد: السلام علیکم! آج تم دیر سے آئے۔\nبلال: وعلیکم السلام! میں دیر سے اٹھا تھا۔\nاحمد: وقت کی پابندی بہت ضروری ہے۔\nبلال: تم ٹھیک کہتے ہو۔\nاحمد: وقت پر کام کرنے سے سب کام آسان ہوتے ہیں۔\nبلال: اب میں جلدی سوؤں گا اور وقت پر اٹھوں گا۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "مکالمے کا آغاز اور اختتام",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "موضوع سے متعلق بات چیت",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "مکالمے کی درست ساخت اور رموزِ اوقاف",
+        "marks": 2,
+        "kind": "L"
+       },
+       {
+        "text": "دس سے بارہ جملے",
+        "marks": 2,
+        "kind": "A"
+       }
+      ],
+      "accept": [
+       "کوئی بھی مناسب مکالماتی انداز"
+      ],
+      "common_error": "مکالمے کی جگہ عام پیراگراف لکھ دینا",
+      "checked": null
+     }
+    }
+   ],
+   "Story Writing": [
+    {
+     "slot": "urdu.C.Q9",
+     "main_question": "کوئی سا ایک سوال حل کریں",
+     "question": "\"اتفاق میں برکت ہے\" کے عنوان پر کہانی لکھیں اور سبق بھی لکھیں۔",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "چار بھائی ہر وقت لڑتے تھے۔ ایک دن ان کے ابو نے لکڑیوں کا گٹھا دیا اور توڑنے کو کہا۔ کوئی نہ توڑ سکا۔ پھر لکڑیاں الگ الگ کیں تو سب نے آسانی سے توڑ دیں۔ سب سمجھ گئے کہ مل کر رہنے میں طاقت ہے۔ سبق: اتفاق میں برکت ہے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "آغاز اور کردار",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "واقعات کی ترتیب",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "انجام اور سبق",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 3,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "اتفاق کے موضوع پر کوئی بھی مناسب کہانی"
+      ],
+      "common_error": "کہانی کا سبق نہ لکھنا",
+      "checked": null
+     }
+    },
+    {
+     "slot": "urdu.C.Q9",
+     "main_question": "کوئی سا ایک سوال حل کریں",
+     "question": "کہانی مکمل کریں اور سبق لکھیں: \"سارہ نے اسکول جاتے ہوئے راستے میں ایک بٹوہ پڑا دیکھا…\"",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "سارہ نے بٹوہ اٹھایا اور اسے کھول کر دیکھا۔ اس میں پیسے اور ایک کارڈ تھا۔ وہ اسے لے کر استانی کے پاس گئی۔ استانی نے کارڈ سے مالک کو بلایا۔ مالک نے سارہ کا شکریہ ادا کیا۔ سبق: ایمان داری بہترین عادت ہے۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "ابتدائی سطر سے ربط",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "واقعات کی ترتیب",
+        "marks": 3,
+        "kind": "A"
+       },
+       {
+        "text": "انجام اور سبق",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 3,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "کوئی بھی مناسب اختتام"
+      ],
+      "common_error": "ابتدائی سطر سے غیر متعلق کہانی لکھنا",
+      "checked": null
+     }
+    }
+   ],
+   "Letter Writing": [
+    {
+     "slot": "urdu.C.Q10",
+     "main_question": "کوئی سا ایک سوال حل کریں",
+     "question": "اپنی والدہ کے نام خط لکھ کر انھیں اپنی صحت پر توجہ دینے کی تلقین کریں۔",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "تاریخ، القاب (محترم امی جان، السلام علیکم)، خیریت کا ذکر، صحت کا خیال رکھنے کی تلقین (وقت پر کھانا، آرام، ڈاکٹر کو دکھانا)، دعا اور اختتام (آپ کا بیٹا/آپ کی بیٹی، نام)۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "تاریخ، القاب اور آداب",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "صحت پر توجہ کی تلقین کا مضمون",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "اختتامی کلمات اور دستخط",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "کوئی بھی درست غیر رسمی خط کی ساخت"
+      ],
+      "common_error": "خط کے اجزا ترک کر دینا",
+      "checked": null
+     }
+    },
+    {
+     "slot": "urdu.C.Q10",
+     "main_question": "کوئی سا ایک سوال حل کریں",
+     "question": "ہیڈ مسٹریس صاحبہ / ہیڈ ماسٹر صاحب کے نام بیماری کی وجہ سے رخصت کی درخواست لکھیں۔",
+     "marks": 10,
+     "lines": 0,
+     "blooms": "Apply",
+     "answer": "بخدمت جناب ہیڈ ماسٹر صاحب، موضوع: رخصت کی درخواست۔ جناب عالی! میں بخار کی وجہ سے اسکول نہیں آ سکتا/سکتی۔ مہربانی فرما کر تین دن کی رخصت عطا فرمائیں۔ آپ کا تابع دار، نام، جماعت، تاریخ۔",
+     "scheme": {
+      "points": [
+       {
+        "text": "مخاطب، موضوع اور تاریخ",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "بیماری اور رخصت کی وجہ کا بیان",
+        "marks": 4,
+        "kind": "A"
+       },
+       {
+        "text": "اختتامی کلمات، نام اور جماعت",
+        "marks": 2,
+        "kind": "A"
+       },
+       {
+        "text": "زبان اور املا",
+        "marks": 2,
+        "kind": "L"
+       }
+      ],
+      "accept": [
+       "کوئی بھی درست رسمی درخواست کی ساخت"
+      ],
+      "common_error": "موضوع اور مخاطب نہ لکھنا",
+      "checked": null
+     }
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "preset_id": "fde_g5_2027",
+  "subject": "urdu",
+  "medium": "ur",
+  "scope": {
+   "kind": "fde",
+   "chapters": null,
+   "pages": null,
+   "label_en": "FDE syllabus 2026–27",
+   "label_ur": "FDE نصاب 2026–27",
+   "line_en": "Lessons 4–10 · grammar · 1–3 from the book",
+   "line_ur": "اسباق 4–10 · قواعد · 1–3 کتاب سے",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "school_line_en": "School: ____________",
+   "disclaimer_en": "Practice paper in the FDE Grade V Centralised Annual Examination pattern (Feb 2027). Not an official FDE paper.",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "footer_en": "Not an official FDE paper",
+   "footer_page_en": "Page {n} of {N}",
+   "scheme_title_en": "MARKING SCHEME",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "covers_en": "Covers: {scope}. Not an official FDE paper.",
+   "covers_partial_en": "Covers {units}; every section set from these lessons.",
+   "record_title_en": "Class record",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_total_en": "Total",
+   "record_grade_en": "Grade",
+   "checked_en": "✓ checked",
+   "notes_title_en": "Notes",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "accept_en": "accept:",
+   "common_error_en": "common error:",
+   "answer_sheet_en": "answer sheet",
+   "or_en": "OR",
+   "school_line_ur": "اسکول: ____________",
+   "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+   "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی اسباق سے۔",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "record_total_ur": "کل",
+   "record_grade_ur": "گریڈ",
+   "checked_ur": "✓ جانچا گیا",
+   "notes_title_ur": "نوٹ",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "accept_ur": "یہ بھی درست:",
+   "common_error_ur": "عام غلطی:",
+   "answer_sheet_ur": "جوابی کاپی",
+   "or_ur": "یا",
+   "title_en": "Grade 5 · Urdu · FDE pattern practice paper",
+   "title_ur": "جماعت پنجم · اردو · FDE pattern کا مشقی پرچہ",
+   "time_line_ur": "وقت: 3 گھنٹے",
+   "total_line_ur": "کل نمبر: {t:100}",
+   "note_ur": "نوٹ: اس پرچے کے تین حصے ہیں۔ حصہ الف سوالیہ پرچے پر حل کریں۔ باقی حصے جوابی کاپی پر حل کریں۔ کاٹ چھانٹ، مٹانا اور اوور رائٹنگ کی اجازت نہیں۔"
+  },
+  "sections": [
+   {
+    "id": "A",
+    "time_ur": "وقت: 20 منٹ",
+    "label_ur": "حصہ الف معروضی",
+    "marks_ur": "(کل نمبر {t:20})",
+    "label_en": "Section A (objective)",
+    "marks": 20,
+    "answer_on": "question_paper",
+    "note_ur": null,
+    "slots": [
+     {
+      "slot": "urdu.A.Q1",
+      "label_en": "Q1",
+      "label_ur": "سوال نمبر 1",
+      "instruction_ur": "درج ذیل میں سے درست جواب کا انتخاب کریں۔",
+      "marks_line_ur": "{t:20}",
+      "type": "MCQs",
+      "category": "objective",
+      "shape": "mcq",
+      "generate": 20,
+      "attempt": 20,
+      "marks_each": 1,
+      "parts": null,
+      "numbering": "urdu",
+      "option_labels": "ur",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "one point per item: lesson facts and word meanings from lessons 4–10, and grammar (اسم معرفہ، اسم صوت، حروف، محاورے، املا، متضاد)",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "Twenty four-option MCQs: about half lesson facts and word meanings from lessons 4–10, half grammar found in those lessons' exercises. Never lessons 1, 2 or 3 (pp 1–27). Options of similar length; the right answer is not the longest.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "B",
+    "time_ur": "وقت: 20 منٹ",
+    "label_ur": "حصہ ب موضوعی",
+    "marks_ur": "(کل نمبر {t:20})",
+    "label_en": "Section B (subjective)",
+    "marks": 20,
+    "answer_on": "answer_sheet",
+    "note_ur": null,
+    "slots": [
+     {
+      "slot": "urdu.B.Q2",
+      "label_en": "Q2",
+      "label_ur": "سوال نمبر 2",
+      "instruction_ur": "درج ذیل پیراگراف کو غور سے پڑھیں اور سوالات کے جواب دیں۔",
+      "marks_line_ur": "{t:20}",
+      "type": "Comprehension Passage",
+      "category": "subjective",
+      "shape": "comprehension",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 20,
+      "parts": [
+       10,
+       8,
+       2
+      ],
+      "parts_spec": [
+       {
+        "key": "questions",
+        "label": "الف:",
+        "instruction_ur": "سوالات",
+        "marks_line_ur": "10",
+        "n": 5,
+        "marks_each": 2,
+        "numbering": "urdu"
+       },
+       {
+        "key": "pick",
+        "label": "ب:",
+        "group_head": {
+         "label": "ب:",
+         "instruction_ur": "دی گئی ہدایات کے مطابق حل کریں۔",
+         "marks_line_ur": "10"
+        },
+        "instruction_ur": "سوال: پیراگراف سے چن کر لکھیں۔",
+        "marks_line_ur": "08",
+        "n": 8,
+        "marks_each": 1,
+        "pick": {
+         "اسم معرفہ": 2,
+         "اسم نکرہ": 2,
+         "اسم صفت": 2,
+         "فعل": 2
+        }
+       },
+       {
+        "key": "antonyms",
+        "label": "",
+        "instruction_ur": "دیے گئے الفاظ کے متضاد لکھیں۔",
+        "marks_line_ur": "02",
+        "n": 2,
+        "marks_each": 1
+       }
+      ],
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "an unseen paragraph of 100–140 words; four questions and a title; two of each word class picked from the paragraph; two antonyms",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `passage` = an unseen paragraph of 100–140 words about everyday school or family life (no real people, no religious text); `parts` = [{key:\"questions\", questions:[5, the fifth asks for a suitable title (مناسب عنوان)]}, {key:\"pick\", pick:{\"اسم معرفہ\":[4], \"اسم نکرہ\":[4], \"اسم صفت\":[4], \"فعل\":[4]}} — every word copied exactly as written in the paragraph, inflection included (two spares of each kind; the scheme keeps the first two that are in the paragraph), {key:\"antonyms\", antonyms:[[word from the paragraph, its antonym], two pairs]}].",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     }
+    ]
+   },
+   {
+    "id": "C",
+    "time_ur": "وقت: 2 گھنٹے 20 منٹ",
+    "label_ur": "حصہ ج موضوعی",
+    "marks_ur": "(کل نمبر {t:60})",
+    "label_en": "Section C (subjective)",
+    "marks": 60,
+    "answer_on": "answer_sheet",
+    "note_ur": null,
+    "slots": [
+     {
+      "slot": "urdu.C.Q3",
+      "label_en": "Q3",
+      "label_ur": "سوال نمبر 3",
+      "instruction_ur": "مندرجہ ذیل الفاظ کے معنی لکھیں۔ (کوئی سے پانچ)",
+      "marks_line_ur": "{t:5}",
+      "type": "Word Meanings",
+      "category": "subjective",
+      "shape": "words",
+      "in_item_choice": {
+       "n": 5,
+       "g": 7
+      },
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "seven words from the lessons' new-word lists; any five",
+       "number_size": "seven words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `words` = exactly seven words from the نئے الفاظ lists of lessons 4–10; `answer` = each word with its meaning from the book. 1 mark a word.",
+      "print_words": true,
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q4",
+      "label_en": "Q4",
+      "label_ur": "سوال نمبر 4",
+      "instruction_ur": "ہدایات کے مطابق حل کریں۔",
+      "marks_line_ur": "{t:5}",
+      "type": "Rewrite Sentences",
+      "category": "subjective",
+      "shape": "short",
+      "generate": 4,
+      "attempt": 4,
+      "marks_each": 1.25,
+      "parts": null,
+      "numbering": "urdu",
+      "option_labels": "ur_paren",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "grammar as directed, one each: گروہی الفاظ (choose), حروفِ شرط و جزا (choose), present to future tense, ارکان سازی of two words",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "group_words",
+       "conditional",
+       "tense",
+       "syllables"
+      ],
+      "prompt_rule": "Four items in this order: (1) گروہی الفاظ — a stem with four options; (2) حروفِ شرط و جزا — a sentence and four options; (3) فعلِ حال کو فعلِ مستقبل میں تبدیل کریں — one sentence; (4) ارکان سازی — two words. A points only.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q5",
+      "label_en": "Q5",
+      "label_ur": "سوال نمبر 5",
+      "instruction_ur": "درج ذیل الفاظ اور محاورات میں سے کوئی سے پانچ کے جملے بنائیں۔",
+      "marks_line_ur": "{t:5}",
+      "type": "Word Sentences",
+      "category": "subjective",
+      "shape": "words",
+      "in_item_choice": {
+       "n": 5,
+       "g": 7
+      },
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "four words and three idioms from lessons 4–10; any five in sentences",
+       "number_size": "seven entries",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item: `words` = four words and three محاورات from lessons 4–10 (seven entries); `answer` = one model sentence each. 1 mark each (1 / ½ / 0).",
+      "print_words": true,
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q6",
+      "label_en": "Q6",
+      "label_ur": "سوال نمبر 6",
+      "instruction_ur": null,
+      "marks_line_ur": "{t:5}",
+      "type": "Poem Explanation",
+      "category": "subjective",
+      "shape": "fixed",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 5,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "central idea of the Naat (from the book) OR explain four quoted lines of lesson 7",
+       "number_size": "four lines",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": null,
+      "prompt_rule": "One item only, from lesson 7 «ندی کی فریاد»: `passage` = four consecutive lines of the poem copied exactly from the book; `question` = «درج ذیل اشعار کا مفہوم واضح کریں۔»; `answer` = the meaning in simple Urdu. Never use lessons 1, 2 or 3.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "or": true,
+      "alternatives": [
+       {
+        "kind": "fixed",
+        "instruction_ur": "نظم \"نعت\" کا مرکزی خیال لکھیں۔",
+        "key": null,
+        "split": [
+         3,
+         1,
+         1
+        ],
+        "book_lesson": 2,
+        "book_page": 13,
+        "book_pages": "13-24"
+       },
+       {
+        "kind": "seen_verses",
+        "instruction_ur": "درج ذیل اشعار کا مفہوم واضح کریں۔",
+        "source_chapter": 7,
+        "generate": true
+       }
+      ]
+     },
+     {
+      "slot": "urdu.C.Q7",
+      "label_en": "Q7",
+      "label_ur": "سوال نمبر 7",
+      "instruction_ur": "مددگار الفاظ کی مدد سے تصویر کی وضاحت مکمل کریں۔",
+      "marks_line_ur": "{t:10}",
+      "type": "Picture Description",
+      "category": "subjective",
+      "shape": "frame",
+      "generate": 1,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": true,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "seven helper words for an everyday scene (park, zoo, market)",
+       "number_size": "seven words",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "picture_description"
+      ],
+      "prompt_rule": "One item: `question` = a one-line scene for the teacher (e.g. «چڑیا گھر کی سیر»), `words` = seven helper words a child would use for it. The paper prints a frame and the helper words; the teacher adds any picture that fits. Never describe the picture to the child.",
+      "frame": {
+       "kind": "picture",
+       "height_mm": 70,
+       "lines": 0,
+       "book_page": null,
+       "word_bank": true,
+       "title_en": "Picture (pasted or drawn by the teacher)",
+       "title_ur": "تصویر (استاد چسپاں کریں یا بنائیں)",
+       "supply_en": "Picture: {q}",
+       "supply_ur": "تصویر: {q}",
+       "duty_en": "the picture",
+       "duty_ur": "تصویر"
+      },
+      "teacher_note_en": "Paste or draw a picture that fits the helper words in the frame before photocopying.",
+      "teacher_note_ur": "فوٹو کاپی سے پہلے مددگار الفاظ سے میل کھاتی کوئی تصویر خانے میں چسپاں کریں یا بنائیں۔",
+      "alternatives": null,
+      "or": false
+     },
+     {
+      "slot": "urdu.C.Q8",
+      "label_en": "Q8",
+      "label_ur": "سوال نمبر 8",
+      "instruction_ur": null,
+      "or_parts_ur": [
+       "نیچے دیے گئے موضوع پر دس سے بارہ جملے تحریر کریں۔",
+       null
+      ],
+      "marks_line_ur": "{t:10}",
+      "type": "Paragraph Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a paragraph of 10–12 sentences on a closed-list title OR a dialogue between two friends on an everyday topic",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "paragraph",
+       "dialogue"
+      ],
+      "prompt_rule": "Two items: (a) `question` = one title from closed_lists.paragraphs exactly as listed; (b) `question` = «دو دوستوں کے درمیان … پر مکالمہ تحریر کریں۔» with an everyday topic (punctuality, cleanliness, a school trip).",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     },
+     {
+      "slot": "urdu.C.Q9",
+      "label_en": "Q9",
+      "label_ur": "سوال نمبر 9",
+      "instruction_ur": null,
+      "or_parts_ur": [
+       "دیے گئے عنوان پر کہانی تحریر کریں اور نتیجہ بھی لکھیں۔",
+       "ابتدائی جملے کی مدد سے کہانی مکمل کریں اور نتیجہ بھی تحریر کریں۔"
+      ],
+      "marks_line_ur": "{t:10}",
+      "type": "Story Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a story on a given title with its moral OR a story completed from an opening line with its moral",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "story_title",
+       "story_opening"
+      ],
+      "prompt_rule": "Two items: (a) `question` = a proverb-like title in quotes (e.g. «اتفاق میں برکت ہے»); (b) `question` = an opening line of one or two sentences that stops mid-way with «…». Fictional names only.",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     },
+     {
+      "slot": "urdu.C.Q10",
+      "label_en": "Q10",
+      "label_ur": "سوال نمبر 10",
+      "instruction_ur": null,
+      "or_parts_ur": [
+       null,
+       null
+      ],
+      "marks_line_ur": "{t:10}",
+      "type": "Letter Writing",
+      "category": "subjective",
+      "shape": "composition",
+      "generate": 2,
+      "attempt": 1,
+      "marks_each": 10,
+      "parts": null,
+      "numbering": "none",
+      "compulsory": false,
+      "lines": 0,
+      "work_mm": null,
+      "section_pages": "scope",
+      "grain": {
+       "kind": "a letter OR an application on a closed-list topic, each one line",
+       "number_size": "none",
+       "steps": 1,
+       "unit_choice": false
+      },
+      "families": null,
+      "kinds": [
+       "letter",
+       "application"
+      ],
+      "prompt_rule": "Two items, each one full instruction line in Urdu: (a) a letter from closed_lists.letters (e.g. «اپنی والدہ کے نام خط لکھ کر انھیں اپنی صحت پر توجہ دینے کی تلقین کریں۔»); (b) an application from closed_lists.applications addressed «ہیڈ مسٹریس صاحبہ / ہیڈ ماسٹر صاحب».",
+      "frame": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null,
+      "alternatives": null,
+      "or": true
+     }
+    ]
+   }
+  ],
+  "legend": {
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "lines_en": [
+    "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+    "M = method · A = answer · U = unit · K = key point · L = label.",
+    "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+    "Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+   ],
+   "lines_ur": [
+    "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+    "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+    "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+    "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+   ],
+   "bands_line": 3,
+   "bands_lead_ur": "گریڈ (FDE ص 113)؛ پاس = 40٪",
+   "key_line": 1,
+   "maths_lines": [],
+   "key_names_en": {
+    "M": "method",
+    "A": "answer",
+    "U": "unit",
+    "K": "key point",
+    "L": "label"
+   },
+   "key_names_ur": {
+    "M": "طریقہ",
+    "A": "جواب",
+    "U": "اکائی",
+    "K": "اہم نکتہ",
+    "L": "نام"
+   },
+   "subject": "urdu",
+   "key_from_chips": true
+  },
+  "before_exam": {
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک"
+  },
+  "supplies": [
+   {
+    "slot": "urdu.C.Q6",
+    "kind": "naat",
+    "book_page": 13,
+    "line_en": "Q6: Naat, lesson 2, p. 13 — split 3, 1, 1 (content 3, link to the poem 1, language 1)",
+    "line_ur": "سوال نمبر 6: نعت، سبق 2، ص 13 — تقسیم 3، 1، 1 (مواد 3، نظم سے ربط 1، زبان 1)"
+   },
+   {
+    "slot": "urdu.C.Q7",
+    "kind": "picture",
+    "book_page": null,
+    "scene": "چڑیا گھر کی سیر",
+    "words": [
+     "شیر",
+     "بندر",
+     "ٹکٹ",
+     "بچے",
+     "پنجرہ",
+     "ہاتھی",
+     "خوشی"
+    ],
+    "line_en": "Q7: Picture: چڑیا گھر کی سیر — word bank: شیر, بندر, ٹکٹ, بچے, پنجرہ, ہاتھی, خوشی",
+    "line_ur": "سوال نمبر 7: تصویر: چڑیا گھر کی سیر — مددگار الفاظ: شیر، بندر، ٹکٹ، بچے، پنجرہ، ہاتھی، خوشی"
+   }
+  ],
+  "total_marks": 100,
+  "total_time_en": "3 hrs",
+  "total_time_ur": "3 گھنٹے",
+  "unplaced": 20,
+  "generated_at": "2026-10-16T18:04:35.288Z",
+  "pages": {
+   "paper": 6,
+   "scheme": 6
+  },
+  "frame_pages": {
+   "urdu.C.Q7": 5
+  },
+  "notes": [],
+  "scheme_shortfall": [
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[0]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[1]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[2]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[3]",
+    "filled_by": "code"
+   },
+   {
+    "slot": "urdu.B.Q2",
+    "item": 0,
+    "part": "questions[4]",
+    "filled_by": "code"
+   }
+  ]
+ }
+}

@@ -1,10 +1,13 @@
 /**
  * A class link on a phone that already holds a child (boot link_known, app_settings web_quiz_link_known_child): the
- * page asks POST known {code, device_ref} once at boot and, when the server answers this phone's own children, asks
+ * page asks POST known {code} once at boot (the edge forwards the phone's own cookie) and, when the server answers this phone's own children, asks
  * "Is it <First>?" (one) or "Whose turn is it?" (two or more) before the name box. "Yes" / a card starts the session as
- * that child (via 'known'); "Someone else" is today's landing. Asked once per quiz on this phone. A phone with no
- * device, an answer of nobody, an error, offline, or no answer in 3 s: today's screen, drawn exactly as today. Never on
- * the teacher's preview, a friend's challenge, a hub link (?k=), or a run in progress. Runs the whole shipped page.
+ * that child (via 'known'); "Someone else" is today's landing. Asked once per quiz on this phone. Today's landing is
+ * drawn at once while it asks; the answer swaps it for the question only while the child has not touched the page
+ * (no tap, key, touch or scroll) — after a touch a late answer is dropped and `link_known_late {ms}` records it, and
+ * every answer is timed (`link_known_answer {ms, kids}`). A phone with no device, an answer of nobody, an error or
+ * offline: today's screen, drawn exactly as today. Never on the teacher's preview, a friend's challenge, a hub link
+ * (?k=), or a run in progress. Runs the whole shipped page.
  */
 const { page, flush } = require('./wq-page-harness');
 
@@ -14,12 +17,17 @@ const MAH = { chip: 'cm', first: 'Iqra', animal: 'cat' };
 const asks = (p) => p.fetches.filter((f) => f.url.indexOf('/api/wq/known') >= 0);
 const starts = (p) => p.fetches.filter((f) => f.url.indexOf('/api/wq/session') >= 0).map((f) => JSON.parse(f.init.body));
 const SESSION = { st: 's1', device_ref: DEV, child: ZAR, resume: { answered: [] } };
+// the page's queued events, as the pagehide beacon sends them
+const evs = (p) => { p.fireWin('pagehide'); return p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events); };
+const named = (p, n) => evs(p).filter((e) => e.n === n);
 const on = (o = {}) => page({ lang: 'en', store: { wq_d: DEV }, bootExtra: { link_known: true }, api: { '/api/wq/known': { kids: [ZAR] }, '/api/wq/session': SESSION }, ...o });
 
 describe('switch on: a phone that holds ONE child', () => {
   test('asks once with the code (the phone is its own cookie, never the body), then "Is it Sadia?" with Yes / Someone else', async () => {
     const p = on();
-    expect(p.html()).toBe('');                       // nothing drawn while it asks (the shell's "Opening the quiz…")
+    // today's landing is drawn at once while it asks (never a blank wait), exactly as with the switch off
+    expect(p.moment()).toBe('M3');
+    expect(p.html()).toBe(page({ lang: 'en', store: { wq_d: DEV } }).html());
     await flush(); await flush();
     expect(asks(p)).toHaveLength(1);
     expect(JSON.parse(asks(p)[0].init.body)).toEqual({ code: 'TEST' });
@@ -57,6 +65,26 @@ describe('switch on: a phone that holds ONE child', () => {
     const p = on({ lang: 'ur', api: { '/api/wq/known': { kids: [{ ...ZAR, first: 'سعدیہ' }] } } });
     await flush(); await flush();
     expect(p.html()).toContain('کیا آپ <bdi>سعدیہ</bdi> ہیں؟');
+  });
+
+  test('Urdu: "Yes" reads «جی ہاں، میں ہی ہوں» and "Someone else" «نہیں، میں کوئی اور ہوں»', async () => {
+    const p = on({ lang: 'ur', api: { '/api/wq/known': { kids: [{ ...ZAR, first: 'سعدیہ' }] } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('جی ہاں، میں ہی ہوں');
+    expect(p.html()).not.toContain('جی ہاں، میں ہوں<');
+    expect(p.html()).toContain('نہیں، میں کوئی اور ہوں');
+  });
+
+  test('Urdu with a name saved in Latin letters: the name is isolated, so «؟» stays at the end of the question', async () => {
+    const p = on({ lang: 'ur' });
+    await flush(); await flush();
+    expect(p.html()).toContain('<h2>کیا آپ <bdi>Sadia</bdi> ہیں؟</h2>');
+  });
+
+  test('a name carrying markup or a direction mark is escaped inside its isolate', async () => {
+    const p = on({ lang: 'ur', api: { '/api/wq/known': { kids: [{ ...ZAR, first: '<b>\u202eSadia' }] } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('<bdi>&lt;b&gt;\u202eSadia</bdi>');
   });
 
   test('identity v2 page: "Someone else" goes to v2\'s own landing, as the switch-off page shows it', async () => {
@@ -101,20 +129,79 @@ describe('today\'s screen, drawn exactly as with the switch off', () => {
     });
   }
 
-  test('no answer in 3 s: today\'s landing, and a late answer moves nothing', async () => {
-    let answer;
-    const p = on({ api: { '/api/wq/known': () => new Promise((r) => { answer = r; }) } });
-    expect(p.runTimers(3000)).toBeGreaterThan(0);
-    expect(p.moment()).toBe('M3');
-    answer({ kids: [ZAR] }); await flush(); await flush();
-    expect(p.moment()).toBe('M3');
-  });
-
   test('the child is already a card on this phone\'s landing: no second question', async () => {
     const p = on({ store: { wq_d: DEV, wq_kids: [ZAR] } });
     await flush(); await flush();
     expect(p.moment()).toBe('M3');
     expect(p.html()).toBe(page({ lang: 'en', store: { wq_d: DEV, wq_kids: [ZAR] } }).html());
+  });
+});
+
+describe('a slow answer: the question still lands while the child has not touched the page', () => {
+  const slow = () => { let answer; const p = on({ api: { '/api/wq/known': () => new Promise((r) => { answer = r; }), '/api/wq/session': SESSION } }); return { p, answer: (b) => answer(b) }; };
+  const offHtml = () => page({ lang: 'en', store: { wq_d: DEV } }).html();
+
+  test('no fixed wait: no timer stands between the child and today\'s landing, and an answer after 3.5 s with no touch swaps in the question', async () => {
+    const { p, answer } = slow();
+    expect(p.moment()).toBe('M3');
+    p.runTimers(3500);                                  // whatever the page timed, 3.5 s pass
+    expect(p.moment()).toBe('M3');
+    answer({ kids: [ZAR] }); await flush(); await flush();
+    expect(p.moment()).toBe('M4-known');
+    expect(p.html()).toContain('Is it <bdi>Sadia</bdi>?');
+    const [a] = named(p, 'link_known_answer');
+    expect(a).toMatchObject({ kids: 1 });
+    expect(Number.isInteger(a.ms) && a.ms >= 0).toBe(true);
+    expect(named(p, 'link_known_late')).toEqual([]);
+  });
+
+  const touches = {
+    'a scroll': (p) => p.fireWin('scroll'),
+    'a key': (p) => p.fireDoc('keydown'),
+    'a finger on the screen': (p) => p.fireDoc('touchstart'),
+    'a pointer press': (p) => p.fireDoc('pointerdown'),
+  };
+  for (const [name, touch] of Object.entries(touches)) {
+    test(`after ${name}: no swap — today's landing stays exactly — and link_known_late records the answer`, async () => {
+      const { p, answer } = slow();
+      touch(p);
+      answer({ kids: [ZAR] }); await flush(); await flush();
+      expect(p.moment()).toBe('M3');
+      expect(p.html()).toBe(offHtml());
+      const [late] = named(p, 'link_known_late');
+      expect(Number.isInteger(late.ms) && late.ms >= 0).toBe(true);
+      expect(late).not.toHaveProperty('kids');
+      expect(named(p, 'link_known_answer')).toEqual([expect.objectContaining({ kids: 1 })]);
+    });
+  }
+
+  test('after a tap on «Play»: the name step stays, never the question', async () => {
+    const { p, answer } = slow();
+    p.els['#wq-play'].fire('click');
+    const m = p.moment();
+    expect(m).not.toBe('M3');
+    answer({ kids: [ZAR] }); await flush(); await flush();
+    expect(p.moment()).toBe(m);
+    expect(p.html()).not.toContain('Is it');
+    expect(named(p, 'link_known_late')).toHaveLength(1);
+  });
+
+  test('a slow answer of nobody: nothing moves and nothing is late; the answer is timed with kids 0', async () => {
+    const { p, answer } = slow();
+    answer({ kids: [] }); await flush(); await flush();
+    expect(p.moment()).toBe('M3');
+    expect(p.html()).toBe(offHtml());
+    expect(named(p, 'link_known_late')).toEqual([]);
+    expect(named(p, 'link_known_answer')).toEqual([expect.objectContaining({ kids: 0 })]);
+  });
+
+  test('a touch after the question is up changes nothing (the sheet stays, no late line)', async () => {
+    const p = on();
+    await flush(); await flush();
+    expect(p.moment()).toBe('M4-known');
+    p.fireWin('scroll');
+    expect(p.moment()).toBe('M4-known');
+    expect(named(p, 'link_known_late')).toEqual([]);
   });
 });
 
@@ -145,5 +232,6 @@ describe('golden: switch off (no link_known in the boot JSON)', () => {
     expect(asks(u)).toHaveLength(0);
     expect(p.moment()).toBe('M3');
     expect(u.moment()).toBe('M3');
+    expect(evs(p).filter((e) => /^link_known_/.test(e.n))).toEqual([]);
   });
 });

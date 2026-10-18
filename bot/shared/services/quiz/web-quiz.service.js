@@ -27,6 +27,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { normaliseClasses } = require('../../utils/text-format');
 const crypto = require('crypto');
 const T = require('./web-quiz-token');
 const Steps = require('./web-quiz-steps');
@@ -47,6 +48,7 @@ const { childTeacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
+const { underWatchRoot } = require('./watch-root');
 const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
@@ -350,11 +352,26 @@ function mediaHelpers() {
 /**
  * A child's own code under the watch root (a class-less child's quiz after a video), or the root code itself: no class,
  * so no classmates. The root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) comes in
- * the page's own identity-mode settings read, so no code pays a read for it; no root (or a failed read) = today's page.
+ * the page's own identity-mode settings read, so no code pays a read for it; no root = today's page. A failed read may
+ * hide a root, so it fails closed: every code is treated as no class (only its own players, no roster).
  */
 async function isWatchCode(ctx) {
-  const root = await IdRoster.watchRoot();
-  return Boolean(root) && (ctx.moreVideosOf === root || ctx.shareCodeId === root);
+  const { root, unreadable } = await IdRoster.watchRootState();
+  if (unreadable) return true;
+  if (!root) return false;
+  if (ctx.moreVideosOf === root || ctx.shareCodeId === root) return true;
+  // deeper: a watch child's lesson code, a friend's code under it, ... (by ancestry; once per request)
+  if (!watchMemo.has(ctx)) {
+    const rows = [ctx.row, ctx.parent].filter((r) => r && r.id);
+    watchMemo.set(ctx, rows.length ? underWatchRoot(rows, root, readCodeParents).then((u) => u.size > 0) : Promise.resolve(false));
+  }
+  return watchMemo.get(ctx);
+}
+const watchMemo = new WeakMap();
+async function readCodeParents(ids) {
+  const { data, error } = await dbRead('watchRoot:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, parent_share_code_id').in('id', ids));
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 /**
@@ -366,15 +383,17 @@ async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
   // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players; the
   // root code itself is no class at all. Every other code of that teacher leaves the watch children's codes out.
-  const root = await IdRoster.watchRoot();
+  // One settings read for the whole call: a failed read is no class (a later good read must not open the pool).
+  const { root, unreadable } = await IdRoster.watchRootState();
   if (root && ctx.shareCodeId === root) return [];
-  const watch = await isWatchCode(ctx);
+  const watch = unreadable || await isWatchCode(ctx);
   const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
-    const q = db.from('quiz_share_codes').select('id')
+    const q = db.from('quiz_share_codes').select(root ? 'id, parent_share_code_id' : 'id')
       .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since);
     return (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q).limit(200);
   });
-  const ids = (codes || []).map((c) => c.id);
+  const deep = root && (codes || []).length ? await underWatchRoot(codes, root, readCodeParents) : new Set();
+  const ids = (codes || []).filter((c) => c.id === root || !deep.has(c.id)).map((c) => c.id);   // the root's own old finishes stay, as today
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
   const { data: sessions } = await dbRead('classChips:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('student_id, student_name, user_id, created_at, share_code_id')
@@ -470,6 +489,9 @@ async function classLabel(ctx) {
 async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   requireOn();
   const fast = Fast.on();
+  // app_settings web_quiz_class_doors (30 s cache, fails closed), read beside the code: the edge opens the class table
+  // and the league in the link's language only when the answer says so.
+  const classDoors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
   mark('resolve', { shareCodeId: ctx.shareCodeId });
   // Fast first page (web_quiz_fast): every read below that needs only the resolved code starts now, beside the
@@ -629,10 +651,13 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   // A lesson video under app_settings web_quiz_videos_v3: the page opened from the child home's Videos door puts the play first (named only when on).
   if (video && video.url && await require('./web-quiz-library-flag').videosV3On()) out.videos_v3 = true;
+  // web_quiz_video_shelf: a lesson's Quiz button on the Videos door opens the page at its questions (?to=q); named only when on.
+  if (video && video.url && await require('./web-quiz-library-flag').videoShelfOn()) out.video_shelf = true;
   // A class link on a phone that holds a child asks "Is it <First>?" first (web-quiz-link-known.js): named only when on.
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
+  if (await classDoors) out.class_doors = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;
 }
@@ -1838,6 +1863,8 @@ function rankRows(rows) {
 
 async function board(code, { st } = {}) {
   requireOn();
+  // app_settings web_quiz_class_doors: `class_doors: true` marks the table's one primary on the page
+  const doors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
   // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
   if (ctx.invitedByStudentId) fail(404, 'not_found');
@@ -1848,7 +1875,7 @@ async function board(code, { st } = {}) {
   const nameOf = await shownNames(ctx.lang, ((cls && cls.rows) || []).map((r) => r.studentId));
   const rows = ((cls && cls.rows) || []).map((r) => ({
     sessionId: r.sessionId, studentId: r.studentId, first: nameOf(r.studentId, r.name),
-    animal: T.animalFor(r.studentId || r.sessionId), correct: r.correct, total: r.total, pct: r.pct,
+    animal: T.animalFor(r.studentId || r.sessionId), correct: r.correct, total: r.total, pct: r.pct, studentClass: r.studentClass,
   }));
   const ranked = rankRows(rows);
   const n = ranked.length;
@@ -1858,13 +1885,23 @@ async function board(code, { st } = {}) {
     rows: ranked.slice(0, BOARD_TOP).map((r) => ({ place: r.place, first: r.first, animal: r.animal, correct: r.correct, total: r.total })),
     more_n: Math.max(0, n - BOARD_TOP),
   };
+  let me = null;
   if (st) {
     const tok = T.verify(st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
       const { data: s } = await dbRead('board:quiz_sessions:1', (db) => db.from('quiz_sessions').select('id, student_id').eq('id', tok.sid).maybeSingle());
       const mine = s && ranked.find((r) => (s.student_id ? r.studentId === s.student_id : r.sessionId === s.id));
-      if (mine) out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct };
+      if (mine) { me = mine; out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct }; }
     }
+  }
+  if (await doors) {
+    out.class_doors = true;
+    // The child's own class as the teacher's report reads it (what the child typed, one format), and whether every
+    // row is of it: the page titles the table "Class 3" only then. Only a grade number counts: the field is free text,
+    // and on real rows it sometimes holds a word or a name, which must never become a title.
+    const classOf = (r) => { const c = normaliseClasses([r.studentClass])[0]; return /^(1[0-2]|[1-9])$/.test(c || '') ? c : null; };
+    const mc = me && classOf(me);
+    if (mc) { out.my_class = mc; out.one_class = ranked.every((r) => classOf(r) === mc); }
   }
   return out;
 }
