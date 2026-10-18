@@ -335,8 +335,15 @@ function markCss(f, rtl) {
   if (!m) return '';
   return `.card{border-bottom-color:${m.c}}.name{color:${m.c}}.brand{color:${m.c}}
 .rib{position:absolute;top:0;${rtl ? 'right' : 'left'}:72px;padding:${rtl ? '6px 28px 14px' : '10px 28px 14px'};background:${m.c};color:#fff;font-weight:800;font-size:${rtl ? 30 : 32}px;line-height:${rtl ? 1.6 : 1};border-radius:0 0 18px 18px}
-`;
+${rtl ? INK_CSS : ''}`;
 }
+// Room for the ink on an Urdu card of the one share: Nastaliq at line-height 2, and the clipped name padded (the padding
+// given back as margin, so nothing moves) so a ک or گ keeps the stroke it throws past the start of its line.
+// An Urdu line's closing "!" (drawn in Lexend) set against its last word: on its own it stands a gap apart.
+const bang = (html, tight) => (tight ? html.replace(/!$/, '<span class="ex">!</span>') : html);
+// The ribbon hangs from the card's top edge: its letters' tops stay inside the card (padding above them, not a clip).
+const INK_CSS = `.name{line-height:2;padding:.3em .4em;margin:-.3em -.4em}.deed{line-height:2.1}.st{line-height:2}.rib{line-height:2;padding:14px 28px 10px}.ex{margin-inline-start:-.08em}
+`;
 function markHtml(f, lang) {
   const m = markOf(f);
   return m ? `<div class="rib">${esc(m[lang])}</div>` : '';
@@ -367,8 +374,8 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#FFF8E7}
 .brand{position:absolute;${rtl ? 'left' : 'right'}:72px;bottom:34px;font:800 28px/1 'Lexend',sans-serif;color:#15803D;letter-spacing:.04em}
 ${markCss(f, rtl)}</style></head><body><div class="card">${markHtml(f, lang)}${jug}<div class="txt">
 <div class="name" dir="${nameDir}">${esc(f.first || '')}</div>
-<div class="deed">${esc(t[f.deed] || '')}</div>
-${f.deed === 'read_tried' || /_practice$/.test(f.deed) ? '' : `<div class="st">${STICKER}<span>${esc(t.sticker)}</span></div>`}
+<div class="deed">${bang(esc(t[f.deed] || ''), rtl && f.v4)}</div>
+${f.deed === 'read_tried' || /_practice$/.test(f.deed) ? '' : `<div class="st">${STICKER}<span>${bang(esc(t.sticker), rtl && f.v4)}</span></div>`}
 </div><div class="brand">JUGNU</div></div></body></html>`;
 }
 

@@ -564,3 +564,41 @@ describe('the Urdu class label keeps its signed order: «جماعت ۳-A»', () 
     }
   }, 60000);
 });
+
+describe('the one share (web_quiz_share_v4) gives the Urdu class picture room for its ink', () => {
+  const Switch = require('../../../shared/services/quiz/web-quiz-card-switch');
+  const INK = '.name{padding-top:40px';
+  function share(on) {
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_card_v3' && r.key !== 'web_quiz_share_v4');
+    if (on) db.app_settings.push({ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_v4', value: true });
+    Switch._reset();
+    resetCaches();
+    drawn = [];
+  }
+  beforeEach(() => setFlags({ home: true, story: false }));
+  afterEach(() => Switch._reset());
+
+  test('on: the Urdu picture is drawn with the room, under a new version; off: today\'s picture and version', async () => {
+    share(false);
+    const vOff = (await quiz('UR12CD')).body.art.teach_v;
+    await pic(SC_UR, 'UR12CD');
+    expect(drawn[0]).not.toContain(INK);
+    share(true);
+    const vOn = (await quiz('UR12CD')).body.art.teach_v;
+    expect(vOn).not.toBe(vOff);
+    await pic(SC_UR, 'UR12CD');
+    expect(drawn[0]).toContain(INK);
+  });
+
+  test('on: the English picture keeps today\'s version and HTML', async () => {
+    share(false);
+    const off = [(await quiz('AB12CD')).body.art.teach_v];
+    await pic(SC, 'AB12CD');
+    off.push(drawn[0]);
+    share(true);
+    const on = [(await quiz('AB12CD')).body.art.teach_v];
+    await pic(SC, 'AB12CD');
+    on.push(drawn[0]);
+    expect(on).toEqual(off);
+  });
+});
