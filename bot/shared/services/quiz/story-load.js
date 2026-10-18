@@ -24,6 +24,15 @@
  *      only when the voice build waived it for a listen (listen_asked, and 'wer …' in waived). A page whose voice fails any of these is stored with no voice. The voice's drift
  *      numbers are stored, not gated: the drift gate is the reader's highlight against the audio, measured on the page
  *      (a voice its build marks quality 'low' keeps its voice with that mark: the reader then follows it line by line)
+ *      With app_settings web_quiz_story_voice_gate ON (JSON true), the two pace numbers give way to a METHOD gate read
+ *      from the voice build's record (qa.json): one take (splices 0), atempo 1, no inserted silence, provider speed ≥ 0.9,
+ *      ≥ 48 kb/s, no mid-word silence (midword_hits 0), and a 60–220 wpm whole-clip band so a broken take cannot pass
+ *      (a page under 8 printed words skips the band, its pace still on record; its other checks still decide), and at most
+ *      800 ms of silence before the first word and 1200 ms after the last, measured on the sound (head_silence_ms,
+ *      tail_silence_ms; unknown is refused), with the first and last word times within 500 ms of those edges;
+ *      words the timing sources could not settle (timing_unresolved or unresolved_words > 0) make the page line-timed. Under the gate a new
+ *      take that fails is never stored and never silences a page: the page keeps the voice it has (applyPlan), and only a
+ *      page with no voice at all keeps the book a draft.
  *   2. questions: 3–5 reviewed
  *   +  a cover ≤ 15 KB
  * Gate 3 (a lead opens the book on sandbox) is a person's: the lead sets status 'off' on a book that fails it.
@@ -42,6 +51,20 @@ const SHORT_PAGE_WORDS = 10;
 const tolerant = (gate) => Math.round(gate * 102) / 100;
 const maxWpm = (grade, nWords) => tolerant(grade <= 2 && nWords >= SHORT_PAGE_WORDS ? 100 : 115);
 const maxSpanWpm = (grade) => tolerant(grade <= 2 ? 130 : 145);
+// The voice method gate (a natural-speed take, as delivered): the record's numbers and the whole-clip band.
+const VOICE_GATE_KEY = 'web_quiz_story_voice_gate';
+const MIN_SPEED = 0.9;
+const MIN_KBPS = 48;
+const WPM_BAND = [60, 220];
+// On a page this short the words per minute is mostly lead-in and tail silence: it skips the band (the voice build
+// judges the book's median pace), and every other check still decides.
+const BAND_MIN_WORDS = 8;
+// Under the gate every page has the silence before its first word and after its last bounded, as measured on the sound
+// (the build record's head_silence_ms / tail_silence_ms), and its first and last word times must agree with that sound.
+const MAX_LEAD_MS = 800;
+const MAX_TAIL_MS = 1200;
+const MAX_EDGE_GAP_MS = 500;
+const voiceGateOn = (value) => value === true;
 const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg', png: 'image/png' };
 const pad = (n) => String(n).padStart(2, '0');
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -70,8 +93,22 @@ function fileOf(buf, stem, ext) {
 
 /** The page's words as the contract keeps them: {i, t, box?} only. */
 function cleanWords(words) {
-  return (Array.isArray(words) ? words : []).map((w) => (Array.isArray(w.box) && w.box.length === 4
-    ? { i: w.i, t: w.t, box: w.box.map((x) => Math.round(x)) } : { i: w.i, t: w.t }));
+  return (Array.isArray(words) ? words : []).map((w) => {
+    const o = Array.isArray(w.box) && w.box.length === 4 ? { i: w.i, t: w.t, box: w.box.map((x) => Math.round(x)) } : { i: w.i, t: w.t };
+    // A spelling the page prints instead of the stored word (a "print differs" page): Your turn accepts either.
+    const alt = altOf(w);
+    if (alt.length) o.alt = alt;
+    return o;
+  });
+}
+
+const nfc = (s) => String(s).normalize('NFC').trim();
+
+/** The word's printed alternatives: strings only, composed, no repeats, never the word itself, at most 3. */
+function altOf(w) {
+  if (!Array.isArray(w.alt)) return [];
+  const t = nfc(w.t);
+  return [...new Set(w.alt.filter((a) => typeof a === 'string').map(nfc).filter((a) => a && a !== t))].slice(0, 3);
 }
 
 /** Each printed line as {i0, i1, box} (integers), or null when the page has none. */
@@ -82,7 +119,22 @@ function cleanLines(lines) {
 }
 
 /** The voice for page n: READALONG JSON (+ qa.json beside it, + the clip) → {row fields, file, why[]}. */
-function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
+const voiceId = (r) => [r.provider, r.voice, r.model].join('|');
+
+/** Why a question clip's build record (questions.voice.json clips[key]) is not one natural take; [] = it is. */
+function clipMethodWhy(key, rec) {
+  if (!rec || typeof rec !== 'object') return [`${key}: no build record`];
+  const why = [];
+  const m = (k, ok, say) => { const x = num(rec[k]); if (x == null || !ok(x)) why.push(`${key}: ${say(x == null ? 'unknown' : x)}`); };
+  m('splices', (x) => x === 0, (x) => `splices ${x}`);
+  m('atempo', (x) => x === 1, (x) => `atempo ${x}`);
+  m('inserted_silence_ms', (x) => x === 0, (x) => `inserted silence ${x}${x === 'unknown' ? '' : ' ms'}`);
+  m('speed', (x) => x >= MIN_SPEED, (x) => `speed ${x}`);
+  m('kbps', (x) => x >= MIN_KBPS, (x) => (x === 'unknown' ? 'kb/s unknown' : `${x} kb/s`));
+  return why;
+}
+
+function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
   const stem = path.join(voiceDir, `p${pad(n)}`);
   const j = readJson(`${stem}.json`);
   if (!j) return { why: ['no voice'] };
@@ -90,7 +142,9 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   const why = [];
   const ts = Array.isArray(j.words) ? j.words : [];
   const want = words.map((w) => w.i).join(',');
-  if (ts.map((w) => w.i).join(',') !== want) why.push('voice words differ from the page words');
+  // Same positions AND the same words: a clip timed on an older spelling of the page is not its voice.
+  const tOf = new Map(words.map((w) => [w.i, nfc(w.t)]));
+  if (ts.map((w) => w.i).join(',') !== want || ts.some((w) => w.t != null && tOf.get(w.i) !== nfc(w.t))) why.push('voice words differ from the page words');
   const bad = ts.some((w) => !(Number.isFinite(w.s_ms) && Number.isFinite(w.e_ms) && w.e_ms >= w.s_ms));
   if (bad) why.push('voice timings malformed');
   const pick = (k) => num(qa[k]) != null ? qa[k] : num(j[k]);
@@ -99,11 +153,42 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
   // A wer miss ships only when the voice build waived it for a person's listen (a short word every recogniser mishears).
   const listenWaived = qa.listen_asked === true && Array.isArray(qa.waived) && qa.waived.some((w) => /^wer\b/.test(String(w)));
   if (wer == null || (wer > MAX_WER[lang] && !listenWaived)) why.push(`voice wer ${wer == null ? 'unknown' : wer}`);
-  // Two pace gates: words over the whole clip (what the child sits through), and over the spoken span (what the eye follows).
   const clipWpm = num(j.wpm) != null ? j.wpm : (num(qa.wpm_clip) != null ? qa.wpm_clip : num(qa.wpm));
-  if (clipWpm == null || clipWpm > maxWpm(grade, words.length)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
-  const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
-  if (spanWpm == null || spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm == null ? 'unknown' : spanWpm} wpm`);
+  if (voiceGate) {
+    // How the take was made, not how fast it reads: one provider call, its bytes as delivered.
+    const m = (k, ok, say) => { const x = num(qa[k]); if (x == null || !ok(x)) why.push(`voice method: ${say(x == null ? 'unknown' : x)}`); };
+    m('splices', (x) => x === 0, (x) => `splices ${x}`);
+    m('atempo', (x) => x === 1, (x) => `atempo ${x}`);
+    m('inserted_silence_ms', (x) => x === 0, (x) => (x === 'unknown' ? 'inserted silence unknown' : `inserted silence ${x} ms`));
+    m('speed', (x) => x >= MIN_SPEED, (x) => `speed ${x}`);
+    m('kbps', (x) => x >= MIN_KBPS, (x) => (x === 'unknown' ? 'kb/s unknown' : `${x} kb/s`));
+    // the word times come from the provider or a forced alignment of the stored audio, never a recogniser's alignment
+    const tsrc = j.timing_source || j.timing_src || qa.timing_source || qa.timing_src || null;
+    if (!['provider', 'forced_align'].includes(tsrc)) why.push(`voice timing source ${tsrc || 'unknown'}`);
+    const mid = num(qa.midword_hits);
+    if (mid !== 0) why.push(`voice midword silence ${mid == null ? 'unknown' : mid}`);
+    const banded = words.length >= BAND_MIN_WORDS;
+    if (clipWpm == null || (banded && (clipWpm < WPM_BAND[0] || clipWpm > WPM_BAND[1]))) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm outside ${WPM_BAND[0]}–${WPM_BAND[1]}`);
+    const head = num(qa.head_silence_ms);
+    const tail = num(qa.tail_silence_ms);
+    if (head == null || tail == null) why.push('voice silence edges unknown');
+    else {
+      if (head > MAX_LEAD_MS) why.push(`voice lead-in ${Math.round(head)} ms`);
+      if (tail > MAX_TAIL_MS) why.push(`voice tail ${Math.round(tail)} ms`);
+      const clipMs = num(j.audio && j.audio.ms) || num(j.ms);
+      if (ts.length && !bad) {
+        const first = Math.round(Math.abs(ts[0].s_ms - head));
+        if (first > MAX_EDGE_GAP_MS) why.push(`voice first word stamp ${first} ms from the sound`);
+        const last = clipMs ? Math.round(Math.abs(clipMs - tail - ts[ts.length - 1].e_ms)) : 0;
+        if (last > MAX_EDGE_GAP_MS) why.push(`voice last word stamp ${last} ms from the sound`);
+      }
+    }
+  } else {
+    // Two pace gates: words over the whole clip (what the child sits through), and over the spoken span (what the eye follows).
+    if (clipWpm == null || clipWpm > maxWpm(grade, words.length)) why.push(`voice pace ${clipWpm == null ? 'unknown' : clipWpm} wpm`);
+    const spanWpm = num(j.pace_wpm) != null ? j.pace_wpm : num(qa.pace_wpm);
+    if (spanWpm == null || spanWpm > maxSpanWpm(grade)) why.push(`voice span pace ${spanWpm == null ? 'unknown' : spanWpm} wpm`);
+  }
   if (j.ok === false || qa.ok === false) why.push(`voice failed its own checks${Array.isArray(j.fails) && j.fails.length ? ` (${j.fails.slice(0, 2).join(', ')})` : ''}`);
   const clip = readBytes(`${stem}.ogg`);
   const remoteKey = j.audio && typeof j.audio.key === 'string' ? j.audio.key : null;
@@ -123,7 +208,8 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
       wpm: num(j.pace_wpm) != null ? j.pace_wpm : pick('wpm'), drift_ms_mean: pick('drift_ms_mean'), drift_ms_max: drift, wer,
       // Line-timed unless the voice's own timing checks have run and passed: its 'low' mark (or the mirror field),
       // or no p90 drift yet (a page re-made since the last check) all count as 'low'.
-      cost_usd: pick('cost_usd'), quality: (j.quality === 'low' || j.timing_quality === 'low' || qa.timing_quality === 'low' || pick('drift_ms_p90') == null) ? 'low' : null,
+      cost_usd: pick('cost_usd'), quality: (j.quality === 'low' || j.timing_quality === 'low' || qa.timing_quality === 'low' || pick('drift_ms_p90') == null
+        || (voiceGate && (num(qa.timing_unresolved) > 0 || num(qa.unresolved_words) > 0))) ? 'low' : null,
     },
   };
 }
@@ -131,9 +217,10 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1 }) {
 /**
  * One book's plan. book = the pages manifest entry; serveDir = its files' folder; voiceDir = the book's voice
  * folder (<source_id>/); questionsFile = its questions file (<source_id>.json); cleared = whether the book's
- * watermark sweep is done; extra = {pdf_r2_key, slo} from the catalogue.
+ * watermark sweep is done; extra = {pdf_r2_key, slo} from the catalogue; voiceGate = the method gate is on (then a page's
+ * failed voice goes to plan.misses, not plan.why: applyPlan decides whether the page keeps the voice it has).
  */
-function planBook({ book, serveDir, voiceDir = null, questionsFile = null, cleared = false, cleanPages = null, cleanDir = null, extra = {}, convert = null }) {
+function planBook({ book, serveDir, voiceDir = null, questionsFile = null, cleared = false, cleanPages = null, cleanDir = null, extra = {}, convert = null, voiceGate = false }) {
   const why = [];
   const bookId = Store.bookIdFor(book.source_id);
   const lang = book.lang;
@@ -156,6 +243,7 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
 
   const pages = [];
   const voices = [];
+  const misses = [];
   for (let p of (Array.isArray(book.pages) ? book.pages : []).filter((x) => x && x.n >= 1).sort((a, b) => a.n - b.n)) {
     const tag = `p${pad(p.n)}`;
     const pid = Store.uuidV5(bookId, tag);
@@ -188,8 +276,9 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       if (!words.length || !String(p.text || '').trim()) why.push(`${tag}: no words`);
       if (!band) why.push(`${tag}: no word band`);
       if (p.note && /disagree/i.test(String(p.note))) why.push(`${tag}: reads disagree`);
-      const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade }) : { why: ['no voice'] };
-      v.why.forEach((w) => why.push(`${tag}: ${w}`));
+      const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade, voiceGate }) : { why: ['no voice'] };
+      if (voiceGate && v.why.length) misses.push({ pageId: pid, n: p.n, why: v.why });
+      else v.why.forEach((w) => why.push(`${tag}: ${w}`));
       // A voice that fails any check is not stored: the page is served with no voice (Your turn) until it passes.
       if (v.row && v.file && !v.why.length) {
         // The clip is stored beside the pictures, so the row's audio_key always names a file /s/ can serve.
@@ -208,13 +297,20 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
   if (!pages.length) why.push('no pages');
 
   const questions = [];
+  const questionMisses = [];
+  const qv = voiceDir ? readJson(path.join(voiceDir, 'questions.voice.json')) : null;
   const qj = questionsFile ? readJson(questionsFile) : null;
   for (const q of (qj && Array.isArray(qj.questions) ? qj.questions : []).filter((x) => x && x.n >= 1 && x.n <= 5)) {
     let audio = null;
     if (voiceDir) {
       const qa = readBytes(path.join(voiceDir, `q${q.n}.ogg`));
       const os = (q.options || []).map((_, m) => readBytes(path.join(voiceDir, `q${q.n}o${m + 1}.ogg`)));
-      if (qa || os.some(Boolean)) {
+      // Under the method gate a question's clips are stored only when each one's build record says one natural take;
+      // otherwise the question keeps the audio it has (the row is written without its audio column).
+      const keys = [qa ? `q${q.n}` : null, ...os.map((b, m) => (b ? `q${q.n}o${m + 1}` : null))].filter(Boolean);
+      const qwhy = voiceGate ? keys.flatMap((k) => clipMethodWhy(k, qv && qv.clips ? qv.clips[k] : null)) : [];
+      if (qwhy.length) questionMisses.push({ n: q.n, why: qwhy });
+      else if (qa || os.some(Boolean)) {
         const qf = qa ? fileOf(qa, `q${q.n}`, 'ogg') : null;
         const ofs = os.map((b, m) => (b ? fileOf(b, `q${q.n}o${m + 1}`, 'ogg') : null));
         [qf, ...ofs].filter(Boolean).forEach((f) => files.push(f));
@@ -229,11 +325,12 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       review_status: ['draft', 'reviewed', 'rejected'].includes(q.review_status) ? q.review_status : 'draft',
       reviewer_note: q.reviewer_note || null, audio,
     });
+    if (questionMisses.some((m) => m.n === q.n)) delete questions[questions.length - 1].audio;
   }
   // One file holding every question and option clip, played by time range (one request on a slow line).
   let sprite = null;
-  const qv = voiceDir ? readJson(path.join(voiceDir, 'questions.voice.json')) : null;
-  if (qv && qv.sprite && qv.sprite.ogg && qv.sprite.clips) {
+  // the sprite joins every clip: one clip that is not a natural take keeps the stored sprite too
+  if (!questionMisses.length && qv && qv.sprite && qv.sprite.ogg && qv.sprite.clips) {
     const b = readBytes(path.join(voiceDir, path.basename(qv.sprite.ogg)));
     if (b) { const f = fileOf(b, 'qs', 'ogg'); files.push(f); sprite = { file: f.name, clips: qv.sprite.clips }; }
   }
@@ -251,8 +348,20 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
     pdf_r2_key: extra.pdf_r2_key || book.pdf_r2_key || null, questions_sprite: sprite,
     minutes: voiced === textPages && voiced ? Math.round(ms / 6000) / 10 : null,
   };
+  if (questionMisses.length) delete bookRow.questions_sprite;
   const uniq = new Map(files.map((f) => [f.name, f]));
-  return { bookId, bookRow, pages, voices, questions, files: [...uniq.values()], ready: why.length === 0, why, counts: { pages: pages.length, textPages, voiced, questions: questions.length, reviewed } };
+  const plan = { bookId, bookRow, pages, voices, questions, files: [...uniq.values()], ready: why.length === 0, why, counts: { pages: pages.length, textPages, voiced, questions: questions.length, reviewed } };
+  if (voiceGate) {
+    // one voice per book: takes by two voices (or models) in one run are all held back; the pages keep what they have
+    const ids = new Set(voices.map((v) => voiceId(v.row)));
+    if (ids.size > 1) {
+      voices.splice(0).forEach((v) => misses.push({ pageId: v.pageId, n: v.n, why: [`one voice per book: ${ids.size} voices in this run`] }));
+      misses.sort((a, b) => a.n - b.n);
+      plan.files = plan.files.filter((f) => !/^a\d\d-/.test(f.name) || voices.some((v) => v.file.name === f.name));
+      plan.counts.voiced = 0; plan.bookRow.minutes = null;
+    }
+  }
+  return voiceGate ? { ...plan, misses, questionMisses } : plan;
 }
 
 /**
@@ -262,7 +371,34 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
 async function applyPlan(plan, { store, upload, env, dryRun = false, has = null, stored = null }) {
   const out = { bookId: plan.bookId, uploaded: 0, skipped: 0, status: null };
   const keyOf = (name) => Store.storyKey({ env, bookId: plan.bookId, file: name });
-  if (dryRun) { out.status = plan.ready ? 'ready' : 'draft'; out.uploaded = plan.files.length; return out; }
+  // Under the method gate a page whose new take failed keeps the voice it has; one with none keeps the book a draft.
+  // The dry run reads the current voices too (read only), so it gives the write's answer; no store = none kept.
+  const seen = plan.misses && plan.misses.length && dryRun ? (store && store.currentVoices ? await store.currentVoices(plan.pages.map((p) => p.id)) : []) : null;
+  const split = (cur0) => {
+    const lang = plan.bookRow.lang;
+    const cur = cur0.filter((c) => !c.lang || !lang || c.lang === lang);
+    // a new voice beside a kept page's other voice would make a mixed book: every page keeps the voice it has
+    const keptIds = new Set((plan.misses || []).map((m) => cur.find((c) => c.page_id === m.pageId)).filter(Boolean).map(voiceId));
+    if (plan.misses && plan.voices.length && keptIds.size && [...keptIds].some((k) => plan.voices.some((v) => voiceId(v.row) !== k))) {
+      plan.voices.splice(0).forEach((v) => plan.misses.push({ pageId: v.pageId, n: v.n, why: ['one voice per book: differs from the voice a kept page has'] }));
+      plan.misses.sort((a, b) => a.n - b.n);
+    }
+    const kept = [];
+    for (const m of plan.misses || []) {
+      if (cur.some((c) => c.page_id === m.pageId)) kept.push(m.n);
+      else m.why.forEach((w) => plan.why.push(`p${pad(m.n)}: ${w}`));
+    }
+    if (plan.misses) { out.kept = kept; plan.ready = plan.ready && plan.why.length === 0; }
+    return kept;
+  };
+  if (dryRun) { if (plan.misses) split(seen || []); out.status = plan.ready ? 'ready' : 'draft'; out.uploaded = plan.files.length; return out; }
+  const current = await store.currentVoices(plan.pages.map((p) => p.id));
+  const kept = split(current);
+  if (plan.misses) {
+    // a take held back for one voice per book is never stored either
+    const held = new Set(plan.misses.map((m) => m.n));
+    plan.files = plan.files.filter((f) => !/^a\d\d-/.test(f.name) || plan.voices.some((v) => v.file.name === f.name && !held.has(v.n)));
+  }
   for (const f of plan.files) {
     const key = keyOf(f.name);
     if (has && has(key)) { out.skipped += 1; continue; }
@@ -270,11 +406,18 @@ async function applyPlan(plan, { store, upload, env, dryRun = false, has = null,
     out.uploaded += 1;
   }
   const prior = await store.bookStatus(plan.bookId);
+  const bookRow = { ...plan.bookRow };
+  if (kept.length) {
+    // A kept page still plays: minutes count its stored length; when a length is not known the stored minutes stay.
+    const keptMs = kept.map((n) => { const c = current.find((x) => x.page_id === (plan.misses.find((m) => m.n === n) || {}).pageId); return c ? num(c.ms) : null; });
+    if (keptMs.every((x) => x) && plan.voices.length + kept.length === plan.counts.textPages) {
+      bookRow.minutes = Math.round((plan.voices.reduce((a, v) => a + (v.row.ms || 0), 0) + keptMs.reduce((a, b) => a + b, 0)) / 6000) / 10;
+    } else delete bookRow.minutes;
+  }
   // A new book is written as a draft first; its status moves only after every row it needs is in.
-  await store.upsertBook({ ...plan.bookRow, status: prior || 'draft', updated_at: new Date().toISOString() });
+  await store.upsertBook({ ...bookRow, status: prior || 'draft', updated_at: new Date().toISOString() });
   await store.upsertPages(plan.pages);
   await store.deletePagesAbove(plan.bookId, plan.pages.length ? Math.max(...plan.pages.map((p) => p.n)) : 0);
-  const current = await store.currentVoices(plan.pages.map((p) => p.id));
   for (const v of plan.voices) {
     const audioKey = keyOf(v.file.name);
     const row = { ...v.row, page_id: v.pageId, audio_key: audioKey, is_current: true, id: Store.uuidV5(v.pageId, audioKey) };
@@ -283,7 +426,7 @@ async function applyPlan(plan, { store, upload, env, dryRun = false, has = null,
     await store.upsertVoice(row);
   }
   // A page with no passing voice this run keeps no current voice: the reader then offers the child's turn.
-  for (const c of current) if (!plan.voices.some((v) => v.pageId === c.page_id)) await store.retireVoice(c.id);
+  for (const c of current) if (!plan.voices.some((v) => v.pageId === c.page_id) && !(plan.misses || []).some((m) => m.pageId === c.page_id)) await store.retireVoice(c.id);
   // A book is ready only when every voice it names is in storage under story/ (what the picture and voice route serves).
   const missing = [];
   for (const v of plan.voices) {
@@ -308,10 +451,17 @@ function supabaseStore(db) {
     upsertBook: (row) => ok(db.from('story_books').upsert({ ...row }, BY_ID)),
     upsertPages: (rows) => (rows.length ? ok(db.from('story_pages').upsert(rows.map((r) => ({ ...r })), BY_ID)) : null),
     deletePagesAbove: (bookId, n) => ok(db.from('story_pages').delete().eq('book_id', bookId).gt('n', n)),
-    currentVoices: async (pageIds) => (pageIds.length ? ok(db.from('story_page_voices').select('id, page_id, lang, audio_key').in('page_id', pageIds).eq('is_current', true)) : []),
+    currentVoices: async (pageIds) => (pageIds.length ? ok(db.from('story_page_voices').select('id, page_id, lang, audio_key, ms, provider, voice, model').in('page_id', pageIds).eq('is_current', true)) : []),
     retireVoice: (id) => ok(db.from('story_page_voices').update({ is_current: false }).eq('id', id)),
     upsertVoice: (row) => ok(db.from('story_page_voices').upsert({ ...row }, BY_ID)),
-    upsertQuestions: (rows) => (rows.length ? ok(db.from('story_questions').upsert(rows.map((r) => ({ ...r })), BY_ID)) : null),
+    // one upsert per column set: a bulk upsert writes null into a column a row leaves out (a kept question's audio)
+    upsertQuestions: async (rows) => {
+      const sets = new Map();
+      rows.forEach((r) => { const k = Object.keys(r).sort().join(','); sets.set(k, [...(sets.get(k) || []), { ...r }]); });
+      let last = null;
+      for (const group of sets.values()) last = await ok(db.from('story_questions').upsert(group.map((r) => ({ ...r })), BY_ID));
+      return last;
+    },
     deleteQuestionsAbove: (bookId, n) => ok(db.from('story_questions').delete().eq('book_id', bookId).gt('n', n)),
     setStatus: (id, status) => ok(db.from('story_books').update({ status, updated_at: new Date().toISOString() }).eq('id', id)),
   };
@@ -351,4 +501,11 @@ async function missedPages(db, { since = null, now = () => new Date() } = {}) {
   return { since, until, pages: [...seen.values()].map((p) => ({ ...p, source_id: src.get(p.book_id) || null })) };
 }
 
-module.exports = { missedPages, planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };
+/** The method gate's switch, read once per pass: true only when app_settings holds JSON true. A read error throws. */
+async function readVoiceGate(db) {
+  const { data, error } = await db.from('app_settings').select('key, value').eq('key', VOICE_GATE_KEY).maybeSingle();
+  if (error) throw new Error(`${error.code || ''} ${error.message}`);
+  return voiceGateOn(data ? data.value : null);
+}
+
+module.exports = { readVoiceGate, voiceGateOn, VOICE_GATE_KEY, missedPages, planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };

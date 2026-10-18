@@ -3,19 +3,18 @@
  * The v3 child home's door screens (app_settings `web_quiz_home_v3`, the home's own switch): what is behind Stories and
  * Games beyond the hub boot's few ids, fetched when a door opens so the home itself stays light.
  *
- *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [...], shelf}   d = 'games' -> {games: [...]}
+ *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
  *   seededOrder(items, seed)              a stable shuffle (pure): the same seed, the same order
  *   daySeed(childId, now)                 the seed for one child on one Pakistan day (pure)
  *
- * Stories: this week's story first (it is the door's one primary), then every other story this child can open now —
- * the practice passages already released in the child's open bands, read and listen, shuffled per child per PKT day
- * (no fixed order on a child's shelf, so `pos` rides on every row and the tap logs it), the ones already met last.
- * A row is listed only when it would open: a read needs its text in the item bank, a listen needs its recorded clip
- * (asking records a missing one in the background, so it appears on a later open) — never a tile that answers "on its
- * way". The storybook shelf (`shelf: true`) is drawn by the stories reader under its own switch (web_quiz_stories).
+ * Stories: the storybooks' door. Its content is the storybook shelf (`shelf: true`), drawn by the stories reader under
+ * its own switch (web_quiz_stories); no Jugnu passage is listed here (they open from the Games door and the home's
+ * Next tile), so nothing is read about passages and no clip is asked for or recorded. `stories` stays an empty list.
  * Games: the number games this child's grade has (the Trail's own rule: the grade-1 form's one game; else the warm-up /
- * missing number with its switches, and which is bigger), each opened by its id on /c/<token>#<id>; the teacher's
+ * missing number with its switches, and which is bigger), each opened by its id on /c/<token>#<id>; then Jugnu's
+ * passages (this week's read passage and the newest listening story, opened in the story room by id, each only when it
+ * would open) and the games page's counted read aloud when the day's cap allows; the teacher's
  * quizzes come with the hub boot (doors.games), not from here. Nothing here is a count about the child.
  */
 const crypto = require('crypto');
@@ -51,70 +50,26 @@ function seededOrder(items, seed) {
   return out;
 }
 
-function bank() {
-  try { return require('../child-test/item-bank'); } catch (_) { return null; }
-}
-
-/** A read opens when its text is in the item bank; a listen when its clip is recorded (a missing one starts recording). */
-async function opens(row, lang) {
-  const B = bank();
-  const p = B && typeof B.getPassage === 'function' ? B.getPassage(row.passage_id) : null;
-  if (!p || !p.text) return false;
-  if (row.kind !== 'listen') return true;
-  try {
-    const Challenge = require('./web-quiz-challenge');
-    // the capped ask: a Stories open never takes the last half of the day's paid recordings
-    const clip = typeof Challenge.storyClipCapped === 'function' ? Challenge.storyClipCapped : Challenge.storyClip;
-    return typeof clip === 'function' && Boolean(await clip(lang, p.text));
-  } catch (_) {
-    return false;
-  }
-}
-
 /** A recorded clip of a row's words, when there is one in time (null otherwise: the page says it another way). */
-async function sayAll(texts, lang) {
+async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
   let Challenge;
   try { Challenge = require('./web-quiz-challenge'); } catch (_) { return texts.map(() => null); }
   if (typeof Challenge.sayClip !== 'function') return texts.map(() => null);
   const all = Promise.all(texts.map((t) => Challenge.sayClip(t, lang).catch(() => null)));
   let timer = null;
-  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), SAY_WAIT_MS); });
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), waitMs); });
   try {
     return (await Promise.race([all, late])) || texts.map(() => null);
   } finally { clearTimeout(timer); }
 }
 
-async function storiesDoor(who, lang, now) {
-  const Play = require('./web-quiz-hub-play');
-  const s = await Play.switches();
+async function storiesDoor() {
   const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => false);
-  // The Story Time room serves a practice story only with its switch (wq-trail.js storyRoom: m.v2.story).
-  if (!s.story) return { stories: [], shelf: storiesOn };
-  const seen = await Play.seenPassages(who.studentId);
-  const bands = Play.openBands(who.grade, await Play.readingRungOf(who.studentId));
-  const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), bands);
-  const { titleFor } = require('./web-quiz-passage-title');
-  const titled = live.map((r) => ({ r, title: titleFor(r.passage_id, lang) })).filter((x) => x.title);
-  const ok = await Promise.all(titled.map((x) => opens(x.r, lang)));
-  const rows = titled.filter((_, i) => ok[i]);
-  const met = (r) => Boolean(seen && (seen.has(r.passage_id) || (r.twin_of && seen.has(r.twin_of))));
-  const newest = rows.filter((x) => x.r.kind === 'read').sort((a, b) => Date.parse(b.r.released_at) - Date.parse(a.r.released_at))[0] || null;
-  const rest = rows.filter((x) => x !== newest);
-  const seed = daySeed(who.studentId, now);
-  const ordered = [
-    ...(newest ? [newest] : []),
-    ...seededOrder(rest.filter((x) => !met(x.r)), seed),
-    ...seededOrder(rest.filter((x) => met(x.r)), seed),
-  ];
-  const say = await sayAll(ordered.map((x) => x.title), lang);
-  const stories = ordered.map((x, i) => ({
-    kind: x.r.kind === 'listen' ? 'listen' : 'passage', id: x.r.passage_id, title: x.title, pos: i,
-    ...(x === newest ? { week: true } : {}), ...(met(x.r) ? { done: true } : { fresh: true }), ...(say[i] ? { say: say[i] } : {}),
-  }));
-  return { stories, shelf: storiesOn };
+  return { stories: [], shelf: storiesOn };
 }
 
-async function gamesDoor(who, lang) {
+async function gamesDoor(who, lang, now) {
+  if (require('./web-quiz-wait-ux').on()) return gamesDoorTogether(who, lang, now);
   const Hub = require('./web-quiz-hub');
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
@@ -130,8 +85,101 @@ async function gamesDoor(who, lang) {
   // Under the pool the missing-number stop opens as the Number warm-up (wq-trail.js isWarmup: its anchor block).
   const warm = ids.includes('missing') && (await Challenge.poolOn());
   const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
-  const say = await sayAll(names.map((n) => n || ''), lang);
-  return { games: ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })) };
+  const reads = form === G1.FORM ? [] : await readRows(Challenge, who, lang, now);
+  const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.name || r.title)], lang);
+  return { games: [
+    ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
+    ...reads.map((r, j) => ({ ...r, ...(say[ids.length + j] ? { say: say[ids.length + j] } : {}) })),
+  ] };
+}
+
+// web_quiz_wait_ux on: the same rows as gamesDoor, but every read that does not need another's answer starts at once
+// (the switches, the grade, the read cap, the passages' switch and the child's rung), and the spoken labels are waited
+// for at most WaitUx.SAY_WAIT_MS (a label late here is recorded in the background and ready on the next open).
+async function gamesDoorTogether(who, lang, now) {
+  const Hub = require('./web-quiz-hub');
+  const Challenge = require('./web-quiz-challenge');
+  const G1 = require('./web-quiz-challenge-grade1');
+  const Play = require('./web-quiz-hub-play');
+  const WaitUx = require('./web-quiz-wait-ux');
+  const soft = (p) => Promise.resolve(p).catch(() => null);
+  const [flags, form, record, missing, pool, sw, rung, aloud] = await Promise.all([
+    Hub.flags(),
+    Challenge.gradeOf({ studentId: who.studentId }).then((g) => Challenge.formForChild(g)).catch(() => null),
+    soft(Challenge.recordOn()), soft(Challenge.missingOn()), soft(Challenge.poolOn()),
+    soft(Play.switches()), soft(Play.readingRungOf(who.studentId)),
+    require('./web-quiz-challenge-budget').readOpen().catch(() => false),
+  ]);
+  if (!flags.challenge || !form) return { games: [] };
+  const ids = form === G1.FORM ? [G1.EXERCISE] : [...(record && missing ? ['missing'] : []), 'bigger'];
+  const warm = ids.includes('missing') && Boolean(pool);
+  const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
+  const reads = form === G1.FORM ? [] : await readRowsFrom(Challenge, who, lang, now, { story: Boolean(sw && sw.story), rung, aloud });
+  const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.name || r.title)], lang, WaitUx.SAY_WAIT_MS);
+  return { games: [
+    ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
+    ...reads.map((r, j) => ({ ...r, ...(say[ids.length + j] ? { say: say[ids.length + j] } : {}) })),
+  ] };
+}
+
+// readRows with its switch, rung and read cap already read (gamesDoorTogether): the same rows in the same order.
+async function readRowsFrom(Challenge, who, lang, now, { story, rung, aloud: open }) {
+  const found = { read: null, listen: null };
+  if (story) {
+    const Play = require('./web-quiz-hub-play');
+    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), Play.openBands(who.grade, rung));
+    pickPassages(live, lang, found);
+  }
+  let aloud = null;
+  if (open) {
+    const name = (() => { try { return typeof Challenge.nameOf === 'function' ? Challenge.nameOf('read', lang) || null : null; } catch (_) { return null; } })();
+    if (name) aloud = { kind: 'read', stop: 'read', name };
+  }
+  return [found.read, aloud, found.listen].filter(Boolean);
+}
+
+// Jugnu's passages beside the games (the Stories door shows storybooks only): this week's read passage (read along, in
+// the story room) and the newest listening story, each only when its text is in the bank (no clip is asked here: the
+// listen's clip is asked when the child opens it, as the story room does), and the games page's counted read aloud
+// when the day's cap allows.
+async function readRows(Challenge, who, lang, now) {
+  const found = { read: null, listen: null };
+  const Play = require('./web-quiz-hub-play');
+  if ((await Play.switches()).story) {
+    const bands = Play.openBands(who.grade, await Play.readingRungOf(who.studentId));
+    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), bands);
+    pickPassages(live, lang, found);
+  }
+  let aloud = null;
+  if (await require('./web-quiz-challenge-budget').readOpen().catch(() => false)) {
+    const name = (() => { try { return typeof Challenge.nameOf === 'function' ? Challenge.nameOf('read', lang) || null : null; } catch (_) { return null; } })();
+    if (name) aloud = { kind: 'read', stop: 'read', name };
+  }
+  // read along, read aloud, listen
+  return [found.read, aloud, found.listen].filter(Boolean);
+}
+
+// The newest read and listen whose words are in the bank, each with its child-facing title (into found).
+function pickPassages(live, lang, found) {
+  const { titleFor } = require('./web-quiz-passage-title');
+  for (const kind of ['read', 'listen']) {
+    const rows = live.filter((r) => r.kind === kind).sort((x, y) => Date.parse(y.released_at) - Date.parse(x.released_at));
+    for (const r of rows) {
+      const title = titleFor(r.passage_id, lang);
+      if (title && opens(r)) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
+    }
+  }
+}
+
+function bank() {
+  try { return require('../child-test/item-bank'); } catch (_) { return null; }
+}
+
+/** A read or a listen opens when its text is in the item bank (a door open asks for no clip). */
+function opens(row) {
+  const B = bank();
+  const p = B && typeof B.getPassage === 'function' ? B.getPassage(row.passage_id) : null;
+  return Boolean(p && p.text);
 }
 
 function safeName(Challenge, id, lang) {
@@ -148,7 +196,7 @@ async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
-    return d === 'stories' ? await storiesDoor(who, l, now) : await gamesDoor(who, l);
+    return d === 'stories' ? await storiesDoor() : await gamesDoor(who, l, now);
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });

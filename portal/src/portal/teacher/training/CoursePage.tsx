@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useCopy } from '../i18n';
-import { BookOpen, FileText, GraduationCap, Play, PlayCircle } from 'lucide-react';
+import { BookOpen, GraduationCap, Play } from 'lucide-react';
 import { TRAINING, TRAINING_INNER } from './copy';
 import { moduleExamState, useTrainingCourse } from '../../newui/training/TrainingCourse';
-import { courseName, type ExamGate, type ReadingItem, type ReadingList } from '../../newui/training/trainingApi';
+import { courseName, type ExamGate, type ReadingList } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip, Tray, type ChipData } from '../ui';
 import { partRows } from './inner';
-import { DockButton, V2Row } from './parts';
+import { DockButton, readingIcon, V2Row } from './parts';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
 
 /**
@@ -77,7 +77,6 @@ function ModuleExamRowV2({ exam, to }: { exam: ExamGate; to: string }) {
 }
 
 const hasReadings = (r: ReadingList | null | undefined) => Boolean(r && ((r.available || []).length || (r.unavailable || []).length));
-const readingIcon = (r: ReadingItem) => (/video|ted|talk|lecture/i.test(r.type) ? PlayCircle : /book|novel|textbook/i.test(r.type) ? BookOpen : FileText);
 
 /** I-SAPS required reading: a row, and the list in a tray (the new UI's ReadingsRow, restyled). Gates nothing. */
 function ReadingsV2({ readings }: { readings: ReadingList }) {

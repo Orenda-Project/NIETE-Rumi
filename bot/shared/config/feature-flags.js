@@ -71,6 +71,16 @@ const ASSESSMENT_FDE_PATTERN_KEY = 'assessment_fde_pattern_enabled';
  */
 const ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY = 'assessment_fde_pattern_subjects';
 
+/**
+ * Which subjects' board-pattern papers get the reader pass (one more model call after the layout
+ * that names the Section A items another part of the paper gives away), as a JSON array of
+ * subject keys (e.g. ["urdu"]). FAIL CLOSED, the other direction from the subjects list above:
+ * absent, [], a value that is not an array of strings, or a failed read all mean NO subject. This
+ * one adds a model call and a re-ask to every paper it names, so only a written value turns it on.
+ * Read by the orchestrator per paper; the engine reads only the subjects it was built for.
+ */
+const ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY = 'assessment_fde_reader_pass_subjects';
+
 async function isFlagEnabled(key) {
   try {
     const { data, error } = await supabase
@@ -123,6 +133,26 @@ async function fdePatternSubjects() {
     return null;
   }
 }
+/** The subject keys the reader pass runs for, lower-cased; [] (off) on anything but a written list. */
+async function fdeReaderPassSubjects() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY)
+      .maybeSingle();
+    if (error || !data) return [];
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { return []; }
+    }
+    if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) return [];
+    return value.map((v) => v.trim().toLowerCase()).filter(Boolean);
+  } catch (err) {
+    logToFile('Feature-flag lookup failed — treating as off', { key: ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY, error: err?.message });
+    return [];
+  }
+}
 /**
  * Same rules as isFlagEnabled, and the row must BE this key: a reader that took
  * whatever row came back would turn the author's gates on from another flag.
@@ -155,4 +185,5 @@ module.exports = {
   QUIZ_AUTHOR_GATES_V2_KEY, isQuizAuthorGatesV2,
   ASSESSMENT_FDE_PATTERN_KEY, isAssessmentFdePatternEnabled,
   ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, fdePatternSubjects,
+  ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY, fdeReaderPassSubjects,
 };

@@ -222,9 +222,11 @@ function shelfOf(live, unseenPids, lang) {
 /**
  * The hub's play block for the chosen child, or null when every switch here is off (no `play` key: golden).
  * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge); `stopsOf()` the stop ids
- * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is.
+ * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is. `steps()` gives the
+ * challenge's step names (`nameOf`, `poolOn`) from the caller, which holds the challenge: this file never requires it
+ * (the challenge requires this file).
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, collect } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, steps, collect } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -244,6 +246,8 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, c
   if (!s.v2 || !tile || !chosenId) return out;
 
   const stops = typeof stopsOf === 'function' ? await stopsOf() : [];
+  // the home tile's first-step switches are read beside the trail, never as a wave after it
+  const stepReads = firstStepReads(steps);
   const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
   const seenIds = s.story ? await seenPassages(chosenId) : null;
   const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
@@ -265,6 +269,10 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, c
   if (nx.kind === 'trail' || s.story) {
     out.lantern = nx.kind === 'story' ? { ...nx, pid: (ownTile.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
+  if (out.lantern && out.lantern.kind === 'trail' && trail[0]) {
+    const first = firstStep(trail[0], lang, await stepReads);
+    if (first) out.lantern = { ...out.lantern, first };
+  }
   if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
   // The next-thing ranker (web-quiz-next-offer-sources.js) reads what this corner read; the payload is untouched. Its
   // lantern is the one the child is shown (the control arm's primary), never a same-titled twin.
@@ -272,6 +280,35 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, c
     Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null, open: (seenIds && seenIds.open) || null });
   }
   return out;
+}
+
+/**
+ * The trail lantern's first open step, named for the v3 home's tile (`#next` opens it): {id, label, lang}, only with
+ * web_quiz_home_v3 on (the older hub never reads it: off, the lantern is today's). The number warm-up and an unnamed
+ * step give null (the tile then says the neutral words); so do no step reads (the home off, or a caller that passes no
+ * step names). Never throws.
+ */
+function firstStep(id, lang, reads) {
+  try {
+    if (!reads || (id === 'missing' && reads.pool)) return null;
+    const l = require('../../config/ux-strings').clampLanguage(lang);
+    const label = reads.nameOf(id, l);
+    return label ? { id, label, lang: l } : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** The first step's switches, or null (the home off, no step names, any failure): the home's, then the pool's. */
+async function firstStepReads(stepsOf) {
+  try {
+    const steps = typeof stepsOf === 'function' ? stepsOf() : null;
+    if (!steps || typeof steps.nameOf !== 'function' || !(await require('./web-quiz-home-flags').flags()).home) return null;
+    const pool = typeof steps.poolOn === 'function' ? Boolean(await steps.poolOn()) : false;
+    return { pool, nameOf: (id, l) => steps.nameOf(id, l) };
+  } catch (_) {
+    return null;
+  }
 }
 
 /** `{play}` for the hub payload, or `{}` (every switch off, or any failure: the hub is today's). Never throws. */
