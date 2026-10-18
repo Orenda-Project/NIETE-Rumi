@@ -25,7 +25,7 @@ const HOME = {
 };
 const KINDS = ['primary', 'secondary', 'icon', 'home', 'share', 'speaker', 'hold', 'st', 'gm', 'vd'];
 
-// Every rule whose whole selector is one `.wq-btn--<kind>`: the kind's own definition.
+// Every rule whose whole selector is one `html.wq-1b .wq-btn--<kind>`: the kind's own definition.
 // (A rule is `selector{body}` with no brace inside; a rule inside an @media block is found the same way.)
 const rulesOf = (css) => {
   const out = [];
@@ -37,7 +37,7 @@ const rulesOf = (css) => {
 const kindRules = () => {
   const out = {};
   rulesOf(CSS).forEach(({ sel, body }) => {
-    const m = /^\.wq-btn--([a-z0-9]+)$/.exec(sel);
+    const m = /^html\.wq-1b \.wq-btn--([a-z0-9]+)$/.exec(sel);
     if (m) out[m[1]] = (out[m[1]] || '') + body;
   });
   return out;
@@ -68,13 +68,18 @@ describe('wq.css: the one button component', () => {
     Object.values(kindRules()).forEach((b) => expect(b).not.toMatch(/var\(--s[1-4]/));
   });
   test('every kind centres its label both ways and kills the tap flash', () => {
-    const shared = /\.wq-btn--primary,\.wq-btn--secondary,\.wq-btn--share,\.wq-btn--icon,\.wq-btn--speaker,\.wq-btn--home,\.wq-btn--hold\{([^}]*)\}/.exec(CSS);
+    const shared = /html\.wq-1b \.wq-btn--primary,html\.wq-1b \.wq-btn--secondary,html\.wq-1b \.wq-btn--share,html\.wq-1b \.wq-btn--icon,html\.wq-1b \.wq-btn--speaker,html\.wq-1b \.wq-btn--home,html\.wq-1b \.wq-btn--hold\{([^}]*)\}/.exec(CSS);
     expect(shared).not.toBeNull();
     expect(shared[1]).toMatch(/display:flex/);
     expect(shared[1]).toMatch(/align-items:center/);
     expect(shared[1]).toMatch(/justify-content:center/);
     expect(shared[1]).toMatch(/-webkit-tap-highlight-color:transparent/);
     expect(shared[1]).toMatch(/background:var\(--fill\);color:var\(--on\);box-shadow:var\(--sh-btn\)/);
+  });
+  test('switch off changes no button that already ships: every kind rule (and the label/icon parts) sits under wq-1b', () => {
+    // the Videos shelf (wq-doors.js) and the class table (wq.js) already draw .wq-btn--secondary and .wq-btn-t with the switch off
+    CSS.split('}').filter((r) => r.includes('{')).map((r) => { const p = r.split('{'); return p[p.length - 2].replace(/^[\s\S]*\*\//, '').trim(); }).filter((sel) => /\.wq-btn(--|-t\b|-i\b)/.test(sel))
+      .forEach((sel) => sel.split(',').filter((x) => /\.wq-btn(--|-t\b|-i\b)/.test(x)).forEach((x) => expect([x.trim(), /^html\.wq-1b[\[ ]/.test(x.trim())]).toEqual([x.trim(), true])));
   });
   test('the tokens live in :root: main 56, second 52, two-line 76, icon a 48 circle; the Urdu sizes at today\'s values', () => {
     const root = CSS.slice(CSS.indexOf(':root{'), CSS.indexOf('}', CSS.indexOf(':root{')));
@@ -89,7 +94,7 @@ describe('wq.css: the one button component', () => {
   test('a button\'s height is the token, set as height (a label line never grows it), in both languages', () => {
     expect(CSS).toContain('html.wq-1b .wq-btn:not([class*="wq-btn--"]){display:flex;align-items:center;justify-content:center;height:var(--btn-h);min-height:0;');
     expect(CSS).toMatch(/html\.wq-1b\[lang=ur\] \.wq-btn:not\(\[class\*="wq-btn--"\]\)\{[^}]*height:var\(--btn-h\);min-height:0/);
-    expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;');
+    expect(CSS).toContain('html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;');
   });
   test('three radii per screen under wq-1b: cards --r-card, buttons and the tiles inside boxes --r-btn, icons a circle', () => {
     expect(CSS).toContain('--r-card:22px');
@@ -137,7 +142,7 @@ describe('wq.css: the one button component', () => {
     ['icon', 'speaker'].forEach((k) => expect(kindRules()[k]).toMatch(/border-radius:var\(--r-icon\)/));
   });
   test('one secondary height in both languages (the Urdu face\'s 60 px button line does not stretch it)', () => {
-    expect(CSS).toContain('html[lang=ur][lang] .wq-btn.wq-btn--secondary,html[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
+    expect(CSS).toContain('html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--secondary,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;');
     expect(CSS).not.toMatch(/--btn-h2-ur/);
   });
   test('the Urdu button sizes come from the tokens, not literals', () => {
