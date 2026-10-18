@@ -1,0 +1,247 @@
+{
+ "first": {
+  "score": {
+   "correct": 3,
+   "total": 4,
+   "pct": 75,
+   "level": "developing"
+  },
+  "counted": true,
+  "review": [
+   {
+    "qid": "cccccc01-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": "Because A."
+   },
+   {
+    "qid": "cccccc02-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   },
+   {
+    "qid": "cccccc03-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "B",
+    "correct_slot": "A",
+    "ok": false,
+    "why": null
+   },
+   {
+    "qid": "cccccc04-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   }
+  ],
+  "card": {
+   "first": "زارا",
+   "animal": "elephant",
+   "correct": 3,
+   "total": 4,
+   "stars": 3,
+   "nth": 5
+  },
+  "challenge_code": "KIDCH1",
+  "art": {
+   "card": "c.S1.t46NP5a2DK45",
+   "invite": "i.KIDCH1.Ds5nqrmpFeIg",
+   "class": "l.S1.RLtCAfV8AjwV",
+   "table": "l.AB12CD.lYxQFvnR86Qw"
+  },
+  "hub_door": true,
+  "jugnu_card": true
+ },
+ "practice": {
+  "score": {
+   "correct": 3,
+   "total": 4,
+   "pct": 75,
+   "level": "developing"
+  },
+  "counted": false,
+  "reason": "finished_elsewhere",
+  "review": [
+   {
+    "qid": "cccccc01-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": "Because A."
+   },
+   {
+    "qid": "cccccc02-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   },
+   {
+    "qid": "cccccc03-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "B",
+    "correct_slot": "A",
+    "ok": false,
+    "why": null
+   },
+   {
+    "qid": "cccccc04-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   }
+  ],
+  "card": {
+   "first": "Zara",
+   "animal": "elephant",
+   "correct": 3,
+   "total": 4,
+   "stars": 3,
+   "practice": true,
+   "kept": {
+    "correct": 2,
+    "total": 4
+   },
+   "best": {
+    "correct": 3,
+    "total": 4
+   }
+  },
+  "challenge_code": "KIDCH1",
+  "art": {
+   "card": "c.S1.t46NP5a2DK45",
+   "invite": "i.KIDCH1.Ds5nqrmpFeIg",
+   "class": "l.S1.RLtCAfV8AjwV",
+   "table": "l.AB12CD.lYxQFvnR86Qw"
+  },
+  "hub_door": true,
+  "jugnu_card": true
+ },
+ "versus": {
+  "score": {
+   "correct": 3,
+   "total": 4,
+   "pct": 75,
+   "level": "developing"
+  },
+  "counted": true,
+  "review": [
+   {
+    "qid": "cccccc01-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": "Because A."
+   },
+   {
+    "qid": "cccccc02-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   },
+   {
+    "qid": "cccccc03-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "B",
+    "correct_slot": "A",
+    "ok": false,
+    "why": null
+   },
+   {
+    "qid": "cccccc04-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   }
+  ],
+  "card": {
+   "first": "عمر",
+   "animal": "horse",
+   "correct": 3,
+   "total": 4,
+   "stars": 3
+  },
+  "challenge_code": "<the new code>",
+  "vs": {
+   "first": "زارا",
+   "correct": 3,
+   "total": 4,
+   "outcome": "tie"
+  },
+  "art": {
+   "card": "c.S1.t46NP5a2DK45",
+   "invite": "<the new code>",
+   "class": null,
+   "table": null
+  }
+ },
+ "again": {
+  "score": {
+   "correct": 3,
+   "total": 4,
+   "pct": 75,
+   "level": "developing"
+  },
+  "counted": true,
+  "review": [
+   {
+    "qid": "cccccc01-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": "Because A."
+   },
+   {
+    "qid": "cccccc02-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   },
+   {
+    "qid": "cccccc03-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "B",
+    "correct_slot": "A",
+    "ok": false,
+    "why": null
+   },
+   {
+    "qid": "cccccc04-cccc-4ccc-8ccc-cccccccccccc",
+    "picked": "A",
+    "correct_slot": "A",
+    "ok": true,
+    "why": null
+   }
+  ],
+  "card": {
+   "first": "زارا",
+   "animal": "elephant",
+   "correct": 3,
+   "total": 4,
+   "stars": 3,
+   "done_today": true
+  },
+  "challenge_code": "KIDCH1",
+  "art": {
+   "card": "c.S1.t46NP5a2DK45",
+   "invite": "i.KIDCH1.Ds5nqrmpFeIg",
+   "class": "l.S1.RLtCAfV8AjwV",
+   "table": "l.AB12CD.lYxQFvnR86Qw"
+  },
+  "hub_door": true,
+  "jugnu_card": true
+ },
+ "too_few": {
+  "status": 409,
+  "body": {
+   "error": "too_few_answered",
+   "answered": 1,
+   "need": 2
+  }
+ },
+ "too_few_status": "in_progress"
+}

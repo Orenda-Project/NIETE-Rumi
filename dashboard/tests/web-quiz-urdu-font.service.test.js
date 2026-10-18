@@ -15,7 +15,7 @@ const { createWebQuizRouter, renderQuizPage, renderClosedPage } = require('../ro
 const { rule, CSS } = require('./wq-page-harness');
 
 const WQ = path.join(__dirname, '..', 'public', 'wq');
-const FONT_URL = '/wq/fonts/wq-nastaliq-1.woff2';
+const FONT_URL = '/wq/fonts/wq-nastaliq-5.woff2';
 
 const QUIZ = {
   quiz: { id: 'q-1', code: 'AB12CD', topic: 'پودے', lang: 'ur', dir: 'rtl', grade: '3', n: 1,
@@ -158,11 +158,12 @@ describe('Urdu copy on the after-quiz screens', () => {
     const one = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 1, total: 5 }, counted: true } } });
     one.ctx.__wq.results(0);
     await flush(); await flush();
-    expect(one.html()).toMatch(/1 درست کیا</);
+    // an Urdu child screen prints every number in Urdu digits
+    expect(one.html()).toMatch(/۱ درست کیا</);
     const four = page({ lang: 'ur', store: store(), api: { '/finish': { score: { correct: 4, total: 5 }, counted: true } } });
     four.ctx.__wq.results(0);
     await flush(); await flush();
-    expect(four.html()).toMatch(/4 درست کیے</);
+    expect(four.html()).toMatch(/۴ درست کیے</);
   });
 
   test('the class label on the landing never breaks across lines («جماعت 3 (ب)» keeps its «(ب)»)', () => {

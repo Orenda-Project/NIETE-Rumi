@@ -186,6 +186,7 @@ class WhatsAppService {
         return false;
       }
       logToFile('✅ WhatsApp message sent', { messageId: data?.messages?.[0]?.id });
+      require('./whatsapp-sent-ids').report(data?.messages?.[0]?.id);   // only a collect() caller sees it
       return true;
     } catch (error) {
       logToFile('❌ Exception sending WhatsApp message', { error: error.message });
@@ -579,6 +580,7 @@ class WhatsAppService {
       );
 
       logToFile('Document sent successfully', { response: sendResponse.data });
+      require('./whatsapp-sent-ids').report(sendResponse.data?.messages?.[0]?.id);   // only a collect() caller sees it
       return true;
     } catch (error) {
       logToFile('Error sending document', {

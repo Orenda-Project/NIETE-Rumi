@@ -112,10 +112,11 @@ describe('the board (M16)', () => {
     const h = p.html();
     expect(h).toContain('اسکولوں کی لیگ');
     expect(h).toContain('آپ کا اسکول');
-    expect(h).toContain('1,240 پوائنٹس');
-    expect(h).toContain('87 بچوں نے کھیلا');
+    // an Urdu child screen prints every number in Urdu digits
+    expect(h).toContain('۱,۲۴۰ پوائنٹس');
+    expect(h).toContain('۸۷ بچوں نے کھیلا');
     expect(h).toContain('<bdi><span class="wq-lat" lang="en">School &lt;Bravo&gt;</span></bdi>');
-    expect(h).toContain('1 بچے نے کھیلا');
+    expect(h).toContain('۱ بچے نے کھیلا');
   });
 
   test('500 schools render', async () => {

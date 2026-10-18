@@ -86,6 +86,27 @@ async function streamFromR2(key) {
 }
 
 /**
+ * One whole object as bytes, in a named bucket (default R2_BUCKET_NAME), quietly (a page asks for many small files):
+ * {bytes, contentType}, or null when storage has no such object. Any other failure throws.
+ * @param {string} key
+ * @param {{bucket?: string}} [opts]
+ * @returns {Promise<{bytes: Buffer, contentType: string|undefined}|null>}
+ */
+async function getObjectBytes(key, { bucket } = {}) {
+  let response;
+  try {
+    response = await getR2Client().send(new GetObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key }));
+  } catch (error) {
+    const status = error && error.$metadata && error.$metadata.httpStatusCode;
+    if (status === 404 || (error && (error.name === 'NoSuchKey' || error.name === 'NotFound'))) return null;
+    throw error;
+  }
+  const chunks = [];
+  for await (const chunk of response.Body) chunks.push(chunk);
+  return { bytes: Buffer.concat(chunks), contentType: response.ContentType };
+}
+
+/**
  * Extract R2 key from public URL
  * @param {string} url - R2 URL (e.g., "https://...r2.../bucket/key")
  * @returns {string} R2 key
@@ -333,6 +354,7 @@ async function generatePresignedUrls(urls, expiresIn = 3600, options = {}) {
 
 module.exports = {
   downloadFromR2,
+  getObjectBytes,
   streamFromR2,
   extractKeyFromUrl,
   getContentTypeFromKey,

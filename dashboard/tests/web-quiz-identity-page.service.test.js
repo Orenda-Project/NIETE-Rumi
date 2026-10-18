@@ -108,17 +108,20 @@ describe('S0 landing', () => {
     expect(p.calls[0].body).toMatchObject({ code: 'AB12CD', chip: 'c2', via: 'remembered' });
     expect(srcs(p)).toEqual(['remembered']);
   });
-  test('classmates playing right now (E2 live.now, from 2 up): the v2 landing says so, a friend\'s challenge never', () => {
-    const live = (over = {}, challenge = null) => {
+  test('classmates playing right now (E2 live.now, from 5 up): the v2 landing says so, a friend\'s challenge never', () => {
+    const live = (over = {}, challenge = null, now = 5) => {
       const p = page(over);
-      p.ctx.LIVE.now = 3;
+      p.ctx.LIVE.now = now;
       p.ctx.T.liveNow = (n) => `${n} classmates are playing right now — join them!`;
       if (challenge) { p.ctx.B.challenge = challenge; p.ctx.T.challenged = (n, c, t) => `${n} got ${c}/${t} stars. Can you beat it?`; }
       p.ctx.landing();
       return p.last().h;
     };
-    expect(live()).toContain('3 classmates are playing right now — join them!');
-    expect(live({ kids: [{ chip: 'c1', first: 'Ayesha', animal: 'lion' }] })).toContain('3 classmates are playing right now');
+    expect(live()).toContain('5 classmates are playing right now — join them!');
+    expect(live({ kids: [{ chip: 'c1', first: 'Ayesha', animal: 'lion' }] })).toContain('5 classmates are playing right now');
+    // under 5: no class count on a child's page
+    expect(live({}, null, 4)).not.toContain('playing right now');
+    expect(live({}, null, 2)).not.toContain('playing right now');
     const friend = live({}, { first: 'Ali', correct: 4, total: 5 });
     expect(friend).toContain('Ali got 4/5 stars'); // the challenge landing really rendered
     expect(friend).not.toContain('playing right now');

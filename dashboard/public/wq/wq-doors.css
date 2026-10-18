@@ -1,0 +1,98 @@
+/* The v3 home's door screens (wq-doors.js): rows with a speaker each, section heads, the watch screen. */
+.wq-dsec{margin:18px 0 8px;font-size:17px;color:var(--navy);text-align:start}
+.wq-dli{display:flex;align-items:stretch;gap:8px}
+.wq-dli .wq-drow{flex:1;flex-direction:row;align-items:center;gap:12px;min-width:0;font:inherit;text-align:start;cursor:pointer}
+.wq-rart{flex:none;width:56px;height:56px;border-radius:12px;object-fit:cover;background:var(--tint)}
+.wq-rtext{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.wq-rtext b{font-size:18px;line-height:1.3;overflow-wrap:anywhere}
+.wq-rtext small{color:var(--muted);font-weight:700}
+.wq-dli.done .wq-drow{background:var(--tint)}
+.wq-donetag{flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--ok,#2E9E5B);color:#fff;font-style:normal;font-weight:900}
+.wq-dli .wq-new{position:static;flex:none}
+.wq-dspk{position:relative;flex:none;display:flex;padding:0;-webkit-appearance:none;appearance:none;box-shadow:0 3px 0 var(--line);align-items:center;justify-content:center;width:48px;min-height:64px;border:2px solid var(--line);border-radius:16px;background:var(--card);color:var(--brand-d);cursor:pointer}
+.wq-dspk:active,.wq-drow:active{transform:translateY(2px)}
+.wq-week .wq-drow{min-height:84px;border-color:var(--brand);box-shadow:0 4px 0 var(--brand-d)}
+.wq-week .wq-rtext b{font-size:20px}
+.wq-shelf{min-height:8px}
+.wq-dempty{display:flex;flex-direction:column;gap:12px}
+.wq-dback{align-self:flex-start;min-height:48px;margin-bottom:6px;padding:0 20px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--navy);font-weight:800;cursor:pointer}
+.wq-wait{animation:wq-dpulse 1.2s ease-in-out infinite}
+@keyframes wq-dpulse{50%{opacity:.55}}
+.wq-vbox{position:relative;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:16/9}
+.wq-vid{display:block;width:100%;height:100%;background:#000}
+.wq-vplay{position:absolute;inset:0;margin:auto;width:84px;height:84px;border:0;border-radius:50%;background:var(--brand);color:#fff;font-size:34px;box-shadow:0 5px 0 var(--brand-d);cursor:pointer}
+.wq-vtitle{margin:10px 0 0;font-weight:800;font-size:18px;color:var(--navy)}
+.wq-vnext{min-height:96px}
+html[dir=rtl] .wq-vplay{transform:scaleX(-1)}
+html[lang=ur] .wq-dsec,html[lang=ur] .wq-rtext b,html[lang=ur] .wq-vtitle{font-family:var(--fu);font-weight:400;line-height:1.9}
+html[lang=ur] .wq-rtext small{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:17px}
+@media (prefers-reduced-motion:reduce){.wq-wait{animation:none}.wq-dspk:active,.wq-drow:active{transform:none}}
+.wq-vplay[hidden]{display:none}
+.wq-shelfwrap:has(.wq-shelf:empty),.wq-shelfwrap:has(.wq-shelf[hidden]){display:none}
+html[lang=ur] .wq-rtext .wq-lat,html[lang=ur] .wq-dsec .wq-lat,html[lang=ur] .wq-vtitle .wq-lat{font-family:var(--f);font-weight:800;line-height:1.3}
+html[lang=ur] small .wq-lat{font-weight:700;font-size:15px}
+html[lang=ur] .wq-dback{font-family:var(--fu);font-weight:400;font-size:18px}
+html[lang=ur] .wq-rtext b:has(>.wq-lat),html[lang=ur] .wq-dsec:has(>.wq-lat){line-height:1.35}
+/* an Urdu door screen on a page whose own language is English: the note keeps the Nastaliq line height */
+.wq-droom[lang=ur] .wq-soon{font-family:var(--fu);font-weight:400;line-height:1.9}
+/* the screen's one primary row is marked like this week's story: a brand border, not only the first place */
+.wq-drow[data-primary]{border-color:var(--brand);box-shadow:0 4px 0 var(--brand-d)}
+/* Urdu: Home stays top-left, the screen's title reads from the right like its section heads */
+.wq-droom[dir=rtl] .wq-dtop h2{flex:1;direction:rtl;text-align:start}
+.wq-vtitle{text-align:start}
+/* the minutes never break from their number («۲ منٹ» on one line) */
+.wq-nmin{white-space:nowrap}
+/* The Videos door as picture shelves (app_settings web_quiz_video_shelf; new class names, drawn only when on): a row of
+ * lesson cards per subject, a subject's grid, the Quiz button on a card and on the watch screen. */
+.wq-vsec{margin:0}
+.wq-vshead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wq-vshead .wq-dsec{flex:1;min-width:0}
+.wq-vsall{flex:none;width:auto;min-height:48px;margin-top:10px;padding:0 16px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--brand-d);font:inherit;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.wq-vrow{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:2px 2px 6px;scrollbar-width:none}
+.wq-vrow::-webkit-scrollbar{display:none}
+/* about 2.3 cards to a row, so the next one peeks and the child sees the shelf scrolls */
+.wq-vrow .wq-vcard{flex:none;width:clamp(136px,calc((100% - 24px) / 2.3),180px);scroll-snap-align:start}
+.wq-vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:14px 12px}
+.wq-vcard{display:flex;flex-direction:column;gap:8px;min-width:0}
+.wq-vtap{display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.wq-vtap:active .wq-vthumb{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.wq-vthumb{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:var(--tint);border:2px solid var(--line);box-shadow:0 3px 0 var(--line)}
+.wq-vtimg{display:block;width:100%;height:100%;object-fit:cover}
+.wq-vnone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--brand-d)}
+.wq-vmin{position:absolute;inset-block-end:6px;inset-inline-end:6px;padding:1px 8px;border-radius:999px;background:rgba(0,0,0,.66);color:#fff;font-size:13px;line-height:1.7;font-weight:800}
+.wq-vdone{position:absolute;inset-block-start:6px;inset-inline-end:6px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--ok,#2E9E5B);color:#fff;font-style:normal}
+.wq-vct{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:15px;line-height:1.3;color:var(--navy);overflow-wrap:anywhere}
+.wq-vq,.wq-vquiz,.wq-vretry{background:var(--card);color:var(--brand-d);border:2px solid var(--brand);box-shadow:0 3px 0 var(--brand-d);-webkit-tap-highlight-color:transparent}
+.wq-vq:active,.wq-vquiz:active,.wq-vretry:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-d)}
+.wq-vq{min-height:48px;padding:0 14px;border-radius:14px;font-size:16px}
+/* a card's Quiz sits at its bottom: a two-line title never pushes one Quiz lower than its neighbour's */
+.wq-vcard .wq-vq{margin-top:auto}
+.wq-vquiz{min-height:56px;margin-top:14px}
+/* a shelf whose lessons did not load: the oops line and one Try again, in the row's place */
+.wq-vrow[data-fetch=failed]{flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:150px;margin:2px 0 6px;padding:16px;border-radius:14px;background:var(--tint)}
+.wq-vrow[data-fetch=failed] .wq-voops{flex:none;margin:0;padding:0;background:none;text-align:center}
+.wq-vretry{flex:none;width:auto;align-self:center;min-height:48px;padding:0 16px;border-radius:999px;font-size:16px}
+.wq-vskel .wq-vthumb{animation:wq-vpulse 1.2s ease-in-out infinite;box-shadow:none}
+.wq-vbox.wq-vskel{background:var(--tint);animation:wq-vpulse 1.2s ease-in-out infinite}
+.wq-vskh{display:block;height:20px;width:40%;margin:18px 0 12px;border-radius:10px;background:var(--tint);animation:wq-vpulse 1.2s ease-in-out infinite}
+.wq-vskel b{display:block;height:14px;width:80%;border-radius:7px;background:var(--tint);animation:wq-vpulse 1.2s ease-in-out infinite}
+@keyframes wq-vpulse{50%{opacity:.55}}
+html[lang=ur] .wq-vct,html[lang=ur] .wq-vsall,html[lang=ur] .wq-vq,html[lang=ur] .wq-vquiz,html[lang=ur] .wq-vretry{font-family:var(--fu);font-weight:400;line-height:1.9}
+html[lang=ur] .wq-vct .wq-lat{font-family:var(--f);font-weight:800;line-height:1.3}
+/* Nastaliq rides high: its See all and Try again words sit clear of the pill's top border */
+html[lang=ur] .wq-vsall,html[lang=ur] .wq-vretry{font-size:17px;line-height:2.1;padding-top:6px}
+/* a play triangle points the way the video plays, in Urdu too (the shelves' watch screen) */
+html[dir=rtl] .wq-vbox--s .wq-vplay{transform:none}
+@media (prefers-reduced-motion:reduce){.wq-vskel .wq-vthumb,.wq-vskel b,.wq-vskh,.wq-vbox.wq-vskel{animation:none}}
+/* a list still on its way (web_quiz_list_states): row-shaped blocks that shimmer, never an empty note */
+.wq-dskel{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.wq-skrow{display:block;height:64px;border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,var(--card) 50%,var(--tint) 75%);background-size:200% 100%;animation:wq-shim 1.2s linear infinite}
+.wq-shelf .wq-dskel{margin-top:0}
+.wq-dskel-in{margin-top:0}
+.wq-dskel-bk{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px}
+.wq-dskel-bk .wq-skrow{height:auto;aspect-ratio:2/3}
+@keyframes wq-shim{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.wq-skrow{animation:none}}
+/* the Videos grade picker (the adventure look only draws it): "Grade 3 ▾" at the start of the line, the chips under it */
+.wq-vgrade{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.wq-vgrade .wq-vgl{width:auto;padding-inline:24px}

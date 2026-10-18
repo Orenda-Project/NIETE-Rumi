@@ -4,7 +4,7 @@
  * printed "Teacher Mr …" on the web quiz page and in the forwarded message. The honorific is dropped
  * before the prefix, so every teacher is named the same way, without a gendered title.
  */
-const { teacherLabel } = require('../../../shared/services/quiz/quiz-teacher-label');
+const { teacherLabel, childTeacherLabel } = require('../../../shared/services/quiz/quiz-teacher-label');
 
 describe('a stored name that already carries an honorific', () => {
   test.each([
@@ -43,3 +43,22 @@ describe('a stored name that already carries an honorific', () => {
     expect(teacherLabel('', 'ur')).toBe('آپ کے استاد');
   });
 });
+
+describe('a child\'s screen names the teacher with «ٹیچر», never «استاد»', () => {
+  test.each([
+    ['استانی رفعت', 'رفعت ٹیچر'],
+    ['استاد رفعت', 'رفعت ٹیچر'],
+    ['ٹیچر رفعت', 'رفعت ٹیچر'],
+    ['سر بلال', 'بلال ٹیچر'],
+    ['', 'آپ کے ٹیچر'],
+    ['آپ کے استاد', 'آپ کے ٹیچر'],
+  ])('ur: %s -> %s', (stored, shown) => {
+    expect(childTeacherLabel(stored, 'ur')).toBe(shown);
+    expect(childTeacherLabel(stored, 'ur')).not.toContain('استاد');
+  });
+  test('en: the same label as the forwarded message', () => {
+    expect(childTeacherLabel('Ms Example Teacher', 'en')).toBe(teacherLabel('Ms Example Teacher', 'en'));
+    expect(childTeacherLabel('', 'en')).toBe('Your teacher');
+  });
+});
+

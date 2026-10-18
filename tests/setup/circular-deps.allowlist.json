@@ -24,9 +24,12 @@
   {
     "cycle": [
       "bot/shared/services/quiz/web-quiz-book.js",
-      "bot/shared/services/quiz/web-quiz-hub.js"
+      "bot/shared/services/quiz/web-quiz-hub.js",
+      "bot/shared/services/quiz/web-quiz-stories.js",
+      "bot/shared/services/quiz/web-quiz-storybook-next.js",
+      "bot/shared/services/quiz/web-quiz-next-offer-sources.js"
     ],
-    "reason": "Both edges are lazy, inside functions: web-quiz-hub.js hubPayload() requires web-quiz-book.js only to add the Book's hub bits, and web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub). Neither module touches the other at load time."
+    "reason": "Every edge is lazy, inside a function: web-quiz-hub.js hubPayload() requires web-quiz-book.js and web-quiz-stories.js only to add their hub bits; web-quiz-book.js bookFor() requires web-quiz-hub.js only to resolve the hub chip (kidFromHub) and web-quiz-stories.js only for the storybook stickers; web-quiz-stories.js guard() requires web-quiz-hub.js only for kidFromHub and bookOn() requires web-quiz-book.js only for its switch; web-quiz-hub.js hubPayload() requires web-quiz-next-offer-sources.js only to add the ranked next thing (hubPrep, hubField); web-quiz-next-offer-sources.js storybooks() requires web-quiz-storybook-next.js inside a try only for the storybook candidates; web-quiz-storybook-next.js candidates() requires web-quiz-stories.js only for the shelf's own readers (resumeOf, orderedBooks). None of the five touches another at load time."
   },
   {
     "cycle": [
@@ -48,5 +51,12 @@
       "bot/shared/services/student-ingress.js"
     ],
     "reason": "Both edges are lazy, inside functions: student-ingress.js bindingWords() requires the binder only for a JUGNU- code or a whole-message STOP, and web-quiz-bind.service.js stopForBoundNonChild() requires student-ingress.js only to ask quizInFlight() before a non-child's STOP. Neither module touches the other at load time."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/quiz/student-quiz.service.js",
+      "bot/shared/services/quiz/web-quiz-child-lang.js"
+    ],
+    "reason": "Both edges are lazy, inside functions: student-quiz.service.js open() requires web-quiz-child-lang.js for the one language order (ladder) of the /quiz reply, and web-quiz-child-lang.js ladder()/childLang() require student-quiz.service.js for classLanguage/childLanguage/quizzesForStudents. Neither module touches the other at load time."
   }
 ]

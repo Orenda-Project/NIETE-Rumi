@@ -17,6 +17,8 @@
   // The language the page that sent the child here was in (?lang=en|ur, the door / the old class link): the bot
   // honours it over its guess (under web_quiz_challenge_v2), so the hub's own calls and address keep it. Else null.
   var URL_LANG = (/[?&]lang=(en|ur)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
+  // the grown-ups corner's language tap (keep=1): the server keeps it as the child's language (web_quiz_return_lang; off: ignored)
+  var URL_KEEP = Boolean(URL_LANG) && /[?&]keep=1(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -38,7 +40,7 @@
       againT: 'Play again', againRow: function (score, n) { return 'Best ' + score + ' · ' + n + (n === 1 ? ' try' : ' tries'); },
       practice: 'Practice: your first score is the one your teacher sees.',
       libT: 'Video library', libSub: 'Pick a subject and a chapter',
-      recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
+      recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chV3: function (m) { return m + '\'s games'; }, chSub: 'Short games for reading and numbers',
       switchKid: 'Switch player', oops: 'Something went wrong. Try again.', offline: 'No internet. Try again when you are online.',
       lockT: 'This link was sent to another player', lockSay: 'Ask the child who got this link to open it.',
       someone: 'Someone else / new player', newT: 'New here?', mineDoor: 'Finish your own quiz, then tap “My quizzes, videos and challenges”.',
@@ -50,28 +52,28 @@
     },
     ur: {
       who: 'کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', hi: function (n) { return 'السلام علیکم ' + n + '! آج کیا کریں؟'; },
-      fromT: 'آپ کے استاد کی طرف سے', play: 'کھیلیں',
+      fromT: 'آپ کے ٹیچر کی طرف سے', play: 'کھیلیں',
       sent: function (d) { return d <= 0 ? 'آج بھیجا گیا' : d === 1 ? 'کل بھیجا گیا' : '<bdi>' + d + '</bdi> دن پہلے بھیجا گیا'; },
-      none: 'ابھی استاد کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
+      none: 'ابھی ٹیچر کی طرف سے کوئی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کریں!',
       againT: 'دوبارہ کھیلیں', againRow: function (score, n) { return 'بہترین ' + score + ' · <bdi>' + n + ' بار</bdi>'; },
-      practice: 'مشق: استاد کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
+      practice: 'مشق: ٹیچر کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
       libT: 'ویڈیو لائبریری', libSub: 'مضمون اور باب چنیں',
-      recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
+      recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chV3: function (m) { return m + ' کے کھیل'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
       switchKid: 'کھلاڑی بدلیں', oops: 'کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں۔', offline: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
       someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز، ویڈیوز اور چیلنج» دبائیں۔',
       mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
-      newSay: 'اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
+      newSay: 'اپنے ٹیچر سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
       lastT: 'آپ کا پچھلا کوئز', cont: 'جاری رکھیں', soFar: function (n) { return n ? '<bdi>' + n + '</bdi> سوالوں کے جواب دیے' : 'ابھی شروع نہیں کیا'; },
       done: 'مکمل', playAgain: 'دوبارہ کھیلیں', vidT: 'ویڈیوز', vidSub: 'ایک دیکھیں اور اس کا کوئز کریں',
-      wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
+      wait: 'کھل رہا ہے…', noClass: 'پہلے ٹیچر کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ ٹیچر سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
   };
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, the name
   // first in the greeting. Off, COPY.ur is today's, untouched.
   var UR2_COPY = {
     whoSay: 'اپنا نام دبائیں۔', hi: function (n) { return '\u2068' + n + '\u2069، السلام علیکم! آج کیا کھیلیں؟'; },
-    none: 'ابھی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کھیلیں!', practice: 'مشق۔ استاد کو پہلا اسکور ہی دکھے گا۔',
+    none: 'ابھی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کھیلیں!', practice: 'مشق۔ ٹیچر کو پہلا اسکور ہی دکھے گا۔',
     chSub: 'پڑھنے اور گنتی کے کھیل', lockSay: 'یہ لنک جس کو ملا تھا، وہی کھولے۔',
     mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز اور ویڈیوز» دبائیں۔'
   };
@@ -89,12 +91,17 @@
   }
 
   /* ---------------- helpers ---------------- */
+  // The one button look (wq-tel.js WQT.oneButton): a home drawn from the page's own hub call (unlock, pick) takes the
+  // look when that answer says so, as the boot's does. Off (no field): nothing changes.
+  function look(b) { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(b); }
   // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
   function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
   function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   // The hub's own address, with the language it was opened in when it was opened with one (else today's).
   function selfUrl(h) { return URL_LANG ? withLang(h, URL_LANG) : h; }
+  // The home on: a door the link names (#stories, #games, #videos) stays on the tidied address, so the home opens it
+  function doorHash() { var h = String((typeof location !== 'undefined' && location.hash) || ''); return B.home_v3 && /^#(stories|games|videos)$/.test(h) ? h : ''; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function on(sel, fn) { var el = ROOT.querySelector(sel); if (el) el.addEventListener('click', fn); return el; }
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
@@ -102,8 +109,9 @@
   function subjectName(s) { var k = subjectKey(s); return LANG === 'ur' && SUBJECT_UR[k] ? SUBJECT_UR[k] : k; }
   // The mascot, as on the quiz page (wq.js jugImg/jug): a still pose and the speech bubble.
   var JUG_DIR = '/wq/jugnu/';
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function jug(pose, line) {
-    return '<div class="wq-jug"><span class="wq-jimg" data-jpose="' + pose + '"><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span><div class="wq-say">' + esc(line) + '</div></div>';
+    return '<div class="wq-jug"><span class="wq-jimg" data-jpose="' + pose + '"><img src="' + jv(JUG_DIR + pose + '.webp') + '" alt="" width="92" height="92"></span><div class="wq-say">' + esc(line) + '</div></div>';
   }
   // Urdu: a run of Latin words (an English video title) keeps its own face and direction (wq.js latinRuns).
   var LAT_RUN = /[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*(?:[  ]+[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*)*/g;
@@ -121,7 +129,44 @@
       '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(BR.sub[LANG]) + '</small></span></span>';
   }
   function bar() { return '<div class="wq-bar">' + lockup() + '<span class="wq-grow"></span></div>'; }
+  // web_quiz_wait_home (the boot's `wait_home`, with the designed wait): Home as the child last saw it is kept for this
+  // hub in this tab, so the next open draws it at once from the early page (dashboard web-quiz-wait-ux.js homeTag),
+  // inert, until this page draws the real one over it. Never a door, a story, a locked or a practice hub. The one look
+  // class kept with it is the one-button look (`wq-1b`): the early page names what it added (`data-wqc`), and the real
+  // draw takes that off again unless this answer still says `one_button`, so a look switched off since does not linger.
+  var HOME_KEPT = 'wq_home:' + TOKEN;
+  function uncache() {
+    try {
+      var cl = document.documentElement.classList;
+      if (!cl.contains('wq-cached')) return;
+      cl.remove('wq-cached');
+      var de = document.documentElement;
+      String(de.getAttribute('data-wqc') || '').split(' ').forEach(function (x) { if (x === 'wq-1b' && !(B && B.one_button === true)) cl.remove(x); });
+      de.removeAttribute('data-wqc');
+      ROOT.removeAttribute('inert');
+      ROOT.removeAttribute('aria-busy');
+    } catch (e) { /* no class list: nothing was drawn early */ }
+  }
+  function keepHome() {
+    if (B.wait_home !== true || !B.home_v3 || !B.kid || B.practice || B.locked) return;
+    var de = document.documentElement;
+    if (String(location.hash || '').replace(/^#/, '') || de.classList.contains('wq-cached')) return;
+    var h = ROOT.innerHTML;
+    if (!h || h.length > 200000 || /class="wq-boot/.test(h)) return;
+    var look = de.classList.contains('wq-1b') ? ['wq-1b'] : [];
+    try { sessionStorage.setItem(HOME_KEPT, JSON.stringify({ t: Date.now(), l: LANG, k: B.kid, one: (B.kids || []).length === 1, c: look, h: h })); } catch (e) {}
+  }
+  window.addEventListener('pagehide', keepHome);
+  // The adventure look: a tap on My class or My school (the quiz page's class table or league) keeps the hub's path for this
+  // tab, so the land header there has a Home that comes back here (wq.js hubBack). Nothing with the look off.
+  window.addEventListener('click', function (e) {
+    try {
+      var a = e.target && e.target.closest ? e.target.closest('a[data-social]') : null;
+      if (a && document.documentElement.classList.contains('wq-adv') && /^\/h\/[A-Za-z0-9._-]+$/.test(location.pathname)) sessionStorage.setItem('wq_hub_at', location.pathname);
+    } catch (x) {}
+  }, true);
   function render(html, moment) {
+    uncache();
     ROOT.innerHTML = '<section class="wq-screen wq-hub" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
@@ -180,6 +225,12 @@
     if (kid) body.kid = kid;
     body.device_ref = deviceRef();
     if (URL_LANG) body.lang = URL_LANG;
+    // keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never re-keeps an old choice
+    if (URL_KEEP) {
+      body.keep = 1;
+      URL_KEEP = false;
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + (kid ? '?kid=' + encodeURIComponent(kid) : ''))); } catch (e) {}
+    }
     return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
   }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.
@@ -221,7 +272,7 @@
     });
   }
   function pick(chip) {
-    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'thinking.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
+    render(bar() + '<div class="wq-boot"><img src="' + jv(JUG_DIR + 'thinking.webp') + '" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
     hubFor(chip).then(function (r) {
       // An expired or forged link: the server's closed page says what to do (never "No internet").
       if (r.status === 401) { location.reload(); return; }
@@ -229,8 +280,9 @@
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
+      look(B);
       setLang(B.lang || LANG);
-      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip))); } catch (e) {}
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)) + doorHash()); } catch (e) {}
       hub();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); picker(); });
   }
@@ -251,12 +303,13 @@
   }
   // The server render has no device: ask again as this phone, then show what the bot allows.
   function unlock() {
-    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'hello.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
+    render(bar() + '<div class="wq-boot"><img src="' + jv(JUG_DIR + 'hello.webp') + '" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
     hubFor(null).then(function (r) {
       if (r.status === 401) { location.reload(); return; }
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
       if (r.body.locked) { locked(); return; }
       B = r.body; B.token = TOKEN; B.brand = BR;
+      look(B);
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);
@@ -371,16 +424,70 @@
   function homeTiles() {
     return '<div class="wq-htiles">' +
       (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc((B.home_v3 ? T.chV3 : T.chT)(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
       '</div>';
+  }
+  // The v3 child home (B.home_v3, web_quiz_home_v3): wq-home.js draws the whole page; a failed load draws today's hub.
+  // With B.home_fb (web_quiz_home_fallback_v3) a failed load is asked for once more, at the same address, 1.5 s later,
+  // and a second failure draws the plain home (homeFb), never today's hub; each failure is counted (home_load_failed).
+  // An ask that neither loads nor fails within 5 s is a failure; a script that still arrives later draws the v3 home,
+  // once: the first arrival mounts it, a later one (both asks out) only puts the first copy back, and once it is here no
+  // retry is asked and a late failure of the other ask is not one.
+  var homeFail = false, homeTries = 0, homeIn = null;
+  function homeAsk(css) {
+    var done = false;
+    function fail() { if (done) return; done = true; homeErr(); }
+    loadOnce('wq-home', css, function () { done = true; if (homeIn) { window.WQHOME = homeIn; return; } homeIn = window.WQHOME; hub(); }, null, fail);
+    if (B.home_fb) setTimeout(fail, 5000);
+  }
+  function homeErr() {
+    if (homeIn) return;
+    homeTries += 1;
+    if (B.home_fb) ev('home_load_failed', { file: 'wq-home.js', i: homeTries });
+    if (B.home_fb && homeTries < 2) { setTimeout(function () { if (window.WQHOME) return; asked['wq-home'] = false; homeAsk(false); }, 1500); return; }
+    homeFail = true; hub();
+  }
+  // The plain home: the greeting as the v3 home says it, the three doors as plain links in the bar's words and order, and
+  // one line that reloads the page. A door opens what the payload names (Games: its first row; Videos: the library), else
+  // this home at that door (#stories: the shelf lives in the home's own scripts), by a reload.
+  var FB = {
+    en: { hi: function (n) { return n ? 'Hi ' + n + '!' : 'Hi!'; }, cls: function (n) { return 'Class ' + n; }, doors: ['Stories', 'Games', 'Videos'], retry: 'The page is still opening… tap here to try again.' },
+    ur: { hi: function (n) { return n ? '\u2068' + n + '\u2069، السلام علیکم!' : 'السلام علیکم!'; }, cls: function (n) { return 'کلاس ' + String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); },
+      doors: ['کہانیاں', 'کھیل', 'ویڈیوز'], retry: 'صفحہ ابھی کھل رہا ہے… دوبارہ کوشش کے لیے یہاں ٹیپ کریں۔' },
+  };
+  function fbHref(d) {
+    var D = B.doors || {}, g = (D.games || [])[0], v = D.videos;
+    if (!B.practice && d === 'games' && g) return g.kind === 'numbers' ? withHome(withLang('/c/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid || ''))) : quizHref(g.code, { again: g.done ? '1' : '', k: g.k });
+    if (!B.practice && d === 'videos' && v && v.href) return withHome(v.href);
+    return '#' + d;
+  }
+  function homeFb() {
+    var t = FB[LANG], me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
+    render(jug('hello', B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '')) + '<nav class="wq-fbdoors" style="display:grid;gap:12px;margin:8px 0 20px">' + ['stories', 'games', 'videos'].map(function (d, i) {
+      return '<a class="wq-btn wq-soft wq-fbdoor" data-door="' + d + '" href="' + esc(fbHref(d)) + '">' + esc(t.doors[i]) + '</a>';
+    }).join('') + '</nav><button class="wq-btn wq-go" type="button" id="wq-fb-retry" data-primary>' + esc(t.retry) + '</button>', 'H3-fb');
+    on('#wq-fb-retry', function () { location.reload(); });
+    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-fbdoor'), function (a) {
+      a.addEventListener('click', function (e) { var h = a.getAttribute('href') || ''; if (h.charAt(0) !== '#') return; e.preventDefault(); location.hash = h; location.reload(); });
+    });
   }
   function hub() {
     batchIds(B.kid);
+    storyIn();
+    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) {
+      if (window.WQHOME) {
+        uncache();
+        if (B.wait_home === true) setTimeout(keepHome, 2500);
+        return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go });
+      }
+      return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]')));
+    }
+    if (B.home_v3 && B.home_fb) return homeFb();
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc((B.home_v3 ? T.chV3 : T.chT)(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
     if (B.play && !window.WQPLAY) playIn();
     if (B.bind && !window.WQBIND) bindIn();
@@ -437,14 +544,37 @@
     if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
 
+  // A story link (#story/<id>, a teacher's class link) without the v3 home, stories on (`stories.on`): the reader
+  // (wq-stories.js) is fetched once and opens the book; leaving it draws the hub again. Switch off: nothing runs.
+  var inStory = false, storyWired = false;
+  // The reader takes its child from WQSTORIES_CTX before the page's boot JSON, which a first open rendered locked (no child).
+  function storyIn() {
+    if (!(B.stories && B.stories.on && B.kid)) return;
+    window.WQSTORIES_CTX = { token: TOKEN, kid: B.kid, lang: LANG };
+    if (B.home_v3 && !homeFail) return;
+    if (!storyWired) { storyWired = true; window.addEventListener('hashchange', storyIn); }
+    var was = inStory;
+    inStory = /^#story\//.test(location.hash || '');
+    if (inStory) { if (!window.WQSTORIES) loadOnce('wq-stories', true); }
+    else if (was) hub();
+  }
+
   /* ---------------- boot ---------------- */
   function boot() {
     batchIds(B.kid);
     ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
-    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} }
-    if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
+    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN) + doorHash()); } catch (e) {} }
+    if (B.home_v3 && B.practice) hub(); // a coach's class preview (web_quiz_home_v3): the home by grade, no child
+    else if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();
     else hub();
   }
-  if (LOCKED_BOOT) unlock(); else boot();
+  // The home's pack (B.pack, web_quiz_pack): a pack file that fails to load is counted here with ev() itself, once per
+  // file, before or after this runs (its tag's error handler queues it in WQPACKERR and calls WQPACKEV); homeErr()
+  // counts only the home's own asks, and not once the home is in.
+  if (B.pack === true || window.WQPACKERR) {
+    window.WQPACKEV = function () { var q = window.WQPACKERR || []; window.WQPACKERR = []; for (var i = 0; i < q.length; i++) ev('home_load_failed', { file: q[i] }); };
+    window.WQPACKEV();
+  }
+  if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();

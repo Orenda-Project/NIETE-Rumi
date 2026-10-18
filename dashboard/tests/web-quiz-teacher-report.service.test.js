@@ -12,11 +12,11 @@ const BOT = 'http://bot.test';
 const KEY = 'test-internal-key';
 const TOK = 'eyJrIjoidHIifQ.AAAAAAAAAAAAAAAAAAAAAA';
 
-function botRes(status, { body = '', type = 'text/html; charset=utf-8', location = null, bytes = null } = {}) {
+function botRes(status, { body = '', type = 'text/html; charset=utf-8', location = null, bytes = null, disposition = null } = {}) {
   return {
     status,
     ok: status >= 200 && status < 300,
-    headers: { get: (h) => ({ 'content-type': type, location }[h.toLowerCase()] || null) },
+    headers: { get: (h) => ({ 'content-type': type, location, 'content-disposition': disposition }[h.toLowerCase()] || null) },
     text: async () => body,
     arrayBuffer: async () => { const b = bytes || Buffer.from(body); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); },
   };
@@ -84,6 +84,23 @@ test('GET /r/:token/pdf pipes the PDF bytes as an attachment', async () => {
   expect(res.body.equals(pdf)).toBe(true);
   expectPrivate(res);
   expect(calls[0].url).toBe(`${BOT}/api/internal/tr/pdf/${TOK}?lang=en`);
+});
+
+test('GET /r/:token/pdf of a story report keeps the story name the bot gave it', async () => {
+  const pdf = Buffer.from('%PDF-1.4 fake bytes');
+  await boot(() => botRes(200, { type: 'application/pdf', bytes: pdf, disposition: 'attachment; filename="story-report-2026-10-05.pdf"' }));
+  const res = await get(srv, `/r/${TOK}/pdf?lang=en`);
+  expect(res.status).toBe(200);
+  expect(res.headers['content-disposition']).toMatch(/^attachment; filename="story-report-\d{4}-\d{2}-\d{2}\.pdf"$/);
+});
+
+test('GET /r/:token/pdf of a quiz report keeps the quiz name, whatever else the bot says', async () => {
+  for (const disposition of ['attachment; filename="quiz-report-2026-10-05.pdf"', 'attachment; filename="../x.pdf"', null]) {
+    await boot(() => botRes(200, { type: 'application/pdf', bytes: Buffer.from('%PDF'), disposition }));
+    const res = await get(srv, `/r/${TOK}/pdf?lang=en`);
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="quiz-report-\d{4}-\d{2}-\d{2}\.pdf"$/);
+    await new Promise((r) => srv.close(r)); srv = null;
+  }
 });
 
 test('GET /r/:token/remind passes the bot\'s 302 to wa.me straight through', async () => {

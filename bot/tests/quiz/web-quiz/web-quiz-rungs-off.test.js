@@ -100,6 +100,16 @@ const trace = () => ({
   db: fake.calls.map((c) => norm(c)),
 });
 
+// The fast-pages switch (web-quiz-fast.js, never waited for) and the reading feedback switch (web-quiz-read-feedback.js,
+// a read's "last time" level; off here) are each read once per 30 s per process: read both here, so every golden below
+// pins the submit path alone, whichever test runs first.
+beforeAll(async () => {
+  Object.assign(supabase, makeFake({ app_settings: [] }));
+  require('../../../shared/services/quiz/web-quiz-fast').on();
+  await require('../../../shared/services/quiz/web-quiz-read-feedback').on();
+  await new Promise((r) => setImmediate(r));
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.WEB_QUIZ_TOKEN_SECRET = 'rungs-golden-secret';

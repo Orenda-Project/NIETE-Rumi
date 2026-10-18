@@ -1,7 +1,8 @@
 'use strict';
 /**
  * bd-v0toag.32 — the weekly report's own switch and template approval list, both in app_settings, read the
- * way ab_v10_enabled is read: fail closed, 30 s cache, a failed read is not cached. Supabase is the boundary.
+ * way ab_v10_enabled is read: fail closed, 30 s cache; a failed read is kept 30 s too (the last good settings, else off).
+ * Supabase is the boundary.
  */
 
 const mockFrom = jest.fn();
@@ -61,12 +62,14 @@ test.each([
   expect((await sw.reportSettings(0)).approved).toEqual(approved);
 });
 
-test('a read error is off, logged at error level, and not cached', async () => {
+test('a read error is off, logged at error level, kept 30 s; the first good read after that takes effect', async () => {
   settings({ data: null, error: { message: 'boom' } });
   expect(await sw.reportSettings(0)).toEqual({ enabled: false, approved: [] });
   expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('weekly report'), expect.objectContaining({ error: 'boom' }), 'error');
   settings({ data: [{ key: 'v10_weekly_report_enabled', value: true }], error: null });
-  expect((await sw.reportSettings(1)).enabled).toBe(true);
+  expect((await sw.reportSettings(1)).enabled).toBe(false);
+  expect(mockFrom).toHaveBeenCalledTimes(1);
+  expect((await sw.reportSettings(30000)).enabled).toBe(true);
 });
 
 test('cached for 30 s, then read again', async () => {

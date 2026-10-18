@@ -18,6 +18,20 @@
  *
  * Off unless app_settings `web_quiz_library` is true: then 404 library_off and the page keeps
  * today's 8-item list (web-quiz-videos.list).
+ *
+ * app_settings `web_quiz_videos_v3` (off unless the JSON true; off = all of the above unchanged):
+ *   - only the videos in the child's language, plus those with no language, inside each subject that has any in
+ *     the child's language (a subject with none is shown as it is) (the hub: the child's own
+ *     language, else the page's ?l=; a quiz code: the page's ?l=, else the code's language);
+ *   - chapters and titles with their numbers compared as numbers (Order.compareVideosNatural);
+ *   - each chapter's `art` (its first poster) and `tile: 'neutral'`: a broken poster falls back to the
+ *     chapter's art, then to a plain tile, never to the subject art.
+ *
+ * app_settings `web_quiz_video_shelf` (off unless the JSON true; off = all of the above unchanged), a subject's lessons
+ * seen from the kid's hub:
+ *   - each lesson with a poster also names its small thumbnail, `thumb: /wq/vt/<vid>.webp` (web-quiz-video-thumb.js);
+ *   - `quiz: true` when this child's quiz after any lesson can be made: a class (the hub's root), or the watch root
+ *     set (a class-less child's quizzes hang under it; absent = no quiz is offered, never a button that fails).
  */
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
@@ -37,11 +51,38 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 // ─── flag ────────────────────────────────────────────────────────────────────
 
-const { libraryOn, FLAG_KEY } = require('./web-quiz-library-flag');
+const { libraryOn, videosV3On, urTitlesOn, videoShelfOn, FLAG_KEY } = require('./web-quiz-library-flag');
+const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 // ─── the bank, the child, the class's codes (web-quiz-bank.js) ───────────────
 
-const { bank, track, studentFromSt, doneQuizzes, classCodes } = require('./web-quiz-bank');
+const { bank, track, studentFromSt, doneQuizzes, classCodes, languages, urTitles } = require('./web-quiz-bank');
+
+/**
+ * web_quiz_videos_v3: the bank as a child of `lang` sees it. Inside a grade's subject that is in the child's language
+ * (at least LANG_FLOOR of its videos, or LANG_SHARE of them), the other language's videos are left out (a video with
+ * no language is for both). A subject with fewer is shown whole, the child's language first; a subject with none in
+ * the child's language is shown as it is, so no subject disappears (e.g. Maths taught in English to an Urdu child).
+ */
+const LANG_FLOOR = 3;
+const LANG_SHARE = 0.25;
+async function inLanguage(ix, lang) {
+  const of = lang ? await languages() : null;
+  if (!of) return ix;
+  const group = (r) => `${r.grade}|${r.subject}`;
+  const all = new Map();
+  const own = new Map();
+  for (const r of ix.rows) {
+    all.set(group(r), (all.get(group(r)) || 0) + 1);
+    if (of.get(r.id) === lang) own.set(group(r), (own.get(group(r)) || 0) + 1);
+  }
+  const hasLang = new Set([...own].filter(([k, n]) => n >= LANG_FLOOR || n >= LANG_SHARE * all.get(k)).map(([k]) => k));
+  // A thin subject is shown whole; its videos in the child's language are listed first.
+  const ownFirst = new Set(ix.rows.filter((r) => own.has(group(r)) && !hasLang.has(group(r)) && of.get(r.id) === lang).map((r) => r.id));
+  // A subject shown as it is because all its videos are in another language is listed after the others.
+  const otherOnly = new Set(ix.rows.filter((r) => !own.has(group(r)) && of.has(r.id) && of.get(r.id) !== lang).map(group));
+  return { ...ix, rows: ix.rows.filter((r) => !hasLang.has(group(r)) || !of.has(r.id) || of.get(r.id) === lang), otherLast: otherOnly, ownFirst };
+}
 
 // ─── the views ───────────────────────────────────────────────────────────────
 
@@ -55,26 +96,40 @@ function subjectsView(ix, grade) {
   const grades = [...byGrade.keys()].filter((g) => Order.GRADE_ORDER.includes(g))
     .sort((a, b) => Order.gradeRank(a) - Order.gradeRank(b))
     .map((g) => ({ g, n: byGrade.get(g), art: gradeArt(g) }));
-  const subjects = [...bySubject.keys()].filter(Boolean).sort(Order.compareSubjects)
+  // web_quiz_videos_v3: a subject shown only in another language comes after the child's own; each group in order.
+  const first = (k) => (ix.otherLast && ix.otherLast.has(`${grade}|${k}`) ? 1 : 0);
+  const subjects = [...bySubject.keys()].filter(Boolean).sort((a, b) => first(a) - first(b) || Order.compareSubjects(a, b))
     .map((s) => ({ key: s, n: bySubject.get(s), art: subjectArt(s) }));
   return { grade, grades, subjects };
 }
 
-async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid }) {
+/** A grade's subject's lessons in the order the child's subject screen lists them (one order for the screen and the next lesson). Pure. */
+function lessonOrder(ix, grade, subject, v3) {
+  const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(v3 ? Order.compareVideosNatural : Order.compareVideos);
+  // web_quiz_videos_v3: in a thin subject the child's language comes first, each part in the usual order.
+  if (ix.ownFirst && ix.ownFirst.size) rows.sort((a, b) => (ix.ownFirst.has(b.id) ? 1 : 0) - (ix.ownFirst.has(a.id) ? 1 : 0));
+  return rows;
+}
+
+async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid, v3 }) {
   const Videos = require('./web-quiz-videos');
   const Media = require('./web-quiz-media');
-  const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(Order.compareVideos);
+  const rows = lessonOrder(ix, grade, subject, v3);
   const quizIds = rows.map((r) => ix.quizOf.get(r.id));
-  const [done, codes, posters] = await Promise.all([
+  const [done, codes, posters, ur] = await Promise.all([
     doneQuizzes(studentId, quizIds),
     classCodes(rootId, quizIds),
     Promise.all(rows.map((r) => Media.signPoster(r.r2_url))),
+    // web_quiz_videos_ur_titles: each lesson's Urdu-script name and its chapter's; off = not read at all
+    urTitlesOn().then((on) => (on ? urTitles() : null)),
   ]);
   const chapters = [];
   const missing = [];
   rows.forEach((r, i) => {
     const qid = quizIds[i];
     const v = { vid: r.id, title: r.clean_title || '' };
+    const u = ur && ur.get(r.id);
+    if (u && u.t) v.title_ur = u.t;
     const m = Videos.peekMeta(r.id);
     if (m === undefined) missing.push(r.id);
     if (m && m.secs) v.secs = m.secs;
@@ -90,17 +145,24 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
     const last = chapters[chapters.length - 1];
     if (last && last.name.toLowerCase() === name.toLowerCase()) last.videos.push(v);
     else chapters.push({ name, videos: [v] });
+    const ch = chapters[chapters.length - 1];
+    if (u && u.c && !ch.name_ur) ch.name_ur = u.c;
   });
   // Lengths and sizes for next time, read after this answer has gone.
   if (missing.length) track(new Promise((res) => setImmediate(res)).then(() => Videos.warmMeta(missing, { fetchImpl })));
-  return { grade, subject, art: subjectArt(subject), chapters };
+  if (!v3) return { grade, subject, art: subjectArt(subject), chapters };
+  for (const c of chapters) {
+    const first = c.videos.find((v) => v.poster);
+    if (first) c.art = first.poster;
+  }
+  return { grade, subject, art: subjectArt(subject), tile: 'neutral', chapters };
 }
 
-async function view(ix, { grade, g, s, studentId, rootId, fetchImpl, hubKid }) {
+async function view(ix, { grade, g, s, studentId, rootId, fetchImpl, hubKid, v3 }) {
   const want = Order.GRADE_ORDER.includes(String(g || '').toUpperCase()) ? String(g).toUpperCase() : grade;
   if (!want) return { grade: null, grades: subjectsView(ix, '').grades, subjects: [] };
   if (!s) return subjectsView(ix, want);
-  return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl, hubKid });
+  return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl, hubKid, v3 });
 }
 
 /** A grade band's quiz ("3-5", 38% of quizzes): the child's own grade when it is inside the band. */
@@ -125,18 +187,19 @@ async function guard() {
   return WebQuiz;
 }
 
-async function lib(code, { st, g, s, fetchImpl } = {}) {
+async function lib(code, { st, g, s, l, fetchImpl } = {}) {
   const WebQuiz = await guard();
+  const v3 = await videosV3On();
   const Videos = require('./web-quiz-videos');
   const ctx = await WebQuiz.resolveCode(code);
   const [ix, { data: quiz }, studentId] = await Promise.all([
-    bank(),
+    v3 ? bank().then((b) => inLanguage(b, langOf(l) || langOf(ctx.lang))) : bank(),
     supabase.from('quizzes').select('id, grade, subject').eq('id', ctx.quizId).maybeSingle(),
     s ? studentFromSt(st, ctx.shareCodeId) : Promise.resolve(null),
   ]);
   const band = Videos.gradesFor(quiz && quiz.grade);
   const grade = (band.length > 1 && !g ? await childGradeIn(band, st, ctx.shareCodeId) : null) || band[0] || null;
-  const out = await view(ix, { grade, g, s, studentId, rootId: Videos.classRootId(ctx), fetchImpl });
+  const out = await view(ix, { grade, g, s, studentId, rootId: Videos.classRootId(ctx), fetchImpl, v3 });
   if (!s) {
     // The quiz's own subject, when the bank has it for this grade: "Watch another video" opens it.
     const mine = Videos.subjectFor(quiz && quiz.subject);
@@ -149,10 +212,11 @@ async function lib(code, { st, g, s, fetchImpl } = {}) {
 
 /**
  * The library from the kid's hub. The hub module (web-quiz-hub.js, M4a) names the child from its
- * token on THIS phone: kidFromHub(token, chip, device) -> {studentId, grade, rootId} | null.
+ * token on THIS phone: kidFromHub(token, chip, device) -> {studentId, grade, rootId, lang} | null.
  */
-async function libHub(token, { kid, g, s, device, fetchImpl } = {}) {
+async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
   const WebQuiz = await guard();
+  const v3 = await videosV3On();
   // The hub module is M4a's and optional here: loaded by path so a deployment without it answers
   // hub_off instead of failing to boot.
   let Hub;
@@ -162,11 +226,92 @@ async function libHub(token, { kid, g, s, device, fetchImpl } = {}) {
   const who = await Hub.kidFromHub(token, kid, device);
   if (!who) throw new WebQuiz.WqError(401, { error: 'bad_token' });
   const Videos = require('./web-quiz-videos');
-  const ix = await bank();
+  // web_quiz_return_lang: the hub's own language (its link's `l`) wins, the child's next; off: the child's, then `l`
+  const lang = v3 && (await require('./web-quiz-return-lang').on()) ? langOf(l) || langOf(who.lang) : langOf(who.lang) || langOf(l);
+  const ix = v3 ? await inLanguage(await bank(), lang) : await bank();
   const grade = Videos.gradesFor(who.grade)[0] || null;
-  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true });
+  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
+  if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null);
   logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined });
   return out;
+}
+
+/** web_quiz_video_shelf: each lesson's thumbnail, and whether this child's quizzes can be made (in place). */
+// `v`: the drawing's version (web-quiz-video-thumb.js VERSION); the picture is cached for good under it.
+const THUMB_PATH = (vid) => `/wq/vt/${vid}.webp?v=${require('./web-quiz-video-thumb').VERSION}`;
+async function shelfOf(out, rootId) {
+  for (const c of out.chapters) for (const v of c.videos) if (v.poster) v.thumb = THUMB_PATH(v.vid);
+  out.quiz = Boolean(rootId || (await shelfRoot()));
+  return out;
+}
+// The watch root for the shelves' Quiz buttons, held 30 s from its read (shared while it is in flight): one read per
+// Videos open, not one per subject's shelf (the quiz itself is made on the tap with a fresh read).
+const ROOT_HOLD_MS = 30 * 1000;
+let rootHeld = null;
+function shelfRoot() {
+  const now = Date.now();
+  if (rootHeld && now - rootHeld.at < ROOT_HOLD_MS) return rootHeld.v;
+  rootHeld = { at: now, v: require('./web-quiz-videos').watchRoot() };
+  return rootHeld.v;
+}
+
+/**
+ * web_quiz_video_shelf: a grade's lesson lengths read in the background when a child of that grade opens the hub (the
+ * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. The reads
+ * are kept in Redis and read back after a restart, so a deploy does not send every lesson's file to be read again. Only the
+ * lessons the child's language shows (web_quiz_videos_v3). Held for hours once every lesson was read; a bank that did
+ * not load, or a lesson whose details did not come back, is held a minute only (that lesson is not kept), so one bad
+ * read right after a restart never blanks a grade. Never throws.
+ */
+const WARM_AGAIN_MS = 3 * 60 * 60 * 1000; // half the lengths' life in web-quiz-videos.js
+const WARM_RETRY_MS = 60 * 1000;
+const warmed = new Map();                  // grade|language -> no new read before this time
+function warmGrade(grade, { lang, fetchImpl } = {}) {
+  try {
+    const Videos = require('./web-quiz-videos');
+    const g = Videos.gradesFor(grade)[0];
+    const key = `${g}|${langOf(lang) || ''}`;
+    if (!g || Date.now() < (warmed.get(key) || 0)) return;
+    warmed.set(key, Date.now() + WARM_AGAIN_MS);
+    const retry = () => warmed.set(key, Date.now() + WARM_RETRY_MS);
+    track(new Promise((res) => setImmediate(res)).then(async () => {
+      const ix = (await videosV3On()) ? await inLanguage(await bank(), langOf(lang)) : await bank();
+      const ids = ix.rows.filter((r) => String(r.grade) === g).map((r) => r.id);
+      if (!ids.length) return retry();
+      // what a bot before this restart read is read back first (once), and this warm-up's reads are kept in turn
+      await Videos.restoreMeta();
+      await Videos.warmMeta(ids, { fetchImpl, keep: true });
+      const missed = ids.filter((id) => Videos.peekMeta(id) === null);
+      if (!missed.length) return undefined;
+      missed.forEach((id) => Videos.forgetMeta(id));
+      return retry();
+    }).catch(retry));
+  } catch (_) { /* the hub never waits on this */ }
+}
+
+/**
+ * The lesson to watch after a watched one: the next in its grade and subject, in the subject screen's order (the
+ * child's language as the library shows it), that this child has not finished — the rest of the list, then wrapping.
+ * -> {vid, title, poster?} | null. Never throws (a suggestion never fails a video).
+ */
+async function nextLesson({ vid, studentId = null, lang = null } = {}) {
+  try {
+    const v3 = await videosV3On();
+    const ix = v3 ? await inLanguage(await bank(), langOf(lang)) : await bank();
+    const row = ix && ix.rows.find((r) => r.id === vid);
+    if (!row) return null;
+    const list = lessonOrder(ix, String(row.grade), row.subject, v3);
+    const at = list.findIndex((r) => r.id === vid);
+    const after = list.slice(at + 1).concat(list.slice(0, at));
+    if (!after.length) return null;
+    const done = await doneQuizzes(studentId, after.map((r) => ix.quizOf.get(r.id)));
+    const next = after.find((r) => !done.has(ix.quizOf.get(r.id)));
+    if (!next) return null;
+    const poster = await require('./web-quiz-media').signPoster(next.r2_url);
+    return { vid: next.id, title: next.clean_title || '', ...(poster ? { poster } : {}) };
+  } catch (_) {
+    return null;
+  }
 }
 
 // ─── download ────────────────────────────────────────────────────────────────
@@ -198,7 +343,8 @@ async function download(code, { st, vid } = {}) {
 }
 
 module.exports = {
-  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY,
-  _reset: () => { require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
+  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH, warmGrade,
+  inLanguage,
+  _reset: () => { rootHeld = null; warmed.clear(); require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
 };

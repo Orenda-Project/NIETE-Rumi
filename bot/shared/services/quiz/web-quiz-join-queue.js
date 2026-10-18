@@ -10,7 +10,8 @@
  *                                     the rows are computed once per teacher per few minutes; a 'same' / 'no' takes
  *                                     its pair out of it (the rest of the TTL kept), an undo puts it back
  *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
- *                                     (a configured test teacher's decisions count for nothing)
+ *                                     (a configured test teacher's decisions count for nothing; excluded_n says how
+ *                                     many of the tier's queue rows they made)
  *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
  *   linkClassCodes({teacherUserId, classId})  the teacher's unbound quiz codes → this class (never a bound one)
@@ -43,6 +44,9 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
+// The teacher in an event is the events' keyed reference, never the id (null without the key, or without an id).
+const tkOf = (userId) => require('./web-quiz-kid').tk(userId);
+
 /** The keyed child id for an event (the event-key module, when present); nothing when it is not. Never a raw id. */
 function kidFor(canonicalId) {
   try {
@@ -55,6 +59,7 @@ function kidFor(canonicalId) {
 }
 const IdFlags = require('./web-quiz-identity-flags');
 const { inChunks } = require('./web-quiz-in-chunks');   // every `.in()` on a data-sized list: <= 200 ids a request
+const { watchRootId, notUnderWatchRoot } = require('./watch-root');   // the watch root: one parse, one rule (a leaf: not the report's stack)
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
 // Bounded labelling mode (IDENTITY §12 gate, ruled 15 Oct 2026): the queue serves roster_unique_with_loose only (0 wrong
@@ -109,6 +114,20 @@ async function rows(query) {
 }
 const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 
+// The watch root and every code whose parent chain reaches it copy its teacher but are not that teacher's class (a
+// class-less child's code, a friend's code under it, ...): never pooled or linked. No root: every code, as today. It
+// fails closed: an unreadable VALUE throws (an empty queue, nothing linked), a chain past the cap or a loop is out.
+async function codesOffWatchRoot(query) {
+  const root = await watchRootId(Date.now(), { strict: true });
+  const codes = await rows(notUnderWatchRoot(query, root));   // the root's own children leave in the query
+  if (!root) return codes;
+  const byId = new Map(codes.map((x) => [x.id, x]));
+  const up = uniq(codes.map((x) => x.parent_share_code_id)).filter((p) => !byId.has(p));
+  const watch = new Set((up.length ? await inChunks(() => supabase.from('quiz_share_codes').select('id').eq('parent_share_code_id', root), 'id', up) : []).map((x) => x.id));
+  const off = (x, n = 0) => x.id === root || watch.has(x.parent_share_code_id) || (byId.has(x.parent_share_code_id) && (n >= 50 || off(byId.get(x.parent_share_code_id), n + 1)));
+  return codes.filter((x) => !off(x));
+}
+
 /** The teacher's classes (class_teachers active ∪ the teacher's lists' classes) and lists (own ∪ on those classes). */
 async function teacherScope(t) {
   const ct = await rows(supabase.from('class_teachers').select('class_id').eq('teacher_user_id', t).eq('is_active', true));
@@ -155,7 +174,7 @@ async function teacherRoster(t, scope) {
  * it only keeps its same-name look-alike on another phone and device blocked in route(), as it did before the merge.
  */
 async function teacherLoose(t) {
-  const codes = await rows(supabase.from('quiz_share_codes').select('id').eq('teacher_user_id', t));
+  const codes = await codesOffWatchRoot(supabase.from('quiz_share_codes').select('id, parent_share_code_id').eq('teacher_user_id', t));
   const quizzes = await rows(supabase.from('quizzes').select('id').eq('teacher_id', t));
   const sCols = 'student_id, parent_phone, device_ref';
   const viaCode = codes.length ? await inChunks(() => supabase.from('quiz_sessions').select(sCols).limit(CAP), 'share_code_id', codes.map((x) => x.id)) : [];
@@ -276,6 +295,70 @@ async function canonOn() {
   try { return Boolean((await IdFlags.flags()).canon); } catch (_) { return false; }
 }
 
+// ─── a child who joined on their own (quiz_student_join) ─────────────────────
+// A self-joined child is a loose row with no teacher and no phone on the row (enrolled_by_user_id NULL, list_id NULL),
+// bound to its family phone (child_phone_bindings via 'guest') with the grade it tapped (child_identity). The teacher is
+// asked ONCE, on this queue, when exactly ONE roster child of theirs has the same first name AND the same grade AND
+// either shares that phone (the roster row's phone / parent_phone) or the self-joined child played one of this
+// teacher's codes or quizzes. Never a silent merge: "Same child" writes merged_into through decide(), like every pair,
+// and the strict job never sees these rows (they carry no phone). merge_log.tier stays NULL for them (its CHECK names
+// the two measured tiers), so they never move a measured tier's precision.
+const SELF_JOIN_TIER = 'self_join';
+async function selfJoinOn() {
+  try { return Boolean((await require('./web-quiz-student-join').flags()).bind); } catch (_) { return false; }
+}
+
+/**
+ * Pure. kids [{id, student_name, grade, phones:Set(p10), reached:boolean}] × roster (teacherRoster's Map) → the pairs
+ * to ask: [{kid, r, via: 'phone'|'played'}]. No grade, no first name, or not exactly one linked roster child → none.
+ */
+function selfJoinPairs(kids, roster) {
+  const out = [];
+  for (const kid of kids) {
+    const first = canonFirst(kid.student_name);
+    if (!first || kid.grade == null) continue;
+    const same = [...roster.values()].filter((r) => r.grade === kid.grade && r.names.some((n) => canonFirst(n) === first));
+    const byPhone = same.filter((r) => r.phones.some((p) => p && kid.phones.has(p)));
+    const linked = byPhone.length ? byPhone : (kid.reached ? same : []);
+    if (linked.length !== 1) continue;
+    out.push({ kid, r: linked[0], via: byPhone.length ? 'phone' : 'played' });
+  }
+  return out;
+}
+
+/** This teacher's self-joined candidates, as queue rows (the compute() row shape, tier self_join). */
+async function selfJoinRows(t, roster, loose) {
+  const rosterPhones = uniq([...roster.values()].flatMap((r) => r.phones)).map((p) => `92${p}`);
+  const guestCols = 'canonical_id, phone_norm';
+  const onPhones = rosterPhones.length
+    ? await inChunks(() => supabase.from('child_phone_bindings').select(guestCols).eq('via', 'guest').is('revoked_at', null), 'phone_norm', rosterPhones) : [];
+  const reached = [...loose.values()].filter((k) => !k.phones.size).map((k) => String(k.id));
+  const ids = uniq([...onPhones.map((b) => String(b.canonical_id)), ...reached]);
+  if (!ids.length) return [];
+  const cols = 'id, student_name, self_reported_class, is_active';
+  const kids = (await inChunks(() => supabase.from('students').select(cols).is('list_id', null).is('enrolled_by_user_id', null).eq('status', 'active').is('merged_into', null), 'id', ids))
+    .filter((k) => k.is_active !== false);
+  if (!kids.length) return [];
+  const kidIds = kids.map((k) => String(k.id));
+  const guest = await inChunks(() => supabase.from('child_phone_bindings').select(guestCols).eq('via', 'guest').is('revoked_at', null), 'canonical_id', kidIds);
+  const fixed = await inChunks(() => supabase.from('child_identity').select('canonical_id, fixed_grade'), 'canonical_id', kidIds);
+  const shaped = kids.map((k) => {
+    const mine = guest.filter((g) => String(g.canonical_id) === String(k.id));
+    const f = fixed.find((x) => String(x.canonical_id) === String(k.id));
+    return {
+      id: String(k.id), student_name: k.student_name, grade: f && f.fixed_grade != null ? Number(f.fixed_grade) : gradeOf(k.self_reported_class),
+      phones: new Set(uniq(mine.map((g) => p10(g.phone_norm)))), reached: reached.includes(String(k.id)), guest: mine.length > 0,
+    };
+  }).filter((k) => k.guest);
+  return selfJoinPairs(shaped, roster).map(({ kid, r, via }) => ({
+    loose_id: kid.id, candidate_id: r.id,
+    first: firstName(kid.student_name), candidate_first: firstName(r.student_name),
+    father_first: null, candidate_father_first: r.father_name ? firstName(r.father_name) : null,
+    class_id: r.class_id, grade: r.grade,
+    evidence: { tier: SELF_JOIN_TIER, via, same_grade: true, name_words_matched: words(kid.student_name).size, other_same_name_loose: false },
+  }));
+}
+
 async function compute(t) {
   const scope = await teacherScope(t);
   const roster = await teacherRoster(t, scope);
@@ -299,6 +382,7 @@ async function compute(t) {
       },
     });
   }
+  if (await selfJoinOn()) out.push(...(await selfJoinRows(t, roster, loose)));
   const decided = await lastDecisions(t, uniq(out.map((x) => x.loose_id)));
   return out.filter((x) => !['same', 'no'].includes(decided.get(`${x.loose_id}|${x.candidate_id}`)))
     .sort((a, b) => String(a.loose_id).localeCompare(String(b.loose_id)));
@@ -499,13 +583,23 @@ async function countDecisions(tier, decision, excluded = new Set()) {
   return count || 0;
 }
 
+/** The tier's queue rows (any decision) made by the excluded teachers; 0 with no read when there are none. */
+async function countExcluded(tier, excluded) {
+  if (!excluded.size) return 0;
+  const { count, error } = await supabase.from('merge_log').select('id', { count: 'exact', head: true })
+    .eq('source', 'queue').eq('tier', tier).in('teacher_id', [...excluded]); // bounded: the configured key's own list
+  if (error) throw new Error(error.message || 'read failed');
+  return count || 0;
+}
+
 /**
  * Per tier, from the teachers' queue decisions (merge_log source 'queue', tier set; a decision by a configured test
  * teacher, web-quiz-fixture.js fixtureConfig().teachers, counts for nothing): an undo reverses a same, so
  * same_net = same - undo, n = same_net + no, `precision` = same_net / n (null when n = 0). NOTE: this is the
  * TEACHER-ACCEPTED SHARE (a tap is a judgement, not a label); the labelled precision is queue_truth.json's. The strip
  * prints it as "teacher-accepted share". wilson_lower_95 is its 95% Wilson lower bound, held = n >= 50 and
- * wilson_lower_95 < 0.85. → [{tier, n, same, no, undo, precision, wilson_lower_95, held}]
+ * wilson_lower_95 < 0.85; excluded_n = the tier's queue rows (any decision) made by a configured test teacher, left
+ * out of every other count. → [{tier, n, same, no, undo, excluded_n, precision, wilson_lower_95, held}]
  * in TIERS order. Never throws: a failed read holds every tier ({held:true, error:true}). Cached 60 s in-process.
  */
 async function precisionByTier() {
@@ -517,11 +611,12 @@ async function precisionByTier() {
       const same = await countDecisions(tier, 'same', excluded);
       const no = await countDecisions(tier, 'no', excluded);
       const undo = await countDecisions(tier, 'undo', excluded);
+      const excludedN = await countExcluded(tier, excluded);
       const sameNet = Math.max(0, same - undo);
       const n = sameNet + no;
       const lower = wilsonLower(sameNet, n);
       value.push({
-        tier, n, same, no, undo, precision: n ? round4(sameNet / n) : null, wilson_lower_95: round4(lower),
+        tier, n, same, no, undo, excluded_n: excludedN, precision: n ? round4(sameNet / n) : null, wilson_lower_95: round4(lower),
         held: n >= HOLD_MIN_N && lower < HOLD_LOWER,
       });
     }
@@ -529,7 +624,7 @@ async function precisionByTier() {
     return value.map((x) => ({ ...x }));
   } catch (err) {
     logToFile('⚠️ join queue: tier precision not read — every tier held', { error: err.message });
-    return TIERS.map((tier) => ({ tier, n: 0, same: 0, no: 0, undo: 0, precision: null, wilson_lower_95: null, held: true, error: true }));
+    return TIERS.map((tier) => ({ tier, n: 0, same: 0, no: 0, undo: 0, excluded_n: 0, precision: null, wilson_lower_95: null, held: true, error: true }));
   }
 }
 
@@ -537,7 +632,8 @@ async function precisionByTier() {
 async function liveTiers() {
   if (!served.length) return [];
   const held = new Set((await precisionByTier()).filter((x) => x.held).map((x) => x.tier));
-  return served.filter((t) => !held.has(t));
+  const live = served.filter((t) => !held.has(t));
+  return (await selfJoinOn()) ? [...live, SELF_JOIN_TIER] : live;
 }
 
 /** The tiers the queue serves right now; [] when the switch is off. Never throws. */
@@ -571,7 +667,7 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
   try {
     const now = new Date().toISOString();
     const log = (d, tier) => rows(supabase.from('merge_log').insert({
-      loose_id: looseId, candidate_id: candidateId, teacher_id: teacherUserId, decision: d, source: 'queue', tier: tier || null, decided_at: now,
+      loose_id: looseId, candidate_id: candidateId, teacher_id: teacherUserId, decision: d, source: 'queue', tier: TIERS.includes(tier) ? tier : null, decided_at: now,
     }).select('id')).then(async (x) => {
       precisionCache = null;
       // a 'same' / 'no' leaves the cached queue; an undo puts back the rows its 'same' took out (tier unknown → drop)
@@ -579,6 +675,11 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       else await removeFromQueue(teacherUserId, looseId, candidateId, d);
       return x;
     });
+    // A 'same' also needs the loose child's enrolment check (mergeLoose): start it now, beside the idempotency read, so
+    // the two independent reads cost one round trip, not two (a rejection is caught into a value, never unhandled).
+    const enrolledP = decision === 'same'
+      ? rows(supabase.from('class_enrollments').select('student_id').eq('student_id', looseId).eq('is_active', true)).catch((e) => ({ error: e }))
+      : null;
     // Idempotent: the same tap again (a 303-and-refresh double submit) writes nothing and answers as the first did.
     const last = (await lastDecisions(teacherUserId, [looseId])).get(`${looseId}|${candidateId}`);
     if (last === decision) {
@@ -597,13 +698,15 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     const shown = tiers.length ? serveTiers(await cachedCompute(teacherUserId), tiers) : [];
     const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId) || null;
     if (pair && decision === 'same') {
-      if (!(await mergeLoose(looseId, candidateId, now))) { await dropQueue(teacherUserId); return { ok: false, reason: 'not_loose' }; }
+      if (!(await mergeLoose(looseId, candidateId, now, enrolledP))) { await dropQueue(teacherUserId); return { ok: false, reason: 'not_loose' }; }
       await log('same', pair.evidence.tier);
       logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(candidateId) });
+      if (pair.evidence.tier === SELF_JOIN_TIER) joinConfirm('same', teacherUserId, looseId);
       return { ok: true, decision };
     }
     if (pair && decision === 'no') {
       await log('no', pair.evidence.tier);
+      if (pair.evidence.tier === SELF_JOIN_TIER) joinConfirm('different', teacherUserId, looseId);
       return { ok: true, decision };
     }
     if (decision === 'undo') {
@@ -612,7 +715,10 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       const back = await rows(supabase.from('students').update({ merged_into: null, status: 'active', is_active: true, updated_at: now })
         .eq('id', looseId).eq('merged_into', candidateId).is('list_id', null).select('id'));
       if (!back.length) return { ok: false, reason: 'nothing_to_undo' };
-      await log('undo', await sameTier(teacherUserId, looseId, candidateId));
+      const tier = await sameTier(teacherUserId, looseId, candidateId);
+      await log('undo', tier);
+      // a self-joined pair's 'same' is logged with no tier: only such an undo asks whether the child joined on its own
+      if (tier == null && (await selfJoinOn()) && (await joinedOnTheirOwn(looseId))) joinConfirm('undo', teacherUserId, looseId);
       return { ok: true, decision };
     }
     // Not a served pair: today's full checks, unchanged.
@@ -635,15 +741,37 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
 }
 
 /** The tier of this teacher's latest 'same' on the pair (what an undo reverses); null when it carried none. */
+/**
+ * The teacher's answer on a self-joined pair IS its label (the tier is measured from these, not from merge_log, whose
+ * tier stays NULL for it): join_confirm{tier, decision: same | different | undo, kid, tk}. Keyed references only.
+ */
+function joinConfirm(decision, teacherUserId, looseId) {
+  logEvent('web_quiz.join_confirm', { w: 's', tier: SELF_JOIN_TIER, decision, tk: tkOf(teacherUserId), ...kidFor(looseId) });
+}
+
+/** A child that joined on its own: a loose row whose place is saved on a family phone (via 'guest'). */
+async function joinedOnTheirOwn(looseId) {
+  try {
+    const b = await rows(supabase.from('child_phone_bindings').select('canonical_id').eq('canonical_id', looseId).eq('via', 'guest').is('revoked_at', null).limit(1));
+    return b.length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function sameTier(t, looseId, candidateId) {
   const last = await rows(supabase.from('merge_log').select('tier, decided_at').eq('teacher_id', t).eq('loose_id', looseId)
     .eq('candidate_id', candidateId).eq('decision', 'same').order('decided_at', { ascending: false }).limit(1));
   return (last[0] && last[0].tier) || null;
 }
 
-/** The loose row → merged into the roster record, only if it is still loose and active (mergeTypedInto's guard). */
-async function mergeLoose(looseId, candidateId, now) {
-  const enr = await rows(supabase.from('class_enrollments').select('student_id').eq('student_id', looseId).eq('is_active', true));
+/** The loose row → merged into the roster record, only if it is still loose and active (mergeTypedInto's guard).
+ *  `enrolledP`: the enrolment read already started by the caller (decide); a failed read throws, as its own read would. */
+async function mergeLoose(looseId, candidateId, now, enrolledP = null) {
+  const enr = enrolledP
+    ? await enrolledP
+    : await rows(supabase.from('class_enrollments').select('student_id').eq('student_id', looseId).eq('is_active', true));
+  if (enr && enr.error) throw enr.error;
   if (enr.length) return false;
   const done = await rows(supabase.from('students').update({ status: 'merged', merged_into: candidateId, is_active: false, updated_at: now })
     .eq('id', looseId).is('list_id', null).eq('status', 'active').is('merged_into', null).select('id'));
@@ -658,8 +786,10 @@ async function linkClassCodes({ teacherUserId, classId } = {}) {
   try {
     const { classIds } = await teacherScope(teacherUserId);
     if (!classIds.includes(classId)) return { linked: 0, reason: 'not_your_class' };
-    const done = await rows(supabase.from('quiz_share_codes').update({ class_id: classId })
-      .eq('teacher_user_id', teacherUserId).is('class_id', null).select('id'));
+    const ids = (await codesOffWatchRoot(supabase.from('quiz_share_codes').select('id, parent_share_code_id')
+      .eq('teacher_user_id', teacherUserId).is('class_id', null))).map((x) => x.id);
+    const done = await inChunks(() => supabase.from('quiz_share_codes').update({ class_id: classId })
+      .eq('teacher_user_id', teacherUserId).is('class_id', null).select('id'), 'id', ids);
     logToFile('🔗 join queue: quiz codes linked to a class', { teacherUserId, classId, n: done.length });
     return { linked: done.length };
   } catch (err) {
@@ -764,5 +894,5 @@ module.exports = {
   TIERS, TIERS_SERVED, HOLD_MIN_N, HOLD_LOWER, norm, wilsonLower,
   _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; precisionCache = null; },
   _resetPrecisionCache: () => { precisionCache = null; fixtureCache = null; }, _resetQueueCache: () => { localQueue.clear(); }, QUEUE_TTL_S, QUEUE_MAX_AGE_S,
-  tokset, words, canonFirst, gradeOf, firstName, route,
+  tokset, words, canonFirst, gradeOf, firstName, route, selfJoinPairs, SELF_JOIN_TIER,
 };

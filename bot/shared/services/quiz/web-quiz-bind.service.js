@@ -8,6 +8,8 @@
  *   teacher_phone · code_unknown · code_used · code_expired · child_unknown · max_phones · max_kids
  *   A teacher's phone gets ONE refusal line (ledger teacher_refusal); a full phone gets ONE line (ledger bind_reply);
  *   the other refusals have no bot copy, so the binder stays silent (the page shows the state).
+ *   With web_quiz_bind_way_back on, every outcome answers ONCE instead, and a recent code's carries the button back
+ *   to the child's page (web-quiz-bind-way-back.js); off, all of the above is today's, byte for byte.
  *   Every reply is counted on the ledger BEFORE it is sent, with the phone (the per-phone daily reply cap): a
  *   reply over the cap is not sent.
  * Bound (new, renewed or a re-bind): the code is spent, the door's cached verdict is dropped, and ONE reply is
@@ -26,6 +28,7 @@ const Codes = require('./child-bind-codes.repo');
 const StudentIdentity = require('./student-identity.service');
 const Ledger = require('./message-ledger');
 const K = require('./web-quiz-kid');
+const WayBack = require('./web-quiz-bind-way-back');
 
 const MAX_PHONES_PER_CHILD = 3;
 const MAX_KIDS_PER_PHONE = require('./web-quiz-token').HUB_MAX_KIDS;
@@ -42,6 +45,14 @@ const ukeyOf = (phoneNorm) => BindRepo.ukeyOf(phoneNorm);
 
 async function on() {
   try { return Boolean((await IdFlags.flags()).phoneBind); } catch (_) { return false; }
+}
+
+/** A listed test phone walking as a new phone (walk-persona.js, sandbox only) is not a teacher's here. Never throws. */
+async function walksAsNewPhone(norm) {
+  try {
+    const P = require('../first-touch/walk-persona');
+    return typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh';
+  } catch (_) { return false; }
 }
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
@@ -88,16 +99,45 @@ async function liveChild(canonicalId) {
  * The erased row a re-bind points at: the newest erased row of THIS child on the phone's tombstone; else the
  * newest erased row of any child on it; else null.
  */
-async function priorOnPhone(norm, childId) {
+async function priorOnPhone(norm, childId, { together = false } = {}) {
   const tomb = BindRepo.tombOf(norm);
   if (!tomb) return null;
+  // together (the self-join's fast path): this child's erased row and any child's are read side by side
+  if (together) {
+    const [mine, any] = await Promise.all([erasedOfChild(tomb, childId), BindRepo.findByTomb(tomb)]);
+    return mine || any;
+  }
+  return (await erasedOfChild(tomb, childId)) || BindRepo.findByTomb(tomb);
+}
+
+/** The newest erased row of THIS child on the tombstone, or null (none, or the read failed: then any child's). */
+async function erasedOfChild(tomb, childId) {
   try {
     const { data, error } = await supabase.from('child_phone_bindings').select('id, canonical_id, revoked_at, revoked_by')
       .eq('phone_tomb', tomb).eq('canonical_id', String(childId)).not('revoked_at', 'is', null)
       .order('revoked_at', { ascending: false }).limit(1);
     if (!error && data && data[0]) return data[0];
   } catch (_) { /* any child's */ }
-  return BindRepo.findByTomb(tomb);
+  return null;
+}
+
+/**
+ * The page-side bind's reads for one phone and one child, started together (quiz_join_fast): the child row, its
+ * phones, the phone's children, the phone's bindings and the prior erased row. A child that folds to another canonical
+ * id has its own phones and prior row read again under that id. The caller weighs them in today's order.
+ */
+function readTogether(phone, norm, givenId, now) {
+  const all = Promise.all([
+    liveChild(givenId), BindRepo.activeForChild(givenId, now), BindRepo.childrenForPhone(phone, { together: true }),
+    BindRepo.activeForPhone(norm, now), priorOnPhone(norm, givenId, { together: true }),
+  ]).then(([child, phones, set, mine, prior]) => ({
+    child, set, mine,
+    phonesOf: (id) => (id === givenId ? phones : BindRepo.activeForChild(id, now)),
+    priorOf: (id) => (id === givenId ? prior : priorOnPhone(norm, id, { together: true })),
+  }));
+  // awaited after the walk-persona lookup: a failure is handled there (the binder's catch), never left unhandled
+  all.catch(() => {});
+  return all;
 }
 
 /**
@@ -105,11 +145,23 @@ async function priorOnPhone(norm, childId) {
  * card → an Urdu confirmation, whatever the child's class quiz is in), else the child's (their quizzes', skipping
  * lesson codes), else the user's, else English.
  */
+// One reply's reads of the child, shared by its words (languageFor) and its link (sendSaved): keyed on the child object
+// the caller resolved for this reply, so it lives as long as that reply.
+const replyMemos = new WeakMap();
+function replyMemo(child) {
+  if (!child || typeof child !== 'object') return new Map();
+  if (!replyMemos.has(child)) replyMemos.set(child, new Map());
+  return replyMemos.get(child);
+}
+
 async function languageFor(child, user, asked = null) {
   if (asked === 'ur' || asked === 'en') return asked;
   try {
     const SQ = require('./student-quiz.service');
-    const lang = SQ.childLanguage(await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]));
+    const quizzes = await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]);
+    // web_quiz_return_lang: the child's own language (a grown-up's choice → class quiz → the join's) before a lesson's
+    // (off: null, today's); kept for this reply's link
+    const lang = (await require('./web-quiz-child-lang').childLang(child.id, { history: quizzes, memo: replyMemo(child) })) || SQ.childLanguage(quizzes);
     if (lang) return lang;
   } catch (_) { /* the user's */ }
   return clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');
@@ -119,7 +171,9 @@ async function languageFor(child, user, asked = null) {
 async function sendSaved(phone, kids, child, language) {
   const WhatsAppService = require('../whatsapp.service');
   const body = resolveUx('jugnuBindSaved', { language, params: { name: firstName(child.name) } });
-  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), 'bind');
+  // web_quiz_return_lang: the child's own language (class quiz → the one they joined in), else the reply's (off: today's link)
+  const own = await require('./web-quiz-child-lang').childLang(child.id, { memo: replyMemo(child) });
+  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), { caller: 'bind', lang: own || language });
   let sent = false;
   if (url) {
     try {
@@ -150,34 +204,42 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     let asked = null;
     try { asked = require('./web-quiz-bind-page').prefillLanguage(body); } catch (_) { asked = null; }
 
-    if (mode === 'teacher') {
+    if (mode === 'teacher' && !(await walksAsNewPhone(norm))) {
       await Codes.markUsed(code, 'teacher_phone', now);
       const out = await refused('teacher_phone');
       const lang = clampLanguage((user && user.preferred_language) || 'en');
+      if (await WayBack.reply({ phone, reason: 'teacher_phone', code, asked, language: lang, now })) return out;
       // counted first (the per-phone reply cap); sent only when the ledger says so
-      if (await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', phone, reason: 'teacher_phone', now })) {
+      if (await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', phone, reason: 'teacher_phone', ownReply: true, now })) {
         await sendText(phone, 'jugnuBindTeacherRefused', lang);
       }
       return out;
     }
 
+    // the way back's reply language for a code with a child: the family's prefill, else the child's, else the user's
+    const langOf = (r) => (r && r.canonical_id ? languageFor({ id: String(r.canonical_id) }, user, asked) : null);
+    const back = (out, reason, r) => WayBack.reply({ phone, reason, row: r, user, asked, language: langOf, now }).then(() => out);
     const row = await Codes.get(code);
-    if (!row) return refused('code_unknown');
-    if (row.used_at) return refused('code_used', {}, row.canonical_id);
+    if (!row) return back(await refused('code_unknown'), 'code_unknown', null);
+    if (row.used_at) {
+      const out = await refused('code_used', {}, row.canonical_id);
+      if (await WayBack.alreadySaved({ phone, norm, row, user, asked, now, sendSaved, languageFor, resolveChild: () => liveChild(row.canonical_id) })) return out;
+      return back(out, 'code_used', row);
+    }
     if (!row.expires_at || new Date(row.expires_at).getTime() <= new Date(now).getTime()) {
       await Codes.markUsed(code, 'code_expired', now);
-      return refused('code_expired', {}, row.canonical_id);
+      return back(await refused('code_expired', {}, row.canonical_id), 'code_expired', row);
     }
     const child = await liveChild(row.canonical_id);
     if (!child) {
       await Codes.markUsed(code, 'child_unknown', now);
-      return refused('child_unknown');
+      return back(await refused('child_unknown'), 'child_unknown', null);
     }
 
     const phones = await BindRepo.activeForChild(child.id, now);
     if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) {
       await Codes.markUsed(code, 'max_phones', now);
-      return refused('max_phones', {}, child.id);
+      return back(await refused('max_phones', {}, child.id), 'max_phones', row);
     }
     const set = await BindRepo.childrenForPhone(phone);
     const inSet = set.some((k) => String(k.id) === child.id);
@@ -185,7 +247,8 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       await Codes.markUsed(code, 'max_kids', now);
       const out = await refused('max_kids', { kids_n: set.length }, child.id);
       const lang = await languageFor(child, user, asked);
-      if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'max_kids', now })) await sendText(phone, 'jugnuBindFullRefused', lang);
+      if (await WayBack.reply({ phone, reason: 'max_kids', row, language: lang, now })) return out;
+      if (await Ledger.record({ trigger: 'bind_reply', phone, reason: 'max_kids', ownReply: true, now })) await sendText(phone, 'jugnuBindFullRefused', lang);
       return out;
     }
 
@@ -221,12 +284,85 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     await emit('web_quiz.bind_bound', ev, child.id);
 
     const lang = await languageFor(child, user, asked);
-    if (await Ledger.record({ trigger: 'bind_reply', phone, reason: renewed ? 'renew' : 'bind', now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
+    if (await Ledger.record({ trigger: 'bind_reply', phone, reason: renewed ? 'renew' : 'bind', ownReply: true, now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
     return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
   } catch (err) {
     logToFile('⚠️ phone binder: code handling threw (silent)', { error: err.message });
     return { ok: false, outcome: 'error' };
   }
+}
+
+/**
+ * The page-side bind (quiz_student_join): a phone the bot already proved — it sent `/quiz`, and the landing's nonce
+ * names it — keeps a child's place with NO code and NO reply. The same refusals as a code, in the same order
+ * (teacher_phone · child_unknown · max_phones · max_kids), the same renew-or-insert (a re-bind when the phone's
+ * tombstone matches), the same forget and the same bind_bound event with its `via`. Nothing is sent on WhatsApp.
+ * → null when web_quiz_phone_bind is off; {ok:true, outcome:'bound', bindingId, canonicalId, renewed, rebind} |
+ *   {ok:false, outcome:'refused', reason} | {ok:false, outcome:'error', reason?}. Never throws.
+ * `fast` (the self-join's quiz_join_fast): the same answer with the reads started together (`pre`: prefetch()'s).
+ * @param {{phone:string, canonicalId:string, via?:'guest'|'teacher', mode?:'teacher'|'student'|'unknown', now?:Date, fast?:boolean, pre?:Promise}} p
+ */
+async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown', now = new Date(), fast = false, pre: given = null } = {}) {
+  try {
+    if (!(await on())) return null;
+    const norm = StudentIdentity.normalisePhone(phone);
+    if (!norm || !canonicalId || !['guest', 'teacher'].includes(via)) return { ok: false, outcome: 'error', reason: 'bad_request' };
+    // fast (the self-join, quiz_join_fast): every read below starts now, together; the refusals keep today's order
+    // (`given`: the same reads, started by the caller while its previous write ran — prefetch() below)
+    const pre = fast ? (given || readTogether(phone, norm, String(canonicalId), now)) : null;
+    // a sandbox walk-through phone playing a new family (the walk-persona module, absent everywhere else)
+    let fresh = false;
+    try { const P = require('../first-touch/walk-persona'); fresh = Boolean(P && typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh'); } catch (_) { fresh = false; }
+    if (mode === 'teacher' && !fresh) return refused('teacher_phone', { via });
+    const got = pre ? await pre : null;
+    const child = got ? got.child : await liveChild(canonicalId);
+    if (!child) return refused('child_unknown', { via });
+    const phones = got ? await got.phonesOf(child.id) : await BindRepo.activeForChild(child.id, now);
+    if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) return refused('max_phones', { via }, child.id);
+    const set = got ? got.set : await BindRepo.childrenForPhone(phone);
+    if (!set.some((k) => String(k.id) === child.id) && set.length >= MAX_KIDS_PER_PHONE) return refused('max_kids', { via, kids_n: set.length }, child.id);
+
+    const mine = (got ? got.mine : await BindRepo.activeForPhone(norm, now)).find((b) => String(b.canonical_id) === child.id);
+    let binding = null;
+    let renewed = false;
+    let rebind = false;
+    let rebindPrior = null;
+    if (mine) {
+      binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now);
+      renewed = Boolean(binding);
+    } else {
+      const prior = got ? await got.priorOf(child.id) : await priorOnPhone(norm, child.id);
+      binding = await BindRepo.insert({
+        canonicalId: child.id, phoneNorm: norm, via, confirmedAt: now, expiresAt: BindRepo.expiresAtFor(now), rebindOf: prior ? prior.id : null,
+      });
+      if (binding && prior) { rebind = true; rebindPrior = prior.revoked_by || null; }
+    }
+    if (!binding) {
+      const reason = BindRepo.tombOf(norm) ? 'db_error' : 'no_salt';
+      logEvent('web_quiz.bind_write_failed', { reason, via, w: 's' });
+      return { ok: false, outcome: 'error', reason };
+    }
+    await forgetPhone(phone, norm, `bind_${via}`);
+    // fast: the phone's children after this bind are the set read before it plus this child — no third read
+    const kids = got ? (set.some((k) => String(k.id) === child.id) ? set : [...set, { id: child.id }]) : await BindRepo.childrenForPhone(phone);
+    const ev = { via, kids_n: kids.length, renewed, rebind };
+    if (rebind && rebindPrior) ev.rebind_prior = rebindPrior;
+    await emit('web_quiz.bind_bound', ev, child.id);
+    return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
+  } catch (err) {
+    logToFile('⚠️ phone binder: page-side bind threw (nothing promised)', { error: err.message });
+    return { ok: false, outcome: 'error' };
+  }
+}
+
+/**
+ * The page-side bind's reads, started early by a caller that binds next (the self-join starts them while it writes
+ * the child's identity row): pass the result as bindOnPhone's `pre` with `fast`. A promise that never rejects
+ * unhandled; null for a phone that does not normalise (bindOnPhone then answers bad_request as today).
+ */
+function prefetch({ phone, canonicalId, now = new Date() } = {}) {
+  const norm = StudentIdentity.normalisePhone(phone);
+  return norm && canonicalId ? readTogether(phone, norm, String(canonicalId), now) : null;
 }
 
 /**
@@ -248,7 +384,7 @@ async function handleStop({ phone, user = null, persona = null, now = new Date()
     const key = erased.length ? 'jugnuBindStopped' : 'jugnuBindStopNothing';
     // A STOP that erased a binding is answered even at the day's cap (a privacy action is never silent; the reply is
     // still on the ledger and the bound is the cap plus this one); a STOP with nothing saved stays capped.
-    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, reason: erased.length ? 'stop' : 'stop_nothing', uncapped: erased.length > 0, now })) {
+    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, reason: erased.length ? 'stop' : 'stop_nothing', uncapped: erased.length > 0, ownReply: true, now })) {
       await sendText(phone, key, lang);
     }
     return { n: erased.length, children: perChild.size };
@@ -287,6 +423,6 @@ async function stopForBoundNonChild({ from, body, user = null, persona = null } 
 }
 
 module.exports = {
-  handleCode, handleStop, stopForBoundNonChild, isStop, ukeyOf,
+  handleCode, bindOnPhone, prefetch, handleStop, stopForBoundNonChild, isStop, ukeyOf,
   STOP_WORDS, MAX_PHONES_PER_CHILD, MAX_KIDS_PER_PHONE,
 };
