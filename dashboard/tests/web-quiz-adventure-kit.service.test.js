@@ -197,6 +197,11 @@ describe('the sheet (wq-adventure.css)', () => {
   it('never sets the one button system\'s size tokens (one owner for every height)', () => {
     expect(root).not.toMatch(/--(tap|btn-h|btn-h2|btn-h-2l|btn-icon|btn-d|btn-d2|btn-fs[a-z0-9-]*|press-[a-z]+)\s*:/);
   });
+  it('no shadow reads a root-level edge: a token built from var(--edge) at :root freezes the root colour for every land', () => {
+    expect(CSS).not.toMatch(/var\(--sh-(btn|press)\)/);
+    expect(root.replace(/--edge:var\(--land-edge\);/, '')).not.toMatch(/var\(--edge\)/);
+    expect(CSS).not.toMatch(/--sh-btn\s*:/);
+  });
   it('every button variant sets its own --edge (a darker shade of its own fill), so no edge falls back to another colour', () => {
     const rules = CSS.match(/[^{}]*\{[^}]*\}/g) || [];
     const variants = rules.filter((r) => /\.(wq-go|wq-navy|wq-soft|wq-btn--[a-z]+)\b[^,]*$/.test(r.split('{')[0].split(',').pop().trim()) && /background|--fill/.test(r));
