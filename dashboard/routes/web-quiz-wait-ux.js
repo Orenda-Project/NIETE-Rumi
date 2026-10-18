@@ -23,7 +23,10 @@
  * small inline script (homeTag): Home as the child last saw it in this tab (hub.js keeps it in sessionStorage for this
  * hub) is drawn at once when it is under 10 minutes old, in the page's language, for the same child (the link's ?kid=,
  * or a hub with one child). It is inert (taps wait) and the bar keeps running until the hub answer lands; hub.js then
- * draws the real Home over it (a new stamp shows from that answer). Nothing kept, or off: the frame as above.
+ * draws the real Home over it (a new stamp shows from that answer). Of the kept look classes only the one-button look
+ * (`wq-1b`, set by a script, not by the head) is put back, and only when the page lacks it; what it added is named in
+ * `data-wqc`, so the real draw takes it off when the live answer no longer says `one_button` (a rollback takes). The
+ * head already guesses every other look class. Nothing kept, or off: the frame as above.
  */
 
 const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s}'
@@ -84,7 +87,8 @@ function homeTag(token, lang, assetV) {
     + 'var m=d.getElementById("wq");if(!m)return;'
     + `var l=d.createElement("link");l.rel="stylesheet";l.href=${js(`/wq/wq-home.css?v=${assetV}`)};d.head.appendChild(l);`
     + 'var y=d.createElement("style");y.textContent="html.wq-cached #wq{pointer-events:none}";d.head.appendChild(y);'
-    + 'var e=d.documentElement;(c.c||[]).forEach(function(x){if(/^wq-[\\w-]+$/.test(x))e.classList.add(x)});e.classList.add("wq-cached");'
+    + 'var e=d.documentElement,a=[];(c.c||[]).forEach(function(x){if(x==="wq-1b"&&!e.classList.contains(x)){e.classList.add(x);a.push(x)}});'
+    + 'e.setAttribute("data-wqc",a.join(" "));e.classList.add("wq-cached");'
     + 'm.innerHTML=c.h+\'<div class="wq-boot" hidden></div>\';m.setAttribute("inert","");m.setAttribute("aria-busy","true")'
     + '}catch(x){}})(document,window)</script>';
 }

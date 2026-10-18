@@ -125,13 +125,18 @@
   function bar() { return '<div class="wq-bar">' + lockup() + '<span class="wq-grow"></span></div>'; }
   // web_quiz_wait_home (the boot's `wait_home`, with the designed wait): Home as the child last saw it is kept for this
   // hub in this tab, so the next open draws it at once from the early page (dashboard web-quiz-wait-ux.js homeTag),
-  // inert, until this page draws the real one over it. Never a door, a story, a locked or a practice hub.
+  // inert, until this page draws the real one over it. Never a door, a story, a locked or a practice hub. The one look
+  // class kept with it is the one-button look (`wq-1b`): the early page names what it added (`data-wqc`), and the real
+  // draw takes that off again unless this answer still says `one_button`, so a look switched off since does not linger.
   var HOME_KEPT = 'wq_home:' + TOKEN;
   function uncache() {
     try {
       var cl = document.documentElement.classList;
       if (!cl.contains('wq-cached')) return;
       cl.remove('wq-cached');
+      var de = document.documentElement;
+      String(de.getAttribute('data-wqc') || '').split(' ').forEach(function (x) { if (x === 'wq-1b' && !(B && B.one_button === true)) cl.remove(x); });
+      de.removeAttribute('data-wqc');
       ROOT.removeAttribute('inert');
       ROOT.removeAttribute('aria-busy');
     } catch (e) { /* no class list: nothing was drawn early */ }
@@ -142,7 +147,7 @@
     if (String(location.hash || '').replace(/^#/, '') || de.classList.contains('wq-cached')) return;
     var h = ROOT.innerHTML;
     if (!h || h.length > 200000 || /class="wq-boot/.test(h)) return;
-    var look = String(de.className || '').split(/\s+/).filter(function (c) { return /^wq-[\w-]+$/.test(c); });
+    var look = de.classList.contains('wq-1b') ? ['wq-1b'] : [];
     try { sessionStorage.setItem(HOME_KEPT, JSON.stringify({ t: Date.now(), l: LANG, k: B.kid, one: (B.kids || []).length === 1, c: look, h: h })); } catch (e) {}
   }
   window.addEventListener('pagehide', keepHome);

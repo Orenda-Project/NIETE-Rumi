@@ -62,9 +62,9 @@ describe('the edge learns the switch from the hub answer', () => {
 });
 
 // ── the early script, in a vm ─────────────────────────────────────────────────────────────────────
-function early({ kept, search = '', lang = 'en', store = true } = {}) {
+function early({ kept, search = '', lang = 'en', store = true, pre = [] } = {}) {
   const head = [];
-  const html = { c: new Set(['wq-x']), attrs: {} };
+  const html = { c: new Set(['wq-x', ...pre]), attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; } };
   html.classList = { add: (c) => html.c.add(c), remove: (c) => html.c.delete(c), contains: (c) => html.c.has(c) };
   const main = { _h: '<div class="wq-boot"></div>', attrs: {}, set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, setAttribute(k, v) { this.attrs[k] = v; } };
   const ss = { getItem: (k) => (k === `wq_home:${TOKEN}` && kept ? JSON.stringify(kept) : null) };
@@ -78,7 +78,7 @@ function early({ kept, search = '', lang = 'en', store = true } = {}) {
   vm.runInContext(WaitUx.homeTag(TOKEN, lang, 'v123').replace(/^<script>|<\/script>$/g, ''), ctx);
   return { head, html, main };
 }
-const KEPT = (extra = {}) => ({ t: Date.now() - 60000, l: 'en', k: KID, one: true, c: ['wq-adv'], h: '<section class="wq-screen" data-m="home">Hi Zara Testwala!</section>', ...extra });
+const KEPT = (extra = {}) => ({ t: Date.now() - 60000, l: 'en', k: KID, one: true, c: ['wq-1b'], h: '<section class="wq-screen" data-m="home">Hi Zara Testwala!</section>', ...extra });
 
 describe('the early script draws a kept Home', () => {
   test('fresh, same language, one child: drawn at once, inert and busy, the home look loaded, the bar kept running', () => {
@@ -86,9 +86,18 @@ describe('the early script draws a kept Home', () => {
     expect(p.main.innerHTML).toBe('<section class="wq-screen" data-m="home">Hi Zara Testwala!</section><div class="wq-boot" hidden></div>');
     expect(p.main.attrs).toEqual({ inert: '', 'aria-busy': 'true' });
     expect(p.html.c.has('wq-cached')).toBe(true);
-    expect(p.html.c.has('wq-adv')).toBe(true);
+    expect(p.html.c.has('wq-1b')).toBe(true);
+    expect(p.html.attrs['data-wqc']).toBe('wq-1b'); // what it added, so the real draw can take it off again
     expect(p.head.find((x) => x.tag === 'link')).toMatchObject({ rel: 'stylesheet', href: '/wq/wq-home.css?v=v123' });
     expect(p.head.find((x) => x.tag === 'style').textContent).toMatch(/html\.wq-cached #wq\{pointer-events:none\}/);
+  });
+  test('only the one-button look is carried; any other kept class is not added (the head guesses the rest)', () => {
+    const p = early({ kept: KEPT({ c: ['wq-1b', 'wq-adv', 'wq-zz'] }) });
+    expect([...p.html.c].sort()).toEqual(['wq-1b', 'wq-cached', 'wq-x']);
+  });
+  test('a look class the page already had is not recorded (the real draw never takes it off)', () => {
+    const p = early({ kept: KEPT(), pre: ['wq-1b'] });
+    expect(p.html.attrs['data-wqc']).toBe('');
   });
   test('the link names the same child: drawn', () => {
     expect(early({ kept: KEPT({ one: false }), search: `?kid=${KID}&from=home` }).html.c.has('wq-cached')).toBe(true);
@@ -119,12 +128,13 @@ const HUB_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'hub.
 const TEL = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-tel.js'), 'utf8');
 const HOME = { home_v3: 1, doors: { stories: [], games: [], videos: null }, head: { dots: 0, today: false, jar: null } };
 const boot = (extra = {}) => ({ lang: 'en', token: TOKEN, brand: null, kids: [{ chip: KID, first: 'Zara Testwala', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: null, lib: null, ...HOME, ...extra });
-function hubPage(b, { hash = '', cached = false } = {}) {
+function hubPage(b, { hash = '', cached = false, added = [] } = {}) {
   const root = { _h: cached ? '<section>old</section><div class="wq-boot" hidden></div>' : '', attrs: cached ? { inert: '', 'aria-busy': 'true' } : {},
     set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; },
     setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; }, removeAttribute(k) { delete this.attrs[k]; },
     appendChild() {}, querySelector: () => null, querySelectorAll: () => [] };
-  const cls = new Set(['wq-adv', ...(cached ? ['wq-cached'] : [])]);
+  const cls = new Set(['wq-adv', ...(cached ? ['wq-cached'] : []), ...added]);
+  const hattrs = cached ? { 'data-wqc': added.join(' ') } : {};
   const listeners = {};
   const timers = [];
   const stored = {};
@@ -134,7 +144,8 @@ function hubPage(b, { hash = '', cached = false } = {}) {
     WQHOME: { mount: (r) => { mounted.push({ inert: 'inert' in r.attrs, cached: cls.has('wq-cached') }); r.innerHTML = '<section class="wq-screen" data-m="home">Hi Zara Testwala! 3 stamps</section>'; } } };
   const ctx = {
     document: {
-      documentElement: { setAttribute() {}, getAttribute() { return null; }, classList: { toggle() {}, contains: (c) => cls.has(c), add: (c) => cls.add(c), remove: (c) => cls.delete(c) }, get className() { return [...cls].join(' '); } },
+      documentElement: { setAttribute(k, v) { hattrs[k] = String(v); }, getAttribute(k) { return hattrs[k] == null ? null : hattrs[k]; }, removeAttribute(k) { delete hattrs[k]; },
+        classList: { toggle() {}, contains: (c) => cls.has(c), add: (c) => cls.add(c), remove: (c) => cls.delete(c) }, get className() { return [...cls].join(' '); } },
       getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(b) }), createElement: () => ({ setAttribute() {}, addEventListener() {}, textContent: '' }),
       querySelector: () => null, head: { appendChild() {} }, cookie: '',
     },
@@ -149,7 +160,7 @@ function hubPage(b, { hash = '', cached = false } = {}) {
   vm.runInContext(HUB_SRC, ctx);
   const leave = () => (listeners.pagehide || []).forEach((fn) => fn({}));
   const kept = () => (stored[`wq_home:${TOKEN}`] ? JSON.parse(stored[`wq_home:${TOKEN}`]) : null);
-  return { root, cls, timers, stored, leave, kept, loc, mounted };
+  return { root, cls, hattrs, timers, stored, leave, kept, loc, mounted };
 }
 
 describe('hub.js keeps Home for this tab (switch on)', () => {
@@ -157,7 +168,7 @@ describe('hub.js keeps Home for this tab (switch on)', () => {
     const p = hubPage(boot({ wait_home: true }));
     p.leave();
     const k = p.kept();
-    expect(k).toMatchObject({ l: 'en', k: KID, one: true, c: ['wq-adv'], h: '<section class="wq-screen" data-m="home">Hi Zara Testwala! 3 stamps</section>' });
+    expect(k).toMatchObject({ l: 'en', k: KID, one: true, c: [], h: '<section class="wq-screen" data-m="home">Hi Zara Testwala! 3 stamps</section>' });
     expect(Date.now() - k.t).toBeLessThan(5000);
   });
   test('a little after Home is drawn it is kept too (a child who leaves from a door)', () => {
@@ -183,6 +194,27 @@ describe('hub.js keeps Home for this tab (switch on)', () => {
     p.cls.add('wq-cached');
     p.leave();
     expect(p.stored).toEqual({});
+  });
+});
+
+describe('a look switched off since the copy was kept: the real draw takes its class off (a rollback takes)', () => {
+  test('kept with wq-1b, the answer has no one_button: wq-1b is gone after the real draw, and the next leave keeps none', () => {
+    const p = hubPage(boot({ wait_home: true }), { cached: true, added: ['wq-1b'] });
+    expect(p.cls.has('wq-1b')).toBe(false);
+    expect(p.hattrs).not.toHaveProperty('data-wqc');
+    p.leave();
+    expect(p.kept().c).toEqual([]);
+  });
+  test('kept with wq-1b, the answer still says one_button: it stays, and is kept again', () => {
+    const p = hubPage(boot({ wait_home: true, one_button: true }), { cached: true, added: ['wq-1b'] });
+    expect(p.cls.has('wq-1b')).toBe(true);
+    p.leave();
+    expect(p.kept().c).toEqual(['wq-1b']);
+  });
+  test('a class the early script did not add is never taken off', () => {
+    const p = hubPage(boot({ wait_home: true }), { cached: true, added: [] });
+    p.cls.add('wq-1b');
+    expect(p.cls.has('wq-adv')).toBe(true);
   });
 });
 
