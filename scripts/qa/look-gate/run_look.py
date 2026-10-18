@@ -11,6 +11,7 @@ Per screen it writes:
            border and background, and how far its label's middle sits from the button's middle (px).
   primary  the [data-primary]'s bottom against innerHeight.
   targets / emoji  tappables under 48 px, emoji in visible text (look_probe.js, the same probe a walker runs).
+  folds    a <details> row under 48 px, or one that lost its ▸ marker.
 Then verdict(): PASS/FAIL per screen and one line per failing element (results.json "verdict", verdict.txt).
   hold     on the home: the grown-ups button's words, whether a short tap says "keep holding", and whether its
            label stays on top of the fill while held.
@@ -310,6 +311,9 @@ def verdict(results):
                 why.append('rows %d heights: %s' % (len(hs), ' '.join(map(str, hs))))
             if len(r.get('radii') or []) > 3:
                 why.append('radii %d > 3: %s' % (len(r['radii']), ' '.join(r['radii'])))
+        fl = [f for f in r.get('folds') or [] if not f['marker'] or f['h'] < 48]
+        if fl:
+            why.append('folds: ' + ', '.join('%s %dpx%s' % (f['el'][:30], f['h'], '' if f['marker'] else ' no marker') for f in fl[:4]))
         if r.get('targets'):
             why.append('targets < 48: ' + ', '.join('%s %dx%d' % (t['el'][:30], t['w'], t['h']) for t in r['targets'][:4]))
         h = r.get('hold')

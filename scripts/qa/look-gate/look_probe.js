@@ -9,6 +9,8 @@
  *            middle (its words, with an icon drawn in the flow beside or over them) sits from the box's middle
  *   primary  the [data-primary]'s bottom against innerHeight
  *   rows     the height of every list row (door rows and their loading placeholders)
+ *   folds    every <details> row a child can open: its height, and whether it still draws its ▸ marker (a summary
+ *            that is not display:list-item and has no ::before/::after of its own has no cue that it opens)
  *   radii    the distinct corner radii of the boxes a child sees (a circle counts once, as 'circle'); a glyph
  *            ([aria-hidden=true]: an answer's shape marker, the brand mark) is not a box and is not counted
  * It reads only; it changes nothing on the page.
@@ -89,7 +91,11 @@
   });
   // every list row a child taps (the door rows and their loading placeholders): one height per list
   const rows = Array.from(document.querySelectorAll('.wq-drow,.wq-skrow')).filter(vis).map((e) => ({ el: name(e), h: Math.round(e.getBoundingClientRect().height) }));
+  const folds = Array.from(document.querySelectorAll('details>summary')).filter(vis).map((e) => {
+    const own = ['::before', '::after'].some((p) => { const c = getComputedStyle(e, p).content; return c && c !== 'none' && c !== 'normal'; });
+    return { el: name(e), h: Math.round(e.getBoundingClientRect().height), marker: cs(e).display === 'list-item' || own };
+  });
   const prim = document.querySelector('[data-primary]');
   const pr = prim && vis(prim) ? prim.getBoundingClientRect() : null;
-  return { vw, vh, dir: document.documentElement.dir || 'ltr', scrollW: document.documentElement.scrollWidth, oneButton: document.documentElement.classList.contains('wq-1b'), gutter, targets, emoji, buttons, radii: Array.from(radii).sort(), rows, primary: pr ? { el: name(prim), bottom: Math.round(pr.bottom), ok: pr.bottom <= vh } : null, screen: (document.querySelector('[data-screen]') || {}).getAttribute ? document.querySelector('[data-screen]').getAttribute('data-screen') : null };
+  return { vw, vh, dir: document.documentElement.dir || 'ltr', scrollW: document.documentElement.scrollWidth, oneButton: document.documentElement.classList.contains('wq-1b'), gutter, targets, emoji, buttons, radii: Array.from(radii).sort(), rows, folds, primary: pr ? { el: name(prim), bottom: Math.round(pr.bottom), ok: pr.bottom <= vh } : null, screen: (document.querySelector('[data-screen]') || {}).getAttribute ? document.querySelector('[data-screen]').getAttribute('data-screen') : null };
 }
