@@ -5,8 +5,7 @@
  * PR-C lands: `router.use(require('./portal-fln-links.routes'));`. `GET /fln/me` is m-app's (PR-C), not here.
  *
  *   GET /fln/links       the "Send a lesson plan" builder's rows — requireFln.share (404 for everyone else)
- *   GET /fln/title/:id   {title, lang, dir} for the signed-out sign-in banner; no sign-in, nothing else; 404 while
- *                        both FLN switches are off for everyone
+ *   GET /fln/title/:id   {title, lang, dir} for the signed-out sign-in banner; no sign-in, nothing else
  *
  * Every answer, errors included, is `Cache-Control: no-store` (shared phones: a coach's rows must never be replayed
  * for the teacher who signs in next). The link a row carries is `<portal>/portal/fln/p/<id>` — no identity, no
@@ -199,6 +198,7 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
   });
 
   // Signed out on purpose: the sign-in page's banner names the plan before anyone is known. Title, lang, dir only.
+  // 404 while both FLN switches are off for everyone (flnOnForAnyone), like every other FLN route.
   router.get('/fln/title/:id', acc.noStore, async (req, res) => {
     const id = String(req.params.id || '');
     if (!/^\d{1,12}$/.test(id)) return res.status(404).json({ error: 'not_found' });
