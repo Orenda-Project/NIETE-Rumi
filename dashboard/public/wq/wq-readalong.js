@@ -148,6 +148,7 @@
     var unraf = window.cancelAnimationFrame ? function (h) { window.cancelAnimationFrame(h); } : function (h) { clearTimeout(h); };
     var loop = null;
     var stopAt = null;       // playWord: pause when the clock passes this ms
+    var stopI = -1;          // ...and the slice's last word: the lead never lights the word after it
     var finished = false;
     var started = false;
     var dead = false;
@@ -323,6 +324,7 @@
       var t = (audio.currentTime || 0) * 1000;
       if (stopAt != null && t >= stopAt) { stopAt = null; pause(); return; }
       var i = indexAt(words, t + lead);
+      if (stopAt != null && stopI >= 0 && i > stopI) i = stopI;
       // the next gap the clip has not reached (none while one word or sentence plays): the pill never passes it
       // the clip stops mid-silence after the word (an early end time never clips the word)
       for (var k in gapAt) if (stopAt == null && gapAt[k] && words[k].e > gf) { var at = Math.max(words[k].e, (words[k].e + words[+k + 1].s) / 2); if (i > k) i = +k; if (t >= at) { paint(+k); audio.pause(); gf = words[k].e; api.slowed = 1; hold = setTimeout(resume, gapAt[k]); return; } break; }
@@ -388,7 +390,7 @@
             var r = sentenceOf(words, i);
             if (quality === 'low') r = [tapLine(r[0])[0], tapLine(r[1])[1]];
             playFrom(words[r[0]].s - lead, r[0]);
-            stopAt = words[r[1]].e;
+            stopAt = words[r[1]].e; stopI = r[1];
           } else seekToWord(i);
           emit('tap_word', i, d.id);
           if (opts.onWordTap) opts.onWordTap(i);
@@ -414,7 +416,7 @@
     api.playWord = function (i) {
       if (dead || quality === 'low' || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s, i);
-      stopAt = words[i].e;
+      stopAt = words[i].e; stopI = i;
     };
     // the storybook's Slower: with gaps (its switch) the voice keeps its own speed and waits between phrases; else the old stretch
     api.slow = function (on, g) { audio.playbackRate = on && !g ? 0.85 : 1; audio.preservesPitch = true; setGaps(on && g); };
