@@ -127,7 +127,7 @@ describe('switch off: a join and a hub reply ask nothing more than today', () =>
       seed(opts);
       const { t } = await landing();
       redis.get.mockClear();
-      const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+      const out = await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
       expect(out.next).toMatch(/^\/h\//);
       expect(out.next).not.toContain('#');
       expect(openLookups()).toBe(0);
@@ -135,7 +135,7 @@ describe('switch off: a join and a hub reply ask nothing more than today', () =>
     test(`share_v4 ${name}: a known child's hub reply makes no kept-item lookup`, async () => {
       seed(opts);
       const { t } = await landing();
-      await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+      await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
       WhatsApp.sendCtaUrl.mockClear();
       redis.get.mockClear();
       const user = { ...UNKNOWN_USER, persona: 'student' };
@@ -151,14 +151,14 @@ describe('a friend taps a shared storybook card, joins, and lands ON the book', 
   test('the words with the ref → the join\'s home link ends #story/<book>; the next home link is plain', async () => {
     expect(await Open.note(PHONE, 'quiz please jb3b9c1e2a')).toBe(true);
     const { t } = await landing();
-    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    const out = await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     expect(out.next).toMatch(new RegExp(`^/h/[A-Za-z0-9_.-]+\\?from=join&kid=[0-9a-f]{16}&lang=ur#story/${BOOK}$`));
     // once: the item was taken
     expect(await Open.hashFor(PHONE)).toBe('');
   });
   test('a known child (already joined) sends the words with the ref: the hub reply opens the book', async () => {
     const { t } = await landing();
-    await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     WhatsApp.sendCtaUrl.mockClear();
     const user = { ...UNKNOWN_USER, persona: 'student' };
     await Ingress.classify({ user, phone: PHONE });
@@ -171,7 +171,7 @@ describe('a friend taps a shared storybook card, joins, and lands ON the book', 
     seed({ share: false });
     expect(await Open.note(PHONE, 'quiz please jb3b9c1e2a')).toBe(false);
     const { t } = await landing();
-    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    const out = await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     expect(out.next).toMatch(/^\/h\/[A-Za-z0-9_.-]+\?from=join&kid=[0-9a-f]{16}&lang=ur$/);
     expect([...redis.__keys.keys()].some((k) => /^wq:share:open:/.test(k))).toBe(false);
   });
@@ -179,7 +179,7 @@ describe('a friend taps a shared storybook card, joins, and lands ON the book', 
     'switch on, %s: today\'s path — the menu as today, no setting read, nothing kept, the hub link plain', async (_, words) => {
       const Card = require('../../../shared/services/quiz/web-quiz-card-image');
       const { t } = await landing();
-      await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+      await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
       WhatsApp.sendCtaUrl.mockClear();
       const shareOn = jest.spyOn(Card, 'shareOn');
       const user = { ...UNKNOWN_USER, persona: 'student' };
@@ -207,14 +207,14 @@ describe('the twelve door branches', () => {
         expect(await Open.refMenu(words)).toBe(true);
         expect(await Open.note(PHONE, words)).toBe(true);
         const { t } = await landing();
-        const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+        const out = await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
         expect(out.next.endsWith(hash)).toBe(true);
         expect(out.next).toMatch(/^\/h\//);
         expect(await Open.hashFor(PHONE)).toBe('');
       });
       test(`${lang} · ${what} · a known child: the hub reply to the ref words opens it`, async () => {
         const { t } = await landing();
-        await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+        await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
         WhatsApp.sendCtaUrl.mockClear();
         const user = { ...UNKNOWN_USER, persona: 'student' };
         await Ingress.classify({ user, phone: PHONE });
