@@ -11,6 +11,9 @@
  *                               the passage is heard (an early Done loses the reading)
  *   lr3.meter                   'glow': Jugnu glows brighter per word lit, never per second; no number, no bar
  *   lr3.counted                 this run is the record (the card says nothing it cannot keep)
+ *   pace (menu / hub)           the live reading meter (app_settings `web_quiz_live_meter`: 'sky' | 'vine', a literal
+ *                               true is 'sky'; read only while this switch is on): the page loads wq-pace.js, a bar that
+ *                               rises with every word read right and falls gently in a pause. Off ⇒ nothing is added.
  *
  * The words light up as the child reads wherever real-time works (Story Time included). The read-aloud's own key
  * route (POST /ch/live) is reused for a passage; a story page asks web-quiz-live-read-keys.js for its own one-read
@@ -60,6 +63,27 @@ async function settingOn(key) {
   return v;
 }
 const on = () => settingOn(FLAG_KEY);
+
+// the live meter's variant, or null: only a known name (or a literal true, the sky bar) and only while v3 is on
+const METER_KEY = 'web_quiz_live_meter';
+const METERS = new Set(['sky', 'vine']);
+const meterCache = { v: null, at: 0 };
+async function meter() {
+  if (!(await on())) return null;
+  if (meterCache.at && Date.now() - meterCache.at < SETTING_TTL_MS) return meterCache.v;
+  let v = null;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', METER_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    let x = data && data[0] ? data[0].value : null;
+    if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
+    v = isTrue(x) ? 'sky' : (typeof x === 'string' && METERS.has(x.trim().toLowerCase()) ? x.trim().toLowerCase() : null);
+  } catch (e) {
+    logError('web_quiz.lr_setting_read_failed', { key: METER_KEY, error: String((e && e.message) || e).slice(0, 120) });
+  }
+  meterCache.v = v; meterCache.at = Date.now();
+  return v;
+}
 // live words need real-time: with web_quiz_challenge_realtime off nothing here mints a key or reads this switch
 const liveOn = async () => (await settingOn(LIVE_FLAG_KEY)) && (await on());
 
@@ -80,7 +104,15 @@ async function metaFor(body = {}, { record = false } = {}) {
 
 /** The menu's extra field: {} off; on, the page loads the live reading component. */
 async function forMenu() {
-  return (await on()) ? { lr3: true } : {};
+  if (!(await on())) return {};
+  const m = await meter();
+  return m ? { lr3: true, pace: m } : { lr3: true };
+}
+
+/** The hub's extra field (its story pages read live there): {} off; on, the live meter's variant. */
+async function forHub() {
+  const m = await meter();
+  return m ? { pace: m } : {};
 }
 
 /** Every story key since `sinceIso`, for the day's read budget (the caller checks the switches); 0 when unreadable (logged). */
@@ -95,6 +127,6 @@ async function keysSince(sinceIso) {
   }
 }
 
-function _reset() { cache.clear(); }
+function _reset() { cache.clear(); meterCache.at = 0; meterCache.v = null; }
 
-module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, FINISH_PCT_UR, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, forRead, forMenu, metaFor, keysSince, _reset };
+module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, FINISH_PCT_UR, QUIET_MS, TAIL_MS, UI_V, METER_KEY, on, liveOn, settingOn, meter, forRead, forMenu, forHub, metaFor, keysSince, _reset };
