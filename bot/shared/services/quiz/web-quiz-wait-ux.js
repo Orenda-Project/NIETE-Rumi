@@ -38,7 +38,7 @@ function on(now = Date.now()) {
  * The hub answer (or its promise) with the page's field added while on; the same answer, untouched, while off. With
  * web_quiz_hub_fanout on as well, `wait_share: true` too: the page's same child data read asked twice while the first
  * is out then rides the first (dashboard/routes/web-quiz-wait-ux.js). Fanout off: today's answer, `wait_ux` alone.
- * web_quiz_wait_hops on as well (web-quiz-wait-hops.js, its own cached read that never waits), `wait_hops: true` too:
+ * web_quiz_wait_hops on as well (web-quiz-wait-hops.js, the same batched read, never waited for), `wait_hops: true` too:
  * the bar also shows while the page is being left.
  */
 function carry(outP) {

@@ -2,8 +2,8 @@
 /**
  * The designed wait across a page hop (app_settings web_quiz_wait_hops, web-quiz-wait-hops.js): with the designed wait
  * on (web_quiz_wait_ux) the hub answers, GET and POST, also say `wait_hops: true`, and the page's bar then shows while
- * the page is being left (dashboard web-quiz-wait-ux.js). Only the JSON boolean true turns it on; its own cached read
- * never waits (the first answer after a start is off). Off, or without the designed wait: the answers are today's.
+ * the page is being left (dashboard web-quiz-wait-ux.js). Only the JSON boolean true turns it on; it rides the hub's one
+ * batched switch read and never waits. Off, or without the designed wait: the answers are today's.
  * Supabase and the loggers are the boundaries; the page modules' answers are stood in.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -97,12 +97,20 @@ describe('the hub answers carry wait_hops only with the designed wait on', () =>
       for (const k of ['hubGet', 'hubPost']) expect(JSON.parse(out[k].body)).not.toHaveProperty('wait_hops');
     });
   });
-  test('its switch never waits: the first answer after a start, before its read lands, has no wait_hops', async () => {
-    rows = [{ key: KEY, value: true }, { key: HOPS, value: true }];
-    await WaitUx.refresh();
-    await serve(async (ask) => {
-      const out = await ask();
-      expect(JSON.parse(out.hubGet.body)).not.toHaveProperty('wait_hops');
-    });
+  test('its switch rides the hub\'s one batched read: no settings read of its own, on or off', async () => {
+    const reads = {};
+    for (const hops of [true, false]) {
+      jest.resetModules(); seed();
+      WaitUx = require('../../../shared/services/quiz/web-quiz-wait-ux');
+      Hops = require('../../../shared/services/quiz/web-quiz-wait-hops');
+      rows = [{ key: KEY, value: true }, { key: HOPS, value: hops }];
+      await WaitUx.refresh();
+      settingsReads = 0;
+      await serve(async (ask) => { await ask(); });
+      reads[hops] = settingsReads;
+      expect(Hops.on()).toBe(hops);
+    }
+    expect(reads.true).toBe(reads.false);
+    expect(require('../../../shared/services/quiz/web-quiz-hub-flags').KEYS).toContain(HOPS);
   });
 });
