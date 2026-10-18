@@ -269,9 +269,10 @@
     card.setAttribute('data-wqa', '1');
     // a try that certified nothing (read_tried: no Share on the card; a 0-word read: the moment's try badge): no stamp
     if (card.querySelector('[data-badge=try]') || !card.querySelector('.wqfc-share,.wq-moment-deed')) return;
-    // the reading moment (alone, or inside a finish card): its badge is the stamp's slot, so no row is added (a long
-    // Urdu read has ~5 px under Next at 360) and no second sound (the moment plays its own, once per result)
+    // the reading moment: its badge is the stamp's slot (no row: a long Urdu read has ~5 px under Next at 360) and
+    // no second sound (the moment plays its own, once per result)
     var badge = card.querySelector('.wq-moment-badge');
+    if (!badge && D.querySelector && D.querySelector('.wq-moment-badge')) return; // a moment beside it carries the stamp
     if (badge) {
       var m = stamp('read', true);
       if (m) badge.setAttribute('data-wqa-stamp', m.land);

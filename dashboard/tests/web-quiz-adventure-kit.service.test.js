@@ -11,7 +11,7 @@ const vm = require('vm');
 const PUB = path.join(__dirname, '..', 'public', 'wq');
 const SRC = fs.readFileSync(path.join(PUB, 'wq-adv.js'), 'utf8');
 
-function load({ reduced = false, store = {}, adv = true, audio = null, blocked = false } = {}) {
+function load({ reduced = false, store = {}, adv = true, audio = null, blocked = false, onPage = [] } = {}) {
   const added = [];
   const classes = new Set(adv ? ['wq-adv'] : []);
   const el = (tag) => ({ tag, nodeName: tag.toUpperCase(), attrs: {}, set rel(v) { this.attrs.rel = v; }, set href(v) { this.attrs.href = v; }, set src(v) { this.attrs.src = v; } });
@@ -20,6 +20,7 @@ function load({ reduced = false, store = {}, adv = true, audio = null, blocked =
     documentElement: { classList: { contains: (c) => classes.has(c) } }, body: null,
     head: { appendChild: (n) => { added.push(n); return n; } },
     createElement: el, addEventListener() {}, querySelectorAll: () => [],
+    querySelector: (q) => (q.split(',').some((x) => onPage.includes(x.trim())) ? {} : null),
   };
   const window = {
     document, navigator: { userAgent: 'test', connection: {} },
@@ -186,6 +187,12 @@ describe('award: the stamp on a finish card', () => {
     expect(zero.badge['data-wqa-stamp']).toBeUndefined();
     expect(JSON.parse(store.wqa_stamps).stories.kind).toBe('read');
     expect(a.tones).toEqual([]);
+  });
+  it('a finish card beside a reading moment on the same screen (the folded card) adds no stamp row: the moment carries it', () => {
+    const { WQA } = load({ onPage: ['.wq-moment-badge'] });
+    const c = card(['.wqfc-share', 'h2']);
+    WQA.award(c);
+    expect(c.ins).toEqual([]);
   });
   it('a finish card that holds the moment adds no stamp row of its own (the moment\'s badge carries it)', () => {
     const { WQA } = load();
