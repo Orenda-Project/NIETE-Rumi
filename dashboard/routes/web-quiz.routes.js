@@ -33,6 +33,7 @@ const Preview = require('./web-quiz-preview');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
+const WaitUx = require('./web-quiz-wait-ux');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -573,7 +574,8 @@ function hubPageParts({ payload, token, origin, assetV }) {
     lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
     head: head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui }),
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
-    frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>`,
+    // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)
+    frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>${WaitUx.tag(payload)}`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 ${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}<script src="/wq/hub.js?v=${assetV}" defer></script>
@@ -593,8 +595,8 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui }) {
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui }, token, origin, assetV });
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}) }, token, origin, assetV });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -794,6 +796,7 @@ function createWebQuizRouter(opts = {}) {
   let lastRt = false;
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
+  let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -990,7 +993,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
@@ -1006,6 +1009,7 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
+      lastWaitUx = WaitUx.on(out.body);
       if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
     }
