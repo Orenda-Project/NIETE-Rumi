@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { flnApi } from './api';
-import type { FlnCatalogue } from './types';
+import type { FlnCatalogue, FlnPlacement, FlnRow } from './types';
 import type { FlnSubjectKey } from './strings';
 import { bdiRuns } from './Bdi';
 
@@ -21,7 +21,21 @@ export function listUrl(subject: FlnSubjectKey, grade: number, level?: number | 
   return `/portal/fln/list/${subject}?${q.toString()}`;
 }
 
-export const planUrl = (id: number) => `/portal/fln/p/${id}`;
+/** /portal/fln/p/<id>[?grade=<g>] — `grade` is the list's grade, so the plan shows that grade's place (QT-counts). */
+export const planUrl = (id: number, grade?: number | null) => `/portal/fln/p/${id}${grade ? `?grade=${grade}` : ''}`;
+
+export const isGuideRow = (r: FlnRow) => !!r.chips?.guide || r.label === 'guide' || r.pos === 0;
+
+/** A catalogue's lesson count for its grade: the first numbered row's `count` (its own grade's rows), else the level's. */
+export function rowsCount(cat: FlnCatalogue, level: number, strand = 0): number {
+  const rows = (cat.strands[strand]?.chapters ?? []).flatMap((c) => c.plans);
+  return rows.find((r) => !isGuideRow(r))?.count ?? cat.levels.find((l) => l.level === level)?.count ?? 0;
+}
+
+/** The placement row for the grade the plan was opened from; without one (or no match) the first row, as before. */
+export function placementForGrade(placement: FlnPlacement[], grade: number | null): FlnPlacement | undefined {
+  return (grade != null ? placement.find((p) => p.grade === grade) : undefined) ?? placement[0];
+}
 
 /** The grade whose book a level's list is drawn from (L1 → 1, L2 → 3, L3 → 5; SPEC v2 §3 / server brief). */
 export const LEVEL_GRADE: Record<1 | 2 | 3, number> = { 1: 1, 2: 3, 3: 5 };

@@ -28,6 +28,7 @@ import { Section } from './plan/Section';
 import { TimeBar } from './plan/TimeBar';
 import { Chrome } from './plan/text';
 import ShareBar from './share/ShareBar';
+import { placementForGrade } from './listShared';
 import { flnStrings, type FlnLang } from './strings';
 import type { FlnMe, FlnPlacement, FlnPlanResponse } from './types';
 import './plan/plan.css';
@@ -208,7 +209,10 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
   }
 
   const p = load.data.plan;
-  const first = placement[0];
+  // ?grade= (set by the list row) picks that grade's placement; the kicker and the share card read the same row.
+  const opened = Number(new URLSearchParams(location.search).get('grade'));
+  const first = placementForGrade(placement, Number.isInteger(opened) && opened >= 1 && opened <= 12 ? opened : null);
+  const sharePlacement = first ? [first, ...placement.filter((x) => x !== first)] : placement;
   const homeworkIndex = p.sections.length;
   return (
     <FlnPlayerProvider player={player}>
@@ -248,7 +252,7 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
           />
         ) : null}
         <p className="fln-plan-foot"><Chrome text={p.programme === 'p23' ? s.footer.p23(p.id) : s.footer.p25(p.id)} rtl={rtl} /></p>
-        {me.share ? <ShareBar plan={p} placement={placement} me={me} /> : null}
+        {me.share ? <ShareBar plan={p} placement={sharePlacement} me={me} /> : null}
       </div>
     </FlnPlayerProvider>
   );

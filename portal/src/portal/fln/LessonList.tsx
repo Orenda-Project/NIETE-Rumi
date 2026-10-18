@@ -18,11 +18,11 @@ import { FlnNotAvailable, FlnUnavailable } from './FlnGate';
 import { bdiRuns } from './Bdi';
 import { levelForGrade, num, type FlnSubjectKey, type Strand } from './strings';
 import type { FlnChapter, FlnRow } from './types';
-import { LEVEL_GRADE, NEW_LESSON, TopBar, listUrl, planUrl, useCatalogue } from './listShared';
+import { LEVEL_GRADE, NEW_LESSON, TopBar, isGuideRow, listUrl, planUrl, useCatalogue } from './listShared';
 
 const SCROLL_KEY = 'fln:list-scroll:';
 
-const isGuide = (r: FlnRow) => !!r.chips?.guide || r.label === 'guide' || r.pos === 0;
+const isGuide = isGuideRow;
 const isScreener = (r: FlnRow) => !!r.chips?.screener || r.label === 'screener';
 
 function readScroll(key: string): number | null {
@@ -60,6 +60,8 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
     return { subject, grade, level: own ? null : want };
   }, [subject, grade, want, own]);
   const [state, retry] = useCatalogue(query);
+  // The grade whose rows this list shows (6–12 read their level's book grade), carried to the plan as ?grade=.
+  const rowsGrade = own ? query.grade : want ? LEVEL_GRADE[want] : null;
   const [strand, setStrand] = useState<Strand | null>(null);
   const [others, setOthers] = useState(false);
   const rowRefs = useRef(new Map<number, HTMLAnchorElement>());
@@ -162,7 +164,7 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
                 return (
                   <Link
                     key={r.id}
-                    to={planUrl(r.id)}
+                    to={planUrl(r.id, rowsGrade)}
                     className={`fln-li${isNext ? ' fln-li-next' : ''}`}
                     data-fln-row={r.id}
                     ref={(el) => { if (el) rowRefs.current.set(r.id, el); else rowRefs.current.delete(r.id); }}
