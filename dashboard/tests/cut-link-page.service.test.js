@@ -52,7 +52,7 @@ function settings(rows) {
 }
 async function flagWith(rows) {
   const s = settings(rows);
-  const on = CutLink.createCutLinkFlag({ db: s.db, now: () => 0 });
+  const on = CutLink.createCutLinkFlag({ db: s.db, now: () => 0, log: () => {} });
   on();
   await on.ready();
   return on;
@@ -188,9 +188,10 @@ describe('the switch is asked only on the junk path, with one cached read', () =
   test('60 junk requests on three routers → ONE settings read of both keys, 0 bot calls, no token text logged', async () => {
     const s = settings(cutRow(true));
     const on = CutLink.createCutLinkFlag({ db: s.db, now: () => 1000 });
-    await boot(on);   // a cold reader: the first junk request waits for the one read
+    await boot(on);
     const spies = ['log', 'info', 'warn', 'error'].map((m) => jest.spyOn(console, m).mockImplementation(() => {}));
     try {
+      on(); await on.ready();   // the background read a first junk link starts has landed
       for (let i = 0; i < 20; i += 1) {
         expect((await get(`/quiz/go/cutlinkjunk${i}`)).status).toBe(410);
         expect((await get(`/quiz/join/cutlinkjunk${i}`)).status).toBe(410);
@@ -204,6 +205,64 @@ describe('the switch is asked only on the junk path, with one cached read', () =
     expect(b.calls).toEqual([]);
   });
 
+  test('50 cold junk requests → each answered at once with today\'s page (no wait on the read), ONE read; ON once it lands', async () => {
+    let land;
+    let reads = 0;
+    const db = () => ({ from: () => ({ select: () => ({ in: () => { reads += 1; return new Promise((r) => { land = r; }); } }) }) });
+    const on = CutLink.createCutLinkFlag({ db, now: () => 5000 });
+    await boot(on);
+    const paths = ['/quiz/go/', '/quiz/join/', '/quiz/teacher/'];
+    for (let i = 0; i < 50; i += 1) {
+      const p = `${paths[i % 3]}coldjunk${i}`;
+      const t0 = process.hrtime.bigint();
+      const r = await get(p);
+      const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+      expect(ms).toBeLessThan(250);   // answered without waiting on the read in flight
+      expect(r.status).toBe(200);     // the portal's shell, as today
+    }
+    expect(reads).toBe(1);
+    expect(H.row(await get('/quiz/go/abc'))).toEqual(GOLDEN['/quiz/go/abc']);   // OFF bytes and headers, the golden
+    land(cutRow(true));
+    await on.ready();
+    const r = await get(`/quiz/go/${CUT}`);
+    expect(r.status).toBe(410);
+    expect(r.body).toBe(GoPage.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: WA_BOT }).html);
+    expect(reads).toBe(1);
+    expect(b.calls).toEqual([]);
+  });
+
+  test('the first junk link on a cold process with the switch ON gets today\'s page (never an error), the next one the way back', async () => {
+    const s = settings(cutRow(true));
+    const on = CutLink.createCutLinkFlag({ db: s.db, now: () => 0 });
+    await boot(on);
+    expect(H.row(await get('/quiz/join/abc'))).toEqual(GOLDEN['/quiz/join/abc']);
+    await on.ready();
+    const r = await get('/quiz/join/abc');
+    expect(r.status).toBe(410);
+    expect(r.body).toBe(renderJoinNote({ lang: 'en', kind: 'stale', bot: WA_BOT }));
+    expect(s.seen.reads).toBe(1);
+  });
+
+  test('a failed read after a good one keeps the last value for 30 s, ONE log line per failed read, no token text', async () => {
+    let t = 0;
+    let fail = false;
+    let reads = 0;
+    const lines = [];
+    const db = () => ({ from: () => ({ select: () => ({ in: async () => { reads += 1; if (fail) throw new Error('down'); return cutRow(true); } }) }) });
+    const on = CutLink.createCutLinkFlag({ db, now: () => t, log: (e) => lines.push(String(e && e.message)) });
+    on(); await on.ready();
+    fail = true; t = 30000;
+    await boot(on);
+    for (let i = 0; i < 10; i += 1) { expect((await get(`/quiz/go/failjunk${i}`)).status).toBe(410); await on.ready(); }
+    expect(reads).toBe(2);
+    expect(lines).toEqual(['down']);
+    t = 60000;
+    expect((await get('/quiz/go/failjunk')).status).toBe(410); await on.ready();
+    expect(reads).toBe(3);
+    expect(lines).toEqual(['down', 'down']);
+    expect(lines.join(' ')).not.toContain('failjunk');
+  });
+
   test('the cache: one read per 30 s, a new read after', async () => {
     let t = 0;
     const s = settings(cutRow(true));
@@ -215,7 +274,7 @@ describe('the switch is asked only on the junk path, with one cached read', () =
     expect(s.seen.reads).toBe(2);
   });
 
-  test('a read that never lands → the junk link gets today\'s shell after the short wait (never hangs)', async () => {
+  test('a read that never lands → the junk link gets today\'s shell at once (never hangs)', async () => {
     const on = CutLink.createCutLinkFlag({ db: () => ({ from: () => ({ select: () => ({ in: () => new Promise(() => {}) }) }) }) });
     await boot(on);
     expect(H.row(await get('/quiz/go/abc'))).toEqual(GOLDEN['/quiz/go/abc']);
@@ -269,7 +328,7 @@ describe('the switch: only the JSON boolean true', () => {
     for (const p of H.OFF_PROBES) expect(H.row(await get(p))).toEqual(GOLDEN[p]);
   });
   test('no database client → OFF', async () => {
-    const on = CutLink.createCutLinkFlag({ db: () => null });
+    const on = CutLink.createCutLinkFlag({ db: () => null, log: () => {} });
     on(); await on.ready();
     expect(on()).toBe(false);
   });

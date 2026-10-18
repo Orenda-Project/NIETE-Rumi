@@ -204,7 +204,7 @@ function createQuizJoinRouter(opts = {}) {
     const token = String(req.params.token || '');
     if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) {
       // a cut-short or junk link, with quiz_cut_link_page on: the expired note a stale link gets, no bot call
-      if (botUrl && apiKey && await CutLink.isOn(cutLinkOn)) {
+      if (botUrl && apiKey && CutLink.isOn(cutLinkOn)) {
         res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
         return res.status(410).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'stale', bot: lastBot || envBot() }));
       }

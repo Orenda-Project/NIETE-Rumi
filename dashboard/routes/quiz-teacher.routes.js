@@ -151,7 +151,7 @@ function createQuizTeacherRouter(opts = {}) {
       const token = String(req.params.token || '');
       if (!TOKEN_RX.test(token) || !configured) {
         // a cut-short or junk link, with quiz_cut_link_page on: the teacher's expired page with its tap, no bot call
-        if (configured && await CutLink.isOn(cutLinkOn)) return errorPage(req, res, 410, lastBot, 'mk.stale');
+        if (configured && CutLink.isOn(cutLinkOn)) return errorPage(req, res, 410, lastBot, 'mk.stale');
         return next();
       }
       const query = forwardQuery(req.query || {}, PAGE_KEYS[suffix]);

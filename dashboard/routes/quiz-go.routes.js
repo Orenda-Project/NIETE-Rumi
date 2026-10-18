@@ -104,7 +104,7 @@ function createQuizGoRouter(opts = {}) {
     const token = String(req.params.token || '');
     if (!TOKEN_RX.test(token) || !configured) {
       // a cut-short or junk link, with quiz_cut_link_page on: the expired page a tampered token gets, no bot call
-      if (configured && await CutLink.isOn(cutLinkOn)) return sendPage(res, GoPage.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: botNumber() }), 410);
+      if (configured && CutLink.isOn(cutLinkOn)) return sendPage(res, GoPage.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: botNumber() }), 410);
       return next();
     }
     const dv = device(req, res);
