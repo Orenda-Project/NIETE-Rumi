@@ -1054,7 +1054,7 @@ function createWebQuizRouter(opts = {}) {
   // payload still wins. A test's own fake bot opts in with edgeLearn; inside a test run (JEST_WORKER_ID) it is never on by
   // default, so no test calls out.
   // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face`,
-  // `wait_ux`, `wait_share`, `wait_hops` and `wait_home` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
+  // `wait_ux`, `wait_share`, `wait_hops`, `wait_home`, `closed_lang` and `plain_paint` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
   const learned = (b) => {
     if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
     if (typeof b.rt === 'boolean') lastRt = b.rt;
@@ -1062,6 +1062,8 @@ function createWebQuizRouter(opts = {}) {
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
     if (typeof b.wait_hops === 'boolean') lastWaitHops = b.wait_hops;
+    if (typeof b.closed_lang === 'boolean') lastClosedLang = b.closed_lang;
+    if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
     if (typeof b.wait_home === 'boolean') lastWaitHome = b.wait_home;
     lastFast = b.fast === true;
   };
