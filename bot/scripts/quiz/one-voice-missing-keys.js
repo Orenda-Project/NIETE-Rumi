@@ -13,7 +13,12 @@
  * - the clips: the clip warm job's own list (web-quiz-challenge-clip-warm.js passageRows + clipsOf: the listening
  *   stories, the prompts, the options under web_quiz_challenge_option_audio, the Story Time read-along clips), each
  *   looked up under the key computed with the plan PINNED (the live switch value is never read);
- * - Jugnu's shared lines: the set of each language's plan voice (web-quiz-voice.js SHARED_SETS) must exist.
+ * - Jugnu's shared lines: the set of each language's plan voice (web-quiz-voice.js SHARED_SETS) must exist, and the
+ *   set of every quiz the plan maps to one (`quiz_voices`);
+ * - the per-quiz map as the value carries it: an entry the plan drops (not a recorded set's name or "keep") would give
+ *   that quiz its language's voice without a word, so each is listed (`dropped`) and the check is not ok.
+ * Line 1 names both families the flip moves: the quiz lines' voice per language and the challenge's storybook voice
+ * (web-quiz-voice.js STORY_VOICE, the voice of the clip keys).
  * Read-only: nothing is recorded or written. Refuses unless SUPABASE_URL's project ref equals --expect-ref.
  * Prints passage ids, languages and parts, never a passage's words. Exit 0 only when nothing is missing.
  *
@@ -38,7 +43,7 @@ const STT_USD_PER_S = 0.135 / 3600;
 const SHORT_PART = /^q\d+(-opt)?$/;
 
 function parseArgs(argv) {
-  const args = { expectRef: null, plan: undefined, recordShort: false, maxUsd: 5 };
+  const args = { expectRef: null, plan: undefined, raw: undefined, recordShort: false, maxUsd: 5 };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -48,6 +53,7 @@ function parseArgs(argv) {
     else if (a === '--plan') {
       let value = null;
       try { value = JSON.parse(next()); } catch (_) { value = null; }
+      args.raw = value;
       args.plan = require('../../shared/services/quiz/web-quiz-one-voice-flag').normalize(value);
     }
   }
@@ -128,7 +134,14 @@ async function main(argv, deps = {}) {
 
   // A language the plan leaves out keeps today's voice: "today" (its keys and shared lines are today's).
   const setOf = (lang) => (args.plan.voices[lang] === null ? 'today' : Voice.setIdOf(args.plan.voices[lang]));
-  print(`one-voice-missing-keys: plan=${args.plan.sig} en=${setOf('en')} ur=${setOf('ur')}`);
+  const storyOf = (lang) => (args.plan.voices[lang] === null ? 'today' : Voice.setIdOf(Voice.STORY_VOICE[lang]));
+  const rawMap = args.raw && args.raw.quiz_voices && typeof args.raw.quiz_voices === 'object' && !Array.isArray(args.raw.quiz_voices)
+    ? args.raw.quiz_voices : {};
+  const map = args.plan.quiz_voices || {};
+  const dropped = Object.keys(rawMap).filter((id) => !(id in map)).sort();
+  print(`one-voice-missing-keys: plan=${args.plan.sig} en=${setOf('en')} ur=${setOf('ur')} challenge=en:${storyOf('en')},ur:${storyOf('ur')}`
+    + ` quiz_voices=${Object.keys(rawMap).length} dropped=${dropped.length}`);
+  dropped.forEach((id) => print(`dropped\tquiz_voices\t${id}`));
   const optAudio = await Ch.optionAudioOn();
   const clips = new Map();
   for (const r of await CW.passageRows(now)) {
@@ -185,9 +198,11 @@ async function main(argv, deps = {}) {
     shared[lang] = sets[lang] ? sets[lang].path : null;
     if (!sets[lang]) print(`missing\tshared-lines\t${lang}\t${setOf(lang)}`);
   });
-  const ok = missing === 0 && Boolean(shared.en && shared.ur);
-  print(`SUMMARY present=${present} total=${clips.size} missing=${missing} shared=en:${shared.en || 'none'},ur:${shared.ur || 'none'} ok=${ok ? 'yes' : 'no'}${rec.stopped ? ` stopped=${rec.stopped}` : ''}`);
-  return { ok, present, total: clips.size, missing, shared, recorded: rec.recorded, gateFailed: rec.gateFailed, usd: rec.usd, stopped: rec.stopped };
+  const unsetMapped = [...new Set(Object.values(map))].filter((t) => t !== 'keep' && !Voice.SHARED_SETS[t]).sort();
+  unsetMapped.forEach((t) => print(`missing\tshared-lines\tquiz\t${t}`));
+  const ok = missing === 0 && Boolean(shared.en && shared.ur) && !dropped.length && !unsetMapped.length;
+  print(`SUMMARY present=${present} total=${clips.size} missing=${missing} shared=en:${shared.en || 'none'},ur:${shared.ur || 'none'} dropped=${dropped.length} ok=${ok ? 'yes' : 'no'}${rec.stopped ? ` stopped=${rec.stopped}` : ''}`);
+  return { ok, present, total: clips.size, missing, shared, dropped: dropped.length, recorded: rec.recorded, gateFailed: rec.gateFailed, usd: rec.usd, stopped: rec.stopped };
 }
 
 module.exports = { main, parseArgs, wer };

@@ -115,7 +115,7 @@ test('every key present and both shared-line sets exist: ok, 0 missing', async (
   r2.headObject.mockResolvedValue({ exists: true });
   const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
   expect(r).toMatchObject({ ok: true, missing: 0, shared: { en: 'el-bella-cff2e4', ur: 'el-sara' } });
-  expect(lines[lines.length - 1]).toMatch(/^SUMMARY present=\d+ total=\d+ missing=0 shared=en:el-bella-cff2e4,ur:el-sara ok=yes$/);
+  expect(lines[lines.length - 1]).toMatch(/^SUMMARY present=\d+ total=\d+ missing=0 shared=en:el-bella-cff2e4,ur:el-sara dropped=0 ok=yes$/);
 });
 
 test('the rate is in the key: clips present at 64 kb/s under a 32 kb/s plan are missing (wrong rate), at 64 they are ok', async () => {
@@ -142,12 +142,50 @@ test('a language the plan leaves out is today\'s: its clips are looked up under 
   const reva = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
     settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 } };
   const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify({ voices: { ur: reva } })]);
-  expect(lines[0]).toMatch(/ en=today ur=el-reva-cc0c3b$/);
+  expect(lines[0]).toMatch(/ en=today ur=el-reva-cc0c3b challenge=en:today,ur:el-sara quiz_voices=0 dropped=0$/);
   expect(r).toMatchObject({ ok: true, missing: 0, shared: { en: 'today', ur: 'el-reva-cc0c3b' } });
   const asked = r2.headObject.mock.calls.map(([k]) => k);
   expect(asked.filter((k) => k.includes('/en/')).length).toBeGreaterThan(0);
   expect(asked.filter((k) => k.includes('/en/')).every((k) => k.includes(`-${Voice.voiceTag('en')}-`))).toBe(true);
-  expect(asked.filter((k) => k.includes('/ur/')).every((k) => k.includes('-el-reva-cc0c3b-'))).toBe(true);
+  // Jugnu's challenge clips are the storybook voice (Sara), whatever voice the plan gives the quiz lines
+  expect(asked.filter((k) => k.includes('/ur/')).every((k) => k.includes('-el-sara-'))).toBe(true);
+});
+
+/*
+ * Line 1 names both families the flip moves: the quiz lines' voice per language (and its shared lines), and the
+ * challenge's storybook voice per language (its clip keys). A per-quiz map (`quiz_voices`) is counted as the switch
+ * value carries it: an entry the plan drops (not a recorded set's name or "keep") would silently give that quiz its
+ * language's voice, so it is counted and the check is not ok; a mapped set with no shared lines is missing.
+ */
+describe('both families on line 1, and the per-quiz map', () => {
+  const shanaya = Voice.SET_VOICES['el-shanaya-e228e6'];
+  const reva = Voice.SET_VOICES['el-reva-cc0c3b'];
+
+  test('a plan with a clean map: both families and the map\'s size on line 1; ok', async () => {
+    r2.headObject.mockResolvedValue({ exists: true });
+    const plan = { voices: { en: shanaya, ur: reva }, quiz_voices: { 'quiz-a': 'el-anjura-e228e6', 'quiz-b': 'keep' } };
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify(plan)]);
+    expect(lines[0]).toMatch(/ en=el-shanaya-e228e6 ur=el-reva-cc0c3b challenge=en:el-bella-cff2e4,ur:el-sara quiz_voices=2 dropped=0$/);
+    expect(r).toMatchObject({ ok: true, missing: 0, dropped: 0 });
+  });
+
+  test('an entry the plan drops (a bare voice name) is counted, and the check is not ok', async () => {
+    r2.headObject.mockResolvedValue({ exists: true });
+    const plan = { voices: { en: shanaya, ur: reva }, quiz_voices: { 'quiz-a': 'anjura', 'quiz-b': 'keep', 'quiz-c': 'el-anjura-e228e6' } };
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify(plan)]);
+    expect(lines[0]).toMatch(/ quiz_voices=3 dropped=1$/);
+    expect(lines).toContain('dropped\tquiz_voices\tquiz-a');
+    expect(r).toMatchObject({ ok: false, missing: 0, dropped: 1 });
+    expect(lines[lines.length - 1]).toMatch(/ dropped=1 ok=no$/);
+  });
+
+  test('a mapped set with no recorded shared lines is missing, and the check is not ok', async () => {
+    r2.headObject.mockResolvedValue({ exists: true });
+    const plan = { voices: { en: shanaya, ur: reva }, quiz_voices: { 'quiz-a': 'el-nobody-e228e6' } };
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify(plan)]);
+    expect(lines).toContain('missing\tshared-lines\tquiz\tel-nobody-e228e6');
+    expect(r).toMatchObject({ ok: false, missing: 0 });
+  });
 });
 
 /*
