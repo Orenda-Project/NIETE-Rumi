@@ -305,12 +305,12 @@ describe('the page never speaks a quiz line with the phone\'s voice when the qui
 
 describe('Jugnu\'s challenge lines (the passages, the listening story, the door labels) are the one voice too', () => {
   const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
-  test('switch read on: the clip\'s key names the one voice and the clip is recorded in it; off: today\'s key and voice', async () => {
+  test('switch read on: the clip\'s key names the one voice and the pre-flip batch records it in it; off: today\'s key and voice', async () => {
     seed([], { flag: true });
     await OneVoice.on();
     const key = Ch.clipKey('listen', 'q1', 'ur', 'ایک دن بارش ہوئی۔');
     expect(key).toContain(`-${Voice.voiceTag('ur', { oneVoice: true })}-`);
-    expect(await Ch.warmClip(key, 'ایک دن بارش ہوئی۔', 'ur')).toBe('recorded');
+    expect(await Ch.recordClip(key, 'ایک دن بارش ہوئی۔', 'ur', undefined, { batch: true })).not.toBeNull();
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', model: 'eleven_v4' });
 
     OneVoice.reset(); seed([], { flag: false }); await OneVoice.on(); tts.synthesize.mockClear();
@@ -326,7 +326,7 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     seed([], { flag: { kbps: 32 } });
     await OneVoice.on();
     const key = Ch.clipKey('listen', 'q1', 'en', 'One day it rained.');
-    await Ch.warmClip(key, 'One day it rained.', 'en');
+    await Ch.recordClip(key, 'One day it rained.', 'en', undefined, { batch: true });
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
   });
 
@@ -335,7 +335,7 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     await OneVoice.on();
     const k32 = Ch.clipKey('listen', 'q1', 'en', 'The rain came down.');
     expect(k32).toMatch(/\/q1-el-bella-cff2e4-k32-[0-9a-f]{8}\.ogg$/);
-    await Ch.warmClip(k32, 'The rain came down.', 'en');
+    await Ch.recordClip(k32, 'The rain came down.', 'en', undefined, { batch: true });
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
 
     // 64 (the default): no rate in the key, the same key as the plain `true` plan
@@ -355,7 +355,7 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
     // the plan now reads 64; the 32 kb/s key is still recorded at 32, never at the plan's new rate
     OneVoice.reset(); seed([], { flag: { kbps: 64 } }); await OneVoice.on();
     expect(OneVoice.currentPlan().kbps).toBe(64);
-    await Ch.warmClip(k32, 'The wind came up.', 'en');
+    await Ch.recordClip(k32, 'The wind came up.', 'en', undefined, { batch: true });
     expect(tts.synthesize).toHaveBeenCalledTimes(1);
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
   });
@@ -528,7 +528,7 @@ describe('one voice is one RENDER: the voice tag, its model and its settings', (
     await OneVoice.on();
     const key = Ch.clipKey('listen', 'q1', 'en', 'One day it rained.');
     expect(key).toContain('-el-bella-cff2e4-');
-    await Ch.warmClip(key, 'One day it rained.', 'en');
+    await Ch.recordClip(key, 'One day it rained.', 'en', undefined, { batch: true });
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: v2.voice, model: 'eleven_multilingual_v2', voiceSettings: { speed: 0.9 } });
   });
 });
@@ -775,12 +775,12 @@ describe('a plan that leaves a language out: that language keeps today\'s voice'
     expect(publish.mock.calls[0][1].oneVoice).toBeUndefined();
   });
 
-  test('Jugnu\'s challenge lines: English keeps today\'s key and voice, Urdu is the plan\'s voice', async () => {
+  test('Jugnu\'s challenge lines: English keeps today\'s key and voice, Urdu is the storybook voice (never the quiz lines\' voice)', async () => {
     const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
     seed([], { flag: UR_ONLY });
     await OneVoice.on();
     expect(Ch.clipKey('listen', 'story', 'en', 'One day it rained.')).toContain(`-${Voice.voiceTag('en')}-`);
-    expect(Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔')).toContain('-el-reva-cc0c3b-');
+    expect(Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔')).toContain('-el-sara-');
     OneVoice.reset(); seed([], {}); await OneVoice.on();
     const off = Ch.clipKey('listen', 'story', 'en', 'One day it rained.');
     OneVoice.reset(); seed([], { flag: UR_ONLY }); await OneVoice.on();
