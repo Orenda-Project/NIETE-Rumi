@@ -32,7 +32,7 @@
   "/wq/wq.js?v=0123456789m": {
     "x-powered-by": "Express",
     "accept-ranges": "bytes",
-    "cache-control": "public, max-age=31536000, immutable",
+    "cache-control": "no-cache",
     "content-type": "application/javascript; charset=UTF-8"
   },
   "/wq/wq.js": {

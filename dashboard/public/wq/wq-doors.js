@@ -32,6 +32,9 @@
       storiesNone: 'New stories are on the way. Play a game!', gamesNone: 'Read a story with Jugnu!', toGames: 'Play a game', toStories: 'Read a story',
       mins: function (m) { return m + ' min'; },
       subj: function (s) { return s; },
+      grade: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : 'Grade ' + g; },
+      gradeChip: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : String(g); },
+      grades: 'Grades',
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
@@ -45,6 +48,9 @@
       storiesNone: 'نئی کہانیاں آ رہی ہیں۔ تب تک کھیل کھیلیں!', gamesNone: 'جگنو کے ساتھ کہانی پڑھیں!', toGames: 'کھیل کھیلیں', toStories: 'کہانی پڑھیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       subj: function (s) { return SUBJ_UR[s] || s; },
+      grade: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : 'جماعت ' + urDigits(g); },
+      gradeChip: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : urDigits(g); },
+      grades: 'جماعتیں',
     },
   };
   var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات', 'Social Studies': 'معاشرتی علوم' };
@@ -52,6 +58,9 @@
   var PLAY = '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
   var TICK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   var SPK = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  var BACKI = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M10 5l-7 7 7 7v-4.5h11v-5H10z"/></svg>';
+  // the adventure look on this page (<html class="wq-adv">)
+  function advOn() { try { return document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
   var HOMEI = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>';
 
   function urDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); }
@@ -64,6 +73,9 @@
   function withLang(h, l) { return typeof window !== 'undefined' && window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l) : h; }
   function withHome(B, h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function chHref(B, ctx) { return withHome(B, withLang('/c/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || ''), langOf(ctx))); }
+  // web_quiz_page_lang (the hub's `page_lang: true`): a link to a quiz page names the child's language, so the page's own
+  // words follow the child (the edge's ui_lang); off, the link as it was
+  function qLang(B, ctx, h) { return B && B.page_lang === true ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + langOf(ctx) : h; }
   function quizHref(code, k, again) { return '/q/' + encodeURIComponent(code) + '?' + (again ? 'again=1&' : '') + 'k=' + encodeURIComponent(k || ''); }
   // A Story Time passage opens in the room by its id; a LISTEN passage must say so (wq-trail.js storyRoom: ex=listen).
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
@@ -90,12 +102,16 @@
   function section(title, rows) { return rows ? '<h3 class="wq-dsec"><bdi' + lat(title) + '>' + esc(title) + '</bdi></h3><ul class="wq-rows">' + rows + '</ul>' : ''; }
   // Exactly one primary per screen: the first row there is, else the screen's own fallback button.
   function primaryFirst(h) { return h.replace(/<(a|button) class="wq-row wq-drow"/, '<$1 class="wq-row wq-drow" data-primary'); }
-  function frame(B, ctx, name, title, body) {
+  // `back` (the adventure look's see-all): the head's round button steps back to that tap's screen instead of Home, so the
+  // screen has one back control.
+  function frame(B, ctx, name, title, body, back) {
     var H = home();
     var bar = H && typeof H.bar === 'function' ? H.bar(ctx, DOORS.indexOf(name) >= 0 ? name : 'videos') : '';
     var t = (H && H.COPY && H.COPY[langOf(ctx)]) || {};
+    var lead = back ? '<a class="wq-homebtn wq-backbtn" href="#" data-tap="' + back + '" aria-label="' + esc(C(ctx).back) + '">' + BACKI + '</a>'
+      : '<a class="wq-homebtn" href="#" data-home data-tap="home" aria-label="' + esc(t.home || 'Home') + '">' + HOMEI + '</a>';
     return '<section class="wq-screen wq-home wq-droom" data-screen="' + esc(name.split('/')[0]) + '" data-m="H3-' + esc(name.split('/')[0]) + '" lang="' + langOf(ctx) + '" dir="' + (langOf(ctx) === 'ur' ? 'rtl' : 'ltr') + '">' +
-      '<div class="wq-dtop"><a class="wq-homebtn" href="#" data-home data-tap="home" aria-label="' + esc(t.home || 'Home') + '">' + HOMEI + '</a><h2 dir="auto">' + esc(title) + '</h2></div>' +
+      '<div class="wq-dtop">' + lead + '<h2 dir="auto">' + esc(title) + '</h2></div>' +
       body + '</section>' + bar;
   }
   // A list still on its way (`list_states`): row-shaped blocks, never an empty note; `primary` when it is the screen's one.
@@ -174,6 +190,7 @@
     var t = C(ctx);
     if (shelfOn(B) && lib && !lib.err && (lib.subjects || []).length) return shelvesBody(ctx, lib);
     if (shelfOn(B) && !lib) return waitShelves();
+    if (shelfOn(B) && lib.err) return '<div class="wq-dempty">' + oopsHtml(ctx, '', 0).replace('type="button"', 'type="button" data-primary').replace(/ data-item="" data-pos="0"/, '') + '</div>';
     if (!lib) return B.list_states ? skel(5, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     if (lib.err) return errNote(t);
     var subs = lib.subjects || [];
@@ -184,8 +201,10 @@
   }
   function chaptersBody(ctx, lib, subj, B) {
     var t = C(ctx);
-    var back = '<button class="wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
-    if (shelfOn(B) && lib && (lib.chapters || []).length) return back + gridBody(ctx, lib);
+    // the look: the head's round button is the way back (frame's `back`), and the subject's lessons are one grid
+    var adv = advOn() && shelfOn(B);
+    var back = adv ? '' : '<button class="wq-dback" type="button" data-tap="subjects">' + esc(t.back) + '</button>';
+    if (shelfOn(B) && lib && (lib.chapters || []).length) return back + gridBody(ctx, lib, adv);
     if (shelfOn(B) && !lib) return back + '<div class="wq-vgrid" data-primary aria-busy="true">' + SKEL + SKEL + SKEL + SKEL + '</div>';
     if (shelfOn(B) && lib && lib.err) return back + '<div class="wq-dempty">' + oopsHtml(ctx, subj, 0).replace('type="button"', 'type="button" data-primary') + '</div>';
     if (!lib) return back + (B.list_states ? skel(4, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>');
@@ -211,9 +230,21 @@
   var SKEL = '<span class="wq-vcard wq-vskel" aria-hidden="true"><span class="wq-vthumb"></span><b></b></span>';
   // The watch screen while its lesson loads: a placeholder player and title, never words.
   var WATCH_WAIT = '<div class="wq-vbox wq-vskel" data-primary aria-busy="true"></div><span class="wq-vskh"></span>';
+  // The look's grade picker (as the Stories shelf's): "Grade 3 ▾" opens the library's grades as chips; another grade only
+  // browses (view.g, this visit), the child's own grade never changes. Its chips are the league's (wq-schips wq-tall, 48 px).
+  function gradePick(ctx, lib) {
+    var t = C(ctx); var gs = lib.grades || [];
+    if (!advOn() || !lib.grade || gs.length < 2) return '';
+    var open = view.gopen === true;
+    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="vgl" aria-expanded="' + open + '">' + esc(t.grade(lib.grade)) + ' ▾</button>' +
+      (open ? '<div class="wq-chips wq-schips wq-tall wq-vpick" role="group" aria-label="' + esc(t.grades) + '">' + gs.map(function (x) {
+        var on = String(x.g) === String(lib.grade);
+        return '<button class="wq-chip' + (on ? ' wq-on' : '') + '" type="button" data-tap="vg" data-item="' + esc(x.g) + '" aria-pressed="' + on + '">' + esc(t.gradeChip(x.g)) + '</button>';
+      }).join('') + '</div>' : '') + '</div>';
+  }
   function shelvesBody(ctx, lib) {
     var t = C(ctx);
-    return (lib.subjects || []).map(function (s, i) {
+    return gradePick(ctx, lib) + (lib.subjects || []).map(function (s, i) {
       return '<section class="wq-vsec"><div class="wq-vshead"><h3 class="wq-dsec"><bdi' + lat(t.subj(s.key)) + '>' + esc(t.subj(s.key)) + '</bdi></h3>' +
         '<button class="wq-btn wq-btn--secondary wq-vsall" type="button"' + (i === 0 ? ' data-primary' : '') + ' data-tap="subj" data-kind="subject" data-item="' + esc(s.key) + '" data-pos="' + i + '">' + esc(t.seeAll) + '</button></div>' +
         '<div class="wq-vrow" data-vshelf="' + esc(s.key) + '" data-fetch="pending">' + SKEL + SKEL + SKEL + '</div></section>';
@@ -235,9 +266,16 @@
   }
   // `eager`: how many of the first pictures load at once (the first shelf's visible row); the rest are lazy.
   function shelfHtml(lib, ctx, eager) { return lessonsOf(lib).map(function (v, i) { return card(v, ctx, lib.quiz === true, i, i < (eager || 0)); }).join(''); }
-  function gridBody(ctx, lib) {
+  // `one` (the look): every lesson of the subject in one two-column grid, its chapter a small line on its card, so a
+  // chapter of one lesson never leaves half a row empty.
+  function gridBody(ctx, lib, one) {
     var i = 0;
-    var h = (lib.chapters || []).map(function (ch) {
+    var chName = function (ch) { return (langOf(ctx) === 'ur' && ch.name_ur) || ch.name; };
+    var h = one ? '<div class="wq-vgrid wq-vgrid--one">' + (lib.chapters || []).map(function (ch) {
+      return (ch.videos || []).map(function (v) {
+        return card(v, ctx, lib.quiz === true, i++).replace('<b class="wq-vct">', (chName(ch) ? '<small class="wq-vch"><bdi' + lat(chName(ch)) + '>' + esc(chName(ch)) + '</bdi></small>' : '') + '<b class="wq-vct">');
+      }).join('');
+    }).join('') + '</div>' : (lib.chapters || []).map(function (ch) {
       var cards = (ch.videos || []).map(function (v) { return card(v, ctx, lib.quiz === true, i++); }).join('');
       return cards ? '<h3 class="wq-dsec"><bdi' + lat((langOf(ctx) === 'ur' && ch.name_ur) || ch.name) + '>' + esc((langOf(ctx) === 'ur' && ch.name_ur) || ch.name) + '</bdi></h3><div class="wq-vgrid">' + cards + '</div>' : '';
     }).join('');
@@ -254,7 +292,7 @@
     var q = shelf && w.after ? '<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="' + esc(w.vid) + '">' + esc(t.vquiz) + '</button>' : '';
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
-    return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
+    return '<div class="wq-vbox' + (shelf ? ' wq-vbox--s' : '') + '"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
       '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' + q +
       '<div class="wq-after" hidden>' + nx + '</div>';
@@ -269,6 +307,7 @@
     if (B.practice && (name === 'videos' || /^watch\//.test(name))) return frame(B, ctx, 'videos', ht.videos || 'Videos', previewVideosBody(ctx));
     if (name === 'stories') return frame(B, ctx, name, ht.stories || 'Stories', storiesBody(B, ctx, data));
     if (name === 'games') return frame(B, ctx, name, ht.games || 'Games', gamesBody(B, ctx, data));
+    if (name === 'videos' && data && data.subject && advOn() && shelfOn(B)) return frame(B, ctx, name, C(ctx).subj(data.subject) + (view.g ? ' · ' + C(ctx).grade(view.g) : ''), chaptersBody(ctx, data.lib, data.subject, B), 'subjects');
     if (name === 'videos') return frame(B, ctx, name, ht.videos || 'Videos', data && data.subject ? chaptersBody(ctx, data.lib, data.subject, B) : subjectsBody(ctx, data && data.lib, B));
     if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B)) : shelfOn(B) ? WATCH_WAIT : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
     return '';
@@ -307,6 +346,7 @@
   }
   // Asked by the home when this file loads: the Games and Stories rows, so a door tap paints its whole list at once.
   function warm(B, ctx) {
+    if (B && B.wait_pre === true && !B.practice) warmVideos(B, ctx);
     if (!B || !B.list_states || B.practice) return;
     ['games', 'stories'].forEach(function (n) { if (!cache[n]) ask(B, ctx, n, function () {}); });
   }
@@ -403,7 +443,7 @@
     try { var mo = new MutationObserver(sync); mo.observe(sh, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-primary', 'hidden'] }); if (wait) { unwatch(); shelfObs = mo; } } catch (e) {}
   }
 
-  var view = { name: null, subject: null, watch: null, next: null, list: null };
+  var view = { name: null, subject: null, watch: null, next: null, list: null, g: null, gopen: false };
   function draw(root, B, ctx, name, data) {
     var h = html(B, ctx, name, data);
     root.innerHTML = h;
@@ -460,12 +500,55 @@
     if (name === 'videos') return videos(root, B, ctx, view.subject);
     if (/^watch\//.test(name)) return start(root, B, ctx, { vid: name.slice(6) });
   }
-  function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (s ? '&s=' + encodeURIComponent(s) : ''); }
+  // web_quiz_doors_prefetch (the boot's `wait_pre`): the Videos door's subjects, asked once the home has painted, then
+  // with the shelves each subject's shelf one at a time (each when the phone is idle after the last has answered), so a
+  // Videos tap paints from rows already here and a home open never asks every shelf at once. Never on Data Saver or 2G,
+  // the subjects only on 3G; a read that failed is not kept. A tap joins a read on its way (libGet: one read per list).
+  var libAsking = {};
+  function libGet(url, done) {
+    if (libAsking[url]) return libAsking[url].push(done);
+    libAsking[url] = [done];
+    getJson(url, function (err, j) { var all = libAsking[url] || []; libAsking[url] = null; all.forEach(function (fn) { fn(err, j); }); });
+  }
+  function libRead(B) { return B && B.wait_pre === true ? libGet : getJson; }
+  function idle(fn) {
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout: 2000 });
+    if (typeof setTimeout === 'function') return setTimeout(fn, 200);
+    fn();
+  }
+  function warmVideos(B, ctx) {
+    var c = (typeof navigator !== 'undefined' && navigator && navigator.connection) || {};
+    var net = String(c.effectiveType || '');
+    if (c.saveData || /(^|-)2g$/.test(net)) return;
+    if (lib.subjects && !lib.subjects.err) return;
+    libGet(libUrl(B, ctx), function (err, j) {
+      if (err || !j || j.err) return;
+      lib.subjects = j;
+      if (!shelfOn(B) || net === '3g') return;
+      var keys = (j.subjects || []).map(function (s) { return s.key; });
+      (function next() {
+        var k = keys.shift();
+        while (k !== undefined && lib.chapters[k]) k = keys.shift();
+        if (k === undefined) return;
+        idle(function () { if (lib.chapters[k]) return next(); libGet(libUrl(B, ctx, k), function (e, x) { if (!e && x && !x.err && !lib.chapters[k]) lib.chapters[k] = x; next(); }); });
+      })();
+    });
+  }
+  function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (view.g ? '&g=' + encodeURIComponent(view.g) : '') + (s ? '&s=' + encodeURIComponent(s) : ''); }
+  // Another grade picked (the look's picker): that grade's subjects and shelves, asked for afresh; its own grade again = none.
+  function pickGrade(root, B, ctx, g) {
+    var own = lib.own || (lib.subjects && lib.subjects.grade) || null;
+    if (!lib.own && own) lib.own = own;
+    var next = g && String(g) !== String(own) ? String(g) : null;
+    view.gopen = false;
+    if (next !== view.g) { view.g = next; lib.subjects = null; lib.chapters = {}; vrows = {}; (ctx.ev || function () {})('lib_grade', { g: g, own: String(g) === String(own) ? 1 : 0 }); }
+    return videos(root, B, ctx, null);
+  }
   function videos(root, B, ctx, subject) {
     view.subject = subject || null;
     if (!subject) {
       draw(root, B, ctx, 'videos', { lib: lib.subjects });
-      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); getJson(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
+      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); libRead(B)(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
       else { shelves(root, B, ctx); subjState(root, B); }
       return;
     }
@@ -473,7 +556,7 @@
     var see = function (st, l) { if (shelfOn(B)) vtrip(root, 'videos/' + subject, st, st === 'done' && !lessonsOf(l).length); };
     if (lib.chapters[subject]) return see('done', lib.chapters[subject]);
     see('pending');
-    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
+    libRead(B)(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
   }
   // The walkers' list-state tripwires on the door root (web_quiz_video_shelf; the four attributes every child list
   // writes): data-fetch pending|done|failed, when its placeholders came and went (a Try again starts a new spell), and
@@ -526,7 +609,7 @@
     };
     if (lib.chapters[key]) return fill(lib.chapters[key]);
     state(at(), 'pending');
-    getJson(libUrl(B, ctx, key), function (err, j) {
+    libRead(B)(libUrl(B, ctx, key), function (err, j) {
       if (err || !j) { var sh = at(); if (sh) { put(sh, oopsHtml(ctx, key, si)); state(sh, 'failed'); } return; }
       lib.chapters[key] = j; fill(j);
     });
@@ -555,11 +638,11 @@
   function quizGo(root, B, ctx, vid) {
     if (going) return;
     var v = findLesson(vid) || {};
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos&to=q', 'door_quiz'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos&to=q'), 'door_quiz'); }
     going = true;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: vid, after: 1 }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + '?' + (j.k ? 'k=' + encodeURIComponent(j.k) + '&' : '') + 'to=q', 'door_quiz');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + '?' + (j.k ? 'k=' + encodeURIComponent(j.k) + '&' : '') + 'to=q'), 'door_quiz');
       videos(root, B, ctx, view.subject);
     });
   }
@@ -602,14 +685,14 @@
   function start(root, B, ctx, v) {
     if (going) return;
     // A class child's lesson page is told it was opened from this door (via=videos): with web_quiz_videos_v3 on it puts the play first.
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos', 'door_video'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos'), 'door_video'); }
     going = true;
     var t = C(ctx);
     if (view.name !== 'watch/' + v.vid) draw(root, B, ctx, 'watch/' + v.vid, null);
     view.name = 'watch/' + v.vid;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: v.vid }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos', 'door_video');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos'), 'door_video');
       if (!err && j && j.watch) {
         var after = nextInList(v.vid);
         var next = rankedNext(j.watch.next, ctx) || (j.watch.after ? { kind: 'quiz', title: t.quizAfter, sub: j.watch.title, href: '#', quiz: true }
@@ -645,6 +728,8 @@
         }
         if (tap === 'subj') { e.preventDefault(); ev('door_row_tap', { door: 'videos', kind: 'subject', item: el.getAttribute('data-item'), pos: Number(el.getAttribute('data-pos')) }); return videos(root, B, ctx, el.getAttribute('data-item')); }
         if (tap === 'subjects') { e.preventDefault(); return videos(root, B, ctx, null); }
+        if (tap === 'vgl') { e.preventDefault(); view.gopen = !view.gopen; return videos(root, B, ctx, null); }
+        if (tap === 'vg') { e.preventDefault(); return pickGrade(root, B, ctx, el.getAttribute('data-item')); }
         if (tap === 'retry' && name === 'games') { e.preventDefault(); return mount(root, B, ctx, 'games'); }
         if (tap === 'retry' && view.subject) { e.preventDefault(); return videos(root, B, ctx, view.subject); }
         if (tap === 'retry') { e.preventDefault(); lib.subjects = null; return videos(root, B, ctx, null); }
@@ -652,6 +737,7 @@
           e.preventDefault();
           var rk = el.getAttribute('data-item');
           if (view.subject) return videos(root, B, ctx, view.subject);
+          if (!rk) { lib.subjects = null; return videos(root, B, ctx, null); }
           var rs = root.querySelector('[data-vshelf="' + String(rk).replace(/["\\]/g, '') + '"]');
           if (rs) rs.innerHTML = SKEL + SKEL + SKEL;
           return shelf(root, B, ctx, rk, Number(el.getAttribute('data-pos')) || 0);
@@ -683,7 +769,7 @@
     var nx = view.next || {};
     if (nx.quiz && view.watch) {
       return postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: view.watch.vid, after: 1 }, function (err, j) {
-        if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : ''), 'after_video');
+        if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')), 'after_video');
         videos(root, B, ctx, view.subject);
       });
     }
@@ -755,6 +841,6 @@
 
   if (typeof window !== 'undefined') {
     window.WQDOORS = { owns: owns, html: html, watchHtml: watchHtml, shelfHtml: shelfHtml, mount: mountKeep, warm: warm, COPY: COPY, storyHref: storyHref,
-      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
+      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; vrows = {}; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
   }
 })();

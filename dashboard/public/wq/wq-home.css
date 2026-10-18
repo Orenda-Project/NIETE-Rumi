@@ -21,6 +21,8 @@
 .wq-ntext small{font-size:16px;font-weight:700;opacity:.92}
 .wq-ngo{flex:none;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#fff;color:var(--brand-d);font-size:22px}
 html[dir=rtl] .wq-ngo{transform:scaleX(-1)}
+/* web_quiz_one_button: the tile's glyph is a media play ▶, which never turns in Urdu (only a direction would) */
+html.wq-1b[dir=rtl] .wq-ngo{transform:none}
 .wq-ntext .wq-new{position:static;align-self:flex-start;background:#fff;color:var(--brand-d)}
 .wq-prstrip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--tint);color:var(--navy);font-weight:800;font-size:15px}
 .wq-prback{flex:none;display:flex;align-items:center;min-height:44px;padding:0 16px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--navy);font:inherit;font-weight:800;text-decoration:none;cursor:pointer}
@@ -70,8 +72,25 @@ html[lang=ur] .wq-gsheet .wq-ghost{text-decoration:none;border-bottom:2px solid 
 [lang="ur"] .wq-friend,.wq-friend[dir="rtl"]{line-height:2}
 html[lang=ur] .wq-remember{font-family:var(--fu);font-size:17px;line-height:1.9}
 html[lang=ur] .wq-remundo{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0}
+/* The grown-ups hold, one-button look (html.wq-1b): the button is the component's hold kind (wq.css .wq-btn--hold:
+   "Hold for grown-ups", a ring around the lock that fills over the 2 s, the words above it); a short tap shows
+   "Keep holding" under it. */
+html.wq-1b .wq-grown{flex-direction:column;align-items:center}
+html.wq-1b .wq-ghint{margin:8px 0 0;color:var(--brand-d);font-weight:800;font-size:15px;text-align:center}
+html.wq-1b .wq-ghint[hidden]{display:none}
+html.wq-1b[lang=ur] .wq-ghint{font-family:var(--fu);font-weight:400;font-size:17px;line-height:1.9}
 /* My class + my school (web_quiz_class_doors): two equal tiles under the Next tile. The look is today's button
    (.wq-btn.wq-soft in wq.css); these rules only lay the pair out. TODO(one button system): the sweep swaps wq-soft. */
 .wq-social{display:flex;gap:12px;margin:16px 0 0}
 .wq-social .wq-soc{flex:1;flex-direction:column;gap:4px;min-height:84px;width:auto;padding:10px 8px;-webkit-tap-highlight-color:transparent}
 .wq-soc svg{color:var(--brand)}
+/* grown-ups sheet: the Grade row (web_quiz_grade_change); the Stories grade chips are drawn here too (wq-stories.css is not on the home) */
+.wq-ggrade{display:flex;flex-direction:column;align-items:center;gap:8px}
+.wq-glabel{color:var(--muted);font-weight:800;font-size:14px}
+.wq-ggrade .wq-btn--secondary{min-height:48px;padding:0 18px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--navy);box-shadow:0 3px 0 var(--line);font:inherit;font-weight:800}
+.wq-ggrade .wqs-pick{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.wq-ggrade .wqs-chip{min-width:52px;height:52px;padding:0 12px;border:0;border-radius:26px;background:#fff;color:var(--navy);font:inherit;font-size:22px;font-weight:800;box-shadow:0 3px 0 var(--line)}
+.wq-ggrade .wqs-chip[aria-pressed=true]{background:#ffe26b;box-shadow:0 3px 0 #c99d00}
+.wq-gcls,.wq-gsaid{margin:0;color:var(--muted);font-weight:700;font-size:15px;text-align:center}
+html[lang=ur] .wq-glabel,html[lang=ur] .wq-gcls,html[lang=ur] .wq-gsaid,html[lang=ur] .wq-ggrade .wq-btn--secondary{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:18px}
+.wq-gskel{display:block;width:120px;height:48px;border-radius:14px;background:var(--tint)}

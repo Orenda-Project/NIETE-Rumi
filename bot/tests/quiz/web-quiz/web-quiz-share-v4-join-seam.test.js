@@ -257,3 +257,47 @@ describe('the twelve door branches', () => {
   });
 });
 
+
+// The card's language carries through the join (web_quiz_share_v4): the friend's words are the card's own
+// ("quiz please …" on an English card, «کوئز دکھائیں …» on an Urdu one), so they decide the reply's words, the landing
+// link's language and the join's — never the new phone's stored language.
+describe('the card\'s language through the join', () => {
+  const GoToken = require('../../../shared/services/first-touch/go.token');
+  const goLang = () => {
+    const url = String((WhatsApp.sendCtaUrl.mock.calls[0] || [])[1] && WhatsApp.sendCtaUrl.mock.calls[0][1].url);
+    const t = url.split('/quiz/go/')[1];
+    const p = t ? GoToken.verifyGo(t) : null;
+    return p && p.ok ? p.ok.lang : null;
+  };
+  const BORN_UR = { ...UNKNOWN_USER, preferred_language: 'ur' };
+  test('an English card on a phone stored as Urdu: the reply is not Urdu-only, and the landing link is English', async () => {
+    seed({ user: BORN_UR });
+    await OneDoor.reply({ user: BORN_UR, from: PHONE, door: 'text', body: 'quiz please jb3b9c1e2a' });
+    expect(WhatsApp.sendCtaUrl).toHaveBeenCalledTimes(1);
+    const o = WhatsApp.sendCtaUrl.mock.calls[0][1];
+    expect(o.body).toMatch(/[A-Za-z]{3,}/);
+    expect(goLang()).toBe('bi');
+  });
+  test('an Urdu card on a phone stored as English: Urdu', async () => {
+    await OneDoor.reply({ user: UNKNOWN_USER, from: PHONE, door: 'text', body: 'کوئز دکھائیں jb3b9c1e2a' });
+    expect(goLang()).toBe('ur');
+  });
+  test('the landing link\'s language is the join\'s: English in, an English join token out', async () => {
+    const Targets = require('../../../shared/services/first-touch/go.targets');
+    const n = await GoNonce.mint({ phoneNorm: PHONE, userId: BORN_UR.id });
+    const out = await Targets.join({ n, lang: 'bi' });
+    const url = String(out && (out.url || out));
+    const j = T.verify(url.slice(url.indexOf(Join.JOIN_PATH) + Join.JOIN_PATH.length), 'j');
+    expect(j && j.l).toBe('en');
+  });
+  test('switch off: today\'s order (the phone\'s stored Urdu wins), and the words are not read for a language', async () => {
+    seed({ user: BORN_UR, shareValue: false });
+    await OneDoor.reply({ user: BORN_UR, from: PHONE, door: 'text', body: 'quiz please jb3b9c1e2a' });
+    expect(goLang()).toBe('ur');
+  });
+  test('words without a ref: today\'s order, whatever the switch', async () => {
+    seed({ user: BORN_UR });
+    await OneDoor.reply({ user: BORN_UR, from: PHONE, door: 'text', body: 'quiz please' });
+    expect(goLang()).toBe('ur');
+  });
+});

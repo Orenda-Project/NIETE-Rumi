@@ -51,4 +51,17 @@ async function ui() {
   return (await flag()) ? { ur2: true } : null;
 }
 
-module.exports = { flag, ui, KEY, _reset: () => { cache = null; reading = null; } };
+/**
+ * The light Urdu face (app_settings web_quiz_face_lite, read in web-quiz-hub-flags.js's one read): `{ ur2: true }`
+ * becomes `{ ur2: true, fl: true }`, and the edge draws the polished look with wq-nastaliq-7 (the same face, its
+ * outlines on a coarser grid, ~11% smaller) and preloads that file instead of -6. Called after the page builder has
+ * awaited that read, so it adds none. Off (or no polish): the ui exactly as given.
+ */
+function lite(u) {
+  if (!u || u.ur2 !== true) return u;
+  let on = false;
+  try { on = require('./web-quiz-hub-flags').faceLiteNow(); } catch (_) { on = false; }
+  return on ? { ...u, fl: true } : u;
+}
+
+module.exports = { flag, ui, lite, KEY, _reset: () => { cache = null; reading = null; } };

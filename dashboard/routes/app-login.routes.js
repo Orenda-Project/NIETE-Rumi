@@ -176,7 +176,7 @@ function createAppLoginRouter({
     const coach = Object.prototype.hasOwnProperty.call(COACH_LANDINGS, payload.f);
     let onApp = false;
     try { onApp = Boolean(await (coach ? isCoachApp(user.id) : isTeacherV2(user.id))); } catch (_) { onApp = false; }
-    const landing = onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] : LEGACY_LANDING;
+    const landing = require('../../bot/shared/services/fln-go-target').flnPathFor(payload.f) || (onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] : LEGACY_LANDING);
 
     // A new session id, never the one the browser arrived with (session fixation). No portalScope: the whole app.
     req.session.regenerate((err) => {
