@@ -37,6 +37,7 @@ const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
 const WaitUx = require('./web-quiz-wait-ux');
+const ChildCsp = require('./child-csp');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -448,10 +449,13 @@ function flushFixes(guess, p) {
   return fix;
 }
 
-function renderQuizFlushTail({ guess, payload, code, origin, assetV, url, a, v, k }) {
+// `nonce`: this request's (web_quiz_child_csp on) on the fixes' inline line; absent, today's bytes.
+const fixOpen = (nonce) => (nonce ? `<script nonce="${nonce}">` : '<script>');
+
+function renderQuizFlushTail({ guess, payload, code, origin, assetV, url, a, v, k, nonce = null }) {
   const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k });
   const fix = flushFixes(guess, p);
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+  return `${fix.length ? `${fixOpen(nonce)}(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
 }
 
 // Anything but a quiz after the head went (closed, unknown, the bot away): the page asks again the old way (nf=1),
@@ -619,11 +623,11 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
 
-function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
+function renderHubFlushTail({ guess, payload, token, origin, assetV, nonce = null }) {
   const p = hubPageParts({ payload, token, origin, assetV });
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+  return `${fix.length ? `${fixOpen(nonce)}(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
@@ -868,6 +872,13 @@ function createWebQuizRouter(opts = {}) {
   const jsonBody = express.json({ limit: BODY_LIMIT, type: ['application/json', 'text/plain'] });
   const noStore = (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); };
 
+  // web_quiz_child_csp (child-csp.js): the child pages' report-only policy; off, nothing is set and no nonce is written.
+  const cspOn = typeof opts.childCspOn === 'function' ? opts.childCspOn : ChildCsp.childCspOn;
+  // the streamed quiz's ask-again line and the hub's designed wait (web_quiz_wait_ux) are constants: allowed by hash
+  const childCspApply = ChildCsp.createChildCsp({ on: cspOn, hashes: [ChildCsp.scriptHash(FLUSH_AGAIN), ChildCsp.scriptHash(WaitUx.TAG)] });
+  const childCsp = (req, res, next) => { const nonce = childCspApply(res); if (nonce) res.locals.wqCspNonce = nonce; next(); };
+  const cspNonce = (res) => (res.locals && res.locals.wqCspNonce) || null;
+
   function configured(req, res, next) {
     if (!botUrl || !apiKey) return res.status(503).json({ error: 'web_quiz_off' });
     return next();
@@ -903,11 +914,27 @@ function createWebQuizRouter(opts = {}) {
   let clV = null;
   const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
   require('./web-quiz-class-link').registerClassLink(router, {
-    callBot, limiters, unknownCode, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, originOf,
+    callBot, limiters, unknownCode, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, originOf, childCsp,
     version, jsVersion: () => clV || (clV = challengeVersion('class-link.js')), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
     closedPage: (req, res, status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
   });
   // ── end standing class link ──
+  // The child pages' policy reports (web_quiz_child_csp on): one line per report, the directive, the blocked origin
+  // (or its keyword) and the script file:line only (ChildCsp.reportLine) — never the page's address (it carries the
+  // child's link), a path, a query or a sample. A body over 8 kB is read as nothing; 120 reports a minute per address.
+  // Off: not ours, so today's 404 below answers (and nothing is counted or logged).
+  const cspReportBody = express.json({ limit: ChildCsp.REPORT_BODY_LIMIT, type: ['application/csp-report', 'application/reports+json', 'application/json'] });
+  const cspReportLimit = rateLimit({ ...common, standardHeaders: false, max: ChildCsp.REPORTS_PER_MIN, keyGenerator: (req) => `csp:${clientIp(req)}`,
+    handler: (req, res) => res.status(429).set('Cache-Control', 'no-store').json({ error: 'slow_down' }) });
+  router.post(ChildCsp.REPORT_PATH, (req, res, next) => {
+    let yes = false;
+    try { yes = cspOn() === true; } catch (_) { yes = false; }
+    return yes ? next() : next('route');
+  }, cspReportLimit, (req, res, next) => cspReportBody(req, res, (err) => { if (err) req.body = null; next(); }), (req, res) => {
+    logEvent('web_quiz.csp_report', ChildCsp.reportLine(req.body));
+    res.set('Cache-Control', 'no-store');
+    return res.status(204).end();
+  });
   router.all('/api/wq/*', (req, res) => res.status(404).json({ error: 'not_found' }));
 
   // Body over the cap (or malformed JSON) on /api/wq: answer in JSON, never the HTML error page.
@@ -968,7 +995,7 @@ function createWebQuizRouter(opts = {}) {
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
-      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, nonce: cspNonce(res) }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
@@ -984,7 +1011,7 @@ function createWebQuizRouter(opts = {}) {
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
-  router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
+  router.get('/q/:code', limiters.read, unknownCode, childCsp, (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
   // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens
   // this child's own hub, marked ?from=hs so the hub open carries the home-screen route (hub_open.src).
@@ -997,7 +1024,7 @@ function createWebQuizRouter(opts = {}) {
     res.set('Cache-Control', 'private, max-age=300');
     return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
   });
-  router.get('/h/:token', limiters.read, async (req, res) => {
+  router.get('/h/:token', limiters.read, childCsp, async (req, res) => {
     pageHeaders(res);
     const origin = originOf(req);
     const token = String(req.params.token || '');
@@ -1036,7 +1063,7 @@ function createWebQuizRouter(opts = {}) {
       // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
       // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
       // Off: no `st`, and the page and its headers are today's.
-      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version() }));
+      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version(), nonce: cspNonce(res) }));
       if (!out.steps) return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
       const edgeMs = Date.now() - b0;
       const r0 = process.hrtime.bigint();
@@ -1049,11 +1076,11 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');
   });
-  router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
-  router.get('/q/:code/schools', limiters.read, unknownCode, (req, res) => page(req, res, 'schools'));
+  router.get('/q/:code/class', limiters.read, unknownCode, childCsp, (req, res) => page(req, res, 'class'));
+  router.get('/q/:code/schools', limiters.read, unknownCode, childCsp, (req, res) => page(req, res, 'schools'));
 
   // M4c challenge: the kid's Challenge page, opened from the hub (or a quiz session token while testing).
-  router.get('/c/:token', limiters.read, (req, res) => challengePage(req, res));
+  router.get('/c/:token', limiters.read, childCsp, (req, res) => challengePage(req, res));
   // The class round's hand-back (the round end card's one button): the bot keeps the teacher's round page token
   // server-side and names it here; 303 there, else 303 to the turn's own page (Home). Never an error page.
   router.get('/c/:token/back', limiters.read, async (req, res) => {
@@ -1212,7 +1239,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
   });
-  router.get('/k/:token', limiters.read, async (req, res) => {
+  router.get('/k/:token', limiters.read, childCsp, async (req, res) => {
     pageHeaders(res);
     const origin = originOf(req);
     const token = cardToken(req.params.token);

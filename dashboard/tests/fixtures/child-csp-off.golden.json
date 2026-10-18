@@ -1,0 +1,293 @@
+{
+  "hub.closed": {
+    "status": 401,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "9621",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2595-4MMWp+KoX9cn914geXUYJMh/JV8\"",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "299",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "79aac4312f7370fd66d750af8ae566453c8fa5c8e008f69428edb66e58f246ea",
+    "length": 9621
+  },
+  "hub.page": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "11301",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2c25-2UvyiSROgYcrdNzjQsyrG1lfa9Q\"",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "299",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "14e5b1073be0262532ea71dd75b51faa0b6a11233c04e477144fdfc8b2c97791",
+    "length": 11301
+  },
+  "hub.flushed": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-type": "text/html; charset=utf-8",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "298",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "d388fd17c3527e52dd1009ee783d720ab9f768978b0bcdf2d331620e01880694",
+    "length": 11500
+  },
+  "hub.wait": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "13912",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"3658-lQEv5vTb8K8/LwrDSODyLhxXht8\"",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "299",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "a5669aa928ca88250fbbf478e37d48465fc7ef511290751443cc62f246053d42",
+    "length": 13912
+  },
+  "hub.wait.flushed": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-type": "text/html; charset=utf-8",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "298",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "eee7da77da59be67339eebcc15493ccc52257f8212d343605136c41c9844116c",
+    "length": 14111
+  },
+  "quiz.closed": {
+    "status": 404,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "9601",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2581-I5COfMrmG4yOUJTSk2XkVFn6EgE\"",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "b706b2424fe12b2d3491583cd5c88ea54c2aafb64173c97303b65088f1be6c7e",
+    "length": 9601
+  },
+  "quiz.page": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "11412",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2c94-8Ubiuem4XTSRPnYBPcGfxj/LzOI\"",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "b691733a1391ef4614a4d61a579ffc01dde600351d41bf1eac331e5b67be6daa",
+    "length": 11412
+  },
+  "quiz.flushed": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-type": "text/html; charset=utf-8",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "0b7d89d4ba5ea8f0a35e078ef04e0b644f3c3116786557d9e377e10584a18932",
+    "length": 11812
+  },
+  "quiz.flushed.again": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-type": "text/html; charset=utf-8",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "585f60bfe6d886d32a363d1c3c3c2057e3d9451e1414411ffd6a9b33d80cb0c3",
+    "length": 6998
+  },
+  "quiz.class": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "11443",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2cb3-LKz8xYa73+o+od2hyAi4r8CamPg\"",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "bab89a74da05f486a646f76a4395023a8ca0ed343a7b9c8748d9779f1901e69d",
+    "length": 11443
+  },
+  "quiz.schools": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "11435",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2cab-b099nA0lQVE+4FQ238dIclD9KPw\"",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "e5c0b518325f9c9f332f9f43d09ceca2149e6bc685d4a7b64df46af511e42c6f",
+    "length": 11435
+  },
+  "challenge.closed": {
+    "status": 404,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "9601",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2581-I5COfMrmG4yOUJTSk2XkVFn6EgE\"",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "299",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "b706b2424fe12b2d3491583cd5c88ea54c2aafb64173c97303b65088f1be6c7e",
+    "length": 9601
+  },
+  "card.closed": {
+    "status": 404,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "9601",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2581-I5COfMrmG4yOUJTSk2XkVFn6EgE\"",
+      "ratelimit-limit": "300",
+      "ratelimit-policy": "300;w=60",
+      "ratelimit-remaining": "299",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "b706b2424fe12b2d3491583cd5c88ea54c2aafb64173c97303b65088f1be6c7e",
+    "length": 9601
+  },
+  "classlink.closed": {
+    "status": 404,
+    "headers": {
+      "cache-control": "no-cache",
+      "content-length": "9601",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"2581-I5COfMrmG4yOUJTSk2XkVFn6EgE\"",
+      "ratelimit-limit": "20",
+      "ratelimit-policy": "20;w=60",
+      "ratelimit-remaining": "19",
+      "ratelimit-reset": "N",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "b706b2424fe12b2d3491583cd5c88ea54c2aafb64173c97303b65088f1be6c7e",
+    "length": 9601
+  },
+  "join.page": {
+    "status": 200,
+    "headers": {
+      "cache-control": "no-store",
+      "content-length": "5434",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"153a-HFuDNgO35x84TyqLH3Xl/6wbfGQ\"",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "891ff125a9e36a94f6c7afced0c2ca2a0f87b98d82df636552c30e5abaafa365",
+    "length": 5434
+  },
+  "join.note": {
+    "status": 410,
+    "headers": {
+      "cache-control": "no-store",
+      "content-length": "2785",
+      "content-type": "text/html; charset=utf-8",
+      "etag": "W/\"ae1-TMark21rlv/uHS7TJ5x3xafzVzU\"",
+      "referrer-policy": "same-origin",
+      "x-powered-by": "Express",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    "sha": "8e77842b683ee08d8c2fc91da0e5eb8d9dbb00118c4a4630f1882ea067af2fe3",
+    "length": 2785
+  },
+  "report.post": {
+    "status": 404,
+    "headers": {
+      "content-length": "21",
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"15-IapEsyUJs++crm3elUM5fZoGyC4\"",
+      "x-powered-by": "Express"
+    },
+    "sha": "d2dfdc9511fbeaa0701d1f8730f4989313b062ca1b61a2bd8bed8f4f5d654b5d",
+    "length": 21
+  }
+}
