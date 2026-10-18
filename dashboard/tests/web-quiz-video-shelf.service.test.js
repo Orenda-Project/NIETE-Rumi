@@ -456,3 +456,34 @@ describe('the Videos lists say their state on the door root (switch on)', () => 
     expect(t.root.attrs['data-fetch']).toBe('done');
   });
 });
+
+// web_quiz_page_lang (the bot names it on the hub answer as `page_lang: true`): a Videos door link to a quiz page carries
+// the child's language (&lang=), so an Urdu child's English lesson opens its page in Urdu (the edge's ui_lang). Off
+// (no page_lang): today's links, byte for byte.
+describe('the quiz page in the child\'s language (page_lang)', () => {
+  const tapQuiz = async (lang, B, vid, api) => {
+    const t = live(api);
+    const go = jest.fn();
+    t.W.WQDOORS.mount(t.root, B, { token: TOKEN, lang, ev() {}, go }, 'videos');
+    await flush();
+    const q = el(); q.setAttribute('data-tap', 'vquiz'); q.setAttribute('data-item', vid);
+    t.taps.push(q);
+    t.W.WQDOORS.mount(t.root, B, { token: TOKEN, lang, ev() {}, go }, 'videos');
+    await flush();
+    q.fire('click');
+    await flush();
+    return go;
+  };
+  const classApi = (url) => (/[?&]s=/.test(url) ? CH : LIB_SUBJECTS);
+  const mintApi = (url) => (/videos\/start/.test(url) ? { code: 'WAT001', k: 'kw' } : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS);
+  test.each(['ur', 'en'])('on, %s: a class card\'s Quiz and a minted Quiz both name the child\'s language', async (lang) => {
+    const B = { ...F.boot(lang, SHELF()), page_lang: true };
+    expect(await tapQuiz(lang, B, VID2, classApi)).toHaveBeenCalledWith(`/q/SCI002?k=kk2&via=videos&to=q&lang=${lang}`, 'door_quiz');
+    expect(await tapQuiz(lang, B, VID, mintApi)).toHaveBeenCalledWith(`/q/WAT001?k=kw&to=q&lang=${lang}`, 'door_quiz');
+  });
+  test.each([['absent', {}], ['false', { page_lang: false }], ['the string "true"', { page_lang: 'true' }]])('%s: today\'s links in Urdu too', async (_n, extra) => {
+    const B = { ...F.boot('ur', SHELF()), ...extra };
+    expect(await tapQuiz('ur', B, VID2, classApi)).toHaveBeenCalledWith('/q/SCI002?k=kk2&via=videos&to=q', 'door_quiz');
+    expect(await tapQuiz('ur', B, VID, mintApi)).toHaveBeenCalledWith('/q/WAT001?k=kw&to=q', 'door_quiz');
+  });
+});
