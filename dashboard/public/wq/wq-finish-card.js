@@ -309,7 +309,8 @@
     minted[k] = fetch('/api/wq/card', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' })
       .then(function (r) { return r && r.ok ? r.text() : null; })
       .then(function (t) { try { return t ? JSON.parse(t) : null; } catch (e) { return null; } })
-      .then(function (j) { return j && typeof j.url === 'string' && /^\/(k\/|q\/)/.test(j.url) ? j : null; })
+      // the card's own link: /k/<t>, a class link /q/<code>?k=<t>, or a short link /s/<id> (web_quiz_share_short)
+      .then(function (j) { return j && typeof j.url === 'string' && (/^\/(k\/|q\/)/.test(j.url) || /^\/s\/[0-9a-f]{8}$/.test(j.url)) ? j : null; })
       .catch(function () { return null; });
     return minted[k];
   }
