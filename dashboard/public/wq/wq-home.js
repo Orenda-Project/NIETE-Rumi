@@ -28,6 +28,7 @@
       remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
       friendJoined: 'A friend joined Jugnu from your card!', friendStamp: 'Guide',
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
+      off: 'No internet. Try again when you are online.', offAgain: 'Try again',
       myClass: 'My class', mySchool: 'My school', social: 'My class and my school',
     },
     ur: {
@@ -47,6 +48,7 @@
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
       friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', friendStamp: 'رہنما',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
+      off: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', offAgain: 'دوبارہ کوشش کریں',
       myClass: 'میری کلاس', mySchool: 'میرا اسکول', social: 'میری کلاس اور میرا اسکول',
     },
   };
@@ -319,6 +321,7 @@
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
     markFailed = Boolean(B.list_states);
     if (B.practice) ctx = practiceCtx(ctx);
+    if (B.offline_guard === true) offGuard(ctx);
     hashOnce(root, B, ctx);
     // The door screens (wq-doors.js, fetched after the home paints): theirs once loaded; until then the rows below.
     if (window.WQDOORS && window.WQDOORS.owns(name)) return window.WQDOORS.mount(root, B, ctx, name);
@@ -422,14 +425,73 @@
     prefetched = true;
     var run = function () {
       try {
-        var c = typeof navigator !== 'undefined' && navigator.connection;
-        if (c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))) return;
+        if (slowNet()) return;
         var l = document.createElement('link'); l.rel = 'prefetch'; l.href = url; document.head.appendChild(l);
       } catch (e) {}
     };
     try { if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 1500); } catch (e) {}
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
+  function slowNet() { var c = typeof navigator !== 'undefined' && navigator.connection; return !!(c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))); }
+  // A tap while offline (the hub's offline_guard): every page the home and its doors open goes through ctx.go. Offline:
+  // stay, the offline line + Try again; `online` or Try again opens it once. A slow line HEADs it first (2 s, then opens).
+  // The line check asks a small static file of ours (never the page: a page's address runs its handler on the server).
+  function probeUrl() {
+    try { var l = document.querySelector('link[href*="/wq/wq.css"]'); var h = l && l.getAttribute('href'); if (h) return h; } catch (e) {}
+    return '/wq/manifest.webmanifest';
+  }
+  var held = null, ogCtx = null;
+  function offGuard(ctx) {
+    if (ctx.og) return;
+    var go0 = ctx.go;
+    ctx.og = 1;
+    ctx.go = function (href, what) { offCheck(ctx, function () { if (go0) go0(href, what); else location.assign(href); }); };
+    offLinks(ctx);
+  }
+  function offCheck(ctx, nav) {
+    if (held) { held.nav = nav; return; }
+    if (navigator.onLine === false) return offHold(ctx, nav);
+    if (!slowNet() || typeof fetch !== 'function') return nav();
+    held = { nav: nav };
+    var t = setTimeout(function () { end(1); }, 2000);
+    var end = function (ok) { if (!held || held.box) return; clearTimeout(t); var n = held.nav; held = null; if (ok) n(); else offHold(ctx, n); };
+    fetch(probeUrl(), { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' }).then(function () { end(1); }, function () { end(0); });
+  }
+  // The "Who is playing?" sheet's rows, the jar book's story links and My class / My school are plain links drawn after the home's wiring:
+  // one capture listener (once per page) sends them through the same check; online they open as a plain link does.
+  function offLinks(ctx) {
+    var first = !ogCtx;
+    ogCtx = ctx;
+    if (!first) return;
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      var tap = a ? a.getAttribute('data-tap') || '' : '';
+      if (!a || !(a.id === 'wq-bk-go' || /(^|\s)wq-bk-st(\s|$)/.test(a.className || '') || (/^(pick|join)$/.test(tap) && a.closest('.wq-who')) || (tap === 'social' && a.closest('.wq-social')))) return;
+      var href = a.getAttribute('href') || '';
+      if (!href || href.charAt(0) === '#') return;
+      e.preventDefault();
+      offCheck(ogCtx, function () { location.assign(href); });
+    }, true);
+  }
+  function offHold(ctx, nav) {
+    var t = C(ctx), box = document.createElement('div');
+    box.className = 'wq-off';
+    box.setAttribute('role', 'status');
+    box.setAttribute('style', 'position:fixed;left:16px;right:16px;bottom:16px;z-index:50;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.2);text-align:center');
+    box.innerHTML = '<p dir="auto">' + esc(t.off) + '</p><button class="wq-btn wq-go" type="button">' + esc(t.offAgain) + '</button>';
+    held = { nav: nav, box: box };
+    var fire = function () {
+      if (!held || navigator.onLine === false) return;
+      var n = held.nav;
+      held = null;
+      window.removeEventListener('online', fire);
+      if (box.parentNode) box.parentNode.removeChild(box);
+      n();
+    };
+    box.querySelector('button').addEventListener('click', fire);
+    window.addEventListener('online', fire);
+    document.body.appendChild(box);
+  }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
   // The grown-ups corner opens only on a ~2 s press-and-hold (IA §2; never a tap, never arithmetic).
   // With `hint` (the one-button look): a press let go early shows "Keep holding" for 1.5 s, and the open is felt (a short
