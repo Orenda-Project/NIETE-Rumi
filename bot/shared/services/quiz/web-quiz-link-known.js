@@ -186,6 +186,8 @@ async function known(body = {}, resolveCode = null, { device = null } = {}) {
     return { kids: kids.map((k) => ({ chip: T.chipId(ctx.shareCodeId, k.id), first: shownFirst(ctx.lang, k), animal: T.animalFor(k.id) })) };
   } catch (err) {
     logToFile('⚠️ web quiz link known child: nobody answered', { error: err.message });
+    // the page still sees nobody; the line says error, so a failed read never counts as a phone that holds nobody
+    logEvent('web_quiz.link_known', { ok: false, reason: 'error' });
     return { kids: [] };
   }
 }

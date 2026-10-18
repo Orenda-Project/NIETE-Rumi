@@ -474,3 +474,38 @@ describe('the switch\'s own read on a quiz open', () => {
     });
   }
 });
+
+describe('the server\'s answer line says ok, nobody or error (never an error read as nobody)', () => {
+  const { logEvent } = require('../../../shared/utils/structured-logger');
+  const lines = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.link_known').map(([, f]) => f);
+
+  test('a held child: one line {ok: true, kids: 1}', async () => {
+    seed();
+    await homeOpened();
+    expect((await known()).kids).toHaveLength(1);
+    expect(lines()).toEqual([{ ok: true, kids: 1 }]);
+  });
+
+  test('a phone that holds nobody: one line {ok: false, reason: nobody}', async () => {
+    seed();
+    expect(await known(FRESH)).toEqual({ kids: [] });
+    expect(lines()).toEqual([{ ok: false, reason: 'nobody' }]);
+  });
+
+  test('a read that throws: the answer is still nobody, and its line says error (no id, no code, no message)', async () => {
+    seed();
+    await homeOpened();
+    const spy = jest.spyOn(HubDevice, 'deviceKids').mockRejectedValue(new Error('redis gone 55555555-5555-4555-8555-000000000001'));
+    try {
+      expect(await known()).toEqual({ kids: [] });
+    } finally { spy.mockRestore(); }
+    expect(lines()).toEqual([{ ok: false, reason: 'error' }]);
+  });
+
+  test('switch off: no line at all', async () => {
+    seed({ known: false });
+    await homeOpened();
+    expect(await known()).toEqual({ kids: [] });
+    expect(lines()).toEqual([]);
+  });
+});
