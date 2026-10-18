@@ -1,5 +1,5 @@
 /**
- * red-team-pr3a: adversarial probes on the board-pattern paper fixes (PR #2344, head f84424429).
+ * Adversarial probes on the board-pattern paper fixes (PR #2344, head f84424429).
  * Pure chain: applyLayout → normaliseScheme → mathsCheck → renderPaper / renderMarkingScheme.
  * Fictional fixtures only. A `test.failing` is a documented finding, not a pass.
  */

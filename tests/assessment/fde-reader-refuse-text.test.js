@@ -119,7 +119,7 @@ describe('RT reader2: the reader record on the paper must never stop it printing
     expect(renders(out.ok.examJson)).toBe('ok');
   });
   test.each([
-    ['an Urdu quote with «اسی طرح» (ordinary Urdu; printed as an item option on gen-local-r7u7d chapters_1)', 'Q1.9 option «اسی طرح انتظار کرتے رہنا بہتر ہے» states the rule'],
+    ['an Urdu quote with «اسی طرح» (ordinary Urdu; printed as an item option on a local chapters_1 paper)', 'Q1.9 option «اسی طرح انتظار کرتے رہنا بہتر ہے» states the rule'],
     ['an Urdu quote with «مسودہ»', 'Q2 prints «خط کا مسودہ» which answers it'],
     ['English "needs review"', 'the key needs review: Q1.13 states the rule'],
     ['English "filler"', 'Q1.13 is not a filler: it states the rule'],

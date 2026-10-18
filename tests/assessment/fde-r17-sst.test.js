@@ -119,7 +119,7 @@ describe('2. a caught question never prints', () => {
   const FULL2 = paper('full_2');
   const FULL1 = paper('full_1');
 
-  test('the fixtures are the items gen-local named', () => {
+  test('the fixtures are the items the local review named', () => {
     expect(stems(CH6, D7)).toContain('پاکستان کے پہلے وزیر اعظم کون تھے؟');
     expect(stems(CH6, Q1).some((s) => /پہلے وزیر اعظم/.test(s))).toBe(true);
     expect(stems(FULL2, D7)).toContain('پاکستان کا سب سے بڑا صحرا کون سا ہے؟');
