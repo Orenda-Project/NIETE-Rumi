@@ -84,11 +84,21 @@ describe('load', () => {
     expect(console.error).toHaveBeenCalled();
   });
 
-  it('no version anywhere = unavailable, never a throw', async () => {
+  it('no row and no env → the last-resort DEFAULT_VERSION v1, with a warning (COS 163228)', async () => {
     settingValue = undefined;
     const C = load();
-    expect(await C.ensure()).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(C.DEFAULT_VERSION).toBe('v1-20261018-786b5bff');
+    await C.ensure();
+    expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.example.test/fln/corpus/v1-20261018-786b5bff/corpus.json');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('FLN corpus: using the code default version'), expect.anything());
+  });
+
+  it('a garbled version row is ignored for the default, never fetched as a path', async () => {
+    settingValue = '../../etc/passwd';
+    const C = load();
+    await C.ensure();
+    expect(fetchMock.mock.calls[0][0]).toBe('https://cdn.example.test/fln/corpus/v1-20261018-786b5bff/corpus.json');
+    expect(console.warn).toHaveBeenCalled();
   });
 
   it('concurrent callers share ONE fetch', async () => {
