@@ -13,6 +13,7 @@
  *      Section D is told why; Section D's prompt says a Q6 answer is never a list the book gives.
  *   8. Precision: an instruction («وضاحت کریں», «بیان کریں») is no decision, so it neither keeps a «tell what it is like»
  *      Q6 nor reads a Q1 stem as Apply; «کیسے … کر سکتا ہے» asks for advice, so tells_what does not hold it.
+ *   9. Section D's Q7 line gives the television item a child answers without the book as an example.
  * The papers are local model output; the people in their stories are the model's own.
  */
 
@@ -436,5 +437,22 @@ describe('8. an instruction is no decision; «how can they help» is advice', ()
     ['علی کے دوست نے بغیر اجازت اس کی تصویر لگا دی۔ علی کیا کرے؟', 'apply'],
   ])('the log reads «%s» as %s', (question, level) => {
     expect(Gen.sstStemLevel({ question })).toBe(level);
+  });
+});
+
+describe('9. the Q7 line names the television item', () => {
+  const Q7_COMMON = 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures («… ٹی وی پر اور کیا دکھایا جاتا ہے؟ → تصویر»), the name of a social media app); it asks a fact these pages teach.';
+  const promptOf = (S, sec, subject) => Gen.buildPatternUserPrompt({ grade: 5, subject, pageContent: 'متن', pageReference: '1-9', section: sec, slots: sec.slots, lang: S.medium, P: S, scope: { kind: 'fde' } });
+
+  test('Section D\'s prompt carries it (local chapters_3 Q7 3 «ٹیلی ویژن پر آواز کے ساتھ اور کیا دکھایا جاتا ہے؟ → تصویر»)', () => {
+    expect(promptOf(SST, SST.sections.find((x) => x.id === 'D'), 'social_studies')).toContain(Q7_COMMON);
+  });
+
+  test('no other section or subject is told it', () => {
+    for (const id of ['A', 'B', 'C']) expect(promptOf(SST, SST.sections.find((x) => x.id === id), 'social_studies')).not.toContain('ٹی وی پر اور کیا دکھایا جاتا ہے');
+    for (const key of ['maths', 'science', 'english', 'urdu']) {
+      const S = Patterns.get('fde_g5_2027').subjects[key];
+      for (const sec of S.sections) expect(promptOf(S, sec, key)).not.toContain('ٹی وی پر اور کیا دکھایا جاتا ہے');
+    }
   });
 });
