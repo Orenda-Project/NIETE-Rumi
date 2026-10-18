@@ -6,7 +6,7 @@
  *   401            → /portal/login?next=<path+search> (replace); the login page's safeNext (m-links) brings her back
  *   404 / lessons:false → "This lesson isn't available" + a link to the lessons home
  *   503 / network  → the calm "not available right now" line + Try again
- *   ok             → <div class="fln-root" lang dir> + the FLN context + the page
+ *   ok             → <div class="fln-root fln-app" lang dir> + the FLN context + the page
  *
  * While /me loads: a reserved-height skeleton (no layout jump when the page arrives).
  */
@@ -29,7 +29,7 @@ type GateState =
 
 /** The root every FLN page sits in; lang/dir are the CHROME's. */
 function Root({ lang, children }: { lang: FlnLang; children: ReactNode }) {
-  return <div className="fln-root" lang={lang} dir={FLN_DIR[lang]}>{children}</div>;
+  return <div className="fln-root fln-app" lang={lang} dir={FLN_DIR[lang]}>{children}</div>;
 }
 
 /** "This lesson isn't available" + the way back to the lessons (DESIGN v2 §7). */
