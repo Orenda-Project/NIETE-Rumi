@@ -599,6 +599,24 @@ function listenVersion() {
   }
   return (listenV = h.digest('hex').slice(0, 10));
 }
+// The live reading meter (wq-pace.js / .css): only when the bot names its variant (`pace`, web_quiz_live_meter under
+// live reading v3). Its own version, so the hub's and the Challenge's versions and pages stay today's while it is off.
+let paceV = null;
+function paceVersion() {
+  if (paceV) return paceV;
+  const h = crypto.createHash('sha256');
+  for (const f of ['wq-pace.js', 'wq-pace.css']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
+  return (paceV = h.digest('hex').slice(0, 10));
+}
+function paceTag(payload) {
+  const m = payload && (payload.pace === 'sky' || payload.pace === 'vine') ? payload.pace : null;
+  if (!m) return '';
+  // the Challenge's menu carries the child's form (G1…G5): the meter fills at that grade's pace (none ⇒ the kinder G1–2)
+  const g = payload && typeof payload.form === 'string' && /^[A-Za-z0-9-]{1,8}$/.test(payload.form) ? ` data-grade="${payload.form}"` : '';
+  return `<link rel="stylesheet" href="/wq/wq-pace.css?v=${paceVersion()}">\n<script src="/wq/wq-pace.js?v=${paceVersion()}" data-meter="${m}"${g} defer></script>\n`;
+}
 function listenTag(payload) {
   return payload && payload.listen === true ? `<script src="/wq/wq-readalong-listen.js?v=${listenVersion()}" defer></script>\n` : '';
 }
@@ -615,7 +633,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
   // The home's own tags (one string, so the head's preloads name the tail's addresses: web-quiz-home-preload.js). A bot
   // answer (it has `kids`) teaches the next early head what to preload (web_quiz_home_preload); the early head's guess
   // (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
-  const tags = `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`;
+  const tags = `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}${paceTag(payload)}`;
   const answer = Boolean(payload && Array.isArray(payload.kids));
   if (answer) HomePre.learn(payload, tags, assetV);
   return {
@@ -831,7 +849,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.lr3 ? paceTag(menu) : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
