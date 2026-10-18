@@ -502,6 +502,130 @@ describe('A6 error state', () => {
   });
 });
 
+// ---------------------------------------------------------------- A2 big clips: no give-up while bytes arrive
+
+describe('A2 big clips on a slow line: no give-up while bytes are still arriving (QA-A2-bigclip)', () => {
+  /** progress every `everyMs` from `fromMs` to `toMs` after the tap (the clip is still downloading) */
+  function trickle(el: FakeAudio, fromMs: number, toMs: number, everyMs = 500) {
+    vi.advanceTimersByTime(fromMs);
+    for (let t = fromMs; t < toMs; t += everyMs) {
+      el.fire('progress');
+      vi.advanceTimersByTime(everyMs);
+    }
+  }
+
+  it('bytes keep arriving for 9 s, then it plays: loading the whole time, ok-mirror with its real ms, no error-timeout', () => {
+    const { r, player, states, last } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    trickle(el, 500, 9000);
+    expect(last('a').s).toBe('loading');
+    el.fire('playing');
+    expect(last('a').s).toBe('playing');
+    expect(states.a.some((x) => x.s === 'error')).toBe(false);
+    expect(r.events.filter((e) => e.kind === 'audio_error')).toHaveLength(0);
+    const ok = r.events.find((e) => e.kind === 'audio_play');
+    expect(ok).toMatchObject({ clip: 'a', result: 'ok-mirror' });
+    expect(ok!.ms).toBeGreaterThanOrEqual(9000);
+    expect(el.src).toBe('https://m.example/a.mp3'); // never left a healthy mirror
+  });
+
+  it('a warmed clip still downloading at the tap keeps its loading state past 6 s while progress arrives', async () => {
+    const { r, player, last } = setup(['a']);
+    player.warm(['a']);
+    await flush();
+    const el = elOf(r, 'a')!;
+    el.readyState = 1; // the head of a 200 KB clip: metadata only
+    el.fire('loadedmetadata');
+    player.toggle('a');
+    trickle(el, 0, 8000);
+    expect(last('a').s).toBe('loading');
+    el.fire('playing');
+    expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ result: 'ok-mirror' });
+    expect(r.events.filter((e) => e.kind === 'audio_error')).toHaveLength(0);
+  });
+
+  it('bytes until 8 s, then nothing: gives up 3 s after the last byte with error-stall (A6 retry state)', () => {
+    const { r, player, last } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    trickle(el, 500, 8000); // last progress at 7.5 s
+    vi.advanceTimersByTime(2499); // 10.499 s after the tap, 2.999 s after the last byte
+    expect(last('a').s).toBe('loading');
+    vi.advanceTimersByTime(1);
+    expect(last('a').s).toBe('error');
+    const err = r.events.find((e) => e.kind === 'audio_error');
+    expect(err).toMatchObject({ clip: 'a', result: 'error-stall' });
+    expect(err!.ms).toBe(10500);
+    expect(unpaused(r)).toHaveLength(0);
+    player.toggle('a'); // the retry state still retries
+    expect(last('a').s).toBe('loading');
+  });
+
+  it('first byte, then no further bytes: still the 6 s give-up (a stall inside the window), error state', () => {
+    const { r, player, last } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    vi.advanceTimersByTime(1000);
+    el.fire('loadedmetadata');
+    vi.advanceTimersByTime(4999);
+    expect(last('a').s).toBe('loading');
+    vi.advanceTimersByTime(1);
+    expect(last('a').s).toBe('error');
+    expect(el.src).toBe('https://m.example/a.mp3'); // a first byte arrived, so no switch
+    expect(r.events.find((e) => e.kind === 'audio_error')).toMatchObject({ result: 'error-timeout', ms: 6000 });
+  });
+
+  it('a trickle that never ends: hard ceiling at 20 s, error-ceiling, never a spinner forever', () => {
+    const { r, player, last } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    trickle(el, 500, 19500);
+    expect(last('a').s).toBe('loading');
+    trickle(el, 0, 500);
+    expect(last('a').s).toBe('error');
+    expect(r.events.find((e) => e.kind === 'audio_error')).toMatchObject({ result: 'error-ceiling', ms: 20000 });
+    el.fire('progress');
+    vi.advanceTimersByTime(30000);
+    expect(r.events.filter((e) => e.kind === 'audio_error')).toHaveLength(1);
+  });
+
+  it('regression guard: no first byte in the cold window still switches to orig at 2.5 s; orig bytes then extend the wait', () => {
+    const { r, player, last } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    vi.advanceTimersByTime(2500);
+    expect(el.src).toBe('https://o.example/a.mp3');
+    expect(el.playCalls).toBe(2);
+    trickle(el, 500, 9000); // orig streams in until 11.5 s after the tap
+    expect(last('a').s).toBe('loading');
+    el.fire('playing');
+    expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ result: 'ok-orig' });
+    expect(r.events.filter((e) => e.kind === 'audio_error')).toHaveLength(0);
+  });
+
+  it('regression guard: no bytes from either source still ends at 6 s with error-timeout', () => {
+    const { r, player, last } = setup(['a']);
+    player.toggle('a');
+    vi.advanceTimersByTime(6000);
+    expect(last('a').s).toBe('error');
+    expect(r.events.find((e) => e.kind === 'audio_error')).toMatchObject({ result: 'error-timeout', ms: 6000 });
+  });
+
+  it('a new tap during the extended wait stops the first clip (A4) and its old deadline never fires', () => {
+    const { r, player, last } = setup(['a', 'b']);
+    player.toggle('a');
+    const elA = lastPlayed();
+    trickle(elA, 500, 7000);
+    player.toggle('b');
+    expect(last('a').s).toBe('idle');
+    lastPlayed().fire('playing');
+    vi.advanceTimersByTime(25000);
+    expect(r.events.filter((e) => e.kind === 'audio_error')).toHaveLength(0);
+    expect(unpaused(r)).toHaveLength(1);
+  });
+});
+
 // ---------------------------------------------------------------- stop on hide
 
 describe('stop on hide', () => {
