@@ -95,15 +95,15 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, busy_page: false });
   });
 
-  test('(e) on with every page switch off: no ui; one_face, wait_ux and wait_share say false (off is said, never left out)', async () => {
+  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share and busy_page say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'one_face', 'rt', 'wait_share', 'wait_ux']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false });
+    expect(Object.keys(body).sort()).toEqual(['brand', 'busy_page', 'fast', 'learn', 'one_face', 'rt', 'wait_share', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, busy_page: false });
     expect(typeof body.brand).toBe('string');
   });
 
@@ -210,6 +210,6 @@ describe('the hub answer says edge_learn while on (so a portal that stopped aski
   });
   test('both hub routes (GET and POST /hub/:token) pass their answer through carry', () => {
     const src = require('fs').readFileSync(require.resolve('../../../shared/routes/web-quiz-internal.routes'), 'utf8');
-    expect((src.match(/EdgeLearn\(\)\.carry\(HomePreload\.carry\(WaitUx\.carry\(OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
+    expect((src.match(/EdgeLearn\(\)\.carry\(HomePreload\.carry\(Busy\.carry\(WaitUx\.carry\(OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
   });
 });

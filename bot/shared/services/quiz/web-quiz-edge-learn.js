@@ -56,7 +56,7 @@ async function answer() {
   const [brand, rt, ui] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui()]);
   // wait_share: the frame's read share, on with wait_ux AND web_quiz_hub_fanout (as web-quiz-wait-ux.js carry()), same read.
   const waitUx = f.waitUx === true;
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true };
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, busy_page: f.busyPage === true };
 }
 
 /** The hub answer (or its promise) with `edge_learn: true` added while on; the same answer, untouched, while off. */

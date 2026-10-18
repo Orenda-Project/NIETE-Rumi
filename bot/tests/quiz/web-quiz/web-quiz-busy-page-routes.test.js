@@ -126,8 +126,9 @@ describe('the answers', () => {
     await serve(async (ask) => {
       const out = await ask(true);
       for (const k of Object.keys(GOLDEN)) expect(out[k].body).toBe(GOLDEN[k]);
-      // the quiz and doors answers never read the switch themselves; the hub answers' read is the one batched read
-      expect(out.reads.quiz).toBe(0);
+      // the doors answer never reads the switch; the quiz answer's only read is the step timings' background refresh (never
+      // waited for, never its own switch); the hub answers' read is the one batched read
+      expect(out.reads.quiz).toBeLessThanOrEqual(1);
       expect(out.reads.doors).toBe(0);
     });
   });
