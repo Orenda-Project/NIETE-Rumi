@@ -183,6 +183,21 @@ describe('language', () => {
     ]);
   });
 
+  test('from the hub with the child\'s language following the child (web_quiz_return_lang on): the hub\'s own `l` wins over the child\'s read', async () => {
+    const Ret = require('../../../shared/services/quiz/web-quiz-return-lang');
+    F.seed(supabase, [...ON, { key: 'web_quiz_return_lang', value: true }]);
+    Ret._resetCache();
+    try {
+      const science = async (q) => titles(await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science', ...q })).flatMap(([, t]) => t);
+      kid('en');
+      expect(await science({ l: 'ur' })).toContain('Life Cycle of a Hen');
+      expect(await science({ l: 'ur' })).not.toContain('Leaves');
+      // no `l` (an old library link): the child's own
+      expect(await science({})).toContain('Leaves');
+      expect(await science({})).not.toContain('Life Cycle of a Hen');
+    } finally { Ret._resetCache(); }
+  });
+
   test('the language comes from its own read; the bank\'s read is unchanged and a failed language read filters nothing', async () => {
     const fake = F.seed(supabase, ON);
     const cols = [];

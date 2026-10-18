@@ -21,9 +21,10 @@ const { logToFile } = require('../../utils/logger');
 const KEY = 'quiz_teacher_home';
 const PAGED_KEY = 'quiz_teacher_home_paged';
 const GRADE_FAST_KEY = 'quiz_teacher_home_grade_fast';
+const WAIT_KEY = 'quiz_teacher_home_wait';
 const TIMING_KEY = 'quiz_teacher_server_timing';
 // the page switches: one list, one read, one cache. A key added here is read in the same one `.in`.
-const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY];
+const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY];
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let pageCache = null; // { at, on: { [key]: boolean } }
@@ -85,6 +86,11 @@ async function gradeFast(now = Date.now()) {
   return (await pageSwitches(now))[GRADE_FAST_KEY] === true;
 }
 
+/** → true only when `quiz_teacher_home_wait` is JSON `true`; the page read, no read of its own. */
+async function wait(now = Date.now()) {
+  return (await pageSwitches(now))[WAIT_KEY] === true;
+}
+
 /** → true only when `quiz_teacher_server_timing` was JSON `true` at the home switch's last read (within 30 s). Never reads, never waits. */
 function timing(now = Date.now()) {
   return Boolean(timingCache && now - timingCache.at < TTL_MS && timingCache.on);
@@ -97,5 +103,5 @@ function resetTiming() { timingCache = null; }
 function reset() { cache = null; pageCache = null; timingCache = null; }
 
 module.exports = {
-  on, paged, gradeFast, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, TIMING_KEY, PAGE_KEYS, TTL_MS,
+  on, paged, gradeFast, wait, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, TIMING_KEY, PAGE_KEYS, TTL_MS,
 };

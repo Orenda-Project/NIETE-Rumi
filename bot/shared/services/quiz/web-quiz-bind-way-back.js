@@ -70,10 +70,12 @@ async function on(now = Date.now()) {
 const ms = (t) => { const n = Date.parse(t); return Number.isFinite(n) ? n : null; };
 
 /** The child's page for a code minted in the last day; else null. */
-async function pageFor(row, now) {
+async function pageFor(row, now, lang = null) {
   const minted = row && ms(row.minted_at);
   if (!row || !row.canonical_id || minted === null || new Date(now).getTime() - minted > LINK_WINDOW_MS) return null;
-  return require('./web-quiz-hub-flags').hubLink([String(row.canonical_id)], 'bind');
+  // web_quiz_return_lang: the child's own language (class quiz → the one they joined in), else the reply's (off: today's link)
+  const own = await require('./web-quiz-child-lang').childLang(String(row.canonical_id));
+  return require('./web-quiz-hub-flags').hubLink([String(row.canonical_id)], { caller: 'bind', lang: own || lang });
 }
 
 async function send(phone, key, language, url) {
@@ -105,7 +107,7 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
     const recipient = trigger === 'teacher_refusal' ? 'teacher' : 'family';
     // ownReply: the bot answering the family's own message (a separate pool only once the one-door ledger lands; until
     // then ignored, and the shared per-phone cap applies exactly as today)
-    if (await Ledger.record({ trigger, recipient, phone, reason, ownReply: true, now })) await send(phone, key, lang, await pageFor(r, now));
+    if (await Ledger.record({ trigger, recipient, phone, reason, ownReply: true, now })) await send(phone, key, lang, await pageFor(r, now, lang));
     return true;
   } catch (err) {
     logToFile('⚠️ keep my place way back: reply threw', { error: err.message });
