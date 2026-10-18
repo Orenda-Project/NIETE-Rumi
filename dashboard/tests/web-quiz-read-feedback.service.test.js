@@ -877,3 +877,38 @@ describe('the moment\'s stylesheet: the card balanced, the sound switch labelled
   });
 });
 
+
+// ---- a storybook page after a low read: one practice offer at a time (the word chip, then "read it again for 3 stars";
+// "Hear Jugnu say it" lives in the chip's later taps) ------------------------------------------------------------------
+describe('the practise card offers one thing at a time', () => {
+  const PG = { words: [{ t: 'The', s_ms: 0, e_ms: 300 }, { t: 'kite', s_ms: 300, e_ms: 700 }, { t: 'flew.', s_ms: 700, e_ms: 1200 }], audio: 'a.mp3', quality: 'ok' };
+  const READ_LOW = { words_read: 2, words_total: 3, ms: 4000, marks: ['read', 'skipped', 'read'] };
+  const sents = () => [[0, 2]];
+  test('on the practise card the 3-star offer waits for the chip, and the sentence moves into it', () => {
+    const h = moment().page(READ_LOW, PG, 'en', { hear: true, sents }).html;
+    expect(h).toMatch(/<button class="wqs-sec" data-tap="rfagain" data-after-chip>/);
+    expect(h).toMatch(/<button class="wqs-sec" data-tap="rfhear" data-in-chip[^>]*>/);
+  });
+  test('without a chip (a read card, no practise): both offers as before, no new attributes', () => {
+    const h = moment().page(READ_LOW, PG, 'en', { sents }).html;
+    expect(h).toContain('<button class="wqs-sec" data-tap="rfagain">');
+    expect(h).not.toMatch(/data-after-chip|data-in-chip/);
+  });
+  test('the chip: its first tap is the word (and opens the 3-star offer); a later tap plays the sentence instead', () => {
+    const M = moment();
+    const clicks = [];
+    const box = { cls: new Set(), classList: { add(c) { box.cls.add(c); }, contains(c) { return box.cls.has(c); } }, querySelector: (s) => (s === '[data-in-chip]' ? { click() { clicks.push('hear'); } } : null) };
+    const chip = { parentNode: box, closest: (s) => (s === '.wqs-word' ? chip : null) };
+    const ev = () => { const e = { target: chip, stopped: 0, prevented: 0, stopPropagation() { e.stopped += 1; }, preventDefault() { e.prevented += 1; } }; return e; };
+    const e1 = ev(); M.chip(e1);
+    expect(box.cls.has('wq-moment-chipped')).toBe(true);
+    expect([e1.stopped, clicks.length]).toEqual([0, 0]);   // the word plays (the reader's own tap)
+    const e2 = ev(); M.chip(e2);
+    expect([e2.stopped, e2.prevented, clicks]).toEqual([1, 1, ['hear']]);
+  });
+  test('the stylesheet hides what waits and shows it once the chip is tapped', () => {
+    const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(CSS).toContain(':has(> .wq-moment):has(> .wqs-word) > [data-after-chip], :has(> .wq-moment):has(> .wqs-word) > [data-in-chip] { display: none; }');
+    expect(CSS).toMatch(/\.wq-moment-chipped > \[data-after-chip\] \{ display: revert; \}/);
+  });
+});
