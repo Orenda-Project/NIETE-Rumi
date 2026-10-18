@@ -266,9 +266,13 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
     served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
   }
-  const [f, brand, ui] = await Promise.all([facts(p.kind, p.ref), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null)]);
+  const [f, brand, ui, ink] = await Promise.all([
+    facts(p.kind, p.ref), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null),
+    require('./web-quiz-card-switch').shareOn().catch(() => false),
+  ]);
   const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, ui);
+  // the one share on: an Urdu picture with room for its ink (its own key); an English one is unchanged
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, ink && f.lang === 'ur' ? { ...(ui || {}), ink: true } : ui);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });

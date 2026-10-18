@@ -343,3 +343,40 @@ test("the share events keep the two new paths: the picture shared as a file, and
   expect(cleanEvent({ n: 'share_click', path: 'file', src: 'card' })).toEqual({ name: 'share_click', props: { src: 'card', path: 'file' } });
   expect(cleanEvent({ n: 'share_click', path: 'save', src: 'table' }).props.path).toBe('save');
 });
+
+describe('the one share (web_quiz_share_v4) gives an Urdu picture room for its ink', () => {
+  const Switch = require('../../../shared/services/quiz/web-quiz-card-switch');
+  const INK = '.cta{padding-top:.6em';
+  function share(on, ur = false) {
+    const d = { ...seed(), app_settings: on ? [{ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_v4', value: true }] : [] };
+    if (ur) d.quiz_share_codes.forEach((c) => { c.language = 'ur'; });
+    fake = makeFake(d);
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    Switch._reset();
+    Art._resetCache();
+    htmlToImage.mockClear();
+    r2.uploadBuffer.mockClear();
+  }
+  afterEach(() => Switch._reset());
+
+  test('on: the Urdu card is drawn with the room, under its own key; off: today\'s picture and key', async () => {
+    share(false, true);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    const offHtml = htmlToImage.mock.calls[0][0];
+    const offKey = r2.uploadBuffer.mock.calls[0][1];
+    expect(offHtml).not.toContain(INK);
+    share(true, true);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    expect(htmlToImage.mock.calls[0][0]).toContain(INK);
+    expect(r2.uploadBuffer.mock.calls[0][1]).not.toBe(offKey);
+  });
+
+  test('on: an English picture keeps today\'s HTML and key (the room is for Nastaliq only)', async () => {
+    share(false);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    const off = [htmlToImage.mock.calls[0][0], r2.uploadBuffer.mock.calls[0][1]];
+    share(true);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    expect([htmlToImage.mock.calls[0][0], r2.uploadBuffer.mock.calls[0][1]]).toEqual(off);
+  });
+});
