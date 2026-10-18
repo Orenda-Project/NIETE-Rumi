@@ -1544,7 +1544,10 @@ function _topUp(firstTree, secondTree, slots) {
       }
     }
   }
-  return _mergeSections([firstTree, extra]);
+  const out = _mergeSections([firstTree, extra]);
+  // A laid paper keeps what its layout recorded (the layout reads it back on Urdu papers only).
+  if (firstTree && firstTree._layout) out._layout = firstTree._layout;
+  return out;
 }
 
 // The markers the paper refuses in a question's own text (the renderer's item list). The renderer's
