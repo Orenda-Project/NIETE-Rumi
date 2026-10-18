@@ -382,7 +382,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
@@ -474,6 +474,12 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
       return { ok: true, sticker: false };
     }
     out.sticker = first && (await bookOn());
+    // the book's read answered at its end (web_quiz_read_feedback): its speed is kept for the next book's comparison
+    const ReadFeedback = require('./web-quiz-read-feedback');
+    if (await ReadFeedback.on()) {
+      const reading = await ReadFeedback.storyReading(who.studentId, rows);
+      if (reading) { out.reading = reading; if (reading.wcpm) kept.wcpm = reading.wcpm; }
+    }
   }
   const { error } = await supabase.from('story_events').insert({ child_id: who.studentId, book_id: b.id, page_n: page, event: name, data: kept });
   if (error) logToFile('⚠️ web quiz stories: event not kept', { event: name, error: error.message });

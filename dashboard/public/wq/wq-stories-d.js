@@ -140,9 +140,13 @@
         // replaces on the page; its cached cover; no request)
         var sb = nx && (S.shelf.d || {}).books || [], x;
         for (x = 0; x < sb.length; x++) if (!sb[x].done && sb[x].id !== id && sb[x].cover) { nx.art = sb[x].cover; break; }
+        // the book's whole read answered (read_fb; the server's reading from the child's own page reads): above the
+        // card and its buttons, beside a card that hides our own head
+        var rfb = b.read_fb && rd && r && r.reading && W.WQMoment ? W.WQMoment.feedback(r.reading) : null;
         var draw = function (fc) {
           paint(scr('story-done', L, top(L, '', '', 1) + '<div class="wqs-col" data-own><h2>' + esc(head) + '</h2>' +
             (n ? '<p class="wqs-deed" data-n>' + esc(deed(n)) + '</p>' : '') + '</div>' +
+            (rfb ? W.WQMoment.html(rfb, L, { grade: b.grade, moment: 'story-done' }) : '') +
             '<div class="wqs-col" data-col>' + (fc && nx ? '' : '<button class="' + (fc ? 'wqs-sec"' : 'wqs-main" data-primary') + ' data-tap="more">' + esc(t.more) + '</button>') +
             '<button class="wqs-sec" data-home data-tap="home">' + esc(t.home) + '</button></div>', 'wqs-sheet'));
         };
@@ -151,12 +155,16 @@
         var ok = false, fc = (n || qa) && b.card_v3 && W.WQFC && W.WQFC.mount;
         draw(fc);
         if (fc) {
-          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, whole: true, answered: qa, sticker: !!(r && r.sticker) }) !== false; } catch (e) {}
+          var fo = { source: 'story', ended: rd ? 'read' : 'listened', pages_read: c.pages_read, pages_listened: c.pages_listened, stars: qs, title: b.title, cover: b.cover, lang: L, auth: { hub: ctx.token, kid: ctx.kid }, ev: ctx.ev, home: '#', next: nx, lead: true, whole: true, answered: qa, sticker: !!(r && r.sticker) };
+          // the one share (share_v4): the card names the book, so its link lands a new child on it
+          if (b.share_v4 === true) { fo.v4 = true; fo.item = { type: 'book', id: String(id) }; }
+          try { ok = W.WQFC.mount(root.querySelector('[data-col]'), fo) !== false; } catch (e) {}
           if (!ok) draw(false);
           else fin = nx ? 1 : 0;
         }
         var own = root.querySelector('[data-own]');
         if (own) own.hidden = ok;
+        if (rfb) W.WQMoment.sound(root.querySelector('[data-rf]'), rfb);
         if (ok || !n) return;
         juice('finish', { stars: 3, kind: 'story' });
         var el = root.querySelector('[data-n]'), j = 0;

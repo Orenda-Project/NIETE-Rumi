@@ -24,6 +24,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logErr
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const PAT = Patterns.get('fde_g5_2027');
 const U = PAT.subjects.urdu;
@@ -60,7 +61,9 @@ describe('Q1 ↔ Q4: a Q1 sentence read with its key in the blanks', () => {
   });
 
   test('full_4 keeps every other Q1 item', () => {
-    const before = q1Stems(full4).filter((s) => s !== leak);
+    // The full syllabus asks the antonym once: full_4's later antonyms are held too.
+    const again = conceptRepeats(items(full4, 'urdu.A.Q1'));
+    const before = q1Stems(full4).filter((s) => s !== leak && !again.includes(s));
     expect(q1Stems(laid(full4))).toEqual(before);
   });
 
@@ -190,6 +193,10 @@ describe('a stem that states another item\'s one-word answer on its topic', () =
       { slot: 'urdu.A.Q1', marks: 1, question: '"اگر بارش ہوئی تو ہم گھر رہیں گے۔" اس جملے میں حرفِ شرط کون سا ہے؟', options: OPTS, answer: 'الف) اگر' },
       { slot: 'urdu.A.Q1', marks: 1, question: 'حرفِ شرط «اگر» کے ساتھ کون سا حرفِ جزا آتا ہے؟', options: ['الف) تو', 'ب) اور', 'ج) مگر', 'د) کہ'], answer: 'الف) تو' },
     ] } } };
+    // Both ask شرط و جزا, so one is held as one grammar concept asked twice (Q1's own rules run on
+    // the first layout too); neither is held as a given-away key.
+    expect(q1Stems(laid(exam))).toHaveLength(1);
+    exam.unseen.objective.MCQs[1] = { slot: 'urdu.A.Q1', marks: 1, question: 'بارش کے بعد بچے کہاں کھیلنے گئے؟', options: ['الف) باغ میں', 'ب) گھر میں', 'ج) اسکول میں', 'د) بازار میں'], answer: 'الف) باغ میں' };
     expect(q1Stems(laid(exam))).toHaveLength(2);
   });
 });
