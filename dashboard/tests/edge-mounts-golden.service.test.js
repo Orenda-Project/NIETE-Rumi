@@ -47,3 +47,25 @@ test('the edge block builds the golden stack (same layers, same order)', () => {
   if (process.env.TEACHER_HOME_RECORD === '1') fs.writeFileSync(GOLDEN, got);
   expect(got).toBe(fs.readFileSync(GOLDEN, 'utf8'));
 });
+
+// Building the edge block never calls a bot, even with a bot address and key in the env (a dev .env): the web quiz
+// router's background switch ask (lib/edge-learn.js) does not start inside a test run. The network is stubbed here.
+test('the edge block makes no network call while it is built (a bot address and key set)', async () => {
+  const env = { MAIN_BOT_URL: process.env.MAIN_BOT_URL, INTERNAL_API_KEY: process.env.INTERNAL_API_KEY };
+  const had = global.fetch;
+  const calls = [];
+  process.env.MAIN_BOT_URL = 'http://bot.invalid';
+  process.env.INTERNAL_API_KEY = 'dev-key-from-env';
+  global.fetch = (...a) => { calls.push(String(a[0])); return new Promise(() => {}); };
+  try {
+    const app = express();
+    // eslint-disable-next-line no-new-func
+    new Function('app', 'require', 'express', 'path', '__dirname', edgeBlock())(
+      app, Module.createRequire(INDEX), express, path, path.dirname(INDEX));
+    await new Promise((r) => setTimeout(r, 30));
+  } finally {
+    global.fetch = had;
+    Object.entries(env).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; });
+  }
+  expect(calls).toEqual([]);
+});

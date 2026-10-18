@@ -291,12 +291,15 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 // Step timings (app_settings web_quiz_server_timing, default off, JSON true only): Server-Timing items, one
 // `name;dur=<ms>` per awaited step of the build (web-quiz-server-timing.js), added after any timing already on the
 // answer. A header only: the JSON is the hub's own. Off: no stopwatch and no header, the call exactly as before.
+// web_quiz_edge_learn on: the hub answer says `edge_learn: true` (web-quiz-edge-learn.js carry; from the hub's own switch
+// read, no read of its own), so a portal process that stopped asking learns again; off: the answer is untouched.
+const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)));
+  if (!st) return EdgeLearn().carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))));
   StepTiming.attach(res, st);
-  return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })));
+  return EdgeLearn().carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))));
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
@@ -329,7 +332,7 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang })))));
+router.post('/hub/:token', handle((req) => EdgeLearn().carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang }))))));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));
@@ -353,5 +356,9 @@ router.post('/teacher/queue/link-codes', handle((req) => JoinQueue().linkClassCo
 // ── standing class link (web_quiz_class_link; off → every /cl answer is 404 not_found) ──
 router.use('/cl', require('./web-quiz-class-link.routes'));
 // ── end standing class link ──
+// ── GET /edge: the page switches a fresh portal process would learn from its first payload (web-quiz-edge-learn.js;
+// web_quiz_edge_learn, off -> {learn:false}, else {learn:true, fast, brand, rt, ui?, one_face?}) ──
+router.get('/edge', handle(() => EdgeLearn().answer()));
+// ── end GET /edge ──
 
 module.exports = router;
