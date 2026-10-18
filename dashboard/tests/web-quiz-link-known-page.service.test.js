@@ -5,7 +5,7 @@
  * that child (via 'known'); "Someone else" is today's landing. Asked once per quiz on this phone. Today's landing is
  * drawn at once while it asks; the answer swaps it for the question only while the child has not touched the page
  * (no tap, key, touch or scroll) — after a touch a late answer is dropped and `link_known_late {ms}` records it, and
- * every answer the server gave is timed (`link_known_answer {ms, kids}`; an error or offline writes no line). A phone with no device, an answer of nobody, an error or
+ * every answer the server gave is timed (`link_known_answer {ms, kids, shown, asked}`; an error or offline writes no line). A phone with no device, an answer of nobody, an error or
  * offline: today's screen, drawn exactly as today. Never on the teacher's preview, a friend's challenge, a hub link
  * (?k=), or a run in progress. Runs the whole shipped page.
  */
@@ -166,16 +166,23 @@ describe('the answer line counts only an answer the server gave', () => {
     });
   }
 
-  test('an answer of nobody is an answer: one line with kids 0', async () => {
+  // kids = the server's count, shown = those already a card on this landing, asked = the ones the page asks about
+  test('an answer of nobody is an answer: one line, kids 0 shown 0 asked 0', async () => {
     const p = on({ api: { '/api/wq/known': { kids: [] } } });
     await flush(); await flush();
-    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 0 })]);
+    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 0, shown: 0, asked: 0 })]);
   });
 
-  test('cards this phone already shows are an answer too: one line with kids 0', async () => {
+  test('a held child already a card on this landing: kids 1 shown 1 asked 0 (not a miss)', async () => {
     const p = on({ store: { wq_d: DEV, wq_kids: [ZAR] } });
     await flush(); await flush();
-    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 0 })]);
+    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 1, shown: 1, asked: 0 })]);
+  });
+
+  test('two held, one already a card: kids 2 shown 1 asked 1', async () => {
+    const p = on({ store: { wq_d: DEV, wq_kids: [ZAR] }, api: { '/api/wq/known': { kids: [MAH, ZAR] }, '/api/wq/session': SESSION } });
+    await flush(); await flush();
+    expect(lines(p)).toEqual([expect.objectContaining({ n: 'link_known_answer', kids: 2, shown: 1, asked: 1 })]);
   });
 });
 
@@ -192,7 +199,7 @@ describe('a slow answer: the question still lands while the child has not touche
     expect(p.moment()).toBe('M4-known');
     expect(p.html()).toContain('Is it <bdi>Sadia</bdi>?');
     const [a] = named(p, 'link_known_answer');
-    expect(a).toMatchObject({ kids: 1 });
+    expect(a).toMatchObject({ kids: 1, shown: 0, asked: 1 });
     expect(Number.isInteger(a.ms) && a.ms >= 0).toBe(true);
     expect(named(p, 'link_known_late')).toEqual([]);
   });
@@ -234,7 +241,7 @@ describe('a slow answer: the question still lands while the child has not touche
     expect(p.moment()).toBe('M3');
     expect(p.html()).toBe(offHtml());
     expect(named(p, 'link_known_late')).toEqual([]);
-    expect(named(p, 'link_known_answer')).toEqual([expect.objectContaining({ kids: 0 })]);
+    expect(named(p, 'link_known_answer')).toEqual([expect.objectContaining({ kids: 0, shown: 0, asked: 0 })]);
   });
 
   test('a touch after the question is up changes nothing (the sheet stays, no late line)', async () => {

@@ -3196,8 +3196,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // as themselves. Asked once per quiz on this phone. Today's landing is drawn at once while it asks (never a blank
   // wait); the answer swaps it for the question only while the child has not touched the page (no tap, key, touch or
   // scroll) and the landing is still the screen. After a touch a late answer is dropped (link_known_late {ms}); every
-  // answer the server gave is timed (link_known_answer {ms, kids}; an error writes no line). "Someone else", nobody,
-  // an error or no answer: today's screen.
+  // answer the server gave is timed (link_known_answer {ms, kids, shown, asked}; an error writes no line).
+  // "Someone else", nobody, an error or no answer: today's screen.
   var KN_KEY = 'wq_kn_' + CODE;
   function knownOk() {
     return Boolean(B.link_known) && !B.preview && !B.invited && !B.challenge && !params.k && !S.st && !S.queue.length && !S.pending
@@ -3217,9 +3217,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       kids().forEach(function (k) { have[k.chip] = 1; });
       // An error, a fault or a reply of the wrong shape is not "nobody on this phone": no line, today's screen.
       if (!(r && r.ok && r.body && Array.isArray(r.body.kids))) return;
-      var list = r.body.kids.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first && !have[k.chip]; }).slice(0, 4);
+      var all = r.body.kids.filter(function (k) { return k && typeof k.chip === 'string' && k.chip && typeof k.first === 'string' && k.first; }).slice(0, 4);
+      var list = all.filter(function (k) { return !have[k.chip]; });
       var ms = Math.max(0, Date.now() - t0);
-      ev('link_known_answer', { ms: ms, kids: list.length });
+      // kids = the server's count, shown = those already a card here, asked = the ones asked about (a miss is kids 0)
+      ev('link_known_answer', { ms: ms, kids: all.length, shown: all.length - list.length, asked: list.length });
       if (!list.length) return;
       if (touched || ROOT.getAttribute('data-m') !== painted) return ev('link_known_late', { ms: ms });
       knownCards(list);
