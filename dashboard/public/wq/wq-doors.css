@@ -16,8 +16,8 @@
 .wq-shelf{min-height:8px}
 .wq-dempty{display:flex;flex-direction:column;gap:12px}
 .wq-dback{align-self:flex-start;min-height:48px;margin-bottom:6px;padding:0 20px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--navy);font-weight:800;cursor:pointer}
-.wq-wait{animation:wq-pulse 1.2s ease-in-out infinite}
-@keyframes wq-pulse{50%{opacity:.55}}
+.wq-wait{animation:wq-dpulse 1.2s ease-in-out infinite}
+@keyframes wq-dpulse{50%{opacity:.55}}
 .wq-vbox{position:relative;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:16/9}
 .wq-vid{display:block;width:100%;height:100%;background:#000}
 .wq-vplay{position:absolute;inset:0;margin:auto;width:84px;height:84px;border:0;border-radius:50%;background:var(--brand);color:#fff;font-size:34px;box-shadow:0 5px 0 var(--brand-d);cursor:pointer}
