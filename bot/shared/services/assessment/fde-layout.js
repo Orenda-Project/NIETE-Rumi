@@ -1291,8 +1291,25 @@ const nearWord = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.s
 const holdsWord = (list, w) => list.some((x) => nearWord(x, w));
 let backGeneric = null;
 let backFrame = null;
+// A key that is a date («23 مارچ 1940ء», «1940ء») belongs to one event, so a stem that prints it gives it away
+// whatever words the stems share. A concept term is given away when a stem prints it as the gloss of what the
+// Q1 stem asks about, or the other way round: «ایوانِ زیریں (قومی اسمبلی)» beside «ایوانِ زیریں کا دوسرا نام
+// کیا ہے؟ → قومی اسمبلی»; «شہنشاہیت (بادشاہت)» beside «بادشاہ یا ملکہ کے ملک چلانے کا نظام → شہنشاہیت».
+const DATE_KEY = /^\s*(?:[\d۰-۹]{1,2}\s+\p{L}+\s+)?[\d۰-۹]{4}\s*ء?\s*(?:میں|کو)?\s*[۔.]?\s*$/u;
+const GLOSS = /([^()\n]+?)\s*\(([^()\n]+)\)/g;
+function glossed(key, stemWords, text) {
+  const k = plain(key);
+  if (!k) return false;
+  const inStem = (words) => words.length > 0 && words.every((w) => holdsWord(stemWords, w));
+  return [...String(text).matchAll(GLOSS)].some((m) => {
+    const before = plain(m[1]);
+    const inside = plain(m[2]);
+    if (inside === k) return inStem(tokensOf(before.split(' ').slice(-2).join(' ')).filter((w) => w.length >= 3));
+    return ` ${before} `.endsWith(` ${k} `) && inStem(tokensOf(m[2]));
+  });
+}
 function givenBack(placed) {
-  backGeneric = backGeneric || new Set(tokensOf('حکومت ملک کام پاکستان ادارہ ادارے لوگ لوگوں نام کرنا معاملات علاقہ علاقے شخص شخصیت سال'));
+  backGeneric = backGeneric || new Set(tokensOf('حکومت ملک کام پاکستان ادارہ ادارے لوگ لوگوں کسی کوئی نام کرنا معاملات علاقہ علاقے شخص شخصیت سال'));
   const stems = placed.filter((q) => typeof q.question === 'string' && q.question.trim())
     .map((q) => ({ slot: q.slot, text: q.question, line: ` ${tokensOf(q.question).join(' ')} `, words: new Set(tokensOf(q.question)), asks: asksOf(q.question) }));
   backFrame = backFrame || new Set(tokensOf('مراد وضاحت بیان کریں کیجیے جاتا جاتی جاتے سمجھا کہا دو تین کوئی وجہ وجوہات بات طور آپ چاہیے کرنا مختصر جواب'));
@@ -1303,8 +1320,13 @@ function givenBack(placed) {
     const key = tokensOf(keyText(m));
     if (key.length && !BACK_CONCEPT.test(keyText(m)) && (key.some((w) => /\d/.test(w)) || key.join('').length >= 3)) {
       const printedKey = ` ${key.join(' ')} `;
+      const dated = DATE_KEY.test(keyText(m));
       const topic = tokensOf(m.question).filter((w) => !key.includes(w) && w.length >= 3 && !backGeneric.has(w));
-      if (stems.some((x) => x.line.includes(printedKey) && topic.some((w) => x.words.has(w)))) return 'key_in_stem';
+      if (stems.some((x) => x.line.includes(printedKey) && (dated || topic.some((w) => x.words.has(w))))) return 'key_in_stem';
+    }
+    if (key.length && BACK_CONCEPT.test(keyText(m))) {
+      const stemWords = tokensOf(m.question).filter((w) => !key.includes(w));
+      if (stems.some((x) => glossed(keyText(m), stemWords, x.text))) return 'key_in_stem';
     }
     const own = contentOf(m.question);
     const asks = asksOf(m.question);
