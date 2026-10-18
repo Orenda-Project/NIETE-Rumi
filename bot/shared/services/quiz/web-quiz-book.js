@@ -139,7 +139,7 @@ async function classOf(studentId, rows) {
   const hit = rows.find((r) => r.class_id);
   if (hit) return hit.class_id;
   try {
-    const { data, error } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    const { data, error } = await require('./web-quiz-hub-child-rows').read('class_enrollments', [studentId], 'class_id', () => supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
     const r = !error && (data || []).find((x) => x.class_id);
     return r ? r.class_id : null;
   } catch (_) {

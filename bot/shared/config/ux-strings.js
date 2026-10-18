@@ -2461,6 +2461,17 @@ const UX_STRINGS = {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
     ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
   },
+  // quiz_report_send_checked on: the teacher asked for their report from /quiz and WhatsApp did not take it. Never
+  // tqNoReportYet here — children finished. {link} is the class report page the report carried; without one, the
+  // second key. Two keys, not one with an optional placeholder (resolveUx throws on a missing one).
+  tqReportNotThrough: {
+    en: "Your report didn't come through on WhatsApp. You can see it here: {link}",
+    ur: '\u200Fآپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ رپورٹ یہاں دیکھیں:\n{link}',
+  },
+  tqReportNotThroughNoLink: {
+    en: "Your report didn't come through on WhatsApp. Please type /quiz again in a few minutes.",
+    ur: 'آپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ براہِ کرم چند منٹ بعد دوبارہ ⁦/quiz⁩ بھیجیں۔',
+  },
   // Names the refetch: the whole point of the button is that a child who
   // finished since the last report is counted this time.
   tqReportComing: {

@@ -22,7 +22,8 @@ jest.mock('../../../shared/config/supabase', () => {
       maybeSingle: async () => { state.reads.push(key); return { data: key in state.rows ? { key, value: state.rows[key] } : null, error: null }; },
       // the hub's one batched read (web-quiz-hub-flags.js): recorded as 'hub', its keys kept for the test to check
       in: (_c, ks) => { keys = ks; return q; },
-      then: (res, rej) => { state.reads.push('hub'); state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
+      // web-quiz-fast.js reads its own switch together with the story-board one (also an .in()): that is the fast switch's read
+      then: (res, rej) => { const fastRead = keys.includes('web_quiz_story_board_refuse'); state.reads.push(fastRead ? 'web_quiz_fast' : 'hub'); if (!fastRead) state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
     };
     return q;
   };
@@ -219,6 +220,6 @@ describe('the hub answer says edge_learn while on (so a portal that stopped aski
   });
   test('both hub routes (GET and POST /hub/:token) pass their answer through carry', () => {
     const src = require('fs').readFileSync(require.resolve('../../../shared/routes/web-quiz-internal.routes'), 'utf8');
-    expect((src.match(/EdgeLearn\(\)\.carry\(WaitUx\.carry\(OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
+    expect((src.match(/EdgeLearn\(\)\.carry\(HomePreload\.carry\([^\n]*?OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
   });
 });

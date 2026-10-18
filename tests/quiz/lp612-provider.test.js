@@ -42,6 +42,11 @@ const { logToFile } = require('../../bot/shared/utils/logger');
 const T = '11111111-1111-4111-8111-111111111111';
 const OTHER = '99999999-9999-4999-8999-999999999999';
 const PHONE = '923001234567';
+// A Wednesday noon (PKT). A lesson's date is its delivery's school day (cohortRuleDate): on a weekend clock a
+// Friday afternoon delivery is dated Monday and sorts above Sunday's, so "newest first" depended on the day the
+// suite ran. Pinned before the fixtures below read the clock.
+jest.useFakeTimers({ doNotFake: ['setImmediate', 'setTimeout', 'nextTick'] }).setSystemTime(new Date('2026-10-14T07:00:00Z'));
+afterAll(() => { jest.useRealTimers(); });
 const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
 
 const SEGMENTS = [

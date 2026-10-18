@@ -746,3 +746,30 @@ describe('every switch on: edge learning changes when the frame starts, never th
   });
 });
 
+
+// Source scan: every frame-time switch the router learns from a hub or quiz payload (a `last<Name> = …` the routes
+// assign) must also be written by learned(), the one learner: else a fresh process's first page (edge learning on) has
+// the frame without it until its first payload, which is how wait_share was missed once.
+describe('source scan: every last<Name> a payload sets is also set in learned()', () => {
+  const fs = require('fs');
+  const path = require('path');
+  // Payload-only switches (not frame-time), each with its reason. Empty today: every last<Name> dresses a page or a frame
+  // drawn before (or without) a bot answer.
+  const PAYLOAD_ONLY = Object.freeze({});
+  const src = fs.readFileSync(path.join(__dirname, '../routes/web-quiz.routes.js'), 'utf8');
+  const assigned = (code) => new Set([...code.matchAll(/(?<![\w.])(last[A-Z]\w*)\s*=(?!=)/g)]
+    .filter((m) => !/\b(let|const|var)\s+$/.test(code.slice(Math.max(0, m.index - 8), m.index)))
+    .map((m) => m[1]));
+
+  it('a frame-time switch learned from a hub payload must also be in learned() (fresh process)', () => {
+    const start = src.indexOf('const learned = (b) => {');
+    expect(start).toBeGreaterThan(-1);
+    const end = src.indexOf('\n  };', start);
+    const inLearned = assigned(src.slice(start, end));
+    const outside = assigned(src.slice(0, start) + src.slice(end));
+    expect(outside.size).toBeGreaterThanOrEqual(6); // lastBrand, lastRt, lastUi, lastFast, lastWaitUx, lastWaitShare at least
+    const missing = [...outside].filter((n) => !inLearned.has(n) && !Object.prototype.hasOwnProperty.call(PAYLOAD_ONLY, n)).sort();
+    if (missing.length) throw new Error(`a frame-time switch learned from a hub payload must also be in learned() (fresh process): ${missing.join(', ')}`);
+    expect(missing).toEqual([]);
+  });
+});
