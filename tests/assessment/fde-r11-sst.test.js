@@ -94,7 +94,8 @@ describe('1. which government does a job', () => {
       const d6 = placed(laid, 'social_studies.D.Q6');
       expect(d6.map((q) => q.question)).not.toContain(wrong.question);
       expect(d6).toHaveLength(5);
-      expect(short(laid, 'social_studies.D.Q6')).toBe(1);
+      // Since round 17, after the re-ask Q6 prints five of six (four to answer): not short.
+      expect(short(laid, 'social_studies.D.Q6')).toBe(reasked ? 0 : 1);
     }
   });
 
@@ -103,12 +104,17 @@ describe('1. which government does a job', () => {
       // The r10 red case, keyed as the book has it.
       { slot: 'social_studies.C.Q5', question: 'دکان داروں نے سڑک پر قبضہ کر کے راستہ بند کر دیا ہے۔ یہ مسئلہ کس حکومت کا ہے؟', answer: 'یہ صوبائی حکومت کا کام ہے کیونکہ عوامی سڑکوں اور راستوں سے تجاوزات ہٹانا صوبائی حکومت کی ذمہ داری ہے۔', scheme: { points: [{ kind: 'K', text: 'صوبائی حکومت', marks: 1 }, { kind: 'U', text: 'تجاوزات ہٹانا صوبائی کام ہے', marks: 2 }] } },
       // Two jobs, each keyed to its own government, and a comparison of all three.
-      { slot: 'social_studies.D.Q6', question: 'گلی میں گندا پانی جمع ہے اور ٹھیلوں نے راستہ روک رکھا ہے۔ کس حکومت سے رابطہ کریں؟', answer: 'نکاسی آب مقامی حکومت کا کام ہے۔ تجاوزات ہٹانا صوبائی حکومت کا کام ہے۔ وفاقی حکومت دفاع اور خارجہ پالیسی دیکھتی ہے، صوبائی حکومت امن و امان دیکھتی ہے اور مقامی حکومت مویشی منڈیاں لگاتی ہے۔', scheme: { points: [{ kind: 'K', text: 'نکاسی آب: مقامی حکومت', marks: 3 }, { kind: 'K', text: 'تجاوزات: صوبائی حکومت', marks: 3 }] } },
+      { slot: 'social_studies.D.Q6', question: 'گلی میں گندا پانی جمع ہے اور ٹھیلوں نے راستہ روک رکھا ہے۔ کس حکومت سے رابطہ کریں؟', answer: 'نکاسی آب مقامی حکومت کا کام ہے۔ تجاوزات ہٹانا صوبائی حکومت کا کام ہے۔ وفاقی حکومت دفاع اور خارجہ پالیسی دیکھتی ہے، صوبائی حکومت امن و امان دیکھتی ہے اور مقامی حکومت مویشی منڈیاں لگاتی ہے۔', scheme: { points: [{ kind: 'K', text: 'نکاسی آب: مقامی حکومت', marks: 2 }, { kind: 'K', text: 'تجاوزات: صوبائی حکومت', marks: 2 }, { kind: 'A', text: 'گندا پانی رکنے سے بیماریاں پھیلتی ہیں اس لیے جلد شکایت ضروری ہے', marks: 1 }, { kind: 'A', text: 'راستہ کھلنے سے لوگوں کی آمد و رفت آسان ہو جاتی ہے', marks: 1 }] } },
       // A local job, a pronoun carrying the tier.
       { slot: 'social_studies.D.Q7', question: 'مویشی منڈی کون لگاتا ہے؟', answer: 'مقامی حکومت۔ یہ نکاسی آب کا انتظام بھی دیکھتی ہے۔', scheme: { points: [{ kind: 'K', text: 'مقامی حکومت', marks: 2 }] } },
     ];
-    const laid = applyLayout(paper(right), SST, FDE, { reasked: false });
-    for (const q of right) expect(placed(laid, q.slot).map((x) => x.question)).toContain(q.question);
+    // The Q6 item explains with two ideas besides naming each government, so it is no naming-only recall
+    // item. Each on its own paper: the Q6 item's points hold the whole Q5 item (encroachment → provincial),
+    // which round 13 holds as one item asked twice; the tier rule is what is tested here.
+    for (const q of right) {
+      const laid = applyLayout(paper([q]), SST, FDE, { reasked: false });
+      expect(placed(laid, q.slot).map((x) => x.question)).toContain(q.question);
+    }
   });
 
   // Right by p.29, and never held: a contrast opener, a tier named by its short name (صوبہ، وفاق),
@@ -182,15 +188,18 @@ describe('2 + 4. the re-ask note', () => {
       const content = (replies[sec] || []).length > 1 ? replies[sec].shift() : replies[sec][0];
       return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
     });
+    // This recorded paper's held Q6s never print since round 17, so it ends short; the re-ask notes are what this test reads.
     await Gen.generatePatternExam({
       grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
       scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-r11',
-    });
+    }).catch((e) => { if (e.code !== 'PATTERN_SHORT_SLOT') throw e; });
     const d = asked.filter((a) => a.sec === 'D');
-    expect(d).toHaveLength(2);
+  // Round 15: a D item still held after D's re-ask gets one more D-only re-ask before the put-back.
+    expect(d).toHaveLength(3);
     expect(d[0].text).not.toContain('already keeps');
     expect(d[1].text).toContain('Q7 already keeps these items');
     expect(d[1].text).toMatch(/write \d+ new Q7 items/);
+    expect(d[2].text).toContain('These items were set aside');
   });
 });
 

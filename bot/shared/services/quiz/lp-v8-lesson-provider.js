@@ -200,18 +200,34 @@ function sinceIso(since) {
  * @param {{since?: string|Date, limit?: number}} [opts]
  * @returns {Promise<Array<{source, lessonRef, lessonId, date, deliveredAt, grade, subject, topic, lesson}>>}
  */
-async function list(teacherId, { since = null, limit = 20 } = {}) {
+async function list(teacherId, { since = null, limit = 20, light = false } = {}) {
   if (!teacherId) return [];
   const from = sinceIso(since);
   try {
-    const delivered = mustRead('lp lesson provider: downloads', await supabase.from('niete_lp_downloads')
+    const downloads = () => supabase.from('niete_lp_downloads')
       .select(DOWNLOAD_SELECT)
       .eq('user_id', teacherId).eq('status', 'sent').gte('created_at', from)
       .order('created_at', { ascending: false })
-      .limit(MAX_DOWNLOADS));
-    const rows = [...delivered, ...await appOpened(teacherId, from)];
+      .limit(MAX_DOWNLOADS);
+    let rows;
+    let coveredSoon = null;
+    if (light) {
+      // the teacher home's quick answer: the downloads, the app reads and the covered lessons asked together (the
+      // covered read's failure counts only where today's would have been made: when a lesson is ready)
+      coveredSoon = coveredLessonIds(teacherId, from).then((v) => ({ v }), (err) => ({ err }));
+      const [d, opened] = await Promise.all([downloads(), appOpened(teacherId, from)]);
+      rows = [...mustRead('lp lesson provider: downloads', d), ...opened];
+    } else {
+      const delivered = mustRead('lp lesson provider: downloads', await downloads());
+      rows = [...delivered, ...await appOpened(teacherId, from)];
+    }
     const ready = await makeable(rows);
-    const covered = ready.length ? await coveredLessonIds(teacherId, from) : new Set();
+    let covered = new Set();
+    if (ready.length && coveredSoon) {
+      const c = await coveredSoon;
+      if (c.err) throw c.err;
+      covered = c.v;
+    } else if (ready.length) covered = await coveredLessonIds(teacherId, from);
     const items = ready.filter((r) => !covered.has(r.lesson_id)).map(toItem)
       .sort((a, b) => (new Date(b.date) - new Date(a.date)) || (new Date(b.deliveredAt) - new Date(a.deliveredAt)));
     logEvent('quiz_menu.lesson_listed', {

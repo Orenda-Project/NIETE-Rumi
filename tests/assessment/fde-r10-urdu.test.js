@@ -117,7 +117,13 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
   test('a paper with no shared key lays out as before', () => {
     const exam = q4Only(clone(papers.lessons_4_5_failed));
     const { examJson } = applyLayout(exam, U, L45, { reasked: false });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    // One grammar concept once: the second شکیہ item («شکیہ جملے میں کون سا لفظ آ سکتا ہے؟») and the
+    // second تمنائی item («تمنائی جملے میں کس چیز کا اظہار ہوتا ہے؟») are held.
+    const q1 = items(examJson, 'urdu.A.Q1').map((q) => q.question);
+    expect(q1).toHaveLength(18);
+    expect(q1).not.toContain('شکیہ جملے میں کون سا لفظ آ سکتا ہے؟');
+    expect(q1).toContain('کون سا جملہ تمنائی ہے؟');
+    expect(q1).not.toContain('تمنائی جملے میں کس چیز کا اظہار ہوتا ہے؟');
   });
 
   test('the re-asked Section A is told Q4\'s questions and answers; other sections are not', () => {
@@ -294,6 +300,13 @@ describe('urdu Q6: verses that are not from the poem are never printed', () => {
       // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
       const tree = (sec === 'A' && topUpTree(prompt)) || treeFor(sec);
       if (sec === 'C') tree.subjective['Poem Explanation'] = [clone(asked.filter((x) => x === 'C').length === 1 ? first : second)];
+      // The recording's Q4 ارکان key splits «تواضع» apart from its own accepted answer, which asks
+      // Section C again for Q4; these tests are about Q6, so the key here agrees with the answer.
+      if (sec === 'C') {
+        Object.values(tree).flatMap((t) => Object.values(t)).flat()
+          .filter((q) => q.slot === 'urdu.C.Q4' && String(q.answer).includes('+'))
+          .forEach((q) => { q.answer = q.answer.replace('تو + اضع', 'ت + وا + ضع'); });
+      }
       return reply(tree);
     });
     return asked;

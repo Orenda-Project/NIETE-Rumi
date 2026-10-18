@@ -117,6 +117,7 @@ function env(opt = {}) {
     else if (/\/stories\/event\//.test(url)) {
       if (body.event === 'story_questions_done') r = { status: 200, body: { ok: true, correct: 1, total: 2, stars: 2 } };
       else if (body.event === 'story_answer') { const ok = opt.right ? opt.right(body.data) : true; r = { status: 200, body: ok || body.data.try !== 2 ? { ok: true, right: ok } : { ok: true, right: false, show: 0 } }; }
+      else if (body.event === 'story_done' && replies.done) r = replies.done;
       else if (body.event === 'story_done') r = { status: 200, body: { ok: true, sticker: opt.alwaysSticker ? true : opt.noSticker ? false : body.data.pages_read > 0 || body.data.pages_listened > 0 } };
       else r = { status: 200, body: { ok: true } };
     } else if (/\/lr\/key/.test(url)) r = replies.key || { status: 200, body: { ws: 'wss://x', api_key: 'k', model: 'm', lang: 'en' } };
@@ -136,7 +137,7 @@ function env(opt = {}) {
     win.WQReadAlong = {
       mount(el, data, o) {
         if (o.band) el.innerHTML = '<div class="wqra-pic wqra-band"></div>';
-        const p = { el, data, o, log: [], audio: {}, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, seekToWord(i) { p.log.push('seek:' + i); }, destroy() { p.log.push('destroy'); } };
+        const p = { el, data, o, log: [], slows: [], audio: {}, slow(on, g) { p.slows.push([on, g]); }, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, seekToWord(i) { p.log.push('seek:' + i); }, destroy() { p.log.push('destroy'); } };
         calls.ra.push(p); return p;
       },
       preload(d) { calls.preload = (calls.preload || []).concat([d.id]); },
@@ -1221,8 +1222,11 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
-    expect(zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12280);   // the ruled core budget (12,288 less 8)
+    // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
+    const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
+    console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
+    expect(qgz).toBeLessThanOrEqual(9 * 1024);
     expect(zlib.gzipSync(fs.readFileSync(DSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);   // the questions + done file
     const css = fs.readFileSync(CSS, 'utf8');
     expect(zlib.gzipSync(css, { level: 9 }).length).toBeLessThanOrEqual(3 * 1024);
@@ -1837,22 +1841,24 @@ describe('question audio and the slower voice', () => {
     a.currentTime = 2.41; e.advance(40); expect(a.paused).toBe(true);
     expect(e.calls.audios).toHaveLength(1);
   });
-  test('Slower: playbackRate 0.85 with pitch kept, remembered per child, applied after a page change; no number shown; not the primary', async () => {
+  // what the player does with it (the 0.85 stretch, or gaps with the book's slow_gaps): web-quiz-stories-slow-gaps
+  test('Slower: handed to the player (slow(on, the book\'s slow_gaps)), remembered per child, applied after a page change; no number shown; not the primary', async () => {
     const e = env(); const root = await openReader(e);
     const h = root.innerHTML;
     expect(h).toMatch(/<button class="wqs-slow" data-tap="slow" aria-pressed="false"><svg class="wqs-g"[^>]*><path[^>]*><\/svg> Slower<\/button>/);
     expect(text(h.split('wqs-slow')[1].split('</button>')[0])).not.toMatch(/[0-9]/);
-    fire(root, 'slow');
     const p = e.calls.ra[0];
-    expect(p.audio.playbackRate).toBe(0.85); expect(p.audio.preservesPitch).toBe(true);
+    expect(p.slows).toEqual([[false, undefined]]);
+    fire(root, 'slow');
+    expect(p.slows.pop()).toEqual([true, undefined]);
     expect(e.store.getItem('wq_st_slow:' + KID)).toBe('1');
     fire(root, 'next'); fire(root, 'prev');
     const p2 = e.calls.ra[e.calls.ra.length - 1];
     expect(p2).not.toBe(p);
-    expect(p2.audio.playbackRate).toBe(0.85);
+    expect(p2.slows).toEqual([[true, undefined]]);
     expect(root.innerHTML).toMatch(/data-tap="slow" aria-pressed="true"/);
     fire(root, 'slow');
-    expect(p2.audio.playbackRate).toBe(1);
+    expect(p2.slows.pop()).toEqual([false, undefined]);
     const ur = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
     const r2 = await openReader(ur, { lang: 'ur' });
     expect(r2.innerHTML).toContain('</svg> آہستہ');
@@ -3109,5 +3115,271 @@ describe('a kind screen on every stall: the edges', () => {
     expect(typeof im.l.load).toBe('function');
     im.l.load();
     expect(ph.style.display).toBe('none');
+  });
+});
+
+// ---- the reading moment (the book says read_fb: 1; app_settings web_quiz_read_feedback) ----------------------------
+describe('every read-aloud answered: the page after Your turn and the book\'s end', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };
+  const RFB = (over = {}) => ({ status: 200, body: book({ read_fb: 1, ...over }) });
+  const readPage1 = (e, root, marks) => { toMic(e, root); e.calls.ask[0].onStream({}); e.calls.lr[0].o.onResult(READ(marks)); return root.innerHTML; };
+  test('the book says nothing (key off): "Well read!" as today, no moment, the moment file never asked for', async () => {
+    const e = withMoment(env()); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    expect(h).toContain('Well read!');
+    expect(h).not.toContain('data-rf');
+    expect(e.calls.loaded.filter((x) => /wq-moment/.test(x.src || x.href || ''))).toHaveLength(0);
+  });
+  test('read_fb, the file not here yet: the reader asks for it once; the page stays today\'s until it is', async () => {
+    const e = env({ replies: { book: RFB() } }); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    expect(e.calls.loaded.filter((x) => x.tag === 'script' && /wq-moment\.js/.test(x.src))).toHaveLength(1);
+    expect(h).toContain('Well read!');
+  });
+  test.each(['en', 'ur'])('%s, read_fb: a page read well is answered with words, stars and lights (small), the speed hidden on a short page', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    expect(h).toContain('data-rf');
+    expect(h).toContain('wq-moment--s');
+    expect(h).toContain(lang === 'ur' ? 'آپ نے ۵ لفظ پڑھے!' : 'You read 5 words!');
+    expect(h).toContain('data-stars="3"');
+    expect(h).not.toContain(lang === 'ur' ? 'ایک منٹ میں' : 'a minute');
+    checkScreen(h, lang);
+  });
+  test('read_fb, a word skipped: the moment AND the word to practise; on a short page one word missed is still 3 stars, two missed is 1', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    expect(h).toContain('You read 4 words!');
+    expect(h).toContain('data-stars="3"');
+    expect(h).toContain('data-tap="word"');
+    const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
+    const h2 = readPage1(e2, r2, ['read', 'skipped', 'read', 'skipped', 'read']);
+    expect(h2).toContain('You read 3 words!');
+    expect(h2).toContain('data-stars="1"');
+  });
+  test('read_fb, nothing read: the kind moment ("let\'s read it together", a brave-try badge), no stars', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(h).toContain('data-badge="try"');
+    expect(h).not.toContain('wq-moment-star');
+    expect(text(/<section class="wq-moment[\s\S]*?<\/section>/.exec(h)[0])).not.toMatch(/\b(test|exam|slower)\b/i);   // (the page's own "Slower" pill is the voice speed)
+  });
+  test.each(['en', 'ur'])('%s, read_fb: the book\'s end shows the whole read — words, the jar with the speed beside it, faster than the last book', async (lang) => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', questions: [] }), done }, wqj: true })); const root = await openReader(e, { lang });
+    runBook(e, root); await flush(); await flush(); await flush();
+    const h = root.innerHTML;
+    expect(screenOf(h)).toBe('story-done');
+    expect(h).toContain(lang === 'ur' ? 'آپ نے ۴۸ لفظ پڑھے!' : 'You read 48 words!');
+    expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۷۲ لفظ' : '72 words a minute');
+    expect(h).toContain(lang === 'ur' ? 'پچھلی بار سے تیز!' : 'Faster than last time!');
+    expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('data-col'));
+    expect(primaries(h)).toBeLessThanOrEqual(1);
+  });
+  test('read_fb, a word skipped: "hear Jugnu say it" plays only the sentence with that word, from the page\'s own take, then stops', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    expect(h).toContain('data-tap="rfhear"');
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    p.log.length = 0; p.audio.currentTime = 0.1;
+    fire(root, 'rfhear');
+    expect(p.log).toEqual(['seek:0', 'play']);
+    p.audio.currentTime = 2.6; e.advance(40);   // past the sentence's last word (kite., ends 2500 ms)
+    expect(p.log).toEqual(['seek:0', 'play', 'pause']);
+    expect(e.calls.audios).toHaveLength(0);   // no second player: the ONE mute and one voice per book hold
+  });
+  test('read_fb: no replay on a page whose words are not timed well (quality low), on a page with no voice, or with no word skipped', async () => {
+    const low = book({ read_fb: 1 }); low.pages[0].quality = 'low';
+    const e1 = withMoment(env({ replies: { book: { status: 200, body: low } } })); const r1 = await openReader(e1);
+    expect(readPage1(e1, r1, ['read', 'read', 'read', 'skipped', 'read'])).not.toContain('rfhear');
+    const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
+    expect(readPage1(e2, r2, ['read', 'read', 'read', 'read', 'read'])).not.toContain('rfhear');   // "Listen again" already plays the page
+    const e3 = withMoment(env()); const r3 = await openReader(e3);
+    expect(readPage1(e3, r3, ['read', 'read', 'read', 'skipped', 'read'])).not.toContain('rfhear');   // key off
+  });
+  test.each(['en', 'ur'])('%s, read_fb: a page read short of 3 stars offers "read it again for 3 stars"; a tap starts Your turn again', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['read', 'skipped', 'read', 'skipped', 'read']);
+    expect(h).toContain('data-tap="rfagain"');
+    expect(h).toContain(lang === 'ur' ? 'تین ستاروں کے لیے پھر سے پڑھیں!' : 'Read it again for 3 stars!');
+    fire(root, 'rfagain');
+    expect(screenOf(root.innerHTML)).toBe('story-mic');
+  });
+  test('read_fb: 3 stars, or nothing read: no "read it again" (the kind card already leads)', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    expect(readPage1(e, root, ['read', 'read', 'read', 'read', 'read'])).not.toContain('rfagain');
+    const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
+    expect(readPage1(e2, r2, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped'])).not.toContain('rfagain');
+  });
+  test.each([['read', 'read', 'read', 'read', 'read'], ['read', 'skipped', 'read', 'skipped', 'read'], ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']])('read_fb: Jugnu stays on the page\'s result and reacts (%s…): cheering 3 stars, happy for fewer, hello after a 0-word try', async (...marks) => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const h = readPage1(e, root, marks);
+    const mo = /<section class="wq-moment[\s\S]*?<\/section>/.exec(h)[0];
+    const n = marks.filter((x) => x === 'read').length;
+    expect(mo).toContain(`/wq/jugnu/${n === 5 ? 'celebrate' : n ? 'correct' : 'hello'}.webp`);
+    expect(mo).toContain('wq-moment-jg');
+    const e0 = withMoment(env()); const r0 = await openReader(e0);
+    expect(readPage1(e0, r0, marks)).not.toContain('wq-moment-jg');   // key off: today's page
+  });
+  test.each(['en', 'ur'])('%s, read_fb, nothing read: one "read it together" line, and the chip says the action', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(text(h).match(lang === 'ur' ? /مل کر پڑھیں/g : /read it together/gi)).toHaveLength(1);
+    expect(h).toMatch(new RegExp(`data-tap="echo"[^>]*>${lang === 'ur' ? 'جگنو کے ساتھ پڑھیں' : 'Read with Jugnu'}<`));
+  });
+  test('key off, nothing read: today\'s line and chip, as they are', async () => {
+    const e = withMoment(env()); const root = await openReader(e);
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(h).toMatch(/data-tap="echo"[^>]*>Read it together</);
+  });
+  test.each(['en', 'ur'])('%s, read_fb, silence while reading: at 6 s Jugnu leans in ("come a little closer"), at 15 s the offer to read with Jugnu; a word heard takes it away', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    toMic(e, root); e.calls.ask[0].onStream({});
+    expect(screenOf(root.innerHTML)).toBe('story-read');
+    const lr = e.calls.lr[0]; let heard = 0;
+    lr.view = () => ({ heard, total: 5 });
+    const near = () => root.querySelector('[data-near]');
+    expect(near()).not.toBeNull();
+    e.advance(5000);
+    expect(near().hidden).toBe(true);
+    e.advance(1500);
+    expect(near().hidden).toBe(false);
+    expect(near().innerHTML.replace(/&#39;/g, "'")).toContain(lang === 'ur' ? 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!' : "I can't hear you yet. Come a little closer!");
+    expect(near().innerHTML).not.toContain('rfwith');
+    expect(root.querySelector('[data-jg]').className).toContain('wq-moment-lean');
+    e.advance(9000);
+    expect(near().innerHTML).toMatch(new RegExp(`data-tap="rfwith"[^>]*>${lang === 'ur' ? 'جگنو کے ساتھ پڑھیں' : 'Read with Jugnu'}<`));
+    heard = 1; e.advance(500);
+    expect(near().hidden).toBe(true);
+    expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
+  });
+  test('read_fb: "Read with Jugnu" ends the quiet read and Jugnu reads the page at once (one tap, never a dead end)', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const lr = e.calls.lr[0]; lr.view = () => ({ heard: 0, total: 5 });
+    e.advance(16000);
+    fire(root, 'rfwith');
+    expect(lr.log).toContain('stop:done_tap');
+    lr.o.onResult(READ(['ahead', 'ahead', 'ahead', 'ahead', 'ahead']));
+    expect(screenOf(root.innerHTML)).toBe('story-page');
+    expect(e.calls.ra[e.calls.ra.length - 1].log).toContain('play');
+  });
+  test('key off: the read screen has no nudge line and Jugnu never leans', async () => {
+    const e = withMoment(env()); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({});
+    e.calls.lr[0].view = () => ({ heard: 0, total: 5 });
+    e.advance(16000);
+    expect(root.innerHTML).not.toContain('data-near');
+    expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
+  });
+  // "Hear Jugnu say it" plays one sentence on the page's own player: its 40 ms watch stops with the sentence, and
+  // never outlives it (the reader gone, the player stopped, or the page's own Listen taking over)
+  const hearTicks = (e) => { const set = e.clock.set; const n = { k: 0 }; e.clock.set = (f, ms) => { if (ms === 40) n.k += 1; return set(f, ms); }; return n; };
+  const hearOn = async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    const n = hearTicks(e);
+    p.log.length = 0; p.audio.currentTime = 0.1;
+    fire(root, 'rfhear');
+    return { e, root, p, n };
+  };
+  test('read_fb: leaving the reader while Jugnu says the sentence stops its watch (no timer left behind)', async () => {
+    const { e, root, n } = await hearOn();
+    e.advance(200);
+    fire(root, 'back');
+    const k = n.k;
+    e.advance(60000);
+    expect(n.k - k).toBeLessThanOrEqual(1);
+  });
+  test('read_fb: "read it again" after Jugnu\'s sentence (the player stopped): the watch ends within a second', async () => {
+    const { e, root, p, n } = await hearOn();
+    e.advance(200);
+    p.audio.paused = true;
+    fire(root, 'rfagain');
+    e.advance(10000);
+    expect(n.k).toBeLessThan(40);
+    expect(p.log.filter((x) => x === 'pause')).toHaveLength(0);
+  });
+  test('read_fb: the page\'s own Listen after Jugnu\'s sentence (the take starts again from earlier) is never cut at that sentence\'s end', async () => {
+    const { e, p } = await hearOn();
+    p.audio.currentTime = 1.2; e.advance(40);
+    p.audio.currentTime = 0; e.advance(40);   // Listen: back to the page's start
+    p.audio.currentTime = 2.6; e.advance(40);
+    expect(p.log).toEqual(['seek:0', 'play']);
+  });
+  test('read_fb: the page\'s moment plays its motion once; a redraw of the same read lays it in still, a new read moves again', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); await openReader(e);
+    const M = e.win.WQMoment, R = { P: book({ read_fb: 1 }).pages, L: 'en', b: { grade: 2 }, C: e.clock }, m = { i: 0 };
+    const rd = { s: { words_read: 4, words_total: 5, ms: 3000, marks: ['read', 'read', 'read', 'skipped', 'read'] }, i: 0 };
+    const x = { rd, st: 'read', sents: () => [] };
+    expect(M.q('page', R, m, x)).not.toContain('wq-moment--still');
+    expect(M.q('page', R, m, x)).toContain('wq-moment--still');
+    expect(M.q('page', R, m, { ...x, rd: { s: { ...rd.s }, i: 0 } })).not.toContain('wq-moment--still');
+  });
+  test('read_fb: a read of one page never answers another page (back on page 1 after reading page 2: page 1\'s own words)', async () => {
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }) } })); const root = await openReader(e);
+    readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    fire(root, 'main'); fire(root, 'next');
+    fire(root, 'main'); fire(root, 'mic'); e.calls.ask[1].onStream({});
+    e.calls.lr[1].o.onResult(READ(['read', 'skipped', 'skipped', 'skipped']));
+    expect(root.innerHTML).toContain('You read 1 word!');
+    fire(root, 'prev');
+    expect(root.innerHTML).not.toContain('You read 1 word!');
+  });
+  test('read_fb, a book only listened to, even with a reading in the answer: no moment (nothing was read aloud on this phone)', async () => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'close'); fire(root, 'next');
+    fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'close'); fire(root, 'main');
+    await flush(); await flush(); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-done');
+    expect(root.innerHTML).not.toContain('data-rf');
+  });
+  test('read_fb, the book\'s end with no finish card: ONE sound (the finish fanfare), never the badge jingle on top of it', async () => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done }, wqj: true })); const root = await openReader(e);
+    e.win.WQJ.badge = () => e.calls.juice.push('badge'); e.win.WQJ.sentence = () => e.calls.juice.push('sentence');
+    // runBook's steps, the last tap apart: each page's own result had its one jingle; the book's end is counted alone
+    toMic(e, root); fire(root, 'mic'); e.calls.ask[0].onStream({});
+    e.calls.lr[0].o.onResult(READ(['read', 'read', 'skipped', 'read', 'read']));
+    fire(root, 'main'); fire(root, 'next');
+    fire(root, 'main'); fire(root, 'mic'); e.calls.ask[1].onStream({});
+    e.calls.lr[1].o.onResult(READ(['read', 'read', 'read', 'read']));
+    e.calls.juice.length = 0;
+    fire(root, 'main'); await flush(); await flush(); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-done');
+    expect(root.innerHTML).toContain('data-rf');
+    expect(e.calls.juice.filter((x) => /^(finish|badge|sentence)/.test(x))).toEqual(['finish:3']);
+  });
+  test.each(['en', 'ur'])('%s, read_fb: beside the finish card the book\'s read is the compact strip (the card\'s Next stays on the first screen); a card that refuses: the full moment', async (lang) => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    for (const [ok, small] of [[true, true], [false, false]]) {
+      const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', questions: [], card_v3: true }), done }, onLoad: (w) => { w.WQFC = { mount: () => ok }; } }));
+      const root = await openReader(e, { lang });
+      runBook(e, root); await flush(); await flush(); await flush();
+      const h = root.innerHTML;
+      expect([ok, /<section class="wq-moment[^"]*"/.exec(h)[0].includes('wq-moment--s')]).toEqual([ok, small]);
+      expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۷۲ لفظ' : '72 words a minute');
+    }
+  });
+  test('read_fb, the first screen: the strip is one grid row-set, and only while a page\'s strip is there does the picture give up height (capped at today\'s 62vh)', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(css).toMatch(/\.wqs \.wq-moment--s\{display:grid;grid-template-columns:auto 1fr auto;/);
+    // the Urdu "read it again" chip on a small phone: its label fits its box (scrollHeight 41 > 40 before; measured 40 = 40)
+    expect(css).toContain('.wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:4px 6px;font-size:15px;line-height:1.6}');
+    expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
+    expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:160px\}/);
+    // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
+    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/^\.wqs-near/.test(sel));
+    expect(outside).toEqual([]);
+  });
+  test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
+    const done = { status: 200, body: { ok: true, sticker: true } };
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
+    runBook(e, root); await flush(); await flush(); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-done');
+    expect(root.innerHTML).not.toContain('data-rf');
   });
 });

@@ -82,15 +82,16 @@ describe('(2) the Section A top-up of a recorded paper: Q3/Q5 words named, two s
     return applyLayout(tree, U, rec.scope, { reasked: false });
   };
 
-  test('the first reply holds the two Q3 meaning items; the top-up note names the Q3/Q5 words and asks for 4', () => {
+  test('the first reply holds the two Q3 meaning items; the top-up note names the Q3/Q5 words and asks for 5', () => {
     const laid = firstLayout();
-    expect(laid.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 2 });
+    // The two meaning items, and the second شکیہ item (one grammar concept once).
+    expect(laid.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 3 });
     expect(q1Stems(laid.examJson).some((s) => /شانہ بشانہ|شاطر/.test(s))).toBe(false);
     const note = takenNote(U, sectionA, laid.examJson, { topUp: true, shortfall: laid.shortfall });
     expect(note).toMatch(/Q3 and Q5 of this paper ask the meaning of[^\n]*شانہ بشانہ/);
     expect(note).toMatch(/Q3 and Q5 of this paper ask the meaning of[^\n]*شاطر/);
     expect(note).toContain('No MCQ you write in this section may ask the meaning of any of these words');
-    expect(note).toMatch(/Write 4 new items/);
+    expect(note).toMatch(/Write 5 new items/);
   });
 
   // The replies as recorded. The re-ask writes what its note asks for: the recorded two («دندان
@@ -136,7 +137,8 @@ describe('(2) the Section A top-up of a recorded paper: Q3/Q5 words named, two s
       expect(a).toHaveLength(2);
       expect(a[0].prompt).not.toContain('Q3 and Q5 of this paper');
       expect(a[1].prompt).toMatch(/Q3 and Q5 of this paper ask the meaning of[^\n]*شانہ بشانہ/);
-      expect(a[1].prompt).toMatch(/Write 4 new items/);
+      // Three places (the two meaning items and the second شکیہ item) and two spares.
+      expect(a[1].prompt).toMatch(/Write 5 new items/);
     });
   });
 });

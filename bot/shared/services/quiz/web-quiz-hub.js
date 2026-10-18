@@ -38,6 +38,7 @@
  */
 const supabase = require('../../config/supabase');
 const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
+const ChildRows = require('./web-quiz-hub-child-rows'); // the children's own rows once per answer (web_quiz_hub_child_memo)
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const Tel = require('./web-quiz-telemetry');
@@ -145,7 +146,7 @@ function firstOfEach(rows, max = RECS_MAX) {
 async function kidClasses(studentId, history) {
   const ids = new Set();
   try {
-    const { data } = await dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
+    const { data } = await ChildRows.read('class_enrollments', [studentId], 'class_id', () => dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true)));
     (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   } catch (_) { /* no roster: the played codes only */ }
   const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
@@ -169,7 +170,7 @@ async function recentCodes(teachers) {
   return plain.data || [];
 }
 
-const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
+const { lessonRefs } = require('./web-quiz-lesson-refs');
 
 async function teacherCard(kidRow, list, history, grade, homeP = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
@@ -356,11 +357,11 @@ async function kidFromHub(token, chip, device) {
 
 // `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
 async function kidContext(studentId, known = null) {
-  const { data: row } = known ? { data: known.row } : await dbRead('kidContext:students:1', (db) => db.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
+  const { data: row } = known ? { data: known.row } : await ChildRows.read('students', [studentId], 'id, student_name, student_name_urdu, self_reported_class, list_id, is_active', () => dbRead('kidContext:students:1', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle()), { single: true });
   if (!row || row.is_active === false) return null;
   const { data: list } = known ? { data: known.list } : row.list_id
-    ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
+    ? await ChildRows.read('student_lists', [row.list_id], 'id, user_id, class_name, section', () => dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle()), { single: true })
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
   const history = await StudentQuiz.quizzesForStudents([row]);
@@ -432,31 +433,96 @@ async function lockedHub(ids, why, asked = null, linked = null) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
+/**
+ * The hub's children rows and their lists, read for the ids as given before the identity lookup has answered
+ * (web_quiz_hub_fanout). take(ids) gives them back only when every one of `ids` was asked for, so the rows are
+ * exactly what the same reads for `ids` would answer (null: read again, as off); lists(listIds) the same for the
+ * lists, when every list id was asked for. A failed early read is never used and never thrown here.
+ */
+function earlyRows(given, readRows, readLists) {
+  const asked = new Set(given);
+  const rowsP = Promise.resolve().then(() => readRows(given));
+  const listsP = rowsP.then((res) => {
+    const listIds = [...new Set(((res && res.data) || []).filter((r) => r && r.is_active !== false).map((r) => r.list_id).filter(Boolean))];
+    return listIds.length ? readLists(listIds).then((l) => ({ listIds: new Set(listIds), res: l })) : null;
+  });
+  rowsP.catch(() => {});
+  listsP.catch(() => {});
+  return {
+    async take(ids) {
+      if (!ids.every((id) => asked.has(id))) return null;
+      const rowsRes = await rowsP.catch(() => null);
+      if (!rowsRes || rowsRes.error) return null;
+      const early = await listsP.catch(() => null);
+      return { rowsRes, lists: (listIds) => (early && !early.res.error && listIds.every((id) => early.listIds.has(id)) ? early.res : null) };
+    },
+  };
+}
+
+// web_quiz_hub_fanout: the cached switch readers on the hub's path, kept warm by web-quiz-hub-warm.js between visits
+// (each answers from its own cache while fresh). They live here, not in the keeper, so the keeper needs no module that
+// leads back to the hub.
+const HUB_SWITCH_READERS = [
+  () => require('./web-quiz-ur-polish').ui(),
+  () => require('./web-quiz-identity-flags').flags(),
+  () => require('./web-quiz-student-join').flags(),
+  () => require('./web-quiz-bind-way-back').on(),
+  () => require('./web-quiz-return-lang').on(),
+  () => require('./web-quiz-next-offer-state').raw(),
+  () => require('./web-quiz-hub-play').switches(),
+  () => require('./web-quiz-challenge').recordOn(),
+  () => require('./web-quiz-challenge').missingOn(),
+  () => require('./web-quiz-challenge').poolOn(),
+  () => require('./web-quiz-challenge').listenOn(),
+  () => require('./web-quiz-book').flags(),
+  () => require('./web-quiz-telemetry').flag(),
+  () => brandKey(),
+];
+
+async function hubPayload(token, { kid, device, src, lang: wanted, st = null } = {}) {
+  const mark = st ? (n) => st.mark(n) : () => {}; // the step timings (web-quiz-server-timing.js); nothing without a stopwatch
   if (!T.secret()) fail(503, 'web_quiz_off');
   const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
   if (practice) return practice;
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
-  const asked = await askedLang(wanted);
-  const linked = await linkedLang(token);
-  const trust = await deviceTrusted(token, device);
+  // web_quiz_hub_fanout: the reads that do not need each other's answers start together (the same answer, byte for byte)
+  const together = f.fanout === true;
+  if (together) require('./web-quiz-hub-warm').touch(HUB_SWITCH_READERS); // the hub's switches stay warm for the next child
+  const brandP = together ? brandKey() : null;
+  let asked; let linked; let trust; let idFlags = null;
+  if (together) [asked, linked, trust, idFlags] = await Promise.all([askedLang(wanted), linkedLang(token), deviceTrusted(token, device), require('./web-quiz-identity-flags').flags()]);
+  else {
+    asked = await askedLang(wanted);
+    linked = await linkedLang(token);
+    trust = await deviceTrusted(token, device);
+  }
+  mark('gate');
   if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
+  const readRows = (them) => ChildRows.read('students', them, 'id, student_name, student_name_urdu, self_reported_class, list_id, is_active', () => dbRead('hubPayload:students:1', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', them)));
+  const readLists = (listIds) => ChildRows.read('student_lists', listIds, 'id, user_id, class_name, section', () => dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', listIds)));
+  // web_quiz_hub_fanout: the children's rows and lists for the ids as given are read beside the identity lookup below;
+  // used only when every id it gives is one of them (the usual case), else read again for its ids, as off.
+  const early = together ? earlyRows(mine, readRows, readLists) : null;
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
-  if ((await require('./web-quiz-identity-flags').flags()).canon) {
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
+  if ((idFlags || await require('./web-quiz-identity-flags').flags()).canon) {
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIdsShared(mine);
     mine = [...new Set(mine.map((id) => canon.get(id) || id))];
   }
+  mark('gate');
 
-  const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
+  const pre = early ? await early.take(mine) : null;
+  const { data: rows } = pre ? pre.rowsRes : await readRows(mine);
   const kidsRows = mine.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
+  const listIds = kidsRows.map((r) => r.list_id).filter(Boolean);
   const { data: lists } = kidsRows.some((r) => r.list_id)
-    ? await dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
+    ? (pre && pre.lists(listIds)) || await readLists(listIds)
     : { data: [] };
+  mark('kids');
   const listOf = (r) => (lists || []).find((l) => l.id === r.list_id) || null;
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
@@ -467,10 +533,14 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const homeP = chosen ? require('./web-quiz-hub-home').prefetch(chosen.id) : null;
   // Stories too (hubBits never rejects; {} while web_quiz_stories is off): its reads run beside the hub's own.
   const storiesP = chosen ? require('./web-quiz-stories').hubBits({ studentId: chosen.id }) : null;
+  // Jugnu's Book needs the child alone: started here too when the reads go together (awaited in today's place).
+  const bookP = together && chosen ? require('./web-quiz-book').hubBits({ studentId: chosen.id }) : null;
+  if (bookP) bookP.catch(() => {});
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
   const StudentQuiz = require('./student-quiz.service');
+  mark('ctx');
   const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
@@ -479,24 +549,27 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     kid: chosen ? kidChip(chosen.id) : null,
     teacher: null, again: [], recs: [], challenge: null, lib: null,
     // Which brand the page wears: a key only; the edge owns the look (as getQuiz).
-    brand: await brandKey(),
+    brand: await (brandP || brandKey()),
   };
   // Events v2 (web_quiz_events_v2): hub_open gains the envelope and the phone's key (kid only once a child is picked).
   // src is the route the caller passed (the hub URL's from=), only from the known set; the return mark (ret) is not known here.
   const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
   // ...and the page's event batches carry the hub token and the picked chip (hub.js, wq-tel.js setIds). Off: no key.
   if (f.hub && f.eventsV2) out.ev2 = true;
+  if (together) return payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark });
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
   // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
   // never the "keep my place" card again, on any link (quiz_student_join; off: untouched)
   if (chosen && out.bind && out.bind.offer) await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
+  mark('take');
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
   out.teacher = await teacherCard(chosen, ctx.list, history, grade, homeP);
+  mark('teacher');
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -513,6 +586,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
+  mark('recs');
   // The tile asks the challenge's own grade rule (a band of grades is no grade there), so it never opens onto a refusal.
   const form = await challengeP;
   if (form) out.challenge = { on: true };
@@ -526,33 +600,125 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const collect = {};
   // the ranked next thing's own reads start now, beside Jugnu's corner and the Book (null at once while it is off)
   const nextPrep = require('./web-quiz-next-offer-sources').hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form) });
-  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form), collect })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
+  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  mark('play');
   // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
   // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
+  mark('home');
+  return out;
+}
+
+/**
+ * hubPayload's second half with web_quiz_hub_fanout on: the same fields, set in the same order (so the JSON is the
+ * same, byte for byte), but the parts that need only the child's history start together: the keep-my-place extras,
+ * the teacher card, the last quiz's answered count, the recommendations and Jugnu's corner (once the challenge's form
+ * and the answered count are known); the Book was started with the child's first reads. The ranked next thing still
+ * starts once the teacher, last quiz, recommendations and library are on `out`, as today.
+ * Step timings: the parts that run side by side are one step, timed as `teacher` (then `play` for the Book, `home`).
+ */
+async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark }) {
+  const extrasP = (async () => {
+    await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
+    if (chosen && out.bind && out.bind.offer) await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
+  })();
+  if (!chosen) {
+    await extrasP;
+    mark('take');
+    logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
+    return out;
+  }
+  const grade = ctx.grade;
+  const last = f.childHome ? lastOf(history, chosen.id) : undefined;
+  const answeredP = last && last.state === 'open'
+    ? answeredSoFar(history.find((e) => e.code === last.code), last.answered).then((n) => { last.answered = n; })
+    : Promise.resolve();
+  const NO_RECS = {};
+  const recsP = recsFor(chosen.id, history, grade).catch((err) => {
+    logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
+    return NO_RECS;
+  });
+  const collect = {};
+  const playP = Promise.all([challengeP, answeredP]).then(([form]) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: f.childHome ? last : undefined, lang: out.lang, challenge: form ? { on: true } : null, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect, together: true }));
+  const [, teacher, , recs, form, play] = await Promise.all([extrasP, teacherCard(chosen, ctx.list, history, grade, homeP), answeredP, recsP, challengeP, playP]);
+  mark('teacher');
+  out.teacher = teacher;
+  out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
+  if (f.homeButton) out.nav_home = true;
+  if (f.childHome) {
+    out.home_v = 1;
+    out.last = last;
+    if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
+    if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
+  }
+  if (recs !== NO_RECS) out.recs = recs;
+  if (form) out.challenge = { on: true };
+  const newest = history.find((e) => e.active && e.code);
+  if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${out.lang}` };
+  else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
+  if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
+  const nextPrep = require('./web-quiz-next-offer-sources').hubPrep({ out, token, history, lang: out.lang, chosenId: chosen.id, grade, stopsOf: () => trailStops(form) });
+  Object.assign(out, play);
+  logEvent('web_quiz.hub_open', openEv({
+    kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
+    again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
+  }, chosen.id));
+  Object.assign(out, await bookP);
+  mark('play');
+  const [storyBits, homeBits, nextField] = await Promise.all([
+    storiesP,
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade }),
+    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
+  ]);
+  Object.assign(out, storyBits, homeBits, nextField);
+  mark('home');
   return out;
 }
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
+  // web_quiz_hub_child_memo on (the hub's own switch cache; never read here): the children's own rows are read once for
+  // the whole answer, shared by every part that asks for them (web-quiz-hub-child-rows.js). The same JSON, byte for byte.
+  if (Flags.childMemoNow() && !ChildRows.inside()) return ChildRows.run(() => hub(token, opts));
+  // web_quiz_hub_fanout on (the hub's own switch cache; never read here): the Urdu polish, the answer and the telemetry
+  // switch side by side, and the hub's switches kept warm for the next child. The same JSON, byte for byte.
+  if (Flags.fanoutNow()) return hubTogether(token, opts);
   const ui = await require('./web-quiz-ur-polish').ui();
+  if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
+  // the live reading meter (web_quiz_live_meter, read only under live reading v3): read beside the payload, never after it
+  const paceP = require('./web-quiz-live-read-v3').forHub();
   const out = await hubPayload(token, opts);
+  if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
-  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  const rt = await Tel.flag();
+  // its variant, so the edge loads the meter; off ⇒ nothing
+  const pace = out.locked ? {} : await paceP;
+  if (opts.st) opts.st.mark('tail');
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+}
+
+async function hubTogether(token, opts) {
+  const fast = require('./web-quiz-fast').on();
+  const [ui, out, rt, paceF] = await Promise.all([require('./web-quiz-ur-polish').ui(), hubPayload(token, opts), Tel.flag(), require('./web-quiz-live-read-v3').forHub()]);
+  if (opts.st) opts.st.mark('other');
+  const listen = !out.locked && (await Flags.flags()).readalong;
+  const pace = out.locked ? {} : paceF;
+  if (opts.st) opts.st.mark('tail');
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 module.exports = {
@@ -561,5 +727,5 @@ module.exports = {
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
   // the per-child reads, for a result card's next thing (web-quiz-next-offer-sources.js snapshot)
-  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf },
+  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf, lessonRefs },
 };

@@ -14,6 +14,7 @@ const path = require('path');
 
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const U = Patterns.get('fde_g5_2027').subjects.urdu;
 const FDE = { kind: 'fde', chapters: null, pages: null };
@@ -40,8 +41,10 @@ describe('urdu Q1 ↔ Q4: a Q1 stem that prints a Q4 sentence is held', () => {
     const { examJson, shortfall } = applyLayout(clone(full1), U, FDE, { reasked: false });
     const q1 = items(examJson, 'urdu.A.Q1');
     expect(q1.map((q) => q.question)).not.toContain(TWIN);
-    expect(q1).toHaveLength(19);
-    expect(shortfall).toEqual(expect.arrayContaining([expect.objectContaining({ slot: 'urdu.A.Q1', missing: 1 })]));
+    // The full syllabus asks the antonym and the synonym once: their later items are held as well.
+    const again = conceptRepeats(items(full1, 'urdu.A.Q1')).length;
+    expect(q1).toHaveLength(19 - again);
+    expect(shortfall).toEqual(expect.arrayContaining([expect.objectContaining({ slot: 'urdu.A.Q1', missing: 1 + again })]));
   });
 
   test('Q4 is untouched: all four items, Q4 ۲ with its sentence and key', () => {
@@ -53,7 +56,8 @@ describe('urdu Q1 ↔ Q4: a Q1 stem that prints a Q4 sentence is held', () => {
 
   test('every other Q1 item of the paper stays: no other stem is read as a twin', () => {
     const { examJson } = applyLayout(clone(full1), U, FDE, { reasked: false });
-    const before = items(full1, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== TWIN);
+    const again = conceptRepeats(items(full1, 'urdu.A.Q1'));
+    const before = items(full1, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== TWIN && !again.includes(s));
     expect(items(examJson, 'urdu.A.Q1').map((q) => q.question).sort()).toEqual(before.sort());
   });
 
@@ -74,7 +78,7 @@ describe('urdu Q1 ↔ Q4: a Q1 stem that prints a Q4 sentence is held', () => {
     q1.options = ['الف) اگر', 'ب) بارش', 'ج) تو', 'د) گھر'];
     q1.answer = 'الف) اگر';
     const { examJson } = applyLayout(exam, U, FDE, { reasked: false });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20 - conceptRepeats(items(exam, 'urdu.A.Q1')).length);
   });
 
   test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {

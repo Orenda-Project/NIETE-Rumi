@@ -148,4 +148,23 @@ ${b.sample_audio ? `<p class="hear"><span>${esc(T.hear)}</span><audio controls p
 </html>`;
 }
 
-module.exports = { renderShelf, renderPreview, COPY };
+const SEND_REDIRECT_ORIGINS = ['https://wa.me', 'https://api.whatsapp.com'];
+const inline = (html, tag) => [...html.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => m[1]);
+
+/**
+ * The page with its security policy (app_settings quiz_teacher_stories_csp): every inline <script> and <style> allowed
+ * by the sha256 of its text as rendered, the same policy shape as the teacher home (its csp()). Returns the page with
+ * the policy <meta> and the header policy (the meta's + frame-ancestors 'none', which a <meta> cannot carry).
+ */
+function withPolicy(html) {
+  const { csp, sha } = require('../services/first-touch/teacher-home.page');
+  const styles = inline(html, 'style').map(sha);
+  const scripts = inline(html, 'script').map(sha);
+  const media = /<audio\b/.test(html);
+  // "Send to class" posts here and is answered 302 → wa.me (and wa.me on to WhatsApp's own page).
+  const formTo = /<form\b/.test(html) ? SEND_REDIRECT_ORIGINS : [];
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${esc(csp(styles, scripts, { meta: true, media, formTo }))}">\n`;
+  return { html: html.replace('<meta name="robots"', `${meta}<meta name="robots"`), csp: csp(styles, scripts, { media, formTo }) };
+}
+
+module.exports = { renderShelf, renderPreview, withPolicy, SEND_REDIRECT_ORIGINS, COPY };
