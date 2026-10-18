@@ -124,6 +124,8 @@ function createFlnSendRouter({
     let plan;
     try {
       const c = corpus || defaultCorpus();
+      // The corpus service is lazy: unloaded, every id reads as hidden. Load first; unloadable is 503 (RT #2956).
+      if (typeof c.ensure === 'function' && !(await c.ensure())) return res.status(503).json({ error: 'fln_unavailable' });
       if (await c.isHidden(planId)) return res.status(404).json({ error: 'not_found' });
       plan = await c.plan(planId);
     } catch (err) {

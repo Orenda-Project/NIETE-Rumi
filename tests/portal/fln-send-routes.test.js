@@ -29,6 +29,7 @@ beforeEach(() => {
   access = { lessons: true, share: true, role: 'coach', ui_lang: 'en' };
   inserted = []; sql = []; botCalls = 0;
   corpus = {
+    ensure: jest.fn(async () => true), // the real service's shape (PR-C): lazy load first
     isHidden: jest.fn(async (id) => String(id) === '999'),
     plan: jest.fn(async (id) => (String(id) === '404404' ? null : { id: Number(id), title: 'Sounds of c/k', lang: 'en' })),
   };
@@ -257,4 +258,41 @@ test('the default requireFln comes from dashboard/lib/fln-access.js (virtual stu
   access.share = false;
   const res = await req(await listen(a), 'GET', '/api/portal/fln/teachers');
   expect(res.status).toBe(404);
+});
+
+// RT BLOCK #2956: m-app's real corpus service is lazy — until it has loaded, isHidden() says every id is hidden. The
+// send must load it first (unloadable → 503), or every send after a restart / on a second replica is a false 404.
+// Runs on PR-C's real service + fixture; skipped (and says so) on a branch without them.
+const fsx = require('fs');
+const pathx = require('path');
+const HAS_CORPUS = fsx.existsSync(pathx.join(__dirname, '../../dashboard/services/fln-corpus.service.js'))
+  && fsx.existsSync(pathx.join(__dirname, 'fixtures/fln-corpus.fixture.js'));
+if (!HAS_CORPUS) console.log('fln-send-routes real corpus: skipped — PR-C fln-corpus.service.js not on this branch');
+(HAS_CORPUS ? describe : describe.skip)('POST /fln/send on the REAL corpus service', () => {
+  let Real;
+  beforeEach(() => {
+    delete process.env.FLN_CORPUS_BASE;
+    delete process.env.CONTENT_R2_PUBLIC_URL; // nothing to load from: a cold ensure() resolves false
+    jest.doMock('../../dashboard/config/supabase', () => ({
+      from: () => { const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: null, error: null }) }; return q; },
+    }));
+    Real = require('../../dashboard/services/fln-corpus.service');
+    corpus = Real;
+  });
+
+  test('cold: 503 fln_unavailable and the bot is never called (not a false 404)', async () => {
+    Real.__resetForTests();
+    const res = await req(await portal(), 'POST', '/api/portal/fln/send', { plan: 900003, teachers: [keyOf(T1)] });
+    expect([res.status, res.body]).toEqual([503, { error: 'fln_unavailable' }]);
+    expect(botCalls).toBe(0);
+  });
+
+  test('loaded: a served plan sends; a hidden one is 404', async () => {
+    Real.__setForTests(require('./fixtures/fln-corpus.fixture').build());
+    const ok = await req(await portal(), 'POST', '/api/portal/fln/send', { plan: 900003, teachers: [keyOf(T1)] });
+    expect(ok.status).toBe(200);
+    expect(botCalls).toBe(1);
+    const hidden = await req(await portal(), 'POST', '/api/portal/fln/send', { plan: 900007, teachers: [keyOf(T1)] });
+    expect(hidden.status).toBe(404);
+  });
 });
