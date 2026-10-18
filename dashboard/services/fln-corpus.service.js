@@ -343,6 +343,8 @@ function placementOf(id) {
       subject: r.subject,
       level: r.level,
       grades: gradesOf(r.subject, r.level),
+      // The grade this row places the lesson in: a level's two grades can hold it at different positions (QT-counts).
+      grade: Number(r.grade) || null,
       strand: r.strand,
       chapter_title_en: r.chapter_title_en || null,
       chapter_title_ur: r.chapter_title_ur || null,

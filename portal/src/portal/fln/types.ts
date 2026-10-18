@@ -133,6 +133,8 @@ export interface FlnPlacement {
   subject: FlnSubjectKey;
   level: 1 | 2 | 3;
   grades: number[];
+  /** The grade whose list holds the lesson at this `pos`/`count` (a level's two grades can differ). */
+  grade?: number | null;
   strand: Strand;
   chapter_title_en?: string | null;
   chapter_title_ur?: string | null;
