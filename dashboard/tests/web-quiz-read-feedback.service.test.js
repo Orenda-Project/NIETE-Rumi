@@ -637,3 +637,60 @@ describe('a 0-word read on the folded card (key on)', () => {
     }
   });
 });
+
+// ---- web_quiz_fold_retry: the folded card offers a 0-word read one way to read again (the moment's key off) ----------
+describe('the folded card\'s Try again (web_quiz_fold_retry)', () => {
+  const FR_GOLDEN = path.join(__dirname, 'fixtures', 'fold-retry-off-golden.json');
+  const ZERO = { score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } };
+  const scene = (lang, menu, { story = false, body = ZERO, held = false } = {}) => {
+    const t = trail({ lang, href: story ? STORY_HREF : undefined, menu: { ...FOLD, ...menu, v2: { story } }, data: { next_offer: NEXT, ...(story ? { story_room: true, practice_round: true } : {}) } });
+    if (story) t.TR.menu();
+    if (held) t.TR.readHold(body, null, 0); else t.TR.readEnd(body);
+    return t;
+  };
+  const SCN = {};
+  for (const lang of ['en', 'ur']) {
+    SCN[`zero ${lang}`] = () => scene(lang, {}).html();
+    SCN[`zero, story time ${lang}`] = () => scene(lang, {}, { story: true }).html();
+    SCN[`heard ${lang}`] = () => scene(lang, {}, { body: { ...CHECKED, rf: CHECKED } }).html();
+  }
+  if (process.env.FR_GOLDEN_WRITE === '1') {
+    test('write the goldens (on the code before the change)', () => {
+      const out = {};
+      Object.keys(SCN).forEach((k) => { out[k] = SCN[k](); });
+      fs.writeFileSync(FR_GOLDEN, `${JSON.stringify(out, null, 1)}\n`);
+    });
+    return;
+  }
+  const golden = fs.existsSync(FR_GOLDEN) ? JSON.parse(fs.readFileSync(FR_GOLDEN, 'utf8')) : {};
+  test.each([['absent', {}], ['false', { fold_retry: false }], ['the string "true"', { fold_retry: 'true' }]])('%s: the folded cards are today\'s, byte for byte (EN + UR)', (_n, menu) => {
+    for (const lang of ['en', 'ur']) {
+      expect(scene(lang, menu).html()).toBe(golden[`zero ${lang}`]);
+      expect(scene(lang, menu, { story: true }).html()).toBe(golden[`zero, story time ${lang}`]);
+      expect(scene(lang, menu, { body: { ...CHECKED, rf: CHECKED } }).html()).toBe(golden[`heard ${lang}`]);
+    }
+  });
+  test.each([['en', 'Again'], ['ur', 'Again']])('%s, key on, a 0-word read: one soft Try again above Next; a tap opens the read again; Story Time too', (lang, label) => {
+    for (const story of [false, true]) {
+      const t = scene(lang, { fold_retry: true }, { story });
+      const h = t.html();
+      expect(h.match(/id="wqc-again"/g)).toHaveLength(1);
+      expect(h).toMatch(new RegExp(`<button class="wq-btn wq-soft" id="wqc-again" type="button">${label}</button>`));
+      expect(h.indexOf('id="wqc-again"')).toBeLessThan(h.indexOf('id="wqfc-next"'));
+      expect(primaries(h)).toBe(1);   // Next stays the one primary
+      const n = t.opened.length;
+      t.tap('wqc-again');
+      expect(t.opened.slice(n)).toEqual(['read']);
+    }
+  });
+  test('key on: a heard read and a held card get no Try again (nothing to retry; the result could still change)', () => {
+    expect(scene('en', { fold_retry: true }, { body: { ...CHECKED, rf: CHECKED } }).html()).not.toContain('id="wqc-again"');
+    expect(scene('en', { fold_retry: true }, { held: true }).html()).not.toContain('id="wqc-again"');
+  });
+  test('both keys on: exactly one retry control (the moment\'s own), never two', () => {
+    for (const lang of ['en', 'ur']) {
+      const h = scene(lang, { fold_retry: true, ...RF }).html();
+      expect((h.match(/id="wqc-(rf)?again"/g) || [])).toEqual(['id="wqc-rfagain"']);
+    }
+  });
+});

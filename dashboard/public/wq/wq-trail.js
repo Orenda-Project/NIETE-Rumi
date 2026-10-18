@@ -179,8 +179,13 @@
       var want = qa ? null : replayRa(d, card);
       var ra = want && want !== 'wait' ? want : null;
       var fx = foldNext(nx);
-      h.show(name, top + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
+      // web_quiz_fold_retry: a 0-word try (card.r.again, never on a held card) gets one soft Try again above Next; the
+      // reading moment's own (wqc-rfagain) stays the only one when it is drawn
+      var md = h.md() || {};
+      var retry = md.fold_retry === true && card && card.r && card.r.again && !card.r.hold && top.indexOf('id="wqc-rfagain"') < 0;
+      h.show(name, top + (retry ? btn('wqc-again', h.t.again, 'wq-soft') : '') + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      if (retry) h.on('wqc-again', function () { h.open(d.ex); });
       if (ra) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
       if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || ra ? null : fx } }));
       foldAfter(qa);
