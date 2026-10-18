@@ -72,3 +72,9 @@ describe('switch off: nothing moves', () => {
     });
   });
 });
+
+describe('the quiz question wraps balanced (a «؟» or a short last word never sits alone on line 2)', () => {
+  test('html.wq-1b .wq-qtext takes text-wrap:balance', () => {
+    expect(CSS).toContain('html.wq-1b .wq-qtext{text-wrap:balance}');
+  });
+});
