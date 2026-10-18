@@ -111,6 +111,22 @@ test('nothing uploaded yet: every clip is missing, listed by passage and part (n
   expect(r2.uploadBuffer).not.toHaveBeenCalled();
 });
 
+test('Jugnu\'s exercise lines (intro, start, stop, done of every exercise, EN + UR) are checked too, and the batch records them', async () => {
+  const { lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
+  ['en', 'ur'].forEach((lang) => ['bigger', 'missing', 'read', 'listen'].forEach((ex) => ['intro', 'start', 'stop', 'done'].forEach((part) => {
+    expect(lines).toContain(`missing\texercise\t${lang}\t${ex}/${part}`);
+  })));
+  Ch.__reset(); OneVoice.reset(); jest.clearAllMocks();
+  r2.headObject.mockResolvedValue({ exists: false });
+  tts.synthesize.mockImplementation(async ({ text }) => ({ audio: Buffer.from('OggS'), provider: 'elevenlabs', voice: 'v', durationSec: Math.max(0.6, [...String(text)].length / 14) }));
+  const out = [];
+  await MK.main(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { env: ENV, print: (l) => out.push(l), now: NOW, stt: async (_a, _l, t) => t });
+  const keys = r2.uploadBuffer.mock.calls.map(([, k]) => k);
+  expect(keys.some((k) => /\/challenge\/en\/listen\/intro-el-bella-cff2e4-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  expect(keys.some((k) => /\/challenge\/ur\/read\/done-el-sara-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  expect(out).toContain('recorded\texercise\tur\tbigger/intro');
+});
+
 test('every key present and both shared-line sets exist: ok, 0 missing', async () => {
   r2.headObject.mockResolvedValue({ exists: true });
   const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
