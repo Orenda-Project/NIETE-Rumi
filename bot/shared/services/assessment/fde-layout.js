@@ -1631,6 +1631,12 @@ function scopeLessons(P, scope) {
     : P.lessons.filter((l) => ranges(l.pages).some(([a, b]) => pages.some(([c, d]) => a <= d && c <= b)));
   return chosen.length ? chosen : null;
 }
+// Urdu Q1 on lessons that hold one prose story (lessons 6–7: a story and a poem; any single lesson; pages
+// inside one lesson): twenty items drawn from one story name each other's people and things, so at most
+// eight ask a fact of the story and the rest come from the lessons' word lists, meanings, idioms and
+// poem. Section A says where each item comes from (its `source`, never printed).
+const STORY_ITEMS = 8;
+const oneStory = (lessons) => Boolean(lessons) && lessons.filter((l) => !l.poem).length <= 1;
 // Urdu Q1 on chosen lessons: the grammar concept an item asks, when it is not one those lessons teach.
 function outsideLessons(q, lessons) {
   const concept = lessons && conceptOf(q, lessons);
@@ -1709,6 +1715,8 @@ function takenNote(P, section, examJson, opts = {}) {
     // whole Section A again and its first items ask kept facts under new stems, keyed the same.
     // Its count is the section's own, so a held twin's place goes to the next new item.
     if (opts.topUp) notes.push(...urduKeptNotes(section, examJson, opts.shortfall));
+    const story = opts.topUp && storyNote(section, examJson, opts.shortfall);
+    if (story) notes.push(story);
     return notes.length ? notes.join('\n\n') : null;
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
@@ -1873,6 +1881,18 @@ function urduKeptNotes(section, examJson, shortfall) {
   return out;
 }
 
+// Urdu on one story: how many more Q1 items may ask a fact of the story, from the count the layout
+// recorded (`_layout.story_items`), when Q1 is short.
+function storyNote(section, examJson, shortfall) {
+  const n = examJson && examJson._layout && examJson._layout.story_items;
+  const short = (Array.isArray(shortfall) ? shortfall : []).some((f) => f && f.slot === 'urdu.A.Q1' && f.missing > 0);
+  if (!Number.isInteger(n) || !short || !section.slots.some((s) => s.slot === 'urdu.A.Q1')) return null;
+  const rest = 'from the lessons\' word lists, word meanings, idioms or the poem, and give it its "source"';
+  return n >= STORY_ITEMS
+    ? `Story items are used up: Q1 already asks ${n} facts of the story. Write every new Q1 item ${rest}.`
+    : `Q1 keeps ${n} story items: at most ${STORY_ITEMS - n} new Q1 items may ask a fact of the story; write the others ${rest}.`;
+}
+
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
  *
@@ -1901,6 +1921,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the concept Section A declares for a Q1 item is read here and taken off the item, so it
   // never prints; it is checked on chosen lessons only.
   const declared = new Map();
+  // Urdu on one story: the source each Q1 item declares, read and taken off the same way.
+  const story = P.key === 'urdu' && oneStory(lessons);
+  const sources = new Map();
   all.forEach((entry) => {
     stripTags(entry.q); stripStemOptions(entry.q);
     if (P.key !== 'urdu') return;
@@ -1909,7 +1932,12 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (lessons) declared.set(entry.q, declaredConcept(entry.q.concept, P));
       delete entry.q.concept;
     }
+    if (Object.prototype.hasOwnProperty.call(entry.q, 'source')) {
+      if (story) sources.set(entry.q, String(entry.q.source || '').trim().toLowerCase());
+      delete entry.q.source;
+    }
   });
+  const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
   const sameDeclared = (p, q) => { const [a, b] = [declared.get(p), declared.get(q)]; return Boolean(a && b && a.grammar && b.grammar && !a.pair && a.name === b.name); };
   // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
   // declares its concepts; a reply written before it was never asked to keep them once. A paper
@@ -2007,8 +2035,14 @@ function applyLayout(examJson, P, scope, opts = {}) {
       const row = restated(slot, q);
       return row ? hold(slot, q, row.name) : true;
     };
+    // Urdu on one story: a story item past the eighth gives nothing away, and is the last item put back.
+    const storyFull = (slot, q) => {
+      if (!story || slot.slot !== 'urdu.A.Q1' || sources.get(q) !== 'story' || storyCount(bySlot.get(slot.slot)) < STORY_ITEMS) return false;
+      keep(slot.slot, q, 'story_cap');
+      return true;
+    };
     const offer = (slot, q) => {
-      if (room(slot) && fits(slot, q)) bySlot.get(slot.slot).push(q);
+      if (room(slot) && fits(slot, q) && !storyFull(slot, q)) bySlot.get(slot.slot).push(q);
       else unplaced += 1;
     };
     const untagged = [];
@@ -2172,6 +2206,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // items already gone) keeps the larger count the earlier layout recorded.
   if (P.key === 'urdu') {
     if (counted) out._layout.counted = true;
+    // On one story: how many printed Q1 items ask a fact of the story (a top-up is told what is left). A
+    // paper laid out again from a laid one (its sources already gone) keeps the count it had.
+    const told = sources.size ? storyCount(bySlot.get('urdu.A.Q1') || []) : src._layout && src._layout.story_items;
+    if (story && Number.isInteger(told)) out._layout.story_items = told;
     const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
     const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
     tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
@@ -2184,7 +2222,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
 }
 
 module.exports = {
-  applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord, scopeLessons, conceptOf,
+  applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord, scopeLessons, conceptOf, oneStory, STORY_ITEMS,
   // The rows a concept is read by on any scope; antonym and synonym are concepts on lessons 4–5 only.
   conceptNames: CONCEPTS.map(([name]) => name).filter((name) => !LESSON_ONLY.has(name)),
 };
