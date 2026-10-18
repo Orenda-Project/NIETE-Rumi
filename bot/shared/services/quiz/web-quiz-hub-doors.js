@@ -4,6 +4,7 @@
  * Games beyond the hub boot's few ids, fetched when a door opens so the home itself stays light.
  *
  *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
+ *                                         a failed read adds err: 1 (web_quiz_list_states on only)
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
  *   seededOrder(items, seed)              a stable shuffle (pure): the same seed, the same order
  *   daySeed(childId, now)                 the seed for one child on one Pakistan day (pure)
@@ -51,29 +52,38 @@ function seededOrder(items, seed) {
 }
 
 /** A recorded clip of a row's words, when there is one in time (null otherwise: the page says it another way). */
-async function sayAll(texts, lang) {
+async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
   let Challenge;
   try { Challenge = require('./web-quiz-challenge'); } catch (_) { return texts.map(() => null); }
   if (typeof Challenge.sayClip !== 'function') return texts.map(() => null);
   const all = Promise.all(texts.map((t) => Challenge.sayClip(t, lang).catch(() => null)));
   let timer = null;
-  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), SAY_WAIT_MS); });
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), waitMs); });
   try {
     return (await Promise.race([all, late])) || texts.map(() => null);
   } finally { clearTimeout(timer); }
 }
 
-async function storiesDoor() {
-  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => false);
-  return { stories: [], shelf: storiesOn };
+async function storiesDoor(list) {
+  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => (list ? null : false));
+  // web_quiz_list_states: a shelf switch that could not be read is a failed read, not "the shelf is off"
+  return storiesOn === null ? { stories: [], shelf: false, err: 1 } : { stories: [], shelf: storiesOn };
+}
+
+// A grade or form read that failed: rethrown under web_quiz_list_states (the door answers err: 1), else today's null.
+async function formFailed(err) {
+  if (await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false)) throw err;
+  return null;
 }
 
 async function gamesDoor(who, lang, now) {
+  if (require('./web-quiz-wait-ux').on()) return gamesDoorTogether(who, lang, now);
   const Hub = require('./web-quiz-hub');
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
-  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(() => null);
+  // web_quiz_list_states: a form read that failed is a failed door (the page offers a retry), not a child with no games
+  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(formFailed);
   if (!form) return { games: [] };
   let ids;
   if (form === G1.FORM) ids = [G1.EXERCISE];
@@ -92,6 +102,52 @@ async function gamesDoor(who, lang, now) {
   ] };
 }
 
+// web_quiz_wait_ux on: the same rows as gamesDoor, but every read that does not need another's answer starts at once
+// (the switches, the grade, the read cap, the passages' switch and the child's rung), and the spoken labels are waited
+// for at most WaitUx.SAY_WAIT_MS (a label late here is recorded in the background and ready on the next open).
+async function gamesDoorTogether(who, lang, now) {
+  const Hub = require('./web-quiz-hub');
+  const Challenge = require('./web-quiz-challenge');
+  const G1 = require('./web-quiz-challenge-grade1');
+  const Play = require('./web-quiz-hub-play');
+  const WaitUx = require('./web-quiz-wait-ux');
+  const soft = (p) => Promise.resolve(p).catch(() => null);
+  const [flags, form, record, missing, pool, sw, rung, aloud] = await Promise.all([
+    Hub.flags(),
+    // web_quiz_list_states: as gamesDoor, a grade or form read that failed is a failed door, not a child with no games
+    Challenge.gradeOf({ studentId: who.studentId }).then((g) => Challenge.formForChild(g)).catch(formFailed),
+    soft(Challenge.recordOn()), soft(Challenge.missingOn()), soft(Challenge.poolOn()),
+    soft(Play.switches()), soft(Play.readingRungOf(who.studentId)),
+    require('./web-quiz-challenge-budget').readOpen().catch(() => false),
+  ]);
+  if (!flags.challenge || !form) return { games: [] };
+  const ids = form === G1.FORM ? [G1.EXERCISE] : [...(record && missing ? ['missing'] : []), 'bigger'];
+  const warm = ids.includes('missing') && Boolean(pool);
+  const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
+  const reads = form === G1.FORM ? [] : await readRowsFrom(Challenge, who, lang, now, { story: Boolean(sw && sw.story), rung, aloud });
+  const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.name || r.title)], lang, WaitUx.SAY_WAIT_MS);
+  return { games: [
+    ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
+    ...reads.map((r, j) => ({ ...r, ...(say[ids.length + j] ? { say: say[ids.length + j] } : {}) })),
+  ] };
+}
+
+// readRows with its switch, rung and read cap already read (gamesDoorTogether): the same rows in the same order.
+async function readRowsFrom(Challenge, who, lang, now, { story, rung, aloud: open }) {
+  const found = { read: null, listen: null };
+  if (story) {
+    const Play = require('./web-quiz-hub-play');
+    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), Play.openBands(who.grade, rung));
+    pickPassages(live, lang, found);
+  }
+  let aloud = null;
+  if (open) {
+    const name = (() => { try { return typeof Challenge.nameOf === 'function' ? Challenge.nameOf('read', lang) || null : null; } catch (_) { return null; } })();
+    if (name) aloud = { kind: 'read', stop: 'read', name };
+  }
+  return [found.read, aloud, found.listen].filter(Boolean);
+}
+
 // Jugnu's passages beside the games (the Stories door shows storybooks only): this week's read passage (read along, in
 // the story room) and the newest listening story, each only when its text is in the bank (no clip is asked here: the
 // listen's clip is asked when the child opens it, as the story room does), and the games page's counted read aloud
@@ -102,14 +158,7 @@ async function readRows(Challenge, who, lang, now) {
   if ((await Play.switches()).story) {
     const bands = Play.openBands(who.grade, await Play.readingRungOf(who.studentId));
     const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), bands);
-    const { titleFor } = require('./web-quiz-passage-title');
-    for (const kind of ['read', 'listen']) {
-      const rows = live.filter((r) => r.kind === kind).sort((x, y) => Date.parse(y.released_at) - Date.parse(x.released_at));
-      for (const r of rows) {
-        const title = titleFor(r.passage_id, lang);
-        if (title && opens(r)) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
-      }
-    }
+    pickPassages(live, lang, found);
   }
   let aloud = null;
   if (await require('./web-quiz-challenge-budget').readOpen().catch(() => false)) {
@@ -118,6 +167,18 @@ async function readRows(Challenge, who, lang, now) {
   }
   // read along, read aloud, listen
   return [found.read, aloud, found.listen].filter(Boolean);
+}
+
+// The newest read and listen whose words are in the bank, each with its child-facing title (into found).
+function pickPassages(live, lang, found) {
+  const { titleFor } = require('./web-quiz-passage-title');
+  for (const kind of ['read', 'listen']) {
+    const rows = live.filter((r) => r.kind === kind).sort((x, y) => Date.parse(y.released_at) - Date.parse(x.released_at));
+    for (const r of rows) {
+      const title = titleFor(r.passage_id, lang);
+      if (title && opens(r)) { found[kind] = { kind: kind === 'listen' ? 'listen' : 'passage', id: r.passage_id, title }; break; }
+    }
+  }
 }
 
 function bank() {
@@ -139,17 +200,20 @@ function safeName(Challenge, id, lang) {
 async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
-  if (!(await require('./web-quiz-home-flags').flags()).home) fail(404, 'home_off');
+  const homeFlags = await require('./web-quiz-home-flags').flags();
+  if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
-    return d === 'stories' ? await storiesDoor() : await gamesDoor(who, l, now);
+    return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
-    return d === 'stories' ? { stories: [], shelf: false } : { games: [] };
+    // web_quiz_list_states: the page tells a failed read from an empty one (a retry, never "nothing here")
+    const list = await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false);
+    return { ...(d === 'stories' ? { stories: [], shelf: false } : { games: [] }), ...(list ? { err: 1 } : {}) };
   }
 }
 

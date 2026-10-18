@@ -306,6 +306,16 @@ describe('the finish card after a watched video: the home says when the card is 
       expect(out).toHaveProperty('card_v3', true);
     } finally { supabase.from = from; }
   });
+  test('the one share beside the card (share_v4 JSON true): the home carries it; anything else, or no card: not', async () => {
+    Home._useModules({ card: { field: async () => ({ card_v3: true, share_v4: true }) } });
+    seed(HOME_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).toMatchObject({ card_v3: true, share_v4: true });
+    for (const field of [{ card_v3: true }, { card_v3: true, share_v4: 'true' }, { card_v3: true, share_v4: 1 }, { share_v4: true }]) {
+      Home._useModules({ card: { field: async () => field } });
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('share_v4');
+    }
+  });
   test('GOLDEN: web_quiz_home_v3 off -> no key even with the card on', async () => {
     Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
     seed(BASE_ON);
