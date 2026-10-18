@@ -3,7 +3,8 @@
  * field; default OFF). On, an Urdu page says:
  *   - the no-class Share button «دوستوں کو بھیجیں» (the quiz finish and the end card), never «شیئر کریں»;
  *   - the score share line ends «اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!»;
- *   - the class table line and its link preview «کھیلنا باقی ہے؟» (no masculine form aimed at the child);
+ *   - the class table line and its link preview speak to the reader and invite: «آپ نے ابھی تک نہیں کھیلا؟ … آئیں کھیلیں»
+ *     («آپ نے» keeps it the same for any child; «ابھی بھی» = still open), card on or off;
  *   - the challenge ask «محلے میں کوئی دوست» (no gender), and both challenge lines end «لنک دبائیں:».
  * Off (the key absent or anything but true), and on any English page: today's words, byte for byte (pinned below as
  * hashes recorded on the base). The polished Urdu copy (wq-ur2) keeps its own challenge lines on top.
@@ -41,11 +42,12 @@ describe('on: the Urdu page says the corrected words', () => {
     const w = words(page({ lang: 'ur', bootExtra: ON }).wq.T);
     expect(w[0]).toBe('دوستوں کو بھیجیں');
     expect(w[1]).toBe('نور ٹیسٹوالا نے پودے میں 5 میں سے 3 ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!');
-    expect(w[2]).toBe('پودے: جماعت ۳ کی لیگ ٹیبل۔ کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے:');
+    expect(w[2]).toBe('پودے: جماعت ۳ کی لیگ ٹیبل۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:');
     expect(w[3]).toBe('محلے میں کوئی دوست');
     expect(w[4]).toMatch(/مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:$/);
     expect(w[5]).toMatch(/اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:$/);
-    for (const s of w) expect(s).not.toMatch(/شیئر|ٹیپ|نہیں کھیلا|کا دوست|ملیں گے/);
+    // «نہیں کھیلا» only after «آپ نے» (neutral); never bare, aimed at the child
+    for (const s of w) expect(s.replace(/آپ نے ابھی تک نہیں کھیلا/g, '')).not.toMatch(/شیئر|ٹیپ|نہیں کھیلا|کا دوست|ملیں گے/);
   });
   test('the no-class Share on the quiz finish card', () => {
     const h = finishCard('ur', ON).html();
@@ -64,11 +66,14 @@ describe('on: the Urdu page says the corrected words', () => {
     // English never changes
     expect(/id="wqfc-share"[^>]*>([^<]*)<\/a>/.exec(W.WQFC.html({ kind: 'game', deed: 'game_done', lang: 'en', plain: true, urs: true }))[1]).toBe('Share');
   });
-  test('the class table\'s link preview (card off): «کھیلنا باقی ہے؟»', () => {
+  test('the class table\'s link preview, card off and card on: «آپ نے ابھی تک نہیں کھیلا؟»', () => {
     const facts = { quiz: { lang: 'ur', topic: 'پودے', n: 5 }, cls: { label: 'جماعت ۳' }, art: {}, ur_share: true };
     const h = renderPreviewPage({ facts, code: 'TEST', view: 'class', origin: 'https://portal.example', assetV: 'v1', url: 'https://portal.example/q/TEST/class' });
-    expect(h).toContain('<meta property="og:description" content="کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔">');
+    expect(h).toContain('<meta property="og:description" content="آپ نے ابھی تک نہیں کھیلا؟ یہ لنک ابھی بھی کھلا ہے، آئیں کھیلیں!">');
     expect(h).not.toContain('ابھی نہیں کھیلا');
+    const on = renderPreviewPage({ facts: { ...facts, card_v3: true }, code: 'TEST', view: 'class', origin: 'https://portal.example', assetV: 'v1', url: 'https://portal.example/q/TEST/class' });
+    expect(on).toContain('<meta property="og:description" content="آپ نے ابھی تک نہیں کھیلا؟ یہ لنک ابھی بھی کھلا ہے، آئیں کھیلیں!">');
+    expect(on).not.toContain('کھیلنا باقی ہے');
   });
   test('the polished Urdu copy (wq-ur2) keeps its own challenge lines on top', () => {
     const both = page({ lang: 'ur', bootExtra: { ...ON, ui: { ur2: true } } }).wq.T;
@@ -93,10 +98,11 @@ describe('GOLDEN: off, or English — today\'s words byte for byte (hashes recor
       expect(sha(finishCard('en', extra).html())).toBe(BASE.enCard);
     }
   });
-  test('the class preview, off; and with the card on (its own Urdu words, as today)', () => {
+  test('the class preview, off; and with the card on alone (its own Urdu words, as today)', () => {
     const facts = { quiz: { lang: 'ur', topic: 'پودے', n: 5 }, cls: { label: 'جماعت ۳' }, art: {} };
     const at = (f) => renderPreviewPage({ facts: f, code: 'TEST', view: 'class', origin: 'https://portal.example', assetV: 'v1', url: 'https://portal.example/q/TEST/class' });
     expect(sha(at(facts))).toBe(BASE.preview);
-    expect(at({ ...facts, card_v3: true, ur_share: true })).toBe(at({ ...facts, card_v3: true }));
+    expect(at({ ...facts, card_v3: true })).toContain('<meta property="og:description" content="کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔">');
+    expect(at({ ...facts, card_v3: true, ur_share: 'true' })).toBe(at({ ...facts, card_v3: true }));
   });
 });
