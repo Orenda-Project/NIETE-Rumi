@@ -303,7 +303,10 @@ describe('1. the reader pass reads Social Studies', () => {
       const a = Reader.buildReaderPrompt(j, U);
       const b = Reader.buildReaderPrompt(j, U, { only: Reader.itemsOf(j, 'urdu.A.Q1').slice(0, 2) });
       const note = Reader.readerNote([{ item: [...a.labels.keys()][0], by: 'Q2', reason: 'x' }], a.labels);
-      const got = crypto.createHash('sha256').update(`${a.prompt}\u0000${b.prompt}\u0000${note}\u0000${JSON.stringify([...a.blocks])}`).digest('base64');
+      // The candidate list code appends for the reader is its own block, checked by its own tests; every
+      // byte before it stays as it was.
+      const cut = (prompt) => prompt.split(`\n\n${Reader.CANDIDATES_HEAD}`)[0];
+      const got = crypto.createHash('sha256').update(`${cut(a.prompt)}\u0000${cut(b.prompt)}\u0000${note}\u0000${JSON.stringify([...a.blocks])}`).digest('base64');
       expect([f, got]).toEqual([f, sha]);
     }
   });
