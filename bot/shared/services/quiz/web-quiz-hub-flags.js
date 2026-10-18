@@ -2,7 +2,7 @@
 /**
  * The kid hub's switches (app_settings web_quiz_hub / web_quiz_challenge / web_quiz_library / web_quiz_hub_door /
  * web_quiz_child_quiz_home / web_quiz_events_v2 / web_quiz_challenge_v2 / web_quiz_challenge_rungs / web_quiz_readalong /
- * web_quiz_wait_ux / web_quiz_server_timing / web_quiz_hub_fanout / web_quiz_hub_child_memo),
+ * web_quiz_wait_ux / web_quiz_server_timing / web_quiz_hub_fanout / web_quiz_hub_early_kid / web_quiz_hub_child_memo),
  * read like web-quiz-link.js (30 s cache, fail closed), and the hub link WhatsApp /quiz sends.
  * Its own module so student-quiz.service can send the link without loading web-quiz-hub.js
  * (which reads student-quiz.service): no require cycle.
@@ -10,6 +10,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const OneHop = require('./web-quiz-one-hop');
 
 const HUB_KEY = 'web_quiz_hub';
 const CHALLENGE_KEY = 'web_quiz_challenge';
@@ -38,8 +39,12 @@ const ADV_KEY = 'web_quiz_adventure_look';
 const WAIT_UX_KEY = 'web_quiz_wait_ux';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
+// A tap while offline stays on the page (web-quiz-offline-guard.js) rides this one read: only the stored JSON boolean true is on.
+const OFFLINE_GUARD_KEY = 'web_quiz_offline_guard';
 // The hub's reads started together and its switches kept warm (web-quiz-hub.js, web-quiz-hub-warm.js): only JSON true.
 const FANOUT_KEY = 'web_quiz_hub_fanout';
+// The chosen child's own reads started from the link (web-quiz-hub.js earlyChild; only with fanout): only JSON true.
+const EARLY_KID_KEY = 'web_quiz_hub_early_kid';
 // The children's own rows read once per hub answer (web-quiz-hub-child-rows.js): only JSON true.
 const CHILD_MEMO_KEY = 'web_quiz_hub_child_memo';
 // The one share (web-quiz-card-switch.js: the card on AND the share on, each only as JSON true) rides this read too, so
@@ -76,6 +81,11 @@ function meterOf(value) {
   const n = typeof v === 'string' ? v.trim().toLowerCase() : '';
   return METERS.indexOf(n) >= 0 ? n : null;
 }
+// The light Urdu face (wq-nastaliq-7: the polished face with its outlines on a coarser grid) rides this one read too:
+// the page payload's `ui.fl` (web-quiz-ur-polish.js lite()). Only the stored JSON boolean true is on.
+const FACE_LITE_KEY = 'web_quiz_face_lite';
+// Minified page files (web-quiz-minify.js) ride this one read: only the stored JSON boolean true is on.
+const MINIFY_KEY = 'web_quiz_minify';
 const TTL_MS = 30 * 1000;
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 
@@ -102,16 +112,20 @@ const SWITCHES = Object.freeze([
   ['prefetch',     PREFETCH_KEY,          'json'],
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
+  ['faceLite',     FACE_LITE_KEY,         'json'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
   ['homePreload',  HOME_PRELOAD_KEY,      'json'],
   ['hub',          HUB_KEY,               'loose'],
   ['childMemo',    CHILD_MEMO_KEY,        'json'],
   ['door',         DOOR_KEY,              'loose'],
+  ['earlyKid',     EARLY_KID_KEY,         'json'],
   ['fanout',       FANOUT_KEY,            'json'],
   ['waves2',       WAVES2_KEY,            'json'],
   ['library',      LIBRARY_KEY,           'loose'],
   ['liveMeter',    LIVE_METER_KEY,        'meter'],
   ['liveReadV3',   LIVE_READ_V3_KEY,      'loose'],
+  ['minify',       MINIFY_KEY,            'json'],
+  ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
   ['readalong',    READALONG_KEY,         'loose'],
@@ -123,7 +137,10 @@ const SWITCHES = Object.freeze([
 ]);
 const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
 
-const KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
+const HOST_KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
+// web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
+// true only), so a hub open makes no read for it. Not a hub field: the hub's own switches are the HOST_KEYS above.
+const KEYS = Object.freeze([...HOST_KEYS, ...OneHop.hubSwitches.keys]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -144,6 +161,7 @@ function prime(rows, now = Date.now(), asked = KEYS) {
   if (missing.length) throw new Error(`hub flags primed by a read that did not ask for ${missing.join(', ')}`);
   if (cache && now - cache.at < TTL_MS) return;
   cache = fromRows(rows, now);
+  OneHop.hubSwitches.prime(rows, now);
 }
 
 // One read in flight at a time: a page that looks at two of these switches at once (the hub and its one-button
@@ -157,8 +175,21 @@ function flags(now = Date.now()) {
 
 async function read(now) {
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
-    if (error) throw new Error(error.message || 'app_settings read failed');
+    const readRows = async (keys) => {
+      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      return data || [];
+    };
+    // If the read that carries web_quiz_one_hop fails, one_hop fails closed and the hub's own keys are read again
+    // alone: nothing else goes off.
+    let data;
+    try {
+      data = await readRows(KEYS);
+      OneHop.hubSwitches.prime(data, now);
+    } catch (firstErr) {
+      OneHop.hubSwitches.fail(now);
+      data = await readRows(HOST_KEYS);
+    }
     cache = fromRows(data, now);
     return cache;
   } catch (err) {
@@ -257,6 +288,11 @@ function childMemoNow(now = Date.now()) {
   return Boolean(cache && cache.childMemo && now - cache.at < 2 * TTL_MS);
 }
 
+/** web_quiz_hub_early_kid from the hub's own switch cache, never read here: as fanoutNow. */
+function earlyKidNow(now = Date.now()) {
+  return Boolean(cache && cache.earlyKid && now - cache.at < 2 * TTL_MS);
+}
+
 /**
  * The step-timings switch, never waited for and never reading: the batch's cached answer (refreshed by the hub's own
  * flags() call on every hub answer); off until the first read lands, off on a failed read, off when the cache is older
@@ -277,6 +313,23 @@ function edgeLearnNow(now = Date.now()) {
  */
 function shareOpenNow(now = Date.now()) {
   return Boolean(cache && cache.shareOpen && now - cache.at < TTL_MS);
+}
+
+function faceLiteNow(now = Date.now()) {
+  return Boolean(cache && cache.faceLite && now - cache.at < TTL_MS);
+}
+
+/** web_quiz_offline_guard, the same way: never waited for, never read on its own, off when the hub's cache is empty or expired. */
+function offlineGuardNow(now = Date.now()) {
+  return Boolean(cache && cache.offlineGuard && now - cache.at < TTL_MS);
+}
+
+/**
+ * web_quiz_minify, never waited for and never read on its own: only the cache this module's read keeps warm (the hub's
+ * and the quiz page's own switch read run before the answer is built). Off when that cache is empty or older than 2 TTLs.
+ */
+function minifyNow(now = Date.now()) {
+  return Boolean(cache && cache.minify && now - cache.at < 2 * TTL_MS);
 }
 
 /** web_quiz_plain_paint from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
@@ -334,11 +387,15 @@ module.exports = {
   CLOSED_LANG_KEY,
   closedLangNow,
   DOOR_KEY,
+  EARLY_KID_KEY,
+  earlyKidNow,
   EDGE_LEARN_KEY,
   edgeLearnNow,
   EVENTS_V2_KEY,
   eventsV2Now,
   eventsV2On,
+  FACE_LITE_KEY,
+  faceLiteNow,
   FANOUT_KEY,
   fanoutNow,
   flags,
@@ -354,7 +411,11 @@ module.exports = {
   LIBRARY_KEY,
   LIVE_METER_KEY,
   LIVE_READ_V3_KEY,
+  MINIFY_KEY,
+  minifyNow,
   nowOf,
+  OFFLINE_GUARD_KEY,
+  offlineGuardNow,
   ONE_BUTTON_KEY,
   oneButtonNow,
   pageNav,

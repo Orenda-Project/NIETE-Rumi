@@ -40,6 +40,7 @@
 const fs = require('fs');
 const path = require('path');
 const Store = require('./story-store');
+const Face = require('./story-face');
 
 const MAX_PAGE_BYTES = 80 * 1024;
 const MAX_COVER_BYTES = 15 * 1024;
@@ -351,6 +352,23 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
   if (questionMisses.length) delete bookRow.questions_sprite;
   const uniq = new Map(files.map((f) => [f.name, f]));
   const plan = { bookId, bookRow, pages, voices, questions, files: [...uniq.values()], ready: why.length === 0, why, counts: { pages: pages.length, textPages, voiced, questions: questions.length, reviewed } };
+  // An Urdu book's text in a letter or mark the child pages' Urdu face does not draw (story-face.js): named, so the face
+  // is extended before children read it. Not a gate: READY and the rows stay as above; a book without one plans as before.
+  if (lang === 'ur') {
+    const texts = [book.title, book.author];
+    for (const p of Array.isArray(book.pages) ? book.pages : []) {
+      if (!p) continue;
+      texts.push(p.text);
+      for (const w of Array.isArray(p.words) ? p.words : []) if (w) texts.push(w.t, ...(Array.isArray(w.alt) ? w.alt : []));
+    }
+    for (const q of qj && Array.isArray(qj.questions) ? qj.questions : []) {
+      if (!q) continue;
+      texts.push(q.q);
+      for (const o of Array.isArray(q.options) ? q.options : []) texts.push(typeof o === 'string' ? o : o && o.t);
+    }
+    const holes = Face.holes(texts);
+    if (holes.length) plan.face_holes = holes;
+  }
   if (voiceGate) {
     // one voice per book: takes by two voices (or models) in one run are all held back; the pages keep what they have
     const ids = new Set(voices.map((v) => voiceId(v.row)));

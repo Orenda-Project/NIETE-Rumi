@@ -3,7 +3,8 @@
  * The hub's switches as one list, one line per switch (web-quiz-hub-flags.js SWITCHES), so two changes that each add a
  * switch touch different lines instead of the same four (the key list, the cached answer, the failed read's answer and
  * the exports). Pinned here:
- *   - SWITCHES is one source line per key, in key order, and KEYS is exactly its keys;
+ *   - SWITCHES is one source line per key, in key order, and KEYS starts with exactly its keys (other modules' switches
+ *     that ride the same read come after them);
  *   - every rule answers as the hand-written lines did (a 'loose' switch takes the string 'true', a 'json' one only the
  *     JSON true, the meter its variant), and the one share needs both its keys as the JSON true;
  *   - a failed read answers every field off (the meter: none), and nowOf(field) reads the cache for two cache lives.
@@ -40,7 +41,7 @@ beforeEach(() => {
 });
 
 describe('one line per switch', () => {
-  test('SWITCHES is one source line per key, in key order, and KEYS is exactly its keys', () => {
+  test('SWITCHES is one source line per key, in key order, and KEYS starts with exactly its keys', () => {
     expect(Array.isArray(Flags.SWITCHES)).toBe(true);
     const src = fs.readFileSync(SRC, 'utf8');
     const block = src.slice(src.indexOf('const SWITCHES = Object.freeze(['), src.indexOf(']);', src.indexOf('const SWITCHES = Object.freeze([')));
@@ -50,7 +51,8 @@ describe('one line per switch', () => {
     const keys = Flags.SWITCHES.map(([, key]) => key);
     expect([...keys].sort()).toEqual(keys);
     expect(new Set(keys).size).toBe(keys.length);
-    expect([...Flags.KEYS]).toEqual(keys);
+    expect([...Flags.KEYS].slice(0, keys.length)).toEqual(keys);
+    expect(Flags.KEYS.slice(keys.length).some((k) => keys.includes(k))).toBe(false);
   });
 
   test('the exports are one per line', () => {
@@ -80,7 +82,8 @@ describe('every rule answers as before', () => {
     const f = await Flags.flags();
     expect(Object.keys(f)).toEqual(expect.arrayContaining(['hub', 'challenge', 'library', 'door', 'childHome', 'homeButton', 'backNav',
       'eventsV2', 'challengeV2', 'rungs', 'readalong', 'oneButton', 'waitUx', 'serverTiming', 'fanout', 'childMemo', 'shareOpen', 'adv',
-      'edgeLearn', 'homePreload', 'closedLang', 'plainPaint', 'waves2', 'liveMeter', 'liveReadV3', 'hops']));
+      'edgeLearn', 'homePreload', 'closedLang', 'plainPaint', 'waves2', 'liveMeter', 'liveReadV3', 'hops', 'prefetch', 'home', 'earlyKid',
+      'faceLite', 'offlineGuard', 'minify']));
   });
 });
 
