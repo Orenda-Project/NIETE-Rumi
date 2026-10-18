@@ -4,19 +4,21 @@
  * wrote nothing new on a top-up, and the paper was filled by putting a held item back; a held
  * Section C give-away now never comes back, so a replayed top-up writes fresh items, as a model does.
  *
- * Antonym items on everyday words: no stem names another item's key, and no key is a word a
+ * Word-meaning items on everyday words (a grammar concept is asked once on every scope, so spares
+ * that were all antonyms would be held): no stem names another item's key, and no word is one a
  * recorded Q3, Q4 or Q5 uses.
  */
 const PAIRS = [
-  ['سچ', 'جھوٹ'], ['امیر', 'غریب'], ['دن', 'رات'], ['اونچا', 'نیچا'], ['آسان', 'مشکل'], ['خوشی', 'غم'],
-  ['گرم', 'ٹھنڈا'], ['نیا', 'پرانا'], ['دور', 'قریب'], ['اندر', 'باہر'], ['جیت', 'ہار'], ['آگے', 'پیچھے'],
-  ['صبح', 'شام'], ['موٹا', 'پتلا'], ['کھلا', 'بند'], ['بھاری', 'ہلکا'],
+  ['دریا', 'پانی کا بڑا بہاؤ'], ['کتب خانہ', 'کتابوں کا گھر'], ['باغبان', 'باغ کی دیکھ بھال کرنے والا'], ['درزی', 'کپڑے سینے والا'],
+  ['نانبائی', 'روٹی پکانے والا'], ['موچی', 'جوتے بنانے والا'], ['کسان', 'کھیتی باڑی کرنے والا'], ['مچھیرا', 'مچھلیاں پکڑنے والا'],
+  ['ڈاکیا', 'خط پہنچانے والا'], ['معمار', 'عمارت بنانے والا'], ['جولاہا', 'کپڑا بننے والا'], ['لوہار', 'لوہے کا کام کرنے والا'],
+  ['سنار', 'زیور بنانے والا'], ['بڑھئی', 'لکڑی کا کام کرنے والا'], ['حلوائی', 'مٹھائی بنانے والا'], ['کمہار', 'مٹی کے برتن بنانے والا'],
 ];
 
 function urduSpares(n) {
   return PAIRS.slice(0, n).map(([w, k]) => ({
-    slot: 'urdu.A.Q1', main_question: 'صحیح جواب کا انتخاب کریں', question: `لفظ «${w}» کا متضاد کون سا ہے؟`,
-    options: [`الف) ${k}`, 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: `الف) ${k}`, marks: 1,
+    slot: 'urdu.A.Q1', main_question: 'صحیح جواب کا انتخاب کریں', question: `لفظ «${w}» سے کیا مراد ہے؟`,
+    options: [`الف) ${k}`, 'ب) پہاڑ کی چوٹی', 'ج) آسمان کا رنگ', 'د) رات کا وقت'], answer: `الف) ${k}`, marks: 1,
   }));
 }
 
