@@ -64,7 +64,7 @@ export function LevelChooser({ subject, grade }: { subject: FlnSubjectKey; grade
               </b>
               {note && <small className="fln-note">{bdiRuns(note, rtl)}</small>}
               <span className="fln-cs">
-                <span className="fln-mini fln-mini-b">{s.chip.answerKey}</span>
+                {l.screener_audio ? <span className="fln-mini fln-mini-b">{s.chip.answerKey}</span> : null}
                 <span className="fln-mini fln-mini-x">{s.chooser.startHere}</span>
               </span>
             </span>

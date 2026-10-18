@@ -374,6 +374,8 @@ function levels(subject) {
     const sRow = rows.find((r) => r.label === 'screener' && (screenerId == null || String(r.lp_id) === String(screenerId)))
       || (i.rowsById.get(String(screenerId)) || [])[0] || null;
     const sPlan = screenerId != null ? i.plans[String(screenerId)] : null;
+    // Does the screener carry any audio? The "Answer key audio" chip promises it (some Num screeners have 0 clips).
+    const sAudio = sRow ? chipsOf(sRow, sPlan) : sPlan ? planAudio(sPlan) : null;
     out.push({
       level,
       label_en: (l && l.label_en) || null,
@@ -384,6 +386,7 @@ function levels(subject) {
       count: l && num(l.count) != null ? l.count : count,
       screener_id: screenerId,
       screener_minutes: sPlan ? num(sPlan.minutes && sPlan.minutes.total) : null,
+      screener_audio: Boolean(sAudio && ((sAudio.sounds || 0) + (sAudio.words || 0) > 0 || sAudio.narration)),
       note_en: (sRow && sRow.note_en) || null,
       note_ur: (sRow && sRow.note_ur) || null,
     });

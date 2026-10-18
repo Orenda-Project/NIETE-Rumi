@@ -83,7 +83,7 @@ describe('SendPage — the builder', () => {
   it('grade 8: NO level pre-selected, /links without level, the screener row on top', async () => {
     const f = stubFetch({
       '/api/portal/fln/me': { status: 200, body: ME_LEADER },
-      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(900, { chips: { screener: true } }), ROW(101, { pos: 2 })] } },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(900, { chips: { screener: true, sounds: 4 } }), ROW(101, { pos: 2 })] } },
     });
     mount('/portal/fln/send?grade=8&subject=rh-en');
     await screen.findByText('Plan 900');
