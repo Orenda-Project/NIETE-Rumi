@@ -157,7 +157,8 @@ function originOf(req, portalOrigin) {
 
 /**
  * @param {object} [deps]
- * @param {object} [deps.corpus]  the fln-corpus service (catalogue, plan, isHidden); default required on first use
+ * @param {object} [deps.corpus]  the fln-corpus service (ensure, catalogue({grade, subject, level}), plan, isHidden);
+ *                                default required on first use
  * @param {object} [deps.access]  fln-access (requireFln, noStore)
  * @param {() => string|null} [deps.portalOrigin]  the portal's public origin; default PORTAL_URL (branding)
  */
@@ -175,16 +176,24 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
     let rows;
     try {
       const c = getCorpus();
+      // The service loads the bundle lazily: a cold process (restart, a second replica) must load it first, and a
+      // bundle that cannot load is 503, never an empty 200 (RT #2953).
+      if (!(await c.ensure())) return unavailable(res);
+      const cat = async (level) => {
+        const out = await c.catalogue({ grade: p.grade, subject: p.subject, level });
+        if (!out) throw new Error('catalogue unavailable');
+        return out;
+      };
       if (p.grade >= 6 && !p.level) {
         // Grades 6–12 with no level: the screener of every level on top, then each level in teaching order.
         const per = [];
         for (const lv of [1, 2, 3]) {
           // eslint-disable-next-line no-await-in-loop
-          per.push(flatten(await c.catalogue(p.grade, p.subject, lv), linkFor));
+          per.push(flatten(await cat(lv), linkFor));
         }
         rows = dedupe([...per.flatMap((r) => r.filter(isScreener)), ...per.flatMap((r) => r.filter((x) => !isScreener(x)))]);
       } else {
-        rows = dedupe(flatten(await c.catalogue(p.grade, p.subject, p.level), linkFor));
+        rows = dedupe(flatten(await cat(p.level), linkFor));
       }
     } catch (_) {
       return unavailable(res);
@@ -206,6 +215,7 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
     if (!(await flnOn())) return res.status(404).json({ error: 'not_found' });
     try {
       const c = getCorpus();
+      if (!(await c.ensure())) return unavailable(res); // unloaded, every id reads as hidden: not a 404
       if (await c.isHidden(id)) return res.status(404).json({ error: 'not_found' });
       const plan = await c.plan(id);
       if (!plan || typeof plan.title !== 'string') return res.status(404).json({ error: 'not_found' });
