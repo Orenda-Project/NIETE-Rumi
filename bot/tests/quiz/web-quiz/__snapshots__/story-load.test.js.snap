@@ -1,0 +1,221 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`the voice method gate (app_settings web_quiz_story_voice_gate; absent or not true = today) off: planBook and applyPlan's writes match the recorded base loader over 15 books 1`] = `
+{
+  "big_page": {
+    "sha256": "8cf8e35157d8573e1e1c6b64b20863588d788a4c86bff6c3b93ce1568eb66262",
+    "status": "draft",
+    "why": [
+      "p01: picture 92202 B > 80 KB",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 10,
+      "voices": 3,
+    },
+  },
+  "drift": {
+    "sha256": "768521bfab2bee2d0662824dc9a88b07b31b0d08efc16cca98b5c83aac23f062",
+    "status": "ready",
+    "why": [],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 10,
+      "voices": 3,
+    },
+  },
+  "fast": {
+    "sha256": "d2976576814527f07319a0e1ece77b20396e2a1920180da9e239735d28732a43",
+    "status": "draft",
+    "why": [
+      "p01: voice pace 160 wpm",
+      "p01: voice span pace 160 wpm",
+      "p02: voice pace 160 wpm",
+      "p02: voice span pace 160 wpm",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 1,
+    },
+  },
+  "few_questions": {
+    "sha256": "c1d273b8818d926baab7bd6ca9e14fd685099190a217dc25e2ac2918627b9f6d",
+    "status": "draft",
+    "why": [
+      "questions: 2 reviewed",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 10,
+      "voices": 3,
+    },
+  },
+  "grade2_long": {
+    "sha256": "bb853e60acc51a631be95b61e14695390f8aa6eb278aafef81ccc0110ab81706",
+    "status": "ready",
+    "why": [],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 10,
+      "voices": 3,
+    },
+  },
+  "grade3": {
+    "sha256": "be432239de6a8e1c973c4ebdf2bc3eff173bfa97aeff9107a893f4b8d00c9643",
+    "status": "draft",
+    "why": [
+      "p01: voice pace 120 wpm",
+      "p02: voice pace 120 wpm",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 1,
+    },
+  },
+  "grade4_natural": {
+    "sha256": "73e0d43193ec76b6ea4d9e5484b980ede081990d1b8cad5c85ee61c89eec0888",
+    "status": "draft",
+    "why": [
+      "p01: voice pace 153 wpm",
+      "p01: voice span pace 153 wpm",
+      "p02: voice pace 153 wpm",
+      "p02: voice span pace 153 wpm",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 1,
+    },
+  },
+  "mismatch": {
+    "sha256": "9a95cd0296ac770fa7251109c255df6681037142395b264bb3043d501084831b",
+    "status": "draft",
+    "why": [
+      "p02: voice words differ from the page words",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 9,
+      "voices": 2,
+    },
+  },
+  "no_band": {
+    "sha256": "482abf4266bd1a8392f328e1e8238fcea91b67d83a36db4900268328e4f8b9e8",
+    "status": "draft",
+    "why": [
+      "p01: no word band",
+      "p02: no word band",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 3,
+    },
+  },
+  "no_voice": {
+    "sha256": "6e5423bdff711a8b54a4c70e3495149706ca173473234881136212c48938fcff",
+    "status": "draft",
+    "why": [
+      "p01: no voice",
+      "p02: no voice",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 1,
+    },
+  },
+  "one_voice": {
+    "sha256": "406f5dbf0ab532911999e3521c0c0137e415126bf6e506261b78d04499081ddb",
+    "status": "draft",
+    "why": [
+      "p02: no voice",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 9,
+      "voices": 2,
+    },
+  },
+  "plain": {
+    "sha256": "e5d8271532b79197b473c4c42f37b6418d31a1317cb7284e17ecafd1592352db",
+    "status": "ready",
+    "why": [],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 10,
+      "voices": 3,
+    },
+  },
+  "slow_span": {
+    "sha256": "4c9884dc2f12e916b2b10c125df55d952920384360f7bc7c9e6df81fb05bcbb0",
+    "status": "draft",
+    "why": [
+      "p01: voice span pace 190 wpm",
+      "p02: voice span pace 190 wpm",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 1,
+    },
+  },
+  "watermark": {
+    "sha256": "a305ce041ec22510471f2f25803ac09904cb7be1713e8bf54b539099d6476ca0",
+    "status": "draft",
+    "why": [
+      "p02: watermark",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 10,
+      "voices": 3,
+    },
+  },
+  "wer": {
+    "sha256": "b5ca642ddc3cc021d70bc34724908a3648353dbedcf9b094eec0815bca0a140c",
+    "status": "draft",
+    "why": [
+      "p01: voice wer 0.3",
+      "p02: voice wer 0.3",
+    ],
+    "writes": {
+      "books": 1,
+      "pages": 2,
+      "questions": 4,
+      "uploads": 8,
+      "voices": 1,
+    },
+  },
+}
+`;

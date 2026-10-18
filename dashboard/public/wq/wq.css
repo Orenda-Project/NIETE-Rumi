@@ -218,6 +218,12 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-table td{background:var(--card);padding:10px 8px;font-weight:800;font-size:17px}
 .wq-table td:first-child{border-start-start-radius:12px;border-end-start-radius:12px;width:44px;text-align:center;color:var(--muted)}
 .wq-table td:last-child{border-start-end-radius:12px;border-end-end-radius:12px;text-align:end;white-space:nowrap}
+.wq-skel .wq-skrow td i,.wq-skh i{display:block;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--paper-2) 0%,var(--line) 50%,var(--paper-2) 100%);background-size:200% 100%;animation:wq-sk 1.2s linear infinite}
+.wq-skh i{height:22px;width:60%;margin:4px 0 14px}
+.wq-skel .wq-skrow td{height:22px}
+.wq-skel .wq-skrow td:nth-child(2) i{width:70%}
+@keyframes wq-sk{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.wq-skel .wq-skrow td i,.wq-skh i{animation:none}}
 .wq-table tr.wq-you td{background:var(--gold-l,#FFE7A8);color:var(--navy)}
 .wq-table .wq-tag{display:inline-block;margin-inline-start:6px;background:var(--navy);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px}
 .wq-cmp{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-weight:800}
@@ -369,6 +375,11 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1.8;padding:0 8px;margin:2px 0 4px}
 .wq-schips .wq-chip{border:2px solid var(--line);font-size:14px;min-height:40px}
 .wq-schips .wq-chip.wq-on{background:var(--navy);color:#fff;border-color:var(--navy)}
+/* web_quiz_class_doors: the class table's and league's chips are full-size targets, and the league's Play stays in reach
+   at the bottom of the screen however long the list (the Urdu league ran it off the screen). */
+.wq-schips.wq-tall .wq-chip{min-height:48px;min-width:48px;justify-content:center}
+.wq-zero-list.wq-tall summary{min-height:48px;display:flex;align-items:center}
+.wq-stick{position:sticky;bottom:12px;z-index:2}
 .wq-mycard .wq-move{display:block;margin-top:4px;font-size:14px}
 .wq-added{margin-top:6px!important;font-weight:800;color:#1a8f4a}
 .wq-zero-list{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--muted);font-weight:700}
@@ -469,9 +480,13 @@ a.wq-vitem{color:inherit;text-decoration:none}
 .wq-vagain video{width:100%;max-height:82vh;border-radius:12px;background:#000}
 
 /* The Home button (web_quiz_home_button): the bar's end — top right, top left in Urdu (the bar is a flex row
-   under dir=rtl) — a 56 px target; the progress dots move to their own row under the bar. */
-.wq-home{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:56px;min-height:56px;margin-inline-start:8px;padding:6px 8px;border-radius:16px;border:2px solid var(--navy);background:#fff;color:var(--navy);font:inherit;font-weight:800;font-size:13px;line-height:1;box-shadow:0 3px 0 rgba(51,55,72,.2);cursor:pointer;flex:0 0 auto}
-.wq-home>span[aria-hidden]{font-size:22px;line-height:1}
+   under dir=rtl) — a 56 px target; the progress dots move to their own row under the bar. Only on a link or a button:
+   the child home's own <section> also carries .wq-home (wq-home.js), and this look on it made the whole screen one
+   off-centre, tappable panel. */
+a.wq-home,button.wq-home{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:56px;min-height:56px;margin-inline-start:8px;padding:6px 8px;border-radius:16px;border:2px solid var(--navy);background:#fff;color:var(--navy);font:inherit;font-weight:800;font-size:13px;line-height:1;box-shadow:0 3px 0 rgba(51,55,72,.2);cursor:pointer;flex:0 0 auto}
+a.wq-home>span[aria-hidden],button.wq-home>span[aria-hidden]{font-size:22px;line-height:1}
+/* a tap lights only what was tapped (the press-down is each card's own), never the browser's flash over a panel */
+.wq-row,.wq-dspk,.wq-door,.wq-homebtn{-webkit-tap-highlight-color:transparent}
 .wq-homet{white-space:nowrap}
 .wq-dotrow{display:flex;justify-content:center;margin:2px 0 6px}
 /* Back to the previous question: a 48 px pill at the start of the "Question n of N" row. */
@@ -736,7 +751,7 @@ html.wq-ur2[lang=ur] .wq-hscore{line-height:1.6}
 html.wq-ur2[lang=ur] .wq-htile{padding:12px 12px 8px;gap:2px;min-height:116px}
 html.wq-ur2[lang=ur] .wq-htile b{font-size:17px;line-height:var(--ulh1);padding-top:.25em}
 html.wq-ur2[lang=ur] .wq-htile small{font-size:14px;line-height:var(--ulh1)}
-html.wq-ur2[lang=ur] .wq-home{line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] a.wq-home,html.wq-ur2[lang=ur] button.wq-home{line-height:var(--ulh1)}
 html.wq-ur2[lang=ur] .wq-homet{font-size:12px;line-height:1.9;padding-top:.2em}
 /* Jugnu's Challenge (its own rules are injected by wq-challenge.js at html[lang=ur] specificity 0,1,1; these are 0,2,1 and win) */
 html.wq-ur2[lang=ur] .wqc-tile{padding:12px 14px 8px;min-height:88px}
