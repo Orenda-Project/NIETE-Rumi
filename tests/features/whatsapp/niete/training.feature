@@ -1537,6 +1537,19 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz-class-twin (web-quiz-hub lessonRefs); wq.js drawBoard chips + quizPage(twin).
     # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-schools.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
+  @web @quiz @config-gated @wip @draft @P2 @T1175 @no-mock-driver
+  Scenario: The class table opens at once from the card, and tells the child how they moved since last time
+    Given app_settings "web_quiz_class_doors" is true
+    And a class child's folded card or results show "See my class"
+    When the phone is idle on that screen, on a line that is not saveData or 2g (a 3g reading is warmed)
+    Then the class table is asked for once, kept for 60 seconds, and the tap opens it from that answer without a second ask
+    And a failed or older answer is never shown: the tap asks again, as today
+    And the child's place on that table is kept on the phone, a number per quiz and child, never a name
+    And with the adventure look on, the next visit shows one line over the table: moved up, the same place, or a lower place because more friends played
+    And the Urdu lines use Urdu digits and words that are the same for every child
+    But with web_quiz_class_doors off nothing is asked early and nothing is kept
+    # wq.js warmBoard/boardGet/moveLine; T.movedUp/movedNow/samePlace. unit: dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
   Scenario: The teacher's preview never counts as a child
     Given the teacher's signed preview link

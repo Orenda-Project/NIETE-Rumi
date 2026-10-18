@@ -618,7 +618,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'Pick a story', sharePlain: 'Share',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
-      leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, onlyClass: function (c) { return 'Only Class ' + c; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
+      leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, onlyClass: function (c) { return 'Only Class ' + c; },
+      movedUp: function (n) { return 'You moved up ' + n + (n === 1 ? ' place!' : ' places!'); }, movedNow: function (p) { return 'More friends played. You are at place ' + p + ' now.'; }, samePlace: 'Same place as last time.', you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
       schoolsBtn: 'School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
@@ -692,7 +693,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
-      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
+      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; },
+      movedUp: function (n) { return 'آپ اب ' + urDigits(n) + (n === 1 ? ' درجہ' : ' درجے') + ' اوپر ہیں!'; }, movedNow: function (p) { return 'کچھ اور دوستوں نے بھی کھیلا۔ اب آپ ' + urDigits(p) + ' نمبر پر ہیں۔'; }, samePlace: 'آپ پچھلی بار والی جگہ پر ہیں۔', you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
       schoolsBtn: 'اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
@@ -2317,6 +2319,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);
+      if (foldOn(res) && classDoors(res)) warmBoard();
       on('#wq-more', moreVideos);
     }, function (e) {
       var tooFew = e && e.r && e.r.status === 409;
@@ -2656,6 +2659,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     on('#wq-fhome', function () { homeGo('card'); });
     on('#wq-class', board);
+    if (classDoors(res)) warmBoard();
     on('#wq-schools', function () { schools(card); });
     // No answer from the slot: the home, on its Stories door (the home's own Next when it has nothing ranked).
     if (!nx) on('#wq-fnext', function () { homeGo('card', '#stories'); });
@@ -2888,10 +2892,48 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var now = Date.now();
     return ' data-list="' + kind + '" data-fetch="' + state + '"' + (LS_FROM[kind] ? ' data-skel-from="' + LS_FROM[kind] + '" data-skel-to="' + now + '"' : '') + (empty ? ' data-empty-at="' + now + '"' : '');
   }
+  // web_quiz_class_doors: while "See my class" is on screen, the class table is asked for once on idle, so the tap opens
+  // real rows, not a skeleton. Kept 60 s, one at a time, never on saveData or a 2g line (a 3g reading is warmed: a real
+  // 4G line at a high round trip reads as 3g, and the table is one small answer); board() takes it once (a failed or
+  // old one: board() asks itself, as today).
+  var BWARM = null;
+  function boardPath() { return 'board/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : ''); }
+  function warmBoard() {
+    var c = navigator.connection || {};
+    if (BWARM || c.saveData || /2g$/.test(c.effectiveType || '')) return;
+    var m = ROOT.getAttribute('data-m');
+    var go = function () {
+      if (BWARM || ROOT.getAttribute('data-m') !== m || !$('#wq-class')) return;
+      BWARM = { at: Date.now(), p: api('GET', boardPath()).catch(function () { return null; }) };
+    };
+    if (window.requestIdleCallback) window.requestIdleCallback(go, { timeout: 2000 }); else setTimeout(go, 1200);
+  }
+  function boardGet() {
+    var w = BWARM;
+    BWARM = null;
+    var fresh = function () { return api('GET', boardPath()); };
+    if (!w || Date.now() - w.at > 60000) return fresh();
+    return w.p.then(function (r) { return r && r.ok ? r : fresh(); });
+  }
+  // web_quiz_class_doors: the child's place on this table is kept on the device (a number per code and child, no name),
+  // so the next visit says how they moved. The line shows with the adventure look (<html class="wq-adv">), which themes
+  // .wq-move by its data-move (up|same|down).
+  function moveLine(b, you) {
+    var chip = S.child && S.child.chip;
+    if (!b.class_doors || !you || !chip) return '';
+    var k = 'wq_cp_' + CODE + '_' + chip;
+    var was = sget(k, null);
+    sset(k, you.place);
+    var adv = false;
+    try { adv = document.documentElement.classList.contains('wq-adv'); } catch (e) {}
+    if (!adv || typeof was !== 'number') return '';
+    var d = was - you.place;
+    return '<p class="wq-move" data-move="' + (d > 0 ? 'up' : d < 0 ? 'down' : 'same') + '">' + esc(d > 0 ? T.movedUp(d) : d < 0 ? T.movedNow(you.place) : T.samePlace) + '</p>';
+  }
   function board() {
     render(bar() + (LS_ON ? lsWait('table') : '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>'), 'M11-wait');
     wireBar();
-    api('GET', 'board/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
+    boardGet().then(function (r) {
       if (!r.ok) throw new Error('board_' + r.status);
       var b = r.body;
       // A table of more than one class (web_quiz_class_doors): "Only Class 3" shows the child's class on its own.
@@ -2925,7 +2967,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
     var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
-    var h = bar() + '<h2>' + title + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
+    var h = bar() + '<h2>' + title + '</h2>' + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
       (mixed ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
