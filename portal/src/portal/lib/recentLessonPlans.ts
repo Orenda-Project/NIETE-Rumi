@@ -23,8 +23,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useLessonPlanOpener, type OpenOptions } from './lessonPlanOpen';
+import { flnPlanPath } from '../fln/lib/flnPath';
 
 export const RECENT_LIMIT = 10;
 
@@ -37,7 +39,8 @@ export type RecentTag = 'opened' | 'whatsapp' | 'ready' | 'preparing';
 
 export type RecentOpen =
   | { lane: 'k5'; lessonId: string }
-  | { lane: 'g612'; segmentId: string; lang: string; renderId: string | null };
+  | { lane: 'g612'; segmentId: string; lang: string; renderId: string | null }
+  | { lane: 'fln'; planId: string }; // bd-t7zk3t.12: Reading Hour + Numeracy, opened at flnPlanPath
 
 export type RecentLessonPlan = {
   /** `k5:<lesson_id>` or `g612:<segment_id>:<lang>` — the same lesson in Urdu is another plan. */
@@ -68,7 +71,7 @@ const time = (v: unknown): number | null => {
 };
 const newestFirst = (a: RecentLessonPlan, b: RecentLessonPlan) => (time(b.at) ?? 0) - (time(a.at) ?? 0);
 
-const keyOf = (o: RecentOpen) => (o.lane === 'k5' ? `k5:${o.lessonId}` : `g612:${o.segmentId}:${o.lang}`);
+const keyOf = (o: RecentOpen) => (o.lane === 'k5' ? `k5:${o.lessonId}` : o.lane === 'fln' ? `fln:${o.planId}` : `g612:${o.segmentId}:${o.lang}`);
 
 /** A plan she used (GET /lesson-plans/recent), tagged by whichever way she had it last. */
 function usedPlan(r: Row): RecentLessonPlan | null {
@@ -82,6 +85,10 @@ function usedPlan(r: Row): RecentLessonPlan | null {
     const segmentId = str(r.segmentId) ?? str(o.segmentId);
     if (!segmentId) return null;
     open = { lane: 'g612', segmentId, lang: str(r.lang) ?? str(o.lang) ?? 'en', renderId: null };
+  } else if (r.kind === 'fln') {
+    const planId = str(r.planId) ?? str(o.planId);
+    if (!planId) return null;
+    open = { lane: 'fln', planId };
   } else {
     return null;
   }
@@ -231,6 +238,7 @@ export function useRecentLessonPlans({ refreshKey = 0, fallbackTitle = 'Lesson p
   onProblem?: (problem: RecentProblem) => void;
 } = {}) {
   const openPlan = useLessonPlanOpener();
+  const navigate = useNavigate();
   const [state, setState] = useState<ListState>({ status: 'loading', plans: [] });
   const [reload, setReload] = useState(0);
   // Plans she tapped that are being written now (key → render): Preparing until they open.
@@ -318,6 +326,7 @@ export function useRecentLessonPlans({ refreshKey = 0, fallbackTitle = 'Lesson p
         if (how === 'not_ready') problem.current?.('not_ready');
         return;
       }
+      if (plan.open.lane === 'fln') { navigate(flnPlanPath(plan.open.planId)); return; }
       const { segmentId, lang, renderId } = plan.open;
       if (waiting[plan.key]) return; // already on its way; it opens by itself
       if (renderId && plan.tag === 'preparing') { waitFor(plan.key, renderId, title, opts); return; }
@@ -337,7 +346,7 @@ export function useRecentLessonPlans({ refreshKey = 0, fallbackTitle = 'Lesson p
     } catch {
       problem.current?.('error');
     }
-  }, [fallbackTitle, openPlan, waitFor, waiting]);
+  }, [fallbackTitle, navigate, openPlan, waitFor, waiting]);
 
   const plans = state.plans.map((p) => (waiting[p.key] && p.tag !== 'preparing' ? { ...p, tag: 'preparing' as const } : p));
   return { status: state.status, plans, open };

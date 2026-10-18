@@ -15,7 +15,7 @@ export async function getRecentPlans(limit = 3): Promise<LessonPlanUsed[]> {
   try {
     const { data } = await api.get('/lesson-plans/recent', { params: { limit } });
     const plans: LessonPlanUsed[] = Array.isArray(data?.plans) ? data.plans : [];
-    return plans.filter((p) => p && p.found === true && p.open);
+    return plans.filter((p) => p && p.found === true && p.open && p.open.lane !== 'fln'); // bd-t7zk3t.12: no FLN coaching yet
   } catch {
     return [];
   }
@@ -24,6 +24,7 @@ export async function getRecentPlans(limit = 3): Promise<LessonPlanUsed[]> {
 /** What the bot links the lesson to: a grades 1-5 lesson, or a grades 6-12 segment in its language. */
 export function pickOf(plan: LessonPlanUsed): LibraryPick {
   if (plan.open.lane === 'k5') return { lessonId: plan.open.lessonId };
+  if (plan.open.lane === 'fln') throw new Error('an FLN plan is not a coaching pick'); // getRecentPlans never returns one
   return { segmentId: plan.open.segmentId, lang: plan.open.lang === 'ur' ? 'ur' : 'en' };
 }
 

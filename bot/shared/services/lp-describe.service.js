@@ -18,7 +18,7 @@
  * `found: false` rather than dropped, so the caller keeps its place in the list.
  */
 
-const KINDS = new Set(['k5', 'g612']);
+const KINDS = new Set(['k5', 'g612', 'fln']); // fln: Reading Hour + Numeracy (lp-describe-fln.js)
 const LANGS = new Set(['en', 'ur']);
 const MAX_PLANS = 200;
 
@@ -39,7 +39,7 @@ function parsePlans(plans) {
     const ref = p && typeof p.ref === 'string' ? p.ref.trim() : '';
     if (!KINDS.has(kind)) throw new DescribeInputError('each plan needs kind k5 or g612');
     if (!ref || ref.length > 200) throw new DescribeInputError('each plan needs a ref');
-    return { kind, ref, lang: kind === 'g612' && LANGS.has(p.lang) ? p.lang : null };
+    return { kind, ref, lang: (kind === 'g612' || kind === 'fln') && LANGS.has(p.lang) ? p.lang : null };
   });
 }
 
@@ -103,7 +103,9 @@ async function describePlans(plans, deps = {}) {
   const lessonById = deps.lessonById || require('./lp-v8-catalog.service').lessonById;
   const segIds = [...new Set(plans.filter((p) => p.kind === 'g612').map((p) => p.ref))];
   const segments = await segmentsById(segIds, supabase);
-  return plans.map((p) => (p.kind === 'k5' ? describeK5(p, lessonById) : describeG612(p, segments)));
+  const Fln = require('./lp-describe-fln');
+  const flnIndex = await Fln.indexFor(plans, deps); // null unless the batch has an fln plan
+  return plans.map((p) => (p.kind === 'k5' ? describeK5(p, lessonById) : p.kind === 'fln' ? Fln.describeFln(p, flnIndex) : describeG612(p, segments)));
 }
 
 module.exports = { describePlans, parsePlans, DescribeInputError, MAX_PLANS };
