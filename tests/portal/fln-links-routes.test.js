@@ -17,6 +17,23 @@ const LEADER = 'user-leader-1';
 const TEACHER = 'user-teacher-1';
 
 const mockAccess = jest.fn();
+// The DB boundary for the two FLN switches (app_settings), read by /fln/title's "is FLN on for anyone" check.
+let mockSettings = {};
+let mockSettingsError = false;
+jest.mock('../../dashboard/config/supabase', () => ({
+  from: () => {
+    let key;
+    const q = {
+      select: () => q,
+      eq: (_c, v) => { key = v; return q; },
+      maybeSingle: async () => {
+        if (mockSettingsError) return { data: null, error: { message: 'down' } };
+        return { data: key in mockSettings ? { value: mockSettings[key] } : null, error: null };
+      },
+    };
+    return q;
+  },
+}));
 jest.mock('../../dashboard/lib/fln-access', () => {
   const noStore = (req, res, next) => { res.set('Cache-Control', 'no-store'); return next(); };
   const requirePortalAuth = (req, res, next) => {
@@ -235,6 +252,33 @@ describe('GET /fln/links', () => {
 });
 
 describe('GET /fln/title/:id', () => {
+  beforeEach(() => { mockSettings = { portal_fln_lessons: 'teachers' }; mockSettingsError = false; });
+
+  // RT BLOCK #2953: with both switches off (the default on every tier) the route is 404 like every FLN route.
+  it('both switches missing → 404 no-store, the corpus is never read', async () => {
+    mockSettings = {};
+    const r = await get('/title/101');
+    expect([r.status, r.body, r.cache]).toEqual([404, { error: 'not_found' }, 'no-store']);
+    expect(corpus.isHidden).not.toHaveBeenCalled();
+    expect(corpus.plan).not.toHaveBeenCalled();
+  });
+  it('malformed or empty switch values are OFF (fail closed); a failed read is OFF', async () => {
+    for (const v of [false, 'false', 1, 'yes', {}, [], [''], null]) {
+      mockSettings = { portal_fln_lessons: v, portal_fln_share: v };
+      // eslint-disable-next-line no-await-in-loop
+      expect([JSON.stringify(v), (await get('/title/101')).status]).toEqual([JSON.stringify(v), 404]);
+    }
+    mockSettings = { portal_fln_lessons: true };
+    mockSettingsError = true;
+    expect((await get('/title/101')).status).toBe(404);
+  });
+  it('ON for someone opens it: true, "true", "teachers" (also as JSON text), or a non-empty id list on either switch', async () => {
+    for (const s of [{ portal_fln_lessons: true }, { portal_fln_lessons: '"true"' }, { portal_fln_lessons: '"teachers"' }, { portal_fln_share: ['u-coach'] }, { portal_fln_lessons: '["u-1"]' }]) {
+      mockSettings = s;
+      // eslint-disable-next-line no-await-in-loop
+      expect([JSON.stringify(s), (await get('/title/101')).status]).toEqual([JSON.stringify(s), 200]);
+    }
+  });
   it('answers ONLY title, lang and dir — signed out', async () => {
     const r = await get('/title/101');
     expect(r.status).toBe(200);
