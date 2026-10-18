@@ -364,6 +364,7 @@ function classesTaught(sessions) {
  * guard that was never implemented and no column that existed).
  */
 async function generate(shareCodeId, { reason = 'scheduled', force = false } = {}) {
+  refusals.delete(shareCodeId);
   const { data: sc } = await supabase
     .from('quiz_share_codes')
     .select('id, code, quiz_id, teacher_user_id, teacher_name, topic, language, '
@@ -851,7 +852,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     // the teacher still gets every number — losing the results because a font did not
     // load would be the wrong trade.
     if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, summary), { before: stampIdFirst }))) {
-      return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason, live && live.links ? live.links.live : null);
     }
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
@@ -903,6 +904,21 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   return true;
 }
 
+/**
+ * The last generate() per share code that ended in a refused send (quiz_report_send_checked on): `{ link }`, the class
+ * report page link the report had (null without one). generate() stays a boolean; a caller that answers the teacher
+ * (/quiz) tells "WhatsApp refused it" apart from "nothing to report" with lastRefusal(). Cleared by every generate().
+ */
+const refusals = new Map();
+const MAX_REFUSALS_KEPT = 1000;
+
+/** → `{ link }` when this share code's last generate() was a refused send, else null. Read once (then forgotten). */
+function lastRefusal(shareCodeId) {
+  const r = refusals.get(shareCodeId) || null;
+  refusals.delete(shareCodeId);
+  return r;
+}
+
 /** How long a refused report waits before its next try (quiz_report_send_checked). */
 const SEND_RETRY_DELAY_S = 15 * 60;
 
@@ -912,7 +928,9 @@ const SEND_RETRY_DELAY_S = 15 * 60;
  * tries the scheduled job is queued again. The third refusal gives up: no further try; the web report stays.
  * @returns {Promise<false>} buildAndSend's answer: not sent
  */
-async function reportNotAccepted(shareCodeId, sc, path, reason) {
+async function reportNotAccepted(shareCodeId, sc, path, reason, link = null) {
+  if (refusals.size >= MAX_REFUSALS_KEPT) refusals.clear();
+  refusals.set(shareCodeId, { link: link || null });
   const r = await SendCheck.recordFailure({ path, sc: { ...sc, id: shareCodeId } });
   Funnel.emit('report_failed', {
     quiz_id: sc.quiz_id, share_code_id: shareCodeId, kind: path, reason: r.gaveUp ? 'gave_up' : 'send_failed', n: r.tries,
@@ -1940,7 +1958,7 @@ module.exports = {
   sendLateClassCards,
   classCardsEnabled,
   CLASS_CARD_WINDOW_MS,
-  JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
+  JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate, lastRefusal,
   _sendClaimTiming,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,

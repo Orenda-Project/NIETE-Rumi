@@ -361,6 +361,11 @@ A refusal (or a throw) is not stamped, is counted on `quizzes.meta.report_send_f
 15 min; the third refusal logs `report_gave_up` and automatic runs stop (the web report stays; the teacher's /quiz ask still tries).
 Off: today's sends, stamps and their order exactly, and no app_settings read of its own: the switch is asked only when WhatsApp
 refused a report, and it rides the report's existing reads (`quiz_report_fold_by_child`, `quiz_teacher_home`) in the same query.
+The chat quiz's report (`quiz_report` job) rides the same switch: on, its "already fired" flag (`quiz_report_sent:<quizId>`) is set only
+when WhatsApp took the report; a refusal logs `quiz_report_send_failed` (`quiz_h`, `tk`, `tries`; counted in Redis
+`quiz_report_send_tries:<quizId>`), the job is queued again in 15 min, and the third refusal logs `report_gave_up`.
+A teacher who asked from /quiz and whose report WhatsApp refused is told so (`tqReportNotThrough`, with the class report page
+link when there is one, else `tqReportNotThroughNoLink`), never "no one has finished" (`tqNoReportYet`).
 
 **The funnel per stream, for any window:**
 

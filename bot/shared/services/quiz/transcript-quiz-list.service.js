@@ -503,8 +503,17 @@ async function handleActionButton(buttonId, phone) {
   await WhatsAppService.sendMessage(phone, resolveUx('tqReportComing', { language: lang }));
   const Report = require('./video-quiz-report.service');
   const sent = await Report.generate(shareCodeId, { reason: 'requested', force: true });
-  if (!sent) await WhatsAppService.sendMessage(phone, resolveUx('tqNoReportYet', { language: lang }));
-  logEvent('transcript_quiz.report_requested', { quizId, sent: Boolean(sent) });
+  // quiz_report_send_checked on: a false may be WhatsApp refusing the report (children did finish), never "no one
+  // has finished" then. lastRefusal() tells it apart; a stub with generate alone has none (nothing to report).
+  const refused = !sent && typeof Report.lastRefusal === 'function' ? Report.lastRefusal(shareCodeId) : null;
+  if (refused) {
+    await WhatsAppService.sendMessage(phone, refused.link
+      ? resolveUx('tqReportNotThrough', { language: lang, params: { link: refused.link } })
+      : resolveUx('tqReportNotThroughNoLink', { language: lang }));
+  } else if (!sent) {
+    await WhatsAppService.sendMessage(phone, resolveUx('tqNoReportYet', { language: lang }));
+  }
+  logEvent('transcript_quiz.report_requested', { quizId, sent: Boolean(sent), ...(refused ? { refused: true } : {}) });
   return true;
 }
 
