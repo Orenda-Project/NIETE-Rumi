@@ -631,7 +631,8 @@ function refused(key, lang, batch) {
   const plan = OneVoice.forQuiz(clipPlan(), null, lang);   // a language the plan leaves out: today's recorder
   if (!plan) return false;
   const long = LONG_KEY.exec(String(key || ''));
-  if (!long && batch) return false;
+  // the storybook-voice switch alone (one voice off): a short line is recorded on the fly, as today's voice's lines are
+  if (!long && (batch || !OneVoice.currentPlan())) return false;
   if (!clipRefused.has(key)) {
     clipRefused.add(key);
     const m = long ? [null, long[1], 'story'] : PART_OF_KEY.exec(String(key || '')) || [null, null, null];
