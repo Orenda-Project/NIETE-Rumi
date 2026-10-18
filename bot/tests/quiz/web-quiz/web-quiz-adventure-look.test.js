@@ -223,6 +223,16 @@ describe('the routes', () => {
     });
   });
 
+  test('primed at start (the hub switches\' one read done once, as the join\'s read or the first hub read does): the very first answer carries the look and the one button system together', async () => {
+    rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: true }];
+    await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
+    await serve(async (ask) => {
+      const first = await ask();
+      for (const k of ['quiz', 'hubGet', 'hubPost', 'menu']) expect([k, JSON.parse(first[k]).adv, JSON.parse(first[k]).one_button]).toEqual([k, true, true]);
+    });
+    expect(ownReads).toBe(0);
+  });
+
   test('a cold switch never holds the answer: the first answer is today\'s while the one read runs behind it, the next carries the look', async () => {
     rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: true }];
     await serve(async (ask) => {
