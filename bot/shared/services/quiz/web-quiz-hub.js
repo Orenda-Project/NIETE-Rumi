@@ -169,7 +169,7 @@ async function recentCodes(teachers) {
   return plain.data || [];
 }
 
-const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
+const { lessonRefs } = require('./web-quiz-lesson-refs');
 
 async function teacherCard(kidRow, list, history, grade, homeP = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
@@ -610,7 +610,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
   // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
@@ -718,5 +718,5 @@ module.exports = {
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
   // the per-child reads, for a result card's next thing (web-quiz-next-offer-sources.js snapshot)
-  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf },
+  _parts: { kidContext, kidChip, teacherCard, againOf, lastOf, challengeForm, trailStops, recsFor, subjectArtOf, lessonRefs },
 };
