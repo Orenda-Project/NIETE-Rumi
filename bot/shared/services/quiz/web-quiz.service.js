@@ -684,6 +684,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  if (require('./web-quiz-minify').on()) out.min = true;
   return out;
 }
 
