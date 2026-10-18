@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * bd-t7zk3t.11 — SPEC_v2 §6 row 30 (client half; the server half is tests/portal/fln-ab-isolation.test.js).
+ * SPEC_v2 §6 row 30 (client half; the server half is tests/portal/fln-ab-isolation.test.js).
  *
  * The FLN client folder must import nothing from the K-5 lesson-plan code that the ch3–8 A/B test (lp-ab-ch310)
  * reads through: no lp-ab / ab-ch310 module, not the K-5/6–12 `lessonPlansApi`, not `useOpenLesson`. FLN plans

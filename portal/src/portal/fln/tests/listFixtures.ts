@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — synthetic catalogue answers for the list-side tests (band, chooser, list, gate).
+ * Synthetic catalogue answers for the list-side tests (band, chooser, list, gate).
  * SHAPE only, never corpus text (the repo is public): a guide at pos 0, a screener with its own note and
  * minutes, core rows with sound counts, an additional-practice row, an Urdu title with a Latin token and
  * mixed digits, a Numeracy extended strand.

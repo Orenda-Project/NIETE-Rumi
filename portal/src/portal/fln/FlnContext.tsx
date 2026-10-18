@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — what every FLN page reads: who is looking (`/fln/me`, fetched by FlnGate on every mount, never
+ * What every FLN page reads: who is looking (`/fln/me`, fetched by FlnGate on every mount, never
  * cached — the Share bar depends on it), the page language (`ui_lang`, her preferred_language), its direction and
  * that language's words. A plan's OWN text keeps the plan's language; this is the chrome's.
  */

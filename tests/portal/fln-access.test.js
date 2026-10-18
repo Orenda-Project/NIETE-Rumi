@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — dashboard/lib/fln-access.js, the one FLN access rule:
+ * Dashboard/lib/fln-access.js, the one FLN access rule:
  *   share   = leader role (users.role, re-read every call) AND portal_fln_share on for the user
  *   lessons = portal_fln_lessons on for the user OR share
  * and requireFln.{lessons,share}: no-store on every answer, 401 signed out, 404 when not allowed.

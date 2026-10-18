@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the "Reading Hour & Numeracy" band on the New-lesson page (DESIGN v2 §0, §1, §2 S2, §7;
+ * The "Reading Hour & Numeracy" band on the New-lesson page (DESIGN v2 §0, §1, §2 S2, §7;
  * mockups picker_g1_en / picker_g1_ur / picker_g8_en).
  *
  * The subject picker above it is a tray (teacher/ui/ClassPicker.tsx differs between main and sandbox, so nothing

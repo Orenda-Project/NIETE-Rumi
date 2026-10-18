@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — dashboard/services/fln-corpus.service.js: the FLN bundle, loaded from the mirror, held in memory.
+ * Dashboard/services/fln-corpus.service.js: the FLN bundle, loaded from the mirror, held in memory.
  * Network (global fetch) and app_settings (dashboard/config/supabase) are the only things mocked.
  */
 const zlib = require('zlib');
@@ -84,7 +84,7 @@ describe('load', () => {
     expect(console.error).toHaveBeenCalled();
   });
 
-  it('no row and no env → the last-resort DEFAULT_VERSION v1, with a warning (COS 163228)', async () => {
+  it('no row and no env → the last-resort DEFAULT_VERSION v1, with a warning', async () => {
     settingValue = undefined;
     const C = load();
     expect(C.DEFAULT_VERSION).toBe('v1-20261018-786b5bff');

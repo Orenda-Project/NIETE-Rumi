@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the builder's entry for v2 coaches, a tile in the Training Library's tiles grid (LibraryHome),
+ * The builder's entry for v2 coaches, a tile in the Training Library's tiles grid (LibraryHome),
  * drawn like the provider tiles beside it and spanning both columns so it never breaks their odd-one-out rule.
  * NOTHING unless GET /api/portal/fln/me says share:true. `lang` = the page's language (LibraryHome passes its own).
  */

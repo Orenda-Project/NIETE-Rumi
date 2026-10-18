@@ -1,6 +1,6 @@
 /**
- * bd-t7zk3t.12 — the minimal STRUCTURAL shapes Share reads from m-app's plan page. They mirror (a subset of) m-app's
- * `fln/types.ts` (FlnPlan, FlnPlacement, FlnMe on branch bd-t7zk3t.11, PR-C), which is not on this branch; m-app's
+ * The minimal STRUCTURAL shapes Share reads from m-app's plan page. They mirror (a subset of) m-app's
+ * `fln/types.ts` (FlnPlan, FlnPlacement, FlnMe on the plan-page branch), which is not on this branch; m-app's
  * full types are assignable to these, so the page passes its own objects straight in. Keep in step with that file.
  */
 import type { ShareLang, ShareSubject } from './strings.share';

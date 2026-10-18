@@ -1,11 +1,11 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — a Reading Hour / Numeracy (FLN) open never asks the lesson-plan survey.
+ * A Reading Hour / Numeracy (FLN) open never asks the lesson-plan survey.
  *
- * The survey after an app open (lp-app-open-survey, bd-qvevax.2) knows two plan kinds: k5 asks the
+ * The survey after an app open (lp-app-open-survey) knows two plan kinds: k5 asks the
  * K-5 survey, and ANY other kind falls through to the 6-12 survey with plan_ref as a segment id. An
- * FLN open (plan_kind 'fln', plan_ref = a taleemabad_core lesson id) would have scheduled a 6-12
- * survey about a segment that does not exist and written that id into lp_feedback. The ruling
+ * FLN open (plan_kind 'fln', plan_ref = an FLN source-corpus lesson id) would have scheduled a 6-12
+ * survey about a segment that does not exist and written that id into lp_feedback. The decision
  * (SPEC_v2 §6 row 9): FLN is excluded, explicitly, before any guard reads Redis or the user — an FLN
  * survey is a later bead.
  *

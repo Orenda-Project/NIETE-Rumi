@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — "Share link" (DESIGN v2 §4 L2b): the plan card, Send on WhatsApp (wa.me → the contact picker, the
+ * "Share link" (DESIGN v2 §4 L2b): the plan card, Send on WhatsApp (wa.me → the contact picker, the
  * message from message.ts), Copy link (the clipboard with ShareActions' in-app-browser fallback) and the link shown in
  * full as one left-to-right atom. Logs `share` / `link_copy`, fire-and-forget. The link carries no identity.
  */

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the plan page, `/portal/fln/p/:id` (DESIGN v2 §2 S4/S5, §5, §7; contracts api.md + player.md v2).
+ * The plan page, `/portal/fln/p/:id` (DESIGN v2 §2 S4/S5, §5, §7; contracts api.md + player.md v2).
  *
  * Top → bottom: back bar · navy header · goal + "Full details" · time bar · the sound grid (always visible, never on a
  * screener) · every section as a CLOSED band (operator decision) · homework band · footer. The chrome speaks the
@@ -46,7 +46,7 @@ type Load =
 type QueuedEvent = { kind: string; plan: number | string; clip?: string; ms?: number; result?: string };
 
 /**
- * Where Back goes when the plan was opened by a link (no list behind it in history) — DESIGN v2 ruling 15:
+ * Where Back goes when the plan was opened by a link (no list behind it in history) — DESIGN v2 decision 15:
  * the teacher's OWN lowest grade when she has one (6–12 → the server answers with the level chooser; 1–5 → her level
  * list), else (a leader, no classes, a failed read) the first grade of the plan's level.
  */

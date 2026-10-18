@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the leader-side FLN API client (contracts/api.md v2: me, links, title, events; teachers + send are
+ * The leader-side FLN API client (contracts/api.md v2: me, links, title, events; teachers + send are
  * PR-E's server routes). Plain `fetch`, the session cookie (same-origin), `cache: 'no-store'` on every read — never the
  * shared `services/api.ts` client, whose 401 handler differs between branches and drops the page being opened.
  * Every function answers a tagged result and never throws, so a component draws one state per answer.

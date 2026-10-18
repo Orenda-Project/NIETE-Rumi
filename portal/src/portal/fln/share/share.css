@@ -1,5 +1,5 @@
 /*
- * bd-t7zk3t.12 — Share, Send to teacher, the builder and the sign-in banner. Scoped under .fln-root: index.css forces
+ * Share, Send to teacher, the builder and the sign-in banner. Scoped under .fln-root: index.css forces
  * the Urdu font on every element of an Urdu page with !important, and an Urdu line inside an English page (the
  * bilingual banner, an Urdu title in an English builder) needs the same Nastaliq and room for its descenders.
  */

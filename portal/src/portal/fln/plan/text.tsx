@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the plan page's text helpers. Text only: nothing here sets HTML; React escapes every string.
+ * The plan page's text helpers. Text only: nothing here sets HTML; React escapes every string.
  *
  *  - `Chrome`   a chrome string (from strings.ts) with every Latin/ASCII-digit run AND every Urdu-digit run in its own
  *               <bdi class="n"> on a right-to-left page (DESIGN v2 §1: "every number/Latin run in Urdu chrome sits

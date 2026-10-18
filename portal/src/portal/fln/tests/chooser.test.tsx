@@ -9,7 +9,7 @@ import { ME_TEACHER, numG2, rhEnG8, stubFetch } from './listFixtures';
 import type { FlnMe } from '../types';
 
 /**
- * bd-t7zk3t.11 — S3b, the level chooser for grades 6–12 (DESIGN v2 §3): the screener first with its OWN minutes
+ * S3b, the level chooser for grades 6–12 (DESIGN v2 §3): the screener first with its OWN minutes
  * and note, the answer-key chip, NO ✓; three level cards with descriptor, grades, the real count and the
  * Beginner → Level 1 map. A level → ?grade=&level=; the screener → its plan.
  */

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — what the level chooser and the lesson list share: loading a catalogue, the top bar with Back,
+ * What the level chooser and the lesson list share: loading a catalogue, the top bar with Back,
  * the subject list, and where each list page lives.
  */
 import { useCallback, useEffect, useState } from 'react';

@@ -1,7 +1,7 @@
 /**
- * bd-t7zk3t.12 — the plan as both Share sheets show it: a navy card, the kicker (subject — level — lesson n/N, in the
+ * The plan as both Share sheets show it: a navy card, the kicker (subject — level — lesson n/N, in the
  * chrome's language) and the title in the PLAN's language and direction. Numbers come from the placement row, never
- * from `seq` (DESIGN v2 ruling 10).
+ * from `seq` (DESIGN v2 decision 10).
  */
 import { Fill } from './Fill';
 import { shareStrings, type ShareLang, type ShareSubject } from './strings.share';

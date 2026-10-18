@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — a fetch-shaped GET over plain `http` with `Connection: close`, for the FLN route suites.
+ * A fetch-shaped GET over plain `http` with `Connection: close`, for the FLN route suites.
  *
  * One connection per request, closed after it: no socket outlives its suite's server, whatever else shares the jest
  * worker (global fetch's keep-alive pool is process-wide).

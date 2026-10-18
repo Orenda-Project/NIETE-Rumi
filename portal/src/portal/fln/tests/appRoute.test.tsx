@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, waitFor, cleanup } from "@testing-library/react";
 
 /**
- * bd-t7zk3t.11 — the App.tsx hook line `<Route path="/portal/fln/*" element={<FlnRoutes />} />`, executed through the
+ * The App.tsx hook line `<Route path="/portal/fln/*" element={<FlnRoutes />} />`, executed through the
  * real App (BrowserRouter, CoachAppGuard, AnalyticsOnlyGuard, the lazy chunk): a cold open of a plan link mounts the
  * FLN route table, whose gate asks GET /api/portal/fln/me; signed out (401) it goes to sign-in with `next=` the plan.
  * Without the line the path falls to the catch-all NotFound and /me is never asked.

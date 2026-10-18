@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the FLN API client (contracts/api.md v2). Plain `fetch` with the session cookie, never the shared
+ * The FLN API client (contracts/api.md v2). Plain `fetch` with the session cookie, never the shared
  * `services/api.ts` client: its 401 handler differs between branches and drops the page the user was going to.
  *
  *   404 → `null`  (the feature is off for this user, or the plan is hidden/unknown)

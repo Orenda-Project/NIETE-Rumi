@@ -1,5 +1,5 @@
 /*
- * bd-t7zk3t.11 — the FLN pages' styles, ported from design/mockups/fln_mock.css (v2) and scoped: everything lives
+ * The FLN pages' styles, ported from design/mockups/fln_mock.css (v2) and scoped: everything lives
  * under .fln-root (the /portal/fln/* pages) or .fln-band (the band inside the teacher app's New-lesson page), so
  * nothing here can touch another page. Brand: NIETE navy #333748 + green #47BA7D for lists; the v10 navy #26324A
  * is the plan header's (plan worker).
