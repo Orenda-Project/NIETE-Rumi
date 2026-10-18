@@ -1116,6 +1116,16 @@ function meaningTwin(lists) {
   };
 }
 
+// Urdu Section C: one word in one place. A Q5 whose words take a word or idiom Q3 asks the meaning of
+// (the same entry, or the same idiom in another verb form: «دھوم مچ جانا» / «دھوم مچانا») narrows the
+// paper by that word. An idiom built on a Q3 word («شانہ بشانہ» beside «شانہ بشانہ کام کرنا») is
+// another entry. `q3`: Q3's words.
+function wordTwice(q5, q3) {
+  const entry = (w) => { const t = plain(w); return [t, idiomOf(t)].filter(Boolean); };
+  const asked = new Set(q3.flatMap(entry));
+  return (Array.isArray(q5.words) ? q5.words : []).some((w) => typeof w === 'string' && entry(w).some((e) => asked.has(e)));
+}
+
 // Urdu Section C against Q1: Q4's twins, Q6's verse, Q3/Q5's words, each read from its own slot.
 function urduTwin(placed) {
   const of = (...ids) => placed.filter((q) => ids.includes(q.slot));
@@ -1354,23 +1364,36 @@ function keyAcceptSplit(q) {
 // «کَ – ہا – نی»; «ب - گو - لا» beside «بگ - و - لا»).
 const SYLLABLE_CUT = /[+\-–—ـ]/;
 const SYLLABLE_ASK = /ارکان/;
+const syllableCuts = (parts) => { let at = 0; return parts.slice(0, -1).map((p) => { at += p.length; return at; }).join(','); };
+// One word to an entry: a line, or a part of one cut at «؛» or «،». A word's parts are cut at «+»
+// (or a dash), or, with neither, at its spaces; a part's own letters are read without marks.
+const syllableEntries = (text) => text.split(/[\n؛;،,]/).map((t) => t.split(/[:：]/).pop()).filter((t) => t.trim());
+const syllableParts = (text) => (SYLLABLE_CUT.test(text) ? text.split(SYLLABLE_CUT) : text.split(/\s+/))
+  .map((part) => plain(part).replace(/ /g, '')).filter(Boolean);
 function syllableSplit(q) {
   if (typeof q.answer !== 'string') return false;
   const cut = (line) => line.includes('+') || (SYLLABLE_ASK.test(String(q.question || '')) && SYLLABLE_CUT.test(line));
   if (!cut(q.answer)) return false;
   const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
-  const cuts = (parts) => { let at = 0; return parts.slice(0, -1).map((p) => { at += p.length; return at; }).join(','); };
-  // One word to an entry: a line, or a part of one cut at «؛» or «،». A word's parts are cut at «+»
-  // (or a dash), or, with neither, at its spaces; a part's own letters are read without marks.
-  const entries = (text) => text.split(/[\n؛;،,]/).map((t) => t.split(/[:：]/).pop()).filter((t) => t.trim());
-  const partsOf = (text) => (SYLLABLE_CUT.test(text) ? text.split(SYLLABLE_CUT) : text.split(/\s+/))
-    .map((part) => plain(part).replace(/ /g, '')).filter(Boolean);
+  const [cuts, entries, partsOf] = [syllableCuts, syllableEntries, syllableParts];
   const accepted = accept.flatMap(entries).map(partsOf).filter((parts) => parts.length > 1);
   return entries(q.answer).some((line) => {
     if (!cut(line)) return false;
     const parts = partsOf(line);
     if (parts.length < 2) return false;
     return accepted.some((a) => a.join('') === parts.join('') && cuts(a) !== cuts(parts));
+  });
+}
+// Urdu Q4 ارکان: a key that splits a word the book itself splits (`P.syllables`: «دامن» دا – من, «غلاظت»
+// غ – لا – ظت) another way gives the teacher a wrong answer to mark from, whatever its accepted answer
+// says. A word the book never splits is not read.
+function bookSplit(q, P) {
+  const book = (P && Array.isArray(P.syllables) ? P.syllables : []).map((b) => ({ word: plain(b.word).replace(/ /g, ''), cuts: syllableCuts(b.parts.map((x) => plain(x))) }));
+  if (!book.length || typeof q.answer !== 'string' || !SYLLABLE_ASK.test(String(q.question || ''))) return false;
+  return syllableEntries(q.answer).some((line) => {
+    const parts = syllableParts(line);
+    const own = parts.length > 1 && book.find((b) => b.word === parts.join(''));
+    return Boolean(own) && own.cuts !== syllableCuts(parts);
   });
 }
 // Urdu Q4: the group word names what the listed words belong to («تھرمامیٹر، نبض، دوا، ڈاکٹر» →
@@ -1550,6 +1573,26 @@ function namesKeyOf(q, by) {
   return namesOf(q.question).some((w) => story.has(nounFold(w)));
 }
 const storyCue = (a, b) => namesKeyOf(a, b) || namesKeyOf(b, a);
+// Urdu Q1: an item that asks a name or a place (a person, a city, a country: «سدرہ کی بہن کا نام کیا
+// تھا؟», «… جاپان کے کس شہر پر …؟»), keyed on one word that only its key option carries, is given away
+// by another Q1 item's stem or correct option that prints that word («سالگرہ کی صبح امینہ گلی میں …» →
+// امینہ; «ہیروشیما پر نظر آنے والے …» → ہیروشیما), with no other word shared. A wrong option that names it
+// tells nothing (one name among four). An item that asks about a word (its meaning, its opposite, its
+// kind: «امن» کا متضاد → جنگ) asks no name, whatever stem prints its key.
+const NAME_ASK = /(?:^| )(?:نام|شہر|ملک|کہاں|جگہ|مقام)(?: |$)|(?:^| )کس نے(?: |$)|(?:^| )کون (?:تھا|تھی|تھے|ہے|ہیں)(?: |$)/;
+const WORD_ASK = /لفظ|الفاظ|متضاد|مترادف|ہم معنی|مطلب|معنی|مفہوم|جملہ|جملے|(?:^| )اسم(?: |$)|(?:^| )حرف|املا/;
+function namePrinted(q, by) {
+  if (!Array.isArray(q.options) || q.options.length < 2) return false;
+  const stem = plain(q.question);
+  if (!NAME_ASK.test(stem) || WORD_ASK.test(stem)) return false;
+  const key = plain(keyOption(q));
+  if (!key || key.includes(' ') || [...key].length < 3 || STOP.has(key) || termClass(key)) return false;
+  const holds = (text) => ` ${plain(text)} `.includes(` ${key} `);
+  if (q.options.filter((o) => holds(String(o).replace(OPTION_HEAD, ''))).length !== 1) return false;
+  const told = Array.isArray(by.options) && by.options.length ? plain(keyOption(by)) : '';
+  return holds(by.question) || (told !== key && told.includes(' ') && holds(told));
+}
+const nameCue = (a, b) => namePrinted(a, b) || namePrinted(b, a);
 // Urdu Q1: one grammar concept once on the paper. An item asks a concept when its key is the term
 // (… کیا کہلاتا ہے؟ → اسم معرفہ), when its stem names the term outside a quoted example (… میں
 // اسم معرفہ کون سا ہے؟), or when its stem or key says what the term is («… خاص نام کے بجائے … عام
@@ -1557,8 +1600,8 @@ const storyCue = (a, b) => namesKeyOf(a, b) || namesKeyOf(b, a);
 // A word meaning or a story fact asks no grammar concept. The متشابہ pair is one concept however the
 // stem asks it: one spelling with two meanings, two words that sound alike but are spelt apart
 // («آواز میں ایک جیسے مگر املا میں مختلف»), a word's «دوسرا معنی», «X بمعنی … اور Y بمعنی …». An
-// antonym or a synonym item is a concept only on chosen lessons that teach it (lessons 4–5: متضاد,
-// مترادف); anywhere else it is vocabulary.
+// antonym or a synonym item is a concept on the full syllabus and on chosen lessons that teach it
+// (lessons 4–5: متضاد, مترادف); on other chosen lessons it is vocabulary.
 // Each row is written as the book writes it and folded as plain() folds the text it reads (آ as ا,
 // ئ as ی, …), so no row can be dead for a letter form.
 const foldPattern = (re) => new RegExp(UR_FORMS.reduce((src, [f, to]) => src.replace(new RegExp(f.source, 'g'), to), re.source.replace(UR_MARKS, '')), re.flags);
@@ -1574,7 +1617,7 @@ const CONCEPTS = [
   ['doubt', /شکیہ|شک (?:و شبہ|ظاہر|کا اظہار)/],
   ['wish', /تمنائی|آرزو (?:کا اظہار|ظاہر)/],
   ['homograph', new RegExp(`${HOMOGRAPH.source}|آواز میں ایک (?:جیسے|جیسا)|دوسرا معنی|بمعنی .+ اور (?:.+ )?بمعنی`)],
-  ['antonym', /متضاد|مخالف معنی/],
+  ['antonym', /متضاد|مخالف معنی|الٹ(?:ا|ے)? (?:معنی|مطلب)/],
   ['synonym', /مترادف|ہم معنی/],
 ].map(([name, re]) => [name, foldPattern(re)]);
 const LESSON_ONLY = new Set(['antonym', 'synonym']);
@@ -1631,6 +1674,19 @@ function scopeLessons(P, scope) {
     : P.lessons.filter((l) => ranges(l.pages).some(([a, b]) => pages.some(([c, d]) => a <= d && c <= b)));
   return chosen.length ? chosen : null;
 }
+// Urdu Q1 on lessons that hold one prose story (lessons 6–7: a story and a poem; any single lesson; pages
+// inside one lesson): twenty items drawn from one story name each other's people and things, so at most
+// eight ask a fact of the story and the rest come from the lessons' word lists, meanings, idioms and
+// poem. Section A says where each item comes from (its `source`, never printed).
+const STORY_ITEMS = 8;
+const oneStory = (lessons) => Boolean(lessons) && lessons.filter((l) => !l.poem).length <= 1;
+// A story item by its stem alone, as a short hash (no text): a paper laid out again from a laid one has
+// lost its tags, and `_layout.story_ids` tells the layout which of its printed items ask the story.
+const storyId = (q) => {
+  let h = 0x811c9dc5;
+  for (const c of plain(q.question)) { h ^= c.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
+};
 // Urdu Q1 on chosen lessons: the grammar concept an item asks, when it is not one those lessons teach.
 function outsideLessons(q, lessons) {
   const concept = lessons && conceptOf(q, lessons);
@@ -1666,6 +1722,8 @@ function takenNote(P, section, examJson, opts = {}) {
   if (!cross || !section || !Array.isArray(section.slots)) return null;
   if (!section.slots.some((s) => cross.held.includes(s.slot))) {
     // Social Studies: a top-up of a section with no held slot (A's Q1) is told what each short slot keeps.
+    // Urdu: a Section C top-up for a Q5 held for a Q3 word is told Q3's words.
+    if (P.key === 'urdu' && opts.topUp) return q3Note(section, examJson, opts.shortfall);
     if (P.key !== 'social_studies' || !opts.topUp) return null;
     const kept = keptNotes(P, section, examJson, cross, opts.shortfall);
     return kept.length ? kept.join('\n\n') : null;
@@ -1709,6 +1767,8 @@ function takenNote(P, section, examJson, opts = {}) {
     // whole Section A again and its first items ask kept facts under new stems, keyed the same.
     // Its count is the section's own, so a held twin's place goes to the next new item.
     if (opts.topUp) notes.push(...urduKeptNotes(section, examJson, opts.shortfall));
+    const story = opts.topUp && storyNote(section, examJson, opts.shortfall);
+    if (story) notes.push(story);
     return notes.length ? notes.join('\n\n') : null;
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
@@ -1873,6 +1933,31 @@ function urduKeptNotes(section, examJson, shortfall) {
   return out;
 }
 
+// Urdu Section C top-up with Q5 short: the words Q3 keeps, so the new Q5 asks none of them.
+function q3Note(section, examJson, shortfall) {
+  const short = (Array.isArray(shortfall) ? shortfall : []).some((f) => f && f.slot === 'urdu.C.Q5' && f.missing > 0);
+  if (!short || !section.slots.some((s) => s.slot === 'urdu.C.Q5')) return null;
+  const words = [];
+  for (const types of Object.values((examJson && examJson.unseen) || {})) {
+    for (const list of Object.values(types || {})) {
+      if (Array.isArray(list)) list.filter((q) => q && q.slot === 'urdu.C.Q3' && Array.isArray(q.words)).forEach((q) => words.push(...q.words.filter((w) => typeof w === 'string' && w.trim()).map((w) => w.trim())));
+    }
+  }
+  return words.length ? `Q3 of this paper asks the meaning of these words: ${words.join('، ')}\nQ5's words and idioms never include any of them: each word on the paper is asked in one place.` : null;
+}
+
+// Urdu on one story: how many more Q1 items may ask a fact of the story, from the count the layout
+// recorded (`_layout.story_items`), when Q1 is short.
+function storyNote(section, examJson, shortfall) {
+  const n = examJson && examJson._layout && examJson._layout.story_items;
+  const short = (Array.isArray(shortfall) ? shortfall : []).some((f) => f && f.slot === 'urdu.A.Q1' && f.missing > 0);
+  if (!Number.isInteger(n) || !short || !section.slots.some((s) => s.slot === 'urdu.A.Q1')) return null;
+  const rest = 'from the lessons\' word lists, word meanings, idioms or the poem, and give it its "source"';
+  return n >= STORY_ITEMS
+    ? `Story items are used up: Q1 already asks ${n} facts of the story. Write every new Q1 item ${rest}.`
+    : `Q1 keeps ${n} story items: at most ${STORY_ITEMS - n} new Q1 items may ask a fact of the story; write the others ${rest}.`;
+}
+
 /**
  * applyLayout(examJson, P, scope, { now }) → { examJson, placed, unplaced, shortfall }
  *
@@ -1901,6 +1986,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the concept Section A declares for a Q1 item is read here and taken off the item, so it
   // never prints; it is checked on chosen lessons only.
   const declared = new Map();
+  // Urdu on one story: the source each Q1 item declares, read and taken off the same way.
+  const story = P.key === 'urdu' && oneStory(lessons);
+  const sources = new Map();
+  const storyIds = new Set(story && src._layout && Array.isArray(src._layout.story_ids) ? src._layout.story_ids : []);
   all.forEach((entry) => {
     stripTags(entry.q); stripStemOptions(entry.q);
     if (P.key !== 'urdu') return;
@@ -1909,30 +1998,44 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (lessons) declared.set(entry.q, declaredConcept(entry.q.concept, P));
       delete entry.q.concept;
     }
+    if (Object.prototype.hasOwnProperty.call(entry.q, 'source')) {
+      if (story) sources.set(entry.q, String(entry.q.source || '').trim().toLowerCase());
+      delete entry.q.source;
+    } else if (storyIds.size && typeof entry.q.question === 'string' && storyIds.has(storyId(entry.q))) sources.set(entry.q, 'story');
   });
+  const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
+  // Urdu: the words the reply's first Q3 asks the meaning of (a Q5 never asks them again).
+  const q3 = P.key === 'urdu' ? all.find((e) => slotKey(e.q.slot) === slotKey('urdu.C.Q3') && Array.isArray(e.q.words)) : null;
+  const q3Words = q3 ? q3.q.words.filter((w) => typeof w === 'string') : [];
   const sameDeclared = (p, q) => { const [a, b] = [declared.get(p), declared.get(q)]; return Boolean(a && b && a.grammar && b.grammar && !a.pair && a.name === b.name); };
   // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
   // declares its concepts; a reply written before it was never asked to keep them once. A paper
   // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
   // their tags, and an item a top-up writes without one is still read by its stem.
   const counted = declared.size || (src._layout && src._layout.counted === true) ? lessons : null;
+  // The lessons a concept is read against: the counted ones, or on the full syllabus all of them (it
+  // teaches the antonym and the synonym, lessons 4–5), so a concept is asked once on every scope.
+  const conceptLessons = counted || (P.key === 'urdu' && !lessons ? P.lessons : null);
   // `id`, the slot both items are placed in: Urdu Q1 items also give each other away by a story
   // name, and ask a grammar concept once.
   // A concept asked again is a twin. `hard`: only a twin that may never print; an antonym or a synonym
   // asked again on lessons 4–5 gives nothing away, and is the last item put back (below).
   const conceptTwin = (p, q, hard) => {
-    const c = sameConcept(p, q, counted) ? conceptOf(q, counted) : null;
+    const c = sameConcept(p, q, conceptLessons) ? conceptOf(q, conceptLessons) : null;
     const d = sameDeclared(p, q) ? declared.get(q).name : null;
     return hard ? Boolean((c && !LESSON_ONLY.has(c)) || (d && !LESSON_ONLY.has(d))) : Boolean(c || d);
   };
   const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)
-      || (id === 'urdu.A.Q1' && (storyCue(p, q) || conceptTwin(p, q, hard)))));
+      || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || conceptTwin(p, q, hard)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
   // Social Studies: the items set aside as a repeat of one already placed, with the test that matched.
   let repeated = [];
+  // Urdu: the Q5 items the last pass held only for a Q3 word: they may come back after the re-ask, so
+  // Section A is read against their words too.
+  let mayReturn = [];
   const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : 'same_task');
   const place = (cross, within) => {
     bySlot.forEach((list) => { list.length = 0; });
@@ -1948,6 +2051,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
     const inSlot = new Map(); // Urdu Q1: slot → items held inside Q1 that give nothing away, in reply order
+    mayReturn = [];
     const keep = (id, q, rule) => { inSlot.set(id, [...(inSlot.get(id) || []), { q, rule }]); tally.set(`${id}|${rule}`, (tally.get(`${id}|${rule}`) || 0) + 1); };
     // An Urdu Q1 twin of a placed item: never printed, or, a concept repeat only, kept for the put-back.
     const twinOf = (slot, q) => {
@@ -1970,6 +2074,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && syllableSplit(q)) { keep(slot.slot, q, 'syllable_split'); return false; }
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bookSplit(q, P)) { keep(slot.slot, q, 'book_split'); return false; }
+      // A word Q3 asks, asked again in Q5, gives nothing away: Section C is asked again first, and the
+      // item comes back only if the re-ask leaves its place empty.
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q5' && q3Words.length && wordTwice(q, q3Words)) { keep(slot.slot, q, 'word_twice'); mayReturn.push(q); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return no(slot, 'prints_own_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && lettersOfKey(q)) return no(slot, 'letters_of_key');
       const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
@@ -2007,8 +2115,14 @@ function applyLayout(examJson, P, scope, opts = {}) {
       const row = restated(slot, q);
       return row ? hold(slot, q, row.name) : true;
     };
+    // Urdu on one story: a story item past the eighth gives nothing away, and is the last item put back.
+    const storyFull = (slot, q) => {
+      if (!story || slot.slot !== 'urdu.A.Q1' || sources.get(q) !== 'story' || storyCount(bySlot.get(slot.slot)) < STORY_ITEMS) return false;
+      keep(slot.slot, q, 'story_cap');
+      return true;
+    };
     const offer = (slot, q) => {
-      if (room(slot) && fits(slot, q)) bySlot.get(slot.slot).push(q);
+      if (room(slot) && fits(slot, q) && !storyFull(slot, q)) bySlot.get(slot.slot).push(q);
       else unplaced += 1;
     };
     const untagged = [];
@@ -2039,17 +2153,17 @@ function applyLayout(examJson, P, scope, opts = {}) {
     // asks two questions, then an antonym or synonym asked again (a repeat, not a give-away). A twin of
     // a kept item, or a stem that prints a key, never comes back. Q4's ارکان item whose key and
     // accepted answer split a word apart is asked again first, and comes back only if the re-ask leaves
-    // its place empty (it printed so before; a paper that refuses is worse). On chosen lessons a
-    // grammar concept a printed item already asks never comes back (a tag the stem contradicts on
-    // the only item of its concept still may): the engine tops Section A up once more, told grammar
-    // is used up, and a place still empty after that fails the paper.
+    // its place empty (it printed so before; a paper that refuses is worse). On every scope a grammar
+    // concept a printed item already asks never comes back (a tag the stem contradicts on the only item
+    // of its concept still may): the engine tops Section A up once more, told grammar is used up, and a
+    // place still empty after that fails the paper.
     if (P.key === 'urdu') {
       inSlot.forEach((list, id) => {
         const slot = slots.find((s) => s.slot === id);
         const order = list.filter((x) => x.rule === 'asks_two').concat(list.filter((x) => x.rule !== 'asks_two'));
         for (const { q, rule } of order) {
           if (!room(slot)) return;
-          if (lessons && GRAMMAR_REPEAT.has(rule) && bySlot.get(id).some((p) => conceptTwin(p, q, false))) continue;
+          if (GRAMMAR_REPEAT.has(rule) && bySlot.get(id).some((p) => conceptTwin(p, q, false))) continue;
           if (bySlot.get(id).some((p) => twin(p, q, id, rule === 'concept_repeat' || rule === 'concept_tag_disagrees')) || (holds(slot) && cross.rule(q))) continue;
           bySlot.get(id).push(q);
           putBack.push({ slot: id, rule });
@@ -2086,7 +2200,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const cross = CROSS_HOLD[P.key];
   const against = cross && slots.filter((s) => [].concat(cross.against).includes(s.slot));
   // Each item as the slot it was placed in (a mis-tag, «urdo.C.Q4», is placed by its tail).
-  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).map((q) => ({ ...q, slot: s.slot }))));
+  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).concat(s.slot === 'urdu.C.Q5' ? mayReturn : []).map((q) => ({ ...q, slot: s.slot }))));
   if (rule) place({ held: cross.held, rule });
   // Social Studies: D is laid out again against the point sets now placed, one row at a time in
   // SAME_POINTS order, each row built from the slots the rows before it have settled (Q5 is held only
@@ -2172,6 +2286,11 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // items already gone) keeps the larger count the earlier layout recorded.
   if (P.key === 'urdu') {
     if (counted) out._layout.counted = true;
+    // On one story: how many printed Q1 items ask a fact of the story (a top-up is told what is left). A
+    // paper laid out again from a laid one (its sources already gone) keeps the count it had.
+    const told = sources.size ? storyCount(bySlot.get('urdu.A.Q1') || []) : src._layout && src._layout.story_items;
+    if (story && Number.isInteger(told)) out._layout.story_items = told;
+    if (story && sources.size) out._layout.story_ids = (bySlot.get('urdu.A.Q1') || []).filter((p) => sources.get(p) === 'story').map(storyId);
     const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
     const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
     tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
@@ -2184,7 +2303,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
 }
 
 module.exports = {
-  applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord, scopeLessons, conceptOf,
+  applyLayout, takenNote, firstAskNote, verseLines, typeKey, slotKey, unitWord, scopeLessons, conceptOf, oneStory, STORY_ITEMS,
   // The rows a concept is read by on any scope; antonym and synonym are concepts on lessons 4–5 only.
   conceptNames: CONCEPTS.map(([name]) => name).filter((name) => !LESSON_ONLY.has(name)),
 };
