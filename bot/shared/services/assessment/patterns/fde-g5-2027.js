@@ -742,6 +742,13 @@ const URDU = {
   poems: [
     { unit: 7, pages: '63-64', title: 'ندی کی فریاد', poet: 'کوثر صدیقی' },
   ],
+  // The book's own worked ارکان splits, as the page store prints them: each lesson's ارکان exercise
+  // splits only its first word, and these two are the ones whose parts the store has whole (p.51
+  // «دامن» دا / من; p.62 «غلاظت» غ / لا / ظت). A Q4 key that splits one of these words splits it so.
+  syllables: [
+    { word: 'دامن', parts: ['دا', 'من'], page: 51 },
+    { word: 'غلاظت', parts: ['غ', 'لا', 'ظت'], page: 62 },
+  ],
   // Each lesson's book pages and the grammar its own «قواعد کا میدان» section teaches, as the page
   // store has them. On chosen lessons or pages, Q1 asks grammar from the chosen lessons' list only.
   // `tags` are the layout's names for a concept it can recognise in an item; `q4` marks a kind Q4 asks

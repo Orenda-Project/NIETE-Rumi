@@ -1354,23 +1354,36 @@ function keyAcceptSplit(q) {
 // «کَ – ہا – نی»; «ب - گو - لا» beside «بگ - و - لا»).
 const SYLLABLE_CUT = /[+\-–—ـ]/;
 const SYLLABLE_ASK = /ارکان/;
+const syllableCuts = (parts) => { let at = 0; return parts.slice(0, -1).map((p) => { at += p.length; return at; }).join(','); };
+// One word to an entry: a line, or a part of one cut at «؛» or «،». A word's parts are cut at «+»
+// (or a dash), or, with neither, at its spaces; a part's own letters are read without marks.
+const syllableEntries = (text) => text.split(/[\n؛;،,]/).map((t) => t.split(/[:：]/).pop()).filter((t) => t.trim());
+const syllableParts = (text) => (SYLLABLE_CUT.test(text) ? text.split(SYLLABLE_CUT) : text.split(/\s+/))
+  .map((part) => plain(part).replace(/ /g, '')).filter(Boolean);
 function syllableSplit(q) {
   if (typeof q.answer !== 'string') return false;
   const cut = (line) => line.includes('+') || (SYLLABLE_ASK.test(String(q.question || '')) && SYLLABLE_CUT.test(line));
   if (!cut(q.answer)) return false;
   const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
-  const cuts = (parts) => { let at = 0; return parts.slice(0, -1).map((p) => { at += p.length; return at; }).join(','); };
-  // One word to an entry: a line, or a part of one cut at «؛» or «،». A word's parts are cut at «+»
-  // (or a dash), or, with neither, at its spaces; a part's own letters are read without marks.
-  const entries = (text) => text.split(/[\n؛;،,]/).map((t) => t.split(/[:：]/).pop()).filter((t) => t.trim());
-  const partsOf = (text) => (SYLLABLE_CUT.test(text) ? text.split(SYLLABLE_CUT) : text.split(/\s+/))
-    .map((part) => plain(part).replace(/ /g, '')).filter(Boolean);
+  const [cuts, entries, partsOf] = [syllableCuts, syllableEntries, syllableParts];
   const accepted = accept.flatMap(entries).map(partsOf).filter((parts) => parts.length > 1);
   return entries(q.answer).some((line) => {
     if (!cut(line)) return false;
     const parts = partsOf(line);
     if (parts.length < 2) return false;
     return accepted.some((a) => a.join('') === parts.join('') && cuts(a) !== cuts(parts));
+  });
+}
+// Urdu Q4 ارکان: a key that splits a word the book itself splits (`P.syllables`: «دامن» دا – من, «غلاظت»
+// غ – لا – ظت) another way gives the teacher a wrong answer to mark from, whatever its accepted answer
+// says. A word the book never splits is not read.
+function bookSplit(q, P) {
+  const book = (P && Array.isArray(P.syllables) ? P.syllables : []).map((b) => ({ word: plain(b.word).replace(/ /g, ''), cuts: syllableCuts(b.parts.map((x) => plain(x))) }));
+  if (!book.length || typeof q.answer !== 'string' || !SYLLABLE_ASK.test(String(q.question || ''))) return false;
+  return syllableEntries(q.answer).some((line) => {
+    const parts = syllableParts(line);
+    const own = parts.length > 1 && book.find((b) => b.word === parts.join(''));
+    return Boolean(own) && own.cuts !== syllableCuts(parts);
   });
 }
 // Urdu Q4: the group word names what the listed words belong to («تھرمامیٹر، نبض، دوا، ڈاکٹر» →
@@ -2021,6 +2034,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && syllableSplit(q)) { keep(slot.slot, q, 'syllable_split'); return false; }
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bookSplit(q, P)) { keep(slot.slot, q, 'book_split'); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return no(slot, 'prints_own_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && lettersOfKey(q)) return no(slot, 'letters_of_key');
       const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
