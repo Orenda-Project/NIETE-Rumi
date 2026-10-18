@@ -194,6 +194,8 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
   const year = q1.find((q) => q.question.includes('قراردادِ پاکستان کس سال'));
   const why = q1.find((q) => q.question.includes('جمہوریت کو بہترین'));
   const founder = q1.find((q) => q.question.includes('دو قومی نظریے کی ابتدائی سوچ'));
+  // Q1 items whose key a C/D stem names (a name or a term, any topic) are held by their own rule too.
+  const named = (laid) => laid.held.filter((h) => h.slot === Q1 && h.rule === 'key_named_in_stem').length;
 
   test('setup: chapters_2 Q1 11 → 1940ء beside D.Q7 5 «قراردادِ پاکستان 23 مارچ 1940ء …»; Q1 9 beside C.Q5 5', () => {
     expect(year.answer).toContain('1940');
@@ -208,7 +210,7 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
     expect(founder.answer).toContain('سرسید احمد خان');
     expect(heldRules(laid, founder.question)).toEqual(['key_in_stem']);
     expect(printed(laid, Q1)).not.toContain(year.question);
-    expect(laid.shortfall).toEqual([{ slot: Q1, missing: 3 }]);
+    expect(laid.shortfall).toEqual([{ slot: Q1, missing: 3 + named(laid) }]);
   });
 
   test('the C/D items are untouched: what they print does not change', () => {
@@ -221,16 +223,16 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
     const laid = lay(ch2, true);
     for (const q of [year, why, founder]) expect(printed(laid, Q1)).not.toContain(q.question);
     expect(laid.held.filter((h) => h.slot === Q1 && h.printed)).toEqual([]);
-    expect(laid.shortfall).toEqual([{ slot: Q1, missing: 3 }]);
+    expect(laid.shortfall).toEqual([{ slot: Q1, missing: 3 + named(laid) }]);
   });
 
   test('after the re-ask a new Q1 item takes a place; the held ones still never print', () => {
     const e = clone(ch2);
-    e.unseen.objective.MCQs.push({ ...clone(q1[0]), question: 'مینار پاکستان کس شہر میں ہے؟', options: ['الف) لاہور', 'ب) کراچی', 'ج) پشاور', 'د) کوئٹہ'], answer: 'الف) لاہور' });
+    e.unseen.objective.MCQs.push({ ...clone(q1[0]), question: 'پاکستان کا قومی پھول کون سا ہے؟', options: ['الف) چنبیلی', 'ب) گلاب', 'ج) سورج مکھی', 'د) کنول'], answer: 'الف) چنبیلی' });
     const laid = lay(e, true);
-    expect(printed(laid, Q1)).toContain('مینار پاکستان کس شہر میں ہے؟');
+    expect(printed(laid, Q1)).toContain('پاکستان کا قومی پھول کون سا ہے؟');
     expect(laid.held.filter((h) => h.slot === Q1 && h.printed)).toEqual([]);
-    expect(laid.shortfall).toEqual([{ slot: Q1, missing: 2 }]);
+    expect(laid.shortfall).toEqual([{ slot: Q1, missing: 2 + named(laid) }]);
   });
 
   test('A\'s top-up is told what Sections C and D print, and the items set aside', () => {
@@ -242,16 +244,16 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
     expect(note).toContain(year.question.trim());
   });
 
+  // A concept term, or a key printed on another topic, was let through here; a C/D stem that names the key
+  // now holds it whatever the topic (the name alone tells the child which option to pick), by its own rule.
   test.each([
-    // A concept term a C stem names is no name, year or number.
     ['قوانین بنانے کا اختیار حکومت کے کس حصے کے پاس ہے؟', 'الف) مقننہ', 'مقننہ کے دو کام لکھیں۔'],
-    // The key printed, but on another topic.
     ['پاکستان کا سب سے بڑا صوبہ رقبے کے لحاظ سے کون سا ہے؟', 'الف) بلوچستان', 'گوادر کی بندرگاہ بلوچستان کے کس ساحل پر ہے؟'],
-  ])('control: Q1 «%s» → %s beside «%s» prints', (stem, key, c) => {
+  ])('Q1 «%s» → %s beside «%s» is held by the named-key rule, not by key_in_stem', (stem, key, c) => {
     const e = clone(ch2);
     Object.assign(items(e, Q1)[0], { question: stem, answer: key, options: [key, 'ب) سندھ', 'ج) پنجاب', 'د) سرحد'] });
     items(e, Q5)[0].question = c;
-    expect(heldRules(lay(e, false), stem)).toEqual([]);
+    expect(heldRules(lay(e, false), stem)).toEqual(['key_named_in_stem']);
   });
 
   test('the reader is told both shapes', () => {
@@ -276,7 +278,7 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
     expect(aPrompts[1].text).toContain(`- ${radio} →`);
     const reasked = logged('[assessment] section re-asked').filter((l) => l.section === 'A');
     expect(reasked).toHaveLength(1);
-    expect(reasked[0].why).toEqual([expect.objectContaining({ slot: Q1, held: { asked_in_c: 2, key_in_stem: 1 } })]);
+    expect(reasked[0].why).toEqual([expect.objectContaining({ slot: Q1, held: { asked_in_c: 2, key_in_stem: 1, key_named_in_stem: 3 } })]);
     // Q1 is compulsory and full, and none of the items set aside prints.
     const q1 = items(out.examJson, Q1).map((q) => q.question);
     expect(q1).toHaveLength(20);

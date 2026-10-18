@@ -228,7 +228,7 @@ describe('3. a re-ask says in the log why its slot was short', () => {
   test('chapters_2: A.Q1 was short because the reply wrote 19 items, and C and D gave three away', async () => {
     await replay(fixture('r17g-sst-replies-chapters_2'));
     const a = logged('[assessment] section re-asked').find((x) => x.section === 'A');
-    expect(a.why).toEqual([{ slot: Q1, written: 19, held: { asked_in_c: 2, key_in_stem: 1 } }]);
+    expect(a.why).toEqual([{ slot: Q1, written: 19, held: { asked_in_c: 2, key_in_stem: 1, key_named_in_stem: 3 } }]);
   });
 
   test('an A.Q1 item the layout holds is named, with its rule, in the held items line', async () => {

@@ -126,7 +126,15 @@ describe('1. the religious premise with no honorific is held', () => {
 });
 
 describe('2. the reader pass never refuses a paper for a Q1 item its own D top-up gives away', () => {
-  const FULL = fixture('r15-sst-local-full_2');
+  // Its Q1 «قانون بنانے کا اختیار کس ادارے کے پاس ہے؟ → مقننہ» is named by C.Q5 «مقننہ اور عدلیہ …» and held by
+  // that rule; an item no stem names stands in, so these tests read the D top-up alone.
+  const FULL = (() => {
+    const e = fixture('r15-sst-local-full_2');
+    Object.assign(items(e, Q1).find((q) => q.question === 'قانون بنانے کا اختیار کس ادارے کے پاس ہے؟'), {
+      question: 'پاکستان کا قومی پھول کون سا ہے؟', options: ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], answer: 'ب) چنبیلی',
+    });
+    return e;
+  })();
   const FLAGGED = 'آل انڈیا مسلم لیگ کب قائم ہوئی؟';
   const KEPT_Q1 = 'سندھ کو بمبئی سے الگ کر کے صوبہ کس سال بنایا گیا؟';
   const q7 = (question, answer, point) => ({
