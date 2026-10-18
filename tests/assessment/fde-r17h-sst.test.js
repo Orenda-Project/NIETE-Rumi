@@ -48,7 +48,8 @@ const Q7 = 'social_studies.D.Q7';
 const PREMISE_RULE = 'Never set an item whose answer rests on a religious premise (what Allah created or commands, a prophet\'s story, a verse or a hadith said in other words); book p.5 is asked only for its civic sentences (the UN charter, equal basic rights).';
 const Q6_ASKS = 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5.';
 const Q7_COMMON = 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language); it asks a fact these pages teach.';
-const Q1_BANDS = 'Q1: at least 12 Remember items and at least 2 Apply items (a situation the child decides); at most 6 Understand.';
+// Widened in round 9 (fde-r17i-sst): at least 16 Remember, at most 2 Understand.
+const Q1_BANDS = 'Q1: at least 16 Remember items and at most 2 Understand; any other Q1 item is Apply (a situation the child decides).';
 
 const textOf = (req) => req.messages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n');
 const isReader = (text) => text.includes(Reader.READER_MARK);
@@ -365,7 +366,7 @@ describe('5. Section A is told its thinking-level counts, and the engine logs ho
     const n = (b) => q1.filter((q) => q.blooms === b).length;
     expect(lines[0]).toEqual(expect.objectContaining({
       requestId: 'req-r17h', remember: n('Remember'), understand: n('Understand'), apply: n('Apply'),
-      meets: n('Remember') >= 12 && n('Apply') >= 2 && n('Understand') <= 6,
+      meets: n('Remember') >= 16 && n('Understand') <= 2,
     }));
   });
 });

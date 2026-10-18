@@ -945,8 +945,9 @@ const RULE = {
       + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language); it asks a fact these pages teach.',
   },
   // Social Studies Q1: Q2–Q4 and nine Understand Q5s already put about 44 attempted marks on Understand, so the paper
-  // keeps inside FDE's band only when Q1 carries few Understand items. A count, as the model follows counts.
-  sstQ1Levels: 'Q1: at least 12 Remember items and at least 2 Apply items (a situation the child decides); at most 6 Understand.',
+  // keeps inside FDE's band only when Q1 carries few Understand items, with room for one Q6 read as Understand.
+  // FDE's own Q1 is twenty recall items. A count, as the model follows counts.
+  sstQ1Levels: 'Q1: at least 16 Remember items and at most 2 Understand; any other Q1 item is Apply (a situation the child decides).',
   sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
   // Social Studies: a marking point that names no fact («پہلی وجہ درست بتانا») tells the teacher nothing
   // to look for, and the layout compares items by their points.
@@ -1107,6 +1108,9 @@ const HELD_TERMS_URDU_AUTHORED = Object.freeze([
 // Maths Section A's slot rule asks for 3 to 5 recall MCQs; the ToS floor needs at least 8.
 const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
 const MATHS_RECALL_TO = 'at least 8 of them pure recall';
+// Social Studies Q1's slot rule asks for 3 to 5 recall MCQs; its level count asks for at least 16.
+const SST_RECALL_FROM = '3 to 5 pure recall';
+const SST_RECALL_TO = 'at least 16 of them pure recall';
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -1243,6 +1247,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
       return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
     }
+    if (key === 'social_studies' && s.slot === SST_Q1 && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(SST_RECALL_FROM)) {
+      return { ...s, prompt_rule: s.prompt_rule.replace(SST_RECALL_FROM, SST_RECALL_TO) };
+    }
     return s;
   });
   const list = shaped.map((s) => (key === 'english' && s.slot === 'english.A.Q1b'
@@ -1295,7 +1302,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   }
   if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
-    if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
+    if (key !== 'maths' && key !== 'social_studies') rules.push(`In this section, ${RULE.recall}.`);
     rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
     if (key === 'english') rules.push(RULE.oneKeyEnglish);
@@ -1737,6 +1744,22 @@ function _heldNorm(text) {
     .replace(/ك/g, 'ک')
     .replace(/[ةۃهۂۀ]/g, 'ہ')
     .replace(/[آأإٱ]/g, 'ا'));
+}
+
+// Social Studies Q1 read by its stem, beside the model's own level tags (which a reader agreed with on two
+// items in three): a case put to the child, then a question asking what to do or whom to turn to, is Apply;
+// a stem that asks why, the difference, the use or the importance is Understand; any other is Remember.
+// A definition told as a case («… اس نظام کو کیا کہتے ہیں؟») asks for a name, so it is Remember. A steer for
+// the log, never a gate.
+const STEM_DECIDES = /چاہیے|چاہئے|کرے|کریں|رابطہ|فیصلہ|منتخب|کیا کرنا|کس سے|مدد/;
+const STEM_EXPLAINS = /کیوں|وجہ|فرق|اہمیت|فائدہ|فوائد|مقصد|ضروری|کیسے|کس لیے/;
+function sstStemLevel(q) {
+  const stem = String((q && q.question) || '');
+  const sentences = stem.split(/[۔؟?!:\n]+/).map((x) => x.trim()).filter(Boolean);
+  const asked = sentences[sentences.length - 1] || '';
+  if ((sentences.length >= 2 || /^\s*(?:اگر|فرض کریں)\s/.test(stem)) && STEM_DECIDES.test(asked)) return 'apply';
+  if (STEM_EXPLAINS.test(stem)) return 'understand';
+  return 'remember';
 }
 
 /** The first held term a Social Studies item names (its marking scheme included), or null. */
@@ -2638,9 +2661,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     const q1 = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat().filter((q) => q && q.slot === SST_Q1);
     const n = (level) => q1.filter((q) => q.blooms === level).length;
     const [remember, understand, apply] = [n('Remember'), n('Understand'), n('Apply')];
+    const byStem = { remember: 0, understand: 0, apply: 0 };
+    q1.forEach((q) => { byStem[sstStemLevel(q)] += 1; });
     logToFile('[assessment] q1 levels', {
       requestId, pattern, remember, understand, apply, untagged: q1.length - remember - understand - apply,
-      meets: remember >= 12 && apply >= 2 && understand <= 6,
+      meets: remember >= 16 && understand <= 2, by_stem: byStem,
     });
   }
 
@@ -2669,6 +2694,7 @@ module.exports = {
   religiousFilter,
   _blankWordsStems,
   _askReader,
+  sstStemLevel,
   buildSystemPrompt,
   buildUserPrompt,
   planCounts,
