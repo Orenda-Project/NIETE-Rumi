@@ -1070,6 +1070,9 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'اللہ تعالیٰ', pattern: 'اللہ ?تعالی' },
   { term: 'علیہ السلام', pattern: 'علیہ ?السلام' },
   { term: 'علیھا السلام', pattern: 'علی(?:ہ|ھ)م?ا ?السلام' },
+  // The same premise written with no honorific («سب آدم و حوا کی اولاد ہیں»). The two names together,
+  // so a child called «آدم» in a story, or «حوالہ», is a whole other word.
+  { term: 'آدم و حوا', pattern: '(?:حضرت ?)?ادم\u0611? ?(?:و|اور) ?(?:حضرت ?)?حوا' },
   // The ligature is written against the name it follows («حضورﷺ»), so it needs no word edge.
   { term: 'ﷺ', pattern: 'ﷺ', bare: true },
   { term: 'رب', pattern: 'رب' },
@@ -2109,6 +2112,33 @@ function _sstSpares({ exam, source, replacements, caught, lay }) {
     .filter((q) => !onPaper.has(_readerId(q)) && !caughtIds.has(_readerId(q)));
 }
 
+// Social Studies: how many Q1 items a C or D stem gives away on a laid-out paper (the layout's
+// key_in_stem and asked_in_c holds).
+const _q1Given = (laid) => (laid.held || []).filter((h) => h.slot === SST_Q1 && (h.rule === 'key_in_stem' || h.rule === 'asked_in_c')).length;
+
+/**
+ * Social Studies: the items of a Section D top-up (`fresh`, a reply tree) that would hold a Q1 item the
+ * paper (`exam`) prints now, as { slot, q }. A top-up that leaves Q1 whole has none. Each new item the
+ * layout places is tried without it; one whose absence gives a Q1 item back is a giver, and the trial
+ * goes on without it, since the next item in the reply then takes its place.
+ */
+function _q1GiversOf(exam, fresh, lay, keptIds) {
+  const slots = new Set(SST_D_SLOTS);
+  const out = [];
+  let tree = fresh;
+  for (let round = 0; round < 8; round += 1) {
+    const laid = lay(_topUp(exam, tree, slots));
+    if (!laid.shortfall.some((f) => f.slot === SST_Q1)) break;
+    const n = _q1Given(laid);
+    const placed = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(laid.examJson, slot)).filter((q) => !keptIds.has(_readerId(q)));
+    const giver = placed.find((q) => _q1Given(lay(_topUp(exam, _dropItems(tree, q.slot, new Set([_readerId(q)])), slots))) < n);
+    if (!giver) break;
+    out.push({ slot: giver.slot, q: giver });
+    tree = _dropItems(tree, giver.slot, new Set([_readerId(giver)]));
+  }
+  return out;
+}
+
 // The paper with the given laid-out items added at the end of their slots' lists.
 function _withItems(examJson, list) {
   const out = JSON.parse(JSON.stringify(examJson));
@@ -2200,8 +2230,17 @@ async function _readerPassSst({ examJson, source = null, P, key, layoutScope, no
       stripImageKeys(second.tree);
       normaliseAnswers(second.tree);
       // Only new items: an item taken off and written again is not a replacement.
-      const fresh = without(second.tree, dHeld);
+      let fresh = without(second.tree, dHeld);
       const keptIds = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+      // A replacement whose stem gives a Q1 item away (its key printed on its topic) holds that Q1 item,
+      // and Section A has no top-up after the reader: the paper would fail for a D item. That
+      // replacement is left out instead, before the re-check, so the Q1 item prints and every D item
+      // that prints is one the reader reads.
+      const gave = _q1GiversOf(exam, fresh, lay, keptIds);
+      if (gave.length) {
+        fresh = without(fresh, gave);
+        stats.gives_q1 = gave.length;
+      }
       laid = lay(_topUp(exam, fresh, new Set(SST_D_SLOTS)));
       exam = laid.examJson;
       _blankWordsStems(exam, P, key);
@@ -2237,7 +2276,9 @@ async function _readerPassSst({ examJson, source = null, P, key, layoutScope, no
         exam = laid.examJson;
       }
       const flaggedSpares = new Set(spareFlags.map((h) => _readerId(h.q)));
-      const clean = spares.filter((q) => !flaggedSpares.has(_readerId(q)));
+      // A spare that would give a Q1 item away is never offered either.
+      const q1Given = _q1Given(lay(exam));
+      const clean = spares.filter((q) => !flaggedSpares.has(_readerId(q)) && _q1Given(lay(_withItems(exam, [q]))) <= q1Given);
       if (clean.length && laid.shortfall.some((f) => SST_D_SLOTS.includes(f.slot))) {
         const before = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
         laid = lay(_withItems(exam, clean));

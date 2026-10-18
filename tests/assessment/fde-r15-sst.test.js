@@ -65,8 +65,19 @@ const withItems = (json, slot, list) => {
   return JSON.stringify(tree);
 };
 
+// chapters_1 keys one Q5 on a religious premise («… سب آدم و حوا کی اولاد ہیں»), which the engine now
+// drops, and a paper laid out again after a drop logs no held items; the engine runs here read the held
+// items, so that item takes a civic answer and the paper is otherwise as recorded.
+const civic = (exam) => {
+  const e = JSON.parse(JSON.stringify(exam));
+  for (const q of Object.values(e.unseen).flatMap((t) => Object.values(t)).flat()) {
+    if (q && typeof q.answer === 'string') q.answer = q.answer.replace('اور سب آدم و حوا کی اولاد ہیں', 'اور اقوام متحدہ کا منشور سب کو برابر مانتا ہے');
+  }
+  return e;
+};
+
 // The engine on chapters_1's recorded sections, D answering with `dReplies` in turn.
-async function run(dReplies, CH1 = paper('chapters_1')) {
+async function run(dReplies, CH1 = civic(paper('chapters_1'))) {
   const replies = { A: [replyOf(CH1, 'A')], B: [replyOf(CH1, 'B')], C: [replyOf(CH1, 'C')], D: [...dReplies] };
   const asked = [];
   mockCreate.mockReset();
