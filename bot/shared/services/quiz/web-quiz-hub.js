@@ -628,7 +628,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
     return NO_RECS;
   });
   const collect = {};
-  const playP = Promise.all([challengeP, answeredP]).then(([form]) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: f.childHome ? last : undefined, lang: out.lang, challenge: form ? { on: true } : null, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect }));
+  const playP = Promise.all([challengeP, answeredP]).then(([form]) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: f.childHome ? last : undefined, lang: out.lang, challenge: form ? { on: true } : null, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect, together: true }));
   const [, teacher, , recs, form, play] = await Promise.all([extrasP, teacherCard(chosen, ctx.list, history, grade, homeP), answeredP, recsP, challengeP, playP]);
   mark('teacher');
   out.teacher = teacher;
