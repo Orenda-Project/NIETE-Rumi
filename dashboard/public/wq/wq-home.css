@@ -84,3 +84,13 @@ html.wq-1b[lang=ur] .wq-ghint{font-family:var(--fu);font-weight:400;font-size:17
 .wq-social{display:flex;gap:12px;margin:16px 0 0}
 .wq-social .wq-soc{flex:1;flex-direction:column;gap:4px;min-height:84px;width:auto;padding:10px 8px;-webkit-tap-highlight-color:transparent}
 .wq-soc svg{color:var(--brand)}
+/* grown-ups sheet: the Grade row (web_quiz_grade_change); the Stories grade chips are drawn here too (wq-stories.css is not on the home) */
+.wq-ggrade{display:flex;flex-direction:column;align-items:center;gap:8px}
+.wq-glabel{color:var(--muted);font-weight:800;font-size:14px}
+.wq-ggrade .wq-btn--secondary{min-height:48px;padding:0 18px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--navy);box-shadow:0 3px 0 var(--line);font:inherit;font-weight:800}
+.wq-ggrade .wqs-pick{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.wq-ggrade .wqs-chip{min-width:52px;height:52px;padding:0 12px;border:0;border-radius:26px;background:#fff;color:var(--navy);font:inherit;font-size:22px;font-weight:800;box-shadow:0 3px 0 var(--line)}
+.wq-ggrade .wqs-chip[aria-pressed=true]{background:#ffe26b;box-shadow:0 3px 0 #c99d00}
+.wq-gcls,.wq-gsaid{margin:0;color:var(--muted);font-weight:700;font-size:15px;text-align:center}
+html[lang=ur] .wq-glabel,html[lang=ur] .wq-gcls,html[lang=ur] .wq-gsaid,html[lang=ur] .wq-ggrade .wq-btn--secondary{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:18px}
+.wq-gskel{display:block;width:120px;height:48px;border-radius:14px;background:var(--tint)}
