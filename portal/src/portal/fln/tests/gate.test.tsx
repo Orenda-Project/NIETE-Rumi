@@ -63,6 +63,14 @@ describe('FlnGate', () => {
     expect(screen.queryByTestId('child')).toBeNull();
   });
 
+  it('lessons:false with ui_lang ur → the not-available page in Urdu, rtl (qa r1 D11)', async () => {
+    stubFetch({ '/me': { status: 200, body: { ...ME_TEACHER, lessons: false, ui_lang: 'ur' } } });
+    renderAt('/portal/fln/p/11156');
+    expect(await screen.findByText(flnStrings('ur').errors.notAvailable)).toBeInTheDocument();
+    expect(screen.getByText(flnStrings('ur').errors.toList)).toBeInTheDocument();
+    expect(document.querySelector('.fln-root')!.getAttribute('dir')).toBe('rtl');
+  });
+
   it('lessons:true → children inside .fln-root with lang/dir from ui_lang and the context', async () => {
     stubFetch({ '/me': { status: 200, body: { ...ME_TEACHER, ui_lang: 'ur' } } });
     const { container } = renderAt('/portal/fln/list/rh-en?grade=1');

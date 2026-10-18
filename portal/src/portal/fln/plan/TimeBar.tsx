@@ -18,7 +18,7 @@ export function TimeBar({ plan, uiLang }: { plan: FlnPlan; uiLang: FlnLang }) {
       <div className="fln-timebar" role="img" aria-label={segs.map((x) => `${s.section[x.kind]} ${s.minutes(x.minutes)}`).join(s.sep)}>
         {segs.map((x) => (
           <span key={x.kind} className={`fln-timebar-seg fln-c-${x.kind}`} style={{ flexGrow: x.minutes, flexBasis: 0 }}>
-            <Chrome text={s.minutes(x.minutes)} rtl={rtl} />
+            <span><Chrome text={s.minutes(x.minutes)} rtl={rtl} /></span>
           </span>
         ))}
       </div>
