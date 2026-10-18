@@ -134,6 +134,9 @@ async function handleBroadcastStatusWebhook(statuses) {
           timestamp,
           fullErrors: status.errors
         });
+        // A teacher's report WhatsApp took and then could not deliver: un-stamped, counted, tried again or held for
+        // the next /quiz (quiz_report_send_checked; off: no Redis call). Never throws.
+        await require('./shared/services/quiz/report-delivery').onFailedStatus(status);
         // Don't continue - let it fall through to potentially update broadcast_messages if needed
       }
 

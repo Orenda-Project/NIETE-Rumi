@@ -47,6 +47,17 @@ async function on(now = Date.now()) {
 /** Tests only: forget the cached reading. */
 function reset() { cache = null; }
 
+/** How old a reading known() still answers from. */
+const KNOWN_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * The switch as this process last read it, with NO read: true / false from a reading at most `maxAgeMs` old, null
+ * when there is none. For a decision that must cost nothing when off (report-delivery remember).
+ */
+function known(now = Date.now(), maxAgeMs = KNOWN_MAX_AGE_MS) {
+  return cache && now - cache.at < maxAgeMs ? cache.on : null;
+}
+
 /**
  * One app_settings read of `otherKey` together with this switch (`.in`), so a read the report makes anyway carries
  * the switch: this switch's cache is primed from it. → `{ found, value }` for `otherKey`, or null when the combined
@@ -133,9 +144,12 @@ function triesIn(meta, shareCodeId) {
 /**
  * One refused send, counted and logged. `path` is 'story' or 'quiz'. `tries` is null when the count could not be
  * kept: then nothing is retried (a retry with no durable count could go on for ever).
+ * `what` names the event (`<path>_report_<what>_failed`): 'send' for a refusal, 'delivery' for a report WhatsApp took
+ * and then could not deliver (report-delivery); `extra` rides on it (never a phone or a message id). Both count the
+ * same tries.
  * @returns {Promise<{tries: number|null, gaveUp: boolean}>}
  */
-async function recordFailure({ path, sc }) {
+async function recordFailure({ path, sc, what = 'send', extra = null }) {
   const fields = { code_h: codeH(sc.code), tk: tkOf(sc.teacher_user_id) };
   let tries = null;
   try {
@@ -151,10 +165,10 @@ async function recordFailure({ path, sc }) {
   } catch (err) {
     logToFile('❌ class report: refused send not counted — no retry', { ...fields, error: err.message }, 'error');
   }
-  logEvent(`${path}_report_send_failed`, { ...fields, tries });
+  logEvent(`${path}_report_${what}_failed`, { ...(extra || {}), ...fields, tries });
   const done = tries !== null && tries >= MAX_TRIES;
   if (done) logEvent('report_gave_up', { ...fields, path, tries });
   return { tries, gaveUp: done };
 }
 
-module.exports = { on, reset, isTrue, readAlong, primeAlong, send, codeH, triesIn, recordFailure, KEY, TTL_MS, MAX_TRIES };
+module.exports = { on, reset, known, isTrue, readAlong, primeAlong, send, codeH, triesIn, recordFailure, KEY, TTL_MS, MAX_TRIES, KNOWN_MAX_AGE_MS };

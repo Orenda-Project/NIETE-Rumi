@@ -149,7 +149,8 @@ async function handleQuizReport(body) {
   // Generate the report (12h timeout safety OR all sessions terminal)
   logEvent('quiz.report.generation_started', { quizId, allFinal, past12h, peerCount: peers?.length || 0 });
   const QuizReportService = require('../shared/services/quiz/quiz-report.service');
-  await QuizReportService.generateReport(quizId, { ...payload, teacherPhone });
+  // the report sends' WhatsApp ids, kept below with the sent flag (quiz/report-delivery; quiz_report_send_checked)
+  const { ids: reportIds } = await require('../shared/services/whatsapp-sent-ids').collect(() => QuizReportService.generateReport(quizId, { ...payload, teacherPhone }));
   logEvent('quiz.report.fired', { quizId });
 
   // Mark fired so cascade dedup short-circuits any future dequeue for this
@@ -159,6 +160,7 @@ async function handleQuizReport(body) {
   } catch (err) {
     logToFile('⚠️ Could not set quiz_report_sent flag (non-fatal — cascade may double-fire)', { quizId, error: err.message });
   }
+  await require('../shared/services/quiz/report-delivery').remember(reportIds, { kind: 'chat_quiz', quiz_id: quizId });
 
   return { ok: true };
 }

@@ -46,6 +46,8 @@ const { scriptOf } = require('../../templates/niete-brand');
 const crypto = require('crypto');
 const { onUnlessOff } = require('../nudges/flags');
 const SendCheck = require('./report-send-check');
+const SentIds = require('../whatsapp-sent-ids');
+const ReportDelivery = require('./report-delivery');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -464,6 +466,11 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // its teacher home read is the one that carries the switch on a report with no finisher.
   let stampId;
   const stampIdFirst = async () => { if (stampId === undefined) stampId = await stampableQuizId(sc); };
+  // The report sends' WhatsApp ids (whatsapp-sent-ids), kept after the stamp so a later `failed` status finds the
+  // report (report-delivery; quiz_report_send_checked on, from the reading already held — never a read of its own).
+  const sentIds = [];
+  const keep = async (fn) => { const { result, ids } = await SentIds.collect(fn); sentIds.push(...ids); return result; };
+  const keepIds = (kind) => (stamp.stamped ? ReportDelivery.remember(sentIds, { kind, share_code_id: shareCodeId }) : null);
 
   const { data: sessions } = await supabase
     .from('quiz_sessions')
@@ -602,8 +609,10 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     } catch (e) {
       logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
     }
-    return require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => WhatsAppService.sendMessage(to, text), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
+    const storySent = await require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => keep(() => WhatsAppService.sendMessage(to, text)), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
       sendChecked: (fn) => SendCheck.send(fn), notAccepted: () => reportNotAccepted(shareCodeId, sc, 'story', reason) });
+    await keepIds('story');
+    return storySent;
   }
 
   // quiz_report_fold_by_child (off by default): a child not on the class list counts once per CHILD, as the quiz's web
@@ -616,11 +625,12 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
 
   if (!all.length) {
     const noOne = resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } });
-    if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, noOne), { before: stampIdFirst }))) {
+    if (!(await SendCheck.send(() => keep(() => WhatsAppService.sendMessage(teacher.phone_number, noOne)), { before: stampIdFirst }))) {
       return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
     }
     await stampIdFirst();
     stamp.stamped = await markReportSent(shareCodeId, stampId);
+    await keepIds('quiz');
     // Stamped as a report, so counted as one — of its own kind. Unlogged, this
     // branch was 17.5% of production's report stamps (189 of 1,082) and every
     // one of them a class that never joined.
@@ -819,7 +829,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // A designed report is worth it once there are results in it. On the morning
   // run for a class where nobody finished, a PDF of an empty table is worse
   // than a sentence — so that case stays a plain message.
-  const sentAsPdf = done.length > 0 && await sendAsPdf({
+  const sentAsPdf = done.length > 0 && await keep(() => sendAsPdf({
     phone: teacher.phone_number, shareCode: sc, students: done, hardest,
     guidance, started: all.length, finished: done.length, average: avg,
     // With the class list known, "Not played yet" lists every child still to
@@ -844,13 +854,13 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     // استاد" / "Your teacher") — a teacher reading that about themselves was
     // the defect. No name -> the template prints the class alone.
     teacherName: String((teacher && teacher.name) || '').trim(),
-  });
+  }));
 
   if (!sentAsPdf) {
     // The PDF is the nicer artefact, not the report itself. If rendering fails
     // the teacher still gets every number — losing the results because a font did not
     // load would be the wrong trade.
-    if (!(await SendCheck.send(() => WhatsAppService.sendMessage(teacher.phone_number, summary), { before: stampIdFirst }))) {
+    if (!(await SendCheck.send(() => keep(() => WhatsAppService.sendMessage(teacher.phone_number, summary)), { before: stampIdFirst }))) {
       return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
     }
     if (guidance) {
@@ -884,6 +894,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     : null;
   stamp.stamped = await markReportSent(shareCodeId, stampId, { meta: metaAfter });
   if (metaAfter) quizRow.meta = metaAfter;
+  await keepIds('quiz');
 
   // bd-2yyry.11 — the children's class cards, at the moment the teacher's
   // report goes out. Never to the teacher; once per child per quiz.
