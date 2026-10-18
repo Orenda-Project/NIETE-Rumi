@@ -25,7 +25,12 @@ const P = Patterns.get('fde_g5_2027').subjects;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 function fixture(name) {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', `${name}.json`), 'utf8'));
+  const j = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', `${name}.json`), 'utf8'));
+  // Its Q1 «سندھ کو الگ صوبہ کب بنایا گیا؟» names the key of Q1 «… پہلا صوبہ …», which holds that item (a Q1 stem
+  // that names another Q1 item's key); these tests read the Q5/Q7 hold against it, so the stem asks the same year
+  // without the name.
+  if (name === 'r9-sst-chapters2') j.unseen.objective.MCQs.find((q) => q.question === 'سندھ کو الگ صوبہ کب بنایا گیا؟').question = 'بمبئی سے الگ ہو کر ایک نیا صوبہ کس سال بنا؟';
+  return j;
 }
 
 function visible(html) {
@@ -166,7 +171,7 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 3);
     const out = lay(exam, 'social_studies');
     // Q1 items whose key (a name or a term) a C/D stem names are held by that rule as well, Q1 against C and D again.
-    const named = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && h.rule === 'key_named_in_stem').map((h) => h.q.question);
+    const named = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && ['key_named_in_stem', 'key_in_own_stem', 'names_q1_key'].includes(h.rule)).map((h) => h.q.question);
     expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.filter((q) => !named.includes(q)).sort());
     const q1Held = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && h.rule === 'key_in_stem').map((h) => h.q.question);
     expect(q1Held.sort()).toEqual([...GIVEN].sort());

@@ -76,9 +76,10 @@ test('Social Studies, chapters 4 + 6: the re-asked Section D is told Section A\'
   const firstA = JSON.parse(fixture('r9b-sst-ch46-replies').find((r) => r.content.includes('social_studies.A.')).content.replace(/^```json\s*|```\s*$/g, ''));
   const q1 = Object.values(firstA.unseen || {}).flatMap((t) => Object.values(t)).flat().filter((q) => q.slot === 'social_studies.A.Q1');
   expect(q1.length).toBeGreaterThan(0);
-  // Q1 items whose key a C/D stem names are held (Section A is asked again for them) and never print, so D is not
-  // told them.
-  const named = ['تحریک علی گڑھ کا آغاز کس نے کیا؟', 'پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟', 'پاکستان میں شامل ہونے والا پہلا صوبہ کون سا تھا؟'];
+  // Q1 items whose key a C/D stem, or another Q1 stem, names are held (Section A is asked again for them) and never
+  // print, so D is not told them.
+  const named = ['تحریک علی گڑھ کا آغاز کس نے کیا؟', 'پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟', 'پاکستان میں شامل ہونے والا پہلا صوبہ کون سا تھا؟',
+    'قومی اسمبلی کے ارکان کس کا انتخاب کرتے ہیں؟'];
   for (const q of q1) if (!named.includes(q.question)) expect(d[1].prompt).toContain(q.question);
   // No other section's first call carries a note either.
   for (const a of asked.filter((x, i) => asked.findIndex((y) => y.sec === x.sec) === i)) {

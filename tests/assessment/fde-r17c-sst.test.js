@@ -111,7 +111,12 @@ const asRecorded = {
     neutralQ1(r, ['ایدھی فاؤنڈیشن کے بانی کون تھے؟',
       'ایک بچہ اسکول میں اپنے ہم جماعت کے مذہب کی وجہ سے اسے کھیل میں شامل نہیں کرتا۔ یہ کس اصول کے خلاف ہے؟']);
   },
-  chapters_7: (r) => { r.replies.D = r.replies.D.map((d) => d.split('ایدھی فاؤنڈیشن').join('ایدھی کی تنظیم')); },
+  // Its Q1 «عبدالستار ایدھی نے کون سی فلاحی تنظیم قائم کی؟ → ایدھی فاؤنڈیشن» names its own key, and is now held for
+  // it; the recorded reader quotes that stem to catch a Q7, so the stem stays and its key no longer repeats it.
+  chapters_7: (r) => {
+    r.replies.D = r.replies.D.map((d) => d.split('ایدھی فاؤنڈیشن').join('ایدھی کی تنظیم'));
+    r.replies.A = r.replies.A.map((a) => a.split('ایدھی فاؤنڈیشن').join('ایک فلاحی فاؤنڈیشن'));
+  },
 };
 // The recorded flags whose giver is a Q1 item that now never prints (above): what it gave away is no give-away.
 const STALE = { chapters_1: ['Q1.5'], chapters_7: [] };

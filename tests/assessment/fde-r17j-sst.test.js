@@ -5,6 +5,8 @@
  *   3. A Q1 item whose key is a name or a term in one of its options and no other is held when a C/D stem names
  *      that option, with no topic test; Section A is asked again.
  *   4. The reader is handed every Q1 key code finds printed in a Q5, Q6 or Q7 stem, to judge beside its open read.
+ *   5. A Q1 stem never names its own key, nor another printed Q1 item's key (the item whose key is named is held);
+ *      Section A is asked again.
  * The papers are local model output; the people in their stories are the model's own.
  */
 
@@ -79,6 +81,8 @@ const GIVEN = {
   chapters_6: [10, 11],
 };
 
+const A_RULES = ['key_named_in_stem', 'key_in_stem', 'key_in_own_stem', 'names_q1_key'];
+
 describe('3. a Q1 key a C/D stem names', () => {
   test.each(Object.entries(GIVEN))('%s: each Q1 item a C/D stem names is held, and never prints', (name, ns) => {
     const exam = local(name);
@@ -86,7 +90,8 @@ describe('3. a Q1 key a C/D stem names', () => {
     const printed = new Set(items(laid.examJson, Q1).map((q) => q.question));
     for (const n of ns) {
       const q = nth(exam, Q1, n);
-      expect([n, heldAs(laid, q).some((r) => r === 'key_named_in_stem' || r === 'key_in_stem')]).toEqual([n, true]);
+      // Held by the C/D rule, or by a Q1 rule read before it (its own stem, or another Q1 stem, names the key too).
+      expect([n, heldAs(laid, q).some((r) => A_RULES.includes(r))]).toEqual([n, true]);
       expect(printed.has(q.question)).toBe(false);
     }
   });
@@ -175,5 +180,91 @@ describe('4. the reader is handed the Q1 keys a C/D stem prints', () => {
     const block = prompt.slice(prompt.indexOf(CANDIDATES));
     expect(block).toContain('- Q7.1 prints «سپریم کورٹ»');
     expect(block).not.toContain('- Q7.2 prints');
+  });
+});
+
+describe('5. a Q1 stem that names its own key, or another Q1 item\'s', () => {
+  const SELF = [['chapters_1', 3], ['chapters_2', 4], ['chapters_3', 4]];
+
+  test.each(SELF)('%s Q1 %i «ایدھی فاؤنڈیشن … → عبدالستار ایدھی» is held as key_in_own_stem and never prints', (name, n) => {
+    const exam = local(name);
+    const q = nth(exam, Q1, n);
+    expect(q.question).toContain('ایدھی فاؤنڈیشن');
+    expect(q.answer).toContain('عبدالستار ایدھی');
+    const laid = lay(exam);
+    expect(heldAs(laid, q)).toContain('key_in_own_stem');
+    expect(items(laid.examJson, Q1).map((x) => x.question)).not.toContain(q.question);
+  });
+
+  // With the self-key reworded and the C/D stems no longer naming Edhi, the item could print; the other Q1 stem
+  // that names «عبدالستار ایدھی» gives it away, so it is held and the naming item prints.
+  const unkeyed = (name, n) => {
+    const e = clone(local(name));
+    nth(e, Q1, n).question = 'کس شخصیت نے اپنی ساری زندگی دکھی انسانیت کی خدمت کے لیے وقف کر دی؟';
+    for (const slot of [Q5, Q6, Q7]) for (const q of items(e, slot)) q.question = q.question.split('عبدالستار ایدھی').join('ایک سماجی کارکن').split('ایدھی').join('ایک فلاحی');
+    return e;
+  };
+  test('chapters_3: Q1 4 (keyed «عبدالستار ایدھی») is held as names_q1_key once Q1 16\'s stem names it; Q1 16 prints', () => {
+    const e = unkeyed('chapters_3', 4);
+    expect(nth(e, Q1, 16).question).toContain('عبدالستار ایدھی');
+    const laid = lay(e);
+    expect(heldAs(laid, nth(e, Q1, 4))).toEqual(['names_q1_key']);
+    const printed = items(laid.examJson, Q1).map((x) => x.question);
+    expect(printed).not.toContain(nth(e, Q1, 4).question);
+    expect(printed).toContain(nth(e, Q1, 16).question);
+  });
+
+  test('chapters_1: Q1 3 and Q1 12 (its stem names «عبدالستار ایدھی») never print together', () => {
+    const e = unkeyed('chapters_1', 3);
+    expect(nth(e, Q1, 12).question).toContain('عبدالستار ایدھی');
+    const laid = lay(e);
+    const printed = new Set(items(laid.examJson, Q1).map((x) => x.question));
+    expect(printed.has(nth(e, Q1, 3).question) && printed.has(nth(e, Q1, 12).question)).toBe(false);
+    // Q1 12 is held for its own key («نشان امتیاز», named in a C/D stem), so it gives nothing away and Q1 3 prints.
+    expect(heldAs(laid, nth(e, Q1, 12))).toContain('key_named_in_stem');
+    expect(printed.has(nth(e, Q1, 3).question)).toBe(true);
+  });
+
+  test('a key two later stems name costs one item: the item keyed «سوشل میڈیا» is held, both stems print', () => {
+    const e = fixture('r6-sst-held');
+    const mcqs = e.unseen.objective.MCQs;
+    const keyed = mcqs.find((q) => q.question === 'ابلاغ کی جدید ترین شکل کون سی ہے؟');
+    const naming = mcqs.filter((q) => q !== keyed && q.question.includes('سوشل میڈیا'));
+    expect(naming).toHaveLength(2);
+    const laid = applyLayout(clone(e), SST, { kind: 'fde' }, { reasked: true, now: 'T' });
+    expect(heldAs(laid, keyed)).toEqual(['names_q1_key']);
+    for (const q of naming) expect(heldAs(laid, q)).toEqual([]);
+  });
+
+  test('controls: a stem that names none of its options, or lists three of them, keeps its item', () => {
+    const e = clone(local('chapters_5'));
+    const q = nth(e, Q1, 3);
+    Object.assign(q, { question: 'مقننہ، انتظامیہ اور عدلیہ میں سے کون قانون بناتا ہے؟', options: ['الف) انتظامیہ', 'ب) عدلیہ', 'ج) مقننہ', 'د) کابینہ'], answer: 'ج) مقننہ' });
+    expect(heldAs(lay(e), q)).not.toContain('key_in_own_stem');
+    const r = clone(local('chapters_5'));
+    const plainQ = nth(r, Q1, 3);
+    Object.assign(plainQ, { question: 'پاکستان کا قومی پھول کون سا ہے؟', options: ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], answer: 'ب) چنبیلی' });
+    expect(heldAs(lay(r), plainQ)).toEqual([]);
+  });
+
+  test('Section A\'s top-up is told the items set aside and why; D\'s note names only its own Q7s', () => {
+    const exam = local('chapters_2');
+    const laid = lay(exam, { reasked: false });
+    const A = SST.sections.find((s) => s.slots.some((x) => x.slot === Q1));
+    const note = takenNote(SST, A, laid.examJson, { topUp: true, shortfall: laid.shortfall, held: laid.held });
+    expect(note).toContain('A Q1 question never names its own answer, nor the answer of another Q1 item.');
+    expect(note).toContain(nth(exam, Q1, 4).question);
+    const D = SST.sections.find((s) => s.slots.some((x) => x.slot === Q7));
+    const dNote = takenNote(SST, D, laid.examJson, { held: laid.held });
+    expect(dNote || '').not.toContain(nth(exam, Q1, 4).question);
+  });
+
+  test('every one of the twenty counted rows is held, by one rule or another', () => {
+    const all = { ...GIVEN, chapters_1: [2, 3], chapters_3: [2, 4, 10] };
+    for (const [name, ns] of Object.entries(all)) {
+      const exam = local(name);
+      const printed = new Set(items(lay(exam).examJson, Q1).map((q) => q.question));
+      for (const n of ns) expect([name, n, printed.has(nth(exam, Q1, n).question)]).toEqual([name, n, false]);
+    }
   });
 });

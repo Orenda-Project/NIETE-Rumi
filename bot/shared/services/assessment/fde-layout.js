@@ -1309,7 +1309,7 @@ const BACK_TERM = /^(?:حکوم|جمہور|شہنشاہ|آمر|مقنن|انتظ
 // One word in two forms: equal, or one the other's start (داری / داریاں), three letters or more.
 const nearWord = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)));
 const holdsWord = (list, w) => list.some((x) => nearWord(x, w));
-let backGeneric = null;
+let backGeneric = new Set(tokensOf('حکومت ملک کام پاکستان ادارہ ادارے لوگ لوگوں کسی کوئی نام کرنا معاملات علاقہ علاقے شخص شخصیت سال'));
 let backFrame = null;
 // A key that is a date («23 مارچ 1940ء», «1940ء») belongs to one event, so a stem that prints it gives it away
 // whatever words the stems share. A concept term is given away when a stem prints it as the gloss of what the
@@ -1368,7 +1368,8 @@ function namesOption(t, others, words, line, seen) {
   if (strong.length >= 2) { const printed = long.filter(fresh).length; return printed > 0 && printed * 2 >= strong.length; }
   return strong.length === 1 && long.length === 1 && fresh(long[0]);
 }
-function keyNamedIn(m, stems) {
+// `own`: the stems are the item's own (its stem names its own key), so none of its words is set aside as seen.
+function keyNamedIn(m, stems, own = false) {
   if (!Array.isArray(m.options) || m.options.length < 3 || /\d/.test(keyText(m)) || notAName(keyText(m))) return false;
   const key = tokensOf(keyText(m));
   if (!key.length || key.every((w) => backGeneric.has(w) || PLACEHOLDER_WORDS.has(w)) || tiersIn(flatUr(keyText(m))).size) return false;
@@ -1376,12 +1377,18 @@ function keyNamedIn(m, stems) {
   const at = m.options.findIndex((o) => plain(String(o).replace(OPTION_HEAD, '')) === plain(keyText(m)));
   if (at < 0 || opts.filter((t) => key.every((w) => t.includes(w))).length !== 1) return false;
   const others = (i) => new Set(opts.filter((_, j) => j !== i).flat());
-  const seen = new Set(tokensOf(m.question));
+  const seen = own ? new Set() : new Set(tokensOf(m.question));
   return stems.some((x) => namesOption(opts[at], others(at), x.words, x.tokens, seen)
     && opts.filter((t, i) => namesOption(t, others(i), x.words, x.tokens, seen)).length < LISTS_OPTIONS);
 }
+// Social Studies Q1 against itself: a stem that names its own key («ایدھی فاؤنڈیشن کس شخصیت نے قائم کی؟ →
+// عبدالستار ایدھی»), or the key of another Q1 item on the paper, prints that answer for the child to pick (read as
+// a C/D stem is, above). The item whose key is named is the one held: a key many stems name («سوشل میڈیا») costs
+// one item, not every stem that names it.
+const stemOf = (q) => ({ words: new Set(tokensOf(q.question)), tokens: tokensOf(q.question) });
+const namesOwnKey = (q) => keyNamedIn(q, [stemOf(q)], true);
+const stemNamesKey = (stemQ, keyQ) => keyNamedIn(keyQ, [stemOf(stemQ)]);
 function givenBack(placed) {
-  backGeneric = backGeneric || new Set(tokensOf('حکومت ملک کام پاکستان ادارہ ادارے لوگ لوگوں کسی کوئی نام کرنا معاملات علاقہ علاقے شخص شخصیت سال'));
   const stems = placed.filter((q) => typeof q.question === 'string' && q.question.trim())
     .map((q) => ({ slot: q.slot, text: q.question, line: ` ${tokensOf(q.question).join(' ')} `, tokens: tokensOf(q.question), words: new Set(tokensOf(q.question)), asks: asksOf(q.question) }));
   backFrame = backFrame || new Set(tokensOf('مراد وضاحت بیان کریں کیجیے جاتا جاتی جاتے سمجھا کہا دو تین کوئی وجہ وجوہات بات طور آپ چاہیے کرنا مختصر جواب'));
@@ -1961,7 +1968,7 @@ function takenNote(P, section, examJson, opts = {}) {
     if (aside) notes.push(aside);
     const recall = recallNote(section, opts.held);
     if (recall) notes.push(recall);
-    const ownKey = (Array.isArray(opts.held) ? opts.held : []).filter((h) => h && h.rule === 'key_in_own_stem' && h.q && typeof h.q.question === 'string');
+    const ownKey = (Array.isArray(opts.held) ? opts.held : []).filter((h) => h && h.slot === Q7_SLOT && h.rule === 'key_in_own_stem' && h.q && typeof h.q.question === 'string');
     if (ownKey.length) {
       notes.push(`These Q7 items were set aside: each prints its own answer in its question:\n${ownKey.map(({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
         + 'A Q7 asks one fact its question does not say.');
@@ -1977,15 +1984,25 @@ function takenNote(P, section, examJson, opts = {}) {
 }
 // Social Studies: Section A's top-up, when Q1 items were held because a C/D stem gives them away
 // (givenBack), is told every C/D question and those items: a re-ask told nothing keys the same name again.
+const SELF_RULES = new Set(['key_in_own_stem', 'names_q1_key']);
 function backNote(section, examJson, held) {
   if (!section.slots.some((s) => s.slot === SST_A_Q1)) return null;
-  const set = (Array.isArray(held) ? held : []).filter((h) => h && h.slot === SST_A_Q1 && BACK_RULES.has(h.rule) && h.q && typeof h.q.question === 'string');
-  if (!set.length) return null;
-  const asked = ['social_studies.C.Q5', Q6_SLOT, 'social_studies.D.Q7'].flatMap((id) => itemsOf(examJson, id)).map((q) => `- ${q.question.trim()}`);
-  const aside = set.map(({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
-  return `${asked.length ? `Sections C and D of this paper ask these questions:\n${asked.join('\n')}\n` : ''}`
-    + `These Q1 items were set aside, because one of those questions prints their answer or asks the same thing:\n${aside.join('\n')}\n`
-    + 'No Q1 item may be keyed on a name, term, year or number those questions print, or ask what any of them asks.';
+  const ofA = (rules) => (Array.isArray(held) ? held : []).filter((h) => h && h.slot === SST_A_Q1 && rules.has(h.rule) && h.q && typeof h.q.question === 'string');
+  const line = ({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`;
+  const set = ofA(BACK_RULES);
+  const self = ofA(SELF_RULES);
+  const notes = [];
+  if (set.length) {
+    const asked = ['social_studies.C.Q5', Q6_SLOT, 'social_studies.D.Q7'].flatMap((id) => itemsOf(examJson, id)).map((q) => `- ${q.question.trim()}`);
+    notes.push(`${asked.length ? `Sections C and D of this paper ask these questions:\n${asked.join('\n')}\n` : ''}`
+      + `These Q1 items were set aside, because one of those questions prints their answer or asks the same thing:\n${set.map(line).join('\n')}\n`
+      + 'No Q1 item may be keyed on a name, term, year or number those questions print, or ask what any of them asks.');
+  }
+  if (self.length) {
+    notes.push(`These Q1 items were set aside, because a Q1 question names their answer:\n${self.map(line).join('\n')}\n`
+      + 'A Q1 question never names its own answer, nor the answer of another Q1 item.');
+  }
+  return notes.length ? notes.join('\n\n') : null;
 }
 // Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
 function heldNote(section, held) {
@@ -2226,6 +2243,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (!settleVerses(slot, q) || !printable(slot, q)) return no(slot, 'unprintable');
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'social_studies' && slot.slot === Q7_SLOT && keyInOwnStem(q)) return hold(slot, q, 'key_in_own_stem');
+      if (P.key === 'social_studies' && slot.slot === SST_A_Q1 && namesOwnKey(q)) return hold(slot, q, 'key_in_own_stem');
+      if (P.key === 'social_studies' && slot.slot === SST_A_Q1 && bySlot.get(slot.slot).some((p) => stemNamesKey(p, q))) return hold(slot, q, 'names_q1_key');
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return no(slot, 'date_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
@@ -2260,7 +2279,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
           return false;
         }
         const row = restated(slot, q);
-        return row ? hold(slot, q, row.name) : true;
+        if (row) return hold(slot, q, row.name);
+        // A Q1 item that will print sets aside each placed Q1 item whose key its stem names.
+        if (P.key === 'social_studies' && slot.slot === SST_A_Q1) {
+          const list = bySlot.get(slot.slot);
+          list.filter((p) => stemNamesKey(q, p)).forEach((p) => { list.splice(list.indexOf(p), 1); hold(slot, p, 'names_q1_key'); });
+        }
+        return true;
       }
       const again = bySlot.get(slot.slot).find((p) => twin(p, q, slot.slot));
       if (again) {
