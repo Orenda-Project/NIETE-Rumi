@@ -395,6 +395,21 @@ describe('the Stories shelf\'s watcher ends with its screen (switch on)', () => 
     observers.forEach((cb) => cb());
     expect(Object.keys(r.attrs).filter((k) => /^data-(fetch|skel|empty)/.test(k))).toEqual([]);
   });
+  test('switch off: the shelf\'s watcher is today\'s (not ended by the next mount; it writes no marker on the root)', async () => {
+    const { W, observers } = live({ win: { WQSTORIES: { shelf: jest.fn() } }, fetchImpl: (u) => (/d=games/.test(u) ? OK(GAMES)() : new Promise(() => {})) });
+    const { r, sh, fb } = sharedRoot();
+    const OFF = { ...B, list_states: 0 };
+    W.WQDOORS.mount(r, OFF, C, 'stories');
+    expect(observers).toHaveLength(1);
+    r.on = 'games';
+    W.WQDOORS.mount(r, OFF, C, 'games');
+    await flush();
+    expect(observers).toHaveLength(1);
+    sh.hidden = true;
+    observers.forEach((cb) => cb());
+    expect(fb.hidden).toBe(false); // today's: the old watcher still runs on its own fallback
+    expect(Object.keys(r.attrs).filter((k) => /^data-(fetch|skel|empty|trip|vtrip)/.test(k))).toEqual([]);
+  });
   test('the rows redraw the door after the shelf filled: one watcher on the kept shelf, not two', async () => {
     const { W, observers } = live({ win: { WQSTORIES: { shelf: jest.fn() } }, fetchImpl: (u) => (/d=stories/.test(u) ? OK({ stories: [], shelf: true })() : new Promise(() => {})) });
     const sh1 = el(); const sh2 = el(); sh2.setAttribute('data-host', 'doors'); sh2.parentNode = { replaceChild: jest.fn() };
