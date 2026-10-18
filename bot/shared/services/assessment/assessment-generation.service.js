@@ -1076,7 +1076,9 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'آدم و حوا', pattern: '(?:حضرت ?)?ادم\u0611? ?(?:و|اور) ?(?:حضرت ?)?حوا' },
   // The ligature is written against the name it follows («حضورﷺ»), so it needs no word edge.
   { term: 'ﷺ', pattern: 'ﷺ', bare: true },
-  { term: 'رب', pattern: 'رب' },
+  // «رب» the word is followed by a case word or nothing («سب کا رب ایک ہے», «رب نے», «اپنے رب کا»); in a
+  // name another name follows it («رب نواز نے دکان کھولی»), and that is a person.
+  { term: 'رب', pattern: 'رب(?=\\s*$|\\s*[^\\p{L}\\p{N}\\s]|\\s+(?:نے|کی|کا|کے|کو|سے|ہے|ہیں|ایک|العالمین|العزت|تعالی)(?![\\p{L}\\p{N}]))' },
 ].map(({ term, pattern, bare }) => Object.freeze({
   term, re: new RegExp(bare ? pattern : `(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u'),
 })));
