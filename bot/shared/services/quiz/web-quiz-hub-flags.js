@@ -72,6 +72,8 @@ const PLAIN_PAINT_KEY = 'web_quiz_plain_paint';
 // The closed and not-open pages in the child's language (web-quiz-closed-lang.js) ride this read on the hub, so a
 // child's home adds no settings read for it.
 const CLOSED_LANG_KEY = 'web_quiz_closed_lang';
+// A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
+const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
 const WAVES2_KEY = 'web_quiz_hub_waves2';
 // The live reading meter (web-quiz-live-read-v3.js meter/forHub): its variant and its parent (live reading v3) ride this
@@ -132,6 +134,7 @@ const SWITCHES = Object.freeze([
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
+  ['gradeChange',  GRADE_CHANGE_KEY,      'json'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
   ['homePreload',  HOME_PRELOAD_KEY,      'json'],
   ['hub',          HUB_KEY,               'loose'],
@@ -464,6 +467,7 @@ module.exports = {
   ROSTER_WARM_KEY,
   fanoutNow,
   flags,
+  GRADE_CHANGE_KEY,
   HOME_BUTTON_KEY,
   HOME_KEY,
   HOME_PRELOAD_KEY,

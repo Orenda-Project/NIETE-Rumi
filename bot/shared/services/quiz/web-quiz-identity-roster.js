@@ -277,6 +277,18 @@ async function canonicalStudentIdsShared(studentIds) {
   return (await p).out;
 }
 
+/**
+ * A child's row just changed (web-quiz-grade-change.js): the hub's shared lookup for that id and every kept class
+ * roster that lists the child are dropped, so the next hub answer (and the keeper, for a class it keeps warm) reads
+ * them afresh.
+ */
+function forgetChild(studentId) {
+  const id = String(studentId || '');
+  if (!id) return;
+  shared.delete(id);
+  for (const [key, hit] of rosters) if ((hit.kids || []).some((k) => (k.ids || []).map(String).includes(id))) rosters.delete(key);
+}
+
 /** canonicalStudentId for one id. */
 async function canonicalStudentId(studentId) {
   return (await canonicalStudentIds([studentId])).get(String(studentId)) || studentId;
@@ -396,7 +408,7 @@ async function nonAttempters({ shareCodeId } = {}) {
 module.exports = {
   FLAG_KEY,
   identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
-  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared, noteClass, keepWarm, _keptClasses: () => [...kept.keys()],
+  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared, noteClass, keepWarm, forgetChild, _keptClasses: () => [...kept.keys()],
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
   _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); kept.clear(); },

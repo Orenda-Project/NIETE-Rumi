@@ -1291,6 +1291,19 @@ function createWebQuizRouter(opts = {}) {
 
   // With app_settings web_quiz_brotli on: br scripts/styles, a day for unversioned files, versioned Jugnu pictures (web-quiz-static.js).
   router.use(require('./web-quiz-static').createWqStatic({ publicDir: PUBLIC_DIR, on: opts.brotliOn }));
+  // The grown-ups sheet's Grade row (the bot's web_quiz_grade_change; it answers 404 while that is off): {hub, kid, grade}
+  // to the bot's POST /hub/:token/grade with this phone's device. Before the list, so /api/wq/hub/:token never takes it.
+  router.post('/api/wq/hub/grade', noStore, configured, jsonBody, limiters.session, async (req, res) => {
+    const b = req.body || {};
+    if (typeof b.hub !== 'string' || !HUB_TOKEN_RX.test(b.hub)) return res.status(401).json({ error: 'bad_token' });
+    try {
+      const out = await callBot('POST', `/api/internal/wq/hub/${encodeURIComponent(b.hub)}/grade`, req, { kid: b.kid, grade: b.grade }, { route: '/api/internal/wq/hub/:token/grade' });
+      if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
+      return res.status(out.status).json(out.body == null ? {} : out.body);
+    } catch (err) {
+      return res.status(502).json({ error: 'bot_unreachable' });
+    }
+  });
   for (const r of API_ROUTES) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);
