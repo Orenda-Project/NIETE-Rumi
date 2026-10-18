@@ -6,6 +6,7 @@
  *   GET  /fln/me           {lessons, share, role, ui_lang}         auth only
  *   GET  /fln/catalogue    the lesson list / level chooser         requireFln.lessons
  *   GET  /fln/plan/:id     {plan, placement}; logs ONE open        requireFln.lessons
+ *                          (mirror media presigned on the portal bucket: services/fln-media-sign.js)
  *   POST /fln/events       share / link_copy / open_link rows; audio_play / audio_error as log events
  *   flnPreview             GET /portal/fln/p/:id for link-preview fetchers only (a hook in the SPA catch-all)
  *
@@ -40,6 +41,7 @@ const crypto = require('crypto');
 const { flnAccess, requireFln, requirePortalAuth, noStore } = require('../lib/fln-access');
 const Corpus = require('../services/fln-corpus.service');
 const LpActivity = require('../services/lp-activity.service');
+const FlnMedia = require('../services/fln-media-sign');
 // The portal's OWN telemetry sink (never the bot's pino loggers: pino is not installed for this service).
 const telemetry = require('../services/telemetry.service');
 // The same pool portal.routes.js uses (one pool per process), as a plain (sql, params) function.
@@ -132,7 +134,7 @@ function jsonOnce(req, res, next) {
   return jsonParser(req, res, next);
 }
 
-function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivity } = {}) {
+function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivity, media = FlnMedia } = {}) {
   const router = express.Router();
 
   // Who am I for FLN — m-app owns /me; m-links' links/teachers/send live in portal-fln-links.routes.js.
@@ -163,8 +165,10 @@ function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivi
     if (!plan || corpus.isHidden(id)) return res.status(404).json({ error: 'not_found' });
     // Fire-and-forget, never awaited, and never chained to the lesson-plan survey (SPEC §6 row 9 EXCL).
     activity.logOpen(query, { userId: req.session.portalUserId, kind: 'fln', ref: id, lang: plan.lang, source: 'viewer' });
-    // The body is the plan + where it sits; NO `share` key — the client reads that from /me.
-    return res.json({ plan, placement: corpus.placementOf(id) });
+    // The body is the plan + where it sits; NO `share` key — the client reads that from /me. Media on the public
+    // mirror is served presigned on the portal's own bucket (a new tree; the corpus plan is never touched).
+    const served = await media.servePlan(plan, id);
+    return res.json({ plan: served, placement: corpus.placementOf(id) });
   });
 
   router.post('/fln/events', ...requireFln.lessons, jsonOnce, async (req, res) => {
