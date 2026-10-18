@@ -2981,7 +2981,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // The quiz page itself (its own language), keeping the hub key: from a class table or league shown in the link's language.
   // tw: the quiz's twin in the page's language ({code[, k]}, the board's or the league's answer): its own page instead.
   function quizPage(tw) {
-    if (tw && /^[A-Za-z0-9]{4,16}$/.test(String(tw.code))) return location.assign('/q/' + tw.code + (tw.k ? '?k=' + encodeURIComponent(tw.k) : ''));
+    if (tw && typeof tw.code === 'string' && /^[A-Za-z0-9]{4,16}$/.test(tw.code)) return location.assign('/q/' + tw.code + (tw.k ? '?k=' + encodeURIComponent(tw.k) : ''));
     location.assign('/q/' + CODE + (params.k ? '?k=' + encodeURIComponent(params.k) : ''));
   }
   function sectorName(s, on) { return on && /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s; }

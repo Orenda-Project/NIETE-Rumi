@@ -21,10 +21,10 @@ const FC_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-fi
 const HOME_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.js');
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 
-const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
+const CHILD = { first: 'Zara Testwala', chip: 'c1', animal: 'owl' };
 const NEXT = { kind: 'game', id: 'stop.missing', href: '/h/tok.abc#missing', title: 'Find the missing word', title_ur: 'گم شدہ لفظ ڈھونڈیں', minutes: 2, source: 'ranked' };
 const RESULT = {
-  card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3, nth: 6 },
+  card: { first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5, stars: 3, nth: 6 },
   challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 }, art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' },
   hub_door: true, jugnu_card: true,
 };
@@ -39,7 +39,7 @@ function cardPage(lang, result, o = {}) {
   if (o.fc) { vm.runInContext(FC_SRC, p.ctx); p.wq.card(); }
   return p;
 }
-const BOARD = { rows: [{ place: 1, first: 'Zara', animal: 'owl', correct: 3, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 1, class_avg_pct: 60 };
+const BOARD = { rows: [{ place: 1, first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 1, class_avg_pct: 60 };
 const SCHOOLS = { mine: { name: 'Model School Testwala', place: 2, points: 40, kids: 4 }, rows: [{ place: 1, name: 'Other School', points: 50, kids: 5 }, { place: 2, name: 'Model School Testwala', points: 40, kids: 4, mine: true }], ranked_n: 2 };
 
 describe('the folded card: the class and the league are back (class_doors)', () => {
@@ -161,6 +161,7 @@ describe('the home: "My class" and "My school" (wq-home.js)', () => {
   const H = win.WQHOME;
   const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
   const KID = '0123456789abcdef';
+  // (the golden hashes below were taken on the base with this exact fixture, so its first name stays as it was)
   const HUB = { lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false };
   const DOORS = { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: 'The red kite' }], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, { kind: 'numbers' }], videos: { href: '/lib/x' } };
   const HOME = { ...HUB, home_v3: 1, doors: DOORS, head: { dots: 2, today: false, jar: { fresh: true } } };
@@ -325,9 +326,9 @@ describe('the edge: the class table and the league open in the link\'s language 
 // chips; and Play from a table shown in the child's language opens the quiz's twin in it when there is one.
 describe('the class table: "Only Class 3" on a mixed table, and Play opens the quiz in the child\'s language', () => {
   const MIXED = {
-    rows: [{ place: 1, first: 'Amna', animal: 'owl', correct: 5, total: 5 }, { place: 2, first: 'Zara', animal: 'cat', correct: 3, total: 5 }, { place: 3, first: 'Bano', animal: 'fox', correct: 2, total: 5 }],
+    rows: [{ place: 1, first: 'Amna Testwala', animal: 'owl', correct: 5, total: 5 }, { place: 2, first: 'Zara Testwala', animal: 'cat', correct: 3, total: 5 }, { place: 3, first: 'Bano Testwala', animal: 'fox', correct: 2, total: 5 }],
     you: { place: 2, correct: 3, total: 5 }, finishers_n: 3, class_avg_pct: 67, class_doors: true, my_class: '3', one_class: false,
-    only: { rows: [{ place: 1, first: 'Zara', animal: 'cat', correct: 3, total: 5 }, { place: 2, first: 'Bano', animal: 'fox', correct: 2, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 2, class_avg_pct: 50, more_n: 0 },
+    only: { rows: [{ place: 1, first: 'Zara Testwala', animal: 'cat', correct: 3, total: 5 }, { place: 2, first: 'Bano Testwala', animal: 'fox', correct: 2, total: 5 }], you: { place: 1, correct: 3, total: 5 }, finishers_n: 2, class_avg_pct: 50, more_n: 0 },
   };
   const open = async (lang, board, extra = {}) => {
     const p = page({ lang, store: store({ ...RESULT }), api: { 'board/': board }, ...extra });
@@ -350,12 +351,12 @@ describe('the class table: "Only Class 3" on a mixed table, and Play opens the q
     expect(h).toContain('<button class="wq-chip wq-on" id="wq-conly">');
     expect(places(h)).toEqual([1, 2]);
     expect(h).toMatch(/<tr class="wq-you"><td>1<\/td>/);
-    expect(h).not.toContain('Amna');
+    expect(h).not.toContain('Amna Testwala');
     expect(h).toContain('<span>50%</span>');
     p.els['#wq-call'].fire('click');
     h = p.html();
     expect(places(h)).toEqual([1, 2, 3]);
-    expect(h).toContain('Amna');
+    expect(h).toContain('Amna Testwala');
   });
   test('one class, no `only`, or switch off: no chips (today\'s table)', async () => {
     for (const b of [{ ...MIXED, one_class: true, only: undefined }, { ...MIXED, only: undefined }, { ...BOARD, only: MIXED.only }]) {
@@ -373,6 +374,11 @@ describe('the class table: "Only Class 3" on a mixed table, and Play opens the q
     await flush(); await flush();
     p.els['#wq-play'].fire('click');
     expect(p.hist.assigned).toEqual(['/q/TEST?k=abc123']);
+    // a twin with no code is no twin: the quiz page, never "/q/null"
+    p = page({ lang: 'en', store: {}, view: 'class', search: '?lang=ur&k=abc123', bootExtra: { ui_lang: 'ur' }, api: { '/board/TEST': { ...tw, twin: { code: null } } } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual(['/q/TEST?k=abc123']);
     p = page({ lang: 'en', store: {}, view: 'class', bootExtra: { ui_lang: 'en' }, api: { '/board/TEST': tw } });
     await flush(); await flush();
     p.els['#wq-play'].fire('click');
@@ -385,7 +391,7 @@ describe('the class table: "Only Class 3" on a mixed table, and Play opens the q
     expect(p.hist.assigned).toEqual(['/q/UR12CD']);
   });
 });
-const MINE_TW = { rows: [{ place: 1, first: 'Zara', animal: 'owl', correct: 3, total: 5 }], finishers_n: 1, class_avg_pct: 60, class_doors: true };
+const MINE_TW = { rows: [{ place: 1, first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5 }], finishers_n: 1, class_avg_pct: 60, class_doors: true };
 
 // The list-state contract on the class table and the league (web_quiz_class_doors on the quiz page's boot): a skeleton
 // of rows while the answer is in flight, then data-fetch pending|done|failed, data-skel-from/-to and data-empty-at on

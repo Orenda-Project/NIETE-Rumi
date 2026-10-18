@@ -652,7 +652,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
   if (fast) out.fast = true;
-  // Only the edge reads it (web-quiz.routes uiLangOf, for /class and /schools); the quiz page itself ignores it.
+  // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
+  // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   return out;

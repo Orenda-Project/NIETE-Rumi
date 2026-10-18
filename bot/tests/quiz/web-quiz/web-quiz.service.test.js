@@ -630,11 +630,15 @@ describe('E6 GET board (the class league table)', () => {
     });
     test('off, absent or the string "true": no twin, and not one read of it', async () => {
       twinDb();
+      const Tw = require('../../../shared/services/quiz/web-quiz-class-twin');
+      const spy = jest.spyOn(Tw, 'find');
       for (const value of [false, 'true']) {
         CD()._resetCache();
         fake.db.app_settings = [{ key: 'web_quiz_class_doors', value }];
         expect(await WQ.board('AB12CD')).not.toHaveProperty('twin');
       }
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
     });
     test('on, but a quiz with no lesson, or no open twin code of this teacher: no twin', async () => {
       fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
