@@ -131,7 +131,8 @@
     if (o.jg) out += '<img class="wq-moment-jg" src="/wq/jugnu/' + (fb.zero ? 'hello' : lv.stars === 3 ? 'celebrate' : 'correct') + '.webp" width="' + (o.size === 's' ? 56 : 72) + '" height="' + (o.size === 's' ? 56 : 72) + '" alt="" aria-hidden="true">';
     // o.said: the host's own Jugnu line; when it already says "let's read it together", the moment does not say it twice
     if (fb.zero) {
-      if (bare(o.said) !== bare(c.zero)) out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
+      // o.once: no read-along on this card, so the line asks for what its button does ("let's read it once more")
+      if (bare(o.said) !== bare(c.zero)) out += '<p class="wq-moment-deed">' + esc(o.once ? c.once : c.zero) + '</p>';
     } else {
       out += '<p class="wq-moment-deed">' + esc(fb.read ? c[fb.read] : c.words(fb.words)) + '</p>';
       var lights = '';

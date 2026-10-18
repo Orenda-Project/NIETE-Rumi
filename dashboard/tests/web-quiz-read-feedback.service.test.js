@@ -543,7 +543,9 @@ describe('Read aloud without the Trail', () => {
   test('key on, another phone\'s 0-word read (read none): the kind card, no stars row', async () => {
     const { settled } = await live(plain('en', RF), { score: { attempted: 0, stopped: false }, feedback: { stars: 0, badge: 'try', read: 'none' } });
     const m = /<div id="wqc-rf">[\s\S]*?<\/section><\/div>/.exec(settled)[0];
-    expect(m.replace(/&#39;/g, "'")).toContain("Let's read it together!");
+    // no read-along on the page's own card: the line asks for what its button does
+    expect(m.replace(/&#39;/g, "'")).toContain("Let's read it once more!");
+    expect(m.replace(/&#39;/g, "'")).not.toContain('together');
     expect(m).not.toContain('data-stars');
     expect(m).toContain('data-badge="try"');
   });
@@ -562,7 +564,8 @@ describe('Read aloud without the Trail', () => {
     p.w.readResult({ failed: true, reason: 'unheard' });
     await p.flush();
     const h = p.html();
-    expect(h).toContain(lang === 'ur' ? 'آئیں مل کر پڑھیں!' : "Let's read it together!");
+    expect(h).toContain(lang === 'ur' ? 'آئیں، ایک بار پھر پڑھیں!' : "Let's read it once more!");
+    expect(h).not.toContain(lang === 'ur' ? 'مل کر' : 'together');
     expect(h).toContain('data-badge="try"');
     expect(h.indexOf('data-rf')).toBeLessThan(h.indexOf('id="wqc-again"'));
   });
@@ -873,3 +876,4 @@ describe('the moment\'s stylesheet: the card balanced, the sound switch labelled
     expect(CSS).toMatch(/html\[lang=ur\] \.wqfc-nt b \{ font-size: 20px; line-height: 1\.8; \}/);
   });
 });
+

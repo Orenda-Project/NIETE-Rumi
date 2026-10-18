@@ -1409,7 +1409,7 @@
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold });
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold, once: true });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }
