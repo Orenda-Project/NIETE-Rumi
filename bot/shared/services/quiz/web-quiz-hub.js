@@ -432,7 +432,8 @@ async function lockedHub(ids, why, asked = null, linked = null) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
+async function hubPayload(token, { kid, device, src, lang: wanted, st = null } = {}) {
+  const mark = st ? (n) => st.mark(n) : () => {}; // the step timings (web-quiz-server-timing.js); nothing without a stopwatch
   if (!T.secret()) fail(503, 'web_quiz_off');
   const practice = await require('./web-quiz-hub-home').practiceHub(token, { lang: wanted, brandKey }); // a coach's class preview by grade: null unless web_quiz_home_v3
   if (practice) return practice;
@@ -442,6 +443,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const asked = await askedLang(wanted);
   const linked = await linkedLang(token);
   const trust = await deviceTrusted(token, device);
+  mark('gate');
   if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
@@ -450,6 +452,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
     mine = [...new Set(mine.map((id) => canon.get(id) || id))];
   }
+  mark('gate');
 
   const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
@@ -457,6 +460,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const { data: lists } = kidsRows.some((r) => r.list_id)
     ? await dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
     : { data: [] };
+  mark('kids');
   const listOf = (r) => (lists || []).find((l) => l.id === r.list_id) || null;
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
@@ -471,6 +475,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null) : null;
   const history = ctx ? ctx.history : [];
   const StudentQuiz = require('./student-quiz.service');
+  mark('ctx');
   const lang = asked || clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
@@ -491,12 +496,14 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
   // never the "keep my place" card again, on any link (quiz_student_join; off: untouched)
   if (chosen && out.bind && out.bind.offer) await require('./web-quiz-student-join').hideCardIfBound(out, chosen.id);
+  mark('take');
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
   out.teacher = await teacherCard(chosen, ctx.list, history, grade, homeP);
+  mark('teacher');
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
   if (f.homeButton) out.nav_home = true;
@@ -513,6 +520,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
+  mark('recs');
   // The tile asks the challenge's own grade rule (a band of grades is no grade there), so it never opens onto a refusal.
   const form = await challengeP;
   if (form) out.challenge = { on: true };
@@ -532,6 +540,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   }, chosen.id));
   Object.assign(out, await require('./web-quiz-book').hubBits({ studentId: chosen.id })); // Jugnu's Book: {} while web_quiz_challenge_book is off
+  mark('play');
   // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
   // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   const [storyBits, homeBits, nextField] = await Promise.all([
@@ -540,19 +549,24 @@ async function hubPayload(token, { kid, device, src, lang: wanted } = {}) {
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
+  mark('home');
   return out;
 }
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
   const ui = await require('./web-quiz-ur-polish').ui();
+  if (opts.st) opts.st.mark('ui');
   // Fast first page (web_quiz_fast): named only when on, so the edge sends the next hub's head before the bot answers.
   const fast = require('./web-quiz-fast').on();
   const out = await hubPayload(token, opts);
+  if (opts.st) opts.st.mark('other');
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
-  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  const rt = await Tel.flag();
+  if (opts.st) opts.st.mark('tail');
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {
