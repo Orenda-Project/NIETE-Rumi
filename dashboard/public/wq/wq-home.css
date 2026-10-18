@@ -21,6 +21,8 @@
 .wq-ntext small{font-size:16px;font-weight:700;opacity:.92}
 .wq-ngo{flex:none;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#fff;color:var(--brand-d);font-size:22px}
 html[dir=rtl] .wq-ngo{transform:scaleX(-1)}
+/* web_quiz_one_button: the tile's glyph is a media play ▶, which never turns in Urdu (only a direction would) */
+html.wq-1b[dir=rtl] .wq-ngo{transform:none}
 .wq-ntext .wq-new{position:static;align-self:flex-start;background:#fff;color:var(--brand-d)}
 .wq-prstrip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--tint);color:var(--navy);font-weight:800;font-size:15px}
 .wq-prback{flex:none;display:flex;align-items:center;min-height:44px;padding:0 16px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--navy);font:inherit;font-weight:800;text-decoration:none;cursor:pointer}
