@@ -255,7 +255,7 @@ function failSetting(key) {
     return b;
   };
 }
-/** Counts the app_settings reads of `key` from now on. → { n } */
+/** Counts the app_settings reads of `key` from now on (by .eq, or among the keys of an .in read). → { n } */
 function watchSetting(key) {
   const seen = { n: 0 };
   const sb = require('../../shared/config/supabase');
@@ -264,7 +264,9 @@ function watchSetting(key) {
     const b = from0(t);
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
+    const in0 = b.in.bind(b);
     b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
+    b.in = (k, vs) => { if ((vs || []).includes(key)) seen.n += 1; return in0(k, vs); };
     return b;
   };
   return seen;
