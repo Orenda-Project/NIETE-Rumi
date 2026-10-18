@@ -99,6 +99,37 @@ describe('the shelves (switch on)', () => {
     ['.wq-vrow', '.wq-vgrid', '.wq-vcard', '.wq-vthumb', '.wq-vskel', '.wq-vq', '.wq-vquiz'].forEach((c) => expect(css).toContain(c));
     expect(fs.existsSync(path.join(__dirname, '..', 'public', 'wq', 'wq-vshelf.css'))).toBe(false);
   });
+  test('the placeholders pulse with a keyframes name of their own, defined once across every child stylesheet', () => {
+    const dir = path.join(__dirname, '..', 'public', 'wq');
+    const all = fs.readdirSync(dir).filter((f) => f.endsWith('.css')).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+    const css = fs.readFileSync(path.join(dir, 'wq-doors.css'), 'utf8');
+    const names = new Set();
+    css.replace(/\.wq-v(?:skel|skh|box\.wq-vskel)[^{]*\{[^}]*animation:\s*([\w-]+)/g, (m, n) => (n === 'none' ? m : names.add(n)));
+    expect([...names]).toEqual(['wq-vpulse']);
+    names.forEach((n) => expect(count(all, new RegExp(`@keyframes\\s+${n}\\s*\\{`, 'g'))).toBe(1));
+  });
+  test('the shelves look balanced: a third card peeks at 360, Quiz buttons line up, a failed shelf is one centred box with a button sized like See all', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-doors.css'), 'utf8');
+    const rule = (sel) => { const m = new RegExp(`(^|\\n|\\})${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{([^}]*)\\}`).exec(css); return m ? m[2] : ''; };
+    // a shelf card is about 2.3 to a row (so the next one shows), never narrower than 136 px or wider than 180 px
+    expect(rule('.wq-vrow .wq-vcard')).toMatch(/width:clamp\(136px,calc\(\(100% - 24px\) \/ 2\.3\),180px\)/);
+    // a card's Quiz sits at its bottom, so a two-line title never pushes one Quiz lower than its neighbour's
+    expect(rule('.wq-vcard .wq-vq')).toMatch(/margin-top:auto/);
+    // a failed shelf: one tinted box the height of a row, the words over the button, centred; no second grey box
+    expect(rule('.wq-vrow[data-fetch=failed]')).toMatch(/flex-direction:column/);
+    expect(rule('.wq-vrow[data-fetch=failed]')).toMatch(/min-height:150px/);
+    expect(rule('.wq-vrow[data-fetch=failed] .wq-voops')).toMatch(/background:none/);
+    expect(rule('.wq-vretry')).toMatch(/font-size:16px/);
+    // Urdu: the See all and Try again words sit clear of the pill's top border
+    expect(rule('html[lang=ur] .wq-vsall,html[lang=ur] .wq-vretry')).toMatch(/padding-top:6px/);
+  });
+  test.each(['en', 'ur'])('%s: the watch screen with the shelves on marks its player, so the play triangle is never mirrored (it points right in Urdu too)', (lang) => {
+    const W = F.load();
+    const on = W.WQDOORS.html(F.boot(lang, SHELF()), { token: TOKEN, lang }, `watch/${VID}`, { watch: WATCH, next: null });
+    expect(on).toMatch(/<div class="wq-vbox wq-vbox--s">/);
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-doors.css'), 'utf8');
+    expect(css).toContain('html[dir=rtl] .wq-vbox--s .wq-vplay{transform:none}');
+  });
   test('one record per card: the thumbnail, the title, the minutes and both taps name the same lesson', () => {
     const W = F.load();
     const h = W.WQDOORS.shelfHtml(CH, { token: TOKEN, lang: 'en' });
@@ -292,6 +323,17 @@ describe('a subject that does not load never leaves placeholders up (switch on)'
   });
 });
 
+describe('the watch screen while its lesson loads, switch off or not strictly true', () => {
+  test.each(['en', 'ur'])('%s: today\'s waiting line, no placeholder player', (lang) => {
+    const W = F.load();
+    for (const v of [{ href: '/lib/x', watch: true }, { href: '/lib/x', watch: true, shelf: 'true' }]) {
+      const h = W.WQDOORS.html(F.boot(lang, v), { token: TOKEN, lang }, `watch/${VID}`, null);
+      expect(h).toContain('wq-soon wq-wait');
+      expect(h).not.toContain('wq-vskel');
+    }
+  });
+});
+
 describe('the watch screen while its lesson loads (switch on)', () => {
   test.each(['en', 'ur'])('%s: a placeholder player, never "Opening the video…", one primary', (lang) => {
     const W = F.load();
@@ -345,6 +387,37 @@ describe('the Videos lists say their state on the door root (switch on)', () => 
     expect(t.root.attrs['data-fetch']).toBe('pending');
     await flush();
     expect(t.root.attrs['data-fetch']).toBe('done');
+  });
+  test.each(['en', 'ur'])('%s: the subjects list that fails: failed, the shelves\' own Try again (one primary, no old retry); the tap makes it pending, then done', async (lang) => {
+    let subs = 0;
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? { ...CH, subject: 'Maths' } : /[?&]s=/.test(url) ? CH : ((subs += 1) === 1 ? FAIL : LIB_SUBJECTS)));
+    const retry = el(); retry.setAttribute('data-tap', 'vretry');
+    t.taps.push(retry);                 // the failed screen's Try again, wired when that screen is drawn
+    t.W.WQDOORS.mount(t.root, F.boot(lang, SHELF()), ctxOf(lang), 'videos');
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('failed');
+    expect(count(t.root.innerHTML, /<button class="wq-btn wq-btn--secondary wq-vretry" type="button" data-primary data-tap="vretry"/g)).toBe(1);
+    expect(t.root.innerHTML).not.toMatch(/data-tap="retry"|wq-go/);
+    expect(count(t.root.innerHTML, /data-primary/g)).toBe(1);
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+    retry.fire('click');
+    expect(t.root.attrs['data-fetch']).toBe('pending');
+    await flush();
+    expect(t.root.attrs['data-fetch']).toBe('done');
+    expect(t.shelves.Science.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
+  });
+  test('a subject whose chapters hold no lessons: its shelf is taken away, the rest say done, and that is not an empty screen', async () => {
+    const none = { ...CH, subject: 'Maths', chapters: CH.chapters.map((c) => ({ ...c, videos: [] })) };
+    const t = live((url) => (/[?&]s=Maths/.test(url) ? none : /[?&]s=/.test(url) ? CH : LIB_SUBJECTS));
+    const sec = el(); const row = el(); row.parentNode = sec; sec.parentNode = el({ removeChild: jest.fn() });
+    t.shelves.Maths = row;
+    t.W.WQDOORS.mount(t.root, F.boot('en', SHELF()), ctxOf(), 'videos');
+    await flush();
+    expect(sec.parentNode.removeChild).toHaveBeenCalledWith(sec);
+    expect(t.shelves.Science.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-fetch']).toBe('done');
+    expect(t.root.attrs['data-empty-at']).toBeUndefined();
   });
   test('no subjects at all (a true empty): done, and the empty moment is stamped', async () => {
     const t = live(() => ({ ...LIB_SUBJECTS, subjects: [] }));

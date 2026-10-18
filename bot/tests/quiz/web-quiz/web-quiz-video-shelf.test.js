@@ -305,3 +305,14 @@ describe('the thumbnail', () => {
     expect(await Thumb.noPicture(F.V(3))).toBe(false);
   });
 });
+
+describe('the home names the Videos shelf only on the switch\'s strict true', () => {
+  const out = { lib: { href: '/lib/x', art: '/a.webp' }, lang: 'en' };
+  const pre = (shelf) => ({ flags: Promise.resolve({ home: true, stories: false, shelf }), data: Promise.resolve({ runs: [], binds: [], card: {} }) });
+  test.each([[undefined, false], [false, false], ['true', false], [1, false], [true, true]])('f.shelf=%p -> shelf key %p', async (v, on) => {
+    F.seed(supabase, [LIB]);
+    const r = await Home.homeField({ out, chosenId: F.KID_A, history: [], pre: pre(v) });
+    expect(r.home_v3).toBe(1);
+    expect('shelf' in r.doors.videos).toBe(on);
+  });
+});
