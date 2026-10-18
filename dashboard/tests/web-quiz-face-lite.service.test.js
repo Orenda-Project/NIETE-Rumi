@@ -110,6 +110,29 @@ describe('the light face file', () => {
     expect([lite.unitsPerEm, lite.ascent, lite.descent, lite.lineGap]).toEqual([six.unitsPerEm, six.ascent, six.descent, six.lineGap]);
   });
 
+  // the raw tables after the woff2 wrapper: the shaping tables (GSUB joins and stacks, GPOS mark and dot places, GDEF
+  // classes) must be -6's bytes; only the outlines (glyf, its loca, head/hhea extents) and two hinting/naming extras moved
+  const rawTables = (file) => {
+    const f = fontkit.openSync(path.join(FONTS, file));
+    f._decompress();
+    const out = {};
+    for (const [tag, e] of Object.entries(f.directory.tables)) out[tag] = e.transformed ? null : Buffer.from(f.stream.buffer.subarray(e.offset, e.offset + e.length));
+    return out;
+  };
+  it('GSUB, GPOS and GDEF are -6\'s bytes; only the outlines changed, STAT and gasp dropped', () => {
+    const a = rawTables('wq-nastaliq-6.woff2');
+    const b = rawTables('wq-nastaliq-7.woff2');
+    for (const tag of ['GSUB', 'GPOS', 'GDEF', 'cmap', 'hmtx', 'OS/2', 'maxp', 'post']) {
+      expect(b[tag]).toBeInstanceOf(Buffer);
+      expect(b[tag].equals(a[tag])).toBe(true);
+    }
+    expect([a.GSUB.length, a.GPOS.length, a.GDEF.length]).toEqual([414690, 24538, 516]);
+    expect(Object.keys(a).filter((t) => !(t in b)).sort()).toEqual(['STAT', 'gasp']);
+    expect(Object.keys(b).filter((t) => !(t in a))).toEqual([]);
+    expect(Object.keys(b).filter((t) => b[t] && !b[t].equals(a[t])).sort()).toEqual(['head', 'hhea', 'name']);
+    expect(['fpgm', 'prep', 'cvt ', 'hdmx'].filter((t) => t in a)).toEqual([]); // -6 carries no hinting to lose
+  });
+
   it('every Urdu string the pages carry shapes to the same glyphs at the same places', () => {
     const words = ['میں نے آج پوری کہانی اونچی آواز میں پڑھی!', 'السلام علیکم!', 'آپ کے کوئز اور ویڈیوز', 'اس ہفتے کی کہانی',
       'پڑھنے کی کہانیاں', 'کہانیوں کی کتابیں', 'دائرہ مربع تکون معین', 'سبز بٹن دبائیں، پھر واٹس ایپ میں بھیجنے کا بٹن دبائیں۔', '۱۲۳ ٹھیک جواب'];
