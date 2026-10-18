@@ -39,6 +39,9 @@ const FANOUT_KEY = 'web_quiz_hub_fanout';
 // a home link (the join's, a hub reply's) learns whether to look for a shared card's kept item with no read of its own.
 const CARD_KEY = 'web_quiz_card_v3';
 const SHARE_KEY = 'web_quiz_share_v4';
+// The portal learns the page switches from the bot (web-quiz-edge-learn.js): read in this same query, so the hub answer
+// can say it is on (`edge_learn: true`) with no settings read of its own. JSON true only.
+const EDGE_LEARN_KEY = 'web_quiz_edge_learn';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, waitUx, serverTiming, fanout, shareOpen }
 
@@ -48,7 +51,7 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY, EDGE_LEARN_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -57,7 +60,8 @@ function fromRows(data, now) {
     challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), waitUx: by[WAIT_UX_KEY] === true,
     // only the JSON boolean true (the string 'true', 1 or an object are off)
     serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true,
-    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true };
+    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true,
+    edgeLearn: by[EDGE_LEARN_KEY] === true };
 }
 
 /**
@@ -78,7 +82,7 @@ async function flags(now = Date.now()) {
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, waitUx: false, serverTiming: false, fanout: false };
+    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, waitUx: false, serverTiming: false, fanout: false, edgeLearn: false };
   }
 }
 
@@ -134,6 +138,11 @@ function serverTimingNow(now = Date.now()) {
   return Boolean(cache && cache.serverTiming === true && now - cache.at < 2 * TTL_MS);
 }
 
+/** web_quiz_edge_learn, never waited for: the hub's cached value (the hub's read has just run on a hub answer); off when none. */
+function edgeLearnNow(now = Date.now()) {
+  return Boolean(cache && cache.edgeLearn === true && now - cache.at < TTL_MS);
+}
+
 /**
  * The one share on, never read on its own: only the cache this module's read (or the join's) keeps warm, as waitUxNow.
  * A home link is made right after hubLink() read it, so off (or a failed read) asks nothing more. Never throws.
@@ -175,4 +184,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, waitUxNow, serverTimingNow, fanoutNow, shareOpenNow, rungsOn, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, waitUxNow, serverTimingNow, fanoutNow, shareOpenNow, edgeLearnNow, rungsOn, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EDGE_LEARN_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
