@@ -629,7 +629,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       added: function (n, s) { return '+' + n + ' points for ' + s + '!'; },
       ghost: function (s) { return 'No one from ' + s + ' has played yet this week. Be the first!'; },
       zeroN: function (n) { return fmtN(n) + (n === 1 ? ' school still to start' : ' schools still to start'); },
-      allSchools: 'All', mySector: 'My sector', playFor: function (s) { return 'Play and add points for ' + s; },
+      allSchools: 'All', mySector: 'My sector', playFor: function (s) { return 'Play and add points for ' + s; }, playMine: 'Play and add points for your school',
       noSchools: 'No school has played yet this week. Yours can be first!', shareSchools: 'Share the school league', inviteSchool: 'Invite my school to play',
       schoolsLine: function (s, p) { return p ? s + ' is #' + p + ' of all schools this week. Play and help us climb:' : 'No one from ' + s + ' has played yet this week. Be the first:'; },
       histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
@@ -704,7 +704,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       added: function (n, s) { return s + ' کے لیے ' + urDigits(n) + '+ پوائنٹس!'; },
       ghost: function (s) { return 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں!'; },
       zeroN: function (n) { return urDigits(fmtN(n)) + ' اسکول ابھی شروع نہیں ہوئے'; },
-      allSchools: 'سب', mySector: 'میرا سیکٹر', playFor: function (s) { return 'کھیلیں اور ' + s + ' کے پوائنٹس بڑھائیں'; },
+      allSchools: 'سب', mySector: 'میرا سیکٹر', playFor: function (s) { return 'کھیلیں اور ' + s + ' کے پوائنٹس بڑھائیں'; }, playMine: 'کھیلیں اور اپنے اسکول کے پوائنٹس بڑھائیں',
       noSchools: 'اس ہفتے ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا ہو سکتا ہے!', shareSchools: 'اسکول لیگ بھیجیں', inviteSchool: 'اسکول کو کھیلنے کی دعوت دیں',
       schoolsLine: function (s, p) { return p ? s + ' اس ہفتے سب اسکولوں میں نمبر ' + p + ' پر ہے۔ کھیلیں اور اسے اوپر لے جائیں:' : 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں:'; },
       histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
@@ -779,7 +779,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     });
   }
 
-  var CLASS_LABEL = CLS.label || T.yourClass;
+  // ui_lang ur on an English quiz's class table or league (web_quiz_class_doors): the class label in the page's own Urdu
+  // word and digits ("Classes 2, 3" -> "کلاس ۲، ۳"); a lettered class ("3-B") keeps the teacher's letters.
+  function urClassLabel(l) {
+    var m = /^Class(?:es)?\s+(.+)$/.exec(String(l));
+    return m ? 'کلاس ' + m[1].split(/\s*,\s*/).map(function (c) { return /^\d+$/.test(c) ? urDigits(c) : c; }).join('، ') : l;
+  }
+  var CLASS_LABEL = CLS.label ? (UI_SWAP && LANG === 'ur' ? urClassLabel(CLS.label) : CLS.label) : T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   var STAR = '<svg class="wq-star{on}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
   var IMG = '/wq/jugnu/';
@@ -2963,7 +2969,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
     var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
     var h = bar() + '<h2>' + title + '</h2>' + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
-      (mixed ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
+      (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
       '<div class="wq-card wq-cmp">' +
@@ -3053,17 +3059,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + ' · ' + esc(T.kidsN(mine.kids || 0)) + '</p>' +
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
-      ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
+      ? '<div class="wq-chips wq-schips' + (cd ? ' wq-tall' : '') + '"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
         '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
     var zn = b.zero_names || [];
     var zero = b.zero_n && !SCH.sector
-      ? '<details class="wq-zero-list"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
+      ? '<details class="wq-zero-list' + (cd ? ' wq-tall' : '') + '"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
         (zn.length ? '<ul>' + zn.map(function (n) { return '<li><bdi>' + esc(n) + '</bdi></li>'; }).join('') + '</ul>' : '') + '</details>' : '';
     var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
       (list ? '<ol class="wq-slist"' + lsMarks('schools', 'done') + '>' + list + '</ol>' : mine ? (LS_ON ? '<div' + lsMarks('schools', 'done') + '></div>' : '') : '<div class="wq-card"' + lsMarks('schools', 'done', true) + '>' + esc(T.noSchools) + '</div>') + zero +
       // A cold recipient of the league link (never played here): the next step is to play, for their school.
       // (class_doors: the label is one flex item, never the words and the name side by side; the go button is the primary)
-      (mine && !S.st && !S.result ? '<button class="wq-btn wq-go" id="wq-play-s"' + (cd ? ' data-primary><span class="wq-btn-t">' + T.playFor(nm) + '</span>' : '>' + T.playFor(nm)) + '</button>' : '') +
+      (mine && !S.st && !S.result ? '<button class="wq-btn wq-go' + (cd ? ' wq-stick' : '') + '" id="wq-play-s"' + (cd ? ' data-primary><span class="wq-btn-t">' + esc(T.playMine) + '</span>' : '>' + T.playFor(nm)) + '</button>' : '') +
       (mine ? '<button class="wq-btn ' + (!S.st && !S.result ? 'wq-soft' : 'wq-go') + '" id="wq-share-s"' + (cd && (S.st || S.result) ? ' data-primary' : '') + '>' + esc(mine.ghost ? T.inviteSchool : T.shareSchools) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, 'M16');

@@ -372,6 +372,11 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1.8;padding:0 8px;margin:2px 0 4px}
 .wq-schips .wq-chip{border:2px solid var(--line);font-size:14px;min-height:40px}
 .wq-schips .wq-chip.wq-on{background:var(--navy);color:#fff;border-color:var(--navy)}
+/* web_quiz_class_doors: the class table's and league's chips are full-size targets, and the league's Play stays in reach
+   at the bottom of the screen however long the list (the Urdu league ran it off the screen). */
+.wq-schips.wq-tall .wq-chip{min-height:48px;min-width:48px;justify-content:center}
+.wq-zero-list.wq-tall summary{min-height:48px;display:flex;align-items:center}
+.wq-stick{position:sticky;bottom:12px;z-index:2}
 .wq-mycard .wq-move{display:block;margin-top:4px;font-size:14px}
 .wq-added{margin-top:6px!important;font-weight:800;color:#1a8f4a}
 .wq-zero-list{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--muted);font-weight:700}
