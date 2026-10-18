@@ -55,6 +55,9 @@ const UNKNOWN_USER = { id: 'u-family', registration_completed: false, registrati
 const TEACHER_USER = { ...UNKNOWN_USER, id: 'u-teacher', registration_completed: true, name: 'Teacher Testwala' };
 const ON = { web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true };
 const FIXED_NOW = Date.UTC(2026, 9, 15, 10, 0, 0);
+// the clock is pinned from load time so a Pakistan-day or expiry check never depends on the hour/date the suite runs
+jest.useFakeTimers({ now: FIXED_NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
 
 let fake;
 const iso = (ms) => new Date(ms).toISOString();
@@ -256,6 +259,19 @@ describe('the seven refusals, one by one (no binding row, the code spent where i
     expect(fake.db.child_bind_codes[0].outcome).toBe('max_phones');
     expect(sends()).toBe(0);
     expect(inserts('child_phone_bindings')).toHaveLength(0);
+  });
+
+  test('max_phones counts live links only: a revoked link whose phone is still set never fills the cap', async () => {
+    // the database clears the phone on revoke; this row keeps it so the "not revoked" filter is held on its own
+    const revoked = binding(KIDS[0], fixturePhone(703), { revoked_at: iso(Date.now() - 60000), revoked_by: 'teacher' });
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])],
+      bindings: [binding(KIDS[0], fixturePhone(701)), binding(KIDS[0], fixturePhone(702)), revoked] });
+    const Bindings = require('../../../shared/services/quiz/child-phone-bindings.repo');
+    expect((await Bindings.activeForChild(KIDS[0])).map((b) => b.id).sort())
+      .toEqual([binding(KIDS[0], fixturePhone(701)).id, binding(KIDS[0], fixturePhone(702)).id].sort());
+    await say('JUGNU-AB2CD');
+    expect(events('web_quiz.bind_refused')).toEqual([]);
+    expect(inserts('child_phone_bindings')).toHaveLength(1);
   });
 
   test('max_kids: a fifth child → refused, no insert, ONE full line, ledger bind_reply', async () => {

@@ -139,7 +139,7 @@ async function classOf(studentId, rows) {
   const hit = rows.find((r) => r.class_id);
   if (hit) return hit.class_id;
   try {
-    const { data, error } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    const { data, error } = await require('./web-quiz-hub-child-rows').read('class_enrollments', [studentId], 'class_id', () => supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
     const r = !error && (data || []).find((x) => x.class_id);
     return r ? r.class_id : null;
   } catch (_) {
@@ -180,16 +180,19 @@ function daysOf(rows, now) {
   const days = [false, false, false, false, false, false, false];
   rows.forEach((r) => {
     const at = rowAt(r);
-    if (!FINAL.has(r.status) || roundRow(r) || at < start || at >= start + 7 * DAY_MS) return;
+    if (!FINAL.has(r.status) || roundRow(r) || noiseRow(r) || at < start || at >= start + 7 * DAY_MS) return;
     days[Math.floor((at - start) / DAY_MS)] = true;
   });
   return days;
 }
 
+// A check the scorer judged not a reading (implausible: scored, record lost) earns no story sticker and lights no day.
+const noiseRow = (r) => r.status === 'scored' && r.record === false && r.mode === 'check';
+
 function storyIdsOf(rows) {
   const first = new Map();
   rows.forEach((r) => {
-    if (!r.passage_id || !FINAL.has(r.status) || roundRow(r)) return;
+    if (!r.passage_id || !FINAL.has(r.status) || roundRow(r) || noiseRow(r)) return;
     const at = rowAt(r);
     if (r.status !== 'scored') return; // a finish only: a swept (failed) run keeps its Trail sticker, no story sticker
     if (!first.has(r.passage_id) || at < first.get(r.passage_id)) first.set(r.passage_id, at);
@@ -207,7 +210,7 @@ function lightsOf(rows, now, self = null) {
   const keys = new Map();
   rows.forEach((r) => {
     if (!FINAL.has(r.status) || (r.exposure_no != null && Number(r.exposure_no) !== 1)) return;
-    if (roundRow(r)) return;
+    if (roundRow(r) || noiseRow(r)) return;
     const child = r.canonical_id || r.student_id;
     if (!child) return;
     const thing = r.passage_id || r.item_set_id || (r.exercise ? `${r.exercise}|${r.period_id || periodOf(rowAt(r))}` : null);
@@ -324,6 +327,9 @@ async function bookFor({ hub, kid, device, lang } = {}, now = Date.now()) {
     class_lights: f.wall ? await classLights(who.studentId, rows, now) : null,
     grade_band: bandOf(grade),
   };
+  // Storybooks (web_quiz_stories): one sticker per book finished; off, no key (the Book is today's).
+  const Stories = require('./web-quiz-stories');
+  if (await Stories.storiesOn()) out.book_stickers = await Stories.stickersFor(who.studentId);
   const up = levelupOf(rungs, period, grade, f.story, rows);
   // RULING #59: the room is named only when its shelf has a released story in that band and the child's language.
   if (up && up.opens) {

@@ -45,6 +45,9 @@ const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child'
 const { scriptOf } = require('../../templates/niete-brand');
 const crypto = require('crypto');
 const { onUnlessOff } = require('../nudges/flags');
+const SendCheck = require('./report-send-check');
+const SentIds = require('../whatsapp-sent-ids');
+const ReportDelivery = require('./report-delivery');
 
 /**
  * The job-type prefix is load-bearing, not cosmetic.
@@ -363,6 +366,7 @@ function classesTaught(sessions) {
  * guard that was never implemented and no column that existed).
  */
 async function generate(shareCodeId, { reason = 'scheduled', force = false } = {}) {
+  refusals.delete(shareCodeId);
   const { data: sc } = await supabase
     .from('quiz_share_codes')
     .select('id, code, quiz_id, teacher_user_id, teacher_name, topic, language, '
@@ -411,7 +415,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
   }
 
   if (!onUnlessOff('VIDEO_REPORT_SEND_CLAIM')) {
-    return buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: {} });
+    return buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp: {}, force });
   }
 
   // Single-flight: one caller builds and sends; the rest stand down (see SEND_CLAIM_TTL_S).
@@ -441,7 +445,7 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
         : { shareCodeId, reason, why: 'already_reported' });
       return force;   // the teacher's ask was answered by the report that just went to them
     }
-    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp });
+    sent = await buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force });
     return sent;
   } finally {
     // Kept only when a report went out but report_sent_at could not be stamped:
@@ -455,7 +459,25 @@ async function generate(shareCodeId, { reason = 'scheduled', force = false } = {
  * early-out has passed and (unless switched off) the send claim is held.
  * `stamp.stamped` tells the caller whether report_sent_at really landed.
  */
-async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp }) {
+async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stamp, force = false }) {
+  // quiz_report_send_checked (off by default): every send below that stamps the report counts only when WhatsApp
+  // accepted it (SendCheck.send); a refusal is reportNotAccepted (not stamped, counted, retried). Off: today's sends
+  // and stamps. The switch is asked only on a refusal (or for a code that already holds three refusals), after the
+  // report's own fold read where the report makes one (that read carries the switch).
+  // Three refused sends and the automatic runs stop (the web report stays); the teacher's own ask from /quiz still
+  // tries. The count is on the quiz row the report reads, so a code with no refusal counted asks nothing.
+  const givenUp = async (quizRow) => {
+    if (force || SendCheck.triesIn(quizRow && quizRow.meta, shareCodeId) < SendCheck.MAX_TRIES || !(await SendCheck.on())) return false;
+    logEvent('video_quiz.report_suppressed', { shareCodeId, reason, why: 'gave_up' });
+    return true;
+  };
+  // The report sends' WhatsApp ids (whatsapp-sent-ids), kept after the stamp so a later `failed` status finds the
+  // report (report-delivery; quiz_report_send_checked on). The switch's 30 s cached reading decides, asked only once a
+  // send was accepted: the fold read carries it where the report makes one; else one read per 30 s per process.
+  const sentIds = [];
+  const keep = async (fn) => { const { result, ids } = await SentIds.collect(fn); sentIds.push(...ids); return result; };
+  const keepIds = (kind) => (stamp.stamped ? ReportDelivery.remember(sentIds, { kind, share_code_id: shareCodeId }, { ask: true }) : null);
+
   const { data: sessions } = await supabase
     .from('quiz_sessions')
     .select('id, user_id, student_id, student_name, student_class, parent_phone, status, device_ref, '
@@ -483,7 +505,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
       shareCodeId, rows: noSelfTests.length, children: all.length,
     });
   }
-  const done = all.filter((s) => s.status === 'completed');
+  let done = all.filter((s) => s.status === 'completed');
 
   // The follow-up rule needs both halves of the class: who the first report
   // covered, and who finished after it.
@@ -576,10 +598,39 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     logToFile('⚠️ video-quiz report: could not read quiz digest (non-fatal)', { error: e.message });
   }
 
+  // A storybook the teacher sent: its own report (story-teacher-report.js), same trigger, same teacher, same stamp.
+  // Its children are the ones the send's web report counts (teacher-report.data storySendChildren), never a second count.
+  if (quizRow && quizRow.quiz_source === 'story') {
+    let children = all;
+    try {
+      children = await require('./teacher-report.data').storySendChildren(sc.teacher_user_id, sc.quiz_id, shareCodeId, rawAll);
+    } catch (e) {
+      logToFile('⚠️ story report: could not count as the web report does — one attempt per child instead', { shareCodeId, error: e.message });
+    }
+    if (await givenUp(quizRow)) return false;
+    const storySent = await require('./story-teacher-report').sendReport({ shareCodeId, sc, teacher, sessions: children, quizRow, reason, stamp, send: (to, text) => keep(() => WhatsAppService.sendMessage(to, text)), markSent: markReportSent, live: () => liveReportExtras(sc), funnel: Funnel,
+      sendChecked: (fn) => SendCheck.send(fn), notAccepted: () => reportNotAccepted(shareCodeId, sc, 'story', reason) });
+    await keepIds('story');
+    return storySent;
+  }
+
+  // quiz_report_fold_by_child (off by default): a child not on the class list counts once per CHILD, as the quiz's web
+  // report counts them (teacher-report.data foldFinishers); off, or on any failure, one per record as before.
+  try {
+    done = await require('./teacher-report.data').foldFinishers(sc.teacher_user_id, sc.quiz_id, shareCodeId, done);
+  } catch (e) {
+    logToFile('⚠️ video-quiz report: could not fold by child — one per record instead', { shareCodeId, error: e.message });
+  }
+  // after the fold read (it carries the switch); before any model call or send for a report given up on
+  if (await givenUp(quizRow)) return false;
+
   if (!all.length) {
-    await WhatsAppService.sendMessage(teacher.phone_number,
-      resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } }));
-    stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id);
+    const noOne = resolveUx('vqReportNoOne', { language: clampLanguage(teacher.preferred_language), params: { topic: sc.topic } });
+    if (!(await SendCheck.send(() => keep(() => WhatsAppService.sendMessage(teacher.phone_number, noOne))))) {
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason);
+    }
+    stamp.stamped = await markReportSent(shareCodeId, await stampableQuizId(sc));
+    await keepIds('quiz');
     // Stamped as a report, so counted as one — of its own kind. Unlogged, this
     // branch was 17.5% of production's report stamps (189 of 1,082) and every
     // one of them a class that never joined.
@@ -778,7 +829,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // A designed report is worth it once there are results in it. On the morning
   // run for a class where nobody finished, a PDF of an empty table is worse
   // than a sentence — so that case stays a plain message.
-  const sentAsPdf = done.length > 0 && await sendAsPdf({
+  const sentAsPdf = done.length > 0 && await keep(() => sendAsPdf({
     phone: teacher.phone_number, shareCode: sc, students: done, hardest,
     guidance, started: all.length, finished: done.length, average: avg,
     // With the class list known, "Not played yet" lists every child still to
@@ -803,13 +854,15 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     // استاد" / "Your teacher") — a teacher reading that about themselves was
     // the defect. No name -> the template prints the class alone.
     teacherName: String((teacher && teacher.name) || '').trim(),
-  });
+  }));
 
   if (!sentAsPdf) {
     // The PDF is the nicer artefact, not the report itself. If rendering fails
     // the teacher still gets every number — losing the results because a font did not
     // load would be the wrong trade.
-    await WhatsAppService.sendMessage(teacher.phone_number, summary);
+    if (!(await SendCheck.send(() => keep(() => WhatsAppService.sendMessage(teacher.phone_number, summary))))) {
+      return reportNotAccepted(shareCodeId, sc, 'quiz', reason, live && live.links ? live.links.live : null);
+    }
     if (guidance) {
       await WhatsAppService.sendMessage(teacher.phone_number,
         markLines(`${TX.forTomorrow}\n\n${formatGuidanceText(guidance, TX)}`, lineMark));
@@ -833,11 +886,15 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // the meta read above; quizRow.meta is moved on with it so the class-card
   // write below, which spreads quizRow.meta, cannot erase it. No guidance
   // (the model failed) leaves an older stored one where it is.
-  const metaAfter = guidance && quizRow
+  // A library quiz's sender (quiz_teacher_home) stamps only their code: the author's row keeps its own guidance,
+  // here and in the class-card write below (which spreads quizRow.meta).
+  const stampId = await stampableQuizId(sc);
+  const metaAfter = guidance && quizRow && stampId
     ? { ...(quizRow.meta || {}), report_guidance: guidance, report_guidance_at: new Date().toISOString() }
     : null;
-  stamp.stamped = await markReportSent(shareCodeId, sc.quiz_id, { meta: metaAfter });
+  stamp.stamped = await markReportSent(shareCodeId, stampId, { meta: metaAfter });
   if (metaAfter) quizRow.meta = metaAfter;
+  await keepIds('quiz');
 
   // bd-2yyry.11 — the children's class cards, at the moment the teacher's
   // report goes out. Never to the teacher; once per child per quiz.
@@ -855,6 +912,52 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     kind: 'report', reason, n: done.length,
   });
   return true;
+}
+
+/**
+ * The last generate() per share code that ended in a refused send (quiz_report_send_checked on): `{ link }`, the class
+ * report page link the report had (null without one). generate() stays a boolean; a caller that answers the teacher
+ * (/quiz) tells "WhatsApp refused it" apart from "nothing to report" with lastRefusal(). Cleared by every generate().
+ */
+const refusals = new Map();
+const MAX_REFUSALS_KEPT = 1000;
+
+/** → `{ link }` when this share code's last generate() was a refused send, else null. Read once (then forgotten). */
+function lastRefusal(shareCodeId) {
+  const r = refusals.get(shareCodeId) || null;
+  refusals.delete(shareCodeId);
+  return r;
+}
+
+/** How long a refused report waits before its next try (quiz_report_send_checked). */
+const SEND_RETRY_DELAY_S = 15 * 60;
+
+/**
+ * A report WhatsApp did not accept, with quiz_report_send_checked on: nothing is stamped (generate() gives the send
+ * claim back, report_sent_at stays empty), the refusal is counted and logged (report-send-check), and under three
+ * tries the scheduled job is queued again. The third refusal gives up: no further try; the web report stays.
+ * @returns {Promise<false>} buildAndSend's answer: not sent
+ */
+async function reportNotAccepted(shareCodeId, sc, path, reason, link = null) {
+  if (refusals.size >= MAX_REFUSALS_KEPT) refusals.clear();
+  refusals.set(shareCodeId, { link: link || null });
+  const r = await SendCheck.recordFailure({ path, sc: { ...sc, id: shareCodeId } });
+  Funnel.emit('report_failed', {
+    quiz_id: sc.quiz_id, share_code_id: shareCodeId, kind: path, reason: r.gaveUp ? 'gave_up' : 'send_failed', n: r.tries,
+  });
+  if (r.tries !== null && !r.gaveUp) {
+    try {
+      const SQSQueueService = require('../queue');
+      await SQSQueueService.queueJob(shareCodeId, JOB_TYPE, { shareCodeId }, {
+        delaySeconds: SEND_RETRY_DELAY_S,
+        deduplicationId: `${shareCodeId}-${JOB_TYPE}-retry-${r.tries}`,
+      });
+      logEvent('video_quiz.report_retry_queued', { shareCodeId, reason, tries: r.tries });
+    } catch (err) {
+      logToFile('❌ video-quiz report: refused report not queued again', { shareCodeId, error: err.message }, 'error');
+    }
+  }
+  return false;
 }
 
 /**
@@ -923,6 +1026,7 @@ async function loadClassRows(shareCodeId) {
       sessionId: s.id, studentId: s.student_id || null, name: s.student_name || '',
       correct: s.correct_answers || 0, total: s.total_questions_answered || 0,
       pct: s.mastery_percentage || 0, completedAt: s.completed_at || null, phone: s.parent_phone || null,
+      studentClass: s.student_class || null,
     })),
   };
 }
@@ -1402,6 +1506,19 @@ function formatGuidanceText(guidance, labels) {
 }
 
 /**
+ * The quiz row a share code's report may stamp (status, guidance): with `quiz_teacher_home` on, only when the code
+ * is the quiz's own teacher's — a library quiz's sender never writes its author's row (nor puts their class's
+ * guidance on the author's report). Off: the quiz, as today.
+ */
+async function stampableQuizId(sc) {
+  const Data = require('./teacher-report.data');
+  if (!(await Data.sentQuizzesOn())) return sc.quiz_id;
+  const { data, error } = await supabase.from('quizzes').select('teacher_id').eq('id', sc.quiz_id).maybeSingle();
+  if (error) logToFile('⚠️ video-quiz report: quiz owner unreadable — the quiz row is left alone', { shareCodeId: sc.id, error: error.message });
+  return data && data.teacher_id === sc.teacher_user_id ? sc.quiz_id : null;
+}
+
+/**
  * Stamp the share code as reported.
  *
  * Deliberately AFTER the send, not before: if WhatsApp throws, the teacher got
@@ -1850,7 +1967,7 @@ module.exports = {
   sendLateClassCards,
   classCardsEnabled,
   CLASS_CARD_WINDOW_MS,
-  JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate,
+  JOB_TYPE, LEGACY_JOB_TYPE, scheduleForShareCode, maybeSendFollowUp, followUpDecision, generate, lastRefusal,
   _sendClaimTiming,
   hardestQuestions, reportTargetUtc, teacherFacing,
   buildGuidancePrompt, generateGuidance, formatGuidanceText, stripEmphasis, classLabel,

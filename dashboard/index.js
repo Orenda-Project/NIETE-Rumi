@@ -168,6 +168,8 @@ app.get(ASSET_LINKS_PATH, assetLinksHandler);
 // never answer a quiz link.
 const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
+// The edge routers in routes/edge-mounts.js, one line each in name order (a new edge adds its line there; off → falls through).
+for (const [, file, make] of require('./routes/edge-mounts')) app.use(require(`./routes/${file}`)[make]());
 // The teacher's web quiz report /r/:token (+ /pdf, /remind), same bot client as /q.
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
@@ -179,6 +181,11 @@ app.use(createCoachingReportRouter());
 // The coach card /cv/:token, the link in a C/D teacher's coach ping (bd-v0toag.38.9). Same rules as /cr.
 const { createCoachCardRouter } = require('./routes/coach-card.routes');
 app.use(createCoachCardRouter());
+// A teacher sends a storybook to the class (/api/teacher/stories, /api/teacher/story/share, /quiz/teacher/:th/stories);
+// the bot answers 404 while web_quiz_stories_teacher is off and the page falls through.
+// After the edge list: its /quiz/teacher/:th/stories is the teacher home's page too, which answers first.
+const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
+app.use(createTeacherStoriesRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -214,6 +221,8 @@ if (process.env.REDIS_URL) {
       redisConnected = true;
  // Initialize GPT cache with Redis client 
       setGptCacheRedisClient(redisClient);
+      // the web quiz edge's shared answers (a shared link's page facts)
+      require('./lib/edge-redis').setClient(redisClient);
     });
 
     redisClient.on('reconnecting', () => {
@@ -225,6 +234,7 @@ if (process.env.REDIS_URL) {
       redisConnected = false;
  // Disable GPT cache when Redis disconnects 
       setGptCacheRedisClient(null);
+      require('./lib/edge-redis').setClient(null);
     });
 
     // Attempt connection with timeout

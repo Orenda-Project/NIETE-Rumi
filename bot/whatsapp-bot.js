@@ -77,6 +77,13 @@ app.use('/api/flows', flowEndpointRoutes);
 app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'));
 // The teacher's web quiz report (portal /t/<token> -> bot), same x-api-key check.
 app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
+// A teacher sends a storybook to the class (portal /api/teacher/stories, /api/teacher/story/share), same x-api-key check.
+app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
+// ── first touch: the optional mounts in shared/services/first-touch/mounts.js, one line each in name order ──
+for (const [, file, mount] of require('./shared/services/first-touch/mounts')) {
+  try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (err) { require('./shared/services/first-touch/mount-failed')(file, err); } // not mounted; every other route is today's
+}
+// ── end first touch ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
@@ -113,6 +120,9 @@ async function handleBroadcastStatusWebhook(statuses) {
           timestamp,
           fullErrors: status.errors
         });
+        // A teacher's report WhatsApp took and then could not deliver: un-stamped, counted, tried again or held for
+        // the next /quiz (quiz_report_send_checked; off: no Redis call). Never throws.
+        await require('./shared/services/quiz/report-delivery').onFailedStatus(status);
         // Don't continue - let it fall through to potentially update broadcast_messages if needed
       }
 
@@ -712,6 +722,16 @@ app.post('/webhook', async (req, res) => {
         const ConversationResume = require('./shared/services/conversation-resume.service');
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
+
+      // ── first touch: the maker fallback's three buttons (quiz_maker_page; off or a throw → today's chain) ──
+      if (buttonId.startsWith('ft_fb_')) {
+        try {
+          if (await require('./shared/services/first-touch/maker.fallback').handleFallbackButton({ user, phone: from, id: buttonId, lang: user && user.preferred_language })) return;
+        } catch (err) {
+          logToFile('⚠️ first touch: the fallback tap failed — today\'s handling', { error: err && err.message });
+        }
+      }
+      // ── end first touch ──
 
       // bd-2712 — "Grade another teacher?" after a Supervisor Remark submit.
       // Re-enters through handleRemarkCommand rather than reaching into the flow

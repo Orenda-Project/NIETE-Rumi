@@ -23,4 +23,21 @@ describe('assetVersion: every file the hub loads is hashed', () => {
     jest.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => (path.basename(String(p)) === 'wq-book.js' ? Buffer.from('changed') : real(p, ...a)));
     expect(assetVersion()).not.toBe(before);
   });
+  // The child home and its door screens load at the hub's ?v= too (the routes' home tags, wq-home.js's door loader).
+  test.each(['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css'])('a change to %s alone changes the version', (f) => {
+    const { assetVersion } = require('../routes/web-quiz.routes');
+    const before = assetVersion();
+    const real = fs.readFileSync;
+    jest.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => (path.basename(String(p)) === f ? Buffer.from('changed') : real(p, ...a)));
+    expect(assetVersion()).not.toBe(before);
+  });
+  // The stories reader (wq-stories.js/.css, loaded by wq-home.js and hub.js at the hub's ?v=) and its lazy questions file
+  // (at the reader's own ?v=, the same one): a reader-only change must bust a phone's cache.
+  test.each(['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js', 'wq-stories-w.js'])('a change to %s alone changes the version', (f) => {
+    const { assetVersion } = require('../routes/web-quiz.routes');
+    const before = assetVersion();
+    const real = fs.readFileSync;
+    jest.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => (path.basename(String(p)) === f ? Buffer.from('changed') : real(p, ...a)));
+    expect(assetVersion()).not.toBe(before);
+  });
 });

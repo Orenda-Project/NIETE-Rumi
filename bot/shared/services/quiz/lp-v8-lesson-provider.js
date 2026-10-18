@@ -200,18 +200,34 @@ function sinceIso(since) {
  * @param {{since?: string|Date, limit?: number}} [opts]
  * @returns {Promise<Array<{source, lessonRef, lessonId, date, deliveredAt, grade, subject, topic, lesson}>>}
  */
-async function list(teacherId, { since = null, limit = 20 } = {}) {
+async function list(teacherId, { since = null, limit = 20, light = false } = {}) {
   if (!teacherId) return [];
   const from = sinceIso(since);
   try {
-    const delivered = mustRead('lp lesson provider: downloads', await supabase.from('niete_lp_downloads')
+    const downloads = () => supabase.from('niete_lp_downloads')
       .select(DOWNLOAD_SELECT)
       .eq('user_id', teacherId).eq('status', 'sent').gte('created_at', from)
       .order('created_at', { ascending: false })
-      .limit(MAX_DOWNLOADS));
-    const rows = [...delivered, ...await appOpened(teacherId, from)];
+      .limit(MAX_DOWNLOADS);
+    let rows;
+    let coveredSoon = null;
+    if (light) {
+      // the teacher home's quick answer: the downloads, the app reads and the covered lessons asked together (the
+      // covered read's failure counts only where today's would have been made: when a lesson is ready)
+      coveredSoon = coveredLessonIds(teacherId, from).then((v) => ({ v }), (err) => ({ err }));
+      const [d, opened] = await Promise.all([downloads(), appOpened(teacherId, from)]);
+      rows = [...mustRead('lp lesson provider: downloads', d), ...opened];
+    } else {
+      const delivered = mustRead('lp lesson provider: downloads', await downloads());
+      rows = [...delivered, ...await appOpened(teacherId, from)];
+    }
     const ready = await makeable(rows);
-    const covered = ready.length ? await coveredLessonIds(teacherId, from) : new Set();
+    let covered = new Set();
+    if (ready.length && coveredSoon) {
+      const c = await coveredSoon;
+      if (c.err) throw c.err;
+      covered = c.v;
+    } else if (ready.length) covered = await coveredLessonIds(teacherId, from);
     const items = ready.filter((r) => !covered.has(r.lesson_id)).map(toItem)
       .sort((a, b) => (new Date(b.date) - new Date(a.date)) || (new Date(b.deliveredAt) - new Date(a.deliveredAt)));
     logEvent('quiz_menu.lesson_listed', {
@@ -283,7 +299,7 @@ async function insertQuiz(teacherId, item, { askLanguage, quizLanguage, via }) {
         ...(askLanguage ? { awaiting_language: true } : {}),
         ...(quizLanguage ? { language_choice: quizLanguage } : {}),
         ...(askLanguage ? {} : { accepted_at: new Date().toISOString() }),
-        source: via === 'flow' ? 'flow' : 'list',
+        source: Funnel.metaSourceOf(via),
         lessons: [item.lesson],
         class: { grade: item.grade, subject: item.subject },
         lesson_date: O.cohortRuleDate(item.deliveredAt),
@@ -353,7 +369,7 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
     // No language left to ask (Urdu/Islamiyat, or chosen on the Flow): the tap IS
     // the commitment. The asked path emits it when the language is answered.
     Funnel.emit('accepted', {
-      quiz_id: claim.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(via === 'flow' ? 'flow' : 'list'),
+      quiz_id: claim.quizId, teacher_id: userId, source: SOURCE, channel: Funnel.channelOf(Funnel.metaSourceOf(via)),
     });
   }
   return done(queued ? 'queued' : 'queue_failed', claim.quizId);

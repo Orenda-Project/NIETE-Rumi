@@ -26,6 +26,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const { renderMessagePage, REPORT_PATH } = require('../../bot/shared/templates/teacher-report.page');
 
 // base64url(payload) "." base64url(HMAC)[:22] — web-quiz-token's format.
@@ -87,6 +88,8 @@ function createTeacherReportRouter(opts = {}) {
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -123,7 +126,9 @@ function createTeacherReportRouter(opts = {}) {
       const type = out.contentType || 'text/html; charset=utf-8';
       if (kind === 'pdf' && out.status === 200 && /application\/pdf/i.test(type)) {
         const day = new Date(Date.now() + PKT_MS).toISOString().slice(0, 10);
-        res.set('Content-Disposition', `attachment; filename="quiz-report-${day}.pdf"`);
+        // The bot names a story's own report story-report-<day>.pdf; anything else it says is a quiz report.
+        const pdfKind = /^attachment; filename="story-report-\d{4}-\d{2}-\d{2}\.pdf"$/.test(out.disposition || '') ? 'story' : 'quiz';
+        res.set('Content-Disposition', `attachment; filename="${pdfKind}-report-${day}.pdf"`);
       }
       // The report page's timing, when the bot sent it (events v2 on): its own numbers back, and the edge's whole time.
       if (kind === 'page' && out.status === 200 && out.timing) {
@@ -131,6 +136,7 @@ function createTeacherReportRouter(opts = {}) {
         if (out.timing.queue != null) res.set('x-queue-age', out.timing.queue);
         res.set('x-edge-ms', String(Date.now() - t0));
       }
+      carryBotSecurity(res, out, securityOn);
       return res.status(out.status).type(type).send(out.bytes || Buffer.alloc(0));
     };
   }
@@ -152,6 +158,7 @@ function createTeacherReportRouter(opts = {}) {
       if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
       if (out.status >= 300 && out.status < 400) return fail(502, 'error');
       if (out.status >= 500) return fail(502, 'error');
+      carryBotSecurity(res, out, securityOn);
       return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
     };
   }
@@ -188,6 +195,7 @@ function createTeacherReportRouter(opts = {}) {
     if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
     if (out.status >= 300 && out.status < 400) return fail(502, 'error');
     if (out.status >= 500) return fail(502, 'error');
+    carryBotSecurity(res, out, securityOn);
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   }
 

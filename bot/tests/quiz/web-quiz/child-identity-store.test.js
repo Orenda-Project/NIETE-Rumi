@@ -28,6 +28,9 @@ const KID_B = 'e0000000-0000-4000-8000-00000000000b';
 const KID_C = 'e0000000-0000-4000-8000-00000000000c';
 const SALT = 'unit-salt-not-a-secret';
 const NOW = new Date('2026-10-15T10:00:00Z');
+// the clock is pinned from load time so a Pakistan-day or expiry check never depends on the hour/date the suite runs
+jest.useFakeTimers({ now: NOW.getTime(), doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
 const NEXT_END = '2027-03-31T18:59:59.000Z';
 
 let fake;
@@ -65,7 +68,7 @@ describe('switches: each only with its parent on; a failed read is all off', () 
   });
   test('a read failure → all false', async () => {
     supabase.from = () => { throw new Error('down'); };
-    expect(await IdFlags.flags()).toEqual({ canon: false, phoneBind: false, guestHome: false });
+    expect(await IdFlags.flags()).toEqual({ canon: false, phoneBind: false, guestHome: false, makerPage: false, firstDoor: false });
   });
   test('the three keys are SPEC\'s names', () => {
     expect([IdFlags.CANON_KEY, IdFlags.PHONE_BIND_KEY, IdFlags.GUEST_HOME_KEY]).toEqual(['web_quiz_identity_canon', 'web_quiz_phone_bind', 'web_quiz_guest_home']);

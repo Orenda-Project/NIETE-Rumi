@@ -24,6 +24,11 @@ const express = require('express');
 const { makeFake } = require('./fake-supabase');
 const { strictFrom } = require('./class-round-strict-fake');
 
+// The clock is pinned from load time so a Pakistan-day or expiry check never depends on the date the suite runs.
+const PIN = Date.parse('2026-10-15T09:30:00Z');
+jest.useFakeTimers({ now: PIN, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
+
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const OTHER_TEACHER = '11111111-1111-4111-8111-1111111111ff';
 const CLASS = 'c0000000-0000-4000-8000-0000000000c1';
@@ -314,12 +319,14 @@ describe('nothing remembered on the teacher\'s browser', () => {
 
 describe('finish and the events', () => {
   test('the next long-press with nobody left closes the round: class_round_finished exactly, the draw row written; child_done has no pos', async () => {
-    await Round.start(TEACHER, { rng: seeded(9), now: Date.parse('2026-10-20T05:00:00Z') });
+    // one clock with the draw window (built on the real clock) and the routes: a fixed date fell outside the window after 22 Oct
+    const t0 = Date.now();
+    await Round.start(TEACHER, { rng: seeded(9), now: t0 });
     const order = draw().state.order.map((p) => p.id);
     await post(`/round/${tok()}/absent`, { pos: '5' });
     for (let i = 0; i < 5; i += 1) {
       await post(`/round/${tok()}/next`, HOLD);
-      await Round.childFinished(ROUND, order[i], `run-${i}`, { now: Date.parse('2026-10-20T05:40:00Z') });
+      await Round.childFinished(ROUND, order[i], `run-${i}`, { now: t0 + 40 * 60000 });
       await post(`/round/${tok()}/teacher`, HOLD);
     }
     expect(draw().finished_at).toBeNull(); // never closes by itself

@@ -17,6 +17,7 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
   const els = {};
   const winL = {};
   const assigned = [];
+  const replaced = [];
   let reloaded = 0;
   const el = (sel) => (els[sel] = els[sel] || { sel, listeners: {}, attrs: {}, addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); }, fire(n, e) { (this.listeners[n] || []).forEach((fn) => fn(e || { preventDefault() {} })); }, getAttribute(k) { return this.attrs[k]; } });
   const root = {
@@ -54,7 +55,7 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
       set cookie(v) { cookies.push(v); }, get cookie() { return cookies.join('; '); } },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); } },
     navigator: { sendBeacon: (u, b) => { beacons.push(...JSON.parse(b.parts[0]).events); return true; } },
-    history: { replaceState() {} },
+    history: { replaceState(_s, _t, u) { replaced.push(u); } },
     location: { search, assign(u) { assigned.push(u); }, reload() { reloaded += 1; } },
     Blob: function Blob(parts) { this.parts = parts; },
     fetch: (url, init) => {
@@ -73,7 +74,7 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
   vm.runInContext(TEL, ctx);
   if (arguments[1] && arguments[1].wqt) Object.assign(ctx.window.WQT, arguments[1].wqt);
   vm.runInContext(SRC, ctx);
-  return { beacons, doc: docEl.attrs, cls: () => docEl.className, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
+  return { beacons, doc: docEl.attrs, cls: () => docEl.className, cookies, store, root, els, toasts, fetches, assigned, replaced, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }
 
 const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade: '3' }, { chip: '0000000000000002', first: 'بلال', animal: 'lion', grade: '5' }];
@@ -154,6 +155,37 @@ test('server render (no device): the page asks the bot again WITH this phone\'s 
   expect(JSON.parse(call.init.body)).toMatchObject({ device_ref: DEV });
   expect(p.moment()).toBe('H2');
   expect(p.html()).toContain('ثنا');
+});
+
+test('the grown-ups corner\'s language link (?lang=ur&keep=1): the body asks the bot to keep it; keep without a language, or a bare ?lang=, does not', async () => {
+  const bodyFor = async (search) => {
+    const p = page(LOCKED(), { search, store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } } });
+    await flush(); await flush();
+    return JSON.parse(p.fetches.find((f) => f.url.indexOf('/api/wq/hub/') === 0).init.body);
+  };
+  expect(await bodyFor('?kid=x&lang=ur&keep=1')).toMatchObject({ device_ref: DEV, lang: 'ur', keep: 1 });
+  // the server keeps a choice only for the child the request names: the link's kid rides with keep, even when the
+  // server render had no device (the page asks again as this phone, with no child picked yet)
+  expect(await bodyFor('?kid=x&lang=ur&keep=1')).toMatchObject({ kid: 'x', keep: 1 });
+  expect(await bodyFor('?kid=a%20b&lang=ur&keep=1')).toMatchObject({ kid: 'a b', keep: 1 });
+  expect(await bodyFor('?lang=ur&keep=1')).not.toHaveProperty('kid');
+  expect(await bodyFor('?kid=x&keep=1')).not.toHaveProperty('keep');
+  expect(await bodyFor('?kid=x&lang=ur')).not.toHaveProperty('keep');
+});
+
+test('the grown-ups corner\'s keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never keeps an old choice again', async () => {
+  const hubApi = { '/api/wq/hub/': { lang: 'ur', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } };
+  const p = page(LOCKED(), { search: '?kid=x&lang=ur&keep=1', store: { wq_d: JSON.stringify(DEV) }, api: hubApi });
+  await flush(); await flush();
+  expect(p.replaced.length).toBeGreaterThan(0);
+  p.replaced.forEach((u) => expect(u).not.toMatch(/keep=/));
+  expect(p.replaced[0]).toMatch(/[?&]lang=ur(&|$)/);
+  const hubBodies = p.fetches.filter((f) => f.url.indexOf('/api/wq/hub/') === 0).map((f) => JSON.parse(f.init.body));
+  expect(hubBodies.filter((b) => b.keep === 1)).toHaveLength(1);
+  // without keep=1 the address is not rewritten for it
+  const q = page(LOCKED(), { search: '?kid=x&lang=ur', store: { wq_d: JSON.stringify(DEV) }, api: hubApi });
+  await flush(); await flush();
+  expect(q.replaced.filter((u) => /lang=ur/.test(u) && /\?kid=x/.test(u))).toEqual([]);
 });
 
 test('a phone with no device_ref yet mints one (22 url-safe chars), keeps it where the quiz page reads it, and sends it', async () => {
@@ -437,7 +469,7 @@ describe('«واٹس ایپ» held on one line (wq-tel.js WQT.nowrap) on the loc
   test('Urdu: «mine» on the lock screen and «newSay» in the bubble hold it; nothing else changes', async () => {
     const [lock, fresh] = await screens('ur');
     expect(lock).toContain(`<p class="wq-sub">کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے ${HELD} پر دوبارہ ⁦/quiz⁩ بھیجیں۔</p>`);
-    expect(fresh).toContain(`<div class="wq-say">اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے ${HELD} پر ⁦/quiz⁩ بھیجیں۔</div>`);
+    expect(fresh).toContain(`<div class="wq-say">اپنے ٹیچر سے کوئز کا لنک لیں، یا گھر کے فون سے ${HELD} پر ⁦/quiz⁩ بھیجیں۔</div>`);
     const [lockOff, freshOff] = await screens('ur', true);
     expect(lock.split(HELD).join('واٹس ایپ')).toBe(lockOff);
     expect(fresh.split(HELD).join('واٹس ایپ')).toBe(freshOff);

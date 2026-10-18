@@ -69,6 +69,10 @@ const ALLOWLIST = {
   // Nested keys inside the users.preferences / screen-data objects (parser artifact);
   // users stores language in preferred_language + preferences, grade in grades_taught.
   users: ['grade', 'language'],
+  // `error` is the destructured result of the storybook miss write (`const { error } = await ….insert(rows)`, rows a
+  // variable): the scanner walks forward to the next object, the logToFile payload { error: error.message }. Not a
+  // column: story_events rows carry child_id, book_id, page_n, event, data, at.
+  story_events: ['error'],
   // `addSchoolForCoach()` and `removeSchoolForCoach()` build a plain JS result
   // object immediately after a `.from('leader_teachers')` call, so the parser
   // reads that object's keys as columns. All five verified non-columns, from

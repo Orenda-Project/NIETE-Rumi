@@ -46,6 +46,10 @@ const report = require('../../../shared/services/quiz/video-quiz-report.service'
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const QUIZ = '22222222-2222-4222-8222-222222222222';
 const SC = '33333333-3333-4333-8333-333333333333';
+const FIXED_NOW = Date.UTC(2026, 9, 15, 10, 0, 0);
+// the clock is pinned from load time so a Pakistan-day or expiry check never depends on the date the suite runs
+jest.useFakeTimers({ now: FIXED_NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
 const KID_A = '44444444-4444-4444-8444-444444444444';
 const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
@@ -95,7 +99,8 @@ describe('E2 names the teacher as the forwarded WhatsApp text does', () => {
 
   test('Urdu quiz: the Urdu form; no stored name: "your teacher"', async () => {
     seed({ teacherName: 'Example', language: 'ur' });
-    expect((await WQ.getQuiz('AB12CD')).cls.teacher).toBe('استاد Example');
+    // the child's page says «ٹیچر», never «استاد» (the forwarded WhatsApp text keeps its own label); a Latin name is bidi-isolated
+    expect((await WQ.getQuiz('AB12CD')).cls.teacher.replace(/[\u200f\u2066-\u2069]/g, '')).toBe('Example ٹیچر');
     seed({ teacherName: null });
     expect((await WQ.getQuiz('AB12CD')).cls.teacher).toBe('Your teacher');
   });

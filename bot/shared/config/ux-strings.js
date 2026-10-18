@@ -2186,6 +2186,17 @@ const UX_STRINGS = {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
     ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
   },
+  // quiz_report_send_checked on: the teacher asked for their report from /quiz and WhatsApp did not take it. Never
+  // tqNoReportYet here — children finished. {link} is the class report page the report carried; without one, the
+  // second key. Two keys, not one with an optional placeholder (resolveUx throws on a missing one).
+  tqReportNotThrough: {
+    en: "Your report didn't come through on WhatsApp. You can see it here: {link}",
+    ur: '\u200Fآپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ رپورٹ یہاں دیکھیں:\n{link}',
+  },
+  tqReportNotThroughNoLink: {
+    en: "Your report didn't come through on WhatsApp. Please type /quiz again in a few minutes.",
+    ur: 'آپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ براہِ کرم چند منٹ بعد دوبارہ ⁦/quiz⁩ بھیجیں۔',
+  },
   // Names the refetch: the whole point of the button is that a child who
   // finished since the last report is counted this time.
   tqReportComing: {
@@ -2605,7 +2616,7 @@ const UX_STRINGS = {
   vqWhoNameClass: { en: '\u2068{name}\u2069, \u2068{cls}\u2069', ur: '\u2068{name}\u2069، \u2068{cls}\u2069' },
   vqExpired: {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
-    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
+    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے ٹیچر سے نیا link لیں!',
   },
 
   // ─── the join Flow a child we have never met opens (screen WHO) ─────────
@@ -2625,7 +2636,7 @@ const UX_STRINGS = {
   vqJoinNameLabel: { en: 'Your name', ur: 'آپ کا نام' },
   vqJoinNameHelp: {
     en: 'So your teacher can see how you did',
-    ur: 'تاکہ آپ کے استاد دیکھ سکیں کہ آپ نے کیسا کیا',
+    ur: 'تاکہ آپ کے ٹیچر دیکھ سکیں کہ آپ نے کیسا کیا',
   },
   vqJoinClassLabel: { en: 'Your class', ur: 'آپ کی جماعت' },
   vqJoinClassHelp: { en: 'For example: Grade 4, or 1-B', ur: 'مثلاً: جماعت 4' },
@@ -2806,7 +2817,7 @@ const UX_STRINGS = {
   vqHelpedPick: { en: 'Who helped?', ur: 'کس نے مدد کی؟' },
   vqHelpedNoOne: { en: 'No one', ur: 'کسی نے نہیں' },
   vqHelpedClassmate: { en: 'A classmate', ur: 'ہم جماعت' },
-  vqHelpedTeacher: { en: 'My teacher', ur: 'استاد' },
+  vqHelpedTeacher: { en: 'My teacher', ur: 'ٹیچر' },
   vqHelpedFamily: { en: 'My family', ur: 'گھر والے' },
   vqHelpedThanks: { en: 'Thank you!', ur: 'شکریہ!' },
   // A tap on the class question is always answered (Rule 24d: name the state, never silence).
@@ -2834,6 +2845,46 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
     ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // A storybook the teacher sends to the class (story-teacher.service.js, web_quiz_stories_teacher): the link
+  // opens the book on its first page, so the message names the story and the one tap, nothing else.
+  storyClassMessage: {
+    en: '📖 *A story for you!*\n\n{teacher} has sent you a story: *{title}*.\n\nTap here to listen and read along with Jugnu:\n{link}',
+    ur: '‏📖 *آپ کے لیے ایک کہانی!*\n\n{teacher} نے آپ کو ایک کہانی بھیجی ہے: *{title}*۔\n\nجگنو کے ساتھ سننے اور پڑھنے کے لیے یہاں ٹیپ کریں:\n{link}',
+  },
+  // The class report of a story send: who opened it, who listened, who read aloud, who answered the questions.
+  storyReportHead: {
+    en: '📖 *{title}* — your class\'s story\n\n{joined} opened it\n🎧 {listened} listened\n🗣️ {read} read aloud\n⭐ {questions} answered the questions',
+    ur: '‏📖 *{title}* — آپ کی کلاس کی کہانی\n\n{joined} بچوں نے کہانی کھولی\n🎧 {listened} نے سنی\n🗣️ {read} نے اونچی آواز میں پڑھی\n⭐ {questions} نے سوالوں کے جواب دیے',
+  },
+  storyReportLine: {
+    en: '• {name}: 🎧 {listened} · 🗣️ {read} · ⭐ {questions}',
+    ur: '‏• {name}: 🎧 {listened}، 🗣️ {read}، ⭐ {questions}',
+  },
+  storyPage1: { en: '{n} page', ur: '{n} صفحہ' },
+  storyPagesN: { en: '{n} pages', ur: '{n} صفحے' },
+  storyReportNoName: {
+    en: '(no name)',
+    ur: '(نام نہیں)',
+  },
+  // Nobody joined by the report's time: said in story words, with the one thing to do (the link stays open).
+  storyReportNoOne: {
+    en: '📖 *{title}* — no one in your class has opened the story yet. The link is still open: forward the class message again.',
+    ur: '‏📖 *{title}* — آپ کی کلاس میں ابھی تک کسی نے کہانی نہیں کھولی۔ لنک اب بھی کام کر رہا ہے: کلاس کو پیغام دوبارہ بھیج دیں۔',
+  },
+  // The class reads this name when the teacher has none on record: neutral, the word children use.
+  storyYourTeacher: { en: 'Your teacher', ur: 'آپ کے ٹیچر' },
+  // The same, with the teacher's name, on a story's landing (the quiz landing keeps its own word).
+  storyTeacherNamed: { en: 'Teacher {name}', ur: '{name} ٹیچر' },
+  // Under Send on the teacher's story page: the honest way back after WhatsApp opens.
+  storyComeBack: { en: 'After sending, come back from the button in your chat.', ur: 'بھیجنے کے بعد اپنی چیٹ میں بٹن دبا کر یہاں واپس آئیں۔' },
+  storyReportKind_literal: { en: 'Finds facts in the story: {right}/{total}', ur: '‏کہانی میں لکھی بات ڈھونڈنا: {right}/{total}' },
+  storyReportKind_inference: { en: 'Works out why: {right}/{total}', ur: '‏وجہ سمجھنا: {right}/{total}' },
+  storyReportKind_vocab: { en: 'Word meanings: {right}/{total}', ur: '‏لفظوں کے معنی: {right}/{total}' },
+  storyReportWords: { en: 'Words the class skipped most: {words}', ur: '‏کلاس نے یہ لفظ سب سے زیادہ چھوڑے: {words}' },
+  // Under the teacher's Send button on the story page.
+  storyReportWhere: { en: 'The report comes to you on WhatsApp, as usual.', ur: 'رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی۔' },
+  // Under the books on the teacher's story page when this teacher's class cannot get a web link yet (no Send then).
+  storySendNotOpen: { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔' },
   // The same schedule as tqReportPromise (one report service): 12 hours after
   // the first child joins, 07:00 PKT at night — never "tomorrow morning", never
   // "as soon as everyone has finished". A video-lesson quiz has no /quiz entry,
@@ -3626,6 +3677,20 @@ const STUDENT_TUTOR_STRINGS = {
   jugnuBindFullRefused: {
     en: "This phone already keeps four children's places, the most Jugnu allows. Send /quiz and tap a name to play.",
     ur: "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔ کھیلنے کے لیے \u2066/quiz\u2069 بھیجیں اور نام دبائیں۔",
+  },
+  // web_quiz_bind_way_back: the outcomes that had no reply. Each is sent with the jugnuBindOpenBtn button back to the
+  // child's page when the code was minted for a known child in the last day (jugnuBindCodeUnknown: never a button).
+  jugnuBindPhonesRefused: {
+    en: "This child's place is already saved on three phones, the most Jugnu allows.",
+    ur: "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔",
+  },
+  jugnuBindCodeOld: {
+    en: "That code has already been used or is more than an hour old, so nothing was saved. Open the page and tap “Keep my place” again for a new one.",
+    ur: "یہ کوڈ پہلے استعمال ہو چکا ہے یا ایک گھنٹے سے پرانا ہے، اس لیے کچھ محفوظ نہیں ہوا۔ نیا کوڈ لینے کے لیے صفحہ کھولیں اور دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
+  },
+  jugnuBindCodeUnknown: {
+    en: "Jugnu could not find that code, so nothing was saved. Open Jugnu's link again and tap “Keep my place”.",
+    ur: "جگنو کو یہ کوڈ نہیں ملا، اس لیے کچھ محفوظ نہیں ہوا۔ جگنو کا لنک دوبارہ کھولیں اور «میری جگہ محفوظ کریں» دبائیں۔",
   },
   jugnuBindStopped: {
     en: "Done. Jugnu has removed this phone number from the children's names it was saved with. Send /quiz any time to start again.",

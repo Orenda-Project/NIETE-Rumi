@@ -45,7 +45,8 @@
     return false;
   }
 
-  function table(ref, hyp, eq) {
+  // jn (alignPrefix's o.join, else off): a word heard as two printed words run together, or one printed word heard in two
+  function table(ref, hyp, eq, jn) {
     var n = ref.length; var m = hyp.length; var D = []; var i; var j;
     for (i = 0; i <= n; i += 1) { D.push(new Array(m + 1)); D[i][0] = i; }
     for (j = 0; j <= m; j += 1) D[0][j] = j;
@@ -53,12 +54,14 @@
       for (j = 1; j <= m; j += 1) {
         var c = eq(ref[i - 1], hyp[j - 1]) ? 0 : 1;
         D[i][j] = Math.min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + c);
+        if (jn && i > 1 && ref[i - 2] + ref[i - 1] === hyp[j - 1]) D[i][j] = Math.min(D[i][j], D[i - 2][j - 1]);
+        if (jn && j > 1 && hyp[j - 2] + hyp[j - 1] === ref[i - 1]) D[i][j] = Math.min(D[i][j], D[i - 1][j - 2]);
       }
     }
     return D;
   }
 
-  function back(D, ref, hyp, eq, i0) {
+  function back(D, ref, hyp, eq, i0, jn) {
     var i = i0; var j = hyp.length; var ins = 0;
     var status = []; var hypIdx = []; var k;
     for (k = 0; k < ref.length; k += 1) { status.push('omit'); hypIdx.push(-1); }
@@ -66,6 +69,10 @@
       if (i > 0 && j > 0 && D[i][j] === D[i - 1][j - 1] + (eq(ref[i - 1], hyp[j - 1]) ? 0 : 1)) {
         status[i - 1] = eq(ref[i - 1], hyp[j - 1]) ? 'correct' : 'sub';
         hypIdx[i - 1] = j - 1; i -= 1; j -= 1;
+      } else if (jn && i > 1 && j > 0 && ref[i - 2] + ref[i - 1] === hyp[j - 1] && D[i][j] === D[i - 2][j - 1]) {
+        status[i - 1] = status[i - 2] = 'correct'; hypIdx[i - 1] = hypIdx[i - 2] = j - 1; i -= 2; j -= 1;
+      } else if (jn && i > 0 && j > 1 && hyp[j - 2] + hyp[j - 1] === ref[i - 1] && D[i][j] === D[i - 1][j - 2]) {
+        status[i - 1] = 'correct'; hypIdx[i - 1] = j - 1; i -= 1; j -= 2;
       } else if (i > 0 && D[i][j] === D[i - 1][j] + 1) {
         status[i - 1] = 'omit'; i -= 1;
       } else {
@@ -81,12 +88,16 @@
     return back(table(ref, hyp, e), ref, hyp, e, ref.length);
   }
 
-  /** The child read a prefix: end the alignment at the passage word the hypothesis matches best (the earliest on a tie). */
-  function alignPrefix(ref, hyp, eq) {
-    var e = eq || same;
-    var D = table(ref, hyp, e); var m = hyp.length; var best = 0; var i;
+  /**
+   * The child read a prefix: end the alignment at the passage word the hypothesis matches best (the earliest on a tie).
+   * o.join (off unless passed): one word heard = two printed words run together (both correct, at their own places), and
+   * two words heard = one printed word (it is correct) — exact, on the words as given (the caller's fold).
+   */
+  function alignPrefix(ref, hyp, eq, o) {
+    var e = eq || same; var jn = !!(o && o.join);
+    var D = table(ref, hyp, e, jn); var m = hyp.length; var best = 0; var i;
     for (i = 1; i <= ref.length; i += 1) if (D[i][m] < D[best][m]) best = i;
-    return back(D, ref, hyp, e, best);
+    return back(D, ref, hyp, e, best, jn);
   }
 
   // ── the passage, word by word ─────────────────────────────────────────────────────────────────────

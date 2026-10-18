@@ -62,7 +62,7 @@ test('the card: Urdu copy, bind_offered{surface:hub, w:p} once per view; never o
   const m = mount();
   const { evs, c } = ctxOf();
   expect(p.B.card(m, c)).toBe(true);
-  expect(m.innerHTML).toContain('اپنی جگہ واٹس ایپ پر محفوظ کریں');
+  expect(m.innerHTML).toContain('اپنی جگہ واٹس\u00a0ایپ پر محفوظ کریں');   // the title is drawn without nowrap: U+00A0 holds the word
   expect(m.innerHTML).toContain('<bdi dir="ltr" class="wqb-chip">/quiz</bdi>');
   p.B.card(m, c);
   expect(evs).toEqual([['bind_offered', { surface: 'hub', w: 'p' }]]);

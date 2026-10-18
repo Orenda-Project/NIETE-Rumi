@@ -41,15 +41,15 @@
       subj: function (s) { return SUBJ_UR[s] || s; }, subjects: 'مضامین', back: 'واپس', done: 'مکمل ✓', mins: function (n) { return n + ' منٹ'; },
       dl: 'ڈاؤن لوڈ', dlHelp: 'ڈاؤن لوڈ شروع نہیں ہوا؟', chrome: 'Chrome میں کھولیں', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
       oops: 'ویڈیوز نہیں کھلیں۔', retry: 'دوبارہ کوشش کریں', wait: 'لائبریری کھل رہی ہے…',
-      noClass: 'پہلے اپنے استاد کا کوئی کوئز کھیلیں، پھر یہ ویڈیو یہاں کھلے گی۔', opening: 'ویڈیو کھل رہی ہے…',
+      noClass: 'پہلے اپنے ٹیچر کا کوئی کوئز کھیلیں، پھر یہ ویڈیو یہاں کھلے گی۔', opening: 'ویڈیو کھل رہی ہے…',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
-      mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
+      mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
     },
   };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   // The polished Urdu copy (the edge's `wq-ur2` class on <html>, app_settings web_quiz_ur_polish): shorter lines. Off, T.ur is today's.
-  var UR2_COPY = { noClass: 'پہلے استاد کا کوئز کھیلیں، پھر یہ ویڈیو کھلے گی۔', lockSay: 'یہ لنک جس کو ملا تھا، وہی کھولے۔' };
+  var UR2_COPY = { noClass: 'پہلے ٹیچر کا کوئز کھیلیں، پھر یہ ویڈیو کھلے گی۔', lockSay: 'یہ لنک جس کو ملا تھا، وہی کھولے۔' };
   function ur2() { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } }
   function tFor(o) { var t = T[o.lang] || T.en; return o.lang === 'ur' && ur2() ? Object.assign({}, t, UR2_COPY) : t; }
   function now() { return Date.now(); }
@@ -109,6 +109,8 @@
         // The hub link is bound to the child's phone: on any other phone the bot answers 401.
         if (r.status === 401 && o.hub) { var e = new Error('lib_locked'); e.locked = true; throw e; }
         if (!r.ok || !j) throw new Error('lib_' + r.status);
+        // The one-button look (the bot's `one_button`): its class on <html> before the library draws (wq-tel.js).
+        try { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(j); } catch (e) {}
         put(k, j);
         return j;
       });
@@ -187,13 +189,25 @@
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>';
   }
 
-  function cardHtml(o, d, v, art, row) {
+  // A v3 list (tile: 'neutral', web_quiz_videos_v3): the card's own poster, then its chapter's art, then a
+  // plain tile; never the subject art. Without the marker the card is as it always was.
+  function thumbHtml(d, v, art, chArt, w, h) {
+    if (d.tile !== 'neutral') {
+      return '<span class="wql-thumb"' + (art ? ' style="background-image:url(' + esc(art) + ')"' : '') + '>' +
+        (v.poster ? '<img src="' + esc(v.poster) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '" onerror="this.style.display=\'none\'">' : '');
+    }
+    var src = v.poster || chArt;
+    var next = chArt && chArt !== src ? ' data-f="' + esc(chArt) + '"' : '';
+    return '<span class="wql-thumb">' + (src ? '<img src="' + esc(src) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '"' + next +
+      ' onerror="var f=this.getAttribute(\'data-f\');if(f){this.removeAttribute(\'data-f\');this.src=f}else{this.style.display=\'none\'}">' : '');
+  }
+
+  function cardHtml(o, d, v, art, row, chArt) {
     var t = tFor(o);
     var meta = [v.secs ? nb(o, t.mins(Math.max(1, Math.round(v.secs / 60)))) : '', mb(v.mb)].filter(Boolean).join(' · ');
     var w = row ? 120 : 160, h = row ? 68 : 90;
     return '<div class="wql-card' + (row ? ' wql-row' : '') + '"><button class="wql-pick" data-v="' + esc(v.vid) + '">' +
-      '<span class="wql-thumb"' + (art ? ' style="background-image:url(' + esc(art) + ')"' : '') + '>' +
-      (v.poster ? '<img src="' + esc(v.poster) + '" alt="" loading="lazy" width="' + w + '" height="' + h + '" onerror="this.style.display=\'none\'">' : '') +
+      thumbHtml(d, v, art, chArt, w, h) +
       (v.done ? '<span class="wql-done">' + esc(t.done) + '</span>' : '') + '</span>' +
       '<span class="wql-txt"><b dir="auto">' + esc(v.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span></button>' +
       // The size is on the line above: the card's link stays short enough for a 168px card.
@@ -208,7 +222,7 @@
       var one = vids.length === 1;
       var title = c.name && (!one || c.name.toLowerCase() !== String(vids[0].title || '').toLowerCase()) ? '<h3 class="wql-ch" dir="auto">' + esc(c.name) + '</h3>' : '';
       return '<section class="wql-chap">' + title + '<div class="' + (one ? 'wql-one' : 'wql-strip') + '">' +
-        vids.map(function (v) { return cardHtml(o, d, v, art, one); }).join('') + '</div></section>';
+        vids.map(function (v) { return cardHtml(o, d, v, art, one, c.art || null); }).join('') + '</div></section>';
     }).join('');
     var note = o.note ? '<p class="wq-banner wql-note">' + esc(o.note) + '</p>' : '';
     o.note = null;
@@ -241,9 +255,10 @@
 
   var cur = null;   // the open library: { o, g, s }
 
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function waitHtml(o) {
     var t = tFor(o);
-    return '<div class="wq-boot"><img src="/wq/jugnu/thinking.webp" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
+    return '<div class="wq-boot"><img src="' + jv('/wq/jugnu/thinking.webp') + '" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
   }
   // Leaving the library: nothing still on its way may paint afterwards.
   function leave(o) { seq++; cur = null; o.onBack(); }
@@ -405,6 +420,8 @@
           return r.text().then(function (x) {
             var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) {}
             if (r.ok && j && j.code) { flushEv(); location.assign('/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')); return; }
+            // A child with no class (web_quiz_home_v3): the video plays on the child home's own player, the quiz offered after.
+            if (r.ok && j && j.watch) { flushEv(); location.assign(hubUrl + '#watch/' + encodeURIComponent(j.watch.vid || v.vid)); return; }
             going = false;
             ev('error', { err: r.status === 409 ? 'lib_no_class' : 'lib_start_' + r.status });
             o.note = r.status === 409 ? t.noClass : t.oops;

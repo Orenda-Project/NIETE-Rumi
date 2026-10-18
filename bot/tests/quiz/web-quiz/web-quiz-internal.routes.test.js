@@ -110,6 +110,47 @@ test('the library from the hub and a hub video start take the device from x-wq-d
   } finally { lib.mockRestore(); start.mockRestore(); }
 });
 
+test('a quiz start and a Jugnu run start warm the next thing AFTER answering: the answer is the service\'s, untouched', async () => {
+  const WQ = require('../../../shared/services/quiz/web-quiz.service');
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+  const startOut = { st: 's.t', quiz: { n: 3 } };
+  const exOut = { ex: 'bigger', ct: 'c.t' };
+  const start = jest.spyOn(WQ, 'startSession').mockResolvedValue(startOut);
+  const exercise = jest.spyOn(Ch, 'exercise').mockResolvedValue(exOut);
+  let release; const gate = new Promise((r) => { release = r; });
+  const ws = jest.spyOn(R, 'warmFromSession').mockImplementation(() => gate.then(() => true));
+  const wc = jest.spyOn(R, 'warmFromChallenge').mockImplementation(() => gate.then(() => true));
+  try {
+    const H = { ...KEY, 'x-wq-device': 'DevRefDevRefDevRef_-01' };
+    const a = await fetch(`${base}/session`, { method: 'POST', headers: H, body: JSON.stringify({ code: 'AB12CD' }) });
+    expect(a.status).toBe(200);
+    expect(await a.json()).toEqual(startOut);   // answered while the warm-up still waits
+    const b = await fetch(`${base}/ch/abc.def/bigger?kid=0123456789abcdef`, { headers: H });
+    expect(b.status).toBe(200);
+    expect(await b.json()).toEqual(exOut);
+    await new Promise((r) => setImmediate(r));
+    expect(ws).toHaveBeenCalledWith(startOut, { device: 'DevRefDevRefDevRef_-01' });
+    expect(wc).toHaveBeenCalledWith(exOut, { device: 'DevRefDevRefDevRef_-01' });
+    release();
+  } finally { start.mockRestore(); exercise.mockRestore(); ws.mockRestore(); wc.mockRestore(); }
+});
+
+test('a video start hands the video module the next-thing slot\'s after-video hook (the route composes; the video module loads none of the slot)', async () => {
+  const Videos = require('../../../shared/services/quiz/web-quiz-videos');
+  const After = require('../../../shared/services/quiz/web-quiz-next-offer-video');
+  const start = jest.spyOn(Videos, 'start').mockResolvedValue({ watch: { vid: 'v' } });
+  const watchNext = jest.spyOn(After, 'watchNext').mockResolvedValue({ next: { kind: 'video' } });
+  try {
+    const body = JSON.stringify({ hub: 'abc.def', kid: '0123456789abcdef', vid: 'v' });
+    expect((await fetch(`${base}/videos/start`, { method: 'POST', headers: { ...KEY, 'x-wq-device': 'DevRefDevRefDevRef_-01' }, body })).status).toBe(200);
+    const hooks = start.mock.calls[0][1];
+    expect(typeof hooks.onWatch).toBe('function');
+    expect(await hooks.onWatch({ studentId: 's', vid: 'v', device: 'd' })).toEqual({ next: { kind: 'video' } });
+    expect(watchNext).toHaveBeenCalledWith({ studentId: 's', vid: 'v', device: 'd' });
+  } finally { start.mockRestore(); watchNext.mockRestore(); }
+});
+
 test('a Challenge result takes the device from x-wq-device (the mic notice is marked seen per phone), never from the body', async () => {
   const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
   const submit = jest.spyOn(Ch, 'submit').mockResolvedValue({ pending: true });
@@ -126,4 +167,97 @@ test("the results card's hub door is mounted behind the key and keeps the servic
   const r = await fetch(`${base}/hubdoor`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: 'not-a-token' }) });
   expect(r.status).toBe(401);
   expect(await r.json()).toEqual({ error: 'bad_token' });
+});
+
+test("a reading's speed leaves the result only for the child's own phone; a forwarded result link gets the score without it", async () => {
+  const T = require('../../../shared/services/quiz/web-quiz-token');
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+  const Device = require('../../../shared/services/quiz/web-quiz-hub-device');
+  const own = 'OwnPhoneOwnPhoneOwnP_1';
+  const ct = T.signChallenge({ studentId: 'kid-1', ex: 'read', runId: 'run-1' });
+  // the scorer's real shape: wcpm = round(correct / (60 - time_left) * 60), so correct + time_left give the speed back
+  const scored = { score: { correct: 40, attempted: 44, stopped: false, finished_early: true, time_left: 3 }, wcpm: 42, previous: { wcpm: 30, correct: 28, at: 'then' }, ended: 'self' };
+  // what another phone may see: whether it was heard and how it ended, nothing the speed can be worked out from
+  // (the words attempted as a coarse count: 44 of an 80-word story is "at least a tenth" -> 8)
+  const shown = { score: { attempted: 8, stopped: false }, ended: 'self' };
+  const SPEED_KEYS = ['wcpm', 'previous', 'correct', 'time_left', 'finished_early'];
+  const keysDeep = (o) => (o && typeof o === 'object' ? Object.keys(o).flatMap((k) => [k, ...keysDeep(o[k])]) : []);
+  const poll = jest.spyOn(Ch, 'poll').mockImplementation(async () => ({ ...scored, previous: { ...scored.previous } }));
+  const submit = jest.spyOn(Ch, 'submit').mockImplementation(async () => ({ ...scored, previous: { ...scored.previous } }));
+  const field = jest.spyOn(R, 'challengeField').mockResolvedValue({});
+  const may = jest.spyOn(Device, 'deviceMayName').mockImplementation(async (ids, d) => d === own && ids.includes('kid-1'));
+  const hadLen = Ch.readLength;
+  Ch.readLength = async () => 80;
+  try {
+    const get = async (h) => (await fetch(`${base}/ch/result/${encodeURIComponent(ct)}`, { headers: { ...KEY, ...h } })).json();
+    const post = async (h) => (await fetch(`${base}/ch/result`, { method: 'POST', headers: { ...KEY, ...h }, body: JSON.stringify({ ct, key: 'k' }) })).json();
+    // the child's own phone: today's body, byte for byte
+    expect(await get({ 'x-wq-device': own })).toEqual(scored);
+    expect(await post({ 'x-wq-device': own })).toEqual(scored);
+    // no device, or another phone holding the forwarded link: the score stays, no speed anywhere in the body
+    for (const h of [{}, { 'x-wq-device': 'OtherPhoneOtherPhone_2' }]) {
+      for (const body of [await get(h), await post(h)]) {
+        expect(body).toEqual(shown);
+        expect(keysDeep(body).filter((k) => SPEED_KEYS.includes(k))).toEqual([]);
+      }
+    }
+    // the phone check failing in any way: closed, never open (the score stays, the speed goes)
+    may.mockRejectedValueOnce(new Error('redis down'));
+    expect(await get({ 'x-wq-device': own })).toEqual(shown);
+    // a result with no speed in it (a pending read, a tap game) never asks who the phone is
+    may.mockClear();
+    poll.mockResolvedValueOnce({ pending: true });
+    expect(await get({ 'x-wq-device': 'OtherPhoneOtherPhone_2' })).toEqual({ pending: true });
+    expect(may).not.toHaveBeenCalled();
+  } finally { poll.mockRestore(); submit.mockRestore(); field.mockRestore(); may.mockRestore(); Ch.readLength = hadLen; }
+});
+
+test("another phone gets only a coarse count of the words attempted: none, some, a tenth of the story, or all of it", async () => {
+  const T = require('../../../shared/services/quiz/web-quiz-token');
+  const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
+  const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+  const Device = require('../../../shared/services/quiz/web-quiz-hub-device');
+  const own = 'OwnPhoneOwnPhoneOwnP_1';
+  const ct = T.signChallenge({ studentId: 'kid-1', ex: 'read', runId: 'run-1' });
+  // a one-minute reading that ran to the timer: its words attempted are a words-a-minute figure on their own
+  const scoredOf = (a) => ({ score: { correct: Math.max(0, a - 2), attempted: a, stopped: false, finished_early: false, time_left: 0 }, wcpm: Math.max(0, a - 2), previous: null, ended: 'timer' });
+  let a = 0;
+  const poll = jest.spyOn(Ch, 'poll').mockImplementation(async () => scoredOf(a));
+  const submit = jest.spyOn(Ch, 'submit').mockImplementation(async () => scoredOf(a));
+  const field = jest.spyOn(R, 'challengeField').mockResolvedValue({});
+  const may = jest.spyOn(Device, 'deviceMayName').mockImplementation(async (ids, d) => d === own && ids.includes('kid-1'));
+  const hadLen = Ch.readLength;
+  const len = jest.fn(async () => 80);   // the story's words as the reading page counts them (its story.tokens)
+  Ch.readLength = len;
+  try {
+    const get = async (h) => fetch(`${base}/ch/result/${encodeURIComponent(ct)}`, { headers: { ...KEY, ...h } });
+    const post = async (h) => fetch(`${base}/ch/result`, { method: 'POST', headers: { ...KEY, ...h }, body: JSON.stringify({ ct, key: 'k' }) });
+    const other = { 'x-wq-device': 'OtherPhoneOtherPhone_2' };
+    // 80 words: >= 80 -> 80, >= 8 (a tenth, rounded up) -> 8, 1..7 -> 1, 0 -> 0
+    const ROWS = [[47, 8], [0, 0], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 8], [9, 8], [47, 8], [79, 8], [80, 80], [81, 80], [130, 80]];
+    for (const [raw, coarse] of ROWS) {
+      a = raw;
+      for (const h of [{}, other]) {
+        for (const res of [await get(h), await post(h)]) expect([raw, (await res.json()).score]).toEqual([raw, { attempted: coarse, stopped: false }]);
+      }
+      // the child's own phone: today's body, byte for byte, and the story is never looked up for it
+      len.mockClear();
+      for (const res of [await get({ 'x-wq-device': own }), await post({ 'x-wq-device': own })]) expect(await res.text()).toBe(JSON.stringify(scoredOf(raw)));
+      expect(len).not.toHaveBeenCalled();
+    }
+    // asked by the run's own token
+    a = 47;
+    len.mockClear();
+    await get(other);
+    expect(len).toHaveBeenCalledWith(ct);
+    // the story's length unknown (0) or its lookup failing: closed to "none or some" (0 / 1), never the raw count
+    for (const fail of [async () => 0, async () => { throw new Error('db down'); }]) {
+      Ch.readLength = jest.fn(fail);
+      for (const [raw, coarse] of [[0, 0], [1, 1], [47, 1], [130, 1]]) {
+        a = raw;
+        expect((await (await get(other)).json()).score).toEqual({ attempted: coarse, stopped: false });
+      }
+    }
+  } finally { poll.mockRestore(); submit.mockRestore(); field.mockRestore(); may.mockRestore(); Ch.readLength = hadLen; }
 });

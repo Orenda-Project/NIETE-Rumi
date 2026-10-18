@@ -1,0 +1,96 @@
+/* The v3 child home (wq-home.js, web_quiz_home_v3): header, ONE Next tile, the doors as a fixed bottom bar. */
+.wq-home{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+.wq-hhead{display:flex;align-items:center;gap:10px;min-height:56px}
+.wq-hjug{flex:none;width:48px;height:48px}
+.wq-hhi{flex:1;display:flex;flex-direction:column;gap:4px;font-weight:900;font-size:20px;line-height:1.25;color:var(--navy)}
+.wq-hname{align-self:flex-start;min-height:48px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:start;text-decoration:underline dotted 2px;text-underline-offset:6px;cursor:pointer}
+.wq-gstop{margin:0;color:var(--muted);font-weight:700}
+.wq-dots{display:flex;gap:5px}
+.wq-dot{display:block;width:11px;height:11px;border-radius:50%;background:var(--star-off,#E2E5E3)}
+.wq-dot.on{background:var(--gold,#F6B73C)}
+.wq-dot.ring{box-shadow:0 0 0 3px var(--gold,#F6B73C) inset;background:transparent}
+.wq-jar{position:relative;display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;color:var(--gold-d,#B37A0C);background:var(--card)}
+.wq-jarnew{position:absolute;top:6px;inset-inline-end:6px;width:10px;height:10px;border-radius:50%;background:var(--brand);border:2px solid var(--card)}
+.wq-snd{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border:0;border-radius:14px;background:var(--card);color:var(--navy);cursor:pointer}
+.wq-next{display:flex;align-items:center;gap:14px;min-height:120px;margin:18px 0 0;padding:16px;border-radius:22px;background:var(--brand);color:#fff;text-decoration:none;box-shadow:0 5px 0 var(--brand-d)}
+.wq-next:active{transform:translateY(2px);box-shadow:0 3px 0 var(--brand-d)}
+.wq-nnone{background:var(--card);color:var(--navy);box-shadow:0 4px 0 var(--line)}
+.wq-nart{flex:none;width:96px;height:96px;border-radius:16px;object-fit:cover;background:rgba(255,255,255,.2)}
+.wq-ntext{flex:1;display:flex;flex-direction:column;gap:6px}
+.wq-ntext b{font-size:22px;line-height:1.25;font-weight:900}
+.wq-ntext small{font-size:16px;font-weight:700;opacity:.92}
+.wq-ngo{flex:none;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#fff;color:var(--brand-d);font-size:22px}
+html[dir=rtl] .wq-ngo{transform:scaleX(-1)}
+/* web_quiz_one_button: the tile's glyph is a media play ▶, which never turns in Urdu (only a direction would) */
+html.wq-1b[dir=rtl] .wq-ngo{transform:none}
+.wq-ntext .wq-new{position:static;align-self:flex-start;background:#fff;color:var(--brand-d)}
+.wq-prstrip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--tint);color:var(--navy);font-weight:800;font-size:15px}
+.wq-prback{flex:none;display:flex;align-items:center;min-height:44px;padding:0 16px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--navy);font:inherit;font-weight:800;text-decoration:none;cursor:pointer}
+.wq-doors{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:2px solid var(--line)}
+.wq-door{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:64px;border-radius:16px;color:var(--navy);text-decoration:none;font-weight:800;font-size:15px}
+.wq-door svg{color:var(--brand-d)}
+.wq-door.at{background:var(--brand-l)}
+.wq-grown{display:flex;justify-content:center;margin-top:40px}
+.wq-gbtn{position:relative;overflow:hidden;min-height:48px;padding:0 18px;border:2px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:700;-webkit-user-select:none;user-select:none;touch-action:none}
+.wq-gfill{position:absolute;inset:0;width:0;background:var(--tint)}
+.wq-gbtn.held .wq-gfill{width:100%;transition:width 2s linear}
+.wq-gsheet{position:fixed;left:12px;right:12px;bottom:96px;z-index:6;display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:18px;background:var(--card);border:2px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.wq-droom{text-align:start;align-items:stretch}
+.wq-droom>*{width:100%;box-sizing:border-box}
+.wq-dtop{display:flex;align-items:center;gap:10px;min-height:56px;direction:ltr}
+.wq-dtop h2{margin:0;font-size:24px}
+.wq-homebtn{flex:none;display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:var(--card);color:var(--navy);font-size:26px;text-decoration:none;border:2px solid var(--line)}
+.wq-dsay{margin:4px 0 12px;color:var(--muted);font-weight:700}
+.wq-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.wq-row{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:64px;padding:10px 14px;border-radius:16px;border:2px solid var(--line);background:var(--card);color:var(--navy);text-decoration:none;box-shadow:0 3px 0 var(--line)}
+.wq-row b{font-size:18px}.wq-row small{color:var(--muted);font-weight:700}
+.wq-new{position:absolute;top:8px;inset-inline-end:10px;padding:1px 8px;border-radius:999px;background:var(--brand);color:#fff;font-style:normal;font-size:12px;font-weight:900}
+.wq-soon{padding:22px;border-radius:16px;background:var(--tint);color:var(--muted);text-align:center;font-weight:800}
+html[lang=ur] .wq-hhi,html[lang=ur] .wq-ntext b,html[lang=ur] .wq-door,html[lang=ur] .wq-row b,html[lang=ur] .wq-dtop h2{font-family:var(--fu);font-weight:400;line-height:1.9}
+html[lang=ur] .wq-gstop,html[lang=ur] .wq-prstrip,html[lang=ur] .wq-ntext small,html[lang=ur] .wq-row small,html[lang=ur] .wq-dsay,html[lang=ur] .wq-soon,html[lang=ur] .wq-gbtn,html[lang=ur] .wq-new{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:18px}
+html[lang=ur] .wq-door{font-size:17px}
+@media (prefers-reduced-motion:reduce){.wq-gbtn.held .wq-gfill{transition:none}.wq-next:active{transform:none}}
+/* a door row with the picture the server sent (a quiz's subject): picture, then the words */
+.wq-rowart{flex-direction:row;align-items:center;gap:12px}.wq-rart{flex:none;width:48px;height:48px;border-radius:12px;object-fit:cover;background:var(--tint)}.wq-rtx{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* the minutes never break from their number («۲ منٹ» on one line) */
+.wq-nmin{white-space:nowrap}
+/* the door frame ends above the fixed bottom bar: bar (8 + 64 + 8 + 2) + a gap, plus the phone's safe area */
+.wq-droom{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+/* grown-ups sheet: the language button is white on the dark brand green (5.4:1), not dark ink on mid green */
+.wq-gsheet .wq-go{background:#23794D;color:#FFFFFF;box-shadow:0 5px 0 #1B5E3B}
+html[lang=ur] .wq-gsheet .wq-go{font-weight:700}
+/* Urdu links in the sheet: no underline through the Nastaliq, a bar under the word instead (48 px tap) */
+html[lang=ur] .wq-gsheet .wq-ghost{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0;padding:8px 4px 6px;min-height:48px;width:auto;align-self:center;font-family:var(--fu);font-weight:400;line-height:1.9}
+.wq-row[data-primary]{border-color:var(--brand);box-shadow:0 4px 0 var(--brand-d)}
+/* The first home after a self-join: one quiet line under the greeting + ONE small Undo (44 px tap), 20 s, then a fade */
+.wq-remember{display:flex;align-items:center;gap:8px;margin:6px 0 2px;padding:8px 12px;border-radius:12px;background:#FFF7E0;color:var(--navy);font-size:15px;line-height:1.35;transition:opacity .5s ease}
+.wq-remember span{flex:1}
+.wq-remundo{min-height:44px;padding:0 10px;border:0;background:none;color:var(--navy);font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
+.wq-remember.wq-remgone{opacity:0}
+.wq-friend{display:flex;align-items:center;gap:10px;margin:6px 0 2px;padding:10px 12px;border-radius:14px;background:#FFF7E0;border:2px solid #F59E0B;color:var(--navy);font-size:16px;line-height:1.35;font-weight:700}
+.wq-friend .wq-fstamp{display:inline-flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#92400E;flex:0 0 auto}
+[lang="ur"] .wq-friend,.wq-friend[dir="rtl"]{line-height:2}
+html[lang=ur] .wq-remember{font-family:var(--fu);font-size:17px;line-height:1.9}
+html[lang=ur] .wq-remundo{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0}
+/* The grown-ups hold, one-button look (html.wq-1b): the button is the component's hold kind (wq.css .wq-btn--hold:
+   "Hold for grown-ups", a ring around the lock that fills over the 2 s, the words above it); a short tap shows
+   "Keep holding" under it. */
+html.wq-1b .wq-grown{flex-direction:column;align-items:center}
+html.wq-1b .wq-ghint{margin:8px 0 0;color:var(--brand-d);font-weight:800;font-size:15px;text-align:center}
+html.wq-1b .wq-ghint[hidden]{display:none}
+html.wq-1b[lang=ur] .wq-ghint{font-family:var(--fu);font-weight:400;font-size:17px;line-height:1.9}
+/* My class + my school (web_quiz_class_doors): two equal tiles under the Next tile. The look is today's button
+   (.wq-btn.wq-soft in wq.css); these rules only lay the pair out. TODO(one button system): the sweep swaps wq-soft. */
+.wq-social{display:flex;gap:12px;margin:16px 0 0}
+.wq-social .wq-soc{flex:1;flex-direction:column;gap:4px;min-height:84px;width:auto;padding:10px 8px;-webkit-tap-highlight-color:transparent}
+.wq-soc svg{color:var(--brand)}
+/* grown-ups sheet: the Grade row (web_quiz_grade_change); the Stories grade chips are drawn here too (wq-stories.css is not on the home) */
+.wq-ggrade{display:flex;flex-direction:column;align-items:center;gap:8px}
+.wq-glabel{color:var(--muted);font-weight:800;font-size:14px}
+.wq-ggrade .wq-btn--secondary{min-height:48px;padding:0 18px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--navy);box-shadow:0 3px 0 var(--line);font:inherit;font-weight:800}
+.wq-ggrade .wqs-pick{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.wq-ggrade .wqs-chip{min-width:52px;height:52px;padding:0 12px;border:0;border-radius:26px;background:#fff;color:var(--navy);font:inherit;font-size:22px;font-weight:800;box-shadow:0 3px 0 var(--line)}
+.wq-ggrade .wqs-chip[aria-pressed=true]{background:#ffe26b;box-shadow:0 3px 0 #c99d00}
+.wq-gcls,.wq-gsaid{margin:0;color:var(--muted);font-weight:700;font-size:15px;text-align:center}
+html[lang=ur] .wq-glabel,html[lang=ur] .wq-gcls,html[lang=ur] .wq-gsaid,html[lang=ur] .wq-ggrade .wq-btn--secondary{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:18px}
+.wq-gskel{display:block;width:120px;height:48px;border-radius:14px;background:var(--tint)}

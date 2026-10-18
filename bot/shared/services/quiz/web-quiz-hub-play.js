@@ -30,7 +30,7 @@ const RESERVE_ID = /\.reserve\d+$/;
 // A run row's final statuses (a record row that closes a Trail stop).
 const FINAL = ['scored', 'failed'];
 // The route that brought the child to the hub (EVENTS §1 row 3 `hub_open.src`): read by the hub_open emit as `opts.src`.
-const SRC_VALUES = ['card', 'home', 'door', 'wa', 'link', 'hs', 'class_link', 'guest', 'friend'];
+const SRC_VALUES = ['card', 'home', 'door', 'wa', 'link', 'hs', 'class_link', 'guest', 'friend', 'quiz', 'bind', 'join'];
 let cache = null;
 
 function isTrue(value) {
@@ -122,8 +122,12 @@ async function runsOf(childId, cols) {
  * `period_id`); when they cannot be read, falls back to the list's own `exercises[].done` (absent: every stop waits).
  */
 async function trailWaiting(childId, periodId, exercises) {
+  return trailFrom(await runsOf(childId, 'exercise, status, mode, record, period_id'), periodId, exercises);
+}
+
+/** trailWaiting's answer from run rows already read (null: they could not be read). */
+function trailFrom(runs, periodId, exercises) {
   const list = Array.isArray(exercises) ? exercises : [];
-  const runs = await runsOf(childId, 'exercise, status, mode, record, period_id');
   if (!runs) return list.filter((e) => !e.done).map((e) => e.id);
   // Only a FINAL record row closes a stop: a `served` or `abandoned` row (or one still scoring) leaves it waiting.
   const done = (r, id) => r.exercise === id && r.mode === 'check' && r.record === true && r.period_id === periodId && FINAL.includes(r.status);
@@ -132,16 +136,32 @@ async function trailWaiting(childId, periodId, exercises) {
 
 /** The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if unknown. */
 async function seenPassages(childId) {
-  const runs = await runsOf(childId, 'passage_id');
-  return runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null;
+  return seenFrom(await runsOf(childId, 'passage_id'));
 }
+const seenFrom = (runs) => (runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null);
 
 /** The practice passages for this language: live (released) ones and the earliest buffered release. Never throws. */
 async function passagesOf(lang, nowIso, bands) {
+  return passagesFrom(await passageRows(lang), nowIso, bands);
+}
+
+/** The practice passages read for this language ({data, error}; {thrown: true} when the read itself threw). */
+function passageRows(lang) {
   try {
-    const { data, error } = await supabase.from('challenge_passages')
+    return Promise.resolve(supabase.from('challenge_passages')
       .select('passage_id, twin_of, lang, band, kind, pool, status, released_at, title_en, title_ur')
-      .eq('pool', 'practice').eq('lang', lang).in('status', LIVE_STATUS).not('released_at', 'is', null);
+      .eq('pool', 'practice').eq('lang', lang).in('status', LIVE_STATUS).not('released_at', 'is', null))
+      .catch(() => ({ thrown: true }));
+  } catch (_) {
+    return Promise.resolve({ thrown: true });
+  }
+}
+
+/** passagesOf's answer from rows already read. Never throws. */
+function passagesFrom(res, nowIso, bands) {
+  try {
+    if (!res || res.thrown) return { live: [], next: null };
+    const { data, error } = res;
     if (error) return { live: [], next: null };
     // The reserve story is the draw's fall-through only: never on the shelf, never NEW, never a lantern title. The
     // registry marks it by its id (<lang>.read.<band>.reserveNN, web_quiz_challenge_stock_seed.sql); it has no params column.
@@ -190,12 +210,16 @@ const titleOf = (r, lang) => require('./web-quiz-passage-title').titleFor(r.pass
 
 /**
  * The Story Time shelf: this week's story, a story to listen to, numbers, more stories. NEW iff the passage is in
- * `unseenPids`, the same set the lantern's resolver reads, so a NEW tag and a story lantern always come together.
+ * `unseenPids`, the same set the lantern's resolver reads: a story lantern always names this week's story while it is
+ * NEW; a NEW listen story is marked on its own tile only.
  * This week's story carries its `title` from the same title home as the lantern; a passage with none keeps the
  * tile as it was ({ id, pid, nx }, the page's generic label).
  */
+// The newest live passage of one kind (this week's story is newestOf(live, 'read')), or null.
+const newestOf = (live, kind) => live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
+
 function shelfOf(live, unseenPids, lang) {
-  const newest = (kind) => live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
+  const newest = (kind) => newestOf(live, kind);
   const tile = (id, r) => (r ? { id, pid: r.passage_id, nx: unseenPids.has(r.passage_id) ? 'new' : 'seen' } : null);
   const read = newest('read');
   const named = (t) => { const title = t && titleOf({ passage_id: t.pid }, lang); return title ? { ...t, title } : t; };
@@ -208,9 +232,11 @@ function shelfOf(live, unseenPids, lang) {
 /**
  * The hub's play block for the chosen child, or null when every switch here is off (no `play` key: golden).
  * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge); `stopsOf()` the stop ids
- * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is.
+ * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is. `steps()` gives the
+ * challenge's step names (`nameOf`, `poolOn`) from the caller, which holds the challenge: this file never requires it
+ * (the challenge requires this file).
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, steps, collect, together = false } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -229,26 +255,89 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } 
   };
   if (!s.v2 || !tile || !chosenId) return out;
 
+  const plang = require('../../config/ux-strings').clampLanguage(lang);
+  // web_quiz_hub_fanout (the hub's `together`): with Story Time on, one runs read serves the trail and the seen
+  // passages, and the rung and the passages are read beside it: one round, not four. The answer is the same: the rung
+  // and the passages are used only when the runs could be read, and a runs read that fails is asked again as off.
+  const early = together && s.story
+    ? [runsOf(chosenId, 'exercise, status, mode, record, period_id, passage_id'), readingRungOf(chosenId), passageRows(plang)]
+    : null;
   const stops = typeof stopsOf === 'function' ? await stopsOf() : [];
-  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
-  const seenIds = s.story ? await seenPassages(chosenId) : null;
-  const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
-  const p = seenIds ? await passagesOf(require('../../config/ux-strings').clampLanguage(lang), nowIso, bands) : { live: [], next: null };
+  // the home tile's first-step switches are read beside the trail, never as a wave after it
+  const stepReads = firstStepReads(steps);
+  let trail;
+  let seenIds;
+  let bands;
+  let p;
+  const runs = early ? await early[0] : null;
+  if (runs) {
+    trail = trailFrom(runs, periodOf(nowMs), stops.map((id) => ({ id })));
+    seenIds = seenFrom(runs);
+    bands = openBands(grade, await early[1]);
+    p = passagesFrom(await early[2], nowIso, bands);
+  } else {
+    trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
+    seenIds = s.story ? await seenPassages(chosenId) : null;
+    bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
+    p = seenIds ? await passagesOf(plang, nowIso, bands) : { live: [], next: null };
+  }
   // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new),
   // and a title in the child's language (a story the lantern cannot name is never NEW on the shelf either).
   const unseen = (seenIds ? p.live.filter((r) => !isSeenOf(seenIds)(r)) : [])
     .map((r) => ({ pid: r.passage_id, title: titleOf(r, lang), released_at: r.released_at, band: r.band }))
     .filter((u) => u.title);
+  // The lantern sits over the shelf's first tile (this week's story, shelfOf: the newest live read story) and names
+  // only that story: unseen there -> its title; seen or untitled -> no story line (numbers/day), never another story.
+  const weekRead = seenIds ? newestOf(p.live, 'read') : null;
+  const ownTile = weekRead ? unseen.filter((u) => u.pid === weekRead.passage_id) : [];
   const nx = nextThing({
-    trail_waiting: trail, unseen_stories: unseen, numbers_fresh: s.story, next_release: s.story ? p.next : null,
+    trail_waiting: trail, unseen_stories: ownTile, numbers_fresh: s.story, next_release: s.story ? p.next : null,
     read_along_first: false, now: nowIso,
   });
   // Story, numbers and day lines are Story Time's; with it off only the trail line shows.
   if (nx.kind === 'trail' || s.story) {
-    out.lantern = nx.kind === 'story' ? { ...nx, pid: (unseen.find((u) => u.title === nx.title) || {}).pid || null } : nx;
+    out.lantern = nx.kind === 'story' ? { ...nx, pid: (ownTile.find((u) => u.title === nx.title) || {}).pid || null } : nx;
+  }
+  if (out.lantern && out.lantern.kind === 'trail' && trail[0]) {
+    const first = firstStep(trail[0], lang, await stepReads);
+    if (first) out.lantern = { ...out.lantern, first };
   }
   if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)), lang);
+  // The next-thing ranker (web-quiz-next-offer-sources.js) reads what this corner read; the payload is untouched. Its
+  // lantern is the one the child is shown (the control arm's primary), never a same-titled twin.
+  if (collect && typeof collect === 'object') {
+    Object.assign(collect, { trail, unseen, live: p.live, story: s.story, lantern: out.lantern || null });
+  }
   return out;
+}
+
+/**
+ * The trail lantern's first open step, named for the v3 home's tile (`#next` opens it): {id, label, lang}, only with
+ * web_quiz_home_v3 on (the older hub never reads it: off, the lantern is today's). The number warm-up and an unnamed
+ * step give null (the tile then says the neutral words); so do no step reads (the home off, or a caller that passes no
+ * step names). Never throws.
+ */
+function firstStep(id, lang, reads) {
+  try {
+    if (!reads || (id === 'missing' && reads.pool)) return null;
+    const l = require('../../config/ux-strings').clampLanguage(lang);
+    const label = reads.nameOf(id, l);
+    return label ? { id, label, lang: l } : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** The first step's switches, or null (the home off, no step names, any failure): the home's, then the pool's. */
+async function firstStepReads(stepsOf) {
+  try {
+    const steps = typeof stepsOf === 'function' ? stepsOf() : null;
+    if (!steps || typeof steps.nameOf !== 'function' || !(await require('./web-quiz-home-flags').flags()).home) return null;
+    const pool = typeof steps.poolOn === 'function' ? Boolean(await steps.poolOn()) : false;
+    return { pool, nameOf: (id, l) => steps.nameOf(id, l) };
+  } catch (_) {
+    return null;
+  }
 }
 
 /** `{play}` for the hub payload, or `{}` (every switch off, or any failure: the hub is today's). Never throws. */
@@ -266,3 +355,7 @@ async function playField(input) {
 function srcOf(v) { return typeof v === 'string' && SRC_VALUES.includes(v) ? v : undefined; }
 
 module.exports = { playFor, playField, trailWaiting, openBands, nextThing, dayOf, switches, srcOf, SRC_VALUES, KEYS, _resetCache: () => { cache = null; } };
+// the v3 home's Stories door (web-quiz-hub-doors.js) lists the same passages by the same rules
+module.exports.passagesOf = passagesOf;
+module.exports.seenPassages = seenPassages;
+module.exports.readingRungOf = readingRungOf;
