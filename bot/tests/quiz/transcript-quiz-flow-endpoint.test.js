@@ -130,7 +130,8 @@ describe('INIT → the LESSONS screen', () => {
       name: 'data_exchange',
       payload: { step: 'lesson', session_id: 's-1' },
     });
-    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_opened', expect.objectContaining({ userId: TEACHER }));
+    // The teacher is named by keyed reference on the log line (null here: these tests set no key), never the raw id.
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_opened', { tk: null });
   });
 
   test('every item fits Meta’s NavigationList caps (30 / 20 / 80) and there are never more than 20', async () => {
@@ -514,7 +515,9 @@ describe('the actions run AFTER the response (operator item 3)', () => {
     });
     await new Promise((r) => setImmediate(r));
     expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_action', expect.objectContaining({ action: 'link' }));
-    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_closed', expect.anything());
+    expect(logEvent).toHaveBeenCalledWith('transcript_quiz.flow_closed', expect.objectContaining({ kind: 'link', tk: null }));
+    // No log line of the Flow carries the teacher's raw id.
+    for (const [, payload] of logEvent.mock.calls) expect(payload || {}).not.toHaveProperty('userId');
   });
 });
 

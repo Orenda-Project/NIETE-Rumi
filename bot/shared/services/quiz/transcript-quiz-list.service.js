@@ -17,6 +17,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { tk: tkOf } = require('./web-quiz-kid');
 const { resolveUx } = require('../../config/ux-strings');
 const { composeTitle, composeLabelledDescription, normaliseTopic } = require('./transcript-quiz-rows');
 const { teacherLanguageFor, formatLessonDate, subjectLabel, quizLanguageFor } = require('./transcript-quiz-language');
@@ -256,7 +257,7 @@ async function loadLpQuizzes(userId, needed) {
     .eq('teacher_id', userId).in('quiz_source', PLAN_SOURCES)
     .order('created_at', { ascending: false })
     .limit(Math.max(1, needed));
-  if (error) logToFile('❌ transcript quiz: lp_v8 quizzes lookup failed', { userId, error: error.message }, 'error');
+  if (error) logToFile('❌ transcript quiz: lp_v8 quizzes lookup failed', { tk: tkOf(userId), error: error.message }, 'error');
   return data || [];
 }
 
@@ -330,13 +331,13 @@ async function showList(user, phone, language, page = 1) {
     // ── first touch: the empty line → the maker (quiz_maker_page; off → today's reply below) ──
     try {
       if (await require('../first-touch/maker.empty').emptyLine({ user, phone, lang })) {
-        logEvent('transcript_quiz.list_empty', { userId: user.id });
+        logEvent('transcript_quiz.list_empty', { tk: tkOf(user.id) });
         return true;
       }
     } catch (_) { /* today's reply */ }
     // ── end first touch ──
     await WhatsAppService.sendMessage(phone, resolveUx(QuizMenuFlags.lessonRows() ? 'tqListEmptyPlans' : 'tqListEmpty', { language: lang }));
-    logEvent('transcript_quiz.list_empty', { userId: user.id });
+    logEvent('transcript_quiz.list_empty', { tk: tkOf(user.id) });
     return true;
   }
   await WhatsAppService.sendInteractiveMessage(phone, {
@@ -348,7 +349,7 @@ async function showList(user, phone, language, page = 1) {
     },
   });
   logEvent('transcript_quiz.list_shown', {
-    userId: user.id, rows: rows.length, page: p, lessonRows: rows.filter((r) => r.id.startsWith(`${PICK_PREFIX}${Providers.LESSON_KEY_PREFIX}`)).length,
+    tk: tkOf(user.id), rows: rows.length, page: p, lessonRows: rows.filter((r) => r.id.startsWith(`${PICK_PREFIX}${Providers.LESSON_KEY_PREFIX}`)).length,
   });
   return true;
 }
@@ -371,7 +372,7 @@ async function handleListPick(listId, phone, user) {
       // QUIZ_MENU_LESSON_ROWS off: a lesson row from an older list makes nothing.
       const lang = teacherLanguageFor({ preferredLanguage: user?.preferred_language });
       await WhatsAppService.sendMessage(phone, resolveUx('tqLpLessonUnavailable', { language: lang }));
-      logEvent('quiz_menu.lesson_picked', { userId: user?.id || null, source: lesson.provider.source, outcome: 'switched_off', via: 'list' });
+      logEvent('quiz_menu.lesson_picked', { tk: tkOf(user?.id), source: lesson.provider.source, outcome: 'switched_off', via: 'list' });
       return true;
     }
     const out = await lesson.provider.start(user, lesson.lessonRef, { phone, via: 'list' });
@@ -441,7 +442,7 @@ async function handleLpPick(quizId, phone, user) {
         { id: `${BACK_PREFIX}${quiz.id}`, title: resolveUx('tqBackButton', { language: lang }) },
       ],
     });
-    logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: quiz.quiz_source });
+    logEvent('transcript_quiz.list_pick', { tk: tkOf(user.id), quizId: quiz.id, state, quiz_source: quiz.quiz_source });
     return true;
   }
   if (isAwaitingLanguage(quiz)) {
@@ -450,7 +451,7 @@ async function handleLpPick(quizId, phone, user) {
     const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
     await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject: quiz.subject });
     logEvent('transcript_quiz.language_asked', {
-      userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: quiz.quiz_source,
+      tk: tkOf(user.id), quizId: quiz.id, ruleLanguage, from: 'list', quiz_source: quiz.quiz_source,
     });
     return true;
   }
@@ -465,7 +466,7 @@ async function handleLpPick(quizId, phone, user) {
     const Offer = require('./transcript-quiz-offer.service');
     const remade = await Offer.remakeLpQuiz({ quiz, phone, teacherLang: lang, source: 'list' });
     logEvent('transcript_quiz.list_pick', {
-      userId: user.id, quizId: quiz.id, state, remade: Boolean(remade), quiz_source: quiz.quiz_source,
+      tk: tkOf(user.id), quizId: quiz.id, state, remade: Boolean(remade), quiz_source: quiz.quiz_source,
     });
     return true;
   }
@@ -480,7 +481,7 @@ async function handleLpPick(quizId, phone, user) {
   } else {
     await WhatsAppService.sendMessage(phone, resolveUx('tqStillMaking', { language: lang }));
   }
-  logEvent('transcript_quiz.list_pick', { userId: user.id, quizId: quiz.id, state, quiz_source: quiz.quiz_source });
+  logEvent('transcript_quiz.list_pick', { tk: tkOf(user.id), quizId: quiz.id, state, quiz_source: quiz.quiz_source });
   return true;
 }
 
