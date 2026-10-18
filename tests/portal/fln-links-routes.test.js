@@ -1,0 +1,293 @@
+/**
+ * bd-t7zk3t.12 (PR-D) — the leader routes of Reading Hour + Numeracy (contracts/api.md v2):
+ *   GET /api/portal/fln/me         what this session may see (lessons, share, role, ui_lang)
+ *   GET /api/portal/fln/links      the link builder's rows (leaders with the share switch only)
+ *   GET /api/portal/fln/title/:id  the signed-out banner's title (no sign-in; title, lang, dir only)
+ *
+ * Driven through a real Express app on a real port, so the routing, the middleware order and the headers are the
+ * shipped ones. Mocked: only the corpus service (injected) and `dashboard/lib/fln-access`.
+ *
+ * fln-access is m-app's file (PR-C) and is not on this branch, so it is replaced by a FAITHFUL STUB with the same
+ * shape and the same middleware order as NIETE-Rumi c4a2c874f: requireFln.{lessons,share} = [noStore,
+ * requirePortalAuth, gate] where gate answers 404 when the access answer says no. Only flnAccess() is a jest.fn.
+ */
+const http = require('http');
+const express = require('express');
+
+const LEADER = 'user-leader-1';
+const TEACHER = 'user-teacher-1';
+
+const mockAccess = jest.fn();
+jest.mock('../../dashboard/lib/fln-access', () => {
+  const noStore = (req, res, next) => { res.set('Cache-Control', 'no-store'); return next(); };
+  const requirePortalAuth = (req, res, next) => {
+    if (!req.session || !req.session.portalUserId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
+    }
+    return next();
+  };
+  const flnAccess = (...a) => mockAccess(...a);
+  const gate = (what) => async (req, res, next) => {
+    let access;
+    try { access = await flnAccess(req.session.portalUserId); } catch (_) { access = { lessons: false, share: false }; }
+    if (!access[what]) return res.status(404).json({ error: 'not_found' });
+    req.fln = access;
+    return next();
+  };
+  return {
+    flnAccess,
+    noStore,
+    requirePortalAuth,
+    requireFln: Object.freeze({ lessons: [noStore, requirePortalAuth, gate('lessons')], share: [noStore, requirePortalAuth, gate('share')] }),
+  };
+}, { virtual: true });
+
+function row(id, extra = {}) {
+  return { id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips: {}, opened: false, ...extra };
+}
+
+/** A catalogue body per api.md: grade 1–5 → its level; grade 6–12 + level → that level's rows. */
+function catalogueFor(grade, subject, level) {
+  const lv = level || (grade === 1 ? 1 : grade <= 3 ? 2 : grade <= 5 ? 3 : null);
+  const levels = [
+    { level: 1, label_en: 'Level 1', label_ur: 'سطح ۱', grades: [1], count: 4, screener_id: 900 },
+    { level: 2, label_en: 'Level 2', label_ur: 'سطح ۲', grades: [2, 3], count: 3, screener_id: 901 },
+    { level: 3, label_en: 'Level 3', label_ur: 'سطح ۳', grades: [4, 5], count: 2, screener_id: 902 },
+  ];
+  const plans = {
+    1: [
+      row(800, { chips: { guide: true }, pos: 0, count: 4 }),
+      row(900, { chips: { screener: true, sounds: 5 }, pos: 1, count: 4, used_by: 1 }),
+      row(101, { title: 'Sounds of c and k', chips: { sounds: 7 }, pos: 2, count: 4, used_by: 5 }),
+      row(102, { title: 'The cat story', chips: { narration: true }, pos: 3, count: 4, used_by: 40 }),
+      row(103, { title: 'More practice', chips: { additional: true, textbook: true }, pos: 4, count: 4, used_by: 12 }),
+    ],
+    2: [
+      row(901, { chips: { screener: true }, pos: 1, count: 3 }),
+      row(201, { title: 'Blends', chips: { sounds: 3 }, pos: 2, count: 3 }),
+      row(202, { title: 'Short story', pos: 3, count: 3 }),
+    ],
+    3: [
+      row(902, { chips: { screener: true }, pos: 1, count: 2 }),
+      row(301, { title: 'Fluency', pos: 2, count: 2 }),
+    ],
+  };
+  if (!lv) return { subject: { key: subject, lang: 'en', dir: 'ltr' }, grade, level: null, levels, strands: [] };
+  return {
+    subject: { key: subject, lang: 'en', dir: 'ltr' },
+    grade,
+    level: lv,
+    levels,
+    strands: [{ strand: 'daily', chapters: [{ chapter_no: 1, title_en: `Chapter L${lv}`, title_ur: `باب ${lv}`, plans: plans[lv] }] }],
+  };
+}
+
+let corpus;
+let server;
+let base;
+
+function startApp() {
+  jest.isolateModules(() => {
+    const { createFlnLinksRouter } = require('../../dashboard/routes/portal-fln-links.routes');
+    const app = express();
+    app.use((req, _res, next) => {
+      const uid = req.headers['x-test-user'];
+      req.session = uid ? { portalUserId: uid } : {};
+      next();
+    });
+    app.use('/api/portal', createFlnLinksRouter({ corpus, portalOrigin: () => 'https://portal.example.test' }));
+    server = http.createServer(app);
+  });
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
+    base = `http://127.0.0.1:${server.address().port}/api/portal/fln`;
+    resolve();
+  }));
+}
+
+async function get(path, user) {
+  const res = await fetch(base + path, { headers: user ? { 'x-test-user': user } : {} });
+  let body = null;
+  try { body = await res.json(); } catch (_) { body = null; }
+  return { status: res.status, body, cache: res.headers.get('cache-control') };
+}
+
+beforeEach(async () => {
+  mockAccess.mockReset();
+  mockAccess.mockImplementation(async (uid) => (uid === LEADER
+    ? { lessons: true, share: true, role: 'coach', ui_lang: 'ur' }
+    : { lessons: true, share: false, role: 'teacher', ui_lang: 'en' }));
+  corpus = {
+    catalogue: jest.fn(async (g, s, l) => catalogueFor(g, s, l)),
+    isHidden: jest.fn(async (id) => String(id) === '555'),
+    plan: jest.fn(async (id) => (String(id) === '101' ? { id: 101, title: 'Sounds of c and k', lang: 'en', dir: 'ltr', slo: ['secret goal'] } : null)),
+    placementOf: jest.fn(async () => []),
+  };
+  await startApp();
+});
+
+afterEach(() => new Promise((resolve) => server.close(resolve)));
+
+describe('GET /fln/me', () => {
+  it('answers the access shape for the session user, never cached', async () => {
+    const r = await get('/me', LEADER);
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ lessons: true, share: true, role: 'coach', ui_lang: 'ur' });
+    expect(mockAccess).toHaveBeenCalledWith(LEADER);
+    expect(r.cache).toBe('no-store');
+  });
+  it('is 401 signed out, still no-store', async () => {
+    const r = await get('/me');
+    expect(r.status).toBe(401);
+    expect(r.cache).toBe('no-store');
+    expect(mockAccess).not.toHaveBeenCalled();
+  });
+  it('a failed access read is "nothing", not a 500', async () => {
+    mockAccess.mockRejectedValue(new Error('db down'));
+    const r = await get('/me', LEADER);
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ lessons: false, share: false, role: null, ui_lang: 'en' });
+  });
+});
+
+describe('GET /fln/links', () => {
+  it('a teacher (share off) gets 404 and the corpus is never read', async () => {
+    const r = await get('/links?grade=1&subject=rh-en', TEACHER);
+    expect(r.status).toBe(404);
+    expect(r.cache).toBe('no-store');
+    expect(corpus.catalogue).not.toHaveBeenCalled();
+  });
+  it('signed out is 401 with no-store', async () => {
+    const r = await get('/links?grade=1&subject=rh-en');
+    expect(r.status).toBe(401);
+    expect(r.cache).toBe('no-store');
+  });
+  it('a leader gets the grade-1 rows in teaching order with the absolute link and placement fields', async () => {
+    const r = await get('/links?grade=1&subject=rh-en', LEADER);
+    expect(r.status).toBe(200);
+    expect(r.cache).toBe('no-store');
+    expect(r.body.rows.map((x) => x.id)).toEqual([800, 900, 101, 102, 103]);
+    const first = r.body.rows[2];
+    expect(first).toMatchObject({
+      id: 101,
+      title: 'Sounds of c and k',
+      url: 'https://portal.example.test/portal/fln/p/101',
+      level: 1,
+      grades: [1],
+      chapter_title_en: 'Chapter L1',
+      chapter_title_ur: 'باب 1',
+      pos: 2,
+      count: 4,
+      used_by: 5,
+    });
+    expect(corpus.catalogue).toHaveBeenCalledWith(1, 'rh-en', null);
+  });
+  it('the link carries no identity: no phone, no user id, no token, no query string', async () => {
+    const r = await get('/links?grade=1&subject=rh-en', LEADER);
+    for (const x of r.body.rows) {
+      expect(x.url).toMatch(/^https:\/\/portal\.example\.test\/portal\/fln\/p\/\d+$/);
+      expect(x.url).not.toContain(LEADER);
+    }
+  });
+  it('grade 8 with no level: every level\'s screener first, then each level in order', async () => {
+    const r = await get('/links?grade=8&subject=rh-en', LEADER);
+    expect(r.status).toBe(200);
+    expect(r.body.rows.map((x) => x.id)).toEqual([900, 901, 902, 800, 101, 102, 103, 201, 202, 301]);
+    expect(r.body.rows[1].level).toBe(2);
+    expect(corpus.catalogue.mock.calls.map((c) => c[2])).toEqual([1, 2, 3]);
+  });
+  it('grade 8 with level=2 gives that level only', async () => {
+    const r = await get('/links?grade=8&subject=num&level=2', LEADER);
+    expect(r.body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
+  });
+  it('q filters case-insensitively on the title', async () => {
+    const r = await get('/links?grade=1&subject=rh-en&q=CAT', LEADER);
+    expect(r.body.rows.map((x) => x.id)).toEqual([102]);
+  });
+  it('has= filters by chips (all named chips must hold); screeners never count as "has sounds"', async () => {
+    expect((await get('/links?grade=1&subject=rh-en&has=sounds', LEADER)).body.rows.map((x) => x.id)).toEqual([101]);
+    expect((await get('/links?grade=1&subject=rh-en&has=narration', LEADER)).body.rows.map((x) => x.id)).toEqual([102]);
+    expect((await get('/links?grade=1&subject=rh-en&has=additional,textbook', LEADER)).body.rows.map((x) => x.id)).toEqual([103]);
+    expect((await get('/links?grade=1&subject=rh-en&has=screener', LEADER)).body.rows.map((x) => x.id)).toEqual([900]);
+  });
+  it('sort=used orders by used_by (desc) after the pinned guide/screener, when the search box is empty', async () => {
+    const r = await get('/links?grade=1&subject=rh-en&sort=used', LEADER);
+    expect(r.body.rows.map((x) => x.id)).toEqual([800, 900, 102, 103, 101]);
+  });
+  it('sort=used falls back to teaching order when q is set or no row has used_by', async () => {
+    // "Sounds of c and k" (used 5) and "The cat story" (used 40) both hold an "s": teaching order, not 40-before-5.
+    expect((await get('/links?grade=1&subject=rh-en&sort=used&q=s', LEADER)).body.rows.map((x) => x.id)).toEqual([101, 102]);
+    expect((await get('/links?grade=8&subject=rh-en&level=2&sort=used', LEADER)).body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
+  });
+  it('malformed params are 400 bad_request (no-store) and the corpus is not read', async () => {
+    const bad = [
+      '/links?subject=rh-en',
+      '/links?grade=0&subject=rh-en',
+      '/links?grade=13&subject=rh-en',
+      '/links?grade=1.5&subject=rh-en',
+      '/links?grade=1&subject=maths',
+      '/links?grade=1',
+      '/links?grade=1&subject=rh-en&level=4',
+      '/links?grade=1&subject=rh-en&level=x',
+      '/links?grade=1&subject=rh-en&has=sounds,colour',
+      '/links?grade=1&subject=rh-en&sort=newest',
+      `/links?grade=1&subject=rh-en&q=${'a'.repeat(101)}`,
+      '/links?grade=1&grade=2&subject=rh-en',
+    ];
+    for (const path of bad) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await get(path, LEADER);
+      expect([path, r.status, r.body]).toEqual([path, 400, { error: 'bad_request' }]);
+      expect(r.cache).toBe('no-store');
+    }
+    expect(corpus.catalogue).not.toHaveBeenCalled();
+  });
+  it('a corpus that throws or is not loaded is 503 fln_unavailable, no-store', async () => {
+    corpus.catalogue.mockRejectedValueOnce(new Error('not loaded'));
+    let r = await get('/links?grade=1&subject=rh-en', LEADER);
+    expect([r.status, r.body, r.cache]).toEqual([503, { error: 'fln_unavailable' }, 'no-store']);
+    corpus.catalogue.mockResolvedValueOnce(null);
+    r = await get('/links?grade=1&subject=rh-en', LEADER);
+    expect([r.status, r.body]).toEqual([503, { error: 'fln_unavailable' }]);
+  });
+});
+
+describe('GET /fln/title/:id', () => {
+  it('answers ONLY title, lang and dir — signed out', async () => {
+    const r = await get('/title/101');
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ title: 'Sounds of c and k', lang: 'en', dir: 'ltr' });
+    expect(r.cache).toBe('no-store');
+    expect(mockAccess).not.toHaveBeenCalled();
+  });
+  it('a hidden id is 404 and its plan is never read', async () => {
+    const r = await get('/title/555');
+    expect([r.status, r.cache]).toEqual([404, 'no-store']);
+    expect(corpus.plan).not.toHaveBeenCalled();
+  });
+  it('an unknown id is 404; a non-digit id is 404 before the corpus is touched', async () => {
+    expect((await get('/title/777')).status).toBe(404);
+    corpus.isHidden.mockClear();
+    for (const id of ['abc', '12a', '-1', '1e3', '1234567890123']) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await get(`/title/${id}`);
+      expect([id, r.status, r.cache]).toEqual([id, 404, 'no-store']);
+    }
+    expect(corpus.isHidden).not.toHaveBeenCalled();
+  });
+  it('a corpus that throws is 503, no-store', async () => {
+    corpus.isHidden.mockRejectedValueOnce(new Error('not loaded'));
+    const r = await get('/title/101');
+    expect([r.status, r.body, r.cache]).toEqual([503, { error: 'fln_unavailable' }, 'no-store']);
+  });
+});
+
+describe('module shape', () => {
+  it('exports a mountable router with the factory on it (router.use(require(...)) works)', () => {
+    jest.isolateModules(() => {
+      const mod = require('../../dashboard/routes/portal-fln-links.routes');
+      expect(typeof mod).toBe('function');
+      expect(typeof mod.use).toBe('function');
+      expect(typeof mod.createFlnLinksRouter).toBe('function');
+    });
+  });
+});
