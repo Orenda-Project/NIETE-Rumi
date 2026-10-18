@@ -593,6 +593,19 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
       expect(n.reads).toBe(0);
     });
 
+    test('with the one-button and adventure looks on, a closed class link still answers the way home, not a bare rejection', async () => {
+      seed();
+      const open = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+      expect(open).not.toHaveProperty('adv');
+      HubFlags._resetCache();
+      HubFlags.prime([{ key: 'web_quiz_one_button', value: true }, { key: 'web_quiz_adventure_look', value: true }]);
+      expect(await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json()).toEqual(expect.objectContaining({ one_button: true, adv: true }));
+      closeCode();
+      const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+      expect(res.status).toBe(410);
+      expect(await res.json()).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+    });
+
     test('switch on, cold cache: the first closed GET is today\'s and starts one read; the next one says `known: true`', async () => {
       seed();
       closeCode();

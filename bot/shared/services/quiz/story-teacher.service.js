@@ -33,6 +33,8 @@ const { mustWrite } = require('./must-write');
 const FLAG_KEY = 'web_quiz_stories_teacher';
 // The child's side this needs: the reader (stories) and the hub it opens in.
 const NEEDS = ['web_quiz_stories', 'web_quiz_hub'];
+// The Stories page's own security policy (hashed <meta> + header; default off). Read in the switch's one read.
+const CSP_KEY = 'quiz_teacher_stories_csp';
 const FLAG_TTL_MS = 30 * 1000;
 const SHELF_N = 4;
 const SOURCE = 'story';
@@ -44,15 +46,20 @@ async function flagOn() {
   if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag.on;
   try {
     const keys = [FLAG_KEY, ...NEEDS];
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [...keys, CSP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
-    flag = { at: Date.now(), on: keys.every((k) => by.get(k) === true) };
+    flag = { at: Date.now(), on: keys.every((k) => by.get(k) === true), csp: by.get(CSP_KEY) === true };
   } catch (e) {
     logToFile('⚠️ story send: settings lookup failed — off', { error: e.message });
-    flag = { at: Date.now(), on: false };
+    flag = { at: Date.now(), on: false, csp: false };
   }
   return flag.on;
+}
+
+/** Whether the Stories page carries its policy: what the switch read above last saw (no read of its own); else off. */
+function pageCspOn() {
+  return !!(flag && flag.on === true && flag.csp === true);
 }
 
 class StoryError extends Error {
@@ -404,7 +411,7 @@ async function storyDoorOk(session) {
 }
 
 module.exports = {
-  FLAG_KEY, NEEDS, SOURCE, StoryError, flagOn, teacherToken, teacherOf, pktDay, dayOrder, bookOf, shelf, prepare, preview, share, send,
+  FLAG_KEY, NEEDS, CSP_KEY, SOURCE, StoryError, flagOn, pageCspOn, teacherToken, teacherOf, pktDay, dayOrder, bookOf, shelf, prepare, preview, share, send,
   storyForQuiz, storyBoot, storyTeacher, storyDoorOk, returnLine, storyCounts,
   _reset: () => { flag = null; },
 };
