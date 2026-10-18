@@ -44,6 +44,7 @@ const WayBackSwitch = require('../lib/closed-way-back-switch');
 const ClosedInlineSwitch = require('../lib/closed-inline-switch');
 const { securityOf } = require('./edge-security-headers');
 const WaitUx = require('./web-quiz-wait-ux');
+const Hop = require('./web-quiz-fast-hop');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
@@ -790,7 +791,8 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   // web_quiz_wait_home (with the designed wait): the kept Home for this hub, drawn at once (web-quiz-wait-ux.js)
   const home = waitUx && waitHome ? `${WaitUx.homeTag(token, p.lang, assetV)}\n` : '';
-  return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n${home}` };
+  // The home's next files and first reads, started from here (web-quiz-fast-hop.js): the head reads the hash on the phone.
+  return { guess: p, html: `${p.head}\n${preload}\n${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
@@ -801,7 +803,7 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once
   // (with web_quiz_wait_hops, the frame's piece is the hop one: either piece in the frame counts).
   const lateWait = WaitUx.on(payload) && !String(guess.frame || '').includes(WaitUx.MARK) ? (WaitUx.hops(payload) ? WaitUx.TAG_HOPS : WaitUx.TAG) : '';
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${lateWait}${p.tail}`;
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${lateWait}${Hop.tail(p.tail, payload, token)}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
@@ -1053,7 +1055,7 @@ function createWebQuizRouter(opts = {}) {
   // payload still wins. A test's own fake bot opts in with edgeLearn; inside a test run (JEST_WORKER_ID) it is never on by
   // default, so no test calls out.
   // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face`,
-  // `wait_ux`, `wait_share`, `wait_hops` and `wait_home` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
+  // `wait_ux`, `wait_share`, `wait_hops`, `wait_home`, `closed_lang` and `plain_paint` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
   const learned = (b) => {
     if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
     if (typeof b.rt === 'boolean') lastRt = b.rt;
@@ -1061,6 +1063,8 @@ function createWebQuizRouter(opts = {}) {
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
     if (typeof b.wait_hops === 'boolean') lastWaitHops = b.wait_hops;
+    if (typeof b.closed_lang === 'boolean') lastClosedLang = b.closed_lang;
+    if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
     if (typeof b.wait_home === 'boolean') lastWaitHome = b.wait_home;
     lastFast = b.fast === true;
   };

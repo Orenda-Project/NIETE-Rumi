@@ -10,6 +10,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const OneHop = require('./web-quiz-one-hop');
 
 const HUB_KEY = 'web_quiz_hub';
 const CHALLENGE_KEY = 'web_quiz_challenge';
@@ -96,7 +97,10 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, ROSTER_WARM_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY, PREFETCH_KEY, HOME_KEY, FACE_LITE_KEY, OFFLINE_GUARD_KEY, MINIFY_KEY]);
+const HOST_KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, ROSTER_WARM_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY, PREFETCH_KEY, HOME_KEY, FACE_LITE_KEY, OFFLINE_GUARD_KEY, MINIFY_KEY]);
+// web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
+// true only), so a hub open makes no read for it. Not a hub field: the hub's own switches are the HOST_KEYS above.
+const KEYS = Object.freeze([...HOST_KEYS, ...OneHop.hubSwitches.keys]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -120,6 +124,7 @@ function prime(rows, now = Date.now(), asked = KEYS) {
   if (missing.length) throw new Error(`hub flags primed by a read that did not ask for ${missing.join(', ')}`);
   if (cache && now - cache.at < TTL_MS) return;
   cache = fromRows(rows, now);
+  OneHop.hubSwitches.prime(rows, now);
 }
 
 // One read in flight at a time: a page that looks at two of these switches at once (the hub and its one-button
@@ -133,8 +138,21 @@ function flags(now = Date.now()) {
 
 async function read(now) {
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
-    if (error) throw new Error(error.message || 'app_settings read failed');
+    const readRows = async (keys) => {
+      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+      if (error) throw new Error(error.message || 'app_settings read failed');
+      return data || [];
+    };
+    // If the read that carries web_quiz_one_hop fails, one_hop fails closed and the hub's own keys are read again
+    // alone: nothing else goes off.
+    let data;
+    try {
+      data = await readRows(KEYS);
+      OneHop.hubSwitches.prime(data, now);
+    } catch (firstErr) {
+      OneHop.hubSwitches.fail(now);
+      data = await readRows(HOST_KEYS);
+    }
     cache = fromRows(data, now);
     return cache;
   } catch (err) {
