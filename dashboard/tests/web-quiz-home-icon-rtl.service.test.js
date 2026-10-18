@@ -17,7 +17,7 @@ const CSS_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.css');
 const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
 const KID = '0123456789abcdef';
 const HOME = {
-  lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [],
+  lang: 'en', kids: [{ chip: KID, first: 'Zara Testwala', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [],
   challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false, home_v3: 1,
   doors: { stories: [{ kind: 'listen', id: 'ur.listen.1.story01', title: 'Testwala Doll' }], games: [], videos: null }, head: { dots: 1, today: false },
 };
