@@ -400,7 +400,7 @@
         '<button class="wqs-main" data-main data-primary data-tap="main"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[m.label()]) + '</button>' +
         (p.audio ? '<button class="wqs-slow" data-tap="slow" aria-pressed="' + slow() + '">' + IC.slow + ' ' + esc(t.slow) + '</button>' : '') +
         '<button class="wqs-arr" data-tap="next" aria-label="' + esc(t.nextP) + '">' + IC.next + '</button></div>'));
-      camTo(null);
+      rest();
       if (p.audio) {
         R.mount(p, {
           onEnd: ended,
@@ -439,7 +439,7 @@
       sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = '';
       if (ws.length && !p.is_picture) {
         d = dims();
-        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
+        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok && x.bs.every(function (y) { return y[2] * 5 > y[3]; }); }) ? 'z' : tb && tb.box ? 'l' : 's';
       }
       var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
       return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage>' + (b.steady ? '<div class="wqs-ph" data-ph><p>' + esc(p.text) + '</p><i>' + esc(t.opening) + '</i></div>' : '') + '<div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
@@ -458,6 +458,7 @@
       k = cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
     }
+    function rest() { camTo(sm === 'z' ? [].concat.apply([], LN.l.map(function (x) { return x.bs; })) : sm === 'l' ? [sp.text_band.box] : null, 1); }
     function camLine(i) {
       li = i;
       var n = sm === 'z' ? LN.of[i] || 0 : 0;
@@ -499,7 +500,7 @@
       ac();
       if (!sent[m.i]) { sent[m.i] = 1; pp('story_page_listened', { ms: acc, completed: true }, m.i); }
       acc = 0;
-      li = -1; zl = -1; camTo(null); word(-1);
+      li = -1; zl = -1; rest(); word(-1);
       m.end();
     }
 
@@ -523,7 +524,7 @@
       } else if (tap === 'again') { if (R.pl) { if (t0 < 0) ac(1); R.pl.replay(); if (/^(listened|paused)$/.test(m.st)) m.set('listening'); } }
       else if (tap === 'alt') m.altTap();
       else if (tap === 'slow') { ls('wq_st_slow:' + (ctx.kid || ''), slow() ? '0' : '1'); rate(); var sb = root.querySelector('.wqs-slow'); if (sb) sb.setAttribute('aria-pressed', String(slow())); }
-      else if (tap === 'cam') { wu = !wu; zl = -1; if (wu) camTo(null); else if (li >= 0) camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }
+      else if (tap === 'cam') { wu = !wu; zl = -1; if (wu || li < 0) rest(); else camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }
     });
     R.load = function (q) { R.q = q; load(q); };
     return R;

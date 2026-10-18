@@ -1348,13 +1348,15 @@ describe('the camera (pure)', () => {
 
 describe('the reader zooms to the printed line', () => {
   const T0 = 'translate(0px,0px) scale(0.5)';
-  test('whole page before Listen; on Listen the line; the next line as the word moves; Whole page toggle; back out after the last word; Your turn zoomed', async () => {
+  test('the page\'s words framed before Listen (never the whole sheet: small print was tiny); on Listen the line; the next line as the word moves; Whole page toggle; back to the words after the last word; Your turn zoomed', async () => {
+    // at rest the camera frames every line of the page, as Your turn does (the whole sheet is the Whole page button's)
+    const REST = 'translate(-97.1px,-580.7px) scale(1.108)';
     const e = env(); const root = await openReader(e);
     const h = root.innerHTML;
     expect(h).toMatch(/data-cam style="width:720px;height:1080px"/);
     expect(h).toContain('Whole page');
     const cam = root.querySelector('[data-cam]');
-    expect(cam.style.transform).toBe(T0);
+    expect(cam.style.transform).toBe(REST);
     const p = e.calls.ra[0];
     fire(root, 'main');
     expect(cam.style.transform).toBe('translate(-67.5px,-874.5px) scale(1.5)');
@@ -1369,7 +1371,7 @@ describe('the reader zooms to the printed line', () => {
     fire(root, 'cam');
     expect(cam.style.transform).toBe('translate(-285px,-964.5px) scale(1.5)');
     p.o.onEnd();
-    expect(cam.style.transform).toBe(T0);
+    expect(cam.style.transform).toBe(REST);
     fire(root, 'main'); fire(root, 'mic'); e.calls.ask[0].onStream({});
     const r = root.innerHTML;
     expect(r).toMatch(/data-cam[^>]*><div class="wqs-lr" data-lr><\/div>/);   // a boxed page: the live reader draws the picture and its marks itself
@@ -3537,5 +3539,43 @@ describe('the reader warmed from the shelf', () => {
     (e.doc.L.pointerdown || []).forEach((f) => f({ target: { getAttribute: () => 'g', parentNode: null } }));
     expect(e.calls.imgs).toEqual([]);
     expect(links(e)).toEqual([]);
+  });
+});
+
+describe('the page at rest frames its words, not the whole sheet (a small block of print on a big white page was tiny)', () => {
+  const camOf = (root) => { const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform); return { tx: Number(m[1]), ty: Number(m[2]), s: Number(m[3]) }; };
+  const onScreen = (k, b) => b[0] * k.s + k.tx >= -0.5 && (b[0] + b[2]) * k.s + k.tx <= 360.5 && b[1] * k.s + k.ty >= -0.5 && (b[1] + b[3]) * k.s + k.ty <= 540.5;
+  const WHOLE = 0.5;   // the 720×1080 page in the 360×540 stage
+  // print in the top third only, as many storybook pages are laid out
+  const topText = () => { const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [160, 200, 400, 40] }, { i0: 3, i1: 4, box: [160, 250, 300, 40] }]; return bk; };
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: before Listen the camera frames every line, bigger than the whole page; Whole page still shows it all, and back`, async () => {
+      const bk = topText();
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      let k = camOf(root);
+      expect(k.s).toBeGreaterThan(WHOLE * 1.3);
+      bk.pages[0].lines.forEach((l) => expect(onScreen(k, l.box)).toBe(true));
+      fire(root, 'cam');
+      expect(camOf(root).s).toBe(WHOLE);
+      fire(root, 'cam');
+      k = camOf(root);
+      expect(k.s).toBeGreaterThan(WHOLE * 1.3);
+    });
+  }
+  test('when the page has been listened to, the camera comes back to the words (not the whole sheet)', async () => {
+    const bk = topText();
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    const k0 = camOf(root);
+    fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onWord(0);
+    e.calls.ra[e.calls.ra.length - 1].o.onEnd();
+    expect(camOf(root)).toEqual(k0);
+  });
+  test('a sliver word box (far narrower than it is tall: bad box data) never zooms the page to a line; the text band frames it instead', async () => {
+    const bk = book(); bk.pages[0].words[1].box = [160, 700, 6, 300];
+    const e = env({ replies: { book: { status: 200, body: bk } } }); const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onWord(1);
+    const k = camOf(root);
+    const tb = bk.pages[0].text_band.box;
+    expect(onScreen(k, tb)).toBe(true);
   });
 });
