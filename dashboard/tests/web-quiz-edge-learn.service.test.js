@@ -567,6 +567,29 @@ describe('one learner: re-ask at +5 s, replies by ask number, wait_ux and one_fa
     }
   });
 
+  it('wait_hops: true (with wait_ux) in the learn answer → the first hub page\'s early frame has the hop bar; absent keeps it; false clears it', async () => {
+    const HOP_MARK = 'beforeunload';
+    const r = router({ learn: false });
+    srv = await start(r.app);
+    await settle();
+    const top = async () => {
+      r.pages.push({ hold: true, res: jsonRes(200, HUB({ fast: true })) });
+      const { early, before } = await firstByteBeforeAnswer(srv, r.bot, `/h/${TOKEN}`);
+      expect(before).toBe(true);
+      return early;
+    };
+    // (each page's own hub answer teaches the process too, so each check applies its learn answers right before)
+    r.edge.apply({ ...ON(true), wait_ux: true, wait_hops: true });
+    expect((await top()).includes(HOP_MARK)).toBe(true);
+    r.edge.apply({ ...ON(true), wait_ux: true, wait_hops: true });
+    r.edge.apply({ ...ON(true), wait_ux: true }); // a bot that does not say: absent is not false
+    expect((await top()).includes(HOP_MARK)).toBe(true);
+    r.edge.apply({ ...ON(true), wait_ux: true, wait_hops: false });
+    const off = await top();
+    expect(off.includes(HOP_MARK)).toBe(false);
+    expect(off.includes(WAIT_MARK)).toBe(true);
+  });
+
   it('one_face: true → the closed page carries the one face; an answer without the field keeps it; false clears it', async () => {
     const ur = { headers: { 'accept-language': 'ur' } };
     const r = router({ learn: false });

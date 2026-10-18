@@ -63,6 +63,11 @@ const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 const CardImage = require('../services/quiz/web-quiz-card-image');
 // One Urdu face (web_quiz_one_face): the quiz, hub and challenge menu answers say `one_face: true` only when on.
 const OneFace = require('../services/quiz/web-quiz-one-face');
+// A wordless first paint (web_quiz_plain_paint): the quiz and hub answers that say `fast: true` say `plain_paint: true` only when on.
+const PlainPaint = require('../services/quiz/web-quiz-plain-paint');
+// The closed pages in the child's language (web_quiz_closed_lang): the quiz and hub answers say `closed_lang: true`,
+// and a genuine but expired home link's 401 carries the children's `lang`, only when on.
+const ClosedLang = require('../services/quiz/web-quiz-closed-lang');
 // One button system (web_quiz_one_button): the quiz, hub, challenge menu and library answers say `one_button: true` only when on.
 const OneButton = require('../services/quiz/web-quiz-one-button');
 // The adventure look (web_quiz_adventure_look): the same three answers say `adv: true` only when on.
@@ -109,7 +114,7 @@ async function closedKnows(err) {
 // (`app;dur`, the round-trip count), as the hub's does, a closed link's answer too; this route reads no switch itself,
 // so the hub's batched switch read is refreshed in the background, never waited for. Off: no header, the call as before.
 router.get('/quiz/:code', handle(async (req, res) => {
-  const out = await AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })))))).catch(async (err) => {
+  const out = await PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })))))))).catch(async (err) => {
     StepTiming.timeRequest(res, [], { refresh: true });
     throw await closedKnows(err);
   });
@@ -322,9 +327,9 @@ const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))))))));
+  if (!st) return ClosedLang.closedHub(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))), req.params.token);
   StepTiming.attach(res, st);
-  return EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))))))));
+  return ClosedLang.closedHub(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })))))))))), req.params.token);
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);

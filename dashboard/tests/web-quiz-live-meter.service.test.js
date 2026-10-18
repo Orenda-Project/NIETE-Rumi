@@ -100,6 +100,22 @@ describe('the Challenge reading screen: the meter in the glow\'s place', () => {
     expect(p.els['wqc-lr-glow'].className).toBe('lr-pace lr-pace-sky');   // never repainted as a glow
     expect(p.html()).not.toMatch(/wqc-wpm|words a minute/);
   });
+  test('the vine on this screen stands as tall as the words beside it (the box\'s own height the floor)', () => {
+    const window = {};
+    const ctx = { window, console, Date, Math, JSON, String, Number, Object, Array, RegExp, setTimeout, clearTimeout };
+    vm.createContext(ctx);
+    vm.runInContext(LIVE_SRC, ctx); vm.runInContext(LR_SRC, ctx); vm.runInContext(FAKE('vine'), ctx);
+    const els = { 'wqc-lr-glow': { className: 'lr-glow lr-glow-0', style: {} }, 'wqc-live-story': { offsetHeight: 520 } };
+    const live = {};
+    const tr = window.WQLiveRead.trail({ d: () => ({ lr3: {} }), live: () => live, q: (id) => els[id], lang: () => 'en' });
+    tr.meter();
+    expect(els['wqc-lr-glow'].className).toBe('lr-pace lr-pace-vine');
+    expect(els['wqc-lr-glow'].style.height).toBe('520px');
+    els['wqc-live-story'].offsetHeight = 90;   // a short passage: the floor
+    tr.meter();
+    expect(els['wqc-lr-glow'].style.height).toBe('240px');
+    expect(ctx.__pace.filter((r) => !r.gone).length).toBe(1);   // a redraw mounts one meter, never two
+  });
   test('not loaded (switch off): today\'s glow, untouched', async () => {
     const p = room({ routes: ROUTES(SREAD({ lr3: LR3() })) });
     await startRead(p);
@@ -203,5 +219,34 @@ describe('the edge loads the meter only when the bot names it', () => {
     expect(ch({ pace: 'sky' })).not.toContain('wq-pace');   // only under live reading v3
     expect(hub({})).not.toContain('wq-pace');
     expect(hub({ pace: '"><script>' })).not.toContain('wq-pace');
+  });
+});
+
+describe('what a child can see: sizes and the gutter (the design review)', () => {
+  const css = (f) => fs.readFileSync(path.join(PUB, f), 'utf8');
+  // the declarations of the rule whose selector list is exactly `sel`
+  const rule = (src, sel) => {
+    const at = src.split('}').map((b) => b.split('{')).find((p) => p.length === 2 && p[0].trim().split('\n').pop().trim() === sel);
+    if (!at) return {};
+    return Object.fromEntries(at[1].split(';').map((d) => d.split(':')).filter((d) => d.length >= 2).map(([k, ...v]) => [k.trim(), v.join(':').trim()]));
+  };
+  const PACE = fs.existsSync(path.join(PUB, 'wq-pace.css')) ? css('wq-pace.css') : '';
+  test('Jugnu rides at 48 px; the sky bar is 26 px tall; every star or leaf is at least 22 px', () => {
+    expect(rule(PACE, '.wqp-rider')).toMatchObject({ width: '48px', height: '48px' });
+    expect(rule(PACE, '.wqp-sky .wqp-track').height).toBe('26px');
+    expect(rule(PACE, '.wqp-mark')).toMatchObject({ width: '22px', height: '22px' });
+  });
+  test('the sky bar is the words\' width (no side margin of its own); the vine is Jugnu\'s width and the words give way to it', () => {
+    expect(rule(PACE, '.wqp-sky').margin).toBe('0 0 14px');
+    expect(rule(PACE, '.wqp-vine').width).toBe('48px');
+    expect(rule(PACE, '.lr-vine > .lr-text, .lr-vine > .lr-ov')['margin-inline-end']).toBe('56px');
+    expect(rule(PACE, '.lr-pace-vine').width).toBe('48px');
+    // no leaf and no Jugnu is placed outside the vine's own box (a negative offset would cross the gutter)
+    expect(PACE).not.toMatch(/\.wqp-vine [^{]*\{[^}]*(left|right|inset-inline-(start|end)): -/);
+  });
+  test('Urdu word chips hold Nastaliq\'s tails: line-height 2 and room below; English chips unchanged', () => {
+    const LRC = css('wq-liveread.css');
+    expect(rule(LRC, 'html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w')).toMatchObject({ 'line-height': '2', 'padding-block': '.15em .45em' });
+    expect(rule(LRC, '.lr-w')).toMatchObject({ padding: '2px 4px', 'border-radius': '8px' });
   });
 });

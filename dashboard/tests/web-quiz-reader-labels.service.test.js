@@ -126,3 +126,18 @@ describe('wq-home.css: a play ▶ is never mirrored on the Urdu home under wq-1b
     expect(fix).toBeGreaterThan(today);
   });
 });
+
+describe('wq.css under wq-1b: Urdu button words in the regular Nastaliq (bold breaks its joins)', () => {
+  test('every .wq-btn and the bottom doors are 400 in Urdu, without the Urdu polish class too', () => {
+    const rule = 'html.wq-1b[lang=ur] .wq-btn,html.wq-1b[lang=ur] .wq-door{font-weight:400}';
+    expect(CSS).toContain(rule);
+    // it outweighs today's bold (html[lang=ur] .wq-btn{font-weight:700}) and comes after it
+    expect(CSS.indexOf(rule)).toBeGreaterThan(CSS.indexOf('html[lang=ur] .wq-btn{font-weight:700'));
+  });
+});
+
+describe('wq.css under wq-1b: a list row and the skeleton standing in for it share the button corner', () => {
+  test('.wq-row and .wq-skrow take --r-btn (three radii on Games while it loads and after)', () => {
+    expect(CSS).toContain('html.wq-1b .wq-row,html.wq-1b .wq-skrow{border-radius:var(--r-btn)}');
+  });
+});
