@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from "rea
 /**
  * bd-t7zk3t.11 — the FLN hook lines in shared files, each executed through its real caller:
  *
- *   coach/training/appReady.ts   ALWAYS_OPEN lets a v2 coach reach /portal/fln/* (CoachAppGuard would bounce her
+ *   coach/training/appReady.ts   ALWAYS_OPEN lets a v2 coach reach /portal/fln/* (CoachAppGuard would bounce the coach
  *                                to the Training Library otherwise); nothing else that merely starts with "fln".
  *   OpenPlanPage.tsx             `?plan=fln:<id>` (Recent / Home lists, the open key) → /portal/fln/p/<id>, replacing
  *                                the open page; k5 / g612 are the goldens' (golden.flagOff.test.tsx).

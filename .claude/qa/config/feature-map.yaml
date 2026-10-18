@@ -758,6 +758,12 @@ web:
       - portal/src/portal/newui/lessons/**
       - portal/src/portal/components/LessonPlanViewer.tsx
       - dashboard/routes/portal-teacher-lessons.routes.js
+      # bd-t7zk3t.11 — FLN Reading Hour + Numeracy (the band on New lesson plan, /portal/fln/*; spec FLN01/02/05/07,
+      # @draft until the web driver has code for them, so a change here runs the whole feature: TL01, TL02).
+      - portal/src/portal/fln/**
+      - dashboard/routes/portal-fln.routes.js
+      - dashboard/services/fln-corpus.service.js
+      - dashboard/lib/fln-access.js
     teacher-coaching:
       - portal/src/portal/teacher/coaching/**
       - portal/src/portal/teacher/observations/**
