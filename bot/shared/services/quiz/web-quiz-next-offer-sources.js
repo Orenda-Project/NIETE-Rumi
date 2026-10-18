@@ -249,7 +249,7 @@ async function onItsWayOf(canonicalId, rawId, stops, lang, grade) {
       if (periodNow && D.countedThisPeriod(rows, ex, periodNow, lang)) return;   // a practice serve: never on its way
       if (registry.provenanceMissing) { out[ex] = true; return; }
       const d = D.drawPassage({ rows: registry.filter((r) => r.pool === 'check'), seenIds: D.seenIdsOf(rows), kind: ex, lang, band: band.band,
-        band_reason: band.band_reason, now: new Date(), seed: '00000000000000000000000000000000', counted: true });
+        band_reason: band.band_reason, now: new Date(), seed: '0'.repeat(32), counted: true });
       if (d.outcome === 'on_its_way') out[ex] = true;
     });
     return out;

@@ -76,25 +76,40 @@ async function shareSend({ uid, lang, shareCodeId }, deps) {
   return { ...sendable(out.message, lang), shareCodeId, quizId: out.quizId };
 }
 
+/** A quiz row (id, teacher_id, status, quiz_source, topic, meta) whose stored message can be sent again → its code id, or null. */
+function storedCodeOf(q) {
+  const m = (q && q.meta) || {};
+  if (!q || !SENT.has(q.status) || typeof m.student_message !== 'string' || !m.student_message || !m.share_code_id) return null;
+  return m.share_code_id;
+}
+
+/** The send-again rule, on rows already read: the quiz is the teacher's, sent, with its message, and its code theirs, open and unexpired. */
+function ownFrom(uid, q, sc, now = Date.now()) {
+  if (!q || q.teacher_id !== uid || !storedCodeOf(q)) return null;
+  if (!sc || sc.id !== q.meta.share_code_id || sc.teacher_user_id !== uid || sc.active === false || (sc.expires_at && new Date(sc.expires_at).getTime() <= now)) return null;
+  return { message: q.meta.student_message, shareCodeId: q.meta.share_code_id, topic: q.topic || null, source: q.quiz_source || null };
+}
+
 /** The teacher's own quiz's stored forwardable, owner-checked and only while its code is live. */
 async function ownMessage(uid, quizId, deps, now = Date.now()) {
   const supabase = supabaseOf(deps);
   const { data: q, error } = await supabase.from('quizzes').select('id, teacher_id, status, quiz_source, topic, meta')
     .eq('id', quizId).eq('teacher_id', uid).maybeSingle();
   if (error) throw new Error(error.message);
-  const m = (q && q.meta) || {};
-  if (!q || !SENT.has(q.status) || typeof m.student_message !== 'string' || !m.student_message || !m.share_code_id) return null;
+  if (!storedCodeOf(q)) return null;
   const { data: sc, error: e2 } = await supabase.from('quiz_share_codes').select('id, active, expires_at, teacher_user_id')
-    .eq('id', m.share_code_id).maybeSingle();
+    .eq('id', q.meta.share_code_id).maybeSingle();
   if (e2) throw new Error(e2.message);
-  if (!sc || sc.teacher_user_id !== uid || sc.active === false || (sc.expires_at && new Date(sc.expires_at).getTime() <= now)) return null;
-  return { message: m.student_message, shareCodeId: m.share_code_id, topic: q.topic || null, source: q.quiz_source || null };
+  return ownFrom(uid, q, sc, now);
 }
+
+/** An own message (ownMessage / ownFrom) → { message, wa, shareCodeId, quizId, source }. */
+const againOf = (own, quizId, lang) => ({ ...sendable(own.message, lang), shareCodeId: own.shareCodeId, quizId, source: own.source });
 
 /** The teacher's own quiz → { message, wa, shareCodeId } | null. */
 async function againSend({ uid, lang, quizId }, deps) {
   const own = await ownMessage(uid, quizId, deps);
-  return own ? { ...sendable(own.message, lang), shareCodeId: own.shareCodeId, quizId, source: own.source } : null;
+  return own ? againOf(own, quizId, lang) : null;
 }
 
 /**
@@ -144,4 +159,4 @@ async function quizStatus({ uid, lang, quizId }, deps) {
   return { state: state === 'failed' ? 'failed' : 'making', title: q.topic || '' };
 }
 
-module.exports = { withReturn, waHref, chipFor, videoSend, shareSend, againSend, ownMessage, startQuiz, quizStatus };
+module.exports = { withReturn, waHref, chipFor, videoSend, shareSend, againSend, ownMessage, storedCodeOf, ownFrom, againOf, startQuiz, quizStatus };
