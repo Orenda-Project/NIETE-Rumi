@@ -74,12 +74,25 @@ async function serve(fn) {
   const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   const h = { 'x-api-key': 'route-key' };
   const one = async (url, init) => { const r = await fetch(url, init); return { status: r.status, body: await r.text() }; };
-  const ask = async () => ({
-    hubGet: await one(`${base}/hub/abc.def`, { headers: h }),
-    hubPost: await one(`${base}/hub/abc.def`, { method: 'POST', headers: { ...h, 'content-type': 'application/json' }, body: '{}' }),
-    quiz: await one(`${base}/quiz/AB12CD`, { headers: h }),
-    doors: await one(`${base}/doors/h/abc.def?d=games`, { headers: h }),
-  });
+  // cold: the switch cache is emptied before every call (the hub answer's own batched read, which the home-preload layer
+  // waits for, would otherwise warm it for the calls after the first); `reads` holds each call's settings reads.
+  const ask = async (cold = false) => {
+    const reads = {};
+    const go = async (name, url, init) => {
+      if (cold) { Flags._resetCache(); settingsReads = 0; }
+      const out = await one(url, init);
+      reads[name] = settingsReads;
+      return out;
+    };
+    const out = {
+      hubGet: await go('hubGet', `${base}/hub/abc.def`, { headers: h }),
+      hubPost: await go('hubPost', `${base}/hub/abc.def`, { method: 'POST', headers: { ...h, 'content-type': 'application/json' }, body: '{}' }),
+      quiz: await go('quiz', `${base}/quiz/AB12CD`, { headers: h }),
+      doors: await go('doors', `${base}/doors/h/abc.def?d=games`, { headers: h }),
+    };
+    out.reads = reads;
+    return out;
+  };
   try { return await fn(ask); } finally { spies.forEach((s) => s.mockRestore()); await new Promise((r) => server.close(r)); }
 }
 const GOLDEN = { hubGet: JSON.stringify(HUB), hubPost: JSON.stringify(HUB), quiz: JSON.stringify(QUIZ), doors: JSON.stringify(DOORS) };
@@ -111,10 +124,11 @@ describe('the answers', () => {
   test('a cold or expired switch cache is off (the answer is today\'s), never a read of its own', async () => {
     rows = [{ key: KEY, value: true }];
     await serve(async (ask) => {
-      settingsReads = 0;
-      const out = await ask();
+      const out = await ask(true);
       for (const k of Object.keys(GOLDEN)) expect(out[k].body).toBe(GOLDEN[k]);
-      expect(settingsReads).toBe(0);
+      // the quiz and doors answers never read the switch themselves; the hub answers' read is the one batched read
+      expect(out.reads.quiz).toBe(0);
+      expect(out.reads.doors).toBe(0);
     });
   });
 });
