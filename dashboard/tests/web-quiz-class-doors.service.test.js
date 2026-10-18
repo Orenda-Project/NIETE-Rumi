@@ -339,7 +339,7 @@ describe('the class table: "Only Class 3" on a mixed table, and Play opens the q
   const places = (h) => (h.match(/<tr[^>]*><td>(\d+)<\/td>/g) || []).map((x) => Number(/<td>(\d+)/.exec(x)[1]));
   test('a mixed table: "All" (on) and "Only Class 3" chips in the league\'s chip row; EN and UR', async () => {
     const en = await open('en', MIXED);
-    expect(en.html()).toContain('<div class="wq-chips wq-schips"><button class="wq-chip wq-on" id="wq-call">All</button><button class="wq-chip" id="wq-conly">Only Class <bdi>3</bdi></button></div>');
+    expect(en.html()).toContain('<div class="wq-chips wq-schips wq-tall"><button class="wq-chip wq-on" id="wq-call">All</button><button class="wq-chip" id="wq-conly">Only Class <bdi>3</bdi></button></div>');
     expect(places(en.html())).toEqual([1, 2, 3]);
     const ur = await open('ur', MIXED);
     expect(ur.html()).toContain('id="wq-conly">صرف کلاس <bdi>۳</bdi></button>');
@@ -645,5 +645,63 @@ describe('a class table that is not there (404) says so, with the page\'s own wa
     expect(p.html()).toContain('data-m="M11-error"');
     expect(p.html()).toContain('id="wq-retry"');
     expect(p.html()).not.toMatch(/data-(why|fetch)/);
+  });
+});
+
+describe('the Urdu class table and league: an Urdu class label, Play always in reach, 48 px chips (class_doors)', () => {
+  const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8');
+  const COLD = { rows: [{ place: 1, first: 'Iqra Testwala', animal: 'cat', correct: 14, total: 15 }], finishers_n: 1, class_avg_pct: 93, more_n: 0, class_doors: true };
+  const LEAGUE = { mine: { name: 'Model School Testwala', place: 1, points: 40, kids: 4, sector: 'ict' }, rows: [{ place: 1, name: 'Model School Testwala', points: 40, kids: 4, sector: 'ict', mine: true }, { place: 2, name: 'Other School Testwala', points: 20, kids: 2, sector: 'ict' }], ranked_n: 2 };
+  const classPage = async (label, extra) => {
+    const p = page({ lang: 'en', store: {}, view: 'class', cls: { label, teacher: 'Ms Testwala', chips: [] }, bootExtra: { class_doors: true, ui_lang: 'ur', ...extra }, api: { '/board/TEST': COLD } });
+    await flush(); await flush();
+    return p;
+  };
+  test('an English quiz\'s table in Urdu: the class label in Urdu words and digits; a lettered class keeps its letters', async () => {
+    expect((await classPage('Classes 2, 3, 4, 5')).html()).toContain('کلاس ۲، ۳، ۴، ۵ کی لیگ ٹیبل');
+    expect((await classPage('Class 3')).html()).toContain('کلاس ۳ کی لیگ ٹیبل');
+    expect((await classPage('Class 3-B')).html()).toMatch(/کلاس .*3-B.* کی لیگ ٹیبل/);
+  });
+  test('the page in the quiz\'s own language, or switch off: the label as the server wrote it', async () => {
+    let p = page({ lang: 'en', store: {}, view: 'class', cls: { label: 'Classes 2, 3', teacher: 'Ms Testwala', chips: [] }, bootExtra: { class_doors: true }, api: { '/board/TEST': COLD } });
+    await flush(); await flush();
+    expect(p.html()).toContain('Classes 2, 3 league table');
+    p = page({ lang: 'ur', store: {}, view: 'class', cls: { label: 'جماعت 3', teacher: 'Ms Testwala', chips: [] }, api: { '/board/TEST': { ...COLD, class_doors: undefined } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('جماعت 3');
+  });
+  test('the league with the switch on: Play stays in reach at the bottom (sticky), and the chips are 48 px', async () => {
+    const p = page({ lang: 'ur', store: {}, view: 'schools', bootExtra: { class_doors: true }, api: { '/schools/TEST': { ...LEAGUE, class_doors: true } } });
+    await flush(); await flush();
+    expect(p.html()).toMatch(/<button class="wq-btn wq-go wq-stick" id="wq-play-s" data-primary>/);
+    // the button stays on screen, so it says "your school" (named in the card above), not the school's long name again
+    expect(p.html()).toContain('<span class="wq-btn-t">' + p.wq.T.playMine + '</span>');
+    expect(p.wq.T.playMine).toBe('کھیلیں اور اپنے اسکول کے پوائنٹس بڑھائیں');
+    expect(p.html()).toContain('<div class="wq-chips wq-schips wq-tall">');
+    expect(CSS).toMatch(/\.wq-stick\{[^}]*position:sticky[^}]*bottom:/);
+    expect(CSS).toMatch(/\.wq-schips\.wq-tall \.wq-chip\{[^}]*min-height:48px;min-width:48px/);
+    expect(CSS).toMatch(/\.wq-zero-list\.wq-tall summary\{[^}]*min-height:48px/);
+  });
+  test('the class table\'s chips (a mixed table) are 48 px too', async () => {
+    const MIXED = { ...COLD, rows: [{ place: 1, first: 'Amna Testwala', animal: 'owl', correct: 5, total: 5 }], you: { place: 1, correct: 5, total: 5 }, my_class: '3', one_class: false, only: { rows: [], you: { place: 1, correct: 5, total: 5 }, finishers_n: 1, class_avg_pct: 100, more_n: 0 } };
+    const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': MIXED } });
+    p.wq.board();
+    await flush(); await flush();
+    expect(p.html()).toContain('<div class="wq-chips wq-schips wq-tall">');
+  });
+  test('off: the league\'s Play and chips are today\'s', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'schools', api: { '/schools/TEST': LEAGUE } });
+    await flush(); await flush();
+    expect(p.html()).not.toContain('wq-stick');
+    expect(p.html()).not.toContain('wq-tall');
+  });
+  test('the league\'s "schools still to start" fold opens from a 48 px row with the switch on; off: today\'s', async () => {
+    const Z = { ...LEAGUE, zero_n: 3, zero: [{ name: 'Far School Testwala' }] };
+    let p = page({ lang: 'en', store: {}, view: 'schools', bootExtra: { class_doors: true }, api: { '/schools/TEST': { ...Z, class_doors: true } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('<details class="wq-zero-list wq-tall"><summary>');
+    p = page({ lang: 'en', store: {}, view: 'schools', api: { '/schools/TEST': Z } });
+    await flush(); await flush();
+    expect(p.html()).toContain('<details class="wq-zero-list"><summary>');
   });
 });
