@@ -29,7 +29,7 @@ function fakeEl(sel) {
 const Q1 = { qid: 'q1', i: 1, text: 'Which part of a plant drinks water?', options: [{ slot: 'A', text: 'Leaf' }, { slot: 'B', text: 'Root' }], correct_slot: 'B', why: 'Roots drink up water.', audio: { q: 'https://r2.example/q.ogg', opts: [null, null], why: 'https://r2.example/why.ogg' } };
 const Q2 = { ...Q1, qid: 'q2', i: 2 };
 
-function page({ juice = null, store = {}, realKit = false, lang = 'en', questions = [Q1, Q2], ur2 = false } = {}) {
+function page({ juice = null, store = {}, realKit = false, lang = 'en', questions = [Q1, Q2], ur2 = false, oneButton = false } = {}) {
   const timers = [];
   const voiced = [];
   const clips = [];
@@ -53,7 +53,7 @@ function page({ juice = null, store = {}, realKit = false, lang = 'en', question
       getElementById: (id) => (id === 'boot' ? boot : id === 'wq' ? root : null),
       createElement: (t) => (t === 'audio' ? { canPlayType: () => 'probably' } : fakeEl(t)),
       addEventListener() {}, querySelectorAll: () => [], dispatchEvent() { return true; }, body: fakeEl('body'),
-      documentElement: { lang, classList: { contains: (c) => ur2 && c === 'wq-ur2', add() {} } },
+      documentElement: { lang, classList: { contains: (c) => (ur2 && c === 'wq-ur2') || (oneButton && c === 'wq-1b'), add() {} } },
     },
     location: { search: '', origin: 'https://example.test' },
     navigator: { userAgent: 'test' },
@@ -324,5 +324,29 @@ describe('the remaining marks: inline SVG with the sound kit on the page, today\
       .join('\n');
     const bare = code.split('\n').filter((l) => GLYPH.test(l.replace(/ic\([^()]*(\([^()]*\))?[^()]*\)/g, '').replace(/t\.textContent = pl \+ ' ✓'/, ''))).map((l) => l.trim().slice(0, 90));
     expect(bare).toEqual([]);
+  });
+});
+
+describe('an answer\'s shape marker is a glyph: hidden from screen readers on every option kind (one button switch)', () => {
+  const QP = { ...Q1, type: 'picture', options: [{ slot: 'A', text: 'Leaf', img: 'https://r2.example/leaf.png' }, { slot: 'B', text: 'Root', img: 'https://r2.example/root.png' }] };
+  const AU = { ...Q1, audio: { ...Q1.audio, stim: 'https://r2.example/stim.ogg', opts: ['https://r2.example/a.ogg', 'https://r2.example/b.ogg'] } };
+  const shapes = (h) => h.match(/<span class="wq-shp"[^>]*>/g) || [];
+  test.each([['text options', Q1], ['picture tiles', QP], ['sound tiles', AU]])('switch on, %s: every .wq-shp carries aria-hidden="true"', (_n, q) => {
+    const p = page({ questions: [q, Q2], oneButton: true });
+    p.wq.question(0, false);
+    const s = shapes(p.html());
+    expect(s.length).toBeGreaterThan(0);
+    expect(s.every((x) => /aria-hidden="true"/.test(x))).toBe(true);
+  });
+  test('switch off: text options and picture tiles draw today\'s marker (no aria-hidden), sound tiles keep theirs', () => {
+    const t = page({ questions: [AU, Q2] });
+    t.wq.question(0, false);
+    expect(t.html()).toContain('wq-shear');
+    expect(shapes(t.html()).every((x) => /aria-hidden="true"/.test(x))).toBe(true);
+    for (const q of [Q1, QP]) {
+      const p = page({ questions: [q, Q2] });
+      p.wq.question(0, false);
+      expect(shapes(p.html()).every((x) => x === '<span class="wq-shp">')).toBe(true);
+    }
   });
 });
