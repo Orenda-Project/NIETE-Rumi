@@ -14,6 +14,8 @@ export interface Got<T> {
   ok: boolean;
   status: number;
   data: T | null;
+  /** The server's `error` code on a refusal, when it sent one (e.g. `link_area_only`). */
+  error?: string;
 }
 
 async function getJson<T>(path: string): Promise<Got<T>> {
@@ -105,7 +107,10 @@ export const shareApi = {
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ plan, teachers }),
       });
-      if (!res.ok) return { ok: false, status: res.status, data: null };
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        return { ok: false, status: res.status, data: null, error: typeof err?.error === 'string' ? err.error : undefined };
+      }
       const body = (await res.json()) as Partial<SendResult>;
       return { ok: true, status: res.status, data: { queued: Number(body.queued) || 0, failed: Array.isArray(body.failed) ? body.failed.map(String) : [] } };
     } catch {

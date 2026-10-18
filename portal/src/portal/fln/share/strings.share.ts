@@ -58,6 +58,7 @@ export interface ShareStrings {
   noTeachers: string;
   noTeacherMatch: string;
   sendUnavailable: string;
+  sendNeedsSignIn: string;
   shareLink: string;
   loadingTeachers: string;
   teachersFailed: string;
@@ -135,6 +136,7 @@ const EN: ShareStrings = {
   noTeachers: 'No teachers are assigned to you yet',
   noTeacherMatch: 'No teacher matches that name',
   sendUnavailable: "Sending isn't available yet. Use Share link.",
+  sendNeedsSignIn: 'To send to teachers, sign in to the app with your phone number. You can still use Share link.',
   shareLink: 'Share link',
   loadingTeachers: 'Loading your teachers…',
   teachersFailed: "Couldn't load your teachers. Try again",
@@ -209,6 +211,7 @@ const UR: ShareStrings = {
   noTeachers: 'ابھی آپ کے ساتھ کوئی استاد منسلک نہیں',
   noTeacherMatch: 'اس نام کا کوئی استاد نہیں ملا',
   sendUnavailable: 'ابھی یہاں سے بھیجنا ممکن نہیں۔ لنک شیئر کریں۔',
+  sendNeedsSignIn: 'اساتذہ کو بھیجنے کے لیے اپنے فون نمبر سے ایپ میں سائن اِن کریں۔ لنک شیئر کرنا اب بھی ممکن ہے۔',
   shareLink: 'لنک شیئر کریں',
   loadingTeachers: 'آپ کے اساتذہ لوڈ ہو رہے ہیں…',
   teachersFailed: 'اساتذہ کی فہرست نہیں کھلی۔ دوبارہ کوشش کریں',
