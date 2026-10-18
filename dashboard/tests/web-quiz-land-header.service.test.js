@@ -138,3 +138,70 @@ describe('the Videos see-all with the look: one back control, the lessons two by
     expect(h).not.toContain('wq-vgrid--one');
   });
 });
+
+describe('the Videos grade picker with the look (browse only, as the Stories shelf)', () => {
+  const F = require('./web-quiz-video-shelf.fixture');
+  const SHELF = { href: '/lib/x', watch: true, shelf: true };
+  const ADVDOC = { documentElement: { classList: { contains: (c) => c === 'wq-adv' } } };
+  const GRADES = [{ g: 'KG', n: 3 }, { g: '1', n: 4 }, { g: '3', n: 12 }];
+  const SUBJ = (g) => ({ ...F.LIB_SUBJECTS, grade: g, grades: GRADES });
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: "Grade 3 ▾" above the shelves, closed; the only primary stays the first See all`, () => {
+      const W = F.load({ globals: { document: ADVDOC } });
+      const h = W.WQDOORS.html(F.boot(lang, SHELF), { token: F.TOKEN, lang }, 'videos', { lib: SUBJ('3') });
+      expect(h).toContain(`data-tap="vgl" aria-expanded="false">${lang === 'ur' ? 'جماعت ۳' : 'Grade 3'} ▾</button>`);
+      expect(h).not.toContain('wq-vpick');
+      expect(count(h, /data-primary/g)).toBe(1);
+      expect(h.indexOf('wq-vgl')).toBeLessThan(h.indexOf('data-vshelf'));
+    });
+  }
+  test('without the look, or with one grade only: no picker', () => {
+    const W = F.load();
+    expect(W.WQDOORS.html(F.boot('en', SHELF), { token: F.TOKEN, lang: 'en' }, 'videos', { lib: SUBJ('3') })).not.toContain('wq-vgl');
+    const W2 = F.load({ globals: { document: ADVDOC } });
+    expect(W2.WQDOORS.html(F.boot('en', SHELF), { token: F.TOKEN, lang: 'en' }, 'videos', { lib: { ...SUBJ('3'), grades: [{ g: '3', n: 1 }] } })).not.toContain('wq-vgl');
+  });
+
+  function el(extra = {}) {
+    return {
+      attrs: {}, listeners: {}, innerHTML: '', parentNode: null,
+      setAttribute(k, v) { this.attrs[k] = String(v); }, removeAttribute(k) { delete this.attrs[k]; },
+      getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; },
+      addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); },
+      fire(n) { (this.listeners[n] || []).forEach((fn) => fn({ preventDefault() {}, stopPropagation() {} })); },
+      querySelector: () => null, ...extra,
+    };
+  }
+  const settle = async () => { for (let i = 0; i < 8; i += 1) await new Promise((r) => setImmediate(r)); };
+  test('live: open the chips, pick Grade 1: that grade\'s subjects and shelves are asked for (&g=1); its own grade again asks with no g', async () => {
+    const fetch = jest.fn((url) => {
+      const g = (/[?&]g=([^&]+)/.exec(url) || [])[1] || '3';
+      const j = /[?&]s=/.test(url) ? { ...F.LIB_CHAPTERS, grade: g } : SUBJ(g);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(j), text: () => Promise.resolve(JSON.stringify(j)) });
+    });
+    const taps = []; const shelves = {}; const evs = [];
+    const root = el({ querySelector: (sel) => { const m = /^\[data-vshelf="(.+)"\]$/.exec(sel); return m ? (shelves[m[1]] = shelves[m[1]] || el()) : null; }, querySelectorAll: (sel) => (sel === '[data-tap]' ? taps : []) });
+    const document = { ...ADVDOC, getElementById: () => null, querySelector: () => null, createElement: () => el(), head: { appendChild() {} } };
+    const W = F.load({ win: { scrollTo() {}, addEventListener() {} }, globals: { fetch, document, location: { hash: '', pathname: `/h/${F.TOKEN}`, search: '' }, MutationObserver: function () { this.observe = () => {}; }, setImmediate, setTimeout } });
+    const ctx = { token: F.TOKEN, lang: 'en', ev: (n, d) => evs.push([n, d]), go() {} };
+    const tap = async (name, item) => { const b = el(); b.setAttribute('data-tap', name); if (item) b.setAttribute('data-item', item); taps.length = 0; taps.push(b); W.WQDOORS.mount(root, F.boot('en', SHELF), ctx, 'videos'); await settle(); b.fire('click'); await settle(); };
+    W.WQDOORS.mount(root, F.boot('en', SHELF), ctx, 'videos');
+    await settle();
+    expect(root.innerHTML).toContain('Grade 3 ▾');
+    await tap('vgl');
+    expect(root.innerHTML).toContain('class="wq-chips wq-schips wq-tall wq-vpick"');
+    expect(root.innerHTML).toMatch(/<button class="wq-chip wq-on" type="button" data-tap="vg" data-item="3" aria-pressed="true">3<\/button>/);
+    fetch.mockClear();
+    await tap('vg', '1');
+    const urls = fetch.mock.calls.map(([u]) => u);
+    expect(urls.some((u) => /\/api\/wq\/lib\/h\/[^?]+\?kid=[^&]+&l=en&g=1$/.test(u))).toBe(true);
+    expect(urls.some((u) => /&g=1&s=Science$/.test(u))).toBe(true);
+    expect(root.innerHTML).toContain('Grade 1 ▾');
+    expect(root.innerHTML).not.toContain('wq-vpick');
+    expect(evs).toContainEqual(['lib_grade', { g: '1', own: 0 }]);
+    fetch.mockClear();
+    await tap('vg', '3');
+    expect(fetch.mock.calls.map(([u]) => u).some((u) => /&l=en$/.test(u))).toBe(true);
+    expect(root.innerHTML).toContain('Grade 3 ▾');
+  });
+});
