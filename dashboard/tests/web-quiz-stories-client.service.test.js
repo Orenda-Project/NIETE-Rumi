@@ -1285,7 +1285,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12280);   // the ruled core budget (12,288 less 8)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12584);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
