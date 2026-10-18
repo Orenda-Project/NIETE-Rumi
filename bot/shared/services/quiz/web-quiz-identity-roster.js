@@ -228,7 +228,7 @@ async function lookupIds(ids) {
 
 /** web_quiz_hub_roster_warm on: this class's roster is one the lookup uses (kept fresh by the keeper). */
 function noteClass(classId, now = Date.now()) {
-  if (!classId || !require('./web-quiz-hub-flags').rosterWarmNow(now)) return;
+  if (!classId || !require('./web-quiz-hub-flags').nowOf('rosterWarm', now)) return;
   kept.delete(classId);
   kept.set(classId, now);
   if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value);
@@ -240,7 +240,7 @@ function noteClass(classId, now = Date.now()) {
  * Switch off: forgets the classes and reads nothing. Never throws (a failed read is logged by loadClassRoster).
  */
 async function keepWarm(now = Date.now()) {
-  if (!require('./web-quiz-hub-flags').rosterWarmNow(now)) { kept.clear(); return; }
+  if (!require('./web-quiz-hub-flags').nowOf('rosterWarm', now)) { kept.clear(); return; }
   const due = [];
   for (const [classId, at] of kept) {
     if (now - at > KEEP_MS) { kept.delete(classId); continue; }
