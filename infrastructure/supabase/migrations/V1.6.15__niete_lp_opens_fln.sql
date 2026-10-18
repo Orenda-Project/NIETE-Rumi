@@ -9,15 +9,18 @@
 -- 'k5' and 'g612', so an 'fln' open would be refused. The CHECK is widened to 'k5','g612','fln'.
 -- plan_ref for 'fln' is the plan id (text, digits); lang is the plan's language; source 'viewer'.
 --
--- WHY A NEW TABLE (Rule 15, last resort). The FLN page also emits client events that are not
--- opens: audio play and audio error with a latency in ms, share, link copy, open-link, and a
--- leader-to-teacher send (a coach, principal or AEO sends a plan to a teacher). They have no teacher-id grain (the key is already hashed), no plan
--- row to hang off, and they must not enter niete_lp_opens, whose readers count every row as a
--- lesson plan used. niete_fln_events is narrow, append-only and has one index.
+-- WHY A NEW TABLE (Rule 15, last resort; COS schema ruling 18 Oct 2026). Leaders' sharing
+-- actions are product records the team queries (who sent which plan, did it open): share, link
+-- copy, open-link, and a leader-to-teacher send (a coach, principal or AEO sends a plan to a
+-- teacher). No existing table fits (ab_test_events is the A/B framework, FLN is outside it;
+-- cta_clicks is website CTAs), and they must not enter niete_lp_opens, whose readers count every
+-- row as a lesson plan used. A few rows per leader per day; narrow, append-only, one index.
+-- Audio play/error telemetry (per tap, 100k+/day) is deliberately NOT here: it goes to the
+-- structured logs (fln.audio.play / fln.audio.error).
 --
 -- WHAT A niete_fln_events ROW IS. user_key = the portal's keyed id of the actor (a keyed hash,
--- never a phone, name or raw users.id); kind = one of six events; plan_ref = the plan id when
--- the event concerns one; clip = the audio clip id for audio_* events; ms = latency/duration;
+-- never a phone, name or raw users.id); kind = one of four events; plan_ref = the plan id when
+-- the event concerns one; clip = for a send, the recipient's keyed id; ms = a duration if any;
 -- result = the outcome (ok / an error class); ua_class = a coarse user-agent class (never the
 -- raw string).
 -- A 'send' row is the one kind that involves two people: user_key is the SENDER's keyed id and
@@ -42,7 +45,7 @@ CREATE TABLE IF NOT EXISTS niete_fln_events (
   id          bigserial PRIMARY KEY,
   created_at  timestamptz NOT NULL DEFAULT now(),
   user_key    text NOT NULL,
-  kind        text NOT NULL CHECK (kind IN ('audio_play', 'audio_error', 'share', 'link_copy', 'open_link', 'send')),
+  kind        text NOT NULL CHECK (kind IN ('share', 'link_copy', 'open_link', 'send')),
   plan_ref    text,
   clip        text,
   ms          integer,
@@ -56,10 +59,10 @@ CREATE INDEX IF NOT EXISTS niete_fln_events_created_idx
 ALTER TABLE niete_fln_events ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE niete_fln_events IS
-  'Internal. Append-only FLN portal events (audio play/error, share, link copy, open link, send). Keyed ids only — no phone, name or message text. Owner: Digital Coach team.';
+  'Internal. Append-only FLN sharing events (share, link copy, open link, send). Keyed ids only — no phone, name or message text. Owner: Digital Coach team.';
 COMMENT ON COLUMN niete_fln_events.user_key IS
   'Internal. Keyed id of the actor. For kind=send this is the SENDER''s keyed id.';
 COMMENT ON COLUMN niete_fln_events.clip IS
-  'Internal. Audio clip id for audio_* events; for kind=send the RECIPIENT''s keyed id.';
+  'Internal. For kind=send the RECIPIENT''s keyed id; otherwise unused.';
 
 NOTIFY pgrst, 'reload schema';
