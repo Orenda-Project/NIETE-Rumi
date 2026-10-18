@@ -342,7 +342,7 @@ ${rtl ? INK_CSS : ''}`;
 // An Urdu line's closing "!" (drawn in Lexend) set against its last word: on its own it stands a gap apart.
 const bang = (html, tight) => (tight ? html.replace(/!$/, '<span class="ex">!</span>') : html);
 // The ribbon hangs from the card's top edge: its letters' tops stay inside the card (padding above them, not a clip).
-const INK_CSS = `.name{line-height:2;padding:.3em .4em;margin:-.3em -.4em}.deed{line-height:2.1}.st{line-height:2}.rib{line-height:2;padding:14px 28px 10px}.ex{margin-inline-start:-.08em}
+const INK_CSS = `.name{line-height:2;padding:.3em .4em;margin:-.3em -.4em}.deed{line-height:2.1;padding:.4em 0 .25em;margin:-.4em 0 -.25em}.st{line-height:2}.rib{line-height:2;padding:14px 28px 10px}.ex{margin-inline-start:-.08em}
 `;
 function markHtml(f, lang) {
   const m = markOf(f);
