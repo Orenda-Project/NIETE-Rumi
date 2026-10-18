@@ -53,6 +53,11 @@ const CHILD_MEMO_KEY = 'web_quiz_hub_child_memo';
 // a home link (the join's, a hub reply's) learns whether to look for a shared card's kept item with no read of its own.
 const CARD_KEY = 'web_quiz_card_v3';
 const SHARE_KEY = 'web_quiz_share_v4';
+// The child's language (web-quiz-return-lang.js): read here with the rest and handed to its own cache, so the hub's
+// kept-language read costs no settings read of its own. A literal (equal to that module's KEY), so loading this module
+// pulls no other module in; the require stays inside flags(). Not in KEYS: the join's read asks for KEYS (and names this
+// row itself, web-quiz-student-join.js).
+const RETURN_LANG_KEY = 'web_quiz_return_lang';
 // The portal learns the page switches from the bot (web-quiz-edge-learn.js): read in this same query, so the hub answer
 // can say it is on (`edge_learn: true`) with no settings read of its own. JSON true only.
 const EDGE_LEARN_KEY = 'web_quiz_edge_learn';
@@ -90,6 +95,8 @@ const FACE_LITE_KEY = 'web_quiz_face_lite';
 const MINIFY_KEY = 'web_quiz_minify';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, rosterWarm, earlyKid, childMemo, shareOpen, adv, homePreload, waves2, hops, prefetch, home, faceLite, offlineGuard, minify }
+// The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
+let langSeen = null;
 
 function isTrue(value) {
   let v = value;
@@ -127,6 +134,39 @@ function prime(rows, now = Date.now(), asked = KEYS) {
   OneHop.hubSwitches.prime(rows, now);
 }
 
+async function readRows(keys) {
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  return data || [];
+}
+
+/**
+ * The hub's switches and the child's language switch in one read. If that read fails, the hub's switches are read
+ * again on their own (the child's language switch then reads its own row and fails closed), so a fault on the child's
+ * language row never turns the hub off.
+ */
+async function readWithChildLang(now) {
+  try {
+    const rows = await readRows([...KEYS, RETURN_LANG_KEY]);
+    langSeen = { at: now, value: (rows.find((r) => r.key === RETURN_LANG_KEY) || {}).value };
+    require('./web-quiz-return-lang').prime(langSeen.value, now, langFromHub);
+    return rows;
+  } catch (err) {
+    logToFile('⚠️ web quiz hub: settings lookup with the child language switch failed — hub switches alone', { error: err.message });
+    langSeen = null;
+    return readRows(KEYS);
+  }
+}
+
+/**
+ * The child's language row as the hub's live cache read it ({ at, value }), else undefined: the language switch's own
+ * cache, when cold, answers from here before it reads its row.
+ */
+function langFromHub(now = Date.now()) {
+  if (!cache || !langSeen || langSeen.at !== cache.at || now - cache.at >= TTL_MS) return undefined;
+  return langSeen;
+}
+
 // One read in flight at a time: a page that looks at two of these switches at once (the hub and its one-button
 // field) shares the read instead of sending a second.
 let reading = null;
@@ -138,16 +178,11 @@ function flags(now = Date.now()) {
 
 async function read(now) {
   try {
-    const readRows = async (keys) => {
-      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
-      if (error) throw new Error(error.message || 'app_settings read failed');
-      return data || [];
-    };
-    // If the read that carries web_quiz_one_hop fails, one_hop fails closed and the hub's own keys are read again
-    // alone: nothing else goes off.
+    // If the read that carries web_quiz_one_hop fails (with the child's language row, then without it), one_hop fails
+    // closed and the hub's own keys are read again alone: nothing else goes off.
     let data;
     try {
-      data = await readRows(KEYS);
+      data = await readWithChildLang(now);
       OneHop.hubSwitches.prime(data, now);
     } catch (firstErr) {
       OneHop.hubSwitches.fail(now);
@@ -337,4 +372,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, homeNow, HOME_KEY, prefetchNow, PREFETCH_KEY, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, rosterWarmNow, earlyKidNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, ROSTER_WARM_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY, faceLiteNow, FACE_LITE_KEY, offlineGuardNow, OFFLINE_GUARD_KEY, minifyNow, MINIFY_KEY };
+module.exports = { flags, prime, KEYS, homeNow, HOME_KEY, prefetchNow, PREFETCH_KEY, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, rosterWarmNow, earlyKidNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, ROSTER_WARM_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; langSeen = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY, faceLiteNow, FACE_LITE_KEY, offlineGuardNow, OFFLINE_GUARD_KEY, minifyNow, MINIFY_KEY };
