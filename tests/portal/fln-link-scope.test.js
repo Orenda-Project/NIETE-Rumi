@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — [sandbox-only] the template-link scope guard (dashboard/routes/portal-link.routes.js, absent on main)
+ * [sandbox-only] the template-link scope guard (dashboard/routes/portal-link.routes.js, absent on main)
  * must admit the FLN API for a `lessons` link session, and only for it. Executes portalLinkScope itself.
  */
 jest.mock('../../dashboard/services/telemetry.service', () => ({ logEvent() {}, flush() {}, isEnabled: () => false }));
