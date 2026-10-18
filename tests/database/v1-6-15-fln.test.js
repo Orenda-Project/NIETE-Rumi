@@ -42,7 +42,7 @@ describe('V1.6.15 migration (up)', () => {
     expect(add).toBeGreaterThan(drop);
   });
 
-  test('niete_fln_events has the contract columns and the six-kind CHECK', () => {
+  test('niete_fln_events has the contract columns and the four-kind CHECK', () => {
     const create = up.find((s) => s.startsWith('create table if not exists niete_fln_events'));
     expect(create).toBeDefined();
     expect(create).toMatch(/id bigserial primary key/);
@@ -51,7 +51,7 @@ describe('V1.6.15 migration (up)', () => {
     for (const col of ['plan_ref text', 'clip text', 'ms integer', 'result text', 'ua_class text']) {
       expect(create).toContain(col);
     }
-    expect(listOf(create)).toEqual(['audio_error', 'audio_play', 'link_copy', 'open_link', 'send', 'share']);
+    expect(listOf(create)).toEqual(['link_copy', 'open_link', 'send', 'share']); // COS: audio telemetry goes to logs, not this table
   });
 
   test('index on created_at and RLS on the new table', () => {
