@@ -350,6 +350,34 @@ describe('the flushed head preloads the two pack files (exact hrefs) in place of
     } finally { await stop(srv); }
   });
 
+  // The invariant across a flip (the head goes before the bot answers, so it follows the last answer): the first open
+  // after a flip preloads exactly the set its own tail asks for (its tail keeps the head's form for that one open), and
+  // the next open is in the new form. The tail's set: its tags, plus the door screens wq-home.js asks for by name when
+  // they are not in a pack.
+  const tailSet = (html) => {
+    const t = tagsOf(html).filter((u) => !u.startsWith('/wq/wq.css'));
+    if (!t.some((u) => u.startsWith('/wq/pack/')) && /"home_v3":1/.test(html)) t.push(`/wq/wq-doors.css?v=${HEX}`, `/wq/wq-doors.js?v=${HEX}`);
+    return [...new Set(t)].sort();
+  };
+  const headSet = (early) => [...new Set(preloadsOf(early).map(([, u]) => u))].sort();
+  test.each([['OFF → ON', false, true], ['ON → OFF', true, false]])('a flip %s (home preload on): every open\'s head preload set == that open\'s tail set', async (_, from, to) => {
+    const x = (pack) => HUB({ home_pre: true, ...(pack ? { pack: true } : {}) });
+    const bot = heldBot([jsonRes(200, x(from)), { hold: true, res: jsonRes(200, x(from)) }, { hold: true, res: jsonRes(200, x(to)) },
+      { hold: true, res: jsonRes(200, x(to)) }, { hold: true, res: jsonRes(200, x(to)) }]);
+    const srv = await start(build(bot.fetchImpl));
+    try {
+      await get(srv, `/h/${TOKEN}`);   // learn, switch at `from`
+      const forms = [];
+      for (let i = 0; i < 4; i += 1) {
+        const { early, body } = await flushedOpen(srv, bot);
+        expect([i, headSet(early)]).toEqual([i, tailSet(body)]);
+        forms.push(tagsOf(body).some((u) => u.startsWith('/wq/pack/')));
+      }
+      // the open before the flip, the first open after it (the head's form), then the new form
+      expect(forms).toEqual([from, from, to, to]);
+    } finally { await stop(srv); }
+  });
+
   test('home preload on, the fallback home: the head preloads the pack and the home\'s own two files, each at its tag\'s address', async () => {
     const x = { pack: true, home_pre: true, home_fb: 1 };
     const bot = heldBot([jsonRes(200, HUB(x)), jsonRes(200, HUB(x))]);

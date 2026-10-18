@@ -536,7 +536,7 @@ function listenTag(payload) {
 
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
-function hubPageParts({ payload, token, origin, assetV }) {
+function hubPageParts({ payload, token, origin, assetV, headPack }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
@@ -547,11 +547,15 @@ function hubPageParts({ payload, token, origin, assetV }) {
   // answer (it has `kids`) teaches the next early head what to preload (web_quiz_home_preload); the early head's guess
   // (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
   // With the pack (web_quiz_pack, web-quiz-pack.js) the home's files are ONE stylesheet and ONE script, wq-tel inside.
-  const packed = Pack.on(payload);
-  const tags = packed ? `${PACK.tags(payload, assetV)}${payload.home_fb ? homeTags(payload, assetV) : ''}`
-    : `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`;
+  // A flushed page's tail asks in the form its head already preloaded (`headPack`: true = the pack, false = the files by
+  // name), so right after a flip the first open's preloads are exactly what its tail asks for; the flip shows from the
+  // next open, as `fast` and `home_pre` do. What the edge learns is the bot's answer itself.
+  const packed = typeof headPack === 'boolean' ? headPack : Pack.on(payload);
+  const fileTags = (asPack) => (asPack ? `${PACK.tags(payload, assetV)}${payload.home_fb ? homeTags(payload, assetV) : ''}`
+    : `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`);
+  const tags = fileTags(packed);
   const answer = Boolean(payload && Array.isArray(payload.kids));
-  if (answer) HomePre.learn(payload, packed ? (payload.home_fb ? homeTags(payload, assetV) : '') : tags, assetV);
+  if (answer) HomePre.learn(payload, Pack.on(payload) ? (payload.home_fb ? homeTags(payload, assetV) : '') : fileTags(false), assetV);
   return {
     lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
     head: `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}${answer ? '' : HomePre.head()}`,
@@ -581,11 +585,12 @@ ${p.tail}`;
 function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, pack = null }) {
   const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}) }, token, origin, assetV });
   const preload = [...(pack ? PACK.preloads(pack) : []), ...(pack ? ['hub.js'] : ['wq-tel.js', 'hub.js']).map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`)].join('\n');
-  return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
+  return { guess: { ...p, headPack: Boolean(pack) }, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
-  const p = hubPageParts({ payload, token, origin, assetV });
+  // the tail asks for the home's files in the form the head preloaded them (guess.headPack, web_quiz_pack)
+  const p = hubPageParts({ payload, token, origin, assetV, headPack: guess.headPack });
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
   return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
