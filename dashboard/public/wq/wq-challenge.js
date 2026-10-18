@@ -1281,7 +1281,7 @@
     if (TR) { qa.attempted = live.v.attempted; live.held = TR.readHold(rfWith(lr3() ? { score: { attempted: live.v.attempted }, noSticker: true } : { score: { attempted: live.v.attempted } }), null, live.v.heardOk); return; }
     var d = S.data;
     var good = w > 0;
-    var rfh = rfBlock(rfWith({}).rf);
+    var rfh = rfBlock(rfWith({}).rf, false, false, true);
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true) + rfh
       // live reading v3: no rate on a child's screen (the number goes to the teacher); the moment says it beside its jar
       + (good && !lr3() && !rfh ? '<p class="wqc-score" id="wqc-score">' + esc(t.wcpm(w)) + '</p>' : '<p class="wqc-score" id="wqc-score"></p>')
@@ -1396,13 +1396,14 @@
   }
   // the page's own card (no Trail): the moment just under Jugnu, in one box the checked result redraws; inner: the
   // moment alone (the redraw). Key off or the file not here: '' (today's card)
-  // still: a redraw of this run's result (no motion again)
+  // still: a redraw of this run's result (no motion again); hold: the live card before the check ("read it again"
+  // waits for the checked result)
   var rfLast = null;
-  function rfBlock(o, inner, still) {
+  function rfBlock(o, inner, still, hold) {
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())) });
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }
