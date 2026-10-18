@@ -109,3 +109,9 @@
 .wqs-net{margin:0;text-align:center;color:var(--soft);font-size:17px}
 .wqs-lk{pointer-events:none}
 [data-steady] .wqs-top h2[dir=rtl]{padding-inline-start:.3em}
+/* at rest, small print: a lens of the page's words at a readable size, over the sheet's own words (top or bottom: .lo),
+   the rest of the sheet's art in view; gone while the camera follows the voice or the child's reading */
+.wqs-tx{display:none;position:absolute;left:0;right:0;top:0;height:40%;overflow:hidden;z-index:2;background:#fff;box-shadow:0 3px 0 var(--line);pointer-events:none}
+.wqs-tx.lo{top:auto;bottom:0;box-shadow:0 -3px 0 var(--line)}
+.wqs-tx.on{display:block}
+.wqs-tx img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0}
