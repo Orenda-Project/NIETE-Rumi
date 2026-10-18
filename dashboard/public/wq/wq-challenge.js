@@ -1173,6 +1173,7 @@
       show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrT().view()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
         + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
+      if (lr3()) lrT().meter();
       livePaint();
     } else if (liveOk()) {
       var prev = d.previous_wcpm;
