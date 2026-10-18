@@ -22,7 +22,8 @@ type Outcome =
   | { kind: 'done'; sent: number; failed: number }
   | { kind: 'rate' }
   | { kind: 'error' }
-  | { kind: 'unavailable' };
+  | { kind: 'unavailable' }
+  | { kind: 'signin' };
 
 export default function SendSheet({ plan, lang, onClose, onShareLink }: {
   plan: SharePlan;
@@ -49,17 +50,19 @@ export default function SendSheet({ plan, lang, onClose, onShareLink }: {
       setSelected(failed);
     } else if (r.status === 429) setOut({ kind: 'rate' });
     else if (r.status === 404) setOut({ kind: 'unavailable' });
+    // A lessons-scoped link session may read plans but not send (portal-link scope guard): say how, not "failed".
+    else if (r.status === 403 && r.error === 'link_area_only') setOut({ kind: 'signin' });
     else setOut({ kind: 'error' });
   }, [plan.id, selected]);
 
-  const unavailable = picker === 'unavailable' || out.kind === 'unavailable';
+  const unavailable = picker === 'unavailable' || out.kind === 'unavailable' || out.kind === 'signin';
 
   return (
     <Sheet lang={lang} title={S.sendToTeacher} onClose={onClose} testId="fln-send-sheet">
       <PlanCard plan={plan} lang={lang} />
       {unavailable ? (
         <div className="flex flex-col gap-3">
-          <p className="text-[17px]">{S.sendUnavailable}</p>
+          <p className="text-[17px]">{out.kind === 'signin' ? S.sendNeedsSignIn : S.sendUnavailable}</p>
           <button type="button" onClick={onShareLink} className={cn(BTN, 'border-[#333748] bg-white text-[#333748]', FOCUS)}>{S.shareLink}</button>
         </div>
       ) : (
