@@ -776,8 +776,9 @@ describe('source scan: every last<Name> a payload sets is also set in learned()'
   const path = require('path');
   // Payload-only switches (not frame-time), each with its reason. Empty today: every last<Name> dresses a page or a frame
   // drawn before (or without) a bot answer.
+  // lastPack: the set's hrefs come from a hub payload that names a child, never from a learn answer.
   // lastMin: the minified files' switch is named by a hub payload only, never by a learn answer.
-  const PAYLOAD_ONLY = Object.freeze({ lastMin: true });
+  const PAYLOAD_ONLY = Object.freeze({ lastPack: true, lastMin: true });
   const src = fs.readFileSync(path.join(__dirname, '../routes/web-quiz.routes.js'), 'utf8');
   const assigned = (code) => new Set([...code.matchAll(/(?<![\w.])(last[A-Z]\w*)\s*=(?!=)/g)]
     .filter((m) => !/\b(let|const|var)\s+$/.test(code.slice(Math.max(0, m.index - 8), m.index)))
