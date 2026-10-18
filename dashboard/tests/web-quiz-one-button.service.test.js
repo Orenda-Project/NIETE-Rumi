@@ -99,6 +99,14 @@ describe('wq.css: the one button component', () => {
   test('the Stories wait and empty boxes are cards too: the note and the cover placeholders take --r-card (3 radii while the shelf loads)', () => {
     expect(CSS).toContain('html.wq-1b .wq-soon,html.wq-1b .wqs-skel{border-radius:var(--r-card)}');
   });
+  test('My class / My school tiles (an icon over a label) take the two-line token, in both languages, never the 56 a one-line button gets', () => {
+    const rule = 'html.wq-1b .wq-social .wq-btn.wq-soft.wq-soc,html.wq-1b[lang=ur] .wq-social .wq-btn.wq-soft.wq-soc{height:var(--btn-h-2l);min-height:0}';
+    expect(CSS).toContain(rule);
+    // later than the second height (same weight would lose to it otherwise)
+    // the Urdu word's line box hangs low (Nastaliq): lifted 5 px so the icon and the word sit centred together
+    expect(CSS).toContain('html.wq-1b[lang=ur] .wq-social .wq-soc span{position:relative;top:-5px}');
+    expect(CSS.indexOf(rule)).toBeGreaterThan(CSS.indexOf('html.wq-1b .wq-btn.wq-soft:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-soft:not([class*="wq-btn--"]){height:var(--btn-h2)}'));
+  });
   test('the answer shapes keep their own corners (a colour-blind cue, a glyph, not a box): no wq-1b rule rounds .wq-shp', () => {
     expect(CSS).not.toMatch(/html\.wq-1b[^{}]*\.wq-shp[^{}]*\{[^}]*border-radius/);
   });

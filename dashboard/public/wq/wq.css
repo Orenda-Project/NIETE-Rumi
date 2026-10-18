@@ -514,6 +514,11 @@ html.wq-1b[lang=ur] .wq-btn:not([class*="wq-btn--"]){font-size:var(--btn-fs-ur);
 /* the height is the token (set as height, so a label's line box never grows it): main 56, second 52 in both
    languages; a label that truly cannot fit one line takes .wq-2l, the fixed two-line token, never a computed height */
 html.wq-1b .wq-btn.wq-soft:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-soft:not([class*="wq-btn--"]){height:var(--btn-h2)}
+/* the class doors on Home are two-line tiles (an icon over a label): the fixed two-line token, after the second
+   height so it wins */
+html.wq-1b .wq-social .wq-btn.wq-soft.wq-soc,html.wq-1b[lang=ur] .wq-social .wq-btn.wq-soft.wq-soc{height:var(--btn-h-2l);min-height:0}
+/* the Urdu word's line box hangs low (Nastaliq): lift it so the icon and the word sit centred together */
+html.wq-1b[lang=ur] .wq-social .wq-soc span{position:relative;top:-5px}
 html.wq-1b .wq-btn.wq-2l:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-2l:not([class*="wq-btn--"]){height:var(--btn-h-2l)}
 html.wq-1b .wq-go{box-shadow:0 var(--btn-d) 0 var(--brand-d)}
 html.wq-1b .wq-navy{box-shadow:0 var(--btn-d) 0 var(--brand-ink-d)}

@@ -30,6 +30,8 @@ function hubBoot(lang) {
     lang, kids: [{ chip: KID, first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: KID,
     teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: { href: `/lib/${TOKEN}?kid=${KID}&l=${lang}` }, brand: 'niete', rt: false,
     home_v3: 1, head: { dots: 3, today: false, jar: { fresh: true } },
+    // the class doors on Home (web_quiz_class_doors), drawn only by pages that know them
+    class_doors: { class: '/q/MATH01/class', schools: '/q/MATH01/schools' },
     doors: {
       stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: ur ? 'لال پتنگ' : 'The red kite' }, { kind: 'listen', id: 'en.listen.1.k02', fresh: false }],
       games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: ur ? 'کسریں' : 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, { kind: 'numbers' }, { kind: 'quiz', code: 'SCI001', k: 'k2', topic: ur ? 'پودے' : 'Plants', subject: 'Science', done: true }],
