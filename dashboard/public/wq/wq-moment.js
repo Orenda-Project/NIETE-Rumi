@@ -206,8 +206,9 @@
     return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
   }
 
+  // o.retry: the host's own "Try again" label for a 0-word try on a card with no Try again of its own (the folded card)
   function card(fb, lang, o) {
-    var a = again(fb, lang, o), h = html(fb, lang, o);
+    var a = fb && fb.zero && o && o.retry ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(o.retry) + '</button>' : again(fb, lang, o), h = html(fb, lang, o);
     return a ? h.replace(/<\/section>$/, '<div class="wq-moment-again">' + a + '</div></section>') : h;
   }
 

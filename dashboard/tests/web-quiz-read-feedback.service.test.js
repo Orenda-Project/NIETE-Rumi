@@ -620,3 +620,20 @@ describe('a 0-word read on the Trail card (key on)', () => {
     expect(t.html()).toContain('data-badge="try"');
   });
 });
+
+// ---- folded (the child home), a 0-word read: the kind card still offers the read again, inside the moment -------------
+describe('a 0-word read on the folded card (key on)', () => {
+  test.each(['en', 'ur'])('%s: Try again sits in the moment and opens the read again; Story Time too', (lang) => {
+    for (const o of [{}, { href: STORY_HREF, data: { story_room: true, practice_round: true }, story: true }]) {
+      const t = trail({ lang, href: o.href, menu: { ...FOLD, ...RF, v2: { story: !!o.story } }, data: { next_offer: NEXT, ...(o.data || {}) } });
+      if (o.story) t.TR.menu();
+      t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+      const h = t.html();
+      expect(h).toMatch(/id="wqc-rfagain"[^>]*>Again</);
+      expect(h.indexOf('id="wqc-rfagain"')).toBeLessThan(h.indexOf('</section>', h.indexOf('data-rf')));
+      const n = t.opened.length;   // the story room opened its story once already
+      t.tap('wqc-rfagain');
+      expect(t.opened.slice(n)).toEqual(['read']);
+    }
+  });
+});
