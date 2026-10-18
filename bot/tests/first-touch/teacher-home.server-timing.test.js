@@ -311,7 +311,8 @@ describe('the timing switch rides the home switch\'s read (never a read of its o
 
   // the first home of a fresh process (every deploy restarts one): the file's warm-up above hides the reads of modules
   // loaded on first use, so this row loads every module new and pins that first answer's settings reads too
-  const FIRST_BOOT = { homeFirst: 8 };
+  // (9 with the named-item switch's own first read)
+  const FIRST_BOOT = { homeFirst: 9 };
   test.each([['absent', []], ['the string "true"', [{ key: TIMING, value: 'true' }]], ['false', [{ key: TIMING, value: false }]]])('switch OFF (%s): the first home of a fresh process, today\'s settings reads exactly', async (_, rows) => {
     let homeFirst;
     await jest.isolateModulesAsync(async () => {

@@ -41,6 +41,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { clampLanguage } = require('../../config/ux-strings');
 const Flags = require('./teacher-home.flags');
+const MoreFlags = require('./teacher-home.more-flags');
 const HomeToken = require('./teacher-home.token');
 const Page = require('./teacher-home.page');
 const Data = require('./teacher-home.data');
@@ -276,7 +277,9 @@ function createRouter(deps = null) {
     if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
     if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}) });
+    // the script's switched parts (each OFF unless JSON true; off, today's shell byte for byte)
+    const [named, early] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn()]);
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -335,11 +338,12 @@ function createRouter(deps = null) {
     const firstP = firstOpen(p.uid);
     const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
+    const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
-      againable: lists.againable,
+      againable: lists.againable, named: await namedP,
     });
     if (walk) home.walk = walk;
     // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
@@ -377,6 +381,7 @@ function createRouter(deps = null) {
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
+    const namedP = MoreFlags.namedOn(); // read alongside the block below, awaited after it
     const gate = (ids) => (ids.length ? Data.within(Data.dep(deps, 'Gate').teacherReportOn(p.uid), Data.SIDE_BUDGET_MS, false, 'report gate') : false);
     // "Send again" only where the send would answer, asked in two halves: the lessons' own sent quizzes as soon as the
     // lessons are in, the class report's quizzes as soon as it is in (less those the lessons' half already asks); the
@@ -420,6 +425,7 @@ function createRouter(deps = null) {
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
       maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
+      named: await namedP,
     });
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;
