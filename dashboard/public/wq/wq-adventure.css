@@ -42,10 +42,7 @@ html.wq-adv{
   --sh-btn-soft:0 3px 0 var(--line);
   --sh-card:0 4px 0 var(--line);
   --sh-press:0 0 0 var(--edge);
-  --press-y:4px;
-  /* size */
-  --tap:48px;--btn-h:56px;--btn-h2:52px; /* one secondary height in both languages: Nastaliq descenders fit, pairs stay balanced */
-  --btn-fs:20px;--btn-fs2:17px;--btn-fs-ur:22px;--btn-fs2-ur:19px; /* labels on a land fill are >= --btn-fs at 700 */
+  /* size: every button height, label size and press is the one button system's (wq.css), never set here */
   /* motion */
   --dur-tap:90ms;--dur-pop:220ms;--dur-celebrate:900ms;--dur-shimmer:1.4s;--dur-bob:1.6s;
   --ease-pop:cubic-bezier(.34,1.56,.64,1);
@@ -69,7 +66,9 @@ html.wq-adv .wq-btn--primary{--fill:var(--land);--on:var(--land-on);--edge:var(-
 html.wq-adv .wq-btn--secondary,
 html.wq-adv .wq-btn--icon,
 html.wq-adv .wq-btn--home,
-html.wq-adv .wq-btn--hold{--fill:var(--card);--on:var(--ink);--edge:var(--line)}
+html.wq-adv .wq-btn--hold,
+html.wq-adv .wq-btn--share{--fill:var(--card);--on:var(--ink);--edge:var(--line)}
+html.wq-adv .wq-btn--speaker{--fill:var(--card);--on:var(--land-edge);--edge:var(--line)}
 /* custom properties resolve where they are declared, so the shadows are re-declared on the button itself:
    otherwise every button would inherit <html>'s edge colour */
 html.wq-adv .wq-btn{--sh-btn:0 4px 0 var(--edge);--sh-press:0 0 0 var(--edge)}
@@ -92,20 +91,14 @@ html.wq-adv .wq-card{background:var(--card);border:2px solid var(--line);border-
 html.wq-adv .wq-say{border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-btn-soft);color:var(--ink)}
 html.wq-adv .wq-jimg,html.wq-adv .wq-hjug{filter:drop-shadow(0 4px 8px var(--glow))}
 
-/* 3 · one button system: every variant names its fill AND its edge */
-html.wq-adv .wq-btn{min-height:var(--btn-h);border-radius:var(--r-btn);box-shadow:var(--sh-btn);margin-bottom:4px;transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
-html.wq-adv .wq-btn:active{transform:translateY(4px);box-shadow:var(--sh-press)}
+/* 3 · one button system: the look only re-colours it. Size, radius, padding, press and the ledge's shape are wq.css's
+   (html.wq-1b), and the look is never on without it. Each kind names its fill, its label and its ledge (--edge). */
 html.wq-adv .wq-go{background:var(--land,var(--brand));color:#fff;--edge:var(--land-edge,var(--brand-d))}
 html.wq-adv .wq-navy{background:var(--brand-ink);color:#fff;--edge:var(--brand-ink-d)}
-html.wq-adv .wq-soft{background:var(--card);color:var(--ink);border:2px solid var(--line);min-height:var(--btn-h2);--edge:var(--line)}
-html.wq-adv .wq-ghost{box-shadow:none;margin-bottom:0;--edge:transparent}
-html.wq-adv .wq-btn--primary{background:var(--land,var(--land-st));color:#fff;--edge:var(--land-edge,var(--land-st-edge))}
-html.wq-adv .wq-btn--secondary,html.wq-adv .wq-btn--hold{background:var(--card);color:var(--ink);border:2px solid var(--line);--edge:var(--line)}
-html.wq-adv .wq-btn--icon,html.wq-adv .wq-btn--home{background:var(--card);color:var(--land-edge,var(--ink));border:2px solid var(--line);width:var(--tap);min-height:var(--tap);padding:0;--edge:var(--line)}
-html.wq-adv .wq-btn--gold{background:var(--gold);color:#3b2a00;--edge:#c9920b}
-/* the screens' own round and square buttons join the system: home, sound, jar, speaker, back */
-html.wq-adv .wq-homebtn,html.wq-adv .wq-snd,html.wq-adv .wq-jar,html.wq-adv .wq-dspk,html.wq-adv a.wq-home,html.wq-adv button.wq-home{--edge:var(--line);width:var(--tap);height:var(--tap);min-width:var(--tap);min-height:var(--tap);padding:0;display:inline-flex;align-items:center;justify-content:center;align-self:center;border:2px solid var(--line);border-radius:var(--r-btn);background:var(--card);color:var(--land-edge,var(--ink));box-shadow:var(--sh-btn);transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
-html.wq-adv .wq-homebtn:active,html.wq-adv .wq-snd:active,html.wq-adv .wq-jar:active,html.wq-adv .wq-dspk:active{transform:translateY(4px);box-shadow:var(--sh-press)}
+html.wq-adv .wq-soft,html.wq-adv .wqs-sec,html.wq-adv .wqs-again,html.wq-adv .wq-dback,html.wq-adv .wq-prback{background:var(--card);color:var(--ink);border-color:var(--line);--edge:var(--line)}
+html.wq-adv .wq-ghost{--edge:transparent}
+/* the round ones: home, sound, jar, speaker and the reader's own controls */
+html.wq-adv .wq-homebtn,html.wq-adv .wq-snd,html.wq-adv .wq-jar,html.wq-adv .wq-dspk,html.wq-adv a.wq-home,html.wq-adv button.wq-home,html.wq-adv .wqs-ic,html.wq-adv .wqs-arr{background:var(--card);color:var(--land-edge,var(--ink));border-color:var(--line);--edge:var(--line)}
 html.wq-adv .wq-jar{color:var(--land-st)}
 html.wq-adv .wq-hhead .wq-snd{color:var(--land-vd)}
 
@@ -170,7 +163,7 @@ html.wq-adv .wq-dli.done .wq-drow{background:transparent}
 html.wq-adv .wq-rart{width:56px;height:56px;border-radius:16px;background:var(--land-bg)}
 html.wq-adv .wqa-art{flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:var(--land-bg);color:var(--land)}
 html.wq-adv .wqa-art .wqa-i{width:30px;height:30px}
-html.wq-adv .wq-dspk{min-height:var(--tap);color:var(--land-vd)}
+html.wq-adv .wq-dspk{color:var(--land-vd)}
 html.wq-adv .wq-row{border-color:var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card)}
 html.wq-adv .wq-row[data-primary]{border-color:var(--land,var(--line));box-shadow:0 4px 0 var(--land-edge,var(--line))}
 /* the stories shelf: the map's paper, 2-col covers, the read stamp on a finished book */
@@ -188,7 +181,6 @@ html.wq-adv .wqfc,html.wq-adv .wq-moment{text-align:center}
 html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug{position:relative;border-radius:50%;background:radial-gradient(circle,var(--glow) 0,rgba(255,200,58,0) 68%);animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
 html.wq-adv .wqfc-deed,html.wq-adv .wq-moment-deed{color:var(--ink);font-size:var(--fs-5);font-weight:900}
 html.wq-adv .wqfc-next,html.wq-adv .wq-moment-next{--edge:var(--land-edge,var(--land-st-edge))}
-html.wq-adv .wqfc-share,html.wq-adv .wqfc-home{flex:1}
 
 /* 7 · kit parts (wq-adv.js) */
 html.wq-adv .wqa-i{display:inline-block;width:1.25em;height:1.25em;vertical-align:-.25em;flex:none}

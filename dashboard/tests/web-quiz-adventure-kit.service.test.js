@@ -171,7 +171,7 @@ describe('the sheet (wq-adventure.css)', () => {
       '--gold': '#ffc83a', '--gold-d': '#b28c29', '--star': '#ffb000', '--glow': 'rgba(255,200,58,.55)',
       '--land-st': '#e97f2e', '--land-st-bg': '#ffe7cf', '--land-st-edge': '#a35920', '--land-gm': '#3a9d4f', '--land-gm-bg': '#dff3d9', '--land-gm-edge': '#296e37',
       '--land-vd': '#2a86de', '--land-vd-bg': '#dcefff', '--land-vd-edge': '#1d5e9b', '--land-sp': '#8e5bd8', '--land-sp-edge': '#634097',
-      '--gutter': '16px', '--r-btn': '999px', '--r-card': '22px', '--r-chip': '14px', '--tap': '48px', '--btn-h': '56px', '--btn-h2': '52px',
+      '--gutter': '16px', '--r-btn': '999px', '--r-card': '22px', '--r-chip': '14px',
       '--dur-tap': '90ms', '--dur-pop': '220ms', '--dur-celebrate': '900ms', '--ease-pop': 'cubic-bezier(.34,1.56,.64,1)' };
     for (const [k, v] of Object.entries(want)) expect([k, ((root.match(new RegExp(k.replace(/-/g, '\\-') + ':([^;]+)')) || [])[1] || '').trim()]).toEqual([k, v]);
     expect(CSS).not.toMatch(/--brand(-[a-z]+)?\s*:/);
@@ -180,9 +180,26 @@ describe('the sheet (wq-adventure.css)', () => {
     expect(CSS).not.toMatch(/(^|[;{\s])--(s[1-4]|right|notyet|ink)(-[a-z]+)?\s*:/);
     expect(CSS).not.toMatch(/var\(--s[1-4](-[a-z]+)?\)/);
   });
+  // the one button system (wq.css under wq-1b) owns every button's size, radius, padding, press and shadow shape
+  const BUTTONS = /\.(wq-btn|wq-go|wq-navy|wq-soft|wq-ghost|wq-homebtn|wq-home|wq-snd|wq-jar|wq-dspk|wqs-ic|wqs-arr|wqs-main|wqs-sec|wqs-again|wqfc-share)\b[^\s>+~]*$/;
+  it('re-colours the buttons and never re-shapes them: no button rule of its own sets size, radius, padding, margin, shadow or press', () => {
+    const rules = (CSS.replace(/@media[^{]*\{([^{}]*\{[^}]*\})*\s*\}/g, '').match(/[^{}]*\{[^}]*\}/g) || []);
+    const shaped = [];
+    for (const r of rules) {
+      const sels = r.split('{')[0].split(',').map((x) => x.trim().replace(/:[a-z-]+(\([^)]*\))?$/, ''));
+      if (!sels.some((x) => BUTTONS.test(x) && !/section\.wq-home/.test(x))) continue;
+      const props = r.split('{')[1].replace('}', '').split(';').map((d) => d.split(':')[0].trim()).filter(Boolean);
+      const bad = props.filter((d) => !/^(--|background$|background-color$|color$|border-color$)/.test(d));
+      if (bad.length) shaped.push(`${r.split('{')[0].trim()} → ${bad.join(',')}`);
+    }
+    expect(shaped).toEqual([]);
+  });
+  it('never sets the one button system\'s size tokens (one owner for every height)', () => {
+    expect(root).not.toMatch(/--(tap|btn-h|btn-h2|btn-h-2l|btn-icon|btn-d|btn-d2|btn-fs[a-z0-9-]*|press-[a-z]+)\s*:/);
+  });
   it('every button variant sets its own --edge (a darker shade of its own fill), so no edge falls back to another colour', () => {
     const rules = CSS.match(/[^{}]*\{[^}]*\}/g) || [];
-    const variants = rules.filter((r) => /\.(wq-go|wq-navy|wq-soft|wq-btn--[a-z]+)\b[^,]*$/.test(r.split('{')[0].split(',').pop().trim()) && /background/.test(r));
+    const variants = rules.filter((r) => /\.(wq-go|wq-navy|wq-soft|wq-btn--[a-z]+)\b[^,]*$/.test(r.split('{')[0].split(',').pop().trim()) && /background|--fill/.test(r));
     expect(variants.length).toBeGreaterThanOrEqual(4);
     for (const r of variants) expect([r.split('{')[0].trim(), /--edge:/.test(r)]).toEqual([r.split('{')[0].trim(), true]);
   });

@@ -515,14 +515,14 @@ html.wq-1b[lang=ur] .wq-btn:not([class*="wq-btn--"]){font-size:var(--btn-fs-ur);
    languages; a label that truly cannot fit one line takes .wq-2l, the fixed two-line token, never a computed height */
 html.wq-1b .wq-btn.wq-soft:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-soft:not([class*="wq-btn--"]){height:var(--btn-h2)}
 html.wq-1b .wq-btn.wq-2l:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-2l:not([class*="wq-btn--"]){height:var(--btn-h-2l)}
-html.wq-1b .wq-go{box-shadow:0 var(--btn-d) 0 var(--brand-d)}
-html.wq-1b .wq-navy{box-shadow:0 var(--btn-d) 0 var(--brand-ink-d)}
-html.wq-1b .wq-go:active,html.wq-1b .wq-navy:active{transform:translateY(3px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--brand-d)}
-html.wq-1b .wq-navy:active{box-shadow:0 2px 0 var(--brand-ink-d)}
+html.wq-1b .wq-go{box-shadow:0 var(--btn-d) 0 var(--edge,var(--brand-d))}
+html.wq-1b .wq-navy{box-shadow:0 var(--btn-d) 0 var(--edge,var(--brand-ink-d))}
+html.wq-1b .wq-go:active,html.wq-1b .wq-navy:active{transform:translateY(3px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--brand-d))}
+html.wq-1b .wq-navy:active{box-shadow:0 2px 0 var(--edge,var(--brand-ink-d))}
 html.wq-1b .wq-soft,html.wq-1b .wqs-sec,html.wq-1b .wqs-again,html.wq-1b .wq-dback,html.wq-1b .wq-prback,
-html.wq-1b .wq-homebtn,html.wq-1b a.wq-home,html.wq-1b button.wq-home,html.wq-1b .wq-snd,html.wq-1b #wq-snd.wq-icon,html.wq-1b .wq-jar{display:flex;align-items:center;justify-content:center;height:var(--btn-h2);min-height:0;margin-inline:0;padding-block:0;border:2px solid var(--line);border-radius:var(--r-btn);background:var(--card);color:var(--navy);font-weight:800;font-size:var(--btn-fs2);line-height:1.2;text-decoration:none;box-shadow:0 var(--btn-d2) 0 var(--line);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .08s ease,box-shadow .08s ease}
+html.wq-1b .wq-homebtn,html.wq-1b a.wq-home,html.wq-1b button.wq-home,html.wq-1b .wq-snd,html.wq-1b #wq-snd.wq-icon,html.wq-1b .wq-jar{display:flex;align-items:center;justify-content:center;height:var(--btn-h2);min-height:0;margin-inline:0;padding-block:0;border:2px solid var(--line);border-radius:var(--r-btn);background:var(--card);color:var(--navy);font-weight:800;font-size:var(--btn-fs2);line-height:1.2;text-decoration:none;box-shadow:0 var(--btn-d2) 0 var(--edge,var(--line));cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .08s ease,box-shadow .08s ease}
 html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wqs-again:active,html.wq-1b .wq-dback:active,html.wq-1b .wq-prback:active,
-html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wq-snd:active,html.wq-1b #wq-snd.wq-icon:active,html.wq-1b .wq-jar:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--line)}
+html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wq-snd:active,html.wq-1b #wq-snd.wq-icon:active,html.wq-1b .wq-jar:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--line))}
 /* the Urdu polish's button lines come later in this file (the ur2 block): [lang=ur][lang] lifts the Urdu rules of
    this block one step so each kind keeps its own size there too */
 html.wq-1b[lang=ur][lang] .wq-soft,html.wq-1b[lang=ur][lang] .wqs-sec,html.wq-1b[lang=ur][lang] .wq-dback,html.wq-1b[lang=ur][lang] .wq-prback{font-family:var(--fu);font-weight:400;font-size:18px;line-height:var(--btn-lh-ur)}
@@ -547,8 +547,8 @@ html.wq-1b .wq-gsheet{left:var(--gutter);right:var(--gutter)}
 /* the story reader's own buttons: its big yellow button is the main kind (its ledge is already its own darker yellow),
    its round top-bar icons are the icon kind, the tap-a-word chip keeps its look with its word in the middle */
 html.wq-1b .wqs-main{display:flex;align-items:center;justify-content:center;min-height:var(--btn-h);border-radius:var(--r-btn);-webkit-tap-highlight-color:transparent}
-html.wq-1b .wqs-ic{width:var(--btn-icon);height:var(--btn-icon);border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--line);-webkit-tap-highlight-color:transparent}
-html.wq-1b .wqs-ic:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--line)}
+html.wq-1b .wqs-ic{width:var(--btn-icon);height:var(--btn-icon);border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--edge,var(--line));-webkit-tap-highlight-color:transparent}
+html.wq-1b .wqs-ic:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--line))}
 /* three radii per screen, from the tokens: a button (and every small tile or picture inside a box) --r-btn, a card
    --r-card, an icon or dot a circle (the answer shapes are glyphs, not boxes: they keep their own corners) */
 html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}
