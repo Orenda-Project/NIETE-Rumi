@@ -132,6 +132,7 @@ async function onViewerOpen({ openId } = {}) {
     if (!row) return skip('open_not_found', ids);
 
     const at = { ...ids, userId: row.user_id, kind: row.plan_kind, ref: row.plan_ref };
+    if (row.plan_kind === 'fln') return skip('fln_no_survey', at); // bd-t7zk3t.12: no FLN survey yet (SPEC_v2 §6 row 9)
     if (!(await claimOpen(openId))) return skip('already_handled', at);
 
     const { data: user, error: userError } = await supabase
