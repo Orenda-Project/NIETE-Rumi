@@ -10,11 +10,12 @@ import '../player/player.css';
 /**
  * "Sounds in this lesson" at the top of a plan (contracts/player.md v2): one tile per distinct clip in first-appearance
  * order, narrations last, RTL for an Urdu plan. Not drawn on a screener plan or a plan with no audio. Warms its clips
- * once when it mounts, so the first taps play from memory (A1/A2).
+ * once when it mounts, so the first taps play from memory (A1/A2). PlanPage draws the heading above it; `heading` draws
+ * one inside (the bench page).
  */
-export interface SoundGridProps { plan: FlnPlanLike; screener?: boolean }
+export interface SoundGridProps { plan: FlnPlanLike; screener?: boolean; heading?: boolean }
 
-export function SoundGrid({ plan, screener }: SoundGridProps) {
+export function SoundGrid({ plan, screener, heading }: SoundGridProps) {
   const player = useFlnPlayerContext();
   const clips = useMemo(() => gridClips(plan), [plan]);
   const ids = useMemo(() => clips.map((c) => c.id), [clips]);
@@ -31,11 +32,13 @@ export function SoundGrid({ plan, screener }: SoundGridProps) {
 
   return (
     <section className="fln-snd fln-snd-grid" lang={plan.lang} dir={dir} aria-label={s.gridTitle}>
-      <h3 className="fln-snd-grid__title">
-        <Volume2 size={16} aria-hidden="true" focusable={false} />
-        <span className="fln-snd-grid__name">{s.gridTitle}</span>
-        <bdi className="fln-snd-grid__count">{clips.length}</bdi>
-      </h3>
+      {heading ? (
+        <h3 className="fln-snd-grid__title">
+          <Volume2 size={16} aria-hidden="true" focusable={false} />
+          <span className="fln-snd-grid__name">{s.gridTitle}</span>
+          <bdi className="fln-snd-grid__count">{clips.length}</bdi>
+        </h3>
+      ) : null}
       <div className="fln-snd-grid__tiles">
         {clips.map((c) => (
           <SoundTile key={c.id} clipId={c.id} label={c.label} caption={c.caption} lang={plan.lang} dir={dir} role={c.role} />

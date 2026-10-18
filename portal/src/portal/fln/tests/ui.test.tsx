@@ -192,7 +192,7 @@ describe('SoundGrid', () => {
     withPlayer(f.player, <SoundGrid plan={EN_PLAN} />);
     const ids = screen.getAllByRole('button').map((b) => b.getAttribute('data-fln-clip'));
     expect(ids).toEqual(['c001', 'k001', 'cat1', 'nar1']);
-    expect(screen.getByText('Sounds in this lesson')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Sounds in this lesson' })).toBeInTheDocument();
     expect(screen.getByText('Listen to the story')).toBeInTheDocument();
   });
 
@@ -225,7 +225,7 @@ describe('SoundGrid', () => {
     const section = container.querySelector('section')!;
     expect(section).toHaveAttribute('dir', 'rtl');
     expect(section).toHaveAttribute('lang', 'ur');
-    expect(screen.getByText('اس سبق کی آوازیں')).toBeInTheDocument();
+    expect(section).toHaveAttribute('aria-label', 'اس سبق کی آوازیں');
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['ب', 'م', 'ن', 'ا']);
   });
 });

@@ -93,7 +93,7 @@ export function StatesPage() {
           </div>
         ))}
         <span style={tag} data-latin>grid</span>
-        <SoundGrid plan={FIXTURE.plan} />
+        <SoundGrid plan={FIXTURE.plan} heading />
       </main>
     </FlnPlayerProvider>
   );
