@@ -239,6 +239,25 @@ describe('read-along player: the highlight scheduler (fake clock)', () => {
     at(1100); expect(p.state).toBe('paused');
     expect(audio().paused).toBe(true);
   });
+  test('playWord(i) on words that touch (a forced-alignment take): the ring stays on the word played, never the next one', () => {
+    const { RA, document, at } = load();
+    const el = document.createElement('div');
+    const words = [{ i: 0, t: 'I', s_ms: 200, e_ms: 400 }, { i: 1, t: 'am', s_ms: 400, e_ms: 700 }, { i: 2, t: 'at', s_ms: 700, e_ms: 900 }, { i: 3, t: 'the', s_ms: 900, e_ms: 1200 }];
+    const p = RA.mount(el, { ...DATA, words }, { leadMs: 50 });
+    p.playWord(1);
+    at(680); expect(lit(el)).toEqual(['1']);
+    at(720); expect(p.state).toBe('paused');
+    expect(lit(el)).toEqual(['1']);
+  });
+  test('a tapped sentence on touching words: the ring ends on the sentence\'s last word', () => {
+    const { RA, document, at } = load();
+    const el = document.createElement('div');
+    const words = [{ i: 0, t: 'I', s_ms: 200, e_ms: 400 }, { i: 1, t: 'am.', s_ms: 400, e_ms: 700 }, { i: 2, t: 'At', s_ms: 700, e_ms: 900 }, { i: 3, t: 'home.', s_ms: 900, e_ms: 1200 }];
+    RA.mount(el, { ...DATA, words }, { leadMs: 50, tap: 'sentence' });
+    byClass(el, 'wqra-w')[0].click();
+    at(680); expect(lit(el)).toEqual(['1']);
+    at(720); expect(lit(el)).toEqual(['1']);
+  });
 });
 
 describe('read-along player: the page', () => {
@@ -518,9 +537,10 @@ describe('read-along player: the page', () => {
     expect(RA.sayLine('not json', 0)).toBeNull();
   });
 
-  test('size budget: ≤ 8 KB gzipped', () => {
+  // 9 KB since the opt-in gaps between phrases (the storybook's Slower) came into the player
+  test('size budget: ≤ 9 KB gzipped', () => {
     expect(SRC.length).toBeGreaterThan(0);
-    expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);
+    expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(9216);
   });
 });
 

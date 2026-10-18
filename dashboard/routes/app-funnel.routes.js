@@ -191,6 +191,7 @@ const ACTIONS = [
   ['GET', /^\/curriculum\/lp\/[^/]+\/(?:file|pdf)$/, 'lesson_plan.opened', 'lesson_plan', { lane: 'k5' }],
   ['GET', /^\/lp612\/file\/[^/]+$/, 'lesson_plan.opened', 'lesson_plan', { lane: 'g612' }],
   ['GET', /^\/lp612\/status\/[^/]+$/, 'lesson_plan.opened', 'lesson_plan', { lane: 'g612' }, isOpenHint],
+  ['GET', /^\/fln\/plan\/\d+$/, 'lesson_plan.opened', 'lesson_plan', { lane: 'fln' }],
   ['POST', /^\/lp612\/request$/, 'lesson_plan.requested', 'lesson_plan', { lane: 'g612' }],
   // The assessment generator: a paper asked for (it is written in the background), and one she edited.
   ['POST', /^\/assessment\/generate$/, 'paper.requested', 'assessment_generator', {}],

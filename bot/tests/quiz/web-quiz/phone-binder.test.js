@@ -55,6 +55,9 @@ const UNKNOWN_USER = { id: 'u-family', registration_completed: false, registrati
 const TEACHER_USER = { ...UNKNOWN_USER, id: 'u-teacher', registration_completed: true, name: 'Teacher Testwala' };
 const ON = { web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true };
 const FIXED_NOW = Date.UTC(2026, 9, 15, 10, 0, 0);
+// the clock is pinned from load time so a Pakistan-day or expiry check never depends on the hour/date the suite runs
+jest.useFakeTimers({ now: FIXED_NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'] });
+afterAll(() => { jest.useRealTimers(); });
 
 let fake;
 const iso = (ms) => new Date(ms).toISOString();

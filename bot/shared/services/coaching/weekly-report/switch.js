@@ -7,17 +7,17 @@
  *                                ["weekly_usage_v1","weekly_usage_quiet_v1"]. A name not on it is never
  *                                sent (skipped template_not_approved); there is no free-form fallback.
  *
- * Read the way ab_v10_enabled is read (coaching/ab-v10-switch.js): fail closed, 30 s cache, a failed read
- * is not cached. The report ALSO needs ab_v10_enabled on — the group lookup returns no group without it.
+ * Read the way ab_v10_enabled is read (coaching/ab-v10-switch.js): fail closed, 30 s cache. A failed read is
+ * kept 30 s too (settings/switch-cache): the last good settings this process read, else off. The report ALSO needs ab_v10_enabled on — the group lookup returns no group without it.
  */
 
 const supabase = require('../../../config/supabase');
 const { logToFile } = require('../../../utils/logger');
+const { cachedSwitch } = require('../../settings/switch-cache');
 
 const FLAG_KEY = 'v10_weekly_report_enabled';
 const TEMPLATES_KEY = 'v10_weekly_report_templates';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, value }
 
 function parse(v) {
   if (typeof v !== 'string') return v;
@@ -35,24 +35,25 @@ function names(value) {
   return Array.isArray(v) ? v.filter((n) => typeof n === 'string' && n.trim()) : [];
 }
 
-/** @returns {Promise<{enabled:boolean, approved:string[]}>} */
-async function reportSettings(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.value;
-  try {
+const cache = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: () => ({ enabled: false, approved: [] }),
+  read: async () => {
     const { data, error } = await supabase
       .from('app_settings').select('key,value').in('key', [FLAG_KEY, TEMPLATES_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const byKey = new Map((data || []).map((r) => [r.key, r.value]));
-    const value = { enabled: isOn(byKey.get(FLAG_KEY)), approved: names(byKey.get(TEMPLATES_KEY)) };
-    cache = { at: now, value };
-    return value;
-  } catch (err) {
-    // Fail closed, and do not cache the failure.
-    logToFile('v10 weekly report: settings lookup failed — treating as off', { error: err.message }, 'error');
-    return { enabled: false, approved: [] };
-  }
+    return { enabled: isOn(byKey.get(FLAG_KEY)), approved: names(byKey.get(TEMPLATES_KEY)) };
+  },
+  // Fail closed: the last good settings, else off, for 30 s.
+  log: (err) => logToFile('v10 weekly report: settings lookup failed — treating as off', { error: err.message }, 'error'),
+});
+
+/** @returns {Promise<{enabled:boolean, approved:string[]}>} */
+async function reportSettings(now = Date.now()) {
+  return cache.get(now);
 }
 
-function _resetCache() { cache = null; }
+function _resetCache() { cache.reset(); }
 
 module.exports = { FLAG_KEY, TEMPLATES_KEY, reportSettings, _resetCache };

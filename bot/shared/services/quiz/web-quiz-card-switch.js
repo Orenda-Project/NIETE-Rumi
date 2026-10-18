@@ -17,6 +17,16 @@ const KEY = 'web_quiz_card_v3';
 const SHARE_KEY = 'web_quiz_share_v4';
 // "A friend joined from your card!" on top of the one share: the same read and cache, never a read of its own.
 const JOINED_KEY = 'web_quiz_share_joined';
+// The card's result (score, stars, words, badge) sealed at mint (web-quiz-card-data.js): the same read and cache.
+const DATA_KEY = 'web_quiz_share_data';
+// Short share links /s/<id> (web-quiz-card-image.js shortUrl): the same read and cache.
+const SHORT_KEY = 'web_quiz_share_short';
+// The card's picture in design A (web-quiz-card-a.js): the same read and cache.
+const CARD_A_KEY = 'web_quiz_share_card_a';
+// The card's picture and page drawn and stored at mint (web-quiz-card-image.js prepare): the same read and cache.
+const READY_KEY = 'web_quiz_card_ready';
+// The page's facts also kept in Redis at mint, so any portal copy answers the link in a few ms: the same read and cache.
+const FAST_KEY = 'web_quiz_card_fast';
 // The corrected Urdu share words (the page payloads' `ur_share`): the same read and cache, card on or off.
 const UR_SHARE_KEY = 'web_quiz_ur_share_copy';
 const TTL_MS = 30 * 1000;
@@ -36,10 +46,10 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < (cache.down ? DOWN_TTL_MS : TTL_MS)) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, UR_SHARE_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
-    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), urShare: isTrue(val(UR_SHARE_KEY)) };
+    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), data: isTrue(val(DATA_KEY)), short: isTrue(val(SHORT_KEY)), cardA: isTrue(val(CARD_A_KEY)), ready: isTrue(val(READY_KEY)), fast: isTrue(val(FAST_KEY)), urShare: isTrue(val(UR_SHARE_KEY)) };
     return cache.on;
   } catch (err) {
     // the read that names the share failed: the card reads its own key as before, and only the share is off
@@ -64,6 +74,26 @@ async function joinedOn(now = Date.now()) {
   return (await shareOn(now)) && cache.joined === true;
 }
 /** The joined switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+/** The result switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+function dataCached() {
+  return Boolean(cache && cache.share === true && cache.data === true);
+}
+/** The short-link switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+function shortCached() {
+  return Boolean(cache && cache.share === true && cache.short === true);
+}
+/** The design-A switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+function cardACached() {
+  return Boolean(cache && cache.share === true && cache.cardA === true);
+}
+/** The ready switch as the last read left it (a caller that has just read shareOn()); false with no read yet. */
+function readyCached() {
+  return Boolean(cache && cache.share === true && cache.ready === true);
+}
+/** The fast switch as the last read left it (on top of ready); false with no read yet. */
+function fastCached() {
+  return Boolean(cache && cache.share === true && cache.ready === true && cache.fast === true);
+}
 function joinedCached() {
   return Boolean(cache && cache.joined === true);
 }
@@ -108,4 +138,4 @@ async function byRef(r) {
 
 function _reset() { cache = null; }
 
-module.exports = { KEY, SHARE_KEY, JOINED_KEY, UR_SHARE_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, field, ref, byRef, _reset };
+module.exports = { KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, dataCached, shortCached, cardACached, readyCached, fastCached, field, ref, byRef, _reset };

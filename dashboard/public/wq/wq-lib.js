@@ -109,6 +109,8 @@
         // The hub link is bound to the child's phone: on any other phone the bot answers 401.
         if (r.status === 401 && o.hub) { var e = new Error('lib_locked'); e.locked = true; throw e; }
         if (!r.ok || !j) throw new Error('lib_' + r.status);
+        // The one-button look (the bot's `one_button`): its class on <html> before the library draws (wq-tel.js).
+        try { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(j); } catch (e) {}
         put(k, j);
         return j;
       });
@@ -253,9 +255,10 @@
 
   var cur = null;   // the open library: { o, g, s }
 
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function waitHtml(o) {
     var t = tFor(o);
-    return '<div class="wq-boot"><img src="/wq/jugnu/thinking.webp" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
+    return '<div class="wq-boot"><img src="' + jv('/wq/jugnu/thinking.webp') + '" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
   }
   // Leaving the library: nothing still on its way may paint afterwards.
   function leave(o) { seq++; cur = null; o.onBack(); }

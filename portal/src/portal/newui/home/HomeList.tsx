@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpen, CalendarCheck, CalendarDays, CircleAlert, ClipboardList, Download, FlaskConical, GraduationCap, Inbox, Loader2,
 } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
+import { flnPlanPath } from '../../fln/lib/flnPath';
 import type { BandKey } from '../../lib/scoreBands';
 import type { AssessmentPaper } from '../../services/api';
 import { ASSESSMENT_COPY, HOME_COPY } from '../copy';
@@ -192,6 +193,7 @@ const SCIENCE = /science|physics|chemistry|biology/i;
 
 function PlanRow({ plan }: { plan: LessonPlanUsed }) {
   const openPlan = useLessonPlanOpener();
+  const navigate = useNavigate();
   const [preparing, setPreparing] = useState(false);
   const title = plan.title || HOME_COPY.planFallback;
   const when = plan.lastUsedAt ? pkDayMonth(plan.lastUsedAt) : null;
@@ -201,6 +203,7 @@ function PlanRow({ plan }: { plan: LessonPlanUsed }) {
       void openPlan({ lane: 'k5', lessonId: plan.open.lessonId, assetKind: 'lesson' }, title);
       return;
     }
+    if (plan.open.lane === 'fln') { navigate(flnPlanPath(plan.open.planId)); return; }
     try {
       const r = await requestPlan612(plan.open.segmentId, plan.open.lang || 'en');
       if (r.ready && r.renderId) void openPlan({ lane: 'g612', renderId: r.renderId }, title);
@@ -208,7 +211,7 @@ function PlanRow({ plan }: { plan: LessonPlanUsed }) {
     } catch {
       setPreparing(true);
     }
-  }, [openPlan, plan, title]);
+  }, [navigate, openPlan, plan, title]);
 
   return (
     <Row

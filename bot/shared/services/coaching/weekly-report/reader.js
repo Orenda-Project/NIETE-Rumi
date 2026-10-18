@@ -86,7 +86,7 @@ async function readWeek(userId, { fromIso: mondayIso, toIso, weekendFromIso }) {
       .limit(MAX.deliveries)
       .then((r) => check('lesson plan deliveries', r)),
     supabase.from('niete_lp_opens').select('plan_ref, opened_at')
-      .eq('user_id', userId).eq('plan_kind', 'k5')
+      .eq('user_id', userId).in('plan_kind', ['k5', 'fln']) // bd-t7zk3t.12: Reading Hour + Numeracy count too
       .gte('opened_at', fromIso).lt('opened_at', toIso)
       .limit(MAX.opens)
       .then((r) => check('lesson plan opens', r)),
