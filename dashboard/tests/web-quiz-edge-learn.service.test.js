@@ -567,6 +567,29 @@ describe('one learner: re-ask at +5 s, replies by ask number, wait_ux and one_fa
     }
   });
 
+  it('wait_hops: true (with wait_ux) in the learn answer → the first hub page\'s early frame has the hop bar; absent keeps it; false clears it', async () => {
+    const HOP_MARK = 'beforeunload';
+    const r = router({ learn: false });
+    srv = await start(r.app);
+    await settle();
+    const top = async () => {
+      r.pages.push({ hold: true, res: jsonRes(200, HUB({ fast: true })) });
+      const { early, before } = await firstByteBeforeAnswer(srv, r.bot, `/h/${TOKEN}`);
+      expect(before).toBe(true);
+      return early;
+    };
+    // (each page's own hub answer teaches the process too, so each check applies its learn answers right before)
+    r.edge.apply({ ...ON(true), wait_ux: true, wait_hops: true });
+    expect((await top()).includes(HOP_MARK)).toBe(true);
+    r.edge.apply({ ...ON(true), wait_ux: true, wait_hops: true });
+    r.edge.apply({ ...ON(true), wait_ux: true }); // a bot that does not say: absent is not false
+    expect((await top()).includes(HOP_MARK)).toBe(true);
+    r.edge.apply({ ...ON(true), wait_ux: true, wait_hops: false });
+    const off = await top();
+    expect(off.includes(HOP_MARK)).toBe(false);
+    expect(off.includes(WAIT_MARK)).toBe(true);
+  });
+
   it('one_face: true → the closed page carries the one face; an answer without the field keeps it; false clears it', async () => {
     const ur = { headers: { 'accept-language': 'ur' } };
     const r = router({ learn: false });
@@ -723,3 +746,30 @@ describe('every switch on: edge learning changes when the frame starts, never th
   });
 });
 
+
+// Source scan: every frame-time switch the router learns from a hub or quiz payload (a `last<Name> = …` the routes
+// assign) must also be written by learned(), the one learner: else a fresh process's first page (edge learning on) has
+// the frame without it until its first payload, which is how wait_share was missed once.
+describe('source scan: every last<Name> a payload sets is also set in learned()', () => {
+  const fs = require('fs');
+  const path = require('path');
+  // Payload-only switches (not frame-time), each with its reason. Empty today: every last<Name> dresses a page or a frame
+  // drawn before (or without) a bot answer.
+  const PAYLOAD_ONLY = Object.freeze({});
+  const src = fs.readFileSync(path.join(__dirname, '../routes/web-quiz.routes.js'), 'utf8');
+  const assigned = (code) => new Set([...code.matchAll(/(?<![\w.])(last[A-Z]\w*)\s*=(?!=)/g)]
+    .filter((m) => !/\b(let|const|var)\s+$/.test(code.slice(Math.max(0, m.index - 8), m.index)))
+    .map((m) => m[1]));
+
+  it('a frame-time switch learned from a hub payload must also be in learned() (fresh process)', () => {
+    const start = src.indexOf('const learned = (b) => {');
+    expect(start).toBeGreaterThan(-1);
+    const end = src.indexOf('\n  };', start);
+    const inLearned = assigned(src.slice(start, end));
+    const outside = assigned(src.slice(0, start) + src.slice(end));
+    expect(outside.size).toBeGreaterThanOrEqual(6); // lastBrand, lastRt, lastUi, lastFast, lastWaitUx, lastWaitShare at least
+    const missing = [...outside].filter((n) => !inLearned.has(n) && !Object.prototype.hasOwnProperty.call(PAYLOAD_ONLY, n)).sort();
+    if (missing.length) throw new Error(`a frame-time switch learned from a hub payload must also be in learned() (fresh process): ${missing.join(', ')}`);
+    expect(missing).toEqual([]);
+  });
+});

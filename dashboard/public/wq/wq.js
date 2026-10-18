@@ -346,10 +346,12 @@ var WQI = (function () {
     }).join('') + '</div>';
   }
   function ur2On() { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } }
+  // the one button system (wq-1b): an answer's shape marker is a glyph, so screen readers skip it (the sound tiles already do)
+  function shpAttr() { try { return document.documentElement.classList.contains('wq-1b') ? ' aria-hidden="true"' : ''; } catch (e) { return ''; } }
   function optBtn(o, k, extra) {
     // over 28 code points a label runs to three lines beside the badge and 🔊 at 360 px (measured on the live quizzes: 32–36 cp)
     var longLab = ur2On() && Array.from(String(o.text || '')).length > 28 ? ' wq-long' : '';
-    return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp">' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
+    return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
       picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }
   function itemHtml(q, T, lang) {
@@ -371,7 +373,7 @@ var WQI = (function () {
         var nm = x.name || (x.pic && x.pic.name) || x.text || '';
         // A picture with no word anywhere: the button is named by its shape for screen readers only.
         var aria = speakable(x.text || nm) ? '' : ' aria-label="' + esc(SHAPE_NAMES[lang === 'ur' ? 'ur' : 'en'][i % 4]) + '"';
-        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"' + aria + '><span class="wq-shp">' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
+        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"' + aria + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
           (picHtml(x, nm) || '<span class="wq-emoji">' + esc(x.text) + '</span>') +
           (!quiet && speakable(x.text || nm) && !(x.pic && (x.pic.glyph || x.pic.text) === (x.text || nm)) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
       }).join('') + '</div>';
@@ -1040,6 +1042,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!t.replace(/\s|undefined/g, '')) return LANG;
     return /[\u0600-\u06FF]/.test(t) ? 'ur' : 'en';
   })();
+  // One voice per quiz (boot one_voice, app_settings web_quiz_one_voice): a line with no clip is shown, never
+  // read in the phone's own voice (a second voice beside the quiz's).
+  // The shared lines then come from the set recorded in the plan's voice (boot voice_sets: { <lang>: { path, v } },
+  // public/wq/voice/one/<path>/); a language with no set has no shared-line audio (the line is shown).
+  var ONE_VOICE = Boolean(B.one_voice);
+  var VOICE_SETS = (ONE_VOICE && B.voice_sets) || {};
+  function voiceUrl(lang, file) {
+    if (!ONE_VOICE) return '/wq/voice/' + lang + '/' + file + '.mp3?v=' + VOICE_V;
+    var set = VOICE_SETS[lang];
+    return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
+  }
   function vline(set) {
     var lang = VOICE[VLANG] ? VLANG : 'en';
     var lines = VOICE[lang][set] || [];
@@ -1047,7 +1060,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var i = Math.floor(Math.random() * lines.length);
     if (lines.length > 1 && i === lastPick[set]) i = (i + 1) % lines.length;
     lastPick[set] = i;
-    return { text: lines[i], url: '/wq/voice/' + lang + '/' + set + '-' + i + '.mp3?v=' + VOICE_V };
+    return { text: lines[i], url: voiceUrl(lang, set + '-' + i) };
   }
 
   /* ---------------- sound (off by default) + read-aloud ---------------- */
@@ -1145,6 +1158,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function speakTts(text, end) {
     try {
+      if (ONE_VOICE) { try { ROOT.classList.add('wq-novoice'); } catch (e) {} setTimeout(end, 4000); return; }
       if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { setTimeout(end, 4000); return; }
       // The phone's own voice is a different voice from the quiz's: the speaker button says so (a small phone mark, wq.css).
       try { ROOT.classList.add('wq-phonevoice'); } catch (e) {}
@@ -1957,7 +1971,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var langs = [VLANG, VLANG === 'ur' ? 'en' : 'ur'];
     for (var k = 0; k < langs.length; k++) {
       var i = ((VOICE[langs[k]] || {}).fig || []).indexOf(t);
-      if (i >= 0) return '/wq/voice/' + langs[k] + '/fig-' + i + '.mp3?v=' + VOICE_V;
+      if (i >= 0) return voiceUrl(langs[k], 'fig-' + i);
     }
     return null;
   }

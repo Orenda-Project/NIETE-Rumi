@@ -21,6 +21,8 @@ class QuizReportService {
    *
    * @param {string} quizId       - Quiz UUID
    * @param {Object} payload      - { teacherPhone, language }
+   * @returns {Promise<boolean>} whether WhatsApp took the report (the PDF, or the text sent when the PDF could not be
+   *   made): true only for a real `true` from the send. False when there was nothing to send it to.
    */
   static async generateReport(quizId, payload = {}) {
     logToFile('📊 QuizReportService.generateReport', { quizId });
@@ -36,7 +38,7 @@ class QuizReportService {
 
     if (quizErr || !quiz) {
       logToFile('❌ Quiz not found for report', { quizId });
-      return;
+      return false;
     }
 
     // Fetch completed sessions
@@ -54,7 +56,7 @@ class QuizReportService {
 
     if (!teacherPhone) {
       logToFile('⚠️ No teacher phone for report', { quizId });
-      return;
+      return false;
     }
 
     // Resolve class display + teacher name for the PDF header
@@ -104,6 +106,7 @@ class QuizReportService {
 
     // Render + upload PDF
     let pdfUrl = null;
+    let accepted = false; // WhatsApp's answer to the report itself (the PDF, or the text fallback)
     try {
       const html = renderQuizReportHtml({
         quiz,
@@ -144,12 +147,12 @@ class QuizReportService {
             `${portalBase.replace(/^https?:\/\//, '')}/quizzes\n` +
             '🔐 Same login as before.'
           : '';
-        await WhatsAppService.sendDocument(
+        accepted = (await WhatsAppService.sendDocument(
           teacherPhone,
           tempPath,
           filename,
           insight.caption + portalLink
-        );
+        )) === true;
       } finally {
         try { fs.unlinkSync(tempPath); } catch (_) {}
       }
@@ -159,7 +162,7 @@ class QuizReportService {
       // Fail-safe: if the PDF pipeline breaks, still deliver the text summary
       logToFile('❌ PDF generation failed — falling back to text summary', { quizId, error: pdfErr.message });
       const reportText = this._buildReportText(quiz, totalSent, totalCompleted, completed, stats);
-      await WhatsAppService.sendMessage(teacherPhone, reportText);
+      accepted = (await WhatsAppService.sendMessage(teacherPhone, reportText)) === true;
     }
 
     // Single follow-up message — insight body + band-specific
@@ -172,18 +175,25 @@ class QuizReportService {
       });
     }
 
-    // Update quiz status
-    await supabase
-      .from('quizzes')
-      .update({
-        status: 'report_sent',
-        total_students_completed: totalCompleted,
-        report_sent_at: new Date().toISOString(),
-        report_pdf_url: pdfUrl
-      })
-      .eq('id', quizId);
+    // Update quiz status. quiz_report_send_checked on: only when WhatsApp took the report — a refused one leaves the
+    // row exactly as it was (the job tries again). Off: today's update, whatever the send answered. The switch is
+    // asked only on a refusal.
+    if (accepted || !(await require('./report-send-check').on())) {
+      await supabase
+        .from('quizzes')
+        .update({
+          status: 'report_sent',
+          total_students_completed: totalCompleted,
+          report_sent_at: new Date().toISOString(),
+          report_pdf_url: pdfUrl
+        })
+        .eq('id', quizId);
+    } else {
+      logToFile('⚠️ Quiz report not accepted by WhatsApp — quiz row left as it was', { quizId });
+    }
 
     logToFile('✅ Quiz report flow complete', { quizId, totalCompleted, pdfUrl, band: insight.band });
+    return accepted;
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────

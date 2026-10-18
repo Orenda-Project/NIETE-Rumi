@@ -172,7 +172,7 @@ describe('v2 on: the payloads say which v2 screens the page may show', () => {
     // 'bigger' needs no released passage: with the draw on, a read with none is served as on its way (no screen flags)
     const e = await Ch.exercise(hub(), 'bigger', { ...D, lang: 'en' });
     // the notice is due (this child has not seen it on this phone): its version and the child's first name ride along
-    expect(e.v2).toEqual({ pool: true, story: false, consent: true, notice: 1, name: 'Sana' });
+    expect(e.v2).toEqual({ pool: true, story: false, consent: true, notice: TP.NOTICE_V, name: 'Sana' });
   });
 
   test('a failed settings read is v2 off (fail closed): bits() is {}, consentFor() is null', async () => {
@@ -328,6 +328,13 @@ describe('the mic notice: shown once per child per phone (the hub device record)
     expect((await TP.bits({ studentId: KID, device: DEV })).v2).not.toHaveProperty('notice');
     expect((await TP.bits({ studentId: KID2, device: DEV })).v2).toMatchObject({ notice: TP.NOTICE_V, name: 'Omar' });
     expect((await TP.bits({ studentId: KID, device: OTHER })).v2).toMatchObject({ notice: TP.NOTICE_V });
+  });
+
+  test('the corrected wording is version 2: a child who saw the old words (version 1) on this phone sees the true ones once', async () => {
+    expect(TP.NOTICE_V).toBe(2);
+    on(KEEP, V2, CONSENT);
+    redis._store.set(noticeKey(KID, DEV), 1);
+    expect((await TP.bits({ studentId: KID, device: DEV })).v2).toMatchObject({ notice: 2 });
   });
 
   test('a new wording version: a phone that saw an older one sees it again', async () => {

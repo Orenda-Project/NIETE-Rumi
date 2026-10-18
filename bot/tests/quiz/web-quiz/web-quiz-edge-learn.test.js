@@ -22,7 +22,8 @@ jest.mock('../../../shared/config/supabase', () => {
       maybeSingle: async () => { state.reads.push(key); return { data: key in state.rows ? { key, value: state.rows[key] } : null, error: null }; },
       // the hub's one batched read (web-quiz-hub-flags.js): recorded as 'hub', its keys kept for the test to check
       in: (_c, ks) => { keys = ks; return q; },
-      then: (res, rej) => { state.reads.push('hub'); state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
+      // web-quiz-fast.js reads its own switch together with the story-board one (also an .in()): that is the fast switch's read
+      then: (res, rej) => { const fastRead = keys.includes('web_quiz_story_board_refuse'); state.reads.push(fastRead ? 'web_quiz_fast' : 'hub'); if (!fastRead) state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
     };
     return q;
   };
@@ -94,15 +95,15 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false });
   });
 
-  test('(e) on with every page switch off: no ui; one_face, wait_ux and wait_share say false (off is said, never left out)', async () => {
+  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share and wait_hops say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'one_face', 'rt', 'wait_share', 'wait_ux']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false });
+    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'one_face', 'rt', 'wait_hops', 'wait_share', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, wait_hops: false });
     expect(typeof body.brand).toBe('string');
   });
 
@@ -167,6 +168,16 @@ describe('GET /api/internal/wq/edge', () => {
     expect(supabase.__state.hubKeys).toEqual(expect.arrayContaining(['web_quiz_wait_ux', 'web_quiz_hub_fanout']));
   });
 
+  // wait_hops (the bar while the page is left) as web-quiz-wait-ux.js carry() puts it on a hub answer: wait_ux AND wait_hops.
+  test.each([[true, true, true], [true, false, false], [false, true, false], [true, 'true', false]])('(e) on: wait_ux %p + web_quiz_wait_hops %p → wait_hops %p, from the same batched read', async (wu, hops, want) => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_wait_ux: wu, web_quiz_wait_hops: hops };
+    await warmPageSwitches(); supabase.__state.reads = [];
+    const { body } = await ask();
+    expect(body.wait_hops).toBe(want);
+    expect(supabase.__state.reads).toEqual([HUB_READ]);
+    expect(supabase.__state.hubKeys).toEqual(expect.arrayContaining(['web_quiz_wait_ux', 'web_quiz_wait_hops']));
+  });
+
   test('another read of the hub\'s KEYS (prime(rows), the join\'s) fills this switch: then no read at all', async () => {
     const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
     expect(Flags.KEYS).toContain(KEY);
@@ -209,6 +220,6 @@ describe('the hub answer says edge_learn while on (so a portal that stopped aski
   });
   test('both hub routes (GET and POST /hub/:token) pass their answer through carry', () => {
     const src = require('fs').readFileSync(require.resolve('../../../shared/routes/web-quiz-internal.routes'), 'utf8');
-    expect((src.match(/EdgeLearn\(\)\.carry\(WaitUx\.carry\(OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
+    expect((src.match(/EdgeLearn\(\)\.carry\(HomePreload\.carry\([^\n]*?OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
   });
 });
