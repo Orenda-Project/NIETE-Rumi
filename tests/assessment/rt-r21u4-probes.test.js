@@ -73,14 +73,16 @@ describe('1. sandbox chapters_1 (lessons 4–5): the put-back printed an antonym
     tagged.options = ['الف) غم', 'ب) ہنسی', 'ج) مزہ', 'د) رونق'];
     tagged.answer = 'الف) غم';
     const r = lay(p, ch(4, 5), { reasked: true });
-    expect((r.putBack || []).map((x) => x.rule)).toEqual([]);
+    // Q1's put-backs (Section C's Q5, held for a Q3 word, comes back by its own rule).
+    expect((r.putBack || []).filter((x) => x.slot === 'urdu.A.Q1').map((x) => x.rule)).toEqual([]);
     expect(antonyms(r.examJson)).toHaveLength(1);
   });
 
-  test('the full syllabus lays the same paper out as before (control)', () => {
+  test('the full syllabus asks a concept once too: one antonym prints and Q1 is one short', () => {
     const r = lay(fixture('r21e-urdu-sandbox-chapters_1'), FDE, { reasked: true });
-    expect(antonyms(r.examJson)).toHaveLength(2);
-    expect(r.shortfall).toEqual([]);
+    expect(antonyms(r.examJson)).toHaveLength(1);
+    expect((r.putBack || []).map((x) => x.rule)).not.toContain('concept_repeat');
+    expect(r.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
   });
 });
 
