@@ -6,8 +6,9 @@
  *
  * Switch on (JSON true only): the id is kept for the storybook report, the quiz report nobody took, the quiz report's
  * text and its PDF, and the chat quiz's report (quiz-job-handler, `quiz_id`). Switch off (absent, false, the string
- * "true", "\"true\"", 1, {}): no Redis write, no extra read, and the sends are called exactly as today. The switch is
- * never read for this: the reading the report already made (report-send-check known(), up to 10 min old) decides.
+ * "true", "\"true\"", 1, {}): no Redis write and the sends are called exactly as today. The class report never reads
+ * the switch for this (the reading it already made, report-send-check known(), decides); the chat quiz asks the 30 s
+ * cached reading after an accepted send (off: at most one settings read per 30 s).
  *
  * Also the transport: WhatsAppService.sendMessage / sendDocument still answer a plain boolean; the id reaches only a
  * caller that collects it (whatsapp-sent-ids.collect).
@@ -262,9 +263,8 @@ describe('the chat quiz report (quiz-job-handler): the id kept beside its sent f
     });
   });
 
-  test('switch on (read by the worker within 10 min): report_msg:<id> -> {kind: chat_quiz, quiz_id}, 48 h', async () => {
+  test('switch on, cold cache, the report accepted: report_msg:<id> -> {kind: chat_quiz, quiz_id}, 48 h', async () => {
     chatDb(true);
-    await Flag.on();
     const r = await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
     expect(r).toEqual({ ok: true });
     expect(redis._store.get(`quiz_report_sent:${QUIZ}`)).toBe('1');
@@ -275,22 +275,29 @@ describe('the chat quiz report (quiz-job-handler): the id kept beside its sent f
     expect(JSON.stringify(value)).not.toMatch(/FIXTURE/);
   });
 
-  test.each(OFF)('switch off (%s): no write, no settings read, the handler as today', async (_n, setting) => {
+  test.each(OFF)('switch off (%s), cold cache: no write, the handler as today', async (_n, setting) => {
     chatDb(setting);
-    await Flag.on();
-    const n = countReads();
     const r = await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
     expect(r).toEqual({ ok: true });
-    expect(n.app_settings || 0).toBe(0);
     expect(reportWrites()).toHaveLength(0);
+    expect(redis._store.get(`quiz_report_sent:${QUIZ}`)).toBe('1');
     expect(QUIZ_REPORT.generateReport).toHaveBeenCalledWith(QUIZ, { teacherPhone: TEACHER_PHONE });
   });
 
-  test('no reading of the switch in the worker: no settings read of its own, nothing kept', async () => {
-    chatDb(true);
+  test('switch off: one settings read on an accepted report, then none for 30 s; none when nothing was accepted', async () => {
+    chatDb(false);
     const n = countReads();
     await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
-    expect(n.app_settings || 0).toBe(0);
+    expect(n.app_settings || 0).toBe(1);
+    redis._store.delete(`quiz_report_sent:${QUIZ}`);
+    await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
+    expect(n.app_settings || 0).toBe(1);   // the 30 s cache
+    // a report WhatsApp did not accept (no id): no read at all
+    Flag.reset();
+    redis._store.delete(`quiz_report_sent:${QUIZ}`);
+    QUIZ_REPORT.generateReport.mockImplementation(async () => undefined);
+    await Handler.handleQuizReport({ groupId: QUIZ, payload: { teacherPhone: TEACHER_PHONE } });
+    expect(n.app_settings || 0).toBe(1);
     expect(reportWrites()).toHaveLength(0);
   });
 });

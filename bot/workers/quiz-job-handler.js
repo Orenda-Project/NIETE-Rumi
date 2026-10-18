@@ -160,7 +160,7 @@ async function handleQuizReport(body) {
   } catch (err) {
     logToFile('⚠️ Could not set quiz_report_sent flag (non-fatal — cascade may double-fire)', { quizId, error: err.message });
   }
-  await require('../shared/services/quiz/report-delivery').remember(reportIds, { kind: 'chat_quiz', quiz_id: quizId });
+  await require('../shared/services/quiz/report-delivery').remember(reportIds, { kind: 'chat_quiz', quiz_id: quizId }, { ask: true });
 
   return { ok: true };
 }

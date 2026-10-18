@@ -6,8 +6,9 @@
  * Keep the id (remember): with the switch on, every teacher report send keeps its WhatsApp message id in Redis
  * `report_msg:<id>` → { kind, share_code_id | quiz_id, at } for 48 h. kind 'quiz' / 'story' is the class report
  * (video-quiz-report buildAndSend, keyed by the share code), 'chat_quiz' the chat quiz's report (quiz-job-handler,
- * keyed by the quiz). The switch is never read for this: the reading this process already holds (report-send-check
- * known(), the report's own settings reads carry it) decides, so off writes nothing and reads nothing.
+ * keyed by the quiz). The class report never reads the switch for this: the reading this process already holds
+ * (report-send-check known(), the report's own settings reads carry it) decides. The chat quiz asks the switch's 30 s
+ * cached reading after an accepted send (off: at most one settings read per 30 s, no write).
  *
  * Act on `failed` (onFailedStatus, from the WhatsApp status webhook, failed statuses only): with the switch on (its
  * own 30 s cached reading, asked only for a failed status), one Redis GET of `report_msg:<id>`. Not a report: nothing
@@ -36,12 +37,15 @@ const CHAT_JOB = 'quiz_report';
 
 /**
  * Keep the accepted report sends' ids. `record` = { kind, share_code_id } or { kind: 'chat_quiz', quiz_id }.
- * Writes only when this process's reading of the switch is on; never reads it. Never throws.
+ * Writes only when the switch is on. By default the reading this process already holds decides (no read: the class
+ * report's own settings reads carry the switch). `{ ask: true }` (the chat quiz, which has no settings read to ride)
+ * asks the switch's 30 s cached reading instead, and only once a send was accepted (an id to keep). Never throws.
  */
-async function remember(ids, record) {
+async function remember(ids, record, { ask = false } = {}) {
   try {
     const list = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && id);
-    if (!list.length || SendCheck.known() !== true) return;
+    if (!list.length) return;
+    if ((ask ? await SendCheck.on() : SendCheck.known()) !== true) return;
     const value = { ...record, at: new Date().toISOString() };
     for (const id of list) await RedisService.set(`${PREFIX}${id}`, value, RECORD_TTL_S);
   } catch (err) {
