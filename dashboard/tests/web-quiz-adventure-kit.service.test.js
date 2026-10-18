@@ -153,6 +153,36 @@ describe('stamp: the one "you finished something" hook', () => {
   });
 });
 
+describe('award: the stamp on a finish card', () => {
+  const card = (sel) => {
+    const at = {}, ins = [];
+    return { ins, getAttribute: (k) => (k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = v; },
+      querySelector: (q) => (q.split(',').some((x) => sel.includes(x.trim())) ? { insertAdjacentHTML: (w, h) => ins.push(h) } : null),
+      insertAdjacentHTML: (w, h) => ins.push(h) };
+  };
+  it('a finished story or quiz gets its stamp under the deed, once per card', () => {
+    const { WQA } = load();
+    const c = card(['.wqfc-share', '.wqfc-cov', 'h2']);
+    WQA.award(c); WQA.award(c);
+    expect(c.ins.length).toBe(1);
+    expect(c.ins[0]).toMatch(/class="wqa-got"/);
+  });
+  it('a try that read nothing (the card with no Share) gets no stamp: effort is answered, not the lack of it', () => {
+    const { WQA, store } = load();
+    const c = card(['.wqfc-cov', 'h2']);
+    WQA.award(c);
+    expect(c.ins).toEqual([]);
+    expect(store.wqa_stamps).toBeUndefined();
+  });
+  it('the reading moment: a heard read is stamped, a 0-word read (its "try" badge) is not', () => {
+    const { WQA } = load();
+    const heard = card(['.wq-moment-deed']);
+    const zero = card(['.wq-moment-deed', '[data-badge=try]']);
+    WQA.award(heard); WQA.award(zero);
+    expect([heard.ins.length, zero.ins.length]).toEqual([1, 0]);
+  });
+});
+
 describe('the trail of three land stops (Home)', () => {
   it('one stop per land, in order, the stamped land filled and the next stop glowing', () => {
     const { WQA } = load({ store: { wqa_stamps: JSON.stringify({ stories: { kind: 'story', at: 1 } }) } });
@@ -196,6 +226,10 @@ describe('the sheet (wq-adventure.css)', () => {
   });
   it('never sets the one button system\'s size tokens (one owner for every height)', () => {
     expect(root).not.toMatch(/--(tap|btn-h|btn-h2|btn-h-2l|btn-icon|btn-d|btn-d2|btn-fs[a-z0-9-]*|press-[a-z]+)\s*:/);
+  });
+  it('the story reader and its questions keep the 16 px page gutter on both sides (nothing touches the screen edge)', () => {
+    const r = (CSS.match(/^html\.wq-adv \.wqs\{[^}]*\}/m) || [''])[0];
+    expect(r).toMatch(/padding-inline:var\(--gutter\)/);
   });
   it('no shadow reads a root-level edge: a token built from var(--edge) at :root freezes the root colour for every land', () => {
     expect(CSS).not.toMatch(/var\(--sh-(btn|press)\)/);

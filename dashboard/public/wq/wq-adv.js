@@ -270,6 +270,8 @@
   function award(card) {
     if (card.getAttribute('data-wqa')) return;
     card.setAttribute('data-wqa', '1');
+    // a try that certified nothing (read_tried: no Share on the card; a 0-word read: the moment's try badge): no stamp
+    if (card.querySelector('[data-badge=try]') || !card.querySelector('.wqfc-share,.wq-moment-deed')) return;
     var kind = deedOf(card), now = Date.now();
     var s = kind === lastStamp.kind && now - lastStamp.at < 15000 ? { land: LAND[kind], svg: stampSvg(LAND[kind]) } : stamp(kind);
     if (!s) return;
@@ -298,6 +300,6 @@
   W.WQA = {
     icon: icon, animal: function (k) { return icon(P[k] ? k : 'star'); }, subject: function (s) { return icon(SUBJ[s] || 'star'); },
     bar: bar, badge: badge, move: move, cue: cue, burst: burst, muted: muted, mute: mute, still: still, swap: swap, P: P, EMO: EMO,
-    stamp: stamp, stamps: stamps, stampSvg: stampSvg, tone: tone, trail: trail
+    stamp: stamp, stamps: stamps, stampSvg: stampSvg, tone: tone, trail: trail, award: award
   };
 })(typeof window !== 'undefined' ? window : null);

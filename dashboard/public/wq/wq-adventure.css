@@ -166,7 +166,7 @@ html.wq-adv .wq-dspk{color:var(--land-vd)}
 html.wq-adv .wq-row{border-color:var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card)}
 html.wq-adv .wq-row[data-primary]{border-color:var(--land,var(--line));box-shadow:0 4px 0 var(--land-edge,var(--line))}
 /* the stories shelf: the map's paper, 2-col covers, the read stamp on a finished book */
-html.wq-adv .wqs{background:transparent;padding-inline:0}
+html.wq-adv .wqs{background:transparent;padding-inline:var(--gutter)}
 html.wq-adv .wqs-gl{--edge:#c9920b;background:var(--gold);color:#3b2a00;box-shadow:0 4px 0 var(--edge)}
 html.wq-adv .wqs-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3)}
 html.wq-adv .wqs-book{padding:var(--sp-2);border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card);-webkit-tap-highlight-color:transparent;transition:transform var(--dur-tap)}
