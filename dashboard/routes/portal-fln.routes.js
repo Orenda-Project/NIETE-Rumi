@@ -244,6 +244,7 @@ function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivi
 }
 
 const router = createFlnRouter();
+router.use(require('./portal-fln-links.routes')); // m-links PR-D: /fln/links, /fln/title/:id (+ PR-E /fln/teachers, /fln/send)
 
 module.exports = router;
 module.exports.createFlnRouter = createFlnRouter;

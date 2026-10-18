@@ -27,6 +27,7 @@ import { Header } from './plan/Header';
 import { Section } from './plan/Section';
 import { TimeBar } from './plan/TimeBar';
 import { Chrome } from './plan/text';
+import ShareBar from './share/ShareBar';
 import { flnStrings, type FlnLang } from './strings';
 import type { FlnMe, FlnPlacement, FlnPlanResponse } from './types';
 import './plan/plan.css';
@@ -247,7 +248,7 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
           />
         ) : null}
         <p className="fln-plan-foot"><Chrome text={p.programme === 'p23' ? s.footer.p23(p.id) : s.footer.p25(p.id)} rtl={rtl} /></p>
-        {me.share ? null /* m-links PR-D: <ShareBar …/> */ : null}
+        {me.share ? <ShareBar plan={p} placement={placement} me={me} /> : null}
       </div>
     </FlnPlayerProvider>
   );
