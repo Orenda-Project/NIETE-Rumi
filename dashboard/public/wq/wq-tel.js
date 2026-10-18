@@ -32,8 +32,9 @@
  * never broken across a line («واٹس / ایپ»). Always there, switch on or off.
  *
  * window.WQT.oneButton(answer) puts the one-button look's class (`wq-1b`, wq.css) on <html> when a bot answer says
- * `one_button: true` (app_settings web_quiz_one_button); run here on the boot, before any page script draws, and by a
- * page that gets its answer later (the library). Anything else: nothing changes.
+ * `one_button: true` (app_settings web_quiz_one_button; the Challenge page's boot carries it under `menu`); run here on
+ * the boot, before any page script draws, and by a page that gets its answer later (the library). Anything else:
+ * nothing changes.
  */
 (function () {
   'use strict';
@@ -65,6 +66,7 @@
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
   oneButton(B);
+  oneButton(B.menu); // the Challenge page's boot carries the menu answer under `menu`
   if (!B || B.rt !== true) return;
 
   var ROOT = document.getElementById('wq');

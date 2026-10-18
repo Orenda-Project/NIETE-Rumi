@@ -166,6 +166,11 @@ describe('wq-tel.js: the class on <html>', () => {
     return { cls, W: win.WQT };
   };
   test('JSON true: wq-1b', () => expect(run({ one_button: true }).cls.has('wq-1b')).toBe(true));
+  test('the Challenge page (its boot carries the menu answer under `menu`): JSON true there is wq-1b; anything else, no class', () => {
+    expect(run({ token: 't', kid: null, menu: { lang: 'en', one_button: true } }).cls.has('wq-1b')).toBe(true);
+    for (const v of ['true', 1, false, undefined]) expect(run({ token: 't', menu: { lang: 'en', one_button: v } }).cls.size).toBe(0);
+    expect(run({ token: 't', menu: null }).cls.size).toBe(0);
+  });
   test.each([['absent', {}], ['the string true', { one_button: 'true' }], ['1', { one_button: 1 }], ['false', { one_button: false }]])('%s: no class', (_n, boot) => {
     expect(run(boot).cls.size).toBe(0);
   });

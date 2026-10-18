@@ -53,6 +53,20 @@ def server(out_dir):
                     return self.send(200, open(f, 'rb').read(), 'text/html; charset=utf-8')
                 return self.send(404, b'no page', 'text/plain')
             if p.startswith('/api/'):
+                ref = self.headers.get('referer') or ''
+                if p.startswith('/api/wq/ch/') and '/h/ch-' in ref:
+                    # the Challenge page: its read (a short story) and its menu, invented
+                    ur = '/h/ch-ur' in ref
+                    if p.endswith('/read'):
+                        text = 'پتنگ ہرے پہاڑ کے اوپر اڑی۔ ہوا نرم اور گرم تھی۔' if ur else 'The kite flew over the green hill. The wind was soft and warm.'
+                        toks = text.split(' ')
+                        clip = {'text': '', 'url': None}
+                        body = {'ex': 'read', 'ct': 'CT-look', 'secs': 60, 'lang': 'ur' if ur else 'en', 'record': True, 'questions_on': True,
+                                'clips': {'intro': clip, 'start': clip, 'stop': clip, 'done': clip},
+                                'story': {'text': text, 'dir': 'rtl' if ur else 'ltr', 'tokens': toks, 'lines': [{'from': 0, 'to': len(toks) - 1}]}}
+                    else:
+                        body = {'lang': 'ur' if ur else 'en', 'form': 'G3', 'record': True, 'exercises': [{'id': 'read', 'name': 'Read aloud', 'mins': 2, 'done': False, 'last': None}]}
+                    return self.send(200, json.dumps(body, ensure_ascii=False).encode('utf-8'), 'application/json')
                 if p.startswith('/api/wq/doors/') and '/h/shelf-' in (self.headers.get('referer') or ''):
                     return self.send(200, b'{"shelf":true,"stories":[],"games":[]}', 'application/json')
                 if 'shelf' in p:
@@ -191,6 +205,14 @@ def main():
                             page.wait_for_selector('[data-screen]', timeout=8000)
                             page.evaluate(CARD_JS, [pg['lang'], man['token'], man['kid']])
                             shot('story-done')
+                        elif pg['kind'] == 'ch':
+                            page.goto(base + pg['path'], wait_until='load')
+                            page.wait_for_selector('#wqc-ex-read', timeout=8000)
+                            page.wait_for_timeout(400)
+                            shot('ch-menu')
+                            page.click('#wqc-ex-read')
+                            page.wait_for_timeout(1500)
+                            shot('ch-read')
                         elif pg['kind'] == 'practice':
                             page.goto(base + pg['path'], wait_until='load')
                             page.wait_for_selector('[data-screen]', timeout=8000)

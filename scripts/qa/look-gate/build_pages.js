@@ -47,6 +47,7 @@ function main() {
   fs.mkdirSync(path.join(out, 'pages'), { recursive: true });
   const manifest = [];
   for (const lang of ['en', 'ur']) {
+    const ur = lang === 'ur';
     const hub = renderHubPage({ payload: field(hubBoot(lang)), token: TOKEN, origin: ORIGIN, assetV: 'look' });
     fs.writeFileSync(path.join(out, 'pages', `hub-${lang}.html`), hub);
     manifest.push({ name: `hub-${lang}`, kind: 'hub', lang, path: `/h/hub-${lang}` });
@@ -61,6 +62,11 @@ function main() {
     delete pb.class_doors;
     fs.writeFileSync(path.join(out, 'pages', `practice-${lang}.html`), renderHubPage({ payload: field(pb), token: TOKEN, origin: ORIGIN, assetV: 'look' }));
     manifest.push({ name: `practice-${lang}`, kind: 'practice', lang, path: `/h/practice-${lang}` });
+    // the Challenge page (the Story Time room's shell): its menu answer carries the switch's field like the others
+    const { renderChallengePage } = require(path.join(ROOT, 'dashboard/routes/web-quiz.routes'));
+    const menu = field({ lang, form: 'G3', record: true, exercises: [{ id: 'read', name: ur ? 'بلند آواز سے پڑھیں' : 'Read aloud', mins: 2, done: false, last: null }] });
+    fs.writeFileSync(path.join(out, 'pages', `ch-${lang}.html`), renderChallengePage({ menu, token: TOKEN, kid: KID, origin: ORIGIN, assetV: 'look', chV: 'look', brandKey: 'niete' }));
+    manifest.push({ name: `ch-${lang}`, kind: 'ch', lang, path: `/h/ch-${lang}` });
     const shape = Matrix.shapes(lang).find((s) => s.id === `${lang}-single-3`);
     const q = Matrix.pageFor(shape);
     const { renderQuizPage } = require(path.join(ROOT, 'dashboard/routes/web-quiz.routes'));
