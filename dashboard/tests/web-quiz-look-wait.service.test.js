@@ -78,3 +78,9 @@ describe('the quiz question wraps balanced (a «؟» or a short last word never 
     expect(CSS).toContain('html.wq-1b .wq-qtext{text-wrap:balance}');
   });
 });
+
+describe('the storybook done screen: Next, Share and Home share the column width', () => {
+  test('the finish card in the reader\'s centred sheet stretches to the column (it no longer shrinks to its words)', () => {
+    expect(CSS).toContain('html.wq-1b .wqs-sheet>.wqfc{align-self:stretch}');
+  });
+});
