@@ -459,6 +459,8 @@ describe('the Stories door: the doors read itself failing never reads as "no sto
   const ANSWERS = {
     'the fetch rejects': () => Promise.reject(new Error('offline')),
     'a 500': () => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ error: 'oops' }) }),
+    // a server that has not read its settings since it started, and cannot now, fails closed: 404 home_off
+    'a 404 home_off (a cold server whose settings read fails)': () => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ error: 'home_off' }) }),
     'the server\'s own failure {stories: [], shelf: false, err: 1}': OK({ stories: [], shelf: false, err: 1 }),
   };
   const rows = [];
@@ -637,5 +639,91 @@ describe('the Stories door\'s shelf that did not load (the reader\'s own Try aga
     r.sh.querySelector = (q) => (q === '[data-screen="stories-retry"]' ? s.el : q === '[data-primary]' ? el() : null);
     r.observers.forEach((cb) => cb());
     expect(s.say.textContent).toBe('Jugnu could not open this.');
+  });
+});
+
+// The doors' read under a server that could not read its own settings (it answers {err: 1}), the home's early ask, and
+// the one list writer on the Videos shelves: each pinned so a change that drops it goes red.
+describe('a failed rows answer is never kept; the home asks once; the shelves keep their own writer (switch on)', () => {
+  test('a server {games: [], err: 1}: not kept; Try again asks the server again and paints the rows', async () => {
+    let n = 0;
+    const { W, fetch } = live({ fetchImpl: (u) => (/d=games/.test(u) ? OK((n += 1) === 1 ? { games: [], err: 1 } : GAMES)() : new Promise(() => {})) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, B_ON, C, 'games');
+    await flush();
+    expect(r.paints[r.paints.length - 1]).toMatch(/data-primary data-tap="retry"/);
+    r.taps.retry.fire('click');
+    await flush();
+    expect(fetch.mock.calls.filter((c) => /d=games/.test(c[0]))).toHaveLength(2);
+    for (const s of SECTIONS) expect(visible(r.paints[r.paints.length - 1])).toContain(s);
+  });
+  test('a cold server whose settings read fails answers 404 home_off: Games shows the retry, never the empty note', async () => {
+    const { W } = live({ fetchImpl: () => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ error: 'home_off' }) }) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, B_ON, C, 'games');
+    await flush();
+    expect(r.paints[r.paints.length - 1]).toMatch(/data-primary data-tap="retry"/);
+    expect(r.paints[r.paints.length - 1]).not.toMatch(/data-empty/);
+  });
+  test('a server {games: [], err: 1}, then the door opened again: asked again (the failure was not kept)', async () => {
+    const { W, fetch } = live({ fetchImpl: OK({ games: [], err: 1 }) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, B_ON, C, 'games');
+    await flush();
+    W.WQDOORS.mount(r, B_ON, C, 'games');
+    await flush();
+    expect(fetch.mock.calls.filter((c) => /d=games/.test(c[0]))).toHaveLength(2);
+  });
+  // The home loads the door screens itself (WQDOORS not there yet): when that script arrives the home asks for the
+  // Games and Stories rows once, so a door tap paints its list at once; a second home paint asks nothing more.
+  const homeOnly = (B) => {
+    const vm = require('vm');
+    const head = [];
+    const fetch = jest.fn(() => new Promise(() => {}));
+    const document = {
+      getElementById: () => null,
+      querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
+      createElement: (tag) => el({ tag }),
+      head: { appendChild: (x) => head.push(x) },
+    };
+    const win = { scrollTo() {}, addEventListener() {} };
+    const sandbox = { window: win, localStorage: { getItem: () => null, setItem() {} }, JSON, Math, String, Number, Array, Object, encodeURIComponent, Date, isFinite, RegExp, fetch, document, location: { hash: '', pathname: `/h/${TOKEN}`, search: '' }, MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; }, setImmediate };
+    vm.runInNewContext(fs.readFileSync(path.join(WQ, 'wq-home.js'), 'utf8'), sandbox);
+    const home = () => ({ innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute: () => null, querySelector: () => null, querySelectorAll: () => [] });
+    win.WQHOME.mount(home(), B, C);
+    const script = head.find((x) => /\/wq\/wq-doors\.js/.test(x.src || ''));
+    return { win, fetch, script, again: () => win.WQHOME.mount(home(), B, C), arrive: () => { vm.runInContext(fs.readFileSync(path.join(WQ, 'wq-doors.js'), 'utf8'), sandbox); script.fire('load'); } };
+  };
+  test('the home\'s own load of the door screens asks for the Games and Stories rows once', () => {
+    const h = homeOnly(B_ON);
+    expect(h.script).toBeTruthy();
+    expect(h.fetch).not.toHaveBeenCalled();
+    h.arrive();
+    expect(h.fetch.mock.calls.filter((c) => /d=games/.test(c[0]))).toHaveLength(1);
+    expect(h.fetch.mock.calls.filter((c) => /d=stories/.test(c[0]))).toHaveLength(1);
+    h.again();
+    expect(h.fetch.mock.calls.filter((c) => /\/api\/wq\/doors\//.test(c[0]))).toHaveLength(2);
+  });
+  test('switch off: the home\'s load of the door screens asks for nothing (today)', () => {
+    const h = homeOnly(bootOf('en', {}));
+    h.arrive();
+    expect(h.fetch).not.toHaveBeenCalled();
+  });
+  // The Videos screens as picture shelves stamp with their own writer (vtrip): the doors' list writer never writes there.
+  test.each([['videos'], ['watch/aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa']])('the shelves on, %s: the doors\' list writer writes nothing (no data-trip ever set)', async (name) => {
+    const B = { ...B_ON, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true, shelf: true } } };
+    const vid = 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const watch = { watch: { vid, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
+    const { W } = live({ fetchImpl: (u) => (/\/api\/wq\/videos\/start/.test(u) ? Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(watch)) }) : new Promise(() => {})) });
+    const r = paintRoot();
+    const writes = [];
+    const set = r.setAttribute;
+    r.setAttribute = function (k, v) { writes.push(k); return set.call(this, k, v); };
+    W.WQDOORS.mount(r, B, C, name);
+    await flush();
+    if (name === 'videos') { W.WQDOORS.mount(r, B, C, name); await flush(); }
+    expect(r.paints.length).toBeGreaterThan(0);
+    if (name !== 'videos') expect(r.paints[r.paints.length - 1]).toContain('Life cycle of a hen');
+    expect(writes).not.toContain('data-trip');
   });
 });

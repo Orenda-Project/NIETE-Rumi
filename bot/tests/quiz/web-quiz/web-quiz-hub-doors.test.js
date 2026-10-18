@@ -292,3 +292,152 @@ describe('web_quiz_list_states: a Stories read that failed is not "no stories" (
     }
   });
 });
+
+// A settings outage, with the real home switches module over a fake client whose app_settings read fails the two ways
+// a live client fails: it answers {error}, or the call itself throws. Under web_quiz_list_states the last good read
+// (at most 10 min old) is kept and marked `down`, and both doors answer err: 1 (the page's retry), never an empty
+// shelf or an empty Games list. A cold process, an old read, or the switch off: today's all-off answer, byte for byte.
+describe('a settings outage: the retry, never an empty shelf (web_quiz_list_states)', () => {
+  const Flags = require('../../../shared/services/quiz/web-quiz-home-flags');
+  const games = () => Doors.door('tok', { kid: 'chip', d: 'games', lang: 'en', now: NOW });
+  const LS_ON = [ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_stories'), ON('web_quiz_list_states')];
+  const OFF_SETS = [[ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_stories')], [ON('web_quiz_hub'), ON('web_quiz_home_v3'), ON('web_quiz_stories'), { key: 'web_quiz_list_states', value: 'true' }]];
+  const ALL_OFF = '{"home":false,"stories":false,"column":false,"shelf":false,"list":false}';
+  const SEC = 1000;
+  const MIN = 60 * SEC;
+  let healthy = null;
+  // the app_settings read fails from now on: 'error' answers {error}, 'throw' throws from the call
+  const settingsDown = (mode) => {
+    healthy = supabase.from;
+    const from = healthy;
+    supabase.from = (t) => {
+      if (t !== 'app_settings') return from(t);
+      if (mode === 'throw') throw new Error('settings down');
+      const q = { select: () => q, in: () => Promise.resolve({ data: null, error: { message: 'settings down' } }) };
+      return q;
+    };
+  };
+  const settingsBack = () => { supabase.from = healthy; };
+  const at = (ms) => jest.setSystemTime(NOW + ms);
+  afterEach(() => jest.setSystemTime(NOW));
+
+  test.each(['error', 'throw'])('the read fails (%s) 31 s after a good read with the switch on: the last good switches, marked down', async (mode) => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(31 * SEC);
+    settingsDown(mode);
+    expect(await Flags.flags()).toMatchObject({ home: true, stories: true, list: true, down: true });
+  });
+  test.each(['error', 'throw'])('the read fails (%s) more than 10 min after the last good read: today\'s all-off answer, no down', async (mode) => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(10 * MIN + SEC);
+    settingsDown(mode);
+    expect(JSON.stringify(await Flags.flags())).toBe(ALL_OFF);
+  });
+  test('down holds 10 min from the last good read, not from the last failure', async () => {
+    seed(LS_ON);
+    await Flags.flags();
+    settingsDown('error');
+    at(31 * SEC);
+    expect((await Flags.flags()).down).toBe(true);
+    at(9 * MIN);
+    expect((await Flags.flags()).down).toBe(true);
+    at(10 * MIN + SEC);
+    expect(JSON.stringify(await Flags.flags())).toBe(ALL_OFF);
+  });
+  test.each(['error', 'throw'])('a cold process (no good read yet), the read fails (%s): today\'s all-off answer, no down', async (mode) => {
+    seed(LS_ON);
+    settingsDown(mode);
+    expect(JSON.stringify(await Flags.flags())).toBe(ALL_OFF);
+  });
+  test('GOLDEN off (absent, or the string \'true\'): a failed read after a good one is today\'s all-off answer, byte for byte', async () => {
+    for (const settings of OFF_SETS) {
+      for (const mode of ['error', 'throw']) {
+        seed(settings);
+        await Flags.flags();
+        at(31 * SEC);
+        settingsDown(mode);
+        expect(JSON.stringify(await Flags.flags())).toBe(ALL_OFF);
+        jest.setSystemTime(NOW);
+      }
+    }
+  });
+  test('a failed read is not kept: the next read that works answers fresh, with no down', async () => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(31 * SEC);
+    settingsDown('error');
+    await Flags.flags();
+    settingsBack();
+    const f = await Flags.flags();
+    expect(f).toMatchObject({ home: true, stories: true, list: true });
+    expect(f).not.toHaveProperty('down');
+  });
+
+  // the doors, an outage longer than the 30 s cache
+  test.each(['error', 'throw'])('Stories, the settings read fails (%s) past the cache: {stories: [], shelf: false, err: 1}', async (mode) => {
+    seed(LS_ON);
+    expect(await stories()).toEqual({ stories: [], shelf: true });
+    at(31 * SEC);
+    settingsDown(mode);
+    expect(await stories()).toEqual({ stories: [], shelf: false, err: 1 });
+  });
+  test.each(['error', 'throw'])('Games, the settings read fails (%s) past the cache: {games: [], err: 1}, no grade read made', async (mode) => {
+    seed(LS_ON);
+    expect((await games()).games.length).toBeGreaterThan(0);
+    at(31 * SEC);
+    settingsDown(mode);
+    mockCh.gradeOf.mockClear();
+    expect(await games()).toEqual({ games: [], err: 1 });
+    expect(mockCh.gradeOf).not.toHaveBeenCalled();
+  });
+  // the cache runs out while the door is open: the home's first read was good, the read behind it fails
+  test.each(['error', 'throw'])('Stories, the shelf switch read fails (%s) after the door\'s first read: err: 1, not "no stories"', async (mode) => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(29 * SEC);
+    mockWho.mockImplementationOnce(async () => { at(31 * SEC); settingsDown(mode); return { studentId: KID, grade: 3, rootId: null }; });
+    expect(await stories()).toEqual({ stories: [], shelf: false, err: 1 });
+  });
+  test.each(['error', 'throw'])('Games, the grade read and the settings read behind it fail (%s): err: 1, not a child with no games', async (mode) => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(29 * SEC);
+    mockCh.gradeOf.mockImplementationOnce(async () => { at(31 * SEC); settingsDown(mode); throw new Error('db down'); });
+    expect(await games()).toEqual({ games: [], err: 1 });
+  });
+  test('more than 10 min into the outage: today\'s fail-closed answer (404 home_off)', async () => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(10 * MIN + SEC);
+    settingsDown('error');
+    await expect(stories()).rejects.toMatchObject({ status: 404, body: { error: 'home_off' } });
+    await expect(games()).rejects.toMatchObject({ status: 404, body: { error: 'home_off' } });
+  });
+  test('GOLDEN off (absent, or the string \'true\'): every outage row answers today\'s bytes', async () => {
+    for (const settings of OFF_SETS) {
+      for (const mode of ['error', 'throw']) {
+        seed(settings);
+        await Flags.flags();
+        at(31 * SEC);
+        settingsDown(mode);
+        await expect(stories()).rejects.toMatchObject({ status: 404, body: { error: 'home_off' } });
+        await expect(games()).rejects.toMatchObject({ status: 404, body: { error: 'home_off' } });
+        jest.setSystemTime(NOW);
+        seed(settings);
+        await Flags.flags();
+        at(29 * SEC);
+        mockWho.mockImplementationOnce(async () => { at(31 * SEC); settingsDown(mode); return { studentId: KID, grade: 3, rootId: null }; });
+        expect(JSON.stringify(await stories())).toBe('{"stories":[],"shelf":false}');
+        jest.setSystemTime(NOW);
+        seed(settings);
+        await Flags.flags();
+        at(29 * SEC);
+        mockCh.gradeOf.mockImplementationOnce(async () => { at(31 * SEC); settingsDown(mode); throw new Error('db down'); });
+        expect(JSON.stringify(await games())).toBe('{"games":[]}');
+        jest.setSystemTime(NOW);
+      }
+    }
+  });
+});

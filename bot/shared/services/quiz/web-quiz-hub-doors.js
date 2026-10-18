@@ -65,8 +65,9 @@ async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
 }
 
 async function storiesDoor(list) {
-  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => (list ? null : false));
-  // web_quiz_list_states: a shelf switch that could not be read is a failed read, not "the shelf is off"
+  // web_quiz_list_states: a shelf switch that could not be read (the settings read is down) is a failed read, not
+  // "the shelf is off" (`down` comes only with list_states on)
+  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => (f.down ? null : f.stories)).catch(() => (list ? null : false));
   return storiesOn === null ? { stories: [], shelf: false, err: 1 } : { stories: [], shelf: storiesOn };
 }
 
@@ -206,6 +207,12 @@ async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
+  // web_quiz_list_states: the settings read is down (the last good read kept, list_states on in it): a failed read, the
+  // page's retry, not rows from switches that could not be read
+  if (homeFlags.down) {
+    logToFile('⚠️ web quiz doors: unavailable', { door: d, error: 'settings down' });
+    return { ...(d === 'stories' ? { stories: [], shelf: false } : { games: [] }), err: 1 };
+  }
   try {
     return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
   } catch (err) {

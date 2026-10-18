@@ -214,3 +214,44 @@ describe('web_quiz_list_states, wait_ux on: a failed grade or form read says so'
     expect(g.games.length).toBeGreaterThan(0);
   });
 });
+
+// A settings outage while the side-by-side door is open: the home's first read was good, its cache runs out during the
+// grade read, and the settings read behind it fails ({error}, or the call throws). The real home switches module over
+// the fake client: under web_quiz_list_states the door answers err: 1 (the retry), never a child with no games.
+describe('web_quiz_list_states, wait_ux on: the settings read fails behind a failed grade read', () => {
+  const LS = [...BASE, ON('web_quiz_wait_ux'), ON('web_quiz_list_states')];
+  const together = () => { expect(mockCh.recordOn).toHaveBeenCalled(); };
+  const T0 = Date.now();
+  let clock = T0;
+  beforeEach(() => { clock = T0; jest.spyOn(Date, 'now').mockImplementation(() => clock); });
+  afterEach(() => jest.restoreAllMocks());
+  const settingsDown = (mode) => {
+    const from = supabase.from;
+    supabase.from = (t) => {
+      if (t !== 'app_settings') return from(t);
+      if (mode === 'throw') throw new Error('settings down');
+      const q = { select: () => q, in: () => Promise.resolve({ data: null, error: { message: 'settings down' } }) };
+      return q;
+    };
+  };
+  const failLater = (mode) => mockCh.gradeOf.mockImplementationOnce(async () => { clock = T0 + 31000; settingsDown(mode); throw new Error('db down'); });
+  test.each(['error', 'throw'])('on: the settings read fails (%s): {games: [], err: 1}', async (mode) => {
+    await seed(LS);
+    expect(WaitUx.on()).toBe(true);
+    failLater(mode);
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+  });
+  test('GOLDEN off (absent, or the string \'true\'): today\'s {games: []}, byte for byte', async () => {
+    for (const ls of [[], [{ key: 'web_quiz_list_states', value: 'true' }]]) {
+      for (const mode of ['error', 'throw']) {
+        clock = T0;
+        await seed([...BASE, ON('web_quiz_wait_ux'), ...ls]);
+        expect(WaitUx.on()).toBe(true);
+        failLater(mode);
+        expect(JSON.stringify(await games())).toBe('{"games":[]}');
+        together();
+      }
+    }
+  });
+});

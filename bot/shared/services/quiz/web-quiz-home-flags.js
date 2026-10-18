@@ -9,6 +9,9 @@
  * library's own answers); read in the same query, so the hub asks app_settings nothing more.
  * `list` = `web_quiz_list_states`: every child list shows loading / empty / failed as three states (the boot's
  * `list_states`, the doors' `err`); read in the same query too.
+ * A failed read under `list` (the last good read had it on, and is at most 10 min old): that last good read, marked
+ * `down`, so a settings outage is a failed read (the doors answer err: 1, the page's retry), never an empty list. A
+ * cold process, an older read, or `list` off: every switch off, as before. A failed read is never cached.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -19,7 +22,9 @@ const COLUMN_KEY = 'web_quiz_remember_column';
 const SHELF_KEY = 'web_quiz_video_shelf';
 const LIST_KEY = 'web_quiz_list_states';
 const TTL_MS = 30 * 1000;
+const KEEP_MS = 10 * 60 * 1000;
 let cache = null;
+let lastGood = null;
 
 /** Only the JSON boolean the flip writes turns a switch on (app_settings.value is jsonb); the string 'true' is off. */
 function isTrue(value) {
@@ -33,11 +38,17 @@ async function flags(now = Date.now()) {
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]), column: isTrue(by[COLUMN_KEY]), shelf: isTrue(by[SHELF_KEY]), list: isTrue(by[LIST_KEY]) };
+    lastGood = cache;
     return cache;
   } catch (err) {
+    // web_quiz_list_states: the last good read, marked down (the doors say "failed", not "nothing here")
+    if (lastGood && lastGood.list && now - lastGood.at < KEEP_MS) {
+      logToFile('⚠️ web quiz home: settings lookup failed — last good read kept', { error: err.message });
+      return { ...lastGood, down: true };
+    }
     logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
     return { home: false, stories: false, column: false, shelf: false, list: false };
   }
 }
 
-module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; lastGood = null; } };
