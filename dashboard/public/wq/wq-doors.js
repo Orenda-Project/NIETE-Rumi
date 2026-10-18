@@ -358,7 +358,9 @@
     if (s0) s0.addEventListener('load', fill);
     if (H && typeof H.loadOnce === 'function') H.loadOnce('wq-stories', fill);
     var s1 = B.list_states ? readerScript() : null;
-    if (s1) s1.addEventListener('error', function () { slotFailed(root, sh, ctx); });
+    // (a script that failed before this tap has fired its error already: the home marked it)
+    if (s1 && s1.getAttribute('data-failed') === '1') slotFailed(root, sh, ctx);
+    else if (s1) s1.addEventListener('error', function () { slotFailed(root, sh, ctx); });
   }
   function readerScript() { try { return document.querySelector('script[src*="/wq/wq-stories.js"]'); } catch (e) { return null; } }
   // the reader never arrived, or its shelf threw (`thrown`): a reload in the slot, and the door root says failed

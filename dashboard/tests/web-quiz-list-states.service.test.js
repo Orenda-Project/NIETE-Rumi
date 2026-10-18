@@ -119,7 +119,7 @@ function el(extra = {}) {
   };
 }
 const flush = async () => { for (let i = 0; i < 6; i += 1) await new Promise((r) => setImmediate(r)); };
-function live({ win = {}, fetchImpl, scripts = {} } = {}) {
+function live({ win = {}, fetchImpl, scripts = {}, hash = '#games' } = {}) {
   const head = [];
   const observers = [];
   const MutationObserver = function (cb) { this.observe = () => observers.push(cb); };
@@ -130,7 +130,7 @@ function live({ win = {}, fetchImpl, scripts = {} } = {}) {
     createElement: (tag) => el({ tag }),
     head: { appendChild: (x) => head.push(x) },
   };
-  const location = { hash: '#games', pathname: `/h/${TOKEN}`, search: '' };
+  const location = { hash, pathname: `/h/${TOKEN}`, search: '' };
   const W = load({ win: { scrollTo() {}, addEventListener() {}, ...win }, globals: { fetch, document, location, MutationObserver, setImmediate } });
   return { W, fetch, head, observers };
 }
@@ -284,6 +284,43 @@ describe('the Stories door never says "no stories" while the shelf loads', () =>
     expect(sh.innerHTML).toMatch(/data-primary/);
     expect(visible(sh.innerHTML)).toMatch(/Try again/);
     expect(root.attrs['data-fetch']).toBe('failed');
+  });
+  // The home asked for the reader as it painted, and the script failed before the child tapped Stories: the error has
+  // fired already and the home never asks again, so the door must see that the tag failed (else a skeleton forever).
+  test.each([['en', 'Try again', 'The stories could not open yet.'], ['ur', 'دوبارہ کوشش کریں', 'کہانیاں ابھی نہیں کھل سکیں۔']])('%s: the reader script failed before the Stories tap: the retry in the slot, the door root says failed', (lang, retry, oops) => {
+    const scripts = {};
+    const { W, head } = live({ scripts, hash: '' });
+    const homeSh = el();
+    const B = { ...bootOf(lang, ON), doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } };
+    const ctx = { token: TOKEN, lang, ev() {} };
+    W.WQHOME.mount({ innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute: () => null, querySelector: (q) => (q === '[data-stories-shelf]' ? homeSh : null), querySelectorAll: () => [] }, B, ctx);
+    const script = head.find((x) => /\/wq\/wq-stories\.js/.test(x.src || ''));
+    expect(script).toBeTruthy(); // the home's own ask
+    scripts['wq-stories.js'] = script;
+    script.fire('error'); // before the tap
+    const sh = el();
+    const root = storiesRoot(() => sh);
+    W.WQDOORS.mount(root, B, ctx, 'stories');
+    expect(sh.innerHTML).toMatch(/data-primary/);
+    expect(visible(sh.innerHTML || '')).toContain(retry);
+    expect(visible(sh.innerHTML || '')).toContain(oops);
+    expect(sh.getAttribute('data-failed')).toBe('1');
+    expect(root.attrs['data-fetch']).toBe('failed');
+  });
+  test('switch off: the reader script that failed before the tap leaves the door as today (no retry, no marker)', () => {
+    const scripts = {};
+    const { W, head } = live({ scripts, hash: '' });
+    const B = { ...bootOf('en', {}), doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } };
+    W.WQHOME.mount({ innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute: () => null, querySelector: (q) => (q === '[data-stories-shelf]' ? el() : null), querySelectorAll: () => [] }, B, C);
+    const script = head.find((x) => /\/wq\/wq-stories\.js/.test(x.src || ''));
+    scripts['wq-stories.js'] = script;
+    script.fire('error');
+    expect(script.getAttribute('data-failed')).toBeNull();
+    const sh = el();
+    const root = storiesRoot(() => sh);
+    W.WQDOORS.mount(root, B, C, 'stories');
+    expect(sh.innerHTML).toBeUndefined();
+    expect(root.attrs['data-fetch']).toBeUndefined();
   });
   test('a reader whose shelf throws: the retry, never a skeleton left forever', () => {
     const { W } = live({ win: { WQSTORIES: { shelf() { throw new Error('boom'); } } } });
