@@ -174,6 +174,18 @@ describe('web_quiz_pack on the hub JSON', () => {
     expect(other.pack).toBe(true);
   });
 
+  test('with the hub\'s reads started together (web_quiz_hub_fanout on): `pack: true` too, and off no key', async () => {
+    db.app_settings.push({ key: 'web_quiz_hub_fanout', value: true });
+    Flags.prime(db.app_settings);
+    const off = stable(await Hub.hub(T.signHub([KID]), A));
+    expect(off).not.toHaveProperty('pack');
+    again();
+    db.app_settings.push({ key: KEY, value: true });
+    Flags.prime(db.app_settings);
+    expect(Flags.fanoutNow()).toBe(true);
+    expect((await Hub.hub(T.signHub([KID]), A)).pack).toBe(true);
+  });
+
   test('the key rides the hub\'s one batched settings read: the same app_settings reads ON as OFF', async () => {
     let n = counting();
     await Hub.hub(T.signHub([KID]), A);

@@ -122,8 +122,12 @@ async function runsOf(childId, cols) {
  * `period_id`); when they cannot be read, falls back to the list's own `exercises[].done` (absent: every stop waits).
  */
 async function trailWaiting(childId, periodId, exercises) {
+  return trailFrom(await runsOf(childId, 'exercise, status, mode, record, period_id'), periodId, exercises);
+}
+
+/** trailWaiting's answer from run rows already read (null: they could not be read). */
+function trailFrom(runs, periodId, exercises) {
   const list = Array.isArray(exercises) ? exercises : [];
-  const runs = await runsOf(childId, 'exercise, status, mode, record, period_id');
   if (!runs) return list.filter((e) => !e.done).map((e) => e.id);
   // Only a FINAL record row closes a stop: a `served` or `abandoned` row (or one still scoring) leaves it waiting.
   const done = (r, id) => r.exercise === id && r.mode === 'check' && r.record === true && r.period_id === periodId && FINAL.includes(r.status);
@@ -132,16 +136,32 @@ async function trailWaiting(childId, periodId, exercises) {
 
 /** The passages this child has met: any run row of any mode or status (a story sticker is a story run row); null if unknown. */
 async function seenPassages(childId) {
-  const runs = await runsOf(childId, 'passage_id');
-  return runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null;
+  return seenFrom(await runsOf(childId, 'passage_id'));
 }
+const seenFrom = (runs) => (runs ? new Set(runs.map((r) => r.passage_id).filter(Boolean)) : null);
 
 /** The practice passages for this language: live (released) ones and the earliest buffered release. Never throws. */
 async function passagesOf(lang, nowIso, bands) {
+  return passagesFrom(await passageRows(lang), nowIso, bands);
+}
+
+/** The practice passages read for this language ({data, error}; {thrown: true} when the read itself threw). */
+function passageRows(lang) {
   try {
-    const { data, error } = await supabase.from('challenge_passages')
+    return Promise.resolve(supabase.from('challenge_passages')
       .select('passage_id, twin_of, lang, band, kind, pool, status, released_at, title_en, title_ur')
-      .eq('pool', 'practice').eq('lang', lang).in('status', LIVE_STATUS).not('released_at', 'is', null);
+      .eq('pool', 'practice').eq('lang', lang).in('status', LIVE_STATUS).not('released_at', 'is', null))
+      .catch(() => ({ thrown: true }));
+  } catch (_) {
+    return Promise.resolve({ thrown: true });
+  }
+}
+
+/** passagesOf's answer from rows already read. Never throws. */
+function passagesFrom(res, nowIso, bands) {
+  try {
+    if (!res || res.thrown) return { live: [], next: null };
+    const { data, error } = res;
     if (error) return { live: [], next: null };
     // The reserve story is the draw's fall-through only: never on the shelf, never NEW, never a lantern title. The
     // registry marks it by its id (<lang>.read.<band>.reserveNN, web_quiz_challenge_stock_seed.sql); it has no params column.
@@ -216,7 +236,7 @@ function shelfOf(live, unseenPids, lang) {
  * challenge's step names (`nameOf`, `poolOn`) from the caller, which holds the challenge: this file never requires it
  * (the challenge requires this file).
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, steps, collect } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, steps, collect, together = false } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -235,13 +255,32 @@ async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf, s
   };
   if (!s.v2 || !tile || !chosenId) return out;
 
+  const plang = require('../../config/ux-strings').clampLanguage(lang);
+  // web_quiz_hub_fanout (the hub's `together`): with Story Time on, one runs read serves the trail and the seen
+  // passages, and the rung and the passages are read beside it: one round, not four. The answer is the same: the rung
+  // and the passages are used only when the runs could be read, and a runs read that fails is asked again as off.
+  const early = together && s.story
+    ? [runsOf(chosenId, 'exercise, status, mode, record, period_id, passage_id'), readingRungOf(chosenId), passageRows(plang)]
+    : null;
   const stops = typeof stopsOf === 'function' ? await stopsOf() : [];
   // the home tile's first-step switches are read beside the trail, never as a wave after it
   const stepReads = firstStepReads(steps);
-  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
-  const seenIds = s.story ? await seenPassages(chosenId) : null;
-  const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
-  const p = seenIds ? await passagesOf(require('../../config/ux-strings').clampLanguage(lang), nowIso, bands) : { live: [], next: null };
+  let trail;
+  let seenIds;
+  let bands;
+  let p;
+  const runs = early ? await early[0] : null;
+  if (runs) {
+    trail = trailFrom(runs, periodOf(nowMs), stops.map((id) => ({ id })));
+    seenIds = seenFrom(runs);
+    bands = openBands(grade, await early[1]);
+    p = passagesFrom(await early[2], nowIso, bands);
+  } else {
+    trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
+    seenIds = s.story ? await seenPassages(chosenId) : null;
+    bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
+    p = seenIds ? await passagesOf(plang, nowIso, bands) : { live: [], next: null };
+  }
   // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new),
   // and a title in the child's language (a story the lantern cannot name is never NEW on the shelf either).
   const unseen = (seenIds ? p.live.filter((r) => !isSeenOf(seenIds)(r)) : [])

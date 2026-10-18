@@ -93,9 +93,39 @@ describe('the switch', () => {
     expect(await Card.field()).toEqual({ card_v3: true });
   });
   test('a settings failure fails closed', async () => {
-    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'down' } }) }) }) });
+    // both reads fail: the combined one and the card's own key read after it
+    let reads = 0;
+    const down = async () => { reads += 1; return { data: null, error: { message: 'down' } }; };
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: down, eq: down }) }) });
+    Card._reset();
+    const t0 = Date.now();
+    expect(await Card.field()).toEqual({});
+    expect(await Card.on(t0 + 1000)).toBe(false);
+    expect(await Card.shareOn(t0 + 9000)).toBe(false);
+    // an outage is remembered for 10 s (not the 30 s of a real answer): 2 reads, then none until it is stale
+    expect(reads).toBe(2);
+    expect(await Card.on(t0 + 11000)).toBe(false);
+    expect(reads).toBe(4);
+  });
+  test('the combined read fails and the card\'s own row is the string "true": off, as on the combined read', async () => {
+    const failed = async () => ({ data: null, error: { message: 'combined down' } });
+    for (const value of ['true', '"true"', 1, 'yes']) {
+      Object.assign(supabase, { from: () => ({ select: () => ({ in: failed, eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value }], error: null }) }) }) });
+      Card._reset();
+      expect(await Card.field()).toEqual({});
+    }
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: failed, eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value: true }], error: null }) }) }) });
+    Card._reset();
+    expect(await Card.field()).toEqual({ card_v3: true });
+  });
+  test('an outage logs the first read\'s error too, not only the fallback\'s', async () => {
+    logToFile.mockClear();
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'combined down' } }), eq: async () => ({ data: null, error: { message: 'own key down' } }) }) }) });
     Card._reset();
     expect(await Card.field()).toEqual({});
+    const said = logToFile.mock.calls.map((c) => JSON.stringify(c)).join(' ');
+    expect(said).toContain('combined down');
+    expect(said).toContain('own key down');
   });
 });
 

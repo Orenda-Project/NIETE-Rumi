@@ -92,14 +92,16 @@ describe('1. sandbox chapters_1 (lessons 4–5): the put-back printed an antonym
     tagged.options = ['الف) غم', 'ب) ہنسی', 'ج) مزہ', 'د) رونق'];
     tagged.answer = 'الف) غم';
     const r = lay(p, ch(4, 5), { reasked: true });
-    expect((r.putBack || []).map((x) => x.rule)).toEqual([]);
+    // Q1's put-backs (Section C's Q5, held for a Q3 word, comes back by its own rule).
+    expect((r.putBack || []).filter((x) => x.slot === 'urdu.A.Q1').map((x) => x.rule)).toEqual([]);
     expect(antonyms(r.examJson)).toHaveLength(1);
   });
 
-  test('the full syllabus lays the same paper out as before (control)', () => {
+  test('the full syllabus asks a concept once too: one antonym prints and Q1 is one short', () => {
     const r = lay(fixture('r21e-urdu-sandbox-chapters_1'), FDE, { reasked: true });
-    expect(antonyms(r.examJson)).toHaveLength(2);
-    expect(r.shortfall).toEqual([]);
+    expect(antonyms(r.examJson)).toHaveLength(1);
+    expect((r.putBack || []).map((x) => x.rule)).not.toContain('concept_repeat');
+    expect(r.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
   });
 });
 
@@ -190,10 +192,14 @@ describe('1. the engine on lessons 4–5: a Q1 place the antonym repeat left', (
     expect(asked.filter((x) => x.sec === 'A' && GRAMMAR_USED_UP.test(x.prompt))).toHaveLength(1);
   });
 
-  test('the full syllabus: no grammar note, no extra call (control)', async () => {
+  test('the full syllabus: the concept is asked once there too, so the one more top-up is told grammar is used up', async () => {
     const asked = serve((n) => (n === 1 ? mcqs(first) : mcqs([WARM])));
-    await run(FDE);
-    expect(asked.filter((x) => x.sec === 'A' && GRAMMAR_USED_UP.test(x.prompt))).toHaveLength(0);
+    const out = await run(FDE);
+    const told = asked.filter((x) => x.sec === 'A' && GRAMMAR_USED_UP.test(x.prompt));
+    expect(told).toHaveLength(1);
+    expect(told[0].prompt).toContain('from lessons 4–10');
+    expect(out.err && out.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(antonyms(out.err.examJson)).toHaveLength(1);
   });
 
   test('with the reader on: a caught item\'s place is never filled by the antonym repeat', async () => {
