@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons } = require('./fde-layout');
+const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const Reader = require('./fde-reader');
@@ -1042,6 +1042,9 @@ const URDU_LESSONS_RULES = Object.freeze({
   concept: (terms) => (terms.length
     ? `Give every Q1 item a "concept" field: the grammar concept it asks, written as one of ${terms.join('، ')}; or «ذخیرۂ الفاظ / فہم» for a vocabulary, word-meaning or comprehension item. The field is never printed.`
     : null),
+  // Lessons with one prose story: twenty items from one story name each other's people and things.
+  story: (of) => `These lessons hold one story: at most ${STORY_ITEMS} of the ${of} Q1 items ask a fact of the story; write the rest from the lessons' own word lists (نئے الفاظ، معمے کے الفاظ), their word meanings and idioms, and the poem's words. `
+    + 'Give every Q1 item a "source" field: story, word, meaning, idiom or poem. The field is never printed.',
 });
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
@@ -1288,6 +1291,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
           URDU_LESSONS_RULES.budget(urduTerms, urduConcepts, q1.generate, urduPairs), URDU_LESSONS_RULES.concept(urduTerms)].filter(Boolean)
         : [RULE.urduConceptOnce, RULE.urduTermWord];
       rules.push(...concepts, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduFormFamily, RULE.urduOneTable);
+      if (urduLessons && oneStory(urduLessons)) rules.push(URDU_LESSONS_RULES.story(q1.generate));
     }
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
     if (key === 'maths') rules.push(RULE.propertyOneKey);
