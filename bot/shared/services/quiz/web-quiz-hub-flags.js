@@ -87,7 +87,7 @@ const FACE_LITE_KEY = 'web_quiz_face_lite';
 // Minified page files (web-quiz-minify.js) ride this one read: only the stored JSON boolean true is on.
 const MINIFY_KEY = 'web_quiz_minify';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, earlyKid, childMemo, shareOpen, adv, homePreload, waves2, hops, prefetch, home, faceLite, offlineGuard, minify }
+let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 
 function isTrue(value) {
   let v = value;
@@ -95,21 +95,60 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const HOST_KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY, PREFETCH_KEY, HOME_KEY, FACE_LITE_KEY, OFFLINE_GUARD_KEY, MINIFY_KEY]);
+// The hub's switches, ONE LINE EACH, in the order of their app_settings key: [the field on flags(), the key, its rule].
+// A new switch adds one line here in its key's place (and its key constant above): KEYS, the cached answer and the
+// failed read's answer all follow from this list, and nowOf('<field>') reads it from the cache without a function of its own.
+// Rules: 'loose' = JSON true or the string 'true' (isTrue); 'json' = only the JSON boolean true (the string 'true', 1 or an
+// object are off); 'meter' = meterOf; 'read' = read in the same query for a field worked out below (shareOpen).
+const SWITCHES = Object.freeze([
+  ['adv',          ADV_KEY,               'json'],
+  ['backNav',      BACK_NAV_KEY,          'loose'],
+  [null,           CARD_KEY,              'read'],
+  ['challenge',    CHALLENGE_KEY,         'loose'],
+  ['rungs',        RUNGS_KEY,             'loose'],
+  ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
+  ['childHome',    CHILD_HOME_KEY,        'loose'],
+  ['closedLang',   CLOSED_LANG_KEY,       'json'],
+  ['prefetch',     PREFETCH_KEY,          'json'],
+  ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
+  ['eventsV2',     EVENTS_V2_KEY,         'loose'],
+  ['faceLite',     FACE_LITE_KEY,         'json'],
+  ['homeButton',   HOME_BUTTON_KEY,       'loose'],
+  ['homePreload',  HOME_PRELOAD_KEY,      'json'],
+  ['hub',          HUB_KEY,               'loose'],
+  ['childMemo',    CHILD_MEMO_KEY,        'json'],
+  ['door',         DOOR_KEY,              'loose'],
+  ['earlyKid',     EARLY_KID_KEY,         'json'],
+  ['fanout',       FANOUT_KEY,            'json'],
+  ['waves2',       WAVES2_KEY,            'json'],
+  ['library',      LIBRARY_KEY,           'loose'],
+  ['liveMeter',    LIVE_METER_KEY,        'meter'],
+  ['liveReadV3',   LIVE_READ_V3_KEY,      'loose'],
+  ['minify',       MINIFY_KEY,            'json'],
+  ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
+  ['oneButton',    ONE_BUTTON_KEY,        'json'],
+  ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
+  ['readalong',    READALONG_KEY,         'loose'],
+  ['serverTiming', SERVER_TIMING_KEY,     'json'],
+  [null,           SHARE_KEY,             'read'],
+  ['home',         HOME_KEY,              'json'],
+  ['hops',         HOPS_KEY,              'json'],
+  ['waitUx',       WAIT_UX_KEY,           'json'],
+]);
+const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
+
+const HOST_KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
 // web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
 // true only), so a hub open makes no read for it. Not a hub field: the hub's own switches are the HOST_KEYS above.
 const KEYS = Object.freeze([...HOST_KEYS, ...OneHop.hubSwitches.keys]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-  return { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
-    homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
-    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), oneButton: by[ONE_BUTTON_KEY] === true, waitUx: by[WAIT_UX_KEY] === true,
-    // only the JSON boolean true (the string 'true', 1 or an object are off)
-    serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true, earlyKid: by[EARLY_KID_KEY] === true, childMemo: by[CHILD_MEMO_KEY] === true,
-    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true, faceLite: by[FACE_LITE_KEY] === true, offlineGuard: by[OFFLINE_GUARD_KEY] === true, minify: by[MINIFY_KEY] === true,
-    edgeLearn: by[EDGE_LEARN_KEY] === true,
-    homePreload: by[HOME_PRELOAD_KEY] === true, closedLang: by[CLOSED_LANG_KEY] === true, plainPaint: by[PLAIN_PAINT_KEY] === true, waves2: by[WAVES2_KEY] === true, liveMeter: meterOf(by[LIVE_METER_KEY]), liveReadV3: isTrue(by[LIVE_READ_V3_KEY]), hops: by[HOPS_KEY] === true, prefetch: by[PREFETCH_KEY] === true, home: by[HOME_KEY] === true };
+  const out = { at: now };
+  for (const [field, key, rule] of SWITCHES) if (field) out[field] = RULES[rule](by[key]);
+  // the one share: the card on AND the share on, each only as the JSON true
+  out.shareOpen = by[CARD_KEY] === true && by[SHARE_KEY] === true;
+  return out;
 }
 
 /**
@@ -155,7 +194,8 @@ async function read(now) {
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false, edgeLearn: false, hops: false, prefetch: false, home: false, faceLite: false, offlineGuard: false, minify: false };
+    // every field off (a meter: none), as an empty read would give; never cached
+    return Object.fromEntries(SWITCHES.filter(([field]) => field).map(([field, , rule]) => [field, rule === 'meter' ? null : false]));
   }
 }
 
@@ -226,6 +266,11 @@ function prefetchNow(now = Date.now()) {
 /** web_quiz_wait_home from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
 function homeNow(now = Date.now()) {
   return Boolean(cache && cache.home && now - cache.at < 2 * TTL_MS);
+}
+
+/** Any SWITCHES field from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function nowOf(field, now = Date.now()) {
+  return Boolean(cache && cache[field] && now - cache.at < 2 * TTL_MS);
 }
 
 /** web_quiz_hub_fanout from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
@@ -330,4 +375,64 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, homeNow, HOME_KEY, prefetchNow, PREFETCH_KEY, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, earlyKidNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY, faceLiteNow, FACE_LITE_KEY, offlineGuardNow, OFFLINE_GUARD_KEY, minifyNow, MINIFY_KEY };
+// one export per line, in name order (two changes that add an export touch different lines)
+module.exports = {
+  ADV_KEY,
+  advNow,
+  BACK_NAV_KEY,
+  CHALLENGE_KEY,
+  CHILD_HOME_KEY,
+  CHILD_MEMO_KEY,
+  childMemoNow,
+  CLOSED_LANG_KEY,
+  closedLangNow,
+  DOOR_KEY,
+  EARLY_KID_KEY,
+  earlyKidNow,
+  EDGE_LEARN_KEY,
+  edgeLearnNow,
+  EVENTS_V2_KEY,
+  eventsV2Now,
+  eventsV2On,
+  FACE_LITE_KEY,
+  faceLiteNow,
+  FANOUT_KEY,
+  fanoutNow,
+  flags,
+  HOME_BUTTON_KEY,
+  HOME_KEY,
+  HOME_PRELOAD_KEY,
+  homeNow,
+  HOPS_KEY,
+  hopsNow,
+  HUB_KEY,
+  hubLink,
+  KEYS,
+  LIBRARY_KEY,
+  LIVE_METER_KEY,
+  LIVE_READ_V3_KEY,
+  MINIFY_KEY,
+  minifyNow,
+  nowOf,
+  OFFLINE_GUARD_KEY,
+  offlineGuardNow,
+  ONE_BUTTON_KEY,
+  oneButtonNow,
+  pageNav,
+  PLAIN_PAINT_KEY,
+  plainPaintNow,
+  PREFETCH_KEY,
+  prefetchNow,
+  prime,
+  RUNGS_KEY,
+  rungsOn,
+  SERVER_TIMING_KEY,
+  serverTimingNow,
+  shareOpenNow,
+  SWITCHES,
+  WAIT_UX_KEY,
+  waitUxNow,
+  WAVES2_KEY,
+  waves2Now,
+  _resetCache: () => { cache = null; reading = null; },
+};
