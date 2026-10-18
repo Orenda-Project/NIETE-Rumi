@@ -31,31 +31,79 @@ function pace(attrs = {}) {
 // a stand-in meter that records what the reader asks of it
 const FAKE = (v) => `var __pace = []; window.WQPace = { variant: ${JSON.stringify(v)}, grade: 'G3', mount: function (el, o) { var r = { el: el, o: o, words: [] }; __pace.push(r); return { word: function (n) { r.words.push(n); }, stop: function () { r.stopped = true; }, destroy: function () { r.gone = true; } }; } };`;
 
-describe('the meter: how full, how fast it falls', () => {
-  test('full by grade: G1–2 35, G3 50, G4–5 60 correct words a minute; an unknown grade is the kinder G1–2', () => {
+describe('the meter: a sustained pace against the grade\'s target, never a burst', () => {
+  // a read from mount (t = 0): `at` lists [ms, words newly lit]; the level every 250 ms (as the paint loop asks)
+  const run = (P, at, grade, until) => {
+    let s = P.step(null, 0, 0, { grade }); const lv = [];
+    const ev = at.slice();
+    for (let t = 0; t <= until; t += 250) {
+      let n = 0; while (ev.length && ev[0][0] <= t) n += ev.shift()[1];
+      s = P.step(s, t, n, { grade }); lv.push([t, s.level]);
+    }
+    return lv;
+  };
+  const every = (ms, n, until, from = ms) => { const a = []; for (let t = from; t <= until; t += ms) a.push([t, n]); return a; };
+  const at = (lv, t) => lv.find((x) => x[0] >= t)[1];
+  const max = (lv) => Math.max(...lv.map((x) => x[1]));
+  test('full by grade: G1–2 35, G3 50, G4–5 60 correct words a minute; an unknown grade is the middle (G3), never the easiest', () => {
     const P = pace();
-    expect([P.full('G1'), P.full(2), P.full('G3'), P.full(4), P.full('G5'), P.full(undefined), P.full('KG')]).toEqual([35, 35, 50, 60, 60, 35, 35]);
+    expect([P.full('G1'), P.full(2), P.full('G3'), P.full('3'), P.full(4), P.full('G5'), P.full(undefined), P.full('KG')]).toEqual([35, 35, 50, 50, 60, 60, 50, 50]);
   });
-  test('a word lifts it at once; a 6-s pause lets it fall to about a third; never below 0, never above 1', () => {
+  test.each(['G1', 'G3', 'G5', null])('%s: one burst of 4 words (the recogniser lights a phrase at once) never fills it, and it falls after', (g) => {
     const P = pace();
-    const a = P.step(null, 0, 1, { grade: 'G3' });
-    expect(a.level).toBeCloseTo(1 / 5, 5);                 // 50 a minute over 6 s = 5 words fill it
-    const b = P.step(a, 6000, 0, { grade: 'G3' });
-    expect(b.level).toBeCloseTo(a.level / Math.E, 5);
-    let s = null;
-    for (let t = 0; t <= 60000; t += 600) s = P.step(s, t, 1, { grade: 'G3' });   // 100 a minute: past full
-    expect(s.level).toBe(1);
-    expect(P.step(s, 600000, 0, { grade: 'G3' }).level).toBeGreaterThanOrEqual(0);
+    const lv = run(P, [[2000, 4]], g, 30000);
+    expect(max(lv)).toBeLessThan(0.65);   // 3 stars at most: never full
+    expect(at(lv, 30000)).toBeLessThan(max(lv));
   });
-  test('a steady read at the grade\'s pace fills it; half that pace sits near half', () => {
+  test('it rises at a limited rate: even a very fast reader takes 8 s from empty to full', () => {
     const P = pace();
-    let s = null;
-    for (let t = 0; t <= 30000; t += 1200) s = P.step(s, t, 1, { grade: 'G3' });   // 50 a minute
-    expect(s.level).toBeGreaterThan(0.9);
-    s = null;
-    for (let t = 0; t <= 30000; t += 2400) s = P.step(s, t, 1, { grade: 'G3' });   // 25 a minute
-    expect(s.level).toBeGreaterThan(0.4);
-    expect(s.level).toBeLessThan(0.75);
+    const lv = run(P, every(300, 2, 30000), 'G1', 30000);   // 400 a minute
+    expect(at(lv, 3000)).toBeLessThanOrEqual(0.37);
+    expect(at(lv, 8000)).toBeLessThan(1);
+    expect(at(lv, 10000)).toBe(1);
+  });
+  test.each([['G1', 35], ['G3', 50], ['G5', 60]])('%s: phrase bursts AT the target (%i a minute) fill it, held; 80 %% of it never does; half sits near half', (g, wpm) => {
+    const P = pace();
+    const gap = (4 * 60000) / wpm;   // bursts of 4 words
+    const on = run(P, every(gap, 4, 40000), g, 40000);
+    expect(at(on, 6000)).toBeLessThan(0.7);                     // not full in the first seconds
+    expect(on.filter((x) => x[0] >= 25000).every((x) => x[1] >= 0.9)).toBe(true);
+    const lo = run(P, every(gap / 0.8, 4, 40000), g, 40000);
+    expect(max(lo.filter((x) => x[0] >= 20000))).toBeLessThan(1);
+    expect(lo.filter((x) => x[0] >= 20000).every((x) => x[1] < 0.98)).toBe(true);
+    const half = run(P, every(gap * 2, 4, 40000), g, 40000).filter((x) => x[0] >= 20000).map((x) => x[1]);
+    expect(Math.min(...half)).toBeGreaterThan(0.3);
+    expect(Math.max(...half)).toBeLessThan(0.7);
+  });
+  test('a pause lets it fall, gently: never below 0, never above 1', () => {
+    const P = pace();
+    const lv = run(P, every(1200, 1, 20000), 'G3', 40000);
+    expect(at(lv, 20000)).toBeGreaterThan(0.9);
+    expect(at(lv, 23000)).toBeGreaterThan(0.9);   // the next phrase may still be on its way
+    expect(at(lv, 30000)).toBeLessThan(0.85);     // then it falls
+    expect(at(lv, 30000)).toBeGreaterThan(0.4);   // gently: no cliff
+    expect(at(lv, 40000)).toBeLessThan(0.3);
+    expect(lv.every((x) => x[1] >= 0 && x[1] <= 1)).toBe(true);
+  });
+  test('the pages of one book: the clock stops while the meter is stopped, so the time between pages never counts as a pause', () => {
+    const made = [];
+    const El = function () { this.style = { setProperty() {} }; this.kids = []; this.attrs = {}; this.classList = { add() {}, remove() {}, toggle() {} }; this.offsetWidth = 1; };
+    El.prototype.setAttribute = function (k, v) { this.attrs[k] = v; }; El.prototype.appendChild = function (c) { this.kids.push(c); c.parentNode = this; };
+    El.prototype.removeChild = function () {};
+    const window = {}; let t = 0;
+    const document = { currentScript: null, createElement: () => { const e = new El(); made.push(e); return e; } };
+    const ctx = { window, document, Math, Number, String, Date, requestAnimationFrame: () => 1, cancelAnimationFrame() {} };
+    vm.createContext(ctx); vm.runInContext(PACE_SRC, ctx);
+    const P = window.WQPace; const keep = {}; const o = { variant: 'sky', grade: 'G3', keep, now: () => t };
+    let m = P.mount(new El(), o);
+    for (t = 1200; t <= 9600; t += 1200) m.word(1);   // page 1, at the grade's pace
+    t = 10000; m.stop();
+    const was = P.step(keep.s, t, 0, o).level;
+    t = 40000;                                        // the result, Next, the next page's picture: 30 s
+    m = P.mount(new El(), o);
+    expect(P.step(keep.s, t, 0, o).level).toBeCloseTo(was, 5);
+    for (let k = 1; k <= 4; k += 1) { t += 1200; m.word(1); }
+    expect(P.step(keep.s, t, 0, o).level).toBeGreaterThan(was);   // page 2 carries on from page 1
   });
   test('the variant and grade come from its own script tag; an unknown variant is none', () => {
     expect(pace({ 'data-meter': 'vine', 'data-grade': 'G4' })).toMatchObject({ variant: 'vine', grade: 'G4' });
@@ -177,6 +225,21 @@ describe('a story page (mount): the meter in the glow\'s place', () => {
     D.kids['.lr-done'].l.click();   // the reading ends (here: Done)
     expect(P[0].stopped).toBe(true);
   });
+  test('a host slot (o.pace: the story page\'s, outside the zoomed picture): the sky meter mounts there, none inside the words, its state kept', async () => {
+    const E = env(); const D = dom();
+    vm.runInContext(FAKE('sky'), E.ctx);
+    const host = { sel: 'host' }; const keep = { s: 1 };
+    E.L.mount(D.el, { words: PAGE, lang: 'en', meter: 'none', getKey: KEYP, stream: {}, pace: { el: host, keep } });
+    expect(D.el.innerHTML).not.toMatch(/lr-pace|lr-glow/);
+    const P = E.ctx.__pace;
+    expect(P.length).toBe(1);
+    expect(P[0].el).toBe(host);
+    expect(P[0].o.keep).toBe(keep);
+    await E.flush();
+    const s = E.socks[0]; s.onopen({});
+    s.onmessage({ data: JSON.stringify({ tokens: toks(['the', 'kite']) }) });
+    expect(P[0].words).toEqual([2]);
+  });
   test('the vine: the reader is .lr-vine and the meter stands in it', () => {
     const E = env(); const D = dom();
     vm.runInContext(FAKE('vine'), E.ctx);
@@ -212,6 +275,12 @@ describe('the edge loads the meter only when the bot names it', () => {
     const html = hub({ pace: 'sky' });
     expect(html.indexOf('data-meter="sky"')).toBeGreaterThan(0);
     expect(html.indexOf('wq-pace.js')).toBeLessThan(html.indexOf('/wq/hub.js'));
+  });
+  test('the hub (story pages read there): the chosen child\'s own grade, so the meter fills at their grade\'s pace', () => {
+    const kids = [{ chip: 'A', grade: '1' }, { chip: 'B', grade: '4' }];
+    expect(hub({ pace: 'sky', kids, kid: 'B' })).toMatch(/data-meter="sky" data-grade="4" defer/);
+    expect(hub({ pace: 'sky', kids, kid: null })).toMatch(/data-meter="sky" defer/);
+    expect(hub({ pace: 'sky', kids: [{ chip: 'B', grade: null }], kid: 'B' })).toMatch(/data-meter="sky" defer/);
   });
   test('off, or an unknown name: not a byte of it', () => {
     expect(ch({ lr3: true })).not.toContain('wq-pace');
