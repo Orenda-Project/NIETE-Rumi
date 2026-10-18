@@ -68,4 +68,31 @@ function seedMaker(supabase, { on = true, throwOn = null, extra = {} } = {}) {
 
 const tableReads = (fake, ...tables) => fake.calls.filter((c) => tables.includes(c.table)).length;
 
-module.exports = { TEACHER, PHONE, vid, qid, bank, seedMaker, tableReads, settings, fixturePhone };
+/**
+ * The page read, hooked from now on: every app_settings `.in` whose keys include the quick answer's key (PAGED_KEY),
+ * the one read of all the page switches (PAGE_KEYS). `fail` → it answers an error. → { n, reads }: how many such
+ * reads were asked and each one's keys, as asked. The one pin helper for that read.
+ */
+function hookPageRead(supabase, { fail = false } = {}) {
+  const { PAGED_KEY } = require('../../shared/services/first-touch/teacher-home.flags');
+  const seen = { n: 0, reads: [] };
+  const down = { data: null, error: { message: 'settings down' } };
+  const from0 = supabase.from;
+  supabase.from = (t) => {
+    const b = from0(t);
+    if (t !== 'app_settings') return b;
+    const in0 = b.in.bind(b);
+    b.in = (k, v) => {
+      const r = in0(k, v);
+      const keys = [].concat(v);
+      if (!keys.includes(PAGED_KEY)) return r;
+      seen.n += 1;
+      seen.reads.push(keys);
+      return fail ? { then: (ok, no) => Promise.resolve(down).then(ok, no) } : r;
+    };
+    return b;
+  };
+  return seen;
+}
+
+module.exports = { TEACHER, PHONE, vid, qid, bank, seedMaker, tableReads, hookPageRead, settings, fixturePhone };
