@@ -78,6 +78,9 @@ const WAVES2_KEY = 'web_quiz_hub_waves2';
 // one read, so the hub learns the meter with no settings read of its own. 'sky' | 'vine' (a JSON true is 'sky'), else null.
 const LIVE_METER_KEY = 'web_quiz_live_meter';
 const LIVE_READ_V3_KEY = 'web_quiz_live_read_v3';
+// The first answer after idle keeps the look (web-quiz-one-button.js, web-quiz-adventure-look.js, web-quiz-fast.js late()):
+// the route's carries look at their switch again once the answer lands, when this read is fresh. JSON true only.
+const LOOK_AFTER_KEY = 'web_quiz_look_after';
 // the page asks the Videos door's lists once the home has painted (the boot's `wait_pre`, with web_quiz_wait_ux only)
 const PREFETCH_KEY = 'web_quiz_doors_prefetch';
 // the early page draws Home as the child last saw it in this tab (the boot's `wait_home`, with web_quiz_wait_ux only)
@@ -144,6 +147,7 @@ const SWITCHES = Object.freeze([
   ['library',      LIBRARY_KEY,           'loose'],
   ['liveMeter',    LIVE_METER_KEY,        'meter'],
   ['liveReadV3',   LIVE_READ_V3_KEY,      'loose'],
+  ['lookAfter',    LOOK_AFTER_KEY,        'json'],
   ['minify',       MINIFY_KEY,            'json'],
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
@@ -476,6 +480,7 @@ module.exports = {
   LIBRARY_KEY,
   LIVE_METER_KEY,
   LIVE_READ_V3_KEY,
+  LOOK_AFTER_KEY,
   MINIFY_KEY,
   minifyNow,
   nowOf,
