@@ -236,6 +236,19 @@ describe('--record-short', () => {
     expect(r2.uploadBuffer.mock.calls.every(([buf]) => buf.toString() === 'OggS')).toBe(true);
   });
 
+  test('the default hearing (Soniox, diarised) is judged on the words heard, not on its speaker label', async () => {
+    // The provider's transcript of a clean take reads "[00:00] Teacher (EN): <the words>"; the label is not a word.
+    const AudioService = require('../../shared/services/audio.service');
+    tts.synthesize.mockImplementation(async ({ text }) => ({ ...ok(text), audio: Buffer.from(`OggS${text}`) }));
+    AudioService.transcribe.mockImplementation(async (file, _diarize, lang) => ({
+      text: `[00:00] Teacher (${String(lang).toUpperCase()}): ${fs.readFileSync(file).toString().slice(4)}`, tokens: [] }));
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5']);
+    expect(AudioService.transcribe).toHaveBeenCalled();                  // the questions of 4+ words were heard
+    expect(lines.filter((l) => l.startsWith('gate_failed\t'))).toEqual([]);
+    expect(r.gateFailed).toBe(0);
+    expect(r.recorded).toBeGreaterThan(0);
+  });
+
   test('a question heard wrong is recorded once more, then deleted and listed (never kept, never dropped)', async () => {
     // The long clips are already in the store, and so is one short line: only the failed takes can be missing.
     let kept = null;

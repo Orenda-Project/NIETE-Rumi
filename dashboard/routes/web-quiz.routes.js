@@ -9,6 +9,7 @@
  *   GET  /q/:code/art/teach.png?a=<id>&v=<ver>  the teacher's class link's own picture (the bot names it in the
  *                          payload only while its switches are on), asked of the bot under this code; immutable
  *   GET  /s/:book/:file    a storybook's picture or voice, immutable, from storage (web-quiz-story-assets.js)
+ *   GET  /s/:id            a short share link (web_quiz_share_short): its card's page, or the join door
  *   GET  /wq/card/:t.png   the finish card's picture (web_quiz_card_v3), kept at the edge; HEAD answered from memory
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
  *   GET  /wq/vt/:vid.webp  a lesson's small thumbnail for the Videos door's shelves (web_quiz_video_shelf), kept at the edge
@@ -672,6 +673,24 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
 .k h1,.wq-btn{font-weight:400}` : ''}${resCss}</style>
 </head>
 <body><main class="k" data-screen="card_landing" data-v="4"><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630">${item}${res}${invite}${go}</main></body>
+</html>`;
+}
+
+// A short link that names no card (unknown, expired, the bot away): the join door, ONE way in — the bot's chat with the
+// return words typed (from the bot), else WhatsApp with the words typed; never a page without a door.
+function renderShortDoor({ ret, origin, brandKey }) {
+  const brand = brandOf(brandKey);
+  const r = ret && typeof ret === 'object' ? ret : {};
+  const words = typeof r.words === 'string' && r.words ? r.words : 'quiz please';
+  const href = typeof r.href === 'string' && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(r.href) ? r.href : `https://wa.me/?text=${encodeURIComponent(words)}`;
+  const cta = typeof r.cta === 'string' && r.cta ? r.cta : 'Play with Jugnu';
+  const c = CARD_LANDING.en;
+  return `${head({ lang: 'en', dir: 'ltr', title: cta, desc: c.sub, origin, url: origin, assetV: '', brand }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
+<style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:14px;box-sizing:border-box}
+.k img{width:120px;height:120px;justify-self:center}.k p{margin:0;font-size:21px;font-weight:800;line-height:1.4;text-align:center}.k .hint{font-size:15px;font-weight:400;color:#475569}
+.wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}</style>
+</head>
+<body><main class="k" data-screen="card_door"><img src="/wq/jugnu_hello.webp" alt="" width="120" height="120"><p>${esc(c.sub)}</p><a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(href)}">${esc(cta)}</a><p class="hint">${esc(c.hint)}</p></main></body>
 </html>`;
 }
 
@@ -1637,15 +1656,36 @@ function createWebQuizRouter(opts = {}) {
   // kept at the edge after the first answer, so the second fetch (and the HEAD) never reaches the bot. Never logs the token.
   const cardKept = Preview.ttlCache({ max: 200, now });
   const cardFacts = Preview.ttlCache({ max: 500, now });
+  // web_quiz_card_ready: the bot stores each card's picture and page at mint, so a cold edge (a new deploy, another
+  // replica) answers a preview from storage, never waiting on a draw. Off: storage is never asked.
+  const StoryAssets = require('./web-quiz-story-assets');
+  const cardReadyOn = opts.cardReadyOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_ready' });
+  const cardObject = opts.cardObject || StoryAssets.r2Object;
+  const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
+  const stored = async (token, ext) => {
+    try { return (await cardReadyOn()) === true ? await cardObject(cardStoreKey(token, ext)) : null; } catch (_) { return null; }
+  };
+  // the card's edge lines also go to the process log (the event sink alone did not reach the deploy's logs)
+  const cardTrace = (evt, props) => {
+    logEvent(evt, props);
+    try { console.log(JSON.stringify({ evt, ...props })); } catch (_) { /* a log line never breaks a page */ }
+  };
   router.get('/wq/card/:token.png', limiters.read, async (req, res) => {
     const token = cardToken(req.params.token);
     if (!token) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const t0 = Date.now();
-    const seen = (from, extra = {}) => logEvent('web_quiz.card_edge', { from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra });
+    const seen = (from, extra = {}) => cardTrace('web_quiz.card_edge', { from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra });
     const send = (pic) => res.status(200).set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     const kept = cardKept.get(token);
     if (kept) { seen('edge'); return send(kept); }
+    const obj = await stored(token, 'png');
+    if (obj && obj.bytes && obj.bytes.length) {
+      const pic = { bytes: obj.bytes, contentType: 'image/png' };
+      cardKept.set(token, pic, CARD_KEEP_MS);
+      seen('store');
+      return send(pic);
+    }
     try {
       const out = await callBot('GET', `/api/internal/wq/card/${token}.png`, req, null, { route: '/api/internal/wq/card/:token.png' });
       if (out.bytes) {
@@ -1688,15 +1728,22 @@ function createWebQuizRouter(opts = {}) {
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
   });
-  router.get('/k/:token', limiters.read, async (req, res) => {
-    pageHeaders(res);
+  // The shared link's page for a card token (/k/<t>, and /s/<id> once its id is answered)
+  async function cardLanding(req, res, token) {
     const origin = originOf(req);
-    const token = cardToken(req.params.token);
     const closed = (status) => res.status(status).type('html').send(closedHtml(req, { lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (!token) return closed(404);
     if (!botUrl || !apiKey) return res.status(503).type('html').send(closedHtml(req, { lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    const t0 = Date.now();
     let facts = cardFacts.get(token);
+    let from = facts ? 'edge' : null;
     if (!facts) {
+      // the page's facts stored at mint (web_quiz_card_ready): the head never waits on the bot when cold
+      const obj = await stored(token, 'json');
+      try { const f = obj && obj.bytes ? JSON.parse(obj.bytes.toString('utf8')) : null; if (f && typeof f.deed_text === 'string') { facts = f; from = 'store'; cardFacts.set(token, facts, CARD_KEEP_MS); } } catch (_) { facts = null; }
+    }
+    if (!facts) {
+      from = 'bot';
       try {
         const out = await callBot('GET', `/api/internal/wq/card/${token}`, req, null, { route: '/api/internal/wq/card/:token' });
         if (out.status === 200 && out.body && typeof out.body.deed_text === 'string') { facts = out.body; cardFacts.set(token, facts, CARD_KEEP_MS); }
@@ -1708,8 +1755,40 @@ function createWebQuizRouter(opts = {}) {
       }
     }
     // A shared card opened (a classmate's tap, or the preview crawler): kind and who fetched it, never the token.
-    logEvent('web_quiz.card_open', { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' });
+    const open = { kind: String(facts.kind || '').slice(0, 12), lang: facts.lang === 'ur' ? 'ur' : 'en', ua: Preview.fetcherOf(req), head: req.method === 'HEAD' };
+    logEvent('web_quiz.card_open', open);
+    try { console.log(JSON.stringify({ evt: 'web_quiz.card_open', ...open, from, ms: Date.now() - t0 })); } catch (_) { /* a log line never breaks a page */ }
     return res.status(200).type('html').send(renderCardPage({ facts, token, origin, url: `${origin}/k/${token}`, brandKey: lastBrand, oneFace: Boolean(lastUi && lastUi.uf === true) }));
+  }
+  router.get('/k/:token', limiters.read, (req, res) => {
+    pageHeaders(res);
+    return cardLanding(req, res, cardToken(req.params.token));
+  });
+
+  // A short share link (web_quiz_share_short): its id answered by the bot is the card's own page (a class quiz's card:
+  // its class link); kept at the edge, so a preview's HEAD + GET ask once. An unknown, expired or malformed id, or the
+  // bot away: the join door, never a dead end. (One segment: a storybook's files under /s/<book>/<file> are untouched.)
+  const shortIds = Preview.ttlCache({ max: 500, now });
+  router.get('/s/:id', limiters.read, async (req, res) => {
+    pageHeaders(res);
+    const id = String(req.params.id || '');
+    const door = (ret) => res.status(200).type('html').send(renderShortDoor({ ret, origin: originOf(req), brandKey: lastBrand }));
+    if (!/^[0-9a-f]{8}$/.test(id) || !botUrl || !apiKey) return door(null);
+    let hit = shortIds.get(id);
+    if (!hit) {
+      try {
+        const out = await callBot('GET', `/api/internal/wq/card/s/${id}`, req, null, { route: '/api/internal/wq/card/s/:id' });
+        const b = out && out.body;
+        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+$/.test(b.url))) {
+          hit = { token: b.token, url: b.url };
+          shortIds.set(id, hit, CARD_KEEP_MS);
+        } else return door(out.status === 404 && b ? b.ret : null);
+      } catch (_) {
+        return door(null);
+      }
+    }
+    if (hit.url.startsWith('/q/')) return res.redirect(302, hit.url);
+    return cardLanding(req, res, hit.token);
   });
 
   // M4b library

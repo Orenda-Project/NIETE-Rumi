@@ -18,10 +18,12 @@
  *               AND web_quiz_one_button                look; both JSON true only (the same read: no read is added)
  *
  * Absent / unreadable → { on:false, ownCap:20, eventsV3:false, teacherHome:false, doorUncapped:false, doorDedupe:false, doorCeiling:null }: every caller's path is today's. Read only on a quiz-shaped turn (and
- * by the ledger for a reply marked ownReply), so no other message pays for it.
+ * by the ledger for a reply marked ownReply), so no other message pays for it. A failed read is kept for the same 30 s
+ * (settings/switch-cache): the last good flags this process read, else OFF — an outage costs one read per 30 s.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const ONE_DOOR_KEY = 'quiz_one_door';
 const OWN_CAP_KEY = 'web_quiz_own_reply_cap_per_phone';
@@ -34,7 +36,6 @@ const OWN_CAP_DEFAULT = 20;
 const TTL_MS = 30 * 1000;
 const Adv = require('./adventure-look');
 const OFF = Object.freeze({ on: false, ownCap: OWN_CAP_DEFAULT, eventsV3: false, teacherHome: false, doorUncapped: false, doorDedupe: false, doorCeiling: null, adv: false });
-let cache = null; // { at, on, ownCap, eventsV3, teacherHome, doorUncapped, doorDedupe, doorCeiling, adv }
 
 function isTrue(value) {
   let v = value;
@@ -57,19 +58,21 @@ function capOf(value) {
 /** The door ceiling: a positive JSON integer, else null (no ceiling). The string '100' is not a ceiling. */
 const ceilingOf = (value) => (typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null);
 
-/** → { on, ownCap, eventsV3, teacherHome, doorUncapped, doorDedupe, doorCeiling }; OFF on a failed read (not cached). Never throws. */
-async function flags(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache;
-  try {
+const cache = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: OFF,
+  read: async (now) => {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, ...Adv.KEYS]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]), doorUncapped: isJsonTrue(by[DOOR_UNCAPPED_KEY]), doorDedupe: isJsonTrue(by[DOOR_DEDUPE_KEY]), doorCeiling: ceilingOf(by[DOOR_CEILING_KEY]), adv: Adv.advDrawn(by) };
-    return cache;
-  } catch (err) {
-    logToFile('⚠️ one door: settings lookup failed — switch off', { error: err.message });
-    return OFF;
-  }
+    return { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]), doorUncapped: isJsonTrue(by[DOOR_UNCAPPED_KEY]), doorDedupe: isJsonTrue(by[DOOR_DEDUPE_KEY]), doorCeiling: ceilingOf(by[DOOR_CEILING_KEY]), adv: Adv.advDrawn(by) };
+  },
+  log: (err) => logToFile('⚠️ one door: settings lookup failed — switch off', { error: err.message }),
+});
+
+/** → { on, ownCap, eventsV3, teacherHome, doorUncapped, doorDedupe, doorCeiling, adv }; a failed read → the last good flags, else OFF, for 30 s. Never throws. */
+async function flags(now = Date.now()) {
+  return cache.get(now);
 }
 
 /** true only when quiz_one_door is ON. Never throws. */
@@ -77,4 +80,4 @@ async function on() {
   try { return Boolean((await flags()).on); } catch (_) { return false; }
 }
 
-module.exports = { flags, on, capOf, ceilingOf, ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, OWN_CAP_DEFAULT, _resetCache: () => { cache = null; } };
+module.exports = { flags, on, capOf, ceilingOf, ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, OWN_CAP_DEFAULT, _resetCache: () => { cache.reset(); } };

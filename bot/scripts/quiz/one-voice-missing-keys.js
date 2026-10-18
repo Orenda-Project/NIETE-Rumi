@@ -92,6 +92,8 @@ function wer(text, heard) {
   return prev[hyp.length] / ref.length;
 }
 
+const SPEAKER_LABEL = /^[ \t]*\[\d{1,2}:\d{2}(?::\d{2})?\][ \t]*[^:\n]{1,40}:[ \t]*/gm;
+
 // The default hearing: Soniox async through the child test's own transcription (the audio in a private temp file).
 async function sonioxHears(audio, lang) {
   const fs = require('fs');
@@ -101,7 +103,9 @@ async function sonioxHears(audio, lang) {
   const file = path.join(dir, 'clip.ogg');
   try {
     fs.writeFileSync(file, audio, { mode: 0o600 });
-    return (await require('../../shared/services/child-test/scoring/stt').transcribe(file, lang)).text || '';
+    // the transcript is diarised ("[00:00] Teacher (EN): …" a turn): only the words heard are judged, never the labels
+    const text = (await require('../../shared/services/child-test/scoring/stt').transcribe(file, lang)).text || '';
+    return text.replace(SPEAKER_LABEL, '').trim();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

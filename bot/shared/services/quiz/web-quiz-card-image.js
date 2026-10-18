@@ -159,6 +159,10 @@ function facts(token) {
   if (f.s === 4 && f.j === 1) out.joined = true;
   // minted with web_quiz_share_data on: the finish's result (score, stars, words, badge), from the server's rows
   if (f.s === 4 && f.x) { const x = require('./web-quiz-card-data').clean(f.x); if (x) out.data = x; }
+  // minted with web_quiz_share_card_a on: its picture is design A (web-quiz-card-a.js)
+  if (f.s === 4 && f.a === 1) out.a = true;
+  // minted with web_quiz_card_ready on: its picture and page are drawn and stored at mint (prepare)
+  if (f.s === 4 && f.r === 1) out.ready = true;
   return out;
 }
 
@@ -280,7 +284,7 @@ async function mint(body = {}, { device = null } = {}) {
   const joined = v4 && w.sid && Switch.joinedCached();
   const Data = data ? require('./web-quiz-card-data') : null;
   const x = Data ? Data.clean(await Data.resultOf({ kind, item, w, ct: body.ct })) : null;
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}), ...(Switch.readyCached() ? { r: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   if (joined) {
     try {
@@ -289,11 +293,42 @@ async function mint(body = {}, { device = null } = {}) {
       logToFile('⚠️ web quiz card: the card was not kept for "a friend joined" (the share still works)', { error: err.message });
     }
   }
-  const url = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
+  const long = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
+  // short links on (web_quiz_share_short, the same read): /s/<the card's short id>, else the long link
+  const url = v4 && Switch.shortCached() ? (await shortUrl(token)) || long : long;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
   if (x) out.data = x;
+  // ready (web_quiz_card_ready): the picture and the page are drawn and stored now, while the child is still on the
+  // finish screen, so the link's preview never waits for a draw (never awaited; a failure leaves today's way)
+  if (v4 && Switch.readyCached()) prepare(token).catch(() => {});
   return out;
+}
+
+// ─── short links (web_quiz_share_short) ─────────────────────────────────────
+
+const SHORT_RX = /^[0-9a-f]{8}$/;
+const shortKey = (id) => `wq:share:short:${id}`;
+/** /s/<id>: the card's short id kept 90 days against its token (first come keeps it); null when taken or Redis away. */
+async function shortUrl(token) {
+  try {
+    const id = cardId(token);
+    const redis = require('../cache/railway-redis.service');
+    if (await redis.setNX(shortKey(id), token, CARD_KEEP_S)) return `/s/${id}`;
+    return (await redis.get(shortKey(id))) === token ? `/s/${id}` : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz card: no short link (the long one goes)', { error: err.message });
+    return null;
+  }
+}
+/** A short id back to its card: {token, url} (the long path) for a token that still opens; CardError(404) else. */
+async function byShort(id) {
+  if (!SHORT_RX.test(String(id || ''))) fail(404, 'not_found');
+  let token = null;
+  try { token = await require('../cache/railway-redis.service').get(shortKey(id)); } catch (_) { token = null; }
+  const f = typeof token === 'string' ? facts(token) : null;
+  if (!f) fail(404, 'not_found');
+  return { token, url: f.kind === 'quiz' && f.code ? `/q/${f.code}?k=${token}` : `/k/${token}` };
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────
@@ -409,8 +444,26 @@ async function toPng(png, f = {}) {
   return out;
 }
 
+// Design A (web_quiz_share_card_a tokens): rays, confetti and the medal want more colours; its own budget
+const MAX_BYTES_A = 120 * 1024;
+async function toPngA(png, f) {
+  const sharp = require('sharp');
+  let out = null;
+  for (const colors of [128, 96, 64]) {
+    out = await sharp(png).resize(W, H, { fit: 'cover' }).png({ palette: true, colors, dither: 0.6, compressionLevel: 9, effort: 8 }).toBuffer();
+    if (out.length <= MAX_BYTES_A) return out;
+  }
+  logToFile('⚠️ web quiz card A: picture over 120 KB at 64 colours', { kind: f.kind || null, lang: f.lang || null, bytes: out.length });
+  return out;
+}
+
 async function drawNow(f) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
+  if (f.a) {
+    const A = require('./web-quiz-card-a');
+    const png = await htmlToImage(A.renderCardA(f, { art: await A.artOf(f) }), { width: W, height: H, deviceScaleFactor: 1, selector: '.card' });
+    return toPngA(png, f);
+  }
   const png = await htmlToImage(renderCard(f), { width: W, height: H, deviceScaleFactor: 1, selector: '.card' });
   return toPng(png, f);
 }
@@ -429,6 +482,44 @@ async function image(token) {
     return { bytes, contentType: 'image/png', from: 'drawn' };
   })().finally(() => inflight.delete(token));
   inflight.set(token, p);
+  return p;
+}
+
+// ─── ready before Send (web_quiz_card_ready) ────────────────────────────────
+
+// Where a card's picture and page are kept, shared by every bot and portal process and kept across deploys: the
+// stories' bucket, under the token's hash (never the token). The portal reads the same key (dashboard web-quiz.routes).
+function storeKey(token, ext) {
+  const StoryStore = require('./story-store');
+  return `wq-card/${StoryStore.deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
+}
+const prepared = new Map();
+/** Draw the card's picture and its page's facts and store both (immutable); once per token per process. Never throws. */
+function prepare(token) {
+  if (prepared.has(token)) return prepared.get(token);
+  const p = (async () => {
+    const f = facts(token);
+    if (!f || !f.ready) return false;
+    const t0 = Date.now();
+    try {
+      const StoryStore = require('./story-store');
+      const r2 = require('../../storage/r2');
+      const bucket = StoryStore.storyBucket() || undefined;
+      const [pic, page] = await Promise.all([image(token), landing(token)]);
+      await Promise.all([
+        r2.uploadBuffer(pic.bytes, storeKey(token, 'png'), 'image/png', { bucket, cacheControl: StoryStore.IMMUTABLE }),
+        r2.uploadBuffer(Buffer.from(JSON.stringify(page)), storeKey(token, 'json'), 'application/json', { bucket, cacheControl: StoryStore.IMMUTABLE }),
+      ]);
+      logToFile('web quiz card: ready before Send', { kind: f.kind, lang: f.lang, bytes: pic.bytes.length, ms: Date.now() - t0 });
+      return true;
+    } catch (err) {
+      prepared.delete(token);
+      logToFile('⚠️ web quiz card: not stored at mint (the preview draws it as before)', { error: err.message, ms: Date.now() - t0 });
+      return false;
+    }
+  })();
+  prepared.set(token, p);
+  if (prepared.size > MEM_MAX) prepared.delete(prepared.keys().next().value);
   return p;
 }
 
@@ -493,9 +584,9 @@ async function landing(token) {
   return out;
 }
 
-function _reset() { Switch._reset(); mem.clear(); inflight.clear(); }
+function _reset() { Switch._reset(); mem.clear(); inflight.clear(); prepared.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK, REF_RX,
-  JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, _reset, _seal: seal,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MAX_BYTES_A, MARK, REF_RX, toPngA, prepare, storeKey,
+  JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, byShort, _reset, _seal: seal,
 };
