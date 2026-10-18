@@ -148,3 +148,14 @@ describe('switch ON: the adventure look', () => {
     expect(css).toContain('--gold-d:#b28c29');
   });
 });
+
+describe('the map fills the screen', () => {
+  test('painted on <html> (min-height 100%, so as tall as the screen and the page), the body clear: no flat band below', () => {
+    for (const [k, p] of Object.entries(pages({ adv: true }))) {
+      const css = styleOf(p.html);
+      expect([k, /html\.wq-adv\{[^}]*min-height:100%[^}]*background-image:repeating-radial-gradient/.test(css)]).toEqual([k, true]);
+      expect([k, css.includes('html.wq-adv body{background:transparent}')]).toEqual([k, true]);
+      expect([k, /html\.wq-adv body\{[^}]*background-image/.test(css)]).toEqual([k, false]);
+    }
+  });
+});

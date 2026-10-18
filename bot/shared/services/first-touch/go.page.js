@@ -74,8 +74,10 @@ const CSS = [
 // html.wq-adv). The one button paints from the variant's --fill / --on / --edge; a primary is 56 px, a secondary 52.
 // The map is always light: the look leaves out today's dark-mode colours (no colour name is redefined for it).
 const ADV_LAYER = [
-  'html.wq-adv{color-scheme:light}',
-  'html.wq-adv body{background-color:var(--ground);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}',
+  // the map is painted on <html> (at least the screen's height, and as tall as the page): it fills the whole screen and
+  // scrolls with a long page, with no flat band under a short body
+  'html.wq-adv{color-scheme:light;min-height:100%;background-color:var(--ground);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}',
+  'html.wq-adv body{background:transparent}',
   'html.wq-adv .jg{display:block;width:72px;height:72px;margin:0 auto -8px}html.wq-adv .go:has(#go-known:not([hidden])) .jg{display:none}',
   'html.wq-adv .wq-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;min-height:var(--btn-h2);',
   'padding:var(--sp-2) var(--sp-4);border:0;border-radius:var(--r-btn);background:var(--fill);color:var(--on);',

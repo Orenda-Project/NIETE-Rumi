@@ -137,3 +137,13 @@ describe('the look with the waiting word (quiz_join_wait_word)', () => {
     }
   });
 });
+
+describe('the map fills the screen', () => {
+  test('painted on <html> (min-height 100%), the body clear: no flat band under a short page', () => {
+    for (const [k, html] of Object.entries(pages({ adv: true }))) {
+      const css = styleOf(html);
+      expect([k, /html\.wq-adv\{[^}]*min-height:100%[^}]*background-image:repeating-radial-gradient/.test(css)]).toEqual([k, true]);
+      expect([k, /html\.wq-adv body\{background:transparent/.test(css)]).toEqual([k, true]);
+    }
+  });
+});
