@@ -614,8 +614,8 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false }) {
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}), ...(waitUx && waitShare ? { wait_share: true } : {}) }, token, origin, assetV });
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}), ...(waitUx && waitShare ? { wait_share: true } : {}), ...(waitUx && waitHops ? { wait_hops: true } : {}) }, token, origin, assetV });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -625,8 +625,9 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
   // web_quiz_wait_ux on, but this portal process flushed the frame before it learnt so (each process learns from its own
-  // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once.
-  const lateWait = WaitUx.on(payload) && !String(guess.frame || '').includes(WaitUx.TAG) ? WaitUx.TAG : '';
+  // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once
+  // (with web_quiz_wait_hops, the frame's piece is the hop one: either piece in the frame counts).
+  const lateWait = WaitUx.on(payload) && !String(guess.frame || '').includes(WaitUx.MARK) ? (WaitUx.hops(payload) ? WaitUx.TAG_HOPS : WaitUx.TAG) : '';
   return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${lateWait}${p.tail}`;
 }
 
@@ -823,6 +824,7 @@ function createWebQuizRouter(opts = {}) {
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
   let lastWaitShare = false; // and its `wait_share` (web_quiz_hub_fanout on too): the frame's read share
+  let lastWaitHops = false; // and its `wait_hops` (web_quiz_wait_hops on too): the bar also shows while the page is left
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -1019,7 +1021,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
@@ -1038,6 +1040,7 @@ function createWebQuizRouter(opts = {}) {
       lastFast = out.body.fast === true;
       lastWaitUx = WaitUx.on(out.body);
       lastWaitShare = WaitUx.share(out.body);
+      lastWaitHops = WaitUx.hops(out.body);
       // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
       // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
       // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
