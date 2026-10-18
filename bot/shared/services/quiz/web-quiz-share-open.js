@@ -3,7 +3,7 @@
  * A SHARED CARD LANDS THE NEW CHILD ON ITS ITEM (app_settings web_quiz_share_v4, default OFF).
  *
  * A shared card's landing (/k/<t>) sends the friend to this bot with the return words and the item's short ref
- * ("quiz please jb1a2b3c4d": web-quiz-card-image.js ref()). The one door keeps that item for the phone; the home link the
+ * ("quiz please jb1a2b3c4d": web-quiz-card-switch.js ref()). The one door keeps that item for the phone; the home link the
  * phone gets next — the join's, the bind pick's, or a known child's hub reply — opens it (#story/<id> | #watch/<vid> | #games,
  * which the home already opens on load). Once: the item is taken when its link is made.
  *
@@ -18,7 +18,7 @@
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
-const Card = require('./web-quiz-card-image');
+const Card = require('./web-quiz-card-switch');
 
 const TTL_S = 24 * 60 * 60;
 const REF_TOKEN_RX = /^j[bvg][0-9a-f]{8}$/;
