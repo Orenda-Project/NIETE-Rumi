@@ -38,7 +38,7 @@ describe('the hub page', () => {
     expect(WaitUx.TAG).toBe(`<style id="wq-wait">${WaitUx.CSS}</style><script>${WaitUx.JS}</script>`);
     expect(WaitUx.CSS.match(/content:"[^"]*"/g)).toEqual(['content:""']);
     expect(WaitUx.JS).not.toMatch(/textContent|innerText|createTextNode/);
-    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(3000); // one small inline piece (the read share is about 300 bytes of it)
+    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2600);
   });
 });
 
@@ -78,7 +78,7 @@ describe('the edge learns the switch from the hub answer', () => {
 });
 
 // ── the piece's script, in a vm over a small fake DOM ─────────────────────────────────────────────
-function page() {
+function page({ share = false } = {}) {
   const cls = (el) => ({ add: (c) => el.c.add(c), remove: (c) => el.c.delete(c), contains: (c) => el.c.has(c) });
   const mk = (tag) => { const el = { tag, c: new Set(), style: {}, attrs: {}, kids: [], setAttribute(k, v) { el.attrs[k] = v; } }; el.classList = cls(el);
     Object.defineProperty(el, 'innerHTML', { set() { el.firstChild = mk('i'); } }); Object.defineProperty(el, 'className', { set(v) { v.split(' ').forEach((c) => el.c.add(c)); } }); return el; };
@@ -102,6 +102,7 @@ function page() {
     }),
   };
   vm.runInNewContext(WaitUx.JS, { document, window, setTimeout, clearTimeout, setInterval, clearInterval, String, RegExp, Object });
+  if (share) vm.runInNewContext(WaitUx.SHARE_JS, { window, Promise });
   return {
     document, window, calls, boot: () => boot,
     removeBoot() { boot = null; observers.forEach((fn) => fn()); },
@@ -221,13 +222,13 @@ describe('the bar and Jugnu\'s moment, run', () => {
   });
 });
 
-describe('the same child data read asked twice while the first is out', () => {
+describe('the same child data read asked twice while the first is out (web_quiz_hub_fanout on too: the share line)', () => {
   beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
   afterEach(() => jest.useRealTimers());
   const answer = (body) => { const r = { body, clones: 0, clone() { r.clones += 1; return { body, copy: true }; } }; return r; };
 
   test('rides the first: one request goes out, the first caller gets the answer, the later one its own copy', async () => {
-    const p = page();
+    const p = page({ share: true });
     p.removeBoot();
     const one = p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
     const two = p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
@@ -240,7 +241,7 @@ describe('the same child data read asked twice while the first is out', () => {
   });
 
   test('once answered, the same read goes out again (nothing is kept); another address, a caller\'s own signal or a POST never rides', async () => {
-    const p = page();
+    const p = page({ share: true });
     p.removeBoot();
     const one = p.window.fetch('/api/wq/doors/h/x?d=stories');
     p.settle(0, answer({}));
@@ -254,7 +255,7 @@ describe('the same child data read asked twice while the first is out', () => {
   });
 
   test('a read called off at 15 s fails for the later caller too (each screen shows its own try-again)', async () => {
-    const p = page();
+    const p = page({ share: true });
     p.removeBoot();
     const why = [];
     p.window.fetch('/api/wq/lib/h/x').catch((e) => why.push(e.name));
@@ -263,5 +264,45 @@ describe('the same child data read asked twice while the first is out', () => {
     jest.advanceTimersByTime(15001);
     await flush();
     expect(why).toEqual(['AbortError', 'AbortError']);
+  });
+});
+
+describe('fanout off: the piece alone, today\'s reads', () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
+  afterEach(() => jest.useRealTimers());
+
+  test('wait_ux on, fanout off: two identical reads both go out, as today', () => {
+    const p = page();
+    p.removeBoot();
+    p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    p.window.fetch('/api/wq/stories/shelf/h/x?kid=k&l=en');
+    expect(p.calls.length).toBe(2);
+  });
+
+  test('the page gets the share line only when the answer says wait_share (and wait_ux); the piece itself never changes', () => {
+    expect(WaitUx.tag({ wait_ux: true })).toBe(WaitUx.TAG);
+    expect(WaitUx.tag({ wait_ux: true, wait_share: true })).toBe(WaitUx.TAG + WaitUx.SHARE);
+    expect(WaitUx.tag({ wait_share: true })).toBe('');
+    expect(WaitUx.tag({ wait_ux: true, wait_share: 'true' })).toBe(WaitUx.TAG);
+  });
+});
+
+describe('the edge learns the share from the hub answer', () => {
+  test('the streamed page: after an answer with wait_share, the early frame carries the piece and the share line, once each', async () => {
+    await serve([HUB({ fast: true, wait_ux: true, wait_share: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const html = await get(srv, `/h/${TOKEN}`);
+      expect(html.split(WaitUx.TAG)).toHaveLength(2);
+      expect(html.split(WaitUx.SHARE)).toHaveLength(2);
+      expect(html.indexOf(WaitUx.SHARE)).toBe(html.indexOf(WaitUx.TAG) + WaitUx.TAG.length);
+    });
+  });
+  test('wait_ux without wait_share: the piece alone', async () => {
+    await serve([HUB({ fast: true, wait_ux: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const html = await get(srv, `/h/${TOKEN}`);
+      expect(html).not.toContain(WaitUx.SHARE);
+      expect(html.split(WaitUx.TAG)).toHaveLength(2);
+    });
   });
 });
