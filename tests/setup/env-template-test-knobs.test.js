@@ -18,17 +18,24 @@ const TEMPLATE = path.resolve(__dirname, '../../.env.template');
 
 const KNOWN = Object.freeze({
   PG_BIN: 'not a golden knob: the throwaway-database tests find the Postgres binaries through it',
-  GOLDEN_WRITE: 'retire: the golden tests that read it record when their pinned file is missing',
+  GOLDEN_WRITE: 'retire once the golden tests that still read it record when their pinned file is missing',
   RECORD_GOLDEN: 'retire after the teacher-home paging change lands',
   TEACHER_HOME_RECORD: 'retire after the teacher-home lines change lands',
+  WAY_BACK_RECORD: 'retire after the closed-link way-back change lands (its goldens record when the file is missing)',
 });
+
+/** KNOWN as it stands at this change. KNOWN may lose names, never gain one: a new entry must fail a row, not a review. */
+const KNOWN_AT_START = Object.freeze(['PG_BIN', 'GOLDEN_WRITE', 'RECORD_GOLDEN', 'TEACHER_HOME_RECORD', 'WAY_BACK_RECORD']);
+
+/** A block header: "# Tests only", "# Test only", "# For tests" (any case). "# Sandbox/test only" is a real setting. */
+const HEADER = /^#\s*(?:tests?\s+only|for\s+tests?)\b/i;
 
 /** The names (uncommented NAME= lines) inside every "# Tests only" block; a block ends at a blank line. */
 function testsOnlyNames(text) {
   const names = [];
   let inBlock = false;
   for (const line of String(text).split('\n')) {
-    if (/^#\s*Tests only\b/i.test(line)) { inBlock = true; continue; }
+    if (HEADER.test(line)) { inBlock = true; continue; }
     if (!line.trim()) { inBlock = false; continue; }
     if (!inBlock) continue;
     const m = /^([A-Z][A-Z0-9_]*)=/.exec(line);
@@ -53,6 +60,15 @@ describe('.env.template: no new "Tests only" env knob', () => {
   test('a commented-out name and a name outside a "Tests only" block are not knobs (fixture)', () => {
     const fixture = ['# Tests only: an example.', '# OLD_RECORD=', '', 'ONE_RECORD=', '# Sandbox/test only: echo.', 'ECHO_TO='].join('\n');
     expect(testsOnlyNames(fixture)).toEqual([]);
+  });
+
+  test('"# Test only" and "# For tests" headers open a block too (fixture)', () => {
+    const fixture = ['# Test only: one golden.', 'ONE_RECORD=', '', '# for tests: another.', 'TWO_RECORD=', '', '# Sandbox/test only: echo.', 'ECHO_TO='].join('\n');
+    expect(testsOnlyNames(fixture)).toEqual(['ONE_RECORD', 'TWO_RECORD']);
+  });
+
+  test('the known list only shrinks: no name beyond the ones it started with', () => {
+    expect(Object.keys(KNOWN).filter((n) => !KNOWN_AT_START.includes(n))).toEqual([]);
   });
 
   test('every "Tests only" name in .env.template is a known one', () => {
