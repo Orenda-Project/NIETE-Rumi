@@ -296,6 +296,16 @@ describe('the landing shows the finish\'s result (web_quiz_share_data tokens)', 
     expect(html).not.toContain('class="stars"');
     expect(html).not.toContain('class="bd"');
   });
+  test.each(['en', 'ur'])('%s, card A (its picture already shows the score, the stars and the dare): the picture, the item and the CTA, no repeat below', (lang) => {
+    const rt = { stars: 2, stars_text: '2 stars', score: '8 out of 10 right', badge: 'Quiz champ', dare: 'Can you get 10 out of 10?' };
+    const html = page(facts(lang, { a: true, item_title: 'The lost kite', result: { r: 8, o: 10, s: 2 }, result_text: rt }));
+    expect(html).not.toContain('class="res"');
+    expect(html).not.toContain('class="dare"');
+    expect(html).not.toContain(lang === 'ur' ? 'آپ بھی آئیں اور کھیلیں!' : 'Join in and play it too!');
+    expect(html).toContain('<bdi>The lost kite</bdi>');
+    expect((html.match(/data-primary/g) || []).length).toBe(1);
+    expect(html).toContain('class="hint"');
+  });
   test('a token with no result: the one share\'s landing, byte for byte', () => {
     const plain = page(facts('en'));
     expect(page(facts('en', { result_text: {} }))).toBe(plain);

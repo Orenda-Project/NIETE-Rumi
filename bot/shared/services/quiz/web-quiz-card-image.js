@@ -595,6 +595,8 @@ async function landing(token) {
     }
     // the finish's result, kept at mint: its numbers, and its lines in the card's language (the score, the words,
     // the stars, the badge and the dare); never a reading speed
+    // card A (web_quiz_share_card_a): the landing does not repeat what its picture shows
+    if (f.a) out.a = true;
     if (f.data) {
       out.result = f.data;
       out.result_text = require('./web-quiz-card-data').words(f.data, f.kind, f.lang);
