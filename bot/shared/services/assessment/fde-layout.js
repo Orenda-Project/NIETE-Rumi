@@ -1116,6 +1116,16 @@ function meaningTwin(lists) {
   };
 }
 
+// Urdu Section C: one word in one place. A Q5 whose words take a word or idiom Q3 asks the meaning of
+// (the same entry, or the same idiom in another verb form: «دھوم مچ جانا» / «دھوم مچانا») narrows the
+// paper by that word. An idiom built on a Q3 word («شانہ بشانہ» beside «شانہ بشانہ کام کرنا») is
+// another entry. `q3`: Q3's words.
+function wordTwice(q5, q3) {
+  const entry = (w) => { const t = plain(w); return [t, idiomOf(t)].filter(Boolean); };
+  const asked = new Set(q3.flatMap(entry));
+  return (Array.isArray(q5.words) ? q5.words : []).some((w) => typeof w === 'string' && entry(w).some((e) => asked.has(e)));
+}
+
 // Urdu Section C against Q1: Q4's twins, Q6's verse, Q3/Q5's words, each read from its own slot.
 function urduTwin(placed) {
   const of = (...ids) => placed.filter((q) => ids.includes(q.slot));
@@ -1705,6 +1715,8 @@ function takenNote(P, section, examJson, opts = {}) {
   if (!cross || !section || !Array.isArray(section.slots)) return null;
   if (!section.slots.some((s) => cross.held.includes(s.slot))) {
     // Social Studies: a top-up of a section with no held slot (A's Q1) is told what each short slot keeps.
+    // Urdu: a Section C top-up for a Q5 held for a Q3 word is told Q3's words.
+    if (P.key === 'urdu' && opts.topUp) return q3Note(section, examJson, opts.shortfall);
     if (P.key !== 'social_studies' || !opts.topUp) return null;
     const kept = keptNotes(P, section, examJson, cross, opts.shortfall);
     return kept.length ? kept.join('\n\n') : null;
@@ -1914,6 +1926,19 @@ function urduKeptNotes(section, examJson, shortfall) {
   return out;
 }
 
+// Urdu Section C top-up with Q5 short: the words Q3 keeps, so the new Q5 asks none of them.
+function q3Note(section, examJson, shortfall) {
+  const short = (Array.isArray(shortfall) ? shortfall : []).some((f) => f && f.slot === 'urdu.C.Q5' && f.missing > 0);
+  if (!short || !section.slots.some((s) => s.slot === 'urdu.C.Q5')) return null;
+  const words = [];
+  for (const types of Object.values((examJson && examJson.unseen) || {})) {
+    for (const list of Object.values(types || {})) {
+      if (Array.isArray(list)) list.filter((q) => q && q.slot === 'urdu.C.Q3' && Array.isArray(q.words)).forEach((q) => words.push(...q.words.filter((w) => typeof w === 'string' && w.trim()).map((w) => w.trim())));
+    }
+  }
+  return words.length ? `Q3 of this paper asks the meaning of these words: ${words.join('، ')}\nQ5's words and idioms never include any of them: each word on the paper is asked in one place.` : null;
+}
+
 // Urdu on one story: how many more Q1 items may ask a fact of the story, from the count the layout
 // recorded (`_layout.story_items`), when Q1 is short.
 function storyNote(section, examJson, shortfall) {
@@ -1971,6 +1996,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     }
   });
   const storyCount = (list) => list.filter((p) => sources.get(p) === 'story').length;
+  // Urdu: the words the reply's first Q3 asks the meaning of (a Q5 never asks them again).
+  const q3 = P.key === 'urdu' ? all.find((e) => slotKey(e.q.slot) === slotKey('urdu.C.Q3') && Array.isArray(e.q.words)) : null;
+  const q3Words = q3 ? q3.q.words.filter((w) => typeof w === 'string') : [];
   const sameDeclared = (p, q) => { const [a, b] = [declared.get(p), declared.get(q)]; return Boolean(a && b && a.grammar && b.grammar && !a.pair && a.name === b.name); };
   // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
   // declares its concepts; a reply written before it was never asked to keep them once. A paper
@@ -1997,6 +2025,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
   // Social Studies: the items set aside as a repeat of one already placed, with the test that matched.
   let repeated = [];
+  // Urdu: the Q5 items the last pass held only for a Q3 word: they may come back after the re-ask, so
+  // Section A is read against their words too.
+  let mayReturn = [];
   const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : 'same_task');
   const place = (cross, within) => {
     bySlot.forEach((list) => { list.length = 0; });
@@ -2012,6 +2043,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const holds = (slot) => Boolean(cross) && cross.held.includes(slot.slot);
     const fallback = new Map(); // slot → held items, in reply order
     const inSlot = new Map(); // Urdu Q1: slot → items held inside Q1 that give nothing away, in reply order
+    mayReturn = [];
     const keep = (id, q, rule) => { inSlot.set(id, [...(inSlot.get(id) || []), { q, rule }]); tally.set(`${id}|${rule}`, (tally.get(`${id}|${rule}`) || 0) + 1); };
     // An Urdu Q1 twin of a placed item: never printed, or, a concept repeat only, kept for the put-back.
     const twinOf = (slot, q) => {
@@ -2035,6 +2067,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && syllableSplit(q)) { keep(slot.slot, q, 'syllable_split'); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bookSplit(q, P)) { keep(slot.slot, q, 'book_split'); return false; }
+      // A word Q3 asks, asked again in Q5, gives nothing away: Section C is asked again first, and the
+      // item comes back only if the re-ask leaves its place empty.
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q5' && q3Words.length && wordTwice(q, q3Words)) { keep(slot.slot, q, 'word_twice'); mayReturn.push(q); return false; }
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && printsOwnKey(q)) return no(slot, 'prints_own_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && lettersOfKey(q)) return no(slot, 'letters_of_key');
       const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
@@ -2157,7 +2192,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const cross = CROSS_HOLD[P.key];
   const against = cross && slots.filter((s) => [].concat(cross.against).includes(s.slot));
   // Each item as the slot it was placed in (a mis-tag, «urdo.C.Q4», is placed by its tail).
-  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).map((q) => ({ ...q, slot: s.slot }))));
+  const rule = against && against.length && cross.rule(against.flatMap((s) => bySlot.get(s.slot).concat(s.slot === 'urdu.C.Q5' ? mayReturn : []).map((q) => ({ ...q, slot: s.slot }))));
   if (rule) place({ held: cross.held, rule });
   // Social Studies: D is laid out again against the point sets now placed, one row at a time in
   // SAME_POINTS order, each row built from the slots the rows before it have settled (Q5 is held only

@@ -921,6 +921,7 @@ const RULE = {
   // On chosen lessons, Q1 asks each of their grammar concepts once; a place left after that is never
   // filled with a concept asked again.
   urduGrammarUsedUp: 'Grammar is used up: these lessons\' grammar concepts are each asked once on this paper already. Write every new Q1 item as vocabulary, word-meaning or comprehension from these lessons; never another antonym, synonym or other grammar item.',
+  urduOneWordOnePlace: 'Q3 and Q5 never share a word or idiom: each word on the paper is asked in one place.',
   // The full syllabus: the place was left by a grammar concept asked again.
   urduGrammarUsedUpFull: 'Grammar is used up: the grammar concepts this paper\'s Q1 asks, an antonym and a synonym included, are each asked once already. Write every new Q1 item as vocabulary, word-meaning or comprehension from lessons 4–10; never another antonym, synonym or other grammar item.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
@@ -1315,6 +1316,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     const said = P.syllables.map((b) => `«${b.word}» as ${b.parts.join(' – ')}`);
     rules.push(`The book splits ${said.slice(0, -1).join(', ')}${said.length > 1 ? ' and ' : ''}${said[said.length - 1]}.`);
   }
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q3') && list.some((s) => s.slot === 'urdu.C.Q5')) rules.push(RULE.urduOneWordOnePlace);
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduQ6Points);
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.B.Q2')) rules.push(RULE.urduRelationNouns);
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
