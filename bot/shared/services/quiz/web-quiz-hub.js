@@ -458,6 +458,26 @@ function earlyRows(given, readRows, readLists) {
   };
 }
 
+// web_quiz_hub_fanout: the cached switch readers on the hub's path, kept warm by web-quiz-hub-warm.js between visits
+// (each answers from its own cache while fresh). They live here, not in the keeper, so the keeper needs no module that
+// leads back to the hub.
+const HUB_SWITCH_READERS = [
+  () => require('./web-quiz-ur-polish').ui(),
+  () => require('./web-quiz-identity-flags').flags(),
+  () => require('./web-quiz-student-join').flags(),
+  () => require('./web-quiz-bind-way-back').on(),
+  () => require('./web-quiz-return-lang').on(),
+  () => require('./web-quiz-next-offer-state').raw(),
+  () => require('./web-quiz-hub-play').switches(),
+  () => require('./web-quiz-challenge').recordOn(),
+  () => require('./web-quiz-challenge').missingOn(),
+  () => require('./web-quiz-challenge').poolOn(),
+  () => require('./web-quiz-challenge').listenOn(),
+  () => require('./web-quiz-book').flags(),
+  () => require('./web-quiz-telemetry').flag(),
+  () => brandKey(),
+];
+
 async function hubPayload(token, { kid, device, src, lang: wanted, st = null } = {}) {
   const mark = st ? (n) => st.mark(n) : () => {}; // the step timings (web-quiz-server-timing.js); nothing without a stopwatch
   if (!T.secret()) fail(503, 'web_quiz_off');
@@ -468,7 +488,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
   if (!f.hub) fail(503, 'web_quiz_off');
   // web_quiz_hub_fanout: the reads that do not need each other's answers start together (the same answer, byte for byte)
   const together = f.fanout === true;
-  if (together) require('./web-quiz-hub-warm').touch([brandKey]); // the hub's switches stay warm for the next child
+  if (together) require('./web-quiz-hub-warm').touch(HUB_SWITCH_READERS); // the hub's switches stay warm for the next child
   const brandP = together ? brandKey() : null;
   let asked; let linked; let trust; let idFlags = null;
   if (together) [asked, linked, trust, idFlags] = await Promise.all([askedLang(wanted), linkedLang(token), deviceTrusted(token, device), require('./web-quiz-identity-flags').flags()]);

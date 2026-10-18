@@ -18,29 +18,10 @@ const IDLE_MS = 10 * 60 * 1000;
 let timer = null;
 let lastHub = 0;
 let busy = false;
-let extra = [];
-
-// The cached switch readers on the hub's path (each answers from its own cache while fresh). A reader that is not
-// there (a module renamed) is skipped.
-function readers() {
-  const Challenge = () => require('./web-quiz-challenge');
-  return [
-    () => require('./web-quiz-ur-polish').ui(),
-    () => require('./web-quiz-identity-flags').flags(),
-    () => require('./web-quiz-student-join').flags(),
-    () => require('./web-quiz-bind-way-back').on(),
-    () => require('./web-quiz-return-lang').on(),
-    () => require('./web-quiz-next-offer-state').raw(),
-    () => require('./web-quiz-hub-play').switches(),
-    () => Challenge().recordOn(),
-    () => Challenge().missingOn(),
-    () => Challenge().poolOn(),
-    () => Challenge().listenOn(),
-    () => require('./web-quiz-book').flags(),
-    () => require('./web-quiz-telemetry').flag(),
-    ...extra,
-  ];
-}
+// The cached switch readers on the hub's path, handed in by the hub (web-quiz-hub.js HUB_SWITCH_READERS), so this file
+// requires nothing that leads back to the hub. Each answers from its own cache while fresh; one that throws is skipped.
+let readersList = [];
+const readers = () => readersList;
 
 function stop() {
   if (timer) clearInterval(timer);
@@ -63,13 +44,13 @@ async function tick(now = Date.now()) {
   }
 }
 
-/** A hub answer was asked for with the switch on: keep the switches warm from now (the hub's other readers in `more`). */
-function touch(more = []) {
+/** A hub answer was asked for with the switch on: keep the hub's switch readers (`list`) warm from now. */
+function touch(list = []) {
   lastHub = Date.now();
-  if (more.length) extra = more;
+  if (list.length) readersList = list;
   if (timer) return;
   timer = setInterval(() => { tick().catch(() => {}); }, TICK_MS);
   if (typeof timer.unref === 'function') timer.unref();
 }
 
-module.exports = { touch, tick, TICK_MS, IDLE_MS, _stop: () => { stop(); lastHub = 0; extra = []; busy = false; }, _running: () => Boolean(timer) };
+module.exports = { touch, tick, TICK_MS, IDLE_MS, _stop: () => { stop(); lastHub = 0; readersList = []; busy = false; }, _running: () => Boolean(timer) };
