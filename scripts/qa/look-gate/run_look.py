@@ -75,6 +75,9 @@ def server(out_dir):
             n = int(self.headers.get('content-length') or 0)
             if n:
                 self.rfile.read(n)
+            if self.path.split('?')[0] == '/api/wq/finish':
+                # the quiz's end: 4 of 5, counted (the results card and its card screen)
+                return self.send(200, b'{"score":{"correct":4,"total":5,"pct":80},"counted":true}', 'application/json')
             return self.send(200, b'{"ok":true}', 'application/json')
 
     httpd = ThreadingHTTPServer(('127.0.0.1', 0), H)
@@ -213,6 +216,21 @@ def main():
                             page.click('#wq-cont')
                             page.wait_for_selector('#wq[data-m="M6"] .wq-item', timeout=8000)
                             shot('quiz-question')
+                            # the end: a run that already finished opens on its card screen (the share card, the class
+                            # table and the league doors), as a child who comes back to the link sees it
+                            state['result'] = {'score': {'correct': 4, 'total': 5, 'pct': 80}, 'counted': True}
+                            ctx2 = browser.new_context(viewport={'width': w, 'height': 740}, user_agent=UA, device_scale_factor=2, is_mobile=True, has_touch=True)
+                            ctx2.add_init_script(init)
+                            ctx2.add_init_script("try{localStorage.setItem(%s,%s);}catch(e){}" % (json.dumps('wq_s_' + pg['code']), json.dumps(json.dumps(state))))
+                            try:
+                                page = ctx2.new_page()
+                                page.on('pageerror', lambda e: errs.append(str(e)[:200]))
+                                page.goto(base + pg['path'], wait_until='load')
+                                page.wait_for_selector('#wq[data-m="M10"]', timeout=8000)
+                                page.wait_for_timeout(500)
+                                shot('quiz-card')
+                            finally:
+                                ctx2.close()
                     except Exception as e:
                         results.append({'page': pg['name'], 'lang': pg['lang'], 'width': w, 'fatal': str(e).split('\n')[0][:240], 'errors': list(errs)})
                     finally:
