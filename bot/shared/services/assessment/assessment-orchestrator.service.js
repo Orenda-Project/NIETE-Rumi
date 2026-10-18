@@ -146,6 +146,22 @@ async function _touchOwnPaper(paperId) {
 }
 
 /**
+ * Whether this run still holds its paper row: it reads `generating`. A row handed back (`queued`),
+ * finished, unreadable, or never opened is not this run's to make again.
+ */
+async function _ownsPaper(paperId) {
+  if (!paperId) return false;
+  try {
+    const { data, error } = await supabase.from('assessment_papers')
+      .select('status').eq('id', paperId).maybeSingle();
+    return !error && data?.status === 'generating';
+  } catch (err) {
+    logToFile('[assessment] could not read paper row', { paperId, error: err.message });
+    return false;
+  }
+}
+
+/**
  * Render the answer key, put it in storage, and record where it went.
  *
  * Every paper gets one now (bd-bfnsk) — the teacher is no longer asked, and a
@@ -210,7 +226,8 @@ function pdfPageCount(buffer) {
  *
  * Runs inside buildPaper's try, after the paper row is open and the duplicate
  * guard has passed, so a coded failure here (PATTERN_SHORT_SLOT, BAD_JSON, …)
- * ends exactly like today's: the row `failed` with that code.
+ * ends exactly like today's: the row `failed` with that code. A short slot is
+ * first made once more in the same row; only the second run's failure is final.
  *
  * The order is fixed by what each document prints. The marking scheme's box
  * tells the teacher how many pages the paper has and on which page each frame
@@ -233,7 +250,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
   // never read for any other subject, so their papers are built as before.
   const readKey = Patterns.normalise(subject);
   const readerPass = READER_SUBJECTS.includes(readKey) && (await fdeReaderPassSubjects()).includes(readKey);
-  const generated = await Generation.generatePatternExam({
+  const generate = () => Generation.generatePatternExam({
     grade, subject, pattern, scope, pageRanges, chapterNumber, requestId,
     ...(readerPass ? { readerPass: true } : {}),
     // A write per section, so the row reads as a live run. Only while it IS this run's: a paper a
@@ -241,6 +258,20 @@ async function _buildPatternPaper({ job, user, paperId }) {
     // delivery would skip it and ack its only message.
     onSection: () => _touchOwnPaper(paperId),
   });
+  // A paper that came back short is made once more, from nothing, in the same row: a fresh run
+  // draws different questions and usually fills the slot. Only a short slot, only once, and only
+  // while the row is still this run's; the second run's failure is the row's, as any failure is.
+  let generated;
+  try {
+    generated = await generate();
+  } catch (err) {
+    if (err.code !== 'PATTERN_SHORT_SLOT' || !(await _ownsPaper(paperId))) throw err;
+    logToFile('[assessment] pattern paper retried', {
+      requestId, paperId, pattern, code: err.code,
+      ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+    });
+    generated = await generate();
+  }
 
   const versioned = await isAssessmentVersionsEnabled();
   await _patchPaper(paperId, {
