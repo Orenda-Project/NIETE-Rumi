@@ -132,7 +132,7 @@ const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang })
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
 const PARTS = ['intro', 'start', 'stop', 'done'];
 // The quiz's one voice per language (web-quiz-voice.js QUIZ_VOICE), pinned per call: never a fallback provider.
-const { quizVoice, voiceTag, voiceOfTag, setIdOf } = require('./web-quiz-voice');
+const { quizVoice, voiceTag, voiceOfTag, setIdOf, STORY_VOICE } = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 OneVoice.keepFresh();   // clipKey names its voice at once: the switch is read in the background, never on a child's request
 const AudioStore = require('./web-quiz-audio-store');
@@ -168,7 +168,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
 async function settingOn(key) {
@@ -566,13 +566,15 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
-// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the plan voice's exact rendering.
+// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the storybook voice's exact rendering
+// (web-quiz-voice.js STORY_VOICE), never the voice the plan gives the quiz lines.
 // A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
 // rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
 function clipKey(ex, part, lang, text) {
-  // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz).
+  // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz); a language
+  // it names takes the storybook voice (STORY_VOICE), whatever voice the plan gives the quiz lines.
   const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);
-  const one = plan ? quizVoice(lang, { oneVoice: plan }) : null;
+  const one = plan ? STORY_VOICE[lang] || null : null;
   const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
   return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });
 }
@@ -591,8 +593,25 @@ function kbpsOfKey(key) {
   return (m && Number(m[2])) || 64;
 }
 
-// → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy or failed).
+// A long clip (a listening story, a Story Time read-along): read slowly with pauses, and each take is checked before
+// it is stored. With one voice per quiz it is never recorded on the fly (an unchecked take, in another delivery):
+// refused, once per key per process, with `web_quiz.ch_clip_ungated_refused`.
+const LONG_KEY = /\/(listen|read)\/story-[^/]*\.ogg$/;
+const clipRefused = new Set();
+function refusedLong(key, lang) {
+  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);   // a language the plan leaves out: today's recorder
+  const m = plan && LONG_KEY.exec(String(key || ''));
+  if (!m) return false;
+  if (!clipRefused.has(key)) {
+    clipRefused.add(key);
+    logEvent('web_quiz.ch_clip_ungated_refused', { lang, ex: m[1], part: 'story', plan: plan.sig });
+  }
+  return true;
+}
+
+// → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy, refused or failed).
 async function recordClip(key, text, lang, now = Date.now()) {
+  if (refusedLong(key, lang)) return null;
   if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return null;
   clipRecording.add(key);
   clipsRecorded += 1;

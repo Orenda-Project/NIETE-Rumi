@@ -308,13 +308,13 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
   test('switch read on: the clip\'s key names the one voice and the clip is recorded in it; off: today\'s key and voice', async () => {
     seed([], { flag: true });
     await OneVoice.on();
-    const key = Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔');
+    const key = Ch.clipKey('listen', 'q1', 'ur', 'ایک دن بارش ہوئی۔');
     expect(key).toContain(`-${Voice.voiceTag('ur', { oneVoice: true })}-`);
     expect(await Ch.warmClip(key, 'ایک دن بارش ہوئی۔', 'ur')).toBe('recorded');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', model: 'eleven_v4' });
 
     OneVoice.reset(); seed([], { flag: false }); await OneVoice.on(); tts.synthesize.mockClear();
-    const today = Ch.clipKey('listen', 'story', 'ur', 'ایک دن بارش ہوئی۔');
+    const today = Ch.clipKey('listen', 'q1', 'ur', 'ایک دن بارش ہوئی۔');
     expect(today).toContain(`-${Voice.voiceTag('ur')}-`);
     await Ch.warmClip(today, 'ایک دن بارش ہوئی۔', 'ur');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox', voice: 'Ishita' });
@@ -325,7 +325,7 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
   test('a plan at 32 kb/s: a missing challenge clip is asked of the voice at that rate', async () => {
     seed([], { flag: { kbps: 32 } });
     await OneVoice.on();
-    const key = Ch.clipKey('listen', 'story', 'en', 'One day it rained.');
+    const key = Ch.clipKey('listen', 'q1', 'en', 'One day it rained.');
     await Ch.warmClip(key, 'One day it rained.', 'en');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
   });
@@ -333,24 +333,24 @@ describe('Jugnu\'s challenge lines (the passages, the listening story, the door 
   test('the rate is in the key when it is not 64: a clip at another rate is another clip (never served as this one)', async () => {
     seed([], { flag: { kbps: 32 } });
     await OneVoice.on();
-    const k32 = Ch.clipKey('listen', 'story', 'en', 'The rain came down.');
-    expect(k32).toMatch(/\/story-el-bella-k32-[0-9a-f]{8}\.ogg$/);
+    const k32 = Ch.clipKey('listen', 'q1', 'en', 'The rain came down.');
+    expect(k32).toMatch(/\/q1-el-bella-cff2e4-k32-[0-9a-f]{8}\.ogg$/);
     await Ch.warmClip(k32, 'The rain came down.', 'en');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: Voice.ONE_VOICE.en.voice, outputFormat: 'opus_48000_32' });
 
     // 64 (the default): no rate in the key, the same key as the plain `true` plan
     OneVoice.reset(); seed([], { flag: { kbps: 64 } }); await OneVoice.on();
-    const k64 = Ch.clipKey('listen', 'story', 'en', 'The rain came down.');
+    const k64 = Ch.clipKey('listen', 'q1', 'en', 'The rain came down.');
     OneVoice.reset(); seed([], { flag: true }); await OneVoice.on();
-    expect(Ch.clipKey('listen', 'story', 'en', 'The rain came down.')).toBe(k64);
-    expect(k64).toMatch(/\/story-el-bella-[0-9a-f]{8}\.ogg$/);
+    expect(Ch.clipKey('listen', 'q1', 'en', 'The rain came down.')).toBe(k64);
+    expect(k64).toMatch(/\/q1-el-bella-cff2e4-[0-9a-f]{8}\.ogg$/);
     expect(k64).not.toBe(k32);
   });
 
   test('a clip is recorded at the rate its key names, even when the plan\'s rate changed after the key was made', async () => {
     seed([], { flag: { kbps: 32 } });
     await OneVoice.on();
-    const k32 = Ch.clipKey('listen', 'story', 'en', 'The wind came up.');
+    const k32 = Ch.clipKey('listen', 'q1', 'en', 'The wind came up.');
     expect(k32).toMatch(/-k32-[0-9a-f]{8}\.ogg$/);
     // the plan now reads 64; the 32 kb/s key is still recorded at 32, never at the plan's new rate
     OneVoice.reset(); seed([], { flag: { kbps: 64 } }); await OneVoice.on();
@@ -526,7 +526,7 @@ describe('one voice is one RENDER: the voice tag, its model and its settings', (
     const Ch = require('../../../shared/services/quiz/web-quiz-challenge');
     seed([], { flag: { voices: { en: v2 } } });
     await OneVoice.on();
-    const key = Ch.clipKey('listen', 'story', 'en', 'One day it rained.');
+    const key = Ch.clipKey('listen', 'q1', 'en', 'One day it rained.');
     expect(key).toContain('-el-bella-cff2e4-');
     await Ch.warmClip(key, 'One day it rained.', 'en');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: v2.voice, model: 'eleven_multilingual_v2', voiceSettings: { speed: 0.9 } });
