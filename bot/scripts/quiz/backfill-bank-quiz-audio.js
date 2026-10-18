@@ -4,7 +4,7 @@
  * Record the read-aloud clips of the video-bank ("library") quizzes BEFORE a child opens them.
  *
  *   node scripts/quiz/backfill-bank-quiz-audio.js --expect-ref <project-ref> [--limit N]
- *        [--apply] [--concurrency K] [--max-usd X] [--days D] [--one-voice]
+ *        [--apply] [--concurrency K] [--max-usd X] [--days D] [--one-voice] [--lex hit|clear|all]
  *
  * Without it the first child to open a library quiz waits for its clips (about a minute) and
  * hears whatever older clips exist, in another voice. This is a ONE-OFF run, not a periodic job.
@@ -29,6 +29,10 @@
  *   the plan that value names (its voices, and the bank parts it keeps), i.e. exactly what the switch will serve. Run it before app_settings
  *   web_quiz_one_voice goes on and the first child after the flip hears one voice at once. With the switch
  *   still off the page plays exactly what it played before (the recorded clips win), so it is safe early.
+ * - --lex hit|clear: of the quizzes --limit takes, keeps only the Urdu ones whose voiced lines (any part given to the
+ *   voice) a respelling of the shared Urdu spelling list touches (web-quiz-ur-say.js; `hit`), or only the rest
+ *   (`clear`; an English quiz is always clear), so the lines a respelling touches can be recorded apart. The
+ *   summary then counts lex_hit / lex_clear per language (--lex all: counts only). Without it: today's run.
  * - Prints ids, grades and subjects only — never a child's or a teacher's name.
  */
 
@@ -43,7 +47,7 @@ const DEFAULT_MAX_USD = 15;
 const DEFAULT_DAYS = 14;
 
 function parseArgs(argv) {
-  const args = { apply: false, limit: 0, expectRef: null, concurrency: QUIZ_CONCURRENCY, maxUsd: DEFAULT_MAX_USD, days: DEFAULT_DAYS, oneVoice: false };
+  const args = { apply: false, limit: 0, expectRef: null, concurrency: QUIZ_CONCURRENCY, maxUsd: DEFAULT_MAX_USD, days: DEFAULT_DAYS, oneVoice: false, lex: null };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -63,6 +67,10 @@ function parseArgs(argv) {
     else if (a === '--concurrency') args.concurrency = Math.max(1, Math.min(4, parseInt(next(), 10) || QUIZ_CONCURRENCY));
     else if (a === '--max-usd') args.maxUsd = Math.max(0, Number(next()) || 0);
     else if (a === '--days') args.days = Math.max(1, parseInt(next(), 10) || DEFAULT_DAYS);
+    else if (a === '--lex') {
+      args.lex = String(next() || '').trim();
+      if (!['hit', 'clear', 'all'].includes(args.lex)) throw new Error('--lex takes hit, clear or all');
+    }
     else throw new Error(`unknown argument: ${a}`);
   }
   return args;
@@ -139,15 +147,31 @@ async function loadOpens(db, days, now) {
   return opens;
 }
 
+/**
+ * Whether a respelling of the shared Urdu spelling list touches any of `parts` (the lines given to the voice) for an
+ * Urdu quiz, for the voice `voiceId` (its per-voice exceptions). An English quiz: never. Pure.
+ */
+function lexHit(parts, language, voiceId) {
+  if (String(language || '').toLowerCase().split(/[-_]/)[0] !== 'ur') return false;
+  const { sayOf } = require('../../shared/services/quiz/web-quiz-ur-say');
+  return parts.some((p) => sayOf(String(p.text || ''), { voice: voiceId }) !== String(p.text || ''));
+}
+
 /** What one quiz would cost to record: its language (as the publish step will choose it), clips and characters. */
-async function planQuiz(db, Publish, b, { oneVoice = false } = {}) {
+async function planQuiz(db, Publish, b, { oneVoice = false, lex = false } = {}) {
   const { data: questions, error } = await db.from('quiz_questions')
     .select('id, question_text, option_a, option_b, option_c, option_d, correct_option, option_feedback, explanation, media, sort_order')
     .eq('quiz_id', b.id).order('sort_order', { ascending: true });
   if (error) throw new Error(error.message || 'read failed');
   const parts = (questions || []).flatMap((q) => Publish.partsFor(q, { oneVoice }));
   const chars = parts.reduce((n, p) => n + p.text.length, 0);
-  return { language: Publish.quizLanguage({ language: b.language }, questions), questions: (questions || []).length, clips: parts.length, chars };
+  const language = Publish.quizLanguage({ language: b.language }, questions);
+  const out = { language, questions: (questions || []).length, clips: parts.length, chars };
+  if (lex) {
+    const voice = oneVoice ? require('../../shared/services/quiz/web-quiz-voice').quizVoice(language, { oneVoice }) : null;
+    out.lexHit = lexHit(parts, language, voice ? voice.voice : undefined);
+  }
+  return out;
 }
 
 const usd = (n) => (Math.round(n * 1e4) / 1e4).toFixed(4);
@@ -175,10 +199,17 @@ async function main(argv, deps = {}) {
   const per1k = plan ? ONE_USD_PER_1K_CHARS : USD_PER_1K_CHARS;
 
   const sum = { done: 0, skipped: 0, failed: 0, chars: 0, usd: 0, estChars: 0, estUsd: 0, stopped: null };
+  const lexCount = { hit: {}, clear: {} };
+  let leftOut = 0;
   const todo = [];
   for (let i = 0; i < chosen.length; i += 1) {
     const b = chosen[i];
-    const p = await planQuiz(db, Publish, b, { oneVoice: args.oneVoice });
+    const p = await planQuiz(db, Publish, b, { oneVoice: args.oneVoice, lex: Boolean(args.lex) });
+    if (args.lex) {
+      const kind = p.lexHit ? 'hit' : 'clear';
+      lexCount[kind][p.language] = (lexCount[kind][p.language] || 0) + 1;
+      if (args.lex !== 'all' && kind !== args.lex) { leftOut += 1; continue; }
+    }
     // A quiz the plan leaves to today's voice (a language it does not voice) is not recorded under it: "keep".
     if (plan && !require('../../shared/services/quiz/web-quiz-one-voice-flag').forQuiz(plan, b.id, p.language)) {
       print([i + 1, b.id, p.language, b.grade, b.subject, b.opens, 0, 0, usd(0), 'keep'].join('\t'));
@@ -216,11 +247,13 @@ async function main(argv, deps = {}) {
   const line = args.apply
     ? `SUMMARY mode=apply quizzes done=${sum.done} skipped=${sum.skipped} failed=${sum.failed} not_started=${todo.length - sum.done - sum.failed} chars=${sum.chars} usd=${usd(sum.usd)}${sum.stopped ? ` stopped=${sum.stopped}` : ''}`
     : `SUMMARY mode=dry-run quizzes to_record=${todo.length} skipped=${sum.skipped} chars=${sum.estChars} est_usd=${usd(sum.estUsd)} (at ${per1k} per 1k chars)`;
-  print(line);
-  return { ...sum, planned: todo.length, line };
+  const per = (o) => ['en', 'ur', ...Object.keys(o).filter((k) => k !== 'en' && k !== 'ur').sort()].map((k) => `${k}:${o[k] || 0}`).join(',');
+  const lexLine = args.lex ? ` lex=${args.lex} lex_hit=${per(lexCount.hit)} lex_clear=${per(lexCount.clear)} left_out=${leftOut}` : '';
+  print(`${line}${lexLine}`);
+  return { ...sum, planned: todo.length, line: `${line}${lexLine}`, ...(args.lex ? { lex: { hit: lexCount.hit, clear: lexCount.clear, leftOut } } : {}) };
 }
 
-module.exports = { main, parseArgs, projectRef, rank, USD_PER_1K_CHARS, ONE_USD_PER_1K_CHARS };
+module.exports = { main, parseArgs, projectRef, rank, lexHit, USD_PER_1K_CHARS, ONE_USD_PER_1K_CHARS };
 
 if (require.main === module) {
   main(process.argv.slice(2)).then((r) => { process.exit(r && r.refused ? 2 : 0); })

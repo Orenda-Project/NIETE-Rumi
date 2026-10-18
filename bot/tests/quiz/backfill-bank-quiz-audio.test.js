@@ -243,3 +243,50 @@ describe('refuses a database it was not pointed at', () => {
     expect(lines.join('\n')).not.toMatch(new RegExp(`${REF}|someotherref`));
   });
 });
+
+/*
+ * --lex hit|clear: the Urdu quizzes whose voiced lines a respelling of the shared Urdu spelling list touches
+ * (web-quiz-ur-say.js) run apart from the rest. English quizzes are always "clear". Without the option: today's run.
+ */
+describe('--lex: the quizzes a respelling touches run apart from the rest', () => {
+  const urQ = (quizId, n, text) => ({ ...question(quizId, n, text), option_a: 'ہاں', option_b: 'نہیں', explanation: 'کیونکہ یہی ہے۔' });
+  const lexWorld = () => {
+    const w = world();
+    w.quiz_questions = w.quiz_questions.filter((q) => !['q-g3sci-2', 'q-g1eng-2'].includes(q.quiz_id));
+    // q-g3sci-2 (rank 1): Urdu, a ruled word in a voiced line; q-g1eng-2 (rank 2): Urdu, none («ساتھی» is not «ساتھ»)
+    w.quiz_questions.push(urQ('q-g3sci-2', 1, 'بچے کس کے ساتھ کھیلتے ہیں؟'), urQ('q-g3sci-2', 2, 'سورج کیا ہے؟'));
+    w.quiz_questions.push(urQ('q-g1eng-2', 1, 'میرا ساتھی کون ہے؟'), urQ('q-g1eng-2', 2, 'پودے کو کیا چاہیے؟'));
+    return w;
+  };
+
+  test('--lex hit keeps only the Urdu quiz with a ruled word; the summary counts hit and clear per language', async () => {
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '3', '--lex', 'hit'], { db: fakeDb(lexWorld()) });
+    expect(ranked(lines)).toEqual(['q-g3sci-2']);
+    expect(r.planned).toBe(1);
+    expect(lines[lines.length - 1]).toMatch(/ lex=hit lex_hit=en:0,ur:1 lex_clear=en:1,ur:1 left_out=2$/);
+  });
+
+  test('--lex clear keeps the other Urdu quiz and the English one (English is always clear)', async () => {
+    const { lines } = await run(['--expect-ref', REF, '--limit', '3', '--lex', 'clear'], { db: fakeDb(lexWorld()) });
+    expect(ranked(lines)).toEqual(['q-g1eng-2', 'q-g1eng-1']);
+    expect(lines.filter((l) => /^\d+\t/.test(l)).map((l) => l.split('\t')[2])).toEqual(['ur', 'en']);
+  });
+
+  test('--lex hit --apply records only that quiz', async () => {
+    const { r } = await run(['--expect-ref', REF, '--limit', '3', '--lex', 'hit', '--apply'], { db: fakeDb(lexWorld()) });
+    expect(new Set(r2.uploadBuffer.mock.calls.map((c) => c[1].split('/')[2]))).toEqual(new Set(['q-g3sci-2']));
+    expect(r).toMatchObject({ done: 1, failed: 0 });
+  });
+
+  test('without --lex: every quiz, and the output is today\'s (no lex counts)', async () => {
+    const { lines } = await run(['--expect-ref', REF, '--limit', '3'], { db: fakeDb(lexWorld()) });
+    expect(ranked(lines)).toEqual(['q-g3sci-2', 'q-g1eng-2', 'q-g1eng-1']);
+    expect(lines.join('\n')).not.toMatch(/lex/);
+  });
+
+  test('--lex takes hit, clear or all only', () => {
+    expect(() => Backfill.parseArgs(['--lex', 'some'])).toThrow(/--lex/);
+    expect(Backfill.parseArgs(['--lex', 'all']).lex).toBe('all');
+    expect(Backfill.parseArgs([]).lex).toBe(null);
+  });
+});
