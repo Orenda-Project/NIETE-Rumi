@@ -22,8 +22,7 @@ import type {
  * - Every tap ends in one event: `audio_play` (`ok-mirror` | `ok-orig`) or `audio_error` (`error-<code>`), A12.
  */
 
-const DEFAULT_TIMING: FlnPlayerTiming = { firstByteMs: 1500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000 };
-const IDLE_CONCURRENCY = 2;
+const DEFAULT_TIMING: FlnPlayerTiming = { firstByteMs: 1500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2 };
 
 type Source = 'mirror' | 'orig';
 type WarmState = 'none' | 'queued' | 'loading' | 'done' | 'failed';
@@ -37,6 +36,8 @@ interface Entry {
   abort?: AbortController;
   /** The mirror already failed for this clip (warm saw a 429/5xx/404/network error): a tap goes straight to `orig`. */
   preferOrig?: boolean;
+  /** A cold tap on another clip paused this fetch: it goes back to the front of the queue. */
+  yielded?: boolean;
 }
 
 interface Session {
@@ -61,6 +62,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   const requestIdle = deps.requestIdle ?? defaultRequestIdle;
   const toUrl = deps.createObjectURL ?? ((b: Blob) => URL.createObjectURL(b));
   const revokeUrl = deps.revokeObjectURL ?? ((u: string) => URL.revokeObjectURL(u));
+  const preconnect = deps.preconnect ?? defaultPreconnect;
 
   const entries = new Map<string, Entry>();
   const listeners = new Map<string, Set<StateListener>>();
@@ -70,6 +72,9 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   let active: Session | null = null;
   let spent = 0;
   let inflight = 0;
+  const warming = new Set<Entry>();
+  const origins = new Set<string>();
+  let nowQueue: string[] = [];
   let idleQueue: string[] = [];
   let idleArmed = false;
   let idleOpen = false;
@@ -98,6 +103,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   async function warmOne(e: Entry) {
     e.warm = 'loading';
     inflight += 1;
+    warming.add(e);
     const ac = new AbortController();
     e.abort = ac;
     spent += e.clip.bytes ?? 0;
@@ -129,10 +135,17 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
         e.warm = 'failed';
       }
     } catch {
-      // Aborted: a tap took this clip over (it streams instead), or the page went away.
-      if (e.warm === 'loading') e.warm = 'none';
+      // Aborted: a tap took this clip over (it streams instead), a cold tap on another clip took the line, or the
+      // page went away.
+      spent -= e.clip.bytes ?? 0;
+      if (e.yielded && e.warm === 'loading') {
+        e.warm = 'queued';
+        nowQueue.unshift(e.clip.id);
+      } else if (e.warm === 'loading') e.warm = 'none';
+      e.yielded = undefined;
     } finally {
       if (e.abort === ac) e.abort = undefined;
+      warming.delete(e);
       inflight -= 1;
       pumpIdle();
     }
@@ -148,19 +161,41 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     });
   }
 
+  /** A cold tap is loading over the same line: it gets the bandwidth until it plays or fails. */
+  function coldTapLoading() {
+    return !!active && states.get(active.id)?.state === 'loading' && !active.el.src.startsWith('blob:');
+  }
+
+  /**
+   * In order, at most `warmConcurrency` at a time: on a slow line the clip a teacher taps first is whole after one
+   * clip's download, not after all of them (three parallel fetches each finish at three times the cost).
+   */
   function pumpIdle() {
-    if (!idleOpen) {
-      if (idleQueue.length) armIdle();
-      return;
-    }
-    // A cold tap is loading over the same line: let it have the bandwidth.
-    if (active && states.get(active.id)?.state === 'loading' && !active.el.src.startsWith('blob:')) return;
-    while (inflight < IDLE_CONCURRENCY && idleQueue.length) {
-      const id = idleQueue.shift() as string;
+    if (!idleOpen && idleQueue.length) armIdle();
+    if (coldTapLoading()) return;
+    while (inflight < timing.warmConcurrency) {
+      const q = nowQueue.length ? nowQueue : idleOpen ? idleQueue : null;
+      if (!q || !q.length) break;
+      const id = q.shift() as string;
       const e = entries.get(id);
       if (!e || e.warm !== 'queued') continue;
-      if (!canSpend(e)) { e.warm = 'none'; idleQueue = []; break; }
+      if (!canSpend(e)) {
+        e.warm = 'none';
+        [...nowQueue, ...idleQueue].forEach((x) => { const y = entries.get(x); if (y?.warm === 'queued') y.warm = 'none'; });
+        nowQueue = [];
+        idleQueue = [];
+        break;
+      }
       void warmOne(e);
+    }
+  }
+
+  /** A cold tap pauses every other prefetch; each goes back to the front of the queue and resumes after the tap. */
+  function yieldWarming(except: Entry) {
+    for (const w of [...warming].reverse()) {
+      if (w === except || !w.abort) continue;
+      w.yielded = true;
+      w.abort.abort();
     }
   }
 
@@ -251,6 +286,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
 
     // A warm fetch still running for this clip: stop it and stream (the tap must not wait for a full download).
     if (e.warm === 'loading' && e.abort) e.abort.abort();
+    if (!e.blobUrl) yieldWarming(e);
 
     let url: string;
     let source: Source;
@@ -348,6 +384,13 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       for (const clip of clips) {
         if (!clip || !clip.id || entries.has(clip.id)) continue;
         entries.set(clip.id, { clip, warm: 'none' });
+        // Open the connection to the mirror while the teacher reads: on a 300 ms line the handshake is most of a
+        // cold tap.
+        const origin = originOf(clip.src);
+        if (origin && !origins.has(origin)) {
+          origins.add(origin);
+          try { preconnect(origin); } catch { /* a hint only */ }
+        }
       }
     },
 
@@ -356,12 +399,11 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       for (const id of ids) {
         const e = entries.get(id);
         if (!e || e.blobUrl || e.warm !== 'none') continue;
+        e.warm = 'queued';
         if (immediate < timing.warmNow) {
-          if (!canSpend(e)) break;
           immediate += 1;
-          void warmOne(e);
+          nowQueue.push(id);
         } else {
-          e.warm = 'queued';
           idleQueue.push(id);
         }
       }
@@ -402,6 +444,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
 
     dispose() {
       stopActive();
+      nowQueue = [];
       idleQueue = [];
       for (const e of entries.values()) {
         e.abort?.abort();
@@ -418,6 +461,27 @@ function progressOf(el: HTMLAudioElement): number {
   const d = el.duration;
   if (!d || !Number.isFinite(d)) return 0;
   return Math.min(1, Math.max(0, el.currentTime / d));
+}
+
+function originOf(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Two hints: the <audio> element's connection pool (credentialed) and fetch()'s (anonymous) are separate. */
+function defaultPreconnect(origin: string) {
+  if (typeof document === 'undefined' || !document.head) return;
+  for (const cors of [false, true]) {
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = origin;
+    if (cors) link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
+  }
 }
 
 function defaultRequestIdle(fn: () => void) {
