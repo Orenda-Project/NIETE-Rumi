@@ -349,7 +349,7 @@ function advVersion() {
   if (advV) return advV;
   const h = crypto.createHash('sha256');
   // the sound kit the look fetches on its first cue rides this version too (wq-adv.js asks for it at its own ?v=)
-  for (const f of ['wq-adventure.css', 'wq-adv.js', 'wq-juice.js', 'wq-juice.css']) {
+  for (const f of ['wq-adventure.css', 'wq-adv.js', 'wq-adv-more.js', 'wq-juice.js', 'wq-juice.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return (advV = h.digest('hex').slice(0, 10));
