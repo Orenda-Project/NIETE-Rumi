@@ -275,6 +275,8 @@ html.wq-adv .wq-ltop{display:flex;align-items:center;direction:ltr;margin:0}
 html.wq-adv .wq-ltop h2{flex:1;min-width:0;margin:0;font-size:var(--fs-5);line-height:1.2;text-align:start;text-wrap:balance;overflow-wrap:anywhere}
 html.wq-adv[lang=ur] .wq-ltop h2{direction:rtl;font-family:var(--fu);font-weight:400;line-height:1.9}
 html.wq-adv .wq-ltop button.wq-home,html.wq-adv .wq-ltop #wq-snd{color:var(--land-edge)}
+/* on the land's colour the sound stays a solid circle when off: its crossed bell says so (a faded circle read as broken) */
+html.wq-adv .wq-ltop #wq-snd[aria-pressed=false],html.wq-adv .wq-ltop .wqj-snd[aria-pressed=false]{opacity:1}
 html.wq-adv .wq-ltop h2:empty{visibility:hidden}
 /* the see-all screen: one round back in the head (its arrow: wq.css, mirrored right to left), the lessons two by two */
 html.wq-adv .wq-droom[dir=rtl] .wq-backbtn::before,html.wq-adv .wq-droom[dir=rtl] .wq-backbtn svg{transform:scaleX(-1)}
