@@ -192,7 +192,26 @@ async function offFrame(page) {
   return m.filter((e) => e.boxClearTop < 0 || e.boxClearBottom < 0).map((e) => `${e.text}: off the picture (top ${e.boxClearTop} / bottom ${e.boxClearBottom} em)`);
 }
 
-async function check(pictures) {
+/** Every text node's glyph box (its Range rect) sits at least 4 px inside the picture (a ribbon hangs from the top edge). */
+async function glyphBoxes(page) {
+  return page.evaluate(() => {
+    const frame = document.querySelector('.card, .art, .pic') || document.body;
+    const C = frame.getBoundingClientRect();
+    const out = [];
+    const walk = document.createTreeWalker(frame, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      if (!/\S/.test(n.nodeValue)) continue;
+      const r = document.createRange();
+      r.selectNodeContents(n);
+      const g = r.getBoundingClientRect();
+      const worst = Math.min(g.top - C.top, C.bottom - g.bottom, g.left - C.left, C.right - g.right);
+      if (worst < 4) out.push(`${n.nodeValue.trim().slice(0, 30)}: glyph box ${Math.round(worst)} px from the picture's edge`);
+    }
+    return out;
+  });
+}
+
+async function check(pictures, { glyph = false } = {}) {
   const bad = [];
   for (const p of pictures) {
     const page = await open(p);
@@ -200,8 +219,9 @@ async function check(pictures) {
       const pills = await pillsOut(page);
       const touch = await linesTouch(page);
       const off = await offFrame(page);
+      const boxes = glyph ? await glyphBoxes(page) : [];
       const cut = await cuts(page, p);
-      for (const s of [...cut, ...pills, ...touch, ...off]) bad.push(`${p.label} — ${s}`);
+      for (const s of [...boxes, ...cut, ...pills, ...touch, ...off]) bad.push(`${p.label} — ${s}`);
     } finally { await page.close(); }
   }
   return bad;
@@ -211,7 +231,17 @@ async function check(pictures) {
 
 run('an Urdu share picture never cuts its own text', () => {
   test('the finish card with the one share: no letter cut, the ribbon\'s word inside the ribbon, no lines touching', async () => {
-    expect(await check(finishCards(true))).toEqual([]);
+    expect(await check(finishCards(true), { glyph: true })).toEqual([]);
+  });
+
+  test('the finish card with the one share: Urdu lines at line-height 2 or more (2.1 on the deed), the "!" set against its word', () => {
+    const lh = (html, sel) => Number((html.match(new RegExp(`\\${sel}\\{line-height:([0-9.]+)`)) || [])[1]);
+    for (const p of finishCards(true)) {
+      expect([p.label, lh(p.html, '.name') >= 2, lh(p.html, '.deed') >= 2.1, lh(p.html, '.st') >= 2]).toEqual([p.label, true, true, true]);
+      // the closing "!" set against its word (it stood a gap apart)
+      expect([p.label, /!<\/div>|!<\/span><\/div>/.test(p.html.replace(/<span class="ex">!<\/span>/g, ''))]).toEqual([p.label, false]);
+      expect([p.label, p.html.includes('.ex{margin-inline-start:-')]).toEqual([p.label, true]);
+    }
   });
 
   test('the score, invite, class and school pictures with the one share: no letter cut, every pill\'s word inside it', async () => {

@@ -244,7 +244,7 @@
     '.wqfc-sh-in .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:56px;box-sizing:border-box}' +
     '.wqfc-sh-msg{background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 rgba(15,23,42,.08);display:grid;gap:6px}' +
     '.wqfc-sh-msg p{margin:0;font-size:16px;line-height:1.4;color:#1F2937}[lang="ur"] .wqfc-sh-msg p[dir="auto"]{font-size:18px;line-height:1.9}' +
-    '.wqfc-sh-msg .wqfc-sh-url{font-size:14px;color:#475569;overflow-wrap:anywhere;word-break:break-all;text-align:left}' +
+    '.wqfc-sh-msg .wqfc-sh-url{font-size:14px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}' +
     '.wqfc-sh-ok{text-align:center;font-weight:700;margin:0;min-height:1.5em}[lang="ur"] .wqfc-sh-in .wq-btn{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
   function css() {
@@ -441,11 +441,19 @@
   // The one share's sheet (pure): the picture first, then ONE primary (WhatsApp), the file where it can go, save, copy, back.
   // What the sheet sends, shown under the picture: the words (the link taken off their end), then the link on its own
   // left-to-right line, as the send screen showed it. Nothing to show: no box.
+  // The link is shown short, on one line (its host and the start of its path): a card's link is a long sealed token, and
+  // a child should not see a wall of code. What is sent is the whole link.
+  function shortUrl(url) {
+    var m = /^https?:\/\/([^/?#]+)([^?#]*)/.exec(String(url));
+    if (!m) return String(url).slice(0, 32);
+    var p = m[2].length > 12 ? m[2].slice(0, 10) + '\u2026' : m[2];
+    return m[1] + p;
+  }
   function msgHtml(text, url) {
     var t = String(text == null ? '' : text);
     if (url && t.slice(-url.length) === url) t = t.slice(0, -url.length).replace(/\s+$/, '');
     if (!t && !url) return '';
-    return '<div class="wqfc-sh-msg">' + (t ? '<p dir="auto">' + esc(t) + '</p>' : '') + (url ? '<p class="wqfc-sh-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>';
+    return '<div class="wqfc-sh-msg">' + (t ? '<p dir="auto">' + esc(t) + '</p>' : '') + (url ? '<p class="wqfc-sh-url" dir="ltr">' + esc(shortUrl(url)) + '</p>' : '') + '</div>';
   }
   function sheetHtml(o) {
     var l = L(o.lang), w = SH[l];
