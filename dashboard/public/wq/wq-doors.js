@@ -32,6 +32,9 @@
       storiesNone: 'New stories are on the way. Play a game!', gamesNone: 'Read a story with Jugnu!', toGames: 'Play a game', toStories: 'Read a story',
       mins: function (m) { return m + ' min'; },
       subj: function (s) { return s; },
+      grade: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : 'Grade ' + g; },
+      gradeChip: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : String(g); },
+      grades: 'Grades',
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
@@ -45,6 +48,9 @@
       storiesNone: 'نئی کہانیاں آ رہی ہیں۔ تب تک کھیل کھیلیں!', gamesNone: 'جگنو کے ساتھ کہانی پڑھیں!', toGames: 'کھیل کھیلیں', toStories: 'کہانی پڑھیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       subj: function (s) { return SUBJ_UR[s] || s; },
+      grade: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : 'جماعت ' + urDigits(g); },
+      gradeChip: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : urDigits(g); },
+      grades: 'جماعتیں',
     },
   };
   var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات', 'Social Studies': 'معاشرتی علوم' };
@@ -224,9 +230,21 @@
   var SKEL = '<span class="wq-vcard wq-vskel" aria-hidden="true"><span class="wq-vthumb"></span><b></b></span>';
   // The watch screen while its lesson loads: a placeholder player and title, never words.
   var WATCH_WAIT = '<div class="wq-vbox wq-vskel" data-primary aria-busy="true"></div><span class="wq-vskh"></span>';
+  // The look's grade picker (as the Stories shelf's): "Grade 3 ▾" opens the library's grades as chips; another grade only
+  // browses (view.g, this visit), the child's own grade never changes. Its chips are the league's (wq-schips wq-tall, 48 px).
+  function gradePick(ctx, lib) {
+    var t = C(ctx); var gs = lib.grades || [];
+    if (!advOn() || !lib.grade || gs.length < 2) return '';
+    var open = view.gopen === true;
+    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="vgl" aria-expanded="' + open + '">' + esc(t.grade(lib.grade)) + ' ▾</button>' +
+      (open ? '<div class="wq-chips wq-schips wq-tall wq-vpick" role="group" aria-label="' + esc(t.grades) + '">' + gs.map(function (x) {
+        var on = String(x.g) === String(lib.grade);
+        return '<button class="wq-chip' + (on ? ' wq-on' : '') + '" type="button" data-tap="vg" data-item="' + esc(x.g) + '" aria-pressed="' + on + '">' + esc(t.gradeChip(x.g)) + '</button>';
+      }).join('') + '</div>' : '') + '</div>';
+  }
   function shelvesBody(ctx, lib) {
     var t = C(ctx);
-    return (lib.subjects || []).map(function (s, i) {
+    return gradePick(ctx, lib) + (lib.subjects || []).map(function (s, i) {
       return '<section class="wq-vsec"><div class="wq-vshead"><h3 class="wq-dsec"><bdi' + lat(t.subj(s.key)) + '>' + esc(t.subj(s.key)) + '</bdi></h3>' +
         '<button class="wq-btn wq-btn--secondary wq-vsall" type="button"' + (i === 0 ? ' data-primary' : '') + ' data-tap="subj" data-kind="subject" data-item="' + esc(s.key) + '" data-pos="' + i + '">' + esc(t.seeAll) + '</button></div>' +
         '<div class="wq-vrow" data-vshelf="' + esc(s.key) + '" data-fetch="pending">' + SKEL + SKEL + SKEL + '</div></section>';
@@ -289,7 +307,7 @@
     if (B.practice && (name === 'videos' || /^watch\//.test(name))) return frame(B, ctx, 'videos', ht.videos || 'Videos', previewVideosBody(ctx));
     if (name === 'stories') return frame(B, ctx, name, ht.stories || 'Stories', storiesBody(B, ctx, data));
     if (name === 'games') return frame(B, ctx, name, ht.games || 'Games', gamesBody(B, ctx, data));
-    if (name === 'videos' && data && data.subject && advOn() && shelfOn(B)) return frame(B, ctx, name, C(ctx).subj(data.subject), chaptersBody(ctx, data.lib, data.subject, B), 'subjects');
+    if (name === 'videos' && data && data.subject && advOn() && shelfOn(B)) return frame(B, ctx, name, C(ctx).subj(data.subject) + (view.g ? ' · ' + C(ctx).grade(view.g) : ''), chaptersBody(ctx, data.lib, data.subject, B), 'subjects');
     if (name === 'videos') return frame(B, ctx, name, ht.videos || 'Videos', data && data.subject ? chaptersBody(ctx, data.lib, data.subject, B) : subjectsBody(ctx, data && data.lib, B));
     if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B)) : shelfOn(B) ? WATCH_WAIT : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
     return '';
@@ -425,7 +443,7 @@
     try { var mo = new MutationObserver(sync); mo.observe(sh, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-primary', 'hidden'] }); if (wait) { unwatch(); shelfObs = mo; } } catch (e) {}
   }
 
-  var view = { name: null, subject: null, watch: null, next: null, list: null };
+  var view = { name: null, subject: null, watch: null, next: null, list: null, g: null, gopen: false };
   function draw(root, B, ctx, name, data) {
     var h = html(B, ctx, name, data);
     root.innerHTML = h;
@@ -516,7 +534,16 @@
       })();
     });
   }
-  function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (s ? '&s=' + encodeURIComponent(s) : ''); }
+  function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (view.g ? '&g=' + encodeURIComponent(view.g) : '') + (s ? '&s=' + encodeURIComponent(s) : ''); }
+  // Another grade picked (the look's picker): that grade's subjects and shelves, asked for afresh; its own grade again = none.
+  function pickGrade(root, B, ctx, g) {
+    var own = lib.own || (lib.subjects && lib.subjects.grade) || null;
+    if (!lib.own && own) lib.own = own;
+    var next = g && String(g) !== String(own) ? String(g) : null;
+    view.gopen = false;
+    if (next !== view.g) { view.g = next; lib.subjects = null; lib.chapters = {}; vrows = {}; (ctx.ev || function () {})('lib_grade', { g: g, own: String(g) === String(own) ? 1 : 0 }); }
+    return videos(root, B, ctx, null);
+  }
   function videos(root, B, ctx, subject) {
     view.subject = subject || null;
     if (!subject) {
@@ -701,6 +728,8 @@
         }
         if (tap === 'subj') { e.preventDefault(); ev('door_row_tap', { door: 'videos', kind: 'subject', item: el.getAttribute('data-item'), pos: Number(el.getAttribute('data-pos')) }); return videos(root, B, ctx, el.getAttribute('data-item')); }
         if (tap === 'subjects') { e.preventDefault(); return videos(root, B, ctx, null); }
+        if (tap === 'vgl') { e.preventDefault(); view.gopen = !view.gopen; return videos(root, B, ctx, null); }
+        if (tap === 'vg') { e.preventDefault(); return pickGrade(root, B, ctx, el.getAttribute('data-item')); }
         if (tap === 'retry' && name === 'games') { e.preventDefault(); return mount(root, B, ctx, 'games'); }
         if (tap === 'retry' && view.subject) { e.preventDefault(); return videos(root, B, ctx, view.subject); }
         if (tap === 'retry') { e.preventDefault(); lib.subjects = null; return videos(root, B, ctx, null); }
