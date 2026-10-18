@@ -576,7 +576,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var HOME_ON = Boolean(NAVF.home), BACK_ON = Boolean(NAVF.back);
   var N = QS.length;
   var CODE = B.code || Q.code || '';
-  // ui_lang (web_quiz_class_doors, the class table and league only): the link's language, set by the edge; else the quiz's.
+  // ui_lang (web_quiz_class_doors: the class table and league; web_quiz_page_lang: the quiz page): the link's language, set
+  // by the edge; else the quiz's.
   var LANG = B.ui_lang === 'ur' || B.ui_lang === 'en' ? B.ui_lang : Q.lang === 'ur' ? 'ur' : 'en';
   // ...and when that is not the quiz's, Play opens the quiz page itself, in the quiz's own language.
   var UI_SWAP = LANG !== (Q.lang === 'ur' ? 'ur' : 'en');
