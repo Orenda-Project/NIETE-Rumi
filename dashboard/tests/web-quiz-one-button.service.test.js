@@ -18,7 +18,7 @@ const CSS = fs.readFileSync(path.join(WQ, 'wq.css'), 'utf8');
 const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlMnOpQrStUv';
 const KID = '0123456789abcdef';
 const HOME = {
-  lang: 'en', kids: [{ chip: KID, first: 'Zara', animal: 'owl', grade: '3' }], kid: KID,
+  lang: 'en', kids: [{ chip: KID, first: 'Zara Testwala', animal: 'owl', grade: '3' }], kid: KID,
   teacher: null, again: [], recs: [], challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false,
   home_v3: 1, head: { dots: 2, today: false, jar: { fresh: true } },
   doors: { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: true, title: 'The red kite' }], games: [], videos: null },
