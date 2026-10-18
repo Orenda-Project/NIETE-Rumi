@@ -14,6 +14,12 @@
  *      the streamed page (web-quiz-stream.js reads res.locals.wqHtml). Not on a link-preview fetch (today's page).
  *
  * Switch off: nothing here touches the request or the answer (today's bytes and headers), whatever web_quiz_fast says.
+ *
+ * A second switch, app_settings web_quiz_wq_strip (web-quiz-strip-flag.js: read the same way, default OFF), acts on
+ * case 1 only, and only for scripts: with both on, a versioned /wq/<name>.js asked with br is compressed from the
+ * source minus its whole-line // comments (lib/wq-strip.js), with its own ETag ("<hash of the bytes>-sbr"). Styles,
+ * pictures, unversioned files, a gzip-only phone and the ?v= hash (the source file's) are as without it. Its state is
+ * part of the copy's key, so turning it off goes back to the source copy (the plain file while that is made).
  */
 const crypto = require('crypto');
 const fs = require('fs');
@@ -21,6 +27,8 @@ const path = require('path');
 const zlib = require('zlib');
 const { isPreviewFetch } = require('./web-quiz-preview');
 const { brotliOn } = require('./web-quiz-brotli-flag');
+const { stripOn } = require('./web-quiz-strip-flag');
+const { stripLineComments } = require('../lib/wq-strip');
 
 const V_RX = /^[0-9a-f]{10}$/;
 const NAME_RX = /^[A-Za-z0-9._-]+\.(js|css)$/;
@@ -47,36 +55,43 @@ function versionOf(req) {
 }
 
 /**
- * createWqStatic({ publicDir, on }) → express middleware. `on()` answers whether the switch is on now, at once
- * (default: the process's web_quiz_brotli switch). The middleware carries `.stats()`: the br copies ready and their bytes.
+ * createWqStatic({ publicDir, on, strip }) → express middleware. `on()` answers whether the switch is on now, at once
+ * (default: the process's web_quiz_brotli switch); `strip()` the same for web_quiz_wq_strip (asked only for a script
+ * the first switch would compress). The middleware carries `.stats()`: the br copies ready and their bytes.
  */
-function createWqStatic({ publicDir, on }) {
+function createWqStatic({ publicDir, on, strip }) {
   const dir = path.resolve(publicDir);
   const ask = typeof on === 'function' ? on : brotliOn;
+  const askStrip = typeof strip === 'function' ? strip : stripOn;
   const switchOn = () => { try { return ask() === true; } catch (_) { return false; } };
+  /** Strip this file now? Scripts only; a switch that throws is OFF. */
+  const stripping = (name) => /\.js$/.test(name) && (() => { try { return askStrip() === true; } catch (_) { return false; } })();
   const copies = new Map();   // name -> { key, etag, br } (ready) | { key, pending } (in the works)
   const picV = new Map();     // '/wq/…webp' -> { key, v }
   let warmed = false;
 
-  /** The file's identity now: size + mtime (a deploy that changes the file changes the key). */
-  const keyOf = (st) => `${st.size}:${st.mtimeMs}`;
+  /** The copy's identity now: size + mtime (a deploy that changes the file changes the key), + whether it is stripped. */
+  const keyOf = (st, strip) => `${st.size}:${st.mtimeMs}${strip ? ':strip' : ''}`;
 
-  function make(name, file, key) {
+  function make(name, file, key, strip) {
     const job = fs.promises.readFile(file)
-      .then((buf) => brotli(buf).then((br) => {
-        const etag = `"${crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16)}-br"`;
-        copies.set(name, { key, etag, br });
-      }))
+      .then((src) => {
+        const buf = strip ? stripLineComments(src) : src;
+        return brotli(buf).then((br) => {
+          const etag = `"${crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16)}-${strip ? 'sbr' : 'br'}"`;
+          copies.set(name, { key, etag, br });
+        });
+      })
       .catch(() => { if (copies.get(name) && copies.get(name).pending === job) copies.delete(name); });
     copies.set(name, { key, pending: job });
     return job;
   }
 
   /** The ready copy for name at key, or null (and starts making it). */
-  function copyFor(name, file, key) {
+  function copyFor(name, file, key, strip) {
     const c = copies.get(name);
     if (c && c.key === key) return c.br ? c : null;
-    make(name, file, key);
+    make(name, file, key, strip);
     return null;
   }
 
@@ -90,9 +105,10 @@ function createWqStatic({ publicDir, on }) {
         try {
           const st = await fs.promises.stat(file);
           if (!st.isFile()) continue;
+          const strip = stripping(name);
           const c = copies.get(name);
-          if (c && c.key === keyOf(st)) { if (c.pending) await c.pending; continue; }
-          await make(name, file, keyOf(st));
+          if (c && c.key === keyOf(st, strip)) { if (c.pending) await c.pending; continue; }
+          await make(name, file, keyOf(st, strip), strip);
         } catch (_) { /* gone meanwhile */ }
       }
     }).catch(() => {});
@@ -161,7 +177,8 @@ function createWqStatic({ publicDir, on }) {
     warm();
     return fs.stat(file, (err, st) => {
       if (err || !st.isFile()) return next();
-      const c = copyFor(name, file, keyOf(st));
+      const strip = stripping(name);
+      const c = copyFor(name, file, keyOf(st, strip), strip);
       return c ? sendBr(req, res, c, m[1]) : next();
     });
   }
