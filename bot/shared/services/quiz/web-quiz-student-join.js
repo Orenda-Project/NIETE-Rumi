@@ -42,6 +42,7 @@ const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
 const K = require('./web-quiz-kid');
 const IdFlags = require('./web-quiz-identity-flags');
+const HubFlags = require('./web-quiz-hub-flags');
 const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
@@ -51,6 +52,15 @@ const SWITCH_KEY = 'quiz_student_join';
 // The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
 // while the join switch is on; OFF (or a failed read) → the page is today's, byte for byte.
 const EARLY_TAP_KEY = 'quiz_join_early_tap';
+// The join's last step, fast: the switches are ONE app_settings read (the identity and hub flags filled from it), the
+// guards' reads start together, the binder's reads start together; the writes keep their order (the row, its identity,
+// the binding, the door key, the remember line) and the answer is the same bytes. JSON true only; OFF → today's reads.
+const FAST_KEY = 'quiz_join_fast';
+// The go button says "Getting your games ready…" while the join runs (the page draws it; join.js shows it). Read in the
+// join's own switch read (no read of its own); JSON true only, and only with the join switch on.
+const WAIT_WORD_KEY = 'quiz_join_wait_word';
+// The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
+const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -87,16 +97,25 @@ async function earlyTapOn() {
   }
 }
 
-/** → { on, bind, earlyTap }; all false on a failed read. Never throws. */
+/** → { on, bind, earlyTap, fast?, waitWord? }; all false on a failed read. Never throws. */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', SWITCH_KEY);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', flagKeys());
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const on = isTrue(((data || [])[0] || {}).value);
+    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+    const on = isTrue(by[SWITCH_KEY]);
+    const wait = on && by[WAIT_WORD_KEY] === true ? { waitWord: true } : {};
+    if (on && by[FAST_KEY] === true) {
+      // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
+      if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now);
+      const bind = Boolean((await IdFlags.flags()).phoneBind);
+      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait };
+      return cache;
+    }
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
     const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap };
+    cache = { at: now, on, bind, earlyTap, ...wait };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
@@ -229,6 +248,29 @@ async function teacherPhone(userId, phoneNorm = null) {
   }
 }
 
+/**
+ * teacherPhone with every read started together (quiz_join_fast): the walk persona, the users row and the teacher
+ * activity counts (Ingress.activityAll) side by side, weighed in teacherPhone's order — the same verdict.
+ */
+async function teacherPhoneTogether(userId, phoneNorm = null) {
+  try {
+    const Ingress = require('../student-ingress');
+    const IngressIdentity = require('../student-ingress-identity');
+    const user = supabase.from('users')
+      .select('id, registration_completed, registration_state, name, teacher_uuid, school_id, portal_activated, role')
+      .eq('id', userId).maybeSingle();
+    const [fresh, { data, error }, act] = await Promise.all([
+      phoneNorm ? freshPersona(phoneNorm) : false, user, IngressIdentity.activityAll(userId).catch(() => null),
+    ]);
+    if (fresh) return false;
+    if (error || !data) return true;
+    if (Ingress.identity(data)) return true;
+    return act !== false;
+  } catch (_) {
+    return true;
+  }
+}
+
 const hubKid = (id) => T.chipId('h', id);
 
 /**
@@ -266,7 +308,7 @@ async function pageInfo({ t } = {}) {
     const old = T.verify(t, 'j', { allowExpired: true });
     return { stale: true, lang: old ? langOf(old.l) : null, ...botField() };
   }
-  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}) };
+  return { ok: true, lang: langOf(r.tok.l), practice: r.practice, ...botField(), ...(f.earlyTap ? { earlyTap: true } : {}), ...(f.waitWord ? { waitWord: true } : {}) };
 }
 
 /** The grade chip: the join_grade line and the home's warm list (fired before the name is typed). */
@@ -301,8 +343,8 @@ async function retire(id) {
   }
 }
 
-async function bindChild(phoneNorm, id) {
-  return require('./web-quiz-bind.service').bindOnPhone({ phone: phoneNorm, canonicalId: id, via: 'guest', mode: 'student' });
+async function bindChild(phoneNorm, id, fast = false, pre = null) {
+  return require('./web-quiz-bind.service').bindOnPhone({ phone: phoneNorm, canonicalId: id, via: 'guest', mode: 'student', ...(fast ? { fast: true, pre } : {}) });
 }
 
 /**
@@ -325,20 +367,39 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     const first = cleanFirstName(name);
     if (!first) return { error: 'bad_request', why: 'name' };
     if (!f.bind) return { off: true };
-    if (!(await deviceHolds(t, device))) return { stale: true, why: 'other_device' };
-    const who = await GoNonce.peek(r.tok.n);
-    if (!who) return { stale: true };
-    if (await teacherPhone(who.userId, who.phoneNorm)) {
-      await emit('join_refused', { reason: 'teacher_phone' }, null, device);
-      return { refused: 'teacher_phone', next: practiceHome(g, lang) };
+    let who;
+    let set;
+    if (f.fast) {
+      // the device hold beside the nonce peek (a read); then the teacher check, the phone's children and the home's
+      // switches (the remember line's, read now so it waits for nothing later) together; the same guards, in order
+      const [holds, peeked] = await Promise.all([deviceHolds(t, device), GoNonce.peek(r.tok.n)]);
+      if (!holds) return { stale: true, why: 'other_device' };
+      who = peeked;
+      if (!who) return { stale: true };
+      const [teacher, kids] = await Promise.all([
+        teacherPhoneTogether(who.userId, who.phoneNorm), BindRepo.childrenForPhone(who.phoneNorm, { together: true }),
+        require('./web-quiz-home-flags').flags(),
+      ]);
+      if (teacher) {
+        await emit('join_refused', { reason: 'teacher_phone' }, null, device);
+        return { refused: 'teacher_phone', next: practiceHome(g, lang) };
+      }
+      set = kids;
+    } else {
+      if (!(await deviceHolds(t, device))) return { stale: true, why: 'other_device' };
+      who = await GoNonce.peek(r.tok.n);
+      if (!who) return { stale: true };
+      if (await teacherPhone(who.userId, who.phoneNorm)) {
+        await emit('join_refused', { reason: 'teacher_phone' }, null, device);
+        return { refused: 'teacher_phone', next: practiceHome(g, lang) };
+      }
+      set = await phoneSet(who.phoneNorm);
     }
-
-    const set = await phoneSet(who.phoneNorm);
     // "Is this you?" → yes: that child, bound on this phone (a chat child gains its binding; a bound one renews).
     if (same) {
       const kid = set.find((k) => T.chipId('j', k.id) === String(same));
       if (!kid) return { error: 'bad_request', why: 'same' };
-      const b = await bindChild(who.phoneNorm, String(kid.id));
+      const b = await bindChild(who.phoneNorm, String(kid.id), f.fast);
       if (!b || !b.ok) return b && b.outcome === 'refused' ? { refused: b.reason, next: homeUrl(set, set[0] && set[0].id, 'join', lang) } : { error: 'unavailable' };
       await emit('join_done', { grade: g, kids_n: set.length, again: true }, String(kid.id), device);
       return { next: homeUrl(set, kid.id, 'join', lang) };
@@ -366,8 +427,10 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       return { error: 'unavailable' };
     }
     const id = String(row.id);
+    // fast: the binder's reads (the new row, the phone's children, bindings and prior row) run while the identity is written
+    const pre = f.fast ? require('./web-quiz-bind.service').prefetch({ phone: who.phoneNorm, canonicalId: id }) : null;
     await require('./web-quiz-challenge-draw').writeChildIdentity({ canonicalId: id, grade: g, gradeSource: 'self' });
-    const b = await bindChild(who.phoneNorm, id);
+    const b = await bindChild(who.phoneNorm, id, f.fast, pre);
     if (!b || !b.ok) {
       await retire(id);
       if (b && b.outcome === 'refused') return { refused: b.reason, next: set.length ? homeUrl(set, null, 'join', lang) : null };
@@ -581,7 +644,7 @@ async function noteRecognised({ phoneNorm } = {}) {
 }
 
 module.exports = {
-  SWITCH_KEY, EARLY_TAP_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
+  SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
   flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
