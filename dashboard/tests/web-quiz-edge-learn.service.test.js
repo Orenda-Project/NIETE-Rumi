@@ -600,3 +600,64 @@ describe('one learner: re-ask at +5 s, replies by ask number, wait_ux and one_fa
     expect((await top()).includes(WAIT_MARK)).toBe(false);
   });
 });
+
+// The bot slower than the edge's own 10 s limit (BOT_TIMEOUT_MS) on a fresh process's first /h/: a stub bot that answers
+// the hub in 11 s, on the test's fake clock. Edge learning on (the boot ask said fast): the frame went first, so the
+// timeout ends it with the page asking again (nf=1), never the closed "not open right now" page. Off (today): the same
+// timeout is that closed page, a 502.
+describe('a fresh process, the bot answers the hub in 11 s (over the edge\'s 10 s limit)', () => {
+  let srv;
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+  const OFF_PAGE = 'The quiz is not open right now';
+  const AGAIN = 'location.replace(location.pathname+(location.search?location.search+"&":"?")+"nf=1"+location.hash)';
+
+  function slowHubBot(edge) {
+    const calls = [];
+    let asked;
+    const hubAsked = new Promise((r) => { asked = r; });
+    const fetchImpl = (url, init = {}) => {
+      calls.push(url.slice(BOT.length));
+      if (url.endsWith('/api/internal/wq/edge')) return Promise.resolve(jsonRes(200, edge));
+      return new Promise((resolve, reject) => {
+        const t = setTimeout(() => resolve(jsonRes(200, HUB({ fast: true }))), 11000);
+        if (init.signal) init.signal.addEventListener('abort', () => { clearTimeout(t); const e = new Error('aborted'); e.name = 'AbortError'; reject(e); });
+        asked();
+      });
+    };
+    return { fetchImpl, calls, hubAsked };
+  }
+  async function openFirst(bot, edgeLearn) {
+    srv = await start(build(bot.fetchImpl, edgeLearn));
+    await settle(); // the boot ask (if any) answered, on the real clock
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'queueMicrotask', 'setInterval', 'clearInterval', 'Date', 'hrtime', 'performance'] });
+    try {
+      const res = get(srv, `/h/${TOKEN}`);
+      await bot.hubAsked;
+      await jest.advanceTimersByTimeAsync(10000); // the edge's limit: the call is aborted (the bot would answer at 11 s)
+      return await res;
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+
+  it('edge learning on (the boot ask answered fast: true): the Jugnu frame, then the page asks again, never kind "off"', async () => {
+    const bot = slowHubBot(LEARN_ON);
+    const r = await openFirst(bot, { timers: testTimers() });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatch(/<link rel="stylesheet" href="\/wq\/wq\.css\?v=/);
+    expect(r.body).toContain(AGAIN);
+    expect(r.body).not.toContain(OFF_PAGE);
+    expect(bot.calls.filter((u) => u.startsWith('/api/internal/wq/hub/')).length).toBe(1);
+  });
+
+  test.each([
+    ['edge learning off (no learner: today)', false, null],
+    ['the learner on, the bot says learn: false', 'learner', { learn: false }],
+  ])('%s: the same timeout is today\'s closed page (502, "not open right now")', async (_, mode, edge) => {
+    const bot = slowHubBot(edge || { learn: false });
+    const r = await openFirst(bot, mode === 'learner' ? { timers: testTimers() } : false);
+    expect(r.status).toBe(502);
+    expect(r.body).toContain(OFF_PAGE);
+    expect(r.body).not.toContain(AGAIN);
+  });
+});
