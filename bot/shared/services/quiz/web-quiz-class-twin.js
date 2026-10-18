@@ -1,7 +1,7 @@
 'use strict';
 /**
  * The quiz's twin in the other language, for the class table and the league (app_settings `web_quiz_class_doors`):
- * the same teacher's open code of the same lesson (web-quiz-hub's lessonRefs: the lesson plan or the coaching session)
+ * the same teacher's open code of the same lesson (web-quiz-lesson-refs: the lesson plan or the coaching session)
  * in the other language. Play from a table shown in the child's language then opens the quiz in it too.
  *
  *   twinOf(ctx, studentId)   {code[, k]} or null; never throws. k: the twin's hub key for the child, when known.
@@ -13,20 +13,21 @@
 const { logToFile } = require('../../utils/logger');
 const { read: dbRead } = require('./web-quiz-db-deadline');
 const T = require('./web-quiz-token');
+const { lessonRefs } = require('./web-quiz-lesson-refs');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const TTL_MS = 5 * 60 * 1000;
 const MAX = 500;
 const cache = new Map(); // shareCodeId -> { at, twin: {id, code} | null }
 
 async function lookup(ctx) {
-  const { lessonRefs } = require('./web-quiz-hub')._parts;
   const { data: q } = await dbRead('classTwin:quizzes:1', (db) => db.from('quizzes').select('id, language, lesson_plan_id, coaching_session_id').eq('id', ctx.quizId).maybeSingle());
   const ref = lessonRefs(q)[0];
   if (!ref) return null;
   const [col, val] = ref.startsWith('lp:') ? ['lesson_plan_id', ref.slice(3)] : ['coaching_session_id', ref.slice(3)];
-  const lang = q.language === 'ur' ? 'ur' : 'en';
+  const lang = clampLanguage(q.language);
   const { data: qs } = await dbRead('classTwin:quizzes:2', (db) => db.from('quizzes').select('id, language, lesson_plan_id, coaching_session_id').eq(col, val));
-  const ids = (qs || []).filter((x) => x.id !== q.id && (x.language === 'ur' ? 'ur' : 'en') !== lang).map((x) => x.id);
+  const ids = (qs || []).filter((x) => x.id !== q.id && clampLanguage(x.language) !== lang).map((x) => x.id);
   if (!ids.length) return null;
   const { data: codes } = await dbRead('classTwin:quiz_share_codes:1', (db) => db.from('quiz_share_codes')
     .select('id, code, quiz_id, active, expires_at, invited_by_student_id, parent_share_code_id, created_at')

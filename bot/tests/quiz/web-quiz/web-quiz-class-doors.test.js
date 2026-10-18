@@ -172,10 +172,13 @@ describe('web_quiz_class_doors on the hub', () => {
 });
 
 describe('web_quiz_class_doors linksOf', () => {
-  test('the language travels only when it is en or ur', () => {
-    const h = [{ teacherSent: true, code: 'MATH01', shareCodeId: 'sc-1' }];
-    for (const lang of ['en', 'ur']) expect(ClassDoors.linksOf(h, KID, null, lang).class).toMatch(new RegExp(`&lang=${lang}$`));
-    for (const lang of ['fr', 'ur&x=1', '', null]) expect(JSON.stringify(ClassDoors.linksOf(h, KID, null, lang))).not.toContain('lang=');
+  test('the language travels only when it is en or ur, and never when it is the quiz\'s own', () => {
+    for (const [own, other] of [['en', 'ur'], ['ur', 'en']]) {
+      const h = [{ teacherSent: true, code: 'MATH01', shareCodeId: 'sc-1', language: own }];
+      expect(ClassDoors.linksOf(h, KID, null, other).class).toMatch(new RegExp(`&lang=${other}$`));
+      expect(ClassDoors.linksOf(h, KID, null, own).class).not.toContain('lang=');
+      for (const lang of ['fr', 'ur&x=1', '', null]) expect(JSON.stringify(ClassDoors.linksOf(h, KID, null, lang))).not.toContain('lang=');
+    }
   });
 });
 

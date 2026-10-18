@@ -18,6 +18,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
 const WatchRoot = require('./watch-root');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const KEY = 'web_quiz_class_doors';
 const TTL_MS = 30 * 1000;
@@ -51,7 +52,7 @@ function linksOf(history, kidId, rootId = null, lang = null) {
   const k = T.chipId(e.shareCodeId, kidId);
   // lang (en|ur): the hub's own language, so the table and the league open in it (the edge's ui_lang); left out when
   // it is the quiz's own (the page opens in that anyway)
-  const own = e.language === 'ur' ? 'ur' : 'en';
+  const own = clampLanguage(e.language);
   const q = [k ? `k=${encodeURIComponent(k)}` : '', (lang === 'en' || lang === 'ur') && lang !== own ? `lang=${lang}` : ''].filter(Boolean).join('&');
   const qs = q ? `?${q}` : '';
   return { class: `/q/${e.code}/class${qs}`, schools: `/q/${e.code}/schools${qs}` };
