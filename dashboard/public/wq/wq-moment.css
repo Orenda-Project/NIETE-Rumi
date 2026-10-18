@@ -87,7 +87,7 @@
   .wq-moment-badge svg{width:34px;height:34px}
   .wq-moment:not(.wq-moment--s){padding:12px 10px}
   .wq-moment .wq-moment-again .wq-btn{min-height:44px;padding:6px 10px;font-size:var(--fs-2,16px);line-height:1.5}
-  .wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:6px 6px 2px;font-size:15px;line-height:1.7}
+  .wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:4px 6px;font-size:15px;line-height:1.6}
   .wq-moment[lang="ur"] .wq-moment-deed{font-size:22px;line-height:1.6;margin-bottom:10px}
   .wq-moment[lang="ur"] .wq-moment-num,.wq-moment[lang="ur"] .wq-moment-growth{line-height:1.6}
 }

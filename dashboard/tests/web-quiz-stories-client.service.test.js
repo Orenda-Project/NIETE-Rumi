@@ -3249,6 +3249,8 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
   test('read_fb, the first screen: the strip is one grid row-set, and only while a page\'s strip is there does the picture give up height (capped at today\'s 62vh)', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
     expect(css).toMatch(/\.wqs \.wq-moment--s\{display:grid;grid-template-columns:auto 1fr auto;/);
+    // the Urdu "read it again" chip on a small phone: its label fits its box (scrollHeight 41 > 40 before; measured 40 = 40)
+    expect(css).toContain('.wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:4px 6px;font-size:15px;line-height:1.6}');
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:160px\}/);
     // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
