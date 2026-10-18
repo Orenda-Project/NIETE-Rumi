@@ -41,6 +41,13 @@ const LR3_KEYS = ['web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
 const STEADY_KEY = 'web_quiz_stories_steady';
 // "Slower" waits between phrases instead of slowing the voice: on, the book says slow_gaps (off: the payload is unchanged).
 const GAPS_KEY = 'web_quiz_stories_slow_gaps';
+// Slower's numbers {sentence: [target, least], comma: [target, least]} in ms (ints 0–2,000, least ≤ target), sent only with
+// the gaps switch; absent or junk, the book says `true` and the player keeps its own.
+const MS_KEY = 'web_quiz_stories_slow_ms';
+// Keys that ride the stories read. A read naming them that fails is made again without them, the last first (they are off),
+// so a rider's failure never turns stories off.
+const RIDERS = [GAPS_KEY, MS_KEY];
+const HOST_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -74,17 +81,35 @@ function counted(row) {
   return (Number(d.pages_listened) || 0) + (Number(d.pages_read) || 0) > 0;
 }
 
+function slowMs(v) {
+  const pair = (p) => Array.isArray(p) && p.length === 2 && p.every((n) => Number.isInteger(n) && n >= 0 && n <= 2000) && p[1] <= p[0];
+  return v && typeof v === 'object' && pair(v.sentence) && pair(v.comma) ? { sentence: [...v.sentence], comma: [...v.comma] } : null;
+}
+
+async function readRows(keys) {
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  return new Map((data || []).map((r) => [r.key, r.value]));
+}
+
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, BAND_KEY, STEADY_KEY, GAPS_KEY, ...LR3_KEYS]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = new Map((data || []).map((r) => [r.key, r.value]));
+    let by;
+    for (let n = RIDERS.length; !by; n -= 1) {
+      try {
+        by = await readRows([...HOST_KEYS, ...RIDERS.slice(0, n)]);
+      } catch (err) {
+        if (!n) throw err;
+        logToFile('⚠️ web quiz stories: settings read with a rider failed — read again without it', { key: RIDERS[n - 1], error: err.message });
+      }
+    }
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)), gaps: on && isTrue(by.get(GAPS_KEY)) };
+    const gaps = on && isTrue(by.get(GAPS_KEY));
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, steady: false, gaps: false };
+    cache = { at: now, on: false, band: false, lr3: false, steady: false, gaps: false, ms: null };
   }
   return cache;
 }
@@ -385,7 +410,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...(f.gaps ? { slow_gaps: true } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
@@ -518,7 +543,7 @@ async function stickersFor(studentId) {
 
 module.exports = {
   shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
-  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
+  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, RIDERS, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
   _reset: () => { cache = null; },
   _cardField: (fn) => { cardField = fn; },
 };
