@@ -108,7 +108,8 @@ async function earlyTapOn() {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', flagKeys());
+    const asked = flagKeys();
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', asked);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const on = isTrue(by[SWITCH_KEY]);
@@ -117,7 +118,7 @@ async function flags(now = Date.now()) {
     const look = on && Adv.advDrawn(by) ? { adv: true } : {};
     if (on && by[FAST_KEY] === true) {
       // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
-      if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now);
+      if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now, asked);
       const bind = Boolean((await IdFlags.flags()).phoneBind);
       cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait, ...share, ...look };
       return cache;
