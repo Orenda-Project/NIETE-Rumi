@@ -10,6 +10,9 @@ const T1 = '11111111-1111-4111-8111-111111111111';
 const T2 = '22222222-2222-4222-8222-222222222222';
 const T3 = '33333333-3333-4333-8333-333333333333';
 const SENDER = '99999999-9999-4999-8999-999999999999';
+const KID_KEY = 'q'.repeat(32);
+// m-app's userKeyOf (dashboard/routes/portal-fln.routes.js): the key an open_link row carries for the same user.
+const userKeyOf = (id) => require('crypto').createHmac('sha256', KID_KEY).update(`t|${id}`).digest('hex').slice(0, 16);
 const PHONE = { [T1]: '920000000001', [T2]: '920000000002', [T3]: '920000000003' };
 
 let WA; let windowOpen; let inserted; let logs;
@@ -17,7 +20,7 @@ beforeEach(() => {
   jest.resetModules();
   process.env = {
     ...ENV, INTERNAL_API_KEY: 'test-internal-key', SUPABASE_URL: 'https://envone.supabase.co',
-    PORTAL_URL: 'https://portal.example.test',
+    PORTAL_URL: 'https://portal.example.test', WEB_QUIZ_KID_KEY: KID_KEY,
   };
   delete process.env.FLN_SEND_TEMPLATE;
   windowOpen = new Set(); inserted = []; logs = [];
@@ -117,9 +120,18 @@ test('one niete_fln_events send row per recipient: sender keyed id, plan ref, re
   WA.sendTemplate.mockImplementationOnce(async () => true).mockImplementationOnce(async () => false);
   await svc().sendPlanToTeachers({ sender: sender(), plan: PLAN, teachers: [teacher(T1), teacher(T2)] });
   expect(inserted).toEqual([
-    { table: 'niete_fln_events', row: { user_key: 'sender-key-0001', kind: 'send', plan_ref: '11156', clip: teacher(T1).key, result: 'sent' } },
-    { table: 'niete_fln_events', row: { user_key: 'sender-key-0001', kind: 'send', plan_ref: '11156', clip: teacher(T2).key, result: 'failed' } },
+    { table: 'niete_fln_events', row: { user_key: 'sender-key-0001', kind: 'send', plan_ref: '11156', clip: userKeyOf(T1), result: 'sent' } },
+    { table: 'niete_fln_events', row: { user_key: 'sender-key-0001', kind: 'send', plan_ref: '11156', clip: userKeyOf(T2), result: 'failed' } },
   ]);
+});
+
+test('a send row\'s clip is the RECIPIENT\'s userKeyOf key — not the picker key — so it joins their open_link row', async () => {
+  await svc().sendPlanToTeachers({ sender: sender(), plan: PLAN, teachers: [teacher(T1)] });
+  expect(inserted).toHaveLength(1);
+  expect(inserted[0].row.clip).toBe(userKeyOf(T1));
+  expect(inserted[0].row.clip).not.toBe(teacher(T1).key);
+  const line = logs.find((l) => l.msg.startsWith('FLN send:'));
+  expect(line.fields.recipient).toBe(userKeyOf(T1));
 });
 
 test('a failing event write never fails the send', async () => {
