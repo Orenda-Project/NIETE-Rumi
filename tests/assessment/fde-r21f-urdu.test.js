@@ -119,10 +119,10 @@ const meaning = ([w, k]) => ({
   slot: 'urdu.A.Q1', question: `لفظ «${w}» سے کیا مراد ہے؟`, source: 'meaning',
   options: [`الف) ${k}`, 'ب) پہاڑ کی چوٹی', 'ج) آسمان کا رنگ', 'د) رات کا وقت'], answer: `الف) ${k}`, marks: 1,
 });
-function book() {
+function book(extra = '') {
   const c = JSON.parse(REPLY_C);
   const q6 = Object.values(c.unseen.subjective || {}).flat().find((q) => q && q.slot === 'urdu.C.Q6');
-  const content = ['=== Page 63 ===', 'ندی کی فریاد', ...String((q6 && q6.passage) || '').split('\n')].join('\n\n');
+  const content = [extra, '=== Page 63 ===', 'ندی کی فریاد', ...String((q6 && q6.passage) || '').split('\n')].filter(Boolean).join('\n\n');
   mockPages.mockImplementation(async ({ pageRanges } = {}) => ({ content, pageReference: String(pageRanges || '50') }));
 }
 function serve(a, reader = null) {
@@ -224,5 +224,63 @@ describe('2. sandbox chapters_4 (lessons 6–7): two stems print another item\'s
     const out = lay(p, ch(6, 7)).examJson;
     expect(has(out, /«امن» کا متضاد/)).toBe(true);
     expect(has(out, /جنگ ختم ہونے کے بعد/)).toBe(true);
+  });
+});
+
+// ── 3. The reader gets its candidates ─────────────────────────────────────────────────────────
+
+// The book's two sentences ۱۲ and ۲۰ answer from (page 53 of «امن کی فاختہ»), as the page store has them.
+const BOOK_53 = ['=== Page 53 ===', 'کے بعد گویا سدرہ کی زندگی ہمیشہ کے لیے بدل گئی تھی۔ جوکچھ اس نے دیکھا تھا، اس کے اثرات کئی',
+  'سال تک لوگوں کی صحت اور زندگی پر پڑتے رہے۔ تاب کاری سے لوگوں کو جلد، سانس اور بہت ساری دیگر یماریاں',
+  'لاحق ہوگئیں۔ سدرہ اکثریہ سوچتی کہ لوگ لڑائیاں اور جنگیں کیوں کرتے ہیں؟'].join('\n');
+const CAND = Reader.CANDIDATES_HEAD;
+const labelOf = (prompt, re) => (prompt.split('\n').find((l) => /^Q1\.\d+ /.test(l) && re.test(l)) || '').split(' ')[0];
+const candidates = (prompt) => prompt.slice(prompt.indexOf(CAND)).split('\n').filter((l) => l.startsWith('- '));
+
+describe('3. the reader prompt lists what code can find', () => {
+  const paper = fixture('r21f-urdu-sandbox-chapters_4');
+
+  test('each one-word key\'s printed places: «ہیروشیما» in ۱۴\'s stem, «امینہ» in ۱۷\'s stem; never a wrong option', () => {
+    const { prompt } = Reader.buildReaderPrompt(paper, U, { pages: BOOK_53 });
+    expect(prompt).toContain(CAND);
+    const lines = candidates(prompt);
+    const hiro = lines.find((l) => l.startsWith('- Q1.8 ') && l.includes('ہیروشیما'));
+    expect(hiro).toContain('Q1.14 (stem)');
+    // ۲ prints «ہیروشیما» only as a wrong option.
+    expect(hiro).not.toContain('Q1.2 ');
+    expect(lines.find((l) => l.startsWith('- Q1.11 ') && l.includes('امینہ'))).toContain('Q1.17 (stem)');
+  });
+
+  test('a pair whose keys stand in neighbouring book sentences: ۱۲ and ۲۰', () => {
+    const { prompt } = Reader.buildReaderPrompt(paper, U, { pages: BOOK_53 });
+    expect(candidates(prompt).some((l) => /Q1\.12\b/.test(l) && /Q1\.20\b/.test(l) && /sentence/.test(l))).toBe(true);
+  });
+
+  test('no pages, no pair lines; the key-place lines stay', () => {
+    const { prompt } = Reader.buildReaderPrompt(paper, U);
+    expect(candidates(prompt).some((l) => /Q1\.12\b/.test(l) && /Q1\.20\b/.test(l))).toBe(false);
+    expect(candidates(prompt).some((l) => l.startsWith('- Q1.8 '))).toBe(true);
+  });
+
+  test('the Social Studies prompt carries no candidate list (control)', () => {
+    const S = Patterns.get('fde_g5_2027').subjects.social_studies;
+    expect(Reader.buildReaderPrompt({ unseen: {} }, S, { pages: BOOK_53 }).prompt).not.toContain(CAND);
+  });
+});
+
+describe('3. the engine hands the reader the book pages', () => {
+  const first = q1(fixture('r21f-urdu-sandbox-chapters_4'));
+  test('the reader prompt lists the ۱۲ / ۲۰ pair from the loaded pages', async () => {
+    book(BOOK_53);
+    const asked = serve((n) => (n === 1 ? mcqs(first) : mcqs(WORDS.map(meaning))));
+    const out = await run(L67, { readerPass: true });
+    expect(out.err && { code: out.err.code, shortfall: out.err.shortfall, msg: out.err.message }).toBeUndefined();
+    const reads = asked.filter((x) => x.sec === 'reader');
+    expect(reads.length).toBeGreaterThan(0);
+    const prompt = reads[0].prompt;
+    const [a, b] = [labelOf(prompt, /تاب کاری کے اثر سے/), labelOf(prompt, /کئی سال تک کس چیز پر/)];
+    expect(a && b).toBeTruthy();
+    const at = (label) => new RegExp(`${label.replace('.', '\\.')}\\b`);
+    expect(candidates(prompt).some((l) => at(a).test(l) && at(b).test(l) && /sentence/.test(l))).toBe(true);
   });
 });
