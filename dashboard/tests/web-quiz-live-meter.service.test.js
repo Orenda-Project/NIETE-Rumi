@@ -147,7 +147,7 @@ describe('a story page (mount): the meter in the glow\'s place', () => {
     const E = env(); const D = dom();
     vm.runInContext(FAKE('sky'), E.ctx);
     E.L.mount(D.el, { words: PAGE, lang: 'en', meter: 'none', getKey: KEYP, stream: {} });
-    expect(D.el.innerHTML).toContain('<div class="lr-pace"></div>');
+    expect(D.el.innerHTML).toMatch(/<p class="lr-nudge">[^<]*<\/p><div class="lr-pace"><\/div><div class="lr-text">/);   // above the words
     expect(D.el.innerHTML).not.toContain('lr-glow');
     const P = E.ctx.__pace;
     expect(P.length).toBe(1);
@@ -167,6 +167,7 @@ describe('a story page (mount): the meter in the glow\'s place', () => {
     E.L.mount(D.el, { words: PAGE, lang: 'ur', meter: 'none', getKey: KEYP, stream: {} });
     expect(D.el.innerHTML).toContain('<div class="lr lr-vine" dir="rtl" lang="ur">');
     expect(E.ctx.__pace[0].el.sel).toBe('.lr');
+    expect(D.el.innerHTML).not.toContain('lr-pace');
   });
   test('not loaded: today\'s markup, byte for byte (meter none: no glow; meter glow: the glow)', () => {
     const a = env(); const A = dom();
