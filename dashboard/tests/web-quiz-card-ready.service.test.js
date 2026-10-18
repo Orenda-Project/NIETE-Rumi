@@ -144,4 +144,23 @@ describe('the switch read never makes a visitor wait', () => {
     expect(botCalls(/\/card\//)).toBe(0);
     if (release) release();
   });
+  test('a flip after the edge starts is picked up in the background: the next visitor sees it with no wait', async () => {
+    srv.close();
+    let mode = 'off';
+    const reader = () => (mode === 'off' ? Promise.resolve(false) : mode === 'on' ? Promise.resolve(true) : new Promise(() => {}));
+    store.set(keyOf('json'), { bytes: Buffer.from(JSON.stringify(FACTS)), contentType: 'application/json' });
+    const app = express();
+    app.set('trust proxy', true);
+    app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: () => {}, fetchImpl: async (url) => { calls.push({ url }); return answer(url); }, storyEnv: 'sandbox', cardReadyOn: reader, cardFlagRefreshMs: 20, cardObject: async (key) => store.get(key) || null }));
+    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => setTimeout(r, 10));
+    mode = 'on';
+    await new Promise((r) => setTimeout(r, 80));
+    mode = 'slow';
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    const r = await req(srv, `/k/${TOK}`, { ua: WA });
+    console.log.mockRestore();
+    expect(r.headers['server-timing']).toMatch(/desc="store"/);
+    expect(botCalls(/\/card\//)).toBe(0);
+  });
 });
