@@ -161,6 +161,8 @@ function facts(token) {
   if (f.s === 4 && f.x) { const x = require('./web-quiz-card-data').clean(f.x); if (x) out.data = x; }
   // minted with web_quiz_share_card_a on: its picture is design A (web-quiz-card-a.js)
   if (f.s === 4 && f.a === 1) out.a = true;
+  // minted with web_quiz_card_ready on: its picture and page are drawn and stored at mint (prepare)
+  if (f.s === 4 && f.r === 1) out.ready = true;
   return out;
 }
 
@@ -282,7 +284,7 @@ async function mint(body = {}, { device = null } = {}) {
   const joined = v4 && w.sid && Switch.joinedCached();
   const Data = data ? require('./web-quiz-card-data') : null;
   const x = Data ? Data.clean(await Data.resultOf({ kind, item, w, ct: body.ct })) : null;
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}), ...(Switch.readyCached() ? { r: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   if (joined) {
     try {
@@ -297,6 +299,9 @@ async function mint(body = {}, { device = null } = {}) {
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
   if (x) out.data = x;
+  // ready (web_quiz_card_ready): the picture and the page are drawn and stored now, while the child is still on the
+  // finish screen, so the link's preview never waits for a draw (never awaited; a failure leaves today's way)
+  if (v4 && Switch.readyCached()) prepare(token).catch(() => {});
   return out;
 }
 
@@ -480,6 +485,44 @@ async function image(token) {
   return p;
 }
 
+// ─── ready before Send (web_quiz_card_ready) ────────────────────────────────
+
+// Where a card's picture and page are kept, shared by every bot and portal process and kept across deploys: the
+// stories' bucket, under the token's hash (never the token). The portal reads the same key (dashboard web-quiz.routes).
+function storeKey(token, ext) {
+  const StoryStore = require('./story-store');
+  return `wq-card/${StoryStore.deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
+}
+const prepared = new Map();
+/** Draw the card's picture and its page's facts and store both (immutable); once per token per process. Never throws. */
+function prepare(token) {
+  if (prepared.has(token)) return prepared.get(token);
+  const p = (async () => {
+    const f = facts(token);
+    if (!f || !f.ready) return false;
+    const t0 = Date.now();
+    try {
+      const StoryStore = require('./story-store');
+      const r2 = require('../../storage/r2');
+      const bucket = StoryStore.storyBucket() || undefined;
+      const [pic, page] = await Promise.all([image(token), landing(token)]);
+      await Promise.all([
+        r2.uploadBuffer(pic.bytes, storeKey(token, 'png'), 'image/png', { bucket, cacheControl: StoryStore.IMMUTABLE }),
+        r2.uploadBuffer(Buffer.from(JSON.stringify(page)), storeKey(token, 'json'), 'application/json', { bucket, cacheControl: StoryStore.IMMUTABLE }),
+      ]);
+      logToFile('web quiz card: ready before Send', { kind: f.kind, lang: f.lang, bytes: pic.bytes.length, ms: Date.now() - t0 });
+      return true;
+    } catch (err) {
+      prepared.delete(token);
+      logToFile('⚠️ web quiz card: not stored at mint (the preview draws it as before)', { error: err.message, ms: Date.now() - t0 });
+      return false;
+    }
+  })();
+  prepared.set(token, p);
+  if (prepared.size > MEM_MAX) prepared.delete(prepared.keys().next().value);
+  return p;
+}
+
 // The name of the item a one-share card lands on (its book's title, its video's lesson), else '', and its cover (the
 // book's cover file, the lesson's small picture), only when that picture exists. Never throws.
 const COVER_FILE_RX = /^[a-z0-9-]+\.webp$/;
@@ -541,9 +584,9 @@ async function landing(token) {
   return out;
 }
 
-function _reset() { Switch._reset(); mem.clear(); inflight.clear(); }
+function _reset() { Switch._reset(); mem.clear(); inflight.clear(); prepared.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MAX_BYTES_A, MARK, REF_RX, toPngA,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MAX_BYTES_A, MARK, REF_RX, toPngA, prepare, storeKey,
   JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, byShort, _reset, _seal: seal,
 };
