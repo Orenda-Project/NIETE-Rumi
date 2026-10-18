@@ -32,6 +32,7 @@ const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
 const { normaliseScheme } = require('../../bot/shared/services/assessment/marking-scheme');
 const { renderMarkingScheme } = require('../../bot/shared/services/assessment/assessment-paper-fde.renderer');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const PAT = Patterns.get('fde_g5_2027');
 const U = PAT.subjects.urdu;
@@ -241,7 +242,9 @@ describe('urdu: no item keyed on a year or a date', () => {
     expect(q.answer).toBe('ب) ۱۹۱۹ء');
     const out = stemsOf(laid(ch1).examJson, 'urdu.A.Q1');
     expect(out).not.toContain(yearStem);
-    expect(out).toEqual(stemsOf(ch1, 'urdu.A.Q1').filter((s) => s !== yearStem));
+    // Laid on the full syllabus, which asks the antonym and the synonym once: their later items are held too.
+    const again = conceptRepeats(items(ch1, 'urdu.A.Q1'));
+    expect(out).toEqual(stemsOf(ch1, 'urdu.A.Q1').filter((s) => s !== yearStem && !again.includes(s)));
   });
 
   test('after the re-ask the held year item is not put back', () => {

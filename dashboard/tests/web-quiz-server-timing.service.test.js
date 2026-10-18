@@ -27,7 +27,7 @@ function jsonRes(status, body, headers = {}) {
   return { status, ok: status >= 200 && status < 300, headers: { get: (n) => (h[n.toLowerCase()] !== undefined ? h[n.toLowerCase()] : null) }, text: async () => JSON.stringify(body) };
 }
 const HUB = (extra = {}) => ({
-  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
+  lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
 const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
@@ -66,7 +66,26 @@ describe('the shared list of timing items', () => {
     expect(Names.clean('db;desc="3", gate;dur=4, gate;dur=5, zzz;dur=1, dbq;dur=2, app;dur=1;desc=x, render;dur=-1')).toBe('gate;dur=4');
     expect(Names.clean(['app;dur=1', 'gate;dur=2'])).toBe('app;dur=1, gate;dur=2');
     expect(Names.clean(null)).toBeNull();
-    expect(Names.clean('x;desc="Sana"')).toBeNull();
+    expect(Names.clean('x;desc="Sana Testwala"')).toBeNull();
+  });
+  test('privacy: the round-trip count is digits only, no free text (a child\'s name never passes)', () => {
+    expect(Names.clean('dbq;desc="Sana Testwala"')).toBeNull();
+    expect(Names.clean('dbq;desc="Sana"')).toBeNull();
+    expect(Names.clean('dbq;desc=""')).toBeNull();
+    expect(Names.clean('dbq;desc="12"')).toBe('dbq;desc="12"');
+    expect(Names.clean('gate;dur=4, dbq;desc="Sana Testwala", total;dur=9')).toBe('gate;dur=4, total;dur=9');
+  });
+  test('the length cap: a header over MAX_LEN comes out within it, whole items only, the first ones kept', () => {
+    const items = Names.NAMES.map((n) => `${n};dur=1234567.123`);
+    const raw = items.join(', ');
+    expect(raw.length).toBeGreaterThan(Names.MAX_LEN);
+    const out = Names.clean(raw);
+    expect(out.length).toBeLessThanOrEqual(Names.MAX_LEN);
+    const kept = out.split(', ');
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.length).toBeLessThan(items.length);
+    expect(kept.every(Names.isItem)).toBe(true);
+    expect(kept).toEqual(items.slice(0, kept.length));
   });
 });
 
@@ -129,6 +148,17 @@ describe('GET /h/:token', () => {
     const names = v.split(', ').map((i) => i.split(';')[0]);
     expect(names).toEqual(expect.arrayContaining(['edge', 'app', 'db', 'dbq', 'ui', 'gate', 'kids', 'ctx', 'home', 'tail', 'total', 'render']));
     expect(v).not.toMatch(/db;desc/);
+  });
+
+  test('a Server-Timing already on the answer is kept: the edge adds after it, in one header, never overwrites', async () => {
+    const { app } = build([jsonRes(200, HUB(), { 'server-timing': ST })]);
+    const outer = express();
+    outer.use((req, res, next) => { res.set('Server-Timing', 'app;dur=7'); next(); });
+    outer.use(app);
+    srv = await start(outer);
+    const res = await get(srv, `/h/${TOKEN}`);
+    expect(stLines(res.raw)).toHaveLength(1);
+    expect(res.headers['server-timing']).toMatch(new RegExp(`^app;dur=7, edge;dur=\\d+, ${ST}, render;dur=\\d+$`));
   });
 
   test('fast on, nf=1: the header, and no st in the page', async () => {

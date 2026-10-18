@@ -48,6 +48,8 @@ const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
 const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
 const AfterVideo = () => require('../services/quiz/web-quiz-next-offer-video');
+// a scored read's coarse feedback band on every result body, and the menu's read_feedback (web_quiz_read_feedback)
+const ReadFeedback = () => require('../services/quiz/web-quiz-read-feedback');
 // Warm the next thing for the result while the child plays (web_quiz_next_offer; off -> nothing): after the answer, never in it.
 const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).catch(() => {}); }); };
 const WebQuizOg = require('../services/quiz/web-quiz-og');
@@ -192,18 +194,26 @@ const withNext = async (out, ct, req) => {
   if (ok) return { ...out, ...next };
   // nor what it is worked out from: wcpm = correct / (60 - time_left) * 60 (a whole minute's `correct` is the speed itself)
   const { wcpm, previous, ...rest } = out;
-  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = await coarseScore(heard, ct); }
+  const len = once(() => readLen(ct));
+  if (rest.score && typeof rest.score === 'object') { const { correct, time_left, finished_early, ...heard } = rest.score; rest.score = await coarseScore(heard, len); }
+  // the feedback band's words heard are the words attempted: another phone hears only none / some / all of the story
+  if (rest.feedback && typeof rest.feedback === 'object' && 'words_heard' in rest.feedback) {
+    const { words_heard, ...fb } = rest.feedback;
+    const n = rest.score && typeof rest.score.attempted === 'number' ? rest.score.attempted : 0;
+    const L = n > 1 ? await len() : 0;
+    rest.feedback = { ...fb, read: !(words_heard > 0) || !n ? 'none' : L && n >= L ? 'all' : 'some' };
+  }
   return { ...rest, ...next };
 };
 // and the words attempted (a timer-ended minute's count is the speed itself) only as a coarse count by the story's
 // length as the page counts it (web-quiz-read-coarse.js); the length unknown: only none / some (0 / 1)
-const coarseScore = async (score, ct) => {
+const coarseScore = async (score, len) => {
   if (typeof score.attempted !== 'number') return score;
-  let len = 0;
-  try { len = await require('../services/quiz/web-quiz-challenge').readLength(ct); } catch (_) { len = 0; }
-  return { ...score, attempted: require('../services/quiz/web-quiz-read-coarse').coarseAttempted(score.attempted, len) };
+  return { ...score, attempted: require('../services/quiz/web-quiz-read-coarse').coarseAttempted(score.attempted, await len()) };
 };
-router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await C.poll(req.params.ct), req.params.ct, req)));
+const readLen = async (ct) => { try { return await require('../services/quiz/web-quiz-challenge').readLength(ct); } catch (_) { return 0; } };
+const once = (fn) => { let p = null; return () => (p = p || fn()); };
+router.get('/ch/result/:ct', challenge(async (C, req) => withNext(await ReadFeedback().withBand(await C.poll(req.params.ct)), req.params.ct, req)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {}, { device: req.get('x-wq-device') })));
 // Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
 router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
@@ -213,13 +223,13 @@ router.post('/lr/key', handle((req) => { const b = req.body || {}; return requir
 router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
 router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 // x-wq-device on a result: the phone the mic notice was shown on (marked seen for that child on that phone)
-router.post('/ch/result', challenge(async (C, req) => withNext(await C.submit(req.body || {}, { device: req.get('x-wq-device') }), (req.body || {}).ct, req)));
+router.post('/ch/result', challenge(async (C, req) => withNext(await ReadFeedback().withBand(await C.submit(req.body || {}, { device: req.get('x-wq-device') })), (req.body || {}).ct, req)));
 // the read-along on practice runs: a practice listen's words after its questions; a grown-up's preview of a practice story
 router.get('/ch/words/:ct', challenge((C, req) => C.listenWords({ ct: req.params.ct, lang: req.query.lang })));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/listen/h/:token/:pid', challenge((C, req) => C.listenPreview(req.params.token, req.params.pid, { lang: req.query.lang, device: req.get('x-wq-device') })));
 // The child home on (web_quiz_home_v3): {card_fold: true}, so the end cards are the card and one next thing.
-router.get('/ch/:token', challenge(async (C, req) => Object.assign(await OneFace.carry(C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })), await CardImage.field(), await require('../services/quiz/web-quiz-hub-door').menuFoldField())));
+router.get('/ch/:token', challenge(async (C, req) => Object.assign(await OneFace.carry(C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })), await CardImage.field(), await require('../services/quiz/web-quiz-hub-door').menuFoldField(), await ReadFeedback().menuField())));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
   ? { passageId: typeof req.query.pid === 'string' ? req.query.pid : null, room: 'story' } : {});
@@ -281,12 +291,15 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 // Step timings (app_settings web_quiz_server_timing, default off, JSON true only): Server-Timing items, one
 // `name;dur=<ms>` per awaited step of the build (web-quiz-server-timing.js), added after any timing already on the
 // answer. A header only: the JSON is the hub's own. Off: no stopwatch and no header, the call exactly as before.
+// web_quiz_edge_learn on: the hub answer says `edge_learn: true` (web-quiz-edge-learn.js carry; from the hub's own switch
+// read, no read of its own), so a portal process that stopped asking learns again; off: the answer is untouched.
+const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)));
+  if (!st) return EdgeLearn().carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))));
   StepTiming.attach(res, st);
-  return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })));
+  return EdgeLearn().carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))));
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
@@ -319,7 +332,7 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang })))));
+router.post('/hub/:token', handle((req) => EdgeLearn().carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang }))))));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));
@@ -345,7 +358,7 @@ router.use('/cl', require('./web-quiz-class-link.routes'));
 // ── end standing class link ──
 // ── GET /edge: the page switches a fresh portal process would learn from its first payload (web-quiz-edge-learn.js;
 // web_quiz_edge_learn, off -> {learn:false}, else {learn:true, fast, brand, rt, ui?, one_face?}) ──
-router.get('/edge', handle(() => require('../services/quiz/web-quiz-edge-learn').answer()));
+router.get('/edge', handle(() => EdgeLearn().answer()));
 // ── end GET /edge ──
 
 module.exports = router;

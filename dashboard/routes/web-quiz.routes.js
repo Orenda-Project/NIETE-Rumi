@@ -195,7 +195,8 @@ function assetVersion() {
   }
   // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
   // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
-  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js']) {
+  // the reading moment the reader loads at this ?v= when the book says read_fb (web_quiz_read_feedback)
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js', 'wq-moment.js', 'wq-moment.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -382,6 +383,10 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
 // the fast first page sends the first two before the bot answers and the third when it does.
 // The class table and the league (/q/<code>/class|schools) open in the link's ?lang (en|ur) when the bot's answer carries
 // class_doors (app_settings web_quiz_class_doors): the payload's ui_lang. Any other page, no lang, or off: the payload as it came.
+// The order is: the link's ?lang, then the child's stored language (storedLangOf), then the quiz's own (never EN by
+// default). storedLangOf is the named seam the child-language resolver fills when it lands; until then it reads
+// nothing and passes nothing.
+function storedLangOf(_req) { return null; }
 function uiLangOf(body, view, lang) {
   if (!body || body.class_doors !== true || (view !== 'class' && view !== 'schools') || (lang !== 'en' && lang !== 'ur')) return body;
   return { ...body, ui_lang: lang };
@@ -616,8 +621,8 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false }) {
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}) }, token, origin, assetV });
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}), ...(waitUx && waitShare ? { wait_share: true } : {}) }, token, origin, assetV });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -626,7 +631,10 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   const p = hubPageParts({ payload, token, origin, assetV });
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+  // web_quiz_wait_ux on, but this portal process flushed the frame before it learnt so (each process learns from its own
+  // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once.
+  const lateWait = WaitUx.on(payload) && !String(guess.frame || '').includes(WaitUx.TAG) ? WaitUx.TAG : '';
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${lateWait}${p.tail}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
@@ -705,9 +713,10 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
   const record = (method, route, t0, fields) => {
     try { logEvent('web_quiz.bot_call', { route, method, ms: now() - t0, ...fields }); } catch (_) { /* never decides a response */ }
   };
-  return async function callBot(method, pathname, req, body, { raw = false, route = null, device = null } = {}) {
+  return async function callBot(method, pathname, req, body, { raw = false, route = null, device = null, bg = false } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    if (bg && timer && typeof timer.unref === 'function') timer.unref(); // the portal's own background call never holds a process open
     const t0 = now();
     const where = route || botRouteOf(pathname);
     try {
@@ -779,7 +788,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -821,6 +830,7 @@ function createWebQuizRouter(opts = {}) {
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
+  let lastWaitShare = false; // and its `wait_share` (web_quiz_hub_fanout on too): the frame's read share
   let lastEdgeWarm = false; // the learner's `edge_warm` (app_settings web_quiz_edge_warm): a failed streamed page asks again
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
@@ -829,9 +839,29 @@ function createWebQuizRouter(opts = {}) {
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
   // A fresh process asks the bot for the switches it would learn from a first payload (web_quiz_edge_learn, read by the bot;
-  // lib/edge-learn.js): in the background, every 60 s; a payload still wins. A test's own fake bot opts in with edgeLearn.
-  const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl) && botUrl && apiKey ? require('../lib/edge-learn').startEdgeLearn({ callBot, timers: opts.edgeLearn && opts.edgeLearn.timers,
-    apply: (b) => { if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand; if (typeof b.rt === 'boolean') lastRt = b.rt; lastUi = shellUi(b); lastFast = b.fast === true; lastEdgeWarm = b.edge_warm === true; } }) : null;
+  // lib/edge-learn.js): once in the background, then every 60 s only while the bot says on (5 s after a failed ask); a
+  // payload still wins. A test's own fake bot opts in with edgeLearn; inside a test run (JEST_WORKER_ID) it is never on by
+  // default, so no test calls out.
+  // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face`,
+  // `wait_ux` and `wait_share` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
+  const learned = (b) => {
+    if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
+    if (typeof b.rt === 'boolean') lastRt = b.rt;
+    lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
+    if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
+    if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
+    lastEdgeWarm = b.edge_warm === true; // absent = off (the learner's field is {} while web_quiz_edge_warm is off)
+    lastFast = b.fast === true;
+  };
+  const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
+    ? require('../lib/edge-learn').startEdgeLearn({ callBot, timers: opts.edgeLearn && opts.edgeLearn.timers, apply: learned })
+    : null;
+  router.edgeLearn = edge; // { apply, refresh, ... } for another learner in this process; null when not learning
+  // web_quiz_edge_learn on (the bot says so on its hub answers, `edge_learn: true`): ask again every 60 s (after an off, the
+  // asking had stopped). The key is the edge's alone: neither the hub page nor the page's own /api/wq/hub call sees it.
+  const edgeKey = (body) => {
+    if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'edge_learn')) { if (edge && body.edge_learn === true) edge.arm(); delete body.edge_learn; }
+  };
   // A streamed page whose bot answer failed: with edge warm on and the bot unreachable, timed out or a 5xx other than
   // the switch-off 503, the page asks again itself (r=1, r=2) and keeps its early frame; else today's again().
   const failedAgain = (wire, req, out) => {
@@ -912,6 +942,7 @@ function createWebQuizRouter(opts = {}) {
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
         if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
+        if (r.path === '/api/wq/hub/:token') edgeKey(out.body);
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {
         return res.status(502).json({ error: 'bot_unreachable' });
@@ -992,7 +1023,7 @@ function createWebQuizRouter(opts = {}) {
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -1034,7 +1065,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
@@ -1048,11 +1079,13 @@ function createWebQuizRouter(opts = {}) {
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out);
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
+      edgeKey(out.body);
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       lastWaitUx = WaitUx.on(out.body);
+      lastWaitShare = WaitUx.share(out.body);
       // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
       // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
       // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
@@ -1064,7 +1097,7 @@ function createWebQuizRouter(opts = {}) {
       const html = renderHubPage({ payload: out.body, token, origin, assetV: version() });
       const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
       const items = TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', '));
-      if (!res.headersSent) res.set('Server-Timing', [res.get('Server-Timing'), items].filter(Boolean).join(', '));
+      TimingNames.appendTiming(res, items);
       return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub');

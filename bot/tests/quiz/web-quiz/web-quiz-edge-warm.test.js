@@ -54,24 +54,25 @@ describe('the learner\'s answer with edge warm', () => {
     expect(out).toMatchObject({ learn: true, edge_warm: true });
     expect(hubReads()).toBe(1);
   });
-  test.each([['no row', undefined], ['the string true', 'true'], ['1', 1], ['false', false]])('edge warm %s: no field, no hub read', async (_n, value) => {
+  // The learner reads the hub's one batched switch read itself (its wait_ux / wait_share); edge warm never adds one.
+  test.each([['no row', undefined], ['the string true', 'true'], ['1', 1], ['false', false]])('edge warm %s: no field, only the learner\'s own hub read', async (_n, value) => {
     rows = [{ key: LEARN, value: true }, ...(value === undefined ? [] : [{ key: KEY, value }])];
     const out = await Learn.answer();
     expect(out.learn).toBe(true);
     expect(out).not.toHaveProperty('edge_warm');
-    expect(hubReads()).toBe(0);
+    expect(hubReads()).toBe(1);
   });
-  test('edge warm\'s read fails: no field, no hub read', async () => {
+  test('edge warm\'s read fails: no field, only the learner\'s own hub read', async () => {
     rows = [{ key: LEARN, value: true }, { key: KEY, value: true }]; fail = true;
     const out = await Learn.answer();
     expect(out).not.toHaveProperty('edge_warm');
-    expect(hubReads()).toBe(0);
+    expect(hubReads()).toBe(1);
   });
   test('edge learn off: {learn: false}, and edge warm is not read at all', async () => {
     rows = [{ key: KEY, value: true }];
     expect(await Learn.answer()).toEqual({ learn: false });
     expect(keyReads(KEY)).toBe(0);
-    expect(hubReads()).toBe(0);
+    expect(hubReads()).toBe(1); // the learner's own switch rides the hub's one batched read; edge warm adds none
   });
   test('its own switch is read once per cache window', async () => {
     rows = [{ key: LEARN, value: true }, { key: KEY, value: true }];
