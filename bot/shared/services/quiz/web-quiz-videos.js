@@ -79,7 +79,7 @@ function pick(rows, { subject, exclude, done, max = LIST_MAX }) {
     .map((x) => x.r);
 }
 
-// ─── length and poster of a lesson (read once per process, never stored) ────
+// ─── length and poster of a lesson (read once per process; the grade warm-up's reads also kept in Redis) ────
 
 /** Seconds from an MP4's movie header (mvhd). The bank's files are fast-start, so it sits in the first 64 KB. Pure. */
 function mp4Seconds(buf) {
@@ -130,21 +130,53 @@ function peekMeta(videoId) {
 
 // Lessons being warmed right now: one fetch per lesson, however many lists ask.
 const warming = new Map();
-/** Read the details of uncached lessons in the background, a few at a time. Resolves when done; never throws. */
-function warmMeta(videoIds, { fetchImpl, concurrency = 4 } = {}) {
+/** Read the details of uncached lessons in the background, a few at a time. Resolves when done; never throws.
+ *  `keep` (the grade warm-up, web_quiz_video_shelf): each whole read is also kept in Redis for the rest of its life. */
+function warmMeta(videoIds, { fetchImpl, concurrency = 4, keep = false } = {}) {
   const todo = [...new Set(videoIds)].filter((id) => peekMeta(id) === undefined && !warming.has(id));
   if (!todo.length) return Promise.all([...warming.values()]).then(() => undefined);
   let next = 0;
   const worker = async () => {
     while (next < todo.length) {
       const id = todo[next++];
-      const p = lessonMeta(id, { fetchImpl }).catch(() => null);
+      const p = lessonMeta(id, { fetchImpl }).catch(() => null).then((v) => (keep ? keepMeta(id).then(() => v) : v));
       warming.set(id, p);
       try { await p; } finally { warming.delete(id); }
     }
   };
   return Promise.all(Array.from({ length: Math.min(concurrency, todo.length) }, worker)).then(() => undefined);
 }
+
+// web_quiz_video_shelf: a restart (a deploy) empties the memory above, so the grade warm-up's whole reads are kept in
+// Redis with what is left of their life, and the first warm-up after a restart reads them all back once (one scan).
+const KEEP_PREFIX = 'wq:vmeta:';
+async function keepMeta(id) {
+  const hit = metaCache.get(id);
+  if (!hit || !hit.v || !hit.v.secs) return; // a read without its length is read again after a restart
+  const left = Math.floor((hit.at + META_TTL_MS - Date.now()) / 1000);
+  if (left <= 0) return;
+  try { await require('../cache/railway-redis.service').set(KEEP_PREFIX + id, { id, at: hit.at, v: hit.v }, left); } catch (_) { /* memory still has it */ }
+}
+let restored = null;
+/** Read back the kept lessons once per process; one already in memory stays. Never throws. */
+function restoreMeta() {
+  if (!restored) {
+    restored = (async () => {
+      try {
+        const rows = await require('../cache/railway-redis.service').scanValues(`${KEEP_PREFIX}*`);
+        for (const raw of rows || []) {
+          let e;
+          try { e = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (_) { continue; }
+          if (!e || !VID_RX.test(String(e.id)) || typeof e.at !== 'number' || !e.v || metaCache.has(e.id)) continue;
+          if (Date.now() - e.at < META_TTL_MS) metaCache.set(e.id, { at: e.at, v: e.v });
+        }
+      } catch (_) { /* nothing read back: the warm-up reads the files */ }
+    })();
+  }
+  return restored;
+}
+/** Drop one lesson's details from memory (a read that did not come back whole). */
+function forgetMeta(id) { metaCache.delete(id); }
 
 // ─── list ───────────────────────────────────────────────────────────────────
 
@@ -438,4 +470,4 @@ async function start(body = {}, hooks = {}) {
   return { code: c.code };
 }
 
-module.exports = { list, start, watchRoot, WATCH_ROOT_KEY, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
+module.exports = { list, start, watchRoot, WATCH_ROOT_KEY, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, restoreMeta, forgetMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
