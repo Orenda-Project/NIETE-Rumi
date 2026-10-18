@@ -122,7 +122,7 @@ const flush = async () => { for (let i = 0; i < 6; i += 1) await new Promise((r)
 function live({ win = {}, fetchImpl, scripts = {}, hash = '#games' } = {}) {
   const head = [];
   const observers = [];
-  const MutationObserver = function (cb) { this.observe = () => observers.push(cb); };
+  const MutationObserver = function (cb) { this.observe = () => observers.push(cb); this.disconnect = () => { const i = observers.indexOf(cb); if (i >= 0) observers.splice(i, 1); }; };
   const fetch = jest.fn(fetchImpl || (() => new Promise(() => {})));
   const document = {
     getElementById: () => null,
@@ -337,6 +337,78 @@ describe('the Stories door never says "no stories" while the shelf loads', () =>
     W.WQDOORS.mount(root, { ...STORIES_B, list_states: 0 }, C, 'stories');
     expect(sh.innerHTML).toBeUndefined();
     expect(root.attrs['data-fetch']).toBeUndefined();
+  });
+});
+
+// The child leaves Stories while its shelf is still on its way: the reader may still write into the old slot, and the
+// shelf's watcher must not stamp the next screen (the door root is shared). Walks: the shelf answers empty (L) or fails
+// (L2) after the child is on Games; or the child went back to the home.
+describe('the Stories shelf\'s watcher ends with its screen (switch on)', () => {
+  // one door root shared by every screen; `on` says which screen it holds now
+  function sharedRoot() {
+    const sh = el(); const btn = el(); btn.setAttribute('data-primary', ''); const fb = el({ querySelector: (q) => (q === '.wq-go' ? btn : null) });
+    const r = paintRoot();
+    r.on = 'stories';
+    r.querySelector = (q) => (r.on === 'stories' ? ({ '[data-stories-shelf]': sh, '[data-shelf-fallback]': fb })[q] || null : null);
+    r.contains = (x) => r.on === 'stories' && x === sh;
+    return { r, sh, fb };
+  }
+  const B = { ...B_ON, doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } };
+  const stamps = (r) => JSON.stringify(Object.keys(r.attrs).filter((k) => /^data-(fetch|skel|empty|trip)/.test(k)).sort().map((k) => [k, r.attrs[k]]));
+  const leaveToGames = async () => {
+    const { W, observers } = live({ win: { WQSTORIES: { shelf: jest.fn() } }, fetchImpl: (u) => (/d=games/.test(u) ? OK(GAMES)() : new Promise(() => {})) });
+    const { r, sh } = sharedRoot();
+    W.WQDOORS.mount(r, B, C, 'stories');
+    expect(r.attrs['data-fetch']).toBe('pending'); // the shelf is on its way
+    r.on = 'games';
+    W.WQDOORS.mount(r, B, C, 'games');
+    await flush();
+    expect(r.attrs['data-trip']).toBe('games');
+    expect(r.attrs['data-fetch']).toBe('done'); // Games with its rows
+    expect(observers).toHaveLength(0); // the door's next mount ended the shelf's watcher
+    return { r, sh, observers };
+  };
+  test('the shelf answers with none after the child is on Games: Games keeps its stamps (no empty stamp on a list with rows)', async () => {
+    const { r, sh, observers } = await leaveToGames();
+    const before = stamps(r);
+    sh.setAttribute('data-filled', '1'); sh.hidden = true; // the reader: no shelf
+    observers.forEach((cb) => cb());
+    expect(r.attrs['data-empty-at']).toBeUndefined();
+    expect(stamps(r)).toBe(before);
+  });
+  test('the shelf fails after the child is on Games: Games stays done, not failed', async () => {
+    const { r, sh, observers } = await leaveToGames();
+    const before = stamps(r);
+    sh.setAttribute('data-filled', '1');
+    sh.querySelector = (q) => (q === '[data-screen="stories-retry"]' || q === '[data-primary]' ? el() : null); // the reader's Try again sheet
+    observers.forEach((cb) => cb());
+    expect(r.attrs['data-fetch']).toBe('done');
+    expect(stamps(r)).toBe(before);
+  });
+  test('the child went back to the home (no door mount): the old slot writes nothing on the root', () => {
+    const { W, observers } = live({ win: { WQSTORIES: { shelf: jest.fn() } } });
+    const { r, sh } = sharedRoot();
+    W.WQDOORS.mount(r, B, C, 'stories');
+    r.on = 'home';
+    ['data-fetch', 'data-trip', 'data-skel-from'].forEach((k) => r.removeAttribute(k)); // the home's own paint
+    sh.setAttribute('data-filled', '1'); sh.hidden = true;
+    observers.forEach((cb) => cb());
+    expect(Object.keys(r.attrs).filter((k) => /^data-(fetch|skel|empty)/.test(k))).toEqual([]);
+  });
+  test('the rows redraw the door after the shelf filled: one watcher on the kept shelf, not two', async () => {
+    const { W, observers } = live({ win: { WQSTORIES: { shelf: jest.fn() } }, fetchImpl: (u) => (/d=stories/.test(u) ? OK({ stories: [], shelf: true })() : new Promise(() => {})) });
+    const sh1 = el(); const sh2 = el(); sh2.setAttribute('data-host', 'doors'); sh2.parentNode = { replaceChild: jest.fn() };
+    const fb = el({ querySelector: () => null });
+    let cur = sh1;
+    const r = paintRoot();
+    r.querySelector = (q) => ({ '[data-stories-shelf]': cur, '[data-shelf-fallback]': fb })[q] || null;
+    W.WQDOORS.mount(r, B, C, 'stories');
+    expect(observers).toHaveLength(1);
+    cur = sh2; // the rows' draw: a new slot, the kept shelf moves into it
+    await flush();
+    expect(r.paints).toHaveLength(2);
+    expect(sh2.parentNode.replaceChild).toHaveBeenCalledWith(sh1, sh2);
+    expect(observers).toHaveLength(1);
   });
 });
 

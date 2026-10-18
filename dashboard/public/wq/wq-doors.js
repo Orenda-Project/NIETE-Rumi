@@ -377,25 +377,30 @@
   // note stays hidden; it shows only for a shelf that answered with nothing to open. `wait` is the door root, which
   // carries the test markers.
   // `words` (list_states): the reader's own Try again sheet on a shelf that did not load names the stories, not one book
+  // (list_states) one watcher at a time: it ends with the next draw of the shelf or the next door mount, and a slot that
+  // is no longer on the door's screen (the child left) writes nothing
+  var shelfObs = null;
+  function unwatch() { if (shelfObs) { try { shelfObs.disconnect(); } catch (e) {} shelfObs = null; } }
   function shelfPrimary(sh, fb, wait, words) {
     var sync = function () {
+      if (wait && typeof wait.contains === 'function' && !wait.contains(sh)) return;
       var has = !sh.hidden && Boolean(sh.querySelector('[data-primary]'));
       var sheet = wait ? sh.querySelector('[data-screen="stories-retry"]') : null;
       var say = sheet && words ? sheet.querySelector('.wqs-say') : null;
       if (say && say.textContent !== words) say.textContent = words;
       var failed = Boolean(wait) && !sh.hidden && (sh.getAttribute('data-failed') === '1' || Boolean(sheet));
       var busy = Boolean(wait) && !sh.hidden && !failed && (sh.getAttribute('data-filled') !== '1' || Boolean(sh.querySelector('[aria-busy="true"]')));
-      fb.hidden = has || busy || failed;
+      fb.hidden = has || busy;
       if (wait && typeof wait.getAttribute === 'function') {
         wait.setAttribute('data-fetch', failed ? 'failed' : busy ? 'pending' : 'done');
         if (!busy && wait.getAttribute('data-skel-from') != null && wait.getAttribute('data-skel-to') == null) wait.setAttribute('data-skel-to', now());
         if (!fb.hidden && wait.getAttribute('data-empty-at') == null) wait.setAttribute('data-empty-at', now());
       }
       var b = fb.querySelector('.wq-go');
-      if (b) { if (has || failed) b.removeAttribute('data-primary'); else b.setAttribute('data-primary', ''); }
+      if (b) { if (has) b.removeAttribute('data-primary'); else b.setAttribute('data-primary', ''); }
     };
     sync();
-    try { new MutationObserver(sync).observe(sh, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-primary', 'hidden'] }); } catch (e) {}
+    try { var mo = new MutationObserver(sync); mo.observe(sh, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-primary', 'hidden'] }); if (wait) { unwatch(); shelfObs = mo; } } catch (e) {}
   }
 
   var view = { name: null, subject: null, watch: null, next: null, list: null };
@@ -429,6 +434,7 @@
   function mount(root, B, ctx, name) {
     view.name = name;
     shelfKept = null;
+    unwatch();
     if ((name === 'stories' || name === 'games') && B.list_states && !B.practice) {
       draw(root, B, ctx, name, cache[name] || null);
       if (cache[name]) return;
