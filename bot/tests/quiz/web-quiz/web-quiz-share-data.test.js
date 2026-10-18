@@ -196,6 +196,16 @@ describe('a storybook: the child\'s events for it, since it was last opened, in 
   });
 });
 
+describe('one star band for every card with a score, by percent', () => {
+  test('3/4, 4/5 and 8/10 are 2 stars, 2/4 is 1, 5/5 and 9/10 are 3: a higher score never gets fewer stars', () => {
+    const { starsOf } = require('../../../shared/services/quiz/web-quiz-card-data');
+    expect([[3, 4], [4, 5], [8, 10], [2, 4], [5, 5], [9, 10], [1, 4]].map(([r, o]) => starsOf(r, o))).toEqual([2, 2, 2, 1, 3, 3, 1]);
+    const scores = [[1, 4], [2, 4], [3, 4], [4, 5], [8, 10], [9, 10], [5, 5]];
+    const stars = scores.map(([r, o]) => starsOf(r, o));
+    expect(stars).toEqual([...stars].sort((x, y) => x - y));
+  });
+});
+
 describe('a video: the child\'s newest quiz on it', () => {
   test('5 of 5 within 30 minutes: the score and the video badge; none: watched only, no result', async () => {
     seed({ quizzes: [{ id: 'qv-1', video_id: VID }], sessions: [{ id: 's-v', quiz_id: 'qv-1', student_id: 'st-2', status: 'completed', correct_answers: 5, total_questions_answered: 5, completed_at: ago(3) }] });

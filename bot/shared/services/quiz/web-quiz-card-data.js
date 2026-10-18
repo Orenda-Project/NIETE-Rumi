@@ -206,4 +206,4 @@ function words(x, kind, lang) {
   return out;
 }
 
-module.exports = { resultOf, clean, words, BADGES, RECENT_MS, LINES };
+module.exports = { resultOf, clean, words, starsOf, BADGES, RECENT_MS, LINES };
