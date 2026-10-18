@@ -13,7 +13,7 @@ const { makeFake } = require('../quiz/web-quiz/fake-supabase');
 const HOST = 'settings_group_host_testwala';
 const RIDER = 'settings_group_rider_testwala';
 const TTL = 30 * 1000;
-const T0 = 1700000000000;
+const T0 = Date.UTC(2026, 0, 1);
 
 let G;
 let reads;
