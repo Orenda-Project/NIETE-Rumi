@@ -94,7 +94,27 @@ describe('wq.css: the one button component', () => {
   test('three radii per screen under wq-1b: cards --r-card, buttons and the tiles inside boxes --r-btn, icons a circle', () => {
     expect(CSS).toContain('--r-card:22px');
     expect(CSS).toContain('html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}');
-    expect(CSS).toContain('html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile,html.wq-1b .wq-opt .wq-shp,html.wq-1b .wq-ptile .wq-shp,html.wq-1b .wq-shear .wq-shp{border-radius:var(--r-btn)}');
+    expect(CSS).toContain('html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile{border-radius:var(--r-btn)}');
+  });
+  test('the answer shapes keep their own corners (a colour-blind cue, a glyph, not a box): no wq-1b rule rounds .wq-shp', () => {
+    expect(CSS).not.toMatch(/html\.wq-1b[^{}]*\.wq-shp[^{}]*\{[^}]*border-radius/);
+  });
+  test('one height per list: every Games / Stories / Videos row (the teacher\'s week row too) is --row-h, its title one line', () => {
+    expect(CSS).toContain('--row-h:88px');
+    expect(CSS).toContain('html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:var(--row-h);min-height:0;overflow:hidden}');
+    expect(CSS).toContain('html.wq-1b .wq-drow .wq-rtext b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}');
+    expect(CSS).not.toMatch(/html\.wq-1b \.wq-week \.wq-drow\{[^}]*border-color:transparent/);
+  });
+  test('lint: no rule under .wq-adv sets border-radius, height or min-height on a .wq-btn (the look is tokens only)', () => {
+    const bad = [];
+    for (const f of fs.readdirSync(WQ).filter((n) => n.endsWith('.css'))) {
+      const css = fs.readFileSync(path.join(WQ, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const sels = m[1].split(',').filter((x) => /\.wq-adv\b/.test(x) && /\.wq-btn/.test(x));
+        if (sels.length && /(^|;)\s*(border-radius|height|min-height)\s*:/.test(m[2])) bad.push(f + ': ' + m[1].trim());
+      }
+    }
+    expect(bad).toEqual([]);
   });
   test('every icon-only control is a 48 circle, and the row speakers never stretch to the row', () => {
     expect(CSS).toMatch(/html\.wq-1b \.wq-homebtn,[^{]*\.wq-jar\{flex:none;width:var\(--btn-icon\)[^}]*border-radius:var\(--r-icon\)\}/);

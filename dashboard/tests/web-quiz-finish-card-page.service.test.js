@@ -720,8 +720,9 @@ describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-car
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect(l.trim()).toMatch(/^if \(window\.WQFC/);
   });
-  test('the stylesheet the story reader asks for is the card\'s own CSS', () => {
-    expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS);
+  test('the stylesheet the story reader asks for is the card\'s own CSS (the one button lines apply only under wq-1b)', () => {
+    expect(FC.CSS_1B.split('}').filter(Boolean).every((r) => r.startsWith('html.wq-1b'))).toBe(true);
+    expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS + FC.CSS_1B);
   });
 });
 

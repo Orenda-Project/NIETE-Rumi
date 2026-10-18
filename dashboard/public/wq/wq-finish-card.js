@@ -483,5 +483,5 @@
 
   window.WQFC = { mount: mount, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
-    html: html, nextHtml: nextHtml, DEEDS: DEEDS, W: W, S: S, CSS: CSS };
+    html: html, nextHtml: nextHtml, DEEDS: DEEDS, W: W, S: S, CSS: CSS, CSS_1B: CSS_1B };
 })();
