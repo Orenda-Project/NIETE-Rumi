@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * FLN A11 (qa-audio 202011, COS ruling 204311): the Google Fonts <link> in index.html must not request "Noto Nastaliq
+ * Slow-line first visit: the Google Fonts <link> in index.html must not request "Noto Nastaliq
  * Urdu". Google answers WhatsApp's Android in-app browser with full TrueType files for it (~744 KB on an Urdu page),
  * which competed with a plan's audio on a slow line, and the face is never the one that draws Urdu: index.css's own
  * "NIETE Nastaliq" (one woff2, Arabic-script unicode-range) is first in --font-urdu. This reads the shipped page head
