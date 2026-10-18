@@ -2554,8 +2554,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    // the one share (finish's share_v4): this page's own share, the picture and the class link, is the only one a tap runs
     if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
+    // this page's own share (the picture and the class link) is the one that runs
+    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function () { share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2579,7 +2581,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       flushEv(true);
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
-    if (res.card_v3 && !friend) finishCard(classUrl);
+    if (res.card_v3 && !friend) finishCard(classUrl, res.share_v4 === true);
   }
   /* ---------------- the card and one next thing (app_settings web_quiz_home_v3, finish's card_fold) ---------------- */
   // A class child's own card with the home on: the card, the ranked Next tile (the one primary), "Share to class group"
@@ -2625,6 +2627,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
       (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
         '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' : '') +
+      // the one share (finish's share_v4): "Challenge a friend" is back on the card, its own link and picture
+      (res.share_v4 === true ? '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
@@ -2638,9 +2642,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     warmArt('card', art.card);
     warmLink(classUrl);
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    // the one share (finish's share_v4): this page's own share, the picture and the class link, is the only one a tap runs
     if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
+    // this page's own share (the picture and the class link) is the one that runs
+    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function () { share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
+    if (res.share_v4 === true) {
+      var chalUrl = link('/q/' + (res.challenge_code || CODE));
+      warmArt('invite', art.invite);
+      warmLink(chalUrl);
+      on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
+    }
     on('#wq-fhome', function () { homeGo('card'); });
     on('#wq-class', board);
     on('#wq-schools', function () { schools(card); });
@@ -2651,16 +2663,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-fnext', pick);
       on('#wqfc-next', pick);   // the finish card's own tile, when it drew it
     }
-    if (res.card_v3) finishCard(classUrl);
+    if (res.card_v3) finishCard(classUrl, res.share_v4 === true);
   }
   /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */
   // Last in card(): the card's token is asked for as the card opens (the share never waits); the file is asked for
   // only when finish sends card_v3, and the card is drawn again once it loads.
   var fcAsked = false;
   // url: the class link, shared until the card's own link is in (a slow phone taps before it is)
-  function fcOpts(url) { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; }
-  function finishCard(url) {
-    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url)); return; }
+  // v4: the one share (finish's share_v4), so the card minted here is the sheet's
+  function fcOpts(url, v4) { var o = { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; if (v4) o.v4 = true; return o; }
+  function finishCard(url, v4) {
+    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url, v4)); return; }
     if (fcAsked) return;
     fcAsked = true;
     try {
