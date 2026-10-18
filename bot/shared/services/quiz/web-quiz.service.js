@@ -368,6 +368,12 @@ async function isWatchCode(ctx) {
   return watchMemo.get(ctx);
 }
 const watchMemo = new WeakMap();
+// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (a failed read is not cached), so a
+// blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
+async function watchBoard(ctx) {
+  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState()).unreadable) return true;
+  return isWatchCode(ctx);
+}
 async function readCodeParents(ids) {
   const { data, error } = await dbRead('watchRoot:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, parent_share_code_id').in('id', ids));
   if (error) throw new Error(error.message);
@@ -1867,7 +1873,7 @@ async function board(code, { st } = {}) {
   if (ctx.invitedByStudentId) fail(404, 'not_found');
   // The watch quiz (and any code under it) has no class: its table would be every class-less child. No root set: today's.
   // First, so a watch code never starts the twin read.
-  if (await isWatchCode(ctx)) fail(404, 'not_found');
+  if (await watchBoard(ctx)) fail(404, 'not_found');
   // The quiz's twin in the other language, read beside the table only with the switch on (web-quiz-class-twin).
   const Twin = require('./web-quiz-class-twin');
   const twinP = doors.then((on) => (on ? Twin.find(ctx) : null));
