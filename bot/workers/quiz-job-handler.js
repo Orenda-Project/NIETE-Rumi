@@ -71,7 +71,18 @@ async function handleQuizReport(body) {
   // loser short-circuits cleanly. 24h TTL > the 12h cascade ceiling so a stale
   // cascade can't slip through after the report's already gone out.
   const SENT_FLAG_KEY = `quiz_report_sent:${quizId}`;
-  if (await RedisService.get(SENT_FLAG_KEY)) {
+  const sentFlag = await RedisService.get(SENT_FLAG_KEY);
+  // quiz_report_send_checked: a report given up on (three refusals) is recorded in this same key as GAVE_UP — never
+  // '1', so it is never "fired" — and a later cascade message sends nothing and queues nothing. Recorded here, not
+  // read from the tries counter, so the switch off costs no read: off, the value is never written.
+  if (sentFlag === GAVE_UP) {
+    const SendCheck = require('../shared/services/quiz/report-send-check');
+    if (await SendCheck.on()) {
+      logEvent('quiz_report_send_skipped_gave_up', { quiz_h: SendCheck.quizH(quizId), tk: await teacherTkOf(quizId, SendCheck) });
+      return { skipped: true, reason: 'gave_up' };
+    }
+  }
+  if (sentFlag && sentFlag !== GAVE_UP) {
     logToFile('🔁 quiz_report already fired for this quiz — skipping (cascade dedup)', { quizId });
     logEvent('quiz.report.skipped', { quizId, reason: 'already_fired' });
     return { skipped: true, reason: 'already_fired' };
@@ -170,6 +181,18 @@ async function handleQuizReport(body) {
 
 /** A chat quiz report WhatsApp refused stays in Redis this long, like the fired flag (past the 12h cascade). */
 const SEND_TRIES_TTL_S = 86400;
+/** The fired-flag key's value for a report given up on (quiz_report_send_checked): not fired, not to be tried again. */
+const GAVE_UP = 'gave_up';
+
+/** The teacher's tk for a quiz, for a log line (never the phone). Null when unreadable. */
+async function teacherTkOf(quizId, SendCheck) {
+  try {
+    const { data } = await supabase.from('quizzes').select('teacher_id').eq('id', quizId).maybeSingle();
+    return data && data.teacher_id ? SendCheck.tkOf(data.teacher_id) : null;
+  } catch (_) {
+    return null;
+  }
+}
 
 /**
  * A chat quiz report WhatsApp did not take, with quiz_report_send_checked on: the fired flag stays unset, the refusal
@@ -195,6 +218,11 @@ async function chatReportRefused(quizId, quiz, payload, SendCheck) {
   const gaveUp = tries !== null && tries >= SendCheck.MAX_TRIES;
   if (gaveUp) {
     if (tries === SendCheck.MAX_TRIES) logEvent('report_gave_up', { ...fields, path: 'chat', tries });
+    try {
+      await RedisService.set(`quiz_report_sent:${quizId}`, GAVE_UP, SEND_TRIES_TTL_S);
+    } catch (err) {
+      logToFile('⚠️ quiz_report: give-up not recorded (a later cascade message may try once more)', { ...fields, error: err.message });
+    }
     return { skipped: true, reason: 'gave_up', tries };
   }
   if (tries !== null) {

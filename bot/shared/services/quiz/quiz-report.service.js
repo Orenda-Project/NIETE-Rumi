@@ -175,16 +175,22 @@ class QuizReportService {
       });
     }
 
-    // Update quiz status
-    await supabase
-      .from('quizzes')
-      .update({
-        status: 'report_sent',
-        total_students_completed: totalCompleted,
-        report_sent_at: new Date().toISOString(),
-        report_pdf_url: pdfUrl
-      })
-      .eq('id', quizId);
+    // Update quiz status. quiz_report_send_checked on: only when WhatsApp took the report — a refused one leaves the
+    // row exactly as it was (the job tries again). Off: today's update, whatever the send answered. The switch is
+    // asked only on a refusal.
+    if (accepted || !(await require('./report-send-check').on())) {
+      await supabase
+        .from('quizzes')
+        .update({
+          status: 'report_sent',
+          total_students_completed: totalCompleted,
+          report_sent_at: new Date().toISOString(),
+          report_pdf_url: pdfUrl
+        })
+        .eq('id', quizId);
+    } else {
+      logToFile('⚠️ Quiz report not accepted by WhatsApp — quiz row left as it was', { quizId });
+    }
 
     logToFile('✅ Quiz report flow complete', { quizId, totalCompleted, pdfUrl, band: insight.band });
     return accepted;

@@ -65,6 +65,7 @@ const GOLDEN = path.join(__dirname, 'goldens', 'chat-quiz-report-off.json');
 
 let db;
 let calls;
+let updates; // [table, patch] — kept apart from `calls`, so the OFF golden stays as recorded
 
 function stubDb({ setting } = {}) {
   db = {
@@ -84,13 +85,18 @@ function stubDb({ setting } = {}) {
   supabase.from.mockImplementation((table) => {
     calls.push(['db', table]);
     let rows = db[table] || [];
+    let patch = null;
     const chain = {
       select: () => chain,
-      eq: (f, v) => { rows = rows.filter((r) => r[f] === v); return chain; },
+      eq: (f, v) => {
+        rows = rows.filter((r) => r[f] === v);
+        if (patch) { updates.push([table, patch]); rows.forEach((r) => Object.assign(r, patch)); }
+        return chain;
+      },
       in: (f, vs) => { rows = rows.filter((r) => vs.includes(r[f])); return chain; },
       is: () => chain, neq: () => chain, lt: () => chain, gt: () => chain, gte: () => chain, lte: () => chain,
       not: () => chain, or: () => chain, order: () => chain, limit: () => chain, range: () => chain,
-      update: () => chain,
+      update: (p) => { patch = p; return chain; },
       maybeSingle: async () => ({ data: rows[0] ? { ...rows[0] } : null, error: null }),
       single: async () => ({ data: rows[0] ? { ...rows[0] } : null, error: rows[0] ? null : { message: 'none' } }),
       then: (res, rej) => Promise.resolve({ data: rows.map((r) => ({ ...r })), error: null }).then(res, rej),
@@ -125,6 +131,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   redis._store.clear();
   calls = [];
+  updates = [];
   SendCheck.reset();
   FoldFlag.reset();
   for (const m of ['get', 'set', 'del', 'incr', 'expire']) {
@@ -243,7 +250,26 @@ describe('switch on (JSON true)', () => {
     expect(gaveUp[0][1]).toMatchObject({ quiz_h: expect.stringMatching(/^[0-9a-f]{12}$/), tries: 3 });
     expect(JSON.stringify(gaveUp)).not.toMatch(/FIXTURE|92300/);
     expect(retries()).toHaveLength(2);
-    expect(redis._store.has(FLAG)).toBe(false);
+    // never marked fired (the give-up is recorded in the same key, as 'gave_up', never '1')
+    expect(redis._store.get(FLAG)).not.toBe('1');
+  });
+
+  test('given up, then a stray cascade message: nothing is sent, skipped_gave_up logged without a phone, nothing queued', async () => {
+    stubDb({ setting: true });
+    whatsapp('pdf', false);
+    for (let i = 0; i < 3; i++) await job();
+    const sendsBefore = WhatsAppService.sendDocument.mock.calls.length + WhatsAppService.sendMessage.mock.calls.length;
+    const queuedBefore = Queue.queueJob.mock.calls.length;
+    whatsapp('pdf', true);
+    const out = await job();
+    expect(out).toMatchObject({ skipped: true, reason: 'gave_up' });
+    expect(WhatsAppService.sendDocument.mock.calls.length + WhatsAppService.sendMessage.mock.calls.length).toBe(sendsBefore);
+    expect(Queue.queueJob.mock.calls.length).toBe(queuedBefore);
+    const skipped = events('quiz_report_send_skipped_gave_up');
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0][1]).toEqual({ quiz_h: expect.stringMatching(/^[0-9a-f]{12}$/), tk: expect.stringMatching(/^[0-9a-f]{16}$/) });
+    expect(JSON.stringify(skipped)).not.toMatch(/FIXTURE|92300|Testwala/);
+    expect(redis._store.get(FLAG)).not.toBe('1');
   });
 
   test('a refusal, then an accepted retry: the flag is set', async () => {
@@ -297,6 +323,35 @@ describe('the switch rides the fold switch\'s read (report-send-check readAlong)
 });
 
 // ─── generateReport's answer ────────────────────────────────────────────────
+
+describe('the quiz row is marked report_sent only when WhatsApp took the report (switch on)', () => {
+  const quizUpdates = () => updates.filter(([t, p]) => t === 'quizzes' && p.status === 'report_sent');
+
+  test.each([['pdf'], ['text']])('on, %s refused: the quiz row is left exactly as it was', async (route) => {
+    stubDb({ setting: true });
+    const before = { ...db.quizzes[0] };
+    whatsapp(route, false);
+    await job();
+    expect(quizUpdates()).toHaveLength(0);
+    expect(db.quizzes[0]).toEqual(before);
+  });
+
+  test('on, accepted: the quiz row is marked report_sent', async () => {
+    stubDb({ setting: true });
+    whatsapp('pdf', true);
+    await job();
+    expect(quizUpdates()).toHaveLength(1);
+    expect(db.quizzes[0].status).toBe('report_sent');
+  });
+
+  test.each([[true], [false]])('off, WhatsApp answers %s: the quiz row is marked report_sent, as today', async (answer) => {
+    stubDb();
+    whatsapp('pdf', answer);
+    await job();
+    expect(quizUpdates()).toHaveLength(1);
+    expect(db.quizzes[0].status).toBe('report_sent');
+  });
+});
 
 describe('generateReport answers whether WhatsApp took the report', () => {
   test.each([
