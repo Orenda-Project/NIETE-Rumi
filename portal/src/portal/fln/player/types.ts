@@ -106,7 +106,7 @@ export interface FlnPlayerDeps {
   requestIdle?: (fn: () => void) => void;
   /** Called once per mirror origin at register (default: <link rel=preconnect> ×2). */
   preconnect?: (origin: string) => void;
-  /** Overrides for the timing rules (defaults: firstByteMs 1500, giveUpMs 6000, warmNow 3, budgetBytes 1.5 MB, warmConcurrency 2, warmStepMs 8000). */
+  /** Overrides for the timing rules (defaults: firstByteMs 2500, giveUpMs 6000, warmNow 3, budgetBytes 1.5 MB, warmConcurrency 2, warmStepMs 8000). */
   timing?: Partial<FlnPlayerTiming>;
 }
 

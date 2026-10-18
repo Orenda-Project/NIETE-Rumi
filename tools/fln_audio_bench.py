@@ -874,7 +874,7 @@ def summarise(args, res, burst):
         row('A2', a2_name, f'p95 <= {BAR["A2"]} ms', f'no tap reached playing (0/{a2_n})', 'FAIL', f'throttle {args.throttle}')
     if fl:
         row('A2-floor', 'truly cold tap: fresh page, NO prefetch, throttled (what the line itself costs)', 'info (no bar)',
-            f'p95 {r1(p95(fl))} ms (n={len(fl)}/{len(fl_rows)}, median {r1(statistics.median(fl))}; {fl_orig} switched to orig at 1.5 s)', 'INFO',
+            f'p95 {r1(p95(fl))} ms (n={len(fl)}/{len(fl_rows)}, median {r1(statistics.median(fl))}; {fl_orig} switched to orig)', 'INFO',
             f'throttle {args.throttle}')
     # A3
     if a3:
@@ -924,12 +924,13 @@ def summarise(args, res, burst):
         st_ok = bool(st)
         notes = []
         for r in st:
-            exp = 1500 + (r['orig_cold_baseline_ms'] or 0)
-            good = r['result'] == 'ok-orig' and r['ms_playing'] is not None and 1300 <= r['ms_playing'] <= exp + 1200
+            exp = args.first_byte_ms + (r['orig_cold_baseline_ms'] or 0)
+            good = r['result'] == 'ok-orig' and r['ms_playing'] is not None and args.first_byte_ms - 200 <= r['ms_playing'] <= exp + 1200
             st_ok = st_ok and good
             notes.append(f'{r["ms_playing"] and round(r["ms_playing"])} ms vs expected ~{round(exp)}')
-        row('Switch', '429 on src (warm) then ok-orig; src never answers (cold) then switch at ~1.5 s',
-            'ok-orig; warm p95 <= 150 ms; stall ms ~ 1.5 s + orig cold',
+        fbs = f'{args.first_byte_ms / 1000:g} s'
+        row('Switch', f'429 on src (warm) then ok-orig; src never answers (cold) then switch at ~{fbs}',
+            f'ok-orig; warm p95 <= 150 ms; stall ms ~ {fbs} + orig cold',
             f'429-warm: {sum(1 for r in w if r["result"] == "ok-orig")}/{len(w)} ok-orig, p95 {r1(p95([r["ms_playing"] for r in w if r["ms_playing"] is not None]))} ms; stall: '
             f'{sum(1 for r in st if r["result"] == "ok-orig")}/{len(st)} ok-orig [{"; ".join(notes[:6])}]', verdict(w_ok and st_ok), 'stall throttle ' + (args.throttle if cdp else 'none'))
     elif sws:
@@ -1003,6 +1004,7 @@ def main(argv=None):
     ap.add_argument('--plans-dir', default=os.environ.get('FLN_PLANS_DIR', ''), help='mirror plan JSONs (env FLN_PLANS_DIR)')
     ap.add_argument('--orig-plans-dir', default=os.environ.get('FLN_PLANS_ORIG_DIR', ''), help='original-URL plan JSONs (env FLN_PLANS_ORIG_DIR)')
     ap.add_argument('--max-clips', type=int, default=0, help='cap A1/A2 clips per plan (0 = all)')
+    ap.add_argument('--first-byte-ms', type=int, default=2500, help="the player's cold-tap switch deadline (FlnPlayer firstByteMs)")
     ap.add_argument('--dwell-ms', type=int, default=3000, help='A2: reading time between the page opening and the first tap')
     ap.add_argument('--listen-ms', type=int, default=1500, help='A2: listening time after each tap reaches playing')
     ap.add_argument('--taps', type=int, default=50)

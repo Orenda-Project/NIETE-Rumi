@@ -17,13 +17,17 @@ import type {
  * - Warm path: `warm()` loads each clip into its own <audio preload="auto">, in grid order; a tap on a warming clip
  *   plays from the head it already has (see the warm section for the bench numbers). A mirror error during the warm
  *   moves that element to `orig` at once, before any tap.
- * - Cold tap: stream `src`; no first byte within 1.5 s → switch the SAME element to `orig` (never race two streams on
+ * - Cold tap: stream `src`; no first byte within 2.5 s → switch the SAME element to `orig` (never race two streams on
  *   a 400 kbps line). After `orig` fails, or 6 s with no `playing`, the control shows the retry state (A6).
  * - Every tap ends in one event: `audio_play` (`ok-mirror` | `ok-orig`) or `audio_error` (`error-<code>`), A12.
  */
 
+// firstByteMs: the element reports its first bytes (progress / loadedmetadata) only with the first playable frames, which
+// on a 400 kbps / 300 ms line is ~1.65 s for the larger clips every time (9 of 60 fresh-connection loads, max 1,654 ms;
+// bench 18 Oct). At 1.5 s those taps always fell to orig and played at ~3.4 s; 2.5 s leaves the real stall path at
+// 2.5 s + orig cold, inside the 6 s give-up.
 const DEFAULT_TIMING: FlnPlayerTiming = {
-  firstByteMs: 1500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2, warmStepMs: 8000,
+  firstByteMs: 2500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2, warmStepMs: 8000,
 };
 
 type Source = 'mirror' | 'orig';
