@@ -78,12 +78,13 @@ const ADV_LAYER = [
   'html.wq-adv body{background-color:var(--ground);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}',
   'html.wq-adv .jg{display:block;width:72px;height:72px;margin:0 auto -8px}html.wq-adv .go:has(#go-known:not([hidden])) .jg{display:none}',
   'html.wq-adv .wq-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;min-height:var(--btn-h2);',
-  'padding:var(--sp-2) var(--sp-4) 0;border:0;border-radius:var(--r-btn);background:var(--fill);color:var(--on);',
+  'padding:var(--sp-2) var(--sp-4);border:0;border-radius:var(--r-btn);background:var(--fill);color:var(--on);',
   'box-shadow:var(--sh-btn);text-align:center;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;',
   'transition:transform var(--dur-tap),box-shadow var(--dur-tap)}',
   'html.wq-adv .wq-btn:active{transform:translateY(var(--press-y));box-shadow:var(--sh-press)}',
-  // labels sit in the middle of the button: the English line's and the Urdu-only line's empty space below is taken back
-  'html.wq-adv .wq-btn .en{color:inherit;margin-bottom:-9px}html.wq-adv .lb small>[lang=ur]:only-child{display:block;margin-bottom:-5px}',
+  // two-line labels (Urdu, then English) stack without overlapping; the English line's space below is moved into the
+  // button's padding, so the two lines sit in the middle of the button and clear of its bottom edge
+  'html.wq-adv .wq-btn .en{color:inherit;line-height:1.1;margin-bottom:-5px}html.wq-adv .wq-btn:has(.en){padding-bottom:13px}html.wq-adv .lb small>[lang=ur]:only-child{display:block;margin-bottom:-5px}',
   'html.wq-adv .wq-btn--primary{min-height:var(--btn-h);font-weight:800}',
   'html.wq-adv .wq-btn--secondary{border:2px solid var(--line)}',
   'html.wq-adv .wq-btn:disabled{--fill:var(--line);--on:var(--muted);--edge:var(--line);opacity:1;transform:none}',
