@@ -37,6 +37,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx } = require('../../config/ux-strings');
 const { LP_V8 } = require('./quiz-sources');
+const { tk: tkOf } = require('./web-quiz-kid');
 const { needsLanguageAsk, quizLanguageFor, teacherLanguageFor } = require('./transcript-quiz-language');
 const LessonClaim = require('./lp-lesson-claim');
 const Funnel = require('./quiz-funnel');
@@ -133,7 +134,7 @@ async function appOpened(teacherId, from) {
   try {
     return await AppOpens.viewerOpensForTeacher(teacherId, from, MAX_DOWNLOADS);
   } catch (err) {
-    logToFile('❌ quiz menu: app-read lesson plans could not be listed — WhatsApp ones only', { userId: teacherId, error: err.message }, 'error');
+    logToFile('❌ quiz menu: app-read lesson plans could not be listed — WhatsApp ones only', { tk: tkOf(teacherId), error: err.message }, 'error');
     return [];
   }
 }
@@ -173,7 +174,7 @@ async function makeable(rows) {
   const held = taken.filter((r) => ReligiousHold.isHeldLesson(r));
   if (held.length) {
     logEvent('quiz_menu.lesson_held', {
-      userId: held[0].user_id, source: SOURCE, reason: ReligiousHold.HELD_REASON, lessons: held.length,
+      tk: tkOf(held[0].user_id), source: SOURCE, reason: ReligiousHold.HELD_REASON, lessons: held.length,
     });
   }
   const candidates = taken.filter((r) => !ReligiousHold.isHeldLesson(r));
@@ -231,7 +232,7 @@ async function list(teacherId, { since = null, limit = 20, light = false } = {})
     const items = ready.filter((r) => !covered.has(r.lesson_id)).map(toItem)
       .sort((a, b) => (new Date(b.date) - new Date(a.date)) || (new Date(b.deliveredAt) - new Date(a.deliveredAt)));
     logEvent('quiz_menu.lesson_listed', {
-      userId: teacherId, source: SOURCE, listed: items.length, covered: ready.length - items.length,
+      tk: tkOf(teacherId), source: SOURCE, listed: items.length, covered: ready.length - items.length,
     });
     return items.slice(0, Math.max(0, limit));
   } catch (err) {
@@ -240,11 +241,11 @@ async function list(teacherId, { since = null, limit = 20, light = false } = {})
         lastMissingWarnAt = Date.now();
         logToFile('⚠️ quiz menu: the lesson-plan source store is not on this database — no lesson plan is listed', { error: err.message }, 'warn');
       }
-      logEvent('quiz_menu.lesson_list_failed', { userId: teacherId, source: SOURCE, reason: 'source_store_missing' });
+      logEvent('quiz_menu.lesson_list_failed', { tk: tkOf(teacherId), source: SOURCE, reason: 'source_store_missing' });
       return [];
     }
-    logToFile('❌ quiz menu: lesson plans could not be listed — none offered', { userId: teacherId, error: err.message }, 'error');
-    logEvent('quiz_menu.lesson_list_failed', { userId: teacherId, source: SOURCE, reason: 'read_failed', error: err.message });
+    logToFile('❌ quiz menu: lesson plans could not be listed — none offered', { tk: tkOf(teacherId), error: err.message }, 'error');
+    logEvent('quiz_menu.lesson_list_failed', { tk: tkOf(teacherId), source: SOURCE, reason: 'read_failed', error: err.message });
     return [];
   }
 }
@@ -328,7 +329,7 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
   const lang = teacherLanguageFor({ preferredLanguage: teacher && teacher.preferred_language });
   const userId = (teacher && teacher.id) || null;
   const done = (outcome, quizId = null) => {
-    logEvent('quiz_menu.lesson_picked', { userId, source: SOURCE, quizId, outcome, via });
+    logEvent('quiz_menu.lesson_picked', { tk: tkOf(userId), source: SOURCE, quizId, outcome, via });
     return { outcome, ...(quizId ? { quizId } : {}) };
   };
 
