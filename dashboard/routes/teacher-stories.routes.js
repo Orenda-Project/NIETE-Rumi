@@ -11,12 +11,21 @@
  *   GET  /quiz/teacher/:th/stories[?grade=&lang=&book=]    the Stories page, rendered by the bot; with the switch off (the
  *                                                          bot's 404) the request goes on to whatever answers it today
  *
+ * Switch app_settings quiz_teacher_stories_bot_gate (JSON true only; absent, any other value or a failed read = off),
+ * read in the same one read as web_quiz_stories_teacher. On: the edge no longer decides from its own reading, it always
+ * forwards and the bot's answer is the gate. The API passes the bot's status on unchanged; the page, on the bot's
+ * 404 stories_off, gets the teacher home's one-line page with the Stories page's own line (storySendNotOpen) instead
+ * of falling through. Off: exactly today.
+ *
  * `th` is the teacher-home token. Like /q/:code and /r/:token, the edge checks shapes, forwards only the
  * keys the bot reads and calls the bot with the internal key through the child quiz's bot client.
  */
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
+const { str } = require('../../bot/shared/services/first-touch/teacher-home.strings');
+const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -31,21 +40,79 @@ const QUERY = {
 };
 const ORDER = ['th', 'grade', 'lang', 'all', 'story_id', 'class', 'book'];
 const FLAG_KEY = 'web_quiz_stories_teacher';
+const GATE_KEY = 'quiz_teacher_stories_bot_gate';
 const FLAG_TTL_MS = 30000;
 
-/** app_settings web_quiz_stories_teacher through the portal's own client and flag rule, remembered 30 s; failure = off. */
-function teacherFlagReader({ now = Date.now, db = () => require('../config/supabase') } = {}) {
+/** The portal's flag rule (feature-flags.isFlagEnabled) applied to a row already read: a client that serves only it. */
+function teacherValue(row) {
+  const one = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row || null, error: null }) }) }) }) };
+  return require('../lib/feature-flags').isFlagEnabled(one, FLAG_KEY);
+}
+
+/**
+ * Both switches in ONE app_settings read (`.in('key', [...])`) through the portal's own client, remembered 30 s:
+ * { teacher, gate }. teacher = web_quiz_stories_teacher by the portal's flag rule (as today); gate = JSON true only.
+ * A failed shared read re-reads the teacher key alone, exactly as today, and the switch is off; no client = both off.
+ */
+function storiesFlagsReader({ now = Date.now, db = () => require('../config/supabase') } = {}) {
   let at = -Infinity;
-  let val = false;
+  let val = { teacher: false, gate: false };
   return async () => {
     if (now() - at < FLAG_TTL_MS) return val;
-    try {
-      const supabase = db();
-      val = supabase ? (await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY)) === true : false;
-    } catch (_) { val = false; }
+    let supabase = null;
+    try { supabase = db(); } catch (_) { supabase = null; }
+    if (!supabase) {
+      val = { teacher: false, gate: false };
+    } else {
+      try {
+        const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, GATE_KEY]);
+        if (error || !Array.isArray(data)) throw new Error('app_settings read failed');
+        const rows = (k) => data.filter((r) => r && r.key === k);
+        if (rows(FLAG_KEY).length > 1 || rows(GATE_KEY).length > 1) throw new Error('app_settings key twice');
+        const gate = rows(GATE_KEY)[0];
+        val = { teacher: (await teacherValue(rows(FLAG_KEY)[0])) === true, gate: Boolean(gate) && gate.value === true };
+      } catch (_) {
+        let teacher = false;
+        try { teacher = (await require('../lib/feature-flags').isFlagEnabled(supabase, FLAG_KEY)) === true; } catch (e) { teacher = false; }
+        val = { teacher, gate: false };
+      }
+    }
     at = now();
     return val;
   };
+}
+
+/** web_quiz_stories_teacher alone, as the edge decides with the gate off (the same shared read). */
+function teacherFlagReader(o = {}) {
+  const read = storiesFlagsReader(o);
+  return async () => (await read()).teacher;
+}
+
+/** The request's language for an edge-made page: ?lang, else the phone's Accept-Language, else English. */
+function langOf(req) {
+  const asked = req.query && req.query.lang;
+  if (asked === 'en' || asked === 'ur') return asked;
+  return /^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en';
+}
+
+/** The bot's own off answer: 404 {error:'stories_off'} (a raw answer: bytes). */
+function isStoriesOff(out) {
+  if (!out || out.status !== 404) return false;
+  try { return JSON.parse(Buffer.from(out.bytes || '').toString('utf8')).error === 'stories_off'; } catch (_) { return false; }
+}
+
+/**
+ * Stories not open: the teacher home's one-line page (status 200, its headers) with the Stories page's own reviewed
+ * line (storySendNotOpen), never "expired", and one tap back to the chat when the number is known.
+ */
+function notOpenPage(req, res) {
+  const lang = langOf(req);
+  const digits = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
+  const tap = /^\d{10,15}$/.test(digits) ? { href: `https://wa.me/${digits}?text=quiz`, text: str('th.open.wa', lang) } : null;
+  const built = buildMessagePage({ lang, id: 'mk.stale', tap, say: UX_STRINGS.storySendNotOpen[lang] });
+  res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': built.csp });
+  return res.status(200).type('html').send(built.html);
 }
 
 /** Only the keys the bot reads, in one order, each checked. */
@@ -59,8 +126,13 @@ function createTeacherStoriesRouter(opts = {}) {
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
-  const teacherOn = opts.teacherOn || teacherFlagReader({ now: opts.now });
-  const isOn = async () => { try { return (await teacherOn()) === true; } catch (_) { return false; } };
+  // opts.flags (tests): → {teacher, gate}; opts.teacherOn (tests): the teacher key alone, the gate off.
+  const flags = opts.flags || (opts.teacherOn ? async () => ({ teacher: await opts.teacherOn(), gate: false }) : storiesFlagsReader({ now: opts.now, db: opts.db }));
+  const flagsNow = async () => {
+    try { const f = await flags(); return { teacher: Boolean(f) && f.teacher === true, gate: Boolean(f) && f.gate === true }; } catch (_) { return { teacher: false, gate: false }; }
+  };
+  // Gate on: always forward (the bot decides). Gate off: the edge's own reading, as today.
+  const isOn = async () => { const f = await flagsNow(); return f.gate || f.teacher; };
   const router = express.Router();
   const common = { windowMs: 60 * 1000, standardHeaders: true, legacyHeaders: false, validate: false,
     handler: (req, res) => res.status(429).json({ error: 'slow_down' }) };
@@ -104,7 +176,12 @@ function createTeacherStoriesRouter(opts = {}) {
   router.post('/api/teacher/story/share', noStore, ready, on, write, ...bodies, shareBody, forward('POST', '/api/internal/ts/share', '/api/internal/ts/share'));
 
   // The page: the bot's HTML, forwarded as bytes. With the switch off (here, or the bot's 404) the request goes on.
-  const pageOn = async (req, res, next) => ((await isOn()) ? next() : next('route'));
+  const pageOn = async (req, res, next) => {
+    const f = await flagsNow();
+    if (!(f.gate || f.teacher)) return next('route');
+    res.locals.tsGate = f.gate; // the one reading this request decides by
+    return next();
+  };
   router.get('/quiz/teacher/:th/stories', pageOn, read, async (req, res, next) => {
     const th = String(req.params.th || '');
     if (!TOKEN_RX.test(th) || !botUrl || !apiKey) return next();
@@ -115,6 +192,8 @@ function createTeacherStoriesRouter(opts = {}) {
     } catch (_) {
       return next();
     }
+    // Gate on: the bot's switch-off answer is the home's one-line page with the "not open yet" line, never a fall-through.
+    if (res.locals.tsGate === true && isStoriesOff(out)) return notOpenPage(req, res);
     if (out.status !== 200 || !out.bytes || !/^text\/html/i.test(out.contentType || '')) return next();
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
     return res.status(200).type('html').send(out.bytes);
@@ -123,4 +202,4 @@ function createTeacherStoriesRouter(opts = {}) {
   return router;
 }
 
-module.exports = { createTeacherStoriesRouter, forwardQuery, teacherFlagReader };
+module.exports = { createTeacherStoriesRouter, forwardQuery, teacherFlagReader, storiesFlagsReader, GATE_KEY };

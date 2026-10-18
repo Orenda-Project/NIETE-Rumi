@@ -179,8 +179,13 @@
       var want = qa ? null : replayRa(d, card);
       var ra = want && want !== 'wait' ? want : null;
       var fx = foldNext(nx);
-      h.show(name, top + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
+      // web_quiz_fold_retry: a 0-word try (card.r.again, never on a held card) gets one soft Try again above Next; the
+      // reading moment's own (wqc-rfagain) stays the only one when it is drawn
+      var md = h.md() || {};
+      var retry = md.fold_retry === true && card && card.r && card.r.again && !card.r.hold && top.indexOf('id="wqc-rfagain"') < 0;
+      h.show(name, top + (retry ? btn('wqc-again', h.t.again, 'wq-soft') : '') + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
+      if (retry) h.on('wqc-again', function () { h.open(d.ex); });
       if (ra) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
       if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || ra ? null : fx } }));
       foldAfter(qa);
@@ -473,22 +478,22 @@
     }
     // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
     // r: the read's result; the card gets it (its ranked next_offer), and the card after the story's questions too
-    function storyEnd(name, qa, r) {
+    function storyEnd(name, qa, r, hold) {
       var d = h.S.data || {};
-      if (r) d.story_r = r;
+      if (r) { d.story_r = r; d.story_hold = !!hold; }
       if (name === 'read-result') d.story_qa = !!qa;
       var once = rfOnce(name);
       if (window.WQJ && once) window.WQJ.finish({ kind: name });
       // the story's own result, when the page handed it over (data.story_r), carries the ranked Next
       // folded, a practice run (Story Time is one) puts no sticker in the Book, so it says none
-      var rf = rfHtml(d.story_r, !once);
+      var rf = rfHtml(d.story_r, !once, null, null, d.story_hold);
       if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + rf + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); rfSound(once && rf); return; }
       h.show(name, h.jug('celebrate', t.storyAgain, true) + rf + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', toGames())) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
       rfSound(once && rf);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
-      wordsAfter(function () { storyEnd(name, qa, r); });
+      wordsAfter(function () { storyEnd(name, qa, r, hold); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t, r: d.story_r });
     }
     // "Show me the words" after a practice listen's questions (show_words; never a counted listen or a class round):
@@ -647,7 +652,7 @@
         return;
       }
       // folded, the card has no Try again of its own: a 0-word try gets it in the moment
-      var rf = rfHtml(r, !once, line, fold() && r.again && !hold ? h.t.again : null);
+      var rf = rfHtml(r, !once, line, fold() && r.again && !hold ? h.t.again : null, hold);
       if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(once && rf); rfAgain(rf, d); return; }
       h.show(name, h.jug(pose, line, true) + wait + rf + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
       rfSound(once && rf); rfAgain(rf, d);
@@ -661,14 +666,14 @@
     // of lights with the speed beside it, stars, the child's own last read, a badge. r.rf: the read as the page knows it
     // (the live count, then the checked result). Key off, file not here or a class round: nothing (today's card)
     // still: a redraw of a result already answered (the moment laid in without its motion again); said: Jugnu's line;
-    // retry: the Try again label (folded 0-word card)
+    // retry: the Try again label (folded 0-word card); hold: a card before the check (no "read it again" offer yet)
     var rfFb = null;
-    function rfHtml(r, still, said, retry) {
+    function rfHtml(r, still, said, retry, hold) {
       rfFb = null;
       var md = h.md() || {};
       if (md.read_feedback !== true || !window.WQMoment || !r || !r.rf || (h.S.data || {}).round_turn) return '';
       rfFb = window.WQMoment.feedback(r.rf);
-      return window.WQMoment.card(rfFb, L, { grade: md.form, still: still, said: said, retry: retry });
+      return window.WQMoment.card(rfFb, L, { grade: md.form, still: still, said: said, retry: retry, hold: hold });
     }
     // once per result (key on): the finish beat and Jugnu's sound on a result's first card only; the checked redraw and
     // the words redraw lay the card in silently. Key off: every draw, as today
@@ -691,7 +696,7 @@
       if (window.WQFC && (h.md() || {}).card_v3 && window.WQFC.unheard(r, words, heard, storyLen(d))) { endCard('read-result', 'hello', window.WQFC.triedLine(L, r), Object.assign({}, r || {}, { again: !(r && r.later), qa: false, noSticker: true, tried: true, hold: !!hold })); return !!hold; }
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
-        storyEnd('read-result', !!(heard && d.questions_on), r);
+        storyEnd('read-result', !!(heard && d.questions_on), r, hold);
         return;
       }
       if (r && r.later) { endCard('read-result', 'hello', h.t.later, r); return; }
