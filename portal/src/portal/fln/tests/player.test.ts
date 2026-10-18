@@ -16,6 +16,8 @@ class FakeAudio extends EventTarget {
   preload = '';
   loop = false;
   readyState = 0;
+  /** HTMLMediaElement.networkState: 0 EMPTY, 1 IDLE, 2 LOADING, 3 NO_SOURCE */
+  networkState = 0;
   dataset: Record<string, string> = {};
   playCalls = 0;
   loads = 0;
@@ -610,6 +612,43 @@ describe('A2 big clips on a slow line: no give-up while bytes are still arriving
     vi.advanceTimersByTime(6000);
     expect(last('a').s).toBe('error');
     expect(r.events.find((e) => e.kind === 'audio_error')).toMatchObject({ result: 'error-timeout', ms: 6000 });
+  });
+
+  it('QA-A2-switch: a tap on a warm load still mid-stream at readyState 0 is not switched at 2.5 s; it plays from the mirror', async () => {
+    const { r, player, last } = setup(['a']);
+    player.warm(['a']);
+    await flush();
+    const el = elOf(r, 'a')!;
+    el.networkState = 2; // bytes flowing on the wire, but no headers parsed yet (a headerless CBR mp3 needs ~80 KB)
+    player.toggle('a');
+    vi.advanceTimersByTime(3000); // no byte event at all for 3 s (dbg_ur_a2: waiting, stalled)
+    expect(el.src).toBe('https://m.example/a.mp3');
+    expect(last('a').s).toBe('loading');
+    el.readyState = 1;
+    el.fire('loadedmetadata');
+    trickle(el, 0, 3000);
+    el.fire('playing');
+    expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ result: 'ok-mirror' });
+    expect(r.events.filter((e) => e.kind === 'audio_error')).toHaveLength(0);
+  });
+
+  it('QA-A2-switch guard: a mid-stream warm load that never yields a byte moves to orig at the give-up, then orig gets its own window', async () => {
+    const { r, player, last } = setup(['a']);
+    player.warm(['a']);
+    await flush();
+    const el = elOf(r, 'a')!;
+    el.networkState = 2;
+    player.toggle('a');
+    vi.advanceTimersByTime(5999);
+    expect(el.src).toBe('https://m.example/a.mp3');
+    vi.advanceTimersByTime(1);
+    expect(el.src).toBe('https://o.example/a.mp3');
+    expect(last('a').s).toBe('loading');
+    vi.advanceTimersByTime(5999);
+    expect(last('a').s).toBe('loading');
+    vi.advanceTimersByTime(1);
+    expect(last('a').s).toBe('error');
+    expect(r.events.find((e) => e.kind === 'audio_error')).toMatchObject({ result: 'error-timeout', ms: 12000 });
   });
 
   it('a new tap during the extended wait stops the first clip (A4) and its old deadline never fires', () => {

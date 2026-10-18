@@ -61,6 +61,10 @@ interface Session {
   gotByte: boolean;
   /** now() at the last byte event (progress / loadedmetadata / loadeddata / canplay) on the current source. */
   lastByteAt?: number;
+  /** The tap found its warm load mid-stream with no parsed bytes yet (QA-A2-switch): counted as a first byte, unproven. */
+  assumedByte?: boolean;
+  /** now() when the current source's give-up window opened (the tap, or the late move to `orig`). */
+  windowAt: number;
   triedOrig: boolean;
   /** Nothing of this clip was buffered at the tap: it streams over the line and the warm queue waits for it. */
   cold: boolean;
@@ -69,6 +73,7 @@ interface Session {
 }
 
 const HAVE_METADATA = 1;
+const NETWORK_LOADING = 2;
 const HAVE_FUTURE_DATA = 3;
 
 export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
@@ -312,17 +317,23 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     const url = e.preferOrig ? e.clip.orig : e.clip.src;
     const source: Source = e.preferOrig ? 'orig' : 'mirror';
     const buffered = e.url === url && el.readyState >= HAVE_METADATA;
+    // QA-A2-switch: a warm load still streaming on this URL has bytes on the wire before the element parses any (a
+    // headerless CBR mp3 reaches loadedmetadata only after ~80 KB). Aborting it at 2.5 s threw away a nearly complete
+    // download; it counts as a first byte, and the give-up moves it to `orig` if no real byte follows.
+    const midStream = !buffered && e.url === url && el.networkState === NETWORK_LOADING;
 
     const s: Session = {
       id, owner, el, source, t0,
-      gotByte: buffered,
+      gotByte: buffered || midStream,
+      assumedByte: midStream,
+      windowAt: t0,
       cold: !buffered,
       triedOrig: source === 'orig' || e.clip.orig === e.clip.src,
       timers: [],
       off: () => {},
     };
 
-    const onByte = () => { s.gotByte = true; s.lastByteAt = now(); };
+    const onByte = () => { s.gotByte = true; s.assumedByte = false; s.lastByteAt = now(); };
     const onPlaying = () => {
       if (active !== s) return;
       s.timers.forEach((t) => clearT(t));
@@ -379,13 +390,21 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
    */
   function giveUpCheck(s: Session) {
     if (active !== s || states.get(s.id)?.state === 'playing') return;
-    const base = s.t0 + timing.giveUpMs;
-    const ceiling = s.t0 + timing.ceilingMs;
+    const base = s.windowAt + timing.giveUpMs;
+    const ceiling = s.windowAt + timing.ceilingMs;
     const stallAt = s.lastByteAt === undefined ? -Infinity : s.lastByteAt + timing.stallMs;
     const due = Math.min(ceiling, Math.max(base, stallAt));
     const t = now();
     if (t < due) {
       s.timers.push(setT(() => giveUpCheck(s), due - t));
+      return;
+    }
+    // A mid-stream warm load that never produced a byte: try `orig` once, with its own window, before the A6 state.
+    if (s.assumedByte && s.source === 'mirror' && !s.triedOrig) {
+      switchToOrig(s);
+      s.assumedByte = false;
+      s.windowAt = t;
+      s.timers.push(setT(() => giveUpCheck(s), timing.giveUpMs));
       return;
     }
     fail(s, due >= ceiling && stallAt > ceiling ? 'error-ceiling' : stallAt > base ? 'error-stall' : 'error-timeout');
