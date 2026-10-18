@@ -743,7 +743,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (LANG === 'ur' && B.ur_share === true) {
     T = Object.assign({}, T, {
       sharePlain: 'دوستوں کو بھیجیں',
-      shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!'; },
+      shareLine: function (w, s, n, t) { return '\u2068' + w + '\u2069 نے \u2068' + t + '\u2069 میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:'; },
       whoStreet: 'محلے میں کوئی دوست',
       chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
