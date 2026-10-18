@@ -29,6 +29,7 @@ const Play = require('../../../shared/services/quiz/web-quiz-hub-play');
 const Home = require('../../../shared/services/quiz/web-quiz-hub-home');
 const ClassDoors = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
 const redis = require('../../../shared/services/cache/railway-redis.service');
+const WatchRoot = require('../../../shared/services/quiz/watch-root');
 
 const KID = '44444444-4444-4444-8444-000000000071';
 const TEACHER = '11111111-1111-4111-8111-000000000071';
@@ -62,6 +63,7 @@ function seed(settings, over = {}) {
   Play._resetCache();
   Home._resetCache();
   ClassDoors._resetCache();
+  WatchRoot._resetCache();
 }
 
 beforeEach(() => {
@@ -88,7 +90,9 @@ describe('web_quiz_class_doors on the hub', () => {
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.home_v3).toBe(1);
     const k = T.chipId('sc-1', KID);
-    expect(out.class_doors).toEqual({ class: `/q/MATH01/class?k=${encodeURIComponent(k)}`, schools: `/q/MATH01/schools?k=${encodeURIComponent(k)}` });
+    // the hub's own language travels on both links, so the table and the league open in it
+    expect(out.class_doors).toEqual({ class: `/q/MATH01/class?k=${encodeURIComponent(k)}&lang=${out.lang}`, schools: `/q/MATH01/schools?k=${encodeURIComponent(k)}&lang=${out.lang}` });
+    expect(out.lang).toMatch(/^(en|ur)$/);
   });
 
   test('the newest class quiz wins; a friend\'s challenge code or a library lesson code is never the class', async () => {
@@ -112,7 +116,6 @@ describe('web_quiz_class_doors on the hub', () => {
 
   // The watch root (app_settings VALUE web_quiz_watch_root) has no parent, so the hub counts it as teacher-sent; its table
   // is every school's strangers. A newer run on it (or on a video code under it) never takes the home's class doors.
-  // (The fold tests' ids: watch-root.js caches the root's id for 30 s across tests.)
   test('the watch root and a video code under it are never the class: the doors name the class quiz', async () => {
     const ROOT = '66666666-6666-4666-8666-000000000071';
     const WATCH = '77777777-7777-4777-8777-000000000071';
@@ -128,7 +131,6 @@ describe('web_quiz_class_doors on the hub', () => {
         { id: 's2', share_code_id: ROOT, quiz_id: 'q-1', student_id: KID, status: 'completed', correct_answers: 5, total_questions_answered: 10, mastery_percentage: 50, completed_at: ago(1), created_at: ago(1), student_class: '3' },
       ],
     });
-    jest.setSystemTime(NOW + 60 * 1000); // past watch-root.js's own 30 s cache, which earlier tests filled with "no root"
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.class_doors.class).toMatch(/^\/q\/MATH01\/class\?k=/);
     expect(out.class_doors.schools).toMatch(/^\/q\/MATH01\/schools\?k=/);
@@ -188,9 +190,7 @@ describe('web_quiz_class_doors on finish\'s fold', () => {
     ...over,
   });
   test('a run on the watch root or on a video code under it: never class_doors (a class child keeps no_class off)', async () => {
-    seed([...HOME_ON, ON(CD), { key: 'web_quiz_watch_root', value: ROOT }]);
     seed([...HOME_ON, ON(CD), { key: 'web_quiz_watch_root', value: ROOT }], rootCodes());
-    jest.setSystemTime(NOW + 60 * 1000); // past watch-root.js's own 30 s cache, which earlier tests filled with "no root"
     expect(await Door.foldField({ ...RUN, id: 's2', share_code_id: ROOT })).toEqual({ card_fold: true });
     expect(await Door.foldField({ ...RUN, id: 's3', share_code_id: WATCH })).toEqual({ card_fold: true });
     expect(await Door.foldField(RUN)).toEqual({ card_fold: true, class_doors: true });
