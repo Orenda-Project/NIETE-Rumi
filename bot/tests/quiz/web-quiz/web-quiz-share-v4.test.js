@@ -13,12 +13,14 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(
 jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToImage: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-hub-device', () => ({ deviceTrusted: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-bank', () => ({ bank: jest.fn() }));
+jest.mock('../../../shared/services/quiz/web-quiz-video-thumb', () => ({ thumb: jest.fn(), VERSION: '1' }));
 
 const crypto = require('crypto');
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
 const { bank } = require('../../../shared/services/quiz/web-quiz-bank');
+const { thumb } = require('../../../shared/services/quiz/web-quiz-video-thumb');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 const { deviceTrusted } = require('../../../shared/services/quiz/web-quiz-hub-device');
 
@@ -36,7 +38,7 @@ function seed({ card = true, share = false } = {}) {
     quiz_share_codes: [{ id: 'sc-1', code: 'CLS001', quiz_id: 'qz-1', topic: 'Plants', language: 'en', active: true }],
     students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Noor Testwala' }, { id: 'st-3', student_name: 'Noor Testwala', list_id: 'list-1' }],
     quiz_sessions: [{ id: '0f8e2c1a-1b2c-4d5e-8f90-a1b2c3d4e5f6', quiz_id: 'qz-1', student_id: 'st-1', student_name: 'Amal Testwala', share_code_id: 'sc-1', status: 'completed' }],
-    story_books: [{ id: BOOK, status: 'ready', title: 'The lost kite' }, { id: DRAFT, status: 'draft', title: 'Not yet' }],
+    story_books: [{ id: BOOK, status: 'ready', title: 'The lost kite', cover_file: 'cover.webp' }, { id: DRAFT, status: 'draft', title: 'Not yet' }],
   };
 }
 
@@ -46,6 +48,8 @@ function useDb(o) {
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   Card._reset();
 }
+// the card shows a child's first name: fixtures are "<Name> Testwala", the card gets the first word
+const firstOf = (full) => full.split(' ')[0];
 beforeAll(async () => {
   process.env.INTERNAL_API_KEY = 'share-key';
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
@@ -61,6 +65,7 @@ afterAll(() => new Promise((r) => server.close(r)));
 beforeEach(() => {
   useDb({ share: true });
   bank.mockResolvedValue({ rows: [{ id: VID, r2_url: 'x', clean_title: 'Parts of a plant' }] });
+  thumb.mockResolvedValue({ bytes: Buffer.from('w'), contentType: 'image/webp' });
 });
 
 const ct = () => T.signChallenge({ studentId: 'st-2', ex: 'read', runId: 'run-1' });
@@ -155,12 +160,32 @@ describe('the item a share lands on', () => {
   });
   test('the landing: the mark in its colour, the name of what it lands on, today\'s return words (en and ur)', async () => {
     const { body } = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
-    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en'), v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite' });
+    // the join words carry the item's short ref (the bot lands the new child on it)
+    const words = `${Card.CARD_RETURN_WORDS.en} jb3b9c1e2a`;
+    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: { ...Card.returnLine('en'), words, href: `https://wa.me/15550001111?text=${encodeURIComponent(words)}` }, v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite', item_cover: `/s/${BOOK}/cover.webp`, ref: 'jb3b9c1e2a' });
     const ur = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
-    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: Card.returnLine('ur'), item_title: 'Parts of a plant' });
+    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: { text: Card.returnLine('ur').text, cta: Card.returnLine('ur').cta }, item_title: 'Parts of a plant', item_cover: `/wq/vt/${VID}.webp?v=1`, ref: 'jva1b2c3d4' });
     // a door finish (a Jugnu read) names no item
     const rd = await mint({ kind: 'read', deed: 'read_all' });
     expect(await landing(rd.body.token)).not.toHaveProperty('item_title');
+    expect(await landing(rd.body.token)).not.toHaveProperty('item_cover');
+  });
+  test('the landing\'s cover: only a picture that exists, never a broken one', async () => {
+    // a lesson with no small picture (no poster, the shelf off, a failure): the name stays, no cover
+    thumb.mockResolvedValue(null);
+    const v = await mint({ kind: 'video', deed: 'video_watched', item: { type: 'video', id: VID } });
+    const lv = await landing(v.body.token);
+    expect(lv.item_title).toBe('Parts of a plant');
+    expect(lv).not.toHaveProperty('item_cover');
+    thumb.mockRejectedValue(new Error('down'));
+    expect(await landing(v.body.token)).not.toHaveProperty('item_cover');
+    // a book whose cover file is not a cover file name: no cover
+    const fake = makeFake({ ...seed({ share: true }), story_books: [{ id: BOOK, status: 'ready', title: 'The lost kite', cover_file: '../x.webp' }] });
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    const b = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
+    const lb = await landing(b.body.token);
+    expect(lb.item_title).toBe('The lost kite');
+    expect(lb).not.toHaveProperty('item_cover');
   });
 });
 
@@ -168,14 +193,14 @@ describe('the picture: one theme, one mark per activity', () => {
   test('a token minted with the switch off draws today\'s card, byte for byte, for every deed and language', () => {
     for (const [k, h] of Object.entries(GOLDEN)) {
       const [kind, deed, lang] = k.split('|');
-      expect([k, sha(Card.renderCard({ kind, deed, lang, first: lang === 'ur' ? 'امل' : 'Amal' }, { fonts: false }))]).toEqual([k, h]);
+      expect([k, sha(Card.renderCard({ kind, deed, lang, first: lang === 'ur' ? firstOf('امل Testwala') : firstOf('Amal Testwala') }, { fonts: false }))]).toEqual([k, h]);
     }
   });
   test('a one-share token draws its ribbon and colour; each activity its own', () => {
     const seen = new Set();
     for (const kind of Object.keys(Card.DEEDS)) {
       for (const lang of ['en', 'ur']) {
-        const html = Card.renderCard({ kind, deed: Card.DEEDS[kind][0], lang, first: 'Amal', v4: true }, { fonts: false });
+        const html = Card.renderCard({ kind, deed: Card.DEEDS[kind][0], lang, first: firstOf('Amal Testwala'), v4: true }, { fonts: false });
         expect(html).toContain(`<div class="rib">${Card.MARK[kind][lang]}</div>`);
         expect(html).toContain(`border-bottom-color:${Card.MARK[kind].c}`);
         expect(html).not.toMatch(/\b(test|exam|assessment)\b|امتحان|ٹیسٹ/i);

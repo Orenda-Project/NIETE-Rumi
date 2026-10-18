@@ -6,6 +6,7 @@
  * (the join's switches, read by student-ingress) and the teacher weekly report's switch.
  *
  *   (1) 20 calls during an outage (the read throws, or returns { error }) → 1 read and 1 log line
+ *       (the identity roster's try on a { error } read is 2 queries and 2 log lines: with one voice, then its two switches alone)
  *   (2) after the TTL → exactly 1 more read
  *   (3) recovery: an outage, then a good read after the TTL → the good value
  *   (4) last known ON, then an outage → ON for the TTL; never read, then an outage → OFF
@@ -46,14 +47,14 @@ const TTL = 30 * 1000;
 const MODULES = [
   { name: 'one-door.flags', reset: () => OneDoor._resetCache(), call: (now) => OneDoor.flags(now), on: (r) => r.on === true,
     onRows: [{ key: 'quiz_one_door', value: true }], offRows: [{ key: 'quiz_one_door', value: false }],
-    offShape: { on: false, ownCap: 20, eventsV3: false, teacherHome: false, doorUncapped: false } },
+    offShape: { on: false, ownCap: 20, eventsV3: false, teacherHome: false, doorUncapped: false, doorDedupe: false, doorCeiling: null, adv: false } },
   { name: 'walk-persona', reset: () => Walk._resetCache(), call: (now) => Walk.flagOn(now), on: (r) => r === true,
     onRows: [{ key: 'quiz_test_personas', value: true }], offRows: [], offShape: false },
   { name: 'web-quiz-link-known', reset: () => LinkKnown._resetCache(), call: (now) => LinkKnown.isOn(now), on: (r) => r === true,
     onRows: [{ key: 'web_quiz_link_known_child', value: true }], offRows: [{ key: 'web_quiz_link_known_child', value: 'true' }], offShape: false },
   { name: 'web-quiz-identity-roster', reset: () => Roster._resetCache(), call: (now) => Roster.watchRootState(now).then(async (s) => ({ ...s, mode: await Roster.identityMode(now) })),
     on: (r) => r.mode === 'v2', onRows: [{ key: 'web_quiz_identity', value: 'v2' }], offRows: [],
-    offShape: { root: null, unreadable: true, mode: null } },
+    offShape: { root: null, unreadable: true, mode: null }, fail: 2 },
   { name: 'web-quiz-identity-flags (student-ingress)', reset: () => IdFlags._resetCache(), call: (now) => IdFlags.flags(now), on: (r) => r.makerPage === true,
     onRows: [{ key: 'quiz_maker_page', value: true }], offRows: [],
     offShape: { canon: false, phoneBind: false, guestHome: false, makerPage: false, firstDoor: false } },
@@ -61,6 +62,9 @@ const MODULES = [
     onRows: [{ key: 'v10_weekly_report_enabled', value: true }], offRows: [], offShape: { enabled: false, approved: [] } },
 ];
 
+// queries (and log lines) one failed try costs: a read that returns { error } may be tried again inside the try (the
+// roster's two switches alone); a read that throws ends the try
+const tryCost = (m, kind = 'error') => (kind === 'error' && m.fail) || 1;
 const healthy = (rows) => { mockDb.mode = 'ok'; mockDb.rows = rows; };
 const down = (kind = 'error') => { mockDb.mode = kind; };
 const logLines = () => mockLog.mock.calls.length;
@@ -79,19 +83,19 @@ describe.each(MODULES)('$name', (m) => {
   test.each(['error', 'throw'])('(1) 20 calls during an outage (read %s) → 1 read, 1 log line, all OFF', async (kind) => {
     down(kind);
     const answers = await twentyCalls(m, 0);
-    expect(mockDb.reads).toBe(1);
-    expect(logLines()).toBe(1);
+    expect(mockDb.reads).toBe(tryCost(m, kind));
+    expect(logLines()).toBe(tryCost(m, kind));
     for (const a of answers) expect(a).toEqual(m.offShape);
   });
 
   test('(2) after the TTL, still down → exactly 1 more read (and 1 more log line)', async () => {
     down();
     await twentyCalls(m, 0);
-    expect(mockDb.reads).toBe(1);
+    expect(mockDb.reads).toBe(tryCost(m));
     await m.call(TTL);
     await m.call(TTL + 1);
-    expect(mockDb.reads).toBe(2);
-    expect(logLines()).toBe(2);
+    expect(mockDb.reads).toBe(2 * tryCost(m));
+    expect(logLines()).toBe(2 * tryCost(m));
   });
 
   test('(3) recovery: an outage, then the first good read after the TTL takes effect', async () => {
@@ -100,7 +104,7 @@ describe.each(MODULES)('$name', (m) => {
     healthy(m.onRows);
     expect(m.on(await m.call(TTL - 1))).toBe(false);   // still the failed read's window
     expect(m.on(await m.call(TTL))).toBe(true);
-    expect(mockDb.reads).toBe(2);
+    expect(mockDb.reads).toBe(tryCost(m) + 1);
   });
 
   test('(4a) last known ON, then an outage → ON for the TTL, one read', async () => {
@@ -109,8 +113,8 @@ describe.each(MODULES)('$name', (m) => {
     down();
     const answers = await twentyCalls(m, TTL);
     for (const a of answers) expect(m.on(a)).toBe(true);
-    expect(mockDb.reads).toBe(2);
-    expect(logLines()).toBe(1);
+    expect(mockDb.reads).toBe(1 + tryCost(m));
+    expect(logLines()).toBe(tryCost(m));
   });
 
   test('(4b) never read, then an outage → OFF', async () => {

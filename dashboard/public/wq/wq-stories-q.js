@@ -54,7 +54,12 @@
 
   S._q = function (R) {
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
-    var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null;
+    var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null, rd = null;
+    // the reading moment (the book's read_fb: web_quiz_read_feedback): its file comes with this one, once
+    if (b.read_fb && !W.WQMoment && !S._rfAsked) { S._rfAsked = 1; K.load('wq-moment.js', 'wq-moment.css', function () {}); }
+    // this page's read answered after Your turn (wq-moment.js page(): small, and "Hear Jugnu say it" on a skipped word)
+    function Mq(k, x) { return b.read_fb && W.WQMoment ? W.WQMoment.q(k, R, m, x) : ''; }
+    function rfHtml(st) { return rd && rd.i === m.i ? Mq('page', { rd: rd, st: st, sents: sents }) : ''; }
     // the questions and the done screen come in their own file, the first time a child gets there
     function dv(v) {
       return function () {
@@ -71,20 +76,28 @@
       };
     }
     function live() { return R.live(); }
+    // the mic is on only while a child reads: off when a read ends, the page or reader is left, or it comes too late
+    function stopTracks(s) { try { s.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {} }
+    function free() { stopTracks(stream); stream = null; }
+    var set0 = m.set, go0 = m.go;
+    m.set = function (st) { if (st != 'reading' && st != 'echo') free(); return set0.apply(m, arguments); };
+    m.go = function () { free(); return go0.apply(m, arguments); };
     // the page's lines after Your turn (the states below are reached only through this file): praise, a word to
     // practise, the kind words, Read it together
     R.ex = function (s, p) {
       var w = p.words && p.words[m.skip], h = '';
       var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
-      if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
-      else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      var rf = /^(read|practise|together)$/.test(s) ? rfHtml(s) : '';
+      if (s === 'practise' && w) h = rf + '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
+      else if (s === 'read' || s === 'practise') h = rf || '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      else if (s === 'together' && rf) h = rf + (rd.fb.zero ? '' : '<p>' + esc(t.together) + '</p>');
       else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
-      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
+      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(rf ? Mq('withJ') : t.echoB) + '</button>';
       return h;
     };
     var micO = {
-      lang: L, src: 'story', ev: ctx.ev, hash: !!b.steady,
-      onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
+      lang: L, src: 'story', ev: ctx.ev, hash: !!b.steady, notice: { kid: ctx.kid, keep: !!b.lr3_keep },
+      onStream: function (s) { if (m.st == 'mic' && R.live()) { free(); stream = s; m.granted(); } else stopTracks(s); },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') m.notNow(); },
     };
@@ -98,7 +111,7 @@
     function spoken(ws) { return ws.filter(function (w) { return !w.silent; }); }
     function lrOn(ws, cb) {
       var p = P[m.i], o = {
-        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false,
+        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr,
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
         getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { if (!r.ok || r.body.error) R.keyNo = 1; return r.body; }, function (x) { R.keyNo = 1; throw x; }); },
@@ -118,11 +131,11 @@
 
     function readScreen() {
       var p = P[m.i], LR = W.WQLiveRead, c, lh = '<div class="wqs-lr" data-lr></div>', st;
-      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, marks: [] }; }
+      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
-        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
+        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + Mq('line') + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
       // the camera frames every line of the part being read, whole (both edges, any writing direction), once, and holds
       // still while the child reads (a line's own zoom, or the larger-print floor, would push lines off the edge)
@@ -133,27 +146,42 @@
       var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
       if (!sw.length) return back({ words_total: 0 });
       try { lrOn(sw, back); } catch (e) { m.denied(); return; }
+      var r0 = C.now();
       R.poll = C.set(function tick() {
         var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]');
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
+        Mq('tick', { g: g, v: v, ms: C.now() - r0 });
         if (R.lr) R.poll = C.set(tick, 500);
       }, 500);
     }
     function result(r) {
       if (m.st !== 'reading') return;
       r = r || {};
-      ['words_total', 'words_read', 'skipped', 'ms'].forEach(function (k) { sum[k] += +r[k] || 0; });
+      ['words_total', 'words_read', 'skipped', 'ms', 'absorbed'].forEach(function (k) { sum[k] += +r[k] || 0; });
       sum.ended = r.ended; sum.marks = sum.marks.concat(r.marks || []);
       if (++ci < ck.length && !stopAll && r.ended !== 'hidden') { R.drop(); return readScreen(); }
       var s = sum;
       sum = null;
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
-      R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, m.i);
+      var d = { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read', absorbed: s.absorbed || void 0 }, n = micO.notice;
+      if (n.shown && n.keep) { d.notice = 2; n.shown = 0; }   // the kept notice was shown: once, for the Trail (TrailPage.NOTICE_V)
+      R.pp('story_page_read', d, m.i);
+      if (b.lrr) s = W.WQLiveRead.practice(s, P[m.i].words, true);
+      rd = { s: s, i: m.i };
       m.result(s);
+      // Jugnu's sound for it (the badge jingle; the soft chime after a 0-word try)
+      if (rd.fb && W.WQMoment) W.WQMoment.sound(root.querySelector('[data-rf]'), rd.fb);
+      Mq('after');
     }
 
-    function eGo() { eo = { s: sents(P[m.i].words), k: 0, f: m.st }; m.set('echo'); }
+    function eGo() {
+      eo = { s: sents(P[m.i].words), k: 0, f: m.st };
+      // the read gave the mic back: the live reader asks again inside this tap
+      var LR = W.WQLiveRead, again = !stream && LR && LR.micAgain && LR.micAgain(), me = eo;
+      if (again) again.then(function (s) { if (eo == me && m.st == 'echo' && R.live()) stream = s; else stopTracks(s); }, function () {});
+      m.set('echo');
+    }
     function eScreen() {
       var p = P[m.i];
       paint(scr('story-echo', L, top(L, ic(t, 'eend', t.close, '✕'), b.title, 1) +
@@ -220,8 +248,8 @@
       if (m.st === 'listening') { if (R.pl) R.pl.pause(); if (m.st === 'listening') m.set(m.l[m.i] ? 'listened' : 'paused'); }
       R.word(-1); line();
     }
-    // while Jugnu reads: starved of data (readyState under HAVE_FUTURE_DATA) the clock stops at once; the kind line at
-    // 3 s; the rest at 3 s once the voice had played (10 s while it first loads), or at once when the phone is offline.
+    // starved of data while Jugnu reads: the clock stops at once, the kind line at 3 s, the rest at 3 s once the voice
+    // had played (10 s while it first loads), at once offline.
     // Once it plays, the next page's voice and picture are warmed (never before the child's first Listen).
     function watch() {
       if (nt || !on) return;
@@ -239,7 +267,7 @@
         nt = C.set(tk, 500);
       }, 500);
     }
-    // the next page's picture and voice, once this page's voice plays (without the setting: wq-stories.js, on every page drawn)
+    // the next page's picture and voice once this page's voice plays (setting off: wq-stories.js, every page)
     function warm() {
       var nx = P[m.i + 1];
       wq[m.i] = 1;
@@ -282,7 +310,7 @@
       for (k = 0; k < im.length; k++) { if (im[k].complete && im[k].naturalWidth) return hide(); if (im[k].addEventListener) im[k].addEventListener('load', hide); }
     }
     R.ph = ph;
-    // the main button keeps its old meaning (and colour) for 600 ms after it changes: a late tap never lands on the new one
+    // the main button keeps its old meaning for 600 ms after a change: a late tap never lands on the new one
     R.sy = function (mb, lab) {
       var o = R.ml;
       ph();
@@ -292,7 +320,7 @@
       R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk';
       C.set(function () { if (R.ml === lab && / wqs-lk/.test(mb.className)) mb.className = 'wqs-main wqs-' + lab; }, 600);
     };
-    // window events while this book is open: all of them go when the book is left (R.kill), or at the latest the first time one fires after
+    // window events while this book is open: all go when the book is left (R.kill), at the latest when one fires after
     var wl = [];
     function onW(n, f) { var g = function () { if (!live()) return R.un(); f(); }; wl.push([n, g]); W.addEventListener(n, g); }
     R.un = function () { wl.forEach(function (x) { W.removeEventListener(x[0], x[1]); }); wl = []; };
@@ -302,11 +330,27 @@
       if (root.setAttribute) root.setAttribute('data-steady', '');
       onW('offline', function () { if ((m.st === 'listening' || eo) && !full(aud())) down(); });
       onW('online', function () { if ((R.nw || root.querySelector('.wqs-bad')) && /^(idle|paused|listened|together|denied|read|practise|picture)$/.test(m.st)) { R.nw = 0; R.re(); } });
-      onW('pagehide', function () { R.fl(1); });   // keepalive: the send outlives the closing in-app browser
+      onW('pagehide', function () { free(); R.fl(1); });   // keepalive: the send outlives the closing in-app browser
     }
+    // the mic is given back when the book is left (Back, Home, another book: kill -> R.un) and when the tab closes
+    // (pagehide: with the setting on, the listener above); no listener of its own stays on the window
+    else if (W.addEventListener) onW('pagehide', free);
+    var un0 = R.un;
+    R.un = function () { free(); un0(); };
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
 
+    // Slower turned on (its switch) while the page waits is heard in the tap: before the first Listen it is that Listen;
+    // else this (or, heard to the end, the last) sentence again from its first word's own start; rate() keeps the pauses
+    function slw() {
+      var p = R.pl, ws = P[m.i].words, k = p && p.current, s = 0, o;
+      try { o = W.localStorage.getItem('wq_st_slow:' + (ctx.kid || '')) !== '1'; } catch (e) { /* off */ }
+      if (!b.slow_gaps || !o || !p || !/^(idle|paused|listened)$/.test(m.st)) return;
+      p.slow(1, b.slow_gaps);
+      if (k < 0 && m.st !== 'listened') return m.label() === 'listen' ? m.primary() : m.altTap();
+      sents(ws).forEach(function (x) { if (k < 0 || x[0] <= k && k <= x[1]) s = x[0]; });
+      R.ac(1); p.seekToWord(s); p.audio.currentTime = ws[s].s_ms / 1000; m.set('listening');
+    }
     var A = {
       mic: micScreen, read: function () { sum = null; readScreen(); }, q: dv('q'), d: dv('d'), e: eScreen,
       act: function (tap, arg) {
@@ -317,8 +361,12 @@
         else if (tap === 'close') { if (m.st === 'mic') micO.onNotNow(); else m.notNow(); }
         else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }   // the word to practise (drawn by R.ex)
         else if (tap === 'echo') eGo();
+        else if (tap === 'rfagain') m.set('mic');
+        else if (tap === 'rfwith' && m.st === 'reading') { stopAll = 1; Mq('with'); }
+        else if (tap === 'rfhear' && rd) Mq('hear', { rd: rd, sents: sents });
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
+        else if (tap === 'slow') { slw(); return false; }   // wq-stories.js keeps the toggle
         else if (D) return D.act(tap, arg);
         else return false;
         return true;

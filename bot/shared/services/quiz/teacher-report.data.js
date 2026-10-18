@@ -47,6 +47,7 @@ const { v21On } = require('./quiz-v21-flag');
 const V21 = require('./teacher-report-v21');
 const SloCode = require('./quiz-slo-code');
 const FoldFlag = require('./report-fold-flag');
+const LivePreviewFlag = require('./reminder-live-preview-flag');
 // the fold-by-child rule and its facts read: one home, shared with the WhatsApp report's count
 const { childFacts, foldByChild, typedKey } = require('./report-fold');
 
@@ -291,6 +292,25 @@ function reminderText({ topic, link, language, played = null, of = null, classNa
   return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: lang, params: { topic: t, link } });
 }
 
+// The web quiz page's own link: /q/<CODE> (the page's CODE_RX), an optional trailing slash, an optional query, no fragment.
+const QUIZ_PAGE_LINK_RX = /^(https?:\/\/[^/?#\s]+\/q\/[A-Za-z0-9]{4,12}\/?)(\?[^#\s]*)?$/;
+
+/**
+ * quiz_reminder_live_preview: the reminder's quiz page link with ?v=<played>, the form the page's preview (dashboard
+ * ogImageFor) answers with the live class picture. `played` is a count only (1–10 digits). Any other link (a wa.me
+ * link, a fragment, a link that already names a v, not a /q/<CODE> page) is returned as it is. An existing query
+ * gets &v= (the page reads req.query.v whatever else the link carries).
+ */
+function withLivePlayed(link, played) {
+  if (!Number.isInteger(played) || played <= 0 || played > 9999999999) return link;
+  const m = QUIZ_PAGE_LINK_RX.exec(String(link || ''));
+  if (!m) return link;
+  const q = m[2] || '';
+  if (/[?&]v=/.test(q)) return link;
+  const sep = q.length <= 1 ? '?' : (q.endsWith('&') ? q : `${q}&`);
+  return `${m[1]}${sep}v=${played}`;
+}
+
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
 async function questionStats(quizId, counted, { codeOf = null } = {}) {
   const { data: qs, error } = await supabase.from('quiz_questions').select(QUESTION_COLS)
@@ -521,7 +541,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const lang = clampLanguage(quiz.language);
   const primary = sent ? codes.slice().sort(newestFirst)[0] || null
     : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
-  const foldOn = await FoldFlag.on();
+  // the fold switch and the reminder's live-preview switch: one shared settings read
+  const switches = await LivePreviewFlag.withFold();
+  const foldOn = switches.fold;
   const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
   const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
   const played = counting.map((s) => {
@@ -557,6 +579,11 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     }
   }
 
+  // quiz_reminder_live_preview (off by default): the reminder's link previews as the live class picture. A quiz only
+  // (a story's preview stays the story's), once a child has played.
+  const reminderLink = link && quiz.quiz_source !== 'story' && played.length > 0 && switches.live
+    ? withLivePlayed(link, played.length) : link;
+
   const report = {
     quiz: {
       id: quiz.id, topic: quiz.topic || '', subject: quiz.subject || null, grade: quiz.grade || null,
@@ -584,7 +611,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     reminder: link ? {
       language: lang,
       text: reminderText({
-        topic: quiz.topic, link, language: lang,
+        topic: quiz.topic, link: reminderLink, language: lang,
         ...(rosterView.state === 'known' ? { played: played.filter((p) => p.onList).length, of: rosterView.of, className: rosterView.className } : {}),
       }),
     } : null,
@@ -604,23 +631,31 @@ function weekStart(iso) {
 
 /**
  * @param {string} teacherId
- * @param {{days?: number, now?: number}} [opts]
+ * @param {{days?: number, now?: number, ownOnly?: boolean}} [opts] `ownOnly` (the teacher home's quick answer): the
+ *   teacher's own quizzes only, never the library quizzes they sent (each own quiz's row is the same either way: it
+ *   counts its own codes' sessions), with the class list read alongside the quizzes instead of after them; a story
+ *   row also carries its `book` (meta.story.book_id or null).
  */
-async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
+/** A story send's book id (as the jsonb path `meta->story->>book_id` reads it), or null. */
+const bookOf = (q) => { const b = q.meta && q.meta.story && q.meta.story.book_id; return b ? String(b) : null; };
+
+async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = false } = {}) {
   if (!teacherId) return null;
   const since = new Date(now - days * 86400000).toISOString();
+  const rosterSoon = ownOnly ? readRoster(teacherId).then((v) => ({ v }), (err) => ({ err })) : null;
   const { data: quizzes, error } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('teacher_id', teacherId).in('status', ['sent', 'report_sent']).gte('created_at', since)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   // The library quizzes this teacher sent (quiz_teacher_home), by their send date, among their own.
-  const sentList = await softly(() => sentQuizzes(teacherId, { since }), []);
+  const sentList = ownOnly ? [] : await softly(() => sentQuizzes(teacherId, { since }), []);
   const qs = sentList.length
     ? [...(quizzes || []), ...sentList].sort((a, b) => String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || '')))
     : quizzes || [];
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
-  const allSessions = await sessionsFor(codes.map((c) => c.id));
+  // The fold switch is read alongside the sessions (one round trip, not a serial one after them).
+  const [allSessions, foldOn] = await Promise.all([sessionsFor(codes.map((c) => c.id)), FoldFlag.on()]);
   const counted = countedSessions(allSessions, teacherId);
   // A storybook send's children count once they joined (story-teacher-report.js); a no-op when there is none.
   require('./story-teacher-report').countStoryJoins(counted, { quizzes: qs, sessions: allSessions, quizOfCode, count: (rows) => countedSessions(rows, teacherId, { opened: true }) });
@@ -632,12 +667,11 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   });
 
   let roster = null;
-  try { roster = await readRoster(teacherId); } catch (err) {
+  try { roster = rosterSoon ? await rosterSoon.then((r) => { if (r.err) throw r.err; return r.v; }) : await readRoster(teacherId); } catch (err) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
   // quiz_report_fold_by_child: a child not on the class list counts once per CHILD here too, so the teacher home
   // (which reads this count) names the same children as the quiz's own report; off, one row per record (today).
-  const foldOn = await FoldFlag.on();
   const listedOf = (q) => { const { one } = classOf(roster, q, null); return one ? new Set(one.kids.map((k) => k.id)) : null; };
   const offListOf = (q, rows, ids) => rows.filter((x) => !(ids && x.student_id && ids.has(x.student_id)));
   const facts = foldOn
@@ -667,6 +701,8 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
       subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
       // a library quiz this teacher SENT (sentQuizzes gives it sent_at); their own quizzes carry no key
       ...(q.sent_at ? { sent: true } : {}),
+      // the quick answer: a story send's book from this read's own meta (the home's "sent" pill, the pick's skip)
+      ...(ownOnly && q.quiz_source === 'story' ? { book: bookOf(q) } : {}),
     };
   });
 
@@ -693,7 +729,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
 }
 
 module.exports = {
-  quizReport, classReport, foldFinishers, reminderText, weekStart, gradesOf, listLabel,
+  quizReport, classReport, foldFinishers, reminderText, withLivePlayed, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,

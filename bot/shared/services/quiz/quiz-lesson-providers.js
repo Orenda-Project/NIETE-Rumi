@@ -86,12 +86,13 @@ function labelKeyFor(source) {
  * Every plan provider's lessons with no quiz yet, one list, newest first.
  * A provider that throws costs its own rows, never the menu.
  */
-async function listPlanLessons(teacherId, { since = null, limit = 20 } = {}) {
+async function listPlanLessons(teacherId, { since = null, limit = 20, light = false } = {}) {
   // QUIZ_MENU_LESSON_ROWS off: /quiz lists recordings and existing quizzes only, as before.
   if (!QuizMenuFlags.lessonRows()) return [];
   const lists = await Promise.all(planProviders().map(async (p) => {
     try {
-      return await p.list(teacherId, { since, limit });
+      // light (the teacher home's quick answer): a provider may start its independent reads together
+      return await p.list(teacherId, light ? { since, limit, light } : { since, limit });
     } catch (err) {
       logToFile('❌ quiz menu: a lesson provider failed — its lessons are left out', { source: p.source, error: err.message }, 'error');
       return [];

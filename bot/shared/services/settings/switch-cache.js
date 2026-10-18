@@ -10,6 +10,7 @@
  *   sw.get(now, { retryFailed: true })  the same, but a cached failed read is read once more (a caller that must not
  *                    let one blip decide, and is not on a hot path)
  *   sw.fresh(now)    → true while a good read is younger than ttlMs (a reader's prime() asks this)
+ *   sw.peek(now)     → that good read's value while fresh, else undefined; never reads (a never-waiting reader)
  *   sw.set(v, now)   another module's good read of the same rows (prime): kept as a good read
  *   sw.reset()       forget everything (tests)
  *
@@ -56,9 +57,11 @@ function cachedSwitch({ ttlMs, read, off, log } = {}) {
     failedAt = null;
   }
 
+  const peek = (now = Date.now()) => (fresh(now) ? good.value : undefined);
+
   function reset() { gen += 1; good = null; failedAt = null; inflight = null; }
 
-  return { get, fresh, set, reset };
+  return { get, fresh, peek, set, reset };
 }
 
 module.exports = { cachedSwitch };

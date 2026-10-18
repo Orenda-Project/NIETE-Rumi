@@ -1,0 +1,120 @@
+{
+ "quiz": {
+  "id": "22222222-2222-4222-8222-222222222222",
+  "code": "AB12CD",
+  "topic": "Months",
+  "lang": "en",
+  "dir": "ltr",
+  "voice_lang": "en",
+  "audio_pending": true,
+  "grade": "1",
+  "subject": "English",
+  "n": 2,
+  "questions": [
+   {
+    "qid": "5c432bf6-d600-4108-8c2d-0745c26b18ed",
+    "i": 1,
+    "text": "Which month comes after January?",
+    "pattern": "P6a",
+    "options": [
+     {
+      "slot": "B",
+      "text": "May",
+      "fb": "May is the fifth month."
+     },
+     {
+      "slot": "C",
+      "text": "March"
+     },
+     {
+      "slot": "A",
+      "text": "February"
+     },
+     {
+      "slot": "D",
+      "text": "June"
+     }
+    ],
+    "correct_slot": "A",
+    "why": "This is the sound of F",
+    "audio": {
+     "opts": [
+      "https://clips.example/bank/february.ogg",
+      "https://clips.example/bank/may.ogg",
+      "https://clips.example/bank/march.ogg",
+      "https://clips.example/bank/june.ogg"
+     ],
+     "q": "https://clips.example/bank/q1.ogg",
+     "why": "https://pub-0edccec5d5bd419782ba389c59faecac.r2.dev/quiz-audio-opus/Grade1EnglishAlphabetsRevisionGroupThreeQuestion1ExplanationAudio.ogg",
+     "fbs": [
+      null,
+      "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/5c432bf6-d600-4108-8c2d-0745c26b18ed/xb-sx-grace-00000004.ogg",
+      null,
+      null
+     ]
+    }
+   },
+   {
+    "qid": "99999992-9999-4999-8999-999999999999",
+    "i": 2,
+    "text": "Which month comes after January?",
+    "pattern": "P6a",
+    "options": [
+     {
+      "slot": "B",
+      "text": "May",
+      "fb": "May is the fifth month."
+     },
+     {
+      "slot": "D",
+      "text": "June"
+     },
+     {
+      "slot": "A",
+      "text": "February"
+     },
+     {
+      "slot": "C",
+      "text": "March"
+     }
+    ],
+    "correct_slot": "A",
+    "why": "February is the second month.",
+    "audio": {
+     "q": "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/q-sx-grace-00000001.ogg",
+     "opts": [
+      "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/a-sx-grace-00000002.ogg",
+      "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/b-sx-grace-00000002.ogg",
+      "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/c-sx-grace-00000002.ogg",
+      "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/d-sx-grace-00000002.ogg"
+     ],
+     "why": "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/why-sx-grace-00000003.ogg",
+     "fbs": [
+      null,
+      "quiz-audio/sandbox/22222222-2222-4222-8222-222222222222/en/99999992-9999-4999-8999-999999999999/xb-sx-grace-00000004.ogg",
+      null,
+      null
+     ]
+    }
+   }
+  ]
+ },
+ "cls": {
+  "label": null,
+  "teacher": "Teacher Example",
+  "chips": []
+ },
+ "live": {
+  "class_today": 0,
+  "ict_today_floor": 0
+ },
+ "video": null,
+ "preview": false,
+ "brand": "niete",
+ "art": {
+  "class": "l.AB12CD.iDI8r41E0Yib",
+  "schools": "s.AB12CD.rgAnxY1rxxFf",
+  "invite": null
+ },
+ "rt": false
+}

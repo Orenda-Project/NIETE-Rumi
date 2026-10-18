@@ -2236,14 +2236,14 @@
   }
  },
  "jg.keep.notice": {
-  "en": "Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone number any time by sending STOP on WhatsApp; the reading stays.",
-  "ur": "جگنو یہ ریکارڈنگ رکھتا ہے تاکہ ⁨{name}⁩ کی پڑھائی دیکھی جا سکے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ گھر کے بڑے کسی بھی وقت ⁦STOP⁩ بھیج کر فون نمبر ہٹا سکتے ہیں، ریکارڈنگ پھر بھی رہے گی۔",
+  "en": "Jugnu keeps {name}'s reading recordings, with no end date yet. Only the people who make Jugnu can listen. Sending STOP on WhatsApp removes this phone number; the recordings stay.",
+  "ur": "جگنو ⁨{name}⁩ کے پڑھنے کی ریکارڈنگ رکھتا ہے۔ ابھی طے نہیں کہ یہ کب تک رکھی جائے گی۔ یہ ریکارڈنگ صرف جگنو بنانے والے سن سکتے ہیں۔ واٹس ایپ پر ⁦STOP⁩ بھیجنے سے فون نمبر ہٹا دیا جاتا ہے، لیکن ریکارڈنگ موجود رہتی ہے۔",
   "surface": "page.trail",
-  "cap_cp": 200,
+  "cap_cp": 230,
   "switch": "web_quiz_challenge_keep_audio",
   "cp": {
-   "en": 189,
-   "ur": 199
+   "en": 192,
+   "ur": 226
   }
  },
  "jg.keep.notice_ok": {

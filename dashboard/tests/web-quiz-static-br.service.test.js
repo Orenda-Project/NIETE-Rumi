@@ -53,11 +53,15 @@ function bot(fast) {
 }
 
 const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+// This file is about the brotli copies, not the minified files: the router's own start-up minifying (esbuild over every
+// page file, in the background, competing with the brotli work for the CPU) is stood in for by one that returns each file as is.
+const NO_MINIFY = { transform: async (src) => ({ code: src }) };
+jest.setTimeout(30000);
 /** brotliOn: the switch the router is handed (undefined = the process's own web_quiz_brotli switch). */
 function build(fetchImpl, brotliOn) {
   const app = express();
   app.set('trust proxy', 1);
-  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, ...(brotliOn ? { brotliOn } : {}) }));
+  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, esbuild: NO_MINIFY, ...(brotliOn ? { brotliOn } : {}) }));
   return app;
 }
 
@@ -255,12 +259,12 @@ describe('(e) switch on: only a versioned URL is kept for a year', () => {
 });
 
 describe('(f) a minified copy\'s URL (?v=<hex>m) is not this handler\'s', () => {
-  test('passes to whatever serves it next (today: the plain file, a year)', async () => {
+  test('passes to whatever serves it next (the plain file, not kept: no-cache, so a minified copy replaces it once the switch is on)', async () => {
     await brOn();
     await getBr(srv, `/wq/wq.js?v=${V}`);
     const res = await get(srv, `/wq/wq.js?v=${V}m`, { 'accept-encoding': AE });
     expect(res.headers['content-encoding']).toBeUndefined();
-    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    expect(res.headers['cache-control']).toBe('no-cache');
     expect(res.body.equals(fs.readFileSync(path.join(PUB, 'wq.js')))).toBe(true);
   });
 });
@@ -379,6 +383,13 @@ describe('the switch web_quiz_brotli: JSON true only, remembered 30 s, never rea
     const hub = await get(srv, `/h/${TOKEN}`, { 'accept-encoding': AE });
     expect(hub.body.toString('utf8')).toContain('src="/wq/jugnu/hello.webp"');
     expect(hub.body.toString('utf8')).not.toContain('hello.webp?v=');
+    // nothing the switch adds: no picture map for the page scripts (they build today's bare URLs)
+    for (const page of [hub, await get(srv, '/q/AB12CD', { 'accept-encoding': AE })]) {
+      expect(page.body.toString('utf8')).not.toMatch(/WQJV|wqjv/);
+      expect(page.body.toString('utf8')).not.toMatch(/jugnu[^"]*\?v=/);
+    }
+    const unv = await get(srv, '/wq/jugnu/thinking.webp', { 'accept-encoding': AE });
+    expect(unv.headers['cache-control']).toBe('public, max-age=31536000, immutable');
   });
 });
 

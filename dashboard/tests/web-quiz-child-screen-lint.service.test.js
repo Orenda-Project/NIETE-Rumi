@@ -39,6 +39,9 @@ const FORBID = [
   { what: 'score out of (EN)', rx: /\bout of\b/i },
   { what: 'test word (EN)', rx: /\b(tests?|exams?|assessments?|egra|egma)\b/i },
   { what: 'test word (UR)', rx: UR_W('(ٹیسٹ|امتحان|جائزہ|اسیسمنٹ)') },
+  // who checks a child's reading: the words the microphone notice may never use (a parent's words name who listens)
+  { what: 'checker word (EN)', rx: /\b(checkers?|examiners?|assess(es|ed|ing|ors?)?)\b/i },
+  { what: 'checker word (UR)', rx: UR_W('جانچ(نے| کرنے) وال(ا|ے|ی)') },
   { what: 'lock (sign)', rx: /🔒|🔐/u },
   { what: 'lock (EN)', rx: /\block(ed|s)?\b/i },
   { what: 'lock (UR)', rx: UR_W('بند') },
@@ -353,6 +356,17 @@ describe('the lint catches each forbidden thing (a fake screen per row)', () => 
     ['test word (UR)', '<p>آج امتحان ہے</p>'],
     ['test word (UR)', '<p>یہ جائزہ ہے</p>'],
     ['test word (UR)', '<p>اسیسمنٹ</p>'],
+    ['checker word (EN)', '<p>One checker may listen</p>'],
+    ['checker word (EN)', '<p>Two checkers listen</p>'],
+    ['checker word (EN)', '<p>An examiner hears it</p>'],
+    ['checker word (EN)', '<p>We assess your reading</p>'],
+    ['checker word (EN)', '<p>Assessed by Jugnu</p>'],
+    ['checker word (EN)', '<p>Assessing now</p>'],
+    ['checker word (EN)', '<div title="assessor">x</div>'],
+    ['checker word (UR)', '<p>ایک جانچنے والا سن سکتا ہے</p>'],
+    ['checker word (UR)', '<p>جانچنے والے سنتے ہیں</p>'],
+    ['checker word (UR)', '<p>جانچنے والی سن سکتی ہے</p>'],
+    ['checker word (UR)', '<p>صرف ایک جانچ کرنے والا شخص سنے گا</p>'],
     ['lock (sign)', '<span class="wqc-pill">🔒</span>'],
     ['lock (EN)', '<small>Locked</small>'],
     ['lock (EN)', '<button aria-label="locked stop"></button>'],
@@ -596,5 +610,59 @@ describe('the hub and Book walks read each page\'s own copy: a test word in one 
   test.each(['en', 'ur'])('%s: wq-book.js (My lamps): every Book screen fails; the shipped copy passes', (lang) => {
     expect(failing(collectBook(lang, SRCS(['book']).book), lang)).toEqual([...BOOK_SCREENS].sort());
     expect(failing(collectBook(lang, SRCS().book), lang)).toEqual([]);
+  });
+});
+
+// ── the copy deck itself: every EN / UR line a child's surface may lift, whether or not a screen above draws it today ──
+// (the old microphone notice's «جانچنے والا» sat in a deck line no painted screen reached). A grown-up's own surface
+// leaves the walk by its declared `surface`; nothing else does. DECK_ALLOW pins a line by its EXACT text, so a changed
+// line is read again. Shrink-only, like ALLOW: '<key>.<lang>': [text, why].
+const DECK = require('../../bot/shared/config/copy.v2.json');
+const GROWN_UP_SURFACES = ['page.teacher', 'doc.statement'];
+const DECK_ALLOW = {
+  'jg.keep.sub.en': [DECK['jg.keep.sub'].retired && DECK['jg.keep.sub'].en, 'retired and held (the old keep question): no surface draws it; kept unchanged so old lifts stay traceable'],
+  'jg.keep.sub.ur': [DECK['jg.keep.sub'].retired && DECK['jg.keep.sub'].ur, 'retired and held (the old keep question): no surface draws it; kept unchanged so old lifts stay traceable'],
+  'bot.ping.invite.ur': ['جگنو کے چیلنج میں کھیلنے کے لیے کچھ نیا ہے۔ اپنا صفحہ کھولنے کے لیے یہاں ⁦/quiz⁩ بھیجیں۔ یہ پیغامات بند کرنے کے لیے ⁦STOP⁩ بھیجیں۔', '«بند کرنے» = "stop these messages" (the STOP line), not a lock'],
+};
+const deckLines = (deck) => {
+  const out = [];
+  for (const k of Object.keys(deck)) {
+    if (k === '_meta') continue;
+    const e = deck[k];
+    if (String(e.surface || '').split('+').every((s) => GROWN_UP_SURFACES.includes(s))) continue;
+    for (const lang of ['en', 'ur']) if (typeof e[lang] === 'string') out.push([`${k}.${lang}`, e[lang], lang]);
+  }
+  return out;
+};
+const deckHits = (deck) => deckLines(deck).filter(([id, v, lang]) => lint(v, lang).length && !(DECK_ALLOW[id] && DECK_ALLOW[id][0] === v)).map(([id]) => id);
+
+describe('the copy deck: no line a child\'s surface may lift carries a forbidden word', () => {
+  test('every child-surface line, EN + UR, passes the table (the grown-up surfaces aside)', () => {
+    expect(deckLines(DECK).length).toBeGreaterThan(300);
+    expect(deckHits(DECK)).toEqual([]);
+  });
+  test('a planted «جانچنے والا» / "checker" in a child line is caught, in either language', () => {
+    const d = JSON.parse(JSON.stringify(DECK));
+    d['jg.mic.say'].ur += ' ایک جانچنے والا سن سکتا ہے۔';
+    d['jg.mic.say'].en += ' One checker may listen.';
+    expect(deckHits(d)).toEqual(['jg.mic.say.en', 'jg.mic.say.ur']);
+  });
+  test('an allowed line is allowed only as written: one changed letter and it is read again', () => {
+    const d = JSON.parse(JSON.stringify(DECK));
+    d['bot.ping.invite'].ur = d['bot.ping.invite'].ur.replace('پیغامات', 'پیغام');
+    expect(deckHits(d)).toEqual(['bot.ping.invite.ur']);
+  });
+  test('a grown-up surface leaves the walk only when every surface it names is a grown-up\'s', () => {
+    const d = JSON.parse(JSON.stringify(DECK));
+    d['jg.rung.r1'].en += ' rank';
+    expect(String(d['jg.rung.r1'].surface)).toMatch(/page\.teacher/);
+    expect(deckHits(d)).toEqual(['jg.rung.r1.en']);
+  });
+  test('every DECK_ALLOW entry still names a line that exists and still hits (shrink-only)', () => {
+    for (const [id, [text]] of Object.entries(DECK_ALLOW)) {
+      const [k, lang] = [id.slice(0, id.lastIndexOf('.')), id.slice(id.lastIndexOf('.') + 1)];
+      expect(DECK[k][lang]).toBe(text);
+      expect(lint(text, lang).length).toBeGreaterThan(0);
+    }
   });
 });

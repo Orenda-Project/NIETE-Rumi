@@ -13,17 +13,24 @@
  *   buildPickPage({ t, lang, kids, bot? })  the children the server already knows for this phone (first names only):
  *                                 one → "Is it <First>?"; several → "Who is playing?" chips; then the notice sentences
  *                                 BEFORE "Yes, it's me" (POST /api/go/bind), and "None of these" → the one question.
- *   buildMessagePage({ id, lang, bot? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
- *                                   carry ONE "Open WhatsApp" tap (wa.me/<bot>?text=quiz) when `bot` is a dialable number
+ *   buildMessagePage({ id, lang, bot?, door? })  one line: go.stale (send "quiz" again), go.error, go.family; the first two
+ *                                   carry ONE "Open WhatsApp" tap (wa.me/<bot>?text=quiz) when `bot` is a dialable number;
+ *                                   with `door: true` (web_quiz_closed_way_back ON, read by the caller) they ALWAYS carry ONE tap
+ *                                   instead, its words the signed go.back sentence, its href wa.me/<bot>?text=quiz or,
+ *                                   with no number, whatsapp://send?text=quiz (chat-tap.js)
  *
  * Inline CSS and the one script are allowed by their sha256 in the page's Content-Security-Policy (sent as a header
- * and repeated in a <meta>). The token rides in a <script type="application/json"> block, never in a log. The page
+ * and repeated in a <meta>). `adv: true` (switch web_quiz_adventure_look, read with the door's own switch) draws the same
+ * page in the adventure look: <html class="wq-adv">, the shared token layer and this page's layer appended to the CSS
+ * (so its hash covers them), Jugnu's hello picture, the choices and the way back as the one button. Without it the
+ * page is today's, byte for byte. The token rides in a <script type="application/json"> block, never in a log. The page
  * keeps NOTHING that decides routing: it only READS the quiz page's own device ref ('wq_d') to ask the server.
  * 0 WhatsApp messages from any of these pages.
  */
 const crypto = require('crypto');
 const { clampLanguage } = require('../../config/ux-strings');
 const { str } = require('./one-door.strings');
+const { TOKENS_CSS } = require('./adventure-look');
 
 const sha = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('base64');
 function esc(s) {
@@ -65,6 +72,48 @@ const CSS = [
   '.no{display:block;width:100%;min-height:48px;border:2px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;font-size:18px;text-align:center;text-decoration:none;padding:6px 12px;cursor:pointer}',
   '[hidden]{display:none!important}',
 ].join('');
+
+// The adventure look: today's CSS, then the shared token layer, then this page's own layer (everything under
+// html.wq-adv). The one button paints from the variant's --fill / --on / --edge; a primary is 56 px, a secondary 52.
+// The map is always light: the look leaves out today's dark-mode colours (no colour name is redefined for it).
+const ADV_LAYER = [
+  // the map is painted on <html> (at least the screen's height, and as tall as the page): it fills the whole screen and
+  // scrolls with a long page, with no flat band under a short body
+  'html.wq-adv{color-scheme:light;min-height:100%;background-color:var(--ground);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}',
+  'html.wq-adv body{background:transparent}',
+  'html.wq-adv .jg{display:block;width:72px;height:72px;margin:0 auto -8px}html.wq-adv .go:has(#go-known:not([hidden])) .jg{display:none}',
+  'html.wq-adv .wq-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;min-height:var(--btn-h2);',
+  'padding:var(--sp-2) var(--sp-4);border:0;border-radius:var(--r-btn);background:var(--fill);color:var(--on);',
+  'box-shadow:var(--sh-btn);text-align:center;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;',
+  'transition:transform var(--dur-tap),box-shadow var(--dur-tap)}',
+  'html.wq-adv .wq-btn:active{transform:translateY(var(--press-y));box-shadow:var(--sh-press)}',
+  // two-line labels (Urdu, then English) stack without overlapping; the English line's space below is moved into the
+  // button's padding, so the two lines sit in the middle of the button and clear of its bottom edge
+  'html.wq-adv .wq-btn .en{color:inherit;line-height:1.1;margin-bottom:-5px}html.wq-adv .wq-btn:has(.en){padding-bottom:13px}html.wq-adv .lb small>[lang=ur]:only-child{display:block;margin-bottom:-5px}',
+  'html.wq-adv .wq-btn--primary{min-height:var(--btn-h);font-weight:800}',
+  'html.wq-adv .wq-btn--secondary{border:2px solid var(--line)}',
+  'html.wq-adv .wq-btn:disabled{--fill:var(--line);--on:var(--muted);--edge:var(--line);opacity:1;transform:none}',
+  'html.wq-adv .tile{flex-direction:row;justify-content:flex-start;gap:14px;min-height:112px;padding:19px 16px 9px;border-radius:var(--r-card);text-align:start}',
+  'html.wq-adv .tile.c{--fill:var(--tint);--edge:var(--gold-d);border-color:var(--gold)}',
+  'html.wq-adv .c .ic{color:var(--gold-d)}html.wq-adv .lb{align-items:stretch}',
+  'html.wq-adv .chip.wq-btn{width:auto;min-width:96px}',
+  'html.wq-adv .chip[aria-pressed=true]{--fill:var(--tint);--edge:var(--gold-d);border-color:var(--gold)}',
+  'html.wq-adv .sheet,html.wq-adv .msg{border:2px solid var(--line);background:var(--card);border-radius:var(--r-card);box-shadow:var(--sh-card)}',
+  'html.wq-adv .jg+.msg{margin-top:0}',
+  // the fold: "Yes, it's me" is on screen at first paint on a 360 x 780 phone, words unchanged. A tighter rhythm, the
+  // sheet's question and the role question above it a size smaller, the notice set smaller in its card (Urdu keeps
+  // line-height 1.9: no clipped Nastaliq)
+  'html.wq-adv .go{gap:10px}html.wq-adv .go>:first-child{margin-top:-8px}',
+  'html.wq-adv .sheet{gap:8px;padding:12px 14px}html.wq-adv .q{font-size:22px}html.wq-adv .q .en{font-size:16px}',
+  'html.wq-adv .notice{gap:4px}html.wq-adv .notice li{font-size:17px;line-height:1.9}html.wq-adv .notice li .en{font-size:14px;line-height:1.35}',
+  'html.wq-adv .go:has(#go-known:not([hidden])) h1{font-size:20px}html.wq-adv .go:has(#go-known:not([hidden])) h1 .en{font-size:15px}',
+].join('');
+const ADV_CSS = CSS.replace(/@media \(prefers-color-scheme:dark\)\{:root\{[^}]*\}\}/, '') + TOKENS_CSS + ADV_LAYER;
+// Jugnu says hello at the top of the role question and the way-back pages (the join screen's own picture, from this
+// site: a cache hit there); the sheets leave it out, so "Yes, it's me" stays as high as it is today
+const JUGNU = '<img class="jg" src="/wq/jugnu/hello.webp" alt="" width="72" height="72">';
+/** The one button's classes after a class list, only in the adventure look. */
+const btn = (adv, cls, kind) => (adv ? `${cls} wq-btn wq-btn--${kind}` : cls);
 
 // The one script. who-am-I after paint (with the quiz page's device ref, if this device has one); the role taps; the
 // device-known line; the pick chips; the bind. No library; it stores nothing.
@@ -110,20 +159,22 @@ const TEACHER_SVG = '<svg viewBox="0 0 64 64" width="60" height="60"><path d="M3
   + '<path d="M16 21h15M16 27h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'
   + '<circle cx="46" cy="36" r="6" fill="currentColor"/><path d="M37 57c1-8 5-12 9-12s8 4 9 12z" fill="currentColor"/></svg>';
 
-function csp() {
-  return `default-src 'none'; style-src 'sha256-${sha(CSS)}'; script-src 'sha256-${sha(SCRIPT)}'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
+function csp(css = CSS) {
+  return `default-src 'none'; style-src 'sha256-${sha(css)}'; script-src 'sha256-${sha(SCRIPT)}'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
 }
 
-function shell({ title, body, script = '', withScript = false }) {
-  const policy = withScript ? csp() : `default-src 'none'; style-src 'sha256-${sha(CSS)}'; base-uri 'none'; frame-ancestors 'none'`;
+function shell({ title, body, script = '', withScript = false, adv = false }) {
+  const css = adv ? ADV_CSS : CSS;
+  // the way-back pages have no script; in the adventure look they show Jugnu's picture, from this site only
+  const policy = withScript ? csp(css) : `default-src 'none'; style-src 'sha256-${sha(css)}';${adv ? " img-src 'self';" : ''} base-uri 'none'; frame-ancestors 'none'`;
   return {
     csp: policy,
-    html: '<!doctype html><html lang="ur" dir="rtl"><head><meta charset="utf-8">'
+    html: `<!doctype html><html lang="ur" dir="rtl"${adv ? ' class="wq-adv"' : ''}><head><meta charset="utf-8">`
       + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
       // the <meta> copy (the edge forwards only the page): frame-ancestors is header-only, so it is left out here
       + `<meta http-equiv="Content-Security-Policy" content="${esc(policy.replace(/; frame-ancestors 'none'/, ''))}">`
       + '<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">'
-      + `<title>${esc(title)}</title><style>${CSS}</style></head><body>${body}${script}</body></html>`,
+      + `<title>${esc(title)}</title><style>${css}</style></head><body>${body}${script}</body></html>`,
   };
 }
 
@@ -142,69 +193,80 @@ const bootTag = (o) => `<script type="application/json" id="go-boot">${bootJson(
 
 /** The one question. `t` = the go token (it goes back in each POST). */
 /** ONE tap back to the bot's chat with "quiz" typed (F22), or '' without a dialable number. Hidden until an error. */
-function waTap(lang, bot, hidden = false) {
+function waTap(lang, bot, hidden = false, adv = false) {
   const n = require('./cards.page').botOf(bot);
-  return n ? `<a class="wa"${hidden ? ' id="go-wa"' : ''} href="https://wa.me/${n}?text=quiz" data-tap="open_whatsapp"${hidden ? ' hidden' : ''}>${two('go.wa', lang)}</a>` : '';
+  return n ? `<a class="${btn(adv, 'wa', 'primary')}"${hidden ? ' id="go-wa"' : ''} href="https://wa.me/${n}?text=quiz" data-tap="open_whatsapp"${hidden ? ' hidden' : ''}>${two('go.wa', lang)}</a>` : '';
 }
 
-function buildRolePage({ t, lang = 'bi', extra = '', bot = null } = {}) {
+function buildRolePage({ t, lang = 'bi', extra = '', bot = null, adv = false } = {}) {
+  const a = adv === true;
   const body = '<main class="go" data-screen="role">'
+    + (a ? JUGNU : '')
     + `<h1>${two('rq.h', lang)}</h1>`
     // a child who played on THIS device (filled after paint by /api/go/who; hidden until then)
     + '<section class="sheet" id="go-known" data-screen="known" hidden>'
     + `<p class="q">${twoTpl('cl.confirm.q', lang)}</p>`
     + `<ul class="notice">${NOTICE_IDS.map((id) => `<li>${twoTpl(id, lang)}</li>`).join('')}</ul>`
-    + `<button type="button" class="yes" id="go-yes" data-tap="known_yes">${two('cl.confirm.yes', lang)}</button>`
-    + `<button type="button" class="no" id="go-no" data-tap="known_no">${two('cl.confirm.no', lang)}</button>`
+    + `<button type="button" class="${btn(a, 'yes', 'primary')}" id="go-yes" data-tap="known_yes">${two('cl.confirm.yes', lang)}</button>`
+    + `<button type="button" class="${btn(a, 'no', 'secondary')}" id="go-no" data-tap="known_no">${two('cl.confirm.no', lang)}</button>`
     + '</section>'
     + `<p class="pl">${two('rq.parent.line', lang)}</p>`
-    + '<button type="button" class="tile c" data-tap="role_child" data-side="child">'
+    + `<button type="button" class="${btn(a, 'tile c', 'secondary')}" data-tap="role_child" data-side="child">`
     + `<span class="ic" aria-hidden="true">${CHILD_SVG}</span>`
     + `<span class="lb"><b>${two('rq.child', lang)}</b><small>${two('rq.child.sub', lang)}</small></span></button>`
-    + '<button type="button" class="tile t" data-tap="role_teacher" data-side="teacher">'
+    + `<button type="button" class="${btn(a, 'tile t', 'secondary')}" data-tap="role_teacher" data-side="teacher">`
     + `<span class="ic" aria-hidden="true">${TEACHER_SVG}</span>`
     + `<span class="lb"><b>${two('rq.teacher', lang)}</b><small>${two('rq.teacher.sub', lang)}</small></span></button>`
-    + '<p class="err" id="go-err" role="alert" hidden></p>' + waTap(lang, bot, true)
+    + '<p class="err" id="go-err" role="alert" hidden></p>' + waTap(lang, bot, true, a)
     + `<p class="note">${two('rq.note', lang)}</p>`
     // the sandbox walk-through row (listed test phones only; its own module builds it) — nothing otherwise
     + (typeof extra === 'string' ? extra : '')
     + '</main>';
-  return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang) }), withScript: true });
+  return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang) }), withScript: true, adv: a });
 }
 
 /**
  * The children the server knows for this phone, before a binding: first names only. `kids` = [{ pick, first }] — `pick`
  * is an opaque per-link id (never a student id). One child → "Is it <First>?"; several → chips.
  */
-function buildPickPage({ t, lang = 'bi', kids = [], bot = null } = {}) {
+function buildPickPage({ t, lang = 'bi', kids = [], bot = null, adv = false } = {}) {
+  const a = adv === true;
   const one = kids.length === 1 ? kids[0] : null;
   const head = one
     ? `<p class="q">${two('cl.confirm.q', lang, 'span', { first: one.first })}</p>`
     : `<p class="q">${two('cl.confirm.who', lang)}</p>`
-      + `<div class="chips">${kids.map((k) => `<button type="button" class="chip" data-tap="pick_chip" data-pick="${esc(k.pick)}" data-first="${esc(k.first)}" aria-pressed="false"><bdi>${esc(k.first)}</bdi></button>`).join('')}</div>`;
+      + `<div class="chips">${kids.map((k) => `<button type="button" class="${btn(a, 'chip', 'secondary')}" data-tap="pick_chip" data-pick="${esc(k.pick)}" data-first="${esc(k.first)}" aria-pressed="false"><bdi>${esc(k.first)}</bdi></button>`).join('')}</div>`;
   const notice = one
     ? `<ul class="notice" id="go-notice">${NOTICE_IDS.map((id) => `<li>${two(id, lang, 'span', { first: one.first })}</li>`).join('')}</ul>`
     : `<ul class="notice" id="go-notice" hidden>${NOTICE_IDS.map((id) => `<li>${twoTpl(id, lang)}</li>`).join('')}</ul>`;
   const body = '<main class="go" data-screen="pick">'
     + `<section class="sheet" id="go-sheet">${head}${notice}`
-    + `<button type="button" class="yes" id="go-yes" data-tap="pick_yes"${one ? '' : ' disabled'}>${two('cl.confirm.yes', lang)}</button>`
+    + `<button type="button" class="${btn(a, 'yes', 'primary')}" id="go-yes" data-tap="pick_yes"${one ? '' : ' disabled'}>${two('cl.confirm.yes', lang)}</button>`
     + '</section>'
-    + '<p class="err" id="go-err" role="alert" hidden></p>' + waTap(lang, bot, true)
-    + `<a class="no" data-tap="pick_none" href="/quiz/go/${encodeURIComponent(t)}?ask=1">${two(one ? 'cl.confirm.no' : 'cl.confirm.none', lang)}</a>`
+    + '<p class="err" id="go-err" role="alert" hidden></p>' + waTap(lang, bot, true, a)
+    + `<a class="${btn(a, 'no', 'secondary')}" data-tap="pick_none" href="/quiz/go/${encodeURIComponent(t)}?ask=1">${two(one ? 'cl.confirm.no' : 'cl.confirm.none', lang)}</a>`
     + '</main>';
   return shell({
     title: one ? str('cl.confirm.q', clampLanguage(lang), { first: one.first }) : str('cl.confirm.who', clampLanguage(lang)),
-    body, script: bootTag({ kind: 'pick', t, pick: one ? one.pick : null, words: wordsFor(lang) }), withScript: true,
+    body, script: bootTag({ kind: 'pick', t, pick: one ? one.pick : null, words: wordsFor(lang) }), withScript: true, adv: a,
   });
 }
 
-/** One line, nothing to tap: go.stale | go.error | go.family (the student tap while the join screen is not on). */
-function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null } = {}) {
-  const ids = id === 'go.family' ? ['go.family.h', 'go.family.none'] : [id];
-  // a dead end carries ONE tap back to the bot's chat with "quiz" typed (no dialable number → the words alone)
-  const wa = id === 'go.stale' || id === 'go.error' ? waTap(lang, bot) : '';
-  const body = `<main class="go" data-screen="${esc(id)}">${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
-  return shell({ title: str(ids[0], clampLanguage(lang)), body });
+/** ONE tap back to WhatsApp whatever the deployment knows (the switch is on): the signed sentence, both languages as the page. */
+function backTap(lang, bot, adv = false) {
+  return `<a class="${btn(adv, 'wa', 'primary')}" href="${esc(require('./chat-tap').chatHref(bot))}" data-tap="open_whatsapp">${two('go.back', lang)}</a>`;
 }
 
-module.exports = { buildRolePage, buildPickPage, buildMessagePage, csp, _CSS: CSS, _SCRIPT: SCRIPT };
+/** One line: go.stale | go.error | go.family (the student tap while the join screen is not on). */
+function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null, door = false, adv = false } = {}) {
+  const a = adv === true;
+  const ids = id === 'go.family' ? ['go.family.h', 'go.family.none'] : [id];
+  // a dead end carries ONE tap back to the bot's chat with "quiz" typed: with the switch on, always (the app's own link
+  // when there is no number); with it off, only with a dialable number (else the words alone, as before)
+  const dead = id === 'go.stale' || id === 'go.error';
+  const wa = dead ? (door === true ? backTap(lang, bot, a) : waTap(lang, bot, false, a)) : '';
+  const body = `<main class="go" data-screen="${esc(id)}">${a ? JUGNU : ''}${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
+  return shell({ title: str(ids[0], clampLanguage(lang)), body, adv: a });
+}
+
+module.exports = { buildRolePage, buildPickPage, buildMessagePage, csp, _CSS: CSS, _SCRIPT: SCRIPT, _ADV_CSS: ADV_CSS };
