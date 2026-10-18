@@ -65,9 +65,10 @@ function page(answers) {
   const calls = [];
   const replaced = [];
   const bar = { hidden: false };
+  const sub = { style: { visibility: '' } };
   const ctx = {
     location: { href: 'https://portal.example/h/tok?kid=0123456789abcdef', replace: (u) => replaced.push(u) },
-    document: { querySelector: (s) => (s === '.wq-busybar' ? bar : null) },
+    document: { querySelector: (s) => (s === '.wq-busybar' ? bar : s === '.wq-sub' ? sub : null) },
     setTimeout: (fn, ms) => { timers.push({ at: now + ms, fn }); },
     fetch: (u, o) => {
       calls.push({ at: now, u, o });
@@ -90,7 +91,7 @@ function page(answers) {
     }
     now = end;
   }
-  return { ctx, calls, replaced, bar, advance, get pending() { return timers.length; } };
+  return { ctx, calls, replaced, bar, sub, advance, get pending() { return timers.length; } };
 }
 async function scriptFor(extra = {}) {
   const r = await H.runCase('h', '500', { busy_page: true, busy_retry: true, ...extra });
@@ -126,6 +127,24 @@ describe('the script: 2 s, 4 s, 8 s, then the Try again link', () => {
     expect(p.replaced).toEqual([]);
     expect(p.bar.hidden).toBe(true);
     expect(p.pending).toBe(0);
+    // the "tap Try again" line is back once the page has stopped trying
+    expect(p.sub.style.visibility).toBe('');
+  });
+  test('while it tries, the page does not tell the child to tap (the line hides, its room kept)', async () => {
+    const p = page([503]);
+    vm.runInNewContext(await scriptFor(), p.ctx);
+    expect(p.sub.style.visibility).toBe('hidden');
+    await p.advance(6000);
+    expect(p.sub.style.visibility).toBe('hidden');
+    await p.advance(60000);
+    expect(p.sub.style.visibility).toBe('');
+  });
+  test('the bar: 4 px of the brand at full strength sweeping over a visible track', async () => {
+    const r = await H.runCase('h', '500', { busy_page: true, busy_retry: true });
+    const css = (/<style>([\s\S]*?)<\/style>/.exec(r.body.split('<body>')[1]) || [])[1];
+    expect(css).toMatch(/\.wq-busybar\{[^}]*height:4px/);
+    expect(css).toMatch(/\.wq-busybar\{[^}]*background:linear-gradient\(var\(--brand,#2fa35f\),var\(--brand,#2fa35f\)\) no-repeat,var\(--line,#e2e8e4\)/);
+    expect(css).not.toMatch(/\.wq-busybar\{[^}]*opacity/);
   });
   test('a real answer that is not the page (a closed quiz, 404) opens too: the bot is back, its page says why', async () => {
     const p = page([404]);

@@ -772,10 +772,11 @@ const BUSY_RETRY_S = '5';
 // 8 s; any real answer (under 500: the page, or a closed or expired one) opens it, a 5xx or no network waits for the
 // next; after the third the bar goes and the one Try again link is what is left. A thin bar while it tries; no words.
 const BUSY_RETRY_HTML = '<i class="wq-busybar" aria-hidden="true"></i>'
-  + '<style>.wq-busybar{position:fixed;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,transparent,var(--brand,#2fa35f),transparent) no-repeat;background-size:50% 100%;animation:wq-busy 1.2s linear infinite}.wq-busybar[hidden]{display:none}@keyframes wq-busy{from{background-position:-50% 0}to{background-position:150% 0}}@media (prefers-reduced-motion:reduce){.wq-busybar{animation:none;background:var(--brand,#2fa35f);opacity:.4}}</style>'
-  + '<script>(function(){var d=[2000,4000,8000],i=0,u=location.href;function stop(){var b=document.querySelector(".wq-busybar");if(b)b.hidden=true}'
+  + '<style>.wq-busybar{position:fixed;left:0;right:0;top:0;height:4px;background:linear-gradient(var(--brand,#2fa35f),var(--brand,#2fa35f)) no-repeat,var(--line,#e2e8e4);background-size:30% 100%,100% 100%;animation:wq-busy 1.4s linear infinite}.wq-busybar[hidden]{display:none}@keyframes wq-busy{from{background-position:-40% 0,0 0}to{background-position:140% 0,0 0}}@media (prefers-reduced-motion:reduce){.wq-busybar{animation:none;background-size:100% 100%,100% 100%}}</style>'
+  // while it tries, the "tap Try again" line steps aside (its room kept); it is back once the trying stops
+  + '<script>(function(){var d=[2000,4000,8000],i=0,u=location.href,s=document.querySelector(".wq-sub");function stop(){var b=document.querySelector(".wq-busybar");if(b)b.hidden=true;if(s)s.style.visibility=""}'
   + 'function next(){if(i>=d.length)return stop();setTimeout(function(){i++;fetch(u,{cache:"no-store",credentials:"same-origin"}).then(function(r){if(r.status<500)location.replace(u);else next()},next)},d[i])}'
-  + 'if(window.fetch)next();else stop()})();</script>';
+  + 'if(window.fetch){if(s)s.style.visibility="hidden";next()}else stop()})();</script>';
 
 function renderBusyPage({ lang, href, origin, assetV, brandKey, ui = null, retry = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
