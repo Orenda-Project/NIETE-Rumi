@@ -46,3 +46,12 @@ describe('the grown-ups hold sits in the middle of its pill', () => {
     expect(start).toBe(end);
   });
 });
+
+describe('an Urdu page keeps the wide word gap for Urdu only', () => {
+  test('a Latin run (lang=en) inside an Urdu page has normal word spacing; Urdu inside it gets the wide gap back', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8');
+    expect(css).toContain('html.wq-1b[lang=ur] [lang=en]:not(.wq-input){word-spacing:normal}');
+    expect(css).toContain('html.wq-1b[lang=ur] [lang=en] [lang=ur]{word-spacing:.2em}');
+    expect(css.indexOf('html.wq-1b[lang=ur] [lang=en]:not(.wq-input)')).toBeGreaterThan(css.indexOf('html[lang=ur] body{font-family:var(--fu);word-spacing:.2em}'));
+  });
+});
