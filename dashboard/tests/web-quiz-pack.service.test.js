@@ -353,10 +353,14 @@ describe('the flushed head preloads the two pack files (exact hrefs) in place of
   // The invariant across a flip (the head goes before the bot answers, so it follows the last answer): the first open
   // after a flip preloads exactly the set its own tail asks for (its tail keeps the head's form for that one open), and
   // the next open is in the new form. The tail's set: its tags, plus the door screens wq-home.js asks for by name when
-  // they are not in a pack.
+  // they are not in a pack. Without the pack the head preloads only the files every child's home asks for (the home
+  // preload change's bound: wq-home, the door screens, plus hub.js and wq-tel.js); the rest stay in the tail.
+  const SHARED_HEAD = /^\/wq\/(wq-home\.(css|js)|wq-doors\.(css|js)|hub\.js|wq-tel\.js)\?/;
   const tailSet = (html) => {
-    const t = tagsOf(html).filter((u) => !u.startsWith('/wq/wq.css'));
-    if (!t.some((u) => u.startsWith('/wq/pack/')) && /"home_v3":1/.test(html)) t.push(`/wq/wq-doors.css?v=${HEX}`, `/wq/wq-doors.js?v=${HEX}`);
+    let t = tagsOf(html).filter((u) => !u.startsWith('/wq/wq.css'));
+    const packed = t.some((u) => u.startsWith('/wq/pack/'));
+    if (!packed && /"home_v3":1/.test(html)) t.push(`/wq/wq-doors.css?v=${HEX}`, `/wq/wq-doors.js?v=${HEX}`);
+    if (!packed) t = t.filter((u) => SHARED_HEAD.test(u));
     return [...new Set(t)].sort();
   };
   const headSet = (early) => [...new Set(preloadsOf(early).map(([, u]) => u))].sort();
