@@ -346,10 +346,12 @@ var WQI = (function () {
     }).join('') + '</div>';
   }
   function ur2On() { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } }
+  // the one button system (wq-1b): an answer's shape marker is a glyph, so screen readers skip it (the sound tiles already do)
+  function shpAttr() { try { return document.documentElement.classList.contains('wq-1b') ? ' aria-hidden="true"' : ''; } catch (e) { return ''; } }
   function optBtn(o, k, extra) {
     // over 28 code points a label runs to three lines beside the badge and 🔊 at 360 px (measured on the live quizzes: 32–36 cp)
     var longLab = ur2On() && Array.from(String(o.text || '')).length > 28 ? ' wq-long' : '';
-    return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp">' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
+    return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
       picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }
   function itemHtml(q, T, lang) {
@@ -371,7 +373,7 @@ var WQI = (function () {
         var nm = x.name || (x.pic && x.pic.name) || x.text || '';
         // A picture with no word anywhere: the button is named by its shape for screen readers only.
         var aria = speakable(x.text || nm) ? '' : ' aria-label="' + esc(SHAPE_NAMES[lang === 'ur' ? 'ur' : 'en'][i % 4]) + '"';
-        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"' + aria + '><span class="wq-shp">' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
+        return '<button class="wq-opt wq-ptile wq-s' + (i % 4 + 1) + '" data-slot="' + esc(x.slot) + '"' + aria + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[i % 4] + (quiet || !LETTERS ? '' : '<b class="wq-let">' + 'ABCD'.charAt(i) + '</b>') + '</span>' +
           (picHtml(x, nm) || '<span class="wq-emoji">' + esc(x.text) + '</span>') +
           (!quiet && speakable(x.text || nm) && !(x.pic && (x.pic.glyph || x.pic.text) === (x.text || nm)) ? '<span class="wq-pname">' + tex(x.text || nm) + '</span>' : '') + '</button>';
       }).join('') + '</div>';
