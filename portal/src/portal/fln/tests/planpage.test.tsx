@@ -7,12 +7,24 @@ import { act, cleanup, fireEvent, screen } from '@testing-library/react';
  * batched (plan id added, ≤1 batch / 5 s, flush on pagehide); the page never logs an open itself.
  */
 vi.mock('../player', async (orig) => (await import('./fixtures/playerMock')).withStandIns(await orig()));
+// The teacher's own grades (`loadGradeSubjects('lessons')`) come over the portal's axios client — its network boundary.
+vi.mock('../../services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+import api from '../../services/api';
+const http = api as unknown as { get: ReturnType<typeof vi.fn> };
+const combos = (...grades: Array<number | null>) => ({
+  data: { success: true, combos: grades.map((g) => ({ grade: g, gradeCode: `g${g}`, subject: 'English', subjectKey: 'english', source: 'class' })) },
+});
 
 import { eventSinks, resetPlayerMock, useFlnPlayerSpy } from './fixtures/playerMock';
 import { renderPlan } from './fixtures/renderPlan';
 import { numEn, rhEn, rhUr } from './fixtures/plans';
 
-beforeEach(() => { resetPlayerMock(); window.history.replaceState(null, ''); });
+beforeEach(() => {
+  resetPlayerMock();
+  window.history.replaceState(null, '');
+  http.get.mockReset();
+  http.get.mockResolvedValue(combos());
+});
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('plan page states', () => {
@@ -112,14 +124,46 @@ describe('leaders, back, footer, telemetry', () => {
     renderPlan(rhEn);
     await screen.findByText(rhEn.plan.title);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByTestId('probe').textContent).toBe('/portal/fln/list/rh-en?grade=1');
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=1');
+  });
+
+  it('Back by link, teacher of grades 8 and 9 → her lowest grade (the server shows the level chooser)', async () => {
+    http.get.mockResolvedValue(combos(9, 8, 9));
+    renderPlan(rhEn);
+    await screen.findByText(rhEn.plan.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=8');
+    expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } });
+  });
+
+  it('Back by link, teacher of grade 3 (a grade-1 plan) → her own grade, not the plan’s', async () => {
+    http.get.mockResolvedValue(combos(null, 3, 5));
+    renderPlan(rhEn);
+    await screen.findByText(rhEn.plan.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=3');
+  });
+
+  it('Back by link, no grades (a leader, or a failed read) → the placement grade', async () => {
+    http.get.mockResolvedValue(combos());
+    renderPlan(numEn);
+    await screen.findByText(numEn.plan.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/num?grade=2');
+    expect(http.get).toHaveBeenCalledTimes(1);
+    cleanup();
+    http.get.mockRejectedValue(new Error('502'));
+    renderPlan(numEn);
+    await screen.findByText(numEn.plan.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/num?grade=2');
   });
 
   it('Back on a link-opened Level 2 plan uses placement[0].grades[0]', async () => {
     renderPlan(numEn);
     await screen.findByText(numEn.plan.title);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByTestId('probe').textContent).toBe('/portal/fln/list/num?grade=2');
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/num?grade=2');
   });
 
   it('Back with an in-app previous entry goes back', async () => {
@@ -127,6 +171,7 @@ describe('leaders, back, footer, telemetry', () => {
     await screen.findByText(rhEn.plan.title);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByTestId('probe').textContent).toBe('/somewhere');
+    expect(http.get).not.toHaveBeenCalled();
   });
 
   it('footer names the programme and the id', async () => {
