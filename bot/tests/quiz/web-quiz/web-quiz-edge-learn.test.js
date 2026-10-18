@@ -2,7 +2,7 @@
 /**
  * app_settings web_quiz_edge_learn (default off, only the stored JSON boolean true is on, 30 s cache): the bot tells a
  * fresh portal process the page switches it would otherwise learn only from a quiz or hub payload.
- * GET /api/internal/wq/edge → {learn:false} when off (nothing else), else {learn:true, fast, brand, rt[, ui][, one_face]}:
+ * GET /api/internal/wq/edge → {learn:false} when off (nothing else), else {learn:true, fast, brand, rt[, ui], one_face, wait_ux}:
  * only the fields the edge learns from payloads, read through the same cached switches the payloads use.
  *
  * Reads (the three-assert shape): the key rides the hub's one batched read (web-quiz-hub-flags.js KEYS), never a read
@@ -90,19 +90,19 @@ describe('GET /api/internal/wq/edge', () => {
   });
 
   test('(e) on: only the allowed fields, as the payloads carry them', async () => {
-    supabase.__state.rows = { [KEY]: true, web_quiz_fast: true, web_quiz_rich_telemetry: true, web_quiz_ur_polish: true, web_quiz_one_face: true, web_quiz_brand: 'rumi' };
+    supabase.__state.rows = { [KEY]: true, web_quiz_fast: true, web_quiz_rich_telemetry: true, web_quiz_ur_polish: true, web_quiz_one_face: true, web_quiz_brand: 'rumi', web_quiz_wait_ux: true };
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true });
   });
 
-  test('(e) on with every page switch off: no ui, no one_face (as a switched-off payload)', async () => {
+  test('(e) on with every page switch off: no ui; one_face and wait_ux say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'rt']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false });
+    expect(Object.keys(body).sort()).toEqual(['brand', 'fast', 'learn', 'one_face', 'rt', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false });
     expect(typeof body.brand).toBe('string');
   });
 
@@ -146,6 +146,15 @@ describe('GET /api/internal/wq/edge', () => {
     for (let i = 0; i < 8; i += 1) bodies.push((await ask()).body);
     expect(supabase.__state.reads).toEqual([HUB_READ]);
     expect(new Set(bodies.map((b) => JSON.stringify(b))).size).toBe(1);
+  });
+
+  test.each([[true, true], ['true', false], [1, false], [{}, false], [null, false]])('(e) on: wait_ux %p → %p, from the same batched read (no read of its own)', async (v, want) => {
+    supabase.__state.rows = v === null ? { [KEY]: true } : { [KEY]: true, web_quiz_wait_ux: v };
+    await warmPageSwitches(); supabase.__state.reads = [];
+    const { body } = await ask();
+    expect(body.wait_ux).toBe(want);
+    expect(supabase.__state.reads).toEqual([HUB_READ]);
+    expect(supabase.__state.hubKeys).toContain('web_quiz_wait_ux');
   });
 
   test('another read of the hub\'s KEYS (prime(rows), the join\'s) fills this switch: then no read at all', async () => {

@@ -90,7 +90,12 @@ function fakeBot({ edge, pages = [] }) {
 /** The 60 s refresh on the test's own clock: tick() runs it once. */
 function testTimers() {
   const t = { fn: null, ms: null, unref: 0, set: (fn, ms) => { t.fn = fn; t.ms = ms; return { unref: () => { t.unref += 1; } }; }, clear: () => { t.fn = null; } };
+  // The 5 s re-ask after a failed ask, on the same clock: fire() runs it once.
+  t.later = null; t.laterMs = null; t.laterUnref = 0;
+  t.after = (fn, ms) => { t.later = fn; t.laterMs = ms; return { unref: () => { t.laterUnref += 1; } }; };
+  t.cancel = () => { t.later = null; };
   t.tick = async () => { if (t.fn) t.fn(); await settle(); };
+  t.fire = async () => { const f = t.later; t.later = null; if (f) f(); await settle(); };
   return t;
 }
 
@@ -404,5 +409,194 @@ describe('switch off: one boot ask per process lifetime; on: every 60 s; re-arme
       Object.entries(env).forEach(([k, v]) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; });
     }
     expect(calls).toEqual([]);
+  });
+});
+
+
+// The portal's one learner of the page switches: a failed or timed-out ask is asked again at +5 s (only an explicit
+// learn:false stops asking); replies are used in the order their asks started, never in the order they arrive; the
+// answer also carries wait_ux and one_face (a field the answer lacks keeps what the process had); and apply() is the
+// one writer of what an answer says, exported for another learner in the same process.
+describe('one learner: re-ask at +5 s, replies by ask number, wait_ux and one_face, one apply()', () => {
+  const { startEdgeLearn } = require('../lib/edge-learn');
+  let srv;
+  afterEach(() => new Promise((r) => { if (srv) { const s = srv; srv = null; s.close(r); } else r(); }));
+  const heldBot = () => { const answer = []; return { answer, callBot: () => new Promise((ok, no) => answer.push({ ok, no })) }; };
+  const ok = (body) => ({ status: 200, body });
+  const ON = (fast) => ({ learn: true, fast, brand: 'niete', rt: false });
+
+  it('the first ask fails (bot cold): a second ask at +5 s, and the next first page sends the head early from it', async () => {
+    let first = true;
+    const timers = testTimers();
+    const bot = fakeBot({ edge: () => (first ? (first = false, 'reject') : LEARN_ON), pages: [{ hold: true, res: jsonRes(200, QUIZ({ fast: true })) }] });
+    srv = await start(build(bot.fetchImpl, { timers }));
+    await settle();
+    expect(bot.edgeCalls()).toBe(1);
+    expect(timers.laterMs).toBe(5000);
+    expect(timers.laterUnref).toBe(1);
+    await timers.fire();
+    expect(bot.edgeCalls()).toBe(2);
+    const { before } = await firstByteBeforeAnswer(srv, bot, '/q/AB12CD');
+    expect(before).toBe(true);
+  });
+
+  it('the first ask times out (the call is cut at its timeout): a second ask at +5 s, and the next first page sends the head early', async () => {
+    let n = 0;
+    const bot = fakeBot({ edge: LEARN_ON, pages: [{ hold: true, res: jsonRes(200, QUIZ({ fast: true })) }] });
+    const fetchImpl = (url, init) => {
+      if (url.endsWith('/edge') && (n += 1) === 1) return new Promise((_, no) => init.signal.addEventListener('abort', () => no(new Error('aborted'))));
+      return bot.fetchImpl(url);
+    };
+    const timers = testTimers();
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, botTimeoutMs: 20, edgeLearn: { timers } }));
+    srv = await start(app);
+    await settle();
+    expect(timers.laterMs).toBe(5000);
+    await timers.fire();
+    expect(n).toBe(2);
+    const { before } = await firstByteBeforeAnswer(srv, bot, '/q/AB12CD');
+    expect(before).toBe(true);
+  });
+
+  it('a failed ask keeps re-asking every 5 s until an answer; an explicit learn:false stops all asking', async () => {
+    const bot = heldBot();
+    const timers = testTimers();
+    startEdgeLearn({ callBot: bot.callBot, apply: () => {}, timers });
+    bot.answer[0].no(new Error('bot_unreachable'));
+    await settle();
+    await timers.fire();
+    expect(bot.answer.length).toBe(2);
+    bot.answer[1].ok({ status: 502, body: null }); // a bot restarting behind its gateway
+    await settle();
+    await timers.fire();
+    expect(bot.answer.length).toBe(3);
+    bot.answer[2].ok(ok({ learn: false }));
+    await settle();
+    expect(timers.later).toBe(null);
+    expect(timers.fn).toBe(null);
+    await timers.fire(); await timers.tick();
+    expect(bot.answer.length).toBe(3);
+  });
+
+  it('a reply to ask 1 that lands after ask 2\'s reply was applied is dropped', async () => {
+    const bot = heldBot();
+    const applied = [];
+    const e = startEdgeLearn({ callBot: bot.callBot, apply: (b) => applied.push(b.fast), timers: testTimers() });
+    e.refresh(); // ask 2, while ask 1 (boot) is on its way
+    expect(bot.answer.length).toBe(2);
+    bot.answer[1].ok(ok(ON(true)));
+    await settle();
+    bot.answer[0].ok(ok(ON(false)));
+    await settle();
+    expect(applied).toEqual([true]);
+  });
+
+  it('a late learn:false to ask 1 after ask 2\'s learn:true does not stop the asking', async () => {
+    const bot = heldBot();
+    const timers = testTimers();
+    const e = startEdgeLearn({ callBot: bot.callBot, apply: () => {}, timers });
+    e.refresh();
+    bot.answer[1].ok(ok(ON(true)));
+    await settle();
+    bot.answer[0].ok(ok({ learn: false }));
+    await settle();
+    expect(timers.fn).not.toBe(null);
+  });
+
+  it('replies that land in ask order are all used (only an older reply is dropped)', async () => {
+    const bot = heldBot();
+    const applied = [];
+    const e = startEdgeLearn({ callBot: bot.callBot, apply: (b) => applied.push(b.fast), timers: testTimers() });
+    e.refresh();
+    bot.answer[0].ok(ok(ON(false)));
+    await settle();
+    bot.answer[1].ok(ok(ON(true)));
+    await settle();
+    expect(applied).toEqual([false, true]);
+  });
+
+  it('apply() is the one writer: called once per used answer, and exported (another learner\'s answer goes through it)', async () => {
+    const bot = heldBot();
+    const spy = jest.fn();
+    const timers = testTimers();
+    const e = startEdgeLearn({ callBot: bot.callBot, apply: spy, timers });
+    bot.answer[0].ok(ok(ON(true)));
+    await settle();
+    expect(spy).toHaveBeenCalledTimes(1);
+    await timers.tick();
+    bot.answer[1].ok(ok(ON(false)));
+    await settle();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(typeof e.apply).toBe('function');
+    e.apply(ON(true)); // the page-retry car's answer from the same route
+    expect(spy).toHaveBeenCalledTimes(3);
+    e.apply({ learn: false, fast: true }); // never anything but a learn:true answer
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
+  it('in the router, lastFast is written only by apply() and the two page answers (no second learner writes it)', () => {
+    const src = require('fs').readFileSync(require.resolve('../routes/web-quiz.routes'), 'utf8');
+    expect((src.match(/(?<!let )\blastFast = /g) || []).length).toBe(3);
+    expect((src.match(/startEdgeLearn\(/g) || []).length).toBe(1);
+    expect(src).toMatch(/startEdgeLearn\(\{[^}]*apply: learned \}\)/); // the learner writes only through learned()
+    expect(src).toMatch(/const learned = \(b\) => \{[\s\S]*?lastFast = b\.fast === true;\n  \};/);
+  });
+
+  // wait_ux and one_face through the router's apply (the router hands its learner out as router.edgeLearn)
+  function router(edge, pages = []) {
+    const bot = fakeBot({ edge, pages });
+    const r = createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: bot.fetchImpl, edgeLearn: { timers: testTimers() } });
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(r);
+    return { app, edge: r.edgeLearn, bot, pages };
+  }
+  const WAIT_MARK = 'wq-wbar';
+
+  it('wait_ux: true in the learn answer → the first hub page\'s early frame has the wait bar; false → it has not', async () => {
+    for (const [w, want] of [[true, true], [false, false]]) {
+      const bot = fakeBot({ edge: { ...LEARN_ON, wait_ux: w }, pages: [{ hold: true, res: jsonRes(200, HUB({ fast: true, ...(w ? { wait_ux: true } : {}) })) }] });
+      const s = await start(build(bot.fetchImpl, { timers: testTimers() }));
+      await settle();
+      const { early, before } = await firstByteBeforeAnswer(s, bot, `/h/${TOKEN}`);
+      await new Promise((r) => s.close(r));
+      expect(before).toBe(true);
+      expect(early.includes(WAIT_MARK)).toBe(want);
+    }
+  });
+
+  it('one_face: true → the closed page carries the one face; an answer without the field keeps it; false clears it', async () => {
+    const ur = { headers: { 'accept-language': 'ur' } };
+    const r = router({ learn: false });
+    srv = await start(r.app);
+    await settle();
+    const cls = async () => ((await get(srv, '/h/not-a-token', ur)).body.match(/<html lang="ur" dir="rtl"( class="[^"]*")?>/) || [])[1] || '';
+    expect(await cls()).not.toMatch(/wq-uf/); // before any learn: today's page
+    r.edge.apply({ ...ON(false), one_face: true });
+    expect(await cls()).toMatch(/wq-uf/);
+    r.edge.apply(ON(false)); // a bot that does not say: absent is not false
+    expect(await cls()).toMatch(/wq-uf/);
+    r.edge.apply({ ...ON(false), one_face: false });
+    expect(await cls()).not.toMatch(/wq-uf/);
+  });
+
+  it('wait_ux: an answer without the field keeps what the process had (absent is not false); false clears it', async () => {
+    const r = router({ learn: false });
+    srv = await start(r.app);
+    await settle();
+    const top = async () => {
+      r.pages.push({ hold: true, res: jsonRes(200, HUB({ fast: true })) });
+      const { early, before } = await firstByteBeforeAnswer(srv, r.bot, `/h/${TOKEN}`);
+      expect(before).toBe(true);
+      return early;
+    };
+    r.edge.apply({ ...ON(true), wait_ux: true });
+    r.edge.apply(ON(true)); // no wait_ux field
+    expect((await top()).includes(WAIT_MARK)).toBe(true);
+    r.edge.apply({ ...ON(true), wait_ux: true });
+    r.edge.apply({ ...ON(true), wait_ux: false });
+    expect((await top()).includes(WAIT_MARK)).toBe(false);
   });
 });
