@@ -149,6 +149,7 @@
       if (!r.ok) return fail();
       el._d = shelf.d = r.body; el._open = false;
       el.innerHTML = np(shelfHtml(r.body, false, ctx.host));
+      if (r.body.warm) load('wq-stories-w.js', 0, Date);
       evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, grade: +r.body.grade, lang: r.body.lang });
     }, fail);
   }

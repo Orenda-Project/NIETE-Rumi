@@ -218,8 +218,9 @@ function assetVersion() {
   }
   // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
   // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
-  // the reading moment the reader loads at this ?v= when the book says read_fb (web_quiz_read_feedback)
-  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js', 'wq-moment.js', 'wq-moment.css']) {
+  // the reading moment the reader loads at this ?v= when the book says read_fb (web_quiz_read_feedback), and the warmed
+  // reader's file the shelf loads when it says warm (web_quiz_story_warm)
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js', 'wq-stories-w.js', 'wq-moment.js', 'wq-moment.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
