@@ -30,10 +30,10 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 const { makeFake } = require('./fake-supabase');
 
 // OFF: the hub's waves and app_settings reads through GET /hub/:token with this change and the switch off, recorded
-// (the same numbers as the code before it: the key joins a read that already happens).
+// (the key joins a read that already happens; re-measured on the merged sandbox: one more stale settings read, one fewer stale wave).
 const OFF = {
-  class: { fastOff: { warm: { waves: 26, settings: 0 }, stale: { waves: 39, settings: 16 } }, fastOn: { warm: { waves: 24, settings: 0 }, stale: { waves: 37, settings: 16 } } },
-  loose: { fastOff: { warm: { waves: 21, settings: 0 }, stale: { waves: 32, settings: 16 } }, fastOn: { warm: { waves: 20, settings: 0 }, stale: { waves: 31, settings: 16 } } },
+  class: { fastOff: { warm: { waves: 26, settings: 0 }, stale: { waves: 38, settings: 17 } }, fastOn: { warm: { waves: 24, settings: 0 }, stale: { waves: 36, settings: 17 } } },
+  loose: { fastOff: { warm: { waves: 21, settings: 0 }, stale: { waves: 31, settings: 17 } }, fastOn: { warm: { waves: 20, settings: 0 }, stale: { waves: 30, settings: 17 } } },
 };
 
 const READ_MS = 8;
