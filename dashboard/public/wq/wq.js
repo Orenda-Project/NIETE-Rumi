@@ -574,7 +574,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var HOME_ON = Boolean(NAVF.home), BACK_ON = Boolean(NAVF.back);
   var N = QS.length;
   var CODE = B.code || Q.code || '';
-  var LANG = Q.lang === 'ur' ? 'ur' : 'en';
+  // ui_lang (web_quiz_class_doors, the class table and league only): the link's language, set by the edge; else the quiz's.
+  var LANG = B.ui_lang === 'ur' || B.ui_lang === 'en' ? B.ui_lang : Q.lang === 'ur' ? 'ur' : 'en';
+  // ...and when that is not the quiz's, Play opens the quiz page itself, in the quiz's own language.
+  var UI_SWAP = LANG !== (Q.lang === 'ur' ? 'ur' : 'en');
   var CLS = B.cls || {};
   var LIVE = B.live || {};
   // The deployment's brand (boot JSON, from bot/shared/config/web-quiz-brand.js): marks, names, mascot, place.
@@ -615,7 +618,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'Pick a story', sharePlain: 'Share',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
-      leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
+      leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
       schoolsBtn: 'School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
@@ -689,7 +692,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
-      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
+      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
       schoolsBtn: 'اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
@@ -1808,7 +1811,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
   // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
-  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone); }
+  // A lesson's Quiz button on the Videos door (?to=q, web_quiz_video_shelf on) opens straight at the questions.
+  function wantsVideo() { return Boolean(B.video && B.video.url && !answeredCount() && !S.vdone && !(B.video_shelf === true && params.to === 'q')); }
 
   /* ---------------- M5 video (optional) ---------------- */
   // Where the lesson video is, kept every few seconds and whenever it pauses or the page hides.
@@ -2551,7 +2555,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
+    // this page's own share (the picture and the class link) is the one that runs
+    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function () { share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2575,7 +2582,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       flushEv(true);
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
-    if (res.card_v3 && !friend) finishCard(classUrl);
+    if (res.card_v3 && !friend) finishCard(classUrl, res.share_v4 === true);
   }
   /* ---------------- the card and one next thing (app_settings web_quiz_home_v3, finish's card_fold) ---------------- */
   // A class child's own card with the home on: the card, the ranked Next tile (the one primary), "Share to class group"
@@ -2621,6 +2628,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
       (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
         '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' : '') +
+      // the one share (finish's share_v4): "Challenge a friend" is back on the card, its own link and picture
+      (res.share_v4 === true ? '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
@@ -2634,8 +2643,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     warmArt('card', art.card);
     warmLink(classUrl);
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
-    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
+    // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
+    // this page's own share (the picture and the class link) is the one that runs
+    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function () { share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
+    if (res.share_v4 === true) {
+      var chalUrl = link('/q/' + (res.challenge_code || CODE));
+      warmArt('invite', art.invite);
+      warmLink(chalUrl);
+      on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
+    }
     on('#wq-fhome', function () { homeGo('card'); });
     on('#wq-class', board);
     on('#wq-schools', function () { schools(card); });
@@ -2646,16 +2664,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-fnext', pick);
       on('#wqfc-next', pick);   // the finish card's own tile, when it drew it
     }
-    if (res.card_v3) finishCard(classUrl);
+    if (res.card_v3) finishCard(classUrl, res.share_v4 === true);
   }
   /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */
   // Last in card(): the card's token is asked for as the card opens (the share never waits); the file is asked for
   // only when finish sends card_v3, and the card is drawn again once it loads.
   var fcAsked = false;
   // url: the class link, shared until the card's own link is in (a slow phone taps before it is)
-  function fcOpts(url) { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; }
-  function finishCard(url) {
-    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url)); return; }
+  // v4: the one share (finish's share_v4), so the card minted here is the sheet's
+  function fcOpts(url, v4) { var o = { lang: LANG, topic: Q.topic, st: S.st, ev: ev, url: url }; if (v4) o.v4 = true; return o; }
+  function finishCard(url, v4) {
+    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts(url, v4)); return; }
     if (fcAsked) return;
     fcAsked = true;
     try {
@@ -2871,7 +2890,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
       }
       var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
-      var h = bar() + '<h2>' + esc(T.leagueT(CLASS_LABEL)) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
+      // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
+      var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(b.my_class) : T.yourClass) : T.leagueT(CLASS_LABEL);
+      var h = bar() + '<h2>' + esc(title) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
         (rows ? '<table class="wq-table"><tbody>' + rows + '</tbody></table>' : '<div class="wq-card">' + esc(T.noRows) + '</div>') +
         (b.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(b.more_n)) + '</p>' : '') +
         '<div class="wq-card wq-cmp">' +
@@ -2891,10 +2912,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
       // sender's WhatsApp finds it ready instead of waiting for a draw.
       warmPreviewArt('class', B.art && B.art.class);
-      on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')), 'table', tArt); });
+      on('#wq-share-t', function () { var u = link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')); share(T.tableLine(Q.topic, CLASS_LABEL), b.class_doors ? withLang(u) : u, 'table', tArt); });
       on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);
-      on('#wq-play', landing);
+      on('#wq-play', UI_SWAP ? quizPage : landing);
     }).catch(function (e) {
       ev('error', { err: (e && e.message) || 'board' });
       render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
@@ -2943,6 +2964,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     });
   }
   // With web_quiz_class_doors (the league's class_doors): a short lower-case sector code reads as a name ("ict" -> "ICT").
+  // The quiz page itself (its own language), keeping the hub key: from a class table or league shown in the link's language.
+  function quizPage() { location.assign('/q/' + CODE + (params.k ? '?k=' + encodeURIComponent(params.k) : '')); }
   function sectorName(s, on) { return on && /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s; }
   function drawSchools() {
     var b = SCH.data || {};
@@ -2983,9 +3006,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-share-s', function () {
       ev('leaderboard_share', { src: 'schools', i: (mine && mine.place) || 0 });
       var hour = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 13).replace(/[-T]/g, '');
-      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), link('/q/' + CODE + '/schools?v=' + hour), 'schools', sArt);
+      var u = link('/q/' + CODE + '/schools?v=' + hour);
+      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), cd ? withLang(u) : u, 'schools', sArt);
     });
-    on('#wq-play-s', landing);
+    on('#wq-play-s', UI_SWAP ? quizPage : landing);
     on('#wq-back', SCH.back);
   }
 

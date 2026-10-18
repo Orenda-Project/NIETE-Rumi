@@ -5,7 +5,7 @@
  * Additive only: with the switch off (or any failure) `homeField` returns {} and the hub payload is today's, byte for byte.
  *
  *   homeField({ out, chosenId, history, pre, device, src })    {} | { home_v3: 1, doors, head, remember? }
- *   doorsOf({ out, stories, hasRoot })            the three doors (pure); every door is always present, an empty
+ *   doorsOf({ out, stories, hasRoot, videoShelf }) the three doors (pure); every door is always present, an empty
  *                                                 one is [] / null and the page shows its "coming soon" line
  *   headOf(stamps, now)                           { dots, today } (pure): days with a finish this PKT week, as a count
  *   prefetch(chosenId)                            the home's reads, started beside the hub's own: { flags, data }
@@ -76,7 +76,7 @@ function subjectArt(subject) {
 const withArt = (row) => { const art = row.art || subjectArt(row.subject); return art ? { ...row, art } : row; };
 
 /** The three doors (pure). `out` = the hub payload built so far; `stories` = web_quiz_stories on; `hasRoot` = a class quiz played. */
-function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
+function doorsOf({ out = {}, stories = false, hasRoot = false, videoShelf = false } = {}) {
   const shelf = (out.play && Array.isArray(out.play.shelf)) ? out.play.shelf : [];
   const story = shelf
     .filter((t) => t && t.pid && (t.id === 'week_story' || t.id === 'listen'))
@@ -89,7 +89,7 @@ function doorsOf({ out = {}, stories = false, hasRoot = false } = {}) {
   const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
   again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
   // Every child with a library: one with no class quiz yet WATCHES (videos/start's watch-only answer, same switch).
-  const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }) } : null;
+  const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }), ...(videoShelf ? { shelf: true } : {}) } : null;
   return { stories: story, games, videos };
 }
 
@@ -153,11 +153,15 @@ async function phoneRows(binds, lang) {
   };
 }
 
-/** `{card_v3: true}` when the finish card's module is there and its switch is on, else `{}`. Never throws. */
+/** `{card_v3: true}` (+ `share_v4: true`) when the finish card's module is there and its switch is on, else `{}`. Never throws. */
 async function cardField() {
   const Card = optional('card', CARD_MODULE);
   if (!Card || typeof Card.field !== 'function') return {};
-  try { return (await Card.field()).card_v3 === true ? { card_v3: true } : {}; } catch (_) { return {}; }
+  try {
+    const f = await Card.field();
+    // the one share (web_quiz_share_v4) rides beside the card: the video's share waits for its card, never sends bare words
+    return f.card_v3 === true ? { card_v3: true, ...(f.share_v4 === true ? { share_v4: true } : {}) } : {};
+  } catch (_) { return {}; }
 }
 
 /**
@@ -177,9 +181,9 @@ function prefetch(chosenId, now = Date.now()) {
 // Never throws. onP: the switch's read, started by prefetchFb beside the home's own reads (no added wave); rootP: the
 // watch root's id, read only once the switch is on.
 const ClassDoors = require('./web-quiz-class-doors-flag');
-async function classDoorsOf(history, chosenId, onP, rootP) {
+async function classDoorsOf(history, chosenId, onP, rootP, lang) {
   try {
-    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId, await (rootP || ClassDoors.root())) : null;
+    const links = (await (onP || ClassDoors.on())) ? ClassDoors.linksOf(history, chosenId, await (rootP || ClassDoors.root()), lang) : null;
     return links ? { class_doors: links } : {};
   } catch (_) {
     return {};
@@ -204,9 +208,9 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const R = require('./web-quiz-home-remember');
     // (one read of the binding rows for both, beside the phone rows: no added wave)
     const rows = R.rowsFor(device);
-    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot)]);
+    const [remember, own, phones, cd] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot, out.lang)]);
     if (own) remember.forget_phone = true;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot }), head, ...d.card, ...phones, ...remember, ...cd };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...phones, ...remember, ...cd };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
