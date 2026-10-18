@@ -1,5 +1,5 @@
 /**
- * prefetchPages() on a slow line (qa-audio 202011).
+ * prefetchPages() on a slow line.
  *
  * The background fetch of every page chunk (~790 KB) competed with an FLN plan warming its
  * audio on a 400 kbps line. When the browser says data saver is on, or the line is 3g or
