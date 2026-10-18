@@ -51,6 +51,8 @@ const EDGE_LEARN_KEY = 'web_quiz_edge_learn';
 const HOME_PRELOAD_KEY = 'web_quiz_home_preload';
 // The child pages' busy page (web-quiz-busy-page.js) rides this one read too: only the stored JSON boolean true is on.
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
+// The busy page asks again by itself (2 s, 4 s, 8 s) only with this on too: the same read, JSON true only.
+const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, shareOpen, adv, homePreload, edgeLearn, busyPage }
 
@@ -60,7 +62,7 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, EDGE_LEARN_KEY, BUSY_PAGE_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, EDGE_LEARN_KEY, BUSY_PAGE_KEY, BUSY_RETRY_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -72,7 +74,7 @@ function fromRows(data, now) {
     shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true,
     edgeLearn: by[EDGE_LEARN_KEY] === true,
     homePreload: by[HOME_PRELOAD_KEY] === true,
-    busyPage: by[BUSY_PAGE_KEY] === true };
+    busyPage: by[BUSY_PAGE_KEY] === true, busyRetry: by[BUSY_RETRY_KEY] === true };
 }
 
 /**
@@ -169,6 +171,11 @@ function busyPageNow(now = Date.now()) {
   return Boolean(cache && cache.busyPage === true && now - cache.at < TTL_MS);
 }
 
+/** web_quiz_busy_retry, as busyPageNow: only the batch's warm cache, never a read of its own. */
+function busyRetryNow(now = Date.now()) {
+  return Boolean(cache && cache.busyRetry === true && now - cache.at < TTL_MS);
+}
+
 /**
  * The step-timings switch, never waited for and never reading: the batch's cached answer (refreshed by the hub's own
  * flags() call on every hub answer); off until the first read lands, off on a failed read, off when the cache is older
@@ -224,4 +231,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, busyPageNow, serverTimingNow, fanoutNow, shareOpenNow, edgeLearnNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EDGE_LEARN_KEY, BUSY_PAGE_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; } };
+module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, busyPageNow, busyRetryNow, serverTimingNow, fanoutNow, shareOpenNow, edgeLearnNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EDGE_LEARN_KEY, BUSY_PAGE_KEY, BUSY_RETRY_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; } };
