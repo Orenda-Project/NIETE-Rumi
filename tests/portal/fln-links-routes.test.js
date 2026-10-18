@@ -12,6 +12,7 @@
  */
 const http = require('http');
 const express = require('express');
+const httpGet = require('./_fln-http-get'); // not global fetch: see the helper
 
 const LEADER = 'user-leader-1';
 const TEACHER = 'user-teacher-1';
@@ -34,29 +35,13 @@ jest.mock('../../dashboard/config/supabase', () => ({
     return q;
   },
 }));
-jest.mock('../../dashboard/lib/fln-access', () => {
-  const noStore = (req, res, next) => { res.set('Cache-Control', 'no-store'); return next(); };
-  const requirePortalAuth = (req, res, next) => {
-    if (!req.session || !req.session.portalUserId) {
-      return res.status(401).json({ success: false, error: 'Not authenticated. Please log in.' });
-    }
-    return next();
-  };
-  const flnAccess = (...a) => mockAccess(...a);
-  const gate = (what) => async (req, res, next) => {
-    let access;
-    try { access = await flnAccess(req.session.portalUserId); } catch (_) { access = { lessons: false, share: false }; }
-    if (!access[what]) return res.status(404).json({ error: 'not_found' });
-    req.fln = access;
-    return next();
-  };
-  return {
-    flnAccess,
-    noStore,
-    requirePortalAuth,
-    requireFln: Object.freeze({ lessons: [noStore, requirePortalAuth, gate('lessons')], share: [noStore, requirePortalAuth, gate('share')] }),
-  };
-}, { virtual: true });
+// fln-access is m-app's (PR-C). The suite INJECTS the stub (see _fln-access-stub.js); the virtual module mock is only
+// for a branch where the real file does not exist yet (the router file requires it at load).
+const HAS_ACCESS = require('fs').existsSync(require('path').join(__dirname, '../../dashboard/lib/fln-access.js'));
+if (!HAS_ACCESS) {
+  jest.mock('../../dashboard/lib/fln-access', () => require('./_fln-access-stub')((...a) => mockAccess(...a)), { virtual: true });
+}
+const accessStub = require('./_fln-access-stub')((...a) => mockAccess(...a));
 
 function row(id, extra = {}) {
   return { id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips: {}, opened: false, ...extra };
@@ -111,7 +96,7 @@ function startApp() {
       req.session = uid ? { portalUserId: uid } : {};
       next();
     });
-    app.use('/api/portal', createFlnLinksRouter({ corpus, portalOrigin: () => 'https://portal.example.test' }));
+    app.use('/api/portal', createFlnLinksRouter({ corpus, access: accessStub, portalOrigin: () => 'https://portal.example.test' }));
     server = http.createServer(app);
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
@@ -121,7 +106,7 @@ function startApp() {
 }
 
 async function get(path, user) {
-  const res = await fetch(base + path, { headers: user ? { 'x-test-user': user } : {} });
+  const res = await httpGet(base + path, { headers: user ? { 'x-test-user': user } : {} });
   let body = null;
   try { body = await res.json(); } catch (_) { body = null; }
   return { status: res.status, body, cache: res.headers.get('cache-control') };

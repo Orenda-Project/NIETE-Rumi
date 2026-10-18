@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const express = require('express');
+const httpGet = require('./_fln-http-get'); // not global fetch: see the helper
 
 const HAS_ACCESS = fs.existsSync(path.join(__dirname, '../../dashboard/lib/fln-access.js'));
 const d = HAS_ACCESS ? describe : describe.skip;
@@ -57,7 +58,7 @@ beforeEach(async () => {
 afterEach(() => (server ? new Promise((r) => server.close(r)) : undefined));
 
 async function get(p, user) {
-  const res = await fetch(base + p, { headers: user ? { 'x-test-user': user } : {} });
+  const res = await httpGet(base + p, { headers: user ? { 'x-test-user': user } : {} });
   return { status: res.status, body: await res.json().catch(() => null), cache: res.headers.get('cache-control') };
 }
 
