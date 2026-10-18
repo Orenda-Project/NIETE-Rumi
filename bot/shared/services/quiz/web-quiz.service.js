@@ -649,6 +649,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   // A lesson video under app_settings web_quiz_videos_v3: the page opened from the child home's Videos door puts the play first (named only when on).
   if (video && video.url && await require('./web-quiz-library-flag').videosV3On()) out.videos_v3 = true;
+  // web_quiz_video_shelf: a lesson's Quiz button on the Videos door opens the page at its questions (?to=q); named only when on.
+  if (video && video.url && await require('./web-quiz-library-flag').videoShelfOn()) out.video_shelf = true;
   // A class link on a phone that holds a child asks "Is it <First>?" first (web-quiz-link-known.js): named only when on.
   if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
   // The edge sends this page's head before the bot answers next time (named only when on).
