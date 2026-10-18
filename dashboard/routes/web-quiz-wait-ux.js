@@ -52,7 +52,17 @@ const JS = '(function(d,w){try{'
   + 'n++;start();r.then(z,z);return r};'
   + '}catch(e){}})(document,window)';
 
+const MARK = '<style id="wq-wait">'; // the start of either piece
 const TAG = `<style id="wq-wait">${CSS}</style><script>${JS}</script>`;
+// web_quiz_wait_hops on as well (the answer's `wait_hops`): the same piece, which also counts the page leaving
+// (beforeunload: a tap on «My class», «My school», a game, a quiz) as a wait, so the bar shows while the next page is on
+// its way; a page brought back from the back/forward cache (pageshow, persisted) ends it, and a leave that never happens
+// (a download, a cancelled tap) lets it go at 15 s. Nothing else in the piece changes.
+const HOPS_LINES = 'w.addEventListener("beforeunload",function(){lv=1;start();setTimeout(function(){lv=0;end()},15000)});'
+  + 'w.addEventListener("pageshow",function(e){if(e&&e.persisted){lv=0;end()}});';
+const JS_HOPS = [['var bar=b.firstChild,', 'var lv=0;var bar=b.firstChild,'], ['function busy(){return n>0||!!boot()}', 'function busy(){return n>0||lv||!!boot()}'], ['start();jm();', `start();jm();${HOPS_LINES}`]]
+  .reduce((js, [a, b]) => { if (js.split(a).length !== 2) throw new Error(`wait piece: ${a} not found once`); return js.replace(a, b); }, JS);
+const TAG_HOPS = `<style id="wq-wait">${CSS}</style><script>${JS_HOPS}</script>`;
 
 // The read share (web_quiz_hub_fanout): wraps the fetch the piece above set up, so the first caller's wait still shows
 // the bar and the later callers wait on that same request. Never throws.
@@ -66,10 +76,11 @@ const SHARE = `<script>${SHARE_JS}</script>`;
 
 const on = (payload) => Boolean(payload && payload.wait_ux === true);
 const share = (payload) => on(payload) && payload.wait_share === true;
+const hops = (payload) => on(payload) && payload.wait_hops === true;
 
-/** The piece for the hub page's frame: the inline style and script while on (the read share after it with fanout), nothing while off. */
+/** The piece for the hub page's frame: the inline style and script while on (the page-leave lines in it with hops, the read share after it with fanout), nothing while off. */
 function tag(payload) {
-  return on(payload) ? TAG + (share(payload) ? SHARE : '') : '';
+  return on(payload) ? (hops(payload) ? TAG_HOPS : TAG) + (share(payload) ? SHARE : '') : '';
 }
 
-module.exports = { on, share, tag, TAG, SHARE, SHARE_JS, CSS, JS };
+module.exports = { on, share, hops, tag, MARK, TAG, TAG_HOPS, SHARE, SHARE_JS, CSS, JS, JS_HOPS };

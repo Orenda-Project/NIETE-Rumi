@@ -26,6 +26,7 @@ const { createBotClient, clientIp } = require('./web-quiz.routes');
 const { buildMessagePage } = require('../../bot/shared/services/first-touch/maker.page');
 const { str } = require('../../bot/shared/services/first-touch/teacher-home.strings');
 const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -134,6 +135,8 @@ function createTeacherStoriesRouter(opts = {}) {
   // Gate on: always forward (the bot decides). Gate off: the edge's own reading, as today.
   const isOn = async () => { const f = await flagsNow(); return f.gate || f.teacher; };
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
   const common = { windowMs: 60 * 1000, standardHeaders: true, legacyHeaders: false, validate: false,
     handler: (req, res) => res.status(429).json({ error: 'slow_down' }) };
   const read = rateLimit({ ...common, max: 120, keyGenerator: (req) => `ts:${clientIp(req)}` });
@@ -196,6 +199,7 @@ function createTeacherStoriesRouter(opts = {}) {
     if (res.locals.tsGate === true && isStoriesOff(out)) return notOpenPage(req, res);
     if (out.status !== 200 || !out.bytes || !/^text\/html/i.test(out.contentType || '')) return next();
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+    carryBotSecurity(res, out, securityOn);
     return res.status(200).type('html').send(out.bytes);
   });
 

@@ -256,6 +256,40 @@ describe('render + cache', () => {
     expect(htmlToImage).not.toHaveBeenCalled();
   });
 
+  test('a storybook code with web_quiz_story_board_refuse on: the class picture is 404 (never a 500), nothing drawn; off: drawn', async () => {
+    const StoryBoard = require('../../../shared/services/quiz/story-board');
+    fake.db.quizzes[0].quiz_source = 'story';
+    StoryBoard._reset();
+    await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' });
+    expect(htmlToImage).toHaveBeenCalledTimes(1);
+    htmlToImage.mockClear();
+    Art._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    try {
+      for (const ref of ['CLS001', SID]) {
+        const err = await Art.artImage(Art.artId('l', ref), { size: 'og' }).catch((e) => e);
+        expect(err).toBeInstanceOf(Art.ArtError);
+        expect(err.status).toBe(404);
+      }
+      expect(htmlToImage).not.toHaveBeenCalled();
+    } finally {
+      StoryBoard._reset();
+    }
+  });
+
+  test('a class board that fails for another reason is not a 404: it surfaces as today', async () => {
+    const WebQuiz = require('../../../shared/services/quiz/web-quiz.service');
+    const spy = jest.spyOn(WebQuiz, 'board').mockRejectedValue(Object.assign(new Error('db'), { status: 502 }));
+    try {
+      const err = await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' }).catch((e) => e);
+      expect(err).not.toBeInstanceOf(Art.ArtError);
+      expect(err.status).toBe(502);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   test('R2 down: the picture is still served (drawn), the failure only logged', async () => {
     r2.uploadBuffer.mockRejectedValue(new Error('r2 down'));
     const out = await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' });
@@ -280,6 +314,22 @@ describe('over HTTP', () => {
     expect(r.headers.get('cache-control')).toBe('public, max-age=600');
     const meta = await sharp(Buffer.from(await r.arrayBuffer())).metadata();
     expect([meta.width, meta.height]).toEqual([1080, 1080]);
+  });
+
+  test('GET /art/<class picture> for a storybook code with web_quiz_story_board_refuse on: 404 JSON, never a 500', async () => {
+    const StoryBoard = require('../../../shared/services/quiz/story-board');
+    fake.db.quizzes[0].quiz_source = 'story';
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    try {
+      for (const ref of ['CLS001', SID]) {
+        const r = await fetch(`${base}/art/${Art.artId('l', ref)}?f=sq`, { headers: { 'x-api-key': 'art-key' } });
+        expect(r.status).toBe(404);
+        expect(r.headers.get('content-type')).toMatch(/json/);
+      }
+    } finally {
+      StoryBoard._reset();
+    }
   });
 
   test('a bad id: 404 JSON', async () => {

@@ -78,6 +78,7 @@
       slowNet: 'Slow internet. Keep reading, your voice is being recorded.',
       checked: function (m, w) { return m + ' listened again: ' + w + ' words a minute!'; },
       qaStart: 'Answer questions about the story',
+      qaShort: 'Answer questions',
       listenGo: 'Listen',
       listenWrong: "The story won't play right now. Try another challenge.",
       qaRight: 'Yes!',
@@ -134,6 +135,7 @@
       slowNet: 'انٹرنیٹ آہستہ ہے۔ پڑھتے رہیں، آپ کی آواز ریکارڈ ہو رہی ہے۔',
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
+      qaShort: 'سوالوں کے جواب دیں',
       listenGo: 'سنیں',
       listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
@@ -162,6 +164,7 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function oneButton() { try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; } }
   function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   function q(id) { return root.querySelector('#' + id); }
   function on(id, fn) { var el = q(id); if (el) el.addEventListener('click', fn); }
@@ -405,7 +408,8 @@
   function show(name, html) {
     S.screen = name;
     // a stop played again on the trail: every screen of it says it is practice, scored into nothing
-    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
+    // (under live reading v3 never on the microphone notice: "just for fun" and "Jugnu keeps the recordings" are never one screen)
+    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round && !(name === 'mic-notice' && lr3()) ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
     root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + roundSay + '</section>';
@@ -1173,6 +1177,7 @@
       show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrT().view()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
         + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
+      if (lr3()) lrT().meter();
       livePaint();
     } else if (liveOk()) {
       var prev = d.previous_wcpm;
@@ -1288,7 +1293,7 @@
       + '<p class="wq-sub" id="wqc-growth"></p>'
       + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
       + '<p class="wqc-key"><span><i style="background:' + (lr3() ? '#BBF7D0' : 'var(--right-bg)') + '"></i>' + esc(t.readGreen) + '</span><span><i style="' + (lr3() ? 'box-shadow:inset 0 -3px 0 #E65100' : 'background:#FFF1D6') + '"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
-      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>') + '</div>');
+      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + rfHome(rfh) + '</div>' : (rfh ? '<div class="wq-stack">' : '') + '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>' + (rfh ? rfHome(rfh) + '</div>' : '')) + '</div>');
     if (good) say(d.clips.done);
     rfSound();
     qa.attempted = live.v.attempted;
@@ -1298,7 +1303,7 @@
   }
   // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
   function qaButtons() {
-    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(t.qaStart) + '</button>'
+    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(oneButton() && t.qaShort || t.qaStart) + '</button>'
       + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>';
   }
   var qa = {
@@ -1399,11 +1404,17 @@
   // still: a redraw of this run's result (no motion again); hold: the live card before the check ("read it again"
   // waits for the checked result)
   var rfLast = null;
+  // the moment's card ends with a way Home (the hub of this token), like the Trail's card: never only "More challenges"
+  function rfHome(rf) {
+    if (!rf || !boot.token || !window.WQMoment || !window.WQMoment.label) return '';
+    var href = '/h/' + encodeURIComponent(boot.token) + (boot.kid ? '?kid=' + encodeURIComponent(boot.kid) : '');
+    return '<a class="wq-btn wq-soft" id="wqc-rfhome" data-home href="' + esc(href) + '">' + esc(window.WQMoment.label(L, 'home')) + '</a>';
+  }
   function rfBlock(o, inner, still, hold) {
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold });
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold, once: true });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }
@@ -1553,7 +1564,7 @@
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
         ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
-        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
+        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + rfHome(rf) + '</div>');
     if (said) say(d.clips.done);
     if (rf) rfSound();
     if (said) qa.attempted = r.score && r.score.attempted;
