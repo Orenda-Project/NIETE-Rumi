@@ -4,8 +4,8 @@
  *
  * An FLN open is `fln:<id>` (taleemabad_core slo_lessonplan.id). Its name comes from the sidecar
  * index (fln-index.service), never from the corpus. The answer has the same fields as a k5/g612
- * description, so every list that names opens keeps working, plus the FLN extras (level, minutes,
- * the Urdu labels).
+ * description, so every list that names opens keeps working, plus the FLN extras (level, minutes).
+ * Names are in English like the k5 book names; the portal's FLN pages carry their own en/ur strings.
  *
  * `grade` is null ON PURPOSE: an FLN plan is level-banded (Level 1 = grade 1 … Level 3 = grades 4–5)
  * and is opened by teachers of every grade, so a grade 8 teacher reading a Level 1 plan must not
@@ -16,17 +16,17 @@
  */
 
 const SUBJECTS = Object.freeze({
-  'rh-en': { en: 'Reading Hour · English', ur: 'ریڈنگ آور — انگریزی' },
-  'rh-ur': { en: 'Reading Hour · Urdu', ur: 'ریڈنگ آور — اردو' },
-  num: { en: 'Numeracy', ur: 'بنیادی حساب' },
+  'rh-en': 'Reading Hour · English',
+  'rh-ur': 'Reading Hour · Urdu',
+  num: 'Numeracy',
 });
 /** taleemabad_core subject ids, in case an index carries the id rather than the key. */
 const SUBJECT_IDS = Object.freeze({ 12: 'rh-en', 10: 'rh-ur', 13: 'num' });
 
 const LEVELS = Object.freeze({
-  1: { en: 'Level 1 · Grade 1', ur: 'سطح ۱ — پہلی جماعت' },
-  2: { en: 'Level 2 · Grades 2–3', ur: 'سطح ۲ — دوسری اور تیسری جماعت' },
-  3: { en: 'Level 3 · Grades 4–5', ur: 'سطح ۳ — چوتھی اور پانچویں جماعت' },
+  1: 'Level 1 · Grade 1',
+  2: 'Level 2 · Grades 2–3',
+  3: 'Level 3 · Grades 4–5',
 });
 
 const FALLBACK_TITLE = 'Reading Hour lesson';
@@ -68,15 +68,13 @@ function describeFln(plan, idx) {
     ...base,
     found: true,
     title: typeof e.title === 'string' && e.title.trim() ? e.title.trim() : FALLBACK_TITLE,
-    subject: key ? SUBJECTS[key].en : null,
+    subject: key ? SUBJECTS[key] : null,
     subjectKey: key,
-    subjectNameUr: key ? SUBJECTS[key].ur : null,
-    chapterTitle: level ? LEVELS[level].en : null,
-    gradeLabel: level ? LEVELS[level].en : null,
-    gradeLabelUr: level ? LEVELS[level].ur : null,
+    chapterTitle: level ? LEVELS[level] : null,
+    gradeLabel: level ? LEVELS[level] : null,
     level,
     dayLabel: pos && count ? `Lesson ${pos}/${count}` : null,
-    planLang: e.lang === 'ur' ? 'ur' : 'en',
+    planLang: ['en', 'ur'].includes(e.lang) ? e.lang : null, // the plan's own language, not the UI's
     minutes: positive(e.minutes),
   };
 }

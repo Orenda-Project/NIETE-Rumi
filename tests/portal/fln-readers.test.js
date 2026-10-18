@@ -128,7 +128,7 @@ describe('describe — fln', () => {
 
   test('the asked language is echoed, so the portal can match the answer to its row', async () => {
     const { payload } = await describeViaRoute([{ kind: 'fln', ref: '11133', lang: 'ur' }]);
-    expect(payload.plans[0]).toMatchObject({ lang: 'ur', found: true, subjectKey: 'rh-ur', subjectNameUr: 'ریڈنگ آور — اردو', planLang: 'ur' });
+    expect(payload.plans[0]).toMatchObject({ lang: 'ur', found: true, subjectKey: 'rh-ur', subject: 'Reading Hour · Urdu', planLang: 'ur' });
   });
 
   test('a subject given as the taleemabad_core id is still named', async () => {
