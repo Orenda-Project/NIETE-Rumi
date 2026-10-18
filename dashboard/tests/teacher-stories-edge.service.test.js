@@ -141,12 +141,13 @@ test('the edge reads web_quiz_stories_teacher at most every 30 s, through the po
   const { teacherFlagReader } = require('../routes/teacher-stories.routes');
   let t = 0;
   const reads = [];
-  const fakeDb = { from: () => ({ select: () => ({ eq: (k, v) => { reads.push(v); return { maybeSingle: async () => ({ data: { value: true }, error: null }) }; } }) }) };
+  // one read carries web_quiz_stories_teacher and quiz_teacher_stories_bot_gate together
+  const fakeDb = { from: () => ({ select: () => ({ in: async (k, v) => { reads.push(v); return { data: [{ key: 'web_quiz_stories_teacher', value: true }], error: null }; } }) }) };
   const on = teacherFlagReader({ now: () => t, db: () => fakeDb });
   expect(await on()).toBe(true);
   t = 29999;
   expect(await on()).toBe(true);
-  expect(reads).toEqual(['web_quiz_stories_teacher']);
+  expect(reads).toEqual([['web_quiz_stories_teacher', 'quiz_teacher_stories_bot_gate']]);
   t = 30000;
   await on();
   expect(reads).toHaveLength(2);

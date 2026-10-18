@@ -26,6 +26,12 @@
  *   - chapters and titles with their numbers compared as numbers (Order.compareVideosNatural);
  *   - each chapter's `art` (its first poster) and `tile: 'neutral'`: a broken poster falls back to the
  *     chapter's art, then to a plain tile, never to the subject art.
+ *
+ * app_settings `web_quiz_video_shelf` (off unless the JSON true; off = all of the above unchanged), a subject's lessons
+ * seen from the kid's hub:
+ *   - each lesson with a poster also names its small thumbnail, `thumb: /wq/vt/<vid>.webp` (web-quiz-video-thumb.js);
+ *   - `quiz: true` when this child's quiz after any lesson can be made: a class (the hub's root), or the watch root
+ *     set (a class-less child's quizzes hang under it; absent = no quiz is offered, never a button that fails).
  */
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
@@ -45,7 +51,7 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 // ─── flag ────────────────────────────────────────────────────────────────────
 
-const { libraryOn, videosV3On, urTitlesOn, FLAG_KEY } = require('./web-quiz-library-flag');
+const { libraryOn, videosV3On, urTitlesOn, videoShelfOn, FLAG_KEY } = require('./web-quiz-library-flag');
 const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 // ─── the bank, the child, the class's codes (web-quiz-bank.js) ───────────────
@@ -223,8 +229,62 @@ async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
   const ix = v3 ? await inLanguage(await bank(), langOf(who.lang) || langOf(l)) : await bank();
   const grade = Videos.gradesFor(who.grade)[0] || null;
   const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
+  if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null);
   logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined });
   return out;
+}
+
+/** web_quiz_video_shelf: each lesson's thumbnail, and whether this child's quizzes can be made (in place). */
+// `v`: the drawing's version (web-quiz-video-thumb.js VERSION); the picture is cached for good under it.
+const THUMB_PATH = (vid) => `/wq/vt/${vid}.webp?v=${require('./web-quiz-video-thumb').VERSION}`;
+async function shelfOf(out, rootId) {
+  for (const c of out.chapters) for (const v of c.videos) if (v.poster) v.thumb = THUMB_PATH(v.vid);
+  out.quiz = Boolean(rootId || (await shelfRoot()));
+  return out;
+}
+// The watch root for the shelves' Quiz buttons, held 30 s from its read (shared while it is in flight): one read per
+// Videos open, not one per subject's shelf (the quiz itself is made on the tap with a fresh read).
+const ROOT_HOLD_MS = 30 * 1000;
+let rootHeld = null;
+function shelfRoot() {
+  const now = Date.now();
+  if (rootHeld && now - rootHeld.at < ROOT_HOLD_MS) return rootHeld.v;
+  rootHeld = { at: now, v: require('./web-quiz-videos').watchRoot() };
+  return rootHeld.v;
+}
+
+/**
+ * web_quiz_video_shelf: a grade's lesson lengths read in the background when a child of that grade opens the hub (the
+ * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. The reads
+ * are kept in Redis and read back after a restart, so a deploy does not send every lesson's file to be read again. Only the
+ * lessons the child's language shows (web_quiz_videos_v3). Held for hours once every lesson was read; a bank that did
+ * not load, or a lesson whose details did not come back, is held a minute only (that lesson is not kept), so one bad
+ * read right after a restart never blanks a grade. Never throws.
+ */
+const WARM_AGAIN_MS = 3 * 60 * 60 * 1000; // half the lengths' life in web-quiz-videos.js
+const WARM_RETRY_MS = 60 * 1000;
+const warmed = new Map();                  // grade|language -> no new read before this time
+function warmGrade(grade, { lang, fetchImpl } = {}) {
+  try {
+    const Videos = require('./web-quiz-videos');
+    const g = Videos.gradesFor(grade)[0];
+    const key = `${g}|${langOf(lang) || ''}`;
+    if (!g || Date.now() < (warmed.get(key) || 0)) return;
+    warmed.set(key, Date.now() + WARM_AGAIN_MS);
+    const retry = () => warmed.set(key, Date.now() + WARM_RETRY_MS);
+    track(new Promise((res) => setImmediate(res)).then(async () => {
+      const ix = (await videosV3On()) ? await inLanguage(await bank(), langOf(lang)) : await bank();
+      const ids = ix.rows.filter((r) => String(r.grade) === g).map((r) => r.id);
+      if (!ids.length) return retry();
+      // what a bot before this restart read is read back first (once), and this warm-up's reads are kept in turn
+      await Videos.restoreMeta();
+      await Videos.warmMeta(ids, { fetchImpl, keep: true });
+      const missed = ids.filter((id) => Videos.peekMeta(id) === null);
+      if (!missed.length) return undefined;
+      missed.forEach((id) => Videos.forgetMeta(id));
+      return retry();
+    }).catch(retry));
+  } catch (_) { /* the hub never waits on this */ }
 }
 
 /**
@@ -281,8 +341,8 @@ async function download(code, { st, vid } = {}) {
 }
 
 module.exports = {
-  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder,
+  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH, warmGrade,
   inLanguage,
-  _reset: () => { require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
+  _reset: () => { rootHeld = null; warmed.clear(); require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
 };

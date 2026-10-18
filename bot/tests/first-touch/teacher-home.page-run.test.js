@@ -40,8 +40,8 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release, refuse } (`refuse()` answers the oldest held home fetch with a 500).
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, wait = false } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(wait ? { wait: true } : {}) });
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
@@ -547,6 +547,65 @@ describe('the words while a quiz is made', () => {
   test('no number of minutes is promised; the chat is named as the other way it arrives', () => {
     expect(Strings.str('th.job', 'en')).toBe('Your quiz is on its way — it takes a few minutes and arrives in this chat too');
     expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
+  });
+});
+
+describe('the library card\'s story counts line', () => {
+  const STORIES = [{ id: 'b1', title: 'Rain', href: '/s?book=b1' }];
+  const home = (counts) => ({ primary: { kind: 'none' }, library: { grade: 3, stories: STORIES, all: '/all', ...(counts ? { counts } : {}) } });
+  const line = (p) => { const c = p.q('#th-counts'); expect(c).not.toBeNull(); return c; };
+
+  test('EN: the line shows the stories sent and the children who read, under "Chosen for Grade n" and above the story rows', async () => {
+    const p = await open(home({ sent: 3, read: 7 }), { counts: true });
+    const c = line(p);
+    expect(c.hidden).toBe(false);
+    expect(c.textContent).toBe('3 stories sent · children who read: 7');
+    const kids = p.q('#th-lib').children.map((x) => x.getAttribute('id'));
+    expect(kids.indexOf('th-counts')).toBeGreaterThan(kids.indexOf('th-chosen'));
+    expect(kids.indexOf('th-counts')).toBeLessThan(kids.indexOf('th-stories'));
+  });
+
+  test('EN: one story sent → the singular line', async () => {
+    const p = await open(home({ sent: 1, read: 2 }), { counts: true });
+    expect(line(p).textContent).toBe('1 story sent · children who read: 2');
+  });
+
+  test('no counts on the home → the line stays hidden and empty', async () => {
+    const p = await open(home(null), { counts: true });
+    expect(line(p).hidden).toBe(true);
+    expect(line(p).textContent).toBe('');
+  });
+
+  test('counts with nothing sent → the line stays hidden and empty', async () => {
+    const p = await open(home({ sent: 0, read: 0 }), { counts: true });
+    expect(line(p).hidden).toBe(true);
+    expect(line(p).textContent).toBe('');
+  });
+
+  test('a grade chip tap whose library answer has no counts keeps the home\'s line', async () => {
+    const p = await open(home({ sent: 3, read: 7 }), { counts: true, answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 4');
+    expect(line(p).hidden).toBe(false);
+    expect(line(p).textContent).toBe('3 stories sent · children who read: 7');
+  });
+
+  test.each([
+    [{ sent: 3, read: 7 }, '۳ کہانیاں بھیجی گئیں · پڑھنے والے بچے: ۷'],
+    [{ sent: 1, read: 12 }, '۱ کہانی بھیجی گئی · پڑھنے والے بچے: ۱۲'],
+  ])('UR: %j → the Urdu line in Urdu digits', async (counts, want) => {
+    const p = await open(home(counts), { lang: 'ur', counts: true });
+    expect(line(p).hidden).toBe(false);
+    expect(line(p).textContent).toBe(want);
+  });
+
+  test('the counts switch off: the page has no counts line, and a home that carries counts draws as today', async () => {
+    const p = await open(home({ sent: 3, read: 7 }));
+    expect(p.q('#th-counts')).toBeNull();
+    expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 3');
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html).not.toContain('th-counts');
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, counts: false }).html).toBe(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html);
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, counts: 'true' }).html).toBe(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html);
   });
 });
 

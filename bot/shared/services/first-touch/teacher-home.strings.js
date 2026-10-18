@@ -21,6 +21,11 @@ const STRINGS = Object.freeze({
   // {n} ≥ 1, in the page's digits
   'th.played.n': Object.freeze({ en: '{n} in your class played', ur: 'کلاس میں سے {n} نے کھیلا' }),
   'th.again': Object.freeze({ en: 'Send again', ur: 'دوبارہ بھیجیں' }),
+  // the top card names what it sends again (only while quiz_teacher_home_named_item is on)
+  'th.kind.story': Object.freeze({ en: 'Story:', ur: 'کہانی:' }),
+  'th.kind.quiz': Object.freeze({ en: 'Quiz:', ur: 'کوئز:' }),
+  'th.again.story': Object.freeze({ en: 'Send this story again', ur: 'یہ کہانی دوبارہ بھیجیں' }),
+  'th.again.quiz': Object.freeze({ en: 'Send this quiz again', ur: 'یہ کوئز دوبارہ بھیجیں' }),
   'th.report': Object.freeze({ en: 'See report', ur: 'رپورٹ دیکھیں' }),
   'th.send': Object.freeze({ en: 'Send to my class', ur: 'اپنی کلاس کو بھیجیں' }),
   // the send sheet
@@ -44,6 +49,9 @@ const STRINGS = Object.freeze({
   // the library
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),
+  // the teacher's story sends and the children of those sends who read; {sent} ≥ 1 and {read} in the page's digits
+  'th.stories.counts': Object.freeze({ en: '{sent} stories sent · children who read: {read}', ur: '{sent} کہانیاں بھیجی گئیں · پڑھنے والے بچے: {read}' }),
+  'th.stories.counts.one': Object.freeze({ en: '1 story sent · children who read: {read}', ur: '۱ کہانی بھیجی گئی · پڑھنے والے بچے: {read}' }),
   'th.all.stories': Object.freeze({ en: 'All stories', ur: 'سب کہانیاں' }),
   // a story the teacher sent this month, by its row; {day} = the send's day/month in the page's digits
   'th.sent.on': Object.freeze({ en: 'Sent ✓ {day}', ur: 'بھیجی گئی ✓ {day}' }),

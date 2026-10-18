@@ -52,12 +52,21 @@ async function pageSettings(now = Date.now()) {
 
 async function readSettings(now) {
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
+    // One voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) rides this read, so the page pays no read for
+    // it. A failed read that names it reads the page's own two switches again alone, and one voice is off.
+    const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
+    let { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice']);
+    const withOne = !error;
+    if (!withOne) {
+      logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });
+      ({ data, error } = await two());
+    }
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)) };
+    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
+      oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null };
     return flag;
   } catch (err) {
     logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
@@ -68,6 +77,16 @@ async function readSettings(now) {
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
 async function identityMode(now = Date.now()) {
   return (await pageSettings(now)).mode;
+}
+
+/** The one-voice plan this read carried (web-quiz-one-voice-flag.js), or null: off, or a failed read. */
+async function oneVoicePlan(now = Date.now()) {
+  return (await pageSettings(now)).oneVoice || null;
+}
+
+/** The plan a one-voice row names, kept as that module's reading so its other readers ask no read of their own. */
+function oneVoiceOf(value, now) {
+  try { return require('./web-quiz-one-voice-flag').take(value, now); } catch (_) { return null; }
 }
 
 /** The watch root's share code id, or null (absent, not an id, or a failed read). */
@@ -162,9 +181,13 @@ async function loadClassRoster(classId, now = Date.now()) {
  * → Map(id → canonical id)
  */
 async function canonicalStudentIds(studentIds) {
-  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  return (await lookupIds([...new Set((studentIds || []).filter(Boolean).map(String))])).out;
+}
+
+/** canonicalStudentIds' lookup for distinct ids: { out, ok } (ok false: the lookup failed and the ids were kept as given). */
+async function lookupIds(ids) {
   const out = new Map(ids.map((id) => [id, id]));
-  if (!ids.length) return out;
+  if (!ids.length) return { out, ok: true };
   try {
     // child identity store (web_quiz_identity_canon): the same read also carries merged_into, status.
     const canon = Boolean((await require('./web-quiz-identity-flags').flags()).canon);
@@ -186,11 +209,36 @@ async function canonicalStudentIds(studentIds) {
     if (canon) (st || []).forEach((s) => { if (s.status === 'merged' && s.merged_into && out.has(String(s.id))) out.set(String(s.id), String(s.merged_into)); });
   } catch (err) {
     logToFile('⚠️ web quiz identity: canonical id lookup failed — ids kept as given', { error: err.message });
+    return { out, ok: false };
   }
-  return out;
+  return { out, ok: true };
 }
 
-/** canonicalStudentIds for one id. */
+/**
+ * canonicalStudentIds for the hub's own path (the hub and its pick record), shared within one visit while
+ * web_quiz_hub_fanout is on: a lookup that answered (or is still out) less than SHARE_MS ago for every id asked
+ * answers again, since each id's answer depends on that id alone. A lookup that failed is never shared. Off (or a
+ * cold switch cache): canonicalStudentIds, as today. Other callers (bind, cards, class links) always look up afresh.
+ */
+const SHARE_MS = 1500;
+const shared = new Map(); // id -> { at, p: Promise<{ out: Map, ok: boolean }> }
+async function canonicalStudentIdsShared(studentIds) {
+  if (!require('./web-quiz-hub-flags').fanoutNow()) return canonicalStudentIds(studentIds);
+  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return canonicalStudentIds(ids);
+  const now = Date.now();
+  const hits = ids.map((id) => shared.get(id)).filter((h) => h && now - h.at < SHARE_MS);
+  if (hits.length === ids.length) {
+    const got = await Promise.all(hits.map((h) => h.p));
+    if (got.every((g) => g.ok)) return new Map(ids.map((id, i) => [id, got[i].out.get(id) || id]));
+  }
+  const p = lookupIds(ids);
+  if (shared.size > 500) for (const [id, h] of shared) if (now - h.at >= SHARE_MS) shared.delete(id);
+  ids.forEach((id) => shared.set(id, { at: now, p }));
+  return (await p).out;
+}
+
+/** canonicalStudentId for one id. */
 async function canonicalStudentId(studentId) {
   return (await canonicalStudentIds([studentId])).get(String(studentId)) || studentId;
 }
@@ -309,8 +357,9 @@ async function nonAttempters({ shareCodeId } = {}) {
 module.exports = {
   FLAG_KEY,
   identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
-  canonicalStudentIds, canonicalStudentId,
+  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; inflight = null; rosters.clear(); },
+  _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); },
 };
+module.exports.oneVoicePlan = oneVoicePlan;

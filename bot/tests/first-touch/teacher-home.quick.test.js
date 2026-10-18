@@ -30,6 +30,7 @@ const { logToFile } = require('../../shared/utils/logger');
 const { logEvent } = require('../../shared/utils/structured-logger');
 const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
 const Fx = require('./teacher-home-waves-fixture');
+const { hookPageRead } = require('./maker-fixture');
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-paged-off.json');
 const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shaped literal in the tree)
@@ -222,7 +223,11 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   // Waves -2 on the home: the class report's fold switch is read beside its sessions (base wave 10), and the report
   // gate starts with the lesson reads (base wave 13). The shell +1 wave: it must know the switch before it serves.
   // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
-  const PINS = { long: { reads: 46, waves: 15 }, small: { reads: 45, waves: 15 }, big: { reads: 46, waves: 15 }, shell: { reads: 2, waves: 2 } };
+  // The send-again check in two halves: long and big ask the lessons' quizzes and their codes as their own pair (+2 reads);
+  // small makes the same reads, its lessons' half starting as soon as the lessons are in (2 round trips sooner).
+  // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
+  // beside a read already in flight (no new round trip); + the story-counts switch's read on the home and the shell (+1 each)
+  const PINS = { long: { reads: 50, waves: 15 }, small: { reads: 47, waves: 13 }, big: { reads: 50, waves: 15 }, shell: { reads: 5, waves: 2 } };
   test.each([
     ['long', {}],
     ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
@@ -241,21 +246,9 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   });
 });
 
-/** The next app_settings read of `key` fails (the database answers an error). */
-function failSetting(key) {
-  const sb = require('../../shared/config/supabase');
-  const from0 = sb.from;
-  sb.from = (t) => {
-    const b = from0(t);
-    if (t !== 'app_settings') return b;
-    const eq0 = b.eq.bind(b);
-    b.eq = (k, v) => { const r = eq0(k, v); if (v === key) r.maybeSingle = async () => ({ data: null, error: { message: 'settings down' } }); return r; };
-    // the page switches are read together (`.in`): that read fails when it carries `key`
-    if (typeof b.in === 'function') { const in0 = b.in.bind(b); b.in = (k, vs) => { const r = in0(k, vs); if ((vs || []).includes(key)) r.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'settings down' } }).then(res, rej); return r; }; }
-    return b;
-  };
-}
-/** Counts the app_settings reads of `key` from now on. → { n } */
+/** The page read (the app_settings `.in` whose keys include the quick answer's key) from now on; `fail` → it fails. */
+const pageRead = (opts) => hookPageRead(require('../../shared/config/supabase'), opts);
+/** Counts the app_settings reads of `key` from now on (by .eq, or among the keys of an .in read). → { n } */
 function watchSetting(key) {
   const seen = { n: 0 };
   const sb = require('../../shared/config/supabase');
@@ -264,8 +257,9 @@ function watchSetting(key) {
     const b = from0(t);
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
+    const in0 = b.in.bind(b);
     b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
-    if (typeof b.in === 'function') { const in0 = b.in.bind(b); b.in = (k, vs) => { if ((vs || []).includes(key)) seen.n += 1; return in0(k, vs); }; }
+    b.in = (k, vs) => { if ([].concat(vs || []).includes(key)) seen.n += 1; return in0(k, vs); };
     return b;
   };
   return seen;
@@ -274,7 +268,7 @@ function watchSetting(key) {
 describe('the quick answer\'s switch, read', () => {
   test('a failed read of the switch: today\'s answer byte for byte', async () => {
     await boot({ paged: true });
-    failSetting('quiz_teacher_home_paged');
+    pageRead({ fail: true });
     const out = await home();
     expect(out.status).toBe(200);
     expect(out.text).toBe(fs.readFileSync(GOLDEN, 'utf8'));
@@ -283,15 +277,15 @@ describe('the quick answer\'s switch, read', () => {
   test('never while the home itself is off (today\'s 404 reads one switch), never on another route', async () => {
     const fake = await boot({ paged: true });
     fake.db.app_settings = fake.db.app_settings.filter((r) => r.key !== 'quiz_teacher_home');
-    const off = watchSetting('quiz_teacher_home_paged');
+    const off = pageRead();
     const home0 = watchSetting('quiz_teacher_home');
     expect((await home()).status).toBe(404);
     expect({ paged: off.n, home: home0.n }).toEqual({ paged: 0, home: 1 });
     await boot({ paged: true });
-    const lib = watchSetting('quiz_teacher_home_paged');
+    const lib = pageRead();
     await getJson(`/api/th/library?t=${tokenAt()}&g=3`);
     expect(lib.n).toBe(0);
-    const homeOn = watchSetting('quiz_teacher_home_paged');
+    const homeOn = pageRead();
     await home();
     expect(homeOn.n).toBe(1); // the counter counts: the home itself asks
   });
@@ -359,7 +353,7 @@ describe('the page (its shell)', () => {
       expect(off.text).toContain(`<script>${Page().SCRIPT}</script>`);
     }
     await boot({ paged: true });
-    failSetting('quiz_teacher_home_paged');
+    pageRead({ fail: true });
     expect((await shell()).text).not.toContain('id="th-retry"');
   });
 });

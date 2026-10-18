@@ -179,10 +179,23 @@
       var want = qa ? null : replayRa(d, card);
       var ra = want && want !== 'wait' ? want : null;
       var fx = foldNext(nx);
-      h.show(name, top + (ra ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
+      // web_quiz_fold_retry: a 0-word try (card.r.again, never on a held card) gets one soft Try again above Next; the
+      // reading moment's own (wqc-rfagain) stays the only one when it is drawn
+      var md = h.md() || {};
+      var rfa = top.indexOf('id="wqc-rfagain"') >= 0;
+      var retry = md.fold_retry === true && card && card.r && card.r.again && !card.r.hold && !rfa;
+      // the reading moment's own button (wqc-rfagain) with a read-along: ONE button for ONE action — "Read with Jugnu"
+      // reads with the words lit, then opens the read; the card's Next stays its one primary (no separate "Hear it again")
+      var rfRa = rfa && ra && window.WQMoment && window.WQMoment.label ? ra : null;
+      if (rfRa) top = top.replace(/(id="wqc-rfagain"[^>]*>)[^<]*/, '$1' + esc(window.WQMoment.label(L, 'withJ')));
+      var replay = ra && !rfRa;
+      h.show(name, top + (retry ? btn('wqc-again', h.t.again, 'wq-soft') : '') + (replay ? foldHtml(fx, false).replace(/<a class="wq-btn wq-go" id="wqc-fnext"[^>]*>[\s\S]*?<\/a>/, btn('wqc-fnext', t.ra.replay).replace('type="button"', 'data-primary type="button"')) : foldHtml(fx, qa)));
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
-      if (ra) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
-      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || ra ? null : fx } }));
+      if (retry) h.on('wqc-again', function () { h.open(d.ex); });
+      // bound here, so a redraw (the timings landing later) binds it again
+      if (rfa) h.on('wqc-rfagain', function () { if (rfRa) timedAlong(rfRa, function () { h.open(d.ex); }); else h.open(d.ex); });
+      if (replay) h.on('wqc-fnext', function () { timedAlong(ra, function () { h.open(d.ex); }); });
+      if (window.WQFC) window.WQFC.trailEnd(h, Object.assign(card, { fold: { next: qa || replay ? null : fx } }));
       foldAfter(qa);
       // no timings on the serve (a counted read): asked for now (once the recording is up); drawn again with "Hear it again"
       var redraw = function () { if (h.S.data === d && h.S.screen === name) foldEnd(name, top, qa, nx, card); };
@@ -473,19 +486,22 @@
     }
     // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
     // r: the read's result; the card gets it (its ranked next_offer), and the card after the story's questions too
-    function storyEnd(name, qa, r) {
+    function storyEnd(name, qa, r, hold) {
       var d = h.S.data || {};
-      if (r) d.story_r = r;
+      if (r) { d.story_r = r; d.story_hold = !!hold; }
       if (name === 'read-result') d.story_qa = !!qa;
-      if (window.WQJ) window.WQJ.finish({ kind: name });
+      var once = rfOnce(name);
+      if (window.WQJ && once) window.WQJ.finish({ kind: name });
       // the story's own result, when the page handed it over (data.story_r), carries the ranked Next
       // folded, a practice run (Story Time is one) puts no sticker in the Book, so it says none
-      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); return; }
-      h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
+      var rf = rfHtml(d.story_r, !once, null, null, d.story_hold);
+      if (fold()) { var sd = h.S.data || {}; foldEnd(name, h.jug('celebrate', t.storyAgain, true) + rf + (sd.practice_round ? '' : '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'), !!qa, (sd.story_r && sd.story_r.next_offer) || sd.next_offer, { name: name, story: true, t: t, r: sd.story_r }); rfSound(once && rf); return; }
+      h.show(name, h.jug('celebrate', t.storyAgain, true) + rf + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
         + '<div class="wq-stack">' + wordsBtn() + (qa ? h.qaButtons() : btn('wqc-menu', toGames())) + '</div>');
       h.on('wqc-menu', h.refreshMenu);
+      rfSound(once && rf);
       if (qa) h.on('wqc-qa', function () { h.qa().open(); });
-      wordsAfter(function () { storyEnd(name, qa, r); });
+      wordsAfter(function () { storyEnd(name, qa, r, hold); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, story: true, t: t, r: d.story_r });
     }
     // "Show me the words" after a practice listen's questions (show_words; never a counted listen or a class round):
@@ -636,19 +652,49 @@
       var qa = r.qa && !hold ? h.qaButtons() : '';
       var home = hold && d.questions_on ? '' : btn('wqc-menu', toGames());
       // the sound + motion kit (web_quiz_juice): the finish beat on a card that celebrates
-      if (window.WQJ && pose === 'celebrate') window.WQJ.finish({ kind: name });
+      var once = rfOnce(name + '|' + pose);
+      if (window.WQJ && pose === 'celebrate' && once) window.WQJ.finish({ kind: name });
       if (round) {
         h.show(name, h.jug(pose, line, true) + wait + '<div class="wq-stack">' + btn('wqc-handback', d.round_handback || '') + '</div>');
         h.on('wqc-handback', function () { if (d.round_back) location.href = d.round_back; else { try { history.back(); } catch (e) { /* stays */ } } });
         return;
       }
-      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); return; }
-      h.show(name, h.jug(pose, line, true) + wait + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
+      // folded, the card has no Try again of its own: a 0-word try gets it in the moment
+      var rf = rfHtml(r, !once, line, fold() && r.again && !hold ? h.t.again : null, hold);
+      if (fold()) { foldEnd(name, h.jug(pose, line, true) + wait + rf + sticker, !!(r.qa && !hold), r.next_offer || d.next_offer, { name: name, line: line, r: r, t: t }); rfSound(once && rf); return; }
+      h.show(name, h.jug(pose, line, true) + wait + rf + sticker + next + b3 + '<div class="wq-stack">' + wordsBtn() + (qa || home) + again + '</div>');
+      rfSound(once && rf); rfAgain(rf, d);
       h.on('wqc-menu', h.refreshMenu);
       if (r.again) h.on('wqc-again', function () { h.open(d.ex); });
       if (r.qa) h.on('wqc-qa', function () { h.qa().open(); });
       wordsAfter(function () { endCard(name, pose, line, extra); });
       if (window.WQFC) window.WQFC.trailEnd(h, { name: name, line: line, r: r, t: t });
+    }
+    // the reading moment (web_quiz_read_feedback, wq-moment.js): the read answered on its card — the words, Jugnu's jar
+    // of lights with the speed beside it, stars, the child's own last read, a badge. r.rf: the read as the page knows it
+    // (the live count, then the checked result). Key off, file not here or a class round: nothing (today's card)
+    // still: a redraw of a result already answered (the moment laid in without its motion again); said: Jugnu's line;
+    // retry: the Try again label (folded 0-word card); hold: a card before the check (no "read it again" offer yet)
+    var rfFb = null;
+    function rfHtml(r, still, said, retry, hold) {
+      rfFb = null;
+      var md = h.md() || {};
+      if (md.read_feedback !== true || !window.WQMoment || !r || !r.rf || (h.S.data || {}).round_turn) return '';
+      rfFb = window.WQMoment.feedback(r.rf);
+      return window.WQMoment.card(rfFb, L, { grade: md.form, still: still, said: said, retry: retry, hold: hold });
+    }
+    // once per result (key on): the finish beat and Jugnu's sound on a result's first card only; the checked redraw and
+    // the words redraw lay the card in silently. Key off: every draw, as today
+    function rfOnce(name) {
+      if ((h.md() || {}).read_feedback !== true || !window.WQMoment || !window.WQMoment.once) return true;
+      return window.WQMoment.once(((h.S.data || {}).ct || '') + '|' + name);
+    }
+    function rfAgain(rf, d) { if (rf) h.on('wqc-rfagain', function () { h.open(d.ex); }); }
+    // Jugnu's sound for it: the badge jingle after a read (after the finish fanfare), the soft chime after a 0-word try
+    function rfSound(rf) {
+      if (!rf || !rfFb || !window.WQMoment) return;
+      var fb = rfFb, J = window.WQJ, go = function () { window.WQMoment.sound(document.querySelector ? document.querySelector('[data-rf]') : null, fb); };
+      if (J && J.after && !fb.zero) J.after(1200, go); else go();
     }
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
     // heard: a live reading's words heard; when given, it chooses the line (all = 90% of the story's words heard)
@@ -658,7 +704,7 @@
       if (window.WQFC && (h.md() || {}).card_v3 && window.WQFC.unheard(r, words, heard, storyLen(d))) { endCard('read-result', 'hello', window.WQFC.triedLine(L, r), Object.assign({}, r || {}, { again: !(r && r.later), qa: false, noSticker: true, tried: true, hold: !!hold })); return !!hold; }
       if (isStory()) {
         var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
-        storyEnd('read-result', !!(heard && d.questions_on), r);
+        storyEnd('read-result', !!(heard && d.questions_on), r, hold);
         return;
       }
       if (r && r.later) { endCard('read-result', 'hello', h.t.later, r); return; }
@@ -676,7 +722,8 @@
     function storySettled(r) {
       var d = h.S.data || {};
       if (!isStory() || !r || !r.next_offer || h.S.screen !== 'read-result' || (d.story_r && d.story_r.next_offer)) return;
-      if (window.WQFC && (h.md() || {}).card_v3) storyEnd('read-result', !!d.story_qa, r);
+      // the reading moment (key on) stays on the redrawn card, now with the checked speed
+      if (window.WQFC && (h.md() || {}).card_v3) storyEnd('read-result', !!d.story_qa, (h.md() || {}).read_feedback === true && !r.rf && r.score ? Object.assign({}, r, { rf: r }) : r);
     }
     // s: the server's score for bigger / missing; a run stopped early did not answer every question, so the card
     // never says it did: the sticker line alone (a first counted run), or today's "Stop done!" on a practice round
