@@ -47,6 +47,8 @@ const FANOUT_KEY = 'web_quiz_hub_fanout';
 const EARLY_KID_KEY = 'web_quiz_hub_early_kid';
 // The children's own rows read once per hub answer (web-quiz-hub-child-rows.js): only JSON true.
 const CHILD_MEMO_KEY = 'web_quiz_hub_child_memo';
+// The class rosters the hub uses kept fresh by the fanout keeper (web-quiz-identity-roster.js keepWarm): only JSON true.
+const ROSTER_WARM_KEY = 'web_quiz_hub_roster_warm';
 // The one share (web-quiz-card-switch.js: the card on AND the share on, each only as JSON true) rides this read too, so
 // a home link (the join's, a hub reply's) learns whether to look for a shared card's kept item with no read of its own.
 const CARD_KEY = 'web_quiz_card_v3';
@@ -127,6 +129,7 @@ const SWITCHES = Object.freeze([
   ['door',         DOOR_KEY,              'loose'],
   ['earlyKid',     EARLY_KID_KEY,         'json'],
   ['fanout',       FANOUT_KEY,            'json'],
+  ['rosterWarm',   ROSTER_WARM_KEY,       'json'],
   ['waves2',       WAVES2_KEY,            'json'],
   ['library',      LIBRARY_KEY,           'loose'],
   ['liveMeter',    LIVE_METER_KEY,        'meter'],
@@ -432,6 +435,7 @@ module.exports = {
   FACE_LITE_KEY,
   faceLiteNow,
   FANOUT_KEY,
+  ROSTER_WARM_KEY,
   fanoutNow,
   flags,
   HOME_BUTTON_KEY,
