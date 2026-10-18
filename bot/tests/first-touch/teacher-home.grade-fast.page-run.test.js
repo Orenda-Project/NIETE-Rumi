@@ -71,7 +71,7 @@ async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), 
       if (p.indexOf('/api/th/library?') === 0) {
         return new Promise((resolve) => {
           const g = Number(/[?&]g=(\d)/.exec(p)[1]);
-          open.push(() => resolve(fail.includes(g) ? { ok: false, status: 503, json: () => Promise.resolve({ error: 'mk.error' }) } : { ok: true, status: 200, json: () => Promise.resolve(libOf(g)) }));
+          open.push(Object.assign(() => resolve(fail.includes(g) ? { ok: false, status: 503, json: () => Promise.resolve({ error: 'mk.error' }) } : { ok: true, status: 200, json: () => Promise.resolve(libOf(g)) }), { g }));
           maxOpen = Math.max(maxOpen, open.length);
         });
       }
@@ -97,6 +97,8 @@ async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), 
     tapNow,
     idle: async () => { while (idles.length) { idles.shift()({ timeRemaining: () => 50, didTimeout: false }); await flush(); } },
     answer: async () => { const r = open.shift(); if (r) r(); await flush(); },
+    answerGrade: async (g) => { const i = open.findIndex((r) => r.g === g); if (i >= 0) open.splice(i, 1)[0](); await flush(); },
+    openGrades: () => open.map((r) => r.g),
     answerAll: async () => { while (open.length) { open.shift()(); await flush(); } },
     get inFlight() { return open.length; },
     get maxOpen() { return maxOpen; },
@@ -121,6 +123,20 @@ describe.each([['the quick answer OFF', false], ['the quick answer ON', true]])(
       expect(p.stories()).toEqual(['Story of grade 5']);
       expect(p.q('#th-stories').getAttribute('aria-busy')).toBe(null);
       expect(p.q('#th-stories').style.opacity).toBe('');
+    });
+
+    test('a slow answer for an earlier tap, arriving after the later grade is drawn, does not replace it', async () => {
+      const p = await open({ home: HOME(1) });
+      p.tapNow(p.chip(3));
+      p.tapNow(p.chip(4));
+      expect(p.openGrades()).toEqual([3, 4]);
+      await p.answerGrade(4);
+      expect(p.stories()).toEqual(['Story of grade 4']);
+      await p.answerGrade(3); // grade 3's answer lands late
+      expect(p.pressed()).toEqual([4]);
+      expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 4');
+      expect(p.stories()).toEqual(['Story of grade 4']);
+      expect(p.q('#th-stories').getAttribute('aria-busy')).toBe(null);
     });
 
     test('a library answer that fails puts the chip back on the grade shown, shows the error line, and a new tap asks again', async () => {
@@ -151,6 +167,23 @@ describe.each([['the quick answer OFF', false], ['the quick answer ON', true]])(
       await p.answerAll();
       await p.idle();
       expect(p.lib()).toHaveLength(2);
+      expect(p.maxOpen).toBe(1);
+    });
+
+    test('the idle asking waits for a tapped grade\'s open request, then asks in order, one open at a time', async () => {
+      const p = await open();
+      p.tapNow(p.chip(5)); // before the page is idle: grade 5's request is open
+      await p.idle();
+      expect(p.openGrades()).toEqual([5]); // nothing asked ahead while it is open
+      await p.answer();
+      expect(p.stories()).toEqual(['Story of grade 5']);
+      await p.idle();
+      expect(p.openGrades()).toEqual([4]);
+      await p.answer(); await p.idle();
+      expect(p.openGrades()).toEqual([2]);
+      await p.answer(); await p.idle();
+      expect(p.openGrades()).toEqual([]);
+      expect(p.lib()).toEqual(['/api/th/library?t=a.b&g=5', '/api/th/library?t=a.b&g=4', '/api/th/library?t=a.b&g=2']);
       expect(p.maxOpen).toBe(1);
     });
 
