@@ -135,12 +135,21 @@ describe('1. the reader names two Section D give-aways', () => {
 
   test('chapters_2 through the engine: the reader is asked both shapes, takes Q6 1 and 2 off, and D is topped up', async () => {
     const rec = fixture('r17g-sst-replies-chapters_2');
+    // Three Q1 items of this reply are given away by C and D stems and Section A is asked again; the
+    // recording's own re-ask reply writes nothing new, so the re-ask here writes fresh items. The Q1
+    // items the reader names are found by their text: the held ones' places are refilled at the end.
+    let by6 = null;
+    let by12 = null;
     const { asked, out } = await replay(rec, {
+      edit: (r) => r.replies.A.push(fixture('sst-a-reask-fresh').reply),
       reader: {
-        1: (prompt) => JSON.stringify({ candidates: [
-          { item: labelOf(prompt, q6a.question), by: 'Q1.6, Q1.7, Q1.12', evidence: 'رائے کا احترام کرتے ہوئے دلیل سے بات کرنا | ٹھنڈے دماغ سے جواب دینا | گفتگو میں مناسب زبان استعمال کرنا', reason: 'each point is a Q1 key', given_away: true },
-          { item: labelOf(prompt, q6b.question), by: 'Q1.12', evidence: wrong12.join(' | '), reason: 'its points are the wrong acts of Q1.12, not done', given_away: true },
-        ] }),
+        1: (prompt) => {
+          [by6, by12] = [[q1[5], q1[6], q1[11]].map((q) => labelOf(prompt, q.question)).join(', '), labelOf(prompt, q1[11].question)];
+          return JSON.stringify({ candidates: [
+            { item: labelOf(prompt, q6a.question), by: by6, evidence: 'رائے کا احترام کرتے ہوئے دلیل سے بات کرنا | ٹھنڈے دماغ سے جواب دینا | گفتگو میں مناسب زبان استعمال کرنا', reason: 'each point is a Q1 key', given_away: true },
+            { item: labelOf(prompt, q6b.question), by: by12, evidence: wrong12.join(' | '), reason: 'its points are the wrong acts of that Q1 item, not done', given_away: true },
+          ] });
+        },
       },
     });
     const first = asked.find((a) => a.sec === 'reader');
@@ -151,7 +160,8 @@ describe('1. the reader names two Section D give-aways', () => {
     expect(printed).not.toContain(q6a.question);
     expect(printed).not.toContain(q6b.question);
     expect(printed.length).toBe(items(exam, D6).length);
-    expect(out.examJson._layout.reader.items.map((x) => x.by)).toEqual(expect.arrayContaining(['Q1.6, Q1.7, Q1.12', 'Q1.12']));
+    expect(by6).toMatch(/^Q1\.\d+, Q1\.\d+, Q1\.\d+$/);
+    expect(out.examJson._layout.reader.items.map((x) => x.by)).toEqual(expect.arrayContaining([by6, by12]));
   });
 
   test('Urdu: the reader prompt carries none of these lines', () => {
@@ -212,10 +222,13 @@ describe('2. a Q6 that only says which government does each job is recall', () =
 });
 
 describe('3. a re-ask says in the log why its slot was short', () => {
-  test('chapters_2: A.Q1 was short because the reply wrote 19 items, none held', async () => {
+  // Three more are held as given away by a C or D stem: Q5 «ٹیلی وژن اور ریڈیو میں کیا فرق ہے؟» and
+  // «امن اور ہم آہنگی … کیوں فائدہ مند ہیں؟» ask what two Q1 items ask, and a Q6 situation prints
+  // «کمپیوٹر اور انٹرنیٹ», a Q1 key, on the same topic.
+  test('chapters_2: A.Q1 was short because the reply wrote 19 items, and C and D gave three away', async () => {
     await replay(fixture('r17g-sst-replies-chapters_2'));
     const a = logged('[assessment] section re-asked').find((x) => x.section === 'A');
-    expect(a.why).toEqual([{ slot: Q1, written: 19, held: {} }]);
+    expect(a.why).toEqual([{ slot: Q1, written: 19, held: { asked_in_c: 2, key_in_stem: 1 } }]);
   });
 
   test('an A.Q1 item the layout holds is named, with its rule, in the held items line', async () => {
