@@ -51,3 +51,13 @@ export function safeNext(raw: string | null | undefined): string | null {
   if (!ALLOW.test(u.pathname) || !ALLOW.test(raw)) return null;
   return `${u.pathname}${u.search}${u.hash}`;
 }
+
+/**
+ * After sign-in: a safe `next=` REPLACES the login entry (so Back from the plan does not land on the sign-in form again);
+ * without one the user goes home exactly as before (a plain push).
+ */
+export function goAfterSignIn(navigate: (to: string, opts?: { replace?: boolean }) => void, search: string, home: string): void {
+  const next = safeNext(new URLSearchParams(search).get('next'));
+  if (next) navigate(next, { replace: true });
+  else navigate(home);
+}

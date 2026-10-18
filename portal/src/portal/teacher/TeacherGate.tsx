@@ -26,7 +26,7 @@ const TeacherGate = ({ children }: { children: ReactNode }) => {
   const flag = useTeacherV2(user?.phoneNumber || null, !loading && !!user);
   useFollowPreferredLanguage(!loading && isTeacherV2For(user, flag));
   if (loading) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
-  if (!user) return <Navigate to="/portal/login" replace />;
+  if (!user) return <Navigate to={"/portal/login?next=" + encodeURIComponent(window.location.pathname + window.location.search)} replace />;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!isTeacherV2For(user, flag)) return <Navigate to="/portal/dashboard" replace />;
   return <>{children}</>;
