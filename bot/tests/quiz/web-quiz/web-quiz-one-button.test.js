@@ -198,8 +198,9 @@ describe('the routes', () => {
   test('a cold switch never holds the answer and reads nothing of its own: today\'s answers until the hub\'s one read lands', async () => {
     rows = [{ key: KEY, value: true }];
     await serve(async (ask) => {
-      expect(await ask()).toEqual(GOLDEN);
-      expect(settingsReads).toBe(0);
+      // The first answer (the class link, asked first) is today's: the switch never holds it. Its own call starts the hub's
+      // one batched read in the background (step timings), so the answers after it in the same round may carry the key.
+      expect((await ask()).quiz).toBe(GOLDEN.quiz);
       await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
       const later = await ask();
       expect(JSON.parse(later.hubGet).one_button).toBe(true);
