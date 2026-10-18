@@ -875,3 +875,5 @@ html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m 
 html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
 html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
+/* the one button system's back in a land head (wq-doors.js frame, the look's see-all): the Home circle with an arrow */
+html.wq-1b .wq-homebtn.wq-backbtn::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat}
