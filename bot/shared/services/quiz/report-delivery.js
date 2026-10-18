@@ -6,9 +6,9 @@
  * Keep the id (remember): with the switch on, every teacher report send keeps its WhatsApp message id in Redis
  * `report_msg:<id>` → { kind, share_code_id | quiz_id, at } for 48 h. kind 'quiz' / 'story' is the class report
  * (video-quiz-report buildAndSend, keyed by the share code), 'chat_quiz' the chat quiz's report (quiz-job-handler,
- * keyed by the quiz). The class report never reads the switch for this: the reading this process already holds
- * (report-send-check known(), the report's own settings reads carry it) decides. The chat quiz asks the switch's 30 s
- * cached reading after an accepted send (off: at most one settings read per 30 s, no write).
+ * keyed by the quiz). Both ask the switch's 30 s cached reading after an accepted send (remember with ask: true;
+ * the class report's fold read carries it where the report makes one; off: at most one settings read per 30 s, no
+ * write).
  *
  * Act on `failed` (onFailedStatus, from the WhatsApp status webhook, failed statuses only): with the switch on (its
  * own 30 s cached reading, asked only for a failed status), one Redis GET of `report_msg:<id>`. Not a report: nothing
