@@ -20,7 +20,7 @@ const TOKEN = 'eyJrIjoiaCIsImlkcyI6WyJhIl0sImV4cCI6OTk5OTk5OTk5OX0.AbCdEfGhIjKlM
 const KID = '0123456789abcdef';
 const TILE = `/c/${TOKEN}?kid=${KID}&home=1`;
 const HOME = {
-  lang: 'en', kids: [{ chip: KID, first: 'Sam', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [],
+  lang: 'en', kids: [{ chip: KID, first: 'Sam Testwala', animal: 'owl', grade: '3' }], kid: KID, teacher: null, again: [], recs: [],
   challenge: { on: true, exercises: [] }, lib: null, brand: 'niete', rt: false, home_v3: 1,
   doors: { stories: [], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }], videos: null },
   head: { dots: 1, today: false, jar: null },
@@ -463,9 +463,9 @@ describe('the finish card: OFF rows (offline, on a slow line)', () => {
 
 describe('the quiz page RUNS the arming line (wq.js, the fold card)', () => {
   const { page } = require('./wq-page-harness');
-  const RESULT = { card: { first: 'Zara', animal: 'owl', correct: 3, total: 5, stars: 3, nth: 6 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+  const RESULT = { card: { first: 'Zara Testwala', animal: 'owl', correct: 3, total: 5, stars: 3, nth: 6 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
     art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, hub_door: true, jugnu_card: true, card_v3: true, card_fold: true };
-  const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
+  const CHILD = { first: 'Zara Testwala', chip: 'c1', animal: 'owl' };
   const FC_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-finish-card.js'), 'utf8');
   function run(og) {
     const bootExtra = og === undefined ? {} : { offline_guard: og };
@@ -561,7 +561,7 @@ function docClick(w, a) {
   if (!prevented) w.navs.push(['open', a.getAttribute('href')]);
   return prevented;
 }
-const WHO_HOME = { ...HOME, kids: [HOME.kids[0], { chip: 'fedcba9876543210', first: 'Ali', animal: 'cat', grade: '3' }], jn: JN };
+const WHO_HOME = { ...HOME, kids: [HOME.kids[0], { chip: 'fedcba9876543210', first: 'Ali Testwala', animal: 'cat', grade: '3' }], jn: JN };
 function whoLinks(w, B, lang = 'en') {
   const h = home(w, B, lang);
   h.tap('who');
@@ -572,7 +572,7 @@ function whoLinks(w, B, lang = 'en') {
 }
 function bookLinks(w, lang = 'en') {
   vm.runInNewContext(fs.readFileSync(BOOK_SRC, 'utf8'), sandbox(w));
-  const d = { name: 'Sam', lamps: { reading: 3 }, levelup: { ladder: 'reading', rung: 3, opens: 'longer' }, story_stickers: [{ passage_id: 'p1', title: 'The kite' }] };
+  const d = { name: 'Sam Testwala', lamps: { reading: 3 }, levelup: { ladder: 'reading', rung: 3, opens: 'longer' }, story_stickers: [{ passage_id: 'p1', title: 'The kite' }] };
   const html = w.win.WQBOOK._bookHtml(d, { token: TOKEN, kid: KID, lang, v3: true }, true);
   const links = linksOf(html, null);
   return { go: links.find((a) => a.id === 'wq-bk-go'), star: links.find((a) => /wq-bk-st/.test(a.className)) };
