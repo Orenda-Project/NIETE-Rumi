@@ -173,7 +173,7 @@ describe('wq-tel.js: the class on <html>', () => {
   const run = (boot) => {
     const cls = new Set();
     const doc = {
-      documentElement: { classList: { add: (c) => cls.add(c) } },
+      documentElement: { classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c) } },
       getElementById: (id) => (id === 'boot' ? { textContent: JSON.stringify(boot) } : null),
     };
     const win = {};
@@ -194,6 +194,25 @@ describe('wq-tel.js: the class on <html>', () => {
     W.oneButton({ one_button: 'yes' });
     expect(cls.size).toBe(0);
     W.oneButton({ one_button: true });
+    expect(cls.has('wq-1b')).toBe(true);
+  });
+  test('by default a later answer never takes the class off (a page\'s own calls only add)', () => {
+    const { cls, W } = run({ one_button: true });
+    W.oneButton({});
+    W.oneButton(null);
+    expect(cls.has('wq-1b')).toBe(true);
+  });
+  test('exact (a page that drew a kept copy re-reads its live answer): the class follows the answer both ways', () => {
+    const { cls, W } = run({ one_button: true });
+    W.oneButton({ kids: [] }, true);
+    expect(cls.has('wq-1b')).toBe(false);
+    W.oneButton({ one_button: true }, true);
+    expect(cls.has('wq-1b')).toBe(true);
+    W.oneButton({ one_button: 'true' }, true);
+    expect(cls.has('wq-1b')).toBe(false);
+    // no answer at all (a failed read) is not an answer: nothing changes
+    W.oneButton({ one_button: true }, true);
+    W.oneButton(null, true);
     expect(cls.has('wq-1b')).toBe(true);
   });
 });

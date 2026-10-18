@@ -34,7 +34,8 @@
  * window.WQT.oneButton(answer) puts the one-button look's class (`wq-1b`, wq.css) on <html> when a bot answer says
  * `one_button: true` (app_settings web_quiz_one_button; the Challenge page's boot carries it under `menu`); run here on
  * the boot, before any page script draws, and by a page that gets its answer later (the library). Anything else:
- * nothing changes.
+ * nothing changes. oneButton(answer, true) is exact: an answer without it takes the class off (a page that drew a
+ * kept copy of an earlier open, then got its live answer after a switch rollback); no answer at all changes nothing.
  */
 (function () {
   'use strict';
@@ -61,7 +62,12 @@
     if (HC.ht && typeof o.chip === 'string' && o.chip) HC.chip = o.chip;
   }
   function batchIds() { var o = {}, k; for (k in HC) o[k] = HC[k]; return o; }
-  function oneButton(o) { try { if (o && o.one_button === true) document.documentElement.classList.add('wq-1b'); } catch (e) {} }
+  function oneButton(o, exact) {
+    try {
+      if (o && o.one_button === true) document.documentElement.classList.add('wq-1b');
+      else if (exact && o) document.documentElement.classList.remove('wq-1b');
+    } catch (e) {}
+  }
   var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds, oneButton: oneButton };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
