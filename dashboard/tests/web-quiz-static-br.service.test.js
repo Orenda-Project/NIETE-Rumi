@@ -53,11 +53,15 @@ function bot(fast) {
 }
 
 const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+// This file is about the brotli copies, not the minified files: the router's own start-up minifying (esbuild over every
+// page file, in the background, competing with the brotli work for the CPU) is stood in for by one that returns each file as is.
+const NO_MINIFY = { transform: async (src) => ({ code: src }) };
+jest.setTimeout(30000);
 /** brotliOn: the switch the router is handed (undefined = the process's own web_quiz_brotli switch). */
 function build(fetchImpl, brotliOn) {
   const app = express();
   app.set('trust proxy', 1);
-  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, ...(brotliOn ? { brotliOn } : {}) }));
+  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, esbuild: NO_MINIFY, ...(brotliOn ? { brotliOn } : {}) }));
   return app;
 }
 

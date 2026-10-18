@@ -50,55 +50,55 @@ function fresh() {
 }
 const wait = () => new Promise((r) => setTimeout(r, 5));
 
-describe('the switch (web-quiz-minify.js)', () => {
+describe('the switch (web-quiz-minify.js) rides the hub\'s one switch read', () => {
   beforeEach(() => fresh());
+  let settingsReads;
   const settings = (rows, fail = false) => {
+    settingsReads = [];
     const fake = makeFake({ app_settings: rows });
     Object.assign(supabase, { from: (t) => {
+      if (t === 'app_settings') settingsReads.push(t);
       if (fail) throw new Error('db down');
       return fake.from(t);
     } });
   };
+  const hubRead = () => require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
 
-  test('the first read after a start is off (never waited for); the next one answers from the refreshed cache', async () => {
+  test('a cold cache is off and starts no settings read of its own', async () => {
     settings([{ key: 'web_quiz_minify', value: true }]);
     expect(Min.KEY).toBe('web_quiz_minify');
     expect(Min.on()).toBe(false);
     await wait();
-    expect(Min.on()).toBe(true);
+    expect(settingsReads.length).toBe(0);
   });
 
-  test('missing, false, "false", junk, strings (even "true"), 1 and null and a failed read are all off (fail closed); only JSON true is on', async () => {
+  test('the hub\'s switch read fills it; only JSON true is on; a failed read is off; none of these reads anything extra', async () => {
     for (const [rows, want] of [[[], false], [[{ key: 'web_quiz_minify', value: false }], false], [[{ key: 'web_quiz_minify', value: 'false' }], false],
       [[{ key: 'web_quiz_minify', value: 'yes' }], false], [[{ key: 'web_quiz_minify', value: '"true"' }], false], [[{ key: 'web_quiz_minify', value: 'true' }], false],
       [[{ key: 'web_quiz_minify', value: 1 }], false], [[{ key: 'web_quiz_minify', value: null }], false], [[{ key: 'web_quiz_minify', value: true }], true]]) {
       Min._reset();
       settings(rows);
-      Min.on();
-      await wait();
+      await hubRead();
+      expect(settingsReads.length).toBe(1);
       expect(Min.on()).toBe(want);
+      await wait();
+      expect(settingsReads.length).toBe(1);
     }
     Min._reset();
     settings([], true);
-    Min.on();
-    await wait();
+    await hubRead();
     expect(Min.on()).toBe(false);
   });
 
-  test('a value is kept 30 s: a change inside the window is not seen, one after it is (refreshed in the background)', async () => {
-    const rows = [{ key: 'web_quiz_minify', value: false }];
-    settings(rows);
+  test('a cache older than two cache lives is off, even with the stored value true; inside them it stays on; no read starts', async () => {
+    settings([{ key: 'web_quiz_minify', value: true }]);
     const t0 = Date.now();
-    Min.on(t0);
+    await hubRead();
+    expect(Min.on(t0 + 1000)).toBe(true);
+    expect(Min.on(t0 + 31000)).toBe(true);
+    expect(Min.on(t0 + 61000)).toBe(false);
     await wait();
-    expect(Min.on(t0)).toBe(false);
-    rows[0].value = true;
-    expect(Min.on(t0 + 29000)).toBe(false);
-    await wait();
-    expect(Min.on(t0 + 29000)).toBe(false);
-    expect(Min.on(Date.now() + 31000)).toBe(false); // stale: answers the old value, refreshes behind it
-    await wait();
-    expect(Min.on()).toBe(true);
+    expect(settingsReads.length).toBe(1);
   });
 });
 
@@ -148,19 +148,39 @@ describe('the quiz payload (getQuiz)', () => {
     expect(stable(await WQ.getQuiz('FAST01'))).not.toHaveProperty('min');
   });
 
-  test('switch on: the payload is the switch-off payload plus `min: true` (the first read after a start is off)', async () => {
+  test('switch on: the payload is the switch-off payload plus `min: true` (named on the same request: the switch read the page already makes has just run)', async () => {
     load();
     seed();
     const off = stable(await WQ.getQuiz('FAST01'));
     load();
     seed({ min: true });
     const first = stable(await WQ.getQuiz('FAST01'));
-    expect(first).not.toHaveProperty('min');
+    expect(first.min).toBe(true);
     await wait();
     const on = stable(await WQ.getQuiz('FAST01'));
     expect(on.min).toBe(true);
     delete on.min;
     expect(on).toEqual(off);
+  });
+});
+
+describe('settings round trips: the same with the switch row absent, present or on (cold cache)', () => {
+  const COUNT = async (min) => {
+    fresh();
+    const calls = [];
+    const fake = makeFake({ app_settings: min == null ? [] : [{ key: 'web_quiz_minify', value: min }] });
+    Object.assign(supabase, { from: (t) => { if (t === 'app_settings') calls.push(1); return fake.from(t); } });
+    await require('../../../shared/services/quiz/web-quiz-hub-flags').pageNav();
+    const Min2 = require('../../../shared/services/quiz/web-quiz-minify');
+    Min2.on();
+    await wait();
+    return calls.length;
+  };
+  test('one batched read whatever the key holds; the switch makes none of its own', async () => {
+    const absent = await COUNT(null);
+    expect(absent).toBe(1);
+    expect(await COUNT(false)).toBe(absent);
+    expect(await COUNT(true)).toBe(absent);
   });
 });
 
@@ -212,9 +232,7 @@ describe('the hub payload (Hub.hub)', () => {
     expect(off).not.toHaveProperty('min');
     load();
     seed(true);
-    expect(await open()).not.toHaveProperty('min'); // first read after a start: off
-    await wait();
-    const on = await open();
+    const on = await open(); // the hub's own switch read has just run: named on this request
     expect(on.min).toBe(true);
     delete on.min;
     expect(on).toEqual(off);
