@@ -360,6 +360,8 @@ async function board(code, { now = Date.now(), st } = {}) {
   // app_settings web_quiz_class_doors: `class_doors: true` tells the page to draw its fixed play button and sector chip
   const doors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await WebQuiz.resolveCode(code);
+  // The quiz's twin in the other language for the league's Play, read beside the league only with the switch on.
+  const twinP = doors.then((on) => (on ? require('./web-quiz-class-twin').twinOf(ctx, null) : null));
   const data = await snapshot(now);
   let mySchoolId = null;
   if (ctx.teacherUserId) {
@@ -372,7 +374,10 @@ async function board(code, { now = Date.now(), st } = {}) {
   const fresh = st ? await addedBy(st, data, weekStartIso(now), now) : { added: undefined, plays: data.plays };
   const out = scoreSchools({ plays: fresh.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
   const week = new Date(Date.parse(weekStartIso(now)) + PKT_OFFSET_MS).toISOString().slice(0, 10);
-  return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}), ...((await doors) ? { class_doors: true } : {}) };
+  if (!(await doors)) return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}) };
+  // The same lesson in the other language, for the league's Play (web-quiz-class-twin; read only with the switch on).
+  const twin = await twinP;
+  return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}), class_doors: true, ...(twin ? { twin } : {}) };
 }
 
 module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset };

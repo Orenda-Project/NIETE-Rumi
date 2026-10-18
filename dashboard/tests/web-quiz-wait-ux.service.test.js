@@ -69,6 +69,19 @@ describe('the edge learns the switch from the hub answer', () => {
       expect(html.indexOf(WaitUx.TAG)).toBeLessThan(html.indexOf('<script id="boot"'));
     });
   });
+  test('a portal worker that learnt the switch before it was turned on: the early frame goes without the piece, so the tail carries it, once', async () => {
+    // the portal runs one process per core, and each learns from its own last hub answer
+    await serve([HUB({ fast: true }), HUB({ fast: true, wait_ux: true })], async (srv) => {
+      await get(srv, `/h/${TOKEN}`);
+      const late = await get(srv, `/h/${TOKEN}`);
+      expect(late.split(WaitUx.TAG)).toHaveLength(2);
+      expect(late.indexOf(WaitUx.TAG)).toBeGreaterThan(late.indexOf('<div class="wq-boot">'));
+      expect(late.indexOf(WaitUx.TAG)).toBeLessThan(late.indexOf('<script id="boot"'));
+      const next = await get(srv, `/h/${TOKEN}`);
+      expect(next.split(WaitUx.TAG)).toHaveLength(2); // the frame carries it now; the tail adds no second one
+      expect(next.indexOf(WaitUx.TAG)).toBeLessThan(next.indexOf('<div class="wq-boot">') + 400);
+    });
+  });
   test('off: the streamed page carries nothing of it', async () => {
     await serve([HUB({ fast: true })], async (srv) => {
       await get(srv, `/h/${TOKEN}`);

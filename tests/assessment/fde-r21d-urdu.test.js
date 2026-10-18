@@ -73,12 +73,14 @@ describe('(d) on lessons 4–5, متضاد and مترادف are asked once each'
     expect(count(out, /کا مترادف/)).toBe(1);
   });
 
-  test('after the re-ask, a place nothing else fills takes an antonym or synonym repeat back; a متشابہ twin never comes back', () => {
+  // A repeat used to come back after the re-ask to fill a place; now a concept a printed item asks
+  // never does, and the place is left for Section A's grammar-is-used-up top-up (or fails closed).
+  test('after the re-ask, an antonym or synonym repeat never comes back on chosen lessons; a متشابہ twin never comes back', () => {
     const r = lay(p, ch(4, 5), { reasked: true });
-    // As many Q1 items as the same reply prints with no concepts declared: the repeats fill the places.
-    expect(q1Of(r.examJson)).toHaveLength(q1Of(lay(fixture(1), ch(4, 5), { reasked: true }).examJson).length);
-    expect(r.putBack.filter((x) => x.slot === 'urdu.A.Q1').map((x) => x.rule)).toEqual(expect.arrayContaining(['concept_repeat']));
-    expect(r.putBack.filter((x) => x.slot === 'urdu.A.Q1').every((x) => x.rule === 'concept_repeat')).toBe(true);
+    expect(count(r.examJson, /کا متضاد/)).toBe(1);
+    expect(count(r.examJson, /کا مترادف/)).toBe(1);
+    expect((r.putBack || []).map((x) => x.rule)).not.toContain('concept_repeat');
+    expect(r.shortfall.filter((f) => f.slot === 'urdu.A.Q1')).toEqual([{ slot: 'urdu.A.Q1', missing: expect.any(Number) }]);
     const h = lay(fixture(2), ch(6, 7), { reasked: true }).examJson;
     const homographs = q1Of(h).filter((q) => conceptOf(q) === 'homograph');
     expect(homographs).toHaveLength(1);
@@ -89,10 +91,10 @@ describe('(d) on lessons 4–5, متضاد and مترادف are asked once each'
     expect(count(out, /کا متضاد/)).toBe(6);
   });
 
-  test('the full syllabus keeps every antonym and synonym item (control)', () => {
+  test('the full syllabus asks each concept once too: one antonym and one synonym print', () => {
     const out = lay(p, FDE).examJson;
-    expect(count(out, /کا متضاد/)).toBe(6);
-    expect(count(out, /کا مترادف/)).toBe(3);
+    expect(count(out, /کا متضاد/)).toBe(1);
+    expect(count(out, /کا مترادف/)).toBe(1);
   });
 
   test('lessons 6–7 do not teach them: antonyms stay vocabulary, none held (control)', () => {
