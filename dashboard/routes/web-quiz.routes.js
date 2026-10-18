@@ -383,6 +383,10 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
 // the fast first page sends the first two before the bot answers and the third when it does.
 // The class table and the league (/q/<code>/class|schools) open in the link's ?lang (en|ur) when the bot's answer carries
 // class_doors (app_settings web_quiz_class_doors): the payload's ui_lang. Any other page, no lang, or off: the payload as it came.
+// The order is: the link's ?lang, then the child's stored language (storedLangOf), then the quiz's own (never EN by
+// default). storedLangOf is the named seam the child-language resolver fills when it lands; until then it reads
+// nothing and passes nothing.
+function storedLangOf(_req) { return null; }
 function uiLangOf(body, view, lang) {
   if (!body || body.class_doors !== true || (view !== 'class' && view !== 'schools') || (lang !== 'en' && lang !== 'ur')) return body;
   return { ...body, ui_lang: lang };
@@ -970,7 +974,7 @@ function createWebQuizRouter(opts = {}) {
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
