@@ -388,6 +388,18 @@ describe('link preview /portal/fln/p/:id', () => {
     expect((await call(srv, 'GET', '/portal/fln/p/900003', { ua: WA })).text).toContain('id="root"');
   });
 
+  it('a teacher in WhatsApp\'s in-app browser (UA carries "WhatsApp/") gets the APP, not the preview stub', async () => {
+    const srv = await app();
+    const iab = [
+      'Mozilla/5.0 (Linux; Android 13; SM-A145F Build/TP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 WhatsApp/2.24.1',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 WhatsApp/24.1',
+    ];
+    for (const ua of iab) expect((await call(srv, 'GET', '/portal/fln/p/900003', { ua })).text).toContain('id="root"');
+    for (const ua of ['WhatsApp/2.24.1 A', 'WhatsApp/2.23.20.0', 'facebookexternalhit/1.1']) {
+      expect((await call(srv, 'GET', '/portal/fln/p/900003', { ua })).text).toContain('og:title');
+    }
+  });
+
   it('a 160-code-point cap on the description', () => {
     const fln = require('../../dashboard/routes/portal-fln.routes');
     const long = 'ب'.repeat(300);
