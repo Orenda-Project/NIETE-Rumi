@@ -21,6 +21,11 @@ const STRINGS = Object.freeze({
   // {n} ≥ 1, in the page's digits
   'th.played.n': Object.freeze({ en: '{n} in your class played', ur: 'کلاس میں سے {n} نے کھیلا' }),
   'th.again': Object.freeze({ en: 'Send again', ur: 'دوبارہ بھیجیں' }),
+  // the top card names what it sends again (only while quiz_teacher_home_named_item is on)
+  'th.kind.story': Object.freeze({ en: 'Story:', ur: 'کہانی:' }),
+  'th.kind.quiz': Object.freeze({ en: 'Quiz:', ur: 'کوئز:' }),
+  'th.again.story': Object.freeze({ en: 'Send this story again', ur: 'یہ کہانی دوبارہ بھیجیں' }),
+  'th.again.quiz': Object.freeze({ en: 'Send this quiz again', ur: 'یہ کوئز دوبارہ بھیجیں' }),
   'th.report': Object.freeze({ en: 'See report', ur: 'رپورٹ دیکھیں' }),
   'th.send': Object.freeze({ en: 'Send to my class', ur: 'اپنی کلاس کو بھیجیں' }),
   // the send sheet
