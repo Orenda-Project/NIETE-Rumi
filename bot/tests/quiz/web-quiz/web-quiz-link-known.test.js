@@ -491,6 +491,15 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
     expect((await HubDevice.deviceTrusted(token, FRESH)).ok).toBe(false);
   });
 
+  test('minting the home writes no door line: the edge writes it when it draws the button (a page it gave up on counts nothing)', async () => {
+    seed();
+    await homeOpened();
+    const { logEvent } = require('../../../shared/utils/structured-logger');
+    logEvent.mockClear();
+    expect((await LinkKnown().closedHome({ device: DEV })).home).toMatch(/^\/h\//);
+    expect(logEvent.mock.calls.filter(([e]) => e === 'web_quiz.door_shown')).toHaveLength(0);
+  });
+
   test('two held children: one home for both (the home asks who is playing)', async () => {
     seed();
     await homeOpened([SELF]);

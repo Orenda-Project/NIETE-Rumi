@@ -27,9 +27,9 @@ function get(srv, path, headers = {}) {
   });
 }
 
-let srv; let calls; let quiz; let home; let back;
+let srv; let calls; let quiz; let home; let back; let events;
 beforeEach(async () => {
-  calls = [];
+  calls = []; events = [];
   quiz = jsonRes(410, { error: 'expired', lang: 'en', known: true });
   home = jsonRes(200, { on: true, home: HOME });
   back = false;
@@ -39,10 +39,11 @@ beforeEach(async () => {
     calls.push({ url, opts });
     if (url.indexOf('/known/home') >= 0) { if (home === 'hang') return new Promise(() => {}); if (home instanceof Error) throw home; return home; }
     return quiz;
-  }, wayBackOn: () => back }));
+  }, wayBackOn: () => back, logEvent: (e, p) => events.push([e, p]) }));
   srv = await start(app);
 });
 afterEach(() => new Promise((r) => srv.close(r)));
+const doorLines = () => events.filter(([e]) => e === 'web_quiz.door_shown').map(([, p]) => p);
 const homeCalls = () => calls.filter((c) => c.url.indexOf('/api/internal/wq/known/home') >= 0);
 // the buttons and links of the page's own section (the closed words, then at most one button)
 const links = (body) => (body.split('<section class="wq-screen wq-closed">')[1] || '').split('</section>')[0].match(/<a /g) || [];
@@ -58,6 +59,20 @@ describe('switch on', () => {
     expect(res.body).toContain('Ask your teacher for a new link.');
     expect(res.body).toContain(`<a class="wq-btn wq-go" href="${HOME.replace('&', '&amp;')}">Go to my home page</a>`);
     expect(res.headers['cache-control']).toBe('private, no-store');   // it carries a hub token
+  });
+
+  test('the button drawn: ONE door line, written by the edge (the page that carries it)', async () => {
+    await get(srv, '/q/AB12CD', { cookie: `wq_dv=${DEV}` });
+    expect(doorLines()).toEqual([{ door: 'link_home', surface: 'closed', w: 'e' }]);
+  });
+
+  test('no button (the bot too slow, or the phone holds nobody): no door line', async () => {
+    home = 'hang';
+    await get(srv, '/q/AB12CD', { cookie: `wq_dv=${DEV}` });
+    home = jsonRes(200, { on: true, home: null });
+    await get(srv, '/q/AB12CD', { cookie: `wq_dv=${DEV}` });
+    await get(srv, '/q/AB12CD');
+    expect(doorLines()).toEqual([]);
   });
 
   test('Urdu: «اپنے ہوم پیج پر جائیں»', async () => {

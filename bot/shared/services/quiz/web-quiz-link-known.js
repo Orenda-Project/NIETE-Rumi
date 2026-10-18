@@ -243,7 +243,7 @@ async function closedHome({ device } = {}) {
     if (!token) return none('no_secret');
     const bound = await Device.deviceTrusted(token, d);
     if (!bound.ok) return none(bound.why);
-    logEvent('web_quiz.door_shown', { door: 'link_home', surface: 'closed', w: 's' });
+    // no door line here: the edge writes it when it draws the button (it may give up on this answer first)
     return { on: true, home: `/h/${token}?from=link` };
   } catch (err) {
     logToFile('⚠️ web quiz link known child: no way home on a closed link', { error: err.message });

@@ -1068,7 +1068,10 @@ function createWebQuizRouter(opts = {}) {
       // A phone that holds a child (web_quiz_link_known_child; the bot reads this phone's wq_dv as x-wq-device): its way home.
       const home = await homeFor(req, out.body);
       // a page that carries this phone's home (a hub token) is never kept by a cache, as the hub page's own token
-      if (home && typeof home.href === 'string' && CLOSED_HOME_RX.test(home.href)) res.set('Cache-Control', 'private, no-store');
+      if (home && typeof home.href === 'string' && CLOSED_HOME_RX.test(home.href)) {
+        res.set('Cache-Control', 'private, no-store');
+        logEvent('web_quiz.door_shown', { door: 'link_home', surface: 'closed', w: 'e' });   // the button is on this page
+      }
       return res.status(out.status).type('html').send(closedHtml(req, { lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi, home }));
     }
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));

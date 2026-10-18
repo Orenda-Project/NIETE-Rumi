@@ -344,6 +344,23 @@ describe('the dead-end page speaks the LINK\'s language (switch ON): ?lang=, the
   });
 });
 
+describe('the way-back switch read (closed-way-back.flags)', () => {
+  test('a failing read is OFF and is not tried again for 30 s: 20 dead-end pages make ONE read; after 30 s, one more', async () => {
+    seed('absent');
+    const Flags = require('../../shared/services/first-touch/closed-way-back.flags');
+    const from = supabase.from;
+    let reads = 0;
+    supabase.from = (t) => { if (t === 'app_settings') { reads += 1; throw new Error('app_settings down'); } return from(t); };
+    const t0 = Date.now();
+    try {
+      for (let i = 0; i < 20; i += 1) expect(await Flags.on(t0 + i)).toBe(false);
+      expect(reads).toBe(1);
+      expect(await Flags.on(t0 + 30 * 1000 + 1)).toBe(false);
+    } finally { supabase.from = from; }
+    expect(reads).toBe(2);
+  });
+});
+
 test('the switch-off goldens are pinned (a missing file is recorded by this run, which then fails)', () => {
   expect({ goldenFile: path.basename(GOLDEN_FILE), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN_FILE), recorded: false });
 });
