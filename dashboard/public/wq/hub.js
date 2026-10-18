@@ -127,7 +127,36 @@
       '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(BR.sub[LANG]) + '</small></span></span>';
   }
   function bar() { return '<div class="wq-bar">' + lockup() + '<span class="wq-grow"></span></div>'; }
+  // web_quiz_wait_home (the boot's `wait_home`, with the designed wait): Home as the child last saw it is kept for this
+  // hub in this tab, so the next open draws it at once from the early page (dashboard web-quiz-wait-ux.js homeTag),
+  // inert, until this page draws the real one over it. Never a door, a story, a locked or a practice hub. The one look
+  // class kept with it is the one-button look (`wq-1b`): the early page names what it added (`data-wqc`), and the real
+  // draw takes that off again unless this answer still says `one_button`, so a look switched off since does not linger.
+  var HOME_KEPT = 'wq_home:' + TOKEN;
+  function uncache() {
+    try {
+      var cl = document.documentElement.classList;
+      if (!cl.contains('wq-cached')) return;
+      cl.remove('wq-cached');
+      var de = document.documentElement;
+      String(de.getAttribute('data-wqc') || '').split(' ').forEach(function (x) { if (x === 'wq-1b' && !(B && B.one_button === true)) cl.remove(x); });
+      de.removeAttribute('data-wqc');
+      ROOT.removeAttribute('inert');
+      ROOT.removeAttribute('aria-busy');
+    } catch (e) { /* no class list: nothing was drawn early */ }
+  }
+  function keepHome() {
+    if (B.wait_home !== true || !B.home_v3 || !B.kid || B.practice || B.locked) return;
+    var de = document.documentElement;
+    if (String(location.hash || '').replace(/^#/, '') || de.classList.contains('wq-cached')) return;
+    var h = ROOT.innerHTML;
+    if (!h || h.length > 200000 || /class="wq-boot/.test(h)) return;
+    var look = de.classList.contains('wq-1b') ? ['wq-1b'] : [];
+    try { sessionStorage.setItem(HOME_KEPT, JSON.stringify({ t: Date.now(), l: LANG, k: B.kid, one: (B.kids || []).length === 1, c: look, h: h })); } catch (e) {}
+  }
+  window.addEventListener('pagehide', keepHome);
   function render(html, moment) {
+    uncache();
     ROOT.innerHTML = '<section class="wq-screen wq-hub" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
@@ -429,7 +458,14 @@
   function hub() {
     batchIds(B.kid);
     storyIn();
-    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]'))); }
+    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) {
+      if (window.WQHOME) {
+        uncache();
+        if (B.wait_home === true) setTimeout(keepHome, 2500);
+        return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go });
+      }
+      return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]')));
+    }
     if (B.home_v3 && B.home_fb) return homeFb();
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
