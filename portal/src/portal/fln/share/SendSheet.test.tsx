@@ -91,6 +91,32 @@ describe('SendSheet', () => {
     expect(await screen.findByText(wholeText('You can send to 30 teachers an hour. Try again later.'))).toBeTruthy();
   });
 
+  // m-app 164804: a session that came from a lessons-scoped template link may read plans but not send (the scope
+  // guard answers 403 link_area_only). Say what to do, and offer Share link; never the generic "Couldn't send".
+  it('403 link_area_only → "sign in with your phone number to send" + Share link', async () => {
+    stubFetch({
+      '/api/portal/fln/teachers': { status: 200, body: { teachers: TEACHERS } },
+      '/api/portal/fln/send': { status: 403, body: { success: false, error: 'link_area_only' } },
+    });
+    mount();
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Teacher One/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText(wholeText('To send to teachers, sign in to the app with your phone number. You can still use Share link.'))).toBeTruthy();
+    expect(screen.queryByText(wholeText("Couldn't send. Try again"))).toBeNull();
+    expect(screen.getByRole('button', { name: 'Share link' })).toBeTruthy();
+  });
+
+  it('403 out of scope (forbidden) stays the plain failure line', async () => {
+    stubFetch({
+      '/api/portal/fln/teachers': { status: 200, body: { teachers: TEACHERS } },
+      '/api/portal/fln/send': { status: 403, body: { error: 'forbidden' } },
+    });
+    mount();
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Teacher One/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText(wholeText("Couldn't send. Try again"))).toBeTruthy();
+  });
+
   it('no teachers in scope → "No teachers are assigned to you yet"', async () => {
     stubFetch({ '/api/portal/fln/teachers': { status: 200, body: { teachers: [] } } });
     mount();
