@@ -177,6 +177,26 @@ describe('web_quiz_home_preload on the hub JSON', () => {
     expect(other.home_pre).toBe(true);
   });
 
+  // The reads-together hub (web_quiz_hub_fanout) builds the answer on its own path (hubTogether). The key is added by
+  // the routes' carry around whatever hub() returns, so it rides that path too, in either landing order. Before the
+  // reads-together path exists this row runs today's path; once it is in, fanoutNow() is true and hubTogether answers.
+  test('fanout ON + home_preload ON: the reads-together answer carries `home_pre: true`, otherwise key for key', async () => {
+    const FANOUT = 'web_quiz_hub_fanout';
+    db.app_settings.push({ key: FANOUT, value: true });
+    const off = stable(await carried(T.signHub([KID]), A));
+    if (typeof Flags.fanoutNow === 'function') expect(Flags.fanoutNow()).toBe(true);
+    again();
+    db.app_settings.push({ key: KEY, value: true });
+    const on = stable(await carried(T.signHub([KID]), A));
+    if (typeof Flags.fanoutNow === 'function') expect(Flags.fanoutNow()).toBe(true);
+    expect(off).not.toHaveProperty('home_pre');
+    expect(on.home_pre).toBe(true);
+    delete on.home_pre;
+    expect(on).toEqual(off);
+    const locked = await carried(T.signHub([KID]), { device: 'BBBBBBBBBBBBBBBBBBBBBB' });
+    expect([locked.locked, locked.home_pre]).toEqual([true, true]);
+  });
+
   test('the key rides the hub\'s one batched settings read: same app_settings reads ON as OFF', async () => {
     let n = counting();
     await carried(T.signHub([KID]), A);

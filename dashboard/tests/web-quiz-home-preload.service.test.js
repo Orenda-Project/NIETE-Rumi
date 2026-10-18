@@ -4,9 +4,11 @@
  *
  * With the fast first page (web_quiz_fast), GET /h/<t> sends the head before the bot's hub answer; today the home's own
  * files (wq-bind.*, wq-home.*, hub-play.js, the read-along preview, and wq-doors.* that wq-home.js loads) are asked for
- * only after that answer, one more round trip on a slow phone. ON: the flushed head preloads every one of them, at the
- * EXACT address the page asks for later (same path, same ?v=, no crossorigin), so each file is fetched once. The head
- * goes before the answer is known, so it follows the last hub answer this edge saw (as the fast page follows `fast`).
+ * only after that answer, one more round trip on a slow phone. ON: the flushed head preloads the ones EVERY child home
+ * asks for (wq-home.*, wq-doors.*), at the EXACT address the page asks for later (same path, same ?v=, no
+ * crossorigin), so each file is fetched once. The head goes before the answer is known, so it follows the last hub
+ * answer this edge saw (as the fast page follows `fast`); the files that differ per child (keep my place, Jugnu's
+ * corner, the read-along preview) stay in the tail, so the next child's head never preloads a file its page skips.
  * OFF (no `home_pre`): every page is today's, byte for byte (golden recorded on sandbox 42758fd4d, ?v= masked).
  *
  * The bot is the network boundary (a fake fetch; held answers released by hand). No first-party module is mocked.
@@ -108,7 +110,9 @@ function asks(html) {
   }
   return out.filter(([, u]) => /^\/wq\/[^/?]+\.(js|css)\?/.test(u));
 }
-const HOME_FILES = ['wq-bind.css', 'wq-bind.js', 'wq-home.css', 'wq-home.js', 'hub-play.js', 'wq-readalong-listen.js', 'wq-doors.css', 'wq-doors.js'];
+// The files every child home asks for (preloaded), and the tail files that differ per child or phone (never preloaded).
+const SHARED = ['wq-home.css', 'wq-home.js', 'wq-doors.css', 'wq-doors.js'];
+const PER_CHILD = ['wq-bind.css', 'wq-bind.js', 'hub-play.js', 'wq-readalong-listen.js'];
 const fileOf = (u) => u.split('?')[0].replace('/wq/', '');
 
 describe('web_quiz_home_preload: the child home\'s files start in the flushed head', () => {
@@ -132,7 +136,7 @@ describe('web_quiz_home_preload: the child home\'s files start in the flushed he
     }
   });
 
-  test('ON: the head sent before the bot answers preloads every home file; each file is asked for at ONE address (once)', async () => {
+  test('ON: the head sent before the bot answers preloads every shared home file; each file is asked for at ONE address (once)', async () => {
     const bot = heldBot([jsonRes(200, HUB({ home_pre: true })), { hold: true, res: jsonRes(200, HUB({ home_pre: true })) }]);
     srv = await start(build(bot.fetchImpl));
     await get(srv, `/h/${TOKEN}`); // the answer that teaches this edge `fast` and the home's files
@@ -141,16 +145,18 @@ describe('web_quiz_home_preload: the child home\'s files start in the flushed he
     expect(early).not.toMatch(/id="boot"/);
     const head = asks(early.replace(/"home_v3":1/g, ''));
     const all = asks(body);
-    // every home file is preloaded in the early head, with the `as` its later tag needs and no crossorigin
-    for (const f of HOME_FILES) {
+    // every shared home file is preloaded in the early head, with the `as` its later tag needs and no crossorigin
+    for (const f of SHARED) {
       const pre = head.filter(([k, u]) => k.startsWith('preload') && fileOf(u) === f);
       expect([f, pre.length]).toEqual([f, 1]);
       expect(pre[0][0]).toBe(f.endsWith('.css') ? 'preload-style' : 'preload-script');
     }
+    // the per-child tail files are not (they stay the tail's own ask, as today)
+    for (const f of PER_CHILD) expect([f, head.filter(([, u]) => fileOf(u) === f).length]).toEqual([f, 0]);
     // the request list: each /wq/ file of the page under exactly one address (a preload is used, never a second fetch)
     const byFile = {};
     for (const [, u] of all) (byFile[fileOf(u)] = byFile[fileOf(u)] || new Set()).add(u);
-    for (const f of ['wq.css', 'wq-tel.js', 'hub.js', ...HOME_FILES]) expect([f, [...(byFile[f] || [])].length]).toEqual([f, 1]);
+    for (const f of ['wq.css', 'wq-tel.js', 'hub.js', ...SHARED, ...PER_CHILD]) expect([f, [...(byFile[f] || [])].length]).toEqual([f, 1]);
     // each preload names exactly the address of a later tag or of wq-home.js's own ask (preload ⊆ used)
     const used = new Set(all.filter(([k]) => !k.startsWith('preload')).map(([, u]) => u));
     for (const [k, u] of all) if (k.startsWith('preload')) expect([u, used.has(u)]).toEqual([u, true]);
@@ -190,16 +196,29 @@ describe('web_quiz_home_preload: the child home\'s files start in the flushed he
     expect(pre).toEqual(['wq-home.css', 'wq-home.js', 'wq-doors.css', 'wq-doors.js', 'wq-tel.js', 'hub.js']);
   });
 
-  test('the learned list is bounded to the home\'s own files: any other tag on a child\'s page is never preloaded for the next', () => {
+  test('bounded to the shared set: a child whose page had keep my place, Jugnu\'s corner and the preview → the next child\'s head preloads only files that child\'s page uses', async () => {
+    const plain = { home_pre: true, kid: 'fedcba9876543210', bind: undefined, play: undefined, listen: undefined };
+    const bot = heldBot([jsonRes(200, HUB({ home_pre: true })), { hold: true, res: jsonRes(200, HUB(plain)) }]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`); // the last child: bind, play and listen on their page
+    const { early, body } = await flushedOpen(srv, bot); // the next child: none of them
+    expect(asks(early).filter(([k]) => k.startsWith('preload')).map(([, u]) => fileOf(u))).toEqual([...SHARED, 'wq-tel.js', 'hub.js']);
+    const all = asks(body);
+    const used = new Set(all.filter(([k]) => !k.startsWith('preload')).map(([, u]) => u));
+    for (const [k, u] of all) if (k.startsWith('preload')) expect([u, used.has(u)]).toEqual([u, true]);
+  });
+
+  test('bounded to the shared set: any other tag on a child\'s page (or a per-child file) is never learned', () => {
     const v = 'a474683122';
     const tags = [
+      `<link rel="stylesheet" href="/wq/wq-bind.css?v=${v}">`, `<script src="/wq/wq-bind.js?v=${v}" defer></script>`,
       `<link rel="stylesheet" href="/wq/wq-home.css?v=${v}">`, `<script src="/wq/wq-home.js?v=${v}" defer></script>`,
-      `<link rel="stylesheet" href="/wq/wq-extra.css?v=${v}">`, `<script src="/wq/wq-juice.js?v=${v}" defer></script>`,
+      `<link rel="stylesheet" href="/wq/wq-extra.css?v=${v}">`, `<script src="/wq/hub-play.js?v=${v}" defer></script>`,
       `<script src="/wq/wq-readalong-listen.js?v=8f48545243" defer></script>`,
     ].join('\n');
     HomePre.learn({ home_pre: true, kid: KID, kids: [], home_v3: 1 }, tags, v);
     const pre = (HomePre.head().match(/href="[^"]+"/g) || []).map((h) => fileOf(h.slice(6, -1)));
-    expect(pre).toEqual(['wq-home.css', 'wq-home.js', 'wq-readalong-listen.js', 'wq-doors.css', 'wq-doors.js']);
+    expect(pre).toEqual(SHARED);
   });
 
   test('a locked answer (another phone) keeps what the edge learned; an answer without `home_pre` forgets it (flip OFF: one open later)', async () => {

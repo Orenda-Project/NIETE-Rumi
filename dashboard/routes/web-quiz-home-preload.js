@@ -3,9 +3,9 @@
  * the bot in the hub's one settings read; the hub answer says `home_pre: true` only when it is on).
  *
  * With the fast first page (web_quiz_fast) the edge sends the hub's head before the bot's answer, but the home's own
- * files (keep my place, the v3 home, Jugnu's corner, the read-along preview: the tail's tags; then the door screens,
- * which wq-home.js asks for once the home is drawn) were asked for only after that answer: one more round trip, plus
- * their bytes, after the wait. ON, that head preloads each of them, at EXACTLY the address the page asks for later
+ * files (the v3 home's stylesheet and script: tail tags; then the door screens, which wq-home.js asks for once the
+ * home is drawn) were asked for only after that answer: one more round trip, plus their bytes, after the wait. ON,
+ * that head preloads each of them, at EXACTLY the address the page asks for later
  * (the tag's own href, its ?v=, no crossorigin; the door screens at hub.js's own ?v=, as wq-home.js builds it), so each
  * file is fetched once, during the wait.
  *
@@ -17,16 +17,16 @@
  *   - an answer without `home_pre` (the switch OFF): nothing, so the next head is today's (a flip lands one open later).
  * head() is '' until then: every page is today's, byte for byte.
  *
- * It is a guess from the last child's page, so it is bounded to the home's own shared files (HOME_FILES): another tag a
- * page may carry is never preloaded for the next child. A file the next child's page does not ask for (keep my place,
- * Jugnu's corner or the read-along preview is off for that child) is a preload the browser fetches and does not use:
- * at most these few small, year-cached files.
+ * It is a guess from the last child's page, so it is bounded to the files EVERY child home asks for (SHARED: the v3
+ * home's stylesheet and script, and the door screens it loads). The files that differ from child to child or phone to
+ * phone (keep my place, Jugnu's corner, the read-along preview, or any other tag) are never preloaded for the next
+ * child: they stay in the tail, asked for after the answer as today.
  */
 let last = null; // [[href, as], …] from the last hub answer with `home_pre`, or null
 
 const HREF_RX = /^\/wq\/[A-Za-z0-9._-]+\.(js|css)\?v=[0-9A-Za-z]+$/;
-// The home's tail files (and the door screens wq-home.js asks for): the only files a head ever preloads.
-const HOME_FILES = new Set(['wq-bind.css', 'wq-bind.js', 'wq-home.css', 'wq-home.js', 'hub-play.js', 'wq-readalong-listen.js', 'wq-doors.css', 'wq-doors.js']);
+// The files every child home asks for (the v3 home, and the door screens wq-home.js loads): the only files a head preloads.
+const SHARED = new Set(['wq-home.css', 'wq-home.js', 'wq-doors.css', 'wq-doors.js']);
 const fileOf = (h) => h.slice('/wq/'.length).split('?')[0];
 // The tail's tags, as hubPageParts writes them (bindTags, homeTags, the corner, listenTag).
 const TAG_RX = /<link rel="stylesheet" href="([^"]+)">|<link rel="preload" href="([^"]+)" as="script">|<script src="([^"]+)" defer><\/script>/g;
@@ -40,7 +40,7 @@ function addresses(payload, tags, assetV) {
   // wq-home.js (loadOnce) adds wq-doors.css + .js at hub.js's ?v= (this assetV) once the home is drawn.
   if (payload.home_v3) out.push([`/wq/wq-doors.css?v=${assetV}`, 'style'], [`/wq/wq-doors.js?v=${assetV}`, 'script']);
   const seen = new Set();
-  return out.filter(([h]) => HREF_RX.test(h) && HOME_FILES.has(fileOf(h)) && !seen.has(h) && seen.add(h));
+  return out.filter(([h]) => HREF_RX.test(h) && SHARED.has(fileOf(h)) && !seen.has(h) && seen.add(h));
 }
 
 /** A hub answer's page was drawn with these tail tags: remember what its next early head preloads. */
@@ -55,4 +55,4 @@ function head() {
   return last && last.length ? last.map(([h, as]) => `\n<link rel="preload" href="${h}" as="${as}">`).join('') : '';
 }
 
-module.exports = { learn, head, addresses, HOME_FILES, _reset: () => { last = null; } };
+module.exports = { learn, head, addresses, SHARED, _reset: () => { last = null; } };
