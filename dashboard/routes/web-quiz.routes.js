@@ -600,6 +600,13 @@ function renderQuizFlushTail({ guess, payload, code, origin, assetV, url, a, v, 
 const FLUSH_AGAIN = `<script>location.replace(location.pathname+(location.search?location.search+"&":"?")+"nf=1"+location.hash)</script>
 </body>
 </html>`;
+// web_quiz_edge_warm on: a streamed page whose bot answer failed asks again itself after a short wait, keeping its early
+// frame (and the designed wait's bar), up to EDGE_RETRY_MAX times; then FLUSH_AGAIN (the plain page), as today.
+const EDGE_RETRY_MAX = 2;
+const EDGE_RETRY_MS = 1200;
+const flushRetry = (next) => `<script>setTimeout(function(){location.replace(${jsStr(next)}+location.hash)},${EDGE_RETRY_MS})</script>
+</body>
+</html>`;
 
 // The finish card's picture is a PNG; every other share picture is a JPEG (head's default).
 const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(image) || /\/art\/teach\.png\?/.test(image)) ? { imageType: 'image/png' } : {});
@@ -858,6 +865,45 @@ function renderClosedPage({ lang, kind, origin, assetV, brandKey, ui = null, bac
 </html>`;
 }
 
+// The busy page (app_settings web_quiz_busy_page, learned from the bot's answers): the bot could not answer, or not in
+// time, or answered a 5xx other than 503. The quiz is open; the server is slow. Jugnu's frame as the closed page draws
+// it, one line, and one plain link that opens this same page again (no script). 503 with Retry-After: 5.
+const BUSY_COPY = {
+  en: { title: 'Jugnu is a little slow right now', say: 'Tap Try again in a moment.', go: 'Try again' },
+  ur: { title: 'جگنو کو ابھی تھوڑی دیر لگ رہی ہے', say: 'تھوڑی دیر بعد بٹن دبائیں۔', go: 'دوبارہ کوشش کریں' },
+};
+const BUSY_RETRY_S = '5';
+// The busy page's own look (only this page): the title breaks evenly (no lone word on line 2), the line under it reads at
+// 16 px (Urdu 17 px, line-height 2). Placed after the stylesheet; :root lifts it over the Urdu face's rules.
+const BUSY_STYLE = '<style id="wq-busy">.wq-closed h1{text-wrap:balance}.wq-closed .wq-sub{font-size:16px}html:root[lang=ur] .wq-closed h1{font-size:22px}html:root[lang=ur] .wq-closed .wq-sub{font-size:17px;line-height:2}</style>';
+
+function renderBusyPage({ lang, href, origin, assetV, brandKey, ui = null }) {
+  const l = lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
+  const c = BUSY_COPY[l];
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: c.title, desc: c.say, origin, url: origin, assetV, brand, ui })}
+${BUSY_STYLE}
+</head>
+<body>
+<main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><section class="wq-screen wq-closed">
+<img class="wq-jugnu" src="/wq/jugnu_sleep.webp" alt="" width="160" height="160">
+<h1>${esc(c.title)}</h1>
+<p class="wq-sub">${esc(c.say)}</p>
+<a class="wq-btn wq-go" href="${esc(href)}">${esc(c.go)}</a>
+</section></main>
+</body>
+</html>`;
+}
+
+// This page's own path and query, for the Try again link: a same-origin path only (never "//host" or "/\\host").
+function samePage(req) {
+  const u = String(req.originalUrl || req.url || '/');
+  return /^\/(?![/\\])/.test(u) ? u : '/';
+}
+
+// An upstream failure the busy page answers: no answer (thrown: unreachable or timed out) or a 5xx other than 503.
+const upstreamFailed = (out) => !out || (out.status >= 500 && out.status !== 503);
+
 function clientIp(req) {
   return req.ip || (req.socket && req.socket.remoteAddress) || '';
 }
@@ -1041,6 +1087,16 @@ function createWebQuizRouter(opts = {}) {
   };
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
   let lastWaitShare = false; // and its `wait_share` (web_quiz_hub_fanout on too): the frame's read share
+  let lastEdgeWarm = false; // the learner's `edge_warm` (app_settings web_quiz_edge_warm): a failed streamed page asks again
+  let lastBusy = false; // the last hub or quiz answer's `busy_page` (app_settings web_quiz_busy_page); nothing learned yet: off
+  const busyOn = () => lastBusy === true;
+  // The busy page, when the switch is on and the bot failed upstream; false (the caller draws today's page) otherwise.
+  const busy = (req, res, out, lang) => {
+    if (!busyOn() || !upstreamFailed(out)) return false;
+    res.status(503).set('Retry-After', BUSY_RETRY_S).type('html')
+      .send(renderBusyPage({ lang, href: samePage(req), origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    return true;
+  };
   let lastWaitHops = false; // and its `wait_hops` (web_quiz_wait_hops on too): the bar also shows while the page is left
   let lastWaitHome = false; // and its `wait_home` (web_quiz_wait_home on too): the frame's kept Home
 
@@ -1054,13 +1110,15 @@ function createWebQuizRouter(opts = {}) {
   // payload still wins. A test's own fake bot opts in with edgeLearn; inside a test run (JEST_WORKER_ID) it is never on by
   // default, so no test calls out.
   // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face`,
-  // `wait_ux`, `wait_share`, `wait_hops`, `wait_home`, `closed_lang` and `plain_paint` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
+  // `wait_ux`, `wait_share`, `wait_hops`, `wait_home`, `closed_lang`, `plain_paint` and `busy_page` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
   const learned = (b) => {
     if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
     if (typeof b.rt === 'boolean') lastRt = b.rt;
     lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
+    lastEdgeWarm = b.edge_warm === true; // absent = off (the learner's field is {} while web_quiz_edge_warm is off)
+    if (typeof b.busy_page === 'boolean') lastBusy = b.busy_page;
     if (typeof b.wait_hops === 'boolean') lastWaitHops = b.wait_hops;
     if (typeof b.closed_lang === 'boolean') lastClosedLang = b.closed_lang;
     if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
@@ -1075,6 +1133,17 @@ function createWebQuizRouter(opts = {}) {
   // asking had stopped). The key is the edge's alone: neither the hub page nor the page's own /api/wq/hub call sees it.
   const edgeKey = (body) => {
     if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'edge_learn')) { if (edge && body.edge_learn === true) edge.arm(); delete body.edge_learn; }
+  };
+  // A streamed page whose bot answer failed: with edge warm on and the bot unreachable, timed out or a 5xx other than
+  // the switch-off 503, the page asks again itself (r=1, r=2) and keeps its early frame; else today's again(closedPage).
+  const failedAgain = (wire, req, out, closedPage) => {
+    const r = Number(req.query.r) || 0;
+    const bad = !out || (out.status >= 500 && out.status !== 503);
+    if (!lastEdgeWarm || !bad || r >= EDGE_RETRY_MAX) return wire.again(closedPage);
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(req.query || {})) if (k !== 'r' && typeof v === 'string') q.set(k, v);
+    q.set('r', String(r + 1));
+    return wire.page(flushRetry(`${req.path}?${q}`));
   };
 
   // web_quiz_closed_way_back (app_settings, default OFF): ON → a 'hub' / 'closed' page carries ONE tap back to
@@ -1258,7 +1327,8 @@ function createWebQuizRouter(opts = {}) {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
       const away = lastClosedLang ? codeLang(upper, req) : 'en';
-      if (flush) return wire.again(inlineClosed(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      if (flush) return failedAgain(wire, req, null, inlineClosed(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      if (busy(req, res, null, away)) return undefined;
       return res.status(502).type('html').send(closedHtml(req, { lang: away, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (flush && !(out.status === 200 && out.body && out.body.quiz)) {
@@ -1266,7 +1336,7 @@ function createWebQuizRouter(opts = {}) {
       // a closed answer with `known: true` (web_quiz_link_known_child) asks again: the nf=1 page draws this phone's way home
       if (contract && out.body.known === true) return wire.again(null);
       const said = langOf(out.body && out.body.lang);
-      return wire.again(inlineClosed(req, { lang: said || (lastClosedLang ? codeLang(upper, req) : 'en'), kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      return failedAgain(wire, req, out, inlineClosed(req, { lang: said || (lastClosedLang ? codeLang(upper, req) : 'en'), kind: contract ? 'closed' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
@@ -1279,6 +1349,7 @@ function createWebQuizRouter(opts = {}) {
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       lastMin = out.body.min === true;
+      lastBusy = out.body.busy_page === true;
       lastPlain = lastFast && out.body.plain_paint === true;
       lastClosedLang = out.body.closed_lang === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
@@ -1313,6 +1384,7 @@ function createWebQuizRouter(opts = {}) {
       }
       return res.status(out.status).type('html').send(closedHtml(req, { lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi, home }));
     }
+    if (busy(req, res, out, lang)) return undefined;
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
@@ -1358,10 +1430,11 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
-      if (flush) return wire.again(inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      if (flush) return failedAgain(wire, req, null, inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      if (busy(req, res, null, away())) return undefined;
       return closed(502, 'off', away());
     }
-    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again(inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out, inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       edgeKey(out.body);
@@ -1374,6 +1447,7 @@ function createWebQuizRouter(opts = {}) {
       lastClosedLang = out.body.closed_lang === true;
       lastWaitUx = WaitUx.on(out.body);
       lastWaitShare = WaitUx.share(out.body);
+      lastBusy = out.body.busy_page === true;
       lastWaitHops = WaitUx.hops(out.body);
       lastWaitHome = WaitUx.home(out.body);
       // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
@@ -1392,6 +1466,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub', langOf(out.body && out.body.lang) || phoneLang);
+    if (busy(req, res, out, away())) return undefined;
     return closed(out.status === 503 ? 503 : 502, 'off', away());
   });
   router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
@@ -1432,6 +1507,7 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
     } catch (_) {
+      if (busy(req, res, null, lang0 || 'en')) return undefined;
       return res.status(502).type('html').send(closedHtml(req, { lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
     // One Urdu face: the menu's own `one_face` (the bot's word) reaches the head as `ui.uf`; off, the menu untouched.
@@ -1446,6 +1522,7 @@ function createWebQuizRouter(opts = {}) {
       const hub = err === 'pick_kid' && HUB_TOKEN_RX.test(token) ? token : null;
       return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey, ui: lastUi, hub }));
     }
+    if (busy(req, res, out, lang0 || 'en')) return undefined;
     const kind = out.status === 401 ? 'closed' : 'off';
     return res.status(out.status === 401 ? 410 : 503).type('html').send(closedHtml(req, { lang: lang0 || 'en', kind, origin, assetV: version(), brandKey, ui: lastUi }));
   }
@@ -1569,8 +1646,10 @@ function createWebQuizRouter(opts = {}) {
       try {
         const out = await callBot('GET', `/api/internal/wq/card/${token}`, req, null, { route: '/api/internal/wq/card/:token' });
         if (out.status === 200 && out.body && typeof out.body.deed_text === 'string') { facts = out.body; cardFacts.set(token, facts, CARD_KEEP_MS); }
+        else if (busy(req, res, out, 'en')) return undefined;
         else return closed(out.status === 404 ? 404 : 502);
       } catch (_) {
+        if (busy(req, res, null, 'en')) return undefined;
         return closed(502);
       }
     }
@@ -1644,4 +1723,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion, minifySource };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderBusyPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion, minifySource };
