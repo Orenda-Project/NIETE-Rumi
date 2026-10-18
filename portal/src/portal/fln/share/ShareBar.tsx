@@ -1,11 +1,11 @@
 /**
  * bd-t7zk3t.12 — the leaders' sticky Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L1–L2b).
  *
- * Renders NOTHING unless GET /api/portal/fln/me — asked on every mount, `no-store` — says `share: true`. A teacher, a
- * signed-out page, a 401/404/5xx or the network failing all draw nothing, and the plan page stays exactly as a teacher
- * sees it. For a leader: a bar ≤56 px at the bottom with two ≥48 px buttons, **Send to teacher** (primary, opens the
- * teacher sheet) and **Share link** (wa.me + Copy), plus a spacer of the bar's height so the page's last lines are
- * never covered. Props: `data` = the GET plan/:id body `{plan, placement}`.
+ * Props `{plan, placement, me}`: the plan page (m-app, PR-C) fetches GET /api/portal/fln/me on every mount (no-store)
+ * and passes it in, so the bar never asks or caches it itself. It renders NOTHING unless `me.share === true` (a teacher,
+ * a missing `me`, a plan without a placement). For a leader: a bar ≤56 px at the bottom with two ≥48 px buttons,
+ * **Send to teacher** (primary, opens the teacher sheet) and **Share link** (wa.me + Copy). The page's bottom padding
+ * (64 px) is m-app's, so the page's last lines are never covered.
  */
 import { useState } from 'react';
 import { Link2, Send } from 'lucide-react';
@@ -16,11 +16,10 @@ import { sharePlanOf } from './PlanCard';
 import SendSheet from './SendSheet';
 import ShareSheet, { WA_GREEN } from './ShareSheet';
 import { SHARE_DIR, shareStrings } from './strings.share';
-import { langOf, useFlnMe } from './useFlnMe';
+import type { ShareMe, SharePlacementLike, SharePlanLike } from './types';
 import './share.css';
 
 const BAR_PX = 56;
-const SPACER_PX = 64;
 
 /** The permanent, identity-free link to a plan (contracts/deep-link.md v2). */
 export function planLink(id: number): string {
@@ -28,18 +27,20 @@ export function planLink(id: number): string {
   return `${origin}/portal/fln/p/${id}`;
 }
 
-export default function ShareBar({ data }: { data: unknown }) {
-  const me = useFlnMe();
+export default function ShareBar({ plan: planIn, placement, me }: {
+  plan: SharePlanLike | null | undefined;
+  placement: SharePlacementLike[] | null | undefined;
+  me: ShareMe | null | undefined;
+}) {
   const [open, setOpen] = useState<'none' | 'send' | 'share'>('none');
-  const plan = sharePlanOf(data);
+  const plan = sharePlanOf({ plan: planIn, placement });
   if (!me || me.share !== true || !plan) return null;
-  const lang = langOf(me);
+  const lang = me.ui_lang === 'ur' ? 'ur' : 'en';
   const S = shareStrings(lang);
   const url = planLink(plan.id);
   const button = 'flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-[12px] border-2 px-3 text-[16px] font-bold leading-tight';
   return (
     <>
-      <div data-testid="fln-share-bar-spacer" aria-hidden="true" style={{ height: `${SPACER_PX}px` }} />
       <div
         data-testid="fln-share-bar"
         lang={lang}
