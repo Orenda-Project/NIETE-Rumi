@@ -24,12 +24,12 @@
  * deliberately vague so it never reveals that the number reaches someone else.
  *
  * ONE ADAPTATION — the level column. main renamed users.training_bands to
- * users.teacher_level (bd-60095). Sandbox's code has not taken that rename: its
+ * users.teacher_level. Sandbox's code has not taken that rename: its
  * one writer, applyBandSelection, still writes training_bands and stamps
  * training_bands_updated_at, and patch-resolver reads training_bands. (The
  * sandbox DB carries both columns, unsynced.) So the planner reads sandbox's
  * live columns, mapped onto the names it expects — see levelRow(). When sandbox
- * takes bd-60095 that mapping becomes the identity and can go.
+ * takes that rename the mapping becomes the identity and can go.
  */
 
 const E = require('./teacher-edit.service');
