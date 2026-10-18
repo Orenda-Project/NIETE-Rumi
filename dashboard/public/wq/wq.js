@@ -1042,6 +1042,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!t.replace(/\s|undefined/g, '')) return LANG;
     return /[\u0600-\u06FF]/.test(t) ? 'ur' : 'en';
   })();
+  // One voice per quiz (boot one_voice, app_settings web_quiz_one_voice): a line with no clip is shown, never
+  // read in the phone's own voice (a second voice beside the quiz's).
+  // The shared lines then come from the set recorded in the plan's voice (boot voice_sets: { <lang>: { path, v } },
+  // public/wq/voice/one/<path>/); a language with no set has no shared-line audio (the line is shown).
+  var ONE_VOICE = Boolean(B.one_voice);
+  var VOICE_SETS = (ONE_VOICE && B.voice_sets) || {};
+  function voiceUrl(lang, file) {
+    if (!ONE_VOICE) return '/wq/voice/' + lang + '/' + file + '.mp3?v=' + VOICE_V;
+    var set = VOICE_SETS[lang];
+    return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
+  }
   function vline(set) {
     var lang = VOICE[VLANG] ? VLANG : 'en';
     var lines = VOICE[lang][set] || [];
@@ -1049,7 +1060,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var i = Math.floor(Math.random() * lines.length);
     if (lines.length > 1 && i === lastPick[set]) i = (i + 1) % lines.length;
     lastPick[set] = i;
-    return { text: lines[i], url: '/wq/voice/' + lang + '/' + set + '-' + i + '.mp3?v=' + VOICE_V };
+    return { text: lines[i], url: voiceUrl(lang, set + '-' + i) };
   }
 
   /* ---------------- sound (off by default) + read-aloud ---------------- */
@@ -1147,6 +1158,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function speakTts(text, end) {
     try {
+      if (ONE_VOICE) { try { ROOT.classList.add('wq-novoice'); } catch (e) {} setTimeout(end, 4000); return; }
       if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { setTimeout(end, 4000); return; }
       // The phone's own voice is a different voice from the quiz's: the speaker button says so (a small phone mark, wq.css).
       try { ROOT.classList.add('wq-phonevoice'); } catch (e) {}
@@ -1959,7 +1971,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var langs = [VLANG, VLANG === 'ur' ? 'en' : 'ur'];
     for (var k = 0; k < langs.length; k++) {
       var i = ((VOICE[langs[k]] || {}).fig || []).indexOf(t);
-      if (i >= 0) return '/wq/voice/' + langs[k] + '/fig-' + i + '.mp3?v=' + VOICE_V;
+      if (i >= 0) return voiceUrl(langs[k], 'fig-' + i);
     }
     return null;
   }

@@ -119,14 +119,23 @@ describe('key on: the feedback band on every scored body; the speed only on the 
     }
     len.n = 100;
   });
-  test('a 0-word read and a stopped read get the kind band; a pending read and a tap game get none', async () => {
+  test('a 0-word read gets the kind band; a pending read and a tap game get none', async () => {
     expect(RF.band({ score: { correct: 0, attempted: 0, stopped: false, time_left: 0 }, wcpm: 0 })).toEqual({ stars: 0, badge: 'try', words_heard: 0 });
-    expect(RF.band({ score: { correct: 5, attempted: 6, stopped: true }, wcpm: 0 })).toEqual({ stars: 0, badge: 'try', words_heard: 0 });
+    expect(RF.band({ score: { correct: 0, attempted: 0, stopped: true }, wcpm: 0 })).toEqual({ stars: 0, badge: 'try', words_heard: 0 });
     expect(RF.band({ score: { correct: 0, attempted: 0 }, wcpm: null, implausible: 'floor' })).toEqual({ stars: 0, badge: 'try', words_heard: 0 });
     expect(await RF.withBand({ pending: true })).toEqual({ pending: true });
     expect(await RF.withBand({ score: { correct: 3, n: 5 } })).toEqual({ score: { correct: 3, n: 5 } });
     wire({ pending: true });
     expect(await get({})).toEqual({ pending: true });
+  });
+  test('a read stopped by the rule after some words: the words still count (the owner\'s page draws them too), so another phone says "some", never "let\'s read it together"', async () => {
+    const stopped = { score: { correct: 5, attempted: 6, stopped: true, time_left: 20 }, wcpm: 0, ended: 'stopped' };
+    // 5 of 6 right = 83 %: 2 stars, as the owner's page draws from the full result
+    expect(RF.band(stopped)).toEqual({ stars: 2, badge: 'reader', words_heard: 6 });
+    wire(stopped);
+    for (const [name, call] of Object.entries(BUILDERS)) {
+      for (const h of OTHER) expect([name, (await call(h)).feedback]).toEqual([name, { stars: 2, badge: 'reader', read: 'some' }]);
+    }
   });
   test('the band never names the speed: no lights, no growth, never a "faster" badge, whatever the last read was', () => {
     for (const [w, p] of [[42, 40], [80, 20], [10, 60]]) {

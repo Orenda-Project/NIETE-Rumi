@@ -676,7 +676,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   mark('play');
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);

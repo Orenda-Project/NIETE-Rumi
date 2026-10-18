@@ -13,9 +13,10 @@
  *   WQMoment.html(fb, lang, o)  the block (no buttons: the host keeps its own Next / Share / Home); o = {grade?, size?: 's'}
  *   WQMoment.mount(el, fb, lang, o)  the block just before `el` (or into it, o.into); one sound when the kit is there
  *   WQMoment.page(s, p, lang, o) / hear(pl, p, s, o)  a storybook page's read: the small block (+ "Hear Jugnu say it"
- *                               on a skipped word, + "read it again for 3 stars") and that sentence played as a slice of
- *                               the page's own take
- *   WQMoment.again(fb, lang, o) the minute's "read it again to light one more!" soft button (#wqc-rfagain), or ''
+ *                               on a skipped word, + "read it again for 3 stars"; o.still: a redraw, no motion) and
+ *                               that sentence played as a slice of the page's own take
+ *   WQMoment.again(fb, lang, o) the minute's "read it again to light one more!" soft button (#wqc-rfagain), or '' (and
+ *                               always '' with o.hold: a held card, before the check, whose result could still change)
  *   WQMoment.card(fb, lang, o)  html() with that offer inside the card, under the jar it fills (never loose on the screen)
  *
  * The jar, its number and the growth line show only on the reading child's own screen (the server sends the speed only
@@ -28,7 +29,9 @@
   // Lights by words a minute, by grade (the reading bands): the first light for any word read.
   var BANDS = { lo: [1, 10, 20, 35, 50], mid: [1, 15, 30, 50, 70], hi: [1, 20, 40, 60, 85] };
   var STAR_AT = [0.7, 0.9];      // 2 stars from 70 % of the words read right, 3 from 90 %
-  var GROWTH_UP = 2;             // "faster than last time" from 2 more words a minute; within 1 is "steady"
+  // "faster than last time" from 5 more words a minute; within 3 either way is "steady" (one read's speed moves by
+  // about 5 words a minute between passages for the same child, so smaller moves are noise, not growth)
+  var GROWTH_UP = 5, SAME_WITHIN = 3;
   var MIN_WORDS = 15, MIN_MS = 6000;
   var C = {
     en: {
@@ -40,7 +43,7 @@
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
       again: 'Read it again to light one more!', again3: 'Read it again for 3 stars!',
-      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu',
+      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu', readAgain: 'Read it again',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
@@ -52,7 +55,7 @@
       stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
       up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
       again: 'ایک اور روشنی کے لیے پھر سے پڑھیں!', again3: 'تین ستاروں کے لیے پھر سے پڑھیں!',
-      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں',
+      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں', readAgain: 'پھر سے پڑھیں',
       badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
     }
   };
@@ -86,7 +89,8 @@
   }
   function bands(grade) {
     var g = parseInt(String(grade == null ? '' : grade).replace(/[^0-9]/g, ''), 10);
-    return g > 0 && g <= 2 ? BANDS.lo : g >= 4 ? BANDS.hi : BANDS.mid;
+    // a grade not known reads on the kindest bands: a young child with no grade on file never gets fewer lights
+    return !(g >= 3) ? BANDS.lo : g >= 4 ? BANDS.hi : BANDS.mid;
   }
   function level(fb, grade) {
     fb = fb || {};
@@ -95,10 +99,13 @@
     var b = bands(grade), lights = 0, i;
     // the lights name the speed's band: only on a read long enough to be honest, like the number beside them
     if (fb.wcpm && fb.showNum) { for (i = 0; i < b.length; i++) if (fb.wcpm >= b[i]) lights = i + 1; }
-    var stars = fb.acc == null ? 1 : fb.acc >= STAR_AT[1] ? 3 : fb.acc >= STAR_AT[0] ? 2 : 1;
+    // a short page (a few words) forgives one word missed (often the checker's miss): 3 stars from 70 % then
+    var one = fb.total && fb.total - fb.words <= 1;
+    var stars = fb.acc == null ? 1 : fb.acc >= STAR_AT[1] || (one && fb.acc >= STAR_AT[0]) ? 3 : fb.acc >= STAR_AT[0] ? 2 : 1;
     var growth = null;
-    // growth only against the child's own last read, and only when both are honest numbers
-    if (fb.prev && fb.wcpm && fb.showNum) growth = fb.wcpm - fb.prev >= GROWTH_UP ? 'up' : Math.abs(fb.wcpm - fb.prev) <= 1 ? 'same' : null;
+    // growth only against the child's own last read, and only when both are honest numbers; words read right come
+    // before speed, so "faster" (and its badge) only from 2 stars
+    if (fb.prev && fb.wcpm && fb.showNum) growth = fb.wcpm - fb.prev >= GROWTH_UP ? (stars >= 2 ? 'up' : null) : Math.abs(fb.wcpm - fb.prev) <= SAME_WITHIN ? 'same' : null;
     return { lights: lights, stars: stars, growth: growth, badge: growth === 'up' ? 'faster' : stars === 3 ? 'star' : 'reader' };
   }
 
@@ -178,37 +185,46 @@
   function page(s, p, lang, o) {
     o = o || {};
     var fb = feedback({ words_read: s.words_read, words_total: s.words_total, ms: s.ms });
-    var h = html(fb, lang, { grade: o.grade, size: 's', jg: 1 });
+    var h = html(fb, lang, { grade: o.grade, size: 's', jg: 1, still: o.still });
     if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
     // read it again for 3 stars (a page is too short for lights); never after a 0-word try (that card leads with it)
     if (!fb.zero && level(fb, o.grade).stars < 3) h += '<button class="wqs-sec" data-tap="rfagain">' + esc(C[L(lang)].again3) + '</button>';
     return { html: h, fb: fb };
   }
-  // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop
+  // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop.
+  // The 40 ms watch ends with it, and never outlives it: the reader gone (o.live), the player stopped for a second
+  // (read it again), the take started again from earlier (the page's own Listen: never cut at this sentence's end)
   var hearT = null;
   function hear(pl, p, s, o) {
     var x = slice(p, s, o);
     if (!x || !pl) return;
     if (hearT) o.clear(hearT);
     pl.seekToWord(x.from); pl.play();
+    var last = -1, idle = 0;
     hearT = o.set(function tk() {
-      var a = pl.audio;
-      if (!a) { hearT = null; return; }
-      if (a.currentTime * 1000 >= x.e_ms || pl.current > x.to) { hearT = null; pl.pause(); return; }
+      var a = pl.audio, t = a ? a.currentTime * 1000 : 0;
+      hearT = null;
+      if (!a || (o.live && !o.live()) || t < last - 250 || (a.paused && ++idle > 25)) return;
+      if (t >= x.e_ms || pl.current > x.to) { pl.pause(); return; }
+      if (!a.paused) idle = 0;
+      last = t;
       hearT = o.set(tk, 40);
     }, 40);
   }
 
-  // the minute's read: "read it again to light one more!" (a soft button for the host) on an honest read short of 5
-  // lights; '' otherwise (a short read, another phone, a 0-word try, 5 lights)
+  // the minute's read: "read it again for 3 stars!" under 3 stars (words right first), else "read it again to light one
+  // more!" (a soft button for the host) on an honest read short of 5 lights; '' otherwise (a short read, another
+  // phone, a 0-word try, 5 lights, o.hold: a card before the check)
   function again(fb, lang, o) {
-    var n = level(fb, (o || {}).grade).lights;
-    return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
+    if (o && o.hold) return '';
+    var lv = level(fb, (o || {}).grade), n = lv.lights;
+    return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)][lv.stars < 3 ? 'again3' : 'again']) + '</button>' : '';
   }
 
-  // o.retry: the host's own "Try again" label for a 0-word try on a card with no Try again of its own (the folded card)
+  // o.retry: a 0-word try on a card with no Try again of its own (the folded card) gets one; it says "read it again", as
+  // Jugnu's line asks ("let's read it together"), never a bare "try again"
   function card(fb, lang, o) {
-    var a = fb && fb.zero && o && o.retry ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(o.retry) + '</button>' : again(fb, lang, o), h = html(fb, lang, o);
+    var a = fb && fb.zero && o && o.retry ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].readAgain) + '</button>' : again(fb, lang, o), h = html(fb, lang, o);
     return a ? h.replace(/<\/section>$/, '<div class="wq-moment-again">' + a + '</div></section>') : h;
   }
 
@@ -225,6 +241,7 @@
     el.innerHTML = k ? '<span>' + esc(c.near) + '</span>' + (k === 2 ? ' <button class="wqs-sec" data-tap="rfwith">' + esc(c.withJ) + '</button>' : '') : '';
   }
   function say(k, lang) { return C[L(lang)][k]; }
+  function fit() { try { window.dispatchEvent(new Event('resize')); } catch (e) { /* the taps stay where they were */ } }
   // once per result: the sound, the fanfare and the moment's motion play on a result's first draw only (key: the run
   // token and the card); a redraw of the same result (live, then checked, then the words) is laid in still and silent
   var fired = {};
@@ -235,8 +252,9 @@
   //   (x {g, v, ms}); 'with': stop the quiet read; 'after': after the result, Jugnu reads the page when that was tapped
   function q(k, R, m, x) {
     var y;
-    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents }); x.rd.fb = y.fb; return y.html; }
-    if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear });
+    // its first draw: the picture has just given up height (wq-moment.css), so the page's word taps are placed again
+    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents, still: x.rd.drawn }); if (!x.rd.drawn) R.C.set(fit, 0); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
+    if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear, live: R.live });
     if (k === 'withJ') return say(k, R.L);
     if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';
     if (k === 'tick') return near(R.root.querySelector('[data-near]'), x.g, x.v, x.ms, R.L);
@@ -244,5 +262,7 @@
     if (R.rfw) { R.rfw = 0; if (m.label() === 'listen') m.primary(); }
   }
 
-  window.WQMoment = { feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
+  // label(lang, key): one of the moment's own words, for a host button that does the moment's action (the folded card)
+  function label(lang, k) { return C[L(lang)][k]; }
+  window.WQMoment = { label: label, feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
 })();
