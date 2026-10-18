@@ -1505,6 +1505,24 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz-hub-home homeField -> {class_doors: {class, schools}} (web-quiz-class-doors-flag linksOf with the watch root, the hub's own history);
     # wq-home.js socialHtml. unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
+  @api @quiz @web @config-gated @wip @draft @P1 @T1173 @no-mock-driver
+  Scenario: The class table and the school league open in the child's language, titled with the child's class
+    Given app_settings "web_quiz_class_doors" is true
+    And an Urdu child of my class has played one of my English class quizzes
+    When the child taps "My class" or "My school" on their home
+    Then the class table or the school league opens in Urdu, because the link carries the home's language
+    And Play from that table opens the quiz page itself, in the quiz's own language
+    And the class table is titled with the child's own class when every child on it is in that class, else "Your class"
+    And a viewer the table does not know sees today's title
+    And a class field that is not a grade number (a word, a name) never becomes the title: the child sees "Your class"
+    And when the shared watch quiz's setting cannot be read, no "See my class" or "My class" opens onto it: the doors stay closed
+    And the class table's and the league's share links carry the language of the page they were shared from
+    But a link with no language, or with a language other than English or Urdu, opens in the quiz's language as today
+    And with web_quiz_class_doors off every page, answer and link is exactly as it is today
+    # web-quiz-class-doors-flag linksOf(.., lang) + web-quiz-hub-home (out.lang); web-quiz.service getQuiz -> class_doors,
+    # board -> my_class + one_class; web-quiz.routes uiLangOf -> payload.ui_lang; wq.js LANG/UI_SWAP/quizPage, board title.
+    # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
   Scenario: The teacher's preview never counts as a child
     Given the teacher's signed preview link

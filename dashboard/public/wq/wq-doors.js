@@ -714,7 +714,10 @@
     var next = nx.path ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: nx.path }
       : /^\/[^/]/.test(here) ? { kind: nx.kind, title: nx.title, sub: nx.sub || '', href: here + (nx.hash || '#videos') } : null;
     var ok = false;
-    try { ok = window.WQFC.mount(a, { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, plain: !!(B.doors && B.doors.videos && B.doors.videos.watch === true), auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev }); } catch (e) { ok = false; }
+    var fo = { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, plain: !!(B.doors && B.doors.videos && B.doors.videos.watch === true), auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev };
+    // the one share (share_v4): the card names the video, so its link lands a new child on it
+    if (B.share_v4 === true) { fo.v4 = true; fo.item = w.vid ? { type: 'video', id: String(w.vid) } : null; }
+    try { ok = window.WQFC.mount(a, fo); } catch (e) { ok = false; }
     if (!ok) return false;
     if (a && a.parentNode) a.parentNode.removeChild(a);
     var t = document.getElementById('wqfc-next');

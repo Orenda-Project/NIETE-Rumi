@@ -12,7 +12,10 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const http = require('http');
+const express = require('express');
 const { page, flush } = require('./wq-page-harness');
+const { createWebQuizRouter } = require('../routes/web-quiz.routes');
 
 const FC_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-finish-card.js'), 'utf8');
 const HOME_SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-home.js');
@@ -180,11 +183,131 @@ describe('the home: "My class" and "My school" (wq-home.js)', () => {
     const h = H.html({ ...HOME, class_doors: { class: 'https://evil.example/x', schools: '/q/MATH01/schools?k=kk' } }, { token: TOKEN, lang: 'en' });
     expect(h).not.toContain('evil.example');
     expect(h).toContain('href="/q/MATH01/schools?k=kk"');
+    // the hub's language on the link (the bot adds &lang=) is drawn as it came
+    expect(H.html({ ...HOME, class_doors: { class: '/q/MATH01/class?k=kk&lang=ur', schools: '/q/MATH01/schools?k=kk&lang=ur' } }, { token: TOKEN, lang: 'ur' })).toContain('href="/q/MATH01/class?k=kk&amp;lang=ur"');
     const none = H.html({ ...HOME, class_doors: { class: 'javascript:x', schools: '//evil' } }, { token: TOKEN, lang: 'en' });
     expect(none).not.toContain('wq-social');
   });
   test('golden: no class_doors -> the home is today\'s, byte for byte (hashed on the base)', () => {
     expect(sha(H.html(HOME, { token: TOKEN, lang: 'en' }))).toBe('d8ed8374bf08a858');
     expect(sha(H.html(HOME, { token: TOKEN, lang: 'ur' }))).toBe('c99ec2ab45081c89');
+  });
+});
+
+// The class table and the league in the child's language (the portal sets `ui_lang` from the link's ?lang only with
+// the switch on), titled with the child's own class, and their shares carrying the language.
+describe('the class table and the league in the child\'s language (ui_lang), titled with the child\'s class', () => {
+  const LEAGUE = { mine: { name: 'Model School Testwala', place: 2, points: 40, kids: 4, sector: 'ict' }, rows: [{ place: 1, name: 'Other School', points: 50, kids: 5, sector: 'ict' }, { place: 2, name: 'Model School Testwala', points: 40, kids: 4, sector: 'ict', mine: true }], ranked_n: 2 };
+  const MINE = { ...BOARD, class_doors: true, my_class: '3-B', one_class: true };
+  const boardPage = async (o) => {
+    const p = page({ lang: 'en', store: o.store || {}, view: o.view || 'class', bootExtra: o.ui ? { ui_lang: o.ui } : {}, nav: o.nav || {}, api: { '/board/TEST': o.board || MINE, '/schools/TEST': o.schools || { ...LEAGUE, class_doors: true } } });
+    await flush(); await flush();
+    return p;
+  };
+  const h2 = (h) => (/<h2>([\s\S]*?)<\/h2>/.exec(h) || [])[1];
+  test('an English quiz, ui_lang ur: the class table speaks Urdu and is titled with the child\'s class', async () => {
+    const p = await boardPage({ ui: 'ur' });
+    expect(p.wq.T.yourClass).toBe('آپ کی کلاس');
+    expect(h2(p.html()).replace(/<[^>]*>/g, '')).toBe('کلاس 3-B');
+  });
+  test('ui_lang en on an Urdu quiz: English, "Class 3-B"', async () => {
+    const p = page({ lang: 'ur', store: {}, view: 'class', bootExtra: { ui_lang: 'en' }, api: { '/board/TEST': MINE } });
+    await flush(); await flush();
+    expect(h2(p.html())).toBe('Class 3-B');
+  });
+  test('the league with ui_lang ur: the league\'s Urdu title, never the class', async () => {
+    const p = await boardPage({ ui: 'ur', view: 'schools' });
+    expect(p.html()).toContain('<h2>' + p.wq.T.schoolsT + '</h2>');
+    expect(p.wq.T.schoolsT).toMatch(/[؀-ۿ]/);
+  });
+  test('a table of more than one class: "Your class", never a list of grades', async () => {
+    const p = await boardPage({ board: { ...MINE, one_class: false } });
+    expect(h2(p.html())).toBe('Your class');
+  });
+  test('a viewer the table does not know (no my_class): today\'s title', async () => {
+    const p = await boardPage({ board: { ...BOARD, class_doors: true } });
+    expect(h2(p.html())).toBe('Class 3-B league table');
+  });
+  test('off (no class_doors): today\'s title even with my_class; no ui_lang: the quiz\'s language', async () => {
+    const p = await boardPage({ board: { ...BOARD, my_class: '3-B', one_class: true } });
+    expect(h2(p.html())).toBe('Class 3-B league table');
+    expect(p.wq.T.yourClass).toBe('Your class');
+  });
+  test('ui_lang other than the quiz\'s: Play opens the quiz page in its own language (keeps k)', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'class', search: '?lang=ur&k=abc123', bootExtra: { ui_lang: 'ur' }, api: { '/board/TEST': MINE } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual(['/q/TEST?k=abc123']);
+  });
+  test('ui_lang the same as the quiz\'s: Play stays on the page (today\'s)', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'class', bootExtra: { ui_lang: 'en' }, api: { '/board/TEST': MINE } });
+    await flush(); await flush();
+    p.els['#wq-play'].fire('click');
+    expect(p.hist.assigned).toEqual([]);
+  });
+  test('on: the class table\'s and the league\'s share links carry the page\'s language; off: today\'s links', async () => {
+    const got = [];
+    const nav = { share: (d) => { got.push(d.url); return Promise.resolve(); } };
+    for (const [b, s] of [[MINE, { ...LEAGUE, class_doors: true }], [BOARD, LEAGUE]]) {
+      const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { ui_lang: 'ur' }, nav, api: { 'board/': b, 'schools/': s } });
+      p.wq.board();
+      await flush(); await flush();
+      p.els['#wq-share-t'].fire('click');
+      p.els['#wq-schools'].fire('click');
+      await flush(); await flush();
+      p.els['#wq-share-s'].fire('click');
+      await flush();
+    }
+    const on = got.slice(0, got.length / 2);
+    const off = got.slice(got.length / 2);
+    expect(on[0]).toMatch(/\/q\/TEST\/class\?v=1&lang=ur$/);
+    expect(on.slice(1).every((u) => /\/q\/TEST\/schools\?v=\d+&lang=ur$/.test(u))).toBe(true);
+    expect(off[0]).toMatch(/\/q\/TEST\/class\?v=1$/);
+    expect(off.every((u) => !u.includes('lang='))).toBe(true);
+  });
+});
+
+// The edge: /q/<code>/class and /schools open in the link's ?lang (en|ur) when the bot's quiz answer carries
+// class_doors (web_quiz_class_doors on): the html's lang/dir and the boot's ui_lang. Off, or any other page: today's.
+describe('the edge: the class table and the league open in the link\'s language (class_doors)', () => {
+  const QUIZ = (extra) => ({ quiz: { id: 'q', code: 'AB12CD', topic: 'Plants', lang: 'en', dir: 'ltr', grade: '3', n: 1, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }] }] }, cls: { label: 'Class 3', teacher: null, chips: [] }, live: {}, ...extra });
+  function serve(body) {
+    const app = express();
+    app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => ({ status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(body) }) }));
+    return new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  }
+  function get(srv, path) {
+    return new Promise((resolve) => http.get({ host: '127.0.0.1', port: srv.address().port, path }, (res) => { let d = ''; res.on('data', (c) => { d += c; }); res.on('end', () => resolve({ status: res.statusCode, html: d })); }));
+  }
+  const bootOf = (html) => JSON.parse(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1].replace(/\\u003c/g, '<'));
+  test('on: /class?lang=ur and /schools?lang=ur on an English quiz are Urdu pages (rtl, ui_lang ur)', async () => {
+    const srv = await serve(QUIZ({ class_doors: true }));
+    try {
+      for (const v of ['class', 'schools']) {
+        const r = await get(srv, `/q/AB12CD/${v}?lang=ur&k=abc`);
+        expect(r.status).toBe(200);
+        expect(r.html).toMatch(/<html[^>]*\slang="ur"[^>]*\sdir="rtl"/);
+        expect(bootOf(r.html).ui_lang).toBe('ur');
+      }
+    } finally { srv.close(); }
+  });
+  test('on, but the quiz page itself, no lang, or a lang that is not en/ur: today\'s page', async () => {
+    const srv = await serve(QUIZ({ class_doors: true }));
+    try {
+      for (const path of ['/q/AB12CD?lang=ur', '/q/AB12CD/class', '/q/AB12CD/class?lang=fr']) {
+        const r = await get(srv, path);
+        expect(r.html).toMatch(/<html[^>]*\slang="en"/);
+        expect(bootOf(r.html)).not.toHaveProperty('ui_lang');
+      }
+    } finally { srv.close(); }
+  });
+  test('off (no class_doors on the answer): /class?lang=ur is today\'s page, byte for byte', async () => {
+    const srv = await serve(QUIZ({}));
+    try {
+      const a = await get(srv, '/q/AB12CD/class?lang=ur');
+      const b = await get(srv, '/q/AB12CD/class');
+      expect(a.html).toBe(b.html);
+      expect(a.html).toMatch(/<html[^>]*\slang="en"/);
+    } finally { srv.close(); }
   });
 });

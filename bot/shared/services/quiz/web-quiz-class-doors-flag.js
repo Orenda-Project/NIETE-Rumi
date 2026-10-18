@@ -6,8 +6,9 @@
  * the hub's home gets `class_doors: {class, schools}` (the quiz page's own /q/<code>/class and /q/<code>/schools views).
  *
  *   on()                       30 s cache, JSON `true` only, fails closed (a read error is off)
- *   root()                     the watch root's id (watch-root.js, cached there), or null; never throws
- *   linksOf(history, kidId, root) (pure) the child's newest class quiz (teacher-sent: never a friend's challenge code, a
+ *   root()                     the watch root's id (watch-root.js, cached there), null when there is none, or UNREADABLE
+ *                              when its VALUE cannot be read (no class doors then: fails closed); never throws
+ *   linksOf(history, kidId, root, lang) (pure) the child's newest class quiz (teacher-sent: never a friend's challenge code, a
  *                              library lesson code or the watch root itself) as {class, schools} hrefs with its hub key, or null
  *   ownClass(history, codeId, root) (pure) the run's code is one of the child's class quizzes (as linksOf's rule)
  * Read on its own, beside the home's switches, so the home's read stays as it is. No new table, no new query: the
@@ -35,20 +36,23 @@ async function on(now = Date.now()) {
   }
 }
 
+const UNREADABLE = Symbol('watch root unreadable');
 function root() {
-  return WatchRoot.watchRootId().catch(() => null);
+  return WatchRoot.watchRootId(Date.now(), { strict: true }).catch(() => UNREADABLE);
 }
 
 // The watch root has no parent, so the hub calls it teacher-sent; its table is every school's strangers, never a class.
-const classQuiz = (x, rootId) => Boolean(x && x.teacherSent && x.code && /^[A-Za-z0-9]{4,16}$/.test(x.code) && x.shareCodeId && x.shareCodeId !== rootId);
+const classQuiz = (x, rootId) => Boolean(rootId !== UNREADABLE && x && x.teacherSent && x.code && /^[A-Za-z0-9]{4,16}$/.test(x.code) && x.shareCodeId && x.shareCodeId !== rootId);
 
 // history: student-quiz.service quizzesForStudents (newest first)
-function linksOf(history, kidId, rootId = null) {
+function linksOf(history, kidId, rootId = null, lang = null) {
   const e = (history || []).find((x) => classQuiz(x, rootId));
   if (!e || !kidId) return null;
   const k = T.chipId(e.shareCodeId, kidId);
-  const q = k ? `?k=${encodeURIComponent(k)}` : '';
-  return { class: `/q/${e.code}/class${q}`, schools: `/q/${e.code}/schools${q}` };
+  // lang (en|ur): the hub's own language, so the table and the league open in it (the edge's ui_lang)
+  const q = [k ? `k=${encodeURIComponent(k)}` : '', lang === 'en' || lang === 'ur' ? `lang=${lang}` : ''].filter(Boolean).join('&');
+  const qs = q ? `?${q}` : '';
+  return { class: `/q/${e.code}/class${qs}`, schools: `/q/${e.code}/schools${qs}` };
 }
 
 function ownClass(history, codeId, rootId = null) {
