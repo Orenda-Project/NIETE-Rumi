@@ -29,7 +29,9 @@
   // Lights by words a minute, by grade (the reading bands): the first light for any word read.
   var BANDS = { lo: [1, 10, 20, 35, 50], mid: [1, 15, 30, 50, 70], hi: [1, 20, 40, 60, 85] };
   var STAR_AT = [0.7, 0.9];      // 2 stars from 70 % of the words read right, 3 from 90 %
-  var GROWTH_UP = 2;             // "faster than last time" from 2 more words a minute; within 1 is "steady"
+  // "faster than last time" from 5 more words a minute; within 3 either way is "steady" (one read's speed moves by
+  // about 5 words a minute between passages for the same child, so smaller moves are noise, not growth)
+  var GROWTH_UP = 5, SAME_WITHIN = 3;
   var MIN_WORDS = 15, MIN_MS = 6000;
   var C = {
     en: {
@@ -87,7 +89,8 @@
   }
   function bands(grade) {
     var g = parseInt(String(grade == null ? '' : grade).replace(/[^0-9]/g, ''), 10);
-    return g > 0 && g <= 2 ? BANDS.lo : g >= 4 ? BANDS.hi : BANDS.mid;
+    // a grade not known reads on the kindest bands: a young child with no grade on file never gets fewer lights
+    return !(g >= 3) ? BANDS.lo : g >= 4 ? BANDS.hi : BANDS.mid;
   }
   function level(fb, grade) {
     fb = fb || {};
@@ -96,10 +99,13 @@
     var b = bands(grade), lights = 0, i;
     // the lights name the speed's band: only on a read long enough to be honest, like the number beside them
     if (fb.wcpm && fb.showNum) { for (i = 0; i < b.length; i++) if (fb.wcpm >= b[i]) lights = i + 1; }
-    var stars = fb.acc == null ? 1 : fb.acc >= STAR_AT[1] ? 3 : fb.acc >= STAR_AT[0] ? 2 : 1;
+    // a short page (a few words) forgives one word missed (often the checker's miss): 3 stars from 70 % then
+    var one = fb.total && fb.total - fb.words <= 1;
+    var stars = fb.acc == null ? 1 : fb.acc >= STAR_AT[1] || (one && fb.acc >= STAR_AT[0]) ? 3 : fb.acc >= STAR_AT[0] ? 2 : 1;
     var growth = null;
-    // growth only against the child's own last read, and only when both are honest numbers
-    if (fb.prev && fb.wcpm && fb.showNum) growth = fb.wcpm - fb.prev >= GROWTH_UP ? 'up' : Math.abs(fb.wcpm - fb.prev) <= 1 ? 'same' : null;
+    // growth only against the child's own last read, and only when both are honest numbers; words read right come
+    // before speed, so "faster" (and its badge) only from 2 stars
+    if (fb.prev && fb.wcpm && fb.showNum) growth = fb.wcpm - fb.prev >= GROWTH_UP ? (stars >= 2 ? 'up' : null) : Math.abs(fb.wcpm - fb.prev) <= SAME_WITHIN ? 'same' : null;
     return { lights: lights, stars: stars, growth: growth, badge: growth === 'up' ? 'faster' : stars === 3 ? 'star' : 'reader' };
   }
 
@@ -206,12 +212,13 @@
     }, 40);
   }
 
-  // the minute's read: "read it again to light one more!" (a soft button for the host) on an honest read short of 5
-  // lights; '' otherwise (a short read, another phone, a 0-word try, 5 lights, o.hold: a card before the check)
+  // the minute's read: "read it again for 3 stars!" under 3 stars (words right first), else "read it again to light one
+  // more!" (a soft button for the host) on an honest read short of 5 lights; '' otherwise (a short read, another
+  // phone, a 0-word try, 5 lights, o.hold: a card before the check)
   function again(fb, lang, o) {
     if (o && o.hold) return '';
-    var n = level(fb, (o || {}).grade).lights;
-    return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
+    var lv = level(fb, (o || {}).grade), n = lv.lights;
+    return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)][lv.stars < 3 ? 'again3' : 'again']) + '</button>' : '';
   }
 
   // o.retry: the host's own "Try again" label for a 0-word try on a card with no Try again of its own (the folded card)
