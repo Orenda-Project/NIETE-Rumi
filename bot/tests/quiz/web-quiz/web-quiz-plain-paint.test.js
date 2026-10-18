@@ -174,7 +174,9 @@ describe('the routes', () => {
   test('a cold switch never holds the answer: the first answers are today\'s while the read runs behind them', async () => {
     rows = [{ key: KEY, value: true }];
     await serve(async (ask) => {
-      expect(await ask()).toEqual(GOLDEN);
+      // the quiz page's own cache is cold: today's answer (the home's comes from the hub's batched read, which the
+      // quiz route's step timings may already have refreshed in the background)
+      expect((await ask()).quiz).toBe(GOLDEN.quiz);
       await hubFlags().flags(); // the hub's own switch read (the stood-in hub does not make it)
       const later = await ask();
       expect(JSON.parse(later.quiz).plain_paint).toBe(true);
