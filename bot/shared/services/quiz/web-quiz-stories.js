@@ -44,9 +44,11 @@ const GAPS_KEY = 'web_quiz_stories_slow_gaps';
 // Slower's numbers {sentence: [target, least], comma: [target, least]} in ms (ints 0–2,000, least ≤ target), sent only with
 // the gaps switch; absent or junk, the book says `true` and the player keeps its own.
 const MS_KEY = 'web_quiz_stories_slow_ms';
+// Jugnu keeps its passage recordings (web-quiz-challenge.js keepAudioOn): the microphone notice says so (book.lr3_keep)
+const KEEP_KEY = 'web_quiz_challenge_keep_audio';
 // Keys that ride the stories read. A read naming them that fails is made again without them, the last first (they are off),
 // so a rider's failure never turns stories off.
-const RIDERS = [GAPS_KEY, MS_KEY];
+const RIDERS = [GAPS_KEY, MS_KEY, KEEP_KEY];
 const HOST_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
@@ -92,24 +94,35 @@ async function readRows(keys) {
   return new Map((data || []).map((r) => [r.key, r.value]));
 }
 
+// One read on the normal path. If it fails, a fault on a switch folded into it never turns the stories off: the read is
+// tried again without the riders (the last first: keep-audio, then Slower's two), then without the live reader's two
+// (lr3 off), then the main switch alone (band and steady off too). Only a failed read of the main switch itself is off.
+const READS = [
+  ...RIDERS.map((_, i) => [...HOST_KEYS, ...RIDERS.slice(0, RIDERS.length - i)]),
+  HOST_KEYS,
+  [FLAG_KEY, BAND_KEY, STEADY_KEY],
+  [FLAG_KEY],
+];
+
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    let by;
-    for (let n = RIDERS.length; !by; n -= 1) {
-      try {
-        by = await readRows([...HOST_KEYS, ...RIDERS.slice(0, n)]);
-      } catch (err) {
-        if (!n) throw err;
-        logToFile('⚠️ web quiz stories: settings read with a rider failed — read again without it', { key: RIDERS[n - 1], error: err.message });
+    let by = null;
+    let last = null;
+    for (const keys of READS) {
+      try { by = await readRows(keys); break; } catch (err) {
+        last = err;
+        logToFile('⚠️ web quiz stories: settings lookup failed — reading fewer switches', { error: err.message, keys: keys.length });
       }
     }
+    if (!by) throw last;
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
+    const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
     const gaps = on && isTrue(by.get(GAPS_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3: on && LR3_KEYS.every((k) => isTrue(by.get(k))), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null };
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, steady: false, gaps: false, ms: null };
+    cache = { at: now, on: false, band: false, lr3: false, keep: false, steady: false, gaps: false, ms: null };
   }
   return cache;
 }
@@ -411,6 +424,8 @@ async function bookData(id) {
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
     pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
+    // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
+    ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {
       const v = voiceOf.get(p.id);
       return {
