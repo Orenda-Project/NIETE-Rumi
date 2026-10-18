@@ -337,7 +337,7 @@ describe('the one share never sends words without the card', () => {
     const story = fs.readFileSync(path.join(WQ, 'wq-stories-d.js'), 'utf8');
     expect(doors).toContain("if (B.share_v4 === true) { fo.v4 = true; fo.item = w.vid ? { type: 'video', id: String(w.vid) } : null; }");
     expect(story).toContain("if (b.share_v4 === true) { fo.v4 = true; fo.item = { type: 'book', id: String(id) }; }");
-    expect(FC_SRC).toContain('v4: (h.md() || {}).share_v4 === true || undefined });');
+    expect(FC_SRC).toContain('v4: (h.md() || {}).share_v4 === true || undefined, urs: (h.md() || {}).ur_share === true || undefined });');
   });
 });
 

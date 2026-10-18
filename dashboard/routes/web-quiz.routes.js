@@ -234,6 +234,9 @@ const UR_DESC_ON = {
 function ogText(payload, view, brand) {
   const og = ogTextOf(payload, view, brand);
   const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  // the corrected Urdu share words (web_quiz_ur_share_copy, the bot's `ur_share`) with the card off: the class table's
+  // preview desc is the card's own neutral line; the title and digits stay today's
+  if (ur && payload.card_v3 !== true && payload.ur_share === true && view === 'class' && !payload.story) return { ...og, desc: UR_DESC_ON.class };
   if (!ur || payload.card_v3 !== true) return og;
   const which = payload.challenge && payload.art && payload.art.invite ? 'challenge' : payload.story ? null : view;
   return { ...og, title: urCount(og.title), desc: urCount(UR_DESC_ON[which] || og.desc) };
