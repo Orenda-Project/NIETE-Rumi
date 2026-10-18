@@ -40,10 +40,12 @@ const PRIVATE = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex
 // screen, the landing.
 const okLocation = (loc) => typeof loc === 'string' && /^\/(quiz\/teacher|quiz\/join|quiz\/go|quiz\/home|h|m)\/[A-Za-z0-9_.%-]+(\?[A-Za-z0-9_=&%.-]*)?$/.test(loc);
 
+// the page's link language (the bot reads it only with web_quiz_go_link_lang on)
+const linkLang = (v) => v === 'en' || v === 'ur';
 const FORM = {
-  who: { d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v) },
-  role: { side: (v) => v === 'child' || v === 'teacher' },
-  bind: { pick: (v) => /^[0-9a-f]{16}$/.test(v), d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v) },
+  who: { d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v), l: linkLang },
+  role: { side: (v) => v === 'child' || v === 'teacher', l: linkLang },
+  bind: { pick: (v) => /^[0-9a-f]{16}$/.test(v), d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v), l: linkLang },
   persona: { as: (v) => v === 'fresh' || v === 'teacher_empty' || v === 'real' },
 };
 function formBody(kind, body) {
@@ -125,7 +127,9 @@ function createQuizGoRouter(opts = {}) {
       return next();
     }
     const dv = device(req, res);
-    const ask = req.query && req.query.ask === '1' ? '?ask=1' : '';
+    // ?ask=1, and the link's own ?lang=en|ur as ?ll= (the bot reads it only with web_quiz_go_link_lang on)
+    const q = [req.query && req.query.ask === '1' ? 'ask=1' : '', req.query && linkLang(req.query.lang) ? `ll=${req.query.lang}` : ''].filter(Boolean).join('&');
+    const ask = q ? `?${q}` : '';
     let out;
     try {
       out = await callBot('GET', `${BOT_BASE}/land/${token}${ask}`, req, null, { raw: true, device: dv.ref, route: '/api/internal/go/land/:t' });

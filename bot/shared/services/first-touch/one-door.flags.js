@@ -32,10 +32,12 @@ const TEACHER_HOME_KEY = 'quiz_teacher_home';
 const DOOR_UNCAPPED_KEY = 'web_quiz_door_uncapped';
 const DOOR_DEDUPE_KEY = 'web_quiz_door_dedupe';
 const DOOR_CEILING_KEY = 'web_quiz_door_ceiling';
+// the link's own ?lang decides the landing's language and the join's (go.routes linkLangOf); JSON true only
+const GO_LINK_LANG_KEY = 'web_quiz_go_link_lang';
 const OWN_CAP_DEFAULT = 20;
 const TTL_MS = 30 * 1000;
 const Adv = require('./adventure-look');
-const OFF = Object.freeze({ on: false, ownCap: OWN_CAP_DEFAULT, eventsV3: false, teacherHome: false, doorUncapped: false, doorDedupe: false, doorCeiling: null, adv: false });
+const OFF = Object.freeze({ on: false, ownCap: OWN_CAP_DEFAULT, eventsV3: false, teacherHome: false, doorUncapped: false, doorDedupe: false, doorCeiling: null, adv: false, linkLang: false });
 
 function isTrue(value) {
   let v = value;
@@ -62,15 +64,15 @@ const cache = cachedSwitch({
   ttlMs: TTL_MS,
   off: OFF,
   read: async (now) => {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, ...Adv.KEYS]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, GO_LINK_LANG_KEY, ...Adv.KEYS]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    return { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]), doorUncapped: isJsonTrue(by[DOOR_UNCAPPED_KEY]), doorDedupe: isJsonTrue(by[DOOR_DEDUPE_KEY]), doorCeiling: ceilingOf(by[DOOR_CEILING_KEY]), adv: Adv.advDrawn(by) };
+    return { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]), doorUncapped: isJsonTrue(by[DOOR_UNCAPPED_KEY]), doorDedupe: isJsonTrue(by[DOOR_DEDUPE_KEY]), doorCeiling: ceilingOf(by[DOOR_CEILING_KEY]), adv: Adv.advDrawn(by), linkLang: isJsonTrue(by[GO_LINK_LANG_KEY]) };
   },
   log: (err) => logToFile('⚠️ one door: settings lookup failed — switch off', { error: err.message }),
 });
 
-/** → { on, ownCap, eventsV3, teacherHome, doorUncapped, doorDedupe, doorCeiling, adv }; a failed read → the last good flags, else OFF, for 30 s. Never throws. */
+/** → { on, ownCap, eventsV3, teacherHome, doorUncapped, doorDedupe, doorCeiling, adv, linkLang }; a failed read → the last good flags, else OFF, for 30 s. Never throws. */
 async function flags(now = Date.now()) {
   return cache.get(now);
 }
@@ -80,4 +82,4 @@ async function on() {
   try { return Boolean((await flags()).on); } catch (_) { return false; }
 }
 
-module.exports = { flags, on, capOf, ceilingOf, ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, OWN_CAP_DEFAULT, _resetCache: () => { cache.reset(); } };
+module.exports = { flags, on, capOf, ceilingOf, ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, DOOR_DEDUPE_KEY, DOOR_CEILING_KEY, GO_LINK_LANG_KEY, OWN_CAP_DEFAULT, _resetCache: () => { cache.reset(); } };
