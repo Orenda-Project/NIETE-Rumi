@@ -21,13 +21,16 @@ const mockAccess = jest.fn();
 // The DB boundary for the two FLN switches (app_settings), read by /fln/title's "is FLN on for anyone" check.
 let mockSettings = {};
 let mockSettingsError = false;
+// users rows, for the REAL fln-access gate (PR-C) behind the default export (the PR-E mount describe).
+const mockUsers = {};
 jest.mock('../../dashboard/config/supabase', () => ({
-  from: () => {
+  from: (table) => {
     let key;
     const q = {
       select: () => q,
       eq: (_c, v) => { key = v; return q; },
       maybeSingle: async () => {
+        if (table === 'users') return { data: mockUsers[key] || null, error: null };
         if (mockSettingsError) return { data: null, error: { message: 'down' } };
         return { data: key in mockSettings ? { value: mockSettings[key] } : null, error: null };
       },
@@ -313,6 +316,10 @@ describe('PR-E mount: /fln/teachers and /fln/send are reachable wherever the lin
   // The DEFAULT export, mounted the way production mounts it (router.use at /api/portal), with no deps injected.
   let mounted; let mountedBase;
   beforeEach(async () => {
+    // With PR-C's real fln-access behind the default export, the gate reads users.role + the share switch.
+    mockUsers[LEADER] = { id: LEADER, role: 'coach', preferred_language: 'en' };
+    mockUsers[TEACHER] = { id: TEACHER, role: 'teacher', preferred_language: 'en' };
+    mockSettings = { portal_fln_lessons: 'teachers', portal_fln_share: [LEADER, TEACHER] };
     jest.isolateModules(() => {
       const links = require('../../dashboard/routes/portal-fln-links.routes');
       const app = express();
