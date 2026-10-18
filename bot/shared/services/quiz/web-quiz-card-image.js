@@ -422,20 +422,29 @@ async function image(token) {
   return p;
 }
 
-// The name of the item a one-share card lands on (its book's title, its video's lesson), else ''. Never throws.
-async function itemTitle(item) {
+// The name of the item a one-share card lands on (its book's title, its video's lesson), else '', and its cover (the
+// book's cover file, the lesson's small picture), only when that picture exists. Never throws.
+const COVER_FILE_RX = /^[a-z0-9-]+\.webp$/;
+const THUMB_WAIT_MS = 1500;
+async function itemOf(item) {
   try {
     if (item && item.type === 'book') {
-      const { data } = await supabase.from('story_books').select('id, title, status').eq('id', item.id).maybeSingle();
-      return data && data.status === 'ready' ? String(data.title || '').trim().slice(0, 80) : '';
+      const { data } = await supabase.from('story_books').select('id, title, status, cover_file').eq('id', item.id).maybeSingle();
+      if (!data || data.status !== 'ready') return { title: '' };
+      const cover = COVER_FILE_RX.test(String(data.cover_file || '')) && UUID_RX.test(String(data.id)) ? `/s/${data.id}/${data.cover_file}` : null;
+      return { title: String(data.title || '').trim().slice(0, 80), cover };
     }
     if (item && item.type === 'video') {
       const ix = await require('./web-quiz-bank').bank();
       const r = ix && Array.isArray(ix.rows) ? ix.rows.find((x) => x.id === item.id) : null;
-      return r ? String(r.clean_title || '').trim().slice(0, 80) : '';
+      if (!r) return { title: '' };
+      // the lesson's small picture (the Videos shelf's), drawn or remembered; a slow or missing one: no cover
+      const Thumb = require('./web-quiz-video-thumb');
+      const pic = await Promise.race([Thumb.thumb(r.id).catch(() => null), new Promise((ok) => setTimeout(ok, THUMB_WAIT_MS, null).unref())]);
+      return { title: String(r.clean_title || '').trim().slice(0, 80), cover: pic ? `/wq/vt/${r.id}.webp?v=${Thumb.VERSION}` : null };
     }
   } catch (_) { /* no name: the landing still has its card and its door */ }
-  return '';
+  return { title: '' };
 }
 
 /** The shared link's page (/k/<t> at the edge): the deed in words and the return line; CardError(404) else. */
@@ -450,8 +459,11 @@ async function landing(token) {
     out.v4 = true;
     out.mark = m ? m[f.lang] : '';
     out.accent = m ? m.c : '#15803D';
-    const title = await itemTitle(f.item);
-    if (title) out.item_title = title;
+    const it = await itemOf(f.item);
+    if (it.title) {
+      out.item_title = it.title;
+      if (it.cover) out.item_cover = it.cover;
+    }
     // the join words carry the item's short ref, so the bot lands the new child on it
     const r = ref(f.item);
     if (r) {

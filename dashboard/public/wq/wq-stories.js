@@ -63,7 +63,7 @@
 
   function hm(l) { return '<a class="wqs-ic" href="#" data-home data-tap="home" aria-label="' + esc(T[l].home) + '">' + IC.home + '</a>'; }
   function scr(name, l, inner, cls) { return '<section class="wqs ' + (cls || '') + '" data-screen="' + name + '" lang="' + l + '" dir="' + dirOf(l) + '">' + inner + '</section>'; }
-  function img(src, w, h, cls, ex) { return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(src) + '" width="' + w + '" height="' + h + '" alt=""' + (ex || '') + ' onerror="WQSTORIES._bad(this)">'; }
+  function img(src, w, h, cls, ex) { return '<img' + (cls ? ' class="' + cls + '"' : '') + ' src="' + esc(W.wqjv ? W.wqjv(src) : src) + '" width="' + w + '" height="' + h + '" alt=""' + (ex || '') + ' onerror="WQSTORIES._bad(this)">'; }
   function ic(t, tap, label, glyph, ex) { return '<button class="wqs-ic" ' + (ex || 'data-back') + ' data-tap="' + tap + '" aria-label="' + esc(label) + '">' + (glyph === '‹' ? IC.prev : glyph) + '</button>'; }
   function top(l, left, title, snd) {
     var t = T[l], m = muted();
@@ -149,6 +149,7 @@
       if (!r.ok) return fail();
       el._d = shelf.d = r.body; el._open = false;
       el.innerHTML = np(shelfHtml(r.body, false, ctx.host));
+      if (r.body.warm) load('wq-stories-w.js', 0, Date);
       evt(ctx, 'story_shelf_shown', { n: (r.body.books || []).length, grade: +r.body.grade, lang: r.body.lang });
     }, fail);
   }
@@ -407,7 +408,7 @@
           onWordTap: function () { if (/^(idle|paused|listened|together|denied)$/.test(m.st)) { ac(1); m.set('listening'); } },
         });
       }
-      // without the setting (wq-stories-q.js may not be here yet): the late voice's one look again, the next page warmed
+      // without the setting (wq-stories-q.js may not be here yet)
       if (!b.steady) {
         if (!p.audio && !p.is_picture && !ask[i]) {
           ask[i] = 1;
@@ -484,7 +485,7 @@
     function slow() { return ls('wq_st_slow:' + (ctx.kid || '')) === '1'; }
     function rate() { if (R.pl && R.pl.slow) R.pl.slow(slow(), b.slow_gaps); }
     function extra() {
-      var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';   // after Your turn: wq-stories-q.js
+      var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';
       if (a) h = '<button class="wqs-sec" data-tap="alt"' + (a === 'hearFirst' ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[a]) + '</button>' + h;
       if (p.audio && /^(listened|paused|read|practise)$/.test(s)) h += '<button class="wqs-again" data-tap="again" data-sound data-trigger="tap">↻ ' + esc(t.again) + '</button>';
       return h;

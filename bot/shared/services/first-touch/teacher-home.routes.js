@@ -23,6 +23,8 @@
  * Switch quiz_teacher_home_paged ON: /api/th/home starts every read at once (the light list reads, the class report's
  * own-quiz rows, the send-again rows by teacher, the gate, the user, the prefill, the stories shelf) and answers the
  * same JSON as OFF in a few round trips. OFF: today's reads, one after another.
+ * Switch quiz_teacher_home_wait ON: the shell carries the slow-answer wait's script (Page.WAIT_MS: «Try again» re-uses
+ * the home read still on its way); read in the quick answer's own settings read. OFF: today's.
  * Switch quiz_teacher_home_grade_fast (a JSON true, answered by the quick answer's own app_settings read): the page
  * shell carries the script whose grade chips answer from the page (teacher-home.page FAST_SWAPS); off → today's shell.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
@@ -99,6 +101,7 @@ function createRouter(deps = null) {
     // (the same read answers quiz_teacher_home_grade_fast, used by the shell alone)
     const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pageSwitches().then((v) => v || {}, () => ({})) : null;
     req.thPaged = sw ? sw.then((v) => v[Flags.PAGED_KEY] === true) : null;
+    req.thWait = sw ? sw.then((v) => v[Flags.WAIT_KEY] === true) : null;
     req.thGradeFast = sw ? sw.then((v) => v[Flags.GRADE_FAST_KEY] === true) : null;
     return next();
   });
@@ -299,7 +302,8 @@ function createRouter(deps = null) {
     // the script's switched parts (each OFF unless JSON true; off, today's shell byte for byte); quiz_teacher_home_grade_fast
     // is answered by the quick answer's switch read above, never a read of its own
     const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}) });
+    const wait = await req.thWait;
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));

@@ -1,0 +1,87 @@
+{
+ "_note": "sha256 (base64) of each page as rendered by the code before the one-hop change (fixtures/one-hop-off-cases.js); streamed pages with ?v= written as __V__",
+ "off_en_default": {
+  "bytes": 11367,
+  "sha256": "alOjcBhGLLxZODnmxlmScE7aMSF4Jo6aUlDdMZpov90="
+ },
+ "fast_en_default": {
+  "early": {
+   "bytes": 6787,
+   "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
+  },
+  "body": {
+   "bytes": 11475,
+   "sha256": "fK/gvk643ncp/0w0nkgZnk0sGmONU2xI1qBJSuYk6Sg="
+  }
+ },
+ "off_en_home_v3_0": {
+  "bytes": 11249,
+  "sha256": "516lXH6vD3Uggyapj5po30loXbvCSJXWwxXDh53YneE="
+ },
+ "fast_en_home_v3_0": {
+  "early": {
+   "bytes": 6787,
+   "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
+  },
+  "body": {
+   "bytes": 11367,
+   "sha256": "Na97ItuOzuLFG7QjVKfIYDVvP+V1+JhvqtEb2HRTrT8="
+  }
+ },
+ "off_en_locked": {
+  "bytes": 11277,
+  "sha256": "vty02u0Waz9/V9S6s043hHzDt6T6KR4IEHvQbOb+/m8="
+ },
+ "fast_en_locked": {
+  "early": {
+   "bytes": 6787,
+   "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
+  },
+  "body": {
+   "bytes": 11385,
+   "sha256": "83N3XtewzIVT46hamWPxtd3TSRKBgqtBVug4ik4T+BE="
+  }
+ },
+ "off_ur_default": {
+  "bytes": 11536,
+  "sha256": "6Vw59q/QG5mIHSaDPADG8Nlg5A6W5MmobsvVHaouuTU="
+ },
+ "fast_ur_default": {
+  "early": {
+   "bytes": 6787,
+   "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
+  },
+  "body": {
+   "bytes": 11700,
+   "sha256": "RIQwGggH61TAKNe8LLkLTWya5NkDulAeXWn2BcCYwDI="
+  }
+ },
+ "off_ur_home_v3_0": {
+  "bytes": 11418,
+  "sha256": "y/ZOfeOPpRD3FpPddObuR7f02N57Eh2PUYN5IDPIYVI="
+ },
+ "fast_ur_home_v3_0": {
+  "early": {
+   "bytes": 6787,
+   "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
+  },
+  "body": {
+   "bytes": 11592,
+   "sha256": "yJRPdc26G+ERbBceIS3BttULwytiUUtWudsEttoJMRU="
+  }
+ },
+ "off_ur_locked": {
+  "bytes": 11446,
+  "sha256": "TGtBg++d8Om66dMn5XqPD3cHHQagDugIpSEKVcNK4zo="
+ },
+ "fast_ur_locked": {
+  "early": {
+   "bytes": 6787,
+   "sha256": "Xb6c7tHKTvYQR0IhuzsB9nloNROp41o5FXH7YeT8p/I="
+  },
+  "body": {
+   "bytes": 11610,
+   "sha256": "T3lyJxANrIXscnNH6C4PCwY97C39X8/7w2AL9LPnj9E="
+  }
+ }
+}

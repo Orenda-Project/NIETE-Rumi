@@ -10,10 +10,18 @@ const vm = require('vm');
 const SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.js');
 const QSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-q.js');
 const DSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-d.js');
+const WSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-w.js');
 const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const KID = 'kidchipabcdefghi';
 const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|استاد/i;
+// the live reader's own practice-word choice (wq-liveread.js practice), run as shipped: the fake reader below hands it on
+const PRACTICE = (() => {
+  const window = {}; const ctx = { window, console, Date, Math, JSON, String, Number, Object, Array, RegExp, setTimeout, clearTimeout };
+  vm.createContext(ctx);
+  ['wq-read-live.js', 'wq-liveread.js'].forEach((f) => vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', f), 'utf8'), ctx));
+  return window.WQLiveRead.practice;
+})();
 
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
 // the stall setting (web_quiz_stories_steady): the book says `steady`; on only inside its own describe
@@ -148,6 +156,7 @@ function env(opt = {}) {
       mount(el, o) { const c = { el, o, log: [], stop(w) { c.log.push('stop:' + w); }, destroy() { c.log.push('destroy'); }, view: () => ({ heard: 2, total: 5 }) }; calls.lr.push(c); return c; },
       askMic: opt.noAsk ? undefined : (el, o) => { el.innerHTML = '<button class="lr-go">go</button>'; calls.ask.push(o); calls.askEl = el; },
       glowLevel: () => 2,
+      practice: PRACTICE,
       ...(opt.doneHtml ? { COPY: { en: { done: 'X' }, ur: { done: 'Y' } }, doneHtml: (c) => '<span class="lr-done-ok">' + c.done + '</span>' } : {}),
     };
   }
@@ -164,6 +173,7 @@ function env(opt = {}) {
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); if (opt.qHold && !calls.qGo) { calls.qGo = () => { vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); x.onload(); }; return; } vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
       if (/wq-stories-d\.js\?v=abc123$/.test(x.src)) { if (opt.dFail) return x.onerror(); vm.runInContext(fs.readFileSync(DSRC, 'utf8'), sb); return x.onload(); }
+      if (/wq-stories-w\.js\?v=abc123$/.test(x.src)) { vm.runInContext(fs.readFileSync(WSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
       // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
       else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
@@ -860,6 +870,33 @@ describe('the reader', () => {
     fire(root, 'word', 3);
     expect(p2.log).toContain('word:3');
     expect(root.querySelector('[data-main]').textContent).toBe('Next');
+  });
+  test('lrr on: two words skipped ("The" and "game") → practise the longest, "game" (a tie keeps the earlier); the reader gets repeat; the page event carries the absorbed count only', async () => {
+    const page = (ws, lrr) => { const bk = book(); if (lrr !== undefined) bk.lrr = lrr; bk.pages[0] = { ...bk.pages[0], text: ws.join(' '), words: ws.map((x, i) => W(i, x, 100 + 500 * i, [110 + 60 * i, 810, 40, 50])) }; return bk; };
+    const run = async (ws, marks, extra = {}, ...off) => {
+      const lrr = off.length ? off[0] : true;
+      const e = env({ replies: { book: { status: 200, body: page(ws, lrr) } } }); const root = await openReader(e);
+      toMic(e, root); fire(root, 'mic'); e.calls.ask[0].onStream({});
+      e.calls.lr[0].o.onResult({ words_total: ws.length, words_read: marks.filter((x) => x === 'read').length, skipped: marks.filter((x) => x === 'skipped').length, ms: 5000, ended: 'quiet', marks, ...extra });
+      return { e, root, h: root.innerHTML, o: e.calls.lr[0].o, ev: e.calls.posts.find((x) => x.body.event === 'story_page_read') };
+    };
+    const GAME = ['The', 'game', 'is', 'so', 'fun.'];
+    const a = await run(GAME, ['skipped', 'skipped', 'read', 'read', 'read'], { absorbed: 2 });
+    expect(a.o.repeat).toBe(true);
+    expect(a.h).toContain('Let&#39;s practise this word');
+    expect(a.h).toContain('game</button>');
+    expect(a.h).not.toContain('The</button>');
+    expect(a.ev.body.data).toEqual({ words_total: 5, words_read: 3, skipped: 2, ms: 5000, ended: 'quiet', skipped_words: [0, 1], first: 'listen', absorbed: 2 });
+    const b = await run(GAME, ['read', 'read', 'skipped', 'skipped', 'read']);
+    expect(b.h).toContain('is</button>');   // "is" and "so": a tie, the earlier one
+    expect(b.ev.body.data).not.toHaveProperty('absorbed');
+    // lrr off (absent, or anything but true): today's reader — the first skipped word, no repeat, no absorbed key
+    for (const lrr of [undefined, false]) {
+      const c = await run(GAME, ['skipped', 'skipped', 'read', 'read', 'read'], {}, lrr); // eslint-disable-line no-await-in-loop
+      expect(c.o.repeat).toBe(lrr);
+      expect(c.h).toContain('The</button>');
+      expect(c.ev.body.data).toEqual({ words_total: 5, words_read: 3, skipped: 2, ms: 5000, ended: 'quiet', skipped_words: [0, 1], first: 'listen' });
+    }
   });
   test('0 words heard: no praise, "Let\'s read it together", Listen offered again', async () => {
     const e = env(); const root = await openReader(e);
@@ -3409,5 +3446,69 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     runBook(e, root); await flush(); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).not.toContain('data-rf');
+  });
+});
+
+// The reader warmed from the shelf (web_quiz_story_warm: the shelf's answer says `warm: true` and each book its first
+// page's picture `p1`). The shelf then loads wq-stories-w.js: 1.5 s on, the reader's files are fetched ahead at low
+// priority at exactly the addresses the reader asks (so the first tap does not wait for three files one after another);
+// a tap on a book asks for its first page's picture at once, and the files side by side if they are not fetched yet.
+// No warm: no extra file, nothing ahead (today).
+describe('the reader warmed from the shelf', () => {
+  const RAV = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'))).digest('hex').slice(0, 10);
+  const AHEAD = (rel) => [[rel, 'script', `/wq/wq-readalong.js?v=${RAV}`], [rel, 'script', '/wq/wq-read-live.js?v=abc123'],
+    [rel, 'script', '/wq/wq-liveread.js?v=abc123'], [rel, 'style', '/wq/wq-liveread.css?v=abc123']];
+  const links = (e) => e.calls.loaded.filter((x) => x.tag === 'link' && /prefetch|preload/.test(x.rel || '')).map((x) => [x.rel, x.as, x.href]);
+  const wfile = (e) => e.calls.loaded.filter((x) => x.tag === 'script' && /wq-stories-w\.js/.test(x.src)).map((x) => x.src);
+  const WARM = { ...SHELF, warm: true, books: SHELF.books.map((b) => ({ ...b, p1: `/s/${b.id}/p01.webp` })) };
+  const shelfThen = async (e) => { const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush(); return el; };
+  // the child's finger on a book card: the page-level listeners see it first (pointerdown, then click)
+  const touch = (e, id, kind = 'pointerdown') => (e.doc.L[kind] || []).forEach((f) => f({ target: { getAttribute: (k) => (k === 'data-tap' ? 'book' : k === 'data-id' ? id : null), parentNode: null } }));
+
+  test('warm: the shelf loads its one small file once, at the reader\'s ?v=; 1.5 s on, the reader\'s four files are fetched ahead (prefetch), once each', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    expect(wfile(e)).toEqual(['/wq/wq-stories-w.js?v=abc123']);
+    expect(links(e)).toEqual([]);
+    e.advance(1500);
+    expect(links(e)).toEqual(AHEAD('prefetch'));
+    await shelfThen(e); e.advance(5000);
+    expect(wfile(e)).toHaveLength(2);   // the shelf drawn again asks for the file again (cached); it acts once
+    expect(links(e)).toEqual(AHEAD('prefetch'));
+  });
+  test('no warm in the shelf answer: no extra file, nothing fetched ahead, and a book opens as today', async () => {
+    const e = env();
+    await shelfThen(e); e.advance(5000);
+    await openReader(e);
+    expect(wfile(e)).toEqual([]);
+    expect(links(e)).toEqual([]);
+    expect(e.calls.imgs.filter((u) => /p01/.test(u))).toEqual([]);   // (the reader's own next-page warm-up is today's)
+  });
+  test('Save-Data, or a 2G line: nothing fetched ahead; a tapped book\'s picture is still asked for (the page needs it anyway)', async () => {
+    for (const connection of [{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }]) {
+      const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+      e.win.navigator = { connection };
+      await shelfThen(e); e.advance(5000);
+      touch(e, 'b-1');
+      expect(links(e)).toEqual([]);
+      expect(e.calls.imgs).toEqual(['/s/b-1/p01.webp']);
+    }
+  });
+  test('warm, a tap before the 1.5 s: the tapped book\'s first page picture at once, and the four files side by side (preload); nothing twice', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    touch(e, 'b-4');
+    expect(e.calls.imgs).toEqual(['/s/b-4/p01.webp']);
+    expect(links(e)).toEqual(AHEAD('preload'));
+    touch(e, 'b-4', 'click'); e.advance(5000);
+    expect(e.calls.imgs).toEqual(['/s/b-4/p01.webp']);
+    expect(links(e)).toEqual(AHEAD('preload'));
+  });
+  test('a tap on something that is not a book card asks for nothing', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    (e.doc.L.pointerdown || []).forEach((f) => f({ target: { getAttribute: () => 'g', parentNode: null } }));
+    expect(e.calls.imgs).toEqual([]);
+    expect(links(e)).toEqual([]);
   });
 });

@@ -590,6 +590,27 @@ describe('one learner: re-ask at +5 s, replies by ask number, wait_ux and one_fa
     expect(off.includes(WAIT_MARK)).toBe(true);
   });
 
+  it('plain_paint: true in the learn answer → the first guessed quiz head says no words; absent keeps it; false clears it', async () => {
+    const NOWORDS = '<html lang="" dir="auto">';
+    const r = router({ learn: false });
+    srv = await start(r.app);
+    await settle();
+    const top = async (code) => {
+      r.pages.push({ hold: true, res: jsonRes(200, QUIZ({ fast: true })) });
+      const { early, before } = await firstByteBeforeAnswer(srv, r.bot, `/q/${code}`);
+      expect(before).toBe(true);
+      return early;
+    };
+    // (each page's own answer teaches the process too, so each check applies its learn answers right before)
+    r.edge.apply({ ...ON(true), plain_paint: true });
+    expect((await top('AB12C1')).includes(NOWORDS)).toBe(true);
+    r.edge.apply({ ...ON(true), plain_paint: true });
+    r.edge.apply({ ...ON(true) }); // a bot that does not say: absent is not false
+    expect((await top('AB12C2')).includes(NOWORDS)).toBe(true);
+    r.edge.apply({ ...ON(true), plain_paint: false });
+    expect((await top('AB12C3')).includes(NOWORDS)).toBe(false);
+  });
+
   it('one_face: true → the closed page carries the one face; an answer without the field keeps it; false clears it', async () => {
     const ur = { headers: { 'accept-language': 'ur' } };
     const r = router({ learn: false });
@@ -755,7 +776,9 @@ describe('source scan: every last<Name> a payload sets is also set in learned()'
   const path = require('path');
   // Payload-only switches (not frame-time), each with its reason. Empty today: every last<Name> dresses a page or a frame
   // drawn before (or without) a bot answer.
-  const PAYLOAD_ONLY = Object.freeze({});
+  // lastPack: the set's hrefs come from a hub payload that names a child, never from a learn answer.
+  // lastMin: the minified files' switch is named by a hub payload only, never by a learn answer.
+  const PAYLOAD_ONLY = Object.freeze({ lastPack: true, lastMin: true });
   const src = fs.readFileSync(path.join(__dirname, '../routes/web-quiz.routes.js'), 'utf8');
   const assigned = (code) => new Set([...code.matchAll(/(?<![\w.])(last[A-Z]\w*)\s*=(?!=)/g)]
     .filter((m) => !/\b(let|const|var)\s+$/.test(code.slice(Math.max(0, m.index - 8), m.index)))

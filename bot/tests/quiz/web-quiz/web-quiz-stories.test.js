@@ -349,6 +349,27 @@ describe('the book', () => {
       expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
     }
   });
+  test('lrr (web_quiz_lr_repeat): only the boolean true with live reading on, in the same one settings query; absent, the string "true" or anything else is off and the payload has no lrr key', async () => {
+    const LR = [['web_quiz_live_read_v3', true], ['web_quiz_challenge_realtime', true]];
+    const cases = [
+      [LR, false],
+      [[...LR, ['web_quiz_lr_repeat', 'true']], false],
+      [[...LR, ['web_quiz_lr_repeat', false]], false],
+      [[...LR, ['web_quiz_lr_repeat', null]], false],
+      [[...LR, ['web_quiz_lr_repeat', 1]], false],
+      [[['web_quiz_lr_repeat', true]], false],   // live reading off
+      [[...LR, ['web_quiz_lr_repeat', true]], true],
+    ];
+    for (const [extra, want] of cases) {
+      Stories._reset(); seed();
+      extra.forEach(([key, value]) => fake.db.app_settings.push({ key, value }));
+      const before = fake.calls.filter((c) => c.table === 'app_settings').length;
+      const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }); // eslint-disable-line no-await-in-loop
+      expect(Object.prototype.hasOwnProperty.call(out, 'lrr')).toBe(want);
+      if (want) expect(out.lrr).toBe(true);
+      expect(fake.calls.filter((c) => c.table === 'app_settings').length - before).toBe(1);
+    }
+  });
   test('lr3_keep (the mic notice\'s words): whether Jugnu keeps passage recordings, only when lr3 is on, in the one settings query', async () => {
     const LR = [['web_quiz_live_read_v3', true], ['web_quiz_challenge_realtime', true]];
     const cases = [
@@ -415,6 +436,11 @@ describe('the book', () => {
     const end = Stories.mergeWords([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }], [{ i: 0, s_ms: 0, e_ms: 400 }], 1500);
     expect(end[1]).toEqual({ i: 1, t: '(exits)', silent: true, s_ms: 1500, e_ms: 1500 });
     expect(Stories.mergeWords([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }], [])).toEqual([{ i: 0, t: 'Go.' }, { i: 1, t: '(exits)', silent: true }]);
+  });
+  test('mergeWords: a word printed differently from its stored spelling keeps its alt (strings only, at most 3); a word without one is unchanged', () => {
+    const out = Stories.mergeWords([{ i: 0, t: 'My' }, { i: 1, t: 'mum', alt: ['mom', '', 7, 'ma', 'mama', 'mummy'] }], [{ i: 0, s_ms: 0, e_ms: 200 }, { i: 1, s_ms: 250, e_ms: 600 }]);
+    expect(out).toEqual([{ i: 0, t: 'My', s_ms: 0, e_ms: 200 }, { i: 1, t: 'mum', s_ms: 250, e_ms: 600, alt: ['mom', 'ma', 'mama'] }]);
+    expect(Stories.mergeWords([{ i: 0, t: 'My', alt: [] }], [])).toEqual([{ i: 0, t: 'My' }]);   // nothing to add: no key
   });
   test('mergeWords: timings joined by i, not by position', () => {
     const w = Stories.mergeWords([{ i: 0, t: 'a' }, { i: 1, t: 'b', box: [1, 2, 3, 4] }], [{ i: 1, s_ms: 10, e_ms: 20 }, { i: 0, s_ms: 0, e_ms: 5 }]);
@@ -494,6 +520,17 @@ describe('events', () => {
     seed();
     await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 3, first: 'read', skipped_words: [1, 3, 'x', 999999] } });
     expect(fake.db.story_events[0].data).toEqual({ words_total: 5, words_read: 3, first: 'read', skipped_words: [1, 3] });
+  });
+  test('story_page_read keeps how many words said again were absorbed (a bounded count only); junk is dropped', async () => {
+    seed();
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, words_read: 5, absorbed: 2, heard: 'plays plays' } });
+    expect(fake.db.story_events[0].data).toEqual({ words_total: 5, words_read: 5, absorbed: 2 });
+    for (const absorbed of [-1, 1.5, '3', 'x', true, [2]]) {
+      await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { words_total: 5, absorbed } }); // eslint-disable-line no-await-in-loop
+    }
+    expect(fake.db.story_events.slice(1).map((r) => r.data)).toEqual(Array(6).fill({ words_total: 5 }));
+    await Stories.event(TOKEN, { kid: 'a', book_id: F.BOOK(1), page_n: 1, event: 'story_page_read', data: { absorbed: 999999 } });
+    expect(fake.db.story_events[7].data).toEqual({ absorbed: 2000 });
   });
   test('the public shelf: no token, no child, only ready books of the grade × language in catalogue order, covers only', async () => {
     seed();
@@ -658,14 +695,14 @@ describe('the switch read: one failing key never turns stories off', () => {
     expect(reads.n).toBe(1);
   });
   // [key that fails to read, what the book says, settings reads]: the read is tried again without each rider, the last
-  // first (keep-audio, then Slower's two), then without the live reader's two, then the main switch alone; the keys left
+  // first (the warmed reader, keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two, then the main switch alone; the keys left
   // out are off, the rest read as before.
   test.each([
-    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 2],
-    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 5],
-    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 5],
-    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 6],
-    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 6],
+    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 3],
+    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 7],
+    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 7],
+    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 8],
+    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 8],
   ])('a failed read naming %s keeps the shelf and the book on', async (key, want, n) => {
     seedAllOn();
     const reads = counting(throwOn(fake.from, key));
@@ -681,7 +718,7 @@ describe('the switch read: one failing key never turns stories off', () => {
     expect(await body(Stories.shelf(TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
     expect(await body(Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
     expect(await Stories.hubBits()).toEqual({});
-    expect(reads.n).toBe(6);
+    expect(reads.n).toBe(8);
     expect(mockKidFromHub).not.toHaveBeenCalled();
   });
   test('the fallback reads stories as strictly as the normal path: every OFF value of web_quiz_stories is off', async () => {
