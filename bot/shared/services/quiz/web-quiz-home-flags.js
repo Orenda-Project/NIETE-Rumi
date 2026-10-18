@@ -13,6 +13,7 @@
  * `down`, so a settings outage is a failed read (the doors answer err: 1, the page's retry), never an empty list. A
  * cold process, an older read, or `list` off: every switch off, as before. A failed read is kept for the same 30 s
  * (one read and one log line per 30 s in an outage, not one per request); its answer is the same either way.
+ * Callers that start together share the one read in flight.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -27,6 +28,7 @@ const KEEP_MS = 10 * 60 * 1000;
 let cache = null;
 let lastGood = null;
 let failed = null; // { at, out }: a failed read's answer, kept TTL_MS
+let inflight = null;
 
 /** Only the JSON boolean the flip writes turns a switch on (app_settings.value is jsonb); the string 'true' is off. */
 function isTrue(value) {
@@ -36,6 +38,11 @@ function isTrue(value) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   if (failed && now - failed.at < TTL_MS) return failed.out;
+  if (!inflight) { const p = read(now).finally(() => { if (inflight === p) inflight = null; }); inflight = p; }
+  return inflight;
+}
+
+async function read(now) {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
@@ -56,4 +63,4 @@ async function flags(now = Date.now()) {
   }
 }
 
-module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; lastGood = null; failed = null; } };
+module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHELF_KEY, LIST_KEY, _resetCache: () => { cache = null; lastGood = null; failed = null; inflight = null; } };

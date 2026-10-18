@@ -421,6 +421,35 @@ describe('a settings outage: the retry, never an empty shelf (web_quiz_list_stat
       expect(n.reads).toBe(2);
     }
   });
+  // Callers that start together (a classroom's phones opening at once) share one settings read in flight.
+  test('20 calls at once on a cold process, healthy settings: 1 read, the same answer to all', async () => {
+    seed(LS_ON);
+    const n = countReads();
+    const out = await Promise.all(Array.from({ length: 20 }, () => Flags.flags()));
+    expect(n.reads).toBe(1);
+    out.forEach((f) => expect(f).toMatchObject({ home: true, stories: true, list: true }));
+  });
+  test.each(['error', 'throw'])('20 calls at once on a cold process, the read fails (%s): 1 read, 1 log line, today\'s all-off bytes to all', async (mode) => {
+    seed(LS_ON);
+    settingsDown(mode);
+    const n = countReads();
+    const logs0 = failLogs();
+    const out = await Promise.all(Array.from({ length: 20 }, () => Flags.flags()));
+    expect(n.reads).toBe(1);
+    expect(failLogs() - logs0).toBe(1);
+    out.forEach((f) => expect(JSON.stringify(f)).toBe(ALL_OFF));
+  });
+  test.each(['error', 'throw'])('an outage, 50 calls one after another over 60 s (%s): at most 2 reads and 2 log lines', async (mode) => {
+    seed(LS_ON);
+    await Flags.flags();
+    at(31 * SEC);
+    settingsDown(mode);
+    const n = countReads();
+    const logs0 = failLogs();
+    for (let i = 0; i < 50; i += 1) { at(31 * SEC + Math.floor((i * 60 * SEC) / 50)); await Flags.flags(); }
+    expect(n.reads).toBeLessThanOrEqual(2);
+    expect(failLogs() - logs0).toBeLessThanOrEqual(2);
+  });
   test('the settings come back inside the failed read\'s 30 s: the next read after it is the fresh one', async () => {
     seed(LS_ON);
     settingsDown('error');
