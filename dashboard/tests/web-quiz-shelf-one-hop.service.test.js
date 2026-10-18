@@ -178,6 +178,10 @@ describe.each(['en', 'ur'])('switch on (%s): the tail starts the reads before an
     expect(p.fetches.every((f) => f.init && f.init.credentials === 'same-origin')).toBe(true);
     expect(p.pictures.map((i) => i.src)).toEqual(['/s/b1/cover.webp', '/s/b2/cover.webp', '/s/b3/cover.webp', '/s/b4/cover.webp']);
   });
+  test('#games: the door\'s rows, at the exact address wq-doors.js asks (kid, d, l in that order)', async () => {
+    const p = await run('#games');
+    expect(p.fetches.map((f) => f.url)).toEqual([doorsUrl('games')]);
+  });
   test('#stories: the shelf read carries the phone\'s grade, language and teacher books as the reader does', async () => {
     const p = await run('#stories', undefined, { wq_st_gl: '4,ur', [`wq_st_t:${KID}`]: 'b9,b7' });
     expect(p.fetches.map((f) => f.url)).toContain(`/api/wq/stories/shelf/h/${encodeURIComponent(TOKEN)}?kid=${KID}&g=4&l=ur&t=${encodeURIComponent('b9,b7')}`);
@@ -242,7 +246,7 @@ function scriptsPhone(hash, lang) {
 }
 
 describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the early answer — the first ask of each, once', (lang) => {
-  test('two shelves on one open (the home\'s slot, then the door\'s): the first takes the early answer, the second is a fresh read; the door\'s rows: the early answer only', async () => {
+  test('the shelf\'s two askers on one slot as the page boots (the reader\'s own boot, then the door\'s): ONE shelf request, the early one, and the slot paints its books; the door\'s rows: the early answer only', async () => {
     const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true, lang }));
     const p = scriptsPhone('#stories', lang);
     const tail = body.slice(early.length);
@@ -251,16 +255,30 @@ describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the ear
     p.run(fs.readFileSync(path.join(WQ, 'wq-doors.js'), 'utf8'));
     p.run(fs.readFileSync(path.join(WQ, 'wq-stories.js'), 'utf8'));
     await flush();
-    const ctx = { token: TOKEN, kid: KID, lang };
-    p.win.WQSTORIES.shelf(p.el(), ctx);
-    p.win.WQSTORIES.shelf(p.el(), { token: TOKEN, kid: KID, lang }, { token: TOKEN, lang });
+    const slot = p.el();
+    p.win.WQSTORIES.shelf(slot, { token: TOKEN, kid: KID, lang }); // wq-stories.js's own boot (c0)
     const B = { ...HUB({ fast: true, one_hop: true, lang }), token: TOKEN };
-    const root = p.el();
-    p.win.WQDOORS.mount(root, B, { token: TOKEN, lang, ev() {} }, 'stories');
-    await flush(); await flush();
+    p.win.WQSTORIES.shelf(slot, B, { token: TOKEN, lang, ev() {} }); // wq-doors.js storiesShelf -> fill(), same slot
+    p.win.WQDOORS.mount(p.el(), B, { token: TOKEN, lang, ev() {} }, 'stories');
+    await flush(); await flush(); await flush();
     const n = (rx) => p.fetches.filter((f) => rx.test(f.url)).length;
-    expect(n(/\/stories\/shelf\//)).toBe(2); // the early read (taken by the first ask) + a fresh read for the second
+    expect(n(/\/api\/wq\/stories\/shelf\//)).toBe(1); // the early read, shared by both askers: no twin
     expect(n(/\/doors\//)).toBe(1);
+    expect(slot.innerHTML).toMatch(/wqs-book/);
+  });
+  test('the shelf asked again more than a second after the open (the child came back to it): a fresh read', async () => {
+    const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true, lang }));
+    const p = scriptsPhone('#stories', lang);
+    const tail = body.slice(early.length);
+    inline(early).concat(inline(tail.slice(0, tail.indexOf('<script src=')))).forEach(p.run);
+    p.run(fs.readFileSync(path.join(WQ, 'wq-stories.js'), 'utf8'));
+    await flush();
+    p.win.WQSTORIES.shelf(p.el(), { token: TOKEN, kid: KID, lang });
+    await flush(); await flush();
+    const real = Date.now();
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(real + 1500);
+    try { p.win.WQSTORIES.shelf(p.el(), { token: TOKEN, kid: KID, lang }); await flush(); await flush(); } finally { spy.mockRestore(); }
+    expect(p.fetches.filter((f) => /\/api\/wq\/stories\/shelf\//.test(f.url)).length).toBe(2);
   });
   test('a failed early read is asked again by the script (never a dead shelf)', async () => {
     const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true, lang }));
@@ -277,6 +295,26 @@ describe.each(['en', 'ur'])('switch on (%s): the door and the shelf take the ear
     await flush(); await flush(); await flush();
     expect(p.fetches.filter((f) => /\/stories\/shelf\//.test(f.url)).length).toBe(2);
     expect(sh.innerHTML).toMatch(/wqs-book/);
+  });
+  test('#games (RULING #N45): the early rows read is the same URL string wq-doors.js asks, so the door takes it: ONE doors request, rows drawn', async () => {
+    const { early, body } = await fastOpen(HUB({ fast: true, one_hop: true, lang }));
+    const p = scriptsPhone('#games', lang);
+    const tail = body.slice(early.length);
+    inline(early).concat(inline(tail.slice(0, tail.indexOf('<script src=')))).forEach(p.run);
+    await flush();
+    expect(p.fetches.map((f) => f.url)).toEqual([`/api/wq/doors/h/${encodeURIComponent(TOKEN)}?kid=${KID}&d=games&l=${lang}`]);
+    p.run(fs.readFileSync(path.join(WQ, 'wq-home.js'), 'utf8'));
+    p.run(fs.readFileSync(path.join(WQ, 'wq-doors.js'), 'utf8'));
+    await flush();
+    const asked = [];
+    const f0 = p.win.fetch;
+    p.win.fetch = (url, init) => { asked.push(url); return f0(url, init); };
+    const root = p.el();
+    p.win.WQDOORS.mount(root, { ...HUB({ fast: true, one_hop: true, lang }), token: TOKEN }, { token: TOKEN, lang, ev() {} }, 'games');
+    await flush(); await flush(); await flush();
+    expect(asked.filter((u) => /\/doors\//.test(u))).toEqual([p.fetches[0].url]); // the door's own ask: the same string
+    expect(p.fetches.filter((f) => /\/doors\//.test(f.url)).length).toBe(1); // ... answered by the early read
+    expect(root.attrs['data-m']).toBe('H3-games');
   });
 });
 
@@ -583,13 +621,15 @@ describe('one hop on: an early answer is single-use (a later request of the same
     return { p, seen };
   }
   const read = async (p, url) => (await p.win.fetch(url, { method: 'GET' })).json();
+  // a GET "ms" after now (the reader's look-again is 3 s later; a finished book is minutes later)
+  const later = async (p, url, ms) => { const at = Date.now() + ms; const spy = jest.spyOn(Date, 'now').mockReturnValue(at); try { return await read(p, url); } finally { spy.mockRestore(); } };
   test('a story\'s page whose voice was not ready: the reader\'s look-again gets the network\'s answer, not the voiceless copy', async () => {
     const url = `/api/wq/stories/book/b-lost-deer/h/${encodeURIComponent(TOKEN)}?kid=${KID}`;
     const { p, seen } = await open('#story/b-lost-deer', `?kid=${KID}`, (u, n) => ({ n, pages: [{ image: { url: '/s/b/p1.webp' }, audio: n > 1 ? { url: 'voice.mp3' } : null }] }));
     expect(seen.filter((u) => u === url).length).toBe(1); // the early read
     const first = await read(p, url);
     expect(first.pages[0].audio).toBe(null); // the script's first ask takes the early copy
-    const again = await read(p, url);
+    const again = await later(p, url, 3000);
     expect(again.pages[0].audio).toEqual({ url: 'voice.mp3' });
     expect(seen.filter((u) => u === url).length).toBe(2);
   });
@@ -598,7 +638,21 @@ describe('one hop on: an early answer is single-use (a later request of the same
     const { p, seen } = await open('#stories', '', (u, n) => ({ lang: 'en', grade: 3, books: [{ id: 'b1', cover: '/s/b1/c.webp', done: n > 1 }] }));
     expect(seen.filter((u) => u === url).length).toBe(1);
     expect((await read(p, url)).books[0].done).toBe(false);
-    expect((await read(p, url)).books[0].done).toBe(true);
+    expect((await later(p, url, 60 * 1000)).books[0].done).toBe(true);
+    expect(seen.filter((u) => u === url).length).toBe(2);
+  });
+  test('the one-open window is one second from the first ask: at 1 s the same answer, just after it the network', async () => {
+    const url = `/api/wq/stories/shelf/h/${encodeURIComponent(TOKEN)}?kid=${KID}&l=en`;
+    const { p, seen } = await open('#stories', '', (u, n) => ({ lang: 'en', grade: 3, books: [{ id: 'b1', cover: '/s/b1/c.webp', n }] }));
+    const real = Date.now();
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(real);
+    try {
+      expect((await read(p, url)).books[0].n).toBe(1);
+      spy.mockReturnValue(real + 1000);
+      expect((await read(p, url)).books[0].n).toBe(1);
+      spy.mockReturnValue(real + 1001);
+      expect((await read(p, url)).books[0].n).toBe(2);
+    } finally { spy.mockRestore(); }
     expect(seen.filter((u) => u === url).length).toBe(2);
   });
   test('an early answer nobody asked for within a minute is not handed out later (the network is asked)', async () => {
@@ -608,5 +662,51 @@ describe('one hop on: an early answer is single-use (a later request of the same
     const spy = jest.spyOn(Date, 'now').mockReturnValue(real + 61000);
     try { expect((await read(p, url)).books[0].n).toBe(2); } finally { spy.mockRestore(); }
     expect(seen.filter((u) => u === url).length).toBe(2);
+  });
+});
+
+// Request-start order on a `/h/<t>#stories` boot (the card's Next to the shelf is a full navigation to exactly this address,
+// the same page, so it takes the same path). A stubbed fetch logs every request start and the start of each page script.
+describe.each(['en', 'ur'])('request-start order on a #stories boot (%s)', (lang) => {
+  async function boot(payload, hash = '#stories') {
+    const { early, body } = await fastOpen(payload, [payload, payload]);
+    const p = scriptsPhone(hash, lang);
+    const events = [];
+    const f0 = p.win.fetch;
+    p.win.fetch = (url, init) => { if (/\/stories\/shelf\//.test(url)) events.push('fetch:shelf'); else if (/\/doors\//.test(url)) events.push('fetch:doors'); return f0(url, init); };
+    const tail = body.slice(early.length);
+    inline(early).concat(inline(tail.slice(0, tail.indexOf('<script src=')))).forEach(p.run);
+    await flush(); await flush();
+    const exec = (f) => { events.push(`exec:${f}`); p.run(fs.readFileSync(path.join(WQ, f), 'utf8')); };
+    exec('wq-home.js'); exec('wq-doors.js'); exec('wq-stories.js');
+    await flush();
+    p.win.WQDOORS.mount(p.el(), { ...payload, token: TOKEN }, { token: TOKEN, lang, ev() {} }, 'stories');
+    const slot = p.el();
+    p.win.WQSTORIES.shelf(slot, { token: TOKEN, kid: KID, lang }); // wq-stories.js's own boot
+    p.win.WQSTORIES.shelf(slot, { ...payload, token: TOKEN }, { token: TOKEN, lang, ev() {} }); // the door's fill(), same slot
+    await flush(); await flush(); await flush();
+    events.slot = slot;
+    return events;
+  }
+  test('on: the shelf and the door\'s rows start before wq-home.js executes', async () => {
+    const e = await boot(HUB({ fast: true, one_hop: true, lang }));
+    expect(e.indexOf('fetch:shelf')).toBeGreaterThanOrEqual(0);
+    expect(e.indexOf('fetch:shelf')).toBeLessThan(e.indexOf('exec:wq-home.js'));
+    expect(e.indexOf('fetch:doors')).toBeLessThan(e.indexOf('exec:wq-home.js'));
+    expect(e.filter((x) => x === 'fetch:shelf').length).toBe(1); // one shelf request per shelf open
+    expect(e.slot.innerHTML).toMatch(/wqs-book/);
+  });
+  test('off (fast on, one_hop off): nothing starts before wq-home.js; the shelf comes after the home\'s boot, as today', async () => {
+    const e = await boot(HUB({ fast: true, lang }));
+    expect(e[0]).toBe('exec:wq-home.js');
+    expect(e.indexOf('fetch:shelf')).toBeGreaterThan(e.indexOf('exec:wq-home.js'));
+    expect(e.slot.innerHTML).toMatch(/wqs-book/);
+  });
+  test('the card\'s Next goes to /h/<token>#stories (the same address), which boots through the same path', async () => {
+    const src = fs.readFileSync(path.join(WQ, 'wq-challenge.js'), 'utf8');
+    expect(src).toMatch(/id="wqc-fnext" data-primary href="' \+ esc\(hh \+ '#stories'\)/);
+    expect(fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8')).toMatch(/homeGo\('card', '#stories'\)/);
+    const e = await boot(HUB({ fast: true, one_hop: true, lang }), '#stories');
+    expect(e.indexOf('fetch:shelf')).toBeLessThan(e.indexOf('exec:wq-home.js'));
   });
 });
