@@ -29,8 +29,10 @@ const fs = require('fs');
 const zlib = require('zlib');
 const supabase = require('../config/supabase');
 
-/** Set to content's bundle v1 <ver> — the manager fills it when `content` posts the shipped version. */
-const DEFAULT_VERSION = null;
+// Last resort only (COS 163228): app_settings `fln_corpus_version` is the source of truth on every tier; a missing or
+// garbled row degrades to bundle v1 instead of hiding the band, and says so in the log.
+const DEFAULT_VERSION = 'v1-20261018-786b5bff';
+const VERSION_RE = /^v\d+-\d{8}-[0-9a-f]{8}$/;
 const VERSION_KEY = 'fln_corpus_version';
 const FETCH_TIMEOUT_MS = 20 * 1000;
 const BACKOFF_MS = [5 * 1000, 30 * 1000, 2 * 60 * 1000];
@@ -79,7 +81,13 @@ async function settingVersion() {
 }
 
 async function resolveVersion() {
-  return (await settingVersion()) || (process.env.FLN_CORPUS_VERSION || '').trim() || DEFAULT_VERSION || null;
+  for (const [from, v] of [['app_settings', await settingVersion()], ['env', (process.env.FLN_CORPUS_VERSION || '').trim()]]) {
+    if (!v) continue;
+    if (VERSION_RE.test(v)) return v;
+    console.warn('⚠️ FLN corpus: ignoring a malformed version', { from, length: v.length });
+  }
+  console.warn('⚠️ FLN corpus: using the code default version', { version: DEFAULT_VERSION });
+  return DEFAULT_VERSION;
 }
 
 function baseUrl() {
