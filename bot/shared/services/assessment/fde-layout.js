@@ -1457,6 +1457,33 @@ function sameTask(a, b) {
   const bare = (q) => ({ ...q, question: tokensOf(q.question).filter((w) => !TASK_FRAME.has(w)).join(' ') });
   return sameStemKey(bare(a), bare(b));
 }
+// Social Studies: two MCQs keyed on the same government whose jobs come from one line of the book's
+// table (p.29) are one fact asked twice, once directly and once as a case («پینے کے پانی کا بندوبست کون
+// سی حکومت دیکھتی ہے؟» beside «… گلیوں کا گندا پانی نکالنے کا مسئلہ … کس حکومت سے رابطہ …؟», both →
+// مقامی حکومت, from «پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام دیکھتی ہے»). Jobs from two lines
+// («مویشی منڈیاں» and «نکاسی آب») stay two questions. A stem that names jobs from two lines is no line's.
+const BOOK_LINES = [
+  ['ملکی دفاع', 'مسلح افواج'],
+  ['ملکی معیشت'],
+  ['خارجہ پالیسی', 'بیرونی ممالک'],
+  ['نظم و نسق', 'نظم ونسق', 'قانون سازی', 'تجاوزات', 'امن و امان'],
+  ['صوبائی محصولات'],
+  ['داخلی پالیسی'],
+  ['مویشی منڈی', 'عوامی میلے', 'میلے'],
+  ['پینے کے پانی', 'پینے کا پانی', 'نکاسی', 'گندا پانی', 'گندے پانی', 'پانی نکال'],
+  ['بیواؤں', 'یتیموں', 'معذوروں', 'قدرتی آفات'],
+].map((line) => line.map(flatUr));
+function bookLineOf(stem) {
+  const flat = flatUr(stem);
+  const lines = BOOK_LINES.map((line, i) => (line.some((w) => flat.includes(w)) ? i : -1)).filter((i) => i >= 0);
+  return lines.length === 1 ? lines[0] : null;
+}
+function sameLine(a, b) {
+  if (!Array.isArray(a.options) || !Array.isArray(b.options) || !tiersIn(flatUr(keyText(a))).size) return false;
+  if (plain(keyText(a)) !== plain(keyText(b))) return false;
+  const line = bookLineOf(a.question);
+  return line !== null && line === bookLineOf(b.question);
+}
 // Urdu: a Q1 stem that prints another Q1 item's key gives that item away («سدرہ نے اپنی تھیڑ کمپنی
 // کس مقصد کے لیے بنائی؟» beside «… کیا بنایا؟ → تھیڑ کمپنی»): a key of two words or more, all in the
 // stem. A one-word key a stem merely names («… کس چیز کی علامت ہیں؟ → امن» beside ««امن» کا متضاد …»)
@@ -2331,7 +2358,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const shared = [...conceptsOf(p)].filter((c) => mine.has(c));
     return hard ? shared.some((c) => !LESSON_ONLY.has(c)) : shared.length > 0;
   };
-  const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
+  const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q) || sameLine(p, q)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q) || (id === 'urdu.C.Q4' && sameQ4Kind(p, q))
       || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || conceptTwin(p, q, hard)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
@@ -2342,7 +2369,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the Q5 items the last pass held only for a Q3 word: they may come back after the re-ask, so
   // Section A is read against their words too.
   let mayReturn = [];
-  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : 'same_task');
+  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : sameTask(p, q) ? 'same_task' : 'same_line');
   // `back`: Social Studies, the Q1 items a placed C/D stem gives away (givenBack), with the test that matched.
   const place = (cross, within, back = null) => {
     bySlot.forEach((list) => { list.length = 0; });
