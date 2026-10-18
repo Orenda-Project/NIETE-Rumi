@@ -390,11 +390,14 @@ async function entryOf(token, kid, device) {
  * unknown, never its first digit.
  */
 async function gradeInfo(entry, { fast = false } = {}) {
+  // Inside a hub answer with web_quiz_hub_child_memo on, the child's rows are that answer's shared read (else read here).
+  const ChildRows = require('./web-quiz-hub-child-rows');
+  const kidRead = () => ChildRows.read('students', [entry.studentId], 'id, list_id, self_reported_class, student_name', () => supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle(), { single: true });
   // Fast pages: the enrolment and the child's row need only the child's id, so they are read together.
-  const kidP = fast ? Fast.early(Promise.resolve(supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle())) : null;
-  const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
-    .eq('student_id', entry.studentId).eq('is_active', true);
-  const { data: kid, error: kidErr } = await (kidP || supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle());
+  const kidP = fast ? Fast.early(Promise.resolve(kidRead())) : null;
+  const { data: enr } = await ChildRows.read('class_enrollments', [entry.studentId], 'id, class_id, student_id, is_active', () => supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
+    .eq('student_id', entry.studentId).eq('is_active', true));
+  const { data: kid, error: kidErr } = await (kidP || kidRead());
   // A refused read (a column that is not there, a pooler error) is logged at error level: silently falling through
   // to the next grade source is how a wrong column name once passed every test.
   if (kidErr) logError('web_quiz.ch_student_read_failed', { code: kidErr.code || null, error: String(kidErr.message || kidErr).slice(0, 160) });
@@ -405,7 +408,7 @@ async function gradeInfo(entry, { fast = false } = {}) {
     if (g) return { grade: g, source: 'enrolment', name };
   }
   if (kid && kid.list_id) {
-    const { data: list } = await supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle();
+    const { data: list } = await ChildRows.read('student_lists', [kid.list_id], 'id, class_name', () => supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle(), { single: true });
     const g = list && gradeNum(list.class_name);
     if (g) return { grade: g, source: 'list', name };
   }
