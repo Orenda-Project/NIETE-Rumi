@@ -6,7 +6,7 @@
  * for them (web-quiz-hub-device deviceTrusted). The teacher's class link, opened later in the same browser, used to
  * ask "What is your name?" as for a stranger: the child typed their first name, the server could not tell it from a
  * new child, and the finish went to a second child the home never shows. With app_settings `web_quiz_link_known_child`
- * on (JSON `true` only; 30 s cache; off on any read error) the page asks the server which children this browser holds
+ * on (JSON `true` only; 30 s cache; a read error: the last good answer, else off, for 30 s) the page asks the server which children this browser holds
  * and asks "Is it <First>?" (two or more: "Who is playing?") before the name box; "Yes" starts the session as that
  * child — the one id the child is known by — and "Someone else" is today's name box.
  *
@@ -34,12 +34,12 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Device = require('./web-quiz-hub-device');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const KEY = 'web_quiz_link_known_child';
 const TTL_MS = 30 * 1000;
 // "Who is playing?" never grows past the one-door chips' size: a phone passed around a class shows its newest four.
 const KIDS_MAX = 4;
-let cache = null; // { at, on }
 
 // JSON `true` only: a string 'true' row is off.
 const isTrue = (value) => value === true;
@@ -47,19 +47,21 @@ const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 // A grade digit in a class label ("Grade 4", "4-B"), as the join queue reads it; null when there is none.
 const gradeOf = (txt) => { const m = /[1-8]/.exec(String(txt == null ? '' : txt)); return m ? Number(m[0]) : null; };
 
-/** The switch. Off on any read error (never cached then). */
-async function isOn(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
-  try {
+const cache = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: false,
+  read: async () => {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === KEY);
-    cache = { at: now, on: Boolean(row) && isTrue(row.value) };
-    return cache.on;
-  } catch (err) {
-    logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message });
-    return false;
-  }
+    return Boolean(row) && isTrue(row.value);
+  },
+  log: (err) => logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message }),
+});
+
+/** The switch. A read error is the last good answer, else off, kept 30 s (an outage costs one read per 30 s). */
+async function isOn(now = Date.now()) {
+  return cache.get(now);
 }
 
 /** May the quiz payload carry `link_known`? Never on a friend's challenge or the teacher's preview. Never throws. */
@@ -201,4 +203,4 @@ async function kidFor(ctx, chip, device) {
   }
 }
 
-module.exports = { field, known, kidFor, isOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
+module.exports = { field, known, kidFor, isOn, KEY, KIDS_MAX, _resetCache: () => { cache.reset(); } };

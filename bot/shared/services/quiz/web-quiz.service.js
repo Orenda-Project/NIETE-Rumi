@@ -368,10 +368,10 @@ async function isWatchCode(ctx) {
   return watchMemo.get(ctx);
 }
 const watchMemo = new WeakMap();
-// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (a failed read is not cached), so a
-// blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
+// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (past the 30 s a failed read is
+// kept), so a blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
 async function watchBoard(ctx) {
-  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState()).unreadable) return true;
+  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState(Date.now(), { retryFailed: true })).unreadable) return true;
   return isWatchCode(ctx);
 }
 async function readCodeParents(ids) {

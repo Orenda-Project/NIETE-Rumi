@@ -26,14 +26,13 @@ const Identity = require('./web-quiz-identity');
 const T = require('./web-quiz-token');
 const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const FLAG_KEY = 'web_quiz_identity';
 const { WATCH_ROOT_KEY, rootOf } = require('./watch-root');   // the one spelling of the key and one parser
 const TTL_MS = 30 * 1000;
 const STUDENT_COLS = 'id, student_name, student_name_urdu, father_name, roll_number, is_active, status, created_at';
 
-let flag = null;
-let inflight = null;
 const rosters = new Map();
 
 const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
@@ -41,28 +40,26 @@ const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 /**
  * The quiz page's settings read: `web_quiz_identity` and, in the same query, the watch root's VALUE (the share
  * code the class-less children's own codes hang under; the page must know it to keep their names private). 30 s cache;
- * a failed read is today's identity path, no root, and `unreadable` (not cached; the privacy readers fail closed on it).
+ * callers that start together (the fast page's early reads) share the one read in flight. A failed read is kept 30 s
+ * too (settings/switch-cache): the last good settings this process read, else today's identity path, no root, and
+ * `unreadable` (the privacy readers fail closed on it).
  */
-async function pageSettings(now = Date.now()) {
-  if (flag && now - flag.at < TTL_MS) return flag;
-  // Callers that start together (the fast page's early reads) share the one read in flight.
-  if (!inflight) inflight = readSettings(now).finally(() => { inflight = null; });
-  return inflight;
-}
-
-async function readSettings(now) {
-  try {
+const flag = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: () => ({ mode: null, watchRoot: null, unreadable: true }),
+  read: async (now) => {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)) };
-    return flag;
-  } catch (err) {
-    logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
-    return { mode: null, watchRoot: null, unreadable: true };
-  }
+    return { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)) };
+  },
+  log: (err) => logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message }),
+});
+
+async function pageSettings(now = Date.now(), opts) {
+  return flag.get(now, opts);
 }
 
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
@@ -74,9 +71,12 @@ async function identityMode(now = Date.now()) {
 async function watchRoot(now = Date.now()) {
   return (await pageSettings(now)).watchRoot;
 }
-/** The watch root and whether the read failed: a privacy reader treats `unreadable` as "maybe under the root". */
-async function watchRootState(now = Date.now()) {
-  const s = await pageSettings(now);
+/**
+ * The watch root and whether the read failed: a privacy reader treats `unreadable` as "maybe under the root".
+ * `{ retryFailed: true }`: a cached failed read is read once more (the class table's guard, so a blip never closes it).
+ */
+async function watchRootState(now = Date.now(), { retryFailed = false } = {}) {
+  const s = await pageSettings(now, { retryFailed });
   return { root: s.watchRoot, unreadable: Boolean(s.unreadable) };
 }
 
@@ -312,5 +312,5 @@ module.exports = {
   canonicalStudentIds, canonicalStudentId,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; inflight = null; rosters.clear(); },
+  _resetCache: () => { flag.reset(); rosters.clear(); },
 };

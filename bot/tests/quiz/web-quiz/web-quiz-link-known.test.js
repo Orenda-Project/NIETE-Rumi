@@ -444,14 +444,19 @@ describe('golden: switch off', () => {
     } finally { supabase.from = from; }
   });
 
-  test('a settings read that fails = off (never cached)', async () => {
+  test('a settings read that fails = off, kept for 30 s (one read per 30 s in an outage); the next good read is on', async () => {
     seed();
     await homeOpened();
     const from = supabase.from;
     supabase.from = (t) => (t === 'app_settings' ? { select: () => ({ in: () => Promise.resolve({ data: null, error: { message: 'down' } }) }) } : from(t));
     expect(await known()).toEqual({ kids: [] });
     supabase.from = from;
-    expect((await known()).kids).toHaveLength(1);
+    expect(await known()).toEqual({ kids: [] });   // the failed read's 30 s
+    const t0 = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(t0 + 31 * 1000);
+    try {
+      expect((await known()).kids).toHaveLength(1);
+    } finally { clock.mockRestore(); }
   });
 });
 
