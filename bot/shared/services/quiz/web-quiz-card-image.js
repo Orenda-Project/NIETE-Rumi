@@ -157,6 +157,8 @@ function facts(token) {
   if (f.s === 4) { out.v4 = true; out.item = f.i ? { type: f.i.t, id: f.i.id } : null; }
   // minted with web_quiz_share_joined on: the friend's words carry the card's short id
   if (f.s === 4 && f.j === 1) out.joined = true;
+  // minted with web_quiz_share_data on: the finish's result (score, stars, words, badge), from the server's rows
+  if (f.s === 4 && f.x) { const x = require('./web-quiz-card-data').clean(f.x); if (x) out.data = x; }
   return out;
 }
 
@@ -207,22 +209,25 @@ async function studentFirst(studentId, lang, info) {
   return cleanFirst(require('./web-quiz-roster').displayName(kid, lang));
 }
 
-async function who(body, lang, device, info) {
+// data (web_quiz_share_data): also the session's score and the run's id, for the card's result
+async function who(body, lang, device, info, data = false) {
   const s = typeof body.st === 'string' ? T.verify(body.st, 's') : null;
   if (s && s.sid) {
-    const { data: row } = await supabase.from('quiz_sessions').select('id, student_id, student_name, share_code_id, status, user_id').eq('id', s.sid).maybeSingle();
+    const { data: row } = await supabase.from('quiz_sessions').select(data ? 'id, student_id, student_name, share_code_id, status, user_id, correct_answers, total_questions_answered' : 'id, student_id, student_name, share_code_id, status, user_id').eq('id', s.sid).maybeSingle();
     // a child's own finished run; a teacher's test run has no child to name
     if (!row || row.status !== 'completed' || row.user_id) fail(401, 'bad_token');
     let code = null;
+    let video = false;
     if (row.share_code_id) {
-      const { data: sc } = await supabase.from('quiz_share_codes').select('code').eq('id', row.share_code_id).maybeSingle();
+      const { data: sc } = await supabase.from('quiz_share_codes').select(data ? 'code, video_id' : 'code').eq('id', row.share_code_id).maybeSingle();
       code = sc && CODE_RX.test(String(sc.code || '')) ? String(sc.code) : null;
+      video = Boolean(sc && sc.video_id);
     }
     const first = row.student_id ? await studentFirst(row.student_id, lang) : '';
-    return { first: first || cleanFirst(row.student_name), code, sid: row.student_id || null };
+    return { first: first || cleanFirst(row.student_name), code, sid: row.student_id || null, ...(data ? { session: row, video } : {}) };
   }
   const c = typeof body.ct === 'string' ? T.verify(body.ct, 'c') : null;
-  if (c && c.sid) return { first: await studentFirst(c.sid, lang, info), code: null, sid: c.sid };
+  if (c && c.sid) return { first: await studentFirst(c.sid, lang, info), code: null, sid: c.sid, ...(data && c.r ? { run: c.r } : {}) };
   const h = typeof body.hub === 'string' ? T.verify(body.hub, 'h') : null;
   if (h && Array.isArray(h.ids)) {
     const ids = h.ids.filter((x) => typeof x === 'string').slice(0, 4);
@@ -258,10 +263,12 @@ async function mint(body = {}, { device = null } = {}) {
   const lang = LANG(body.lang);
   // the one share: the item checked and sealed, and the token marked (its picture and landing are the new ones)
   const v4 = await shareOn();
+  // the finish's result on the card (web_quiz_share_data, the same read): from the server's rows, never the page's
+  const data = v4 && Switch.dataCached();
   let w;
   const info = v4 ? { plain: false } : null;
   try {
-    w = await who(body, lang, device, info);
+    w = await who(body, lang, device, info, data);
   } catch (err) {
     // the one share on a phone the hub does not know (a forwarded or opened-elsewhere link): a card that names nobody,
     // so the child still sends a picture and a link, never bare words
@@ -271,7 +278,9 @@ async function mint(body = {}, { device = null } = {}) {
   const item = v4 ? await checkItem(body.item, kind, w) : null;
   // "A friend joined" (web_quiz_share_joined): a card with a child behind it is kept against that child, by its short id
   const joined = v4 && w.sid && Switch.joinedCached();
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  const Data = data ? require('./web-quiz-card-data') : null;
+  const x = Data ? Data.clean(await Data.resultOf({ kind, item, w, ct: body.ct })) : null;
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   if (joined) {
     try {
@@ -283,6 +292,7 @@ async function mint(body = {}, { device = null } = {}) {
   const url = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
+  if (x) out.data = x;
   return out;
 }
 
@@ -422,20 +432,29 @@ async function image(token) {
   return p;
 }
 
-// The name of the item a one-share card lands on (its book's title, its video's lesson), else ''. Never throws.
-async function itemTitle(item) {
+// The name of the item a one-share card lands on (its book's title, its video's lesson), else '', and its cover (the
+// book's cover file, the lesson's small picture), only when that picture exists. Never throws.
+const COVER_FILE_RX = /^[a-z0-9-]+\.webp$/;
+const THUMB_WAIT_MS = 1500;
+async function itemOf(item) {
   try {
     if (item && item.type === 'book') {
-      const { data } = await supabase.from('story_books').select('id, title, status').eq('id', item.id).maybeSingle();
-      return data && data.status === 'ready' ? String(data.title || '').trim().slice(0, 80) : '';
+      const { data } = await supabase.from('story_books').select('id, title, status, cover_file').eq('id', item.id).maybeSingle();
+      if (!data || data.status !== 'ready') return { title: '' };
+      const cover = COVER_FILE_RX.test(String(data.cover_file || '')) && UUID_RX.test(String(data.id)) ? `/s/${data.id}/${data.cover_file}` : null;
+      return { title: String(data.title || '').trim().slice(0, 80), cover };
     }
     if (item && item.type === 'video') {
       const ix = await require('./web-quiz-bank').bank();
       const r = ix && Array.isArray(ix.rows) ? ix.rows.find((x) => x.id === item.id) : null;
-      return r ? String(r.clean_title || '').trim().slice(0, 80) : '';
+      if (!r) return { title: '' };
+      // the lesson's small picture (the Videos shelf's), drawn or remembered; a slow or missing one: no cover
+      const Thumb = require('./web-quiz-video-thumb');
+      const pic = await Promise.race([Thumb.thumb(r.id).catch(() => null), new Promise((ok) => setTimeout(ok, THUMB_WAIT_MS, null).unref())]);
+      return { title: String(r.clean_title || '').trim().slice(0, 80), cover: pic ? `/wq/vt/${r.id}.webp?v=${Thumb.VERSION}` : null };
     }
   } catch (_) { /* no name: the landing still has its card and its door */ }
-  return '';
+  return { title: '' };
 }
 
 /** The shared link's page (/k/<t> at the edge): the deed in words and the return line; CardError(404) else. */
@@ -450,8 +469,11 @@ async function landing(token) {
     out.v4 = true;
     out.mark = m ? m[f.lang] : '';
     out.accent = m ? m.c : '#15803D';
-    const title = await itemTitle(f.item);
-    if (title) out.item_title = title;
+    const it = await itemOf(f.item);
+    if (it.title) {
+      out.item_title = it.title;
+      if (it.cover) out.item_cover = it.cover;
+    }
     // the join words carry the item's short ref, so the bot lands the new child on it
     const r = ref(f.item);
     if (r) {
@@ -460,6 +482,12 @@ async function landing(token) {
       // with "a friend joined" on when minted: the card's short id right after the ref (one word)
       const words = `${CARD_RETURN_WORDS[f.lang]} ${r}${f.joined ? cardId(token) : ''}`;
       out.ret = { ...out.ret, words, href: n ? `https://wa.me/${n}?text=${encodeURIComponent(words)}` : null };
+    }
+    // the finish's result, kept at mint: its numbers, and its lines in the card's language (the score, the words,
+    // the stars, the badge and the dare); never a reading speed
+    if (f.data) {
+      out.result = f.data;
+      out.result_text = require('./web-quiz-card-data').words(f.data, f.kind, f.lang);
     }
   }
   return out;

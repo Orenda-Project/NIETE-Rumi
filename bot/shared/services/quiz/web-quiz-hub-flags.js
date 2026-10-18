@@ -65,6 +65,8 @@ const EDGE_LEARN_KEY = 'web_quiz_edge_learn';
 const HOPS_KEY = 'web_quiz_wait_hops';
 // The child home's files preloaded in the head the edge sends before the hub answers: the hub JSON names it (`home_pre`).
 const HOME_PRELOAD_KEY = 'web_quiz_home_preload';
+// The quiz page in the child's language (web-quiz-page-lang.js): the quiz and hub answers say `page_lang`, JSON true only.
+const PAGE_LANG_KEY = 'web_quiz_page_lang';
 // The wordless first paint (web-quiz-plain-paint.js) rides this read on the hub, so a child's home adds no settings read.
 const PLAIN_PAINT_KEY = 'web_quiz_plain_paint';
 // The closed and not-open pages in the child's language (web-quiz-closed-lang.js) ride this read on the hub, so a
@@ -146,6 +148,7 @@ const SWITCHES = Object.freeze([
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
   ['pack',         PACK_KEY,              'json'],
+  ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
   ['readalong',    READALONG_KEY,         'loose'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
@@ -481,6 +484,7 @@ module.exports = {
   ONE_BUTTON_KEY,
   oneButtonNow,
   PACK_KEY,
+  PAGE_LANG_KEY,
   pageNav,
   PLAIN_PAINT_KEY,
   plainPaintNow,

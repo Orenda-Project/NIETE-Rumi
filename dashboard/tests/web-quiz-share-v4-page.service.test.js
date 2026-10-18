@@ -211,20 +211,31 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     const html = renderCardPage({ facts: facts(lang, { v4: true, mark: lang === 'ur' ? 'کہانی کی کتاب' : 'Storybook', accent: '#7C3AED', ref: 'jb3b9c1e2a', ret }), token: TOK, origin: 'https://portal.example', url: `https://portal.example/k/${TOK}`, brandKey: null });
     expect(html).toContain('data-screen="card_landing" data-v="4"');
     expect(html).toContain(`<meta property="og:image" content="https://portal.example/wq/card/${TOK}.png"`);
-    expect(html).toContain('class="mark"');
+    // each thing once: the activity's tag and who did what are on the card picture, never again in a pill or headline
+    expect(html).not.toContain('class="mark"');
+    const body = html.slice(html.indexOf('<main')).replace(/<img [^>]*>/g, '');
+    expect(body).not.toContain('I read a storybook');
+    expect(body).not.toContain(firstOf('Noor Testwala'));
+    expect(html).toContain(`alt="${firstOf('Noor Testwala')}: I read a storybook with Jugnu today!"`);
     expect((html.match(/data-primary/g) || []).length).toBe(1);
     expect(html).toContain('href="https://wa.me/15550001111?text=quiz%20please%20jb3b9c1e2a"');
     expect(html).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
-    // the headline runs in the page's direction, the name isolated on its own line (a Latin name never turns an Urdu
-    // line around, and no "Name:" crowds the deed)
-    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi class="nm">${firstOf('Noor Testwala')}</bdi>I read`);
-    expect(html).toContain('.k h1 .nm{display:block}');
     // Urdu at the Regular weight only: a bold Nastaliq breaks «پڑھی» into «پڑ ھی»
-    expect(html.includes('.k h1,.k .it,.mark,.wq-btn{font-weight:400}')).toBe(lang === 'ur');
+    expect(html.includes('.k h1,.wq-btn{font-weight:400}')).toBe(lang === 'ur');
     expect(html).not.toMatch(BANNED);
-    // the landing names what it lands on; with no name, no empty line
-    const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
-    expect(named).toContain('<p class="it"><bdi>The lost kite &lt;b&gt;</bdi></p>');
+    // the landing names what it lands on, in a line that runs in the page's direction (a Latin title sits at the
+    // start of an Urdu line, isolated), with its cover; with no name, no empty line
+    const dir = lang === 'ur' ? 'rtl' : 'ltr';
+    const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>', item_cover: `/s/${'3b9c1e2a-7d4f-4a1b-9c2d-5e6f7a8b9c0d'}/cover.webp` }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(named).toContain(`<div class="it" dir="${dir}"><img class="cv" src="/s/3b9c1e2a-7d4f-4a1b-9c2d-5e6f7a8b9c0d/cover.webp" alt="" width="96" height="144"><h1><bdi>The lost kite &lt;b&gt;</bdi></h1></div>`);
+    expect(named).toContain('.k .it{display:flex;align-items:center;gap:14px;text-align:start}');
+    // a video's small picture is wide
+    const vid = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'Parts of a plant', item_cover: '/wq/vt/a1b2c3d4-0000-4000-8000-00000000abcd.webp?v=1' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(vid).toContain('<img class="cv cv-w" src="/wq/vt/a1b2c3d4-0000-4000-8000-00000000abcd.webp?v=1" alt="" width="160" height="90">');
+    // a name with no cover: the name alone; a cover that is not one of ours: dropped
+    const bare1 = renderCardPage({ facts: facts(lang, { v4: true, ret, item_title: 'The lost kite', item_cover: 'https://evil.example/x.webp' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+    expect(bare1).toContain(`<div class="it" dir="${dir}"><h1><bdi>The lost kite</bdi></h1></div>`);
+    expect(bare1).not.toContain('evil');
     expect(html).not.toContain('class="it"');
     // with no bot number (no chat link): still ONE way in — WhatsApp with the words typed, never a page without a door
     const none = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: null } }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
@@ -242,6 +253,38 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     // a colour that is not a colour never reaches the style
     const bad = renderCardPage({ facts: facts(lang, { v4: true, accent: 'red;}</style><script>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
     expect(bad).not.toContain('<script>');
+  });
+});
+
+describe('the landing shows the finish\'s result (web_quiz_share_data tokens)', () => {
+  const facts = (lang, extra = {}) => ({ kind: 'quiz', lang, first: firstOf('Noor Testwala'), deed_text: 'I finished my teacher\'s quiz today!', v4: true, mark: 'x', accent: '#7C3AED', ret: { ...RET, href: 'https://wa.me/15550001111?text=quiz%20please' }, ...extra });
+  const page = (f) => renderCardPage({ facts: f, token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
+  test.each(['en', 'ur'])('%s: stars, the score, the badge, and the dare in place of the invite line', (lang) => {
+    const rt = lang === 'ur'
+      ? { stars: 2, stars_text: '۲ ستارے', score: '۱۰ میں سے ۸ صحیح', badge: 'کوئز کا چیمپئن', dare: 'آپ ۱۰ کے ۱۰ صحیح کر کے دکھائیں!' }
+      : { stars: 2, stars_text: '2 stars', score: '8 out of 10 right', badge: 'Quiz <champ>', dare: 'Can you get 10 out of 10?' };
+    const html = page(facts(lang, { result: { r: 8, o: 10, s: 2 }, result_text: rt }));
+    expect(html).toContain(`<div class="res" dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><span class="stars" role="img" aria-label="${rt.stars_text}"><i class="on">★</i><i class="on">★</i><i>★</i></span>`);
+    expect(html).toContain(`<p class="sc">${lang === 'ur' ? rt.score : '8 out of 10 right'}</p>`);
+    expect(html).toContain(lang === 'ur' ? '<span class="bd">کوئز کا چیمپئن</span>' : '<span class="bd">Quiz &lt;champ&gt;</span>');
+    expect(html).toContain(`<p class="dare">${rt.dare}</p>`);
+    // the dare is the invite: the general line goes
+    expect(html).not.toContain(lang === 'ur' ? 'آپ بھی آئیں اور کھیلیں!' : 'Join in and play it too!');
+    expect((html.match(/data-primary/g) || []).length).toBe(1);
+    expect(html).not.toMatch(BANNED);
+    expect(html).not.toMatch(/wcpm|per minute|undefined|null/);
+  });
+  test('words instead of a score; no stars known: no star row', () => {
+    const html = page(facts('en', { result: { w: 50 }, result_text: { words: '50 words read', dare: 'Can you read 50 words too?' } }));
+    expect(html).toContain('<p class="sc">50 words read</p>');
+    expect(html).not.toContain('class="stars"');
+    expect(html).not.toContain('class="bd"');
+  });
+  test('a token with no result: the one share\'s landing, byte for byte', () => {
+    const plain = page(facts('en'));
+    expect(page(facts('en', { result_text: {} }))).toBe(plain);
+    expect(plain).not.toContain('class="res"');
+    expect(plain).toContain('Join in and play it too!');
   });
 });
 
