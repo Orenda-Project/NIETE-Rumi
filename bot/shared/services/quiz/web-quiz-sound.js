@@ -121,12 +121,16 @@ const RECORDED_FIRST = new Set(['q', 'stim']);
  * Merge each row's recorded clips into the generated audio map (qid → {q, opts, why}).
  * A recorded question / sound wins over a generated one; recorded options replace the generated
  * ones only when every option's clip could be signed; a clip that cannot be signed is left out.
+ * `oneVoice` (a plan, web-quiz-one-voice-flag.js): only the sound to identify and the plan's `bank` parts are merged.
  */
-async function withRecordedClips(rows, generated, { expiresIn } = {}) {
+async function withRecordedClips(rows, generated, { expiresIn, oneVoice = null } = {}) {
   const out = { ...(generated || {}) };
+  // With a plan, only the sound to identify and the parts the plan keeps from the bank (its `bank`) are merged.
+  // `true` or a plan naming no `bank` keeps the question and the options (web-quiz-one-voice-flag.js DEFAULT_BANK).
+  const bank = oneVoice && Array.isArray(oneVoice.bank) ? oneVoice.bank : require('./web-quiz-one-voice-flag').DEFAULT_BANK;
   await Promise.all((rows || []).map(async (row) => {
     const clips = recordedClips(row);
-    const keys = Object.keys(clips);
+    const keys = Object.keys(clips).filter((k) => !oneVoice || k === 'stim' || bank.includes(k));
     if (!keys.length) return;
     const entry = { opts: [], ...(out[row.id] || {}) };
     await Promise.all(keys.map(async (k) => {

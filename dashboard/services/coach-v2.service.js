@@ -202,7 +202,7 @@ const SQL = {
   `,
 
   // bd-o15qnr.13 — her teaching levels for Edit teacher's multi-select. Sandbox's
-  // code keeps them in training_bands (main renamed it teacher_level, bd-60095).
+  // code keeps them in training_bands (main renamed it teacher_level).
   TEACHER_LEVELS: `
     SELECT training_bands FROM users WHERE id = $1::uuid LIMIT 1
   `,

@@ -94,9 +94,15 @@ describe('(1) a kept fact asked again under a new stem, keyed the same, is a twi
     const list = items(exam, 'urdu.A.Q1');
     Object.assign(list[18], { question: 'درج ذیل میں سے کون سا جملہ تمنائی ہے؟', options: ['الف) کاش میں پرندہ ہوتا', 'ب) وہ گھر گیا', 'ج) کیا تم آؤ گے؟', 'د) شاید بارش ہو'], answer: 'الف) کاش میں پرندہ ہوتا' });
     Object.assign(list[19], { question: 'خالی جگہ کے لیے درست لفظ منتخب کریں: «___ ہم بھی ستاروں تک جا سکتے!» (تمنائی جملہ)', options: ['الف) کاش', 'ب) اگر', 'ج) شاید', 'د) جب'], answer: 'الف) کاش' });
+    // Both ask تمنائی, so the second is held as one grammar concept asked twice.
     const stems = q1Stems(lay(exam).examJson);
     expect(stems).toContain(list[18].question);
-    expect(stems).toContain(list[19].question);
+    expect(stems).not.toContain(list[19].question);
+    // The key rule alone holds neither: with the sentence asked as a story fact, both stay.
+    Object.assign(list[18], { question: 'نظم میں بچہ کیا کہتا ہے؟' });
+    const alone = q1Stems(lay(exam).examJson);
+    expect(alone).toContain(list[18].question);
+    expect(alone).toContain(list[19].question);
   });
 });
 
@@ -108,7 +114,11 @@ describe('(3) a Q1 stem that prints another Q1 item\'s key', () => {
   });
 
   test('a one-word key a stem merely names stays («… علامت ہیں؟ → امن» beside ««امن» کا متضاد …»)', () => {
-    const stems = q1Stems(laid('chapters_2'));
+    // One antonym on the paper (۷): the full syllabus asks the concept once, so ۶ and ۸ are left out here.
+    const exam = clone(papers.chapters_2);
+    const others = [recorded('chapters_2', 6).question, recorded('chapters_2', 8).question];
+    for (const types of Object.values(exam.unseen)) for (const [t, list] of Object.entries(types)) types[t] = list.filter((q) => !others.includes(q.question));
+    const stems = q1Stems(lay(exam).examJson);
     expect(recorded('chapters_2', 3).answer).toMatch(/امن/);
     expect(stems).toContain(recorded('chapters_2', 3).question);
     expect(stems).toContain(recorded('chapters_2', 7).question);
@@ -119,9 +129,10 @@ describe('(3) a Q1 stem that prints another Q1 item\'s key', () => {
     const list = items(exam, 'urdu.A.Q1');
     Object.assign(list[18], { question: "'میری دعا ہے کہ ہم سب خوش رہیں۔' یہ کس قسم کا جملہ ہے؟", options: ['الف) تمنائی جملہ', 'ب) شکیہ جملہ', 'ج) سوالیہ جملہ', 'د) خبریہ جملہ'], answer: 'الف) تمنائی جملہ' });
     Object.assign(list[19], { question: 'کون سا لفظ تمنائی جملے میں استعمال ہوتا ہے؟', options: ['الف) کاش', 'ب) شاید', 'ج) کیا', 'د) اور'], answer: 'الف) کاش' });
+    // Both ask تمنائی: the second is held as one grammar concept asked twice, not as a given-away key.
     const stems = q1Stems(lay(exam).examJson);
     expect(stems).toContain(list[18].question);
-    expect(stems).toContain(list[19].question);
+    expect(stems).not.toContain(list[19].question);
   });
 
   test('a stem that prints the name a definition item asks for gives it away («… یہ الفاظ کس کے متلازم ہیں؟» / «… کیا کہتے ہیں؟ → متلازم الفاظ»)', () => {
@@ -155,14 +166,15 @@ describe('(6) a Q1 item whose blanks, filled with its key, print a Q4 sentence (
   test('full_4 after the re-ask: a new item takes its place; it comes back only when nothing else can', () => {
     const exam = clone(local);
     const mcqs = Object.values(exam.unseen).map((t) => t.MCQs).find(Array.isArray);
-    mcqs.push({ slot: 'urdu.A.Q1', question: 'لفظ «سچ» کا متضاد کون سا ہے؟', options: ['الف) جھوٹ', 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: 'الف) جھوٹ' });
+    mcqs.push({ slot: 'urdu.A.Q1', question: 'لفظ «صداقت» کا مطلب کیا ہے؟', options: ['الف) سچائی', 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: 'الف) سچائی' });
     const stems = q1Stems(lay(exam, true).examJson);
     expect(stems).not.toContain(pairQ);
-    expect(stems).toContain('لفظ «سچ» کا متضاد کون سا ہے؟');
+    expect(stems).toContain('لفظ «صداقت» کا مطلب کیا ہے؟');
   });
-  test('the other 19 Q1 items stay', () => {
+  test('the other Q1 items stay, but the antonyms asked again (the full syllabus asks a concept once: ۹, ۲۰)', () => {
     const stems = q1Stems(lay(clone(local)).examJson);
-    expect(stems).toEqual(items(local, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== pairQ));
+    const again = [9, 20].map((n) => items(local, 'urdu.A.Q1')[n - 1].question);
+    expect(stems).toEqual(items(local, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== pairQ && !again.includes(s)));
   });
 });
 
@@ -186,7 +198,9 @@ describe('(5) Q4: a key and an accepted answer that name two different options',
   });
 
   test('the other three papers keep all four Q4 items', () => {
-    for (const name of ['full_1', 'full_2', 'chapters_1']) expect(q4(laid(name))).toHaveLength(4);
+    // An ارکان item whose key and accepted answer split a word apart is held by its own rule; left aside here.
+    const own = (list) => list.filter((q) => !String(q.answer).includes('+'));
+    for (const name of ['full_1', 'full_2', 'chapters_1']) expect(own(q4(laid(name)))).toHaveLength(own(q4(papers[name])).length);
   });
 
   test('the Urdu Section C prompt says the group word is one of the four options and is the key', () => {
@@ -208,7 +222,9 @@ describe('(2) the Section A re-ask is told the items Q1 keeps, with their keys',
 
   test('a top-up names every kept Q1 item and its key, and never to key a new item on them', () => {
     const first = firstReply();
-    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 6 });
+    // Six re-asked items, and two more: the second شرط و جزا item («جوں جوں» …) and the second antonym (۸)
+    // ask a concept Q1 already asks.
+    expect(first.shortfall).toContainEqual({ slot: 'urdu.A.Q1', missing: 8 });
     const note = takenNote(U, sectionA, first.examJson, { topUp: true, shortfall: first.shortfall });
     expect(note).toContain(`- ${recorded('full_1', 2).question} → دندان سازی`);
     expect(note).toContain(`- ${recorded('full_1', 3).question} → گلستان`);
@@ -240,9 +256,10 @@ describe('(4) through generatePatternExam: the twins go, the next items take the
     return tree;
   };
   // Asked again, Section A writes the recorded tail (Q1 ۱۵–۲۰, two of them twins) and then new items.
-  const PAIRS_OF_WORDS = [['سچ', 'جھوٹ'], ['امیر', 'غریب'], ['خوشی', 'غم'], ['زمین', 'آسمان'], ['گرم', 'سرد'], ['نیا', 'پرانا'], ['آسان', 'مشکل'], ['جیت', 'ہار']];
+  // Word meanings: the full syllabus asks the antonym once, so spares that were all antonyms would be held.
+  const PAIRS_OF_WORDS = [['صداقت', 'سچائی'], ['دولت', 'مال'], ['مسرت', 'خوشی'], ['فلک', 'آسمان'], ['حرارت', 'گرمی'], ['جدید', 'نیا'], ['سہل', 'آسان'], ['فتح', 'جیت']];
   const SPARES = PAIRS_OF_WORDS.map(([w, k]) => ({
-    slot: 'urdu.A.Q1', question: `لفظ «${w}» کا متضاد کون سا ہے؟`,
+    slot: 'urdu.A.Q1', question: `لفظ «${w}» کا مطلب کیا ہے؟`,
     options: [`الف) ${k}`, 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: `الف) ${k}`,
   }));
   function serve() {

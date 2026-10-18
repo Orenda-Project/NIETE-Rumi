@@ -111,7 +111,9 @@ async function factsNow(shareCodeId) {
     f = { kind: 'quiz', lang, code, label, topic };
   }
   if ([f.label, f.topic, f.title].some((t) => t && TEST_WORDS.test(t))) return null;
-  f.v = crypto.createHash('sha256').update(JSON.stringify([PIC_V, f.kind, f.lang, f.label, f.topic || null, f.title || null, f.cover || null])).digest('hex').slice(0, 8);
+  // the one share on: an Urdu picture with room for its ink, under its own version (the link's ?v= changes with it)
+  if (lang === 'ur' && (await require('./web-quiz-card-switch').shareOn().catch(() => false))) f.ink = true;
+  f.v = crypto.createHash('sha256').update(JSON.stringify([PIC_V, f.kind, f.lang, f.label, f.topic || null, f.title || null, f.cover || null, ...(f.ink ? ['ink'] : [])])).digest('hex').slice(0, 8);
   return f;
 }
 
@@ -171,10 +173,15 @@ function assets() {
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const URDU_RX = /[؀-ۿ]/;
 
+// Room for the ink while the one share is on (web_quiz_share_v4): the clamped Urdu name keeps the tops of its ک and گ
+// (more padding above, given back as margin, so the line does not move).
+const INK_CSS = `.name{padding-top:40px;margin-top:-30px;line-height:2}
+`;
+
 /**
  * The picture's HTML (pure): what the headless browser photographs.
- * f: {kind: 'quiz'|'story', lang, label?, topic?, title?}; opt.cover: {type, b64} of the book's cover; opt.fonts false
- * only for a layout check.
+ * f: {kind: 'quiz'|'story', lang, label?, topic?, title?}; opt.cover: {type, b64} of the book's cover; opt.ink: the one
+ * share's room for the ink; opt.fonts false only for a layout check.
  */
 function renderClassPic(f, opt = {}) {
   const lang = LANG(f.lang);
@@ -207,7 +214,7 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#FFF8E7}
 .kind{font-weight:${rtl ? 700 : 800};font-size:${rtl ? 40 : 34}px;line-height:${rtl ? 1.9 : 1.2};color:#92400E}
 .name{font-weight:${rtl ? 700 : 800};font-size:${long ? (rtl ? 52 : 56) : (rtl ? 62 : 70)}px;line-height:${rtl ? 1.75 : 1.12};color:#14532D;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${rtl ? 2 : 3};overflow:hidden;word-break:keep-all;overflow-wrap:normal;text-wrap:balance;unicode-bidi:isolate;max-width:100%;padding:${rtl ? '10px 24px 34px' : '0 4px'};margin:${rtl ? '0 -24px -24px' : '0 -4px'}}
 .brand{position:absolute;${rtl ? 'left' : 'right'}:72px;bottom:30px;font:800 28px/1 'Lexend',sans-serif;color:#15803D;letter-spacing:.04em}
-</style></head><body><div class="pic">${art}<div class="txt">
+${rtl && opt.ink ? INK_CSS : ''}</style></head><body><div class="pic">${art}<div class="txt">
 ${label}
 <div class="kind">${esc(story ? t.story : t.quiz)}</div>
 <div class="name" dir="${nameDir}">${esc(shown(name))}</div>
@@ -246,7 +253,7 @@ async function toPng(png, f) {
 async function drawNow(f) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const cover = await coverOf(f);
-  const png = await htmlToImage(renderClassPic(f, { cover }), { width: W, height: H, deviceScaleFactor: 1, selector: '.pic' });
+  const png = await htmlToImage(renderClassPic(f, { cover, ink: f.ink === true }), { width: W, height: H, deviceScaleFactor: 1, selector: '.pic' });
   return toPng(png, f);
 }
 

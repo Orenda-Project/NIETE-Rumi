@@ -9,8 +9,15 @@
 // 2: the school line on the wide card.
 const ART_UR2_V = 2;
 
+// The one share's room for the ink (web_quiz_share_v4, as `ui.ink`): its own version, so its pictures are drawn afresh.
+const ART_INK_V = 1;
+
 function artInput(kind, size, brand, f, ui) {
-  return { kind, size, brand, lang: f.lang, d: f.d, ...(ui && ui.ur2 === true ? { ui: { ur2: true, v: ART_UR2_V } } : {}) };
+  const u = {
+    ...(ui && ui.ur2 === true ? { ur2: true, v: ART_UR2_V } : {}),
+    ...(ui && ui.ink === true ? { ink: true, iv: ART_INK_V } : {}),
+  };
+  return { kind, size, brand, lang: f.lang, d: f.d, ...(Object.keys(u).length ? { ui: u } : {}) };
 }
 
-module.exports = { artInput, ART_UR2_V };
+module.exports = { artInput, ART_UR2_V, ART_INK_V };

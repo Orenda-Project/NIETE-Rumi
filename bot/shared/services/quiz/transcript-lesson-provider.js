@@ -92,6 +92,29 @@ async function loadEligibleSessions(userId, needed) {
   return { sessions, exhausted };
 }
 
+/**
+ * The teacher home's light read of the same sessions (quiz_teacher_home_paged): the eligibility rule tested in the
+ * database (LIKE with MIN_TRANSCRIPT_CHARS single-character wildcards = at least that many characters), only the two
+ * analysis fields the rows show, newest first, up to `needed`, in ONE request — never the transcript itself.
+ * Same `{ sessions, exhausted }` shape; each session carries `analysis_data: { topic, subject }` only.
+ */
+const AT_LEAST_MIN_CHARS = `${'_'.repeat(MIN_TRANSCRIPT_CHARS)}%`;
+async function loadEligibleSessionsLight(userId, needed) {
+  const { data } = await supabase.from('coaching_sessions')
+    .select('id, created_at, topic:analysis_data->topic, subject:analysis_data->subject')
+    .eq('user_id', userId)
+    .is('observation_type', null)
+    .eq('status', 'completed')
+    .like('transcript_text', AT_LEAST_MIN_CHARS)
+    .order('created_at', { ascending: false })
+    .limit(Math.max(1, needed));
+  const sessions = (data || []).map((s) => {
+    const a = s.analysis_data || {};
+    return { id: s.id, created_at: s.created_at, eligible: true, analysis_data: { topic: s.topic !== undefined ? s.topic : a.topic, subject: s.subject !== undefined ? s.subject : a.subject } };
+  });
+  return { sessions, exhausted: sessions.length < Math.max(1, needed) };
+}
+
 async function enqueueGenerate(quizId, phone, lang, source = 'list', quizSource = TRANSCRIPT) {
   const SQSQueueService = require('../queue');
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: lang, source }, { delaySeconds: 0 });
@@ -288,8 +311,8 @@ async function makeTranscriptQuizIn(user, sessionId, { phone, quizLanguage, via,
 const TranscriptProvider = {
   source: TRANSCRIPT,
   labelKey: 'tqRowFromTranscript',
-  async list(teacherId, { limit = 20 } = {}) {
-    const { sessions } = await loadEligibleSessions(teacherId, limit);
+  async list(teacherId, { limit = 20, light = false } = {}) {
+    const { sessions } = await (light ? loadEligibleSessionsLight : loadEligibleSessions)(teacherId, limit);
     return sessions.map((s) => ({
       source: TRANSCRIPT,
       lessonRef: s.id,
@@ -308,6 +331,6 @@ const TranscriptProvider = {
 module.exports = {
   ...TranscriptProvider,
   TranscriptProvider,
-  countsFor, loadEligibleSessions, enqueueGenerate, claimForGeneration, startTranscriptLesson,
+  countsFor, loadEligibleSessions, loadEligibleSessionsLight, AT_LEAST_MIN_CHARS, enqueueGenerate, claimForGeneration, startTranscriptLesson,
   LINK_PREFIX, REPORT_PREFIX, BACK_PREFIX,
 };

@@ -79,17 +79,17 @@ const shareRow = (s) => ({
 /** Every send the home knows (the teacher's own quizzes and the library shares), each with its time. */
 function sendsOf({ lessons, played, shares }) {
   const sends = [];
-  extraOwn(lessons, played).forEach(([id, p]) => sends.push({ own: true, id, title: p.topic || '', at: ms(p.date), played: p.played || 0 }));
+  extraOwn(lessons, played).forEach(([id, p]) => sends.push({ own: true, id, title: p.topic || '', at: ms(p.date), played: p.played || 0, story: p.source === 'story' }));
   lessons.filter((r) => SENT.has(r.state) && r.quizId).forEach((r) => {
     const p = played.get(r.quizId);
-    sends.push({ own: true, id: r.quizId, title: r.topic || (p && p.topic) || '', at: ms((p && p.date) || r.date), played: p ? p.played : 0 });
+    sends.push({ own: true, id: r.quizId, title: r.topic || (p && p.topic) || '', at: ms((p && p.date) || r.date), played: p ? p.played : 0, story: Boolean(p && p.source === 'story') });
   });
   shares.forEach((s) => sends.push({ own: false, id: s.shareCodeId, title: s.topic || '', at: ms(s.at), played: s.played }));
   return sends;
 }
 
 /** The newest send of the window with few children finished, as the class card; or null. */
-function classCard({ lessons, played, shares, reports, now, can = anyCan }) {
+function classCard({ lessons, played, shares, reports, now, can = anyCan, named = false }) {
   // a send of the teacher's own that can no longer be sent again (its code ended) is not a "Send again" card
   const sends = sendsOf({ lessons, played, shares }).filter((s) => !s.own || can(s.id));
   const recent = sends.filter((s) => now - s.at <= SEND_WINDOW_MS && s.at <= now + 60000).sort((a, b) => b.at - a.at);
@@ -100,6 +100,8 @@ function classCard({ lessons, played, shares, reports, now, can = anyCan }) {
     kind: 'class', title: top.title, played: top.played,
     again: rep && rep.remind ? { href: rep.remind } : { sendKind: top.own ? 'again' : 'share', id: top.id },
     report: rep ? rep.live : null,
+    // what the card sends again, named on the page (quiz_teacher_home_named_item only; off, the card is today's)
+    ...(named ? { item: top.story ? 'story' : 'quiz' } : {}),
   };
 }
 
@@ -111,7 +113,7 @@ function classCard({ lessons, played, shares, reports, now, can = anyCan }) {
 function buildHome({
   first = null, grade = 2, lessons = [], played = new Map(), shares = [], reports = new Map(), stories = null,
   video = null, maker = null, storiesBase = null, children = null, confirm = [], tryStudent = null, change = false,
-  againable = null, now = Date.now(),
+  againable = null, now = Date.now(), named = false,
 }) {
   const can = againable instanceof Set ? (id) => againable.has(id) : anyCan;
   const rows = [...lessons.map((r) => lessonRow(r, played, reports, can)), ...extraOwn(lessons, played).map(([id, p]) => ownRow(id, p, reports, can)), ...shares.map(shareRow)]
@@ -120,7 +122,7 @@ function buildHome({
   const books = Array.isArray(stories) && stories.length && storiesBase
     ? stories.map((b) => ({ id: b.id, title: b.title, href: `${storiesBase}${storiesBase.includes('?') ? '&' : '?'}book=${encodeURIComponent(b.id)}`, ...(sent.has(b.id) ? { sent: sent.get(b.id) } : {}) })) : [];
   const unsent = books.find((b) => !b.sent);
-  let primary = classCard({ lessons, played, shares, reports, now, can });
+  let primary = classCard({ lessons, played, shares, reports, now, can, named: named === true });
   if (!primary) primary = lastLesson(rows, now, Math.max(0, ...sendsOf({ lessons, played, shares }).map((x) => x.at)));
   if (!primary && unsent) primary = { kind: 'story', id: unsent.id, title: unsent.title, href: unsent.href, grade };
   if (!primary && video) primary = { kind: 'video', id: video.quizId, title: video.topic, grade };
