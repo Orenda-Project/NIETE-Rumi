@@ -103,3 +103,21 @@ Feature: Teacher lesson plans
     When the demo teacher signs in and opens /portal/fln/p/11156
     Then there is no Share bar
     And GET /api/portal/fln/links answers 404 for the teacher
+
+  # FLN06 (PR-E, m-links): Send to teacher. Leader → bot message → the teacher's OWN /go → the FLN plan, signed in.
+  # Covers dashboard/routes/portal-fln-send.routes.js, bot/shared/services/fln-send.service.js,
+  # bot/shared/services/fln-go-target.js and the /go landing hook. Sandbox test accounts only; never a real teacher.
+  @FLN06
+  Scenario: A coach sends a Reading Hour plan to an assigned teacher, and the teacher's own link opens it signed in
+    Given portal_fln_lessons and portal_fln_share are on for the demo coach and the demo teacher
+    And the demo teacher is in the demo coach's school assignments
+    And the demo coach is signed in
+    When the coach opens Send to teacher on Reading Hour plan 11156
+    Then the teacher picker lists the demo teacher by name, with no phone number on screen
+    And a teacher outside the coach's schools is not in the list
+    When the coach picks the demo teacher and taps Send
+    Then the sheet shows "Sent ✓" for 1 teacher
+    And the demo teacher's WhatsApp message carries a button to that teacher's own /go link
+    When the demo teacher taps the button
+    Then /portal/fln/p/11156 opens signed in as the demo teacher, with no Share bar
+    And a send to a teacher key outside the coach's scope is refused with 403 and nothing is sent

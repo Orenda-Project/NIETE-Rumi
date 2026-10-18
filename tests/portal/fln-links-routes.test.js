@@ -21,13 +21,16 @@ const mockAccess = jest.fn();
 // The DB boundary for the two FLN switches (app_settings), read by /fln/title's "is FLN on for anyone" check.
 let mockSettings = {};
 let mockSettingsError = false;
+// users rows, for the REAL fln-access gate (PR-C) behind the default export (the PR-E mount describe).
+const mockUsers = {};
 jest.mock('../../dashboard/config/supabase', () => ({
-  from: () => {
+  from: (table) => {
     let key;
     const q = {
       select: () => q,
       eq: (_c, v) => { key = v; return q; },
       maybeSingle: async () => {
+        if (table === 'users') return { data: mockUsers[key] || null, error: null };
         if (mockSettingsError) return { data: null, error: { message: 'down' } };
         return { data: key in mockSettings ? { value: mockSettings[key] } : null, error: null };
       },
@@ -306,5 +309,54 @@ describe('module shape', () => {
       expect(typeof mod.use).toBe('function');
       expect(typeof mod.createFlnLinksRouter).toBe('function');
     });
+  });
+});
+
+describe('PR-E mount: /fln/teachers and /fln/send are reachable wherever the links router is mounted', () => {
+  // The DEFAULT export, mounted the way production mounts it (router.use at /api/portal), with no deps injected.
+  let mounted; let mountedBase;
+  beforeEach(async () => {
+    // With PR-C's real fln-access behind the default export, the gate reads users.role + the share switch.
+    mockUsers[LEADER] = { id: LEADER, role: 'coach', preferred_language: 'en' };
+    mockUsers[TEACHER] = { id: TEACHER, role: 'teacher', preferred_language: 'en' };
+    mockSettings = { portal_fln_lessons: 'teachers', portal_fln_share: [LEADER, TEACHER] };
+    jest.isolateModules(() => {
+      const links = require('../../dashboard/routes/portal-fln-links.routes');
+      const app = express();
+      app.use((req, _res, next) => {
+        const uid = req.headers['x-test-user'];
+        req.session = uid ? { portalUserId: uid } : {};
+        next();
+      });
+      app.use('/api/portal', links);
+      mounted = http.createServer(app);
+    });
+    await new Promise((resolve) => mounted.listen(0, '127.0.0.1', resolve));
+    mountedBase = `http://127.0.0.1:${mounted.address().port}/api/portal/fln`;
+  });
+  afterEach(() => new Promise((resolve) => mounted.close(resolve)));
+
+  async function call(method, p, user, body) {
+    const headers = { ...(user ? { 'x-test-user': user } : {}), ...(body ? { 'content-type': 'application/json' } : {}) };
+    const res = await fetch(mountedBase + p, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    let b = null;
+    try { b = await res.json(); } catch (_) { b = null; }
+    return { status: res.status, body: b, cache: res.headers.get('cache-control') };
+  }
+
+  it('POST /api/portal/fln/send with no session answers 401, not 404', async () => {
+    const r = await call('POST', '/send', null, { plan: 101, teachers: ['aaaaaaaaaaaaaaaa'] });
+    expect([r.status, r.cache]).toEqual([401, 'no-store']);
+  });
+  it('GET /api/portal/fln/teachers with no session answers 401', async () => {
+    expect((await call('GET', '/teachers')).status).toBe(401);
+  });
+  it('a teacher without the share switch gets 404 from both (the same gate as /fln/links)', async () => {
+    expect((await call('GET', '/teachers', TEACHER)).status).toBe(404);
+    expect((await call('POST', '/send', TEACHER, { plan: 101, teachers: ['aaaaaaaaaaaaaaaa'] })).status).toBe(404);
+  });
+  it('a leader reaches the send route itself: a malformed body is its 400', async () => {
+    const r = await call('POST', '/send', LEADER, { plan: 'x', teachers: [] });
+    expect([r.status, r.body]).toEqual([400, { error: 'bad_request' }]);
   });
 });

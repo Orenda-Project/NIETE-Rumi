@@ -1,0 +1,28 @@
+'use strict';
+/**
+ * FLN landing target for a /go token (PR-E, Send to teacher).
+ *
+ * A leader sends a Reading Hour / Numeracy plan to a teacher. The bot sends that teacher a button that opens
+ * the teacher's OWN /go/<token> (app-login-link.js). The token's feature is `fln:<plan id>`, and /go lands on
+ * the plan page, signed in. `?src=send` tells the page that this open came from a sent message.
+ *
+ * Pure: no env, no I/O. Two one-line hooks read it: `linkable` in app-login-link.js (so the token can be signed
+ * and verified) and the landing line in dashboard/routes/app-login.routes.js.
+ */
+
+/** `fln:` + 1..9 digits (the plan id), nothing else. Anchored, so no path or query can ride along. */
+const FLN_TARGET = /^fln:(\d{1,9})$/;
+
+/** True when `f` is an FLN landing target. */
+function isFlnTarget(f) {
+  return typeof f === 'string' && FLN_TARGET.test(f);
+}
+
+/** The plan page for an FLN target, or null for anything else. */
+function flnPathFor(f) {
+  if (typeof f !== 'string') return null;
+  const m = FLN_TARGET.exec(f);
+  return m ? `/portal/fln/p/${m[1]}?src=send` : null;
+}
+
+module.exports = { FLN_TARGET, isFlnTarget, flnPathFor };
