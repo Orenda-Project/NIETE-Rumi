@@ -405,7 +405,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
       for (const { part, text } of partsFor(q, { oneVoice: one })) {
         // The key is made from the words the voice is given: a clip recorded with other words is recorded again.
         // With one voice, a word the voice misreads is spelled for it (web-quiz-voice.js sayAs, the shared Urdu list); the page keeps the text.
-        const say = one ? Voice.sayAs(voiceText(text, language), language) : voiceText(text, language);
+        const say = one ? Voice.sayAs(voiceText(text, language), language, { voice: voice && voice.voice }) : voiceText(text, language);
         tasks.push({ q, part, text: say, key: Store.clipKey({ format, env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
       }
     }

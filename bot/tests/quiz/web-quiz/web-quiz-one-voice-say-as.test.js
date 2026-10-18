@@ -99,3 +99,24 @@ describe('sayAs: the shared Urdu list for an Urdu line, whole words only; any ot
     expect(Voice.SAY_AS).toBeUndefined();
   });
 });
+
+describe('sayAs hands the voice to the shared list (a voice can be left out of a respelling)', () => {
+  const UrSay = require('../../../shared/services/quiz/web-quiz-ur-say');
+  afterEach(() => jest.restoreAllMocks());
+
+  test('sayAs passes the voice it is given; with no voice, the list is asked with none', () => {
+    const spy = jest.spyOn(UrSay, 'sayOf');
+    Voice.sayAs(WHY, 'ur', { voice: 'voice-a' });
+    expect(spy).toHaveBeenLastCalledWith(WHY, { voice: 'voice-a' });
+    Voice.sayAs(WHY, 'ur');
+    expect(spy).toHaveBeenLastCalledWith(WHY, { voice: undefined });
+  });
+
+  test('the publish step names the plan\'s Urdu voice', async () => {
+    const spy = jest.spyOn(UrSay, 'sayOf');
+    const fake = seed([row()]);
+    await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize(true) });
+    expect(spy).toHaveBeenCalled();
+    spy.mock.calls.forEach(([, opts]) => expect(opts).toEqual({ voice: Voice.ONE_VOICE.ur.voice }));
+  });
+});

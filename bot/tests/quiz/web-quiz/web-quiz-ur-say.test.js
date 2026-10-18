@@ -9,7 +9,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { SAY, sayOf } = require('../../../shared/services/quiz/web-quiz-ur-say');
+const { SAY, SKIP_FOR, sayOf } = require('../../../shared/services/quiz/web-quiz-ur-say');
 
 describe('sayOf: listed whole words respelled, everything else as written', () => {
   test('ساتھ and کھیر are given to the voice respelled', () => {
@@ -78,5 +78,40 @@ describe('guard: over the repo\'s Urdu story text, only listed words change', ()
     });
     // ساتھ is in the stories: the guard sees at least one change, so it is not empty
     expect(changed).toBeGreaterThan(0);
+  });
+});
+
+describe('a voice can be left out of a respelling, by data only (SKIP_FOR: voice id -> words left as written)', () => {
+  const T = 'بچے ساتھ گئے اور کھیر کھائی۔';
+
+  test('the list ships with no exception', () => {
+    expect(SKIP_FOR).toEqual({});
+    expect(Object.isFrozen(SKIP_FOR)).toBe(true);
+  });
+
+  test('a listed word is left as written for the voice that skips it, respelled for any other voice', () => {
+    const skipFor = { 'voice-a': ['ساتھ'] };
+    expect(sayOf(T, { voice: 'voice-a', skipFor })).toBe('بچے ساتھ گئے اور खीर کھائی۔');
+    expect(sayOf(T, { voice: 'voice-b', skipFor })).toBe('بچے साथ گئے اور खीर کھائی۔');
+    expect(sayOf(T, { skipFor })).toBe('بچے साथ گئے اور खीर کھائی۔');
+    // the skipped word matches as the list does: with or without diacritics
+    expect(sayOf('ساتھ', { voice: 'voice-a', skipFor: { 'voice-a': ['سَاتھ'] } })).toBe('ساتھ');
+  });
+
+  test('golden: with no exception, every Urdu story line is byte for byte what it was without the option', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const DIR = path.join(__dirname, '../../../shared/data/child-test/passages');
+    const texts = fs.readdirSync(DIR).filter((f) => /^ur\..*\.json$/.test(f)).flatMap((f) => {
+      const d = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+      return [d.title_ur, d.text].filter((t) => typeof t === 'string' && t);
+    });
+    texts.concat([T, 'کیلا کا ہم آواز لفظ میلا ہو گا۔']).forEach((t) => {
+      const plain = sayOf(t);
+      expect(sayOf(t, {})).toBe(plain);
+      expect(sayOf(t, { voice: 'any-voice' })).toBe(plain);
+      expect(sayOf(t, { voice: 'any-voice', skipFor: {} })).toBe(plain);
+    });
+    expect(sayOf(T)).toBe('بچے साथ گئے اور खीर کھائی۔');
   });
 });

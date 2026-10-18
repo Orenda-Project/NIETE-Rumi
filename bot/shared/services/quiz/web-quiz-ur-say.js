@@ -22,9 +22,22 @@ const MARKS = /[ً-ٰٟـ‌‍]/g;
 const bare = (w) => w.normalize('NFC').replace(MARKS, '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/ه/g, 'ہ');
 const LISTED = new Map(Object.entries(SAY).map(([w, say]) => [bare(w), say]));
 
-/** `text` as the voice is given it: each listed Urdu word respelled, every other character as written. Pure. */
-function sayOf(text) {
-  return String(text).replace(/[؀-ۿݐ-ݿ‌‍]+/g, (word) => LISTED.get(bare(word)) || word);
+// A voice that reads a listed word right from its Urdu spelling: voice id -> the listed words left as written for it.
+// Data only, empty today (every voice is given every respelling).
+const SKIP_FOR = Object.freeze({});
+
+/**
+ * `text` as the voice is given it: each listed Urdu word respelled, every other character as written. Pure.
+ * `opts.voice` (optional): the voice's id; the words SKIP_FOR lists for it stay as written. `opts.skipFor` stands in
+ * for SKIP_FOR (tests). With no exception for the voice, the output is exactly sayOf(text).
+ */
+function sayOf(text, opts = {}) {
+  const skips = ((opts && opts.skipFor) || SKIP_FOR)[opts && opts.voice];
+  const skip = Array.isArray(skips) && skips.length ? new Set(skips.map(bare)) : null;
+  return String(text).replace(/[؀-ۿݐ-ݿ‌‍]+/g, (word) => {
+    const b = bare(word);
+    return (skip && skip.has(b) ? null : LISTED.get(b)) || word;
+  });
 }
 
-module.exports = { SAY, sayOf };
+module.exports = { SAY, SKIP_FOR, sayOf };

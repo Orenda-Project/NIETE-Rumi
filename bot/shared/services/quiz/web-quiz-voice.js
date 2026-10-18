@@ -120,11 +120,12 @@ function voiceOfTag(tag, plan) {
 
 /**
  * The words a one-voice clip's voice is given for `text` in `language`: an Urdu line through the one shared Urdu
- * spelling list (web-quiz-ur-say.js, whole words only), any other language as written. The page keeps the text.
+ * spelling list (web-quiz-ur-say.js, whole words only; `voice`, the voice's id, may be left out of a respelling there),
+ * any other language as written. The page keeps the text.
  */
-function sayAs(text, language) {
+function sayAs(text, language, { voice } = {}) {
   const out = text == null ? '' : String(text);
-  return baseLang(language) === 'ur' ? require('./web-quiz-ur-say').sayOf(out) : out;
+  return baseLang(language) === 'ur' ? require('./web-quiz-ur-say').sayOf(out, { voice }) : out;
 }
 
 /** The shared-line sets for a plan, per language: { en: { path, v }, ur: { path, v } } (a language with no set left out). */
