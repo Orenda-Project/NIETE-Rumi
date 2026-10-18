@@ -10,8 +10,10 @@
  *
  * Real: express, the route, fln-access, the corpus service and the media signer. The AWS SDK is the boundary: when the
  * portal's own copy is installed (dashboard/node_modules — a local run) the REAL client + presigner sign (local
- * crypto, no request leaves the process); the root CI job installs root deps only, where tests/jest.config.js maps the
- * SDK to stubs, so a recording fake with the SigV4 query shape stands in. Every call is recorded either way.
+ * crypto, no request leaves the process); the root CI job installs root deps only, so the root client stub and a
+ * recording fake with the SigV4 query shape stand in. Every call is recorded either way. The SDK mocks are virtual and
+ * the client is mocked by the file it resolves to, so the suite runs the same with or without tests/jest.config.js's
+ * moduleNameMapper and with or without @aws-sdk at the repo root (no branch declares it there).
  * Mocked: supabase, the pg pool, telemetry, global fetch.
  */
 const http = require('http');
@@ -56,7 +58,8 @@ async function fakePresign(client, command, opts) {
 
 function mockSdk() {
   presignCalls = [];
-  if (REAL) jest.doMock('@aws-sdk/client-s3', () => jest.requireActual(REAL.s3));
+  const s3 = REAL ? REAL.s3 : path.join(__dirname, '..', '__mocks__', 'aws-sdk-client-s3');
+  jest.doMock('@aws-sdk/client-s3', () => jest.requireActual(s3), { virtual: true });
   jest.doMock('@aws-sdk/s3-request-presigner', () => {
     const real = REAL ? jest.requireActual(REAL.presigner).getSignedUrl : null;
     return {
@@ -65,7 +68,7 @@ function mockSdk() {
         return real ? real(client, command, opts) : fakePresign(client, command, opts);
       },
     };
-  });
+  }, { virtual: true });
 }
 
 function supabaseStub() {
