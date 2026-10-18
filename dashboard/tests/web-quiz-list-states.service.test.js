@@ -390,3 +390,36 @@ describe('one mark for a true empty, and two list writers that keep apart (switc
     expect(r.attrs['data-skel-to']).toBeUndefined();
   });
 });
+
+describe('the Stories door\'s shelf that did not load (the reader\'s own Try again sheet)', () => {
+  const rig = (lang) => {
+    const { W, observers } = live({ win: { WQSTORIES: { shelf: jest.fn() } } });
+    const sh = el(); const btn = el(); btn.setAttribute('data-primary', ''); const fb = el({ querySelector: (q) => (q === '.wq-go' ? btn : null) });
+    fb.hidden = true;
+    const root = { innerHTML: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] == null ? null : this.attrs[k]; }, removeAttribute(k) { delete this.attrs[k]; }, querySelector: (q) => ({ '[data-stories-shelf]': sh, '[data-shelf-fallback]': fb })[q] || null, querySelectorAll: () => [] };
+    return { W, observers, sh, fb, root, c: { ...C, lang } };
+  };
+  // the reader's sheet as wq-stories.js draws it on a failed shelf GET: its words name one book
+  const sheet = (words) => { const say = { textContent: words }; return { say, el: el({ querySelector: (q) => (q === '.wqs-say' ? say : null) }) }; };
+  test.each([['en', 'Jugnu could not open this.', 'The stories could not open yet.'], ['ur', 'یہ کتاب ابھی نہیں کھل سکی۔', 'کہانیاں ابھی نہیں کھل سکیں۔']])('%s: switch on: the sheet names the stories, the door says failed, no empty note', (lang, book, stories) => {
+    const r = rig(lang);
+    r.W.WQDOORS.mount(r.root, { ...bootOf(lang, ON), doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } }, r.c, 'stories');
+    const s = sheet(book);
+    r.sh.setAttribute('data-filled', '1');
+    r.sh.querySelector = (q) => (q === '[data-screen="stories-retry"]' ? s.el : q === '[data-primary]' ? el() : null);
+    r.observers.forEach((cb) => cb());
+    expect(s.say.textContent).toBe(stories);
+    expect(r.root.attrs['data-fetch']).toBe('failed');
+    expect(r.root.attrs['data-empty-at']).toBeUndefined();
+    expect(r.fb.hidden).toBe(true);
+  });
+  test('switch off: the reader\'s sheet keeps today\'s words', () => {
+    const r = rig('en');
+    r.W.WQDOORS.mount(r.root, { ...bootOf('en', {}), doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } }, r.c, 'stories');
+    const s = sheet('Jugnu could not open this.');
+    r.sh.setAttribute('data-filled', '1');
+    r.sh.querySelector = (q) => (q === '[data-screen="stories-retry"]' ? s.el : q === '[data-primary]' ? el() : null);
+    r.observers.forEach((cb) => cb());
+    expect(s.say.textContent).toBe('Jugnu could not open this.');
+  });
+});

@@ -26,7 +26,7 @@
       numbers: 'Number games', fromTeacher: 'From your teacher', lastQ: 'Your last quiz', again: 'Play again', quiz: 'Your teacher\'s quiz',
       warm: 'Number warm-up', missing: 'Missing number', bigger: 'Which is bigger?', g1: 'Numbers with Jugnu',
       pick: 'Pick a subject', back: 'Back', opening: 'Opening the video…', none: 'No videos here yet.',
-      oops: 'This did not load.', retry: 'Try again', watchNext: 'Watch next', quizAfter: 'Play the quiz',
+      oops: 'This did not load.', shelfOops: 'The stories could not open yet.', retry: 'Try again', watchNext: 'Watch next', quizAfter: 'Play the quiz',
       moreVideos: 'More videos', play: 'Play the video', say: 'Listen', prVideos: 'Children watch the videos from their own link',
       seeAll: 'See all', quizBtn: 'Quiz', vquiz: 'Play the quiz',
       storiesNone: 'New stories are on the way. Play a game!', gamesNone: 'Read a story with Jugnu!', toGames: 'Play a game', toStories: 'Read a story',
@@ -39,7 +39,7 @@
       numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', lastQ: 'آپ کا پچھلا کوئز', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
       warm: 'گنتی کا کھیل', missing: 'کون سا عدد غائب ہے؟', bigger: 'کون سا عدد بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
       pick: 'ایک مضمون چنیں', back: 'واپس', opening: 'ویڈیو کھل رہی ہے…', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
-      oops: 'اوہو! یہ نہیں کھل سکا۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
+      oops: 'اوہو! یہ نہیں کھل سکا۔', shelfOops: 'کہانیاں ابھی نہیں کھل سکیں۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
       moreVideos: 'اور ویڈیوز دیکھیں', play: 'ویڈیو چلائیں', say: 'سنیں', prVideos: 'بچے اپنے لنک سے ویڈیوز دیکھیں گے',
       seeAll: 'سب دیکھیں', quizBtn: 'کوئز', vquiz: 'کوئز کھیلیں',
       storiesNone: 'نئی کہانیاں آ رہی ہیں۔ تب تک کھیل کھیلیں!', gamesNone: 'جگنو کے ساتھ کہانی پڑھیں!', toGames: 'کھیل کھیلیں', toStories: 'کہانی پڑھیں',
@@ -335,9 +335,9 @@
       if (B.list_states && shelfKept && shelfKept.key === key && shelfKept.el === slot) { filled = true; return; }
       var fb = root.querySelector('[data-shelf-fallback]');
       if (shelfKept && shelfKept.key === key && shelfKept.el !== slot && slot.parentNode) {
-        try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb, B.list_states && root); filled = true; return; } catch (e) {}
+        try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb, B.list_states && root, C(ctx).shelfOops); filled = true; return; } catch (e) {}
       }
-      if (fb) shelfPrimary(slot, fb, B.list_states && root);
+      if (fb) shelfPrimary(slot, fb, B.list_states && root, C(ctx).shelfOops);
       filled = true;
       try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) { if (B.list_states) slotFailed(root, sh, ctx, true); }
     };
@@ -357,7 +357,7 @@
     var cur = root.querySelector('[data-stories-shelf]');
     if (!cur || (cur !== sh && cur.getAttribute('data-host') !== 'doors') || (window.WQSTORIES && !thrown)) return;
     var t = C(ctx);
-    cur.innerHTML = '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><a class="wq-btn wq-go" data-primary href="' + esc(String(location.href || '')) + '">' + esc(t.retry) + '</a></div>';
+    cur.innerHTML = '<div class="wq-dempty"><p class="wq-soon">' + esc(t.shelfOops) + '</p><a class="wq-btn wq-go" data-primary href="' + esc(String(location.href || '')) + '">' + esc(t.retry) + '</a></div>';
     cur.setAttribute('data-filled', '1');
     cur.setAttribute('data-failed', '1');
     if (typeof root.setAttribute === 'function') root.setAttribute('data-fetch', 'failed');
@@ -365,10 +365,14 @@
   // `wait` (list_states): while the shelf has not answered (the reader has not filled it, or shows its own skeleton) the
   // note stays hidden; it shows only for a shelf that answered with nothing to open. `wait` is the door root, which
   // carries the walkers' tripwires.
-  function shelfPrimary(sh, fb, wait) {
+  // `words` (list_states): the reader's own Try again sheet on a shelf that did not load names the stories, not one book
+  function shelfPrimary(sh, fb, wait, words) {
     var sync = function () {
       var has = !sh.hidden && Boolean(sh.querySelector('[data-primary]'));
-      var failed = Boolean(wait) && !sh.hidden && sh.getAttribute('data-failed') === '1';
+      var sheet = wait ? sh.querySelector('[data-screen="stories-retry"]') : null;
+      var say = sheet && words ? sheet.querySelector('.wqs-say') : null;
+      if (say && say.textContent !== words) say.textContent = words;
+      var failed = Boolean(wait) && !sh.hidden && (sh.getAttribute('data-failed') === '1' || Boolean(sheet));
       var busy = Boolean(wait) && !sh.hidden && !failed && (sh.getAttribute('data-filled') !== '1' || Boolean(sh.querySelector('[aria-busy="true"]')));
       fb.hidden = has || busy || failed;
       if (wait && typeof wait.getAttribute === 'function') {
