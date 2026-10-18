@@ -29,6 +29,7 @@ import { TimeBar } from './plan/TimeBar';
 import { Chrome } from './plan/text';
 import ShareBar from './share/ShareBar';
 import { placementForGrade } from './listShared';
+import { nothingBehind } from '../lib/useBack';
 import { flnStrings, type FlnLang } from './strings';
 import type { FlnMe, FlnPlacement, FlnPlanResponse } from './types';
 import './plan/plan.css';
@@ -193,7 +194,8 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
   const hasGrid = useMemo(() => !!plan && !screener && gridClips(plan).length > 0, [plan, screener]);
 
   const goBack = () => {
-    if (location.key !== 'default') { navigate(-1); return; }
+    // Nothing of the app behind (fresh tab, WhatsApp link, or the plan that sign-in REPLACED in): idx 0 (QL-backlink).
+    if (!nothingBehind(location.key)) { navigate(-1); return; }
     const subject = plan?.subject;
     void ownGrades().then((grades) => navigate(linkBackTarget(subject, placement, grades)));
   };
