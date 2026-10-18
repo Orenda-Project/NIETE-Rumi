@@ -489,7 +489,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
   const early = together ? earlyRows(mine, readRows, readLists) : null;
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
   if ((idFlags || await require('./web-quiz-identity-flags').flags()).canon) {
-    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIdsShared(mine);
     mine = [...new Set(mine.map((id) => canon.get(id) || id))];
   }
   mark('gate');

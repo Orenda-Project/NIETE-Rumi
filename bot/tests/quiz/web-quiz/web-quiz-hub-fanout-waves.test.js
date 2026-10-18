@@ -233,6 +233,13 @@ describe.each(FIXTURES)('the hub, reads together: %s', (_name, fx) => {
     expect(on.stale.waves).toBeLessThan(off.stale.waves);
   });
 
+  test('on: the identity lookup is made once per visit (the pick record shares the hub\'s)', async () => {
+    const off = await warmAndStale({ fast: true, ...fx });
+    const on = await warmAndStale({ fast: true, ...fx, fanout: true });
+    expect(on.warm.perTable.class_enrollments).toBeLessThanOrEqual(off.warm.perTable.class_enrollments - 1);
+    expect(on.stale.perTable.class_enrollments).toBeLessThanOrEqual(off.stale.perTable.class_enrollments - 1);
+  });
+
   test('on: the children\'s rows and lists ride beside the identity lookup (warm waves at most 40% of off)', async () => {
     const off = await warmAndStale({ fast: true, ...fx });
     const on = await warmAndStale({ fast: true, ...fx, fanout: true });
