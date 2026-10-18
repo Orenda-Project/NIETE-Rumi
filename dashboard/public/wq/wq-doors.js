@@ -19,7 +19,7 @@
   var COPY = {
     en: {
       weekStory: 'This week\'s story', toRead: 'Stories to read', toListen: 'Stories to listen to', books: 'Storybooks',
-      listen: 'Listen to a story', story: 'A story with Jugnu', newTag: 'New', doneTag: 'Done',
+      listen: 'Listen to a story', story: 'A story with Jugnu', readAlong: 'Read along', listenW: 'Listen', newTag: 'New', doneTag: 'Done',
       numbers: 'Number games', fromTeacher: 'From your teacher', again: 'Play again', quiz: 'Your teacher\'s quiz',
       warm: 'Number warm-up', missing: 'Missing number', bigger: 'Which is bigger?', g1: 'Numbers with Jugnu',
       pick: 'Pick a subject', back: 'Back', opening: 'Opening the video…', none: 'No videos here yet.',
@@ -31,7 +31,7 @@
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
-      listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', newTag: 'نئی', doneTag: 'مکمل',
+      listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', readAlong: 'جگنو کے ساتھ ساتھ پڑھیں', listenW: 'سنیں', newTag: 'نئی', doneTag: 'مکمل',
       numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
       warm: 'گنتی کا کھیل', missing: 'کون سا عدد غائب ہے؟', bigger: 'کون سا عدد بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
       pick: 'ایک مضمون چنیں', back: 'واپس', opening: 'ویڈیو کھل رہی ہے…', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
@@ -98,25 +98,15 @@
   }
 
   /* ---------------- Stories ---------------- */
+  // The storybooks' door: its content is the shelf (wq-stories.js fills the slot, its first unfinished book the primary).
+  // Jugnu's passages open from the Games door and the home's Next tile, never from here.
   function storiesBody(B, ctx, data) {
     var t = C(ctx);
-    var list = data && data.stories ? data.stories : bootDoors(B).stories.filter(function (s) { return s.kind === 'passage' || s.kind === 'listen'; }).map(function (s, i) { return { kind: s.kind, id: s.id, title: s.title, fresh: s.fresh, week: i === 0 && s.kind === 'passage', pos: i }; });
     var shelfOn = data ? Boolean(data.shelf) : bootDoors(B).stories.some(function (s) { return s.kind === 'shelf'; });
-    var mk = function (s) {
-      var title = s.title || (s.kind === 'listen' ? t.listen : (s.week ? t.weekStory : t.story));
-      return row({ href: storyHref(B, ctx, s), title: title, sub: s.week && s.title ? t.weekStory : '', tag: s.fresh && !s.done ? t.newTag : '', done: s.done, kind: s.kind === 'listen' ? 'listen' : 'passage', pos: s.pos, item: s.id, say: s.say }, ctx);
-    };
-    var week = list.filter(function (s) { return s.week; });
-    var reads = list.filter(function (s) { return !s.week && s.kind !== 'listen'; });
-    var listens = list.filter(function (s) { return s.kind === 'listen'; });
-    var h = (week.length ? '<ul class="wq-rows wq-week">' + week.map(mk).join('') + '</ul>' : '') +
-      section(t.toRead, reads.map(mk).join('')) +
-      (shelfOn ? '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors"></div></div>' : '') +
-      section(t.toListen, listens.map(mk).join(''));
-    if (!list.length && !shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
-    // Only the storybooks: the screen still has its one primary until the shelf draws its own (then this one steps aside).
-    if (!list.length) return h + '<div data-shelf-fallback="1">' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
-    return primaryFirst(h);
+    if (!shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
+    // the screen still has its one primary until the shelf draws its own (then this one steps aside)
+    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors"></div></div>' +
+      '<div data-shelf-fallback="1">' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
   }
 
   /* ---------------- Games ---------------- */
@@ -127,12 +117,21 @@
     var quizzes = boot.filter(function (g) { return g.kind === 'quiz'; });
     var open = quizzes.filter(function (g) { return !g.done; });
     var done = quizzes.filter(function (g) { return g.done; });
-    var nums = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
+    var all = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
+    var nums = all.filter(function (g) { return g.kind === 'numbers'; });
+    // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
+    // story room by id, read aloud on the games page
+    var reads = all.filter(function (g) { return (g.kind === 'read' && g.stop && g.name) || ((g.kind === 'passage' || g.kind === 'listen') && g.id); });
+    var readRow = function (g, i) {
+      if (g.kind === 'read') return row({ href: gameHref(B, ctx, g), title: g.name, kind: 'passage', item: g.stop, pos: i, say: g.say }, ctx);
+      return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
+    };
     var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var h = section(t.fromTeacher, open.map(quizRow).join('')) +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
+      section(t.story, reads.map(readRow).join('')) +
       section(t.again, done.map(quizRow).join(''));
-    if (!open.length && !nums.length && !done.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
+    if (!open.length && !reads.length && !nums.length && !done.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
     return primaryFirst(h);
   }
 
@@ -153,13 +152,16 @@
     if (!lib) return back + '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
     var art = lib.art || null; var i = 0;
     var body = (lib.chapters || []).map(function (ch) {
-      return section(ch.name, (ch.videos || []).map(function (v) {
+      return section((langOf(ctx) === 'ur' && ch.name_ur) || ch.name, (ch.videos || []).map(function (v) {
         var m = minsOf(v.secs);
-        return row({ title: v.title, sub: m ? t.mins(m) : '', mins: Boolean(m), done: v.done, kind: 'video', item: v.vid, pos: i++, art: art, tap: 'vid' }, ctx);
+        return row({ title: vTitle(v, ctx), sub: m ? t.mins(m) : '', mins: Boolean(m), done: v.done, kind: 'video', item: v.vid, pos: i++, art: art, tap: 'vid' }, ctx);
       }).join(''));
     }).join('');
     return body ? back + primaryFirst(body) : back.replace('type="button"', 'type="button" data-primary') + '<p class="wq-soon">' + esc(t.none) + '</p>';
   }
+
+  // a video's Urdu title for an Urdu child when the server sends one (only with web_quiz_videos_ur_titles on)
+  function vTitle(v, ctx) { return (langOf(ctx) === 'ur' && v.title_ur) || v.title; }
 
   /* ---------------- the watch screen (a child with no class) ---------------- */
   function watchHtml(w, ctx, next) {
@@ -168,7 +170,7 @@
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
     return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
-      '<p class="wq-vtitle"><bdi' + lat(w.title) + '>' + esc(w.title || '') + '</bdi></p>' +
+      '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' +
       '<div class="wq-after" hidden>' + nx + '</div>';
   }
 

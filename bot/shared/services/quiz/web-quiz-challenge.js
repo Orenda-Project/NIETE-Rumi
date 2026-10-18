@@ -170,20 +170,24 @@ const SETTING_TTL_MS = 30 * 1000;
 
 function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
-/** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
-async function settingOn(key) {
-  const c = settingCache.get(key);
+/**
+ * An app_settings switch, true only when its value reads true (fails closed), cached for 30 s.
+ * strict: true only for the JSON value true (a string 'true' is off), as the child-page switches read.
+ */
+async function settingOn(key, { strict = false } = {}) {
+  const ck = strict ? `${key}\u0000strict` : key;
+  const c = settingCache.get(ck);
   if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
   let v = false;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    v = !!(data && data[0] && isTrue(data[0].value));
+    v = !!(data && data[0] && (strict ? data[0].value === true : isTrue(data[0].value)));
   } catch (e) {
     logError('web_quiz.ch_setting_read_failed', { key, error: String(e && e.message || e).slice(0, 120) });
     v = false;
   }
-  settingCache.set(key, { v, at: Date.now() });
+  settingCache.set(ck, { v, at: Date.now() });
   return v;
 }
 const recordOn = () => settingOn(RECORD_FLAG_KEY);
@@ -192,6 +196,10 @@ const itemsOn = () => settingOn(ITEMS_FLAG_KEY);
 const keepAudioOn = () => settingOn(KEEP_FLAG_KEY);
 const trailOn = () => settingOn(TRAIL_FLAG_KEY);
 const missingOn = () => settingOn(MISSING_FLAG_KEY);
+// "Hear it again" on the kind card of a read that certified nothing (default off, JSON true only): the live v3 read's
+// payload says zero_listen, and a read run's token may ask for its passage's timings once it settled as not a reading
+const ZERO_LISTEN_FLAG_KEY = 'web_quiz_zero_read_listen';
+const zeroListenOn = () => settingOn(ZERO_LISTEN_FLAG_KEY, { strict: true });
 // ── challenge v2 switches (web_quiz_challenge_v2 → _period, _pool); each read on its own, each child only under _v2 ──
 //   _v2      the provenance columns on every new run row (inserted when served), the server ch_start's fields
 //   _period  the record rule "one record per canonical child × stop × PKT calendar month" (read-side)
@@ -907,10 +915,13 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const live = await got('live', () => liveOn());
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
   const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang))) || {}).wcpm) : undefined;
-  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
+  const out = { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
     ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
     // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
     ...(live && await LiveReadV3().forRead({ lang: w.lang, counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
+  // "Hear it again" on the kind card (web_quiz_zero_read_listen, read only under live reading v3; off ⇒ nothing)
+  if (out.lr3 && (await zeroListenOn())) out.zero_listen = true;
+  return out;
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────
@@ -2081,6 +2092,11 @@ async function readingOf(c, lang) {
   if (c.ex !== 'read' && c.ex !== 'listen') fail(400, 'bad_request');
   if (c.ex === 'read' && !(await questionsOn())) fail(503, 'questions_off');
   if (c.ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
+  return readingSpecOf(c, lang);
+}
+
+// The run, its row and its story (a v2 run's own passage), with no switch asked.
+async function readingSpecOf(c, lang) {
   const mem = RUNS.get(c.r) || {};
   const row = await storedRun(c.r);
   const run = await runFor(c, mem.task ? mem : {}, (row && row.lang) || mem.lang || lang);
@@ -2092,17 +2108,44 @@ async function readingOf(c, lang) {
   return { run, row, mem, spec };
 }
 
+// a read run whose result settled as not a reading: nothing heard (failed 'unheard') or not one word read
+const notAReading = (row) => !!row && ((row.status === 'failed' && !!row.meta && row.meta.reason === 'unheard')
+  || (row.status === 'scored' && !!row.score && Number(row.score.attempted != null ? row.score.attempted : row.score.correct) === 0));
+
+/**
+ * A reading's story length in words as the reading page counts them (its story.tokens; the same count the reached
+ * questions use), by the run's token: 0 for any other game or when it cannot be known. Never throws.
+ */
+async function readLength(ct) {
+  try {
+    const c = runOf(ct);
+    if (c.ex !== 'read') return 0;
+    const t = ((await readingSpecOf(c, null)).spec.story || {}).tokens;
+    return Array.isArray(t) ? t.length : 0;
+  } catch (_) { return 0; }
+}
+
 /**
  * "Show me the words" after a practice listen's questions: the story's timing file (web_quiz_readalong), by the run
  * token. Only a practice listen run gets it — a counted listen never shows its text (it is heard, never shown).
+ * "Hear it again" on a read that certified nothing: a read run gets its passage's timings only once its result has
+ * settled as not a reading — never before the read (400), never while it is scored (409), never after a heard read
+ * (403). The run is over and recorded; a re-read is the existing "Try again", so hearing it cannot lift a counted score.
  */
 async function listenWords({ ct, lang } = {}) {
   const c = runOf(ct);
-  if (c.ex !== 'listen') fail(400, 'bad_request');
+  // a read run only with its own switch on (web_quiz_zero_read_listen); off, today's answer
+  if (c.ex !== 'listen' && !(c.ex === 'read' && (await zeroListenOn()))) fail(400, 'bad_request');
   const { run, row, mem, spec } = await readingOf(c, lang);
   const sv = mem.v2 || (await servedInfo(c.r)) || {};
   const mode = sv.mode || (row && row.mode) || mem.mode;
-  if (mode !== 'practice') fail(403, 'not_practice');
+  if (c.ex === 'read') {
+    if (!notAReading(row)) {
+      if (mem.status === 'scoring' || (row && row.status === 'scoring')) fail(409, 'pending');
+      if (!row || isServedRow(row) || row.status === 'abandoned') fail(400, 'bad_request');
+      fail(403, 'heard');
+    }
+  } else if (mode !== 'practice') fail(403, 'not_practice');
   const st = spec.story || {};
   const t = sv.passage_id ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: run.lang, passageId: sv.passage_id, text: st.text }) : null;
   if (!t) fail(404, 'no_words');
@@ -2337,7 +2380,7 @@ const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsR
 Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
 
 module.exports = {
-  menu, exercise, entryOf, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  menu, exercise, entryOf, presignUpload, submit, poll, readLength, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,

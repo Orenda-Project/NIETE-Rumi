@@ -6,6 +6,7 @@
  *
  *   identity(user)            a real sign that an ADULT registered or was rostered on this row (pure)
  *   activity(userId)          teacher activity: true / false / null (a read failed — never "no rows")
+ *   activityAll(userId)       the same verdict with every count read together (one round trip)
  *   withIdentityFields(user)  the row with every identity column read once, or null when that read failed
  */
 const supabase = require('../config/supabase');
@@ -56,18 +57,19 @@ async function hasAnyRow(table, column, id, orFilter = null, eqs = null) {
   }
 }
 
+const ACTIVITY_CHECKS = Object.freeze([
+  ['quizzes', 'teacher_id', null],
+  ['coaching_sessions', 'user_id', null],
+  ['lesson_plans', 'user_id', 'gamma_url.not.is.null,pdf_url.not.is.null'],
+  ['student_lists', 'user_id', null],
+  ['training_assessment_attempts', 'user_id', null],
+  ['assessment_requests', 'user_id', null],
+]);
+
 /** Teacher activity on this user id. true / false / null (a read failed). */
 async function activity(userId) {
   if (!userId) return false;
-  const checks = [
-    ['quizzes', 'teacher_id', null],
-    ['coaching_sessions', 'user_id', null],
-    ['lesson_plans', 'user_id', 'gamma_url.not.is.null,pdf_url.not.is.null'],
-    ['student_lists', 'user_id', null],
-    ['training_assessment_attempts', 'user_id', null],
-    ['assessment_requests', 'user_id', null],
-  ];
-  for (const [table, column, orFilter] of checks) {
+  for (const [table, column, orFilter] of ACTIVITY_CHECKS) {
     const r = await hasAnyRow(table, column, userId, orFilter);
     if (r === null) return null;
     if (r) return true;
@@ -77,6 +79,29 @@ async function activity(userId) {
     const r = await hasAnyRow('class_teachers', 'teacher_user_id', userId, null, { is_active: true });
     if (r === null) return null;
     if (r) return true;
+  }
+  return false;
+}
+
+/**
+ * activity() with every count started together (the self-join's fast path, quiz_join_fast): the same verdict, read in
+ * the same order — the first failed read before any hit is null, the first hit is true — in one round trip instead of
+ * seven. The class-teacher count is read beside the others and weighed only when the phone-binding switch is on.
+ */
+async function activityAll(userId) {
+  if (!userId) return false;
+  const [counts, bindOn, classTeacher] = await Promise.all([
+    Promise.all(ACTIVITY_CHECKS.map(([table, column, orFilter]) => hasAnyRow(table, column, userId, orFilter))),
+    phoneBindOn(),
+    hasAnyRow('class_teachers', 'teacher_user_id', userId, null, { is_active: true }),
+  ]);
+  for (const r of counts) {
+    if (r === null) return null;
+    if (r) return true;
+  }
+  if (bindOn) {
+    if (classTeacher === null) return null;
+    if (classTeacher) return true;
   }
   return false;
 }
@@ -100,4 +125,4 @@ async function withIdentityFields(user) {
   }
 }
 
-module.exports = { IDENTITY_FIELDS, identity, hasAnyRow, activity, withIdentityFields };
+module.exports = { IDENTITY_FIELDS, identity, hasAnyRow, activity, activityAll, withIdentityFields };

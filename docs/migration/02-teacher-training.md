@@ -35,6 +35,8 @@ Deep-dive against live Taleemabad prod DB + `schools.niete.pk` UI (browser IDB +
 
 Half of the 758 "active" trainings are orphans — Taleemabad flipped `course.is_active=false` without cascading to child trainings. Teachers using the platform today don't see these. **Import the 384, skip the 374.**
 
+> **Overruled 2026-10-17 (operator, bd-s42dye.4):** 66 of the retired courses (397 modules, deactivated ones included) were in fact used by 4,880 teachers. They are imported as a SEPARATE provider "Taleemabad" (vendor key `TALEEMABAD_LEGACY`), visible to coaches in the Training Library only: no program, scope or assignment, so no teacher sees it, and no certificate path. Script: `scripts/import-legacy-taleemabad.py` (mcq/msq questions only). The 384 imported above are unchanged.
+
 **Definitive filter chain**:
 ```sql
 WHERE tr.is_active AND tr.deleted_at IS NULL
@@ -142,7 +144,7 @@ Implication for NIETE-Rumi: no historical cert data to import. Design the cert-i
 | **TALEEMABAD** (branded NIETE OFFICIAL) | 171 | ✅ Import + always visible | Every registered teacher sees the 4 levels |
 | **BEACONHOUSE** (Computer Science) | 206 | ✅ Import + gate on `levels ∩ {MIDDLE, HIGH} ≠ ∅` | Preserves current portal behaviour for ~45% of teachers |
 | **OXBRIDGE** (game-based) | 7 | 🟡 Import + same gate as Beaconhouse | Trivial cost, matches today's UX |
-| Orphans (course retired) | 374 | ⛔ Skip | Taleemabad retired these; do not resurrect |
+| Orphans (course retired) | 374 | ⛔ Skip, except 66 courses / 397 modules re-imported 2026-10-17 as vendor `TALEEMABAD_LEGACY` (coach library only; bd-s42dye.4, overrules "do not resurrect") | Taleemabad retired these |
 | I_SAPS | 0 | ⛔ Skip | No live content |
 
 **Total scope: 384 trainings, 57 courses, 9 levels — port the visibility function alongside the data.**
