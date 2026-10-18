@@ -25,6 +25,7 @@
  *   POST /lr/key                a story page's one-read speech key (web-quiz-live-read-keys.js, web_quiz_live_read_v3)
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   POST /card  GET /card/:t.png  the finish card (web_quiz_card_v3): a card token for this child's finish, its picture
+ *   GET  /card/s/:id            a short share link's card (web_quiz_share_short): {token, url}; 404 + the door's words
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
  *   GET  /lib/h/:token          the same from the kid's hub
@@ -319,6 +320,18 @@ const cardServe = (fn) => async (req, res) => {
 };
 router.post('/card', cardServe((req) => CardImage.mint(req.body || {}, { device: req.get('x-wq-device') || null })));
 router.get('/card/:token.png', cardServe((req) => CardImage.image(req.params.token)));
+// A short link's id (web_quiz_share_short): the token and its long path; unknown or expired, a 404 that carries the
+// join door's words, so the edge opens the door, never a dead end
+router.get('/card/s/:id', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.status(200).json(await CardImage.byShort(req.params.id));
+  } catch (err) {
+    if (err instanceof CardImage.CardError) return res.status(404).json({ error: 'not_found', ret: CardImage.returnLine('en') });
+    logToFile('❌ web-quiz card short link failed', { error: err.message }, 'error');
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
 router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params.token)));
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
 // `src`: the route that brought the child (hub_open.src), read by the hub_open emit as opts.src.
