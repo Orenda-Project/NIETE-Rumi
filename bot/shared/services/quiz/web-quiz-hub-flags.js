@@ -97,6 +97,8 @@ const MINIFY_KEY = 'web_quiz_minify';
 const PACK_KEY = 'web_quiz_pack';
 // The child pages' busy page (web-quiz-busy-page.js) rides this one read too: only the stored JSON boolean true is on.
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
+// The busy page asks again by itself (2 s, 4 s, 8 s) only with this on too: the same read, JSON true only.
+const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
 const TTL_MS = 30 * 1000;
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
@@ -117,6 +119,7 @@ const SWITCHES = Object.freeze([
   ['adv',          ADV_KEY,               'json'],
   ['backNav',      BACK_NAV_KEY,          'loose'],
   ['busyPage',     BUSY_PAGE_KEY,         'json'],
+  ['busyRetry',    BUSY_RETRY_KEY,        'json'],
   [null,           CARD_KEY,              'read'],
   ['challenge',    CHALLENGE_KEY,         'loose'],
   ['rungs',        RUNGS_KEY,             'loose'],
@@ -327,6 +330,11 @@ function busyPageNow(now = Date.now()) {
   return Boolean(cache && cache.busyPage === true && now - cache.at < TTL_MS);
 }
 
+/** web_quiz_busy_retry, as busyPageNow: only the batch's warm cache, never a read of its own. */
+function busyRetryNow(now = Date.now()) {
+  return Boolean(cache && cache.busyRetry === true && now - cache.at < TTL_MS);
+}
+
 /** web_quiz_hub_waves2 from the same cache, never read here: on only with fanout on (the shorter chains run inside its branch). */
 function waves2Now(now = Date.now()) {
   return Boolean(fanoutNow(now) && cache.waves2);
@@ -431,6 +439,8 @@ module.exports = {
   BACK_NAV_KEY,
   BUSY_PAGE_KEY,
   busyPageNow,
+  BUSY_RETRY_KEY,
+  busyRetryNow,
   CHALLENGE_KEY,
   CHILD_HOME_KEY,
   CHILD_MEMO_KEY,

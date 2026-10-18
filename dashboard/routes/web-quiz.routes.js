@@ -887,11 +887,20 @@ const BUSY_COPY = {
   ur: { title: 'جگنو کو ابھی تھوڑی دیر لگ رہی ہے', say: 'تھوڑی دیر بعد بٹن دبائیں۔', go: 'دوبارہ کوشش کریں' },
 };
 const BUSY_RETRY_S = '5';
+// web_quiz_busy_retry (learned beside busy_page): the busy page re-asks this same address by itself after 2 s, 4 s and
+// 8 s; any real answer (under 500: the page, or a closed or expired one) opens it, a 5xx or no network waits for the
+// next; after the third the bar goes and the one Try again link is what is left. A thin bar while it tries; no words.
+const BUSY_RETRY_HTML = '<i class="wq-busybar" aria-hidden="true"></i>'
+  + '<style>.wq-busybar{position:fixed;left:0;right:0;top:0;height:4px;background:linear-gradient(var(--brand,#2fa35f),var(--brand,#2fa35f)) no-repeat,var(--line,#e2e8e4);background-size:30% 100%,100% 100%;animation:wq-busy 1.4s linear infinite}.wq-busybar[hidden]{display:none}@keyframes wq-busy{from{background-position:-40% 0,0 0}to{background-position:140% 0,0 0}}@media (prefers-reduced-motion:reduce){.wq-busybar{animation:none;background-size:100% 100%,100% 100%}}</style>'
+  // while it tries, the "tap Try again" line steps aside (its room kept); it is back once the trying stops
+  + '<script>(function(){var d=[2000,4000,8000],i=0,u=location.href,s=document.querySelector(".wq-sub");function stop(){var b=document.querySelector(".wq-busybar");if(b)b.hidden=true;if(s)s.style.visibility=""}'
+  + 'function next(){if(i>=d.length)return stop();setTimeout(function(){i++;fetch(u,{cache:"no-store",credentials:"same-origin"}).then(function(r){if(r.status<500)location.replace(u);else next()},next)},d[i])}'
+  + 'if(window.fetch){if(s)s.style.visibility="hidden";next()}else stop()})();</script>';
 // The busy page's own look (only this page): the title breaks evenly (no lone word on line 2), the line under it reads at
 // 16 px (Urdu 17 px, line-height 2). Placed after the stylesheet; :root lifts it over the Urdu face's rules.
 const BUSY_STYLE = '<style id="wq-busy">.wq-closed h1{text-wrap:balance}.wq-closed .wq-sub{font-size:16px}html:root[lang=ur] .wq-closed h1{font-size:22px}html:root[lang=ur] .wq-closed .wq-sub{font-size:17px;line-height:2}</style>';
 
-function renderBusyPage({ lang, href, origin, assetV, brandKey, ui = null }) {
+function renderBusyPage({ lang, href, origin, assetV, brandKey, ui = null, retry = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
   const c = BUSY_COPY[l];
@@ -904,7 +913,7 @@ ${BUSY_STYLE}
 <h1>${esc(c.title)}</h1>
 <p class="wq-sub">${esc(c.say)}</p>
 <a class="wq-btn wq-go" href="${esc(href)}">${esc(c.go)}</a>
-</section></main>
+</section>${retry ? BUSY_RETRY_HTML : ''}</main>
 </body>
 </html>`;
 }
@@ -1107,11 +1116,12 @@ function createWebQuizRouter(opts = {}) {
   let lastEdgeWarm = false; // the learner's `edge_warm` (app_settings web_quiz_edge_warm): a failed streamed page asks again
   let lastBusy = false; // the last hub or quiz answer's `busy_page` (app_settings web_quiz_busy_page); nothing learned yet: off
   const busyOn = () => lastBusy === true;
+  let lastBusyRetry = false; // and its `busy_retry` (app_settings web_quiz_busy_retry): the busy page re-asks by itself
   // The busy page, when the switch is on and the bot failed upstream; false (the caller draws today's page) otherwise.
   const busy = (req, res, out, lang) => {
     if (!busyOn() || !upstreamFailed(out)) return false;
     res.status(503).set('Retry-After', BUSY_RETRY_S).type('html')
-      .send(renderBusyPage({ lang, href: samePage(req), origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi }));
+      .send(renderBusyPage({ lang, href: samePage(req), origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi, retry: lastBusyRetry === true }));
     return true;
   };
   let lastWaitHops = false; // and its `wait_hops` (web_quiz_wait_hops on too): the bar also shows while the page is left
@@ -1136,6 +1146,7 @@ function createWebQuizRouter(opts = {}) {
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
     lastEdgeWarm = b.edge_warm === true; // absent = off (the learner's field is {} while web_quiz_edge_warm is off)
     if (typeof b.busy_page === 'boolean') lastBusy = b.busy_page;
+    if (typeof b.busy_retry === 'boolean') lastBusyRetry = b.busy_retry;
     if (typeof b.wait_hops === 'boolean') lastWaitHops = b.wait_hops;
     if (typeof b.closed_lang === 'boolean') lastClosedLang = b.closed_lang;
     if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
@@ -1367,6 +1378,7 @@ function createWebQuizRouter(opts = {}) {
       lastFast = out.body.fast === true;
       lastMin = out.body.min === true;
       lastBusy = out.body.busy_page === true;
+      lastBusyRetry = out.body.busy_retry === true;
       lastPlain = lastFast && out.body.plain_paint === true;
       lastClosedLang = out.body.closed_lang === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
@@ -1467,6 +1479,7 @@ function createWebQuizRouter(opts = {}) {
       lastWaitUx = WaitUx.on(out.body);
       lastWaitShare = WaitUx.share(out.body);
       lastBusy = out.body.busy_page === true;
+      lastBusyRetry = out.body.busy_retry === true;
       lastWaitHops = WaitUx.hops(out.body);
       lastWaitHome = WaitUx.home(out.body);
       // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
