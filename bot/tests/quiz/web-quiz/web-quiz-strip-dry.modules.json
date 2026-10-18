@@ -10,5 +10,6 @@
   "bot/shared/services/quiz/web-quiz-strip-lines.js",
   "bot/shared/services/quiz/web-quiz-strip.js",
   "bot/shared/services/quiz/web-quiz-token.js",
+  "bot/shared/services/settings/switch-cache.js",
   "scripts/web-quiz/strip-dry.js"
 ]
