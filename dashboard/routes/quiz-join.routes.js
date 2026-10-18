@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createBotClient, bootJson, assetVersion } = require('./web-quiz.routes');
+const CutLink = require('./cut-link-page');
 
 // A signed j token (bot web-quiz-student-join.js signJoin): base64url payload "." 22-char signature.
 const JOIN_TOKEN_RX = /^[A-Za-z0-9_-]{16,700}\.[A-Za-z0-9_-]{22}$/;
@@ -193,12 +194,22 @@ function createQuizJoinRouter(opts = {}) {
   let jsV = null;
   let lastBot = null;   // the number the bot gave last, for an error page drawn when the bot answers with a failure
   const phoneLang = (req) => (/^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en');
+  // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired note; OFF = today
+  const cutLinkOn = CutLink.switchOf(opts);
+  const envBot = () => cleanBot(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, ''));
 
   // The limiter counts only pages the bot agreed to draw: with the switch off, every request still falls through to the
   // portal's own answer (a school's shared connection never meets a 429 from a page that does not exist).
   router.get('/quiz/join/:token', async (req, res, next) => {
     const token = String(req.params.token || '');
-    if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) return next();
+    if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) {
+      // a cut-short or junk link, with quiz_cut_link_page on: the expired note a stale link gets, no bot call
+      if (botUrl && apiKey && await CutLink.isOn(cutLinkOn)) {
+        res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+        return res.status(410).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'stale', bot: lastBot || envBot() }));
+      }
+      return next();
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/join/page/${token}`, req, null, { route: '/api/internal/wq/join/page/:token' });
