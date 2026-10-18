@@ -65,6 +65,14 @@ async function isOn(now = Date.now()) {
   }
 }
 
+/**
+ * The switch as the last read left it, without reading (a closed link's answer): on only while a read in the last
+ * 30 s said so. A cold or failed cache is off, so a closed link pays no settings read and no log line.
+ */
+function cachedOn(now = Date.now()) {
+  return Boolean(cache && now - cache.at < TTL_MS && cache.on);
+}
+
 /** May the quiz payload carry `link_known`? Never on a friend's challenge or the teacher's preview. Never throws. */
 async function field(ctx, { preview = false } = {}) {
   try {
@@ -226,4 +234,4 @@ async function closedHome({ device } = {}) {
   }
 }
 
-module.exports = { field, known, kidFor, closedHome, isOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
+module.exports = { field, known, kidFor, closedHome, isOn, cachedOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };

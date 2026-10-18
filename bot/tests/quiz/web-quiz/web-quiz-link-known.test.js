@@ -50,6 +50,8 @@ const OLD = '55555555-5555-4555-8555-000000000003';     // an earlier record of 
 const DEV = 'dddddddddddddddddddddd';                   // the family phone's browser
 const FRESH = 'eeeeeeeeeeeeeeeeeeeeee';                 // a phone the link was forwarded to
 const chip = (id) => T.chipId(F.SC, id);
+// A closed class link's answer as the parent (no way home) gives it, recorded there.
+const GOLDEN_CLOSED = '{"error":"expired","lang":"en"}';
 
 let db;
 function seed({ flag = 'v2', known = true, canon = false } = {}) {
@@ -554,12 +556,67 @@ describe('a CLOSED class link on a phone that holds a child: the way home (close
       expect(body).toEqual({ on: true, home: null });
     });
 
+    // The closed path never reads the switch itself: it answers from the 30 s cache the open-link loads keep warm.
+    const switchReads = () => {
+      const from = supabase.from;
+      const n = { reads: 0 };
+      supabase.from = (t) => {
+        const q = from(t);
+        if (t !== 'app_settings') return q;
+        const select = q.select.bind(q);
+        return { ...q, select: (...a) => { const r = select(...a); const inn = r.in.bind(r); return { ...r, in: (col, keys) => { if (keys.includes(KEY)) { n.reads += 1; if (n.fail) throw new Error('settings down'); } return inn(col, keys); } }; } };
+      };
+      n.restore = () => { supabase.from = from; };
+      return n;
+    };
+    const switchLogs = () => require('../../../shared/utils/logger').logToFile.mock.calls.filter(([m]) => /link known child/.test(String(m))).length;
+
     test('GET /quiz/:code on a closed class link says `known: true` with the switch on, so the edge may ask', async () => {
       seed();
+      await fetch(`${base}/quiz/AB12CD`, { headers: H });   // a live open of a class link in the last 30 s
+      closeCode();
+      const n = switchReads();
+      try {
+        const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+        expect(res.status).toBe(410);
+        expect(await res.json()).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+      } finally { n.restore(); }
+      expect(n.reads).toBe(0);
+    });
+
+    test('switch on, cold cache: the closed answer is today\'s and the closed GET reads no setting', async () => {
+      seed();
+      closeCode();
+      const n = switchReads();
+      let body;
+      try { body = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json(); } finally { n.restore(); }
+      expect(Object.prototype.hasOwnProperty.call(body, 'known')).toBe(false);
+      expect(n.reads).toBe(0);
+    });
+
+    for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true']]) {
+      for (const fail of [false, true]) {
+        test(`switch off (${name})${fail ? ', settings read failing' : ''}: a closed GET makes 0 switch reads and 0 log lines, every time`, async () => {
+          seed({ known: value });
+          if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+          closeCode();
+          const n = switchReads();
+          n.fail = fail;
+          try {
+            for (let i = 0; i < 3; i += 1) expect((await fetch(`${base}/quiz/AB12CD`, { headers: H })).status).toBe(410);
+          } finally { n.restore(); }
+          expect(n.reads).toBe(0);
+          expect(switchLogs()).toBe(0);
+        });
+      }
+    }
+
+    test('golden recorded on the parent: a closed class link\'s answer, byte for byte, with the switch off', async () => {
+      seed({ known: false });
       closeCode();
       const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
       expect(res.status).toBe(410);
-      expect(await res.json()).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+      expect(await res.text()).toBe(GOLDEN_CLOSED);
     });
 
     for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true'], ['the quoted string', '"true"'], ['a number', 1], ['an object', {}]]) {
