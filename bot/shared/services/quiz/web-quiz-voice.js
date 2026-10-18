@@ -62,8 +62,9 @@ function setIdOf(voice) {
 }
 
 // Jugnu's shared lines recorded in a one voice (dashboard/public/wq/voice/one/<set>/, a manifest beside them): the
-// set (setIdOf) → the hash of its files (a test holds it), so a page can ask for the set of the plan's voice as the
-// plan renders it. A plan voice with no set here has no shared-line audio: the page shows those lines.
+// set (setIdOf, plus "-<lang>" for a set recorded per language, so one voice can speak both) → the hash of its files
+// (a test holds it), so a page can ask for the set of the plan's voice as the plan renders it. A plan voice with no
+// set here has no shared-line audio: the page shows those lines.
 const SHARED_SETS = Object.freeze({
   'el-bella': '365969a7', 'el-sana': '76bc9453', 'el-sara': 'f2d8d2ef',
   'el-bella-cff2e4': '3a274a11', // Bella on eleven_multilingual_v2 at speed 0.9 (the storyteller pace of the passages)
@@ -73,6 +74,9 @@ const SHARED_SETS = Object.freeze({
   'el-shanaya-e228e6': '4da1fca4',
   // English Anjura (same rendering), for the quizzes whose recordings are nearer it (a plan's quiz_voices).
   'el-anjura-e228e6': 'cb014e5e',
+  // Soniox Reyna, one voice for English and Urdu (the video quiz's voice), each line levelled to -21 LUFS, 32 kb/s;
+  // the Urdu lines given to the voice through the shared Urdu spelling list.
+  'sx-reyna-68567f-en': '3f9f676d', 'sx-reyna-68567f-ur': '4f1e207d',
 });
 
 // The voice each recorded set was recorded in, for a plan that names a set by its name alone (`quiz_voices`):
@@ -128,15 +132,22 @@ function sayAs(text, language, { voice } = {}) {
   return baseLang(language) === 'ur' ? require('./web-quiz-ur-say').sayOf(out, { voice }) : out;
 }
 
+/** The recorded set of Jugnu's shared lines for `voice` in `lang`: its own set for that language, else its set; or null. */
+function sharedSetOf(lang, voice) {
+  const id = setIdOf(voice);
+  if (SHARED_SETS[`${id}-${lang}`]) return `${id}-${lang}`;
+  return SHARED_SETS[id] ? id : null;
+}
+
 /** The shared-line sets for a plan, per language: { en: { path, v }, ur: { path, v } } (a language with no set left out). */
 function sharedSets(plan) {
   const out = {};
   ['en', 'ur'].forEach((lang) => {
     if (plan && typeof plan === 'object' && plan.voices && plan.voices[lang] === null) return;   // today's voice, today's lines
-    const id = setIdOf(quizVoice(lang, { oneVoice: plan || true }));
-    if (SHARED_SETS[id]) out[lang] = { path: id, v: SHARED_SETS[id] };
+    const id = sharedSetOf(lang, quizVoice(lang, { oneVoice: plan || true }));
+    if (id) out[lang] = { path: id, v: SHARED_SETS[id] };
   });
   return out;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, sayAs, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };
+module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, sayAs, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSetOf, sharedSets };

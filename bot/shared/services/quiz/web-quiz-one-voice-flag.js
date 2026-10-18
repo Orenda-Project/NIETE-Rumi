@@ -151,7 +151,8 @@ function live(p) {
   // Every language the plan voices (a language it leaves out keeps today's voice and today's lines), and every set a
   // quiz is mapped to: it must be a recorded set whose voice is known, or the whole plan is off (fail closed).
   const langs = ['en', 'ur'].filter((lang) => p.voices[lang] !== null)
-    .map((lang) => Voice.setIdOf(Voice.quizVoice(lang, { oneVoice: p }))).filter((id) => !Voice.SHARED_SETS[id]);
+    .filter((lang) => !Voice.sharedSetOf(lang, Voice.quizVoice(lang, { oneVoice: p })))
+    .map((lang) => Voice.setIdOf(Voice.quizVoice(lang, { oneVoice: p })));
   const mapped = Object.values(p.quiz_voices || {})
     .filter((t) => t !== 'keep' && !(Voice.SHARED_SETS[t] && Voice.voiceOfTag(t, p) && Voice.setIdOf(Voice.voiceOfTag(t, p)) === t));
   const missing = [...new Set([...langs, ...mapped])];

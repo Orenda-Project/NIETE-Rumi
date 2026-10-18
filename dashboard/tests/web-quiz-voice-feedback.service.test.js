@@ -430,7 +430,8 @@ describe('one voice per quiz: the shared lines are the plan voice\'s', () => {
     expect(sets).toEqual(Object.keys(Voice.SHARED_SETS).sort());
     for (const tag of sets) {
       const m = JSON.parse(fs.readFileSync(path.join(ONE_DIR, tag, 'manifest.json'), 'utf8'));
-      expect(Voice.setIdOf(m.voice)).toBe(tag);                // the folder names the voice AND its rendering (setIdOf)
+      // the folder names the voice AND its rendering (setIdOf), and its language when the set is one per language
+      expect([Voice.setIdOf(m.voice), `${Voice.setIdOf(m.voice)}-${m.lang}`]).toContain(tag);
       expect(m.lines).toEqual(MANIFEST[m.lang || LANG_OF[tag.split('-').slice(0, 2).join('-')]]);   // a new set names its language
       Object.entries(m.lines).forEach(([set, lines]) => lines.forEach((_, i) => expect(fs.existsSync(path.join(ONE_DIR, tag, `${set}-${i}.mp3`))).toBe(true)));
       const crypto = require('crypto');

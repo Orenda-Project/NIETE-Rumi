@@ -646,6 +646,27 @@ describe('a plan whose voice has no recorded set of Jugnu\'s shared lines is ref
     expect(refusals()).toEqual([]);
   });
 
+  // One Soniox voice for both languages (Reyna): one recorded set per language, named <set>-<lang>.
+  test('one Soniox voice for English and Urdu (Reyna) has a set per language: a plan naming it for both is on', () => {
+    const REYNA = { provider: 'soniox', voice: 'Reyna', name: 'Reyna' };
+    const plan = { voices: { en: REYNA, ur: REYNA }, kbps: 32, loudness_lufs: -21 };
+    expect(Voice.setIdOf(REYNA)).toBe('sx-reyna-68567f');
+    expect(OneVoice.take(plan)).toMatchObject({ kbps: 32, loudness_lufs: -21 });
+    expect(Voice.sharedSets(OneVoice.normalize(plan))).toEqual({
+      en: { path: 'sx-reyna-68567f-en', v: Voice.SHARED_SETS['sx-reyna-68567f-en'] },
+      ur: { path: 'sx-reyna-68567f-ur', v: Voice.SHARED_SETS['sx-reyna-68567f-ur'] },
+    });
+    ['en', 'ur'].forEach((lang) => {
+      expect(Voice.SHARED_SETS[`sx-reyna-68567f-${lang}`]).toMatch(/^[0-9a-f]{8}$/);
+      const m = JSON.parse(fs.readFileSync(path.join(__dirname, `../../../../dashboard/public/wq/voice/one/sx-reyna-68567f-${lang}/manifest.json`), 'utf8'));
+      expect(m).toMatchObject({ lang, voice: REYNA });
+    });
+    // a set is played only in its own language
+    expect(Voice.sharedSetOf('en', REYNA)).toBe('sx-reyna-68567f-en');
+    expect(Voice.sharedSetOf('ur', REYNA)).toBe('sx-reyna-68567f-ur');
+    expect(refusals()).toEqual([]);
+  });
+
   test('a tool given the plan directly (backfill --plan, before its set exists) still records in that voice', async () => {
     const fake = seed(ROWS(), {});
     await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize({ voices: { en: JESSICA } }) });
