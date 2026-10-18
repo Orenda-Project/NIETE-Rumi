@@ -99,7 +99,7 @@ describe('an opened, unfinished activity counts as one shown-without-a-tap, not 
     await tap(v1, 'numbers');
     const v2 = await view([video, game, invite]);
     expect(v2.id).toBe('numbers');
-    // a render alone is no show (C77): the same tile
+    // a render alone is no show: the same tile
     expect((await view([video, game, invite])).id).toBe('numbers');
     // the page's beacon for the tile drawn in view is the show
     const v3 = await view([video, game, invite]);
