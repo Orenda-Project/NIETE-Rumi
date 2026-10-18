@@ -161,7 +161,8 @@
         }
         var own = root.querySelector('[data-own]');
         if (own) own.hidden = ok;
-        if (rfb) W.WQMoment.sound(root.querySelector('[data-rf]'), rfb);
+        // one sound: the moment's with the finish card; without it, the book's finish fanfare below says it
+        if (rfb && ok) W.WQMoment.sound(root.querySelector('[data-rf]'), rfb);
         if (ok || !n) return;
         juice('finish', { stars: 3, kind: 'story' });
         var el = root.querySelector('[data-n]'), j = 0;

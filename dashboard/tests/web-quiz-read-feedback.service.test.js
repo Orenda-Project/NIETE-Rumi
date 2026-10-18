@@ -84,6 +84,14 @@ describe('WQMoment, pure', () => {
     expect(long).toMatchObject({ wcpm: 45, showNum: true });
     expect(M.html(long, 'en', { grade: 3 })).toContain('45 words a minute');
   });
+  test('the honest bound is 15 words AND 6 s: 14 words in a minute, or 30 words in 5.9 s, show no number and no lights', () => {
+    const M = moment();
+    for (const [w, ms] of [[14, 60000], [30, 5900]]) {
+      const fb = M.feedback({ words_read: w, ms });
+      expect([w, ms, fb.showNum, M.level(fb, 3).lights]).toEqual([w, ms, false, 0]);
+    }
+    expect(M.feedback({ words_read: 15, ms: 6000 }).showNum).toBe(true);
+  });
   test.each(['en', 'ur'])('%s: a 0-word read is the kind card — no lights, no stars, a "brave try" badge', (lang) => {
     const M = moment();
     const fb = M.feedback({ score: { correct: 0, attempted: 0 } });
@@ -139,7 +147,7 @@ describe('the Urdu words (after a native read)', () => {
 
 // ---- the Jugnu page's end cards (wq-trail.js with a small host) --------------------------------------------------
 const STORY_HREF = 'https://portal.example/c/tok?room=story&pid=p1';
-function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok' } = {}) {
+function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok', words = {} } = {}) {
   let screen = '';
   const listeners = {};
   const posts = [];
@@ -177,7 +185,7 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const S = { data: { ct: 'CT1', ex: 'read', story: { tokens: ['a', 'b', 'c', 'd'] }, title: { en: 'The lost kite', ur: 'کھوئی ہوئی پتنگ' }, ...data } };
   const h = {
-    L: lang, t: { again: 'Again', later: 'Later', listening: 'Listening' }, tc: (k) => k, boot: { kid: 'k1', token: 'tok' }, S, esc,
+    L: lang, t: { again: 'Again', later: 'Later', listening: 'Listening', ...words }, tc: (k) => k, boot: { kid: 'k1', token: 'tok' }, S, esc,
     on: (id, fn) => { (listeners[id] = listeners[id] || []).push(fn); }, q: () => null,
     show: (name, html) => { S.screen = name; screen = html; }, jug: (pose, line) => `<p class="wq-say" data-pose="${pose}">${esc(line)}</p>`,
     ev() {}, open(x) { opened.push(x); }, refreshMenu() {}, md: () => menu, read() {}, backLabel: () => 'Back',
@@ -528,6 +536,32 @@ describe('Read aloud without the Trail', () => {
     await p.click('wqc-rfagain');
     expect(p.fetches.slice(n).some((f) => /ch\/HUB\.TOKEN\/read/.test(f.url))).toBe(true);
   });
+  test('key on, an honest live read (30 words in a minute): the live card (before the check) has the jar but no "read it again"; the checked result brings it', async () => {
+    const words = Array.from({ length: 30 }, (_, i) => `word${i}.`);
+    const story = { text: words.join(' '), dir: 'ltr', tokens: words, lines: [{ from: 0, to: 29 }] };
+    const clock = { t: 1000 };
+    FakeSocket.all = [];
+    const server = { now: { status: 200, body: { pending: true } } };
+    const p = H.page({ lang: 'en', clock, menu: PLAIN_MENU('en', RF), freshEls: true, pre: [LIVE_SRC, MOMENT_SRC], routes: {
+      'ch/HUB.TOKEN/read': H.ok({ ...PLAIN_READ('en'), story }), 'ch/live': H.ok({ ...KEY, lang: 'en' }),
+      'ch/upload': H.ok({ put_url: 'https://r2.test/put/abc', key: 'child-voice/sandbox/r/read-1.webm', content_type: 'audio/webm' }),
+      'r2.test/put': () => ({ status: 200, body: {} }), 'ch/result': () => server.now,
+    } });
+    p.win.WebSocket = FakeSocket;
+    p.w.open('read'); await p.flush();
+    if (p.has('wqc-help-no')) await p.click('wqc-help-no');
+    await p.click('wqc-go');
+    const so = FakeSocket.all[0]; so.open(); await p.flush();
+    so.msg({ tokens: toks(words) }); await p.flush();
+    clock.t += 60000;
+    await p.click('wqc-stop');
+    so.msg({ tokens: [], finished: true }); await p.flush(); await p.flush();
+    expect(p.html()).toContain('wq-moment-meter');
+    expect(p.html()).not.toContain('wqc-rfagain');
+    server.now = { status: 200, body: { score: { correct: 30, attempted: 30, stopped: false }, wcpm: 30 } };
+    for (let i = 0; i < 3; i += 1) await p.runTimers((x) => x.ms === 3000);
+    expect(p.els['wqc-rf'].innerHTML).toContain('id="wqc-rfagain"');
+  });
   test('key on, "we\'ll check it later": no moment yet (nothing judged)', async () => {
     const p = plain('en', RF);
     p.w.open('read'); await p.flush();
@@ -611,6 +645,40 @@ describe('once per result (key on)', () => {
   });
 });
 
+// ---- a held card (before the check) never offers "read it again to light one more": the result could still change -----
+describe('read it again waits for the checked result (key on)', () => {
+  const HONEST = { score: { correct: 30, attempted: 30 }, secs: 60 };   // 30 a minute: 3 lights of 5
+  test.each(['en', 'ur'])('%s: the Trail\'s held card has the jar but no offer; the checked card brings it', (lang) => {
+    const t = trail({ lang, menu: RF, data: { questions_on: true } });
+    t.TR.readHold({ score: { attempted: 30 }, rf: HONEST }, null, 30);
+    expect(t.html()).toContain('data-rf');
+    expect(t.html()).not.toContain('wqc-rfagain');
+    t.TR.readEnd({ score: { correct: 30, attempted: 30 }, wcpm: 30, rf: { score: { correct: 30, attempted: 30 }, wcpm: 30 } }, null, 30);
+    expect(t.html()).toContain('id="wqc-rfagain"');
+  });
+  test('folded (the child home): the held card has no offer either', () => {
+    const t = trail({ menu: { ...FOLD, ...RF }, data: { next_offer: NEXT } });
+    t.TR.readHold({ score: { attempted: 30 }, rf: HONEST }, null, 30);
+    expect(t.html()).toContain('data-rf');
+    expect(t.html()).not.toContain('wqc-rfagain');
+  });
+  test('Story Time\'s first card (before the check) has no offer; the checked redraw brings it', () => {
+    const t = trail({ href: STORY_HREF, menu: { ...FOLD, v2: { story: true }, ...RF }, data: { story_room: true, practice_round: true } });
+    t.TR.menu();
+    t.TR.readHold({ score: { attempted: 30 }, rf: HONEST }, null, 30);
+    expect(t.html()).toContain('data-rf');
+    expect(t.html()).not.toContain('wqc-rfagain');
+    t.TR.storySettled({ score: { correct: 30, attempted: 30 }, wcpm: 30, next_offer: NEXT });
+    expect(t.html()).toContain('id="wqc-rfagain"');
+  });
+  test('the pure call: card(fb, lang, {hold: true}) never carries the offer', () => {
+    const M = moment();
+    const fb = M.feedback(HONEST);
+    expect(M.card(fb, 'en', {})).toContain('wqc-rfagain');
+    expect(M.card(fb, 'en', { hold: true })).not.toContain('wqc-rfagain');
+  });
+});
+
 // ---- Jugnu says "Let's read it together" once: the moment's own line steps back when Jugnu has just said it ----------
 describe('a 0-word read on the Trail card (key on)', () => {
   test.each([['en', /Let(&#39;|')s read it together/g], ['ur', /آئیں مل کر پڑھیں/g]])('%s: the line once, the kind badge still there', (lang, re) => {
@@ -642,8 +710,8 @@ describe('a 0-word read on the folded card (key on)', () => {
 describe('the folded card\'s Try again (web_quiz_fold_retry)', () => {
   const FR_GOLDEN = path.join(__dirname, 'fixtures', 'fold-retry-off-golden.json');
   const ZERO = { score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } };
-  const scene = (lang, menu, { story = false, body = ZERO, held = false } = {}) => {
-    const t = trail({ lang, href: story ? STORY_HREF : undefined, menu: { ...FOLD, ...menu, v2: { story } }, data: { next_offer: NEXT, ...(story ? { story_room: true, practice_round: true } : {}) } });
+  const scene = (lang, menu, { story = false, body = ZERO, held = false, words } = {}) => {
+    const t = trail({ lang, words, href: story ? STORY_HREF : undefined, menu: { ...FOLD, ...menu, v2: { story } }, data: { next_offer: NEXT, ...(story ? { story_room: true, practice_round: true } : {}) } });
     if (story) t.TR.menu();
     if (held) t.TR.readHold(body, null, 0); else t.TR.readEnd(body);
     return t;
@@ -681,6 +749,14 @@ describe('the folded card\'s Try again (web_quiz_fold_retry)', () => {
       const n = t.opened.length;
       t.tap('wqc-again');
       expect(t.opened.slice(n)).toEqual(['read']);
+    }
+  });
+  test.each([['en', 0], ['ur', 1]])('%s, key on: the Try again label is the Jugnu page\'s own word (wq-challenge.js), as the child sees it', (lang, k) => {
+    const again = [...R('wq-challenge.js').matchAll(/^ {6}again: '([^']+)',$/gm)].map((m) => m[1]);
+    expect(again).toEqual(['Try again', 'دوبارہ کریں']);
+    for (const story of [false, true]) {
+      const h = scene(lang, { fold_retry: true }, { story, words: { again: again[k] } }).html();
+      expect(h).toContain(`<button class="wq-btn wq-soft" id="wqc-again" type="button">${again[k]}</button>`);
     }
   });
   test('key on: a heard read and a held card get no Try again (nothing to retry; the result could still change)', () => {

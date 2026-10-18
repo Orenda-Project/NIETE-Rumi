@@ -13,9 +13,10 @@
  *   WQMoment.html(fb, lang, o)  the block (no buttons: the host keeps its own Next / Share / Home); o = {grade?, size?: 's'}
  *   WQMoment.mount(el, fb, lang, o)  the block just before `el` (or into it, o.into); one sound when the kit is there
  *   WQMoment.page(s, p, lang, o) / hear(pl, p, s, o)  a storybook page's read: the small block (+ "Hear Jugnu say it"
- *                               on a skipped word, + "read it again for 3 stars") and that sentence played as a slice of
- *                               the page's own take
- *   WQMoment.again(fb, lang, o) the minute's "read it again to light one more!" soft button (#wqc-rfagain), or ''
+ *                               on a skipped word, + "read it again for 3 stars"; o.still: a redraw, no motion) and
+ *                               that sentence played as a slice of the page's own take
+ *   WQMoment.again(fb, lang, o) the minute's "read it again to light one more!" soft button (#wqc-rfagain), or '' (and
+ *                               always '' with o.hold: a held card, before the check, whose result could still change)
  *   WQMoment.card(fb, lang, o)  html() with that offer inside the card, under the jar it fills (never loose on the screen)
  *
  * The jar, its number and the growth line show only on the reading child's own screen (the server sends the speed only
@@ -178,30 +179,37 @@
   function page(s, p, lang, o) {
     o = o || {};
     var fb = feedback({ words_read: s.words_read, words_total: s.words_total, ms: s.ms });
-    var h = html(fb, lang, { grade: o.grade, size: 's', jg: 1 });
+    var h = html(fb, lang, { grade: o.grade, size: 's', jg: 1, still: o.still });
     if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
     // read it again for 3 stars (a page is too short for lights); never after a 0-word try (that card leads with it)
     if (!fb.zero && level(fb, o.grade).stars < 3) h += '<button class="wqs-sec" data-tap="rfagain">' + esc(C[L(lang)].again3) + '</button>';
     return { html: h, fb: fb };
   }
-  // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop
+  // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop.
+  // The 40 ms watch ends with it, and never outlives it: the reader gone (o.live), the player stopped for a second
+  // (read it again), the take started again from earlier (the page's own Listen: never cut at this sentence's end)
   var hearT = null;
   function hear(pl, p, s, o) {
     var x = slice(p, s, o);
     if (!x || !pl) return;
     if (hearT) o.clear(hearT);
     pl.seekToWord(x.from); pl.play();
+    var last = -1, idle = 0;
     hearT = o.set(function tk() {
-      var a = pl.audio;
-      if (!a) { hearT = null; return; }
-      if (a.currentTime * 1000 >= x.e_ms || pl.current > x.to) { hearT = null; pl.pause(); return; }
+      var a = pl.audio, t = a ? a.currentTime * 1000 : 0;
+      hearT = null;
+      if (!a || (o.live && !o.live()) || t < last - 250 || (a.paused && ++idle > 25)) return;
+      if (t >= x.e_ms || pl.current > x.to) { pl.pause(); return; }
+      if (!a.paused) idle = 0;
+      last = t;
       hearT = o.set(tk, 40);
     }, 40);
   }
 
   // the minute's read: "read it again to light one more!" (a soft button for the host) on an honest read short of 5
-  // lights; '' otherwise (a short read, another phone, a 0-word try, 5 lights)
+  // lights; '' otherwise (a short read, another phone, a 0-word try, 5 lights, o.hold: a card before the check)
   function again(fb, lang, o) {
+    if (o && o.hold) return '';
     var n = level(fb, (o || {}).grade).lights;
     return n > 0 && n < 5 ? '<button class="wq-btn wq-soft" id="wqc-rfagain" type="button">' + esc(C[L(lang)].again) + '</button>' : '';
   }
@@ -235,8 +243,8 @@
   //   (x {g, v, ms}); 'with': stop the quiet read; 'after': after the result, Jugnu reads the page when that was tapped
   function q(k, R, m, x) {
     var y;
-    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents }); x.rd.fb = y.fb; return y.html; }
-    if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear });
+    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents, still: x.rd.drawn }); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
+    if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear, live: R.live });
     if (k === 'withJ') return say(k, R.L);
     if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';
     if (k === 'tick') return near(R.root.querySelector('[data-near]'), x.g, x.v, x.ms, R.L);

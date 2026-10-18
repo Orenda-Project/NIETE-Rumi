@@ -3155,6 +3155,86 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(root.innerHTML).not.toContain('data-near');
     expect(root.querySelector('[data-jg]').className).not.toContain('wq-moment-lean');
   });
+  // "Hear Jugnu say it" plays one sentence on the page's own player: its 40 ms watch stops with the sentence, and
+  // never outlives it (the reader gone, the player stopped, or the page's own Listen taking over)
+  const hearTicks = (e) => { const set = e.clock.set; const n = { k: 0 }; e.clock.set = (f, ms) => { if (ms === 40) n.k += 1; return set(f, ms); }; return n; };
+  const hearOn = async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    const n = hearTicks(e);
+    p.log.length = 0; p.audio.currentTime = 0.1;
+    fire(root, 'rfhear');
+    return { e, root, p, n };
+  };
+  test('read_fb: leaving the reader while Jugnu says the sentence stops its watch (no timer left behind)', async () => {
+    const { e, root, n } = await hearOn();
+    e.advance(200);
+    fire(root, 'back');
+    const k = n.k;
+    e.advance(60000);
+    expect(n.k - k).toBeLessThanOrEqual(1);
+  });
+  test('read_fb: "read it again" after Jugnu\'s sentence (the player stopped): the watch ends within a second', async () => {
+    const { e, root, p, n } = await hearOn();
+    e.advance(200);
+    p.audio.paused = true;
+    fire(root, 'rfagain');
+    e.advance(10000);
+    expect(n.k).toBeLessThan(40);
+    expect(p.log.filter((x) => x === 'pause')).toHaveLength(0);
+  });
+  test('read_fb: the page\'s own Listen after Jugnu\'s sentence (the take starts again from earlier) is never cut at that sentence\'s end', async () => {
+    const { e, p } = await hearOn();
+    p.audio.currentTime = 1.2; e.advance(40);
+    p.audio.currentTime = 0; e.advance(40);   // Listen: back to the page's start
+    p.audio.currentTime = 2.6; e.advance(40);
+    expect(p.log).toEqual(['seek:0', 'play']);
+  });
+  test('read_fb: the page\'s moment plays its motion once; a redraw of the same read lays it in still, a new read moves again', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); await openReader(e);
+    const M = e.win.WQMoment, R = { P: book({ read_fb: 1 }).pages, L: 'en', b: { grade: 2 } }, m = { i: 0 };
+    const rd = { s: { words_read: 4, words_total: 5, ms: 3000, marks: ['read', 'read', 'read', 'skipped', 'read'] }, i: 0 };
+    const x = { rd, st: 'read', sents: () => [] };
+    expect(M.q('page', R, m, x)).not.toContain('wq-moment--still');
+    expect(M.q('page', R, m, x)).toContain('wq-moment--still');
+    expect(M.q('page', R, m, { ...x, rd: { s: { ...rd.s }, i: 0 } })).not.toContain('wq-moment--still');
+  });
+  test('read_fb: a read of one page never answers another page (back on page 1 after reading page 2: page 1\'s own words)', async () => {
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }) } })); const root = await openReader(e);
+    readPage1(e, root, ['read', 'read', 'read', 'read', 'read']);
+    fire(root, 'main'); fire(root, 'next');
+    fire(root, 'main'); fire(root, 'mic'); e.calls.ask[1].onStream({});
+    e.calls.lr[1].o.onResult(READ(['read', 'skipped', 'skipped', 'skipped']));
+    expect(root.innerHTML).toContain('You read 1 word!');
+    fire(root, 'prev');
+    expect(root.innerHTML).not.toContain('You read 1 word!');
+  });
+  test('read_fb, a book only listened to, even with a reading in the answer: no moment (nothing was read aloud on this phone)', async () => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
+    fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'close'); fire(root, 'next');
+    fire(root, 'main'); e.calls.ra[e.calls.ra.length - 1].o.onEnd(); fire(root, 'close'); fire(root, 'main');
+    await flush(); await flush(); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-done');
+    expect(root.innerHTML).not.toContain('data-rf');
+  });
+  test('read_fb, the book\'s end with no finish card: ONE sound (the finish fanfare), never the badge jingle on top of it', async () => {
+    const done = { status: 200, body: { ok: true, sticker: true, reading: { words_read: 48, words_total: 50, ms: 40000, wcpm: 72, prev_wcpm: 60 } } };
+    const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done }, wqj: true })); const root = await openReader(e);
+    e.win.WQJ.badge = () => e.calls.juice.push('badge'); e.win.WQJ.sentence = () => e.calls.juice.push('sentence');
+    // runBook's steps, the last tap apart: each page's own result had its one jingle; the book's end is counted alone
+    toMic(e, root); fire(root, 'mic'); e.calls.ask[0].onStream({});
+    e.calls.lr[0].o.onResult(READ(['read', 'read', 'skipped', 'read', 'read']));
+    fire(root, 'main'); fire(root, 'next');
+    fire(root, 'main'); fire(root, 'mic'); e.calls.ask[1].onStream({});
+    e.calls.lr[1].o.onResult(READ(['read', 'read', 'read', 'read']));
+    e.calls.juice.length = 0;
+    fire(root, 'main'); await flush(); await flush(); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-done');
+    expect(root.innerHTML).toContain('data-rf');
+    expect(e.calls.juice.filter((x) => /^(finish|badge|sentence)/.test(x))).toEqual(['finish:3']);
+  });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
     const done = { status: 200, body: { ok: true, sticker: true } };
     const e = withMoment(env({ replies: { book: RFB({ questions: [] }), done } })); const root = await openReader(e);
