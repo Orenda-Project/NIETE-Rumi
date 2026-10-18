@@ -22,8 +22,8 @@ function pages(extra) {
   const out = {};
   for (const lang of ['bi', 'ur']) {
     out[`role_${lang}`] = Page.buildRolePage({ t: 'tok.AAAA', lang, bot: BOT, ...extra });
-    out[`pick1_${lang}`] = Page.buildPickPage({ t: 'tok.AAAA', lang, kids: [{ pick: 'a'.repeat(16), first: 'Sana' }], bot: BOT, ...extra });
-    out[`pickN_${lang}`] = Page.buildPickPage({ t: 'tok.AAAA', lang, kids: [{ pick: 'a'.repeat(16), first: 'Sana' }, { pick: 'b'.repeat(16), first: 'Ali' }], bot: BOT, ...extra });
+    out[`pick1_${lang}`] = Page.buildPickPage({ t: 'tok.AAAA', lang, kids: [{ pick: 'a'.repeat(16), first: 'Sana Testwala' }], bot: BOT, ...extra });
+    out[`pickN_${lang}`] = Page.buildPickPage({ t: 'tok.AAAA', lang, kids: [{ pick: 'a'.repeat(16), first: 'Sana Testwala' }, { pick: 'b'.repeat(16), first: 'Ali Testwala' }], bot: BOT, ...extra });
     for (const id of ['go.stale', 'go.error', 'go.family']) out[`msg_${id.slice(3)}_${lang}`] = Page.buildMessagePage({ id, lang, bot: BOT, ...extra });
   }
   return out;
@@ -31,14 +31,14 @@ function pages(extra) {
 // today's pages (the base before this change), sha256 of the HTML
 const OFF_GOLDEN = {
   role_bi: '1c344fd2c8ac6377bcaa564dc1c131553176dc8b2f869d73e10419e059e94e6a',
-  pick1_bi: 'c54cd448df6a446516467aae38f75d51bc0c03f342872cbcb49847fadacce30b',
-  pickN_bi: '8e3985d419122055c1caa97d765cacb48df9f1110758215e12645abe9dac8e39',
+  pick1_bi: '98ae203bb942360d52ae768b71715fd4df3a12f4492ec7cec355e0bb4ba86faa',
+  pickN_bi: 'bb7257f39544c8fe0f69d183a5cbfeb73471a237aaf39f1c31c039c26b180363',
   msg_stale_bi: '4d0f1e702ec58bd3d2d5322b81bd511cd30d480fa88aacd32484c5e746c335a8',
   msg_error_bi: '62b009880e0561631b160e3651b9aa56074e9c149645593efbfd6b1efa031b24',
   msg_family_bi: '92f6b2e5838ce665dff36087d989eaeb1a8e0a0e7c5bb517c19d09c1222417a7',
   role_ur: '6a0376dc65a819209a65a3d3031ea6b36808997e42cb1f0f1ec91da80fed0a6c',
-  pick1_ur: '4311c9e053c1a419e36e1a70503a69f445fa3a93932038781d2b4293568927af',
-  pickN_ur: 'accc153bb0b502576c4e425b715a29c4ec397accfb919b8557ecae1bfeafff1e',
+  pick1_ur: 'dcaf4ef11c1619fe290a3177cff6f2325335d0c215eda64040f9617c263a4a87',
+  pickN_ur: '2b29e7a32f6b85ed17e91b29b9ee430c7a6b227f58363c890e96744be7dbe7a8',
   msg_stale_ur: '2b31f8e5bdf4fbbca645a39770e50a0c12d43d0369970c05cfae7147395e3551',
   msg_error_ur: '589238ee8d3fa71300df81f597ff9af8ad5071b19b5b1f2bd4dfd2003a2883e6',
   msg_family_ur: '253fba11769b228a1c802d4766ad0139a094297f6a3338a02b14ed4cb5425254',
