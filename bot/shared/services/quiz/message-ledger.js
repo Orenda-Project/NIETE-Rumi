@@ -346,7 +346,7 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
 
 module.exports = {
   countCapped,
-  record, capAllows: underCap, pktDay, OWN_COUNTER, capPerPhone, TRIGGERS, SAMPLE_PING, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
+  record, capAllows: underCap, pktDay, phoneHash, OWN_COUNTER, capPerPhone, TRIGGERS, SAMPLE_PING, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
   _resetMissing: () => { missingLogged = false; writeFailLogged = false; oldFunctionLogged = false; },
   _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; localCounts.clear(); },
 };
