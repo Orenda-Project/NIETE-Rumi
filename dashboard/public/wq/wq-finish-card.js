@@ -240,7 +240,10 @@
   // One button system on (<html class="wq-1b">): the share's label sits in the middle of its box like every button
   // (the line above draws it as a block, text at the top), and the Urdu label takes the buttons' Urdu line. Off: CSS only.
   var CSS_1B = 'html.wq-1b .wqfc-share{display:flex;align-items:center;justify-content:center}' +
-    'html.wq-1b[lang="ur"] .wqfc-share{line-height:var(--btn-lh-ur,1.9)}';
+    'html.wq-1b[lang="ur"] .wqfc-share{line-height:var(--btn-lh-ur,1.9)}' +
+    // the sound button sits beside the card's main button, not on a row of its own (the card's height goes to the deed)
+    'html.wq-1b .wqfc{grid-template-columns:minmax(0,1fr) auto;grid-auto-flow:row dense}html.wq-1b .wqfc>*{grid-column:1/-1}' +
+    'html.wq-1b .wqfc>.wqfc-snd{grid-column:2;align-self:center}html.wq-1b .wqfc>[data-primary]{grid-column:1}';
   function oneButton() {
     try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; }
   }
