@@ -53,14 +53,15 @@ async function answer() {
   // As the payloads read them: fast and one_face never wait (their cached value); rt, ui and the brand from their caches.
   const fast = require('./web-quiz-fast').on();
   const oneFace = require('./web-quiz-one-face').on();
-  const [brand, rt, ui] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui()]);
+  // web_quiz_edge_warm (web-quiz-edge-warm.js): `edge_warm: true` and the hub's switches touched, while on
+  const [brand, rt, ui, warm] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui(), require('./web-quiz-edge-warm').field()]);
   // wait_share: the frame's read share, on with wait_ux AND web_quiz_hub_fanout (as web-quiz-wait-ux.js carry()), same read.
   const waitUx = f.waitUx === true;
   // wait_hops: the bar while the page is left, on with wait_ux AND web_quiz_wait_hops (as web-quiz-wait-ux.js carry()), same read.
   // plain_paint (a guessed first paint says no words) is on only with the fast page; closed_lang (the closed pages in the
   // child's language): both from this same batched read, as the payloads say them (web-quiz-plain-paint.js, -closed-lang.js).
   // wait_home: the kept Home in the early frame, on with wait_ux AND web_quiz_wait_home (as carry()), same read.
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true };
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, ...warm };
 }
 
 /** The hub answer (or its promise) with `edge_learn: true` added while on; the same answer, untouched, while off. */
