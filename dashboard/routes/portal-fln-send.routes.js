@@ -5,7 +5,8 @@
  *   GET  /fln/teachers?q=   → {teachers:[{key, name, school?}]}  the leader's OWN scope, keyed ids only
  *   POST /fln/send {plan, teachers:[key…]} → {queued, failed:[key…]}
  *
- * Mounted under /api/portal by ONE line in portal-fln-links.routes.js: `router.use(createFlnSendRouter())`.
+ * Mounted by portal-fln-links.routes.js (createFlnLinksRouter: `router.use(createFlnSendRouter({requireFln, corpus}))`),
+ * so it is reachable wherever the links router is mounted (/api/portal).
  * Both routes sit behind `requireFln.share` (dashboard/lib/fln-access.js, owner m-app: no-store, 401 signed out,
  * 404 unless a leader with portal_fln_share) — 404 is "no FLN here" to the client. Every answer is no-store.
  *
