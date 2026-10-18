@@ -18,6 +18,12 @@
  * out rides the first. The home and the Stories door both ask for the shelf, so one request goes out and the later
  * caller gets its own copy of the same answer (Response.clone). Nothing is kept once the answer is in; a failure fails
  * every caller. Fanout off: the piece alone, exactly as above.
+ *
+ * With web_quiz_wait_home on as well (the answer's `wait_home`), the streamed hub page's early frame carries one more
+ * small inline script (homeTag): Home as the child last saw it in this tab (hub.js keeps it in sessionStorage for this
+ * hub) is drawn at once when it is under 10 minutes old, in the page's language, for the same child (the link's ?kid=,
+ * or a hub with one child). It is inert (taps wait) and the bar keeps running until the hub answer lands; hub.js then
+ * draws the real Home over it (a new stamp shows from that answer). Nothing kept, or off: the frame as above.
  */
 
 const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s}'
@@ -66,10 +72,26 @@ const SHARE = `<script>${SHARE_JS}</script>`;
 
 const on = (payload) => Boolean(payload && payload.wait_ux === true);
 const share = (payload) => on(payload) && payload.wait_share === true;
+const home = (payload) => on(payload) && payload.wait_home === true;
+const HOME_MAX_MS = 10 * 60 * 1000;
+const js = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+// The kept Home for this hub's early frame (after <main id="wq">): drawn inert with a hidden opening frame inside, so the
+// bar above still counts the page as waiting. Never throws; nothing kept or a mismatch leaves the frame as it is.
+function homeTag(token, lang, assetV) {
+  return `<script>(function(d,w){try{var s=w.sessionStorage.getItem(${js(`wq_home:${token}`)});if(!s)return;var c=JSON.parse(s);`
+    + `if(!c||typeof c.h!="string"||!c.h||!(Date.now()-c.t<${HOME_MAX_MS})||c.l!==${js(lang === 'ur' ? 'ur' : 'en')})return;`
+    + 'var u=/[?&]kid=([0-9a-f]{16})(&|$)/.exec(String(w.location.search||""));if(u?u[1]!==c.k:c.one!==true)return;'
+    + 'var m=d.getElementById("wq");if(!m)return;'
+    + `var l=d.createElement("link");l.rel="stylesheet";l.href=${js(`/wq/wq-home.css?v=${assetV}`)};d.head.appendChild(l);`
+    + 'var y=d.createElement("style");y.textContent="html.wq-cached #wq{pointer-events:none}";d.head.appendChild(y);'
+    + 'var e=d.documentElement;(c.c||[]).forEach(function(x){if(/^wq-[\\w-]+$/.test(x))e.classList.add(x)});e.classList.add("wq-cached");'
+    + 'm.innerHTML=c.h+\'<div class="wq-boot" hidden></div>\';m.setAttribute("inert","");m.setAttribute("aria-busy","true")'
+    + '}catch(x){}})(document,window)</script>';
+}
 
 /** The piece for the hub page's frame: the inline style and script while on (the read share after it with fanout), nothing while off. */
 function tag(payload) {
   return on(payload) ? TAG + (share(payload) ? SHARE : '') : '';
 }
 
-module.exports = { on, share, tag, TAG, SHARE, SHARE_JS, CSS, JS };
+module.exports = { on, share, home, homeTag, tag, TAG, SHARE, SHARE_JS, CSS, JS, HOME_MAX_MS };
