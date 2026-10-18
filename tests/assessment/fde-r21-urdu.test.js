@@ -30,6 +30,7 @@ const Gen = require('../../bot/shared/services/assessment/assessment-generation.
 const Reader = require('../../bot/shared/services/assessment/fde-reader');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const PAT = Patterns.get('fde_g5_2027');
 const U = PAT.subjects.urdu;
@@ -78,7 +79,8 @@ describe('Q1 story pairs: a stem that names another item\'s key', () => {
     const out = stems(exam);
     expect(out.some((s) => /شیر کے شکار کا بچا ہوا حصہ/.test(s))).toBe(true);
     expect(out.some((s) => /کیا بننے کو کہا/.test(s))).toBe(true);
-    expect(shortQ1(exam)).toBe(0);
+    // Short only by the antonyms and synonyms asked again (the full syllabus asks each once).
+    expect(shortQ1(exam)).toBe(conceptRepeats(q1(exam)).length);
   });
 
   test('a stem of the same story that names only the key option holds the pair (the same item with لومڑی out of the cue)', () => {
@@ -182,8 +184,9 @@ describe('one grammar concept once on the paper', () => {
     for (const re of [/کائیں کائیں/, /ہتھیار یا اوزار/, /خاص شخص، جگہ یا چیز/, /موصوف کون سا لفظ/, /حرفِ عطف کون سا/]) expect(out.some((s) => re.test(s))).toBe(true);
   });
 
-  test('two antonym items ask no grammar concept and both stay (chapters_1 «بہادر», «دشمن»)', () => {
+  test('the full syllabus asks the antonym once: the first of chapters_1\'s two antonyms prints, the second is held', () => {
     const out = stems(read('chapters_1'));
-    expect(out.some((s) => /«بہادر» کا متضاد/.test(s)) && out.some((s) => /«دشمن» کا متضاد/.test(s))).toBe(true);
+    expect(out.some((s) => /«بہادر» کا متضاد/.test(s))).toBe(true);
+    expect(out.some((s) => /«دشمن» کا متضاد/.test(s))).toBe(false);
   });
 });
