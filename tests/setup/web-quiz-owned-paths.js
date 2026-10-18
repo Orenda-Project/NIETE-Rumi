@@ -8,6 +8,7 @@
 const OWNED = [
   'bot/shared/services/quiz/',
   'bot/shared/services/child-test/',
+  'bot/shared/services/settings/switch-cache.js',
   'bot/shared/config/copy',
   'bot/shared/templates/class-round',
   'bot/shared/templates/teacher-jugnu',
