@@ -90,4 +90,18 @@ describe('the light face draws every Urdu character of the storybooks and the ch
   it('ژ, which no book has yet, is in -7 too', () => {
     expect(holes([0x0698])).toEqual([]);
   });
+
+  // the loader (bot story-face.js, called by story-load.js) names a new Urdu book's characters outside the face: its
+  // list must be the range the head declares and -7 must draw every one of them, so a face rebuild with a hole goes red
+  it('the loader\'s face list is the declared range, and -7 draws all of it', () => {
+    const Face = require('../../bot/shared/services/quiz/story-face');
+    const html = R.renderQuizPage({ payload: QUIZ('ur', { ui: { ur2: true, fl: true } }), code: 'AB12CD', view: 'quiz', origin: ORIGIN, assetV: ASSET_V });
+    expect(Face.RANGE).toBe(/<style id="wq-fl">@font-face\{[^}]*unicode-range:([^;}]+)/.exec(html)[1]);
+    const spans = Face.RANGE.split(',').map((x) => x.replace(/^U\+/, '').split('-').map((h) => parseInt(h, 16)));
+    const all = spans.flatMap(([lo, hi = lo]) => Array.from({ length: hi - lo + 1 }, (_, i) => lo + i));
+    expect(all.length).toBe(106);
+    expect(all.filter((c) => !lite.hasGlyphForCodePoint(c)).map(hex)).toEqual([]);
+    // every frozen book code point is drawn, so today's 36 books name no hole at load
+    expect(Face.holes([String.fromCodePoint(...CP.storybooks.urdu)])).toEqual([]);
+  });
 });
