@@ -17,6 +17,7 @@ import { AuthFrame, AuthMessage } from '../auth/AuthFrame';
 import { AuthField } from '../auth/AuthField';
 import { CodeSlots } from '../auth/CodeSlots';
 import { RegisterOnWhatsApp } from '../auth/RegisterOnWhatsApp';
+import { SignedOutBanner } from '../auth/SignedOutBanner';
 import { AUTH } from '../auth/copy';
 import { loginFailure, resetFailure, serverCode, serverWhatsapp, statusOf, verifyFailure, type AuthError } from '../auth/errors';
 import { useCopy } from '../teacher/i18n';
@@ -219,6 +220,7 @@ const PortalLogin = () => {
   if (!usePassword && step === 'code') {
     return (
       <AuthFrame title={c.codeTitle} onBack={() => { setStep('number'); setError(null); }}>
+        <SignedOutBanner />
         <form onSubmit={handleSubmit} noValidate>
           <div className="mb-[22px] flex min-h-[48px] flex-wrap items-center gap-x-2.5 gap-y-1 rounded-[14px] bg-nu-surface px-3.5 py-2.5 text-[17px] font-semibold">
             <MessageCircle className="h-[22px] w-[22px] shrink-0 text-nu-surface-muted" aria-hidden="true" />
@@ -244,6 +246,8 @@ const PortalLogin = () => {
   return (
     <AuthFrame title={c.welcome}>
       <FlnLoginBanner />
+      {/* On the password form (a phone's, the one with "Use a code instead") the notice's tap is that same switch. */}
+      <SignedOutBanner onUseCode={usePassword && !nameMode ? () => switchMode('code') : undefined} />
       <form onSubmit={handleSubmit} noValidate>
         <AuthField
           id="phoneNumber"

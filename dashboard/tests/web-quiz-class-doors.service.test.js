@@ -211,6 +211,30 @@ describe('the class table and the league in the child\'s language (ui_lang), tit
     expect(p.wq.T.yourClass).toBe('آپ کی کلاس');
     expect(h2(p.html())).toBe('کلاس <bdi>۳-B</bdi>');
   });
+  // the Urdu class page speaks one digit system and names the lesson in Urdu when the teacher has its Urdu twin
+  const textOf = (h) => h.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, ' ');
+  test('an English quiz, ui_lang ur: places and scores in Urdu digits (the score kept in order), the topic from the Urdu twin', async () => {
+    const p = await boardPage({ ui: 'ur', board: { ...MINE, twin: { code: 'UR0001', topic: 'پودوں کے حصے' } } });
+    const h = p.html();
+    const table = h.slice(h.indexOf('<table'), h.indexOf('</table>') + 8);
+    expect(textOf(table)).not.toMatch(/[0-9]/);
+    expect(table).toContain('<td>۱</td>');
+    expect(table).toContain('\u2066۳/۵\u2069');
+    expect(h).toContain('پودوں کے حصے');
+  });
+  test('ui_lang ur with no Urdu twin: Urdu digits, and the topic as the quiz names it', async () => {
+    const p = await boardPage({ ui: 'ur' });
+    const h = p.html();
+    const table = h.slice(h.indexOf('<table'), h.indexOf('</table>') + 8);
+    expect(textOf(table)).not.toMatch(/[0-9]/);
+  });
+  test('an English page (no ui_lang): today\'s Latin digits and topic', async () => {
+    const p = await boardPage({ board: { ...MINE, twin: { code: 'UR0001', topic: 'پودوں کے حصے' } } });
+    const h = p.html();
+    expect(h).toContain('<td>1</td>');
+    expect(h).toContain('<span class="wq-rscore">3/5</span>');
+    expect(h).not.toContain('پودوں کے حصے');
+  });
   test('ui_lang en on an Urdu quiz: English, "Class 3-B"', async () => {
     const p = page({ lang: 'ur', store: {}, view: 'class', bootExtra: { ui_lang: 'en' }, api: { '/board/TEST': MINE } });
     await flush(); await flush();

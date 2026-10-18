@@ -625,8 +625,9 @@ describe('E6 GET board (the class league table)', () => {
       fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
       CD()._resetCache();
       const kid = fake.db.quiz_sessions.find((r) => r.id === T.verify(s.st, 's').sid).student_id;
-      expect((await WQ.board('AB12CD', { st: s.st })).twin).toEqual({ code: 'UR12CD', k: T.chipId(SC_UR, kid) });
-      expect((await WQ.board('AB12CD')).twin).toEqual({ code: 'UR12CD' });
+      // the twin's own lesson name rides along, so a table shown in the other language names the lesson in it
+      expect((await WQ.board('AB12CD', { st: s.st })).twin).toEqual({ code: 'UR12CD', k: T.chipId(SC_UR, kid), topic: 'Parts of a plant' });
+      expect((await WQ.board('AB12CD')).twin).toEqual({ code: 'UR12CD', topic: 'Parts of a plant' });
     });
     test('off, absent or the string "true": no twin, and not one read of it', async () => {
       twinDb();

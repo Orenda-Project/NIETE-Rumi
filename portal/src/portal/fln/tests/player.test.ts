@@ -264,7 +264,7 @@ describe('warm', () => {
     expect(loaded(r)).toEqual([m('a'), m('b')]);
   });
 
-  it('a tap on a warmed clip plays the same element from what it has: no reload, no 1.5 s switch, ok-mirror', async () => {
+  it('a tap on a warmed clip plays the same element from what it has: no reload, no 2.5 s switch, ok-mirror', async () => {
     const { r, player } = setup(['a']);
     player.warm(['a']);
     await flush();
@@ -379,14 +379,27 @@ describe('preconnect', () => {
 
 // ---------------------------------------------------------------- cold switch
 
-describe('cold tap switch at 1.5 s', () => {
-  it('no first byte within 1500 ms: the same element switches to orig and plays again, never two playing', () => {
+describe('cold tap switch at 2.5 s', () => {
+  it('a 400 kbps line: the first byte at 1.7 s is not a stall — no switch, ok-mirror (bench 18 Oct: 9/60 cold loads at 1,654 ms)', () => {
+    const { r, player } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    vi.advanceTimersByTime(1700);
+    expect(el.src).toBe('https://m.example/a.mp3');
+    el.fire('loadedmetadata');
+    vi.advanceTimersByTime(3000);
+    expect(el.playCalls).toBe(1);
+    el.fire('playing');
+    expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ result: 'ok-mirror' });
+  });
+
+  it('no first byte within 2500 ms: the same element switches to orig and plays again, never two playing', () => {
     const { r, player } = setup(['a']);
     player.toggle('a');
     const el = lastPlayed();
     expect(el.src).toBe('https://m.example/a.mp3');
     expect(el.playCalls).toBe(1);
-    vi.advanceTimersByTime(1499);
+    vi.advanceTimersByTime(2499);
     expect(el.src).toBe('https://m.example/a.mp3');
     vi.advanceTimersByTime(1);
     expect(el.src).toBe('https://o.example/a.mp3');
@@ -396,7 +409,7 @@ describe('cold tap switch at 1.5 s', () => {
     expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ clip: 'a', result: 'ok-orig' });
   });
 
-  it('loadedmetadata before 1500 ms: no switch, ok-mirror', () => {
+  it('loadedmetadata before 2500 ms: no switch, ok-mirror', () => {
     const { r, player } = setup(['a']);
     player.toggle('a');
     const el = lastPlayed();
@@ -409,7 +422,7 @@ describe('cold tap switch at 1.5 s', () => {
     expect(r.events.find((e) => e.kind === 'audio_play')).toMatchObject({ result: 'ok-mirror' });
   });
 
-  it('a progress event before 1500 ms also counts as first byte', () => {
+  it('a progress event before 2500 ms also counts as first byte', () => {
     const { player } = setup(['a']);
     player.toggle('a');
     const el = lastPlayed();
@@ -418,7 +431,7 @@ describe('cold tap switch at 1.5 s', () => {
     expect(el.src).toBe('https://m.example/a.mp3');
   });
 
-  it('an error on src before 1.5 s switches to orig immediately', () => {
+  it('an error on src before 2.5 s switches to orig immediately', () => {
     const { player } = setup(['a']);
     player.toggle('a');
     const el = lastPlayed();
@@ -584,7 +597,7 @@ describe('src exactly as given', () => {
     player.register([c]);
     player.toggle('p');
     expect(lastPlayed().src).toBe('https://m.example/a+b%20c.mp3?x=1+2');
-    vi.advanceTimersByTime(1500);
+    vi.advanceTimersByTime(2500);
     expect(lastPlayed().src).toBe('https://o.example/a+b.mp3');
   });
 
