@@ -1465,6 +1465,7 @@ Feature: NIETE (ICT) Teacher Training
     And the Urdu lines use Urdu digits and words that are the same for every child
     But with web_quiz_class_doors off nothing is asked early and nothing is kept
     And a class table that is not there (a friend's challenge code, the shared watch quiz) says "This table opens for a class quiz" with Home for a child on the page or Play for a visitor, never "no internet" and a retry
+    And on an English quiz's table or league shown in Urdu, the class label is in Urdu words and digits, the league's Play stays on screen at the bottom, and every chip and fold row is at least 48 px
     # wq.js warmBoard/boardGet/moveLine; T.movedUp/movedNow/samePlace. unit: dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
