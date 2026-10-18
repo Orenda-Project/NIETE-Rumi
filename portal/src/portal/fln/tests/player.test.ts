@@ -387,6 +387,19 @@ describe('A6 error state', () => {
     expect(last('a').s).toBe('loading');
     expect(playLog.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('a retry after both sources failed starts from the mirror again (the mirror may be back)', () => {
+    const { r, player, last } = setup(['a']);
+    player.toggle('a');
+    const el = lastPlayed();
+    el.fire('error'); // mirror failed -> orig
+    el.fire('error'); // orig failed -> error
+    expect(last('a').s).toBe('error');
+    player.toggle('a');
+    expect(el.src).toBe('https://m.example/a.mp3');
+    el.fire('playing');
+    expect(r.events.filter((e) => e.kind === 'audio_play').pop()).toMatchObject({ result: 'ok-mirror' });
+  });
 });
 
 // ---------------------------------------------------------------- stop on hide
