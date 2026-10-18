@@ -705,3 +705,35 @@ describe('the Urdu class table and league: an Urdu class label, Play always in r
     expect(p.html()).toContain('<details class="wq-zero-list"><summary>');
   });
 });
+
+describe('the class table\'s line under the title: the quiz name and the count never run into each other (class_doors)', () => {
+  const sub = (h) => (/<\/h2>(?:<p class="wq-move[^>]*>[\s\S]*?<\/p>)?<p class="wq-sub( wq-parts)?">([\s\S]*?)<\/p>/.exec(h) || [])[2];
+  const boardOf = async (lang, ui, b) => {
+    const p = page({ lang, store: {}, view: 'class', bootExtra: ui ? { ui_lang: ui } : {}, api: { '/board/TEST': b } });
+    await flush(); await flush();
+    return p;
+  };
+  // An English quiz name in an Urdu line: "<name> · ۱ نے مکمل کیا" lets the browser pull ۱ into the English run, next
+  // to the dot, and the dot reads as the Urdu zero (۰): "۱۰". Each part is isolated, and the separator is a dash.
+  test('on, Urdu page of an English quiz: <bdi>name</bdi> — <bdi>count</bdi>, no middle dot', async () => {
+    const p = await boardOf('en', 'ur', { ...BOARD, class_doors: true });
+    const s = sub(p.html());
+    expect(s).toMatch(/^<bdi>[^<]+<\/bdi> — <bdi>۱ نے مکمل کیا<\/bdi>$/);
+    expect(s).not.toContain('·');
+    // each part wraps as a whole (the count's words never split across lines)
+    expect(p.html()).toContain('<p class="wq-sub wq-parts"><bdi>');
+  });
+  test('on, English page: the same shape', async () => {
+    const p = await boardOf('en', null, { ...BOARD, class_doors: true });
+    expect(sub(p.html())).toMatch(/^<bdi>[^<]+<\/bdi> — <bdi>1 [^<]+<\/bdi>$/);
+  });
+  test('off (no class_doors): today\'s "name · count" line, EN and UR', async () => {
+    for (const lang of ['en', 'ur']) {
+      const p = await boardOf(lang, null, BOARD);
+      const s = sub(p.html());
+      expect(s).toContain(' · ');
+      expect(s).not.toContain('<bdi>');
+      expect(p.html()).not.toContain('wq-parts');
+    }
+  });
+});

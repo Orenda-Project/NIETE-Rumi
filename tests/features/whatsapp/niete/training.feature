@@ -1553,6 +1553,17 @@ Feature: NIETE (ICT) Teacher Training
     And on an English quiz's table or league shown in Urdu, the class label is in Urdu words and digits, the league's Play stays on screen at the bottom, and every chip and fold row is at least 48 px
     # wq.js warmBoard/boardGet/moveLine; T.movedUp/movedNow/samePlace. unit: dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
+  @web @quiz @config-gated @wip @draft @P2 @T1176 @no-mock-driver
+  Scenario: The class table's line under the title keeps the quiz name and the count of children apart
+    Given app_settings "web_quiz_class_doors" is true
+    And an English quiz's class table is shown in Urdu
+    When the child opens the class table
+    Then the line under the title shows the quiz name, a dash, and how many children finished, each part on its own
+    And the count never reads as a bigger number next to the separator
+    And with web_quiz_class_doors off, the line is exactly as it is today
+    # wq.js drawBoard: bdiJoin under class_doors, dotJoin otherwise.
+    # unit: dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
   Scenario: The teacher's preview never counts as a child
     Given the teacher's signed preview link
