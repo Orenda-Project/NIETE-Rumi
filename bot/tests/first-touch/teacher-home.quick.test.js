@@ -37,7 +37,9 @@ const PHONE = ['92300', '0000931'].join(''); // built at run time (no phone-shap
 const DAY = 86400000;
 // a gone teacher's refusal: today's reads vs the quick answer's (its reads start before the user is known)
 const OFF_GONE_READS = 3;
-const ON_GONE_READS = 33; // +1: the class report's fold-by-child switch read (in parallel with its sessions, no new wave)
+// +1: the class report's fold-by-child switch read (in parallel with its sessions, no new wave); -1: the hub switches'
+// read is shared by its concurrent callers (web-quiz-hub-flags flags(): one read in flight), two asks are one read
+const ON_GONE_READS = 32;
 
 let srv;
 let R; // the router module of the last boot
@@ -227,7 +229,9 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   // small makes the same reads, its lessons' half starting as soon as the lessons are in (2 round trips sooner).
   // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
   // beside a read already in flight (no new round trip); + the story-counts switch's read on the home and the shell (+1 each)
-  const PINS = { long: { reads: 50, waves: 15 }, small: { reads: 47, waves: 13 }, big: { reads: 50, waves: 15 }, shell: { reads: 5, waves: 2 } };
+  // - the hub switches' duplicate reads on the home (-2): its three callers (waves 4, 4, 5) share the one read in flight
+  // (web-quiz-hub-flags flags(), #2841); the same waves, the same wave list but for those two lines
+  const PINS = { long: { reads: 48, waves: 15 }, small: { reads: 45, waves: 13 }, big: { reads: 48, waves: 15 }, shell: { reads: 5, waves: 2 } };
   test.each([
     ['long', {}],
     ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
