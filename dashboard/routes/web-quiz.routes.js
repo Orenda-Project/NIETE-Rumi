@@ -800,8 +800,11 @@ function paceVersion() {
 function paceTag(payload) {
   const m = payload && (payload.pace === 'sky' || payload.pace === 'vine') ? payload.pace : null;
   if (!m) return '';
-  // the Challenge's menu carries the child's form (G1…G5): the meter fills at that grade's pace (none ⇒ the kinder G1–2)
-  const g = payload && typeof payload.form === 'string' && /^[A-Za-z0-9-]{1,8}$/.test(payload.form) ? ` data-grade="${payload.form}"` : '';
+  // the child's grade: the Challenge's menu carries their form (G1…G5), the hub its chosen child's row; the meter fills
+  // at that grade's pace (none ⇒ the middle grade's)
+  const kid = payload && payload.kid && Array.isArray(payload.kids) ? payload.kids.find((k) => k && k.chip === payload.kid) : null;
+  const form = payload && payload.form != null ? payload.form : kid && kid.grade != null ? String(kid.grade) : null;
+  const g = typeof form === 'string' && /^[A-Za-z0-9-]{1,8}$/.test(form) ? ` data-grade="${form}"` : '';
   return `<link rel="stylesheet" href="/wq/wq-pace.css?v=${paceVersion()}">\n<script src="/wq/wq-pace.js?v=${paceVersion()}" data-meter="${m}"${g} defer></script>\n`;
 }
 function listenTag(payload) {
