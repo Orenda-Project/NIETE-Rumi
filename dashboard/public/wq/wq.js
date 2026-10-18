@@ -3048,7 +3048,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
       '<span>' + esc(T.avg) + '</span><span>' + esc(v.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
       '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
-      '<button class="wq-btn wq-go" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
+      // the look: a long table keeps its one primary on the screen (sticky at the bottom until the page reaches it)
+      '<button class="wq-btn wq-go' + (b.class_doors && advOn() ? ' wq-stick' : '') + '" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
       (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
     render(h, 'M11');
