@@ -107,6 +107,9 @@ describe('wq.css: the one button component', () => {
     expect(CSS).toContain('html.wq-1b[lang=ur] .wq-social .wq-soc span{position:relative;top:-5px}');
     expect(CSS.indexOf(rule)).toBeGreaterThan(CSS.indexOf('html.wq-1b .wq-btn.wq-soft:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-soft:not([class*="wq-btn--"]){height:var(--btn-h2)}'));
   });
+  test('the teacher\'s practice preview: its "what your class sees" strip is a card (--r-card), so the preview draws three radii', () => {
+    expect(CSS).toContain('html.wq-1b .wq-prstrip{border-radius:var(--r-card)}');
+  });
   test('the answer shapes keep their own corners (a colour-blind cue, a glyph, not a box): no wq-1b rule rounds .wq-shp', () => {
     expect(CSS).not.toMatch(/html\.wq-1b[^{}]*\.wq-shp[^{}]*\{[^}]*border-radius/);
   });

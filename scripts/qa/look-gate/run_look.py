@@ -188,6 +188,11 @@ def main():
                             page.wait_for_selector('[data-screen]', timeout=8000)
                             page.evaluate(CARD_JS, [pg['lang'], man['token'], man['kid']])
                             shot('story-done')
+                        elif pg['kind'] == 'practice':
+                            page.goto(base + pg['path'], wait_until='load')
+                            page.wait_for_selector('[data-screen]', timeout=8000)
+                            page.wait_for_timeout(600)
+                            shot('practice-home')
                         elif pg['kind'] == 'shelf':
                             page.goto(base + pg['path'] + '?wait=1#stories', wait_until='load')
                             page.wait_for_selector('[data-screen]', timeout=8000)

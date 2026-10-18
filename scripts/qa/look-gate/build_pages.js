@@ -56,6 +56,11 @@ function main() {
     sb.stories = { on: true };
     fs.writeFileSync(path.join(out, 'pages', `shelf-${lang}.html`), renderHubPage({ payload: field(sb), token: TOKEN, origin: ORIGIN, assetV: 'look' }));
     manifest.push({ name: `shelf-${lang}`, kind: 'shelf', lang, path: `/h/shelf-${lang}` });
+    // a teacher's practice preview of the class's home (B.practice: "This is what your class sees")
+    const pb = { ...hubBoot(lang), practice: true, grade: '3', kids: [], kid: null, practice_back: `/h/back-${lang}` };
+    delete pb.class_doors;
+    fs.writeFileSync(path.join(out, 'pages', `practice-${lang}.html`), renderHubPage({ payload: field(pb), token: TOKEN, origin: ORIGIN, assetV: 'look' }));
+    manifest.push({ name: `practice-${lang}`, kind: 'practice', lang, path: `/h/practice-${lang}` });
     const shape = Matrix.shapes(lang).find((s) => s.id === `${lang}-single-3`);
     const q = Matrix.pageFor(shape);
     const { renderQuizPage } = require(path.join(ROOT, 'dashboard/routes/web-quiz.routes'));
