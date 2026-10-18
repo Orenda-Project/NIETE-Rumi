@@ -12,6 +12,9 @@
  *      whose NAME is its version (wq-nastaliq-<n>.woff2), keeps its year.
  *   3. The page shells name Jugnu's pictures with ?v=<sha256 of the picture, 10 hex>: html sent with res.send, and
  *      the streamed page (web-quiz-stream.js reads res.locals.wqHtml). Not on a link-preview fetch (today's page).
+ *      Before the page's first script they carry window.WQJV, every Jugnu picture's version, and window.wqjv(url)
+ *      (picMapScript), so the page scripts name the pictures they build the same way (their jv(url)); with the
+ *      switch off there is neither and the scripts build today's URLs.
  *
  * Switch off: nothing here touches the request or the answer (today's bytes and headers), whatever web_quiz_fast says.
  */
@@ -44,6 +47,14 @@ function brotli(buf) {
 function versionOf(req) {
   const v = req.query && req.query.v;
   return typeof v === 'string' && v !== '' ? v : null;
+}
+
+/**
+ * The inline script that names Jugnu's pictures for the page scripts: window.WQJV (path under /wq/ -> version) and
+ * window.wqjv(url), the url with ?v=<its version> when the picture is in the map, else the url as it is.
+ */
+function picMapScript(map) {
+  return `<script>window.WQJV=${JSON.stringify(map)};window.wqjv=function(u){var m=window.WQJV,k=String(u).replace(/^\\/wq\\//,'');return typeof m[k]==='string'?u+'?v='+m[k]:u};</script>`;
 }
 
 /**
@@ -115,26 +126,69 @@ function createWqStatic({ publicDir, on }) {
     return req.method === 'HEAD' ? res.end() : res.end(c.br);
   }
 
+  /** A picture's version (sha256 of the file, 10 hex) by its path under /wq/, cached by size+mtime; null when missing. */
+  function picVersion(rel) {
+    const url = `/wq/${rel}`;
+    const file = path.join(dir, rel);
+    let st;
+    try { st = fs.statSync(file); } catch (_) { return null; }
+    if (!st.isFile()) return null;
+    const key = keyOf(st);
+    let p = picV.get(url);
+    if (!p || p.key !== key) {
+      try { p = { key, v: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 10) }; } catch (_) { return null; }
+      picV.set(url, p);
+    }
+    return p.v;
+  }
+
   /** The pictures' ?v= in a page's html (the switch is on: read once, when the page's answer starts). */
   function versionPics(html) {
     return html.replace(PIC_RX, (all, src, url) => {
-      const file = path.join(dir, url.slice('/wq/'.length));
-      let st;
-      try { st = fs.statSync(file); } catch (_) { return all; }
-      const key = keyOf(st);
-      let p = picV.get(url);
-      if (!p || p.key !== key) {
-        try { p = { key, v: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 10) }; } catch (_) { return all; }
-        picV.set(url, p);
-      }
-      return `${src}${url}?v=${p.v}"`;
+      const v = picVersion(url.slice('/wq/'.length));
+      return v ? `${src}${url}?v=${v}"` : all;
     });
   }
-  const pageHtml = (s) => (typeof s === 'string' ? versionPics(s) : s);
+
+  /**
+   * Every Jugnu picture and loop the page scripts build a URL for (jugnu/<pose>.webp|webm, jugnu_<pose>.webp) and its
+   * version, as the inline script the scripts read (window.WQJV; their jv(url) adds ?v= when the name is in it).
+   * Remade at most every 30 s; '' when the folder cannot be read.
+   */
+  let mapAt = -Infinity;
+  let mapTag = '';
+  function picMapTag() {
+    if (Date.now() - mapAt < 30000) return mapTag;
+    mapAt = Date.now();
+    const map = {};
+    const list = (sub, rx) => { try { return fs.readdirSync(path.join(dir, sub)).filter((n) => rx.test(n)); } catch (_) { return []; } };
+    for (const n of list('jugnu', /^[A-Za-z0-9_-]+\.(webp|webm)$/).sort()) { const v = picVersion(`jugnu/${n}`); if (v) map[`jugnu/${n}`] = v; }
+    for (const n of list('', /^jugnu_[A-Za-z0-9_-]+\.webp$/).sort()) { const v = picVersion(n); if (v) map[n] = v; }
+    mapTag = Object.keys(map).length ? picMapScript(map) : '';
+    return mapTag;
+  }
+
+  /** One page's html as the edge sends it: pictures versioned, and the map before the page's first script (once). */
+  function pageWriter() {
+    let mapped = false;
+    return (s) => {
+      if (typeof s !== 'string') return s;
+      let out = versionPics(s);
+      if (!mapped) {
+        const at = out.indexOf('<script');
+        if (at >= 0) {
+          mapped = true;
+          out = out.slice(0, at) + picMapTag() + out.slice(at);
+        }
+      }
+      return out;
+    };
+  }
 
   function onPage(req, res, next) {
     // a link-preview fetch (a crawler: no pictures loaded) keeps today's page, byte for byte
     if (!switchOn() || isPreviewFetch(req)) return next();
+    const pageHtml = pageWriter();
     res.locals.wqHtml = pageHtml;
     const send = res.send;
     res.send = function sendPage(body) {
@@ -178,4 +232,4 @@ function createWqStatic({ publicDir, on }) {
   return wqStatic;
 }
 
-module.exports = { createWqStatic, V_RX, NAME_RX };
+module.exports = { createWqStatic, picMapScript, V_RX, NAME_RX };

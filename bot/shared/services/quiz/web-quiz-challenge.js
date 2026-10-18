@@ -132,7 +132,7 @@ const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang })
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
 const PARTS = ['intro', 'start', 'stop', 'done'];
 // The quiz's one voice per language (web-quiz-voice.js QUIZ_VOICE), pinned per call: never a fallback provider.
-const { quizVoice, voiceTag, voiceOfTag, setIdOf } = require('./web-quiz-voice');
+const { quizVoice, voiceTag, voiceOfTag, setIdOf, STORY_VOICE } = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 OneVoice.keepFresh();   // clipKey names its voice at once: the switch is read in the background, never on a child's request
 const AudioStore = require('./web-quiz-audio-store');
@@ -168,7 +168,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /**
  * An app_settings switch, true only when its value reads true (fails closed), cached for 30 s.
@@ -390,11 +390,14 @@ async function entryOf(token, kid, device) {
  * unknown, never its first digit.
  */
 async function gradeInfo(entry, { fast = false } = {}) {
+  // Inside a hub answer with web_quiz_hub_child_memo on, the child's rows are that answer's shared read (else read here).
+  const ChildRows = require('./web-quiz-hub-child-rows');
+  const kidRead = () => ChildRows.read('students', [entry.studentId], 'id, list_id, self_reported_class, student_name', () => supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle(), { single: true });
   // Fast pages: the enrolment and the child's row need only the child's id, so they are read together.
-  const kidP = fast ? Fast.early(Promise.resolve(supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle())) : null;
-  const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
-    .eq('student_id', entry.studentId).eq('is_active', true);
-  const { data: kid, error: kidErr } = await (kidP || supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle());
+  const kidP = fast ? Fast.early(Promise.resolve(kidRead())) : null;
+  const { data: enr } = await ChildRows.read('class_enrollments', [entry.studentId], 'id, class_id, student_id, is_active', () => supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
+    .eq('student_id', entry.studentId).eq('is_active', true));
+  const { data: kid, error: kidErr } = await (kidP || kidRead());
   // A refused read (a column that is not there, a pooler error) is logged at error level: silently falling through
   // to the next grade source is how a wrong column name once passed every test.
   if (kidErr) logError('web_quiz.ch_student_read_failed', { code: kidErr.code || null, error: String(kidErr.message || kidErr).slice(0, 160) });
@@ -405,7 +408,7 @@ async function gradeInfo(entry, { fast = false } = {}) {
     if (g) return { grade: g, source: 'enrolment', name };
   }
   if (kid && kid.list_id) {
-    const { data: list } = await supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle();
+    const { data: list } = await ChildRows.read('student_lists', [kid.list_id], 'id, class_name', () => supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle(), { single: true });
     const g = list && gradeNum(list.class_name);
     if (g) return { grade: g, source: 'list', name };
   }
@@ -574,13 +577,15 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
-// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the plan voice's exact rendering.
+// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the storybook voice's exact rendering
+// (web-quiz-voice.js STORY_VOICE), never the voice the plan gives the quiz lines.
 // A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
 // rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
 function clipKey(ex, part, lang, text) {
-  // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz).
+  // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz); a language
+  // it names takes the storybook voice (STORY_VOICE), whatever voice the plan gives the quiz lines.
   const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);
-  const one = plan ? quizVoice(lang, { oneVoice: plan }) : null;
+  const one = plan ? STORY_VOICE[lang] || null : null;
   const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
   return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });
 }
@@ -599,20 +604,45 @@ function kbpsOfKey(key) {
   return (m && Number(m[2])) || 64;
 }
 
-// → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy or failed).
-async function recordClip(key, text, lang, now = Date.now()) {
+// With one voice per quiz, in a language the plan voices, nothing is recorded on the fly (a paid call at an unknown
+// moment): a long clip (a listening story, a Story Time read-along: read slowly with pauses, each take checked before
+// it is stored) never; a short line only by the pre-flip batch (`batch`, scripts/quiz/one-voice-missing-keys.js
+// --record-short). A refusal is logged once per key per process with `web_quiz.ch_clip_ungated_refused`.
+const LONG_KEY = /\/(listen|read)\/story-[^/]*\.ogg$/;
+const PART_OF_KEY = /\/challenge\/[^/]+\/([^/]+)\/(.+?)-(?:sx|el|oa)-/;
+const clipRefused = new Set();
+function refused(key, lang, batch) {
+  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);   // a language the plan leaves out: today's recorder
+  if (!plan) return false;
+  const long = LONG_KEY.exec(String(key || ''));
+  if (!long && batch) return false;
+  if (!clipRefused.has(key)) {
+    clipRefused.add(key);
+    const m = long ? [null, long[1], 'story'] : PART_OF_KEY.exec(String(key || '')) || [null, null, null];
+    logEvent('web_quiz.ch_clip_ungated_refused', { lang, ex: m[1], part: m[2], plan: plan.sig });
+  }
+  return true;
+}
+
+// → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy, refused or failed).
+// With one voice per quiz the Urdu words the voice misreads are respelled for it (web-quiz-ur-say.js); the key is the
+// screen text's. `level`: (audio) → audio, applied before the clip is stored (the batch levels to the plan's loudness).
+async function recordClip(key, text, lang, now = Date.now(), { batch = false, level = null } = {}) {
+  if (refused(key, lang, batch)) return null;
   if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return null;
   clipRecording.add(key);
   clipsRecorded += 1;
   try {
     const tts = require('../tts');
     const v = voiceOfKey(key, lang);
+    const said = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
     const out = await tts.synthesize({
-      text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
+      text: said, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
       // the one voice: its model, settings and the key's rate, asked of the provider (its own bytes, never re-encoded)
       ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${kbpsOfKey(key)}` } : {}),
     });
+    if (level) out.audio = await level(out.audio);
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
     logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10, chars: [...String(text)].length, costUsd: clipCostUsd(out) });
@@ -775,7 +805,7 @@ async function menu(token, { kid, lang, device } = {}) {
   const listenOk = (await got('listen', () => listenOn())) && !!(await storyClip(w.lang));
   // challenge v2: under _period a stop is done from THIS period's record row (trailStateFor); under _pool the Trail order
   const trailNow = rules.period ? await got('trail', () => periodTrail(w)) : null;
-  return {
+  const menuOut = {
     form: `G${w.form}`,
     lang: w.lang,
     exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
@@ -803,6 +833,8 @@ async function menu(token, { kid, lang, device } = {}) {
     // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
     ...(await got('no_class', () => require('./web-quiz-hub-door').noClassField(w.studentId))),
   };
+  // the read-along player's preload (web_quiz_ra_preload): a cached answer, never waited for; off ⇒ the menu untouched
+  return require('./web-quiz-ra-preload').mark(menuOut);
 }
 
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
@@ -869,7 +901,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
     story: ex === 'listen' && !v2 ? Fast.early(storyClip(w.lang)) : null,
     live: ex === 'read' ? Fast.early(liveOn()) : null,
-    previous: ex === 'read' && !rules.record ? Fast.early(previousRun(w.studentId, 'read', w.lang)) : null,
+    previous: ex === 'read' && !rules.record ? Fast.early(previousRun(w.studentId, 'read', w.lang, w.form)) : null,
     questions: ex === 'read' ? Fast.early(questionsOn()) : null,
   } : null;
   const got = (key, start) => (page ? page[key] : start());
@@ -914,7 +946,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const st = (v2 && v2.story) || spec.story || {};
   const live = await got('live', () => liveOn());
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
-  const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang))) || {}).wcpm) : undefined;
+  const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang, w.form))) || {}).wcpm) : undefined;
   const out = { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
     ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
     // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
@@ -1784,12 +1816,16 @@ async function runState(c) {
  * The child's last scored run of this exercise, for "7 more words than last time!" (null the first time). A reading
  * compares only with readings in the same language: the Urdu and English stories are different passages.
  */
-async function previousRun(studentId, exercise, lang = null) {
-  let qb = supabase.from('web_quiz_challenge_runs').select('id, exercise, status, score, wcpm, created_at')
+async function previousRun(studentId, exercise, lang = null, form = null) {
+  // web_quiz_read_feedback on, a read with its text level (form): "last time" is the child's last read at that level, so
+  // a harder or easier passage never reads as growth or its loss; none at that level ⇒ the last read of any (one query)
+  const level = exercise === 'read' && form != null && (await require('./web-quiz-read-feedback').on()) ? String(form).replace(/\D/g, '') : '';
+  let qb = supabase.from('web_quiz_challenge_runs').select(level ? 'id, exercise, status, score, wcpm, created_at, form' : 'id, exercise, status, score, wcpm, created_at')
     .eq('student_id', studentId).eq('exercise', exercise).eq('status', 'scored');
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
-  const { data, error } = await qb.order('created_at', { ascending: false }).limit(1);
-  const r = !error && data && data[0];
+  const { data, error } = await qb.order('created_at', { ascending: false }).limit(level ? 10 : 1);
+  const rows = (!error && data) || [];
+  const r = (level && rows.find((x) => String(x.form || '').replace(/\D/g, '') === level)) || rows[0];
   if (!r) return null;
   const s = r.score || {};
   return exercise === 'read' ? { wcpm: r.wcpm, correct: s.correct, at: r.created_at } : { correct: s.correct, n: s.n, at: r.created_at };
@@ -1956,7 +1992,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   if (!isLive) Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
-  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang);
+  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang, run.form);
   const readRun = sv && sv.passage_id ? { ...run, passage: passageFor(sv.passage_id, Bank) } : run;
   const story = (withPassage(Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }), readRun.passage).story || {});
   const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
@@ -2380,6 +2416,7 @@ const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsR
 Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
 
 module.exports = {
+  _previousRun: previousRun,
   menu, exercise, entryOf, presignUpload, submit, poll, readLength, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,

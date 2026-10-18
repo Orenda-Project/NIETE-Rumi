@@ -518,9 +518,10 @@ describe('read-along player: the page', () => {
     expect(RA.sayLine('not json', 0)).toBeNull();
   });
 
-  test('size budget: ≤ 8 KB gzipped', () => {
+  // 9 KB since the opt-in gaps between phrases (the storybook's Slower) came into the player
+  test('size budget: ≤ 9 KB gzipped', () => {
     expect(SRC.length).toBeGreaterThan(0);
-    expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);
+    expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(9216);
   });
 });
 

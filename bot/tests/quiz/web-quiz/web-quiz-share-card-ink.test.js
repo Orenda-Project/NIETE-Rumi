@@ -241,6 +241,8 @@ run('an Urdu share picture never cuts its own text', () => {
       // the closing "!" set against its word (it stood a gap apart)
       expect([p.label, /!<\/div>|!<\/span><\/div>/.test(p.html.replace(/<span class="ex">!<\/span>/g, ''))]).toEqual([p.label, false]);
       expect([p.label, p.html.includes('.ex{margin-inline-start:-')]).toEqual([p.label, true]);
+      // the deed's tall letters and tails inside its own padding box (given back as margin: nothing moves)
+      expect([p.label, /\.deed\{[^}]*padding:\.4em 0 \.25em;margin:-\.4em 0 -\.25em/.test(p.html)]).toEqual([p.label, true]);
     }
   });
 

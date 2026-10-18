@@ -28,7 +28,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const HubDevice = require('./web-quiz-hub-device');
 
 // The notice's wording version (jg.keep.notice): a new wording is shown again to every child on every phone.
-const NOTICE_V = 1;
+// 2: the true words (no end date yet; only the people who make Jugnu can listen; STOP removes the number, recordings stay).
+const NOTICE_V = 2;
 
 const KEYS = {
   challenge: 'web_quiz_challenge',
@@ -38,6 +39,7 @@ const KEYS = {
   consent: 'web_quiz_challenge_audio_consent',
   keep: 'web_quiz_challenge_keep_audio',
 };
+const RaPre = () => require('./web-quiz-ra-preload');   // lazy: the preload's keys ride this read
 const TTL_MS = 30 * 1000;
 const OFF = Object.freeze({ challenge: false, v2: false, pool: false, story: false, consent: false, keep: false });
 let cache = null;
@@ -51,15 +53,17 @@ function isTrue(value) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [...Object.values(KEYS), ...RaPre().KEYS]);   // + the read-along preload's keys: still one read
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const raw = Object.fromEntries(Object.entries(KEYS).map(([k, key]) => [k, isTrue(by[key])]));
     const v2 = raw.challenge && raw.v2;
+    RaPre().feed(data);
     cache = { at: now, challenge: raw.challenge, v2, pool: v2 && raw.pool, story: v2 && raw.story, consent: v2 && raw.consent, keep: raw.keep };
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz trail v2: settings lookup failed — v2 off', { error: err.message });
+    RaPre().feed(null);
     return OFF;
   }
 }

@@ -24,6 +24,7 @@
   var UR2 = false;
   try { UR2 = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('wq-ur2')); } catch (e) { UR2 = false; }
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   var JUG = '/wq/jugnu/';
 
   var T = {
@@ -365,7 +366,7 @@
   // ── the mascot: a bubble and, when there is one, its recorded clip ────────────────────────────────
   var player = null;
   function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + JUG + pose + '.webp" alt="" width="92" height="92"></span>'
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + jv(JUG + pose + '.webp') + '" alt="" width="92" height="92"></span>'
       + '<div class="wq-say" id="wqc-say">' + esc(line) + '</div></div>';
   }
   function say(clip, cb) {
@@ -408,7 +409,8 @@
   function show(name, html) {
     S.screen = name;
     // a stop played again on the trail: every screen of it says it is practice, scored into nothing
-    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
+    // (under live reading v3 never on the microphone notice: "just for fun" and "Jugnu keeps the recordings" are never one screen)
+    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round && !(name === 'mic-notice' && lr3()) ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
     root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + roundSay + '</section>';
@@ -1292,7 +1294,7 @@
       + '<p class="wq-sub" id="wqc-growth"></p>'
       + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
       + '<p class="wqc-key"><span><i style="background:' + (lr3() ? '#BBF7D0' : 'var(--right-bg)') + '"></i>' + esc(t.readGreen) + '</span><span><i style="' + (lr3() ? 'box-shadow:inset 0 -3px 0 #E65100' : 'background:#FFF1D6') + '"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
-      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>') + '</div>');
+      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + rfHome(rfh) + '</div>' : (rfh ? '<div class="wq-stack">' : '') + '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>' + (rfh ? rfHome(rfh) + '</div>' : '')) + '</div>');
     if (good) say(d.clips.done);
     rfSound();
     qa.attempted = live.v.attempted;
@@ -1403,11 +1405,17 @@
   // still: a redraw of this run's result (no motion again); hold: the live card before the check ("read it again"
   // waits for the checked result)
   var rfLast = null;
+  // the moment's card ends with a way Home (the hub of this token), like the Trail's card: never only "More challenges"
+  function rfHome(rf) {
+    if (!rf || !boot.token || !window.WQMoment || !window.WQMoment.label) return '';
+    var href = '/h/' + encodeURIComponent(boot.token) + (boot.kid ? '?kid=' + encodeURIComponent(boot.kid) : '');
+    return '<a class="wq-btn wq-soft" id="wqc-rfhome" data-home href="' + esc(href) + '">' + esc(window.WQMoment.label(L, 'home')) + '</a>';
+  }
   function rfBlock(o, inner, still, hold) {
     rfLast = null;
     if (!rfOn() || !window.WQMoment || !o) return '';
     rfLast = window.WQMoment.feedback(o);
-    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold });
+    var h = window.WQMoment.card(rfLast, L, { grade: menuData.form, still: still || (window.WQMoment.fresh && !window.WQMoment.fresh(rfKey())), hold: hold, once: true });
     return inner ? h : '<div id="wqc-rf">' + h + '</div>';
   }
   function rfKey() { return ((S.data && S.data.ct) || '') + '|page'; }
@@ -1557,7 +1565,7 @@
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
         ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
-        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
+        : (heardWell && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + rfHome(rf) + '</div>');
     if (said) say(d.clips.done);
     if (rf) rfSound();
     if (said) qa.attempted = r.score && r.score.attempted;

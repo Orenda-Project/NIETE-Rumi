@@ -2,7 +2,7 @@
 /**
  * The kid hub's switches (app_settings web_quiz_hub / web_quiz_challenge / web_quiz_library / web_quiz_hub_door /
  * web_quiz_child_quiz_home / web_quiz_events_v2 / web_quiz_challenge_v2 / web_quiz_challenge_rungs / web_quiz_readalong /
- * web_quiz_wait_ux / web_quiz_server_timing / web_quiz_hub_fanout),
+ * web_quiz_wait_ux / web_quiz_server_timing / web_quiz_hub_fanout / web_quiz_hub_child_memo),
  * read like web-quiz-link.js (30 s cache, fail closed), and the hub link WhatsApp /quiz sends.
  * Its own module so student-quiz.service can send the link without loading web-quiz-hub.js
  * (which reads student-quiz.service): no require cycle.
@@ -40,14 +40,44 @@ const WAIT_UX_KEY = 'web_quiz_wait_ux';
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // The hub's reads started together and its switches kept warm (web-quiz-hub.js, web-quiz-hub-warm.js): only JSON true.
 const FANOUT_KEY = 'web_quiz_hub_fanout';
+// The children's own rows read once per hub answer (web-quiz-hub-child-rows.js): only JSON true.
+const CHILD_MEMO_KEY = 'web_quiz_hub_child_memo';
 // The one share (web-quiz-card-switch.js: the card on AND the share on, each only as JSON true) rides this read too, so
 // a home link (the join's, a hub reply's) learns whether to look for a shared card's kept item with no read of its own.
 const CARD_KEY = 'web_quiz_card_v3';
 const SHARE_KEY = 'web_quiz_share_v4';
+// The portal learns the page switches from the bot (web-quiz-edge-learn.js): read in this same query, so the hub answer
+// can say it is on (`edge_learn: true`) with no settings read of its own. JSON true only.
+const EDGE_LEARN_KEY = 'web_quiz_edge_learn';
+// The bar also shows while the page is left (web-quiz-wait-hops.js), with the designed wait on: this same read, JSON true only.
+const HOPS_KEY = 'web_quiz_wait_hops';
 // The child home's files preloaded in the head the edge sends before the hub answers: the hub JSON names it (`home_pre`).
 const HOME_PRELOAD_KEY = 'web_quiz_home_preload';
+// The wordless first paint (web-quiz-plain-paint.js) rides this read on the hub, so a child's home adds no settings read.
+const PLAIN_PAINT_KEY = 'web_quiz_plain_paint';
+// The closed and not-open pages in the child's language (web-quiz-closed-lang.js) ride this read on the hub, so a
+// child's home adds no settings read for it.
+const CLOSED_LANG_KEY = 'web_quiz_closed_lang';
+// web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
+const WAVES2_KEY = 'web_quiz_hub_waves2';
+// The live reading meter (web-quiz-live-read-v3.js meter/forHub): its variant and its parent (live reading v3) ride this
+// one read, so the hub learns the meter with no settings read of its own. 'sky' | 'vine' (a JSON true is 'sky'), else null.
+const LIVE_METER_KEY = 'web_quiz_live_meter';
+const LIVE_READ_V3_KEY = 'web_quiz_live_read_v3';
+// the page asks the Videos door's lists once the home has painted (the boot's `wait_pre`, with web_quiz_wait_ux only)
+const PREFETCH_KEY = 'web_quiz_doors_prefetch';
+// the early page draws Home as the child last saw it in this tab (the boot's `wait_home`, with web_quiz_wait_ux only)
+const HOME_KEY = 'web_quiz_wait_home';
+const METERS = ['sky', 'vine'];
+function meterOf(value) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+  if (isTrue(v)) return 'sky';
+  const n = typeof v === 'string' ? v.trim().toLowerCase() : '';
+  return METERS.indexOf(n) >= 0 ? n : null;
+}
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, shareOpen, adv, homePreload }
+let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, childMemo, shareOpen, adv, homePreload, waves2, hops, prefetch, home }
 
 function isTrue(value) {
   let v = value;
@@ -55,7 +85,7 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY, PREFETCH_KEY, HOME_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -63,16 +93,20 @@ function fromRows(data, now) {
     homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
     challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), oneButton: by[ONE_BUTTON_KEY] === true, waitUx: by[WAIT_UX_KEY] === true,
     // only the JSON boolean true (the string 'true', 1 or an object are off)
-    serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true,
+    serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true, childMemo: by[CHILD_MEMO_KEY] === true,
     shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true,
-    homePreload: by[HOME_PRELOAD_KEY] === true };
+    edgeLearn: by[EDGE_LEARN_KEY] === true,
+    homePreload: by[HOME_PRELOAD_KEY] === true, closedLang: by[CLOSED_LANG_KEY] === true, plainPaint: by[PLAIN_PAINT_KEY] === true, waves2: by[WAVES2_KEY] === true, liveMeter: meterOf(by[LIVE_METER_KEY]), liveReadV3: isTrue(by[LIVE_READ_V3_KEY]), hops: by[HOPS_KEY] === true, prefetch: by[PREFETCH_KEY] === true, home: by[HOME_KEY] === true };
 }
 
 /**
  * Another module's one app_settings read that asked for KEYS too (the join's, quiz_join_fast) fills an empty or
- * expired cache from its rows, so no second read follows; a live cache is left as it is.
+ * expired cache from its rows, so no second read follows; a live cache is left as it is. `asked` is the key list that
+ * read asked for: a list missing one of KEYS throws; a key asked for with no row is the normal off.
  */
-function prime(rows, now = Date.now()) {
+function prime(rows, now = Date.now(), asked = KEYS) {
+  const missing = KEYS.filter((k) => !asked.includes(k));
+  if (missing.length) throw new Error(`hub flags primed by a read that did not ask for ${missing.join(', ')}`);
   if (cache && now - cache.at < TTL_MS) return;
   cache = fromRows(rows, now);
 }
@@ -94,7 +128,7 @@ async function read(now) {
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false };
+    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false, edgeLearn: false, hops: false, prefetch: false, home: false };
   }
 }
 
@@ -152,9 +186,34 @@ function waitUxNow(now = Date.now()) {
   return Boolean(cache && cache.waitUx && now - cache.at < 2 * TTL_MS);
 }
 
+/** web_quiz_wait_hops from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function hopsNow(now = Date.now()) {
+  return Boolean(cache && cache.hops && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_doors_prefetch from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function prefetchNow(now = Date.now()) {
+  return Boolean(cache && cache.prefetch && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_wait_home from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function homeNow(now = Date.now()) {
+  return Boolean(cache && cache.home && now - cache.at < 2 * TTL_MS);
+}
+
 /** web_quiz_hub_fanout from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
 function fanoutNow(now = Date.now()) {
   return Boolean(cache && cache.fanout && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_hub_waves2 from the same cache, never read here: on only with fanout on (the shorter chains run inside its branch). */
+function waves2Now(now = Date.now()) {
+  return Boolean(fanoutNow(now) && cache.waves2);
+}
+
+/** web_quiz_hub_child_memo from the hub's own switch cache, never read here: as fanoutNow. */
+function childMemoNow(now = Date.now()) {
+  return Boolean(cache && cache.childMemo && now - cache.at < 2 * TTL_MS);
 }
 
 /**
@@ -166,12 +225,27 @@ function serverTimingNow(now = Date.now()) {
   return Boolean(cache && cache.serverTiming === true && now - cache.at < 2 * TTL_MS);
 }
 
+/** web_quiz_edge_learn, never waited for: the hub's cached value (the hub's read has just run on a hub answer); off when none. */
+function edgeLearnNow(now = Date.now()) {
+  return Boolean(cache && cache.edgeLearn === true && now - cache.at < TTL_MS);
+}
+
 /**
  * The one share on, never read on its own: only the cache this module's read (or the join's) keeps warm, as waitUxNow.
  * A home link is made right after hubLink() read it, so off (or a failed read) asks nothing more. Never throws.
  */
 function shareOpenNow(now = Date.now()) {
   return Boolean(cache && cache.shareOpen && now - cache.at < TTL_MS);
+}
+
+/** web_quiz_plain_paint from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function plainPaintNow(now = Date.now()) {
+  return Boolean(cache && cache.plainPaint && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_closed_lang from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function closedLangNow(now = Date.now()) {
+  return Boolean(cache && cache.closedLang && now - cache.at < 2 * TTL_MS);
 }
 
 /** The quiz page's `nav` ({home, back}) when either switch is on, else null (the payload stays today's). Never throws. */
@@ -207,4 +281,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, fanoutNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; } };
+module.exports = { flags, prime, KEYS, homeNow, HOME_KEY, prefetchNow, PREFETCH_KEY, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY };

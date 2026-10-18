@@ -76,6 +76,12 @@
       };
     }
     function live() { return R.live(); }
+    // the mic is on only while a child reads: off when a read ends, the page or reader is left, or it comes too late
+    function stopTracks(s) { try { s.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {} }
+    function free() { stopTracks(stream); stream = null; }
+    var set0 = m.set, go0 = m.go;
+    m.set = function (st) { if (st != 'reading' && st != 'echo') free(); return set0.apply(m, arguments); };
+    m.go = function () { free(); return go0.apply(m, arguments); };
     // the page's lines after Your turn (the states below are reached only through this file): praise, a word to
     // practise, the kind words, Read it together
     R.ex = function (s, p) {
@@ -90,8 +96,8 @@
       return h;
     };
     var micO = {
-      lang: L, src: 'story', ev: ctx.ev, hash: !!b.steady,
-      onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
+      lang: L, src: 'story', ev: ctx.ev, hash: !!b.steady, notice: { kid: ctx.kid, keep: !!b.lr3_keep },
+      onStream: function (s) { if (m.st == 'mic' && R.live()) { free(); stream = s; m.granted(); } else stopTracks(s); },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') m.notNow(); },
     };
@@ -158,7 +164,9 @@
       sum = null;
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
-      R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read', absorbed: s.absorbed || void 0 }, m.i);
+      var d = { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read', absorbed: s.absorbed || void 0 }, n = micO.notice;
+      if (n.shown && n.keep) { d.notice = 2; n.shown = 0; }   // the kept notice was shown: once, for the Trail (TrailPage.NOTICE_V)
+      R.pp('story_page_read', d, m.i);
       if (b.lrr) s = W.WQLiveRead.practice(s, P[m.i].words, true);
       rd = { s: s, i: m.i };
       m.result(s);
@@ -167,7 +175,13 @@
       Mq('after');
     }
 
-    function eGo() { eo = { s: sents(P[m.i].words), k: 0, f: m.st }; m.set('echo'); }
+    function eGo() {
+      eo = { s: sents(P[m.i].words), k: 0, f: m.st };
+      // the read gave the mic back: the live reader asks again inside this tap
+      var LR = W.WQLiveRead, again = !stream && LR && LR.micAgain && LR.micAgain(), me = eo;
+      if (again) again.then(function (s) { if (eo == me && m.st == 'echo' && R.live()) stream = s; else stopTracks(s); }, function () {});
+      m.set('echo');
+    }
     function eScreen() {
       var p = P[m.i];
       paint(scr('story-echo', L, top(L, ic(t, 'eend', t.close, '✕'), b.title, 1) +
@@ -316,11 +330,27 @@
       if (root.setAttribute) root.setAttribute('data-steady', '');
       onW('offline', function () { if ((m.st === 'listening' || eo) && !full(aud())) down(); });
       onW('online', function () { if ((R.nw || root.querySelector('.wqs-bad')) && /^(idle|paused|listened|together|denied|read|practise|picture)$/.test(m.st)) { R.nw = 0; R.re(); } });
-      onW('pagehide', function () { R.fl(1); });   // keepalive: the send outlives the closing in-app browser
+      onW('pagehide', function () { free(); R.fl(1); });   // keepalive: the send outlives the closing in-app browser
     }
+    // the mic is given back when the book is left (Back, Home, another book: kill -> R.un) and when the tab closes
+    // (pagehide: with the setting on, the listener above); no listener of its own stays on the window
+    else if (W.addEventListener) onW('pagehide', free);
+    var un0 = R.un;
+    R.un = function () { free(); un0(); };
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
 
+    // Slower turned on (its switch) while the page waits is heard in the tap: before the first Listen it is that Listen;
+    // else this (or, heard to the end, the last) sentence again from its first word's own start; rate() keeps the pauses
+    function slw() {
+      var p = R.pl, ws = P[m.i].words, k = p && p.current, s = 0, o;
+      try { o = W.localStorage.getItem('wq_st_slow:' + (ctx.kid || '')) !== '1'; } catch (e) { /* off */ }
+      if (!b.slow_gaps || !o || !p || !/^(idle|paused|listened)$/.test(m.st)) return;
+      p.slow(1, b.slow_gaps);
+      if (k < 0 && m.st !== 'listened') return m.label() === 'listen' ? m.primary() : m.altTap();
+      sents(ws).forEach(function (x) { if (k < 0 || x[0] <= k && k <= x[1]) s = x[0]; });
+      R.ac(1); p.seekToWord(s); p.audio.currentTime = ws[s].s_ms / 1000; m.set('listening');
+    }
     var A = {
       mic: micScreen, read: function () { sum = null; readScreen(); }, q: dv('q'), d: dv('d'), e: eScreen,
       act: function (tap, arg) {
@@ -336,6 +366,7 @@
         else if (tap === 'rfhear' && rd) Mq('hear', { rd: rd, sents: sents });
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
+        else if (tap === 'slow') { slw(); return false; }   // wq-stories.js keeps the toggle
         else if (D) return D.act(tap, arg);
         else return false;
         return true;

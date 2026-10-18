@@ -61,9 +61,12 @@ def server(out_dir):
                     if p.endswith('/read'):
                         text = 'پتنگ ہرے پہاڑ کے اوپر اڑی۔ ہوا نرم اور گرم تھی۔' if ur else 'The kite flew over the green hill. The wind was soft and warm.'
                         toks = text.split(' ')
-                        clip = {'text': '', 'url': None}
+                        # the mascot's lines as the bot serves them (bot/shared/config/ux-strings.js wqChRead*), no recorded clip
+                        lines = {'intro': ('یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔', 'Here is a short story. Read it out loud, as well as you can. If a word is hard, go on to the next one.'),
+                                 'start': ('تیار ہو جائیں۔ شروع کریں!', 'Ready? Begin.'), 'stop': ('رک جائیں۔ شکریہ!', 'Stop. Thank you!'), 'done': ('بہت اچھا پڑھا! شاباش!', 'Great reading! Well done.')}
+                        clips = {k: {'text': v[0] if ur else v[1], 'url': None} for k, v in lines.items()}
                         body = {'ex': 'read', 'ct': 'CT-look', 'secs': 60, 'lang': 'ur' if ur else 'en', 'record': True, 'questions_on': True,
-                                'clips': {'intro': clip, 'start': clip, 'stop': clip, 'done': clip},
+                                'clips': clips,
                                 'story': {'text': text, 'dir': 'rtl' if ur else 'ltr', 'tokens': toks, 'lines': [{'from': 0, 'to': len(toks) - 1}]}}
                     else:
                         body = {'lang': 'ur' if ur else 'en', 'form': 'G3', 'record': True, 'exercises': [{'id': 'read', 'name': 'Read aloud', 'mins': 2, 'done': False, 'last': None}]}
@@ -109,6 +112,11 @@ async () => {
   const g = document.querySelector('[data-tap="grownups"]');
   if (!g) return { present: false };
   const out = { present: true, text: (g.innerText || '').trim(), label: g.getAttribute('aria-label') };
+  // a grown-up scrolls to it first: on a short phone it may sit under the fixed doors at rest (still reachable)
+  const doors = document.querySelector('.wq-doors');
+  const above = () => !doors || g.getBoundingClientRect().bottom <= doors.getBoundingClientRect().top;
+  if (!above()) { window.scrollTo(0, document.documentElement.scrollHeight); await new Promise((r) => setTimeout(r, 100)); }
+  out.reachable = above();
   const fire = (t) => { try { g.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 1, isPrimary: true })); } catch (e) { g.dispatchEvent(new Event(t, { bubbles: true })); } };
   fire('pointerdown'); await new Promise((r) => setTimeout(r, 150)); fire('pointerup');
   await new Promise((r) => setTimeout(r, 120));
@@ -130,15 +138,18 @@ async () => {
 }
 """
 
-# The story-done card (shot 3): the shipped finish card mounted on a screen with its Home, as the reader does.
+# The story-done card (shot 3): the shipped finish card mounted as the reader's done screen mounts it (wq-stories-d.js):
+# the host's column holds the reader's own Home, and the card adds Share and the Next tile ("choose a story").
 CARD_JS = r"""
 async ([lang, token, kid]) => {
   const load = (src, css) => new Promise((ok) => { const el = document.createElement(css ? 'link' : 'script'); if (css) { el.rel = 'stylesheet'; el.href = src; } else { el.src = src; } el.onload = ok; el.onerror = ok; document.head.appendChild(el); });
-  await load('/wq/wq-finish-card.css', true); await load('/wq/wq-finish-card.js');
+  await load('/wq/wq-stories.css', true); await load('/wq/wq-finish-card.css', true); await load('/wq/wq-finish-card.js');
   const root = document.getElementById('wq');
-  root.innerHTML = '<section class="wq-screen" data-screen="story-done"><div class="wq-stack" id="lg-stack"></div></section>';
+  const ur = lang === 'ur';
+  root.innerHTML = '<section class="wqs wqs-sheet" data-screen="story-done" lang="' + lang + '" dir="' + (ur ? 'rtl' : 'ltr') + '"><div class="wqs-col" data-col id="lg-stack"><button class="wqs-sec" data-home data-tap="home">' + (ur ? 'ہوم' : 'Home') + '</button></div></section>';
   window.location.hash = '#lg';
-  window.WQFC.mount(document.getElementById('lg-stack'), { source: 'story', ended: true, pages_read: 3, stars: 3, title: lang === 'ur' ? 'لال پتنگ' : 'The red kite', lang, auth: { hub: token, kid }, home: true, ev: function () {} });
+  const next = { kind: 'stories', href: location.pathname + '#stories', title: ur ? 'اور کہانیاں' : 'More stories' };
+  window.WQFC.mount(document.getElementById('lg-stack'), { source: 'story', ended: 'read', pages_read: 3, stars: 3, title: ur ? 'لال پتنگ' : 'The red kite', lang, auth: { hub: token, kid }, home: '#', next, lead: true, whole: true, answered: 0, ev: function () {} });
   await new Promise((r) => setTimeout(r, 400));
   return true;
 }
@@ -177,6 +188,12 @@ def main():
                         page.evaluate('document.fonts.ready.then(()=>1)')
                         page.wait_for_timeout(250)
                         m = page.evaluate(MEASURE_JS)
+                        # a Jugnu bubble on screen with no words; on a done screen, the moment's one Next and its Home
+                        m.update(page.evaluate("""() => {
+                          const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+                          return { emptyBubbles: [...document.querySelectorAll('.wq-say')].filter((e) => vis(e) && !(e.textContent || '').trim()).length,
+                                   moment: { next: vis(document.querySelector('#wqfc-next')), home: vis(document.querySelector('[data-home]')) } };
+                        }"""))
                         m.update({'page': pg['name'], 'lang': pg['lang'], 'width': w, 'view': screen, 'errors': list(errs)})
                         if shots:
                             page.screenshot(path=os.path.join(out_dir, 'shots', '%s-%s-%d.png' % (screen, pg['lang'], w)), full_page=False)
@@ -291,6 +308,10 @@ def verdict(results):
             rows.append({'view': r['page'], 'lang': r['lang'], 'dir': '?', 'width': r['width'], 'ok': False, 'why': ['fatal: ' + r['fatal']]})
             continue
         why = []
+        if r.get('emptyBubbles'):
+            why.append('a Jugnu bubble with no words (%d)' % r['emptyBubbles'])
+        if r.get('view') == 'story-done' and not (r.get('moment', {}).get('next') and r.get('moment', {}).get('home')):
+            why.append('done: no Next and Home (%s)' % json.dumps(r.get('moment')))
         if r['gutter']:
             why.append('gutter %d: ' % len(r['gutter']) + ', '.join('%s L%s R%s' % (g['el'][:40], g['left'], g['right']) for g in r['gutter'][:4]))
         if r['scrollW'] > r['vw']:
@@ -325,6 +346,8 @@ def verdict(results):
                     why.append('hold: the words do not say hold (%r)' % (h.get('text') or '')[:30])
                 if not h.get('tapHint'):
                     why.append('hold: a short tap says nothing')
+                if h.get('reachable') is False:
+                    why.append('hold: under the doors even scrolled to the bottom')
                 if not h.get('labelOnTop'):
                     why.append('hold: the label is covered while held')
                 if not (h.get('ring') and h.get('ringOffset') is not None and 0 < h['ringOffset'] < 100):
@@ -333,8 +356,14 @@ def verdict(results):
             if b['home']:
                 homes.setdefault((r['lang'], r['width']), []).append((r['view'], b))
         rows.append({'view': r['view'], 'lang': r['lang'], 'dir': r.get('dir', 'ltr'), 'width': r['width'], 'ok': not why, 'why': why})
+    # one look per kind of Home: the icon-only one (a top bar's way home) and the labelled one (a done screen's Home,
+    # a secondary button with its icon and word) are two kinds of the one button system; each is the same everywhere
     for (lang, w), hs in homes.items():
-        looks = {tuple(b[k] for k in HOME_KEYS) for _v, b in hs}
+        looks = {(not b.get('icon'),) + tuple(b[k] for k in HOME_KEYS) for _v, b in hs}
+        kinds = {lk[0] for lk in looks}
+        if len(looks) == len(kinds):
+            rows.append({'view': 'home-buttons', 'lang': lang, 'dir': '-', 'width': w, 'ok': True, 'why': ['%d Homes, one look per kind (%s)' % (len(hs), ', '.join(sorted('labelled' if k else 'icon' for k in kinds)))]})
+            continue
         if len(looks) > 1:
             rows.append({'view': 'home-buttons', 'lang': lang, 'dir': '-', 'width': w, 'ok': False,
                          'why': ['%d Home looks: ' % len(looks) + ' | '.join('%s %s h%s r%s' % (v, b['el'][:24], b['h'], b['radius']) for v, b in hs[:6])]})
