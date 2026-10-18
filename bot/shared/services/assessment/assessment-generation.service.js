@@ -942,7 +942,7 @@ const RULE = {
       + 'A Q6 is never "which map, which medium or which government for each need": such items go to Q7 as one-fact items. '
       + 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5.',
     Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation. '
-      + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language); it asks a fact these pages teach.',
+      + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures, the name of a social media app); it asks a fact these pages teach.',
   },
   // Social Studies Q1: Q2–Q4 and nine Understand Q5s already put about 44 attempted marks on Understand, so the paper
   // keeps inside FDE's band only when Q1 carries few Understand items, with room for one Q6 read as Understand.

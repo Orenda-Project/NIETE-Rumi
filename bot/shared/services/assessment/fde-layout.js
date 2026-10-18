@@ -1251,6 +1251,15 @@ function keyInPoints(others) {
     }));
   };
 }
+// Social Studies Q7: an answer whose words are all in its own question («انٹرنیٹ کی مدد سے طلبہ کون سے مواد تک
+// رسائی حاصل کر سکتے ہیں جو تحقیق میں کام آتا ہے؟ → تحقیقی مواد») is printed for the child to copy. A bracket
+// in the answer (an English gloss) is set aside; an answer that adds a word of its own stays.
+const Q7_SLOT = 'social_studies.D.Q7';
+function keyInOwnStem(q) {
+  const key = tokensOf(keyText(q).replace(/\([^()]*\)/g, ' ')).filter((w) => !QUIET_WORDS.has(w));
+  const stem = tokensOf(q.question);
+  return key.length > 0 && key.every((w) => holdsWord(stem, w));
+}
 // The point-set rows, laid in this order: a Q6 against the Q5s, a Q6 against the Q6s placed before
 // it (one online disagreement told twice with the same four points), then a Q7 against the Q5s and
 // the Q6s now placed. The held slot's item is held, never the other one.
@@ -1875,6 +1884,11 @@ function takenNote(P, section, examJson, opts = {}) {
     if (aside) notes.push(aside);
     const recall = recallNote(section, opts.held);
     if (recall) notes.push(recall);
+    const ownKey = (Array.isArray(opts.held) ? opts.held : []).filter((h) => h && h.rule === 'key_in_own_stem' && h.q && typeof h.q.question === 'string');
+    if (ownKey.length) {
+      notes.push(`These Q7 items were set aside: each prints its own answer in its question:\n${ownKey.map(({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
+        + 'A Q7 asks one fact its question does not say.');
+    }
     // A D stem that prints a Q1 answer gives that Q1 item away (Section A is then asked again).
     const keys = [...new Set(against.map((q) => keyText(q).trim()).filter(Boolean))];
     if (keys.length) notes.push(`Never print any of these Section A answers in a stem you write (as a name, a date, a number or a term): ${keys.join('، ')}`);
@@ -1899,7 +1913,7 @@ function backNote(section, examJson, held) {
 // Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
 function heldNote(section, held) {
   const own = new Set(section.slots.map((s) => s.slot));
-  const lines = (Array.isArray(held) ? held : []).filter((h) => h && !RECALL_RULES.has(h.rule) && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
+  const lines = (Array.isArray(held) ? held : []).filter((h) => h && !RECALL_RULES.has(h.rule) && h.rule !== 'key_in_own_stem' && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
     .map(({ q }) => {
       const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
         .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
@@ -2132,6 +2146,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return no(slot, 'unprintable');
       if (P.key === 'social_studies' && tierSlip(q)) return false;
+      if (P.key === 'social_studies' && slot.slot === Q7_SLOT && keyInOwnStem(q)) return hold(slot, q, 'key_in_own_stem');
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return no(slot, 'date_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
