@@ -171,7 +171,7 @@ const BOOK_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * previewed; `known` = the codes whose quiz row was read (a failed or empty read leaves a code unknown, and the
  * teacher card's code unknown is never offered: fail closed); `covers` = a sent book's cover. Never throws.
  */
-async function quizIdsOf(codes, { history = [] } = {}) {
+async function quizIdsOf(codes, { history = [], quizOfCode = null } = {}) {
   const want = [...new Set(codes.filter(Boolean))].slice(0, 20);
   const none = { quizIds: new Map(), storyCodes: new Set(), unsentCodes: new Set(), known: new Set(), covers: new Map() };
   if (!want.length) return none;
@@ -179,6 +179,8 @@ async function quizIdsOf(codes, { history = [] } = {}) {
     const { read: dbRead } = require('./web-quiz-db-deadline');
     // the hub's own history already knows the quiz behind every code this child has played: read only the rest
     const had = new Map((history || []).filter((e) => e && e.code && e.quizId).map((e) => [e.code, e.quizId]));
+    // ...and the teacher card's own code row (web_quiz_hub_waves2), read by the card a moment ago
+    if (quizOfCode) for (const [c, id] of quizOfCode) if (!had.has(c)) had.set(c, id);
     const ask = want.filter((c) => !had.has(c));
     const { data, error } = ask.length
       ? await dbRead('nextOffer:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code, quiz_id').in('code', ask))
@@ -296,10 +298,15 @@ function withDeadline(work, ms) {
  * codes the hub has already chosen and the Trail's stops): the switches, the quiz rows behind the codes, the storybook
  * candidates, the "on its way" verdicts. Resolves to null when the slot is off; never rejects.
  */
-function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf } = {}) {
+function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf, early = null, quizOfCode = null } = {}) {
   return (async () => {
-    const sw = await NO.switches();
+    const sw = await (early ? early.swP : NO.switches());
     if (!sw.on || !out || !chosenId) return null;
+    if (early) {
+      const codes = [out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)];
+      const [rows, books, onItsWay] = await Promise.all([early.rowsP || quizIdsOf(codes, { history, quizOfCode }), early.booksP, early.waysP]);
+      return { sw, rows, books, onItsWay };
+    }
     const stops = typeof stopsOf === 'function' ? await Promise.resolve().then(stopsOf).catch(() => []) : [];
     const [rows, books, onItsWay] = await Promise.all([
       quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
@@ -308,6 +315,20 @@ function hubPrep({ out, token, history, lang, chosenId, grade, stopsOf } = {}) {
     ]);
     return { sw, rows, books, onItsWay };
   })().catch(() => null);
+}
+
+/**
+ * web_quiz_hub_waves2: the slot's reads that need only the child and the Trail's stops, started with the hub's first
+ * reads (the switches, the storybook candidates, the "on its way" verdicts); hubPrep({ early }) joins them. Never rejects.
+ */
+function hubEarly({ token, lang, chosenId, grade, chip, stopsP }) {
+  const swP = NO.switches();
+  const booksP = swP.then((sw) => (sw.on && chosenId ? storybooks({ studentId: chosenId, lang, grade, token, chip }) : []));
+  const waysP = swP.then((sw) => (sw.on && chosenId
+    ? Promise.resolve(stopsP).catch(() => []).then((stops) => onItsWayOf(chosenId, chosenId, stops, lang, grade))
+    : {}));
+  [swP, booksP, waysP].forEach((p) => p.catch(() => {}));
+  return { swP, booksP, waysP };
 }
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }) {
@@ -335,4 +356,4 @@ async function hubField({ out, token, history, collect = {}, lang, chosenId, gra
   }
 }
 
-module.exports = { titled, candidatesOf, hubPrep, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
+module.exports = { titled, candidatesOf, hubPrep, hubEarly, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
