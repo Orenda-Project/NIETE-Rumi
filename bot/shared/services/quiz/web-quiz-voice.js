@@ -118,27 +118,13 @@ function voiceOfTag(tag, plan) {
   return all.find((v) => setIdOf(v) === tag) || all.find((v) => tagOf(v) === tag) || null;
 }
 
-// Words a voice misreads, spelled for the voice only: the page shows the words as the quiz wrote them. Per language,
-// each entry a whole `word`, what the voice is given (`say`), and `near`: another whole word the line must hold, for a
-// word that is two words without vowel marks (the line then says which one it is).
-// - میلا is mela (a fair) and maila (dirty); میلہ is only ever mela. Next to کیلا (kela, the rhyme) it is the fair.
-const SAY_AS = Object.freeze({
-  ur: Object.freeze([
-    Object.freeze({ word: 'میلا', say: 'میلہ', near: 'کیلا' }),
-  ]),
-});
-
-// A whole word: no letter, vowel mark or digit touching it on either side (Urdu has no \b).
-const wholeWord = (w) => new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${w}(?![\\p{L}\\p{M}\\p{N}])`, 'gu');
-
-/** The words a one-voice clip's voice is given for `text` in `language`: SAY_AS applied. */
+/**
+ * The words a one-voice clip's voice is given for `text` in `language`: an Urdu line through the one shared Urdu
+ * spelling list (web-quiz-ur-say.js, whole words only), any other language as written. The page keeps the text.
+ */
 function sayAs(text, language) {
-  let out = text == null ? '' : String(text);
-  (SAY_AS[baseLang(language)] || []).forEach(({ word, say, near }) => {
-    if (near && !wholeWord(near).test(out)) return;
-    out = out.replace(wholeWord(word), say);
-  });
-  return out;
+  const out = text == null ? '' : String(text);
+  return baseLang(language) === 'ur' ? require('./web-quiz-ur-say').sayOf(out) : out;
 }
 
 /** The shared-line sets for a plan, per language: { en: { path, v }, ur: { path, v } } (a language with no set left out). */
@@ -152,4 +138,4 @@ function sharedSets(plan) {
   return out;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, SAY_AS, sayAs, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };
+module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, sayAs, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSets };

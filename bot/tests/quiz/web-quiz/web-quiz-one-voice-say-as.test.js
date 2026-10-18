@@ -1,11 +1,12 @@
 'use strict';
 /**
- * A word the voice would misread is spelled for the voice only (web-quiz-voice.js SAY_AS), with one voice per quiz
- * (app_settings `web_quiz_one_voice`, default off).
+ * A word the voice would misread is spelled for the voice only, with one voice per quiz (app_settings
+ * `web_quiz_one_voice`, default off). The spellings are one shared Urdu list (web-quiz-ur-say.js), the same list the
+ * storybook voice uses: web-quiz-voice.js sayAs() gives an Urdu line through it and every other language as written.
  *
  * «کیلا کا ہم آواز لفظ میلا ہو گا۔» means "the word that sounds like kela is mela (a fair)". Written without
- * vowel marks, میلا is also maila (dirty), and the voice said maila. میلہ is only ever mela, so that is the spelling
- * the voice is given; the child still reads میلا on the page, as the quiz wrote it.
+ * vowel marks, میلا is also maila (dirty), and the voice said maila. The list gives the voice मेला for the whole word
+ * میلا, in every line; the child still reads میلا on the page, as the quiz wrote it.
  *
  * Off, everything is today's: the words the voice is given, so every clip key and the clip map.
  *
@@ -33,7 +34,7 @@ const tts = require('../../../shared/services/tts');
 const QUIZ = '22222222-2222-4222-8222-222222222222';
 const QID = '99999991-9999-4999-8999-999999999999';
 const WHY = 'کیلا کا ہم آواز لفظ میلا ہو گا۔';
-const SAID = 'کیلا کا ہم آواز لفظ میلہ ہو گا۔';
+const SAID = 'کیلا کا ہم آواز لفظ मेला ہو گا۔';
 
 const row = (extra = {}) => ({
   id: QID, quiz_id: QUIZ, external_id: `vb:${QID}`, sort_order: 1, question_text: 'اس چیز کا ہم آواز لفظ کیا ہو سکتا ہے؟',
@@ -53,7 +54,7 @@ const whyCalls = () => tts.synthesize.mock.calls.map(([a]) => a).filter((a) => a
 beforeEach(() => { OneVoice.reset(); tts.synthesize.mockClear(); });
 
 describe('one voice: the voice is given the spelling it reads right, the page keeps the words as written', () => {
-  test('the why «… میلا ہو گا» is sent to the voice as «… میلہ ہو گا»; the question row is unchanged', async () => {
+  test('the why «… میلا ہو گا» is sent to the voice as «… मेला ہو گا»; the question row is unchanged', async () => {
     const fake = seed([row()]);
     const out = await Publish.publishQuizAudio(QUIZ, { db: { from: fake.from }, oneVoice: OneVoice.normalize(true) });
     expect(out.ok).toBe(true);
@@ -78,28 +79,23 @@ describe('one voice: the voice is given the spelling it reads right, the page ke
   });
 });
 
-describe('sayAs: whole words only, in the line\'s language, and only where the line says which word it is', () => {
-  test('میلا next to کیلا (the rhyme) is mela', () => {
+describe('sayAs: the shared Urdu list for an Urdu line, whole words only; any other language as written', () => {
+  test('میلا is मेला wherever it stands as a whole word (no condition on the rest of the line)', () => {
     expect(Voice.sayAs(WHY, 'ur')).toBe(SAID);
-    expect(Voice.sayAs('کیلا اور میلا ہم آواز ہیں۔', 'ur-PK')).toBe('کیلا اور میلہ ہم آواز ہیں۔');
+    expect(Voice.sayAs('کیلا اور میلا ہم آواز ہیں۔', 'ur-PK')).toBe('کیلا اور मेला ہم آواز ہیں۔');
+    expect(Voice.sayAs('اس کا کپڑا میلا ہے۔', 'ur')).toBe('اس کا کپڑا मेला ہے۔');
   });
 
-  test('a line that does not say which word it is, a longer word, another language: unchanged', () => {
-    expect(Voice.sayAs('اس کا کپڑا میلا ہے۔', 'ur')).toBe('اس کا کپڑا میلا ہے۔');   // maila (dirty): no کیلا, left as written
-    expect(Voice.sayAs('کیلا اور میلاد', 'ur')).toBe('کیلا اور میلاد');                // a longer word is not the word
+  test('a longer word, another language, nothing: unchanged', () => {
+    expect(Voice.sayAs('کیلا اور میلاد', 'ur')).toBe('کیلا اور میلاد');   // a longer word is not the word
     expect(Voice.sayAs('کیلا اور میلا', 'en')).toBe('کیلا اور میلا');
     expect(Voice.sayAs('', 'ur')).toBe('');
     expect(Voice.sayAs(null, 'ur')).toBe('');
   });
 
-  test('every entry is a whole word that changes, said in the same script', () => {
-    Object.entries(Voice.SAY_AS).forEach(([lang, entries]) => {
-      expect(['en', 'ur']).toContain(lang);
-      entries.forEach((e) => {
-        expect(e.word).not.toBe(e.say);
-        expect(e.word).toMatch(/^[\p{L}\p{M}]+$/u);
-        expect(e.say).toMatch(/^[\p{L}\p{M}]+$/u);
-      });
-    });
+  test('one list: an Urdu line is exactly the shared list\'s, and the voice module keeps no table of its own', () => {
+    const UrSay = require('../../../shared/services/quiz/web-quiz-ur-say');
+    ['بچے ساتھ گئے اور کھیر کھائی۔', WHY, 'میرا ساتھی آیا'].forEach((t) => expect(Voice.sayAs(t, 'ur')).toBe(UrSay.sayOf(t)));
+    expect(Voice.SAY_AS).toBeUndefined();
   });
 });
