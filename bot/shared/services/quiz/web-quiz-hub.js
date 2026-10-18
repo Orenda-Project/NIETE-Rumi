@@ -701,11 +701,8 @@ async function hub(token, opts = {}) {
   const listen = !out.locked && f.readalong;
   const rt = await Tel.flag();
   if (opts.st) opts.st.mark('tail');
-  // The child home's files in the edge's early head (web_quiz_home_preload, in the same batched read): named on every
-  // answer, a locked one too, so the edge follows a flip on its next page. Off: no key, the hub JSON is today's.
-  // The home's scripts and styles as one file each (web_quiz_pack, the same read): `pack: true`, else no key.
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.homePreload ? { home_pre: true } : {}),
-    ...(f.pack ? { pack: true } : {}) };
+  // The home's scripts and styles as one file each (web_quiz_pack, in the same batched read): `pack: true`, else no key.
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.pack ? { pack: true } : {}) };
 }
 
 async function hubTogether(token, opts) {
@@ -715,9 +712,8 @@ async function hubTogether(token, opts) {
   const f = await Flags.flags();
   const listen = !out.locked && f.readalong;
   if (opts.st) opts.st.mark('tail');
-  // the same later hub fields as hub() above (the home's preload and the pack ride the one batched read): reads started together must not drop them
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.homePreload ? { home_pre: true } : {}),
-    ...(f.pack ? { pack: true } : {}) };
+  // the same later hub field as hub() above: reads started together must not drop the pack
+  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.pack ? { pack: true } : {}) };
 }
 
 module.exports = {
