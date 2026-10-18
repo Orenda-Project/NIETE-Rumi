@@ -4,6 +4,7 @@
  *      «خالق», «اللہ پاک/کریم/رب») are held; bare «اللہ» and «نبی» stay, since they start names.
  *   3. A Q1 item whose key is a name or a term in one of its options and no other is held when a C/D stem names
  *      that option, with no topic test; Section A is asked again.
+ *   4. The reader is handed every Q1 key code finds printed in a Q5, Q6 or Q7 stem, to judge beside its open read.
  * The papers are local model output; the people in their stories are the model's own.
  */
 
@@ -16,6 +17,7 @@ const path = require('path');
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const Reader = require('../../bot/shared/services/assessment/fde-reader');
 
 const SST = Patterns.get('fde_g5_2027').subjects.social_studies;
 const FIX = path.join(__dirname, 'fixtures', 'fde');
@@ -129,5 +131,49 @@ describe('3. a Q1 key a C/D stem names', () => {
     const note = takenNote(SST, A, laid.examJson, { topUp: true, shortfall: laid.shortfall, held: laid.held });
     expect(note).toContain(nth(exam, Q1, 11).question);
     expect(note).toContain('No Q1 item may be keyed on a name, term, year or number those questions print');
+  });
+});
+
+describe('4. the reader is handed the Q1 keys a C/D stem prints', () => {
+  const CANDIDATES = '=== CANDIDATES (code found each Q1 key below printed in a Q5, Q6 or Q7 stem) ===';
+
+  test('chapters_4 as printed: each Q1 key a C/D stem prints is listed with the stem\'s label and the Q1 label', () => {
+    const exam = local('chapters_4');
+    const { prompt } = Reader.buildReaderPrompt(exam, SST, {});
+    expect(prompt).toContain(CANDIDATES);
+    const block = prompt.slice(prompt.indexOf(CANDIDATES));
+    expect(block).toContain('- Q7.1 prints «سپریم کورٹ», the key of Q1.5');
+    expect(block).toContain('- Q7.2 prints «قومی اسمبلی», the key of Q1.6');
+    expect(block).toContain('- Q5.7 prints «بیگم رعنا لیاقت علی خان», the key of Q1.9');
+    expect(prompt).toContain('Judge every candidate below');
+  });
+
+  test('a flag on a candidate, quoting the Q1 key, is kept', () => {
+    const exam = local('chapters_4');
+    const { labels, blocks, split } = Reader.buildReaderPrompt(exam, SST, {});
+    const reply = { candidates: [{ item: 'Q7.1', by: 'Q1.5', evidence: 'سپریم کورٹ', reason: 'the stem names Q1.5\'s key', given_away: true }] };
+    expect(Reader.parseFlags(reply, labels, null, blocks, { split }).map((f) => f.item)).toEqual(['Q7.1']);
+  });
+
+  test('a paper whose C/D stems print no Q1 key reads exactly as before: no candidate block', () => {
+    const laid = lay(local('chapters_1'));
+    const { prompt } = Reader.buildReaderPrompt(laid.examJson, SST, {});
+    expect(prompt).not.toContain(CANDIDATES);
+    expect(prompt).not.toContain('Judge every candidate below');
+  });
+
+  test('what the layout lets print is handed over: a tier, a name inside a wife\'s name', () => {
+    const block = (name) => { const p = Reader.buildReaderPrompt(lay(local(name)).examJson, SST, {}).prompt; return p.slice(p.indexOf(CANDIDATES)); };
+    expect(block('chapters_5')).toMatch(/- Q5\.\d+ prints «وفاقی حکومت», the key of Q1\.\d+/);
+    expect(block('chapters_6')).toMatch(/- Q5\.\d+ prints «لیاقت علی خان», the key of Q1\.\d+/);
+  });
+
+  test('a re-check reads the candidates among the items it judges only', () => {
+    const exam = local('chapters_4');
+    const only = [items(exam, Q7)[0]];
+    const { prompt } = Reader.buildReaderPrompt(exam, SST, { only });
+    const block = prompt.slice(prompt.indexOf(CANDIDATES));
+    expect(block).toContain('- Q7.1 prints «سپریم کورٹ»');
+    expect(block).not.toContain('- Q7.2 prints');
   });
 });
