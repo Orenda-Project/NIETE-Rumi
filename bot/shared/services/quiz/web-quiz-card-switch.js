@@ -15,6 +15,9 @@ const KEY = 'web_quiz_card_v3';
 // The one share on top of the card (finish's `share_v4`): read in the card's own settings read, never a read of its own.
 const SHARE_KEY = 'web_quiz_share_v4';
 const TTL_MS = 30 * 1000;
+// Both reads failed (the settings store down): the card stays off, and that answer is kept 10 s, so an outage costs at
+// most two reads per 10 s per worker and the card comes back within 10 s of the store.
+const DOWN_TTL_MS = 10 * 1000;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── the switch ─────────────────────────────────────────────────────────────
@@ -26,7 +29,7 @@ function isTrue(value) {
 }
 /** true only with app_settings web_quiz_card_v3 literally true; 30 s cache; fails closed. Never throws. */
 async function on(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
+  if (cache && now - cache.at < (cache.down ? DOWN_TTL_MS : TTL_MS)) return cache.on;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
@@ -42,6 +45,7 @@ async function on(now = Date.now()) {
       return cache.on;
     } catch (err2) {
       logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message });
+      cache = { at: now, on: false, share: false, down: true };
       return false;
     }
   }

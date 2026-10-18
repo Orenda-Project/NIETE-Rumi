@@ -98,10 +98,14 @@ describe('the switch', () => {
     const down = async () => { reads += 1; return { data: null, error: { message: 'down' } }; };
     Object.assign(supabase, { from: () => ({ select: () => ({ in: down, eq: down }) }) });
     Card._reset();
+    const t0 = Date.now();
     expect(await Card.field()).toEqual({});
-    expect(await Card.on()).toBe(false);
-    expect(await Card.shareOn()).toBe(false);
-    expect(reads).toBe(6);
+    expect(await Card.on(t0 + 1000)).toBe(false);
+    expect(await Card.shareOn(t0 + 9000)).toBe(false);
+    // an outage is remembered for 10 s (not the 30 s of a real answer): 2 reads, then none until it is stale
+    expect(reads).toBe(2);
+    expect(await Card.on(t0 + 11000)).toBe(false);
+    expect(reads).toBe(4);
   });
 });
 
