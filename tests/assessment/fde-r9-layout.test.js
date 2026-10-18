@@ -153,16 +153,21 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7).toContain('پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟');
   });
 
-  test('Q1 is never touched', () => {
+  test('Q1 is never touched by the Q5/Q7 hold', () => {
     const exam = fixture('r9-sst-chapters2');
     // The cross-section hold never touches Q1. One recorded Q1 MCQ keys encroachment removal to the
     // local government; the book's p.29 table says provincial, so the which-government check (a
-    // wrong key, not a repeat) holds it.
+    // wrong key, not a repeat) holds it. Two more are given away by a Q7 stem that prints their key
+    // on the same topic (Q7 «بلوچستان میں مہر گڑھ …», «چودھری رحمت علی نے … پاکستان کا نام تجویز کیا؟»),
+    // so Section A is asked again for them; that hold reads Q1 against C and D, never the reverse.
     const WRONG_TIER = 'ایک شہر کی سڑکوں اور راستوں سے تجاوزات ہٹانے کا کام کون سی حکومت کرتی ہے؟';
-    const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question).filter((q) => q !== WRONG_TIER);
-    expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 1);
+    const GIVEN = ['مہر گڑھ کی قدیم تہذیب کے آثار کس صوبے سے دریافت ہوئے ہیں؟', 'پاکستان کا نام سب سے پہلے کس نے تجویز کیا؟'];
+    const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question).filter((q) => q !== WRONG_TIER && !GIVEN.includes(q));
+    expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 3);
     const out = lay(exam, 'social_studies');
     expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.sort());
+    const q1Held = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && h.rule === 'key_in_stem').map((h) => h.q.question);
+    expect(q1Held.sort()).toEqual([...GIVEN].sort());
   });
 
   test('a held Q7 item takes no place: the re-asked item fills it', () => {

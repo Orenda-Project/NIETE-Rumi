@@ -70,8 +70,10 @@ function replyOf(exam, sectionId) {
  * `reader(text, n)` answers the reader's calls; `topUp` answers a D call carrying the reader's note.
  */
 async function run(exam, { replies = {}, reader = null, topUp = null, readerPass = false } = {}) {
+  // Section A's re-ask writes new Q1 items: a Q1 item a C or D stem gives away is held and Section A asked
+  // again, and a recorded paper has no reply of its own for that.
   const queue = {
-    A: replies.A || [replyOf(exam, 'A')], B: replies.B || [replyOf(exam, 'B')], C: replies.C || [replyOf(exam, 'C')], D: replies.D || [replyOf(exam, 'D')],
+    A: replies.A || [replyOf(exam, 'A'), fixture('sst-a-reask-fresh').reply], B: replies.B || [replyOf(exam, 'B')], C: replies.C || [replyOf(exam, 'C')], D: replies.D || [replyOf(exam, 'D')],
   };
   const asked = [];
   mockCreate.mockReset();
@@ -100,6 +102,17 @@ async function run(exam, { replies = {}, reader = null, topUp = null, readerPass
 const logged = (msg) => mockLog.mock.calls.filter(([m]) => m === msg).map(([, d]) => d);
 // generated_at is the clock's; everything else must match.
 const stable = (exam) => { const e = clone(exam); delete e._layout.generated_at; delete e._layout.reader; return e; };
+
+// chapters_1 keys one Q5 on a religious premise («… حضرت آدم اور حضرت حوا علیہما السلام کی اولاد ہیں»),
+// which the engine now drops; the counts here are read off a plain layout, so that item takes a civic
+// answer and the paper is otherwise as recorded.
+const civic = (exam) => {
+  const e = JSON.parse(JSON.stringify(exam));
+  for (const q of Object.values(e.unseen).flatMap((t) => Object.values(t)).flat()) {
+    if (q && typeof q.answer === 'string') q.answer = q.answer.replace('اور حضرت آدم اور حضرت حوا علیہما السلام کی اولاد ہیں', 'اور اقوام متحدہ کا منشور سب کو برابر مانتا ہے');
+  }
+  return e;
+};
 
 beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 
@@ -251,7 +264,7 @@ describe('3. an empty mind map: B\'s re-ask names it', () => {
 
 describe('1. the reader pass reads Social Studies', () => {
   const CH2 = paper('chapters_2');
-  const CH1 = paper('chapters_1');
+  const CH1 = civic(paper('chapters_1'));
   const YEAR_Q7 = 'پاکستان دنیا کے نقشے پر کس سال ابھرا؟';
   // Replacement Q7s the top-up writes (fictional, one-fact).
   const NEW_Q7 = [

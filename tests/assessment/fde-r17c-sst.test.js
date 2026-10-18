@@ -79,9 +79,20 @@ const judgedLabels = (prompt) => onlyLine(prompt).match(/Q\d+\.\d+/g) || [];
 
 beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); });
 
+// The reader replies recorded here number the paper their run printed. Two later holds would change
+// that paper before the reader reads it, so each replay keeps it as recorded: chapters_1's C reply keys
+// one Q5 on a religious premise («اللہ تعالیٰ نے تمام انسان برابر پیدا کیے …»), which is now held, so it
+// takes that item's civic answer; chapters_7's D stems print the Q1 key «ایدھی فاؤنڈیشن», which now holds
+// that Q1 item before the reader can catch the pair, so they name the organisation without it.
+const asRecorded = {
+  chapters_1: (r) => { r.replies.C = r.replies.C.map((c) => c.replace('اللہ تعالیٰ نے تمام انسان برابر پیدا کیے ہیں اور سب آدم و حوا علیھما السلام کی اولاد ہیں۔', 'اقوام متحدہ کے منشور کے مطابق تمام انسان برابر ہیں اور سب کی عزت برابر ہے۔')); },
+  chapters_7: (r) => { r.replies.D = r.replies.D.map((d) => d.split('ایدھی فاؤنڈیشن').join('ایدھی کی تنظیم')); },
+};
+
 describe('1. a D slot the reader would leave short takes its unplaced first-ask spares, read in the same re-check', () => {
   for (const name of ['chapters_1', 'chapters_7']) {
-    const rec = fixture(`r17c-sst-refused-${name}`);
+    const rec = clone(fixture(`r17c-sst-refused-${name}`));
+    asRecorded[name](rec);
 
     test(`${name}: the recorded paper builds, and no item the reader caught prints`, async () => {
       const { asked, out } = await replay(rec);

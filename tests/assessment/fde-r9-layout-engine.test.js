@@ -69,7 +69,11 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
   // short paper; the laid-out paper rides on the error.
   const err = await Gen.generatePatternExam(ARGS('social_studies')).catch((e) => e);
   expect(err.code).toBe('PATTERN_SHORT_SLOT');
-  expect(err.shortfall.map((f) => f.slot)).toEqual(['social_studies.D.Q6']);
+  // Q1 is short as well: two Q1 items are given away by a C/D stem that prints their key on the same
+  // topic (Q1 «… لفظ "قوم" کس رہنما نے …» → سرسید احمد خان beside a Q6 on his two-nation theory; Q1
+  // «… اونٹ پالتے ہیں۔ یہ کون سا طبعی خطہ ہے؟» → صحرائی علاقہ beside Q5 «صحرائی علاقے کے لوگ … اونٹ کیوں
+  // پالتے ہیں؟»), and this mock answers every re-ask with the stored paper, so nothing new takes their place.
+  expect(err.shortfall.map((f) => f.slot)).toEqual(['social_studies.A.Q1', 'social_studies.D.Q6']);
   const out = err;
   // Round 15: the re-ask brings new Q7s but the same three held Q6s, so D is asked once more.
   expect(dCalls).toBe(3);
@@ -78,6 +82,7 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
   // Since round 13 D is asked after C, and three Q6 items answered with a Q5 item's points are
   // held too (the angry social-media post is Q5 and Q6 both).
   expect(logged('[assessment] section re-asked')).toEqual([
+    expect.objectContaining({ section: 'A', shortfall: [{ slot: 'social_studies.A.Q1', missing: 2 }] }),
     expect.objectContaining({ section: 'C', shortfall: [{ slot: 'social_studies.C.Q5', missing: 1 }] }),
     // Round 15: Q7 «سرسید … 1875ء … کون سا اسکول» is held too; Q6's model answer names the school.
     expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q6', missing: 3 }, { slot: 'social_studies.D.Q7', missing: 2 }] }),
@@ -87,6 +92,8 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
   expect(q7.length).toBeGreaterThanOrEqual(6);
   expect(q7.some((t) => t.includes('دنیا کی دوسری بڑی نمک کی کان'))).toBe(false);
   expect(q7).toContain('پاکستان کا قومی پھول کون سا ہے؟');
+  // Section A is topped up once more before the paper fails, as Urdu's is.
+  expect(logged('[assessment] section topped up again').map((l) => l.section)).toEqual(['A']);
 });
 
 test('English: the Q1(a) MCQs carrying Q4 words are held, Section A is asked again, and its new MCQs take their places', async () => {

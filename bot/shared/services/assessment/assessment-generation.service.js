@@ -917,6 +917,9 @@ const RULE = {
   urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا، ڈاکٹر → اسپتال), never the odd one out.',
   urduQ6Points: 'Q6 (ب) scheme: one idea per point, no point above 2 marks.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
+  // Social Studies: book p.5 restates the Farewell Sermon's proposition under the hadith without naming it,
+  // and an item keyed on it gives marks for a theological premise.
+  sstPremise: 'Never set an item whose answer rests on a religious premise (what Allah created or commands, a prophet\'s story, a verse or a hadith said in other words); book p.5 is asked only for its civic sentences (the UN charter, equal basic rights).',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
   scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
@@ -936,9 +939,14 @@ const RULE = {
       + 'A Q6 situation never asks a history fact; history recall goes to Q7. '
       + 'Nor does it ask only civics or geography facts (who heads or chairs a body, what it is called, how many, when): that recall goes to Q7 too. '
       + 'Nor is a Q6 answered by naming which government, court or body does a job, even with the book\'s one-line reason: besides any marking point that names a government, court or body, at least two of its marking points explain an idea without naming one. '
-      + 'A Q6 is never "which map, which medium or which government for each need": such items go to Q7 as one-fact items.',
-    Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation.',
+      + 'A Q6 is never "which map, which medium or which government for each need": such items go to Q7 as one-fact items. '
+      + 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5.',
+    Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation. '
+      + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language); it asks a fact these pages teach.',
   },
+  // Social Studies Q1: Q2–Q4 and nine Understand Q5s already put about 44 attempted marks on Understand, so the paper
+  // keeps inside FDE's band only when Q1 carries few Understand items. A count, as the model follows counts.
+  sstQ1Levels: 'Q1: at least 12 Remember items and at least 2 Apply items (a situation the child decides); at most 6 Understand.',
   sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
   // Social Studies: a marking point that names no fact («پہلی وجہ درست بتانا») tells the teacher nothing
   // to look for, and the layout compares items by their points.
@@ -1056,7 +1064,18 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'دعا', pattern: 'دعا(?:ئیں|ئیہ|ئی|ئے|ؤں|وں|یں|ی|ے)?' },
   { term: 'نعت', pattern: 'نعت(?:یں|وں|یہ)?' },
   { term: 'حمد', pattern: 'حمد(?:یہ)?' },
-].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
+  // A religious premise as an answer («اللہ تعالیٰ نے تمام انسان برابر پیدا کیے», «… علیہ السلام کی
+  // اولاد»): the item asks a hadith's proposition without naming the hadith. A name that carries one
+  // of these words («عبداللہ», «اللہ دتہ», «عرب») is a whole other word.
+  { term: 'اللہ تعالیٰ', pattern: 'اللہ ?تعالی' },
+  { term: 'علیہ السلام', pattern: 'علیہ ?السلام' },
+  { term: 'علیھا السلام', pattern: 'علی(?:ہ|ھ)م?ا ?السلام' },
+  // The ligature is written against the name it follows («حضورﷺ»), so it needs no word edge.
+  { term: 'ﷺ', pattern: 'ﷺ', bare: true },
+  { term: 'رب', pattern: 'رب' },
+].map(({ term, pattern, bare }) => Object.freeze({
+  term, re: new RegExp(bare ? pattern : `(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u'),
+})));
 
 // Urdu: the text the model writes itself (a model answer, a passage, a scheme point) never carries
 // a religious maxim, hadith, verse or act of worship. Matched on _heldNorm text, whole words. The
@@ -1150,6 +1169,7 @@ function _holdsTierTable(pageContent) {
 }
 // Pages that name a government tier (pp 26-33 in the page store) can ask a which-government item.
 const SST_TIER_NAMED = /(?:وفاقی|صوبائی|مقامی)[\s\u200b-\u200f]*حکومت/;
+const SST_Q1 = 'social_studies.A.Q1';
 
 /**
  * What one section of a board-pattern paper asks for. The book text block is
@@ -1231,6 +1251,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const urduPoem = !fde && key === 'urdu' && poem && poem.content && list.some((s) => s.slot === 'urdu.C.Q6') ? poem : null;
   const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
+  if (key === 'social_studies') rules.push(RULE.sstPremise);
   if (!fde) rules.push(RULE.chapterOnly);
   if (mathsC) rules.push(RULE.mathsSectionC);
   if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
@@ -1307,6 +1328,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'social_studies') {
     const bands = list.map((s) => RULE.sstBand[s.slot.split('.').pop()]).filter(Boolean);
     if (bands.length) rules.push(...bands, RULE.sstGroups);
+    if (list.some((s) => s.slot === SST_Q1)) rules.push(RULE.sstQ1Levels);
     if (list.some((s) => /\.[CD]\./.test(s.slot))) rules.push(RULE.sstFactPoints);
   }
   if (key === 'social_studies') {
@@ -2464,7 +2486,10 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     // Urdu Section A still short after its re-ask (the top-up's own items held as twins of kept
     // facts, or a new hold against the re-asked Section C) is topped up once more, for exactly what
     // it misses plus spares: a held Section C give-away is never put back to fill the place.
-    const a = key === 'urdu' ? built.find(({ section }) => section.slots.some((s) => s.slot === 'urdu.A.Q1')) : null;
+    // Social Studies likewise: a Q1 item a C or D stem gives away is held against the C and D stems
+    // as they finally stand, and Q1 is compulsory, so the place is refilled rather than the paper failed.
+    const sstA = key === 'social_studies';
+    const a = key === 'urdu' || sstA ? built.find(({ section }) => section.slots.some((s) => s.slot === `${key}.A.Q1`)) : null;
     const check = a && applyLayout(merged(), P, layoutScope, { now, presetId: pattern, reasked: false });
     const shortA = check ? check.shortfall.filter((f) => a.section.slots.some((s) => s.slot === f.slot)) : [];
     if (shortA.length) {
@@ -2472,7 +2497,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       const i = results.findIndex((r) => r.id === a.section.id);
       const first = results[i];
       extraUsages.push(...first.usages);
-      const note = takenNote(P, a.section, check.examJson, { topUp: true, shortfall: shortA });
+      const note = takenNote(P, a.section, check.examJson, { topUp: true, shortfall: shortA, ...(sstA ? { held: check.held } : {}) });
       const second = await writeOne(note
         ? { ...a, messages: _sectionMessages({ system, user: `${a.user}\n\n${note}`, pageContent: a.pageContent, model }) }
         : a);
@@ -2565,6 +2590,18 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   const versesPrinted = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat()
     .some((q) => q && q.slot === 'urdu.C.Q6' && typeof q.passage === 'string' && q.passage.trim());
   if (key === 'urdu' && poem && versesPrinted) examJson._layout.verse_source = { lesson: poem.unit, pages: poem.pages };
+
+  // Social Studies: how Q1 came out by thinking level, against the counts its prompt asks for. The levels are
+  // the model's own tags, so this is a steer to read in the log, never a gate.
+  if (key === 'social_studies') {
+    const q1 = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat().filter((q) => q && q.slot === SST_Q1);
+    const n = (level) => q1.filter((q) => q.blooms === level).length;
+    const [remember, understand, apply] = [n('Remember'), n('Understand'), n('Apply')];
+    logToFile('[assessment] q1 levels', {
+      requestId, pattern, remember, understand, apply, untagged: q1.length - remember - understand - apply,
+      meets: remember >= 12 && apply >= 2 && understand <= 6,
+    });
+  }
 
   // The warm call is billed like any other, so it is in the paper's totals.
   const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));

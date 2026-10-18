@@ -1077,6 +1077,9 @@ const SST = {
           grain: { kind: 'a geography topic the child turns into a flow chart (title, four boxes, examples, arrows)', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `question` = a topic from chapter 8 or 9 in quotes (e.g. «پاکستان کے طبعی خدوخال»); the child draws the chart; `answer` = the boxes in order with an example under each.',
+          // What the chart must hold, from the pattern whatever the reply writes: the scheme marks a title,
+          // four boxes, an example under each and the arrows.
+          topic_line_ur: '«{q}»: چارٹ میں عنوان، چار خانے، ہر خانے کے نیچے ایک مثال اور خانوں کو جوڑنے والے تیر بنائیں۔', // needs fluent-Urdu review
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {

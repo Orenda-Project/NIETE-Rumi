@@ -129,11 +129,15 @@ describe('1. the reader names the composite give-away: the facts a C/D answer ne
 
   test('chapters_4 through the engine: the reader names Q5 2 by two Q1 items, and it does not print', async () => {
     const rec = fixture('r17d-sst-replies-chapters_4');
+    // The two Q1 items are found by their text: a Q1 item a C/D stem gives away is taken off first and
+    // its place refilled at the end of Q1, so their numbers follow what the paper prints.
+    let by = null;
     const { asked, out } = await replay(rec, {
       reader: {
         1: (prompt) => {
           const item = labelOf(prompt, q5.question);
-          return JSON.stringify({ candidates: [{ item, by: 'Q1.1, Q1.11', evidence: 'قوانین بنانے کا اختیار | انتظامیہ قانون نافذ کرتی ہے', reason: 'both halves printed in Section A', given_away: true }] });
+          by = [labelOf(prompt, 'قوانین بنانے کا اختیار'), labelOf(prompt, 'انتظامیہ قانون نافذ کرتی ہے')].join(', ');
+          return JSON.stringify({ candidates: [{ item, by, evidence: 'قوانین بنانے کا اختیار | انتظامیہ قانون نافذ کرتی ہے', reason: 'both halves printed in Section A', given_away: true }] });
         },
         2: () => JSON.stringify({ candidates: [] }),
       },
@@ -141,7 +145,8 @@ describe('1. the reader names the composite give-away: the facts a C/D answer ne
     expect(asked.some((a) => a.sec === 'reader')).toBe(true);
     expect(out.error && out.error.code).toBeUndefined();
     expect(items(out.examJson, C5).map((q) => q.question)).not.toContain(q5.question);
-    expect(out.examJson._layout.reader.items.some((x) => x.by === 'Q1.1, Q1.11')).toBe(true);
+    expect(by).toMatch(/^Q1\.\d+, Q1\.\d+$/);
+    expect(out.examJson._layout.reader.items.some((x) => x.by === by)).toBe(true);
   });
 
   test('Urdu: the reader prompt and its flag reading are unchanged (no split)', () => {

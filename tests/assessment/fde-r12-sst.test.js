@@ -120,13 +120,18 @@ describe('1. a Q5/Q7 answer that prints a Q1 MCQ whole is held', () => {
 });
 
 describe('2. one question once in every slot', () => {
-  test('chapters_2 A.Q1 ۱ = ۲۰ (options shuffled) is placed once before the re-ask: the slot is short by 1', () => {
+  // A second place is short on chapters_2: Q1 «سرسید احمد خان نے مسلمانوں کی ترقی کے لیے کس چیز پر زور دیا؟
+  // → جدید تعلیم» is given away by Q5 «سرسید احمد خان مسلمانوں کے لیے جدید تعلیم کو کیوں ضروری سمجھتے تھے؟»,
+  // which prints its key on the same topic, so it is held as well.
+  const GIVEN = 'سرسید احمد خان نے مسلمانوں کی ترقی کے لیے کس چیز پر زور دیا؟';
+  test('chapters_2 A.Q1 ۱ = ۲۰ (options shuffled) is placed once before the re-ask: the slot is short by 1 for it', () => {
     const q1 = items(REC.chapters_2, A1);
     expect(q1[0].question).toBe(q1[19].question);
     const laid = lay(REC.chapters_2, { reasked: false });
     const placed = items(laid.examJson, A1).map((q) => q.question);
     expect(placed.filter((s) => s === q1[0].question)).toHaveLength(1);
-    expect(short(laid, A1)).toBe(1);
+    expect(laid.held.filter((h) => h.slot === A1 && h.rule === 'key_in_stem').map((h) => h.q.question)).toEqual([GIVEN]);
+    expect(short(laid, A1)).toBe(2);
   });
 
   test('after the re-ask a new item takes the place; the repeat never (Q1 is compulsory: short)', () => {
@@ -138,8 +143,9 @@ describe('2. one question once in every slot', () => {
     expect(withFresh).toContain(fresh.question);
     expect(withFresh.filter((s) => s === items(REC.chapters_2, A1)[0].question)).toHaveLength(1);
     const alone = lay(REC.chapters_2, { reasked: true });
-    expect(items(alone.examJson, A1)).toHaveLength(19);
-    expect(short(alone, A1)).toBe(1);
+    expect(items(alone.examJson, A1)).toHaveLength(18);
+    expect(items(alone.examJson, A1).map((q) => q.question)).not.toContain(GIVEN);
+    expect(short(alone, A1)).toBe(2);
   });
 
   test('a top-up of Section A names every Q1 item it keeps and asks for spares; a whole re-ask is told nothing', () => {
