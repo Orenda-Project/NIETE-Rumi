@@ -79,5 +79,8 @@ html[lang=ur] .wq-vct .wq-lat{font-family:var(--f);font-weight:800;line-height:1
 .wq-dskel{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .wq-skrow{display:block;height:64px;border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,var(--card) 50%,var(--tint) 75%);background-size:200% 100%;animation:wq-shim 1.2s linear infinite}
 .wq-shelf .wq-dskel{margin-top:0}
+.wq-dskel-in{margin-top:0}
+.wq-dskel-bk{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px}
+.wq-dskel-bk .wq-skrow{height:auto;aspect-ratio:2/3}
 @keyframes wq-shim{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.wq-skrow{animation:none}}
