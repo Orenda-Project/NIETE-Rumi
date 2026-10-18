@@ -150,6 +150,17 @@ describe('GET /h/:token', () => {
     expect(v).not.toMatch(/db;desc/);
   });
 
+  test('a Server-Timing already on the answer is kept: the edge adds after it, in one header, never overwrites', async () => {
+    const { app } = build([jsonRes(200, HUB(), { 'server-timing': ST })]);
+    const outer = express();
+    outer.use((req, res, next) => { res.set('Server-Timing', 'app;dur=7'); next(); });
+    outer.use(app);
+    srv = await start(outer);
+    const res = await get(srv, `/h/${TOKEN}`);
+    expect(stLines(res.raw)).toHaveLength(1);
+    expect(res.headers['server-timing']).toMatch(new RegExp(`^app;dur=7, edge;dur=\\d+, ${ST}, render;dur=\\d+$`));
+  });
+
   test('fast on, nf=1: the header, and no st in the page', async () => {
     const { app } = build([jsonRes(200, HUB({ fast: true })), jsonRes(200, HUB({ fast: true }), { 'server-timing': ST })]);
     srv = await start(app);
