@@ -66,3 +66,24 @@ export function audioActionLabel(lang: string | undefined, action: 'play' | 'sto
   const key = audioLang(lang);
   return ACTION_ORDER[key](AUDIO_STRINGS[key][action], label);
 }
+
+/** How the retry sentence joins the action in an error control's accessible name, per language. */
+const ERROR_NAME: Record<AudioLang, (error: string, action: string) => string> = {
+  en: (error, action) => `${error}. ${action}`,
+  ur: (error, action) => `${error}۔ ${action}`,
+};
+
+/**
+ * The accessible name of a control in a state. A failed control leads with the full retry sentence, because its
+ * visible line is one line only (a tile ellipsises it) or out of flow (a pill), AUDIO_BAR A6/A11.
+ */
+export function audioControlName(lang: string | undefined, state: 'idle' | 'loading' | 'playing' | 'error', label: string): string {
+  const action = audioActionLabel(lang, audioActionFor(state), label);
+  if (state !== 'error') return action;
+  return ERROR_NAME[audioLang(lang)](audioStrings(lang).error, action);
+}
+
+/** The tooltip of a control: the full retry sentence when it failed, nothing otherwise. */
+export function audioControlTitle(lang: string | undefined, state: 'idle' | 'loading' | 'playing' | 'error'): string | undefined {
+  return state === 'error' ? audioStrings(lang).error : undefined;
+}

@@ -2,13 +2,17 @@ import { useId, type CSSProperties } from 'react';
 import { Loader2, Play, RotateCcw, Square } from 'lucide-react';
 import { useClipState, useFlnPlayerContext } from './useFlnPlayer';
 import type { ClipRole, PlayerState } from './types';
-import { audioActionFor, audioActionLabel, audioStateText, audioStrings, audioDir } from '../strings.audio';
+import { audioControlName, audioControlTitle, audioStateText, audioStrings, audioDir } from '../strings.audio';
 import './player.css';
 
 /**
  * One sound control inside a step (contracts/player.md v2, DESIGN_v2 §5). A real <button>, ≥48 px tall.
  * idle ▶ · loading ring + "Loading…" · playing ■ + progress bar + "Playing…" · error ↻ + the retry line.
  * The state is never colour alone (A10): every state changes the icon AND the text.
+ * A pill sits inside a line of text, so its box never changes with the state (AUDIO_BAR A11): the visible caption
+ * is the same in every state, and the state line is always present but out of flow (visually hidden, announced
+ * politely); the icon, colour and the bar (drawn inside the padding) show the state. A failed pill carries the full
+ * retry sentence in its accessible name and title.
  */
 export interface SoundPillProps {
   clipId: string; label: string; caption?: string; lang?: string; dir?: string; first?: boolean;
@@ -45,7 +49,6 @@ export function SoundPill({ clipId, label: givenLabel, caption, lang, dir, first
   const stateText = audioStateText(lang, state);
   // The gesture must reach the player untouched: nothing awaited before toggle (the in-app browser needs it).
   const onClick = () => { player?.toggle(clipId, owner); };
-  const sub = state === 'error' ? stateText : stateText ?? caption;
   const bar = { '--fln-snd-p': `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` } as CSSProperties;
 
   const button = (
@@ -58,14 +61,16 @@ export function SoundPill({ clipId, label: givenLabel, caption, lang, dir, first
       data-fln-state={state}
       aria-pressed={state === 'playing'}
       aria-busy={state === 'loading' || undefined}
-      aria-label={audioActionLabel(lang, audioActionFor(state), label)}
+      aria-label={audioControlName(lang, state, label)}
+      title={audioControlTitle(lang, state)}
       onClick={onClick}
     >
       <span className="fln-snd__icon"><SoundStateIcon state={state} /></span>
       <span className="fln-snd__text">
         <bdi className="fln-snd__label">{label}</bdi>
-        {sub ? <span className="fln-snd__sub">{sub}</span> : null}
+        {caption ? <span className="fln-snd__sub">{caption}</span> : null}
       </span>
+      <span className="fln-snd__state" aria-live="polite">{stateText ?? ''}</span>
       {state === 'playing' ? <span className="fln-snd__bar" style={bar} aria-hidden="true"><b /></span> : null}
     </button>
   );

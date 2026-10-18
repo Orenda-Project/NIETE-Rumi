@@ -136,7 +136,22 @@
 }
 .fln-snd.fln-snd-pill .fln-snd__bar {
   inset-inline: 20px;
-  bottom: 4px;
+  bottom: 2px;
+  height: 3px;
+}
+/* A11: the pill's state line is always present and out of flow (visually hidden), so a tap never changes the
+   pill's width or height and never re-wraps the sentence it sits in. */
+.fln-snd.fln-snd-pill .fln-snd__state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 /* Urdu pill: Nastaliq is drawn at 400 and needs ~1.9 line height; the state line stays ≥13 px (index.css rule 3). */
 .fln-snd.fln-snd-pill[lang="ur"] .fln-snd__label { font-size: 22px; font-weight: 400; line-height: 1.9; }
@@ -144,7 +159,7 @@
 
 .fln-snd.fln-snd-pill[data-fln-state="loading"] { background: #F1F3F7; }
 .fln-snd.fln-snd-pill[data-fln-state="loading"] .fln-snd__icon { background: #fff; color: var(--fln-navy); box-shadow: inset 0 0 0 2px var(--fln-line); }
-.fln-snd.fln-snd-pill[data-fln-state="playing"] { background: var(--fln-go); border-color: var(--fln-go); color: #fff; padding-bottom: 10px; }
+.fln-snd.fln-snd-pill[data-fln-state="playing"] { background: var(--fln-go); border-color: var(--fln-go); color: #fff; }
 .fln-snd.fln-snd-pill[data-fln-state="playing"] .fln-snd__icon { background: #fff; color: var(--fln-go); }
 .fln-snd.fln-snd-pill[data-fln-state="playing"] .fln-snd__sub { color: #fff; }
 .fln-snd.fln-snd-pill[data-fln-state="error"] { background: var(--fln-warn-bg); border-color: var(--fln-warn); color: var(--fln-warn); }

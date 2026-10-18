@@ -103,10 +103,12 @@ describe('SoundPill', () => {
     f.emit('c001', 'error');
     expect(btn).toHaveAttribute('data-fln-state', 'error');
     expect(btn).toHaveTextContent("Couldn't play. Tap to try again");
-    // The error line replaces the caption, and the bar is gone.
-    expect(btn).not.toHaveTextContent('as in Cat');
+    // A11: the visible caption stays (the box never changes); the state line is out of flow, the bar is gone, and
+    // the full retry sentence leads the accessible name and is the title.
+    expect(btn.querySelector('.fln-snd__sub')).toHaveTextContent('as in Cat');
     expect(btn.querySelector('.fln-snd__bar')).toBeNull();
-    expect(btn).toHaveAttribute('aria-label', 'Play c');
+    expect(btn).toHaveAttribute('aria-label', "Couldn't play. Tap to try again. Play c");
+    expect(btn).toHaveAttribute('title', "Couldn't play. Tap to try again");
   });
 
   it('two pills of one clip keep their own state: only the tapping owner shows playing', () => {
