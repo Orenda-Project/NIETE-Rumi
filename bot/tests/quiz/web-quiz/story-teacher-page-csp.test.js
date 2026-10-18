@@ -214,6 +214,22 @@ describe('switch on: a hashed policy in the page and the header', () => {
     expect(directives(metaPolicy(pre))['media-src']).toEqual(["'self'"]);
     expect((await render('shelf_ur', { csp: true })).body).toContain('/wq/fonts/wq-nastaliq-3.woff2');
   });
+  test('"Send to class": the form posts to this origin and the 302 it gets back (wa.me) is allowed by form-action', async () => {
+    const r = await render('preview_audio', { csp: true });
+    const d = directives(metaPolicy(r.body));
+    expect(r.headers['Content-Security-Policy']).toContain(d['form-action'].join(' '));
+    const layer = Routes.stack.find((l) => l.route && l.route.path === '/send');
+    const out = res();
+    out.redirect = (code, url) => { out.code = code; out.location = url; return out; };
+    out.headersSent = false;
+    await layer.route.stack[0].handle({ body: { th: th('en'), story_id: B(2) } }, out);
+    expect(out.code).toBe(302);
+    expect(out.location).toMatch(/^https:\/\/wa\.me\//);
+    expect(allowed(d, 'form-action', out.location)).toBe(true);
+    expect(allowed(d, 'form-action', 'https://api.whatsapp.com/send?text=x')).toBe(true);   // wa.me's own next hop
+    // a page with no form names no other origin
+    expect(directives(metaPolicy((await render('shelf_en', { csp: true })).body))['form-action']).toEqual(["'self'"]);
+  });
   test('a script edited without its hash goes red (and so does a style)', async () => {
     const r = await render('preview_audio', { csp: true });
     expect(check(r.body)).toEqual([]);
@@ -273,5 +289,14 @@ describe('the switch read', () => {
     seed({ csp: true });
     expect(Stories.pageCspOn()).toBe(false);
     expect(settingsReads).toHaveLength(0);
+  });
+});
+
+describe('the shared helper (teacher-home.page csp): the teacher home\'s policy is unchanged', () => {
+  test('one style hash and one script hash, header and meta, and the no-script page: today\'s strings', () => {
+    const { csp } = require('../../../shared/services/first-touch/teacher-home.page');
+    expect(csp('S', 'H')).toBe("default-src 'none'; style-src 'sha256-S'; script-src 'sha256-H'; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+    expect(csp('S', 'H', { meta: true })).toBe("default-src 'none'; style-src 'sha256-S'; script-src 'sha256-H'; connect-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'");
+    expect(csp('S', null)).toBe("default-src 'none'; style-src 'sha256-S'; img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
   });
 });

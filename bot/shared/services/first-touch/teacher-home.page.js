@@ -215,9 +215,16 @@ getj('/api/th/home?t='+T+(b.ask?'&lang='+b.ask:'')+(/^[1-5]$/.test(g0||'')?'&g='
 })();`;
 const SCRIPT_HASH = sha(SCRIPT);
 
-function csp(styleHash, scriptHash, { meta = false } = {}) {
-  return `default-src 'none'; style-src 'sha256-${styleHash}'; ${scriptHash ? `script-src 'sha256-${scriptHash}'; connect-src 'self'; ` : ''}`
-    + `img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'${meta ? '' : "; frame-ancestors 'none'"}`;
+/**
+ * The page policy. A hash, or a list of them (the stories page has more than one inline style); `media` adds
+ * media-src 'self' (a page with an <audio>); `formTo`, origins a form's post may redirect to (browsers check
+ * form-action on the redirect too). `meta`: the <meta> copy, which cannot carry frame-ancestors.
+ */
+function csp(styleHash, scriptHash, { meta = false, media = false, formTo = [] } = {}) {
+  const hashes = (h) => [].concat(h || []).map((x) => `'sha256-${x}'`).join(' ');
+  const scripts = hashes(scriptHash);
+  return `default-src 'none'; style-src ${hashes(styleHash)}; ${scripts ? `script-src ${scripts}; connect-src 'self'; ` : ''}`
+    + `img-src 'self'; ${media ? "media-src 'self'; " : ''}font-src 'self'; form-action ${["'self'", ...formTo].join(' ')}; base-uri 'none'${meta ? '' : "; frame-ancestors 'none'"}`;
 }
 
 function head(lang, title, style, styleHash, scriptHash) {
@@ -313,4 +320,4 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null }) {
   return { html, csp: csp(styleHash, SCRIPT_HASH) };
 }
 
-module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, digits };
+module.exports = { buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, digits, csp, sha };
