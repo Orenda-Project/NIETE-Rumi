@@ -6,7 +6,7 @@
  *   targets  every tappable smaller than 48 x 48
  *   emoji    emoji characters in visible text (the icon set replaces them)
  *   buttons  each Home / back / share / main button: size, radius, shadow, border, fill, and how far its label's
- *            middle sits from the box's middle
+ *            middle (its words, with an icon drawn in the flow beside or over them) sits from the box's middle
  *   primary  the [data-primary]'s bottom against innerHeight
  *   rows     the height of every list row (door rows and their loading placeholders)
  *   radii    the distinct corner radii of the boxes a child sees (a circle counts once, as 'circle'); a glyph
@@ -50,6 +50,11 @@
         const rg = document.createRange(); rg.selectNodeContents(n);
         Array.from(rg.getClientRects()).filter((x) => x.width > 0 && x.height > 0).forEach((x) => rs.push(x));
       }
+      // an icon drawn in the flow beside or over the words is part of the label (a tile: the icon over its word)
+      if (rs.length) e.querySelectorAll('svg,img').forEach((g) => {
+        if (!vis(g) || /^(absolute|fixed)$/.test(cs(g).position) || g.closest('[data-hold-ring]')) return;
+        const x = g.getBoundingClientRect(); if (x.width > 0 && x.height > 0 && !g.parentElement.closest('svg')) rs.push(x);
+      });
       if (rs.length) {
         const top = Math.min(...rs.map((x) => x.top)), bot = Math.max(...rs.map((x) => x.bottom));
         const pt = parseFloat(s.paddingTop) || 0, pb = parseFloat(s.paddingBottom) || 0, bt = parseFloat(s.borderTopWidth) || 0, bb = parseFloat(s.borderBottomWidth) || 0;

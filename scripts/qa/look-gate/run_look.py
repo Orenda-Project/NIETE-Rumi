@@ -53,6 +53,20 @@ def server(out_dir):
                     return self.send(200, open(f, 'rb').read(), 'text/html; charset=utf-8')
                 return self.send(404, b'no page', 'text/plain')
             if p.startswith('/api/'):
+                ref = self.headers.get('referer') or ''
+                if p.startswith('/api/wq/ch/') and '/h/ch-' in ref:
+                    # the Challenge page: its read (a short story) and its menu, invented
+                    ur = '/h/ch-ur' in ref
+                    if p.endswith('/read'):
+                        text = 'پتنگ ہرے پہاڑ کے اوپر اڑی۔ ہوا نرم اور گرم تھی۔' if ur else 'The kite flew over the green hill. The wind was soft and warm.'
+                        toks = text.split(' ')
+                        clip = {'text': '', 'url': None}
+                        body = {'ex': 'read', 'ct': 'CT-look', 'secs': 60, 'lang': 'ur' if ur else 'en', 'record': True, 'questions_on': True,
+                                'clips': {'intro': clip, 'start': clip, 'stop': clip, 'done': clip},
+                                'story': {'text': text, 'dir': 'rtl' if ur else 'ltr', 'tokens': toks, 'lines': [{'from': 0, 'to': len(toks) - 1}]}}
+                    else:
+                        body = {'lang': 'ur' if ur else 'en', 'form': 'G3', 'record': True, 'exercises': [{'id': 'read', 'name': 'Read aloud', 'mins': 2, 'done': False, 'last': None}]}
+                    return self.send(200, json.dumps(body, ensure_ascii=False).encode('utf-8'), 'application/json')
                 if p.startswith('/api/wq/doors/') and '/h/shelf-' in (self.headers.get('referer') or ''):
                     return self.send(200, b'{"shelf":true,"stories":[],"games":[]}', 'application/json')
                 if 'shelf' in p:
@@ -75,6 +89,9 @@ def server(out_dir):
             n = int(self.headers.get('content-length') or 0)
             if n:
                 self.rfile.read(n)
+            if self.path.split('?')[0] == '/api/wq/finish':
+                # the quiz's end: 4 of 5, counted (the results card and its card screen)
+                return self.send(200, b'{"score":{"correct":4,"total":5,"pct":80},"counted":true}', 'application/json')
             return self.send(200, b'{"ok":true}', 'application/json')
 
     httpd = ThreadingHTTPServer(('127.0.0.1', 0), H)
@@ -188,6 +205,19 @@ def main():
                             page.wait_for_selector('[data-screen]', timeout=8000)
                             page.evaluate(CARD_JS, [pg['lang'], man['token'], man['kid']])
                             shot('story-done')
+                        elif pg['kind'] == 'ch':
+                            page.goto(base + pg['path'], wait_until='load')
+                            page.wait_for_selector('#wqc-ex-read', timeout=8000)
+                            page.wait_for_timeout(400)
+                            shot('ch-menu')
+                            page.click('#wqc-ex-read')
+                            page.wait_for_timeout(1500)
+                            shot('ch-read')
+                        elif pg['kind'] == 'practice':
+                            page.goto(base + pg['path'], wait_until='load')
+                            page.wait_for_selector('[data-screen]', timeout=8000)
+                            page.wait_for_timeout(600)
+                            shot('practice-home')
                         elif pg['kind'] == 'shelf':
                             page.goto(base + pg['path'] + '?wait=1#stories', wait_until='load')
                             page.wait_for_selector('[data-screen]', timeout=8000)
@@ -208,6 +238,21 @@ def main():
                             page.click('#wq-cont')
                             page.wait_for_selector('#wq[data-m="M6"] .wq-item', timeout=8000)
                             shot('quiz-question')
+                            # the end: a run that already finished opens on its card screen (the share card, the class
+                            # table and the league doors), as a child who comes back to the link sees it
+                            state['result'] = {'score': {'correct': 4, 'total': 5, 'pct': 80}, 'counted': True}
+                            ctx2 = browser.new_context(viewport={'width': w, 'height': 740}, user_agent=UA, device_scale_factor=2, is_mobile=True, has_touch=True)
+                            ctx2.add_init_script(init)
+                            ctx2.add_init_script("try{localStorage.setItem(%s,%s);}catch(e){}" % (json.dumps('wq_s_' + pg['code']), json.dumps(json.dumps(state))))
+                            try:
+                                page = ctx2.new_page()
+                                page.on('pageerror', lambda e: errs.append(str(e)[:200]))
+                                page.goto(base + pg['path'], wait_until='load')
+                                page.wait_for_selector('#wq[data-m="M10"]', timeout=8000)
+                                page.wait_for_timeout(500)
+                                shot('quiz-card')
+                            finally:
+                                ctx2.close()
                     except Exception as e:
                         results.append({'page': pg['name'], 'lang': pg['lang'], 'width': w, 'fatal': str(e).split('\n')[0][:240], 'errors': list(errs)})
                     finally:
