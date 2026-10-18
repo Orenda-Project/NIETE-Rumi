@@ -1100,6 +1100,26 @@ function namesBody(q) {
   return points.filter((t) => !BODY.test(t) && !names(t) && statesFact(t)).length < EXPLAINING_POINTS;
 }
 
+// Social Studies Q6: an answer that is a list the book gives (a party's jobs, a quarrel settled by the book's
+// steps in its own words), set in a story, is recall: the child copies the book. Held when at least three of its
+// marking points each restate a sentence of the pages (seven tenths of its words, marking words aside), all within
+// three sentences side by side, or within one sentence that lists them. A point that uses a book idea in the
+// story's own words is not a restatement: an Apply item's points carry the book's ideas too, so the test asks
+// for the book's wording, in the book's order.
+const LIST_POINTS = 3;
+const LIST_SPAN = 2;
+const LIST_SHARE = 0.7;
+function bookList(q, sentences) {
+  if (!sentences) return false;
+  const at = (q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+    .map((p) => [...new Set(tokensOf(String(typeof p === 'string' ? p : (p && p.text) || '')))].filter((w) => !PLACEHOLDER_WORDS.has(w) && !backGeneric.has(w)))
+    .filter((words) => words.length >= PASSAGE_WORDS)
+    .map((words) => sentences.flatMap((s, i) => (words.filter((w) => s.has(w)).length >= LIST_SHARE * words.length ? [i] : [])))
+    .filter((list) => list.length);
+  if (at.length < LIST_POINTS) return false;
+  return [...new Set(at.flat())].some((from) => at.filter((list) => list.some((i) => i >= from && i <= from + LIST_SPAN)).length >= LIST_POINTS);
+}
+
 // Urdu: a Q1 MCQ keyed on a word of a Q6 verse line it asks about: its key's words are all in the
 // line and its stem carries at least two of the line's other words («ندی کا پانی صاف ہو گا تو ہم کس
 // چیز سے بچیں گے؟ → بیماری» beside «پانی جو صاف ہوگا بیماری سے بچوگے»), or it quotes a line. A
@@ -2053,7 +2073,7 @@ function heldNote(section, held) {
     + 'Never these: write none of them again, and no item answered by any of these answers or points, in any wording.';
 }
 // Social Studies: the Q6 items set aside as book-fact recall (asksRecall, namesBody), and what a Q6 is instead.
-const RECALL_RULES = new Set(['recall', 'names_body', 'asks_frame', 'tells_what']);
+const RECALL_RULES = new Set(['recall', 'names_body', 'asks_frame', 'tells_what', 'book_list']);
 function recallNote(section, held) {
   if (!section.slots.some((s) => s.slot === Q6_SLOT)) return null;
   const list = (Array.isArray(held) ? held : []).filter((h) => h && RECALL_RULES.has(h.rule) && h.slot === Q6_SLOT && h.q && typeof h.q.question === 'string');
@@ -2061,7 +2081,8 @@ function recallNote(section, held) {
   if (!lines.length) return null;
   const why = (list.some((h) => h.rule === 'names_body') ? ', or only names a government, court or body as its answer' : '')
     + (list.some((h) => h.rule === 'asks_frame') ? ', or only relays what someone asks («… نے پوچھا کہ …», «… جاننا چاہتا ہے کہ …») so its answer is the book\'s text' : '')
-    + (list.some((h) => h.rule === 'tells_what') ? ', or only asks to tell someone what a place or a system is like («… کو بتائیں کہ … کیسا …») so its answer is the book\'s description' : '');
+    + (list.some((h) => h.rule === 'tells_what') ? ', or only asks to tell someone what a place or a system is like («… کو بتائیں کہ … کیسا …») so its answer is the book\'s description' : '')
+    + (list.some((h) => h.rule === 'book_list') ? ', or is answered by a list the book gives, its points the book\'s own sentences in order' : '');
   return `These Q6 items were set aside: each asks only book facts (who heads or chairs a body, what it is called, how many, when, what was done)${why}, whatever the story around them:\n${lines.join('\n')}\n`
     + 'A Q6 is a situation that needs two ideas applied; history recall goes to Q7. Write each new Q6 so the child decides, advises or explains what to do in the case, using two different ideas from these pages.';
 }
@@ -2306,6 +2327,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && namesBody(q)) return hold(slot, q, 'names_body');
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksFrame(q)) return hold(slot, q, 'asks_frame');
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && tellsWhat(q)) return hold(slot, q, 'tells_what');
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && bookList(q, sentences)) return hold(slot, q, 'book_list');
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.

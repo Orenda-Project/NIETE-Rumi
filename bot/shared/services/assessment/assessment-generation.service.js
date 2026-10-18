@@ -945,7 +945,8 @@ const RULE = {
       + 'Nor does it ask only civics or geography facts (who heads or chairs a body, what it is called, how many, when): that recall goes to Q7 too. '
       + 'Nor is a Q6 answered by naming which government, court or body does a job, even with the book\'s one-line reason: besides any marking point that names a government, court or body, at least two of its marking points explain an idea without naming one. '
       + 'A Q6 is never "which map, which medium or which government for each need": such items go to Q7 as one-fact items. '
-      + 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5.',
+      + 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5. '
+      + 'A Q6 answer is never a list the book gives, nor the name of a tier or a body.',
     Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation. '
       + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures, the name of a social media app); it asks a fact these pages teach.',
   },
