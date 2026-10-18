@@ -595,3 +595,55 @@ describe('the class table warmed while "See my class" is on screen, and the chil
     expect(JSON.parse(off.ls.get('wq_cp_TEST_c1'))).toBe(3);
   });
 });
+
+describe('a class table that is not there (404) says so, with the page\'s own way on (class_doors)', () => {
+  const attr = (h, sel, a) => { const m = new RegExp('<[^>]*' + sel + '[^>]*\\s' + a + '="([^"]*)"').exec(h); return m ? m[1] : null; };
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: 404 -> Jugnu says this one has no class table; failed + not_found marks; Play, never a retry`, async () => {
+      const p = page({ lang, store: {}, view: 'class', bootExtra: { class_doors: true }, api: { '/board/TEST': { __status: 404, error: 'not_found' } } });
+      await flush(); await flush();
+      const h = p.html();
+      expect(h).toContain('data-m="M11-none"');
+      expect(h).toContain(p.wq.T.tableNone);
+      expect(attr(h, 'data-list="table"', 'data-fetch')).toBe('failed');
+      expect(attr(h, 'data-list="table"', 'data-why')).toBe('not_found');
+      expect(h).not.toContain('id="wq-retry"');
+      expect(h).not.toContain(p.wq.T.offline);
+      // a visitor from a link has no session, so no home here: Play is the one way on
+      expect(h).toContain('id="wq-play" data-primary');
+      expect(h).not.toContain('id="wq-thome"');
+    });
+  }
+  test('the lines, as the lead and the native read set them', () => {
+    const en = page({ lang: 'en' }); const ur = page({ lang: 'ur' });
+    expect(en.wq.T.tableNone).toBe('This table opens for a class quiz.');
+    expect(ur.wq.T.tableNone).toBe('کلاس ٹیبل صرف کلاس کے کوئز میں ہوتی ہے۔');
+  });
+  test('a child with a session on the page: one Home button (the hub door), never Play', async () => {
+    const p = page({ lang: 'en', store: store({ ...RESULT }), bootExtra: { class_doors: true }, api: { 'board/': { __status: 404 }, hubdoor: { href: '/h/tok.abc' } } });
+    p.wq.board();
+    await flush(); await flush();
+    const h = p.html();
+    expect(h).toContain('<button class="wq-btn wq-go" id="wq-thome" data-primary data-home>' + p.wq.T.homeBtn + '</button>');
+    expect(h).not.toContain('id="wq-play"');
+    expect((h.match(/\sdata-primary[\s>=]/g) || []).length).toBe(1);
+    p.els['#wq-thome'].fire('click');
+    await flush(); await flush(); await flush();
+    expect(p.hist.assigned[0]).toMatch(/^\/h\/tok\.abc\?from=home/);
+  });
+  test('a 5xx or a dropped line: today\'s offline line and retry', async () => {
+    for (const r of [{ __status: 503 }, { __offline: true }]) {
+      const p = page({ lang: 'en', store: {}, view: 'class', bootExtra: { class_doors: true }, api: { '/board/TEST': r } });
+      await flush(); await flush();
+      expect(p.html()).toContain('data-m="M11-error"');
+      expect(p.html()).toContain('id="wq-retry"');
+    }
+  });
+  test('off (no class_doors on the boot): a 404 is today\'s offline screen, start to end', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'class', api: { '/board/TEST': { __status: 404 } } });
+    await flush(); await flush();
+    expect(p.html()).toContain('data-m="M11-error"');
+    expect(p.html()).toContain('id="wq-retry"');
+    expect(p.html()).not.toMatch(/data-(why|fetch)/);
+  });
+});

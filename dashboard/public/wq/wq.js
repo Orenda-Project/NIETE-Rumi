@@ -621,7 +621,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, onlyClass: function (c) { return 'Only Class ' + c; },
       movedUp: function (n) { return 'You moved up ' + n + (n === 1 ? ' place!' : ' places!'); }, movedNow: function (p) { return 'More friends played. You are at place ' + p + ' now.'; }, samePlace: 'Same place as last time.', you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
-      shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
+      shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!', tableNone: 'This table opens for a class quiz.',
       schoolsBtn: 'School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
       pts: function (n) { return fmtN(n) + (n === 1 ? ' point' : ' points'); }, kidsN: function (n) { return fmtN(n) + (n === 1 ? ' child played' : ' children played'); },
       yourSchool: 'YOUR SCHOOL', moveNew: 'NEW', schoolPlace: function (s, p) { return s + ' is #' + p + ' this week'; },
@@ -696,7 +696,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; },
       movedUp: function (n) { return 'آپ اب ' + urDigits(n) + (n === 1 ? ' درجہ' : ' درجے') + ' اوپر ہیں!'; }, movedNow: function (p) { return 'کچھ اور دوستوں نے بھی کھیلا۔ اب آپ ' + urDigits(p) + ' نمبر پر ہیں۔'; }, samePlace: 'آپ پچھلی بار والی جگہ پر ہیں۔', you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
-      shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
+      shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!', tableNone: 'کلاس ٹیبل صرف کلاس کے کوئز میں ہوتی ہے۔',
       schoolsBtn: 'اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
       pts: function (n) { return urDigits(fmtN(n)) + ' پوائنٹس'; }, kidsN: function (n) { return urDigits(fmtN(n)) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
       yourSchool: 'آپ کا اسکول', moveNew: 'نیا', schoolPlace: function (s, p) { return s + ' اس ہفتے نمبر ' + urDigits(p) + ' پر'; },
@@ -2941,6 +2941,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       drawBoard(b, mixed, false, true);
     }).catch(function (e) {
       ev('error', { err: (e && e.message) || 'board' });
+      // web_quiz_class_doors: a table that is not there (404: a friend's challenge code, the shared watch quiz) is said so,
+      // with one way on; never "no internet" and a retry that cannot work. Home for a child on this page (the hub door
+      // needs the session); a visitor from a link with no session has no home here, so Play.
+      if (LS_ON && e && e.message === 'board_404') {
+        render(bar() + '<div' + lsMarks('table', 'failed') + ' data-why="not_found">' + jug('thinking', T.tableNone) + '</div>' +
+          (S.st ? '<button class="wq-btn wq-go" id="wq-thome" data-primary data-home>' + esc(T.homeBtn) + '</button>' : '<button class="wq-btn wq-go" id="wq-play" data-primary>' + esc(T.play) + '</button>'), 'M11-none');
+        wireBar();
+        on('#wq-thome', function () { homeGo('table'); });
+        on('#wq-play', landing);
+        return;
+      }
       render(bar() + (LS_ON ? '<div' + lsMarks('table', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
       wireBar();
       on('#wq-retry', board);
