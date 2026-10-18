@@ -55,7 +55,7 @@ interface FlnStrings {
     answerKey: string;
     guide: string;
     screener: string;
-    /** "1 sound" — the singular of `sounds(1)` (MOCKUPS fix: never "1 sounds"). */
+    /** "1 sound" — the same text `sounds(1)` returns (MOCKUPS fix: never "1 sounds"; `sounds`/`words` are plural-aware). */
     soundOne: string;
   };
   kickerLevelLesson: (level: number, pos: number, count: number) => string;
@@ -137,8 +137,8 @@ const EN: FlnStrings = {
   },
   minutes: (n) => `${n} min`,
   chip: {
-    sounds: (n) => `${n} sounds`,
-    words: (n) => `${n} words`,
+    sounds: (n) => (n === 1 ? '1 sound' : `${n} sounds`),
+    words: (n) => (n === 1 ? '1 word' : `${n} words`),
     narration: 'Story audio',
     video: 'Video',
     textbook: 'Needs the textbook',
@@ -173,8 +173,8 @@ const EN: FlnStrings = {
   video: { watch: (minutes, mb) => `Watch · ${minutes} min · ${mb} MB`, smaller: 'Smaller video' },
   pdf: 'Open the worksheet',
   footer: {
-    p25: (id) => `FDE FLN programme 2025 · lesson ${id}`,
-    p23: (id) => `Additional practice · 2023–24 programme · lesson ${id}`,
+    p25: (id) => `FDE FLN programme 2025 · ID ${id}`,
+    p23: (id) => `Additional practice · 2023–24 programme · ID ${id}`,
   },
   errors: {
     notAvailable: "This lesson isn't available",
@@ -226,8 +226,8 @@ const UR: FlnStrings = {
   },
   minutes: (n) => `${num(n, 'ur')} منٹ`,
   chip: {
-    sounds: (n) => `${num(n, 'ur')} آوازیں`,
-    words: (n) => `${num(n, 'ur')} الفاظ`,
+    sounds: (n) => (n === 1 ? '۱ آواز' : `${num(n, 'ur')} آوازیں`),
+    words: (n) => (n === 1 ? '۱ لفظ' : `${num(n, 'ur')} الفاظ`),
     narration: 'کہانی کی آواز',
     video: 'ویڈیو',
     textbook: 'درسی کتاب درکار',
@@ -259,11 +259,11 @@ const UR: FlnStrings = {
   itemKind: { say: 'کہیں:', ask: 'پوچھیں:', answer: 'جواب:' },
   groupLevel: { beginner: 'ابتدائی گروپ', intermediate: 'درمیانی گروپ', advance: 'اعلیٰ گروپ' },
   image: { enlarge: 'تصویر بڑی کریں', close: 'بند کریں', failed: 'تصویر لوڈ نہیں ہوئی' },
-  video: { watch: (minutes, mb) => `دیکھیں — ${num(minutes, 'ur')} منٹ — ${num(mb, 'ur')} MB`, smaller: 'چھوٹی ویڈیو' },
+  video: { watch: (minutes, mb) => `دیکھیں — ${num(minutes, 'ur')} منٹ — ${num(mb, 'ur')} ایم بی`, smaller: 'چھوٹی ویڈیو' },
   pdf: 'ورک شیٹ کھولیں',
   footer: {
-    p25: (id) => `FDE FLN پروگرام ۲۰۲۵ — سبق ${num(id, 'ur')}`,
-    p23: (id) => `اضافی مشق — ۲۰۲۳–۲۴ پروگرام — سبق ${num(id, 'ur')}`,
+    p25: (id) => `FDE FLN پروگرام ۲۰۲۵ — آئی ڈی ${num(id, 'ur')}`,
+    p23: (id) => `اضافی مشق — ۲۰۲۳–۲۴ پروگرام — آئی ڈی ${num(id, 'ur')}`,
   },
   errors: {
     notAvailable: 'یہ سبق دستیاب نہیں',

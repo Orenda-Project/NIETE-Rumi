@@ -29,6 +29,8 @@ export interface ShareStrings {
   lesson: string;
   minutes: string;
   sounds: string;
+  /** The singular of `sounds` (n = 1): never "1 sounds". */
+  soundOne: string;
   chip: { narration: string; textbook: string; additional: string; screener: string; guide: string; answerKey: string };
 
   // Share bar + share sheet
@@ -84,6 +86,8 @@ export interface ShareStrings {
   tryAgain: string;
   notAvailableTitle: string;
   notAvailableBody: string;
+  /** A leader (coach, principal…) whose sending is not switched on yet: not "this page is for leaders". */
+  notSwitchedOnBody: string;
   goHome: string;
   whatsapp: string;
 
@@ -102,6 +106,7 @@ const EN: ShareStrings = {
   lesson: 'Lesson {pos}/{count}',
   minutes: '{n} min',
   sounds: '{n} sounds',
+  soundOne: '{n} sound',
   chip: {
     narration: 'Story audio',
     textbook: 'Needs the textbook',
@@ -161,6 +166,7 @@ const EN: ShareStrings = {
   tryAgain: 'Try again',
   notAvailableTitle: "Sending lesson plans isn't available",
   notAvailableBody: 'This page is for coaches, principals and other school leaders.',
+  notSwitchedOnBody: "Sending isn't switched on for your account yet.",
   goHome: 'Go home',
   whatsapp: 'WhatsApp',
 
@@ -177,6 +183,7 @@ const UR: ShareStrings = {
   lesson: 'سبق {pos} (کل {count})',
   minutes: '{n} منٹ',
   sounds: '{n} آوازیں',
+  soundOne: '{n} آواز',
   chip: {
     narration: 'کہانی کی آواز',
     textbook: 'درسی کتاب درکار',
@@ -236,6 +243,7 @@ const UR: ShareStrings = {
   tryAgain: 'دوبارہ کوشش کریں',
   notAvailableTitle: 'سبق کے منصوبے بھیجنا دستیاب نہیں',
   notAvailableBody: 'یہ صفحہ کوچ، پرنسپل اور اسکول کے دوسرے رہنماؤں کے لیے ہے۔',
+  notSwitchedOnBody: 'آپ کے اکاؤنٹ کے لیے بھیجنا ابھی شروع نہیں ہوا۔',
   goHome: 'ہوم پر جائیں',
   whatsapp: 'واٹس ایپ',
 

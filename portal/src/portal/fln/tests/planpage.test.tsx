@@ -177,7 +177,7 @@ describe('leaders, back, footer, telemetry', () => {
   it('footer names the programme and the id', async () => {
     renderPlan(rhEn);
     await screen.findByText(rhEn.plan.title);
-    expect(document.querySelector('.fln-plan-foot')!.textContent).toBe('FDE FLN programme 2025 · lesson 90001');
+    expect(document.querySelector('.fln-plan-foot')!.textContent).toBe('FDE FLN programme 2025 · ID 90001');
   });
 
   it('batches player events with the plan id: ≤1 batch / 5 s, flush on pagehide', async () => {

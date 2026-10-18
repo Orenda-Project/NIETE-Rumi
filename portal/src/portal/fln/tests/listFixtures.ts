@@ -8,9 +8,9 @@ import { vi } from 'vitest';
 import type { FlnCatalogue, FlnLevel, FlnMe, FlnRow } from '../types';
 
 export const LEVELS: FlnLevel[] = [
-  { level: 1, grades: [1], count: 66, screener_id: 9002, screener_minutes: 53, note_en: 'one child at a time · 2–4 sessions', note_ur: 'ایک وقت میں ایک بچہ' },
-  { level: 2, grades: [2, 3], count: 72, screener_id: 9002, screener_minutes: 53, note_en: 'one child at a time · 2–4 sessions', note_ur: 'ایک وقت میں ایک بچہ' },
-  { level: 3, grades: [4, 5], count: 70, screener_id: 9002, screener_minutes: 53, note_en: 'one child at a time · 2–4 sessions', note_ur: 'ایک وقت میں ایک بچہ' },
+  { level: 1, grades: [1], count: 66, screener_id: 9002, screener_minutes: 53, screener_audio: true, note_en: 'one child at a time · 2–4 sessions', note_ur: 'ایک وقت میں ایک بچہ' },
+  { level: 2, grades: [2, 3], count: 72, screener_id: 9002, screener_minutes: 53, screener_audio: true, note_en: 'one child at a time · 2–4 sessions', note_ur: 'ایک وقت میں ایک بچہ' },
+  { level: 3, grades: [4, 5], count: 70, screener_id: 9002, screener_minutes: 53, screener_audio: true, note_en: 'one child at a time · 2–4 sessions', note_ur: 'ایک وقت میں ایک بچہ' },
 ];
 
 const row = (r: Partial<FlnRow> & { id: number; pos: number }): FlnRow => ({

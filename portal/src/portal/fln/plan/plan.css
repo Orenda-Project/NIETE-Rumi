@@ -64,8 +64,10 @@
 .fln-root .fln-plan .fln-timebar { display: flex; height: 30px; border-radius: 8px; overflow: hidden; font: 800 13px/1 var(--font-latin); color: #fff; }
 .fln-root .fln-plan .fln-timebar-seg { display: flex; align-items: center; justify-content: center; background: var(--c); border-inline-end: 2px solid #fff; min-width: 56px; white-space: nowrap; }
 .fln-root .fln-plan .fln-timebar-seg:last-child { border: 0; }
-.fln-root .fln-plan .fln-timebar-lab { display: flex; font-size: 12px; color: var(--mut); margin-top: 4px; line-height: 1.2; }
-.fln-root .fln-plan .fln-timebar-lab span { text-align: center; min-width: 56px; overflow-wrap: break-word; hyphens: auto; padding: 0 1px; }
+.fln-root .fln-plan .fln-timebar-lab { display: flex; flex-wrap: wrap; font-size: 12px; color: var(--mut); margin-top: 4px; line-height: 1.2; }
+/* A label never breaks inside a word ("Conclusi-on" at 390 px): it is at least as wide as its longest word, and when
+   the row cannot hold them all a whole label wraps to the next line. */
+.fln-root .fln-plan .fln-timebar-lab span { text-align: center; min-width: min-content; overflow-wrap: normal; word-break: keep-all; hyphens: none; padding: 0 1px; }
 .fln-root[lang="ur"] .fln-plan .fln-timebar-lab { font-size: 13px; line-height: 1.9; }
 
 /* sound grid frame (the tiles themselves are the audio lane's) */
