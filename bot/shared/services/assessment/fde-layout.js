@@ -1635,11 +1635,11 @@ const nameCue = (a, b) => namePrinted(a, b) || namePrinted(b, a);
 // print, given away by another item's stem or correct option that prints that name as a person
 // («ایدھی صاحب نے …», «قائدِ اعظم نے …», «محترمہ فاطمہ جناح …»). A word is read as a name only where the
 // other text marks it so (followed by «صاحب / صاحبہ / نے», or after «محترم / محترمہ / جناب»): a
-// common word a key shares with another stem («بچے») is not one. An item that asks about a word
-// asks no name.
+// common word a key shares with another stem («بچے») is not one, nor is a word inside an example the
+// other stem quotes («جملے «بچے نے ٹھنڈا پانی پیا» میں …»). An item that asks about a word asks no name.
 const NAME_AFTER = new Set(['صاحب', 'صاحبہ', 'نے']);
 const NAME_BEFORE = new Set(['محترم', 'محترمہ', 'جناب']);
-const NOT_PERSONS = new Set('انھوں انہوں انھیں انہیں ہم تم آپ میں اس ان جس جن کسی سب لوگوں بچوں'.split(' ').map(plain));
+const NOT_PERSONS = new Set('انھوں انہوں انھیں انہیں ہم تم آپ میں اس ان جس جن کسی سب لوگوں بچوں بچے بچہ لڑکا لڑکی لڑکے آدمی لوگ'.split(' ').map(plain));
 function personsIn(text) {
   const w = plain(text).split(' ');
   return new Set(w.filter((x, i) => [...x].length >= 3 && !STOP.has(x) && !NOT_PERSONS.has(x) && !NAME_AFTER.has(x)
@@ -1653,7 +1653,7 @@ function nameInKey(q, by) {
   const own = new Set(plain(q.question).split(' '));
   const others = q.options.map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter((o) => o !== key);
   const told = Array.isArray(by.options) && by.options.length ? plain(keyOption(by)) : '';
-  const persons = personsIn(`${by.question || ''} ${told !== key ? told : ''}`);
+  const persons = personsIn(`${String(by.question || '').replace(QUOTE_SPAN, ' ')} ${told !== key ? told : ''}`);
   return words.some((w) => persons.has(w) && !own.has(w) && !others.some((o) => ` ${o} `.includes(` ${w} `)));
 }
 const keyNameCue = (a, b) => nameInKey(a, b) || nameInKey(b, a);
@@ -1690,8 +1690,10 @@ const MARKED = new RegExp(UR_MARKS.source);
 function twoRightOptions(q) {
   if (!Array.isArray(q.options) || q.options.length < 2) return false;
   const read = q.options.map((o) => {
+    // Letters as written: a spelling item's options differ by one letter (ذائقہ / ذایقہ), never folded.
     const t = String(o).replace(OPTION_HEAD, '').normalize('NFC');
-    return { bare: plain(t), marks: MARKED.test(t) ? t.replace(/[^\u064B-\u065F\u0670]/g, '') : '' };
+    const bare = t.replace(new RegExp(UR_MARKS.source, 'g'), '').split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(' ');
+    return { bare, marks: MARKED.test(t) ? t.replace(/[^\u064B-\u065F\u0670]/g, '') : '' };
   });
   return read.some((a, i) => a.bare && read.some((b, j) => j > i && b.bare === a.bare && !(a.marks && b.marks && a.marks !== b.marks)));
 }
@@ -2139,7 +2141,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const conceptsOf = (q) => {
     const out = new Set();
     const c = conceptOf(q, conceptLessons);
-    if (c) out.add(c);
+    // A reply written before Section A declared its concepts was never asked to keep an antonym or a
+    // synonym once on chosen lessons: there they stay vocabulary, as they printed.
+    if (c && (conceptLessons || !LESSON_ONLY.has(c))) out.add(c);
     const d = declared.get(q);
     if (d && d.grammar && !d.pair) {
       const entry = CONCEPTS.some(([name]) => name === d.name) ? null : entryOf(P.lessons || [], d.name);
@@ -2210,7 +2214,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && lettersOfKey(q)) return no(slot, 'letters_of_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && markEndsStem(q)) return no(slot, 'mark_ends_stem');
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && twoRightOptions(q)) return no(slot, 'two_right_options');
-      const outside = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
+      const outsideOf = slot.slot === 'urdu.A.Q1' && outsideLessons(q, lessons);
+      const outside = outsideOf && (counted || !LESSON_ONLY.has(outsideOf)) ? outsideOf : null;
       if (outside) { held.push({ slot: slot.slot, rule: 'grammar_outside_lessons', concept: outside }); return no(slot, 'grammar_outside_lessons'); }
       const miss = slot.slot === 'urdu.A.Q1' && counted && declaredMiss(q, declared.get(q), counted);
       // A tag the stem contradicts gives nothing away: the item is asked again first, and comes back
