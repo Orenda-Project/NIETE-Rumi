@@ -38,7 +38,7 @@
       againT: 'Play again', againRow: function (score, n) { return 'Best ' + score + ' · ' + n + (n === 1 ? ' try' : ' tries'); },
       practice: 'Practice: your first score is the one your teacher sees.',
       libT: 'Video library', libSub: 'Pick a subject and a chapter',
-      recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
+      recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chV3: function (m) { return m + '\'s games'; }, chSub: 'Short games for reading and numbers',
       switchKid: 'Switch player', oops: 'Something went wrong. Try again.', offline: 'No internet. Try again when you are online.',
       lockT: 'This link was sent to another player', lockSay: 'Ask the child who got this link to open it.',
       someone: 'Someone else / new player', newT: 'New here?', mineDoor: 'Finish your own quiz, then tap “My quizzes, videos and challenges”.',
@@ -56,7 +56,7 @@
       againT: 'دوبارہ کھیلیں', againRow: function (score, n) { return 'بہترین ' + score + ' · <bdi>' + n + ' بار</bdi>'; },
       practice: 'مشق: ٹیچر کو آپ کا پہلا اسکور ہی نظر آتا ہے۔',
       libT: 'ویڈیو لائبریری', libSub: 'مضمون اور باب چنیں',
-      recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
+      recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chV3: function (m) { return m + ' کے کھیل'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
       switchKid: 'کھلاڑی بدلیں', oops: 'کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں۔', offline: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
       someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز، ویڈیوز اور چیلنج» دبائیں۔',
@@ -89,12 +89,17 @@
   }
 
   /* ---------------- helpers ---------------- */
+  // The one button look (wq-tel.js WQT.oneButton): a home drawn from the page's own hub call (unlock, pick) takes the
+  // look when that answer says so, as the boot's does. Off (no field): nothing changes.
+  function look(b) { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(b); }
   // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
   function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
   function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   // The hub's own address, with the language it was opened in when it was opened with one (else today's).
   function selfUrl(h) { return URL_LANG ? withLang(h, URL_LANG) : h; }
+  // The home on: a door the link names (#stories, #games, #videos) stays on the tidied address, so the home opens it
+  function doorHash() { var h = String((typeof location !== 'undefined' && location.hash) || ''); return B.home_v3 && /^#(stories|games|videos)$/.test(h) ? h : ''; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function on(sel, fn) { var el = ROOT.querySelector(sel); if (el) el.addEventListener('click', fn); return el; }
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || '⭐') + '</span>'; }
@@ -229,8 +234,9 @@
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
+      look(B);
       setLang(B.lang || LANG);
-      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip))); } catch (e) {}
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)) + doorHash()); } catch (e) {}
       hub();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); picker(); });
   }
@@ -257,6 +263,7 @@
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
       if (r.body.locked) { locked(); return; }
       B = r.body; B.token = TOKEN; B.brand = BR;
+      look(B);
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);
@@ -371,20 +378,63 @@
   function homeTiles() {
     return '<div class="wq-htiles">' +
       (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc((B.home_v3 ? T.chV3 : T.chT)(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
       '</div>';
   }
   // The v3 child home (B.home_v3, web_quiz_home_v3): wq-home.js draws the whole page; a failed load draws today's hub.
-  var homeFail = false;
+  // With B.home_fb (web_quiz_home_fallback_v3) a failed load is asked for once more, at the same address, 1.5 s later,
+  // and a second failure draws the plain home (homeFb), never today's hub; each failure is counted (home_load_failed).
+  // An ask that neither loads nor fails within 5 s is a failure; a script that still arrives later draws the v3 home,
+  // once: the first arrival mounts it, a later one (both asks out) only puts the first copy back, and once it is here no
+  // retry is asked and a late failure of the other ask is not one.
+  var homeFail = false, homeTries = 0, homeIn = null;
+  function homeAsk(css) {
+    var done = false;
+    function fail() { if (done) return; done = true; homeErr(); }
+    loadOnce('wq-home', css, function () { done = true; if (homeIn) { window.WQHOME = homeIn; return; } homeIn = window.WQHOME; hub(); }, null, fail);
+    if (B.home_fb) setTimeout(fail, 5000);
+  }
+  function homeErr() {
+    if (homeIn) return;
+    homeTries += 1;
+    if (B.home_fb) ev('home_load_failed', { file: 'wq-home.js', i: homeTries });
+    if (B.home_fb && homeTries < 2) { setTimeout(function () { if (window.WQHOME) return; asked['wq-home'] = false; homeAsk(false); }, 1500); return; }
+    homeFail = true; hub();
+  }
+  // The plain home: the greeting as the v3 home says it, the three doors as plain links in the bar's words and order, and
+  // one line that reloads the page. A door opens what the payload names (Games: its first row; Videos: the library), else
+  // this home at that door (#stories: the shelf lives in the home's own scripts), by a reload.
+  var FB = {
+    en: { hi: function (n) { return n ? 'Hi ' + n + '!' : 'Hi!'; }, cls: function (n) { return 'Class ' + n; }, doors: ['Stories', 'Games', 'Videos'], retry: 'The page is still opening… tap here to try again.' },
+    ur: { hi: function (n) { return n ? '\u2068' + n + '\u2069، السلام علیکم!' : 'السلام علیکم!'; }, cls: function (n) { return 'کلاس ' + String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); },
+      doors: ['کہانیاں', 'کھیل', 'ویڈیوز'], retry: 'صفحہ ابھی کھل رہا ہے… دوبارہ کوشش کے لیے یہاں ٹیپ کریں۔' },
+  };
+  function fbHref(d) {
+    var D = B.doors || {}, g = (D.games || [])[0], v = D.videos;
+    if (!B.practice && d === 'games' && g) return g.kind === 'numbers' ? withHome(withLang('/c/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid || ''))) : quizHref(g.code, { again: g.done ? '1' : '', k: g.k });
+    if (!B.practice && d === 'videos' && v && v.href) return withHome(v.href);
+    return '#' + d;
+  }
+  function homeFb() {
+    var t = FB[LANG], me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
+    render(jug('hello', B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '')) + '<nav class="wq-fbdoors" style="display:grid;gap:12px;margin:8px 0 20px">' + ['stories', 'games', 'videos'].map(function (d, i) {
+      return '<a class="wq-btn wq-soft wq-fbdoor" data-door="' + d + '" href="' + esc(fbHref(d)) + '">' + esc(t.doors[i]) + '</a>';
+    }).join('') + '</nav><button class="wq-btn wq-go" type="button" id="wq-fb-retry" data-primary>' + esc(t.retry) + '</button>', 'H3-fb');
+    on('#wq-fb-retry', function () { location.reload(); });
+    Array.prototype.forEach.call(ROOT.querySelectorAll('.wq-fbdoor'), function (a) {
+      a.addEventListener('click', function (e) { var h = a.getAttribute('href') || ''; if (h.charAt(0) !== '#') return; e.preventDefault(); location.hash = h; location.reload(); });
+    });
+  }
   function hub() {
     batchIds(B.kid);
     storyIn();
-    if (B.home_v3 && !homeFail) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return loadOnce('wq-home', true, hub, null, function () { homeFail = true; hub(); }); }
+    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]'))); }
+    if (B.home_v3 && B.home_fb) return homeFb();
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(withLang(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid)))) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc((B.home_v3 ? T.chV3 : T.chT)(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     // A first open's server render was locked (no wq_dv cookie yet), so the edge left hub-play.js out: load it now.
     if (B.play && !window.WQPLAY) playIn();
     if (B.bind && !window.WQBIND) bindIn();
@@ -460,7 +510,7 @@
   function boot() {
     batchIds(B.kid);
     ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
-    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN)); } catch (e) {} }
+    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', selfUrl('/h/' + TOKEN) + doorHash()); } catch (e) {} }
     if (B.home_v3 && B.practice) hub(); // a coach's class preview (web_quiz_home_v3): the home by grade, no child
     else if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();

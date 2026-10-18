@@ -222,6 +222,7 @@ function chipNames(view, sel) {
 }
 
 describe('the teacher step on a fresh profile', () => {
+  // renderClassLinkPage (/j/<code>) and its own class-link.js, on a phone that has never opened it (openLink)
   test('two teachers sharing a long prefix: each chip shows its whole name (wraps), never one ellipsis line', async () => {
     const v = await openLink({ lang: 'en', arrive: { step: 'teacher', s: 'st1', teachers: TWO } });
     // a fresh profile: the page minted its device_ref and sent it in the body only; no preview token

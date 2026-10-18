@@ -5,7 +5,8 @@
  *
  * Switch OFF: every persona row × typed/menu/home sends exactly what the base sends — the recorded sends are compared
  * byte for byte with tests/first-touch/__goldens__/one-door-off.json, which was RECORDED ON THE BASE (origin/sandbox
- * ad10e50fc) by running this same file there with ONE_DOOR_RECORD=1.
+ * ad10e50fc) by running this same file there. To re-record, delete the file and run this file on the base: that run
+ * records it and fails (a missing file is never a silent pass); the next run checks it. No env name is read.
  * Switch ON: every non-child handset gets exactly ONE cta_url to <base>/quiz/go/<token> (no menu, no Flow, no list,
  * no "No lessons yet", no 3-button home); the token carries no phone; a child keeps today's hub reply.
  */
@@ -54,7 +55,8 @@ let GoToken = null;
 try { GoToken = require('../../shared/services/first-touch/go.token'); } catch (_) { /* the base */ }
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'one-door-off.json');
-const RECORD = process.env.ONE_DOOR_RECORD === '1';
+// no golden file → this run records one and fails (never a silent pass); no env knob
+const RECORD = !fs.existsSync(GOLDEN);
 const onDescribeOff = RECORD ? describe.skip : describe;
 
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, preferred_language: 'en' };
@@ -80,12 +82,13 @@ const PERSONAS = {
 // The switch's OFF states: absent, false, garbage, and a read that throws — every one is today, byte for byte.
 const OFF_STATES = Object.freeze({ absent: undefined, false: 'false', yes: 'yes', one: 1, object: { on: true }, throws: 'THROW' });
 
-function world({ oneDoor = false, ownCap = null, cap = null, offState = 'absent' } = {}) {
+function world({ oneDoor = false, ownCap = null, cap = null, offState = 'absent', doorUncapped } = {}) {
   const settings = [{ key: 'teacher_report_teachers', value: JSON.stringify(['u-pilot']) }];
   if (oneDoor) settings.push({ key: 'quiz_one_door', value: 'true' });
   else if (OFF_STATES[offState] !== undefined && OFF_STATES[offState] !== 'THROW') settings.push({ key: 'quiz_one_door', value: OFF_STATES[offState] });
   if (ownCap != null) settings.push({ key: 'web_quiz_own_reply_cap_per_phone', value: String(ownCap) });
   if (cap != null) settings.push({ key: 'web_quiz_reply_cap_per_phone', value: String(cap) });
+  if (doorUncapped !== undefined) settings.push({ key: 'web_quiz_door_uncapped', value: doorUncapped });
   mockDb = fakeDb({
     app_settings: settings,
     users: Object.values(PERSONAS).map((p) => ({ ...p.user })),
@@ -215,7 +218,7 @@ onDescribe('switch ON — ONE cta_url for every handset that is not a child', ()
     expect(mockSent).toHaveLength(1);
     expect(mockSent[0].kind).toBe('cta');
     expect(mockSent[0].p.url).toMatch(/\/quiz\/go\//);
-    expect(mockSent[0].p.body).toBe('Your stories, videos and quizzes are here.');
+    expect(mockSent[0].p.body).toBe('Your stories, games and videos are here.');
     expect(mockSent[0].p.body).not.toContain('Ali');
   });
 
@@ -278,4 +281,89 @@ onDescribe('the cap: the one reply is counted on reply_to_own_message, 20 a phon
     expect(await Ledger.record({ trigger: 'promo_reply', phone: fixturePhone(99) })).toBe(false);
     expect(await Ledger.record({ trigger: 'maker_reply', phone: fixturePhone(99), recipient: 'teacher' })).toBe(true);
   });
+});
+
+onDescribe('a /quiz always gets its reply: web_quiz_door_uncapped (JSON true only; absent / unreadable → capped as today)', () => {
+  const DOOR_OFF = Object.freeze({ absent: undefined, false: false, string_true: 'true', yes: 'yes', one: 1, object: { on: true } });
+  // the ledger's table fallback (no message_ledger_add on the double), so the day's row can be read back
+  const ledgerRow = (trigger, recipient = 'family') => (mockDb.tables.message_ledger || []).find((r) => r.trigger === trigger && r.recipient === recipient) || null;
+  const withLedger = () => { mockDb.tables.message_ledger = []; mockDb.rpc = async () => ({ error: { code: '42883', message: 'no function' } }); };
+  const capped = (trigger) => logEvent.mock.calls.filter(([name, p]) => name === 'web_quiz.reply_capped' && p.trigger === trigger);
+
+  test('RED on the base: 22 /quiz in one PKT day from one phone → 22 replies; the 21st and 22nd are the one cta_url, not silence', async () => {
+    world({ oneDoor: true, doorUncapped: true });
+    withLedger();
+    for (let i = 0; i < 22; i += 1) await ask('unknown', 'text');
+    expect(mockSent).toHaveLength(22);
+    expect(mockSent.every((m) => m.kind === 'cta')).toBe(true);
+    expect(capped('one_door_reply')).toHaveLength(0);
+    expect(logEvent).not.toHaveBeenCalledWith('onboard.quiz_door', expect.objectContaining({ reply: 'capped' }));
+    // still counted, so the number stays visible: one_door_reply/family = 22, nothing capped
+    expect(ledgerRow('one_door_reply')).toEqual(expect.objectContaining({ count: 22 }));
+    expect(Number(ledgerRow('one_door_reply').capped) || 0).toBe(0);
+  });
+
+  test('switch ON: a known child\'s /quiz (the Home reply) is never capped either', async () => {
+    world({ oneDoor: true, doorUncapped: true });
+    const phone = PERSONAS.child_known.phone;
+    for (let i = 0; i < 21; i += 1) expect(await Ledger.record({ trigger: 'home_reply', phone, reason: 'home', ownReply: true })).toBe(true);
+    expect(capped('home_reply')).toHaveLength(0);
+  });
+
+  test('switch ON: every OTHER reply to the person\'s own message is still capped at 20 (golden)', async () => {
+    world({ oneDoor: true, doorUncapped: true });
+    const phone = PERSONAS.unknown.phone;
+    const got = [];
+    for (let i = 0; i < 21; i += 1) got.push(await Ledger.record({ trigger: 'bind_reply', phone, reason: 'bind', ownReply: true }));
+    expect(got.filter(Boolean)).toHaveLength(20);
+    expect(got[20]).toBe(false);
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.reply_capped', expect.objectContaining({ trigger: 'bind_reply', counter: 'reply_to_own_message' }));
+  });
+
+  test('switch ON: the /quiz replies do not spend the other own replies\' 20', async () => {
+    world({ oneDoor: true, doorUncapped: true });
+    for (let i = 0; i < 25; i += 1) await ask('unknown', 'text');
+    const phone = PERSONAS.unknown.phone;
+    for (let i = 0; i < 20; i += 1) expect(await Ledger.record({ trigger: 'bind_reply', phone, reason: 'bind', ownReply: true })).toBe(true);
+    expect(await Ledger.record({ trigger: 'bind_reply', phone, reason: 'bind', ownReply: true })).toBe(false);
+  });
+
+  test('switch ON, quiz_one_door OFF: the shared pool caps exactly as today (the switch acts only on the own counter)', async () => {
+    world({ cap: 2, doorUncapped: true });
+    const phone = PERSONAS.unknown.phone;
+    const got = [];
+    for (let i = 0; i < 3; i += 1) got.push(await Ledger.record({ trigger: 'home_reply', phone, reason: 'home', ownReply: true }));
+    expect(got).toEqual([true, true, false]);
+  });
+
+  test.each(Object.keys(DOOR_OFF))('switch %s → the 21st /quiz is capped, byte for byte as today (golden)', async (state) => {
+    world({ oneDoor: true });
+    for (let i = 0; i < 22; i += 1) await ask('unknown', 'text');
+    const today = stable(mockSent);
+    const todayEvents = logEvent.mock.calls.filter(([n]) => n === 'web_quiz.reply_capped' || n === 'onboard.quiz_door');
+    mockSent.length = 0; jest.clearAllMocks();
+    world({ oneDoor: true, doorUncapped: DOOR_OFF[state] });
+    for (let i = 0; i < 22; i += 1) await ask('unknown', 'text');
+    expect(mockSent).toHaveLength(20);
+    expect(stable(mockSent)).toEqual(today);
+    expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.reply_capped' || n === 'onboard.quiz_door')).toEqual(todayEvents);
+    expect(capped('one_door_reply')).toHaveLength(2);
+  });
+
+  test('a settings read that throws (the key rides the door\'s ONE read) → the door reads OFF, byte for byte as today (golden)', async () => {
+    world({ oneDoor: true, offState: 'throws' });
+    for (let i = 0; i < 22; i += 1) await ask('unknown', 'text');
+    const today = stable(mockSent);
+    const todayEvents = logEvent.mock.calls.filter(([n]) => n === 'web_quiz.reply_capped' || n === 'onboard.quiz_door');
+    mockSent.length = 0; jest.clearAllMocks();
+    world({ oneDoor: true, offState: 'throws', doorUncapped: true });
+    for (let i = 0; i < 22; i += 1) await ask('unknown', 'text');
+    expect(stable(mockSent)).toEqual(today);
+    expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.reply_capped' || n === 'onboard.quiz_door')).toEqual(todayEvents);
+    expect(mockSent.some((m) => m.kind === 'cta')).toBe(false);
+  });
+});
+
+test('the switch-off golden is pinned (a missing file is recorded by this run, which then fails)', () => {
+  expect({ goldenFile: path.basename(GOLDEN), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN), recorded: false });
 });

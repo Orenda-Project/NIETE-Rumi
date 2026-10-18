@@ -7,6 +7,8 @@
  * One small inline script turns the home's `#book/<id>` into `?book=<id>` and runs "Copy the message": it opens the send
  * the same way first (POST /api/teacher/story/share), so a pasted message never carries a closed link, then copies.
  */
+const { resolveUx } = require('../config/ux-strings');
+
 const urDigits = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
 const COPY = {
@@ -90,10 +92,13 @@ function renderShelf({ th, shelf, ui }) {
   const grades = [1, 2, 3, 4, 5].map((n) => `<a class="chip${n === g ? ' on' : ''}" data-tap="grade" href="${esc(shelfHref(th, n, l))}"${n === g ? ' aria-current="true"' : ''}>${esc(T.grade(n))}</a>`).join('');
   const langs = ['ur', 'en'].map((x) => `<a class="chip${x === l ? ' on' : ''}" data-tap="lang" lang="${x}" dir="${x === 'ur' ? 'rtl' : 'ltr'}" href="${esc(shelfHref(th, g, x))}"${x === l ? ' aria-current="true"' : ''}>${esc(LANG_NAMES[x])}</a>`).join('');
   const books = shelf.books || [];
+  // No web link for this teacher's class (`send` false): the books, not links, and one line under them.
+  const closed = shelf.send === false;
   // The first book (the featured one when there is one) is the screen's one primary.
-  const tiles = books.map((b, i) => `<a class="tile"${i === 0 ? ' data-primary="1"' : ''} data-tap="book" href="${esc(`${shelfHref(th, g, l)}&book=${b.id}`)}" lang="${esc(b.lang)}" dir="${esc(b.dir)}">`
+  const tiles = books.map((b, i) => (closed ? `<div class="tile" lang="${esc(b.lang)}" dir="${esc(b.dir)}">`
+    : `<a class="tile"${i === 0 ? ' data-primary="1"' : ''} data-tap="book" href="${esc(`${shelfHref(th, g, l)}&book=${b.id}`)}" lang="${esc(b.lang)}" dir="${esc(b.dir)}">`)
     + (b.cover ? `<img class="cover" src="${esc(b.cover)}" alt="" width="160" height="240" loading="${i < 4 ? 'eager' : 'lazy'}">` : '<span class="cover"></span>')
-    + `<span class="t">${esc(b.title)}</span><span class="m" lang="${ui}" dir="${ui === 'ur' ? 'rtl' : 'ltr'}">${b.featured ? `<b class="pick">${esc(T.picked)}</b> ` : ''}${esc(T.min(minutesOf(b)))}</span></a>`).join('');
+    + `<span class="t">${esc(b.title)}</span><span class="m" lang="${ui}" dir="${ui === 'ur' ? 'rtl' : 'ltr'}">${b.featured ? `<b class="pick">${esc(T.picked)}</b> ` : ''}${esc(T.min(minutesOf(b)))}</span>${closed ? '</div>' : '</a>'}`).join('');
   return `${head({ lang: ui, title: T.title })}
 <body>
 <main data-screen="teacher-stories">
@@ -102,7 +107,7 @@ function renderShelf({ th, shelf, ui }) {
 <nav class="chips" aria-label="grade">${grades}</nav>
 <nav class="chips" aria-label="language">${langs}</nav>
 ${books.length ? `<div class="grid">${tiles}</div>` : `<p class="note">${esc(T.none)}</p>`}
-</main>
+${closed ? `<p class="note" data-note="send-closed">${esc(resolveUx('storySendNotOpen', { language: ui }))}</p>\n` : ''}</main>
 <script>${JS}</script>
 </body>
 </html>`;
@@ -143,4 +148,23 @@ ${b.sample_audio ? `<p class="hear"><span>${esc(T.hear)}</span><audio controls p
 </html>`;
 }
 
-module.exports = { renderShelf, renderPreview, COPY };
+const SEND_REDIRECT_ORIGINS = ['https://wa.me', 'https://api.whatsapp.com'];
+const inline = (html, tag) => [...html.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => m[1]);
+
+/**
+ * The page with its security policy (app_settings quiz_teacher_stories_csp): every inline <script> and <style> allowed
+ * by the sha256 of its text as rendered, the same policy shape as the teacher home (its csp()). Returns the page with
+ * the policy <meta> and the header policy (the meta's + frame-ancestors 'none', which a <meta> cannot carry).
+ */
+function withPolicy(html) {
+  const { csp, sha } = require('../services/first-touch/teacher-home.page');
+  const styles = inline(html, 'style').map(sha);
+  const scripts = inline(html, 'script').map(sha);
+  const media = /<audio\b/.test(html);
+  // "Send to class" posts here and is answered 302 → wa.me (and wa.me on to WhatsApp's own page).
+  const formTo = /<form\b/.test(html) ? SEND_REDIRECT_ORIGINS : [];
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${esc(csp(styles, scripts, { meta: true, media, formTo }))}">\n`;
+  return { html: html.replace('<meta name="robots"', `${meta}<meta name="robots"`), csp: csp(styles, scripts, { media, formTo }) };
+}
+
+module.exports = { renderShelf, renderPreview, withPolicy, SEND_REDIRECT_ORIGINS, COPY };

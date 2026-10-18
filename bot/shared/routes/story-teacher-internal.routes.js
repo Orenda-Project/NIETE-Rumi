@@ -9,6 +9,7 @@
  *   POST /share {th, story_id, class?}       {code, link, class_message}, the send marked sent
  *   POST /send {th, story_id, class?}        the teacher's tap (the page's form): the send opened and marked sent, 302 → wa.me
  *   GET  /page/:th[?grade=&lang=&book=]      the Stories page (HTML): the shelf, or one book's preview
+ *                                            (the shelf only, with one line, when `send` is false)
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -37,10 +38,19 @@ const handle = (fn) => async (req, res) => {
   }
 };
 
-/** The shelf a page or the home asks for. No grade: Grade 2 (the largest shelf); no language: the token's. */
+/**
+ * The page's own language, the teacher home's rule (teacher-home.page pageLang): a one-language token keeps its
+ * language; a two-language token follows the language asked, else Urdu.
+ */
+function uiFor(tok, asked) {
+  if (tok && (tok.lang === 'en' || tok.lang === 'ur')) return tok.lang;
+  return asked === 'en' ? 'en' : 'ur';
+}
+
+/** The shelf a page or the home asks for. No grade: Grade 2 (the largest shelf); no language: the page's. */
 async function shelfFor(th, q = {}) {
   const tok = Stories.teacherToken(th);
-  const ui = tok && tok.lang === 'en' ? 'en' : 'ur';
+  const ui = uiFor(tok, q.lang);
   const shelf = await Stories.shelf({ uid: tok && tok.uid, grade: q.grade || 2, lang: q.lang || ui, all: q.all === '1' });
   return { ...shelf, ui, uid: tok && tok.uid };
 }
@@ -53,7 +63,7 @@ router.get('/stories', handle(async (req) => {
 router.get('/preview', handle((req) => {
   const q = req.query || {};
   const tok = Stories.teacherToken(q.th);
-  return Stories.preview({ uid: tok && tok.uid, storyId: q.story_id, classId: cls(q.class), ui: tok && tok.lang === 'en' ? 'en' : 'ur' });
+  return Stories.preview({ uid: tok && tok.uid, storyId: q.story_id, classId: cls(q.class), ui: uiFor(tok, q.lang) });
 }));
 
 router.post('/share', handle((req) => {
@@ -74,7 +84,8 @@ async function servePage(req, res) {
   try {
     const { uid, ...shelf } = await shelfFor(th, { grade: q.grade, lang: q.lang, all: '1' });
     let html;
-    if (typeof q.book === 'string' && UUID_RX.test(q.book)) {
+    // No web link for this teacher's class: the shelf and its line, never a preview that would be refused.
+    if (typeof q.book === 'string' && UUID_RX.test(q.book) && shelf.send !== false) {
       let p = null;
       try {
         p = await Stories.preview({ uid, storyId: q.book, ui: shelf.ui });
@@ -85,6 +96,14 @@ async function servePage(req, res) {
       html = Page.renderPreview({ th, shelf, ui: shelf.ui, p, firstPage: tile && tile.first_page, error: !p });
     } else {
       html = Page.renderShelf({ th, shelf, ui: shelf.ui });
+    }
+    // app_settings quiz_teacher_stories_csp (default off; read with the stories switch above): the hashed policy in
+    // the page and the header. Off: today's bytes and headers.
+    if (Stories.pageCspOn()) {
+      const p = Page.withPolicy(html);
+      html = p.html;
+      res.set('Content-Security-Policy', p.csp);
+      res.set('X-Content-Type-Options', 'nosniff');
     }
     return res.status(200).type('html').send(html);
   } catch (err) {

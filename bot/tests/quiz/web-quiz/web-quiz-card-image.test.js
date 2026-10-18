@@ -84,18 +84,48 @@ describe('the switch', () => {
   });
   test('only JSON true is on: the string "true", 1, "yes", null are off', async () => {
     for (const value of ['true', '"true"', 1, 'yes', null, false]) {
-      Object.assign(supabase, { from: () => ({ select: () => ({ eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value }], error: null }) }) }) });
+      Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: [{ key: 'web_quiz_card_v3', value }], error: null }) }) }) });
       Card._reset();
       expect(await Card.field()).toEqual({});
     }
-    Object.assign(supabase, { from: () => ({ select: () => ({ eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value: true }], error: null }) }) }) });
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: [{ key: 'web_quiz_card_v3', value: true }], error: null }) }) }) });
     Card._reset();
     expect(await Card.field()).toEqual({ card_v3: true });
   });
   test('a settings failure fails closed', async () => {
-    Object.assign(supabase, { from: () => ({ select: () => ({ eq: async () => ({ data: null, error: { message: 'down' } }) }) }) });
+    // both reads fail: the combined one and the card's own key read after it
+    let reads = 0;
+    const down = async () => { reads += 1; return { data: null, error: { message: 'down' } }; };
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: down, eq: down }) }) });
+    Card._reset();
+    const t0 = Date.now();
+    expect(await Card.field()).toEqual({});
+    expect(await Card.on(t0 + 1000)).toBe(false);
+    expect(await Card.shareOn(t0 + 9000)).toBe(false);
+    // an outage is remembered for 10 s (not the 30 s of a real answer): 2 reads, then none until it is stale
+    expect(reads).toBe(2);
+    expect(await Card.on(t0 + 11000)).toBe(false);
+    expect(reads).toBe(4);
+  });
+  test('the combined read fails and the card\'s own row is the string "true": off, as on the combined read', async () => {
+    const failed = async () => ({ data: null, error: { message: 'combined down' } });
+    for (const value of ['true', '"true"', 1, 'yes']) {
+      Object.assign(supabase, { from: () => ({ select: () => ({ in: failed, eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value }], error: null }) }) }) });
+      Card._reset();
+      expect(await Card.field()).toEqual({});
+    }
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: failed, eq: async () => ({ data: [{ key: 'web_quiz_card_v3', value: true }], error: null }) }) }) });
+    Card._reset();
+    expect(await Card.field()).toEqual({ card_v3: true });
+  });
+  test('an outage logs the first read\'s error too, not only the fallback\'s', async () => {
+    logToFile.mockClear();
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'combined down' } }), eq: async () => ({ data: null, error: { message: 'own key down' } }) }) }) });
     Card._reset();
     expect(await Card.field()).toEqual({});
+    const said = logToFile.mock.calls.map((c) => JSON.stringify(c)).join(' ');
+    expect(said).toContain('combined down');
+    expect(said).toContain('own key down');
   });
 });
 
@@ -204,9 +234,11 @@ describe('the picture', () => {
 });
 
 // every kind of finish the card is for, and every deed it may say
-const EVERY_DEED = [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_some'], ['read', 'read_tried'], ['listen', 'listen_done'],
-  ['story', 'story_read'], ['story', 'answered'], ['story', 'read_tried'], ['game', 'game_done'], ['book', 'book_read'], ['book', 'listen_done'], ['book', 'read_tried'],
-  ['video', 'video_watched']];
+// A stop played again (practice, the child home on) has its own deeds: no "today", no sticker (the Book is counted runs only).
+const PRACTICE = [['read', 'read_practice'], ['read', 'read_some_practice'], ['listen', 'listen_practice'], ['story', 'story_practice'], ['game', 'game_practice']];
+const EVERY_DEED = [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_some'], ['read', 'read_tried'], ['read', 'read_practice'], ['read', 'read_some_practice'],
+  ['listen', 'listen_done'], ['listen', 'listen_practice'], ['story', 'story_read'], ['story', 'answered'], ['story', 'read_tried'], ['story', 'story_practice'],
+  ['game', 'game_done'], ['game', 'game_practice'], ['book', 'book_read'], ['book', 'listen_done'], ['book', 'read_tried'], ['video', 'video_watched']];
 describe('what the card says', () => {
   test('the deed list is exactly these', () => {
     expect(Object.entries(Card.DEEDS).flatMap(([k, ds]) => ds.map((d) => [k, d]))).toEqual(EVERY_DEED);
@@ -225,6 +257,15 @@ describe('what the card says', () => {
     expect(Card.renderCard({ lang: 'en', first: 'Amal', deed: 'read_tried' }, { fonts: false })).not.toContain('class="st"');
     const one = Card.renderCard({ lang: 'en', first: 'Amal', deed: 'read_all' }, { fonts: false });
     expect(one.match(/class="st"/g)).toHaveLength(1);
+  });
+  test.each(PRACTICE)('a stop played again (%s/%s): no sticker, no "today" / «آج» on the picture', (kind, deed) => {
+    for (const lang of ['en', 'ur']) {
+      const html = Card.renderCard({ lang, first: 'Amal', deed }, { fonts: false });
+      expect(html).not.toContain('class="st"');
+      expect(Card.COPY[lang][deed]).not.toMatch(/today|آج/);
+    }
+    expect(Card.COPY.en.read_practice).toBe('I read a whole story out loud!');
+    expect(Card.COPY.ur.read_practice).toBe('میں نے پوری کہانی اونچی آواز میں پڑھی!');
   });
   test('Urdu draws right to left; a Latin name keeps its own direction', () => {
     const html = Card.renderCard({ lang: 'ur', first: 'Amal', deed: 'read_all' }, { fonts: false });

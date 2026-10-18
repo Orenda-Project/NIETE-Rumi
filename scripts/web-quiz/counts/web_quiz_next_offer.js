@@ -39,7 +39,7 @@ const KINDS = ['story', 'game', 'quiz', 'video', 'storybook', 'invite', 'sticker
 /** The eligibility rule of the slot (web-quiz-next-offer.js rank), as counts. Pure. */
 function eligibleOf(list, { ctx = 'home', hasRoot = false } = {}) {
   const weak = ctx === 'after_read_weak' || ctx === 'after_read_tried';
-  return list.filter((c) => c && KINDS.includes(c.kind) && c.id && typeof c.href === 'string' && c.href && c.title
+  return list.filter((c) => c && KINDS.includes(c.kind) && c.id && typeof c.href === 'string' && c.href && !/#$/.test(c.href) && c.title
     && !c.on_its_way && !(c.kind === 'video' && c.needs_root && !hasRoot) && !(weak && c.read_aloud));
 }
 

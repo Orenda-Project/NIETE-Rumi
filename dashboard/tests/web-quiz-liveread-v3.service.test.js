@@ -761,6 +761,28 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     expect(why).toBe('notallowederror');
   });
 
+  test('the mic cannot start on Android: "Open in Chrome" keeps the whole address, the page\'s place in the hash included (the storybook\'s stall setting: hash)', async () => {
+    const E = env(); const D = dom();
+    E.ctx.location.pathname = '/h/tok'; E.ctx.location.search = '?kid=k1'; E.ctx.location.hash = '#story/b-1/p3';
+    E.ctx.navigator.mediaDevices = { getUserMedia: () => Promise.reject(Object.assign(new Error('no'), { name: 'NotReadableError' })) };
+    D.el.querySelector = (sel) => { const k = D.kids; if (!k[sel]) { k[sel] = { l: {}, addEventListener(n, fn) { this.l[n] = fn; } }; } return k[sel]; };
+    E.L.askMic(D.el, { lang: 'en', src: 'story', hash: true, onStream: () => {}, onDenied: () => {}, ev: () => {} });
+    D.kids['.lr-go'].l.click();
+    await E.flush();
+    expect(D.el.innerHTML).toContain('href="intent://x/h/tok?kid=k1#story/b-1/p3#Intent;scheme=https;package=com.android.chrome;end"');
+  });
+
+  test('the mic cannot start on Android: "Open in Chrome" without the hash option the link is today\'s, byte for byte (no hash)', async () => {
+    const E = env(); const D = dom();
+    E.ctx.location.pathname = '/h/tok'; E.ctx.location.search = '?kid=k1'; E.ctx.location.hash = '#story/b-1/p3';
+    E.ctx.navigator.mediaDevices = { getUserMedia: () => Promise.reject(Object.assign(new Error('no'), { name: 'NotReadableError' })) };
+    D.el.querySelector = (sel) => { const k = D.kids; if (!k[sel]) { k[sel] = { l: {}, addEventListener(n, fn) { this.l[n] = fn; } }; } return k[sel]; };
+    E.L.askMic(D.el, { lang: 'en', src: 'story', onStream: () => {}, onDenied: () => {}, ev: () => {} });
+    D.kids['.lr-go'].l.click();
+    await E.flush();
+    expect(D.el.innerHTML).toContain('href="intent://x/h/tok?kid=k1#Intent;scheme=https;package=com.android.chrome;end"');
+  });
+
   test('real-time fell through and the host\'s check answered: the hand-off keeps the one result shape, wpm null', async () => {
     const E = env(); const D = dom();
     let got = null;

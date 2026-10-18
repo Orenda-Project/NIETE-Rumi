@@ -23,7 +23,9 @@ const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED;
  * events belong on. markCompleted and markFailed run for every row the generation worker finishes; a
  * deployment that still generates freeform Gamma plans sends those through here too, and a row asked
  * before the path was switched on has no source either. Those are updated exactly as before.
- * Switched off: false, with no read. A read that fails stamps nothing (and says so).
+ * Switched off: false, with no read. A read that fails stamps nothing and is reported like a failed lifecycle
+ * write: counted every time, said at error level at most once per ten minutes per kind (a read failing on every
+ * finished request — the switch set before V1.6.4 — must not bury the one line that says what to do).
  */
 async function isOwnRow(requestId) {
   if (!Lifecycle.enabled(LIFECYCLE_SOURCE)) return false;
@@ -33,10 +35,10 @@ async function isOwnRow(requestId) {
       .select('source')
       .eq('id', requestId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     return !!(data && data.source === LIFECYCLE_SOURCE);
   } catch (err) {
-    logToFile('LP lifecycle: could not read the request row, its stage is not recorded', { requestId, error: err.message }, 'error');
+    Lifecycle.writeFailed(err, { id: requestId, source: LIFECYCLE_SOURCE }, { table: 'lesson_plan_requests' });
     return false;
   }
 }

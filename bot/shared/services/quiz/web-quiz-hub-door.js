@@ -5,6 +5,14 @@
  * web_quiz_hub_door, only with web_quiz_hub on; read fail-closed in web-quiz-hub-flags).
  *
  *   field(s)        finish()'s {hub_door: true} when the card may offer it, else {} (the payload stays today's)
+ *   foldField(s)    finish()'s {card_fold: true} (+ no_class, noClassField) with the child home on (app_settings web_quiz_home_v3): a class child's
+ *                   own card is the card and ONE next thing, and its Home row (POST /hubdoor {home}) opens on a
+ *                   finished run without the card's door or the Home button switched on; else {} (today's payload)
+ *   menuFoldField() the Jugnu page's menu's {card_fold: true} with the child home on (its end cards fold too), else {}
+ *   noClassField(id) the same menu's {no_class: true} with the home on for a child no teacher's quiz has reached, else {}
+ *                   With app_settings web_quiz_class_doors on, a class child's fold also carries {class_doors: true}: the
+ *                   card's "See my class" + "School league" and the results' "See my class" (web-quiz-class-doors-flag),
+ *                   only when the run's code is one of the child's class quizzes (never the watch root or a code under it).
  *   door({st, home}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
  *                   phone in the session token — the body's device_ref is never trusted — so a forwarded copy
  *                   meets the hub's lock on any other phone, like a forwarded /quiz hub link.
@@ -21,6 +29,8 @@ const K = require('./web-quiz-kid');   // the one home for the v2 event rule (ki
 const T = require('./web-quiz-token');
 const Flags = require('./web-quiz-hub-flags');
 const Device = require('./web-quiz-hub-device');
+const HomeFlags = require('./web-quiz-home-flags');
+const ClassDoors = require('./web-quiz-class-doors-flag');
 
 // A class child's own run: never the teacher's test run, an invited friend's, or a run with no child.
 function ownRun(s) {
@@ -40,6 +50,44 @@ async function field(s) {
   }
 }
 
+async function foldField(s) {
+  try {
+    // a child with no class (noClassField): the card's share says "Share" (no_class beside card_fold)
+    if (!(ownRun(s) && (await HomeFlags.flags()).home)) return {};
+    const doorsP = ClassDoors.on().catch(() => false);
+    const [list, rootId] = await Promise.all([quizzesOf(s.student_id), doorsP.then((on) => (on ? ClassDoors.root() : null))]);
+    const noClass = list && !list.some((e) => e && e.teacherSent) ? { no_class: true } : {};
+    return { card_fold: true, ...noClass, ...((await doorsP) && ClassDoors.ownClass(list, s.share_code_id, rootId) ? { class_doors: true } : {}) };
+  } catch (_) {
+    return {};
+  }
+}
+
+// The Jugnu page's menu (GET /ch/:token): the same fold for its end cards (read, listen, the numbers games, Story Time).
+async function menuFoldField() {
+  try {
+    return (await HomeFlags.flags()).home ? { card_fold: true } : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+// The same menu's {no_class: true} with the child home on, for a child no teacher's quiz has reached (the hub's own
+// rule, hasRoot: no teacher-sent code in their quizzes): the card's share says "Share", not "Share to class group".
+async function noClassField(studentId) {
+  try {
+    if (!studentId || !(await HomeFlags.flags()).home) return {};
+    const list = await quizzesOf(studentId);
+    return !list || list.some((e) => e && e.teacherSent) ? {} : { no_class: true };
+  } catch (_) {
+    return {};
+  }
+}
+// The child's quizzes (the hub's own read), or null on any failure.
+function quizzesOf(studentId) {
+  return studentId ? require('./student-quiz.service').quizzesForStudents([{ id: studentId }]).catch(() => null) : Promise.resolve(null);
+}
+
 async function door(body = {}, Err = Error) {
   const fail = async (status, error, why) => {
     await K.emit('web_quiz.hub_door', { ok: false, reason: why || error }, { kind: 'mark' });
@@ -57,7 +105,9 @@ async function door(body = {}, Err = Error) {
   // A storybook the teacher sent: the book is the run, so its door (to the hub, which shows the book) opens before the
   // session is finished, and with the hub on it does not wait for the card's door switch.
   const story = Boolean(body.story) && f.hub && s.status === 'in_progress' && await require('./story-teacher.service').storyDoorOk(s);
-  if (!home && !story && !(await isOn())) await fail(404, 'no_door', 'off');
+  // The folded card's Home row (web_quiz_home_v3): a finished run's way home, with the Home button's switch off.
+  const fold = Boolean(body.home) && !home && f.hub && s.status === 'completed' && (await HomeFlags.flags()).home;
+  if (!home && !story && !fold && !(await isOn())) await fail(404, 'no_door', 'off');
   if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress') && !story)) await fail(404, 'no_door', 'not_own_finished_run');
   // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
   const token = T.signHub([(await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id]);
@@ -68,4 +118,4 @@ async function door(body = {}, Err = Error) {
   return { href: `/h/${token}` };
 }
 
-module.exports = { field, door };
+module.exports = { field, foldField, menuFoldField, noClassField, door };

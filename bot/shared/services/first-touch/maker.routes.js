@@ -78,7 +78,9 @@ async function sendState(shareCodeId, state) {
   try {
     if (!(await require('./teacher-home.flags').on())) return;
     const Sent = require('./teacher-home.sent');
-    await (state === 'sent' ? Sent.markSent(shareCodeId) : Sent.markPrepared(shareCodeId));
+    const ok = await (state === 'sent' ? Sent.markSent(shareCodeId) : Sent.markPrepared(shareCodeId));
+    // the make still answers (the teacher asked for it); the home may then read this code as sent until it is
+    if (!ok) logToFile(`⚠️ maker: a made code could not be marked ${state === 'sent' ? 'sent' : 'prepared'}`, {});
   } catch (_) { /* the home reads it as sent */ }
 }
 // ── end teacher home ──
@@ -90,8 +92,19 @@ function headers(res, csp) {
   });
 }
 
-function messagePage(res, status, id, lang) {
-  const built = Page.buildMessagePage({ lang, id });
+/**
+ * mk.stale / mk.error. Switch web_quiz_closed_way_back ON → never a dead end: ONE tap back to WhatsApp (the signed go.back
+ * sentence; wa.me/<bot>?text=quiz, or whatsapp://send?text=quiz with no number). OFF (or a failed read) → today's page.
+ */
+async function messagePage(res, status, id, lang, req = null) {
+  let tap = null; // in the page's own language (maker.page: 'bi' → Urdu)
+  try {
+    if ((await require('./closed-way-back.flags').on()) === true) {
+      lang = require('./chat-tap').linkLang(req) || lang; // the link's language (?lang=, the token's) before today's choice
+      tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), Share.botNumber());
+    }
+  } catch (_) { tap = null; }
+  const built = Page.buildMessagePage({ lang, id, tap });
   headers(res, built.csp);
   return res.status(status).type('html').send(built.html);
 }
@@ -112,7 +125,7 @@ const handlePage = (fn) => async (req, res) => {
     await fn(req, res);
   } catch (err) {
     logToFile('❌ maker page route failed', { error: err && err.message }, 'error');
-    if (!res.headersSent) messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
+    if (!res.headersSent) await messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)), req);
   }
 };
 /** The JSON routes' wrapper: a throw → 503 {error:'mk.error'}. */
@@ -136,8 +149,8 @@ function authoriseJson(t, res) {
 
 router.get('/m/:token', handlePage(async (req, res) => {
   const v = MakerToken.verifyMaker(req.params.token);
-  if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
-  if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang);
+  if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+  if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang, req);
   const p = v.ok;
   const tree = await Bank.chipTree();
   const { lang, switchTo } = Page.pageLang(p.lang, asked(req.query.lang));
@@ -156,12 +169,12 @@ router.get('/m/:token', handlePage(async (req, res) => {
 
 router.get('/m/:token/send', handlePage(async (req, res) => {
   const v = MakerToken.verifyMaker(req.params.token);
-  if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
-  if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang);
+  if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+  if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang, req);
   const p = v.ok;
   const shareCodeId = quizIn(req.query.c);
   const out = shareCodeId ? await Bank.shareMessage({ uid: p.uid, lang: p.lang, shareCodeId }) : null;
-  if (!out) return messagePage(res, 404, 'mk.error', p.lang);
+  if (!out) return messagePage(res, 404, 'mk.error', p.lang, req);
   await sendState(shareCodeId, 'sent');
   makerEvent('share_tap', p, { grade: out.grade, subject: out.subject, qlang: out.qlang, quizId: out.quizId });
   headers(res);

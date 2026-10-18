@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createBotClient, bootJson, assetVersion } = require('./web-quiz.routes');
+const CutLink = require('./cut-link-page');
 
 // A signed j token (bot web-quiz-student-join.js signJoin): base64url payload "." 22-char signature.
 const JOIN_TOKEN_RX = /^[A-Za-z0-9_-]{16,700}\.[A-Za-z0-9_-]{22}$/;
@@ -54,6 +55,7 @@ const COPY = {
     error: "That didn't work. Try again in a moment.",                        // mk.error (signed)
     wait: 'Opening…',
     openWa: 'Open WhatsApp',                                                  // the one tap back to the bot (native read: OK)
+    going: 'Getting your games ready…',                                       // quiz_join_wait_word: the go button while the join runs
   },
   ur: {
     title: 'جگنو',
@@ -78,6 +80,7 @@ const COPY = {
     error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
     wait: 'کھل رہا ہے…',
     openWa: 'واٹس ایپ کھولیں',
+    going: 'آپ کے کھیل تیار ہو رہے ہیں…',   // native read: signed (the noun agrees, never the child)
   },
 };
 
@@ -111,7 +114,18 @@ input{width:100%;height:56px;border-radius:14px;border:2px solid #e3c48a;padding
 .pick{display:block;width:100%;min-height:56px;margin:8px 0;border-radius:14px;border:2px solid #e3c48a;background:#fff;font-size:20px;font-family:inherit}
 [dir=rtl] main{text-align:right}[dir=rtl] h1{text-align:center}bdi{unicode-bidi:isolate}`;
 
-function shell({ l, title, body, fontPreload }) {
+// quiz_join_early_tap: the chips are drawn before join.js (deferred) binds its listener, so a tap in that window was
+// lost. This runs before the chips exist: it presses the tapped chip at once and keeps its grade on <html data-early>;
+// join.js replays it once it has bound (window.__jnBound stops the keeping). ES5, inline, < 400 bytes.
+const EARLY_TAP = '<script>(function(){var d=document;d.addEventListener("click",function(e){if(window.__jnBound)return;'
+  + 'var t=e.target,c=t&&t.closest?t.closest("[data-tap=grade]"):null;if(!c)return;var a=d.querySelectorAll(".chip");'
+  + 'for(var i=0;i<a.length;i++)a[i].setAttribute("aria-pressed",a[i]===c?"true":"false");'
+  + 'd.documentElement.setAttribute("data-early",c.getAttribute("data-grade"))},true)})();</script>';
+
+// quiz_join_wait_word: the go button keeps its colour while it waits (join.js marks it aria-busy); on the page only then.
+const WAIT_CSS = '.go[aria-busy=true]:disabled{background:#2a9d8f}';
+
+function shell({ l, title, body, fontPreload, css = CSS }) {
   return `<!doctype html>
 <html lang="${l}" dir="${l === 'ur' ? 'rtl' : 'ltr'}">
 <head>
@@ -120,20 +134,21 @@ function shell({ l, title, body, fontPreload }) {
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="same-origin">
 <title>${esc(title)}</title>
-${fontPreload && l === 'ur' ? `<link rel="preload" href="${UR_FONT}" as="font" type="font/woff2" crossorigin>\n` : ''}<style>${CSS}</style>
+${fontPreload && l === 'ur' ? `<link rel="preload" href="${UR_FONT}" as="font" type="font/woff2" crossorigin>\n` : ''}<style>${css}</style>
 </head>
 ${body}
 </html>`;
 }
 
 /** The join screen. Practice: the strip, the grade only (no name, no notice). */
-function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null }) {
+function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null, earlyTap = false, waitWord = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const c = COPY[l];
   const b = cleanBot(bot);
-  const boot = { view: 'join', t: token, lang: l, practice: Boolean(practice), v: assetV, warm: WARM, ...(b ? { bot: b } : {}), copy: {
+  const wait = waitWord === true;
+  const boot = { view: 'join', t: token, lang: l, practice: Boolean(practice), v: assetV, warm: WARM, ...(b ? { bot: b } : {}), ...(wait ? { waitWord: true } : {}), copy: {
     noticeSave: c.noticeSave, noticeReadings: c.noticeReadings, isYou: c.isYou, yesMe: c.yesMe, diff: c.diff, full: c.full, open: c.open,
-    teacher: c.teacher, off: c.off, offNone: c.offNone, stale: c.stale, error: c.error, wait: c.wait, openWa: c.openWa,
+    teacher: c.teacher, off: c.off, offNone: c.offNone, stale: c.stale, error: c.error, wait: c.wait, openWa: c.openWa, ...(wait ? { going: c.going } : {}),
   } };
   const chips = c.grades.map((g, i) => `<li><button type="button" class="chip" data-tap="grade" data-grade="${i + 1}" aria-pressed="false">${esc(g)}</button></li>`).join('');
   const name = practice ? '' : `<label for="jn-name">${esc(c.name)}</label>
@@ -141,7 +156,7 @@ function renderJoinPage({ token, lang, practice, assetV, jsV, bot = null }) {
 <p class="hint">${esc(c.hint)}</p>
 <div class="notice" id="jn-notice" hidden><p id="jn-n1"></p><p id="jn-n2"></p><p>${esc(c.noticeStop).replace('STOP', '<bdi dir="ltr">STOP</bdi>')}</p></div>`;
   const body = `<body${practice ? ' class="practice"' : ''}>
-<main id="jn" data-screen="join">
+${earlyTap ? `${EARLY_TAP}\n` : ''}<main id="jn" data-screen="join">
 ${practice ? `<p class="strip">${esc(c.practice)}</p>\n` : ''}<img class="jg" src="/wq/jugnu/hello.webp" alt="" width="96" height="96">
 <h1 id="jn-h">${esc(c.h)}</h1>
 <ul class="chips" role="group" aria-labelledby="jn-h">${chips}</ul>
@@ -152,7 +167,7 @@ ${practice ? '' : `<p class="note">${esc(c.later)}</p>\n`}</main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/join.js?v=${esc(jsV || assetV)}" defer></script>
 </body>`;
-  return shell({ l, title: c.title, body, fontPreload: !practice });
+  return shell({ l, title: c.title, body, fontPreload: !practice, ...(wait ? { css: CSS + WAIT_CSS } : {}) });
 }
 
 /** The expired (or failed) link: the signed words and ONE tap back to WhatsApp (when the bot's number is known). */
@@ -179,12 +194,22 @@ function createQuizJoinRouter(opts = {}) {
   let jsV = null;
   let lastBot = null;   // the number the bot gave last, for an error page drawn when the bot answers with a failure
   const phoneLang = (req) => (/^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en');
+  // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired note; OFF = today
+  const cutLinkOn = CutLink.switchOf(opts);
+  const envBot = () => cleanBot(String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, ''));
 
   // The limiter counts only pages the bot agreed to draw: with the switch off, every request still falls through to the
   // portal's own answer (a school's shared connection never meets a 429 from a page that does not exist).
   router.get('/quiz/join/:token', async (req, res, next) => {
     const token = String(req.params.token || '');
-    if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) return next();
+    if (!JOIN_TOKEN_RX.test(token) || !botUrl || !apiKey) {
+      // a cut-short or junk link, with quiz_cut_link_page on: the expired note a stale link gets, no bot call
+      if (botUrl && apiKey && CutLink.isOn(cutLinkOn)) {
+        res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+        return res.status(410).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'stale', bot: lastBot || envBot() }));
+      }
+      return next();
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/join/page/${token}`, req, null, { route: '/api/internal/wq/join/page/:token' });
@@ -203,9 +228,9 @@ function createQuizJoinRouter(opts = {}) {
     if (out.status !== 200 || !out.body || !out.body.ok) return res.status(502).type('html').send(renderJoinNote({ lang: phoneLang(req), kind: 'error', bot: lastBot }));
     assetV = assetV || assetVersion();
     jsV = jsV || fileVersion('join.js');
-    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot }));
+    return res.status(200).type('html').send(renderJoinPage({ token, lang: out.body.lang, practice: out.body.practice === true, assetV, jsV, bot: out.body.bot, earlyTap: out.body.earlyTap === true, waitWord: out.body.waitWord === true }));
   }
   return router;
 }
 
-module.exports = { createQuizJoinRouter, renderJoinPage, renderJoinNote, COPY, WARM, JOIN_TOKEN_RX, UR_FONT };
+module.exports = { createQuizJoinRouter, renderJoinPage, renderJoinNote, COPY, WARM, JOIN_TOKEN_RX, UR_FONT, EARLY_TAP, WAIT_CSS };

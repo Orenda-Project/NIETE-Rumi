@@ -7,6 +7,7 @@
  *   l  my class       ref = the class code, or the sharer's session (top rows as place + animal +
  *                     score; only the sharer's own row is named, "(me)")
  *   s  my school      ref = the class code     (the school board around this class's school)
+ *   t  the class link ref = the class code's id  (drawn by web-quiz-class-pic.js: the teacher's own link, a PNG)
  *
  * The id is signed: "<kind>.<ref>.<mac12>". A link preview fetches the picture
  * with no session, so the id itself is the permission, and the mac stops
@@ -150,7 +151,8 @@ async function classFacts(ref) {
     me = s;
   } else if (!CODE_RX.test(code)) notFound();
   const ctx = await WebQuiz.resolveCode(code).catch(() => notFound());
-  const b = await WebQuiz.board(code, me ? { st: stFor(me) } : {});
+  // A storybook code has no class table (story-board.js): its board's 404 is this picture's 404, never a 500.
+  const b = await WebQuiz.board(code, me ? { st: stFor(me) } : {}).catch((e) => (e && e.status === 404 ? notFound() : Promise.reject(e)));
   const cls = await require('./video-quiz-report.service').loadClassRows(ctx.shareCodeId).catch(() => null);
   // Classmates appear as place + animal + score only: the picture outlives the link and gets forwarded.
   const rows = (b.rows || []).slice(0, CLASS_ROWS).map((r) => ({ place: r.place, animal: r.animal, correct: r.correct, total: r.total }));
@@ -186,7 +188,8 @@ async function facts(kind, ref) {
   if (kind === 'c') return cardFacts(ref);
   if (kind === 'i') return inviteFacts(ref);
   if (kind === 'l') return classFacts(ref);
-  return schoolFacts(ref);
+  if (kind === 's') return schoolFacts(ref);
+  return notFound();
 }
 
 // ─── draw + cache ───────────────────────────────────────────────────────────
@@ -240,7 +243,10 @@ function served(input, t0, from, steps = {}) {
 const inflight = new Map();
 
 // fresh: the caller knows this picture was never drawn (a card at the finish of its session), so R2 is not asked.
-function artImage(id, { size = 'og', fresh = false } = {}) {
+// code: the /q/<CODE> the picture was asked under; only the class link's picture (kind t) reads it.
+function artImage(id, { size = 'og', fresh = false, code = null } = {}) {
+  // The class link's picture (web-quiz-class-pic.js): its own facts, switches and PNG; never this module's kinds.
+  if (typeof id === 'string' && id.startsWith('t.')) return require('./web-quiz-class-pic').image(id, { code, drawTurn, ArtError });
   const k = `${id}|${SIZES[size] ? size : 'og'}`;
   if (inflight.has(k)) return inflight.get(k);
   const p = artImageNow(id, { size, fresh }).finally(() => inflight.delete(k));
@@ -260,9 +266,13 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
     served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
   }
-  const [f, brand, ui] = await Promise.all([facts(p.kind, p.ref), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null)]);
+  const [f, brand, ui, ink] = await Promise.all([
+    facts(p.kind, p.ref), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null),
+    require('./web-quiz-card-switch').shareOn().catch(() => false),
+  ]);
   const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, ui);
+  // the one share on: an Urdu picture with room for its ink (its own key); an English one is unchanged
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, ink && f.lang === 'ur' ? { ...(ui || {}), ink: true } : ui);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });

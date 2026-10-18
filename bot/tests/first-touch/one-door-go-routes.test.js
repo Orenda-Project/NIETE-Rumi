@@ -12,8 +12,8 @@
  *  - who / role / bind: the remembered answer ONCE per link (writer role_page); the users row and the students rows are
  *    never written; a bind's pick must be one of THIS phone's (or this device's) children; the binding itself is the
  *    join page's write (a stub here).
- * With ONE_DOOR_DUMP_DIR set, the rendered pages are written there (role.html, pick-one.html, pick-many.html,
- * family.html, stale.html) for the page audit.
+ * When the folder <os tmpdir>/one-door-pages exists, the rendered pages are written there (role.html, pick-one.html,
+ * pick-many.html, family.html, stale.html) for the page audit: create the folder to get them. No env name is read.
  */
 process.env.WEB_QUIZ_BASE_URL = 'https://portal.example';
 process.env.WEB_QUIZ_TOKEN_SECRET = 'unit-secret-not-a-secret';
@@ -78,7 +78,8 @@ const DEV2 = 'BBBBBBBBBBBBBBBBBBBBBB';
 const QDEV = 'QQQQQQQQQQQQQQQQQQQQQQ';
 const THIS_YEAR = new Date().toISOString();
 const LAST_YEAR = new Date(Date.now() - 400 * 86400000).toISOString();
-const DUMP = process.env.ONE_DOOR_DUMP_DIR || null;
+const DUMP_DIR = path.join(require('os').tmpdir(), 'one-door-pages');
+const DUMP = fs.existsSync(DUMP_DIR) ? DUMP_DIR : null;
 const dump = (name, html) => { if (DUMP) { fs.mkdirSync(DUMP, { recursive: true }); fs.writeFileSync(path.join(DUMP, name), html); } };
 
 let server;
@@ -177,6 +178,22 @@ describe('land', () => {
     expect(w.side).toBe('teacher');
     const th = w.next.split('/quiz/teacher/')[1];
     expect(WebQuizToken.verify(th, 'th')).toMatchObject({ k: 'th', uid: 'u-teach', lang: 'bi', via: 'go' });
+  });
+
+  test.each([['en', 'en'], ['ur', 'ur'], [null, 'bi']])('a teacher whose stored language is %s gets a teacher home in %s (the link itself said bi)', async (stored, want) => {
+    world();
+    mockDb.tables.users.find((u) => u.id === 'u-teach').preferred_language = stored;
+    const t = await mint(TEACHER, PH.teach, 'unknown');
+    const w = await (await post('who', { t })).json();
+    expect(WebQuizToken.verify(w.next.split('/quiz/teacher/')[1], 'th')).toMatchObject({ uid: 'u-teach', lang: want, via: 'go' });
+  });
+
+  test('a link that already names en or ur keeps it, whatever the stored language', async () => {
+    world();
+    mockDb.tables.users.find((u) => u.id === 'u-teach').preferred_language = 'en';
+    const t = await mint(TEACHER, PH.teach, 'unknown', 'ur');
+    const w = await (await post('who', { t })).json();
+    expect(WebQuizToken.verify(w.next.split('/quiz/teacher/')[1], 'th')).toMatchObject({ lang: 'ur' });
   });
 
   test('"Not a teacher? Change" (src change): the question stays on screen for a registered teacher and a known child', async () => {
@@ -571,5 +588,51 @@ describe('the sandbox walk-through hooks (the module present; its own switch dec
       require('../../shared/services/first-touch/go.routes');
       expect(mount).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('the door\'s v3 lines join the sitting (web_quiz_events_v3)', () => {
+  const KEY = 'k'.repeat(32);
+  const v3Lines = (name) => logEvent.mock.calls.filter(([n]) => n === `web_quiz.${name}`).map(([, d]) => d);
+  let was;
+  beforeEach(() => { was = process.env.WEB_QUIZ_KID_KEY; process.env.WEB_QUIZ_KID_KEY = KEY; });
+  afterEach(() => { if (was === undefined) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = was; });
+  const eventsOn = () => { mockDb.tables.app_settings.push({ key: 'web_quiz_events_v3', value: 'true' }); OneDoorFlags._resetCache(); };
+
+  test('on: role_asked and role_answered carry kid_v and ONE sitting id keyed by this phone, no raw id', async () => {
+    world();
+    eventsOn();
+    const t = await mint(UNKNOWN, PH.unknown);
+    await post('who', { t });
+    await post('role', { t, side: 'child' });
+    const [asked] = v3Lines('role_asked');
+    const [answered] = v3Lines('role_answered');
+    expect(asked).toMatchObject({ w: 's', ev_v: 3, v3: 1, kid: null, sit: expect.stringMatching(/^[a-z2-9]{10}$/) });
+    expect(answered).toMatchObject({ w: 's', ev_v: 3, v3: 1, kid: null, role: 'student', sit: asked.sit });
+    [asked, answered].forEach((d) => {
+      expect(d).toHaveProperty('kid_v');
+      const s = JSON.stringify(d);
+      expect(s).not.toContain('u-unknown');
+      expect(s).not.toContain(PH.unknown);
+      expect(s).not.toContain(DEV);
+    });
+  });
+
+  test('on: a stale link\'s go_stale line carries the sitting too', async () => {
+    world();
+    eventsOn();
+    const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
+    await land(old);
+    expect(v3Lines('go_stale')).toEqual([expect.objectContaining({ ev_v: 3, kid: null, why: 'expired', sit: expect.stringMatching(/^[a-z2-9]{10}$/) })]);
+  });
+
+  test('off: no v3 line at all (today)', async () => {
+    world();
+    const t = await mint(UNKNOWN, PH.unknown);
+    await post('who', { t });
+    await post('role', { t, side: 'child' });
+    const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
+    await land(old);
+    expect(['role_asked', 'role_answered', 'go_stale'].flatMap(v3Lines)).toEqual([]);
   });
 });

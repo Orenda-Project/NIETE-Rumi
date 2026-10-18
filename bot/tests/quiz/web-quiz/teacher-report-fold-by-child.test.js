@@ -128,6 +128,26 @@ describe('on: off-list rows fold by child', () => {
     expect(fake.calls.filter((c) => c.table === 'child_phone_bindings')).toHaveLength(1);
   });
 
+  test('an off-list record merged into a child ON the list is that child: counted once, as the listed row', async () => {
+    // TYPED2 typed another name and was merged into Ayesha (on the list): not a second child
+    wire({ on: true, second: { merged_into: F.kid(1), status: 'merged' }, secondName: 'Aisha' });
+    const r = await Data.quizReport(F.TEACHER, F.QUIZ);
+    expect(r.summary.played).toBe(3);   // Ayesha (listed), Bilal (listed), Dansh (off the list) — never "Aisha" as a 4th
+    expect(r.played.filter((p) => p.first === 'Aisha')).toHaveLength(0);
+    expect(r.provisional.map((p) => p.sessionId)).toEqual(['s3']);
+  });
+
+  test('a facts read that does not answer in time: today\'s fold (the report never waits on it)', async () => {
+    const fake = wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
+    const from = fake.from;
+    require('../../../shared/config/supabase').from = (t) => {
+      if (t === 'child_phone_bindings') return { select() { return { in() { return new Promise(() => {}); } }; } };
+      return from(t);
+    };
+    const r = await Data.quizReport(F.TEACHER, F.QUIZ);
+    expect(shape(r)).toEqual({ played: 3, dansh: 1, provisional: [['s3', 2]] });
+  });
+
   test('a failed read of the child facts: today\'s fold, and the failure is logged', async () => {
     const fake = wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
     const from = fake.from;
@@ -154,6 +174,11 @@ describe('off: today\'s report, byte for byte (golden recorded on the base)', ()
     expect(got).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
   });
 
+  test.each([['"TRUE"', 'TRUE'], ['" true "', ' true '], ['JSON "TRUE"', '"TRUE"'], ['the string "true"', 'true'], ['the JSON string "\\"true\\""', '"true"']])('quiz_report_fold_by_child %s is not a real true: today\'s report', async (_, value) => {
+    wire({ on: value, bindings: BINDINGS() });
+    expect(await record()).toBe(fs.readFileSync(GOLDEN, 'utf8').trim());
+  });
+
   test('an unreadable switch: the report is today\'s', async () => {
     const fake = wire({ on: true, bindings: BINDINGS() });
     require('../../../shared/config/supabase').from = throwOn(fake.from, KEY);
@@ -164,5 +189,20 @@ describe('off: today\'s report, byte for byte (golden recorded on the base)', ()
     const fake = wire({ on: false, bindings: BINDINGS() });
     await record();
     expect(fake.calls.filter((c) => c.table === 'child_phone_bindings')).toHaveLength(0);
+  });
+});
+
+describe('a storybook send\'s 12 h WhatsApp report counts the children its web report counts', () => {
+  const kids = async () => (await Data.storySendChildren(F.TEACHER, F.QUIZ, F.SC, SESSIONS)).map((s) => s.id).sort();
+
+  test('on: the same typed name on two different phones is two children, as on the web report', async () => {
+    wire({ on: true, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
+    expect(await kids()).toEqual(['s1', 's2', 's3', 's4']);
+    expect((await Data.quizReport(F.TEACHER, F.QUIZ)).summary.played).toBe(4);
+  });
+
+  test('off: today\'s count, the same typed name is one child (the first finish)', async () => {
+    wire({ on: false, bindings: [bind(F.TYPED, 'tomb-a'), bind(TYPED2, 'tomb-b')] });
+    expect(await kids()).toEqual(['s1', 's2', 's3']);
   });
 });

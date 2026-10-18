@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/order/limit/range; or() over is/eq/neq; select/insert/update/delete; is/not also on a
+ * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/lte/order/limit/range; or() over is/eq/neq; select/insert/update/delete; is/not also on a
  * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -25,7 +25,9 @@ const same = (cell, v) => {
   return cell === v;
 };
 
-function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_id'], quiz_share_codes: ['code'] } } = {}) {
+// `maxRows` ({ table: n }, default none): PostgREST's max-rows — a read of that table answers at most n rows, whatever
+// range or limit it asked for, as the server does; a read that does not page past it goes red.
+function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_id'], quiz_share_codes: ['code'] }, maxRows = {} } = {}) {
   const calls = [];
   const rpcs = [];
   const table = (t) => { db[t] = db[t] || []; return db[t]; };
@@ -66,6 +68,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       gte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) >= String(v)); return b; },
       gt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) > String(v)); return b; },
       lt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) < String(v)); return b; },
+      lte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) <= String(v)); return b; },
       order(c, o = {}) { st.order.push([c, o.ascending !== false]); return b; },
       limit(n) { st.limit = n; return b; },
       range(from, to) { st.range = [from, to]; return b; },
@@ -123,6 +126,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     }
     if (st.range) hit = hit.slice(st.range[0], st.range[1] + 1);
     if (st.limit != null) hit = hit.slice(0, st.limit);
+    if (maxRows[st.t] != null) hit = hit.slice(0, maxRows[st.t]);
     if (st.count) return { data: st.head ? null : hit, count: hit.length, error: null };
     if (st.single) return { data: hit[0] ? { ...hit[0] } : null, error: null };
     return { data: hit.map((r) => ({ ...r })), error: null };

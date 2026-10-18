@@ -302,6 +302,8 @@ describe('the VALUE override (web_quiz_next_offer_weights)', () => {
     Challenge.__reset();
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.next).toMatchObject({ kind: 'game', id: 'numbers', rank_src: 'significant', score: 40, score_v: 'ovr-1' });
+    // a game tile names its one game: the numbers warm-up opens at once (#numbers), never Jugnu's list first
+    expect(out.next.href).toMatch(/^\/c\/[^?#]+\?kid=[^#]+#numbers$/);
   });
 });
 
@@ -411,6 +413,89 @@ describe('B1: a result card never mints or binds a hub token for a phone that is
     expect(await Sources._snapshot({ studentId: KID, device: A.device, live: { on: false } })).toBeNull();
     expect(hubKeys()).toEqual([]);
   });
+});
+
+describe('warm before the result: the child\'s candidates are read when the quiz or the run starts, so the card only ranks', () => {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nxsKeys = () => [...redis._store.keys()].filter((k) => /^wq:nxs:[0-9a-f]{24}$/.test(k));
+  const slowReads = () => { const real = Hub._parts.kidContext; return jest.spyOn(Hub._parts, 'kidContext').mockImplementation(async (...a) => { await sleep(2500); return real(...a); }); };
+  const ct = (ex, extra = {}) => T.signChallenge({ studentId: KID, ex, runId: `run-${ex}-${Math.random()}`, ...extra });
+
+  test('a warmed child: the quiz card\'s next_offer comes inside the deadline even when the child\'s reads are slow', async () => {
+    seed(NEXT_ON, pending());
+    redis._store.clear();
+    expect(await Sources.warmFromSession({ st: st() }, { device: A.device })).toBe(true);
+    expect(nxsKeys()).toHaveLength(1);
+    slowReads();
+    const t0 = Date.now();
+    const { next_offer: n } = await Sources.finishField({ st: st() }, finished(), { device: A.device });
+    expect(Date.now() - t0).toBeLessThan(Sources.DEADLINE_MS);
+    expect(n).toMatchObject({ ctx: 'after_quiz', rank_src: 'pinned' });
+    // the quiz just finished is still never "your teacher's new quiz"
+    expect([n, ...n.alts].filter((x) => x.variant === 'new' && /MATH01/.test(x.href))).toEqual([]);
+  }, 15000);
+
+  test('not warmed and slow: today\'s answer ({} at the deadline)', async () => {
+    seed(NEXT_ON, pending());
+    redis._store.clear();
+    slowReads();
+    expect(await Sources.finishField({ st: st() }, finished(), { device: A.device })).toEqual({});
+  }, 15000);
+
+  test('a Jugnu run\'s start warms too; its result ranks from it; a class round\'s turn warms nothing', async () => {
+    seed(NEXT_ON, pending());
+    redis._store.clear();
+    expect(await Sources.warmFromChallenge({ ct: ct('bigger', { round: 'cr-1', mode: 'check' }) }, { device: A.device })).toBe(false);
+    expect(nxsKeys()).toHaveLength(0);
+    const t = ct('bigger');
+    expect(await Sources.warmFromChallenge({ ct: t }, { device: A.device })).toBe(true);
+    slowReads();
+    const { next_offer: n } = await Sources.challengeField({ score: {} }, t, { device: A.device });
+    expect(n.ctx).toBe('after_game');
+    expect([n, ...n.alts].map((x) => x.id)).not.toContain('stop.bigger');
+  }, 15000);
+
+  test('the switch off, a forged token, a teacher\'s run, a friend\'s run or a phone that is not the child\'s: nothing read into the cache', async () => {
+    seed(BASE_ON, pending());
+    redis._store.clear();
+    expect(await Sources.warmFromSession({ st: st() }, { device: A.device })).toBe(false);
+    seed(NEXT_ON, pending());
+    expect(await Sources.warmFromSession({ st: 'nope' }, { device: A.device })).toBe(false);
+    expect(await Sources.warmFromSession({}, { device: A.device })).toBe(false);
+    db.quiz_sessions[0].user_id = TEACHER;
+    expect(await Sources.warmFromSession({ st: st() }, { device: A.device })).toBe(false);
+    seed(NEXT_ON, pending());
+    db.quiz_sessions[0].invited_by_student_id = '44444444-4444-4444-8444-000000000077';
+    expect(await Sources.warmFromSession({ st: st() }, { device: A.device })).toBe(false);
+    seed(NEXT_ON, pending());
+    expect(await Sources.warmFromChallenge({ ct: ct('bigger') }, { device: 'BBBBBBBBBBBBBBBBBBBBBB' })).toBe(false);
+    expect(nxsKeys()).toHaveLength(0);
+  });
+
+  test('the warm list is per phone and carries no name, phone or raw id; another phone never reads it', async () => {
+    seed(NEXT_ON, pending());
+    redis._store.clear();
+    await Sources.warmFromSession({ st: st() }, { device: A.device });
+    const [k] = nxsKeys();
+    const text = JSON.stringify(redis._store.get(k));
+    ['Zara', 'FIXTURE', '+92'].forEach((x) => expect(text).not.toContain(x));
+    // phone B holding the child's run token: its own key misses, and B1 refuses it (nothing minted, nothing written)
+    expect(await Sources.challengeField({ score: {} }, ct('bigger'), { device: 'BBBBBBBBBBBBBBBBBBBBBB' })).toEqual({});
+    expect(nxsKeys()).toHaveLength(1);
+  });
+
+  test('a card that comes while its warm-up is still reading waits for it (inside the deadline), never reads twice', async () => {
+    seed(NEXT_ON, pending());
+    redis._store.clear();
+    const real = Hub._parts.kidContext;
+    const spy = jest.spyOn(Hub._parts, 'kidContext').mockImplementation(async (...a) => { await sleep(600); return real(...a); });
+    const w = Sources.warmFromSession({ st: st() }, { device: A.device });
+    await sleep(50);
+    const { next_offer: n } = await Sources.finishField({ st: st() }, finished(), { device: A.device });
+    expect(n).toBeTruthy();
+    await w;
+    expect(spy).toHaveBeenCalledTimes(1);
+  }, 15000);
 });
 
 describe('a Jugnu stop\'s result: next_offer', () => {
@@ -545,6 +630,34 @@ describe('offerFor: any other activity (a watched video)', () => {
     expect(n.ctx).toBe('after_video');
     expect(n.rank_src).toBe('pinned');   // the teacher's pending quiz still comes first
     expect([n, ...n.alts].length).toBeGreaterThan(1);
+  });
+
+  test('after_video joins: exactly one next_set {ctx:after_video} whose offer is the answer\'s; source in the allowed set', async () => {
+    const more = { kind: 'video', variant: 'more', id: 'videos', href: '#videos', title: 'More videos', minutes: 3 };
+    seed([...NEXT_ON, ON('web_quiz_events_v3')], pending());
+    const { next_offer: n } = await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: [more] });
+    const sets = logEvent.mock.calls.filter(([nm]) => nm === 'web_quiz.next_set');
+    expect(sets).toHaveLength(1);
+    expect(sets[0][1]).toMatchObject({ ctx: 'after_video', offer: n.offer, ev_v: 3 });
+    expect(n.offer).toMatch(/^[A-Za-z0-9_-]{10}$/);
+    expect(['pinned', 'ranked', 'fallback']).toContain(n.source);
+  });
+
+  test('the caller\'s own candidates may be a read of their own (a function): it runs inside the deadline, beside the child\'s reads', async () => {
+    const more = { kind: 'video', variant: 'more', id: 'videos', href: '#videos', title: 'More videos', minutes: 3 };
+    seed(NEXT_ON, pending());
+    // a fast read: its candidates are ranked with the child's
+    const { next_offer: n } = await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: async () => [more] });
+    expect([n, ...n.alts].map((x) => x.id).concat(n.id)).toBeDefined();
+    let seen = null;
+    jest.spyOn(NO, 'nextFor').mockImplementation(async (a) => { seen = a.candidates.map((c) => c.id); return null; });
+    await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: async () => [more] });
+    expect(seen).toContain('videos');
+    jest.restoreAllMocks();
+    // a read that never answers: the answer still comes within the deadline (with no slot), never held by it
+    const t0 = Date.now();
+    expect(await Sources.offerFor({ studentId: KID, device: A.device, ctx: 'after_video', extra: () => new Promise(() => {}) })).toEqual({});
+    expect(Date.now() - t0).toBeLessThan(Sources.DEADLINE_MS + 600);
   });
 });
 

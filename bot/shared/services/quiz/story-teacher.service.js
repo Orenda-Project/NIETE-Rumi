@@ -6,6 +6,7 @@
  *   shelf({ uid, grade, lang, all })   the teacher library's story shelf: ready books of that grade and language,
  *                                      the featured book (story_books.featured_rank) first, then a per-teacher-day shuffle;
  *                                      four books unless `all`; each with its cover, first page and page-1 voice file
+ *                                      `send`: whether this teacher's class can get a web link at all
  *   prepare / preview                  the send made ready: one quizzes row per teacher × book (quiz_source 'story',
  *                                      meta.story = {book_id, lang}, no questions) and its class code through the video
  *                                      quiz's own mintCode, minted CLOSED (active false) so a book only looked at never
@@ -27,10 +28,13 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 // The book a story send carries (`meta.story.book_id`): one reader for the send and its report.
 const { bookOf } = require('./story-teacher-report');
+const { mustWrite } = require('./must-write');
 
 const FLAG_KEY = 'web_quiz_stories_teacher';
 // The child's side this needs: the reader (stories) and the hub it opens in.
 const NEEDS = ['web_quiz_stories', 'web_quiz_hub'];
+// The Stories page's own security policy (hashed <meta> + header; default off). Read in the switch's one read.
+const CSP_KEY = 'quiz_teacher_stories_csp';
 const FLAG_TTL_MS = 30 * 1000;
 const SHELF_N = 4;
 const SOURCE = 'story';
@@ -42,21 +46,30 @@ async function flagOn() {
   if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag.on;
   try {
     const keys = [FLAG_KEY, ...NEEDS];
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [...keys, CSP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
-    flag = { at: Date.now(), on: keys.every((k) => by.get(k) === true) };
+    flag = { at: Date.now(), on: keys.every((k) => by.get(k) === true), csp: by.get(CSP_KEY) === true };
   } catch (e) {
     logToFile('⚠️ story send: settings lookup failed — off', { error: e.message });
-    flag = { at: Date.now(), on: false };
+    flag = { at: Date.now(), on: false, csp: false };
   }
   return flag.on;
+}
+
+/** Whether the Stories page carries its policy: what the switch read above last saw (no read of its own); else off. */
+function pageCspOn() {
+  return !!(flag && flag.on === true && flag.csp === true);
 }
 
 class StoryError extends Error {
   constructor(status, error) { super(error); this.status = status; this.body = { error }; }
 }
 const fail = (status, error) => { throw new StoryError(status, error); };
+// A write the teacher's "sent" depends on that does not land (must-write.js): this module's own refusal.
+const unavailable = () => new StoryError(503, 'unavailable');
+// A send write that must land on a row; otherwise the send is refused as unavailable.
+const MUST_ROW = { needRow: true, refuse: unavailable };
 
 /**
  * The teacher behind a teacher-home token (`{k:'th', uid, lang, via, exp}`); null when not genuine or stale.
@@ -139,7 +152,10 @@ async function shelf({ uid, grade, lang, all = false, now = Date.now() } = {}) {
   const rest = dayOrder(rows.filter((b) => b.featured_rank == null), uid, now);
   const ordered = [...featured, ...rest].slice(0, all ? undefined : SHELF_N);
   const { pics, audio } = await firstPages(ordered.map((b) => b.id));
-  return { grade: g, lang: l, books: ordered.map((b) => bookTile(b, pics.get(b.id), audio.get(b.id))) };
+  // `send`: whether this teacher's class can get a web link (a story is read on the web page only); false, the page
+  // shows the books with one line and no way into a send that would be refused.
+  const send = await require('./web-quiz-link').webQuizOn(uid);
+  return { grade: g, lang: l, books: ordered.map((b) => bookTile(b, pics.get(b.id), audio.get(b.id))), send };
 }
 
 /** This teacher's story rows for this book, oldest first (one is kept per teacher × book). */
@@ -153,11 +169,10 @@ async function rowsFor(uid, bookId) {
 async function rowFor(uid, book, lang) {
   const had = (await rowsFor(uid, book.id))[0];
   if (had) return had;
-  const { data, error } = await supabase.from('quizzes').insert({
+  const data = await mustWrite(supabase.from('quizzes').insert({
     teacher_id: uid, quiz_source: SOURCE, topic: book.title, grade: String(book.grade), language: lang, status: 'ready',
     meta: { story: { book_id: book.id, lang } },
-  }).select('id, meta, status, created_at').single();
-  if (error || !data) { logToFile('❌ story send: could not write the send', { error: error && error.message }, 'error'); fail(503, 'unavailable'); }
+  }).select('id, meta, status, created_at').single(), 'story send: could not write the send', MUST_ROW);
   const all = await rowsFor(uid, book.id);
   const keep = all[0] || data;
   if (keep.id !== data.id) {
@@ -223,6 +238,8 @@ async function prepare({ uid, storyId, classId = null, now = Date.now() } = {}) 
   if (typeof storyId !== 'string' || !/^[0-9a-f-]{36}$/i.test(storyId)) fail(400, 'bad_story');
   const { data: book } = await supabase.from('story_books').select(BOOK_COLS).eq('id', storyId).maybeSingle();
   if (!book || book.status !== 'ready') fail(404, 'no_story');
+  // No web link for this teacher's class: refused before the row or a code is written (nothing left behind).
+  if (!(await require('./web-quiz-link').webQuizOn(uid))) fail(409, 'web_quiz_off');
   const lang = clampLanguage(book.lang);
   const quiz = await rowFor(uid, book, lang);
 
@@ -241,7 +258,8 @@ async function prepare({ uid, storyId, classId = null, now = Date.now() } = {}) 
   const link = await require('./web-quiz-link').quizLink(held.code, {
     teacherUserId: uid, whatsapp: `https://wa.me/${Share.botNumber()}?text=QUIZ-${held.code}`, quizId: quiz.id,
   });
-  // A story is read on the web page only: a WhatsApp quiz of a story has nothing to ask.
+  // A story is read on the web page only: a WhatsApp quiz of a story has nothing to ask (the check above, held again
+  // here for a link that still is not a page).
   if (!/\/q\/[A-Za-z0-9]+$/.test(String(link || ''))) fail(409, 'web_quiz_off');
 
   const { data: user } = await supabase.from('users').select('name').eq('id', uid).maybeSingle();
@@ -260,18 +278,19 @@ async function preview({ uid, storyId, classId = null, ui = null, now = Date.now
     report_line: resolveUx('storyReportWhere', { language: uiLang }), back_line: resolveUx('storyComeBack', { language: uiLang }) };
 }
 
-/** The teacher's tap: the code opened, the row marked sent; the meta carries the code, the message and the times. */
+/**
+ * The teacher's tap: the code opened, the row marked sent; the meta carries the code, the message and the times. An
+ * update that matched no row (the code or the row gone) is refused like one that failed.
+ */
 async function markSent(p, now) {
   if (p.held.active === false) {
     // Never a sent row behind a closed code (the class would get "expired"): no open, no send.
-    const { error } = await supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id);
-    if (error) { logToFile('❌ story send: could not open the code', { error: error.message }, 'error'); fail(503, 'unavailable'); }
+    await mustWrite(supabase.from('quiz_share_codes').update({ active: true }).eq('id', p.held.id).select('id'), 'story send: could not open the code', MUST_ROW);
   }
   const meta = { ...(p.quiz.meta || {}), story: { book_id: p.book.id, lang: p.lang }, share_code: p.held.code, share_code_id: p.held.id,
     link: p.out.link, student_message: p.out.class_message, sent_at: new Date(now).toISOString(),
     first_sent_at: (p.quiz.meta && p.quiz.meta.first_sent_at) || new Date(now).toISOString() };
-  const { error } = await supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id);
-  if (error) { logToFile('❌ story send: could not mark the send', { error: error.message }, 'error'); fail(503, 'unavailable'); }
+  await mustWrite(supabase.from('quizzes').update({ meta, status: 'sent' }).eq('id', p.quiz.id).select('id'), 'story send: could not mark the send', MUST_ROW);
   logEvent('teacher_story_sent', { book_id: p.book.id, quiz_id: p.quiz.id, share_code_id: p.held.id, class_id: p.held.class_id || null, reused: p.reused });
 }
 
@@ -287,6 +306,69 @@ async function send({ uid, storyId, classId = null, now = Date.now() } = {}) {
   const p = await prepare({ uid, storyId, classId, now });
   await markSent(p, now);
   return { redirect: p.out.wa_href };
+}
+
+// The server's max-rows: a read past it is paged.
+const EVENTS_PAGE = 1000;
+const COUNT_CHUNK = 300;
+const COUNT_SESSION_COLS = 'id, quiz_id, share_code_id, student_id, user_id, status, invited_by_student_id, created_at, completed_at, device_ref';
+
+/** Every row of `make().in(column, ids)`: the ids in chunks of COUNT_CHUNK, each chunk paged by id. Throws on a read error. */
+async function pagedIn(make, column, ids) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += COUNT_CHUNK) {
+    const part = ids.slice(i, i + COUNT_CHUNK);
+    for (let from = 0; ; from += EVENTS_PAGE) {
+      const { data, error } = await make().in(column, part).order('id', { ascending: true }).range(from, from + EVENTS_PAGE - 1);
+      if (error) throw new Error(error.message || 'read failed');
+      out.push(...(data || []));
+      if (!data || data.length < EVENTS_PAGE) break;
+    }
+  }
+  return out;
+}
+
+/**
+ * The teacher home's Stories tile line: the stories this teacher has sent (only these books with `bookIds`) and the
+ * children of those sends who read: a child who joined a send's class link and has any story_events row on that send's
+ * book since it was first sent. A child reading the same book from the shelf, or before the send, is not counted; the
+ * children are the ones both reports count (no teacher's own try, no invited friend).
+ * Null while the switch is off, and on any read error (never throws). A preview is not a send. Reads only.
+ */
+async function storyCounts(uid, { bookIds = null } = {}) {
+  try {
+    if (!uid || !(await flagOn())) return null;
+    const { data: rows, error } = await supabase.from('quizzes').select('id, meta')
+      .eq('teacher_id', uid).eq('quiz_source', SOURCE).eq('status', 'sent');
+    if (error) return null;
+    const want = Array.isArray(bookIds) ? new Set(bookIds.map(String)) : null;
+    const sends = (rows || []).filter((q) => q && q.id && bookOf(q) && (!want || want.has(bookOf(q))));
+    if (!sends.length) return { sent: 0, read: 0 };
+    // The children both reports count (joined, no teacher's own try, no invited friend, one attempt per child),
+    // read in chunks and pages: a big class is neither cut at the server's 1000-row cap nor too long for one request.
+    const { countedSessions } = require('./teacher-report.data');
+    const sessions = countedSessions(await pagedIn(() => supabase.from('quiz_sessions').select(COUNT_SESSION_COLS),
+      'quiz_id', sends.map((q) => q.id)), uid, { opened: true });
+    const kids = [...new Set(sessions.map((x) => x && x.student_id).filter(Boolean))];
+    if (!kids.length) return { sent: sends.length, read: 0 };
+    const books = [...new Set(sends.map(bookOf))];
+    const events = await pagedIn(() => supabase.from('story_events').select('child_id, book_id, at').in('book_id', books),
+      'child_id', kids);
+    const kidsOf = new Map(sends.map((q) => [q.id, new Set()]));
+    sessions.forEach((x) => { if (x && x.student_id && kidsOf.has(x.quiz_id)) kidsOf.get(x.quiz_id).add(x.student_id); });
+    const read = new Set();
+    sends.forEach((q) => {
+      // As times, not strings: the database writes "+00:00" where the send's time has "Z".
+      const since = (q.meta && (q.meta.first_sent_at || q.meta.sent_at)) || null;
+      const sinceMs = since ? Date.parse(since) : -Infinity;
+      const mine = kidsOf.get(q.id);
+      events.forEach((e) => { if (e && mine.has(e.child_id) && String(e.book_id) === bookOf(q) && Date.parse(e.at) >= sinceMs) read.add(e.child_id); });
+    });
+    return { sent: sends.length, read: read.size };
+  } catch (e) {
+    logToFile('⚠️ story send: tile counts failed', { error: e.message });
+    return null;
+  }
 }
 
 /** The page's story for a code whose quiz is a story send, when the switch is on; null otherwise (today's 404). */
@@ -329,7 +411,7 @@ async function storyDoorOk(session) {
 }
 
 module.exports = {
-  FLAG_KEY, NEEDS, SOURCE, StoryError, flagOn, teacherToken, teacherOf, pktDay, dayOrder, bookOf, shelf, prepare, preview, share, send,
-  storyForQuiz, storyBoot, storyTeacher, storyDoorOk, returnLine,
+  FLAG_KEY, NEEDS, CSP_KEY, SOURCE, StoryError, flagOn, pageCspOn, teacherToken, teacherOf, pktDay, dayOrder, bookOf, shelf, prepare, preview, share, send,
+  storyForQuiz, storyBoot, storyTeacher, storyDoorOk, returnLine, storyCounts,
   _reset: () => { flag = null; },
 };
