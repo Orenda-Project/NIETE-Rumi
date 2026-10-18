@@ -106,13 +106,18 @@ export interface FlnPlayerDeps {
   requestIdle?: (fn: () => void) => void;
   /** Called once per mirror origin at register (default: <link rel=preconnect> ×2). */
   preconnect?: (origin: string) => void;
-  /** Overrides for the timing rules (defaults: firstByteMs 2500, giveUpMs 6000, warmNow 3, budgetBytes 1.5 MB, warmConcurrency 2, warmStepMs 8000). */
+  /** Overrides for the timing rules (defaults: firstByteMs 2500, giveUpMs 6000, stallMs 3000, ceilingMs 20000, warmNow 3, budgetBytes 1.5 MB, warmConcurrency 2, warmStepMs 8000). */
   timing?: Partial<FlnPlayerTiming>;
 }
 
 export interface FlnPlayerTiming {
   firstByteMs: number;
+  /** No `playing` this long after the tap → the retry state, unless bytes are still arriving (see stallMs). */
   giveUpMs: number;
+  /** While loading, the give-up waits until this long after the last byte (a big clip still downloading is not failed). */
+  stallMs: number;
+  /** The give-up never waits past this, bytes or not (a trickle must not spin forever). */
+  ceilingMs: number;
   warmNow: number;
   budgetBytes: number;
   /** Clips warming at once, in order (the first `warmNow` start without waiting for idle). */
