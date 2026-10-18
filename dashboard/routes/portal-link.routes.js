@@ -47,6 +47,7 @@ const AREAS = {
       { method: 'POST', test: prefix('/lp612/request') },
       // bd-fmf24g.3 — the v2 Lessons picker ("Select your class") reads her grade·subject pairs.
       { method: 'GET', test: (p) => p === '/me/grade-subjects' },
+      { method: 'GET', test: prefix('/fln') }, { method: 'POST', test: (p) => p === '/fln/events' }, // bd-t7zk3t.11 FLN [sandbox-only]
     ],
   },
   // bd-fmf24g.15 — the "Open in app" button on the WhatsApp message for a finished paper or lesson plan she did not
