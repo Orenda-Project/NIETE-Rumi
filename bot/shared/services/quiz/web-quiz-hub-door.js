@@ -111,7 +111,9 @@ async function door(body = {}, Err = Error) {
   if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress') && !story)) await fail(404, 'no_door', 'not_own_finished_run');
   // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
   const hubId = (await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id;
-  const token = T.signHub([hubId]);
+  // web_quiz_return_lang: the child's own language rides the link (off: today's token)
+  const lang = await require('./web-quiz-child-lang').childLang(hubId);
+  const token = lang ? T.signHub([hubId], undefined, { lang }) : T.signHub([hubId]);
   if (!token) await fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) await fail(404, 'no_door', bound.why);
