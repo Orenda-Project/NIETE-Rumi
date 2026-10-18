@@ -93,8 +93,9 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 
 const roster = (id, name, list = 'l-1', phone = PH.family, school = 'sch-1') => ({ id, student_name: name, list_id: list, parent_phone: phone, school_id: school, is_active: true, status: 'active', merged_into: null });
-function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false, adv, oneButton } = {}) {
+function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false, adv, oneButton, goLinkLang } = {}) {
   const settings = [];
+  if (goLinkLang !== undefined) settings.push({ key: 'web_quiz_go_link_lang', value: goLinkLang });
   if (on) settings.push({ key: 'quiz_one_door', value: 'true' });
   if (teacherHome) settings.push({ key: 'quiz_teacher_home', value: 'true' });
   if (makerPage) settings.push({ key: 'quiz_maker_page', value: 'true' });
@@ -701,5 +702,46 @@ describe('the adventure look (web_quiz_adventure_look AND web_quiz_one_button, b
         expect(r.headers.get('content-security-policy')).toContain(`style-src 'sha256-${cssHash(html)}'`);
       } else expect(html).not.toContain('wq-btn');
     }
+  });
+});
+
+// web_quiz_go_link_lang: the link's own ?lang (the edge passes it as ?ll=, and the page posts it back as `l`) decides the
+// page's language and the join's, before the language the link was minted in. Off: neither is read.
+describe('the link\'s language through the one door', () => {
+  const joinLang = (next) => (/^\/quiz\/join\/j\.(bi|ur)/.exec(String(next)) || [])[1] || null;
+  const boot = (html) => JSON.parse(/<script type="application\/json" id="go-boot">([\s\S]*?)<\/script>/.exec(html)[1]);
+  test('on: an Urdu link opened with ?lang=en paints English first and joins in English; the page posts the language back', async () => {
+    world({ goLinkLang: true });
+    mockJoin = WRITER();
+    const t = await mint(UNKNOWN, PH.unknown, 'unknown', 'ur');
+    const html = await (await land(t, DEV, '?ll=en')).text();
+    expect(boot(html).l).toBe('en');
+    expect(html).toContain('Tell Jugnu who you are');
+    expect(joinLang((await (await post('role', { t, side: 'child', l: 'en' })).json()).next)).toBe('bi');
+  });
+  test('on: an English link opened with ?lang=ur joins in Urdu; a remembered child answer (who) carries it too', async () => {
+    world({ goLinkLang: true });
+    mockJoin = WRITER();
+    mockDb.tables.user_feature_first_use.push({ user_id: 'u-unknown', feature: 'quiz_door_child', intro_shown_count: 1, feature_used_at: new Date().toISOString() });
+    const t = await mint(UNKNOWN, PH.unknown, 'join', 'bi');
+    expect(joinLang((await (await post('who', { t, l: 'ur' })).json()).next)).toBe('ur');
+    const r = await land(t, DEV, '?ll=ur');
+    expect(joinLang(r.headers.get('location'))).toBe('ur');
+  });
+  test('on: no language on the link, or one that is not en/ur: the link\'s own, as today', async () => {
+    world({ goLinkLang: true });
+    mockJoin = WRITER();
+    const t = await mint(UNKNOWN, PH.unknown, 'unknown', 'ur');
+    expect(boot(await (await land(t, DEV, '?ll=fr')).text()).l).toBeUndefined();
+    expect(joinLang((await (await post('role', { t, side: 'child' })).json()).next)).toBe('ur');
+    expect(joinLang((await (await post('role', { t, side: 'child', l: 'fr' })).json()).next)).toBe('ur');
+  });
+  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true']])('switch %s: the link\'s language is never read; the page is today\'s, byte for byte', async (_, v) => {
+    world({ goLinkLang: v });
+    mockJoin = WRITER();
+    const t = await mint(UNKNOWN, PH.unknown, 'unknown', 'ur');
+    const today = await (await land(t)).text();
+    expect(await (await land(t, DEV, '?ll=en')).text()).toBe(today);
+    expect(joinLang((await (await post('role', { t, side: 'child', l: 'en' })).json()).next)).toBe('ur');
   });
 });
