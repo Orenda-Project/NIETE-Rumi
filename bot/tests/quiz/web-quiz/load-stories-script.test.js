@@ -162,3 +162,19 @@ test('--read-db: a dry run that reads the switch and the current voices from the
   const o2 = io();
   expect(await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o2 })).toBe(0);
 });
+
+test('an Urdu book with a letter the child face does not draw: its line names it (face_holes); READY unchanged', async () => {
+  const mf = path.join(dir, 'manifest.json');
+  const m = JSON.parse(fs.readFileSync(mf, 'utf8'));
+  const o0 = io();
+  await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o0 });
+  const en = JSON.parse(o0.o.out.split('\n')[0]);
+  expect('face_holes' in en).toBe(false);
+  m.books[0] = { ...m.books[0], lang: 'ur', title: 'ٹیسٹ والا ٻ' };
+  fs.writeFileSync(mf, JSON.stringify(m));
+  const o = io();
+  await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o });
+  const line = JSON.parse(o.o.out.split('\n')[0]);
+  expect(line.face_holes).toEqual(['U+067B']);
+  expect(line.status).toBe(JSON.parse(o0.o.out.split('\n')[0]).status);
+});
