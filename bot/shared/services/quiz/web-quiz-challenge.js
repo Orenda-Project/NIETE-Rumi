@@ -593,34 +593,41 @@ function kbpsOfKey(key) {
   return (m && Number(m[2])) || 64;
 }
 
-// A long clip (a listening story, a Story Time read-along): read slowly with pauses, and each take is checked before
-// it is stored. With one voice per quiz it is never recorded on the fly (an unchecked take, in another delivery):
-// refused, once per key per process, with `web_quiz.ch_clip_ungated_refused`.
+// With one voice per quiz, in a language the plan voices, nothing is recorded on the fly (a paid call at an unknown
+// moment): a long clip (a listening story, a Story Time read-along: read slowly with pauses, each take checked before
+// it is stored) never; a short line only by the pre-flip batch (`batch`, scripts/quiz/one-voice-missing-keys.js
+// --record-short). A refusal is logged once per key per process with `web_quiz.ch_clip_ungated_refused`.
 const LONG_KEY = /\/(listen|read)\/story-[^/]*\.ogg$/;
+const PART_OF_KEY = /\/challenge\/[^/]+\/([^/]+)\/(.+?)-(?:sx|el|oa)-/;
 const clipRefused = new Set();
-function refusedLong(key, lang) {
+function refused(key, lang, batch) {
   const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);   // a language the plan leaves out: today's recorder
-  const m = plan && LONG_KEY.exec(String(key || ''));
-  if (!m) return false;
+  if (!plan) return false;
+  const long = LONG_KEY.exec(String(key || ''));
+  if (!long && batch) return false;
   if (!clipRefused.has(key)) {
     clipRefused.add(key);
-    logEvent('web_quiz.ch_clip_ungated_refused', { lang, ex: m[1], part: 'story', plan: plan.sig });
+    const m = long ? [null, long[1], 'story'] : PART_OF_KEY.exec(String(key || '')) || [null, null, null];
+    logEvent('web_quiz.ch_clip_ungated_refused', { lang, ex: m[1], part: m[2], plan: plan.sig });
   }
   return true;
 }
 
 // → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy, refused or failed).
-async function recordClip(key, text, lang, now = Date.now()) {
-  if (refusedLong(key, lang)) return null;
+// With one voice per quiz the Urdu words the voice misreads are respelled for it (web-quiz-ur-say.js); the key is the
+// screen text's.
+async function recordClip(key, text, lang, now = Date.now(), { batch = false } = {}) {
+  if (refused(key, lang, batch)) return null;
   if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return null;
   clipRecording.add(key);
   clipsRecorded += 1;
   try {
     const tts = require('../tts');
     const v = voiceOfKey(key, lang);
+    const said = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
     const out = await tts.synthesize({
-      text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
+      text: said, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
       // the one voice: its model, settings and the key's rate, asked of the provider (its own bytes, never re-encoded)
       ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${kbpsOfKey(key)}` } : {}),
     });

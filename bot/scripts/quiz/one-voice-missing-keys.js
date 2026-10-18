@@ -24,7 +24,8 @@
  *
  * --record-short: the short lines that are missing (each question's prompt and its options, never a listening story or a
  * Story Time read-along: those are checked takes) are recorded first, by the challenge's own recorder under the pinned
- * plan (provider bytes, one call a line), each through a light gate: a length plausible for its words, and for a prompt
+ * plan (provider bytes, one call a line; the only caller the recorder lets record with the switch on; Urdu words respelled
+ * for the voice, web-quiz-ur-say.js), each through a light gate: a length plausible for its words, and for a prompt
  * of 4+ words one transcription with a word error rate ≤ 0.20 (EN) / 0.25 (UR). A take that fails is deleted and
  * recorded once more; failing again it is deleted and listed (`gate_failed`). Stops before the next line once the
  * spend reaches --max-usd (default 5); prints `SPEND usd=… chars=…`. A process records at most the recorder's daily
@@ -163,7 +164,7 @@ async function main(argv, deps = {}) {
       let takes = 0;
       while (takes < 2) {
         if (rec.usd >= args.maxUsd) { rec.stopped = 'max_usd'; break; }
-        const res = await Ch.recordClip(c.key, c.text, c.lang, now);
+        const res = await Ch.recordClip(c.key, c.text, c.lang, now, { batch: true });
         if (!res) { rec.stopped = 'capped'; break; }
         takes += 1;
         rec.chars += [...String(c.text)].length;

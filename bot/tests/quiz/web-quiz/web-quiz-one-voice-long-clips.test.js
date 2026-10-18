@@ -6,7 +6,10 @@
  * (words heard, alignment, pace) before it is stored. With the switch on, a missing long clip is never made by the
  * recorder a child's open, the warm job or a door label calls: that take would be unchecked, and in a voice whose
  * delivery differs from the checked takes. The recorder refuses it (no voice call) and says so
- * (`web_quiz.ch_clip_ungated_refused`); short lines (a prompt, an option, a door label) are still recorded.
+ * (`web_quiz.ch_clip_ungated_refused`). A short line (a prompt, an option, a door label) is not recorded on a child's
+ * open or by the warm job either (a paid call at an unknown moment): only the pre-flip batch
+ * (scripts/quiz/one-voice-missing-keys.js --record-short, `{ batch: true }`) records it, its Urdu words respelled for
+ * the voice by the shared list (web-quiz-ur-say.js), the screen text unchanged.
  *
  * The warm job, with the switch on, also says how much of the one voice is there:
  * `web_quiz.one_voice_coverage {plan, total, present, missing_long, missing_short, math_unlit}` once per run.
@@ -96,21 +99,57 @@ describe('switch on: a missing long clip is refused, never recorded on the fly',
     expect(events('web_quiz.ch_clip_ungated_refused')).toHaveLength(0);
   });
 
-  test('a short line (a prompt, an option, a door label) is still recorded in the one voice', async () => {
+  test('a short line (a prompt, an option, a door label) is not recorded on the fly: refused once per clip', async () => {
     seed(true);
     await OneVoice.on();
     const prompt = Ch.clipKey('listen', 'q1', 'en', 'Where did the children stay?');
     const option = Ch.clipKey('listen', 'q1-opt', 'en', 'Inside');
     const door = Ch.clipKey('door', 'say', 'en', 'Stories');
     for (const [key, text] of [[prompt, 'Where did the children stay?'], [option, 'Inside'], [door, 'Stories']]) {
-      expect(await Ch.warmClip(key, text, 'en')).toBe('recorded');
+      expect(await Ch.warmClip(key, text, 'en')).toBe('missing');
+      expect(await Ch.recordClip(key, text, 'en')).toBeNull();
     }
-    expect(tts.synthesize).toHaveBeenCalledTimes(3);
-    expect(events('web_quiz.ch_clip_ungated_refused')).toHaveLength(0);
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    expect(events('web_quiz.ch_clip_ungated_refused').map((e) => [e.ex, e.part])).toEqual([['listen', 'q1'], ['listen', 'q1-opt'], ['door', 'say']]);
+  });
+
+  test('the pre-flip batch records a short line in the storybook voice; never a long one', async () => {
+    seed(true);
+    await OneVoice.on();
+    const prompt = Ch.clipKey('listen', 'q1', 'en', 'Where did the children stay?');
+    expect(await Ch.recordClip(prompt, 'Where did the children stay?', 'en', undefined, { batch: true })).not.toBeNull();
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_multilingual_v2' });
+    const story = Ch.clipKey('listen', 'story', 'en', STORY_EN);
+    expect(await Ch.recordClip(story, STORY_EN, 'en', undefined, { batch: true })).toBeNull();
+    expect(tts.synthesize).toHaveBeenCalledTimes(1);
+    expect(events('web_quiz.ch_clip_ungated_refused')).toHaveLength(1);
+  });
+
+  test('Urdu: the batch sends the respelled words to the voice; the key is the screen text\'s', async () => {
+    seed(true);
+    await OneVoice.on();
+    const text = 'بچے ساتھ گئے اور کھیر کھائی۔';
+    const key = Ch.clipKey('listen', 'q2', 'ur', text);
+    await Ch.recordClip(key, text, 'ur', undefined, { batch: true });
+    expect(tts.synthesize.mock.calls[0][0].text).toBe('بچے साथ گئے اور खीर کھائی۔');
+    expect(r2.uploadBuffer.mock.calls[0][1]).toBe(key);
+    // a word that only contains a listed word is left as it is
+    tts.synthesize.mockClear();
+    const other = 'میرا ساتھی آیا';
+    await Ch.recordClip(Ch.clipKey('listen', 'q3', 'ur', other), other, 'ur', undefined, { batch: true });
+    expect(tts.synthesize.mock.calls[0][0].text).toBe(other);
   });
 });
 
 describe('switch off: today\'s recorder, unchanged', () => {
+  test('off: an Urdu line goes to the voice as it is written (no respelling)', async () => {
+    seed(false);
+    await OneVoice.on();
+    const text = 'بچے ساتھ گئے';
+    expect(await Ch.warmClip(Ch.clipKey('listen', 'q2', 'ur', text), text, 'ur')).toBe('recorded');
+    expect(tts.synthesize.mock.calls[0][0].text).toBe(text);
+  });
+
   test.each([[undefined], [false], ['true'], [{}], [{ enabled: true }]])('value %p: a missing long clip is recorded on the fly in today\'s voice', async (flag) => {
     seed(flag);
     await OneVoice.on();
@@ -156,10 +195,10 @@ describe('the warm run says how much of the one voice is there', () => {
     await OneVoice.on();
     const out = await CW.warmClips({ now: NOW });
     expect(out).not.toBeNull();
-    // the story is refused (long), the two prompts are recorded (short)
-    expect(tts.synthesize).toHaveBeenCalledTimes(2);
+    // nothing is recorded by the warm job with the switch on: the story (long) and the two prompts (short) stay missing
+    expect(tts.synthesize).not.toHaveBeenCalled();
     expect(events('web_quiz.one_voice_coverage')).toEqual([
-      { plan: OneVoice.currentPlan().sig, total: 3, present: 2, missing_long: 1, missing_short: 0, math_unlit: 1 },
+      { plan: OneVoice.currentPlan().sig, total: 3, present: 0, missing_long: 1, missing_short: 2, math_unlit: 1 },
     ]);
   });
 
@@ -217,11 +256,11 @@ describe('Jugnu\'s challenge clips are the storybook voice, whatever voice the q
     seed(MATCHED);
     await OneVoice.on();
     const key = Ch.clipKey('listen', 'q1', 'ur', 'بچے کہاں رہے؟');
-    expect(await Ch.warmClip(key, 'بچے کہاں رہے؟', 'ur')).toBe('recorded');
+    expect(await Ch.recordClip(key, 'بچے کہاں رہے؟', 'ur', undefined, { batch: true })).not.toBeNull();
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', model: 'eleven_v4' });
     tts.synthesize.mockClear();
     const en = Ch.clipKey('door', 'say', 'en', 'Stories');
-    await Ch.warmClip(en, 'Stories', 'en');
+    await Ch.recordClip(en, 'Stories', 'en', undefined, { batch: true });
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ voice: 'hpp4J3VqNfWAUOO0d1Us', model: 'eleven_multilingual_v2', voiceSettings: { speed: 0.9 } });
   });
 
@@ -250,6 +289,13 @@ describe('a language the plan leaves out keeps today\'s challenge; any quiz voic
     expect(await Ch.warmClip(key, STORY_EN, 'en')).toBe('recorded');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox' });
     expect(events('web_quiz.ch_clip_ungated_refused')).toHaveLength(0);
+  });
+
+  test('UR only: an English short line is recorded on the fly as today', async () => {
+    seed({ voices: { ur: { ...Voice.ONE_VOICE.ur } } });   // English not named: today's voice
+    await OneVoice.on();
+    expect(await Ch.warmClip(Ch.clipKey('listen', 'q1', 'en', 'Where?'), 'Where?', 'en')).toBe('recorded');
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox' });
   });
 
   test('UR only: the Urdu long clip is still refused, in the storybook voice\'s key', async () => {
