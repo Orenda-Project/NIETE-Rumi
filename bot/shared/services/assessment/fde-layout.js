@@ -1848,6 +1848,9 @@ function takenNote(P, section, examJson, opts = {}) {
     if (aside) notes.push(aside);
     const recall = recallNote(section, opts.held);
     if (recall) notes.push(recall);
+    // A D stem that prints a Q1 answer gives that Q1 item away (Section A is then asked again).
+    const keys = [...new Set(against.map((q) => keyText(q).trim()).filter(Boolean))];
+    if (keys.length) notes.push(`Never print any of these Section A answers in a stem you write (as a name, a date, a number or a term): ${keys.join('، ')}`);
   }
   // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
   // since the refill is held against Section A as well.
