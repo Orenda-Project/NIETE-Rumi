@@ -102,3 +102,7 @@ html[lang=ur] #wqfc-snd::after { font-size: 17px; line-height: 2; }
 html[lang=ur] .wqfc-nt { gap: 0; }
 html[lang=ur] .wqfc-nt b { font-size: 20px; line-height: 1.8; }
 html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; line-height: 1.6; }
+/* the practise card offers one thing at a time: the word chip; then "read it again for 3 stars"; the sentence plays from
+   the chip's later taps (wq-moment.js chip()). Only where the chip is drawn */
+:has(> .wq-moment):has(> .wqs-word) > [data-after-chip], :has(> .wq-moment):has(> .wqs-word) > [data-in-chip] { display: none; }
+.wq-moment-chipped > [data-after-chip] { display: revert; }
