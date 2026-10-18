@@ -24,6 +24,7 @@
   var UR2 = false;
   try { UR2 = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('wq-ur2')); } catch (e) { UR2 = false; }
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   var JUG = '/wq/jugnu/';
 
   var T = {
@@ -365,7 +366,7 @@
   // ── the mascot: a bubble and, when there is one, its recorded clip ────────────────────────────────
   var player = null;
   function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + JUG + pose + '.webp" alt="" width="92" height="92"></span>'
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + jv(JUG + pose + '.webp') + '" alt="" width="92" height="92"></span>'
       + '<div class="wq-say" id="wqc-say">' + esc(line) + '</div></div>';
   }
   function say(clip, cb) {

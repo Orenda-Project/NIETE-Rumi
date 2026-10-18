@@ -64,6 +64,10 @@ const WAVES2_KEY = 'web_quiz_hub_waves2';
 // one read, so the hub learns the meter with no settings read of its own. 'sky' | 'vine' (a JSON true is 'sky'), else null.
 const LIVE_METER_KEY = 'web_quiz_live_meter';
 const LIVE_READ_V3_KEY = 'web_quiz_live_read_v3';
+// the page asks the Videos door's lists once the home has painted (the boot's `wait_pre`, with web_quiz_wait_ux only)
+const PREFETCH_KEY = 'web_quiz_doors_prefetch';
+// the early page draws Home as the child last saw it in this tab (the boot's `wait_home`, with web_quiz_wait_ux only)
+const HOME_KEY = 'web_quiz_wait_home';
 const METERS = ['sky', 'vine'];
 function meterOf(value) {
   let v = value;
@@ -95,6 +99,7 @@ const SWITCHES = Object.freeze([
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
   ['closedLang',   CLOSED_LANG_KEY,       'json'],
+  ['prefetch',     PREFETCH_KEY,          'json'],
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
@@ -112,6 +117,7 @@ const SWITCHES = Object.freeze([
   ['readalong',    READALONG_KEY,         'loose'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
   [null,           SHARE_KEY,             'read'],
+  ['home',         HOME_KEY,              'json'],
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
 ]);
@@ -130,9 +136,12 @@ function fromRows(data, now) {
 
 /**
  * Another module's one app_settings read that asked for KEYS too (the join's, quiz_join_fast) fills an empty or
- * expired cache from its rows, so no second read follows; a live cache is left as it is.
+ * expired cache from its rows, so no second read follows; a live cache is left as it is. `asked` is the key list that
+ * read asked for: a list missing one of KEYS throws; a key asked for with no row is the normal off.
  */
-function prime(rows, now = Date.now()) {
+function prime(rows, now = Date.now(), asked = KEYS) {
+  const missing = KEYS.filter((k) => !asked.includes(k));
+  if (missing.length) throw new Error(`hub flags primed by a read that did not ask for ${missing.join(', ')}`);
   if (cache && now - cache.at < TTL_MS) return;
   cache = fromRows(rows, now);
 }
@@ -216,6 +225,16 @@ function waitUxNow(now = Date.now()) {
 /** web_quiz_wait_hops from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
 function hopsNow(now = Date.now()) {
   return Boolean(cache && cache.hops && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_doors_prefetch from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function prefetchNow(now = Date.now()) {
+  return Boolean(cache && cache.prefetch && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_wait_home from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
+function homeNow(now = Date.now()) {
+  return Boolean(cache && cache.home && now - cache.at < 2 * TTL_MS);
 }
 
 /** Any SWITCHES field from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
@@ -324,7 +343,9 @@ module.exports = {
   fanoutNow,
   flags,
   HOME_BUTTON_KEY,
+  HOME_KEY,
   HOME_PRELOAD_KEY,
+  homeNow,
   HOPS_KEY,
   hopsNow,
   HUB_KEY,
@@ -339,6 +360,8 @@ module.exports = {
   pageNav,
   PLAIN_PAINT_KEY,
   plainPaintNow,
+  PREFETCH_KEY,
+  prefetchNow,
   prime,
   RUNGS_KEY,
   rungsOn,
