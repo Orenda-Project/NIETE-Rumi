@@ -303,6 +303,31 @@ describe('the Stories door never says "no stories" while the shelf loads', () =>
   });
 });
 
+describe('the Stories door: a server that answers its own failure keeps the boot\'s shelf (never "no stories")', () => {
+  const NOTE = 'New stories are on the way';
+  const shown = (h) => visible(h.replace(/<div data-shelf-fallback="1" hidden>[\s\S]*?<\/div><\/div>/, ''));
+  test('{stories: [], shelf: false, err: 1}: one paint, the boot\'s shelf slot with its skeleton, the note hidden', async () => {
+    const { W, fetch } = live({ fetchImpl: (u) => (/d=stories/.test(u) ? OK({ stories: [], shelf: false, err: 1 })() : new Promise(() => {})) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, B_ON, C, 'stories');
+    await flush();
+    expect(fetch.mock.calls.filter((c) => /d=stories/.test(c[0]))).toHaveLength(1);
+    expect(r.paints).toHaveLength(1);
+    expect(r.paints[0]).toMatch(/data-stories-shelf="1"/);
+    expect(r.paints[0]).toMatch(/aria-busy="true"/);
+    expect(r.paints[0]).toMatch(/<div data-shelf-fallback="1" hidden>/);
+    expect(shown(r.paints[0])).not.toContain(NOTE);
+  });
+  test('the contrast: rows that came back whole with no shelf ({stories: [], shelf: false}) draw the note', async () => {
+    const { W } = live({ fetchImpl: (u) => (/d=stories/.test(u) ? OK({ stories: [], shelf: false })() : new Promise(() => {})) });
+    const r = paintRoot();
+    W.WQDOORS.mount(r, B_ON, C, 'stories');
+    await flush();
+    expect(r.paints).toHaveLength(2);
+    expect(shown(r.paints[1])).toContain(NOTE);
+  });
+});
+
 describe('one tap lights only the card', () => {
   const css = fs.readFileSync(path.join(WQ, 'wq.css'), 'utf8');
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter(Boolean);

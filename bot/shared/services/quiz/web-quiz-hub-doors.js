@@ -4,6 +4,7 @@
  * Games beyond the hub boot's few ids, fetched when a door opens so the home itself stays light.
  *
  *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
+ *                                         a failed read adds err: 1 (web_quiz_list_states on only)
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
  *   seededOrder(items, seed)              a stable shuffle (pure): the same seed, the same order
  *   daySeed(childId, now)                 the seed for one child on one Pakistan day (pure)
@@ -63,9 +64,10 @@ async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
   } finally { clearTimeout(timer); }
 }
 
-async function storiesDoor() {
-  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => false);
-  return { stories: [], shelf: storiesOn };
+async function storiesDoor(list) {
+  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => (list ? null : false));
+  // web_quiz_list_states: a shelf switch that could not be read is a failed read, not "the shelf is off"
+  return storiesOn === null ? { stories: [], shelf: false, err: 1 } : { stories: [], shelf: storiesOn };
 }
 
 async function gamesDoor(who, lang, now) {
@@ -194,19 +196,20 @@ function safeName(Challenge, id, lang) {
 async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
-  if (!(await require('./web-quiz-home-flags').flags()).home) fail(404, 'home_off');
+  const homeFlags = await require('./web-quiz-home-flags').flags();
+  if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
-    return d === 'stories' ? await storiesDoor() : await gamesDoor(who, l, now);
+    return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
     // web_quiz_list_states: the page tells a failed read from an empty one (a retry, never "nothing here")
     const list = await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false);
-    return d === 'stories' ? { stories: [], shelf: false } : { games: [], ...(list ? { err: 1 } : {}) };
+    return { ...(d === 'stories' ? { stories: [], shelf: false } : { games: [] }), ...(list ? { err: 1 } : {}) };
   }
 }
 
