@@ -6,6 +6,7 @@
  *
  *   GET /fln/links       the "Send a lesson plan" builder's rows — requireFln.share (404 for everyone else)
  *   GET /fln/title/:id   {title, lang, dir} for the signed-out sign-in banner; no sign-in, nothing else
+ *   GET /fln/teachers, POST /fln/send   Send to teacher (PR-E) — portal-fln-send.routes.js, mounted by this router
  *
  * Every answer, errors included, is `Cache-Control: no-store` (shared phones: a coach's rows must never be replayed
  * for the teacher who signs in next). The link a row carries is `<portal>/portal/fln/p/<id>` — no identity, no
@@ -224,8 +225,9 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
     }
   });
 
-  // PR-E: GET /fln/teachers and POST /fln/send live in their own file, `portal-fln-send.routes.js` (the manager mounts
-  // it beside this one); nothing for them goes in this router.
+  // PR-E: GET /fln/teachers and POST /fln/send live in their own file, `portal-fln-send.routes.js`, mounted here so
+  // they are reachable wherever this router is. Same access object (same requireFln.share gate) and same corpus.
+  router.use(require('./portal-fln-send.routes').createFlnSendRouter({ requireFln: acc.requireFln, corpus: corpus || null }));
 
   return router;
 }
