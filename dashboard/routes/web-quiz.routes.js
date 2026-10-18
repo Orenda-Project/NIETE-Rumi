@@ -825,9 +825,10 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
   const record = (method, route, t0, fields) => {
     try { logEvent('web_quiz.bot_call', { route, method, ms: now() - t0, ...fields }); } catch (_) { /* never decides a response */ }
   };
-  return async function callBot(method, pathname, req, body, { raw = false, route = null, device = null } = {}) {
+  return async function callBot(method, pathname, req, body, { raw = false, route = null, device = null, bg = false } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    if (bg && timer && typeof timer.unref === 'function') timer.unref(); // the portal's own background call never holds a process open
     const t0 = now();
     const where = route || botRouteOf(pathname);
     try {
@@ -965,6 +966,29 @@ function createWebQuizRouter(opts = {}) {
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent, now, timeoutMs: opts.botTimeoutMs || BOT_TIMEOUT_MS });
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
+  // A fresh process asks the bot for the switches it would learn from a first payload (web_quiz_edge_learn, read by the bot;
+  // lib/edge-learn.js): once in the background, then every 60 s only while the bot says on (5 s after a failed ask); a
+  // payload still wins. A test's own fake bot opts in with edgeLearn; inside a test run (JEST_WORKER_ID) it is never on by
+  // default, so no test calls out.
+  // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face`,
+  // `wait_ux` and `wait_share` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
+  const learned = (b) => {
+    if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
+    if (typeof b.rt === 'boolean') lastRt = b.rt;
+    lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
+    if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
+    if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
+    lastFast = b.fast === true;
+  };
+  const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
+    ? require('../lib/edge-learn').startEdgeLearn({ callBot, timers: opts.edgeLearn && opts.edgeLearn.timers, apply: learned })
+    : null;
+  router.edgeLearn = edge; // { apply, refresh, ... } for another learner in this process; null when not learning
+  // web_quiz_edge_learn on (the bot says so on its hub answers, `edge_learn: true`): ask again every 60 s (after an off, the
+  // asking had stopped). The key is the edge's alone: neither the hub page nor the page's own /api/wq/hub call sees it.
+  const edgeKey = (body) => {
+    if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'edge_learn')) { if (edge && body.edge_learn === true) edge.arm(); delete body.edge_learn; }
+  };
 
   // web_quiz_closed_way_back (app_settings, default OFF): ON → a 'hub' / 'closed' page carries ONE tap back to
   // WhatsApp. Read from the cache only (lib/closed-way-back-switch.js peek: never waits, a cold or failed read is OFF =
@@ -1080,6 +1104,7 @@ function createWebQuizRouter(opts = {}) {
         if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         // the hub answer a first open draws from (unlock, pick) names the look's files' version when it says adv: true
+        if (r.path === '/api/wq/hub/:token') edgeKey(out.body);
         const body = r.path === '/api/wq/hub/:token' && advOnOf(out.body) ? { ...out.body, adv_v: advVersion() } : out.body;
         return res.status(out.status).json(body == null ? {} : body);
       } catch (err) {
@@ -1161,6 +1186,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(404).type('html').send(closedHtml(req, { lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (out.status === 200 && out.body && out.body.quiz) {
+      if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
@@ -1249,6 +1275,8 @@ function createWebQuizRouter(opts = {}) {
     }
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return wire.again(inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
+      if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
+      edgeKey(out.body);
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
