@@ -225,7 +225,9 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
   // An extra serial or unconditional read on today's path turns this red (wave list in the failure message).
   // The send-again check in two halves: long and big ask the lessons' quizzes and their codes as their own pair (+2 reads);
   // small makes the same reads, its lessons' half starting as soon as the lessons are in (2 round trips sooner).
-  const PINS = { long: { reads: 48, waves: 15 }, small: { reads: 45, waves: 13 }, big: { reads: 48, waves: 15 }, shell: { reads: 2, waves: 2 } };
+  // + the named-item switch's own read on the home (+1), and the named-item + early-pick reads on the shell (+2), each
+  // beside a read already in flight (no new round trip); + the story-counts switch's read on the home and the shell (+1 each)
+  const PINS = { long: { reads: 50, waves: 15 }, small: { reads: 47, waves: 13 }, big: { reads: 50, waves: 15 }, shell: { reads: 5, waves: 2 } };
   test.each([
     ['long', {}],
     ['small', { sessions: 3, quizzes: 2, quizzed: 1 }],
@@ -246,7 +248,7 @@ describe('switch OFF (absent): today\'s reads and round trips, pinned', () => {
 
 /** The page read (the app_settings `.in` whose keys include the quick answer's key) from now on; `fail` → it fails. */
 const pageRead = (opts) => hookPageRead(require('../../shared/config/supabase'), opts);
-/** Counts the app_settings reads of `key` from now on. → { n } */
+/** Counts the app_settings reads of `key` from now on (by .eq, or among the keys of an .in read). → { n } */
 function watchSetting(key) {
   const seen = { n: 0 };
   const sb = require('../../shared/config/supabase');
@@ -255,9 +257,9 @@ function watchSetting(key) {
     const b = from0(t);
     if (t !== 'app_settings') return b;
     const eq0 = b.eq.bind(b);
+    const in0 = b.in.bind(b);
     b.eq = (k, v) => { if (v === key) seen.n += 1; return eq0(k, v); };
-    const in0 = b.in.bind(b); // a read of several keys at once (.in) that asks for `key` counts once
-    b.in = (k, v) => { if ([].concat(v).includes(key)) seen.n += 1; return in0(k, v); };
+    b.in = (k, vs) => { if ([].concat(vs || []).includes(key)) seen.n += 1; return in0(k, vs); };
     return b;
   };
   return seen;

@@ -27,6 +27,9 @@
  * shell carries the script whose grade chips answer from the page (teacher-home.page FAST_SWAPS); off → today's shell.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
+ * Switch quiz_teacher_server_timing ON (JSON true; read with quiz_teacher_home, never on its own): every 200 answer of
+ * /api/th/home and /api/th/library carries `Server-Timing: settings;dur=…, db;dur=…, total;dur=…` (ms): the switch
+ * reads waited on, the data phase that builds the JSON, the whole handler. Refusals and errors carry none. OFF: nothing.
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
  *
  * Events (ids only, never a phone, a name or a code): teacher_home_open { tk, first, has_lp, has_coaching,
@@ -40,6 +43,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { clampLanguage } = require('../../config/ux-strings');
 const Flags = require('./teacher-home.flags');
+const MoreFlags = require('./teacher-home.more-flags');
 const HomeToken = require('./teacher-home.token');
 const Page = require('./teacher-home.page');
 const Data = require('./teacher-home.data');
@@ -83,9 +87,14 @@ function createRouter(deps = null) {
 
   // The switch, first: off → 404 {off:true} for every path of this router, whatever the token.
   router.use(async (req, res, next) => {
+    const start = process.hrtime.bigint(); // Server-Timing's clock; its one cost with the timing switch off
     let on = false;
     try { on = (await Flags.on()) === true; } catch (_) { on = false; }
     if (!on) return res.status(404).json({ off: true });
+    // the timing switch rides the home's read (no read, no wait); on → the switch reads so far count as settings
+    let timed = false;
+    try { timed = Flags.timing() === true; } catch (_) { timed = false; }
+    req.thTime = timed ? { start, settings: process.hrtime.bigint() - start, db: null } : null;
     // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
     // (the same read answers quiz_teacher_home_grade_fast, used by the shell alone)
     const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pageSwitches().then((v) => v || {}, () => ({})) : null;
@@ -101,18 +110,29 @@ function createRouter(deps = null) {
       'X-Content-Type-Options': 'nosniff', ...(csp ? { 'Content-Security-Policy': csp } : {}),
     });
   }
-  function messagePage(res, status, id, lang) {
-    // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown
-    const href = require('./teacher-home.copy').chatLink();
-    const l = lang === 'en' ? 'en' : 'ur';
-    const built = require('./maker.page').buildMessagePage({ lang, id, tap: href ? { href, text: require('./teacher-home.strings').str('th.open.wa', l) } : null });
+  async function messagePage(res, status, id, lang, req = null) {
+    // one tap back to the chat on every stale / error page (wa.me/<bot>?text=quiz); none when the number is unknown —
+    // with web_quiz_closed_way_back ON always ONE tap: the signed go.back sentence, wa.me/<bot>?text=quiz or whatsapp://send?text=quiz
+    let tap = null;
+    try {
+      if ((await require('./closed-way-back.flags').on()) === true) {
+        lang = require('./chat-tap').linkLang(req) || lang; // the link's language (?lang=, the token's) before today's choice
+        tap = require('./chat-tap').backTap(clampLanguage(lang === 'bi' ? 'ur' : lang), botDigits());
+      }
+    } catch (_) { tap = null; }
+    if (!tap) {
+      const href = require('./teacher-home.copy').chatLink();
+      const l = lang === 'en' ? 'en' : 'ur';
+      tap = href ? { href, text: require('./teacher-home.strings').str('th.open.wa', l) } : null;
+    }
+    const built = require('./maker.page').buildMessagePage({ lang, id, tap });
     headers(res, built.csp);
     return res.status(status).type('html').send(built.html);
   }
   const handlePage = (fn) => async (req, res) => {
     try { await fn(req, res); } catch (err) {
       logToFile('❌ teacher home page failed', { error: err && err.message }, 'error');
-      if (!res.headersSent) messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)));
+      if (!res.headersSent) await messagePage(res, 200, 'mk.error', clampLanguage(asked(req.query && req.query.lang)), req);
     }
   };
   const handleJson = (fn) => async (req, res) => {
@@ -148,6 +168,17 @@ function createRouter(deps = null) {
   const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
   const fail = (res, status) => { headers(res); res.status(status).json({ error: 'mk.error' }); };
+  /** Server-Timing (req.thTime, switch on): a switch wait since `from` counts as settings; the data phase starts. */
+  const waited = (req, from) => { if (req.thTime) req.thTime.settings += process.hrtime.bigint() - from; };
+  const dataStart = (req) => { if (req.thTime) req.thTime.db = process.hrtime.bigint(); };
+  /** Sets Server-Timing just before a 200 body: settings, db (the data phase so far), total (from the router's entry). */
+  function serverTiming(req, res) {
+    const t = req.thTime;
+    if (!t) return;
+    const now = process.hrtime.bigint();
+    const ms = (ns) => Math.round(Number(ns) / 1e6); // whole ms
+    res.set('Server-Timing', `settings;dur=${ms(t.settings)}, db;dur=${ms(t.db == null ? 0n : now - t.db)}, total;dur=${ms(now - t.start)}`);
+  }
 
   /** The teacher's event key, from the shared helper: null without a key of 32+ bytes. It also names the first-open mark,
    *  so a WEB_QUIZ_KID_KEY rotation re-arms every teacher's first open. */
@@ -177,6 +208,20 @@ function createRouter(deps = null) {
   function storiesBaseFor(token, lang) {
     const S = Data.dep(deps, 'Stories');
     return S && typeof S.shelf === 'function' ? `/quiz/teacher/${encodeURIComponent(token)}/stories?lang=${lang === 'en' ? 'en' : 'ur'}` : null;
+  }
+  /**
+   * The library card's one counts line for the whole teacher: { sent, read } once at least one story went out; null
+   * otherwise (its own switch off, no stories module, the stories switch off, nothing sent, a failed read).
+   */
+  async function storyCountsOf(uid) {
+    if (!(await Data.dep(deps, 'CountsFlag').on())) return null;
+    const S = Data.dep(deps, 'Stories');
+    if (!S || typeof S.storyCounts !== 'function') return null;
+    const c = await S.storyCounts(uid);
+    const sent = c && Number(c.sent);
+    if (!Number.isInteger(sent) || sent < 1) return null;
+    const read = Number(c.read);
+    return { sent, read: Number.isInteger(read) && read > 0 ? read : 0 };
   }
   function cardsFor(lang) {
     const Cards = byName('cardsPage', './cards.page');
@@ -248,12 +293,13 @@ function createRouter(deps = null) {
 
   router.get('/quiz/teacher/:token', handlePage(async (req, res) => {
     const v = HomeToken.verifyTeacherHome(req.params.token);
-    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
-    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
+    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
     const { lang, switchTo } = Page.pageLang(v.ok.lang, asked(req.query.lang));
-    // quiz_teacher_home_grade_fast: answered by the quick answer's switch read above, never a read of its own
-    const gradeFast = (await req.thGradeFast) === true;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), ...(gradeFast ? { gradeFast } : {}) });
+    // the script's switched parts (each OFF unless JSON true; off, today's shell byte for byte); quiz_teacher_home_grade_fast
+    // is answered by the quick answer's switch read above, never a read of its own
+    const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -312,12 +358,16 @@ function createRouter(deps = null) {
     const firstP = firstOpen(p.uid);
     const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
+    const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
+    const countsP = Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'); // the same, as on the full answer
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
       stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
-      againable: lists.againable,
+      againable: lists.againable, named: await namedP,
     });
+    const counts = await countsP;
+    if (counts && home.library) home.library.counts = counts;
     if (walk) home.walk = walk;
     // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
     const top = home.primary;
@@ -330,6 +380,7 @@ function createRouter(deps = null) {
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    serverTiming(req, res);
     headers(res);
     res.status(200).json(home);
   }
@@ -340,15 +391,20 @@ function createRouter(deps = null) {
     if (!p) return;
     // the user read starts alongside the quick answer's switch read (one round trip, not a serial one after it); a
     // failed read is answered where it is awaited (the route's 503), never left unheard
+    const asked0 = req.thTime ? process.hrtime.bigint() : null;
     const userP = Data.teacherOf(p.uid, deps);
     userP.catch(() => {});
-    if (await req.thPaged) { await quickHome(req, res, p, userP); return; }
+    const quick = await req.thPaged;
+    waited(req, asked0);
+    dataStart(req);
+    if (quick) { await quickHome(req, res, p, userP); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const user = await userP;
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const Bank = Data.dep(deps, 'Bank');
     const Cta = Data.dep(deps, 'Cta');
+    const namedP = MoreFlags.namedOn(); // read alongside the block below, awaited after it
     const gate = (ids) => (ids.length ? Data.within(Data.dep(deps, 'Gate').teacherReportOn(p.uid), Data.SIDE_BUDGET_MS, false, 'report gate') : false);
     // "Send again" only where the send would answer, asked in two halves: the lessons' own sent quizzes as soon as the
     // lessons are in, the class report's quizzes as soon as it is in (less those the lessons' half already asks); the
@@ -363,7 +419,7 @@ function createRouter(deps = null) {
     const lessonsP = Data.within(Data.lessons(p.uid, deps), Data.REPORT_BUDGET_MS, [], 'lessons');
     const playedP = Data.within(playedOwn(p.uid), Data.REPORT_BUDGET_MS, new Map(), 'class report');
     // the gate and the send-again check start as soon as their own inputs are in, alongside the other reads
-    const [lessons0, played0, shares0, pf, tree, children, confirm, maker, on0, againable0] = await Promise.all([
+    const [lessons0, played0, shares0, pf, tree, children, confirm, maker, on0, againable0, counts] = await Promise.all([
       lessonsP,
       playedP,
       Data.within(Data.libraryShares(p.uid, deps), Data.SIDE_BUDGET_MS, [], 'library shares'),
@@ -374,6 +430,7 @@ function createRouter(deps = null) {
       makerOn().then((on) => (on ? Data.within(Data.makerLink(p.uid, lang, null, deps), Data.SIDE_BUDGET_MS, null, 'maker link') : null)),
       lessonsP.then((l) => gate(ownSentOf(l))),
       sendable(lessonsP.then(ownSentOf), playedP),
+      Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'),
     ]);
     // a listed test phone walking as "a teacher with no lessons yet" (sandbox walk-through only): the lists hidden, never touched
     const { lessons, played, shares } = await walkLists(user, { lessons: lessons0, played: played0, shares: shares0 });
@@ -392,7 +449,10 @@ function createRouter(deps = null) {
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
       maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
+      named: await namedP,
     });
+    // the teacher's story sends and their readers: only once a story went out, else no key (the JSON is as it was)
+    if (counts && home.library) home.library.counts = counts;
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
@@ -402,6 +462,7 @@ function createRouter(deps = null) {
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    serverTiming(req, res);
     headers(res);
     res.status(200).json(home);
   }));
@@ -413,6 +474,7 @@ function createRouter(deps = null) {
     const grade = Data.gradeOf(req.query.g, null);
     // the teacher's own sends (which books went out this month), read alongside the bank and the shelf; late or failed → no skip, no date
     // (a listed walk-through phone sees the same lists here as on its home)
+    dataStart(req);
     const played = Promise.all([
       Data.within(Data.playedOwn(p.uid, deps), Data.SIDE_BUDGET_MS, new Map(), 'class report'),
       Data.within(Data.teacherOf(p.uid, deps), Data.SIDE_BUDGET_MS, null, 'teacher'),
@@ -421,6 +483,7 @@ function createRouter(deps = null) {
     const lib = await libraryFor({ p, token: String(req.query.t), lang, grade, tree, pfSubject: null });
     const shaped = Model.buildHome({ grade, played: await played, stories: lib.stories, video: lib.video, storiesBase: lib.storiesBase });
     const pick = shaped.primary.kind === 'story' || shaped.primary.kind === 'video' ? await withSend(shaped.primary, p, lang) : null;
+    serverTiming(req, res);
     headers(res);
     res.status(200).json({ ...shaped.library, pick: pick || null });
   }));
@@ -541,13 +604,13 @@ function createRouter(deps = null) {
   // error page, nothing marked.
   router.get('/quiz/teacher/:token/send', handlePage(async (req, res) => {
     const v = HomeToken.verifyTeacherHome(req.params.token);
-    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)));
-    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur');
+    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
     const p = v.ok;
     const lang = Page.pageLang(p.lang, asked(req.query.lang)).lang;
     const c = uuidIn(req.query.c);
     const out = c ? await Send.shareSend({ uid: p.uid, lang, shareCodeId: c }, deps) : null;
-    if (!out) return messagePage(res, 404, 'mk.error', lang);
+    if (!out) return messagePage(res, 404, 'mk.error', lang, req);
     const origin = ORIGINS.has(req.query.o) ? req.query.o : 'library';
     await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c }); // a failed mark never blocks the send
     headers(res);

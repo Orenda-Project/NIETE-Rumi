@@ -40,8 +40,11 @@ const HOME = (g = 3) => ({ primary: { kind: 'none' }, library: { grade: g, stori
  * (`answer()` answers the oldest open one), so what is in flight can be counted. → { q, chip, tap, idle, lib, ... }.
  */
 let PAGED = false; // the quick answer's switch (quiz_teacher_home_paged) for the rows run under both
-async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), connection = undefined, storage = new Map(), idleApi = true, fail = [] } = {}) {
-  const { html, csp } = Page.buildShell({ token, lang: 'en', switchTo: null, ...(paged ? { paged: true } : {}), ...(fast ? { gradeFast: true } : {}) });
+let OTHERS = {}; // the page's other switched parts (named item, early pick, story counts) for the rows run under both
+// `homeLater`: the home's answer waits until `p.home()` (a tap can come before it).
+async function open({ fast = true, paged = PAGED, others = OTHERS, token = 'a.b', home = HOME(), connection = undefined, storage = new Map(), idleApi = true, fail = [], homeLater = false } = {}) {
+  const { html, csp } = Page.buildShell({ token, lang: 'en', switchTo: null, ...(paged ? { paged: true } : {}), ...others, ...(fast ? { gradeFast: true } : {}) });
+  let homeGo = null;
   const doc = adopt(parse(html));
   const fetches = [];
   const open = []; // library requests not yet answered
@@ -67,7 +70,10 @@ async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), 
     setTimeout(fn, ms) { timers.push(Object.assign(fn, { ms })); return timers.length; },
     fetch: (p) => {
       fetches.push(p);
-      if (p.indexOf('/api/th/home?') === 0) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(home) });
+      if (p.indexOf('/api/th/home?') === 0) {
+        const answer = { ok: true, status: 200, json: () => Promise.resolve(home) };
+        return homeLater ? new Promise((resolve) => { homeGo = () => resolve(answer); }) : Promise.resolve(answer);
+      }
       if (p.indexOf('/api/th/library?') === 0) {
         return new Promise((resolve) => {
           const g = Number(/[?&]g=(\d)/.exec(p)[1]);
@@ -86,7 +92,7 @@ async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), 
   scripts.forEach((s) => vm.runInContext(s.text, ctx));
   await flush();
   const q = (s) => doc.querySelector(s);
-  expect(q('#th-main').getAttribute('data-ready')).toBe('1');
+  if (!homeLater) expect(q('#th-main').getAttribute('data-ready')).toBe('1');
   const chip = (g) => q('#th-grades').querySelector(`[data-grade="${g}"]`);
   const tapNow = (el) => { for (let e = el; e; e = e.parentNode) (e.on || []).filter((h) => h.type === 'click').forEach((h) => h.fn({ target: el })); };
   const lib = () => fetches.filter((p) => p.indexOf('/api/th/library?') === 0);
@@ -94,6 +100,7 @@ async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), 
     q, chip, lib, fetches, idles, timers, storage, html, csp, script: scripts[0].text,
     pressed: () => [1, 2, 3, 4, 5].filter((g) => chip(g).getAttribute('aria-pressed') === 'true'),
     tap: async (el) => { tapNow(el); await flush(); },
+    home: async () => { homeGo(); await flush(); },
     tapNow,
     idle: async () => { while (idles.length) { idles.shift()({ timeRemaining: () => 50, didTimeout: false }); await flush(); } },
     answer: async () => { const r = open.shift(); if (r) r(); await flush(); },
@@ -106,9 +113,14 @@ async function open({ fast = true, paged = PAGED, token = 'a.b', home = HOME(), 
   };
 }
 
-describe.each([['the quick answer OFF', false], ['the quick answer ON', true]])('with %s', (_, paged) => {
-  beforeAll(() => { PAGED = paged; });
-  afterAll(() => { PAGED = false; });
+const ALL_OTHERS = { named: true, early: true, counts: true };
+describe.each([
+  ['the quick answer OFF', false, {}], ['the quick answer ON', true, {}],
+  ['the quick answer OFF and the named item, early pick and story counts ON', false, ALL_OTHERS],
+  ['the quick answer, named item, early pick and story counts ON', true, ALL_OTHERS],
+])('with %s', (_, paged, others) => {
+  beforeAll(() => { PAGED = paged; OTHERS = others; });
+  afterAll(() => { PAGED = false; OTHERS = {}; });
 
   describe('ON: the chip answers at the tap', () => {
     test('the tapped chip is pressed synchronously, before any answer, and the old one is not', async () => {
@@ -274,6 +286,49 @@ describe.each([['the quick answer OFF', false], ['the quick answer ON', true]])(
         expect(p.lib()).toEqual(['/api/th/library?t=a.b&g=4']);
       }
     });
+  });
+});
+
+describe.each([['the quick answer OFF', false], ['the quick answer ON', true]])('ON with the other switched parts, %s', (_, paged) => {
+  test('early pick: a grade tapped before the home answers is pressed, asked once the home is drawn, then its neighbours', async () => {
+    const p = await open({ paged, others: { early: true }, homeLater: true, home: HOME(1) });
+    p.tapNow(p.chip(4));
+    expect(p.pressed()).toEqual([4]);
+    expect(p.lib()).toEqual([]); // nothing asked before the home
+    await p.home();
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('1');
+    expect(p.lib()).toEqual(['/api/th/library?t=a.b&g=4']); // the kept tap, asked at the draw
+    expect(p.pressed()).toEqual([4]);
+    await p.idle();
+    expect(p.openGrades()).toEqual([4]); // the idle asking waits for it
+    await p.answer();
+    expect(p.stories()).toEqual(['Story of grade 4']);
+    expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 4');
+    await p.idle(); await p.answer(); await p.idle(); await p.answer();
+    expect(p.lib()).toEqual(['/api/th/library?t=a.b&g=4', '/api/th/library?t=a.b&g=5', '/api/th/library?t=a.b&g=3']);
+    expect(p.maxOpen).toBe(1);
+    await p.tap(p.chip(1)); // the home's own grade: held from its answer
+    expect(p.lib()).toHaveLength(3);
+    expect(p.pressed()).toEqual([1]);
+  });
+
+  test('story counts: the home\'s counts line stays on a fetched grade and on a held one', async () => {
+    const home = { primary: { kind: 'none' }, library: { grade: 3, stories: [], all: null, counts: { sent: 3, read: 7 } } };
+    const p = await open({ paged, others: { counts: true }, home });
+    const line = () => (p.q('#th-counts').hidden ? '' : p.q('#th-counts').textContent);
+    const shown = line();
+    expect(shown).not.toBe('');
+    await p.tap(p.chip(5)); await p.answerAll();
+    expect(p.stories()).toEqual(['Story of grade 5']);
+    expect(line()).toBe(shown);
+    await p.idle(); await p.answerAll(); await p.idle(); await p.answerAll();
+    const asked = p.lib().length;
+    await p.tap(p.chip(4)); // held from the idle asking
+    expect(p.lib()).toHaveLength(asked);
+    expect(p.stories()).toEqual(['Story of grade 4']);
+    expect(line()).toBe(shown);
+    await p.tap(p.chip(3)); // the home's own grade
+    expect(line()).toBe(shown);
   });
 });
 

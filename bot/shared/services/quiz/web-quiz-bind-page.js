@@ -282,7 +282,7 @@ async function rosterJoined(canonicalId) {
  */
 async function recordHubPick({ chosen, rows = [], device, src }) {
   try {
-    const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
+    const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentIdsShared([chosen.id])).get(String(chosen.id)) || chosen.id; // the hub's lookup, shared within the visit while the hub's reads go together
     const key = hubPickKey(canonicalId, device);
     if (!key) return null;
     const g = Homonym.guard(rows.map((r) => ({ id: String(r.id), first: r.student_name })), { surface: 'who' }).find((r) => r.id === String(chosen.id));
