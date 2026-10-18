@@ -24,6 +24,7 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logErr
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const PAT = Patterns.get('fde_g5_2027');
 const U = PAT.subjects.urdu;
@@ -60,7 +61,9 @@ describe('Q1 ↔ Q4: a Q1 sentence read with its key in the blanks', () => {
   });
 
   test('full_4 keeps every other Q1 item', () => {
-    const before = q1Stems(full4).filter((s) => s !== leak);
+    // The full syllabus asks the antonym once: full_4's later antonyms are held too.
+    const again = conceptRepeats(items(full4, 'urdu.A.Q1'));
+    const before = q1Stems(full4).filter((s) => s !== leak && !again.includes(s));
     expect(q1Stems(laid(full4))).toEqual(before);
   });
 

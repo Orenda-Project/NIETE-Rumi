@@ -7,6 +7,12 @@
  *    each item says where it comes from (`source`, never printed). A ninth story item is held, and a
  *    top-up is told how many story items are left.
  *
+ * 2. A Q1 item that asks a name or a place, keyed on one word only its key option carries, is given away
+ *    by another Q1 stem or correct option that prints the word («ہیروشیما», «امینہ»).
+ * 3. The reader is handed code's own candidates: each short key's printed places, and the pairs of Q1
+ *    items whose keys stand in the same or neighbouring book sentences.
+ * 4. On the full syllabus too, a grammar concept is asked once, antonym and synonym included.
+ *
  * The papers are the sandbox's own (content only). The model boundary and the book store are mocked,
  * never the chain.
  */
@@ -282,5 +288,78 @@ describe('3. the engine hands the reader the book pages', () => {
     expect(a && b).toBeTruthy();
     const at = (label) => new RegExp(`${label.replace('.', '\\.')}\\b`);
     expect(candidates(prompt).some((l) => at(a).test(l) && at(b).test(l) && /sentence/.test(l))).toBe(true);
+  });
+});
+
+// ── 4. Once on the full syllabus ───────────────────────────────────────────────────────────────
+
+const antonyms = (exam) => q1(exam).filter((q) => /کا متضاد|الٹ معنی/.test(q.question)).map((q) => q.question);
+
+describe('4. sandbox full_1: the full syllabus asked متضاد twice', () => {
+  const paper = fixture('r21f-urdu-sandbox-full_1');
+
+  test('the paper as printed asks two antonyms (۱۳ «بزدل», ۱۹ «اندھیرا»)', () => {
+    expect(antonyms(paper)).toHaveLength(2);
+  });
+
+  test.each([[false], [true]])('reasked %s: one antonym prints, the repeat never comes back', (reasked) => {
+    const r = lay(paper, FDE, { reasked });
+    expect(antonyms(r.examJson)).toHaveLength(1);
+    expect((r.putBack || []).map((x) => x.rule)).not.toContain('concept_repeat');
+    expect(r.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
+  });
+
+  test('the full paper adds no `counted` mark and no other change (control)', () => {
+    const r = lay(paper, FDE);
+    expect(r.examJson._layout.counted).toBeUndefined();
+  });
+
+  test('lessons 6–7 teach no antonym: two antonyms there are vocabulary and both print (control)', () => {
+    const r = lay(paper, ch(6, 7));
+    expect(antonyms(r.examJson)).toHaveLength(2);
+  });
+});
+
+const antonym = (w, k, [a, c, d]) => ({
+  slot: 'urdu.A.Q1', question: `«${w}» کا متضاد کون سا لفظ ہے؟`,
+  options: [`الف) ${a}`, `ب) ${k}`, `ج) ${c}`, `د) ${d}`], answer: `ب) ${k}`, marks: 1,
+});
+const LIGHT = antonym('روشنی', 'اندھیرا', ['نور', 'چمک', 'اجالا']);
+const BRAVE = antonym('بہادر', 'بزدل', ['نڈر', 'جری', 'مضبوط']);
+const WARM = antonym('گرم', 'ٹھنڈا', ['تپتا', 'جلتا', 'سلگتا']);
+const MORE = [['دریا', 'پانی کا بڑا بہاؤ'], ['کتب خانہ', 'کتابوں کا گھر'], ['باغبان', 'باغ کی دیکھ بھال کرنے والا'], ['درزی', 'کپڑے سینے والا'],
+  ['نانبائی', 'روٹی پکانے والا'], ['موچی', 'جوتے بنانے والا'], ['کسان', 'کھیتی باڑی کرنے والا'], ['مچھیرا', 'مچھلیاں پکڑنے والا'],
+  ['ڈاکیا', 'خط پہنچانے والا'], ['معمار', 'عمارت بنانے والا'], ['جولاہا', 'کپڑا بننے والا'], ['لوہار', 'لوہے کا کام کرنے والا'],
+  ['سنار', 'زیور بنانے والا'], ['بڑھئی', 'لکڑی کا کام کرنے والا'], ['حلوائی', 'مٹھائی بنانے والا'], ['کمہار', 'مٹی کے برتن بنانے والا'],
+  ['مالی', 'پودوں کو پانی دینے والا'], ['چوکیدار', 'رات کو پہرا دینے والا'], ['ملاح', 'کشتی چلانے والا'], ['پنساری', 'مصالحے بیچنے والا']];
+const GRAMMAR_USED_UP = /grammar is used up/i;
+const ONCE_FULL = /An antonym item and a synonym item are concepts too/;
+
+describe('4. the engine on the full syllabus', () => {
+  const first = [LIGHT, ...MORE.slice(0, 9).map(meaning), BRAVE, ...MORE.slice(9, 18).map(meaning)];
+
+  test('Section A says antonym and synonym are asked once (full syllabus only)', async () => {
+    const asked = serve(() => mcqs(first));
+    await run(FDE);
+    expect(asked.find((x) => x.sec === 'A').prompt).toMatch(ONCE_FULL);
+    const chapters = serve(() => mcqs(first));
+    await run({ kind: 'chapters', chapters: [4, 5], pages: '28-37, 38-49' });
+    expect(chapters.find((x) => x.sec === 'A').prompt).not.toMatch(ONCE_FULL);
+  });
+
+  test('a top-up that writes an antonym again: one more, told grammar is used up; the paper prints one antonym', async () => {
+    const asked = serve((n, prompt) => (n === 1 ? mcqs(first) : GRAMMAR_USED_UP.test(prompt) ? mcqs([meaning(MORE[18]), meaning(MORE[19])]) : mcqs([WARM])));
+    const out = await run(FDE);
+    expect(out.err && { code: out.err.code, shortfall: out.err.shortfall }).toBeUndefined();
+    expect(antonyms(out.ok.examJson)).toHaveLength(1);
+    expect(q1(out.ok.examJson)).toHaveLength(20);
+    expect(asked.filter((x) => x.sec === 'A' && GRAMMAR_USED_UP.test(x.prompt))).toHaveLength(1);
+  });
+
+  test('top-ups that keep writing antonyms leave Q1 short: the paper fails closed, the repeat never printed', async () => {
+    serve((n) => (n === 1 ? mcqs(first) : mcqs([WARM])));
+    const out = await run(FDE);
+    expect(out.err && out.err.code).toBe('PATTERN_SHORT_SLOT');
+    expect(antonyms(out.err.examJson)).toHaveLength(1);
   });
 });
