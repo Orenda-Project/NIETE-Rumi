@@ -15,18 +15,29 @@ const Flags = require('./web-quiz-hub-flags');
 
 const KEY = Flags.BUSY_PAGE_KEY;
 const FIELD = 'busy_page';
+// web_quiz_busy_retry: the busy page re-asks by itself (2 s, 4 s, 8 s); said only beside busy_page, from the same read
+const RETRY_KEY = Flags.BUSY_RETRY_KEY;
+const RETRY_FIELD = 'busy_retry';
 
 /** The switch, never waited for: the batch's cached value, off when there is none. Never throws. */
 function on(now = Date.now()) {
   try { return Flags.busyPageNow(now); } catch (_) { return false; }
 }
 
-/** The answer (or its promise) with the field added while on; the same answer, untouched, while off. */
+/** The re-ask switch, as on(): the batch's cached value, off when there is none. Never throws. */
+function retryOn(now = Date.now()) {
+  try { return Flags.busyRetryNow(now); } catch (_) { return false; }
+}
+
+/** The answer (or its promise) with the field (and the re-ask's beside it) added while on; untouched while off. */
 function carry(outP) {
   return Promise.resolve(outP).then((out) => {
-    if (on() && out && typeof out === 'object' && !Array.isArray(out)) out[FIELD] = true;
+    if (on() && out && typeof out === 'object' && !Array.isArray(out)) {
+      out[FIELD] = true;
+      if (retryOn()) out[RETRY_FIELD] = true;
+    }
     return out;
   });
 }
 
-module.exports = { on, carry, KEY, FIELD };
+module.exports = { on, retryOn, carry, KEY, FIELD, RETRY_KEY, RETRY_FIELD };
