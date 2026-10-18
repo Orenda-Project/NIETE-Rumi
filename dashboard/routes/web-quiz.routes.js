@@ -14,7 +14,8 @@
  *   GET  /wq/vt/:vid.webp  a lesson's small thumbnail for the Videos door's shelves (web_quiz_video_shelf), kept at the edge
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
- *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
+ *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>);
+ *                          ?v=<hash>m is the same JS/CSS minified at start-up (web_quiz_minify, minifiedFiles below)
  *
  * The edge never touches the database. It checks shape and size, applies the rate
  * limits and adds x-forwarded-for; the bot owns every rule about the quiz itself.
@@ -217,6 +218,62 @@ function assetVersion() {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
+}
+
+// ── Minified page files (app_settings web_quiz_minify, read by the bot; the payload says `min: true`) ──────────────
+// Each top-level .js/.css in the folder, minified once per process at start-up and kept in memory, served at
+// ?v=<hex>m (its own immutable URL: a raw copy and a minified copy never share one). wq-tel.js stays raw: the error
+// columns our logs carry are its own. The sources are ES5 for old phones, so the JS target is es5 (no newer syntax
+// is ever introduced: esbuild with no target writes `??` and template strings) and the CSS target is old engines
+// (no #rrggbbaa colours). A file that does not minify, or esbuild missing, is served raw: one log line, never a throw.
+// The minifying runs in the background (esbuild's own process, async): the router is made, and the portal listens,
+// at once. Until it is done the pages link the raw files (?v=<hex>), whatever the switch says.
+const MIN_V_RX = /^[0-9a-f]+m$/;
+const MIN_SKIP = new Set(['wq-tel.js']);
+const MIN_CSS_TARGET = ['chrome49', 'safari10', 'firefox52'];
+const minOptions = (css) => ({ loader: css ? 'css' : 'js', minify: true, legalComments: 'none', charset: 'utf8', target: css ? MIN_CSS_TARGET : 'es5' });
+const minifiedByDir = new Map();
+/** One file's minified text (esbuild, the options above); throws when it does not minify or esbuild is missing. */
+function minifySource(src, css, esbuild = require('esbuild')) {
+  return esbuild.transformSync(src, minOptions(css)).code;
+}
+/**
+ * The folder's minified files: { files: Map<name, Buffer>, ready: false } at once, filled in the background;
+ * `ready` turns true (and `done` resolves) when every file has been tried. `esbuild` is test-only (a slow minifier).
+ */
+function minifiedFiles(dir, logEvent, esbuildOpt) {
+  if (!esbuildOpt && minifiedByDir.has(dir)) return minifiedByDir.get(dir);
+  const state = { files: new Map(), ready: false, done: null };
+  if (!esbuildOpt) minifiedByDir.set(dir, state);
+  // One line: the file, the error's code and a short first-line message with anything path-like removed (a Node
+  // "Cannot find module" carries a Require stack of absolute server paths; never logged).
+  const fail = (file, err) => {
+    try {
+      const msg = String((err && err.message) || err).split('\n')[0].split(/\s+/).map((w) => (w.includes('/') ? '<path>' : w)).join(' ').slice(0, 160);
+      logEvent('web_quiz.minify_error', { file, code: String((err && err.code) || 'ERROR').replace(/[^\w.-]/g, '').slice(0, 40), err: msg });
+    } catch (_) { /* never decides a response */ }
+  };
+  state.done = new Promise((resolve) => setImmediate(resolve)).then(async () => {
+    let names = [];
+    try { names = fs.readdirSync(dir).filter((f) => /\.(js|css)$/.test(f) && !MIN_SKIP.has(f)); } catch (_) { return; }
+    let esbuild = esbuildOpt || null;
+    if (!esbuild) {
+      try { esbuild = require('esbuild'); } catch (err) { fail('*', err); return; }
+    }
+    for (const file of names) {
+      try {
+        const src = await fs.promises.readFile(path.join(dir, file), 'utf8');
+        const out = await esbuild.transform(src, minOptions(file.endsWith('.css')));
+        state.files.set(file, Buffer.from(out.code, 'utf8'));
+      } catch (err) {
+        fail(file, err);
+        // A syntax error is that file's own (esbuild lists them in `errors`); anything else (a missing platform
+        // binary, a crashed child) hits every file the same way: one line, then raw for all.
+        if (!(err && Array.isArray(err.errors) && err.errors.length)) break;
+      }
+    }
+  }).catch(() => {}).then(() => { state.ready = true; });
+  return state;
 }
 
 function originOf(req) {
@@ -907,7 +964,8 @@ function challengeVersion(file = 'wq-challenge.js') {
   try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, file))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
 }
 
-function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }) {
+// sfx: 'm' when the pages link the minified files (web_quiz_minify), so this page's own files ride along; '' is today's.
+function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey, sfx = '' }) {
   const lang = menu.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[lang].title(brand.mascot[lang]);
@@ -918,8 +976,8 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-<script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.lr3 ? paceTag(menu) : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+<script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}${sfx}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}${sfx}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}${sfx}" defer></script>\n` : ''}${menu && menu.lr3 ? paceTag(menu) : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}${sfx}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}${sfx}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}${sfx}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}${sfx}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -951,8 +1009,14 @@ function createWebQuizRouter(opts = {}) {
   // The portal's event sink (Axiom): the share pictures it hands out are logged here.
   const logEvent = opts.logEvent || ((e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } });
   const router = express.Router();
+  // Test-only: the folder the /wq files (and their minified copies) come from. The pages' versions read PUBLIC_DIR.
+  const publicDir = opts.publicDir || PUBLIC_DIR;
+  const minified = minifiedFiles(publicDir, logEvent, opts.esbuild);
+  // The last payload's `min` (app_settings web_quiz_minify, read by the bot): link the minified files, once made.
+  let lastMin = false;
+  const sfx = () => (lastMin && minified.ready && minified.files.size > 0 ? 'm' : '');
   let assetV = null;
-  const version = () => (assetV || (assetV = assetVersion()));
+  const version = () => (assetV || (assetV = assetVersion())) + sfx();
   // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
   let lastBrand = null;
   // Whether the pages send their page-session events (wq-tel.js): the bot's last word, for the library page,
@@ -1136,7 +1200,7 @@ function createWebQuizRouter(opts = {}) {
   const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
   require('./web-quiz-class-link').registerClassLink(router, {
     callBot, limiters, unknownCode, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, originOf,
-    version, jsVersion: () => clV || (clV = challengeVersion('class-link.js')), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
+    version, jsVersion: () => (clV || (clV = challengeVersion('class-link.js'))) + sfx(), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
     closedPage: (req, res, status, kind) => res.status(status).type('html').send(closedHtml(req, { lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
   });
   // ── end standing class link ──
@@ -1210,6 +1274,7 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
+      lastMin = out.body.min === true;
       lastPlain = lastFast && out.body.plain_paint === true;
       lastClosedLang = out.body.closed_lang === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
@@ -1300,6 +1365,7 @@ function createWebQuizRouter(opts = {}) {
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
+      lastMin = out.body.min === true;
       lastPlain = lastFast && out.body.plain_paint === true;
       lastClosedLang = out.body.closed_lang === true;
       lastWaitUx = WaitUx.on(out.body);
@@ -1367,7 +1433,7 @@ function createWebQuizRouter(opts = {}) {
     // One Urdu face: the menu's own `one_face` (the bot's word) reaches the head as `ui.uf`; off, the menu untouched.
     if (out.body && typeof out.body === 'object') out.body = withLook(out.body);
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
-      return res.status(200).type('html').send(require('./web-quiz-ra-preload').withRaPreload(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }), out.body));
+      return res.status(200).type('html').send(require('./web-quiz-ra-preload').withRaPreload(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion() + sfx(), brandKey, sfx: sfx() }), out.body));
     }
     const err = out.body && out.body.error;
     if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
@@ -1543,7 +1609,23 @@ function createWebQuizRouter(opts = {}) {
     return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
   });
 
-  router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
+  // A file's minified copy (?v=<hex>m, minifiedFiles) while this edge knows the switch is on (lastMin): the static
+  // server's cache headers, an ETag and 304s (res.send). A ?v=<hex>m asked for while it is off (a page cached while it
+  // was on) or before this process has seen min:true and made its copies (a restart, another replica): the raw file,
+  // not kept (no-cache), so that phone fetches the minified copy next time. Any other ?v=, wq-tel.js, a file that
+  // did not minify, images and fonts: today's static server below, raw.
+  router.get('/wq/:file', (req, res, next) => {
+    if (typeof req.query.v !== 'string' || !MIN_V_RX.test(req.query.v)) return next();
+    // Until this process has seen min:true and has its copies, an m URL is answered raw and not kept.
+    if (!lastMin || !minified.ready || minified.files.size === 0) {
+      return res.sendFile(req.params.file, { root: publicDir, cacheControl: false, headers: { 'Cache-Control': 'no-cache' }, dotfiles: 'deny' }, (err) => (err && !res.headersSent ? next() : undefined));
+    }
+    const buf = minified.files.get(req.params.file);
+    if (!buf) return next();
+    res.set('Cache-Control', `public, max-age=${YEAR_S}, immutable`);
+    return res.type(path.extname(req.params.file)).send(buf);
+  });
+  router.use('/wq', express.static(publicDir, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
   // A missing file (a page cached before a deploy asking for a renamed one) is the static server's own 404 or 400,
   // answered here: the portal's last-resort handler would call it a 500 and the error monitors would count it.
   router.use('/wq', (err, req, res, next) => {
@@ -1552,8 +1634,10 @@ function createWebQuizRouter(opts = {}) {
     return next(err);
   });
 
+  // Test-only: resolves when the minified copies are made (the portal never waits for it).
+  router.minifyReady = minified.done;
   return router;
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderCardPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion, minifySource };
