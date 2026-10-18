@@ -180,16 +180,19 @@ function daysOf(rows, now) {
   const days = [false, false, false, false, false, false, false];
   rows.forEach((r) => {
     const at = rowAt(r);
-    if (!FINAL.has(r.status) || roundRow(r) || at < start || at >= start + 7 * DAY_MS) return;
+    if (!FINAL.has(r.status) || roundRow(r) || noiseRow(r) || at < start || at >= start + 7 * DAY_MS) return;
     days[Math.floor((at - start) / DAY_MS)] = true;
   });
   return days;
 }
 
+// A check the scorer judged not a reading (implausible: scored, record lost) earns no story sticker and lights no day.
+const noiseRow = (r) => r.status === 'scored' && r.record === false && r.mode === 'check';
+
 function storyIdsOf(rows) {
   const first = new Map();
   rows.forEach((r) => {
-    if (!r.passage_id || !FINAL.has(r.status) || roundRow(r)) return;
+    if (!r.passage_id || !FINAL.has(r.status) || roundRow(r) || noiseRow(r)) return;
     const at = rowAt(r);
     if (r.status !== 'scored') return; // a finish only: a swept (failed) run keeps its Trail sticker, no story sticker
     if (!first.has(r.passage_id) || at < first.get(r.passage_id)) first.set(r.passage_id, at);
@@ -207,7 +210,7 @@ function lightsOf(rows, now, self = null) {
   const keys = new Map();
   rows.forEach((r) => {
     if (!FINAL.has(r.status) || (r.exposure_no != null && Number(r.exposure_no) !== 1)) return;
-    if (roundRow(r)) return;
+    if (roundRow(r) || noiseRow(r)) return;
     const child = r.canonical_id || r.student_id;
     if (!child) return;
     const thing = r.passage_id || r.item_set_id || (r.exercise ? `${r.exercise}|${r.period_id || periodOf(rowAt(r))}` : null);

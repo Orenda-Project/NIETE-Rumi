@@ -57,7 +57,9 @@
  *   reply_cap_hits                          phone-days over the cap (the red line: > 0 is investigated); n = phone-days
  *   reply_cap_days_covered                  the week's PKT days the two lines above cover; n = 7
  *   teacher_accepted_share / <tier>         the teacher-accepted share of the join queue's tier (its Wilson 95% lower
- *                                           bound; a teacher's tap is a judgement, not a label, so never "precision")
+ *                                           bound; a teacher's tap is a judgement, not a label, so never "precision");
+ *                                           n leaves out a configured test teacher's queue rows, and the line's note
+ *                                           names how many each tier left out (excluded_n) when any tier left any
  *   teacher_accepted_held / <tier>          1 when the tier is auto-held on that share, else 0
  *   record_duplicates                       runs created in the week with meta.record_lost = 'duplicate' (a second
  *                                           record of the stop this period, stored as practice); n = the attempts at
@@ -82,6 +84,16 @@
  *                                           n = minted (the denominator is codes, never events)
  *   implausible / <lang>[|<reason>]          scored check reads (any record) the scorer marked implausible; n = the
  *                                           language's scored check reads; one cell per reason (meta.flags). Red > 5 %
+ *   rapid / band|lang|ladder                the week's scored record check rows with an anchor block (the warm-up):
+ *                                           value = rows the serve marked meta.quality = 'rapid_perfect' (all 10 right,
+ *                                           median item time under the floor; left out of the statement's line 1);
+ *                                           n = the cell's rows. Test children are out before the quality is read
+ *   rapid / band|lang|ladder|all_right      the same rows with every warm-up item right (score.correct = score.n = 10);
+ *                                           n = the same. No earlier figure: a watch only (LINE_NOTES, in `notes`)
+ *   floor_kept_aligned / <lang>             kept failed check reads (record true, status 'failed') that heard fewer
+ *                                           words than the scorer's floor (max(3, 10 % of the passage's tokens)) but
+ *                                           matched at least one passage word: a chance match on a noisy recording
+ *                                           keeps the record; n = the language's kept failed check reads. Near 0
  *   cold_clips                              not measured: no store (the clip warm's last run is an event only); named
  *                                           in `skipped` with its note, no row
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
@@ -107,6 +119,7 @@ const PAGE = 1000;
 // The caveat a reader of a line must see beside it (returned with the week's result as `notes`).
 const LINE_NOTES = {
   sends: "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+  rapid: 'all_right: no prior; watch only',
   recognised_without_typing: 'homonym picks through the class link read as high until the class-link pick fix lands',
   cold_clips: require('./web-quiz-strip-lines').COLD_CLIPS_NOTE,
 };
@@ -336,7 +349,7 @@ async function replyCapLines({ week, start, now, put }) {
 }
 
 /** The teacher-accepted share per identity tier (the join queue's precisionByTier(); never called precision here). */
-async function acceptedShareLines({ put }) {
+async function acceptedShareLines({ put, notes }) {
   const Q = optional('./web-quiz-join-queue');
   if (!Q || typeof Q.precisionByTier !== 'function') {
     logToFile('Challenge weekly numbers: teacher-accepted share skipped (join queue not available)');
@@ -354,6 +367,9 @@ async function acceptedShareLines({ put }) {
     put('teacher_accepted_share', t.tier, t.wilson_lower_95 == null ? null : Number(t.wilson_lower_95), n);
     put('teacher_accepted_held', t.tier, t.held ? 1 : 0, n);
   }
+  // a configured test teacher's taps count for nothing; say how many each tier left out, so n is never read as all taps
+  const left = tiers.filter((t) => Number(t.excluded_n) > 0).map((t) => `${t.tier} ${Number(t.excluded_n)}`);
+  if (left.length && notes) notes.teacher_accepted_share = `left out of n (queue rows made by a configured test teacher): ${left.join(', ')}`;
   return true;
 }
 
@@ -433,6 +449,23 @@ async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
   const helped = new Map(); const scoredN = new Map();
   counted.forEach((r) => { const c = cellOf(r, r.exercise); count(scoredN, c); if (r.helped === 'helped') count(helped, c); });
   for (const [c, k] of scoredN) put('helped_pct', c, share(helped.get(c) || 0, k), k);
+
+  // too-fast perfect warm-ups: `counted` is already free of test children (the fixture rule above), so the quality is
+  // read second. All right reads the stored score (score.correct of score.n, 10 items; meta.items is not always kept).
+  const rapid = new Map();
+  counted.filter((r) => r.record === true && r.anchor_block != null).forEach((r) => {
+    const c = cellOf(r, ladderOf(r.exercise));
+    if (!rapid.has(c)) rapid.set(c, { fast: 0, right: 0, n: 0 });
+    const g = rapid.get(c);
+    g.n += 1;
+    if (r.meta && r.meta.quality === 'rapid_perfect') g.fast += 1;
+    if (okOf(r) === ANCHOR_ITEMS && Number(r.score.n) === ANCHOR_ITEMS) g.right += 1;
+  });
+  for (const [c, g] of rapid) {
+    put('rapid', c, g.fast, g.n);
+    put('rapid', `${c}|all_right`, g.right, g.n);
+  }
+  if (rapid.size) notes.rapid = LINE_NOTES.rapid;
 
   const firsts = counted.filter((r) => Number(r.exposure_no) === 1);
   put('no_class_first_finishes', '', share(firsts.filter((r) => r.class_id == null).length, firsts.length), firsts.length);
@@ -573,9 +606,9 @@ async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
 
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
   if (!(await replyCapLines({ week, start, now, put }))) skipped.push('reply_cap');
-  if (!(await acceptedShareLines({ put }))) skipped.push('teacher_accepted_share');
+  if (!(await acceptedShareLines({ put, notes }))) skipped.push('teacher_accepted_share');
   // ── recognised without typing, kept readings under keep-all, sent / capped, the save-code funnel, implausible reads,
-  //    cold clips (web-quiz-strip-lines.js) ──
+  //    kept reads under the heard-words floor, cold clips (web-quiz-strip-lines.js) ──
   await require('./web-quiz-strip-lines').moreLines({ rows, start, end, now, put, skipped, notes, allRows });
   if (lines.some((l) => l.line === 'recognised_without_typing')) notes.recognised_without_typing = LINE_NOTES.recognised_without_typing;
 

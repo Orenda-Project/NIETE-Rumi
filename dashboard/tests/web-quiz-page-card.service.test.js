@@ -33,7 +33,7 @@ describe('the brand bar, the city and the mascot come from the brand config', ()
   test('Rumi: the bare dots-and-smile mark, no city, no NIETE, in Urdu too', () => {
     const p = page({ lang: 'ur', brand: Brand.publicBrand('rumi'), live: { ict_today_floor: 40 } });
     expect(p.html()).toMatch(/<span class="wq-mark wq-bare"[^>]*><svg /);
-    expect(p.html()).toContain('آج 40 بچوں نے کھیلا');
+    expect(p.html()).toContain('آج ۴۰ بچوں نے کھیلا');
     expect(p.html()).not.toMatch(/NIETE|اسلام آباد/);
   });
   test('a brand that renames the mascot renames it in the copy', () => {

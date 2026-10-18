@@ -131,6 +131,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   // there; the telemetry itself runs only with `tel` (boot rt).
   vm.runInContext(TEL, ctx);
   if (lib) vm.runInContext(LIB, ctx);
+  // ident: wq-identity.js (identity v2) before wq.js, as the edge loads it when the boot's cls.identity.mode is 'v2'.
+  if (arguments[0] && arguments[0].ident) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-identity.js'), 'utf8'), ctx);
   vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass, T: T };\n})();'), ctx);
   const tap = () => (dl.click || []).forEach((fn) => fn({}));
   const back = () => { if (hist.i > 0) hist.i -= 1; (wl.popstate || []).forEach((fn) => fn({ state: hist.stack[hist.i].state })); };
