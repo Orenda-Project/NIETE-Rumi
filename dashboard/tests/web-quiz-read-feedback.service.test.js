@@ -65,7 +65,7 @@ describe('WQMoment, pure', () => {
   test('growth only against the child\'s own last read; slower says nothing about speed (never "slower")', () => {
     const M = moment();
     const g = (w, p) => M.level(M.feedback({ score: { correct: 30, attempted: 30 }, wcpm: w, previous: p == null ? null : { wcpm: p } }), 3).growth;
-    expect([g(42, 40), g(41, 40), g(40, 40), g(39, 40), g(30, 40), g(40, null)]).toEqual(['up', 'same', 'same', 'same', null, null]);
+    expect([g(45, 40), g(41, 40), g(40, 40), g(39, 40), g(30, 40), g(40, null)]).toEqual(['up', 'same', 'same', 'same', null, null]);
     const h = M.html(M.feedback({ score: { correct: 30, attempted: 30 }, wcpm: 30, previous: { wcpm: 40 } }), 'en', { grade: 3 });
     expect(h).not.toContain('last time');
     expect(text(h)).not.toMatch(BANNED);
@@ -105,7 +105,7 @@ describe('WQMoment, pure', () => {
   });
   test('Urdu: Urdu digits, right to left, no Latin digit in the words; English: left to right', () => {
     const M = moment();
-    const fb = M.feedback({ score: { correct: 42, attempted: 45 }, wcpm: 42, previous: { wcpm: 38 } });
+    const fb = M.feedback({ score: { correct: 42, attempted: 45 }, wcpm: 42, previous: { wcpm: 36 } });
     const ur = M.html(fb, 'ur', { grade: 3 });
     expect(ur).toMatch(/^<section class="wq-moment"[^>]* lang="ur" dir="rtl"/);
     expect(ur).toContain('آپ نے ۴۲ لفظ پڑھے!');
@@ -122,6 +122,42 @@ describe('WQMoment, pure', () => {
       expect(h).not.toMatch(/<button|<a /);   // the host keeps its own buttons
       expect(h).not.toMatch(/[\u{1F300}-\u{1FAFF}⭐]/u);   // drawn, never emoji
     }
+  });
+});
+
+// ---- the reading bands, as the reading sign-off set them (key on only: with it off this file is never asked for) ------
+describe('the reading bands (the reading sign-off)', () => {
+  const lv = (o, grade = 3) => { const M = moment(); return M.level(M.feedback(o), grade); };
+  test('"faster than last time" from 5 more words a minute; within 3 either way is "steady"; +4 and below -3 say nothing', () => {
+    const g = (w, p) => lv({ score: { correct: 30, attempted: 30 }, wcpm: w, previous: { wcpm: p } }).growth;
+    expect([g(45, 40), g(44, 40), g(43, 40), g(40, 40), g(37, 40), g(36, 40)]).toEqual(['up', null, 'same', 'same', 'same', null]);
+  });
+  test('a grade not known reads on the kindest bands (grades 1-2), never the middle ones', () => {
+    const o = { score: { correct: 30, attempted: 30 }, wcpm: 22 };
+    const M = moment();
+    const lo = lv(o, 1).lights;
+    expect(lo).toBe(3);
+    for (const g of [null, undefined, '', 'KG', 0]) expect([g, M.level(M.feedback(o), g).lights]).toEqual([g, lo]);
+    expect(lv(o, 3).lights).toBe(2);   // a known grade 3 keeps its own bands
+  });
+  test('a short page: one word missed still earns 3 stars (from 70 % read right); two missed do not', () => {
+    expect(lv({ words_read: 7, words_total: 8, ms: 3000 }).stars).toBe(3);
+    expect(lv({ words_read: 6, words_total: 8, ms: 3000 }).stars).toBe(2);
+    expect(lv({ words_read: 2, words_total: 3, ms: 2000 }).stars).toBe(1);   // 67 %: under 70 %, one word or not
+    expect(lv({ words_read: 46, words_total: 50, ms: 60000 }).stars).toBe(3);
+  });
+  test('words read right come before speed: "faster" and its badge only from 2 stars', () => {
+    const o = (c) => ({ score: { correct: c, attempted: 40 }, wcpm: 50, previous: { wcpm: 40 } });
+    expect(lv(o(20))).toMatchObject({ stars: 1, growth: null, badge: 'reader' });
+    expect(lv(o(30))).toMatchObject({ stars: 2, growth: 'up', badge: 'faster' });
+    expect(lv(o(38))).toMatchObject({ stars: 3, growth: 'up', badge: 'faster' });
+  });
+  test.each(['en', 'ur'])('%s: under 3 stars the minute\'s offer names the 3 stars; at 3 stars, one more light', (lang) => {
+    const M = moment();
+    const two = M.again(M.feedback({ score: { correct: 40, attempted: 50 }, wcpm: 40 }), lang, { grade: 3 });
+    expect(two).toContain(lang === 'ur' ? 'تین ستاروں کے لیے پھر سے پڑھیں!' : 'Read it again for 3 stars!');
+    const three = M.again(M.feedback({ score: { correct: 48, attempted: 50 }, wcpm: 40 }), lang, { grade: 3 });
+    expect(three).toContain(lang === 'ur' ? 'ایک اور روشنی کے لیے پھر سے پڑھیں!' : 'Read it again to light one more!');
   });
 });
 
@@ -147,7 +183,7 @@ describe('the Urdu words (after a native read)', () => {
 
 // ---- the Jugnu page's end cards (wq-trail.js with a small host) --------------------------------------------------
 const STORY_HREF = 'https://portal.example/c/tok?room=story&pid=p1';
-function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok', words = {} } = {}) {
+function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = true, href = 'https://portal.example/c/tok', words = {}, along = null } = {}) {
   let screen = '';
   const listeners = {};
   const posts = [];
@@ -177,6 +213,8 @@ function trail({ lang = 'en', data = {}, menu = {}, withFc = true, withMoment = 
     },
     WQJ: { finish: (o) => juice.push(`finish:${o.kind}`), badge: () => juice.push('badge'), sentence: () => juice.push('sentence') },
   };
+  // along: the read-along player is here; it records the timings it was mounted with and each play
+  if (along) ctx.WQReadAlong = { mount: (el, ra) => { along.push(ra); return { play() { along.push('play'); }, destroy() {} }; } };
   ctx.window = ctx;
   vm.createContext(ctx);
   if (withFc) vm.runInContext(FC_SRC, ctx);
@@ -697,12 +735,32 @@ describe('a 0-word read on the folded card (key on)', () => {
       if (o.story) t.TR.menu();
       t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
       const h = t.html();
-      expect(h).toMatch(/id="wqc-rfagain"[^>]*>Again</);
+      // the button says what Jugnu's line asks ("let's read it together"): read it again, never a bare "try again"
+      expect(h).toMatch(new RegExp(`id="wqc-rfagain"[^>]*>${lang === 'ur' ? 'پھر سے پڑھیں' : 'Read it again'}<`));
       expect(h.indexOf('id="wqc-rfagain"')).toBeLessThan(h.indexOf('</section>', h.indexOf('data-rf')));
       const n = t.opened.length;   // the story room opened its story once already
       t.tap('wqc-rfagain');
       expect(t.opened.slice(n)).toEqual(['read']);
     }
+  });
+});
+
+// ---- the same card with a read-along (zero_listen on, the passage's timings here): ONE button for ONE action ---------
+describe('a 0-word read on the folded card with a read-along (key on)', () => {
+  const RA = { words: [{ w: 'a', s: 0, e: 300 }] };
+  test.each([['en', 'Read with Jugnu', 'Hear it again'], ['ur', 'جگنو کے ساتھ پڑھیں', 'دوبارہ سنیں']])('%s: the moment\'s button reads with Jugnu, then opens the read; no separate "Hear it again"', (lang, withJ, replay) => {
+    const along = [];
+    const t = trail({ lang, along, menu: { ...FOLD, ...RF }, data: { next_offer: NEXT, zero_listen: true, readalong: RA } });
+    t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+    const h = t.html();
+    expect(h).toMatch(new RegExp(`id="wqc-rfagain"[^>]*>${withJ}<`));
+    expect(h).not.toContain(`>${replay}<`);
+    expect(primaries(h)).toBe(1);   // the card's own Next stays the one primary
+    t.tap('wqc-rfagain');
+    expect(along).toEqual([RA, 'play']);
+    expect(t.opened).toEqual([]);   // the read waits for "I'm ready", never opened under the read-along
+    t.tap('wqc-along-read');
+    expect(t.opened).toEqual(['read']);
   });
 });
 

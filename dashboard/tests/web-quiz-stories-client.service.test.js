@@ -3033,12 +3033,16 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(h).not.toContain(lang === 'ur' ? 'ایک منٹ میں' : 'a minute');
     checkScreen(h, lang);
   });
-  test('read_fb, a word skipped: the moment AND the word to practise; 4 of 5 is two stars', async () => {
+  test('read_fb, a word skipped: the moment AND the word to practise; on a short page one word missed is still 3 stars, two missed is 1', async () => {
     const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
     const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
     expect(h).toContain('You read 4 words!');
-    expect(h).toContain('data-stars="2"');
+    expect(h).toContain('data-stars="3"');
     expect(h).toContain('data-tap="word"');
+    const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
+    const h2 = readPage1(e2, r2, ['read', 'skipped', 'read', 'skipped', 'read']);
+    expect(h2).toContain('You read 3 words!');
+    expect(h2).toContain('data-stars="1"');
   });
   test('read_fb, nothing read: the kind moment ("let\'s read it together", a brave-try badge), no stars', async () => {
     const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
@@ -3082,7 +3086,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
   });
   test.each(['en', 'ur'])('%s, read_fb: a page read short of 3 stars offers "read it again for 3 stars"; a tap starts Your turn again', async (lang) => {
     const e = withMoment(env({ replies: { book: RFB({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
-    const h = readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    const h = readPage1(e, root, ['read', 'skipped', 'read', 'skipped', 'read']);
     expect(h).toContain('data-tap="rfagain"');
     expect(h).toContain(lang === 'ur' ? 'تین ستاروں کے لیے پھر سے پڑھیں!' : 'Read it again for 3 stars!');
     fire(root, 'rfagain');
@@ -3094,7 +3098,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     const e2 = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(e2);
     expect(readPage1(e2, r2, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped'])).not.toContain('rfagain');
   });
-  test.each([['read', 'read', 'read', 'read', 'read'], ['read', 'read', 'read', 'skipped', 'read'], ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']])('read_fb: Jugnu stays on the page\'s result and reacts (%s…): cheering 3 stars, happy for fewer, hello after a 0-word try', async (...marks) => {
+  test.each([['read', 'read', 'read', 'read', 'read'], ['read', 'skipped', 'read', 'skipped', 'read'], ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']])('read_fb: Jugnu stays on the page\'s result and reacts (%s…): cheering 3 stars, happy for fewer, hello after a 0-word try', async (...marks) => {
     const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
     const h = readPage1(e, root, marks);
     const mo = /<section class="wq-moment[\s\S]*?<\/section>/.exec(h)[0];
