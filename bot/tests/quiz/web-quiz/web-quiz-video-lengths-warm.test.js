@@ -89,11 +89,12 @@ describe('a hub open warms its grade\'s lesson lengths (web_quiz_video_shelf)', 
     expect(out.home_v3).toBe(1);
     expect(warm).toHaveBeenCalledTimes(1);
     expect(String(warm.mock.calls[0][0])).toBe('3');
+    expect(warm.mock.calls[0][1]).toEqual({ lang: out.lang });
     warm.mockImplementation(() => { throw new Error('never stops the hub'); });
     seed([...HOME_ON, ON(SHELF)]);
     expect(JSON.stringify(await Hub.hub(tok, A))).toBe(JSON.stringify(out));
   });
-  test.each([['absent', HOME_ON], ['false', [...HOME_ON, { key: SHELF, value: false }]], ['the string true', [...HOME_ON, STR(SHELF)]], ['on, the home off', [...BASE_ON, ON(SHELF)]]])('%s: nothing is asked', async (_l, settings) => {
+  test.each([['absent', HOME_ON], ['false', [...HOME_ON, { key: SHELF, value: false }]], ['the string true', [...HOME_ON, STR(SHELF)]], ['on, the home off', [...BASE_ON, ON(SHELF)]], ['on, but no Videos door (the library off)', [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_child_quiz_home'), ON('web_quiz_home_v3'), ON(SHELF)]]])('%s: nothing is asked', async (_l, settings) => {
     seed(settings);
     await Hub.hub(T.signHub([KID]), A);
     expect(warm).not.toHaveBeenCalled();

@@ -255,22 +255,32 @@ function shelfRoot() {
 
 /**
  * web_quiz_video_shelf: a grade's lesson lengths read in the background when a child of that grade opens the hub (the
- * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. Once per
- * grade until the lengths would go stale; a bank that does not load is asked again next time. Never throws.
+ * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. Only the
+ * lessons the child's language shows (web_quiz_videos_v3). Held for hours once every lesson was read; a bank that did
+ * not load, or a lesson whose details did not come back, is held a minute only (that lesson is not kept), so one bad
+ * read right after a restart never blanks a grade. Never throws.
  */
 const WARM_AGAIN_MS = 3 * 60 * 60 * 1000; // half the lengths' life in web-quiz-videos.js
-const warmed = new Map();                  // grade -> when its lengths were asked for
-function warmGrade(grade, { fetchImpl } = {}) {
+const WARM_RETRY_MS = 60 * 1000;
+const warmed = new Map();                  // grade|language -> no new read before this time
+function warmGrade(grade, { lang, fetchImpl } = {}) {
   try {
     const Videos = require('./web-quiz-videos');
     const g = Videos.gradesFor(grade)[0];
-    const at = warmed.get(g);
-    if (!g || (at && Date.now() - at < WARM_AGAIN_MS)) return;
-    warmed.set(g, Date.now());
+    const key = `${g}|${langOf(lang) || ''}`;
+    if (!g || Date.now() < (warmed.get(key) || 0)) return;
+    warmed.set(key, Date.now() + WARM_AGAIN_MS);
+    const retry = () => warmed.set(key, Date.now() + WARM_RETRY_MS);
     track(new Promise((res) => setImmediate(res)).then(async () => {
-      const ids = (await bank()).rows.filter((r) => String(r.grade) === g).map((r) => r.id);
-      if (ids.length) await Videos.warmMeta(ids, { fetchImpl });
-    }).catch(() => { warmed.delete(g); }));
+      const ix = (await videosV3On()) ? await inLanguage(await bank(), langOf(lang)) : await bank();
+      const ids = ix.rows.filter((r) => String(r.grade) === g).map((r) => r.id);
+      if (!ids.length) return retry();
+      await Videos.warmMeta(ids, { fetchImpl });
+      const missed = ids.filter((id) => Videos.peekMeta(id) === null);
+      if (!missed.length) return undefined;
+      missed.forEach((id) => Videos._metaCache.delete(id));
+      return retry();
+    }).catch(retry));
   } catch (_) { /* the hub never waits on this */ }
 }
 
