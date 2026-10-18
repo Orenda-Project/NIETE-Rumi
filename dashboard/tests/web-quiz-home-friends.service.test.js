@@ -1,6 +1,6 @@
 /**
  * "A friend joined Jugnu from your card!" on the sharer's home (app_settings web_quiz_share_joined; the hub's
- * `friends_joined: {n, today}`, sent only when on and a friend joined): the shipped wq-home.js draws ONE line with the
+ * `friends_joined: {n}` (today's count), sent only when on and a friend joined today): the shipped wq-home.js draws ONE line with the
  * "Guide" stamp under the greeting, once per new count on this phone (the count seen is kept per child), never on a
  * coach's preview. No `friends_joined`: the home is today's, byte for byte (the golden written before this change).
  * Invented children only.
@@ -45,7 +45,7 @@ describe('no `friends_joined`: today\'s home, byte for byte', () => {
 describe('a friend joined from this child\'s card', () => {
   test.each(['en', 'ur'])('%s: ONE line with the stamp, after the greeting and before the Next tile; one primary still', (lang) => {
     const { H, store } = load();
-    const html = H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang });
+    const html = H.html({ ...HOME, friends_joined: { n: 1 } }, { token: TOKEN, lang });
     expect(visible(html)).toContain(WORDS[lang][0]);
     expect(visible(html)).toContain(WORDS[lang][1]);
     expect((html.match(/data-friends/g) || []).length).toBe(1);
@@ -57,15 +57,15 @@ describe('a friend joined from this child\'s card', () => {
     // seen on this phone, for this child
     expect(store[SEEN]).toBe('1');
     // a later render of the same page keeps it
-    expect(H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang })).toContain('data-friends');
+    expect(H.html({ ...HOME, friends_joined: { n: 1 } }, { token: TOKEN, lang })).toContain('data-friends');
   });
   test('seen already on this phone: not again; a new friend (n goes up): again', () => {
-    expect(load({ [SEEN]: '1' }).H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang: 'en' })).not.toContain('data-friends');
-    expect(load({ [SEEN]: '1' }).H.html({ ...HOME, friends_joined: { n: 2, today: true } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
+    expect(load({ [SEEN]: '1' }).H.html({ ...HOME, friends_joined: { n: 1 } }, { token: TOKEN, lang: 'en' })).not.toContain('data-friends');
+    expect(load({ [SEEN]: '1' }).H.html({ ...HOME, friends_joined: { n: 2 } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
   });
   test('a new day: the first friend of the day shows, whatever was seen yesterday', () => {
     const { H, store } = load({ [`wq_fj_${KID}_2026-01-01`]: '3' });
-    expect(H.html({ ...HOME, friends_joined: { n: 1, today: true } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
+    expect(H.html({ ...HOME, friends_joined: { n: 1 } }, { token: TOKEN, lang: 'en' })).toContain('data-friends');
     expect(store[SEEN]).toBe('1');
   });
   test('a coach\'s preview, a zero or a junk count: nothing', () => {

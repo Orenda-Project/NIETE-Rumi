@@ -164,11 +164,11 @@ async function cardField() {
   } catch (_) { return {}; }
 }
 
-/** `{friends_joined: {n, today}}` when web_quiz_share_joined is on and a friend joined from this child's card, else `{}`. */
+/** `{friends_joined: {n}}` (today's count) when web_quiz_share_joined is on and a friend joined from this child's card today, else `{}`. */
 async function friendsField(chosenId) {
   try {
     const f = await require('./web-quiz-share-open').friendsOf(chosenId);
-    return f ? { friends_joined: { n: f.n, today: f.today === true } } : {};
+    return f ? { friends_joined: { n: f.n } } : {};
   } catch (_) { return {}; }
 }
 

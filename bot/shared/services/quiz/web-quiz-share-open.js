@@ -126,13 +126,13 @@ async function credit(c, phone, fresh) {
   }
 }
 
-/** The sharer's friends today (a day in Pakistan): {n, today: true} when web_quiz_share_joined is on and one joined today,
- * else null. A count, never who. */
+/** The sharer's friends today (a day in Pakistan): {n} when web_quiz_share_joined is on and one joined today, else null.
+ * A count, never who or when. */
 async function friendsOf(studentId) {
   try {
     if (!studentId || !(await Card.joinedOn())) return null;
     const n = Number(await redis().get(friendsKey(studentId))) || 0;
-    return n > 0 ? { n, today: true } : null;
+    return n > 0 ? { n } : null;
   } catch (_) {
     return null;
   }

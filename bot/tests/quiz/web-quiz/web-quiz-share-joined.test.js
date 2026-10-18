@@ -140,7 +140,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
     // the friend still lands on the book
     expect(out.next).toMatch(new RegExp(`#story/${BOOK}$`));
-    expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    expect(await friends()).toEqual({ friends_joined: { n: 1 } });
     // one event, the count and nothing else (no friend, no sharer, no phone)
     expect(events('share_joined')).toEqual([{ count: 1 }]);
     // the keys never carry a phone or the friend's id
@@ -153,13 +153,15 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
     await Open.note(PHONE, words);
     await Join.join({ t: (await landing()).t, grade: 2, name: 'Ali', device: DEVICE });
-    expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    expect(await friends()).toEqual({ friends_joined: { n: 1 } });
+    expect(events('share_joined')).toEqual([{ count: 1 }]);
   });
   test('no join (a teacher\'s answer, the role page left): nothing counts', async () => {
     seed({ students: [sharerRow] });
     const { words } = await cardWords();
     await Open.note(PHONE, words);
     expect(await friends()).toEqual({});
+    expect(events('share_joined')).toEqual([]);
   });
   test('a child already on that phone (the "is this you" yes): not a new friend, nothing counts', async () => {
     seed({ students: [sharerRow, chatKid(0, 'Sara Testwala')] });
@@ -170,6 +172,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     expect(ask.ask).toBe('is_this_you');
     await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE, same: ask.kids[0].chip });
     expect(await friends()).toEqual({});
+    expect(events('share_joined')).toEqual([]);
   });
   test('the sharer\'s own family phone (the sharer is on it): a sibling joining is not a new friend', async () => {
     seed({ students: [{ ...sharerRow, phone: PHONE }], bindings: [binding(SHARER)] });
@@ -178,13 +181,14 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     const out = await Join.join({ t: (await landing()).t, grade: 2, name: 'Ali', device: DEVICE });
     expect(out.next).toBeTruthy();
     expect(await friends()).toEqual({});
+    expect(events('share_joined')).toEqual([]);
   });
   test('a new day in Pakistan starts at zero: yesterday\'s friends are not today\'s count', async () => {
     seed({ students: [sharerRow] });
     const { words } = await cardWords();
     await Open.note(PHONE, words);
     await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
-    expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    expect(await friends()).toEqual({ friends_joined: { n: 1 } });
     const now = Date.now();
     jest.spyOn(Date, 'now').mockReturnValue(now + 24 * 3600 * 1000);
     expect(await friends()).toEqual({});
@@ -192,7 +196,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     const PHONE2 = fixturePhone(723);
     await Open.note(PHONE2, words);
     await Join.join({ t: (await landing(UNKNOWN_USER, PHONE2)).t, grade: 2, name: 'Ali', device: OTHER_DEVICE });
-    expect(await friends()).toEqual({ friends_joined: { n: 1, today: true } });
+    expect(await friends()).toEqual({ friends_joined: { n: 1 } });
     expect(events('share_joined')).toEqual([{ count: 1 }, { count: 1 }]);
   });
 });
@@ -200,7 +204,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
 describe('the count rides only the sharer\'s own phone', () => {
   const Home = () => require('../../../shared/services/quiz/web-quiz-hub-home');
   const Dev = () => require('../../../shared/services/quiz/web-quiz-hub-device');
-  const FR = { friends_joined: { n: 2, today: true } };
+  const FR = { friends_joined: { n: 2 } };
   afterEach(() => jest.restoreAllMocks());
   test('a phone that may name the child: the count', async () => {
     const may = jest.spyOn(Dev(), 'deviceMayName').mockResolvedValue(true);
@@ -267,7 +271,7 @@ describe('the count reaches only the sharer\'s own phone, through the real home 
   const home = (chosenId, device) => HubHome().homeField({ out: { lang: 'en', kids: [], book_on: false }, chosenId, history: [], device, src: 'quiz' });
   test('the sharer\'s own phone: the count on the home', async () => {
     const sharerId = await sharerWithAFriend();
-    expect((await home(sharerId, DEVICE)).friends_joined).toEqual({ n: 1, today: true });
+    expect((await home(sharerId, DEVICE)).friends_joined).toEqual({ n: 1 });
   });
   test('another phone (the friend\'s, a forwarded link) or no device: no key at all', async () => {
     const sharerId = await sharerWithAFriend();
