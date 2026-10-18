@@ -2,7 +2,7 @@
 /**
  * A shared card's words with its ref ("quiz please jb3b9c1e2a", web_quiz_share_v4) through the REAL handleTextMessage
  * with quiz_one_door ON (the mock set of one-door-text-turn.test.js):
- *  (a) switch OFF: the words are not a quiz request, as today (no door);
+ *  (a) switch OFF: the words are not a quiz request, as today: no door, they go on to the general reply;
  *  (b) switch ON: they reach the one door with the words intact (the door keeps the item: the join seam's rows);
  *  (c) a message with no ref adds no settings read for the share;
  *  (d) a phone with no users row yet gets the door, never an account error.
@@ -41,7 +41,9 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => ({
   set: jest.fn().mockResolvedValue('OK'),
 }));
 jest.mock('../../shared/services/coaching-orchestrator.service', () => ({}));
-jest.mock('../../shared/services/menu.service', () => ({ sendMenu: jest.fn() }));
+// the general path's first step: a marked stop, so a row can tell "went on to the general reply, as today" from a throw
+const mockGeneral = jest.fn(async () => { throw Object.assign(new Error('general path reached'), { generalPath: true }); });
+jest.mock('../../shared/services/menu.service', () => ({ sendMenu: jest.fn(), checkAwaitingLessonPlanTopic: (...a) => mockGeneral(...a) }));
 jest.mock('../../shared/services/helper-agent.service', () => ({
   detectCapabilityInquiry: jest.fn().mockResolvedValue({ detected: false }),
 }));
@@ -172,10 +174,17 @@ beforeEach(() => {
 });
 
 describe('(a) switch off: the card\'s words with a ref are not a quiz request, as today', () => {
-  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true'], ['1', 1]])('share_v4 %s: no door', async (_, v) => {
+  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true'], ['1', 1]])('share_v4 %s: no door; the words go on to the general reply, with nothing sent before it', async (_, v) => {
     share(v);
-    await handleTextMessage(MESSAGE, FROM, WORDS, { ...UNKNOWN }).catch(() => {});
+    let err = null;
+    await handleTextMessage(MESSAGE, FROM, WORDS, { ...UNKNOWN }).catch((e) => { err = e; });
+    expect(err && err.generalPath).toBe(true);
+    expect(mockGeneral).toHaveBeenCalledTimes(1);
     expect(mockOpenQuizMenu).not.toHaveBeenCalled();
+    expect(mockOffer).not.toHaveBeenCalled();
+    expect(mockTopic).not.toHaveBeenCalled();
+    expect(WhatsApp.sendMessage).not.toHaveBeenCalled();
+    expect(WhatsApp.sendFlow).not.toHaveBeenCalled();
   });
 });
 
