@@ -6,7 +6,8 @@
 .lr-text { font-size: 24px; line-height: 2; word-spacing: 2px; }
 html[lang=ur] .lr-text, .lr[lang=ur] .lr-text { font-size: 26px; line-height: 2.3; }
 /* Nastaliq's tall glyph box would make a word's pill cover the lines above and below: each Urdu word is its own box */
-html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-block; line-height: 1.9; padding: 0 6px; margin: 2px 0; }
+/* … and its chip holds Nastaliq's tails and dots: line-height 2 and more room below the baseline than above */
+html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-block; line-height: 2; padding: 0 6px; padding-block: .15em .45em; margin: 2px 0; }
 .lr-w { padding: 2px 4px; border-radius: 8px; transition: background-color 120ms ease-out; }
 .lr-read { background: #BBF7D0; color: #15803D; }
 .lr-heard { background: #BBF7D0; color: #15803D; }
