@@ -50,6 +50,8 @@ const OLD = '55555555-5555-4555-8555-000000000003';     // an earlier record of 
 const DEV = 'dddddddddddddddddddddd';                   // the family phone's browser
 const FRESH = 'eeeeeeeeeeeeeeeeeeeeee';                 // a phone the link was forwarded to
 const chip = (id) => T.chipId(F.SC, id);
+// A closed class link's answer as the parent (no way home) gives it, recorded there.
+const GOLDEN_CLOSED = '{"error":"expired","lang":"en"}';
 
 let db;
 function seed({ flag = 'v2', known = true, canon = false } = {}) {
@@ -471,6 +473,228 @@ describe('the switch\'s own read on a quiz open', () => {
         for (let i = 0; i < 5; i += 1) await WQ.getQuiz('AB12CD');
       } finally { supabase.from = from; }
       expect(reads).toBe(1);
+    });
+  }
+});
+
+describe('a CLOSED class link on a phone that holds a child: the way home (closedHome)', () => {
+  const LinkKnown = () => require('../../../shared/services/quiz/web-quiz-link-known');
+  test('one held child: a home link for that child, bound to THIS phone (the hub opens it there, nowhere else)', async () => {
+    seed();
+    await homeOpened();
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(r.on).toBe(true);
+    expect(r.home).toMatch(/^\/h\/[A-Za-z0-9._-]+\?from=link$/);
+    const token = r.home.slice(3, r.home.indexOf('?'));
+    expect(T.verify(token, 'h').ids).toEqual([SELF]);
+    expect((await HubDevice.deviceTrusted(token, DEV)).ok).toBe(true);
+    expect((await HubDevice.deviceTrusted(token, FRESH)).ok).toBe(false);
+  });
+
+  test('minting the home writes no door line: the edge writes it when it draws the button (a page it gave up on counts nothing)', async () => {
+    seed();
+    await homeOpened();
+    const { logEvent } = require('../../../shared/utils/structured-logger');
+    logEvent.mockClear();
+    expect((await LinkKnown().closedHome({ device: DEV })).home).toMatch(/^\/h\//);
+    expect(logEvent.mock.calls.filter(([e]) => e === 'web_quiz.door_shown')).toHaveLength(0);
+  });
+
+  test('two held children: one home for both (the home asks who is playing)', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(T.verify(r.home.slice(3, r.home.indexOf('?')), 'h').ids.sort()).toEqual([SELF, SIB].sort());
+  });
+
+  test('a phone that holds more than four: the home is for the newest four, as before', async () => {
+    seed();
+    const ids = Array.from({ length: 6 }, (_, i) => `55555555-5555-4555-8555-0000000003${i}0`);
+    ids.forEach((id, i) => db.students.push({ id, student_name: `Kid${i} Testwala`, list_id: null, is_active: true, status: 'active' }));
+    for (const id of ids) await homeOpened([id]);
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(T.verify(r.home.slice(3, r.home.indexOf('?')), 'h').ids.sort()).toEqual(ids.slice(2).sort());
+  });
+
+  test('a fresh phone, no device, or Redis down: on, but no home', async () => {
+    seed();
+    await homeOpened();
+    expect(await LinkKnown().closedHome({ device: FRESH })).toEqual({ on: true, home: null });
+    expect(await LinkKnown().closedHome({})).toEqual({ on: true, home: null });
+    redis._up = false;
+    expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: true, home: null });
+  });
+
+  test('a held child whose trust on this phone has lapsed is left out of the home, and not trusted again', async () => {
+    seed();
+    await homeOpened([SELF]);
+    await homeOpened([SIB]);
+    const lapsed = `wq:hub:kid:${require('crypto').createHash('sha256').update(`${SIB}|${DEV}`).digest('hex').slice(0, 32)}`;
+    redis._store.delete(lapsed);   // still in the phone's list; its own trust key is gone
+    const r = await LinkKnown().closedHome({ device: DEV });
+    expect(T.verify(r.home.slice(3, r.home.indexOf('?')), 'h').ids).toEqual([SELF]);
+    expect(redis._store.has(lapsed)).toBe(false);
+  });
+
+  test('a phone the hub will not bind: on, but no home', async () => {
+    seed();
+    await homeOpened();
+    const spy = jest.spyOn(HubDevice, 'deviceTrusted').mockResolvedValue({ ok: false, why: 'foreign', ids: [] });
+    try { expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: true, home: null }); } finally { spy.mockRestore(); }
+  });
+
+  describe('the routes', () => {
+    const express = require('express');
+    let server; let base;
+    beforeAll(async () => {
+      const app = express();
+      app.use(express.json());
+      app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+      await new Promise((r) => { server = app.listen(0, r); });
+      base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
+    });
+    afterAll(() => new Promise((r) => server.close(r)));
+    const H = { 'x-api-key': 'test-key', 'content-type': 'application/json' };
+    const closeCode = () => { db.quiz_share_codes.find((c) => c.id === F.SC).active = false; };
+
+    test('POST /known/home: the device comes from the header only; in the body it is nobody', async () => {
+      seed();
+      await homeOpened();
+      const body = await (await fetch(`${base}/known/home`, { method: 'POST', headers: H, body: JSON.stringify({ device: DEV, device_ref: DEV }) })).json();
+      expect(body).toEqual({ on: true, home: null });
+    });
+
+    // The closed path never waits on a switch read: it answers from the 30 s cache, and on a cold cache starts one read.
+    const switchReads = () => {
+      const from = supabase.from;
+      const n = { reads: 0 };
+      supabase.from = (t) => {
+        const q = from(t);
+        if (t !== 'app_settings') return q;
+        const select = q.select.bind(q);
+        return { ...q, select: (...a) => { const r = select(...a); const inn = r.in.bind(r); return { ...r, in: (col, keys) => { if (keys.includes(KEY)) { n.reads += 1; if (n.fail) throw new Error('settings down'); } return inn(col, keys); } }; } };
+      };
+      n.restore = () => { supabase.from = from; };
+      return n;
+    };
+    const switchLogs = () => require('../../../shared/utils/logger').logToFile.mock.calls.filter(([m]) => /link known child/.test(String(m))).length;
+
+    test('GET /quiz/:code on a closed class link says `known: true` with the switch on, so the edge may ask', async () => {
+      seed();
+      await fetch(`${base}/quiz/AB12CD`, { headers: H });   // a live open of a class link in the last 30 s
+      closeCode();
+      const n = switchReads();
+      try {
+        const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+        expect(res.status).toBe(410);
+        expect(await res.json()).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+      } finally { n.restore(); }
+      expect(n.reads).toBe(0);
+    });
+
+    test('switch on, cold cache: the first closed GET is today\'s and starts one read; the next one says `known: true`', async () => {
+      seed();
+      closeCode();
+      const n = switchReads();
+      let first; let second;
+      try {
+        first = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+        await new Promise((r) => setTimeout(r, 20));
+        second = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+      } finally { n.restore(); }
+      expect(Object.prototype.hasOwnProperty.call(first, 'known')).toBe(false);
+      expect(second).toEqual(expect.objectContaining({ error: 'expired', known: true }));
+      expect(n.reads).toBe(1);
+    });
+
+    test('a switch read that never answers: closed links still answer at once (the read is never awaited), and only one is started', async () => {
+      seed();
+      closeCode();
+      const from = supabase.from;
+      let reads = 0;
+      supabase.from = (t) => {
+        const q = from(t);
+        if (t !== 'app_settings') return q;
+        const select = q.select.bind(q);
+        return { ...q, select: (...a) => { const r = select(...a); const inn = r.in.bind(r); return { ...r, in: (col, keys) => { if (!keys.includes(KEY)) return inn(col, keys); reads += 1; return new Promise(() => {}); } }; } };
+      };
+      try {
+        for (let i = 0; i < 50; i += 1) {
+          const t0 = Date.now();
+          const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+          expect(res.status).toBe(410);
+          expect(Object.prototype.hasOwnProperty.call(await res.json(), 'known')).toBe(false);
+          expect(Date.now() - t0).toBeLessThan(1000);
+        }
+      } finally { supabase.from = from; }
+      expect(reads).toBe(1);
+    });
+
+    for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true'], ['the quoted string', '"true"'], ['a number', 1], ['an object', {}]]) {
+      for (const fail of [false, true]) {
+        test(`switch off (${name})${fail ? ', settings read failing' : ''}: 50 closed GETs in 30 s make at most 1 switch read and at most 1 log line, and answer today's`, async () => {
+          seed({ known: false });
+          db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+          closeCode();
+          const today = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).text();
+          expect(today).toBe('{"error":"expired","lang":"en"}');   // the closed body recorded on the base
+          seed({ known: value });
+          if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+          closeCode();
+          const n = switchReads();
+          n.fail = fail;
+          try {
+            for (let i = 0; i < 50; i += 1) {
+              const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+              expect(res.status).toBe(410);
+              expect(await res.text()).toBe(today);
+            }
+          } finally { n.restore(); }
+          expect(n.reads).toBeLessThanOrEqual(1);
+          expect(switchLogs()).toBeLessThanOrEqual(1);
+        });
+      }
+    }
+
+    test('golden recorded on the parent: a closed class link\'s answer, byte for byte, with the switch off', async () => {
+      seed({ known: false });
+      closeCode();
+      const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+      expect(res.status).toBe(410);
+      expect(await res.text()).toBe(GOLDEN_CLOSED);
+    });
+
+    for (const [name, value] of [['no row', undefined], ['false', false], ['the string "true"', 'true'], ['the quoted string', '"true"'], ['a number', 1], ['an object', {}]]) {
+      test(`switch off (${name}): the closed answer is today's, byte for byte (no \`known\`)`, async () => {
+        seed({ known: false });
+        db.app_settings = db.app_settings.filter((r) => r.key !== KEY);   // today: no switch row at all
+        closeCode();
+        const today = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).text();
+        seed({ known: value });
+        if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+        closeCode();
+        const res = await fetch(`${base}/quiz/AB12CD`, { headers: H });
+        expect(res.status).toBe(410);
+        expect(await res.text()).toBe(today);
+      });
+    }
+
+    test('an open class link\'s answer never carries `known` (only a closed one does)', async () => {
+      seed();
+      const body = await (await fetch(`${base}/quiz/AB12CD`, { headers: H })).json();
+      expect(Object.prototype.hasOwnProperty.call(body, 'known')).toBe(false);
+    });
+  });
+
+  for (const value of [false, 'true', '"true"', 1, {}, undefined]) {
+    test(`switch off (${JSON.stringify(value)}): {on: false}, nothing minted`, async () => {
+      seed({ known: value });
+      if (value === undefined) db.app_settings = db.app_settings.filter((r) => r.key !== KEY);
+      await homeOpened();
+      redis.set.mockClear();
+      expect(await LinkKnown().closedHome({ device: DEV })).toEqual({ on: false });
+      expect(redis.set).not.toHaveBeenCalled();
     });
   }
 });
