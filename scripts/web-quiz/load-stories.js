@@ -30,6 +30,9 @@
  * web_quiz.story_voice_gate_read_failed on stderr, finishes as a dry run with today's gates and exits 3. With it on, each book's line also lists the pages that kept the
  * voice they had (kept) and why their new take was not stored (misses), and the total line says voice_gate: true.
  *
+ * An Urdu book whose text has a letter or mark the child pages' Urdu face does not draw: its line lists them (face_holes,
+ * story-face.js), READY unchanged; extend the face and its fixture before children read it.
+ *
  * Idempotent: ids are uuid v5 of the catalogue id and files are named by their content hash, so a re-run updates the
  * same rows and stores only new files. A book is 'ready' only when every gate passes (story-load.js), else 'draft'.
  * stdout: one line per book, counts and reasons only — never a key, a token or a URL with a signature.
@@ -166,7 +169,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
     const cap = (list) => (list.length > 4 ? [...list.slice(0, 4), `+${list.length - 4} more`] : list);
     const why = cap(plan.why);
     const gate = voiceGate ? { kept_voice: out.kept || [], misses: cap(plan.misses.map((m) => `p${String(m.n).padStart(2, '0')}: ${m.why.join(', ')}`)), question_kept: cap((plan.questionMisses || []).map((m) => `q${m.n}: ${m.why.join(', ')}`)) } : {};
-    io.stdout.write(`${JSON.stringify({ source_id: book.source_id, book_id: plan.bookId, g: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, files: plan.files.length, stored: out.uploaded, kept: out.skipped, status: out.status, why, ...gate })}\n`);
+    io.stdout.write(`${JSON.stringify({ source_id: book.source_id, book_id: plan.bookId, g: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, files: plan.files.length, stored: out.uploaded, kept: out.skipped, status: out.status, why, ...gate, ...(plan.face_holes ? { face_holes: plan.face_holes } : {}) })}\n`);
     rows.push({ source_id: book.source_id, book_id: plan.bookId, grade: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, status: dryRun ? `dry:${out.status}` : out.status, why: plan.why.join('; '), at: now().toISOString() });
   }
   // a run whose switch could not be read leaves loaded.csv as it was
