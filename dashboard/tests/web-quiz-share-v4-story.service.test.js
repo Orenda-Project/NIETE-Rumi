@@ -266,6 +266,8 @@ async function finishBook(state, lang, extra, answer) {
   return { e, root, sink };
 }
 const STATES = ['read', 'read_q', 'answered_only'];
+// recorded on the base (before the one share), one hash per language and done state
+const OFF_GOLDEN = { 'en|read': '6a67cf8ad2a82092', 'en|read_q': 'c71dab680852a5ce', 'en|answered_only': 'b3dc44851fc9f825', 'ur|read': '7f1b41655a1ac185', 'ur|read_q': '141c180ef7e0c86c', 'ur|answered_only': 'b0099f84373e6b5a' };
 describe('storybook one share', () => {
   // OFF: whatever the book says that is not literally true, the done card, its mint, its tap are today's (hash here; compared with base)
   test('off golden rows', async () => {
@@ -277,6 +279,9 @@ describe('storybook one share', () => {
     }
     // within a run every OFF value equals absent
     for (const k of Object.keys(rows)) expect([k, rows[k]]).toEqual([k, rows[k.replace(/\|[^|]+$/, '|absent')]]);
+    if (process.env.WQ_PRINT_OFF_GOLDEN) require('fs').writeFileSync(process.env.WQ_PRINT_OFF_GOLDEN, JSON.stringify(rows));
+    // and each equals the hash this same walk gave on the base, before the one share existed
+    for (const k of Object.keys(rows)) expect([k, rows[k]]).toEqual([k, OFF_GOLDEN[k.replace(/\|[^|]+$/, '')]]);
   });
   test.each([['en', 'read'], ['ur', 'read'], ['en', 'read_q'], ['ur', 'read_q']])('on %s %s: mint names the book; tap opens the one sheet, picture + /k link + the book title in the words', async (lang, st) => {
     const d = await finishBook(st, lang, { share_v4: true }, (b) => ({ ...MINTC, v4: true, item: b.item ? 'book' : null }));
@@ -286,6 +291,8 @@ describe('storybook one share', () => {
     expect(e.prevented).toBe(1);
     expect(d.sink.body).toContain('data-screen="share_sheet"');
     expect(d.sink.body).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
+    // the sheet's WhatsApp button keeps «واٹس ایپ» together (U+00A0)
+    if (lang === 'ur') expect(d.sink.body).toContain('واٹس\u00A0ایپ پر بھیجیں');
     expect(d.sink.body).toContain(`<img class="wqfc-sh-pic" src="/wq/card/${TOKC}.png"`);
     const words = decodeURIComponent(/id="wqfc-sh-wa"[^>]*href="https:\/\/wa\.me\/\?text=([^"]+)"/.exec(d.sink.body)[1]);
     expect(words).toContain(`https://portal.example/k/${TOKC}`);
@@ -300,6 +307,19 @@ describe('storybook one share', () => {
     rowsLabel.answered_post = d.sink.posts[0];
     // the book is named to the server
     expect(d.sink.posts[0]).toMatchObject({ kind: 'story', deed: 'answered', item: { type: 'book', id: UUID } });
+  });
+  test.each([['en', 'Share with friends'], ['ur', 'دوستوں کو بھیجیں']])('on %s, a child with no class (mint says plain): the card says so', async (lang, label) => {
+    const d = await finishBook('read', lang, { share_v4: true }, () => ({ ...MINTC, v4: true, item: 'book', plain: true }));
+    // the mint's answer relabels the live button (the first paint cannot know the child has no class)
+    rowsLabel[`${lang}|plain`] = d.sink.a.innerHTML;
+    expect(rowsLabel[`${lang}|plain`]).toBe(label);
+  });
+  test('the label follows who it goes to, in every done state and both languages', () => {
+    expect(rowsLabel).toMatchObject({
+      'en|read': 'Share to class group', 'ur|read': 'کلاس گروپ میں بھیجیں',
+      'en|read_q': 'Share to class group', 'ur|read_q': 'کلاس گروپ میں بھیجیں',
+      'en|plain': 'Share with friends', 'ur|plain': 'دوستوں کو بھیجیں',
+    });
   });
   test('on, the book not ready (server drops the item): the sheet still opens with picture + plain /k link', async () => {
     const d = await finishBook('read', 'en', { share_v4: true }, () => ({ ...MINTC, v4: true, item: null }));
