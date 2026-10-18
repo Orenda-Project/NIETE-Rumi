@@ -31,7 +31,7 @@
     en: {
       helpQ: 'Is someone helping you today?', helpAlone: 'No, on my own', helpWith: 'Yes, someone is helping', helpNote: 'You get the sticker both ways.',
       // jg.keep.notice / jg.keep.notice_ok (deck v2.3, bot/shared/config/copy.v2.json): the mic notice, {name} = the child's first name
-      noticeT: 'Jugnu keeps this reading to see how {name} is learning. One checker may listen. A grown-up can remove the phone number any time by sending STOP on WhatsApp; the reading stays.',
+      noticeT: 'Jugnu keeps {name}\'s reading recordings, with no end date yet. Only the people who make Jugnu can listen. Sending STOP on WhatsApp removes this phone number; the recordings stay.',
       noticeOk: 'Got it',
       whoTurn: 'Whose turn?', whoTapName: 'Tap your name.', whoPlayedHere: 'Played on this phone before', whoSomeoneElse: "My name isn't here",
       nextOnItsWay: 'A new story is on its way.',
@@ -57,7 +57,7 @@
       helpQ: 'کیا آج آپ کو کسی کی مدد مل رہی ہے؟', helpAlone: 'نہیں، اپنے آپ', helpWith: 'جی ہاں، کسی کی مدد سے', helpNote: 'اسٹیکر دونوں طرح ملے گا۔',
       // jg.keep.notice / jg.keep.notice_ok (deck v2.3 bytes, bot/shared/config/copy.v2.json: {name} inside U+2068…U+2069,
       // STOP inside U+2066…U+2069)
-      noticeT: 'جگنو یہ ریکارڈنگ رکھتا ہے تاکہ ⁨{name}⁩ کی پڑھائی دیکھی جا سکے۔ اسے صرف ایک جانچنے والا سن سکتا ہے۔ گھر کے بڑے کسی بھی وقت ⁦STOP⁩ بھیج کر فون نمبر ہٹا سکتے ہیں، ریکارڈنگ پھر بھی رہے گی۔',
+      noticeT: 'جگنو ⁨{name}⁩ کے پڑھنے کی ریکارڈنگ رکھتا ہے۔ ابھی طے نہیں کہ یہ کب تک رکھی جائے گی۔ یہ ریکارڈنگ صرف جگنو بنانے والے سن سکتے ہیں۔ واٹس ایپ پر ⁦STOP⁩ بھیجنے سے فون نمبر ہٹا دیا جاتا ہے، لیکن ریکارڈنگ موجود رہتی ہے۔',
       noticeOk: 'ٹھیک ہے',
       whoTurn: 'کس کی باری ہے؟', whoTapName: 'اپنا نام دبائیں۔', whoPlayedHere: 'پہلے بھی اسی فون پر کھیلا گیا', whoSomeoneElse: 'میرا نام یہاں نہیں',
       nextOnItsWay: 'ایک نئی کہانی آنے والی ہے۔',
@@ -85,7 +85,7 @@
   var RA_WAIT_MS = 4000;       // a tap that beat the player waits this long for it (inside the tap's 5-s audio window)
   // the word-by-word player (wq-readalong.js), fetched only when a story serve carries `readalong`
   // (web_quiz_readalong); its version is the file's sha256, first 10 hex (a test keeps the two in step)
-  var RA_V = 'be7fe1dc23';
+  var RA_V = '49978aeb6a';
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -616,13 +616,19 @@
       return t.noticeT.split('{name}').join(n);
     }
     // then: the microphone, exactly as the stop would have gone on (micStart). false = no notice, go on now.
+    // under live reading v3 (the payload's lr3) the words and the mark are the live reader's: one notice for the storybook's
+    // sheet and the passage, shown on whichever is the child's first microphone use (WQLiveRead.noticeSeen / noticeMark)
+    function lrNotice(d) { var LR = window.WQLiveRead; return d.lr3 && LR && LR.noticeText ? LR : null; }
     function notice(then) {
       var d = h.S.data;
-      if (!d || !d.v2 || !d.v2.consent || !d.v2.notice || noticeRun === d.ct || noticeSeenHere(d.v2.notice)) return false;
+      if (!d || !d.v2 || !d.v2.consent || !d.v2.notice || noticeRun === d.ct) return false;
+      var LR = lrNotice(d);
+      var kid = h.boot && h.boot.kid;
+      if (LR ? LR.noticeSeen(kid, true) : noticeSeenHere(d.v2.notice)) return false;
       var v = d.v2.notice;
       // one card, one control: nothing to choose, nothing preselected
-      h.show('mic-notice', h.jug('hello', noticeLine(d.v2.name), true) + '<div class="wq-stack">' + btn('wqc-notice-ok', t.noticeOk) + '</div>');
-      h.on('wqc-notice-ok', function () { noticeRun = d.ct; noteNoticeHere(v); then(); });
+      h.show('mic-notice', h.jug('hello', LR ? LR.noticeText(L, true) : noticeLine(d.v2.name), true) + '<div class="wq-stack">' + btn('wqc-notice-ok', t.noticeOk) + '</div>');
+      h.on('wqc-notice-ok', function () { noticeRun = d.ct; if (LR) LR.noticeMark(kid, true); else noteNoticeHere(v); then(); });
       return true;
     }
     function consent(b) {

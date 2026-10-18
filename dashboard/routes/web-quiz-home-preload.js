@@ -37,8 +37,9 @@ function addresses(payload, tags, assetV) {
   let m;
   TAG_RX.lastIndex = 0;
   while ((m = TAG_RX.exec(tags))) out.push(m[1] ? [m[1], 'style'] : [m[2] || m[3], 'script']);
-  // wq-home.js (loadOnce) adds wq-doors.css + .js at hub.js's ?v= (this assetV) once the home is drawn.
-  if (payload.home_v3) out.push([`/wq/wq-doors.css?v=${assetV}`, 'style'], [`/wq/wq-doors.js?v=${assetV}`, 'script']);
+  // wq-home.js (loadOnce) adds wq-doors.css + .js at hub.js's ?v= (this assetV) once the home is drawn; with the pack
+  // (web_quiz_pack) they are inside it, and the flushed head preloads the pack itself (web-quiz.routes.js).
+  if (payload.home_v3 && payload.pack !== true) out.push([`/wq/wq-doors.css?v=${assetV}`, 'style'], [`/wq/wq-doors.js?v=${assetV}`, 'script']);
   const seen = new Set();
   return out.filter(([h]) => HREF_RX.test(h) && SHARED.has(fileOf(h)) && !seen.has(h) && seen.add(h));
 }

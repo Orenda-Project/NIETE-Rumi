@@ -10,10 +10,18 @@ const vm = require('vm');
 const SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.js');
 const QSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-q.js');
 const DSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-d.js');
+const WSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-w.js');
 const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const KID = 'kidchipabcdefghi';
 const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|استاد/i;
+// the live reader's own practice-word choice (wq-liveread.js practice), run as shipped: the fake reader below hands it on
+const PRACTICE = (() => {
+  const window = {}; const ctx = { window, console, Date, Math, JSON, String, Number, Object, Array, RegExp, setTimeout, clearTimeout };
+  vm.createContext(ctx);
+  ['wq-read-live.js', 'wq-liveread.js'].forEach((f) => vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', f), 'utf8'), ctx));
+  return window.WQLiveRead.practice;
+})();
 
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
 // the stall setting (web_quiz_stories_steady): the book says `steady`; on only inside its own describe
@@ -137,7 +145,7 @@ function env(opt = {}) {
     win.WQReadAlong = {
       mount(el, data, o) {
         if (o.band) el.innerHTML = '<div class="wqra-pic wqra-band"></div>';
-        const p = { el, data, o, log: [], audio: {}, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, seekToWord(i) { p.log.push('seek:' + i); }, destroy() { p.log.push('destroy'); } };
+        const p = { el, data, o, log: [], slows: [], audio: {}, slow(on, g) { p.slows.push([on, g]); }, play() { p.log.push('play'); }, pause() { p.log.push('pause'); }, replay() { p.log.push('replay'); }, playWord(i) { p.log.push('word:' + i); }, seekToWord(i) { p.log.push('seek:' + i); }, destroy() { p.log.push('destroy'); } };
         calls.ra.push(p); return p;
       },
       preload(d) { calls.preload = (calls.preload || []).concat([d.id]); },
@@ -148,6 +156,7 @@ function env(opt = {}) {
       mount(el, o) { const c = { el, o, log: [], stop(w) { c.log.push('stop:' + w); }, destroy() { c.log.push('destroy'); }, view: () => ({ heard: 2, total: 5 }) }; calls.lr.push(c); return c; },
       askMic: opt.noAsk ? undefined : (el, o) => { el.innerHTML = '<button class="lr-go">go</button>'; calls.ask.push(o); calls.askEl = el; },
       glowLevel: () => 2,
+      practice: PRACTICE,
       ...(opt.doneHtml ? { COPY: { en: { done: 'X' }, ur: { done: 'Y' } }, doneHtml: (c) => '<span class="lr-done-ok">' + c.done + '</span>' } : {}),
     };
   }
@@ -164,6 +173,7 @@ function env(opt = {}) {
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); if (opt.qHold && !calls.qGo) { calls.qGo = () => { vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); x.onload(); }; return; } vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
       if (/wq-stories-d\.js\?v=abc123$/.test(x.src)) { if (opt.dFail) return x.onerror(); vm.runInContext(fs.readFileSync(DSRC, 'utf8'), sb); return x.onload(); }
+      if (/wq-stories-w\.js\?v=abc123$/.test(x.src)) { vm.runInContext(fs.readFileSync(WSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
       // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
       else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
@@ -584,6 +594,104 @@ describe('the reader', () => {
     expect(primaries(root.innerHTML)).toBe(0);
     expect(root.innerHTML).toMatch(/data-back[^>]*>✕/);
   });
+  test('the mic notice: the sheet is handed this child\'s chip and whether Jugnu keeps passage recordings (lr3_keep), one mark for the live reader to keep', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    expect(e.calls.ask[0].notice).toEqual({ kid: KID, keep: false });
+    const e2 = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    expect(e2.calls.ask[0].notice).toEqual({ kid: KID, keep: true });
+  });
+  test('the kept notice, told once: the page read after a sheet that showed it carries notice:2 (the server\'s record), the next read does not; never for "nothing kept" or with no notice shown', async () => {
+    const R5 = { words_total: 5, words_read: 5, skipped: 0, ms: 5000, ended: 'quiet', marks: ['read', 'read', 'read', 'read', 'read'] };
+    const reads = (e) => e.calls.posts.filter((x) => x.body.event === 'story_page_read').map((x) => x.body.data);
+    const e = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const root = await openReader(e);
+    toMic(e, root);
+    e.calls.ask[0].notice.shown = 1;                               // the live reader showed it and the child tapped Start
+    e.calls.ask[0].onStream({});
+    e.calls.lr[0].o.onResult(R5);
+    expect(reads(e)[0].notice).toBe(2);
+    expect(e.calls.ask[0].notice.shown).toBe(0);
+    fire(root, 'main'); toMic(e, root);
+    e.calls.ask[1].onStream({});
+    e.calls.lr[e.calls.lr.length - 1].o.onResult(R5);
+    expect(reads(e)).toHaveLength(2);
+    expect(reads(e)[1]).not.toHaveProperty('notice');
+    const e2 = env(); const r2 = await openReader(e2);           // lr3_keep absent: the "nothing kept" words
+    toMic(e2, r2); e2.calls.ask[0].notice.shown = 1; e2.calls.ask[0].onStream({}); e2.calls.lr[0].o.onResult(R5);
+    expect(reads(e2)[0]).not.toHaveProperty('notice');
+    const e3 = env({ replies: { book: { status: 200, body: book({ lr3_keep: true }) } } }); const r3 = await openReader(e3);
+    toMic(e3, r3); e3.calls.ask[0].onStream({}); e3.calls.lr[0].o.onResult(R5);   // already seen on this phone: nothing shown
+    expect(reads(e3)[0]).not.toHaveProperty('notice');
+  });
+  test('the notice version the reader sends is the Trail\'s (TrailPage.NOTICE_V): a new notice wording moves both or the server ignores the field', () => {
+    const tp = fs.readFileSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'services', 'quiz', 'web-quiz-trail-page.js'), 'utf8');
+    expect(fs.readFileSync(QSRC, 'utf8').match(/d\.notice = (\d+);/)[1]).toBe(tp.match(/const NOTICE_V = (\d+);/)[1]);
+  });
+  // the phone's microphone light: a stream whose tracks count their stops
+  const micStream = (id) => { const tr = { stops: 0, stop() { tr.stops += 1; } }; return { id, tr, getTracks: () => [tr] }; };
+  test('the microphone is given back the moment a page read ends (every track stopped); the next Your turn asks again', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const st = micStream('a');
+    e.calls.ask[0].onStream(st);
+    expect(st.tr.stops).toBe(0);                                  // reading: the microphone is on
+    e.calls.lr[0].o.onResult({ words_total: 5, words_read: 4, skipped: 1, ms: 5000, ended: 'quiet', marks: ['read', 'read', 'read', 'skipped', 'read'] });
+    expect(st.tr.stops).toBe(1);
+    fire(root, 'main');                                            // Next
+    toMic(e, root);
+    expect(e.calls.ask).toHaveLength(2);
+    const st2 = micStream('b');
+    e.calls.ask[1].onStream(st2);
+    expect(e.calls.lr[e.calls.lr.length - 1].o.stream).toBe(st2);
+  });
+  test('the microphone is given back when the read is closed, when the page is left, and when the reader is closed', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const st = micStream('a');
+    e.calls.ask[0].onStream(st);
+    fire(root, 'close');
+    expect(st.tr.stops).toBeGreaterThanOrEqual(1);
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    const st2 = micStream('b');
+    e2.calls.ask[0].onStream(st2);
+    e2.S.open('b-2', e2.ctx({ root: r2 }));                        // another book opened (a route change)
+    await flush();
+    expect(st2.tr.stops).toBeGreaterThanOrEqual(1);
+    const e3 = env(); const r3 = await openReader(e3);
+    toMic(e3, r3);
+    const st3 = micStream('c');
+    e3.calls.ask[0].onStream(st3);
+    fire(r3, 'back');                                              // the reader's own way out (by the hash)
+    (e3.winL.hashchange || []).forEach((f) => f({}));
+    expect(st3.tr.stops).toBeGreaterThanOrEqual(1);
+    const e4 = env(); const r4 = await openReader(e4);
+    toMic(e4, r4);
+    const st4 = micStream('d');
+    e4.calls.ask[0].onStream(st4);
+    (e4.winL.pagehide || []).forEach((f) => f({}));                 // the tab closed mid-read
+    expect(st4.tr.stops).toBeGreaterThanOrEqual(1);
+  });
+  test('a stream granted after the reader is gone (Back while the phone asks) is given back at once, never read', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const nlr = e.calls.lr.length;
+    e.S.open('b-2', e.ctx({ root }));                              // the child left while the phone's prompt was open
+    await flush();
+    const late = micStream('late');
+    e.calls.ask[0].onStream(late);
+    expect(late.tr.stops).toBe(1);
+    expect(e.calls.lr.length).toBe(nlr);
+  });
+  test('a stream that arrives after the sheet has gone is given back at once', async () => {
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    e.calls.ask[0].onNotNow();
+    const late = micStream('late');
+    e.calls.ask[0].onStream(late);
+    expect(late.tr.stops).toBe(1);
+  });
   test('a wide line of small print is whole on screen, both edges, in page view, while listening and while reading, in English (left to right) and Urdu (right to left)', async () => {
     const bk = book(); bk.pages[0].lines = [{ i0: 0, i1: 2, box: [40, 800, 640, 22] }, { i0: 3, i1: 4, box: [60, 830, 600, 22] }];
     for (const lang of ['en', 'ur']) {
@@ -762,6 +870,33 @@ describe('the reader', () => {
     fire(root, 'word', 3);
     expect(p2.log).toContain('word:3');
     expect(root.querySelector('[data-main]').textContent).toBe('Next');
+  });
+  test('lrr on: two words skipped ("The" and "game") → practise the longest, "game" (a tie keeps the earlier); the reader gets repeat; the page event carries the absorbed count only', async () => {
+    const page = (ws, lrr) => { const bk = book(); if (lrr !== undefined) bk.lrr = lrr; bk.pages[0] = { ...bk.pages[0], text: ws.join(' '), words: ws.map((x, i) => W(i, x, 100 + 500 * i, [110 + 60 * i, 810, 40, 50])) }; return bk; };
+    const run = async (ws, marks, extra = {}, ...off) => {
+      const lrr = off.length ? off[0] : true;
+      const e = env({ replies: { book: { status: 200, body: page(ws, lrr) } } }); const root = await openReader(e);
+      toMic(e, root); fire(root, 'mic'); e.calls.ask[0].onStream({});
+      e.calls.lr[0].o.onResult({ words_total: ws.length, words_read: marks.filter((x) => x === 'read').length, skipped: marks.filter((x) => x === 'skipped').length, ms: 5000, ended: 'quiet', marks, ...extra });
+      return { e, root, h: root.innerHTML, o: e.calls.lr[0].o, ev: e.calls.posts.find((x) => x.body.event === 'story_page_read') };
+    };
+    const GAME = ['The', 'game', 'is', 'so', 'fun.'];
+    const a = await run(GAME, ['skipped', 'skipped', 'read', 'read', 'read'], { absorbed: 2 });
+    expect(a.o.repeat).toBe(true);
+    expect(a.h).toContain('Let&#39;s practise this word');
+    expect(a.h).toContain('game</button>');
+    expect(a.h).not.toContain('The</button>');
+    expect(a.ev.body.data).toEqual({ words_total: 5, words_read: 3, skipped: 2, ms: 5000, ended: 'quiet', skipped_words: [0, 1], first: 'listen', absorbed: 2 });
+    const b = await run(GAME, ['read', 'read', 'skipped', 'skipped', 'read']);
+    expect(b.h).toContain('is</button>');   // "is" and "so": a tie, the earlier one
+    expect(b.ev.body.data).not.toHaveProperty('absorbed');
+    // lrr off (absent, or anything but true): today's reader — the first skipped word, no repeat, no absorbed key
+    for (const lrr of [undefined, false]) {
+      const c = await run(GAME, ['skipped', 'skipped', 'read', 'read', 'read'], {}, lrr); // eslint-disable-line no-await-in-loop
+      expect(c.o.repeat).toBe(lrr);
+      expect(c.h).toContain('The</button>');
+      expect(c.ev.body.data).toEqual({ words_total: 5, words_read: 3, skipped: 2, ms: 5000, ended: 'quiet', skipped_words: [0, 1], first: 'listen' });
+    }
   });
   test('0 words heard: no praise, "Let\'s read it together", Listen offered again', async () => {
     const e = env(); const root = await openReader(e);
@@ -1150,8 +1285,11 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
-    expect(zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12280);   // the ruled core budget (12,288 less 8)
+    // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
+    const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
+    console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
+    expect(qgz).toBeLessThanOrEqual(9 * 1024);
     expect(zlib.gzipSync(fs.readFileSync(DSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);   // the questions + done file
     const css = fs.readFileSync(CSS, 'utf8');
     expect(zlib.gzipSync(css, { level: 9 }).length).toBeLessThanOrEqual(3 * 1024);
@@ -1766,22 +1904,24 @@ describe('question audio and the slower voice', () => {
     a.currentTime = 2.41; e.advance(40); expect(a.paused).toBe(true);
     expect(e.calls.audios).toHaveLength(1);
   });
-  test('Slower: playbackRate 0.85 with pitch kept, remembered per child, applied after a page change; no number shown; not the primary', async () => {
+  // what the player does with it (the 0.85 stretch, or gaps with the book's slow_gaps): web-quiz-stories-slow-gaps
+  test('Slower: handed to the player (slow(on, the book\'s slow_gaps)), remembered per child, applied after a page change; no number shown; not the primary', async () => {
     const e = env(); const root = await openReader(e);
     const h = root.innerHTML;
     expect(h).toMatch(/<button class="wqs-slow" data-tap="slow" aria-pressed="false"><svg class="wqs-g"[^>]*><path[^>]*><\/svg> Slower<\/button>/);
     expect(text(h.split('wqs-slow')[1].split('</button>')[0])).not.toMatch(/[0-9]/);
-    fire(root, 'slow');
     const p = e.calls.ra[0];
-    expect(p.audio.playbackRate).toBe(0.85); expect(p.audio.preservesPitch).toBe(true);
+    expect(p.slows).toEqual([[false, undefined]]);
+    fire(root, 'slow');
+    expect(p.slows.pop()).toEqual([true, undefined]);
     expect(e.store.getItem('wq_st_slow:' + KID)).toBe('1');
     fire(root, 'next'); fire(root, 'prev');
     const p2 = e.calls.ra[e.calls.ra.length - 1];
     expect(p2).not.toBe(p);
-    expect(p2.audio.playbackRate).toBe(0.85);
+    expect(p2.slows).toEqual([[true, undefined]]);
     expect(root.innerHTML).toMatch(/data-tap="slow" aria-pressed="true"/);
     fire(root, 'slow');
-    expect(p2.audio.playbackRate).toBe(1);
+    expect(p2.slows.pop()).toEqual([false, undefined]);
     const ur = env({ replies: { book: { status: 200, body: book({ lang: 'ur', dir: 'rtl' }) } } });
     const r2 = await openReader(ur, { lang: 'ur' });
     expect(r2.innerHTML).toContain('</svg> آہستہ');
@@ -1989,6 +2129,19 @@ describe('echo reading on G1-2', () => {
     toMic(u, ru); u.calls.ask[0].onStream({}); u.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
     expect(ru.innerHTML).toMatch(/data-tap="echo"[^>]*>آئیں مل کر پڑھیں<\/button>/);
   });
+  test('Read it together: a microphone granted after the reader is gone is given back at once', async () => {
+    const e = env({ replies: { book: { status: 200, body: two() } } });
+    const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
+    let give;
+    e.win.WQLiveRead.micAgain = () => new Promise((r) => { give = r; });
+    fire(root, 'echo');
+    e.S.open('b-2', e.ctx({ root }));                              // left before the phone answered
+    await flush();
+    const tr = { stops: 0, stop() { tr.stops += 1; } };
+    give({ id: 'late', getTracks: () => [tr] });
+    await flush();
+    expect(tr.stops).toBe(1);
+  });
   test('sentences split on . ! ? ۔ ؟ (a closing quote kept with its sentence)', async () => {
     const e = env(); await openReader(e);
     const ws = ['Mina', 'runs.', '"Up!"', 'Is', 'it', 'red?', 'یہ', 'پتنگ', 'ہے۔', 'کیا', 'اڑی؟', 'Then'].map((t, i) => ({ i, t }));
@@ -2007,7 +2160,12 @@ describe('echo reading on G1-2', () => {
     const e = env({ replies: { book: { status: 200, body: two() } } });
     const root = await afterRead(e, ['read', 'ahead', 'ahead', 'ahead', 'ahead']);
     const nra = e.calls.ra.length;
+    // the read's microphone was given back when it ended; "Read it together" asks for one inside its tap
+    let asked = 0;
+    e.win.WQLiveRead.micAgain = () => { asked += 1; return Promise.resolve({ id: 'echo' }); };
     fire(root, 'echo');
+    expect(asked).toBe(1);
+    await flush();
     let h = root.innerHTML;
     checkScreen(h, 'en');
     expect(screenOf(h)).toBe('story-echo');
@@ -2036,7 +2194,7 @@ describe('echo reading on G1-2', () => {
     const c = e.calls.lr[1];
     expect(c.o.words.map((w) => w.t)).toEqual(['Mina', 'runs.']);
     expect(c.o.words[1].box).toEqual([160, 810, 50, 50]);
-    expect(c.o).toMatchObject({ lang: 'en', dir: 'ltr', meter: 'none', record: false, counted: false, stream: { id: 'st' } });
+    expect(c.o).toMatchObject({ lang: 'en', dir: 'ltr', meter: 'none', record: false, counted: false, stream: { id: 'echo' } });
     expect(root.querySelector('[data-es]').innerHTML).toBe(es);   // the boxes stay outlined with the mic on
     // the child echoes -> the next sentence
     c.o.onResult(READ(['read', 'read']));
@@ -2925,6 +3083,25 @@ describe('a kind screen on every stall: the edges', () => {
     e.S.open('b-1', e.ctx({ root })); await flush();                   // a second open: the first book's go, the new one's stay
     expect(n(e)).toEqual([1, 1, 1]);
   });
+  test('the stall setting on: the microphone is still given back when the tab closes and when the book is left, through the book\'s own one pagehide listener', async () => {
+    const n = (e) => ['offline', 'online', 'pagehide'].map((k) => (e.winL[k] || []).length);
+    const micStream = (id) => { const tr = { stops: 0, stop() { tr.stops += 1; } }; return { id, tr, getTracks: () => [tr] }; };
+    const e = env(); const root = await openReader(e);
+    toMic(e, root);
+    const st = micStream('a');
+    e.calls.ask[0].onStream(st);
+    expect(n(e)).toEqual([1, 1, 1]);                               // no listener of the microphone's own
+    expect(st.tr.stops).toBe(0);
+    (e.winL.pagehide || []).forEach((f) => f({}));                 // the tab closed mid-read
+    expect(st.tr.stops).toBeGreaterThanOrEqual(1);
+    const e2 = env(); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    const st2 = micStream('b');
+    e2.calls.ask[0].onStream(st2);
+    fire(r2, 'back');                                              // the book left: its listeners and the microphone go at once
+    expect(st2.tr.stops).toBeGreaterThanOrEqual(1);
+    expect(n(e2)).toEqual([0, 0, 0]);
+  });
   test('a book that is not here while the second file cannot load: the kind retry screen with Back, never the waiting screen', async () => {
     const e = env({ qFail: true, replies: { book: { status: 404, body: { error: 'gone' } } } });
     const root = await openReader(e); await flush();
@@ -3282,5 +3459,69 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     runBook(e, root); await flush(); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).not.toContain('data-rf');
+  });
+});
+
+// The reader warmed from the shelf (web_quiz_story_warm: the shelf's answer says `warm: true` and each book its first
+// page's picture `p1`). The shelf then loads wq-stories-w.js: 1.5 s on, the reader's files are fetched ahead at low
+// priority at exactly the addresses the reader asks (so the first tap does not wait for three files one after another);
+// a tap on a book asks for its first page's picture at once, and the files side by side if they are not fetched yet.
+// No warm: no extra file, nothing ahead (today).
+describe('the reader warmed from the shelf', () => {
+  const RAV = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'))).digest('hex').slice(0, 10);
+  const AHEAD = (rel) => [[rel, 'script', `/wq/wq-readalong.js?v=${RAV}`], [rel, 'script', '/wq/wq-read-live.js?v=abc123'],
+    [rel, 'script', '/wq/wq-liveread.js?v=abc123'], [rel, 'style', '/wq/wq-liveread.css?v=abc123']];
+  const links = (e) => e.calls.loaded.filter((x) => x.tag === 'link' && /prefetch|preload/.test(x.rel || '')).map((x) => [x.rel, x.as, x.href]);
+  const wfile = (e) => e.calls.loaded.filter((x) => x.tag === 'script' && /wq-stories-w\.js/.test(x.src)).map((x) => x.src);
+  const WARM = { ...SHELF, warm: true, books: SHELF.books.map((b) => ({ ...b, p1: `/s/${b.id}/p01.webp` })) };
+  const shelfThen = async (e) => { const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush(); return el; };
+  // the child's finger on a book card: the page-level listeners see it first (pointerdown, then click)
+  const touch = (e, id, kind = 'pointerdown') => (e.doc.L[kind] || []).forEach((f) => f({ target: { getAttribute: (k) => (k === 'data-tap' ? 'book' : k === 'data-id' ? id : null), parentNode: null } }));
+
+  test('warm: the shelf loads its one small file once, at the reader\'s ?v=; 1.5 s on, the reader\'s four files are fetched ahead (prefetch), once each', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    expect(wfile(e)).toEqual(['/wq/wq-stories-w.js?v=abc123']);
+    expect(links(e)).toEqual([]);
+    e.advance(1500);
+    expect(links(e)).toEqual(AHEAD('prefetch'));
+    await shelfThen(e); e.advance(5000);
+    expect(wfile(e)).toHaveLength(2);   // the shelf drawn again asks for the file again (cached); it acts once
+    expect(links(e)).toEqual(AHEAD('prefetch'));
+  });
+  test('no warm in the shelf answer: no extra file, nothing fetched ahead, and a book opens as today', async () => {
+    const e = env();
+    await shelfThen(e); e.advance(5000);
+    await openReader(e);
+    expect(wfile(e)).toEqual([]);
+    expect(links(e)).toEqual([]);
+    expect(e.calls.imgs.filter((u) => /p01/.test(u))).toEqual([]);   // (the reader's own next-page warm-up is today's)
+  });
+  test('Save-Data, or a 2G line: nothing fetched ahead; a tapped book\'s picture is still asked for (the page needs it anyway)', async () => {
+    for (const connection of [{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }]) {
+      const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+      e.win.navigator = { connection };
+      await shelfThen(e); e.advance(5000);
+      touch(e, 'b-1');
+      expect(links(e)).toEqual([]);
+      expect(e.calls.imgs).toEqual(['/s/b-1/p01.webp']);
+    }
+  });
+  test('warm, a tap before the 1.5 s: the tapped book\'s first page picture at once, and the four files side by side (preload); nothing twice', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    touch(e, 'b-4');
+    expect(e.calls.imgs).toEqual(['/s/b-4/p01.webp']);
+    expect(links(e)).toEqual(AHEAD('preload'));
+    touch(e, 'b-4', 'click'); e.advance(5000);
+    expect(e.calls.imgs).toEqual(['/s/b-4/p01.webp']);
+    expect(links(e)).toEqual(AHEAD('preload'));
+  });
+  test('a tap on something that is not a book card asks for nothing', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    (e.doc.L.pointerdown || []).forEach((f) => f({ target: { getAttribute: () => 'g', parentNode: null } }));
+    expect(e.calls.imgs).toEqual([]);
+    expect(links(e)).toEqual([]);
   });
 });

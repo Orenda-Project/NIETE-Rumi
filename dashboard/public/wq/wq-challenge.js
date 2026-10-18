@@ -24,6 +24,7 @@
   var UR2 = false;
   try { UR2 = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('wq-ur2')); } catch (e) { UR2 = false; }
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   var JUG = '/wq/jugnu/';
 
   var T = {
@@ -78,6 +79,7 @@
       slowNet: 'Slow internet. Keep reading, your voice is being recorded.',
       checked: function (m, w) { return m + ' listened again: ' + w + ' words a minute!'; },
       qaStart: 'Answer questions about the story',
+      qaShort: 'Answer questions',
       listenGo: 'Listen',
       listenWrong: "The story won't play right now. Try another challenge.",
       qaRight: 'Yes!',
@@ -134,6 +136,7 @@
       slowNet: 'انٹرنیٹ آہستہ ہے۔ پڑھتے رہیں، آپ کی آواز ریکارڈ ہو رہی ہے۔',
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
+      qaShort: 'سوالوں کے جواب دیں',
       listenGo: 'سنیں',
       listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
@@ -162,6 +165,7 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
+  function oneButton() { try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; } }
   function nowrap(h) { return window.WQT && window.WQT.nowrap ? window.WQT.nowrap(h) : h; }
   function q(id) { return root.querySelector('#' + id); }
   function on(id, fn) { var el = q(id); if (el) el.addEventListener('click', fn); }
@@ -362,7 +366,7 @@
   // ── the mascot: a bubble and, when there is one, its recorded clip ────────────────────────────────
   var player = null;
   function jug(pose, line, big) {
-    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + JUG + pose + '.webp" alt="" width="92" height="92"></span>'
+    return '<div class="wq-jug' + (big ? ' wq-big' : '') + '"><span class="wq-jimg"><img src="' + jv(JUG + pose + '.webp') + '" alt="" width="92" height="92"></span>'
       + '<div class="wq-say" id="wqc-say">' + esc(line) + '</div></div>';
   }
   function say(clip, cb) {
@@ -405,7 +409,8 @@
   function show(name, html) {
     S.screen = name;
     // a stop played again on the trail: every screen of it says it is practice, scored into nothing
-    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
+    // (under live reading v3 never on the microphone notice: "just for fun" and "Jugnu keeps the recordings" are never one screen)
+    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round && !(name === 'mic-notice' && lr3()) ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
     root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + roundSay + '</section>';
@@ -1173,6 +1178,7 @@
       show('read-live', clockHtml + (lr3() ? '<div class="lr-glow lr-glow-' + window.WQLiveRead.glowLevel(lrT().view()) + '" id="wqc-lr-glow" aria-hidden="true"></div>' : '') + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
         + '<div class="wqc-story' + (lr3() ? ' lr3' : '') + '" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
         + stickyHtml());
+      if (lr3()) lrT().meter();
       livePaint();
     } else if (liveOk()) {
       var prev = d.previous_wcpm;
@@ -1298,7 +1304,7 @@
   }
   // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
   function qaButtons() {
-    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(t.qaStart) + '</button>'
+    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(oneButton() && t.qaShort || t.qaStart) + '</button>'
       + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>';
   }
   var qa = {

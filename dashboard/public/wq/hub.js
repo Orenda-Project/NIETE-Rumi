@@ -17,6 +17,8 @@
   // The language the page that sent the child here was in (?lang=en|ur, the door / the old class link): the bot
   // honours it over its guess (under web_quiz_challenge_v2), so the hub's own calls and address keep it. Else null.
   var URL_LANG = (/[?&]lang=(en|ur)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
+  // the grown-ups corner's language tap (keep=1): the server keeps it as the child's language (web_quiz_return_lang; off: ignored)
+  var URL_KEEP = Boolean(URL_LANG) && /[?&]keep=1(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -89,6 +91,9 @@
   }
 
   /* ---------------- helpers ---------------- */
+  // The one button look (wq-tel.js WQT.oneButton): a home drawn from the page's own hub call (unlock, pick) takes the
+  // look when that answer says so, as the boot's does. Off (no field): nothing changes.
+  function look(b) { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(b); }
   // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
   function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
@@ -104,8 +109,9 @@
   function subjectName(s) { var k = subjectKey(s); return LANG === 'ur' && SUBJECT_UR[k] ? SUBJECT_UR[k] : k; }
   // The mascot, as on the quiz page (wq.js jugImg/jug): a still pose and the speech bubble.
   var JUG_DIR = '/wq/jugnu/';
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function jug(pose, line) {
-    return '<div class="wq-jug"><span class="wq-jimg" data-jpose="' + pose + '"><img src="' + JUG_DIR + pose + '.webp" alt="" width="92" height="92"></span><div class="wq-say">' + esc(line) + '</div></div>';
+    return '<div class="wq-jug"><span class="wq-jimg" data-jpose="' + pose + '"><img src="' + jv(JUG_DIR + pose + '.webp') + '" alt="" width="92" height="92"></span><div class="wq-say">' + esc(line) + '</div></div>';
   }
   // Urdu: a run of Latin words (an English video title) keeps its own face and direction (wq.js latinRuns).
   var LAT_RUN = /[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*(?:[  ]+[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*)*/g;
@@ -123,7 +129,36 @@
       '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(BR.sub[LANG]) + '</small></span></span>';
   }
   function bar() { return '<div class="wq-bar">' + lockup() + '<span class="wq-grow"></span></div>'; }
+  // web_quiz_wait_home (the boot's `wait_home`, with the designed wait): Home as the child last saw it is kept for this
+  // hub in this tab, so the next open draws it at once from the early page (dashboard web-quiz-wait-ux.js homeTag),
+  // inert, until this page draws the real one over it. Never a door, a story, a locked or a practice hub. The one look
+  // class kept with it is the one-button look (`wq-1b`): the early page names what it added (`data-wqc`), and the real
+  // draw takes that off again unless this answer still says `one_button`, so a look switched off since does not linger.
+  var HOME_KEPT = 'wq_home:' + TOKEN;
+  function uncache() {
+    try {
+      var cl = document.documentElement.classList;
+      if (!cl.contains('wq-cached')) return;
+      cl.remove('wq-cached');
+      var de = document.documentElement;
+      String(de.getAttribute('data-wqc') || '').split(' ').forEach(function (x) { if (x === 'wq-1b' && !(B && B.one_button === true)) cl.remove(x); });
+      de.removeAttribute('data-wqc');
+      ROOT.removeAttribute('inert');
+      ROOT.removeAttribute('aria-busy');
+    } catch (e) { /* no class list: nothing was drawn early */ }
+  }
+  function keepHome() {
+    if (B.wait_home !== true || !B.home_v3 || !B.kid || B.practice || B.locked) return;
+    var de = document.documentElement;
+    if (String(location.hash || '').replace(/^#/, '') || de.classList.contains('wq-cached')) return;
+    var h = ROOT.innerHTML;
+    if (!h || h.length > 200000 || /class="wq-boot/.test(h)) return;
+    var look = de.classList.contains('wq-1b') ? ['wq-1b'] : [];
+    try { sessionStorage.setItem(HOME_KEPT, JSON.stringify({ t: Date.now(), l: LANG, k: B.kid, one: (B.kids || []).length === 1, c: look, h: h })); } catch (e) {}
+  }
+  window.addEventListener('pagehide', keepHome);
   function render(html, moment) {
+    uncache();
     ROOT.innerHTML = '<section class="wq-screen wq-hub" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
@@ -182,6 +217,12 @@
     if (kid) body.kid = kid;
     body.device_ref = deviceRef();
     if (URL_LANG) body.lang = URL_LANG;
+    // keep=1 is asked once: the address loses it (lang stays), so Back or a bookmark never re-keeps an old choice
+    if (URL_KEEP) {
+      body.keep = 1;
+      URL_KEEP = false;
+      try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + (kid ? '?kid=' + encodeURIComponent(kid) : ''))); } catch (e) {}
+    }
     return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
   }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.
@@ -223,7 +264,7 @@
     });
   }
   function pick(chip) {
-    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'thinking.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
+    render(bar() + '<div class="wq-boot"><img src="' + jv(JUG_DIR + 'thinking.webp') + '" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
     hubFor(chip).then(function (r) {
       // An expired or forged link: the server's closed page says what to do (never "No internet").
       if (r.status === 401) { location.reload(); return; }
@@ -231,6 +272,7 @@
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
+      look(B);
       setLang(B.lang || LANG);
       try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)) + doorHash()); } catch (e) {}
       hub();
@@ -253,12 +295,13 @@
   }
   // The server render has no device: ask again as this phone, then show what the bot allows.
   function unlock() {
-    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'hello.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
+    render(bar() + '<div class="wq-boot"><img src="' + jv(JUG_DIR + 'hello.webp') + '" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
     hubFor(null).then(function (r) {
       if (r.status === 401) { location.reload(); return; }
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
       if (r.body.locked) { locked(); return; }
       B = r.body; B.token = TOKEN; B.brand = BR;
+      look(B);
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);
@@ -423,7 +466,14 @@
   function hub() {
     batchIds(B.kid);
     storyIn();
-    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) { if (window.WQHOME) return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go }); return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]'))); }
+    if (B.home_v3 && (!homeFail || (B.home_fb && window.WQHOME))) {
+      if (window.WQHOME) {
+        uncache();
+        if (B.wait_home === true) setTimeout(keepHome, 2500);
+        return window.WQHOME.mount(ROOT, B, { token: TOKEN, lang: LANG, ev: ev, go: go });
+      }
+      return homeAsk(!(B.home_fb && document.querySelector('link[href*="/wq/wq-home.css"]')));
+    }
     if (B.home_v3 && B.home_fb) return homeFb();
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
@@ -510,6 +560,13 @@
     else if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();
     else hub();
+  }
+  // The home's pack (B.pack, web_quiz_pack): a pack file that fails to load is counted here with ev() itself, once per
+  // file, before or after this runs (its tag's error handler queues it in WQPACKERR and calls WQPACKEV); homeErr()
+  // counts only the home's own asks, and not once the home is in.
+  if (B.pack === true || window.WQPACKERR) {
+    window.WQPACKEV = function () { var q = window.WQPACKERR || []; window.WQPACKERR = []; for (var i = 0; i < q.length; i++) ev('home_load_failed', { file: q[i] }); };
+    window.WQPACKEV();
   }
   if (LOCKED_BOOT) unlock(); else if (!(window.WQLISTEN && WQLISTEN.take(boot, render, bar))) boot();
 })();

@@ -70,10 +70,12 @@ async function on(now = Date.now()) {
 const ms = (t) => { const n = Date.parse(t); return Number.isFinite(n) ? n : null; };
 
 /** The child's page for a code minted in the last day; else null. */
-async function pageFor(row, now) {
+async function pageFor(row, now, lang = null) {
   const minted = row && ms(row.minted_at);
   if (!row || !row.canonical_id || minted === null || new Date(now).getTime() - minted > LINK_WINDOW_MS) return null;
-  return require('./web-quiz-hub-flags').hubLink([String(row.canonical_id)], 'bind');
+  // web_quiz_return_lang: the child's own language (class quiz → the one they joined in), else the reply's (off: today's link)
+  const own = await require('./web-quiz-child-lang').childLang(String(row.canonical_id));
+  return require('./web-quiz-hub-flags').hubLink([String(row.canonical_id)], { caller: 'bind', lang: own || lang });
 }
 
 async function send(phone, key, language, url) {
@@ -105,7 +107,7 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
     const recipient = trigger === 'teacher_refusal' ? 'teacher' : 'family';
     // ownReply: the bot answering the family's own message (a separate pool only once the one-door ledger lands; until
     // then ignored, and the shared per-phone cap applies exactly as today)
-    if (await Ledger.record({ trigger, recipient, phone, reason, ownReply: true, now })) await send(phone, key, lang, await pageFor(r, now));
+    if (await Ledger.record({ trigger, recipient, phone, reason, ownReply: true, now })) await send(phone, key, lang, await pageFor(r, now, lang));
     return true;
   } catch (err) {
     logToFile('⚠️ keep my place way back: reply threw', { error: err.message });
@@ -113,7 +115,9 @@ async function reply({ phone, reason, code = null, row, user = null, asked = nul
   }
 }
 
-async function cardState({ canonicalId, device, now = new Date() } = {}) {
+// bound (web_quiz_hub_waves2): a promise of this child's active bindings already being read by the hub (the same read);
+// null rows from it (its own switch off, or a failed read) → read here, as without it
+async function cardState({ canonicalId, device, now = new Date(), bound = null } = {}) {
   try {
     const dev = require('./web-quiz-token').cleanDeviceRef(device);
     if (!canonicalId || !dev || !(await on())) return null;
@@ -126,7 +130,8 @@ async function cardState({ canonicalId, device, now = new Date() } = {}) {
     if (!row.used_at) return ms(row.expires_at) > t ? { state: 'pending' } : { state: 'none' };
     if (row.outcome === 'bound') {
       const Bindings = require('./child-phone-bindings.repo');
-      const active = (await Bindings.activeForChild(String(canonicalId), now)) || [];
+      const early = bound ? await bound : null;
+      const active = early || (await Bindings.activeForChild(String(canonicalId), now)) || [];
       return active.some((b) => String(b.code_id || '') === row.code) ? { state: 'bound' } : { state: 'none' };
     }
     if (PAGE_REFUSALS.has(row.outcome)) {

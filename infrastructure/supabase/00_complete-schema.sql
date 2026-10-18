@@ -7384,6 +7384,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
   code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
   device_hash    text,                              -- hex(sha256(device_ref))[:32] of the browser a child joined on; NULL once revoked (child_phone_bindings_device.sql)
+  remember_shown_at timestamptz,                     -- when the first home drew "Jugnu will remember you on this phone"; set once (child_phone_bindings_remember_shown.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
@@ -7434,6 +7435,15 @@ ALTER TABLE child_identity       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE child_phone_bindings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
+
+-- The language a child's links open in, one row per child (mirror of bot/database/migrations/child_language.sql)
+CREATE TABLE IF NOT EXISTS child_language (
+  canonical_id   uuid        PRIMARY KEY,           -- the child (as child_identity.canonical_id)
+  language       text        NOT NULL CHECK (language IN ('en','ur')),
+  source         text        NOT NULL CHECK (source IN ('join','chosen')),   -- 'join': the join link's; 'chosen': a grown-up's tap
+  set_at         timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE child_language ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Web quiz standing class link (mirror of bot/database/migrations/web_quiz_class_link.sql)

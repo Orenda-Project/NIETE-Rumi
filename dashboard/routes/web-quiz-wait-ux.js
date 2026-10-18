@@ -18,9 +18,20 @@
  * out rides the first. The home and the Stories door both ask for the shelf, so one request goes out and the later
  * caller gets its own copy of the same answer (Response.clone). Nothing is kept once the answer is in; a failure fails
  * every caller. Fanout off: the piece alone, exactly as above.
+ *
+ * With web_quiz_wait_home on as well (the answer's `wait_home`), the streamed hub page's early frame carries one more
+ * small inline script (homeTag): Home as the child last saw it in this tab (hub.js keeps it in sessionStorage for this
+ * hub) is drawn at once when it is under 10 minutes old, in the page's language, for the same child (the link's ?kid=,
+ * or a hub with one child). It is inert (taps wait) and the bar keeps running until the hub answer lands; hub.js then
+ * draws the real Home over it (a new stamp shows from that answer). Of the kept look classes only the one-button look
+ * (`wq-1b`, set by a script, not by the head) is put back, and only when the page lacks it; what it added is named in
+ * `data-wqc`, so the real draw takes it off when the live answer no longer says `one_button` (a rollback takes). The
+ * head already guesses every other look class. Nothing kept, or off: the frame as above.
  */
 
-const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s}'
+// The bar runs over a lighter track of its own colour (a plain 8-digit hex first, for a WebView without color-mix).
+const CSS = '.wq-wbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .25s;'
+  + 'background:#47ba7d38;background:color-mix(in srgb,var(--brand,#47BA7D) 22%,#0000)}'
   + '.wq-wbar.on{opacity:1}.wq-wbar i{display:block;height:100%;width:0;background:var(--brand,#47BA7D);border-radius:0 4px 4px 0;'
   + 'box-shadow:0 0 8px var(--brand,#47BA7D);transition:width .4s ease-out}'
   + '[dir=rtl] .wq-wbar i{margin-left:auto;border-radius:4px 0 0 4px}'
@@ -52,7 +63,17 @@ const JS = '(function(d,w){try{'
   + 'n++;start();r.then(z,z);return r};'
   + '}catch(e){}})(document,window)';
 
+const MARK = '<style id="wq-wait">'; // the start of either piece
 const TAG = `<style id="wq-wait">${CSS}</style><script>${JS}</script>`;
+// web_quiz_wait_hops on as well (the answer's `wait_hops`): the same piece, which also counts the page leaving
+// (beforeunload: a tap on «My class», «My school», a game, a quiz) as a wait, so the bar shows while the next page is on
+// its way; a page brought back from the back/forward cache (pageshow, persisted) ends it, and a leave that never happens
+// (a download, a cancelled tap) lets it go at 15 s. Nothing else in the piece changes.
+const HOPS_LINES = 'w.addEventListener("beforeunload",function(){lv=1;start();setTimeout(function(){lv=0;end()},15000)});'
+  + 'w.addEventListener("pageshow",function(e){if(e&&e.persisted){lv=0;end()}});';
+const JS_HOPS = [['var bar=b.firstChild,', 'var lv=0;var bar=b.firstChild,'], ['function busy(){return n>0||!!boot()}', 'function busy(){return n>0||lv||!!boot()}'], ['start();jm();', `start();jm();${HOPS_LINES}`]]
+  .reduce((js, [a, b]) => { if (js.split(a).length !== 2) throw new Error(`wait piece: ${a} not found once`); return js.replace(a, b); }, JS);
+const TAG_HOPS = `<style id="wq-wait">${CSS}</style><script>${JS_HOPS}</script>`;
 
 // The read share (web_quiz_hub_fanout): wraps the fetch the piece above set up, so the first caller's wait still shows
 // the bar and the later callers wait on that same request. Never throws.
@@ -66,10 +87,28 @@ const SHARE = `<script>${SHARE_JS}</script>`;
 
 const on = (payload) => Boolean(payload && payload.wait_ux === true);
 const share = (payload) => on(payload) && payload.wait_share === true;
+const home = (payload) => on(payload) && payload.wait_home === true;
+const HOME_MAX_MS = 10 * 60 * 1000;
+const js = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+// The kept Home for this hub's early frame (after <main id="wq">): drawn inert with a hidden opening frame inside, so the
+// bar above still counts the page as waiting. Never throws; nothing kept or a mismatch leaves the frame as it is.
+function homeTag(token, lang, assetV) {
+  return `<script>(function(d,w){try{var s=w.sessionStorage.getItem(${js(`wq_home:${token}`)});if(!s)return;var c=JSON.parse(s);`
+    + `if(!c||typeof c.h!="string"||!c.h||!(Date.now()-c.t<${HOME_MAX_MS})||c.l!==${js(lang === 'ur' ? 'ur' : 'en')})return;`
+    + 'var u=/[?&]kid=([0-9a-f]{16})(&|$)/.exec(String(w.location.search||""));if(u?u[1]!==c.k:c.one!==true)return;'
+    + 'var m=d.getElementById("wq");if(!m)return;'
+    + `var l=d.createElement("link");l.rel="stylesheet";l.href=${js(`/wq/wq-home.css?v=${assetV}`)};d.head.appendChild(l);`
+    + 'var y=d.createElement("style");y.textContent="html.wq-cached #wq{pointer-events:none}";d.head.appendChild(y);'
+    + 'var e=d.documentElement,a=[];(c.c||[]).forEach(function(x){if(x==="wq-1b"&&!e.classList.contains(x)){e.classList.add(x);a.push(x)}});'
+    + 'e.setAttribute("data-wqc",a.join(" "));e.classList.add("wq-cached");'
+    + 'm.innerHTML=c.h+\'<div class="wq-boot" hidden></div>\';m.setAttribute("inert","");m.setAttribute("aria-busy","true")'
+    + '}catch(x){}})(document,window)</script>';
+}
+const hops = (payload) => on(payload) && payload.wait_hops === true;
 
-/** The piece for the hub page's frame: the inline style and script while on (the read share after it with fanout), nothing while off. */
+/** The piece for the hub page's frame: the inline style and script while on (the page-leave lines in it with hops, the read share after it with fanout), nothing while off. */
 function tag(payload) {
-  return on(payload) ? TAG + (share(payload) ? SHARE : '') : '';
+  return on(payload) ? (hops(payload) ? TAG_HOPS : TAG) + (share(payload) ? SHARE : '') : '';
 }
 
-module.exports = { on, share, tag, TAG, SHARE, SHARE_JS, CSS, JS };
+module.exports = { on, share, hops, home, homeTag, tag, MARK, TAG, TAG_HOPS, SHARE, SHARE_JS, CSS, JS, JS_HOPS, HOME_MAX_MS };

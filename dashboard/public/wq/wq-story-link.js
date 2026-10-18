@@ -36,7 +36,9 @@
       var ok = /^\/h\/[A-Za-z0-9._-]+$/.test(href);
       c.ev('story_door', { ok: ok });
       c.flushEv(true);
-      if (ok) { c.go(c.withLang(href + '?from=link') + '#story/' + story.id); return; }
+      // The child's hub chip (the fast first page): the hub starts the book from it before the server has answered.
+      var kid = r.body.kid && /^[0-9a-f]{16}$/.test(r.body.kid) ? '&kid=' + r.body.kid : '';
+      if (ok) { c.go(c.withLang(href + '?from=link' + kid) + '#story/' + story.id); return; }
       going = false;
       c.toast(c.T.oops);
       c.landing();

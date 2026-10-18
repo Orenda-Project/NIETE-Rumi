@@ -64,6 +64,9 @@
   function withLang(h, l) { return typeof window !== 'undefined' && window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l) : h; }
   function withHome(B, h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function chHref(B, ctx) { return withHome(B, withLang('/c/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || ''), langOf(ctx))); }
+  // web_quiz_page_lang (the hub's `page_lang: true`): a link to a quiz page names the child's language, so the page's own
+  // words follow the child (the edge's ui_lang); off, the link as it was
+  function qLang(B, ctx, h) { return B && B.page_lang === true ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + langOf(ctx) : h; }
   function quizHref(code, k, again) { return '/q/' + encodeURIComponent(code) + '?' + (again ? 'again=1&' : '') + 'k=' + encodeURIComponent(k || ''); }
   // A Story Time passage opens in the room by its id; a LISTEN passage must say so (wq-trail.js storyRoom: ex=listen).
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
@@ -308,6 +311,7 @@
   }
   // Asked by the home when this file loads: the Games and Stories rows, so a door tap paints its whole list at once.
   function warm(B, ctx) {
+    if (B && B.wait_pre === true && !B.practice) warmVideos(B, ctx);
     if (!B || !B.list_states || B.practice) return;
     ['games', 'stories'].forEach(function (n) { if (!cache[n]) ask(B, ctx, n, function () {}); });
   }
@@ -461,12 +465,46 @@
     if (name === 'videos') return videos(root, B, ctx, view.subject);
     if (/^watch\//.test(name)) return start(root, B, ctx, { vid: name.slice(6) });
   }
+  // web_quiz_doors_prefetch (the boot's `wait_pre`): the Videos door's subjects, asked once the home has painted, then
+  // with the shelves each subject's shelf one at a time (each when the phone is idle after the last has answered), so a
+  // Videos tap paints from rows already here and a home open never asks every shelf at once. Never on Data Saver or 2G,
+  // the subjects only on 3G; a read that failed is not kept. A tap joins a read on its way (libGet: one read per list).
+  var libAsking = {};
+  function libGet(url, done) {
+    if (libAsking[url]) return libAsking[url].push(done);
+    libAsking[url] = [done];
+    getJson(url, function (err, j) { var all = libAsking[url] || []; libAsking[url] = null; all.forEach(function (fn) { fn(err, j); }); });
+  }
+  function libRead(B) { return B && B.wait_pre === true ? libGet : getJson; }
+  function idle(fn) {
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout: 2000 });
+    if (typeof setTimeout === 'function') return setTimeout(fn, 200);
+    fn();
+  }
+  function warmVideos(B, ctx) {
+    var c = (typeof navigator !== 'undefined' && navigator && navigator.connection) || {};
+    var net = String(c.effectiveType || '');
+    if (c.saveData || /(^|-)2g$/.test(net)) return;
+    if (lib.subjects && !lib.subjects.err) return;
+    libGet(libUrl(B, ctx), function (err, j) {
+      if (err || !j || j.err) return;
+      lib.subjects = j;
+      if (!shelfOn(B) || net === '3g') return;
+      var keys = (j.subjects || []).map(function (s) { return s.key; });
+      (function next() {
+        var k = keys.shift();
+        while (k !== undefined && lib.chapters[k]) k = keys.shift();
+        if (k === undefined) return;
+        idle(function () { if (lib.chapters[k]) return next(); libGet(libUrl(B, ctx, k), function (e, x) { if (!e && x && !x.err && !lib.chapters[k]) lib.chapters[k] = x; next(); }); });
+      })();
+    });
+  }
   function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (s ? '&s=' + encodeURIComponent(s) : ''); }
   function videos(root, B, ctx, subject) {
     view.subject = subject || null;
     if (!subject) {
       draw(root, B, ctx, 'videos', { lib: lib.subjects });
-      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); getJson(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
+      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); libRead(B)(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
       else { shelves(root, B, ctx); subjState(root, B); }
       return;
     }
@@ -474,7 +512,7 @@
     var see = function (st, l) { if (shelfOn(B)) vtrip(root, 'videos/' + subject, st, st === 'done' && !lessonsOf(l).length); };
     if (lib.chapters[subject]) return see('done', lib.chapters[subject]);
     see('pending');
-    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
+    libRead(B)(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
   }
   // The walkers' list-state tripwires on the door root (web_quiz_video_shelf; the four attributes every child list
   // writes): data-fetch pending|done|failed, when its placeholders came and went (a Try again starts a new spell), and
@@ -527,7 +565,7 @@
     };
     if (lib.chapters[key]) return fill(lib.chapters[key]);
     state(at(), 'pending');
-    getJson(libUrl(B, ctx, key), function (err, j) {
+    libRead(B)(libUrl(B, ctx, key), function (err, j) {
       if (err || !j) { var sh = at(); if (sh) { put(sh, oopsHtml(ctx, key, si)); state(sh, 'failed'); } return; }
       lib.chapters[key] = j; fill(j);
     });
@@ -556,11 +594,11 @@
   function quizGo(root, B, ctx, vid) {
     if (going) return;
     var v = findLesson(vid) || {};
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos&to=q', 'door_quiz'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos&to=q'), 'door_quiz'); }
     going = true;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: vid, after: 1 }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + '?' + (j.k ? 'k=' + encodeURIComponent(j.k) + '&' : '') + 'to=q', 'door_quiz');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + '?' + (j.k ? 'k=' + encodeURIComponent(j.k) + '&' : '') + 'to=q'), 'door_quiz');
       videos(root, B, ctx, view.subject);
     });
   }
@@ -603,14 +641,14 @@
   function start(root, B, ctx, v) {
     if (going) return;
     // A class child's lesson page is told it was opened from this door (via=videos): with web_quiz_videos_v3 on it puts the play first.
-    if (v.code && v.k) { going = true; return go(ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos', 'door_video'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos'), 'door_video'); }
     going = true;
     var t = C(ctx);
     if (view.name !== 'watch/' + v.vid) draw(root, B, ctx, 'watch/' + v.vid, null);
     view.name = 'watch/' + v.vid;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: v.vid }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos', 'door_video');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos'), 'door_video');
       if (!err && j && j.watch) {
         var after = nextInList(v.vid);
         var next = rankedNext(j.watch.next, ctx) || (j.watch.after ? { kind: 'quiz', title: t.quizAfter, sub: j.watch.title, href: '#', quiz: true }
@@ -685,7 +723,7 @@
     var nx = view.next || {};
     if (nx.quiz && view.watch) {
       return postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: view.watch.vid, after: 1 }, function (err, j) {
-        if (!err && j && j.code) return go(ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : ''), 'after_video');
+        if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')), 'after_video');
         videos(root, B, ctx, view.subject);
       });
     }
