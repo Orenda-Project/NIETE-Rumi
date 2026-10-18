@@ -31,6 +31,10 @@ const RUNGS_KEY = 'web_quiz_challenge_rungs';
 const READALONG_KEY = 'web_quiz_readalong';
 // The designed wait (web-quiz-wait-ux.js) rides this one read: only the stored JSON boolean true is on.
 const WAIT_UX_KEY = 'web_quiz_wait_ux';
+// The one share (web-quiz-card-switch.js: the card on AND the share on, each only as JSON true) rides this read too, so
+// a home link (the join's, a hub reply's) learns whether to look for a shared card's kept item with no read of its own.
+const CARD_KEY = 'web_quiz_card_v3';
+const SHARE_KEY = 'web_quiz_share_v4';
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, waitUx }
 
@@ -40,13 +44,14 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, WAIT_UX_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, WAIT_UX_KEY, CARD_KEY, SHARE_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
   return { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
     homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
-    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), waitUx: by[WAIT_UX_KEY] === true };
+    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), waitUx: by[WAIT_UX_KEY] === true,
+    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true };
 }
 
 /**
@@ -108,6 +113,14 @@ function waitUxNow(now = Date.now()) {
   return Boolean(cache && cache.waitUx && now - cache.at < TTL_MS);
 }
 
+/**
+ * The one share on, never read on its own: only the cache this module's read (or the join's) keeps warm, as waitUxNow.
+ * A home link is made right after hubLink() read it, so off (or a failed read) asks nothing more. Never throws.
+ */
+function shareOpenNow(now = Date.now()) {
+  return Boolean(cache && cache.shareOpen && now - cache.at < TTL_MS);
+}
+
 /** The quiz page's `nav` ({home, back}) when either switch is on, else null (the payload stays today's). Never throws. */
 async function pageNav() {
   try {
@@ -141,4 +154,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, waitUxNow, rungsOn, EVENTS_V2_KEY, WAIT_UX_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, waitUxNow, shareOpenNow, rungsOn, EVENTS_V2_KEY, WAIT_UX_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };

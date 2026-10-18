@@ -173,3 +173,20 @@ describe('the words', () => {
     expect(await Open.refMenu('quiz please jb3b9c1e2a')).toBe(false);
   });
 });
+
+describe('the phone is never a guessable key', () => {
+  const Open = () => require('../../../shared/services/quiz/web-quiz-share-open');
+  const plain = (p) => `wq:share:open:${require('crypto').createHash('sha256').update(p).digest('hex').slice(0, 32)}`;
+  const was = process.env.WQ_TOMB_SALT;
+  afterEach(() => { if (was === undefined) delete process.env.WQ_TOMB_SALT; else process.env.WQ_TOMB_SALT = was; });
+  test('with the phone salt set, the key is a keyed hash: not the plain hash of the digits, and it changes with the salt', () => {
+    process.env.WQ_TOMB_SALT = 'unit-salt-a';
+    const a = Open()._keyOf(PHONE);
+    expect(a).toMatch(/^wq:share:open:[0-9a-f]{32}$/);
+    expect(a).not.toBe(plain(PHONE));
+    process.env.WQ_TOMB_SALT = 'unit-salt-b';
+    expect(Open()._keyOf(PHONE)).not.toBe(a);
+    // the same phone written with a + and spaces is the same key
+    expect(Open()._keyOf(`+${PHONE.slice(0, 4)} ${PHONE.slice(4)}`)).toBe(Open()._keyOf(PHONE));
+  });
+});

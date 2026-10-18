@@ -70,8 +70,8 @@ const binding = (kid, extra = {}) => ({ id: `b-${kid.slice(-3)}`, canonical_id: 
   bound_at: iso(Date.now() - 86400000), expires_at: '2099-03-31T18:59:59.000Z', revoked_at: null, revoked_by: null, ...extra });
 
 let fake;
-function seed({ share = true, join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early, books = [{ id: BOOK, status: 'ready' }] } = {}) {
-  const settings = { quiz_one_door: true, web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true, web_quiz_card_v3: true, ...(share ? { web_quiz_share_v4: true } : {}) };
+function seed({ share = true, shareValue, join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early, books = [{ id: BOOK, status: 'ready' }] } = {}) {
+  const settings = { quiz_one_door: true, web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true, web_quiz_card_v3: true, ...(share ? { web_quiz_share_v4: shareValue === undefined ? true : shareValue } : {}) };
   if (join) settings.quiz_student_join = joinValue;
   if (early !== undefined) settings.quiz_join_early_tap = early;
   fake = makeFake({
@@ -118,6 +118,34 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks(); });
 afterAll(() => { process.env = SAVED; });
 
+
+// the kept-item lookups (one per home link that looks): with the switch off there must be none at all
+const openLookups = () => redis.get.mock.calls.filter(([k]) => /^wq:share:open:/.test(String(k))).length;
+describe('switch off: a join and a hub reply ask nothing more than today', () => {
+  for (const [name, opts] of [['absent', { share: false }], ['false', { shareValue: false }], ['the string "true"', { shareValue: 'true' }], ['1', { shareValue: 1 }]]) {
+    test(`share_v4 ${name}: the join answers with no kept-item lookup`, async () => {
+      seed(opts);
+      const { t } = await landing();
+      redis.get.mockClear();
+      const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+      expect(out.next).toMatch(/^\/h\//);
+      expect(out.next).not.toContain('#');
+      expect(openLookups()).toBe(0);
+    });
+    test(`share_v4 ${name}: a known child's hub reply makes no kept-item lookup`, async () => {
+      seed(opts);
+      const { t } = await landing();
+      await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+      WhatsApp.sendCtaUrl.mockClear();
+      redis.get.mockClear();
+      const user = { ...UNKNOWN_USER, persona: 'student' };
+      await Ingress.classify({ user, phone: PHONE });
+      expect(await Ingress.route({ messageType: 'text', messageBody: 'quiz please', from: PHONE, user })).toBe(true);
+      expect(WhatsApp.sendCtaUrl.mock.calls.map(([, o]) => o.url)[0]).toMatch(/\/h\/[^#]+$/);
+      expect(openLookups()).toBe(0);
+    });
+  }
+});
 
 describe('a friend taps a shared storybook card, joins, and lands ON the book', () => {
   test('the words with the ref → the join\'s home link ends #story/<book>; the next home link is plain', async () => {

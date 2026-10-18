@@ -13,8 +13,10 @@
  *   hashFor(phone)              '#story/<id>' | '#watch/<vid>' | '#games' for the kept item (taken), else ''
  *   withOpen(phone, url)        a home link (/h/… or https://…/h/…) with the kept item's hash; the url unchanged else
  *
- * The phone is never a key in the clear (a hash of its digits). Switch off: nothing is kept, and no setting is read
- * (a home link asks Redis for a kept item that is never there). A message without a ref reads nothing. Never throws.
+ * The phone is never a key in the clear (a keyed hash of its digits, with the family-phone salt where it is set).
+ * Switch off: nothing is kept and nothing is looked for: the join and the hub reply call withOpen() only when the switch
+ * read they already make says on (HubFlags.shareOpenNow, the join's flags). A message without a ref reads nothing.
+ * Never throws.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -27,7 +29,12 @@ const HOME_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/h\/[A-Za-z0-9._~-]+(\?[^#\
 
 const redis = () => require('../cache/railway-redis.service');
 const digits = (p) => String(p == null ? '' : p).replace(/\D/g, '');
-const keyOf = (phone) => `wq:share:open:${crypto.createHash('sha256').update(digits(phone)).digest('hex').slice(0, 32)}`;
+// keyed by the family-phone salt (WQ_TOMB_SALT) where it is set, so a key read from Redis names no phone
+const keyOf = (phone) => {
+  const salt = process.env.WQ_TOMB_SALT;
+  const h = salt ? crypto.createHmac('sha256', salt) : crypto.createHash('sha256');
+  return `wq:share:open:${h.update(digits(phone)).digest('hex').slice(0, 32)}`;
+};
 
 function refOf(text) {
   const toks = String(text == null ? '' : text).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);

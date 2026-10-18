@@ -61,8 +61,9 @@ const FAST_KEY = 'quiz_join_fast';
 // join's own switch read (no read of its own); JSON true only, and only with the join switch on.
 const WAIT_WORD_KEY = 'quiz_join_wait_word';
 // The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
-// The one share (web_quiz_card_v3 + web_quiz_share_v4, both JSON true) rides the same read: off, a join asks nothing more.
-const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, CardSwitch.KEY, CardSwitch.SHARE_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
+// The one share (web_quiz_card_v3 + web_quiz_share_v4, both JSON true) rides the same read through HubFlags.KEYS: off,
+// a join asks nothing more.
+const flagKeys = () => [SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || [])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
