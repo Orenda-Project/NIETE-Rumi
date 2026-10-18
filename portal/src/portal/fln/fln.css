@@ -87,6 +87,7 @@
   border: 1.5px solid var(--fln-line); border-radius: 999px; padding: 0 14px; min-height: 48px; min-width: 48px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-weight: 700; font-size: 15px;
   background: #fff; color: var(--fln-ink); white-space: nowrap; text-decoration: none; cursor: pointer; box-sizing: border-box;
+  flex-shrink: 0; /* in the band's nowrap row a chip keeps its label width and the row scrolls (R5 CHIPS-390) */
 }
 .fln-root .fln-chip.on,
 .fln-band .fln-chip.on { background: var(--fln-navy); color: #fff; border-color: var(--fln-navy); }
