@@ -113,7 +113,8 @@ describe('readWeek — every read is bounded to the teacher and the week', () =>
     const [dl] = mockDb.callsTo('niete_lp_downloads');
     expect(has(dl.ops, 'eq', 'status', 'sent')).toBe(true);
     const [op] = mockDb.callsTo('niete_lp_opens');
-    expect(has(op.ops, 'eq', 'plan_kind', 'k5')).toBe(true);
+    // bd-t7zk3t.12 — a Reading Hour / Numeracy plan opened in the app is a lesson plan used that week (SPEC_v2 §6 row 11).
+    expect(has(op.ops, 'in', 'plan_kind', ['k5', 'fln'])).toBe(true);
     expect(has(op.ops, 'gte', 'opened_at', WEEK.fromIso)).toBe(true);
     const sessionCalls = mockDb.callsTo('coaching_sessions');
     expect(sessionCalls).toHaveLength(1); // no prior-session read: no thing to try

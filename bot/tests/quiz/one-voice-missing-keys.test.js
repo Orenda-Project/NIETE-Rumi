@@ -111,6 +111,22 @@ test('nothing uploaded yet: every clip is missing, listed by passage and part (n
   expect(r2.uploadBuffer).not.toHaveBeenCalled();
 });
 
+test('Jugnu\'s exercise lines (intro, start, stop, done of every exercise, EN + UR) are checked too, and the batch records them', async () => {
+  const { lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
+  ['en', 'ur'].forEach((lang) => ['bigger', 'missing', 'read', 'listen'].forEach((ex) => ['intro', 'start', 'stop', 'done'].forEach((part) => {
+    expect(lines).toContain(`missing\texercise\t${lang}\t${ex}/${part}`);
+  })));
+  Ch.__reset(); OneVoice.reset(); jest.clearAllMocks();
+  r2.headObject.mockResolvedValue({ exists: false });
+  tts.synthesize.mockImplementation(async ({ text }) => ({ audio: Buffer.from('OggS'), provider: 'elevenlabs', voice: 'v', durationSec: Math.max(0.6, [...String(text)].length / 14) }));
+  const out = [];
+  await MK.main(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { env: ENV, print: (l) => out.push(l), now: NOW, stt: async (_a, _l, t) => t });
+  const keys = r2.uploadBuffer.mock.calls.map(([, k]) => k);
+  expect(keys.some((k) => /\/challenge\/en\/listen\/intro-el-bella-cff2e4-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  expect(keys.some((k) => /\/challenge\/ur\/read\/done-el-sara-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  expect(out).toContain('recorded\texercise\tur\tbigger/intro');
+});
+
 test('every key present and both shared-line sets exist: ok, 0 missing', async () => {
   r2.headObject.mockResolvedValue({ exists: true });
   const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
@@ -234,6 +250,19 @@ describe('--record-short', () => {
     await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { stt: async (_a, _l, t) => t, level });
     expect(level).not.toHaveBeenCalled();
     expect(r2.uploadBuffer.mock.calls.every(([buf]) => buf.toString() === 'OggS')).toBe(true);
+  });
+
+  test('the default hearing (Soniox, diarised) is judged on the words heard, not on its speaker label', async () => {
+    // The provider's transcript of a clean take reads "[00:00] Teacher (EN): <the words>"; the label is not a word.
+    const AudioService = require('../../shared/services/audio.service');
+    tts.synthesize.mockImplementation(async ({ text }) => ({ ...ok(text), audio: Buffer.from(`OggS${text}`) }));
+    AudioService.transcribe.mockImplementation(async (file, _diarize, lang) => ({
+      text: `[00:00] Teacher (${String(lang).toUpperCase()}): ${fs.readFileSync(file).toString().slice(4)}`, tokens: [] }));
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5']);
+    expect(AudioService.transcribe).toHaveBeenCalled();                  // the questions of 4+ words were heard
+    expect(lines.filter((l) => l.startsWith('gate_failed\t'))).toEqual([]);
+    expect(r.gateFailed).toBe(0);
+    expect(r.recorded).toBeGreaterThan(0);
   });
 
   test('a question heard wrong is recorded once more, then deleted and listed (never kept, never dropped)', async () => {

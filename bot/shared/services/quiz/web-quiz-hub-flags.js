@@ -72,12 +72,17 @@ const PLAIN_PAINT_KEY = 'web_quiz_plain_paint';
 // The closed and not-open pages in the child's language (web-quiz-closed-lang.js) ride this read on the hub, so a
 // child's home adds no settings read for it.
 const CLOSED_LANG_KEY = 'web_quiz_closed_lang';
+// A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
+const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
 const WAVES2_KEY = 'web_quiz_hub_waves2';
 // The live reading meter (web-quiz-live-read-v3.js meter/forHub): its variant and its parent (live reading v3) ride this
 // one read, so the hub learns the meter with no settings read of its own. 'sky' | 'vine' (a JSON true is 'sky'), else null.
 const LIVE_METER_KEY = 'web_quiz_live_meter';
 const LIVE_READ_V3_KEY = 'web_quiz_live_read_v3';
+// The first answer after idle keeps the look (web-quiz-one-button.js, web-quiz-adventure-look.js, web-quiz-fast.js late()):
+// the route's carries look at their switch again once the answer lands, when this read is fresh. JSON true only.
+const LOOK_AFTER_KEY = 'web_quiz_look_after';
 // the page asks the Videos door's lists once the home has painted (the boot's `wait_pre`, with web_quiz_wait_ux only)
 const PREFETCH_KEY = 'web_quiz_doors_prefetch';
 // the early page draws Home as the child last saw it in this tab (the boot's `wait_home`, with web_quiz_wait_ux only)
@@ -132,6 +137,7 @@ const SWITCHES = Object.freeze([
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
+  ['gradeChange',  GRADE_CHANGE_KEY,      'json'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
   ['homePreload',  HOME_PRELOAD_KEY,      'json'],
   ['hub',          HUB_KEY,               'loose'],
@@ -144,6 +150,7 @@ const SWITCHES = Object.freeze([
   ['library',      LIBRARY_KEY,           'loose'],
   ['liveMeter',    LIVE_METER_KEY,        'meter'],
   ['liveReadV3',   LIVE_READ_V3_KEY,      'loose'],
+  ['lookAfter',    LOOK_AFTER_KEY,        'json'],
   ['minify',       MINIFY_KEY,            'json'],
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
@@ -464,6 +471,7 @@ module.exports = {
   ROSTER_WARM_KEY,
   fanoutNow,
   flags,
+  GRADE_CHANGE_KEY,
   HOME_BUTTON_KEY,
   HOME_KEY,
   HOME_PRELOAD_KEY,
@@ -476,6 +484,7 @@ module.exports = {
   LIBRARY_KEY,
   LIVE_METER_KEY,
   LIVE_READ_V3_KEY,
+  LOOK_AFTER_KEY,
   MINIFY_KEY,
   minifyNow,
   nowOf,

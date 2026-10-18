@@ -285,7 +285,7 @@
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
   // the player (and lr3's live reader) come with the book
-  var got = {}, RA_V = '49978aeb6a';   // the player's content hash (a test pins it)
+  var got = {}, RA_V = '12562cd227';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
@@ -400,7 +400,7 @@
         '<button class="wqs-main" data-main data-primary data-tap="main"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[m.label()]) + '</button>' +
         (p.audio ? '<button class="wqs-slow" data-tap="slow" aria-pressed="' + slow() + '">' + IC.slow + ' ' + esc(t.slow) + '</button>' : '') +
         '<button class="wqs-arr" data-tap="next" aria-label="' + esc(t.nextP) + '">' + IC.next + '</button></div>'));
-      camTo(null);
+      rest();
       if (p.audio) {
         R.mount(p, {
           onEnd: ended,
@@ -439,12 +439,12 @@
       sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = '';
       if (ws.length && !p.is_picture) {
         d = dims();
-        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok; }) ? 'z' : tb && tb.box ? 'l' : 's';
+        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok && (!b.tx || x.bs.every(function (y) { return y[2] * 5 > y[3]; })); }) ? 'z' : tb && tb.box ? 'l' : 's';
       }
       var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
       return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage>' + (b.steady ? '<div class="wqs-ph" data-ph><p>' + esc(p.text) + '</p><i>' + esc(t.opening) + '</i></div>' : '') + '<div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
         (bx ? img(tb.url, tb.w, tb.h, 'wqs-lens', ' style="left:' + bx[0] + 'px;top:' + bx[1] + 'px;width:' + bx[2] + 'px;height:' + bx[3] + 'px"') : '') +
-        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div></div>' +
+        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div>' + (wh && b.tx ? '<div class="wqs-tx" data-tx>' + img(im.url, im.w, im.h) + '</div>' : '') + '</div>' +
         (wh ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">' + esc(t.whole) + '</button>' : '');
     }
     function own() { return sm && (sm !== 'z' || !sp.boxes_ok); }
@@ -452,11 +452,23 @@
     R.mode = function () { return sm; };
     R.lines = function () { return LN; };
     function camTo(bs, fit) {
-      var c = root.querySelector('[data-cam]'), d, k;
+      var c = root.querySelector('[data-cam]'), x = root.querySelector('[data-tx]'), d, k;
       if (!c || !sp) return;
+      if (x && bs) x.className = 'wqs-tx';
       d = dims();
       k = cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
+    }
+    // at rest the whole sheet (its art) and, when the print is small, a lens of the words at a readable size on their side
+    function rest() {
+      camTo(null);
+      var x = root.querySelector('[data-tx]'), d = dims(), y = 0, bs, k;
+      if (!x) return;
+      bs = sm === 'z' ? [].concat.apply([], LN.l.map(function (l) { return l.bs; })) : [sp.text_band.box];
+      k = cam(bs, d[0], d[1] * .4, sp.image.w, sp.image.h, rtl(), 6, 1);
+      bs.forEach(function (b) { y += (b[1] + b[3] / 2) / bs.length; });
+      x.className = 'wqs-tx' + (wu || k.s < cam(0, d[0], d[1], sp.image.w, sp.image.h).s * 1.3 ? '' : ' on') + (y > sp.image.h / 2 ? ' lo' : '');
+      if (x.firstChild) x.firstChild.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
     }
     function camLine(i) {
       li = i;
@@ -499,7 +511,7 @@
       ac();
       if (!sent[m.i]) { sent[m.i] = 1; pp('story_page_listened', { ms: acc, completed: true }, m.i); }
       acc = 0;
-      li = -1; zl = -1; camTo(null); word(-1);
+      li = -1; zl = -1; rest(); word(-1);
       m.end();
     }
 
@@ -523,7 +535,7 @@
       } else if (tap === 'again') { if (R.pl) { if (t0 < 0) ac(1); R.pl.replay(); if (/^(listened|paused)$/.test(m.st)) m.set('listening'); } }
       else if (tap === 'alt') m.altTap();
       else if (tap === 'slow') { ls('wq_st_slow:' + (ctx.kid || ''), slow() ? '0' : '1'); rate(); var sb = root.querySelector('.wqs-slow'); if (sb) sb.setAttribute('aria-pressed', String(slow())); }
-      else if (tap === 'cam') { wu = !wu; zl = -1; if (wu) camTo(null); else if (li >= 0) camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }
+      else if (tap === 'cam') { wu = !wu; zl = -1; if (wu || li < 0) rest(); else camLine(li); var wb = root.querySelector('[data-whole]'); if (wb) wb.setAttribute('aria-pressed', String(!!wu)); }
     });
     R.load = function (q) { R.q = q; load(q); };
     return R;

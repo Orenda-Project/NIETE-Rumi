@@ -8,7 +8,7 @@
     var S = W.WQSTORIES, d = document;
     if (!S || S._w) return;
     S._w = 1;
-    var RA_V = '49978aeb6a';   // the player's content hash, as wq-stories.js (a test pins both)
+    var RA_V = '12562cd227';   // the player's content hash, as wq-stories.js (a test pins both)
     var c = W.navigator && W.navigator.connection, slow = !!(c && (c.saveData || /2g/.test(String(c.effectiveType || ''))));
     var s = d.querySelector('script[src*="wq-stories.js"]'), v = s && /[?&]v=([\w-]+)/.exec(s.getAttribute('src') || ''), q = v ? '?v=' + v[1] : '';
     var done = {}, seen = {};

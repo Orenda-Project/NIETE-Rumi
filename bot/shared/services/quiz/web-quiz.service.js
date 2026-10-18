@@ -368,10 +368,10 @@ async function isWatchCode(ctx) {
   return watchMemo.get(ctx);
 }
 const watchMemo = new WeakMap();
-// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (a failed read is not cached), so a
-// blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
+// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (past the 30 s a failed read is
+// kept), so a blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
 async function watchBoard(ctx) {
-  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState()).unreadable) return true;
+  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState(Date.now(), { retryFailed: true })).unreadable) return true;
   return isWatchCode(ctx);
 }
 async function readCodeParents(ids) {
@@ -492,7 +492,7 @@ async function classLabel(ctx) {
   } catch { return null; }
 }
 
-async function getQuizTimed(code, { p } = {}, mark = () => {}) {
+async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   requireOn();
   const fast = Fast.on();
   // app_settings web_quiz_class_doors (30 s cache, fails closed), read beside the code: the edge opens the class table
@@ -500,6 +500,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const classDoors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
   mark('resolve', { shareCodeId: ctx.shareCodeId });
+  // A grown-up's chosen language for the child the link's chip names (web-quiz-quiz-lang.js, web_quiz_return_lang):
+  // started now beside the reads below, only with a chip; it never fails the quiz.
+  const childLang = k ? require('./web-quiz-quiz-lang').field(ctx, k).catch(() => ({})) : null;
   // Fast first page (web_quiz_fast): every read below that needs only the resolved code starts now, beside the
   // questions, and is awaited where today's code reads it; off, each one starts there as today.
   const pre = fast ? {
@@ -683,6 +686,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
+  // The edge opens the quiz page in it, before the link's ?lang (named only when on and chosen).
+  if (childLang) Object.assign(out, await childLang);
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
   // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
   if (require('./web-quiz-minify').on()) out.min = true;

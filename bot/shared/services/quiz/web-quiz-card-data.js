@@ -78,8 +78,8 @@ function fromCounted(run, badge) {
   return { ...q, s, ...(s === 3 ? { b: badge } : {}) };
 }
 
-// A storybook: its questions (the server's own count), its effort stars (the server's recount) and the words read on
-// its pages (each page's best, at most its words), since the child last opened it, within RECENT_MS.
+// A storybook: its questions (the server's own count) and the stars of their score (as every card with a score: a friend
+// never sees 4 of 5 beside 1 star), else its effort stars (the server's recount), and the words read on its pages (each page's best, at most its words), since the child last opened it, within RECENT_MS.
 async function fromBook(sid, bookId) {
   const since = new Date(Date.now() - RECENT_MS).toISOString();
   const { data } = await supabase.from('story_events').select('event, page_n, data, at').eq('child_id', sid).eq('book_id', bookId).gte('at', since).order('at', { ascending: true });
@@ -99,7 +99,8 @@ async function fromBook(sid, bookId) {
   const q = qd && qd.data ? score(qd.data.correct, qd.data.total) : null;
   const stars = int(((done && done.data) || (qd && qd.data) || {}).stars);
   const out = { ...(q || {}) };
-  if (stars !== null) out.s = Math.min(stars, 3);
+  if (q) out.s = starsOf(q.r, q.o);
+  else if (stars !== null) out.s = Math.min(stars, 3);
   if (words > 0) out.w = words;
   if (out.s === 3) out.b = 'star_reader';
   return Object.keys(out).length ? out : null;
@@ -205,4 +206,4 @@ function words(x, kind, lang) {
   return out;
 }
 
-module.exports = { resultOf, clean, words, BADGES, RECENT_MS, LINES };
+module.exports = { resultOf, clean, words, starsOf, BADGES, RECENT_MS, LINES };
