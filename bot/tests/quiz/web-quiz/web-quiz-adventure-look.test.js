@@ -17,6 +17,7 @@ const ONE_BUTTON = 'web_quiz_one_button';
 let rows = [];
 let fail = false;
 let settingsReads = 0;
+let ownReads = 0;
 // app_settings only: what the switch reads (the route tests' page modules are stood in).
 function seed() {
   Object.assign(require('../../../shared/config/supabase'), {
@@ -25,13 +26,18 @@ function seed() {
       const b = {
         select() { return b; },
         eq(c, v) { if (c === 'key') st.key = v; return b; },
-        in() { return b; },
+        in() { st.many = true; return b; },
         async maybeSingle() {
-          if (t === 'app_settings' && st.key === KEY) settingsReads += 1;
+          if (t === 'app_settings') settingsReads += 1;
+          if (t === 'app_settings' && st.key === KEY) ownReads += 1;
           if (fail) return { data: null, error: { message: 'down' } };
           return { data: rows.find((r) => r.key === st.key) || null, error: null };
         },
-        then(res, rej) { return Promise.resolve({ data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej); },
+        then(res, rej) {
+          if (t === 'app_settings') settingsReads += 1;
+          if (fail) return Promise.resolve({ data: null, error: { message: 'down' } }).then(res, rej);
+          return Promise.resolve({ data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null }).then(res, rej);
+        },
       };
       return b;
     },
@@ -44,11 +50,25 @@ beforeEach(() => {
   rows = [];
   fail = false;
   settingsReads = 0;
+  ownReads = 0;
   seed();
   AdvLook = require('../../../shared/services/quiz/web-quiz-adventure-look');
 });
 
 const OFF_VALUES = [['the string true', 'true'], ['a quoted string', '"true"'], ['yes', 'yes'], ['the number 1', 1], ['an object', { enabled: true }], ['false', false], ['null', null]];
+
+describe('no read of its own', () => {
+  test('with the one button system and the look on, the look rides the hub\'s one settings read: 0 reads added', async () => {
+    rows = [{ key: ONE_BUTTON, value: true }, { key: KEY, value: true }];
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    await Flags.flags();
+    const before = settingsReads;
+    for (let i = 0; i < 5; i += 1) AdvLook.on();
+    await new Promise((r) => setImmediate(r));
+    expect(AdvLook.on()).toBe(true);
+    expect(settingsReads - before).toBe(0);
+  });
+});
 
 describe('the switch', () => {
   test('JSON true: on', async () => {
@@ -68,14 +88,12 @@ describe('the switch', () => {
     expect(AdvLook.on()).toBe(false);
   });
 
-  test('a failed read: off, and off stays cached for 30 s', async () => {
+  test('a failed read: off', async () => {
     rows = [{ key: KEY, value: true }];
     fail = true;
     expect(await AdvLook.flag()).toBe(false);
     expect(AdvLook.on()).toBe(false);
-    fail = false;
-    expect(AdvLook.on()).toBe(false);
-    expect(settingsReads).toBe(1);
+    expect(ownReads).toBe(0);
   });
 
   test('never waited for: the first answer after a start is off, the next one (read in the background) on', async () => {
@@ -111,18 +129,18 @@ describe('the switch', () => {
     expect(AdvLook.on(t0 + 61 * 1000)).toBe(false);
   });
 
-  test('the hub\'s one settings read: its rows fill this cache by the same rule (true on; anything else, or no row, off)', () => {
+  test('the hub\'s one settings read: its rows set the look by the same rule (true on; anything else, or no row, off)', () => {
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
     const now = Date.now();
-    expect(AdvLook.hubSwitches.keys).toEqual([KEY]);
-    expect(AdvLook.hubSwitches.age(now)).toBe('cold');
-    AdvLook.hubSwitches.prime([{ key: 'web_quiz_fast', value: true }, { key: KEY, value: true }], now);
-    expect(AdvLook.hubSwitches.age(now)).toBe('fresh');
+    expect(Flags.KEYS).toContain(KEY);
+    Flags.prime([{ key: 'web_quiz_fast', value: true }, { key: KEY, value: true }], now);
     expect(AdvLook.on(now)).toBe(true);
-    AdvLook.hubSwitches.prime([{ key: KEY, value: 'true' }], now);
-    expect(AdvLook.on(now)).toBe(false);
-    AdvLook.hubSwitches.prime([], now);
-    expect(AdvLook.on(now)).toBe(false);
-    expect(AdvLook.hubSwitches.age(now + 31 * 1000)).toBe('stale');
+    jest.resetModules(); seed();
+    require('../../../shared/services/quiz/web-quiz-hub-flags').prime([{ key: KEY, value: 'true' }], now);
+    expect(require('../../../shared/services/quiz/web-quiz-adventure-look').on(now)).toBe(false);
+    jest.resetModules(); seed();
+    require('../../../shared/services/quiz/web-quiz-hub-flags').prime([], now);
+    expect(require('../../../shared/services/quiz/web-quiz-adventure-look').on(now)).toBe(false);
     expect(settingsReads).toBe(0);
   });
 });
@@ -193,7 +211,7 @@ describe('the routes', () => {
       await ask();
       await ask();
     });
-    expect(settingsReads).toBe(0);
+    expect(ownReads).toBe(0);
   });
 
   test.each([...OFF_VALUES, ['no row', undefined], ['a failed read', 'FAIL']])('%s: every answer byte for byte the OFF golden', async (_n, value) => {
@@ -205,14 +223,15 @@ describe('the routes', () => {
     });
   });
 
-  test('a cold switch never holds the answer: the first answers are today\'s while the read runs behind them', async () => {
+  test('a cold switch never holds the answer: the first answer is today\'s while the one read runs behind it, the next carries the look', async () => {
     rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: true }];
-    await require('../../../shared/services/quiz/web-quiz-one-button').flag();
     await serve(async (ask) => {
-      expect((await ask()).quiz).toBe(GOLDEN.quiz.replace(/}$/, ',"one_button":true}'));
+      expect((await ask()).quiz).toBe(GOLDEN.quiz);
+      await new Promise((r) => setImmediate(r));
       const later = await ask();
       expect(JSON.parse(later.hubGet).adv).toBe(true);
+      expect(JSON.parse(later.hubGet).one_button).toBe(true);
     });
-    expect(settingsReads).toBe(1);
+    expect(ownReads).toBe(0);
   });
 });

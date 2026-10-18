@@ -7,74 +7,35 @@
  * every answer and every page is today's, byte for byte. Only the stored JSON boolean true turns it on: the string
  * 'true', '"true"', 'yes', 1, {enabled:true}, no row or a failed read are all off.
  *
- * on() never waits: it answers from the cache and refreshes it in the background (web-quiz-one-face.js's shape), so
- * the switch adds no database round trip to a child's page. The first answer after a start is off; a value older than
- * twice the cache time is off too (a refresh that never comes back cannot keep the switch on).
+ * The key rides the hub switches' one app_settings read (web-quiz-hub-flags.js, as web_quiz_one_button does), so the
+ * look adds no read of its own. on() never waits: the cached answer, refreshed in the background when stale; off when
+ * cold, and off once the value is older than twice the cache time (a refresh that never comes back).
  */
-const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
+const Flags = require('./web-quiz-hub-flags');
 // The look only re-colours the one button system's buttons, so it is on only when that switch is on too.
 const OneButton = require('./web-quiz-one-button');
 
-const KEY = 'web_quiz_adventure_look';
+const KEY = Flags.ADV_KEY;
 const FIELD = 'adv';
-const TTL_MS = 30 * 1000;
-let cache = null; // { at, on }
-let reading = null;
 
-/** Only the JSON boolean the flip writes (app_settings.value is jsonb). */
-function isTrue(value) {
-  return value === true;
-}
-
-function fromRow(row, now) {
-  cache = { at: now, on: isTrue(row && row.value) };
-  return cache.on;
-}
-
-function refresh() {
-  if (!reading) {
-    reading = (async () => {
-      try {
-        const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
-        if (error) throw new Error(error.message || 'app_settings read failed');
-        fromRow(data, Date.now());
-      } catch (err) {
-        logToFile('⚠️ web quiz adventure look: settings lookup failed — off', { error: err.message });
-        cache = { at: Date.now(), on: false };
-      } finally {
-        reading = null;
-      }
-      return cache.on;
-    })();
-  }
-  return reading;
-}
-
-/** The switch, never waited for: the cached value, refreshed in the background when stale. Never throws. */
+/** The switch, never waited for. Never throws. */
 function on(now = Date.now()) {
-  if (!cache || now - cache.at >= TTL_MS) refresh().catch(() => {});
-  return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
+  try { return Flags.advNow(now); } catch (_) { return false; }
 }
 
-/** The switch, waited for (tests, and the seam's own-read check). */
+/** The switch, waited for (tests). */
 async function flag(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
-  return refresh();
+  try { return Boolean((await Flags.flags(now)).adv); } catch (_) { return false; }
 }
 
 /**
  * A page answer with the switch's field: `adv: true` only when on AND the one button system is on, nothing added
- * otherwise (with web_quiz_one_button off the look's own row is not even read). The switches are looked at when this
- * is called (before the answer is awaited), so a background refresh starts beside the page's own reads.
+ * otherwise. The switches are looked at when this is called (before the answer is awaited), so a background refresh
+ * starts beside the page's own reads.
  */
 function carry(answerP) {
   const one = OneButton.on() && on();
   return Promise.resolve(answerP).then((out) => (one && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
 }
 
-const ageOf = (now) => (!cache ? 'cold' : now - cache.at < TTL_MS ? 'fresh' : 'stale');
-const hubSwitches = { name: FIELD, keys: [KEY], swr: [], age: ageOf,
-  prime: (rows, now) => fromRow((rows || []).find((r) => r && r.key === KEY) || null, now), read: () => flag(), peek: () => cache };
-
-module.exports = { on, flag, carry, hubSwitches, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, flag, carry, KEY, FIELD };
