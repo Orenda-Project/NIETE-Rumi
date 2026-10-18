@@ -10,6 +10,7 @@ const vm = require('vm');
 const SRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.js');
 const QSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-q.js');
 const DSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-d.js');
+const WSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-w.js');
 const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const KID = 'kidchipabcdefghi';
@@ -172,6 +173,7 @@ function env(opt = {}) {
       if (x.tag !== 'script') return;
       if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); if (opt.qHold && !calls.qGo) { calls.qGo = () => { vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); x.onload(); }; return; } vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
       if (/wq-stories-d\.js\?v=abc123$/.test(x.src)) { if (opt.dFail) return x.onerror(); vm.runInContext(fs.readFileSync(DSRC, 'utf8'), sb); return x.onload(); }
+      if (/wq-stories-w\.js\?v=abc123$/.test(x.src)) { vm.runInContext(fs.readFileSync(WSRC, 'utf8'), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
       // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
       else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
@@ -3442,5 +3444,69 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     runBook(e, root); await flush(); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).not.toContain('data-rf');
+  });
+});
+
+// The reader warmed from the shelf (web_quiz_story_warm: the shelf's answer says `warm: true` and each book its first
+// page's picture `p1`). The shelf then loads wq-stories-w.js: 1.5 s on, the reader's files are fetched ahead at low
+// priority at exactly the addresses the reader asks (so the first tap does not wait for three files one after another);
+// a tap on a book asks for its first page's picture at once, and the files side by side if they are not fetched yet.
+// No warm: no extra file, nothing ahead (today).
+describe('the reader warmed from the shelf', () => {
+  const RAV = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'))).digest('hex').slice(0, 10);
+  const AHEAD = (rel) => [[rel, 'script', `/wq/wq-readalong.js?v=${RAV}`], [rel, 'script', '/wq/wq-read-live.js?v=abc123'],
+    [rel, 'script', '/wq/wq-liveread.js?v=abc123'], [rel, 'style', '/wq/wq-liveread.css?v=abc123']];
+  const links = (e) => e.calls.loaded.filter((x) => x.tag === 'link' && /prefetch|preload/.test(x.rel || '')).map((x) => [x.rel, x.as, x.href]);
+  const wfile = (e) => e.calls.loaded.filter((x) => x.tag === 'script' && /wq-stories-w\.js/.test(x.src)).map((x) => x.src);
+  const WARM = { ...SHELF, warm: true, books: SHELF.books.map((b) => ({ ...b, p1: `/s/${b.id}/p01.webp` })) };
+  const shelfThen = async (e) => { const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush(); return el; };
+  // the child's finger on a book card: the page-level listeners see it first (pointerdown, then click)
+  const touch = (e, id, kind = 'pointerdown') => (e.doc.L[kind] || []).forEach((f) => f({ target: { getAttribute: (k) => (k === 'data-tap' ? 'book' : k === 'data-id' ? id : null), parentNode: null } }));
+
+  test('warm: the shelf loads its one small file once, at the reader\'s ?v=; 1.5 s on, the reader\'s four files are fetched ahead (prefetch), once each', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    expect(wfile(e)).toEqual(['/wq/wq-stories-w.js?v=abc123']);
+    expect(links(e)).toEqual([]);
+    e.advance(1500);
+    expect(links(e)).toEqual(AHEAD('prefetch'));
+    await shelfThen(e); e.advance(5000);
+    expect(wfile(e)).toHaveLength(2);   // the shelf drawn again asks for the file again (cached); it acts once
+    expect(links(e)).toEqual(AHEAD('prefetch'));
+  });
+  test('no warm in the shelf answer: no extra file, nothing fetched ahead, and a book opens as today', async () => {
+    const e = env();
+    await shelfThen(e); e.advance(5000);
+    await openReader(e);
+    expect(wfile(e)).toEqual([]);
+    expect(links(e)).toEqual([]);
+    expect(e.calls.imgs.filter((u) => /p01/.test(u))).toEqual([]);   // (the reader's own next-page warm-up is today's)
+  });
+  test('Save-Data, or a 2G line: nothing fetched ahead; a tapped book\'s picture is still asked for (the page needs it anyway)', async () => {
+    for (const connection of [{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }]) {
+      const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+      e.win.navigator = { connection };
+      await shelfThen(e); e.advance(5000);
+      touch(e, 'b-1');
+      expect(links(e)).toEqual([]);
+      expect(e.calls.imgs).toEqual(['/s/b-1/p01.webp']);
+    }
+  });
+  test('warm, a tap before the 1.5 s: the tapped book\'s first page picture at once, and the four files side by side (preload); nothing twice', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    touch(e, 'b-4');
+    expect(e.calls.imgs).toEqual(['/s/b-4/p01.webp']);
+    expect(links(e)).toEqual(AHEAD('preload'));
+    touch(e, 'b-4', 'click'); e.advance(5000);
+    expect(e.calls.imgs).toEqual(['/s/b-4/p01.webp']);
+    expect(links(e)).toEqual(AHEAD('preload'));
+  });
+  test('a tap on something that is not a book card asks for nothing', async () => {
+    const e = env({ replies: { shelf: { status: 200, body: WARM } } });
+    await shelfThen(e);
+    (e.doc.L.pointerdown || []).forEach((f) => f({ target: { getAttribute: () => 'g', parentNode: null } }));
+    expect(e.calls.imgs).toEqual([]);
+    expect(links(e)).toEqual([]);
   });
 });
