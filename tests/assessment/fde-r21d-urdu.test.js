@@ -91,10 +91,10 @@ describe('(d) on lessons 4–5, متضاد and مترادف are asked once each'
     expect(count(out, /کا متضاد/)).toBe(6);
   });
 
-  test('the full syllabus keeps every antonym and synonym item (control)', () => {
+  test('the full syllabus asks each concept once too: one antonym and one synonym print', () => {
     const out = lay(p, FDE).examJson;
-    expect(count(out, /کا متضاد/)).toBe(6);
-    expect(count(out, /کا مترادف/)).toBe(3);
+    expect(count(out, /کا متضاد/)).toBe(1);
+    expect(count(out, /کا مترادف/)).toBe(1);
   });
 
   test('lessons 6–7 do not teach them: antonyms stay vocabulary, none held (control)', () => {
