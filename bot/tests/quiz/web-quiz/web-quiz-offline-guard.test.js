@@ -156,6 +156,7 @@ async function serve(fn, warm) {
     jest.spyOn(C, 'menu').mockImplementation(async () => JSON.parse(JSON.stringify(MENU))),
     jest.spyOn(CardImage, 'field').mockResolvedValue({}),
     jest.spyOn(require('../../../shared/services/quiz/web-quiz-hub-door'), 'menuFoldField').mockResolvedValue({}),
+    jest.spyOn(require('../../../shared/services/quiz/web-quiz-read-feedback'), 'menuField').mockResolvedValue({}), // reads its own switch: not this guard's read
   ];
   const app = express();
   app.use(express.json());
