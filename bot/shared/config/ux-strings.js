@@ -2466,11 +2466,11 @@ const UX_STRINGS = {
   // second key. Two keys, not one with an optional placeholder (resolveUx throws on a missing one).
   tqReportNotThrough: {
     en: "Your report didn't come through on WhatsApp. You can see it here: {link}",
-    ur: '\u200Fآپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ رپورٹ یہاں دیکھیں:\n{link}',
+    ur: '\u200Fآپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ رپورٹ یہاں دیکھیں:\n{link}',
   },
   tqReportNotThroughNoLink: {
     en: "Your report didn't come through on WhatsApp. Please type /quiz again in a few minutes.",
-    ur: 'آپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ براہِ کرم چند منٹ بعد دوبارہ ⁦/quiz⁩ بھیجیں۔',
+    ur: 'آپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ براہِ کرم چند منٹ بعد دوبارہ ⁦/quiz⁩ بھیجیں۔',
   },
   // Names the refetch: the whole point of the button is that a child who
   // finished since the last report is counted this time.
