@@ -159,3 +159,19 @@ describe('the map fills the screen', () => {
     }
   });
 });
+
+describe('the fold: "Yes, it\'s me" on screen at first paint (the shot harness checks the pixels; this pins the rules)', () => {
+  test('a tighter rhythm and a smaller notice, Urdu never under line-height 1.9, the gutter untouched', () => {
+    const css = styleOf(pages({ adv: true }).role_bi.html);
+    const today = Page._CSS.replace(/@media \(prefers-color-scheme:dark\)\{:root\{[^}]*\}\}/, '');
+    const layer = css.replace(today, '').replace(Adv.TOKENS_CSS, '');
+    expect(layer).toContain('html.wq-adv .notice li{font-size:17px;line-height:1.9}');
+    expect(layer).toContain('html.wq-adv .sheet{gap:8px;padding:12px 14px}');
+    expect(layer).toContain('html.wq-adv .go{gap:10px}');
+    // every line-height the layer sets on a rule that can hold Urdu is ≥ 1.9; smaller ones are on English (.en) only
+    for (const [, sel, lh] of layer.matchAll(/([^{}]+)\{[^}]*line-height:([\d.]+)/g)) {
+      if (Number(lh) < 1.9) expect([sel, /\.en$|\.en,|\.chip|\.wq-btn \.en/.test(sel.trim())]).toEqual([sel, true]);
+    }
+    expect(layer).not.toMatch(/\.go\{[^}]*padding/);
+  });
+});

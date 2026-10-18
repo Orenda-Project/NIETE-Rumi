@@ -147,3 +147,12 @@ describe('the map fills the screen', () => {
     }
   });
 });
+
+describe('the fold: "Let\'s go!" on screen at first paint with the notice open', () => {
+  test('Jugnu 64 px, the notice a size smaller, Urdu keeps line-height 1.9; off: today\'s rules', () => {
+    const css = styleOf(pages({ adv: true }).join_ur);
+    expect(css).toContain('html.wq-adv .jg{width:64px;height:64px;margin:0 auto 4px}');
+    expect(css).toContain('html.wq-adv[lang=ur] .notice{font-size:17px;line-height:1.9}');
+    expect(styleOf(pages({}).join_ur)).not.toContain('.jg{width:64px');
+  });
+});

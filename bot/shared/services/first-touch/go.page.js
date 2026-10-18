@@ -97,6 +97,13 @@ const ADV_LAYER = [
   'html.wq-adv .chip[aria-pressed=true]{--fill:var(--tint);--edge:var(--gold-d);border-color:var(--gold)}',
   'html.wq-adv .sheet,html.wq-adv .msg{border:2px solid var(--line);background:var(--card);border-radius:var(--r-card);box-shadow:var(--sh-card)}',
   'html.wq-adv .jg+.msg{margin-top:0}',
+  // the fold: "Yes, it's me" is on screen at first paint on a 360 x 780 phone, words unchanged. A tighter rhythm, the
+  // sheet's question and the role question above it a size smaller, the notice set smaller in its card (Urdu keeps
+  // line-height 1.9: no clipped Nastaliq)
+  'html.wq-adv .go{gap:10px}html.wq-adv .go>:first-child{margin-top:-8px}',
+  'html.wq-adv .sheet{gap:8px;padding:12px 14px}html.wq-adv .q{font-size:22px}html.wq-adv .q .en{font-size:16px}',
+  'html.wq-adv .notice{gap:4px}html.wq-adv .notice li{font-size:17px;line-height:1.9}html.wq-adv .notice li .en{font-size:14px;line-height:1.35}',
+  'html.wq-adv .go:has(#go-known:not([hidden])) h1{font-size:20px}html.wq-adv .go:has(#go-known:not([hidden])) h1 .en{font-size:15px}',
 ].join('');
 const ADV_CSS = CSS.replace(/@media \(prefers-color-scheme:dark\)\{:root\{[^}]*\}\}/, '') + TOKENS_CSS + ADV_LAYER;
 // Jugnu says hello at the top of the role question and the way-back pages (the join screen's own picture, from this

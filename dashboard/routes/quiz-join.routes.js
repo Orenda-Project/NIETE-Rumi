@@ -121,6 +121,8 @@ input{width:100%;height:56px;border-radius:14px;border:2px solid #e3c48a;padding
 
 // The adventure look: the shared token layer, then this page's own layer (everything under html.wq-adv). The one button
 // paints from the variant's --fill / --on / --edge: a primary is 56 px, a secondary 52; .go / .pick (join.js) are the same.
+// The fold: "Let's go!" is on screen at first paint on a 360 x 780 phone with the notice open, words unchanged (Jugnu
+// 64 px, a tighter rhythm, the notice a size smaller; Urdu keeps line-height 1.9).
 // The map is painted on <html> (at least the screen's height, and as tall as the page): no flat band under a short body.
 const ADV_LAYER = `html.wq-adv{min-height:100%;background-color:var(--ground);color:var(--ink,#2b2118);background-image:repeating-radial-gradient(circle at 88% -6%,transparent 0 44px,var(--line) 45px,transparent 46px 58px)}
 html.wq-adv body{background:transparent;color:var(--ink,#2b2118)}
@@ -135,7 +137,10 @@ html.wq-adv .chip[aria-pressed=true]{--fill:var(--gold);--edge:var(--gold-d);bor
 html.wq-adv input{border-color:var(--line);background:var(--card);border-radius:var(--r-chip);box-shadow:var(--sh-btn-soft)}
 html.wq-adv input:focus{outline:3px solid var(--gold);outline-offset:1px}
 html.wq-adv .notice,html.wq-adv .line{border:2px solid var(--line);background:var(--card);border-radius:var(--r-card);box-shadow:var(--sh-card)}
-html.wq-adv .hint,html.wq-adv .small,html.wq-adv .note{color:var(--muted)}`;
+html.wq-adv .hint,html.wq-adv .small,html.wq-adv .note{color:var(--muted)}
+html.wq-adv .jg{width:64px;height:64px;margin:0 auto 4px}html.wq-adv h1{margin:4px 0 10px}html.wq-adv .chips{margin-bottom:14px}
+html.wq-adv .notice{margin-top:12px;padding:8px 12px}html.wq-adv[lang=ur] .notice{font-size:17px;line-height:1.9}html.wq-adv .notice p{margin:2px 0}
+html.wq-adv .go{margin:12px 0 10px}`;
 const ADV_CSS = `${CSS}\n${TOKENS_CSS}${ADV_LAYER}`;
 /** The one button's classes after a class list, only in the adventure look. */
 const btn = (adv, cls, kind) => (adv ? `${cls} wq-btn wq-btn--${kind}` : cls);
