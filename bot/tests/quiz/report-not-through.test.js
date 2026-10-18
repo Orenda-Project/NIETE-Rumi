@@ -86,7 +86,7 @@ const QUIZ = '7c2d1f1f-0000-4000-8000-0000000000d4';
 const TEACHER = '8d3e2a2a-0000-4000-8000-0000000000d4';
 const LESSON = '9e4f3b3b-0000-4000-8000-0000000000d4';
 const PHONE = '92300FIXTURE4';
-const TOKEN = `${TEACHER}:transcript-quiz:1757100000000`;
+const TOKEN = `${TEACHER}:transcript-quiz:${1757100 * 1e6}`;
 const LINK = 'https://report.example/r/tok';
 const GOLDEN = path.join(__dirname, 'goldens', 'report-not-through-off.json');
 
