@@ -1865,6 +1865,9 @@ async function board(code, { st } = {}) {
   const ctx = await resolveCode(code);
   // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
   if (ctx.invitedByStudentId) fail(404, 'not_found');
+  // The watch quiz (and any code under it) has no class: its table would be every class-less child. No root set: today's.
+  // First, so a watch code never starts the twin read.
+  if (await isWatchCode(ctx)) fail(404, 'not_found');
   // The quiz's twin in the other language, read beside the table only with the switch on (web-quiz-class-twin).
   const Twin = require('./web-quiz-class-twin');
   const twinP = doors.then((on) => (on ? Twin.find(ctx) : null));
