@@ -35,6 +35,14 @@ const STUDENT_COLS = 'id, student_name, student_name_urdu, father_name, roll_num
 let flag = null;
 let inflight = null;
 const rosters = new Map();
+// web_quiz_hub_roster_warm: the classes the identity lookup used lately (class id -> last use), kept fresh by the hub's
+// keeper (web-quiz-hub-warm.js ticks keepWarm): read again LEAD_MS before their cache runs out, for KEEP_MS after their
+// last use, KEEP_MAX classes at most (the least lately used goes first).
+const KEEP_MS = 5 * 60 * 1000;
+const KEEP_MAX = 100;
+const LEAD_MS = 5 * 1000;
+const kept = new Map();
+const refreshing = new Set();
 
 const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 
@@ -139,10 +147,10 @@ function cached(key, now) {
  * Null when the read fails (the caller treats the child as new, never as
  * another child).
  */
-async function loadClassRoster(classId, now = Date.now()) {
+async function loadClassRoster(classId, now = Date.now(), { fresh = false } = {}) {
   if (!classId) return null;
   const key = `class:${classId}`;
-  const hit = cached(key, now);
+  const hit = fresh ? null : cached(key, now);
   if (hit) return hit;
   try {
     const [{ data: enr, error }, { data: lists, error: lErr }] = await Promise.all([
@@ -205,6 +213,7 @@ async function lookupIds(ids) {
     const classIds = new Set((enr || []).map((e) => e.class_id).filter(Boolean));
     (lists || []).forEach((l) => { if (l.class_id) classIds.add(l.class_id); });
     for (const classId of classIds) {
+      noteClass(classId);
       const kids = (await loadClassRoster(classId)) || [];
       kids.forEach((k) => k.ids.forEach((id) => { if (out.has(id)) out.set(id, k.id); }));
     }
@@ -215,6 +224,33 @@ async function lookupIds(ids) {
     return { out, ok: false };
   }
   return { out, ok: true };
+}
+
+/** web_quiz_hub_roster_warm on: this class's roster is one the lookup uses (kept fresh by the keeper). */
+function noteClass(classId, now = Date.now()) {
+  if (!classId || !require('./web-quiz-hub-flags').rosterWarmNow(now)) return;
+  kept.delete(classId);
+  kept.set(classId, now);
+  if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value);
+}
+
+/**
+ * One keeper pass (web-quiz-hub-warm.js, every tick while the hub is used): each class used in the last KEEP_MS whose
+ * roster is missing or within LEAD_MS of running out is read again now, so the next child of that class finds it fresh.
+ * Switch off: forgets the classes and reads nothing. Never throws (a failed read is logged by loadClassRoster).
+ */
+async function keepWarm(now = Date.now()) {
+  if (!require('./web-quiz-hub-flags').rosterWarmNow(now)) { kept.clear(); return; }
+  const due = [];
+  for (const [classId, at] of kept) {
+    if (now - at > KEEP_MS) { kept.delete(classId); continue; }
+    const hit = rosters.get(`class:${classId}`);
+    if ((!hit || now - hit.at >= TTL_MS - LEAD_MS) && !refreshing.has(classId)) due.push(classId);
+  }
+  await Promise.all(due.map(async (classId) => {
+    refreshing.add(classId);
+    try { await loadClassRoster(classId, now, { fresh: true }); } finally { refreshing.delete(classId); }
+  }));
 }
 
 /**
@@ -360,9 +396,9 @@ async function nonAttempters({ shareCodeId } = {}) {
 module.exports = {
   FLAG_KEY,
   identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
-  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared,
+  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared, noteClass, keepWarm, _keptClasses: () => [...kept.keys()],
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); },
+  _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); kept.clear(); },
 };
 module.exports.oneVoicePlan = oneVoicePlan;

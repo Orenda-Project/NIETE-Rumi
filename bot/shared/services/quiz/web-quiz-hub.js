@@ -502,6 +502,8 @@ const HUB_SWITCH_READERS = [
   () => require('./web-quiz-book').flags(),
   () => require('./web-quiz-telemetry').flag(),
   () => brandKey(),
+  // not a switch: the class rosters the identity lookup uses, read again just before they run out (web_quiz_hub_roster_warm)
+  () => require('./web-quiz-identity-roster').keepWarm(),
 ];
 
 async function hubPayload(token, { kid, device, src, lang: wanted, st = null } = {}) {
