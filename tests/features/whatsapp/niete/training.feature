@@ -1473,6 +1473,86 @@ Feature: NIETE (ICT) Teacher Training
     And the teacher's own run and friends who came through a challenge code are not in the table
     # web-quiz.service board -> video-quiz-report loadClassRows (self-tests and invited friends out). @wip.
 
+  # The class table and the school league with the child home on (app_settings web_quiz_class_doors, off by default).
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T1171 @no-mock-driver
+  Scenario: With the child home on, a class child's card still leads to the class table and the school league
+    Given app_settings "web_quiz_home_v3" and "web_quiz_class_doors" are true
+    And a child of my class finishes my class quiz on the web page
+    Then the folded score card shows "See my class" and "School league" under Share, and the ranked Next tile stays the one primary
+    And the results screen keeps "See my class"
+    When the child taps "See my class" or "School league"
+    Then the class table or the school league opens, with the same rows as the quiz page's own class and league views
+    But a friend who came through a challenge code, the teacher's own test run and a child no teacher's quiz has reached get neither button
+    And a run on the shared watch quiz, or on a video code under it, gets neither button: its table is not the child's class
+    And on the league, "Play and add points for <school>" reads as one line and is the one primary, and a sector code like "ict" reads "ICT"
+    And on the class table, "Share the class table" is the one primary
+    And with web_quiz_class_doors off the card, the results, the class table and the league are exactly as they are today
+    # web-quiz-hub-door foldField -> {class_doors: true} (web-quiz-class-doors-flag on + ownClass, never the watch root);
+    # web-quiz.service board + web-quiz-schools board -> class_doors; wq.js classDoors on foldCard + results, board, drawSchools.
+    # unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T1172 @no-mock-driver
+  Scenario: A class child's home has "My class" and "My school" under the Next tile
+    Given app_settings "web_quiz_home_v3" and "web_quiz_class_doors" are true
+    And a child of my class has played one of my class quizzes
+    When the child opens their home page
+    Then "My class" and "My school" sit side by side under the Next tile
+    And they open the class table and the school league of the child's newest class quiz from a teacher
+    But a child who has only played a friend's challenge or a library lesson sees neither, and a practice home shows neither
+    And a newer run on the shared watch quiz, or on a video code under it, never takes the place of the class quiz
+    And with web_quiz_class_doors off the home page is exactly as it is today
+    # web-quiz-hub-home homeField -> {class_doors: {class, schools}} (web-quiz-class-doors-flag linksOf with the watch root, the hub's own history);
+    # wq-home.js socialHtml. unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T1173 @no-mock-driver
+  Scenario: The class table and the school league open in the child's language, titled with the child's class
+    Given app_settings "web_quiz_class_doors" is true
+    And an Urdu child of my class has played one of my English class quizzes
+    When the child taps "My class" or "My school" on their home
+    Then the class table or the school league opens in Urdu, because the link carries the home's language
+    And Play from that table opens the quiz page itself, in the quiz's own language
+    And the class table is titled with the child's own class when every child on it is in that class, else "Your class"
+    And a viewer the table does not know sees today's title
+    And a class field that is not a grade number (a word, a name) never becomes the title: the child sees "Your class"
+    And when the shared watch quiz's setting cannot be read, no "See my class" or "My class" opens onto it: the doors stay closed
+    And the shared watch quiz, and any code under it, has no class table: its board answers not found, on the page and the api; when its setting cannot be read it is read once more, and if it still cannot be read the board answers not found
+    And the class table's and the league's share links carry the language of the page they were shared from
+    But a link with no language, or with a language other than English or Urdu, opens in the quiz's language as today
+    And with web_quiz_class_doors off every page, answer and link is exactly as it is today
+    # web-quiz-class-doors-flag linksOf(.., lang) + web-quiz-hub-home (out.lang); web-quiz.service getQuiz -> class_doors,
+    # board -> my_class + one_class; web-quiz.routes uiLangOf -> payload.ui_lang; wq.js LANG/UI_SWAP/quizPage, board title.
+    # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T1174 @no-mock-driver
+  Scenario: A class table of more than one class lets the child see their own class; Play opens the quiz in the child's language
+    Given app_settings "web_quiz_class_doors" is true
+    And my class quiz's table holds children of class 3 and class 4, and the child viewing it is in class 3
+    When the child opens the class table
+    Then two chips sit under the title, "All" (on) and "Only Class 3"
+    And "Only Class 3" shows only class 3, re-ranked, with the child's own place and class 3's average
+    And no row ever carries a child's class
+    And when the table is shown in a language other than the quiz's and the teacher has the same lesson open in that language, Play opens that quiz
+    And with web_quiz_class_doors off, or a table of one class, the table is exactly as it is today
+    # web-quiz.service board -> only {rows, you, finishers_n, class_avg_pct, more_n} + twin; web-quiz-schools board -> twin;
+    # web-quiz-class-twin (web-quiz-hub lessonRefs); wq.js drawBoard chips + quizPage(twin).
+    # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-schools.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
+  @web @quiz @config-gated @wip @draft @P2 @T1175 @no-mock-driver
+  Scenario: The class table opens at once from the card, and tells the child how they moved since last time
+    Given app_settings "web_quiz_class_doors" is true
+    And a class child's folded card or results show "See my class"
+    When the phone is idle on that screen, on a line that is not saveData or 2g (a 3g reading is warmed)
+    Then the class table is asked for once, kept for 60 seconds, and the tap opens it from that answer without a second ask
+    And a failed or older answer is never shown: the tap asks again, as today
+    And the child's place on that table is kept on the phone, a number per quiz and child, never a name
+    And with the adventure look on, the next visit shows one line over the table: moved up, the same place, or a lower place because more friends played
+    And the Urdu lines use Urdu digits and words that are the same for every child
+    But with web_quiz_class_doors off nothing is asked early and nothing is kept
+    And a class table that is not there (a friend's challenge code, the shared watch quiz) says "This table opens for a class quiz" with Home for a child on the page or Play for a visitor, never "no internet" and a retry
+    And on an English quiz's table or league shown in Urdu, the class label is in Urdu words and digits, the league's Play stays on screen at the bottom, and every chip and fold row is at least 48 px
+    # wq.js warmBoard/boardGet/moveLine; T.movedUp/movedNow/samePlace. unit: dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
   Scenario: The teacher's preview never counts as a child
     Given the teacher's signed preview link
