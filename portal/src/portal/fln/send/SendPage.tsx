@@ -15,6 +15,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Clock, Search, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../../teacher/ui/styles';
+import { isLeader } from '../../lib/leaderRole';
 import { shareApi, type LinkRow } from '../share/api';
 import { Fill } from '../share/Fill';
 import { shareMessage, waUrl } from '../share/message';
@@ -103,8 +104,11 @@ function RowChips({ row, lang }: { row: LinkRow; lang: ShareLang }) {
   const c = row.chips || {};
   const tag = 'inline-flex min-h-[28px] items-center gap-1 rounded-[8px] bg-[#eef2ff] px-2 text-[14px] font-semibold text-[#3b4a9c]';
   const items: React.ReactNode[] = [];
-  if (c.screener) items.push(<span key="scr" className={tag}>{S.chip.screener}</span>, <span key="ak" className={tag}>{S.chip.answerKey}</span>);
-  else if ((c.sounds || 0) > 0) items.push(<span key="snd" className={tag}><Volume2 className="h-4 w-4" aria-hidden="true" /><Fill text={S.sounds} values={{ n: c.sounds as number }} lang={lang} /></span>);
+  if (c.screener) {
+    items.push(<span key="scr" className={tag}>{S.chip.screener}</span>);
+    // The answer-key chip promises audio: only when the screener carries some (Num screeners can have 0 clips).
+    if ((c.sounds || 0) + (c.words || 0) > 0 || c.narration) items.push(<span key="ak" className={tag}>{S.chip.answerKey}</span>);
+  } else if ((c.sounds || 0) > 0) items.push(<span key="snd" className={tag}><Volume2 className="h-4 w-4" aria-hidden="true" /><Fill text={c.sounds === 1 ? S.soundOne : S.sounds} values={{ n: c.sounds as number }} lang={lang} /></span>);
   if (c.guide) items.push(<span key="gd" className={tag}>{S.chip.guide}</span>);
   if (c.narration) items.push(<span key="nar" className={tag}>{S.chip.narration}</span>);
   if (c.textbook) items.push(<span key="tb" className={tag}>{S.chip.textbook}</span>);
@@ -152,12 +156,12 @@ function RowCard({ row, subject, lang, onSend }: { row: LinkRow; subject: ShareS
   );
 }
 
-function NotAvailable({ lang }: { lang: ShareLang }) {
+function NotAvailable({ lang, leader }: { lang: ShareLang; leader: boolean }) {
   const S = shareStrings(lang);
   return (
     <div className="flex flex-col items-start gap-3 rounded-[16px] border border-[#e5e7eb] bg-white p-5">
       <h2 className="text-[20px] font-bold">{S.notAvailableTitle}</h2>
-      <p className="text-[16px] text-[#5b6475]">{S.notAvailableBody}</p>
+      <p className="text-[16px] text-[#5b6475]">{leader ? S.notSwitchedOnBody : S.notAvailableBody}</p>
       <Link to="/portal" className={cn(BTN, 'border-[#333748] bg-white text-[#333748]', FOCUS)}>{S.goHome}</Link>
     </div>
   );
@@ -219,7 +223,7 @@ export default function SendPage() {
       </header>
       <main className="mx-auto flex w-full max-w-[640px] flex-col gap-5 px-4 py-4">
         {me === null ? <p role="status" className="text-[16px] text-[#5b6475]">{S.loading}</p> : null}
-        {off ? <NotAvailable lang={lang} /> : null}
+        {off ? <NotAvailable lang={lang} leader={!!me && me.share !== true && isLeader(me)} /> : null}
         {allowed && load.kind !== 'off' ? (
           <>
             <p className="text-[15px] text-[#5b6475]">{S.builderIntro}</p>

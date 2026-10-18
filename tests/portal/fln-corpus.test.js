@@ -248,6 +248,16 @@ describe('reads', () => {
     expect(cat.strands[0].chapters[0].plans[0]).toMatchObject({ id: 900010, opened: true, lang: 'ur', dir: 'rtl', title: 'حروف کی مشق ۲ اور 3' });
   });
 
+  it('levels: screener_audio says whether the screener has any audio (the answer-key chip promises it)', () => {
+    expect(C.levels('rh-en')[0]).toMatchObject({ screener_id: 900002, screener_audio: true });
+    const b = build();
+    const r = b.placement.find((x) => x.lp_id === 900002);
+    r.audio = { sounds: 0, words: 0, narration: false, video: false };
+    C.__setForTests(b);
+    expect(C.levels('rh-en')[0]).toMatchObject({ screener_id: 900002, screener_audio: false });
+    expect(C.catalogue({ grade: 8, subject: 'rh-en' }).levels[0].screener_audio).toBe(false);
+  });
+
   it('kickerFor(placementRow, lang): subject kicker + level, EN with ·, UR with — and Urdu digits', () => {
     const p = C.placementOf(900003)[0];
     expect(C.kickerFor(p, 'en')).toBe('Reading Hour · English · Level 1');

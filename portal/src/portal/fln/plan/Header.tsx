@@ -18,7 +18,10 @@ export function headerChips(plan: FlnPlan, placement: FlnPlacement | undefined, 
   const s = flnStrings(uiLang);
   const out: string[] = [];
   const label = placement?.label;
-  if (label === 'screener') out.push(s.chip.answerKey);
+  const a = plan.audio_summary;
+  // The answer-key chip promises audio: only when the screener has some (Num screeners can have 0 clips).
+  const hasAudio = !!a && ((a.sounds || 0) + (a.words || 0) > 0 || !!a.narration);
+  if (label === 'screener') { if (hasAudio) out.push(s.chip.answerKey); }
   else if (plan.audio_summary?.sounds) out.push(`🔊 ${s.chip.sounds(plan.audio_summary.sounds)}`);
   if (label !== 'screener' && plan.audio_summary?.narration) out.push(`▶ ${s.chip.narration}`);
   if (hasVideo(plan)) out.push(s.chip.video);

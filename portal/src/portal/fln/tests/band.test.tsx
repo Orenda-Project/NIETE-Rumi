@@ -158,6 +158,26 @@ describe('FlnBand', () => {
     }
   });
 
+  it('the selected grade chip is scrolled to the middle of its row on load, the row only (red-team 192944: «جماعت ۵» at x = −113)', async () => {
+    combos([5]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const rect = (left: number, width: number) => ({ left, width, right: left + width, top: 0, bottom: 48, height: 48, x: left, y: 0, toJSON: () => ({}) }) as DOMRect;
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('fln-chips')) return rect(0, 390);
+      if (this.classList.contains('fln-chip')) return rect(this.classList.contains('on') ? 600 : 0, 90);
+      return rect(0, 0);
+    });
+    try {
+      renderBand();
+      await screen.findAllByRole('link');
+      const row = screen.getByRole('radiogroup');
+      expect(screen.getByRole('radio', { checked: true }).textContent).toBe(EN.grade(5));
+      expect(row.scrollLeft).toBe(450); // (600 + 45) − (0 + 195)
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('Urdu page: Urdu chrome with «—», no «·»', async () => {
     await act(async () => { await i18n.changeLanguage('ur'); });
     stubFetch({ '/me': { status: 200, body: { ...ME_TEACHER, ui_lang: 'ur' } }, '/catalogue': catalogueFor });
