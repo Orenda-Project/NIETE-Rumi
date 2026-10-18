@@ -9,13 +9,15 @@
     <meta name="description" content="The NIETE Portal for teachers and coaches — lesson plans, coaching feedback, observations, and classroom analytics. From NIETE (National Institute of Excellence in Teacher Education, Islamabad).">
     <meta name="author" content="NIETE" />
 
-    <!-- Google Fonts: Plus Jakarta Sans + Poppins per NIETE brand guide, plus Nastaliq for Urdu.
+    <!-- Google Fonts: Plus Jakarta Sans + Poppins per NIETE brand guide. Urdu's Nastaliq is NOT requested here:
+         src/index.css's own @font-face "NIETE Nastaliq" (one woff2, Arabic-script only) draws it, and Google answered
+         WhatsApp's Android browser with ~744 KB of TTFs for this family on a slow line.
          bd-fxk3t8: preloaded and switched on when they arrive, so they never hold up the first
          paint (the page shows in the fallback font for a moment instead of staying white). -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap"></noscript>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"></noscript>
 
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/favicon.png">
