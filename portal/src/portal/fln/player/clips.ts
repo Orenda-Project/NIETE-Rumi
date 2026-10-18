@@ -34,7 +34,8 @@ function roleOf(m: FlnMediaLike): ClipRole {
 
 function toClip(m: FlnMediaLike, item: FlnItemLike, lang: string | undefined): Clip {
   const urdu = lang === 'ur';
-  const label = (urdu ? m.label_ur ?? m.label_en : m.label_en ?? m.label_ur) ?? boldRun(item.text) ?? fileStem(m.src);
+  // The stem comes from `orig`: the mirror renames non-ASCII files to `file.mp3`, the original keeps `…_ل.mp3`.
+  const label = (urdu ? m.label_ur ?? m.label_en : m.label_en ?? m.label_ur) ?? boldRun(item.text) ?? fileStem(m.orig || m.src);
   const caption = urdu ? m.caption_ur ?? m.caption_en : m.caption_en ?? m.caption_ur;
   return {
     id: clipIdOf(m),
