@@ -42,7 +42,8 @@ beforeEach(async () => {
   if (!HAS_ACCESS) return;
   const { createFlnLinksRouter } = require('../../dashboard/routes/portal-fln-links.routes');
   const corpus = {
-    catalogue: async () => ({ grade: 1, level: 1, levels: [{ level: 1, grades: [1], count: 1 }], strands: [{ strand: 'daily', chapters: [{ chapter_no: 1, plans: [{ id: 5, title: 'A', chips: {} }] }] }] }),
+    ensure: async () => true,
+    catalogue: () => ({ grade: 1, level: 1, levels: [{ level: 1, grades: [1], count: 1 }], strands: [{ strand: 'daily', chapters: [{ chapter_no: 1, plans: [{ id: 5, title: 'A', chips: {} }] }] }] }),
     isHidden: async () => false,
     plan: async () => ({ title: 'A', lang: 'en', dir: 'ltr' }),
   };

@@ -133,7 +133,9 @@ beforeEach(async () => {
     ? { lessons: true, share: true, role: 'coach', ui_lang: 'ur' }
     : { lessons: true, share: false, role: 'teacher', ui_lang: 'en' }));
   corpus = {
-    catalogue: jest.fn(async (g, s, l) => catalogueFor(g, s, l)),
+    // The real service's shape (PR-C fln-corpus.service): ensure() loads lazily; catalogue({grade, subject, level}).
+    ensure: jest.fn(async () => true),
+    catalogue: jest.fn(({ grade, subject, level = null }) => catalogueFor(grade, subject, level)),
     isHidden: jest.fn(async (id) => String(id) === '555'),
     plan: jest.fn(async (id) => (String(id) === '101' ? { id: 101, title: 'Sounds of c and k', lang: 'en', dir: 'ltr', slo: ['secret goal'] } : null)),
     placementOf: jest.fn(async () => []),
@@ -179,7 +181,7 @@ describe('GET /fln/links', () => {
       count: 4,
       used_by: 5,
     });
-    expect(corpus.catalogue).toHaveBeenCalledWith(1, 'rh-en', null);
+    expect(corpus.catalogue).toHaveBeenCalledWith({ grade: 1, subject: 'rh-en', level: null });
   });
   it('the link carries no identity: no phone, no user id, no token, no query string', async () => {
     const r = await get('/links?grade=1&subject=rh-en', LEADER);
@@ -193,7 +195,7 @@ describe('GET /fln/links', () => {
     expect(r.status).toBe(200);
     expect(r.body.rows.map((x) => x.id)).toEqual([900, 901, 902, 800, 101, 102, 103, 201, 202, 301]);
     expect(r.body.rows[1].level).toBe(2);
-    expect(corpus.catalogue.mock.calls.map((c) => c[2])).toEqual([1, 2, 3]);
+    expect(corpus.catalogue.mock.calls.map((c) => c[0].level)).toEqual([1, 2, 3]);
   });
   it('grade 8 with level=2 gives that level only', async () => {
     const r = await get('/links?grade=8&subject=num&level=2', LEADER);
@@ -242,10 +244,13 @@ describe('GET /fln/links', () => {
     expect(corpus.catalogue).not.toHaveBeenCalled();
   });
   it('a corpus that throws or is not loaded is 503 fln_unavailable, no-store', async () => {
-    corpus.catalogue.mockRejectedValueOnce(new Error('not loaded'));
+    corpus.catalogue.mockImplementationOnce(() => { throw new Error('not loaded'); });
     let r = await get('/links?grade=1&subject=rh-en', LEADER);
     expect([r.status, r.body, r.cache]).toEqual([503, { error: 'fln_unavailable' }, 'no-store']);
     corpus.catalogue.mockResolvedValueOnce(null);
+    r = await get('/links?grade=1&subject=rh-en', LEADER);
+    expect([r.status, r.body]).toEqual([503, { error: 'fln_unavailable' }]);
+    corpus.ensure.mockResolvedValueOnce(false); // a cold process whose bundle cannot load
     r = await get('/links?grade=1&subject=rh-en', LEADER);
     expect([r.status, r.body]).toEqual([503, { error: 'fln_unavailable' }]);
   });
