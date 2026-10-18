@@ -4,15 +4,17 @@
  * link /q/<CODE> carries ?v=<played> (how many children played), so WhatsApp previews it as the live class picture
  * (the page's ogImageFor: played, average, top) and a new count is a new preview. Never a storybook send, never at 0.
  * Only JSON `true` is on; an absent row, `false`, any other value (the strings "true" and "\"true\"", "yes", 1, {},
- * {enabled: true}, "TRUE", " true ") and a failed read are all OFF. 30 s cache.
+ * {enabled: true}, "TRUE", " true ") and a failed read are all OFF.
+ * It rides the report's fold switch read (settings-group), so the report reads app_settings as often as it did
+ * before this switch; with no host read in the last 30 s it reads its own key once.
  */
-const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { settingsGroup } = require('../settings-group');
 const FoldFlag = require('./report-fold-flag');
 
 const KEY = 'quiz_reminder_live_preview';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, on }
+const group = settingsGroup(FoldFlag.KEY, [KEY], TTL_MS);
 
 // exactly JSON true — never a string
 function isTrue(value) {
@@ -21,39 +23,23 @@ function isTrue(value) {
 
 /** → true only when the switch reads a real true. Never throws. */
 async function on(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
+    const { data, error } = await group.rider(KEY, now);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    cache = { at: now, on: Boolean(data) && isTrue(data.value) };
-    return cache.on;
+    return Boolean(data) && isTrue(data.value);
   } catch (err) {
     logToFile('⚠️ teacher report: reminder live-preview setting unreadable — the reminder link stays plain', { error: err && err.message });
     return false;
   }
 }
 
-/**
- * The quiz report's two switches in ONE app_settings read: `.in('key', [quiz_report_fold_by_child, this key])`, which
- * fills both caches, so the report reads app_settings as often as it did before this switch. A failed shared read
- * falls back to each switch's own read, so one key's failure never turns the other off; each failed read is OFF.
- * → { fold, live } (both booleans). Never throws.
- */
+/** The quiz report's two switches: the fold switch's read first (it carries this key), then this one. → { fold, live }. */
 async function withFold(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return { fold: await FoldFlag.on(now), live: cache.on };
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FoldFlag.KEY, KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = new Map((data || []).map((r) => [r.key, r.value]));
-    const fold = FoldFlag.prime(by.get(FoldFlag.KEY), now);
-    cache = { at: now, on: isTrue(by.get(KEY)) };
-    return { fold, live: cache.on };
-  } catch (_) {
-    return { fold: await FoldFlag.on(now), live: await on(now) };
-  }
+  const fold = await FoldFlag.on(now);
+  return { fold, live: await on(now) };
 }
 
 /** Tests only: forget the cached reading. */
-function reset() { cache = null; }
+function reset() { group.forget(KEY); }
 
 module.exports = { on, withFold, reset, isTrue, KEY, TTL_MS };
