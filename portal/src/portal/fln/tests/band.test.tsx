@@ -141,6 +141,22 @@ describe('FlnBand', () => {
     expect(flat).toMatch(/\.fln-band \.fln-row[^{]*\{[^}]*min-height: ?56px/);
   });
 
+  it('grade chips never shrink in the nowrap scroller (R5 CHIPS-390: "Grade 2Grade 3…" at 390 px)', async () => {
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+    try {
+      renderBand();
+      await screen.findAllByRole('link');
+      const row = screen.getAllByRole('radio')[0].parentElement as HTMLElement;
+      expect(getComputedStyle(row).flexWrap).toBe('nowrap');
+      for (const chip of screen.getAllByRole('radio')) expect(getComputedStyle(chip).flexShrink).toBe('0');
+    } finally {
+      style.remove();
+    }
+  });
+
   it('Urdu page: Urdu chrome with «—», no «·»', async () => {
     await act(async () => { await i18n.changeLanguage('ur'); });
     stubFetch({ '/me': { status: 200, body: { ...ME_TEACHER, ui_lang: 'ur' } }, '/catalogue': catalogueFor });
