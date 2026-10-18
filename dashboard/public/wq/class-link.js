@@ -42,15 +42,16 @@
     return fetch('/api/wq/cl/' + step, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, body: j || {} }; }); });
   }
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function screen(title, inner) {
-    ROOT.innerHTML = '<section class="wq-screen"><img class="wq-jugnu" src="/wq/jugnu/hello.webp" alt="" width="96" height="96">' +
+    ROOT.innerHTML = '<section class="wq-screen"><img class="wq-jugnu" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="96" height="96">' +
       '<h1>' + esc(title) + '</h1>' + inner + '</section>';
   }
   function on(sel, fn) {
     Array.prototype.forEach.call(ROOT.querySelectorAll(sel), function (b) { b.addEventListener('click', function () { fn(b); }); });
   }
   // Nothing to show (the link closed meanwhile, a step expired): a sleeping Jugnu, never a reload loop.
-  function closed() { ROOT.innerHTML = '<section class="wq-screen wq-closed"><img class="wq-jugnu" src="/wq/jugnu_sleep.webp" alt="" width="160" height="160"></section>'; }
+  function closed() { ROOT.innerHTML = '<section class="wq-screen wq-closed"><img class="wq-jugnu" src="' + jv('/wq/jugnu_sleep.webp') + '" alt="" width="160" height="160"></section>'; }
 
   function show(out) {
     if (!out.ok) return closed();
