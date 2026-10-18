@@ -23,6 +23,7 @@ function page(boot, answer) {
   const classes = new Set();
   const timers = [];
   const chips = [];
+  const heads = [];
   const root = {
     _h: '', attrs: {},
     set innerHTML(h) { this._h = h; },
@@ -50,7 +51,7 @@ function page(boot, answer) {
       getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? { textContent: JSON.stringify(boot) } : null),
       querySelector: (sel) => (/hub\.js/.test(sel) ? { getAttribute: () => '/wq/hub.js?v=abc123' } : null),
       createElement: (tag) => ({ tag, setAttribute() {}, addEventListener() {} }),
-      head: { appendChild() {} },
+      head: { appendChild(el) { heads.push(el); } },
     },
     navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36', sendBeacon: () => true },
     history: { replaceState() {} },
@@ -70,7 +71,7 @@ function page(boot, answer) {
   vm.runInContext(TEL_SRC, ctx);
   vm.runInContext(HUB_SRC, ctx);
   const flush = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); while (timers.length) timers.shift()(); } };
-  return { classes, chips, flush };
+  return { classes, chips, flush, heads };
 }
 
 describe('the look follows the answer the home is drawn from', () => {
@@ -94,6 +95,48 @@ describe('the look follows the answer the home is drawn from', () => {
     const p = page({ lang: 'en', token: TOKEN, brand: null, locked: true, kids: [] }, answer);
     await p.flush();
     expect(p.classes.has('wq-1b')).toBe(false);
+  });
+});
+
+// The adventure look rides the one button look (web_quiz_adventure_look, only with web_quiz_one_button): a first open
+// whose server render went out without it takes the class, the sheet and the kit from the hub answer, at the version
+// the edge put on that answer (`adv_v`), so the look never waits for the next load.
+describe('the adventure look follows the answer the home is drawn from', () => {
+  const V = 'abcdef0123';
+  const tags = (p) => p.heads.map((el) => `${el.tag}:${el.href || el.src}`);
+  test('first open: one_button + adv + adv_v → wq-adv, the sheet and the kit at that version, once', async () => {
+    const p = page({ lang: 'en', token: TOKEN, brand: null, locked: true, kids: [] }, { ...BOOTS.done, one_button: true, adv: true, adv_v: V });
+    await p.flush();
+    expect(p.classes.has('wq-1b')).toBe(true);
+    expect(p.classes.has('wq-adv')).toBe(true);
+    expect(tags(p)).toEqual([`link:/wq/wq-adventure.css?v=${V}`, `script:/wq/wq-adv.js?v=${V}`]);
+    expect(p.heads[0].rel).toBe('stylesheet');
+  });
+  test('"Who is playing?": the picked child\'s answer turns the look on', async () => {
+    const p = page({ lang: 'en', token: TOKEN, brand: null, kids: TWO }, { ...BOOTS.done, one_button: true, adv: true, adv_v: V });
+    await p.flush();
+    expect(p.classes.has('wq-adv')).toBe(false);
+    p.chips[0].ls.forEach((fn) => fn());
+    await p.flush();
+    expect(p.classes.has('wq-adv')).toBe(true);
+    expect(tags(p)).toHaveLength(2);
+  });
+  test.each([
+    ['adv without one_button', { adv: true, adv_v: V }],
+    ['adv without its version', { one_button: true, adv: true }],
+    ['a version that is not one', { one_button: true, adv: true, adv_v: '../x' }],
+    ['the string true', { one_button: true, adv: 'true', adv_v: V }],
+  ])('%s: no look, nothing fetched', async (_n, more) => {
+    const p = page({ lang: 'en', token: TOKEN, brand: null, locked: true, kids: [] }, { ...BOOTS.done, ...more });
+    await p.flush();
+    expect(p.classes.has('wq-adv')).toBe(false);
+    expect(p.heads).toEqual([]);
+  });
+  test('a page that already has the look (the edge drew it): nothing is linked twice', async () => {
+    const p = page({ lang: 'en', token: TOKEN, brand: null, locked: true, kids: [] }, { ...BOOTS.done, one_button: true, adv: true, adv_v: V });
+    p.classes.add('wq-adv');
+    await p.flush();
+    expect(p.heads).toEqual([]);
   });
 });
 

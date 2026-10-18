@@ -36,6 +36,7 @@
  * the boot, before any page script draws, and by a page that gets its answer later (the library). Anything else:
  * nothing changes. oneButton(answer, true) is exact: an answer without it takes the class off (a page that drew a
  * kept copy of an earlier open, then got its live answer after a switch rollback); no answer at all changes nothing.
+ * The same answer with `adv: true` and the edge's `adv_v` also brings the adventure look (wq-adv) to a page drawn without it.
  */
 (function () {
   'use strict';
@@ -66,6 +67,23 @@
     try {
       if (o && o.one_button === true) document.documentElement.classList.add('wq-1b');
       else if (exact && o) document.documentElement.classList.remove('wq-1b');
+    } catch (e) {}
+    adv(o);
+  }
+  // The adventure look (it rides the one button look): an answer that says adv: true with the edge's version of its
+  // files (adv_v) on a page drawn without it takes the class, then the sheet and the kit (the kit dresses what is there).
+  function adv(o) {
+    try {
+      var h = document.documentElement;
+      if (!o || o.one_button !== true || o.adv !== true || !/^[0-9a-f]{10}$/.test(o.adv_v || '') || h.classList.contains('wq-adv')) return;
+      h.classList.add('wq-adv');
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = '/wq/wq-adventure.css?v=' + o.adv_v;
+      document.head.appendChild(l);
+      var s = document.createElement('script');
+      s.src = '/wq/wq-adv.js?v=' + o.adv_v;
+      document.head.appendChild(s);
     } catch (e) {}
   }
   var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds, oneButton: oneButton };

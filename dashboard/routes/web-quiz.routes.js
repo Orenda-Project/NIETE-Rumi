@@ -1010,7 +1010,9 @@ function createWebQuizRouter(opts = {}) {
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
         if (r.cache && out.status === 200) res.set('Cache-Control', r.cache);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
-        return res.status(out.status).json(out.body == null ? {} : out.body);
+        // the hub answer a first open draws from (unlock, pick) names the look's files' version when it says adv: true
+        const body = r.path === '/api/wq/hub/:token' && advOnOf(out.body) ? { ...out.body, adv_v: advVersion() } : out.body;
+        return res.status(out.status).json(body == null ? {} : body);
       } catch (err) {
         return res.status(502).json({ error: 'bot_unreachable' });
       }

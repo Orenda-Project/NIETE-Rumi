@@ -159,6 +159,16 @@ describe('the adventure look through the router', () => {
     expect(lib.body).not.toMatch(/wq-adv/);
   });
 
+  it('the hub answer (unlock, pick) carries the look\'s version only when it says adv: true, so a first open can take the look', async () => {
+    srv = await start(build([jsonRes(200, HUB('en', { adv: true })), jsonRes(200, HUB('en', { adv: true, one_button: true })), jsonRes(200, HUB('en', {}))]));
+    const page = await get(srv, `/h/${HUB_TOKEN}?nf=1`);
+    const v = page.body.match(/wq-adventure\.css\?v=([0-9a-f]{10})/)[1];
+    const on = JSON.parse((await get(srv, `/api/wq/hub/${HUB_TOKEN}`)).body);
+    expect(on.adv_v).toBe(v);
+    const off = JSON.parse((await get(srv, `/api/wq/hub/${HUB_TOKEN}`)).body);
+    expect(off).toEqual(JSON.parse(JSON.stringify(HUB('en', {}))));
+  });
+
   it('the shared card page never carries the look (its own server-drawn picture)', async () => {
     srv = await start(build([jsonRes(200, HUB('en', { adv: true })), jsonRes(200, { lang: 'en', first: 'Test', deed_text: 'Test', ret: { text: 'Test', cta: 'Go', href: 'https://wa.me/0000000000?text=hi' } })]));
     await get(srv, `/h/${HUB_TOKEN}?nf=1`);
