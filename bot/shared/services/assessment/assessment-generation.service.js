@@ -1972,8 +1972,8 @@ function _addItem(examJson, slotId, q) {
   return out;
 }
 
-async function _askReader({ examJson, P, only = null, model, ownModel, job, usages, reasoning = READER_REASONING }) {
-  const { prompt, labels, only: onlyLabels, blocks, split } = Reader.buildReaderPrompt(examJson, P, { only });
+async function _askReader({ examJson, P, only = null, pages = null, model, ownModel, job, usages, reasoning = READER_REASONING }) {
+  const { prompt, labels, only: onlyLabels, blocks, split } = Reader.buildReaderPrompt(examJson, P, { only, pages });
   const response = await getClient().chat.completions.create({
     model,
     job,
@@ -2010,7 +2010,8 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
     if (exam && exam._layout) exam._layout.reader = { ...stats, items, ...(error ? { error } : {}) };
     return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
   };
-  const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
+  // The book pages ride along, so the reader is handed the pairs whose answers stand side by side in them.
+  const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, pages: loaded && loaded.content, model, ownModel, job, usages: readUsages });
   // A flag with its item and, when another Q1 item gives it away, that partner: the top-up is told both.
   const withItems = (read) => read.flags.map((f) => ({ ...f, q: read.labels.get(f.item), partner: read.labels.get(f.by) || null }));
   const idsOf = (list) => new Set(list.map((h) => _readerId(h.q)));
