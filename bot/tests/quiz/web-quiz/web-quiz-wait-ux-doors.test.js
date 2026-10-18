@@ -101,6 +101,22 @@ describe('the switch', () => {
     await seed([...BASE, ON('web_quiz_wait_ux')]);
     expect(await WaitUx.carry({ x: 1 })).toEqual({ x: 1, wait_ux: true });
   });
+  test('the hub\'s own read carries it (prime): a row with JSON true is on, from the cache alone', async () => {
+    await seed(BASE);
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    Flags._resetCache();
+    Flags.prime([...BASE, ON('web_quiz_wait_ux')], NOW);
+    expect(WaitUx.on(NOW)).toBe(true);
+  });
+  test('an old cache: on just past the 30 s mark (no flicker for an answer built across it), off after two TTLs', async () => {
+    const Flags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    Flags._resetCache();
+    Flags.prime([...BASE, ON('web_quiz_wait_ux')], NOW);
+    expect(WaitUx.on(NOW + 31 * 1000)).toBe(true);
+    expect(WaitUx.on(NOW + 60 * 1000)).toBe(false);
+    Flags._resetCache();
+    expect(WaitUx.on(NOW)).toBe(false);
+  });
 });
 
 describe('the Games door: same rows, reads side by side, a short label wait', () => {
@@ -161,5 +177,101 @@ describe('the Games door: same rows, reads side by side, a short label wait', ()
     expect((await games()).games).toEqual([]);
     mockHubFlags.mockResolvedValue({ hub: true, challenge: false });
     expect((await games()).games).toEqual([]);
+  });
+});
+
+describe('the Games door on: a read that fails, fails it as it does off (the door\'s own fallback: no rows)', () => {
+  const settle = (p) => p.then((v) => ({ ok: JSON.stringify(v) }), (e) => ({ err: e.message }));
+  async function both() {
+    await seed(BASE);
+    const off = await settle(games());
+    await seed([...BASE, ON('web_quiz_wait_ux')]);
+    const on = await settle(games());
+    return { off, on };
+  }
+  test.each([
+    ['the grade', () => mockCh.gradeOf.mockRejectedValue(new Error('grade down'))],
+    ['the record switch', () => mockCh.recordOn.mockRejectedValue(new Error('record down'))],
+    ['the missing switch', () => mockCh.missingOn.mockRejectedValue(new Error('missing down'))],
+    ['the pool switch', () => mockCh.poolOn.mockRejectedValue(new Error('pool down'))],
+    ['the passages\' switch', () => jest.spyOn(Play, 'switches').mockRejectedValue(new Error('story down'))],
+    ['the child\'s rung', () => jest.spyOn(Play, 'readingRungOf').mockRejectedValue(new Error('rung down'))],
+  ])('%s fails: the door falls back to no rows, on and off alike', async (_, fail) => {
+    fail();
+    const { off, on } = await both();
+    expect(JSON.parse(off.ok)).toEqual({ games: [] });
+    expect(on).toEqual(off);
+  });
+  test.each([
+    ['the missing switch, with record off', () => { mockCh.recordOn.mockResolvedValue(false); mockCh.missingOn.mockRejectedValue(new Error('missing down')); }],
+    ['the pool switch, with no missing stop', () => { mockCh.missingOn.mockResolvedValue(false); mockCh.poolOn.mockRejectedValue(new Error('pool down')); }],
+    ['the read cap', () => mockReadOpen.mockRejectedValue(new Error('cap down'))],
+    ['the child\'s rung, with the passages off', () => { jest.spyOn(Play, 'switches').mockResolvedValue({ story: false }); jest.spyOn(Play, 'readingRungOf').mockRejectedValue(new Error('rung down')); }],
+  ])('%s fails where off never asks or forgives it: the same rows on and off', async (_, fail) => {
+    fail();
+    const { off, on } = await both();
+    expect(off.ok).toBeTruthy();
+    expect(on).toEqual(off);
+  });
+  test('the challenge off: on asks nothing past the hub\'s switches, as off', async () => {
+    mockHubFlags.mockResolvedValue({ hub: true, challenge: false });
+    const rung = jest.spyOn(Play, 'readingRungOf');
+    await seed([...BASE, ON('web_quiz_wait_ux')]);
+    expect((await games()).games).toEqual([]);
+    expect(mockCh.gradeOf).not.toHaveBeenCalled();
+    expect(mockReadOpen).not.toHaveBeenCalled();
+    expect(rung).not.toHaveBeenCalled();
+  });
+  afterEach(() => jest.restoreAllMocks());
+});
+
+// web_quiz_list_states with the faster door on (its live path: gamesDoor hands over to the side-by-side reads at once).
+// A grade or form read that fails is a failed door (err: 1, the page's retry), never a child with no games.
+describe('web_quiz_list_states, wait_ux on: a failed grade or form read says so', () => {
+  const LS = [...BASE, ON('web_quiz_wait_ux'), ON('web_quiz_list_states')];
+  const logged = () => require('../../../shared/utils/logger').logToFile.mock.calls.filter((c) => /doors: unavailable/.test(c[0]) && c[1] && c[1].door === 'games');
+  // the side-by-side path ran: it asks the switches beside the grade, which the one-after-another path never does on a failed grade
+  const together = () => { expect(WaitUx.on()).toBe(true); expect(mockCh.recordOn).toHaveBeenCalled(); };
+  test('on: a grade read that rejects answers {games: [], err: 1}, not a child with no games', async () => {
+    await seed(LS);
+    mockCh.gradeOf.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+    expect(logged()).toHaveLength(1);
+  });
+  test('on: a form read that rejects answers {games: [], err: 1}', async () => {
+    await seed(LS);
+    mockCh.formForChild.mockRejectedValueOnce(new Error('db down'));
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+  });
+  test('on: a form read that throws answers {games: [], err: 1}', async () => {
+    await seed(LS);
+    mockCh.formForChild.mockImplementationOnce(() => { throw new Error('db down'); });
+    expect(await games()).toEqual({ games: [], err: 1 });
+    together();
+  });
+  test('GOLDEN off (absent, or the string \'true\'): a grade or form read that fails answers today\'s {games: []}, byte for byte', async () => {
+    for (const ls of [[], [{ key: 'web_quiz_list_states', value: 'true' }]]) {
+      await seed([...BASE, ON('web_quiz_wait_ux'), ...ls]);
+      mockCh.gradeOf.mockRejectedValueOnce(new Error('db down'));
+      expect(JSON.stringify(await games())).toBe('{"games":[]}');
+      together();
+      mockCh.formForChild.mockRejectedValueOnce(new Error('db down'));
+      expect(JSON.stringify(await games())).toBe('{"games":[]}');
+    }
+    expect(logged()).toHaveLength(0);
+  });
+  test('on: no form for the grade (a real answer) stays a true empty with no err', async () => {
+    await seed(LS);
+    mockCh.formForChild.mockResolvedValueOnce(null);
+    expect(JSON.stringify(await games())).toBe('{"games":[]}');
+    together();
+  });
+  test('on: rows that came back whole carry no err', async () => {
+    await seed(LS);
+    const g = await games();
+    expect(g).not.toHaveProperty('err');
+    expect(g.games.length).toBeGreaterThan(0);
   });
 });

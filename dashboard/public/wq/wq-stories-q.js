@@ -54,7 +54,12 @@
 
   S._q = function (R) {
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
-    var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null;
+    var eo = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, D = null, dw = null, rd = null;
+    // the reading moment (the book's read_fb: web_quiz_read_feedback): its file comes with this one, once
+    if (b.read_fb && !W.WQMoment && !S._rfAsked) { S._rfAsked = 1; K.load('wq-moment.js', 'wq-moment.css', function () {}); }
+    // this page's read answered after Your turn (wq-moment.js page(): small, and "Hear Jugnu say it" on a skipped word)
+    function Mq(k, x) { return b.read_fb && W.WQMoment ? W.WQMoment.q(k, R, m, x) : ''; }
+    function rfHtml(st) { return rd && rd.i === m.i ? Mq('page', { rd: rd, st: st, sents: sents }) : ''; }
     // the questions and the done screen come in their own file, the first time a child gets there
     function dv(v) {
       return function () {
@@ -76,10 +81,12 @@
     R.ex = function (s, p) {
       var w = p.words && p.words[m.skip], h = '';
       var echo = b.lr3 && b.grade < 3 && p.audio && !R.keyNo && (s === 'together' || /^(read|practise)$/.test(s) && m.ratio <= 0.5);
-      if (s === 'practise' && w) h = '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
-      else if (s === 'read' || s === 'practise') h = '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      var rf = /^(read|practise|together)$/.test(s) ? rfHtml(s) : '';
+      if (s === 'practise' && w) h = rf + '<p>' + esc(t.practise) + '</p><button class="wqs-word" data-tap="word" data-arg="' + m.skip + '"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + ' lang="' + L + '" dir="' + (L === 'ur' ? 'rtl' : 'ltr') + '">' + (p.audio ? IC.spk + ' ' : '') + esc(w.t) + '</button>';
+      else if (s === 'read' || s === 'practise') h = rf || '<p class="wqs-well">' + esc(t.wellRead) + '</p>';
+      else if (s === 'together' && rf) h = rf + (rd.fb.zero ? '' : '<p>' + esc(t.together) + '</p>');
       else if (s === 'denied' || s === 'together') h = '<p>' + esc(t[s]) + '</p>';
-      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(t.echoB) + '</button>';
+      if (echo) h += '<button class="wqs-sec" data-tap="echo" data-sound data-trigger="tap">' + esc(rf ? Mq('withJ') : t.echoB) + '</button>';
       return h;
     };
     var micO = {
@@ -122,7 +129,7 @@
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
-        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
+        (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + Mq('line') + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
       // the camera frames every line of the part being read, whole (both edges, any writing direction), once, and holds
       // still while the child reads (a line's own zoom, or the larger-print floor, would push lines off the edge)
@@ -133,9 +140,11 @@
       var back = function (r) { var k = 0, mk = (r = r || {}).marks || []; r.marks = ws.map(function (w) { return w.silent ? 'silent' : mk[k++]; }); result(r); };
       if (!sw.length) return back({ words_total: 0 });
       try { lrOn(sw, back); } catch (e) { m.denied(); return; }
+      var r0 = C.now();
       R.poll = C.set(function tick() {
         var v = R.lr && R.lr.view && R.lr.view(), g = root.querySelector('[data-jg]');
         if (v && g && LR.glowLevel) g.className = 'wqs-jg wqs-g' + LR.glowLevel(v);
+        Mq('tick', { g: g, v: v, ms: C.now() - r0 });
         if (R.lr) R.poll = C.set(tick, 500);
       }, 500);
     }
@@ -150,7 +159,11 @@
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
       R.pp('story_page_read', { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, m.i);
+      rd = { s: s, i: m.i };
       m.result(s);
+      // Jugnu's sound for it (the badge jingle; the soft chime after a 0-word try)
+      if (rd.fb && W.WQMoment) W.WQMoment.sound(root.querySelector('[data-rf]'), rd.fb);
+      Mq('after');
     }
 
     function eGo() { eo = { s: sents(P[m.i].words), k: 0, f: m.st }; m.set('echo'); }
@@ -317,6 +330,9 @@
         else if (tap === 'close') { if (m.st === 'mic') micO.onNotNow(); else m.notNow(); }
         else if (tap === 'word') { if (R.pl && P[m.i].quality !== 'low') R.pl.playWord(+arg); }   // the word to practise (drawn by R.ex)
         else if (tap === 'echo') eGo();
+        else if (tap === 'rfagain') m.set('mic');
+        else if (tap === 'rfwith' && m.st === 'reading') { stopAll = 1; Mq('with'); }
+        else if (tap === 'rfhear' && rd) Mq('hear', { rd: rd, sents: sents });
         else if (eo && (tap === 'main' || tap === 'hush' && !eo.pz)) eTog();
         else if (tap === 'eend' && eo) eEnd();
         else if (D) return D.act(tap, arg);
