@@ -869,7 +869,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
     bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
     story: ex === 'listen' && !v2 ? Fast.early(storyClip(w.lang)) : null,
     live: ex === 'read' ? Fast.early(liveOn()) : null,
-    previous: ex === 'read' && !rules.record ? Fast.early(previousRun(w.studentId, 'read', w.lang)) : null,
+    previous: ex === 'read' && !rules.record ? Fast.early(previousRun(w.studentId, 'read', w.lang, w.form)) : null,
     questions: ex === 'read' ? Fast.early(questionsOn()) : null,
   } : null;
   const got = (key, start) => (page ? page[key] : start());
@@ -914,7 +914,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const st = (v2 && v2.story) || spec.story || {};
   const live = await got('live', () => liveOn());
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
-  const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang))) || {}).wcpm) : undefined;
+  const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang, w.form))) || {}).wcpm) : undefined;
   const out = { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
     ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
     // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
@@ -1784,12 +1784,16 @@ async function runState(c) {
  * The child's last scored run of this exercise, for "7 more words than last time!" (null the first time). A reading
  * compares only with readings in the same language: the Urdu and English stories are different passages.
  */
-async function previousRun(studentId, exercise, lang = null) {
-  let qb = supabase.from('web_quiz_challenge_runs').select('id, exercise, status, score, wcpm, created_at')
+async function previousRun(studentId, exercise, lang = null, form = null) {
+  // web_quiz_read_feedback on, a read with its text level (form): "last time" is the child's last read at that level, so
+  // a harder or easier passage never reads as growth or its loss; none at that level ⇒ the last read of any (one query)
+  const level = exercise === 'read' && form != null && (await require('./web-quiz-read-feedback').on()) ? String(form).replace(/\D/g, '') : '';
+  let qb = supabase.from('web_quiz_challenge_runs').select(level ? 'id, exercise, status, score, wcpm, created_at, form' : 'id, exercise, status, score, wcpm, created_at')
     .eq('student_id', studentId).eq('exercise', exercise).eq('status', 'scored');
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
-  const { data, error } = await qb.order('created_at', { ascending: false }).limit(1);
-  const r = !error && data && data[0];
+  const { data, error } = await qb.order('created_at', { ascending: false }).limit(level ? 10 : 1);
+  const rows = (!error && data) || [];
+  const r = (level && rows.find((x) => String(x.form || '').replace(/\D/g, '') === level)) || rows[0];
   if (!r) return null;
   const s = r.score || {};
   return exercise === 'read' ? { wcpm: r.wcpm, correct: s.correct, at: r.created_at } : { correct: s.correct, n: s.n, at: r.created_at };
@@ -1956,7 +1960,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   if (!isLive) Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
-  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang);
+  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang, run.form);
   const readRun = sv && sv.passage_id ? { ...run, passage: passageFor(sv.passage_id, Bank) } : run;
   const story = (withPassage(Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }), readRun.passage).story || {});
   const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
@@ -2380,6 +2384,7 @@ const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsR
 Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
 
 module.exports = {
+  _previousRun: previousRun,
   menu, exercise, entryOf, presignUpload, submit, poll, readLength, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
