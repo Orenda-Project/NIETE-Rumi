@@ -5,7 +5,7 @@
  * plan already in the store, in the plan's voice?
  *
  *   node scripts/quiz/one-voice-missing-keys.js --expect-ref <project-ref> --plan '<the exact switch value, JSON>'
- *        [--record-short --max-usd X]
+ *        [--record-short --max-usd X] [--from-passage]
  *
  * With the switch on, Jugnu's challenge clips are read under keys that name the plan voice's rendering
  * (web-quiz-challenge.js clipKey). A key with no file is recorded at a child's first open, in that voice but outside
@@ -30,6 +30,12 @@
  * recorded once more; failing again it is deleted and listed (`gate_failed`). Stops before the next line once the
  * spend reaches --max-usd (default 5); prints `SPEND usd=… chars=…`. A process records at most the recorder's daily
  * cap (`capped`): run it again.
+ *
+ * --from-passage: a listening story or Story Time read-along clip that is missing is filled from the passage's checked
+ * read-along take (web-quiz-readalong.js: readalong/<env>/passage/<lang>/<id>/current.json and its audio), its bytes
+ * copied as they are, with no voice call: only when the timing file was made from the same words (its text hash), passed
+ * its own check (`qa.ok`), and is in the challenge's storybook voice (provider, voice, model of STORY_VOICE). Anything else
+ * is listed (`not_copied`, with why: no_file, text_hash, qa, voice) and stays missing. Short lines are never copied.
  */
 
 const { projectRef } = require('./backfill-bank-quiz-audio');
@@ -42,14 +48,16 @@ const MAX_WER = { en: 0.20, ur: 0.25 };
 const USD_PER_CHAR = 0.30 / 1000;
 const STT_USD_PER_S = 0.135 / 3600;
 const SHORT_PART = /^q\d+(-opt)?$/;
+const LONG_PART = /^(listen|read)\/story$/;
 
 function parseArgs(argv) {
-  const args = { expectRef: null, plan: undefined, raw: undefined, recordShort: false, maxUsd: 5 };
+  const args = { expectRef: null, plan: undefined, raw: undefined, recordShort: false, maxUsd: 5, fromPassage: false };
   for (let i = 0; i < (argv || []).length; i += 1) {
     const a = argv[i];
     const next = () => argv[++i];
     if (a === '--expect-ref') args.expectRef = String(next() || '').trim() || null;
     else if (a === '--record-short') args.recordShort = true;
+    else if (a === '--from-passage') args.fromPassage = true;
     else if (a === '--max-usd') args.maxUsd = Math.max(0, Number(next()) || 0);
     else if (a === '--plan') {
       let value = null;
@@ -97,6 +105,20 @@ async function sonioxHears(audio, lang) {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/** Why a passage's read-along timing file `d` may not stand in for the challenge clip of `text` in `lang`, or null. */
+function passageTakeRefusal(d, text, lang, Voice) {
+  const Readalong = require('../../shared/services/quiz/web-quiz-readalong');
+  if (!d || !d.audio || typeof d.audio.url !== 'string' || !d.audio.url || /^[a-z]+:|^\/|\.\./i.test(d.audio.url)) return 'no_file';
+  if (d.text_hash !== Readalong.textHash(text)) return 'text_hash';
+  if (d.qa && d.qa.ok === false) return 'qa';
+  const want = Voice.STORY_VOICE[lang] || {};
+  const got = d.voice || {};
+  const low = (x) => String(x || '').toLowerCase();
+  const same = got.provider === want.provider && got.model === want.model
+    && (got.voice === want.voice || low(got.voice) === low(want.name) || low(got.name) === low(want.name));
+  return same ? null : 'voice';
 }
 
 /** The light gate on one take: null when it passes, else the reason ("length=…", "wer=…"). */
@@ -189,6 +211,35 @@ async function main(argv, deps = {}) {
     }
     print(`SPEND usd=${rec.usd.toFixed(4)} chars=${rec.chars}`);
   }
+  const from = { copied: 0, refused: 0 };
+  if (args.fromPassage) {
+    const r2 = require('../../shared/storage/r2');
+    const bucket = require('../../shared/services/quiz/web-quiz-audio-store').quizAudioBucket();
+    const Readalong = require('../../shared/services/quiz/web-quiz-readalong');
+    const read = async (key) => {
+      try { return Buffer.from(await r2.downloadFromR2(key, { bucket })); } catch (_) { return null; }
+    };
+    for (const c of clips.values()) {
+      if (!LONG_PART.test(partOf(c.key)) || args.plan.voices[c.lang] === null) continue;
+      if ((await Ch.warmClip(c.key, c.text, c.lang, { record: false, now })) === 'had') continue;
+      const dir = Readalong.folder({ env: Readalong.deployEnv(env), kind: 'passage', lang: c.lang, id: c.id });
+      const raw = await read(`${dir}/current.json`);
+      let d = null;
+      try { d = raw && JSON.parse(raw.toString('utf8')); } catch (_) { d = null; }
+      let why = passageTakeRefusal(d, c.text, c.lang, Voice);
+      const audio = why ? null : await read(`${dir}/${d.audio.url}`);
+      if (!why && !(audio && audio.length)) why = 'no_file';
+      if (why) {
+        from.refused += 1;
+        print(`not_copied\t${c.id}\t${c.lang}\t${partOf(c.key)}\t${why}`);
+        continue;
+      }
+      await r2.uploadBuffer(audio, c.key, 'audio/ogg', { bucket });
+      from.copied += 1;
+      print(`copied\t${c.id}\t${c.lang}\t${partOf(c.key)}`);
+    }
+    print(`FROM_PASSAGE copied=${from.copied} not_copied=${from.refused}`);
+  }
   let present = 0;
   let missing = 0;
   for (const c of clips.values()) {
@@ -207,7 +258,7 @@ async function main(argv, deps = {}) {
   unsetMapped.forEach((t) => print(`missing\tshared-lines\tquiz\t${t}`));
   const ok = missing === 0 && Boolean(shared.en && shared.ur) && !dropped.length && !unsetMapped.length;
   print(`SUMMARY present=${present} total=${clips.size} missing=${missing} shared=en:${shared.en || 'none'},ur:${shared.ur || 'none'} dropped=${dropped.length} ok=${ok ? 'yes' : 'no'}${rec.stopped ? ` stopped=${rec.stopped}` : ''}`);
-  return { ok, present, total: clips.size, missing, shared, dropped: dropped.length, recorded: rec.recorded, gateFailed: rec.gateFailed, usd: rec.usd, stopped: rec.stopped };
+  return { ok, present, total: clips.size, missing, shared, dropped: dropped.length, recorded: rec.recorded, gateFailed: rec.gateFailed, usd: rec.usd, stopped: rec.stopped, copied: from.copied };
 }
 
 module.exports = { main, parseArgs, wer };

@@ -274,3 +274,85 @@ describe('--record-short', () => {
     expect(lines[lines.length - 1]).toMatch(/stopped=max_usd/);
   });
 });
+
+/*
+ * --from-passage: a listening story or Story Time read-along clip that is missing is filled from the passage's checked
+ * read-along take (readalong/<env>/passage/<lang>/<id>/current.json + its audio), with no voice call: only when the timing
+ * file was made from the same words (its text hash) and in the challenge's storybook voice (provider, voice, model).
+ * Anything else is listed (`not_copied`, with why) and stays missing. Short lines are never copied.
+ */
+describe('--from-passage', () => {
+  const Readalong = require('../../shared/services/quiz/web-quiz-readalong');
+  const ID = 'en.listen.2.setA';
+  const dirOf = () => Readalong.folder({ env: Readalong.deployEnv(ENV), kind: 'passage', lang: 'en', id: ID });
+  const timing = (over = {}) => {
+    const text = Bank.getPassage(ID).text;
+    return {
+      v: 1, id: ID, lang: 'en', text_hash: Readalong.textHash(text), audio: { url: 'el-bella-0c4454a9.ogg', ms: 30000 },
+      words: Readalong.printedWords(text).map((t, i) => ({ i, t, s_ms: i * 100, e_ms: i * 100 + 90 })),
+      voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_multilingual_v2' }, qa: { ok: true }, ...over,
+    };
+  };
+  let store;
+  function serve(files) {
+    store = new Set();
+    r2.headObject.mockImplementation(async (k) => ({ exists: store.has(k) }));
+    r2.uploadBuffer.mockImplementation(async (_buf, k) => { store.add(k); return 'ok'; });
+    r2.downloadFromR2.mockImplementation(async (k) => {
+      if (!(k in files)) { const e = new Error('NoSuchKey'); e.name = 'NoSuchKey'; throw e; }
+      return Buffer.from(typeof files[k] === 'string' ? files[k] : JSON.stringify(files[k]));
+    });
+  }
+  // the key under the plan the run pins (its rate is in the key)
+  const storyKey = () => { OneVoice.pin(OneVoice.normalize(JSON.parse(PLAN))); return Ch.clipKey('listen', 'story', 'en', Bank.getPassage(ID).text); };
+
+  test('a missing listening story is filled from its checked passage take, byte for byte, with no voice call', async () => {
+    serve({ [`${dirOf()}/current.json`]: timing(), [`${dirOf()}/el-bella-0c4454a9.ogg`]: 'OggS-checked-take' });
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    const ups = r2.uploadBuffer.mock.calls;
+    expect(ups.length).toBe(1);
+    expect(ups[0][0].toString()).toBe('OggS-checked-take');
+    expect(ups[0][1]).toBe(storyKey());
+    expect(ups[0][1]).toContain('-el-bella-cff2e4-');
+    expect(ups[0][2]).toBe('audio/ogg');
+    expect(lines).toContain(`copied\t${ID}\ten\tlisten/story`);
+    expect(lines.some((l) => l.startsWith(`missing\t${ID}\ten\tlisten/story`))).toBe(false);
+    expect(r.copied).toBe(1);
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    // short lines are never copied: they stay missing
+    expect(lines.some((l) => /^missing\ten\.listen\.2\.setA\ten\tlisten\/q1\b/.test(l))).toBe(true);
+  });
+
+  test.each([
+    ['other words (text hash)', { text_hash: 'sha256:00000000' }, 'text_hash'],
+    ['another voice', { voice: { provider: 'soniox', voice: 'Ishita', model: 'tts-rt-v2' } }, 'voice'],
+    ['the same voice on another model', { voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' } }, 'voice'],
+    ['a timing file that failed its own check', { qa: { ok: false } }, 'qa'],
+  ])('%s: not copied, listed with why, still missing', async (_name, over, why) => {
+    serve({ [`${dirOf()}/current.json`]: timing(over), [`${dirOf()}/el-bella-0c4454a9.ogg`]: 'OggS' });
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+    expect(lines).toContain(`not_copied\t${ID}\ten\tlisten/story\t${why}`);
+    expect(lines.some((l) => l.startsWith(`missing\t${ID}\ten\tlisten/story`))).toBe(true);
+    expect(r.ok).toBe(false);
+  });
+
+  test('no passage take in the store: not copied (no_file)', async () => {
+    serve({});
+    const { lines } = await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+    expect(lines).toContain(`not_copied\t${ID}\ten\tlisten/story\tno_file`);
+  });
+
+  test('a story clip already present is never read or replaced; without the flag nothing is read', async () => {
+    serve({ [`${dirOf()}/current.json`]: timing(), [`${dirOf()}/el-bella-0c4454a9.ogg`]: 'OggS' });
+    store.add(storyKey());
+    await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+    expect(r2.downloadFromR2).not.toHaveBeenCalled();
+    store.delete(storyKey()); OneVoice.reset();
+    await run(['--expect-ref', REF, '--plan', PLAN]);
+    expect(r2.downloadFromR2).not.toHaveBeenCalled();
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+  });
+});
