@@ -32,6 +32,7 @@ export const TEACHER_COPY = {
     schedule: "Schedule",
     observe: "Observe",
     schools: "Schools",
+    training: "Training Library",
     more: "More",
   },
   home: {
@@ -95,6 +96,7 @@ export const TEACHER_COPY_UR = {
     schedule: "شیڈول",
     observe: "مشاہدہ",
     schools: "اسکول",
+    training: "ٹریننگ لائبریری",
     more: "مزید",
   },
   home: {

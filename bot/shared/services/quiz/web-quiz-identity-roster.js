@@ -7,7 +7,8 @@
  * non-attempter list from it:
  *
  *   identityMode()          app_settings `web_quiz_identity` ('v2' | null), 30 s cache, fails closed
- *   watchRoot()             the VALUE `web_quiz_watch_root` (a share code id | null), read in the same query
+ *   watchRoot()             the watch root's VALUE (a share code id | null), read in the same query
+ *   watchRootState()        { root, unreadable }: a failed read is `unreadable` (the page's readers fail closed on it)
  *   loadClassRoster(id)     class_enrollments(active) ⋈ students(active, not merged), deduped, 30 s cache
  *   canonicalStudentIds(ids)  the one id each child is known by (aliases folded), for the hub
  *   loadLegacyList(id)      a legacy student_lists roster (a teacher with lists and no class), deduped
@@ -27,8 +28,7 @@ const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child'
 const { excludeSelfTests } = require('./teacher-self-test');
 
 const FLAG_KEY = 'web_quiz_identity';
-const WATCH_ROOT_KEY = 'web_quiz_watch_root';
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { WATCH_ROOT_KEY, rootOf } = require('./watch-root');   // the one spelling of the key and one parser
 const TTL_MS = 30 * 1000;
 const STUDENT_COLS = 'id, student_name, student_name_urdu, father_name, roll_number, is_active, status, created_at';
 
@@ -39,9 +39,9 @@ const rosters = new Map();
 const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 
 /**
- * The quiz page's settings read: `web_quiz_identity` and, in the same query, the VALUE `web_quiz_watch_root` (the share
+ * The quiz page's settings read: `web_quiz_identity` and, in the same query, the watch root's VALUE (the share
  * code the class-less children's own codes hang under; the page must know it to keep their names private). 30 s cache;
- * a failed read is today's identity path and no root.
+ * a failed read is today's identity path, no root, and `unreadable` (not cached; the privacy readers fail closed on it).
  */
 async function pageSettings(now = Date.now()) {
   if (flag && now - flag.at < TTL_MS) return flag;
@@ -70,15 +70,8 @@ async function readSettings(now) {
     return flag;
   } catch (err) {
     logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
-    return { mode: null, watchRoot: null };
+    return { mode: null, watchRoot: null, unreadable: true };
   }
-}
-
-/** The root's id from its VALUE (a JSON string or a plain one), only when it is an id; anything else is no root. */
-function rootOf(value) {
-  let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-  return typeof v === 'string' && UUID_RE.test(v.trim()) ? v.trim().toLowerCase() : null;
 }
 
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
@@ -99,6 +92,11 @@ function oneVoiceOf(value, now) {
 /** The watch root's share code id, or null (absent, not an id, or a failed read). */
 async function watchRoot(now = Date.now()) {
   return (await pageSettings(now)).watchRoot;
+}
+/** The watch root and whether the read failed: a privacy reader treats `unreadable` as "maybe under the root". */
+async function watchRootState(now = Date.now()) {
+  const s = await pageSettings(now);
+  return { root: s.watchRoot, unreadable: Boolean(s.unreadable) };
 }
 
 /** A students row as the matcher and the teacher's lists use it (number = the list number). */
@@ -183,9 +181,13 @@ async function loadClassRoster(classId, now = Date.now()) {
  * → Map(id → canonical id)
  */
 async function canonicalStudentIds(studentIds) {
-  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  return (await lookupIds([...new Set((studentIds || []).filter(Boolean).map(String))])).out;
+}
+
+/** canonicalStudentIds' lookup for distinct ids: { out, ok } (ok false: the lookup failed and the ids were kept as given). */
+async function lookupIds(ids) {
   const out = new Map(ids.map((id) => [id, id]));
-  if (!ids.length) return out;
+  if (!ids.length) return { out, ok: true };
   try {
     // child identity store (web_quiz_identity_canon): the same read also carries merged_into, status.
     const canon = Boolean((await require('./web-quiz-identity-flags').flags()).canon);
@@ -207,11 +209,36 @@ async function canonicalStudentIds(studentIds) {
     if (canon) (st || []).forEach((s) => { if (s.status === 'merged' && s.merged_into && out.has(String(s.id))) out.set(String(s.id), String(s.merged_into)); });
   } catch (err) {
     logToFile('⚠️ web quiz identity: canonical id lookup failed — ids kept as given', { error: err.message });
+    return { out, ok: false };
   }
-  return out;
+  return { out, ok: true };
 }
 
-/** canonicalStudentIds for one id. */
+/**
+ * canonicalStudentIds for the hub's own path (the hub and its pick record), shared within one visit while
+ * web_quiz_hub_fanout is on: a lookup that answered (or is still out) less than SHARE_MS ago for every id asked
+ * answers again, since each id's answer depends on that id alone. A lookup that failed is never shared. Off (or a
+ * cold switch cache): canonicalStudentIds, as today. Other callers (bind, cards, class links) always look up afresh.
+ */
+const SHARE_MS = 1500;
+const shared = new Map(); // id -> { at, p: Promise<{ out: Map, ok: boolean }> }
+async function canonicalStudentIdsShared(studentIds) {
+  if (!require('./web-quiz-hub-flags').fanoutNow()) return canonicalStudentIds(studentIds);
+  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return canonicalStudentIds(ids);
+  const now = Date.now();
+  const hits = ids.map((id) => shared.get(id)).filter((h) => h && now - h.at < SHARE_MS);
+  if (hits.length === ids.length) {
+    const got = await Promise.all(hits.map((h) => h.p));
+    if (got.every((g) => g.ok)) return new Map(ids.map((id, i) => [id, got[i].out.get(id) || id]));
+  }
+  const p = lookupIds(ids);
+  if (shared.size > 500) for (const [id, h] of shared) if (now - h.at >= SHARE_MS) shared.delete(id);
+  ids.forEach((id) => shared.set(id, { at: now, p }));
+  return (await p).out;
+}
+
+/** canonicalStudentId for one id. */
 async function canonicalStudentId(studentId) {
   return (await canonicalStudentIds([studentId])).get(String(studentId)) || studentId;
 }
@@ -329,10 +356,10 @@ async function nonAttempters({ shareCodeId } = {}) {
 
 module.exports = {
   FLAG_KEY,
-  identityMode, watchRoot, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
-  canonicalStudentIds, canonicalStudentId,
+  identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
+  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; inflight = null; rosters.clear(); },
+  _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); },
 };
 module.exports.oneVoicePlan = oneVoicePlan;

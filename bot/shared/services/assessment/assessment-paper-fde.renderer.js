@@ -224,8 +224,10 @@ function refuseIn(node, where, list, name) {
 
 function refuseReviewText(examJson, where = 'paper') {
   if (!examJson || typeof examJson !== 'object') return refuseIn(examJson, where, REFUSED_CHROME, 'chrome');
-  const { _layout: chrome, ...items } = examJson;
-  refuseIn(chrome, where, REFUSED_CHROME, 'chrome');
+  const { _layout: layout, ...items } = examJson;
+  // `_layout.reader` is the reader's record (model text quoting the paper); it never prints.
+  const { reader, ...chrome } = layout || {};
+  refuseIn(layout ? chrome : layout, where, REFUSED_CHROME, 'chrome');
   refuseIn(items, where, REFUSED_ITEM, 'item');
 }
 
@@ -610,6 +612,18 @@ function slotBlock(slot, sec, list, ctx) {
   return `<div class="slot${either}">${head}${body.join('')}</div>`;
 }
 
+// Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
+// unit. A page range is written «۶۳ تا ۶۴»: a hyphen after an Urdu word prints the range reversed.
+function verseSource(ctx) {
+  const src = ctx.verseSource;
+  if (!src || !src.lesson) return '';
+  const pages = String(src.pages || '').split('-').map((n) => n.trim()).filter(Boolean);
+  const line = ctx.medium === 'ur'
+    ? `(سبق ${src.lesson}، ص ${pages.join(' تا ')})` // needs fluent-Urdu review
+    : `(Lesson ${src.lesson}, ${pages.length > 1 ? 'pp.' : 'p.'} ${pages.join('–')})`;
+  return `<div class="verse verse-src">${textOf(line, ctx)}</div>`;
+}
+
 // Urdu Q6: FDE's Naat line (printed as an instruction only, never verses), OR the lesson-7 lines.
 function fixedAlternatives(slot, q, ctx) {
   const lang = ctx.medium;
@@ -619,7 +633,7 @@ function fixedAlternatives(slot, q, ctx) {
   if (fixed) out.push(`<div class="alt">${textOf(fixed[`instruction_${lang}`] || fixed.instruction_ur, ctx)}</div>`);
   if (q && seen) {
     out.push(`<div class="or">${textOf(lang === 'ur' ? 'یا' : 'OR', ctx)}</div>`);
-    out.push(`<div class="q" data-slot="${esc(slot.slot)}"><div class="alt">${textOf(seen[`instruction_${lang}`] || seen.instruction_ur, ctx)}</div><div class="verse">${textOf(q.passage, ctx)}</div></div>`);
+    out.push(`<div class="q" data-slot="${esc(slot.slot)}"><div class="alt">${textOf(seen[`instruction_${lang}`] || seen.instruction_ur, ctx)}</div><div class="verse">${textOf(q.passage, ctx)}</div>${verseSource(ctx)}</div>`);
   }
   return out.join('');
 }
@@ -778,7 +792,10 @@ ${H[`note_${lang}`] ? `<div class="note">${textOf(H[`note_${lang}`], ctx)}</div>
 
 function contextFor(L, subject, answerLines) {
   const key = String(L.subject || subject || '').toLowerCase();
-  return { medium: clampLanguage(L.medium), maths: key === 'maths' || key === 'math' || key === 'mathematics', answerLines };
+  return {
+    medium: clampLanguage(L.medium), maths: key === 'maths' || key === 'math' || key === 'mathematics', answerLines,
+    ...(L.verse_source ? { verseSource: L.verse_source } : {}),
+  };
 }
 
 /**

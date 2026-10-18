@@ -94,7 +94,7 @@ const {
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 const MAX_OPTIONS = 10;         // WhatsApp interactive list row cap
 const OPTION_DESC_MAX = 72;     // WhatsApp row description length cap
-const COOLDOWN_HOURS = 24;
+const { COOLDOWN_HOURS, cooldownUntilFor, retryLine } = require('./retry-cooldown.rules');
 
 // ─── Multi-answer delivery surface ─────────────────────────────────────────
 //
@@ -911,6 +911,48 @@ async function loadQuestionForDelivery(selected) {
     .eq('id', selected.id)
     .maybeSingle();
   return data || null;
+}
+
+/**
+ * The question as the GRADER needs it: its text and its rubric (bd-bos0ki).
+ *
+ * scoreAnswer() marks against `question.rubric` when it has one and falls back
+ * to a generic prompt when it does not. Neither CRQ caller used to hand it a
+ * rubric: the WhatsApp path's question came from loadQuestionBank (no
+ * question_text, no rubric) and the portal path selected question_text only.
+ * 36 of the 37 live I-SAPS CRQs have a rubric, and every grade it never saw was
+ * produced by the generic prompt.
+ *
+ * Fetched for the ONE question being scored, at the point of scoring, and
+ * never merged into anything that is served. The rubric's band text is the
+ * answer key for a written question: it stays on the server, so it is neither
+ * added to loadQuestionBank's shared projection nor to the paper the portal is
+ * sent.
+ *
+ * A failed lookup degrades to the question we already hold (the generic prompt)
+ * rather than refusing to mark a teacher's answer, but it is logged at error
+ * level: a silent downgrade is how this bug ran unseen.
+ *
+ * @param {{id: (string|number)}} question any row carrying the question id
+ * @returns {Promise<object>} `question` plus question_text and rubric
+ */
+async function loadQuestionForGrading(question) {
+  if (!question || question.id === undefined || question.id === null) return question;
+  try {
+    const { data, error } = await supabase
+      .from('training_questions')
+      .select('id, question_text, rubric')
+      .eq('id', question.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('question not found');
+    return { ...question, question_text: data.question_text, rubric: data.rubric || null };
+  } catch (err) {
+    logToFile('❌ CRQ grading lookup failed — marking WITHOUT the rubric', {
+      questionId: question.id, error: err?.message,
+    }, 'error');
+    return question;
+  }
 }
 
 /**
@@ -1836,7 +1878,9 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
   // rule itself is pure (capstone-points.rules), so only the vendor row is
   // needed.
   const perAnswer = await crqPointsForLevel(attempt.level_id);
-  const { score, feedback } = await CapstoneDelivery.scoreAnswer(q, trimmed, perAnswer);
+  const { score, feedback } = await CapstoneDelivery.scoreAnswer(
+    await loadQuestionForGrading(q), trimmed, perAnswer,
+  );
 
   await supabase.from('training_assessment_answers').upsert({
     attempt_id: attempt.id,
@@ -1949,25 +1993,7 @@ async function getVendorPassingPctByLevel(levelId, kind = 'exam') {
   }
 }
 
-/**
- * When a failed attempt may be retaken (bd-vej4h).
- *
- * The hours come from training_vendors.cooldown_hours. This was a hardcoded
- * 24 for every vendor, so a vendor row set to 0 changed nothing — which is how
- * I-SAPS kept a 24-hour wait it never asked for. Unreadable falls back to the
- * old 24 (fail closed: an unknown vendor keeps the wait it always had).
- *
- * @param {number|null|undefined} hours
- * @param {number} [nowMs]
- * @returns {string|null} ISO timestamp, or null for no cooldown
- */
-function cooldownUntilFor(hours, nowMs = Date.now()) {
-  const h = Number(hours);
-  const use = (hours === null || hours === undefined || !Number.isFinite(h) || h < 0) ? COOLDOWN_HOURS : h;
-  if (use === 0) return null;
-  return new Date(nowMs + use * 3_600_000).toISOString();
-}
-
+/** training_vendors.cooldown_hours for a level's vendor (undefined = unreadable → 24h default). The rule lives in retry-cooldown.rules. */
 async function getVendorCooldownHoursByLevel(levelId) {
   if (!levelId) return undefined;
   try {
@@ -2369,7 +2395,7 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
       phoneNumber,
       withLead(lead,
         `❌ *Not this time.*\n\nYou scored *${score}/${attempt.total_questions}* (${Math.round(examPct)}%). This exam requires ${examPassingPct}%.\n\n` +
-        `Try again in *${COOLDOWN_HOURS} hours*. Use that time to review the modules you struggled with.\n\n` +
+        `${retryLine(cooldownHours)}\n\n` +
         `Send /training when you're ready.`)
     );
   }
@@ -2798,7 +2824,9 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     if (crq) {
       const perAnswer = await crqPointsForLevel(attempt.level_id);
       const { scoreAnswer } = require('./capstone-delivery.service');
-      const { score, feedback } = await scoreAnswer(crq.question, crq.text, perAnswer);
+      // bd-bos0ki: the rubric is fetched here, server-side, at the point of scoring.
+      const gradingQuestion = await loadQuestionForGrading(crq.question);
+      const { score, feedback } = await scoreAnswer(gradingQuestion, crq.text, perAnswer);
       await supabase.from('training_assessment_answers')
         .update({ answer_score: score, feedback_text: feedback })
         .eq('attempt_id', attemptId).eq('question_index', crq.index);
@@ -2935,6 +2963,7 @@ module.exports = {
   startGrandQuiz,
   startModuleExam,
   routeOpenEndedAnswer,
+  loadQuestionForGrading,
   startTrainingQuiz,
   sendQuestion,
   handleQuizButton,

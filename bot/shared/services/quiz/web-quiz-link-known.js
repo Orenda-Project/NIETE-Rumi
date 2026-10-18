@@ -15,6 +15,9 @@
  *                                to this link, as cards for this code (first names only, ≤ KIDS_MAX, newest first);
  *                                {kids: []} otherwise
  *   kidFor(ctx, chip, device)    the session's child for a `via: 'known'` start: one of those children, or null
+ *   closedHome({device})         a CLOSED class link's way home: {on: false} when off; else {on: true, home} where home is
+ *                                '/h/<token>?from=link' for the children this browser holds (a hub token bound to THIS
+ *                                browser, as the old-link home does), or null when it holds nobody
  *
  * The device is always the phone's own `wq_dv` cookie, forwarded by the edge as `x-wq-device` (the routes pass it) —
  * never a ref the page sends in a body: a page never names a child by what it sends.
@@ -47,19 +50,44 @@ const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 // A grade digit in a class label ("Grade 4", "4-B"), as the join queue reads it; null when there is none.
 const gradeOf = (txt) => { const m = /[1-8]/.exec(String(txt == null ? '' : txt)); return m ? Number(m[0]) : null; };
 
+// The one switch read: caches the answer, throws on a read error (never cached then).
+async function readSwitch(now) {
+  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  const row = (data || []).find((r) => r.key === KEY);
+  cache = { at: now, on: Boolean(row) && isTrue(row.value) };
+  return cache.on;
+}
+
 /** The switch. Off on any read error (never cached then). */
 async function isOn(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || []).find((r) => r.key === KEY);
-    cache = { at: now, on: Boolean(row) && isTrue(row.value) };
-    return cache.on;
+    return await readSwitch(now);
   } catch (err) {
     logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message });
     return false;
   }
+}
+
+let peekAt = -Infinity;   // when the closed path last started a read of its own
+let peekLogged = false;
+/**
+ * The switch for a closed link's answer, never waited on: the 30 s cache as it stands. On a cold cache it starts ONE
+ * read in the background (at most one per 30 s per process, failing or not) and answers off, so that GET is today's and
+ * the next one within the window knows. A failing background read logs once per process.
+ */
+function peekOn(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return cache.on;
+  if (now - peekAt >= TTL_MS) {
+    peekAt = now;
+    readSwitch(now).catch((err) => {
+      if (peekLogged) return;
+      peekLogged = true;
+      logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message });
+    });
+  }
+  return false;
 }
 
 /** May the quiz payload carry `link_known`? Never on a friend's challenge or the teacher's preview. Never throws. */
@@ -83,7 +111,8 @@ async function canonical(ids) {
 }
 
 /**
- * The children this browser holds, newest first: [{id, student_name, student_name_urdu, self_reported_class}] (≤ KIDS_MAX).
+ * The children this browser holds, newest first: [{id, student_name, student_name_urdu, self_reported_class, list_id}]
+ * (all of them: the Redis list is ≤ 8; the cap of KIDS_MAX is applied AFTER the class filter, in namedOn).
  * [] with no device, nobody trusted, Redis down, or any read error.
  */
 async function heldBy(device, onHeld = null) {
@@ -94,21 +123,24 @@ async function heldBy(device, onHeld = null) {
   // the caller's reads that need no child start now, beside the reads below (only for a phone that holds someone)
   if (onHeld) onHeld();
   const map = await canonical(held);
-  const out = [];
+  // each child once, by the one id they are known by (the newest record the phone was trusted with decides)
+  const each = [];
   const seen = new Set();
   for (const id of held) {
     const c = String(map.get(String(id)) || id);
     if (seen.has(c)) continue;
     seen.add(c);
-    // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it
-    if (await Device.deviceMayName([...new Set([String(id), c])], d)) out.push({ c, rank: out.length });
+    each.push({ id: String(id), c });
   }
+  // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it — all at once
+  const may = await Promise.all(each.map((x) => Device.deviceMayName([...new Set([x.id, x.c])], d).catch(() => false)));
+  const out = each.filter((_, i) => may[i]);
   if (!out.length) return [];
   const { data, error } = await dbRead('linkKnown:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active, status').in('id', out.map((x) => x.c)));
   if (error) return [];
   const by = new Map((data || []).filter((r) => r.is_active !== false && r.status !== 'merged').map((r) => [String(r.id), r]));
-  return out.map((x) => by.get(x.c)).filter(Boolean).slice(0, KIDS_MAX);
+  return out.map((x) => by.get(x.c)).filter(Boolean);
 }
 
 const safe = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r.data || [] : []), () => []);
@@ -158,7 +190,8 @@ async function ofLink(ctx, kids, early) {
 async function namedOn(ctx, device) {
   let early = null;
   const kids = await heldBy(device, () => { early = linkReads(ctx); });
-  return early ? ofLink(ctx, kids, early) : [];
+  // filter THEN cap: an older held child of this class is never pushed out by newer children of other classes
+  return early ? (await ofLink(ctx, kids, early)).slice(0, KIDS_MAX) : [];
 }
 
 function shownFirst(lang, k) {
@@ -196,4 +229,26 @@ async function kidFor(ctx, chip, device) {
   }
 }
 
-module.exports = { field, known, kidFor, isOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
+/** A closed class link's way home (the edge's closed page asks once, with the phone's device). Never throws. */
+async function closedHome({ device } = {}) {
+  if (!(await isOn())) return { on: false };
+  const none = (reason) => { logEvent('web_quiz.link_known', { ok: false, reason, w: 'closed' }); return { on: true, home: null }; };
+  try {
+    const d = T.cleanDeviceRef(device);
+    if (!d) return none('no_device');
+    // the newest KIDS_MAX this browser holds (a closed link names no child on the page; the home asks who is playing)
+    const kids = (await heldBy(d)).slice(0, KIDS_MAX);
+    if (!kids.length) return none('nobody');
+    const token = T.signHub(kids.map((k) => String(k.id)));
+    if (!token) return none('no_secret');
+    const bound = await Device.deviceTrusted(token, d);
+    if (!bound.ok) return none(bound.why);
+    // no door line here: the edge writes it when it draws the button (it may give up on this answer first)
+    return { on: true, home: `/h/${token}?from=link` };
+  } catch (err) {
+    logToFile('⚠️ web quiz link known child: no way home on a closed link', { error: err.message });
+    return { on: true, home: null };
+  }
+}
+
+module.exports = { field, known, kidFor, closedHome, isOn, peekOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; peekAt = -Infinity; peekLogged = false; } };

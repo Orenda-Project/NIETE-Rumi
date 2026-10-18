@@ -132,6 +132,44 @@ describe('the self-joined child on the teacher-confirm queue', () => {
     }
   });
 
+  // The pinned teacher id: every module that names a teacher in an event gives the same reference for it. (The same
+  // string as L1, the class list's id: another table, so the rename below never touches it.)
+  const PIN_ID = 'a0000000-0000-4000-8000-000000000001';
+  const asTeacher = (id) => Object.values(fake.db).forEach((rows) => rows.forEach((r) => {
+    Object.keys(r).forEach((k) => { if (r[k] === T1) r[k] = id; });
+  }));
+  const confirmOnce = async (teacherUserId) => {
+    const { logEvent } = require('../../../shared/utils/structured-logger');
+    logEvent.mockClear();
+    await Queue.candidatesFor(teacherUserId);
+    await Queue.decide({ teacherUserId, looseId: S_SARA, candidateId: R_SARA, decision: 'no' });
+    return logEvent.mock.calls.filter(([n]) => n === 'web_quiz.join_confirm').map(([, d]) => d);
+  };
+
+  test('ON: join_confirm\'s reference is the agreed value — a 32-byte key and the pinned teacher id give e815e81977411f12', async () => {
+    const before = process.env.WEB_QUIZ_KID_KEY;
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(32);
+    try {
+      seed();
+      asTeacher(PIN_ID);
+      expect((await confirmOnce(PIN_ID)).map((d) => [d.decision, d.tk])).toEqual([['different', 'e815e81977411f12']]);
+    } finally {
+      if (before === undefined) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = before;
+    }
+  });
+
+  test('ON: join_confirm takes the reference from the shared helper (no copy of its own)', async () => {
+    const Kid = require('../../../shared/services/quiz/web-quiz-kid');
+    const spy = jest.spyOn(Kid, 'tk').mockReturnValue('5e1ec7ed5e1ec7ed');
+    try {
+      seed();
+      expect((await confirmOnce(T1)).map((d) => [d.decision, d.tk])).toEqual([['different', '5e1ec7ed5e1ec7ed']]);
+      expect(spy).toHaveBeenCalledWith(T1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   test('ON: "Different" keeps them apart for good', async () => {
     seed();
     await Queue.candidatesFor(T1);

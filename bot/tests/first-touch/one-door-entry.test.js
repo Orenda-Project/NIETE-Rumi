@@ -5,7 +5,8 @@
  *
  * Switch OFF: every persona row × typed/menu/home sends exactly what the base sends — the recorded sends are compared
  * byte for byte with tests/first-touch/__goldens__/one-door-off.json, which was RECORDED ON THE BASE (origin/sandbox
- * ad10e50fc) by running this same file there with ONE_DOOR_RECORD=1.
+ * ad10e50fc) by running this same file there. To re-record, delete the file and run this file on the base: that run
+ * records it and fails (a missing file is never a silent pass); the next run checks it. No env name is read.
  * Switch ON: every non-child handset gets exactly ONE cta_url to <base>/quiz/go/<token> (no menu, no Flow, no list,
  * no "No lessons yet", no 3-button home); the token carries no phone; a child keeps today's hub reply.
  */
@@ -54,7 +55,8 @@ let GoToken = null;
 try { GoToken = require('../../shared/services/first-touch/go.token'); } catch (_) { /* the base */ }
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'one-door-off.json');
-const RECORD = process.env.ONE_DOOR_RECORD === '1';
+// no golden file → this run records one and fails (never a silent pass); no env knob
+const RECORD = !fs.existsSync(GOLDEN);
 const onDescribeOff = RECORD ? describe.skip : describe;
 
 const ROW = { registration_completed: false, registration_state: null, name: null, teacher_uuid: null, school_id: null, portal_activated: false, preferred_language: 'en' };
@@ -360,4 +362,8 @@ onDescribe('a /quiz always gets its reply: web_quiz_door_uncapped (JSON true onl
     expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.reply_capped' || n === 'onboard.quiz_door')).toEqual(todayEvents);
     expect(mockSent.some((m) => m.kind === 'cta')).toBe(false);
   });
+});
+
+test('the switch-off golden is pinned (a missing file is recorded by this run, which then fails)', () => {
+  expect({ goldenFile: path.basename(GOLDEN), recorded: RECORD }).toEqual({ goldenFile: path.basename(GOLDEN), recorded: false });
 });

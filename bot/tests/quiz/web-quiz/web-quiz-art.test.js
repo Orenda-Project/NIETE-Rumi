@@ -256,6 +256,40 @@ describe('render + cache', () => {
     expect(htmlToImage).not.toHaveBeenCalled();
   });
 
+  test('a storybook code with web_quiz_story_board_refuse on: the class picture is 404 (never a 500), nothing drawn; off: drawn', async () => {
+    const StoryBoard = require('../../../shared/services/quiz/story-board');
+    fake.db.quizzes[0].quiz_source = 'story';
+    StoryBoard._reset();
+    await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' });
+    expect(htmlToImage).toHaveBeenCalledTimes(1);
+    htmlToImage.mockClear();
+    Art._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    try {
+      for (const ref of ['CLS001', SID]) {
+        const err = await Art.artImage(Art.artId('l', ref), { size: 'og' }).catch((e) => e);
+        expect(err).toBeInstanceOf(Art.ArtError);
+        expect(err.status).toBe(404);
+      }
+      expect(htmlToImage).not.toHaveBeenCalled();
+    } finally {
+      StoryBoard._reset();
+    }
+  });
+
+  test('a class board that fails for another reason is not a 404: it surfaces as today', async () => {
+    const WebQuiz = require('../../../shared/services/quiz/web-quiz.service');
+    const spy = jest.spyOn(WebQuiz, 'board').mockRejectedValue(Object.assign(new Error('db'), { status: 502 }));
+    try {
+      const err = await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' }).catch((e) => e);
+      expect(err).not.toBeInstanceOf(Art.ArtError);
+      expect(err.status).toBe(502);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   test('R2 down: the picture is still served (drawn), the failure only logged', async () => {
     r2.uploadBuffer.mockRejectedValue(new Error('r2 down'));
     const out = await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' });
@@ -282,6 +316,22 @@ describe('over HTTP', () => {
     expect([meta.width, meta.height]).toEqual([1080, 1080]);
   });
 
+  test('GET /art/<class picture> for a storybook code with web_quiz_story_board_refuse on: 404 JSON, never a 500', async () => {
+    const StoryBoard = require('../../../shared/services/quiz/story-board');
+    fake.db.quizzes[0].quiz_source = 'story';
+    fake.db.app_settings = [{ key: 'web_quiz_story_board_refuse', value: true }];
+    StoryBoard._reset();
+    try {
+      for (const ref of ['CLS001', SID]) {
+        const r = await fetch(`${base}/art/${Art.artId('l', ref)}?f=sq`, { headers: { 'x-api-key': 'art-key' } });
+        expect(r.status).toBe(404);
+        expect(r.headers.get('content-type')).toMatch(/json/);
+      }
+    } finally {
+      StoryBoard._reset();
+    }
+  });
+
   test('a bad id: 404 JSON', async () => {
     const r = await fetch(`${base}/art/c.bad.bad`, { headers: { 'x-api-key': 'art-key' } });
     expect(r.status).toBe(404);
@@ -292,4 +342,41 @@ test("the share events keep the two new paths: the picture shared as a file, and
   const { cleanEvent } = require('../../../shared/services/quiz/web-quiz.service');
   expect(cleanEvent({ n: 'share_click', path: 'file', src: 'card' })).toEqual({ name: 'share_click', props: { src: 'card', path: 'file' } });
   expect(cleanEvent({ n: 'share_click', path: 'save', src: 'table' }).props.path).toBe('save');
+});
+
+describe('the one share (web_quiz_share_v4) gives an Urdu picture room for its ink', () => {
+  const Switch = require('../../../shared/services/quiz/web-quiz-card-switch');
+  const INK = '.cta{padding-top:.6em';
+  function share(on, ur = false) {
+    const d = { ...seed(), app_settings: on ? [{ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_v4', value: true }] : [] };
+    if (ur) d.quiz_share_codes.forEach((c) => { c.language = 'ur'; });
+    fake = makeFake(d);
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    Switch._reset();
+    Art._resetCache();
+    htmlToImage.mockClear();
+    r2.uploadBuffer.mockClear();
+  }
+  afterEach(() => Switch._reset());
+
+  test('on: the Urdu card is drawn with the room, under its own key; off: today\'s picture and key', async () => {
+    share(false, true);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    const offHtml = htmlToImage.mock.calls[0][0];
+    const offKey = r2.uploadBuffer.mock.calls[0][1];
+    expect(offHtml).not.toContain(INK);
+    share(true, true);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    expect(htmlToImage.mock.calls[0][0]).toContain(INK);
+    expect(r2.uploadBuffer.mock.calls[0][1]).not.toBe(offKey);
+  });
+
+  test('on: an English picture keeps today\'s HTML and key (the room is for Nastaliq only)', async () => {
+    share(false);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    const off = [htmlToImage.mock.calls[0][0], r2.uploadBuffer.mock.calls[0][1]];
+    share(true);
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    expect([htmlToImage.mock.calls[0][0], r2.uploadBuffer.mock.calls[0][1]]).toEqual(off);
+  });
 });

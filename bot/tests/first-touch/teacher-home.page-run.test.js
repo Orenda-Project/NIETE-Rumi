@@ -34,15 +34,19 @@ function adopt(n) { Object.setPrototypeOf(n, PageEl.prototype); n.on = []; n.sty
 const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); };
 
 /**
- * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`);
+ * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`,
+ * or never answering with `status: 'hang'` until the test calls `release(json)` on the oldest home fetch still open);
+ * `paged` builds the page with the quick answer's switch ON;
  * `answer(path, body)` answers every other fetch.
- * → { q, tap(el), fetches, beacons, location }.
+ * → { q, tap(el), fetches, beacons, location, release }.
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null });
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
+  const held = [];
+  const release = async (json) => { held.shift()({ ok: true, status: 200, json: () => Promise.resolve(json) }); await flush(); };
   const location = { assigned: [], reloads: 0, reload() { this.reloads += 1; }, set href(v) { this.assigned.push(v); }, get href() { return this.assigned[this.assigned.length - 1] || ''; } };
   class Blob { constructor(parts) { this.text = parts.join(''); } }
   const window = {
@@ -56,7 +60,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     },
     addEventListener() {},
     scrollTo() {},
-    history: { pushState() {}, back() {} },
+    history: { pushState() {}, back() { if (backThrows) throw new Error('no history'); } },
     location,
     navigator: { sendBeacon: (p, blob) => { beacons.push({ path: p, body: JSON.parse(blob.text) }); return true; } },
     Blob,
@@ -66,6 +70,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
       fetches.push({ path: p, body });
       const isHome = p.indexOf('/api/th/home?') === 0;
       if (isHome && status === 'offline') return Promise.reject(new TypeError('Failed to fetch'));
+      if (isHome && status === 'hang') return new Promise((r) => held.push(r));
       const code = isHome ? status : 200;
       const out = isHome ? home : answer(p, body);
       return Promise.resolve({ ok: code >= 200 && code < 300, status: code, json: () => Promise.resolve(out) });
@@ -83,7 +88,7 @@ async function open(home, { lang = 'en', answer = () => ({}), status = 200, time
     for (let e = el; e; e = e.parentNode) (e.on || []).filter((h) => h.type === 'click').forEach((h) => h.fn({ target: el, preventDefault() {} }));
     await flush();
   };
-  return { q, tap, fetches, beacons, location };
+  return { q, tap, fetches, beacons, location, release };
 }
 
 const LIB = { grade: 4, stories: [] };
@@ -297,6 +302,98 @@ describe('"Quiz this" starts one quiz, wherever it is tapped', () => {
   });
 });
 
+describe('the home\'s answer does not come (switch quiz_teacher_home_paged ON)', () => {
+  const HOME = { primary: { kind: 'none' }, library: LIB };
+  const homeFetches = (p) => p.fetches.filter((f) => f.path.indexOf('/api/th/home?') === 0);
+  const fire15 = async (timers) => { timers.splice(0).filter((fn) => fn.ms === 15000).forEach((fn) => fn()); await new Promise((r) => setImmediate(r)); };
+
+  test('nothing after 15 s: the error line and «Try again» show (never a skeleton with no word); a tap asks again and draws the home', async () => {
+    const timers = [];
+    const p = await open(HOME, { status: 'hang', timers, paged: true });
+    expect(p.q('#th-retry').hidden).toBe(true);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(timers.map((fn) => fn.ms)).toContain(15000);
+    await fire15(timers);
+    expect(p.q('#th-err').hidden).toBe(false);
+    expect(p.q('#th-retry').hidden).toBe(false);
+    expect(p.q('#th-retry').textContent).toBe('Try again');
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('err');
+    expect(p.beacons.map((x) => x.body.step)).toEqual(['home_slow']);
+    await p.tap(p.q('#th-retry'));
+    expect(homeFetches(p)).toHaveLength(2);
+    expect(homeFetches(p)[1].path).toBe(homeFetches(p)[0].path);
+    expect(p.q('#th-retry').hidden).toBe(true);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.beacons.map((x) => x.body.step)).toEqual(['home_slow', 'home_retry']);
+    await p.release(HOME); // the first ask answers late: the home is drawn once, and the second answer changes nothing
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('1');
+    await p.release({ primary: { kind: 'none' }, library: { grade: 2, stories: [] } });
+    expect(p.q('#th-chosen').textContent).toMatch(/4/);
+  });
+
+  test('a stale 15 s timer from the first ask never shows the error over a second ask still on its way', async () => {
+    const timers = [];
+    const p = await open(HOME, { status: 'hang', timers, paged: true });
+    const first = timers.splice(0).filter((fn) => fn.ms === 15000);
+    first.forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r));
+    await p.tap(p.q('#th-retry'));
+    first.forEach((fn) => fn()); // the first ask's timer again (already fired): nothing
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.q('#th-retry').hidden).toBe(true);
+  });
+
+  test('an answer inside 15 s: the timer finds the home drawn and does nothing', async () => {
+    const timers = [];
+    const p = await open(HOME, { timers, paged: true });
+    await fire15(timers);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.q('#th-retry').hidden).toBe(true);
+    expect(p.q('#th-main').getAttribute('data-ready')).toBe('1');
+    expect(p.beacons).toEqual([]);
+  });
+
+  test.each([500, 'offline'])('a refusal (%s): the error line, its tap back to the chat, and «Try again» that asks again', async (status) => {
+    const p = await open({}, { status, paged: true });
+    expect(p.q('#th-err').hidden).toBe(false);
+    expect(p.q('#th-retry').hidden).toBe(false);
+    await p.tap(p.q('#th-retry'));
+    expect(homeFetches(p)).toHaveLength(2);
+  });
+
+  test('Urdu: the button reads the signed words of the error line', () => {
+    const { html } = Page.buildShell({ token: 'a.b', lang: 'ur', switchTo: null, paged: true });
+    expect(html).toContain('id="th-retry" type="button" hidden>دوبارہ کوشش کریں</button>');
+  });
+});
+
+describe('switch OFF: today\'s page', () => {
+  const crypto = require('crypto');
+  const GOLD = require('./__goldens__/teacher-home-shell-off.json');
+  test('the shell, byte for byte as today\'s (18 shapes: language × switch link × asked; recorded on the base)', () => {
+    const now = GOLD.map(({ lang, switchTo, asked }) => {
+      const b = Page.buildShell({ token: 'a.b-c_D', lang, switchTo, asked });
+      return { lang, switchTo, asked, sha256: crypto.createHash('sha256').update(`${b.html}\n${b.csp}`).digest('hex') };
+    });
+    if (process.env.TEACHER_HOME_RECORD === '1') require('fs').writeFileSync(require('path').join(__dirname, '__goldens__', 'teacher-home-shell-off.json'), `${JSON.stringify(now, null, 1)}\n`);
+    expect(now).toEqual(GOLD);
+  });
+  test('an answer that never comes: no timer of 15 s, no «Try again» (today\'s page)', async () => {
+    const timers = [];
+    const p = await open({ primary: { kind: 'none' }, library: LIB }, { status: 'hang', timers });
+    expect(timers.filter((fn) => fn.ms === 15000)).toEqual([]);
+    expect(p.q('#th-retry')).toBeNull();
+    expect(p.beacons).toEqual([]);
+  });
+  test('the quick answer\'s page is today\'s script with only the home\'s ask swapped, under its own hash', () => {
+    expect(Page.SCRIPT_PAGED).not.toBe(Page.SCRIPT);
+    expect(Page.SCRIPT_PAGED.replace(/var g0=store[\s\S]*?home\(\);/, 'X')).toBe(Page.SCRIPT.replace(/var g0=store[\s\S]*?\}\}\);/, 'X'));
+    const on = Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, paged: true });
+    expect(on.csp).toContain(`'sha256-${Page.SCRIPT_PAGED_HASH}'`);
+    expect(on.html).toContain(`<script>${Page.SCRIPT_PAGED}</script>`);
+  });
+});
+
 describe('a quiz that takes longer than three minutes', () => {
   const home = () => ({ primary: { kind: 'lesson', id: 'lp_9', make: 'lesson', from: 'lp', title: 'Water' }, library: LIB, timeline: [] });
 
@@ -347,5 +444,121 @@ describe('the words while a quiz is made', () => {
   test('no number of minutes is promised; the chat is named as the other way it arrives', () => {
     expect(Strings.str('th.job', 'en')).toBe('Your quiz is on its way — it takes a few minutes and arrives in this chat too');
     expect(Strings.str('th.job', 'ur')).toBe('کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا');
+  });
+});
+
+describe('the library card\'s story counts line', () => {
+  const STORIES = [{ id: 'b1', title: 'Rain', href: '/s?book=b1' }];
+  const home = (counts) => ({ primary: { kind: 'none' }, library: { grade: 3, stories: STORIES, all: '/all', ...(counts ? { counts } : {}) } });
+  const line = (p) => { const c = p.q('#th-counts'); expect(c).not.toBeNull(); return c; };
+
+  test('EN: the line shows the stories sent and the children who read, under "Chosen for Grade n" and above the story rows', async () => {
+    const p = await open(home({ sent: 3, read: 7 }), { counts: true });
+    const c = line(p);
+    expect(c.hidden).toBe(false);
+    expect(c.textContent).toBe('3 stories sent · children who read: 7');
+    const kids = p.q('#th-lib').children.map((x) => x.getAttribute('id'));
+    expect(kids.indexOf('th-counts')).toBeGreaterThan(kids.indexOf('th-chosen'));
+    expect(kids.indexOf('th-counts')).toBeLessThan(kids.indexOf('th-stories'));
+  });
+
+  test('EN: one story sent → the singular line', async () => {
+    const p = await open(home({ sent: 1, read: 2 }), { counts: true });
+    expect(line(p).textContent).toBe('1 story sent · children who read: 2');
+  });
+
+  test('no counts on the home → the line stays hidden and empty', async () => {
+    const p = await open(home(null), { counts: true });
+    expect(line(p).hidden).toBe(true);
+    expect(line(p).textContent).toBe('');
+  });
+
+  test('counts with nothing sent → the line stays hidden and empty', async () => {
+    const p = await open(home({ sent: 0, read: 0 }), { counts: true });
+    expect(line(p).hidden).toBe(true);
+    expect(line(p).textContent).toBe('');
+  });
+
+  test('a grade chip tap whose library answer has no counts keeps the home\'s line', async () => {
+    const p = await open(home({ sent: 3, read: 7 }), { counts: true, answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { grade: 4, stories: [{ id: 'b5', title: 'Kites', href: '/s?book=b5' }] } : {}) });
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="4"]'));
+    expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 4');
+    expect(line(p).hidden).toBe(false);
+    expect(line(p).textContent).toBe('3 stories sent · children who read: 7');
+  });
+
+  test.each([
+    [{ sent: 3, read: 7 }, '۳ کہانیاں بھیجی گئیں · پڑھنے والے بچے: ۷'],
+    [{ sent: 1, read: 12 }, '۱ کہانی بھیجی گئی · پڑھنے والے بچے: ۱۲'],
+  ])('UR: %j → the Urdu line in Urdu digits', async (counts, want) => {
+    const p = await open(home(counts), { lang: 'ur', counts: true });
+    expect(line(p).hidden).toBe(false);
+    expect(line(p).textContent).toBe(want);
+  });
+
+  test('the counts switch off: the page has no counts line, and a home that carries counts draws as today', async () => {
+    const p = await open(home({ sent: 3, read: 7 }));
+    expect(p.q('#th-counts')).toBeNull();
+    expect(p.q('#th-chosen').textContent).toBe('Chosen for Grade 3');
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html).not.toContain('th-counts');
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, counts: false }).html).toBe(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html);
+    expect(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null, counts: 'true' }).html).toBe(Page.buildShell({ token: 'a.b', lang: 'en', switchTo: null }).html);
+  });
+});
+
+describe('one primary action on the screen', () => {
+  const MSG = 'Assalam o Alaikum class! Your teacher sent you a quiz.';
+  const home = () => ({ primary: { kind: 'class', played: 0, title: 'Seasons', again: { id: 'own1' }, send: { message: MSG, wa: `https://wa.me/?text=${encodeURIComponent(MSG)}`, c: 'own-code', sendKind: 'again' } }, library: LIB });
+  const primaries = (p) => p.q('main').parentNode.querySelectorAll('[data-primary]');
+
+  test('the home carries ONE data-primary: the top card\'s; the closed send sheet carries none', async () => {
+    const p = await open(home());
+    const all = primaries(p);
+    expect(all).toHaveLength(1);
+    expect(all[0].getAttribute('data-tap')).toBe('again');
+    expect(p.q('#th-sheet-go').getAttribute('data-primary')).toBeNull();
+  });
+
+  test('with the sheet open its "Send to my class" is the one primary; closed again, the top card\'s is', async () => {
+    const p = await open(home(), { backThrows: true });
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(p.q('#th-sheet').hidden).toBe(true);
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['again']);
+  });
+
+  test('a quiz that lands while the sheet is open repaints the top card without a second primary; closed, the new card\'s is the one', async () => {
+    const timers = [];
+    const p = await open({ ...home(), timeline: [{ kind: 'lp', verb: 'quiz_this', id: 'lp_9', make: 'lesson', sendKind: null, title: 'Water' }] }, {
+      timers, backThrows: true,
+      answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Water', message: 'M', wa: 'https://wa.me/?text=M' } : {}),
+    });
+    await p.tap(p.q('#th-rows').querySelector('[data-tap="quiz_this"]'));
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    timers.splice(0).forEach((fn) => fn());
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').getAttribute('data-kind')).toBe('made');
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
+  });
+
+  test('a grade change while the sheet is open repaints the top card without a second primary', async () => {
+    const VIDEO = { kind: 'video', id: 'v1', title: 'Rain', send: { message: 'V', wa: 'https://wa.me/?text=V', c: 'vc' } };
+    const p = await open({ primary: VIDEO, library: LIB }, {
+      backThrows: true,
+      answer: (path) => (path.indexOf('/api/th/library?') === 0 ? { ...LIB, grade: 3, pick: { ...VIDEO, id: 'v2', title: 'Sun' } } : {}),
+    });
+    await p.tap(p.q('#th-top').querySelector('[data-primary]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    await p.tap(p.q('#th-grades').querySelector('[data-grade="3"]'));
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(p.q('#th-top').textContent).toContain('Sun');
+    expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
+    await p.tap(p.q('#th-back'));
+    expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
   });
 });

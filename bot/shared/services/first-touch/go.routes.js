@@ -21,6 +21,8 @@
  *
  * Switch quiz_one_door OFF: EVERY route answers 404 {off:true} before anything is read; the edge then falls through.
  * Never a 500: a thrown read → the go.error page (200) on /land, 503 {error:'go.error'} on the JSON routes.
+ * The adventure look (web_quiz_adventure_look AND web_quiz_one_button, both JSON true only) comes with the switch's own
+ * cached read: every page drawn here carries it or none does, with no read added.
  * Nothing here writes the users row (role, registration, language). 0 WhatsApp messages.
  *
  * Events (ids only): one_door.landed{side, src, how}, one_door.role{side, writer}, one_door.bind{src, ok}; with
@@ -73,9 +75,11 @@ function json(res, status, body) {
   return res.status(status).json(body);
 }
 
-async function v3(name, props) {
+// a door line under events v3: the shared envelope (kid_v, kid null) and the sitting keyed by this phone's dk, so the
+// role answer joins the sitting the child then plays in (EVENTS v3 §0)
+async function v3(name, props, device = null) {
   try {
-    if ((await Flags.flags()).eventsV3) logEvent(`web_quiz.${name}`, { w: 's', ev_v: 3, v3: 1, kid: null, ...props });
+    if ((await Flags.flags()).eventsV3) await require('../quiz/web-quiz-events-v3').emit3(`web_quiz.${name}`, props, { device });
   } catch (_) { /* never decides a response */ }
 }
 function event(name, props) {
@@ -161,14 +165,26 @@ async function personaRow(lang, t) {
     return typeof row === 'string' ? row : '';
   } catch (_) { return ''; }
 }
-const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber() }));
+/** The adventure look: the switch's cached answer (the router read it before this request); false on anything else. */
+async function advOf() {
+  try { return (await Flags.flags()).adv === true; } catch (_) { return false; }
+}
+const rolePage = async (res, t, lang) => page(res, Page.buildRolePage({ t, lang, extra: await personaRow(lang, t), bot: botNumber(), adv: await advOf() }));
+/** go.stale / go.error: never a dead end while web_quiz_closed_way_back is on (ONE tap back to WhatsApp, number or not). */
+/** ON: the link's language before today's choice (?lang= / the token's own: 'ur' → Urdu only, 'en' → with its English lines). */
+const deadEnd = async (res, id, lang, req = null) => {
+  const door = (await require('./closed-way-back.flags').on()) === true;
+  const l = (door && ({ ur: 'ur', en: 'bi' })[require('./chat-tap').linkLang(req)]) || lang;
+  return page(res, Page.buildMessagePage({ id, lang: l, bot: botNumber(), door, adv: await advOf() }));
+};
 
-function render(res, d, t, lang) {
+async function render(res, d, t, lang, req = null) {
   if (d.next) { headers(res); return res.redirect(302, d.next); }
-  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber() }));
+  const adv = await advOf();
+  if (d.page === 'pick') return page(res, Page.buildPickPage({ t, lang, kids: d.kids, bot: botNumber(), adv }));
   if (d.page === 'role') return rolePage(res, t, lang);
-  if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang }));
-  return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
+  if (d.side === 'join') return page(res, Page.buildMessagePage({ id: 'go.family', lang, adv }));
+  return deadEnd(res, 'go.error', lang, req);
 }
 
 router.get('/land/:token', async (req, res) => {
@@ -179,8 +195,8 @@ router.get('/land/:token', async (req, res) => {
     if (o.p) lang = o.p.lang;
     if (o.stale) {
       event('one_door.landed', { side: null, src: null, how: `stale_${o.stale}` });
-      await v3('go_stale', { why: o.stale, lang });
-      return page(res, Page.buildMessagePage({ id: 'go.stale', lang, bot: botNumber() }));
+      await v3('go_stale', { why: o.stale, lang }, deviceOf(req));
+      return await deadEnd(res, 'go.stale', lang, req);
     }
     // the one question paints before any database read; who this phone is, is asked after paint
     if (o.p.side === 'unknown' || req.query.ask === '1') {
@@ -189,10 +205,10 @@ router.get('/land/:token', async (req, res) => {
     }
     const d = await destination(o);
     event('one_door.landed', { side: d.side, src: d.src, how: d.next || d.page ? d.how : `${d.how}_missing` });
-    return render(res, d, t, lang);
+    return await render(res, d, t, lang, req);
   } catch (err) {
     logToFile('❌ one door: landing failed', { error: err && err.message }, 'error');
-    return page(res, Page.buildMessagePage({ id: 'go.error', lang, bot: botNumber() }));
+    return deadEnd(res, 'go.error', lang, req);
   }
 });
 
@@ -206,7 +222,7 @@ router.post('/who', async (req, res) => {
     const d = o.p.side === 'unknown' && o.p.src === 'change' ? { side: 'unknown' } : await destination(o);
     if (d.next) return json(res, 200, { side: d.side, next: d.next });
     if (d.page === 'pick') return json(res, 200, { side: d.side, next: `/quiz/go/${encodeURIComponent(t)}` });
-    await v3('role_asked', { lang: o.p.lang });
+    await v3('role_asked', { lang: o.p.lang }, deviceOf(req));
     // a child who played on THIS device's quiz page: one line above the tiles (only when a binding can be written)
     const qd = quizDevice(b.d);
     if (qd && Targets.canBind()) {
@@ -231,7 +247,7 @@ router.post('/role', async (req, res) => {
     // the write is single-use per link: a second tap re-reads, it never writes twice
     if (await GoNonce.claim(o.p.n, 'role')) {
       await Role.writeRoleAnswer({ userId: o.userId, side, phone: o.phoneNorm, src: 'role_page' });
-      await v3('role_answered', { role: side === 'teacher' ? 'teacher' : 'student', lang: o.p.lang });
+      await v3('role_answered', { role: side === 'teacher' ? 'teacher' : 'student', lang: o.p.lang }, deviceOf(req));
       event('one_door.role', { side, writer: 'role_page' });
     }
     const d = await destination(o);
