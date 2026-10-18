@@ -499,5 +499,6 @@ module.exports = {
   writeWithFallback,
   recordOutcome,
   recorderThrew,
+  writeFailed,
   __resetForTests,
 };
