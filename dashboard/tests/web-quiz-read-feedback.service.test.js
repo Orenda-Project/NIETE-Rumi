@@ -610,3 +610,13 @@ describe('once per result (key on)', () => {
     expect(count(t, 'badge')).toBe(1);
   });
 });
+
+// ---- Jugnu says "Let's read it together" once: the moment's own line steps back when Jugnu has just said it ----------
+describe('a 0-word read on the Trail card (key on)', () => {
+  test.each([['en', /Let(&#39;|')s read it together/g], ['ur', /آئیں مل کر پڑھیں/g]])('%s: the line once, the kind badge still there', (lang, re) => {
+    const t = trail({ lang, menu: { ...RF, card_v3: true, v2: {} } });
+    t.TR.readEnd({ score: { correct: 0, attempted: 0 }, sticker: false, rf: { score: { correct: 0, attempted: 0 } } });
+    expect(t.html().match(re)).toHaveLength(1);
+    expect(t.html()).toContain('data-badge="try"');
+  });
+});

@@ -59,6 +59,7 @@
   function ud(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
   function L(l) { return l === 'ur' ? 'ur' : 'en'; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function bare(s) { return String(s == null ? '' : s).replace(/[!.۔\s]+$/, ''); }
   function num(v) { var n = Number(v); return isFinite(n) && n > 0 ? n : 0; }
 
   /* ---------- pure ---------- */
@@ -121,8 +122,9 @@
     // Jugnu stays and reacts (o.jg: a host with no Jugnu of its own on the result): cheering 3 stars, happy for fewer,
     // hello after a 0-word try
     if (o.jg) out += '<img class="wq-moment-jg" src="/wq/jugnu/' + (fb.zero ? 'hello' : lv.stars === 3 ? 'celebrate' : 'correct') + '.webp" width="' + (o.size === 's' ? 56 : 72) + '" height="' + (o.size === 's' ? 56 : 72) + '" alt="" aria-hidden="true">';
+    // o.said: the host's own Jugnu line; when it already says "let's read it together", the moment does not say it twice
     if (fb.zero) {
-      out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
+      if (bare(o.said) !== bare(c.zero)) out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
     } else {
       out += '<p class="wq-moment-deed">' + esc(fb.read ? c[fb.read] : c.words(fb.words)) + '</p>';
       var lights = '';
