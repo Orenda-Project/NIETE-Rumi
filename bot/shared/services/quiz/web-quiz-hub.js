@@ -784,7 +784,9 @@ async function hub(token, opts = {}) {
   // Both keys ride the hub's own settings read (web-quiz-hub-flags.js), warm by now: no read of its own
   const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
+  const look = require('./web-quiz-ur-polish').lite(ui);
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 async function hubTogether(token, opts) {

@@ -307,12 +307,20 @@ const URDU_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 // The polished Urdu look (app_settings web_quiz_ur_polish, carried as payload `ui.ur2`): a second face and ONE class on <html>.
 const URDU_FONT_2 = '/wq/fonts/wq-nastaliq-6.woff2';
 const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
+// The light Urdu face (app_settings web_quiz_face_lite, decided by the bot: its quiz, hub and challenge answers say
+// `ui: {ur2: true, fl: true}`): the polished look draws with wq-nastaliq-7, the same face with its outlines on a coarser
+// grid (same glyphs, same shaping, same advances; ~11% fewer bytes), declared in the head and preloaded in place of -6.
+// Off (no `fl`): today's class, preload and head, byte for byte. The range is -6's, as wq.css declares it.
+const URDU_FONT_LITE = '/wq/fonts/wq-nastaliq-7.woff2';
+const flOn = (ui, lang) => Boolean(ur2On(ui, lang) && ui.fl === true);
+const FACE_LITE_STYLE = `<style id="wq-fl">@font-face{font-family:"WQ Nastaliq 2L";src:url(${URDU_FONT_LITE}) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021}
+html.wq-fl.wq-ur2[lang=ur]{--fu:"WQ Nastaliq 2L","WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}</style>`;
 
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
 function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg' }) {
   const img = image || `${origin}${brand.og.image}`;
   // web_quiz_one_face on: ONE face for both looks, so the preload below names the polished one either way (urduLook).
-  const { ur2, cls, URDU_FONT } = urduLook(ui, lang);
+  const { ur2, cls, URDU_FONT, fl } = urduLook(ui, lang);
   const adv = advOn(ui);
   return `<!doctype html>
 <html lang="${lang}" dir="${dir}"${adv ? advClass(cls) : cls}>
@@ -332,9 +340,9 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="${esc(title)}">
 <meta property="og:url" content="${esc(url)}">
-<link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? URDU_FONT_2 : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
+<link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? (fl ? URDU_FONT_LITE : URDU_FONT_2) : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/wq/wq.css?v=${assetV}">${adv ? `\n${advTags()}` : ''}
-<style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
+<style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>${fl ? `\n${FACE_LITE_STYLE}` : ''}`;
 }
 
 // One Urdu face per page (app_settings web_quiz_one_face, decided by the bot: its quiz, hub and challenge menu answers
@@ -343,8 +351,10 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 // fetched as well. Off (the key absent, or anything but JSON true): today's class and preload, byte for byte.
 function urduLook(ui, lang) {
   const ur2 = ur2On(ui, lang);
-  if (!(ui && ui.uf === true)) return { ur2, cls: ur2 ? ' class="wq-ur2"' : '', URDU_FONT };
-  return { ur2, cls: ` class="${ur2 ? 'wq-ur2 ' : ''}wq-uf"`, URDU_FONT: URDU_FONT_2 };
+  const look = !(ui && ui.uf === true) ? { ur2, cls: ur2 ? ' class="wq-ur2"' : '', URDU_FONT }
+    : { ur2, cls: ` class="${ur2 ? 'wq-ur2 ' : ''}wq-uf"`, URDU_FONT: URDU_FONT_2 };
+  // the light face (only on the polished look): one more class; the head declares the face and preloads it
+  return flOn(ui, lang) ? { ...look, cls: look.cls.replace(/"$/, ' wq-fl"'), fl: true } : look;
 }
 const oneFaceOn = (payload) => Boolean(payload && payload.one_face === true);
 // The head reads the switch from `ui` (off: the payload itself, untouched).
@@ -375,7 +385,7 @@ const withLook = (payload) => withAdv(withOneFace(payload));
 // What the shells that call no bot (library, closed, flush heads) keep of the last payload: the look, the one face and
 // the adventure look.
 function shellUi(body) {
-  let ui = body.ui && body.ui.ur2 === true ? { ur2: true } : null;
+  let ui = body.ui && body.ui.ur2 === true ? { ur2: true, ...(body.ui.fl === true ? { fl: true } : {}) } : null;
   if (oneFaceOn(body)) ui = { ...(ui || {}), uf: true };
   return advOnOf(body) ? { ...(ui || {}), adv: true } : ui;
 }
@@ -455,7 +465,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plai
   payload = withLook(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
   return {
-    lang, dir, ur2: ur2On(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title: og.title, bootsay: plain ? '' : BOOT_COPY[lang],
+    lang, dir, ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title: og.title, bootsay: plain ? '' : BOOT_COPY[lang],
     head: head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui, ...cardType(image) }),
     frame: `<main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${plain ? '' : esc(BOOT_COPY[lang])}</p></div></main>`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
@@ -510,6 +520,9 @@ function flushFixes(guess, p) {
   if (p.lang !== guess.lang) fix.push(`h.lang=${jsStr(p.lang)}`);
   if (p.dir !== guess.dir) fix.push(`h.dir=${jsStr(p.dir)}`);
   if (p.ur2 !== guess.ur2) fix.push(p.ur2 ? 'h.classList.add("wq-ur2")' : 'h.classList.remove("wq-ur2")');
+  // a head sent with the light face for a page without it goes back to -6; the other way the page keeps the face its
+  // head declared and preloaded (-6), so it never draws with a face nobody declared
+  if (guess.fl === true && p.fl !== true) fix.push('h.classList.remove("wq-fl")');
   // the adventure look: the class, its sheet and its kit (a head guessed with the look and answered without it drops the class)
   if (p.adv !== guess.adv) {
     fix.push(p.adv ? `h.classList.add("wq-adv");var l=document.createElement("link");l.rel="stylesheet";l.href=${jsStr(`/wq/wq-adventure.css?v=${advVersion()}`)};document.head.appendChild(l);var s=document.createElement("script");s.src=${jsStr(`/wq/wq-adv.js?v=${advVersion()}`)};document.head.appendChild(s)` : 'h.classList.remove("wq-adv")');
@@ -689,7 +702,7 @@ function hubPageParts({ payload, token, origin, assetV, plain = null }) {
   const answer = Boolean(payload && Array.isArray(payload.kids));
   if (answer) HomePre.learn(payload, tags, assetV);
   return {
-    lang, dir: plainDir(lang), ur2: ur2On(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title, bootsay,
+    lang, dir: plainDir(lang), ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title, bootsay,
     head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui })}${answer ? '' : HomePre.head()}`,
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)

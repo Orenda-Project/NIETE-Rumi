@@ -1,0 +1,16 @@
+{
+ "about": "Every character the child pages can draw in Urdu, as code points only (no text). Checked by dashboard/tests/web-quiz-face-lite-storybooks.service.test.js against the light face wq-nastaliq-7.woff2.",
+ "storybooks": {
+  "source": "the storybook tables, read only, 2026-10-18: story_books with lang ur (36 books, all ready): title and author; story_pages of those books: text and the per-word text; story_questions of those books: the question and every option",
+  "books": 36,
+  "pages": 361,
+  "questions": 158,
+  "urdu": [32, 33, 171, 187, 1548, 1567, 1569, 1570, 1572, 1574, 1575, 1576, 1578, 1579, 1580, 1581, 1582, 1583, 1584, 1585, 1586, 1587, 1588, 1589, 1590, 1591, 1592, 1593, 1594, 1601, 1602, 1604, 1605, 1606, 1607, 1608, 1611, 1614, 1615, 1616, 1617, 1618, 1620, 1633, 1636, 1637, 1638, 1641, 1648, 1657, 1662, 1670, 1672, 1681, 1705, 1711, 1722, 1726, 1729, 1730, 1740, 1746, 1748, 1776, 1777, 1778, 1779, 1780, 1781, 1782, 1783, 1784, 1785],
+  "not_in_either_face": [34, 39, 40, 41, 45, 46, 47, 48, 50, 54, 58, 8220, 8221],
+  "not_in_either_face_note": "Latin punctuation, Latin digits and curly quotes in the book text. The full face (-6) has no glyph for them either and its unicode-range leaves them out, so with either face they are drawn by the next font in the stack. None of them is an Urdu letter or mark, and none joins."
+ },
+ "ui": {
+  "source": "Urdu word runs (two or more letters) in dashboard/public/wq/*.js, dashboard/routes/web-quiz.routes.js, bot/shared/services/quiz/web-quiz*.js and story*.js; regex range ends left out",
+  "urdu": [171, 187, 1548, 1563, 1567, 1570, 1571, 1572, 1573, 1574, 1575, 1576, 1577, 1578, 1579, 1580, 1581, 1582, 1583, 1584, 1585, 1586, 1587, 1588, 1589, 1590, 1591, 1592, 1593, 1594, 1601, 1602, 1603, 1604, 1605, 1606, 1607, 1608, 1610, 1611, 1615, 1616, 1648, 1657, 1662, 1670, 1672, 1681, 1688, 1705, 1711, 1722, 1726, 1728, 1729, 1730, 1740, 1746, 1748]
+ }
+}
