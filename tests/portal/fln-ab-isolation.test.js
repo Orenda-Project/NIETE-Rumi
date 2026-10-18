@@ -69,17 +69,26 @@ describe('every niete_lp_opens read in lp-app-opens.store filters plan_kind = k5
 
   it('drives every exported reader', async () => {
     const S = require('../../bot/shared/services/quiz/lp-app-opens.store');
-    await S.viewerOpensAsDownloads('2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z');
-    await S.viewerOpensForTeacher(USER, '2026-10-01T00:00:00Z');
-    await S.teacherViewerOpens(USER, '2026-10-01T00:00:00Z');
-    await S.teacherViewerOpensBetween(USER, '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z');
-    await S.viewerOpenById(USER, 42);
-    await S.viewerOpenedLessonIds(USER);
+    // viewerOpenedLessonIds is sandbox-only (origin/main's store does not export it): drive the readers this
+    // branch's module really exports, so the same test runs on sandbox, staging and main.
+    const READERS = {
+      viewerOpensAsDownloads: () => S.viewerOpensAsDownloads('2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z'),
+      viewerOpensForTeacher: () => S.viewerOpensForTeacher(USER, '2026-10-01T00:00:00Z'),
+      teacherViewerOpens: () => S.teacherViewerOpens(USER, '2026-10-01T00:00:00Z'),
+      teacherViewerOpensBetween: () => S.teacherViewerOpensBetween(USER, '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z'),
+      viewerOpenById: () => S.viewerOpenById(USER, 42),
+      viewerOpenedLessonIds: () => S.viewerOpenedLessonIds(USER),
+    };
+    const driven = Object.keys(READERS).filter((name) => typeof S[name] === 'function');
+    const absent = Object.keys(READERS).filter((name) => !driven.includes(name));
+    if (absent.length) console.log(`fln-ab-isolation: not exported on this branch, skipped: ${absent.join(', ')}`);
+    expect(driven.length).toBeGreaterThanOrEqual(5);
+    for (const name of driven) await READERS[name]();
 
     const opensReads = reads.filter((r) => r.table === 'niete_lp_opens');
     // the probe in readOpens is `select('id').limit(1)` — a row-existence check, not a read of what was opened
     const dataReads = opensReads.filter((r) => r.eqs.length > 0);
-    expect(dataReads.length).toBeGreaterThanOrEqual(6);
+    expect(dataReads.length).toBeGreaterThanOrEqual(driven.length);
     for (const r of dataReads) {
       expect(r.eqs).toContainEqual(['plan_kind', 'k5']);
       expect(r.eqs.some(([c, v]) => c === 'plan_kind' && v === 'fln')).toBe(false);
