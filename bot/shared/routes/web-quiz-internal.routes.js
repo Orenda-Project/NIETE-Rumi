@@ -59,6 +59,9 @@ const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 const CardImage = require('../services/quiz/web-quiz-card-image');
 // One Urdu face (web_quiz_one_face): the quiz, hub and challenge menu answers say `one_face: true` only when on.
 const OneFace = require('../services/quiz/web-quiz-one-face');
+// The closed pages in the child's language (web_quiz_closed_lang): the quiz and hub answers say `closed_lang: true`,
+// and a genuine but expired home link's 401 carries the children's `lang`, only when on.
+const ClosedLang = require('../services/quiz/web-quiz-closed-lang');
 // The child home's step timings (web_quiz_server_timing): the hub answer's Server-Timing items, only when on.
 const StepTiming = require('../services/quiz/web-quiz-server-timing');
 
@@ -98,7 +101,7 @@ async function closedKnows(err) {
   return err;
 }
 router.get('/quiz/:code', handle(async (req) => {
-  const out = await OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }))).catch(async (err) => { throw await closedKnows(err); });
+  const out = await ClosedLang.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })))).catch(async (err) => { throw await closedKnows(err); });
   // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
   if (!req.query.p) WebQuizOg.remember(req.params.code, out);
   return out;
@@ -304,9 +307,9 @@ router.get('/card/:token', cardServe(async (req) => CardImage.landing(req.params
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)));
+  if (!st) return ClosedLang.closedHub(ClosedLang.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))), req.params.token);
   StepTiming.attach(res, st);
-  return WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })));
+  return ClosedLang.closedHub(ClosedLang.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })))), req.params.token);
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
