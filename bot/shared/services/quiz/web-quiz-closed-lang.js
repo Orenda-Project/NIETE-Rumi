@@ -92,9 +92,10 @@ async function hubLang(token) {
     if (error) throw new Error(error.message || 'students read failed');
     const live = (rows || []).filter((r) => r.is_active !== false);
     if (!live.length) return linked;
-    const StudentQuiz = require('./student-quiz.service');
-    const history = await StudentQuiz.quizzesForStudents(live);
-    return clampLanguage(StudentQuiz.classLanguage(history) || linked || StudentQuiz.childLanguage(history));
+    const history = await require('./student-quiz.service').quizzesForStudents(live);
+    // the one order (web-quiz-child-lang.js) with no kept row (a home link may name several children): class quizzes,
+    // then the link's `l`, then their own quizzes
+    return clampLanguage(require('./web-quiz-child-lang').ladder({ history, linked }));
   } catch (err) {
     logToFile('⚠️ web quiz closed lang: the children\'s language could not be read', { error: err.message });
     return linked;

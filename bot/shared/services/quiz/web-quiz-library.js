@@ -226,7 +226,9 @@ async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
   const who = await Hub.kidFromHub(token, kid, device);
   if (!who) throw new WebQuiz.WqError(401, { error: 'bad_token' });
   const Videos = require('./web-quiz-videos');
-  const ix = v3 ? await inLanguage(await bank(), langOf(who.lang) || langOf(l)) : await bank();
+  // web_quiz_return_lang: the hub's own language (its link's `l`) wins, the child's next; off: the child's, then `l`
+  const lang = v3 && (await require('./web-quiz-return-lang').on()) ? langOf(l) || langOf(who.lang) : langOf(who.lang) || langOf(l);
+  const ix = v3 ? await inLanguage(await bank(), lang) : await bank();
   const grade = Videos.gradesFor(who.grade)[0] || null;
   const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
   if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null);
