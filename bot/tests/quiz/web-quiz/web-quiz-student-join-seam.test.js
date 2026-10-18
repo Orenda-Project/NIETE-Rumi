@@ -60,11 +60,12 @@ const binding = (kid, extra = {}) => ({ id: `b-${kid.slice(-3)}`, canonical_id: 
   bound_at: iso(Date.now() - 86400000), expires_at: '2099-03-31T18:59:59.000Z', revoked_at: null, revoked_by: null, ...extra });
 
 let fake;
-function seed({ join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early, adv } = {}) {
+function seed({ join = true, joinValue = true, students = [], bindings = [], user = UNKNOWN_USER, lists = [], early, adv, oneButton } = {}) {
   const settings = { web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true };
   if (join) settings.quiz_student_join = joinValue;
   if (early !== undefined) settings.quiz_join_early_tap = early;
   if (adv !== undefined) settings.web_quiz_adventure_look = adv;
+  if (oneButton !== undefined) settings.web_quiz_one_button = oneButton;
   fake = makeFake({
     app_settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
     users: [user], students, child_phone_bindings: bindings, child_identity: [], user_feature_first_use: [],
@@ -434,29 +435,42 @@ describe('the page shell answer', () => {
     } finally { supabase.from = real; }
   });
 
-  test('web_quiz_adventure_look: only JSON true adds adv to the page answer (and to the expired answer); the reads are today\'s', async () => {
+  test('web_quiz_adventure_look AND web_quiz_one_button: only both JSON true add adv to the page answer (and the expired one); one read, as today', async () => {
     const { t } = await landing();
     const old = T.sign({ k: 'j', n: T.newNonce(), l: 'ur', exp: Math.floor(Date.now() / 1000) - 5 });
     const real = supabase.from;
     const counted = async () => {
       let reads = 0;
-      supabase.from = (tb) => { if (tb === 'app_settings') reads += 1; return real(tb); };
-      try { Join._resetCache(); const page = await Join.pageInfo({ t }); const stale = await Join.pageInfo({ t: old }); return { page, stale, reads }; } finally { supabase.from = real; }
+      const keys = [];
+      supabase.from = (tb) => {
+        const b = real(tb);
+        if (tb === 'app_settings') { reads += 1; const inF = b.in; b.in = (c, vs) => { keys.push(...vs); return inF.call(b, c, vs); }; }
+        return b;
+      };
+      try { Join._resetCache(); const page = await Join.pageInfo({ t }); const stale = await Join.pageInfo({ t: old }); return { page, stale, reads, keys }; } finally { supabase.from = real; }
     };
     seed();
     await counted();                                  // the first open of the test also warms other modules: not counted
-    for (const [adv, want] of [[true, true], ['true', false], ['"true"', false], [1, false], ['yes', false], [null, false], [{ on: true }, false], [false, false]]) {
+    const rows = [[true, true, true],
+      [true, undefined, false], [true, false, false], [true, 'true', false], [true, 1, false], [true, { on: true }, false],
+      ['true', true, false], ['"true"', true, false], [1, true, false], ['yes', true, false], [null, true, false], [{ on: true }, true, false],
+      [false, true, false], [undefined, true, false]];
+    const seen = [];                                  // the keys each read asked for: checked after the answers
+    for (const [adv, oneButton, want] of rows) {
       seed();
-      const base = await counted();                   // the same open with the key absent (today)
+      const base = await counted();                   // the same open with both keys absent (today)
       expect(base.page).toEqual({ ok: true, lang: 'ur', practice: false });
-      seed({ adv });
+      seed({ adv, oneButton });
       const got = await counted();
-      expect([adv, got.page]).toEqual([adv, want ? { ok: true, lang: 'ur', practice: false, adv: true } : { ok: true, lang: 'ur', practice: false }]);
-      expect([adv, got.stale]).toEqual([adv, want ? { stale: true, lang: 'ur', adv: true } : { stale: true, lang: 'ur' }]);
-      expect([adv, got.reads]).toEqual([adv, base.reads]);
+      const row = [adv, oneButton];
+      expect([row, got.page]).toEqual([row, want ? { ok: true, lang: 'ur', practice: false, adv: true } : base.page]);
+      expect([row, got.stale]).toEqual([row, want ? { stale: true, lang: 'ur', adv: true } : base.stale]);
+      expect([row, got.reads]).toEqual([row, base.reads]);
+      seen.push(got.keys);
     }
+    for (const k of seen) expect(k).toEqual(expect.arrayContaining(['quiz_student_join', 'web_quiz_adventure_look', 'web_quiz_one_button']));
     // the join switch off: still {off:true}, nothing about the look
-    seed({ join: false, adv: true });
+    seed({ join: false, adv: true, oneButton: true });
     Join._resetCache();
     expect(await Join.pageInfo({ t })).toEqual({ off: true });
   });

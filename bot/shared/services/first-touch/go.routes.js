@@ -21,8 +21,8 @@
  *
  * Switch quiz_one_door OFF: EVERY route answers 404 {off:true} before anything is read; the edge then falls through.
  * Never a 500: a thrown read → the go.error page (200) on /land, 503 {error:'go.error'} on the JSON routes.
- * The adventure look (web_quiz_adventure_look, JSON true only) comes with the switch's own cached read: every page drawn
- * here carries it or none does, with no read added.
+ * The adventure look (web_quiz_adventure_look AND web_quiz_one_button, both JSON true only) comes with the switch's own
+ * cached read: every page drawn here carries it or none does, with no read added.
  * Nothing here writes the users row (role, registration, language). 0 WhatsApp messages.
  *
  * Events (ids only): one_door.landed{side, src, how}, one_door.role{side, writer}, one_door.bind{src, ok}; with

@@ -11,7 +11,7 @@
  *   doorUncapped = web_quiz_door_uncapped              the answer to a quiz request is never capped on `reply_to_own_message`
  *                                                      (still counted on the ledger); JSON true only
  *   adv       = web_quiz_adventure_look                the door's pages (role question, sheet, way back) in the adventure
- *                                                      look; JSON true only (the same read: no read is added)
+ *               AND web_quiz_one_button                look; both JSON true only (the same read: no read is added)
  *
  * Absent / unreadable → { on:false, ownCap:20, eventsV3:false, teacherHome:false, doorUncapped:false }: every caller's path is today's. Read only on a quiz-shaped turn (and
  * by the ledger for a reply marked ownReply), so no other message pays for it.
@@ -26,7 +26,7 @@ const TEACHER_HOME_KEY = 'quiz_teacher_home';
 const DOOR_UNCAPPED_KEY = 'web_quiz_door_uncapped';
 const OWN_CAP_DEFAULT = 20;
 const TTL_MS = 30 * 1000;
-const { ADV_KEY, advOn } = require('./adventure-look');
+const Adv = require('./adventure-look');
 const OFF = Object.freeze({ on: false, ownCap: OWN_CAP_DEFAULT, eventsV3: false, teacherHome: false, doorUncapped: false, adv: false });
 let cache = null; // { at, on, ownCap, eventsV3, teacherHome, doorUncapped }
 
@@ -52,10 +52,10 @@ function capOf(value) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, ADV_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [ONE_DOOR_KEY, OWN_CAP_KEY, EVENTS_V3_KEY, TEACHER_HOME_KEY, DOOR_UNCAPPED_KEY, ...Adv.KEYS]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]), doorUncapped: isJsonTrue(by[DOOR_UNCAPPED_KEY]), adv: advOn(by[ADV_KEY]) };
+    cache = { at: now, on: isTrue(by[ONE_DOOR_KEY]), ownCap: capOf(by[OWN_CAP_KEY]), eventsV3: isTrue(by[EVENTS_V3_KEY]), teacherHome: isTrue(by[TEACHER_HOME_KEY]), doorUncapped: isJsonTrue(by[DOOR_UNCAPPED_KEY]), adv: Adv.advDrawn(by) };
     return cache;
   } catch (err) {
     logToFile('⚠️ one door: settings lookup failed — switch off', { error: err.message });

@@ -46,7 +46,7 @@ const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
 const { clampLanguage } = require('../../config/ux-strings');
-const { ADV_KEY, advOn } = require('../first-touch/adventure-look');
+const Adv = require('../first-touch/adventure-look');
 
 const SWITCH_KEY = 'quiz_student_join';
 // The join page keeps a grade tap made before its script has loaded (the page draws it; join.js replays it). Read only
@@ -89,19 +89,19 @@ async function earlyTapOn() {
 }
 
 /**
- * → { on, bind, earlyTap, adv }; all false on a failed read. Never throws. The adventure look (web_quiz_adventure_look,
- * JSON true only) rides the switch's own read: no read is added.
+ * → { on, bind, earlyTap, adv }; all false on a failed read. Never throws. The adventure look (web_quiz_adventure_look
+ * AND web_quiz_one_button, both JSON true only) rides the switch's own read: no read is added.
  */
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [SWITCH_KEY, ADV_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [SWITCH_KEY, ...Adv.KEYS]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const on = isTrue(by[SWITCH_KEY]);
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
     const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap, adv: on && advOn(by[ADV_KEY]) };
+    cache = { at: now, on, bind, earlyTap, adv: on && Adv.advDrawn(by) };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });

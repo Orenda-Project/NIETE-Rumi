@@ -13,7 +13,7 @@
  * only, never a URL. The edge holds no token secret and verifies nothing.
  *
  * The adventure look (switch web_quiz_adventure_look, decided by the bot: its page answer carries adv:true only when
- * the stored value is JSON true): <html class="wq-adv">, the shared token layer and this page's layer appended to the
+ * it and web_quiz_one_button are both stored as JSON true): <html class="wq-adv">, the shared token layer and this page's layer appended to the
  * inline CSS, the grade chips as the one button's secondary, "Let's go!" and the way back as its primary. join.js is
  * unchanged; the buttons it adds (.pick, .go) are painted by the same layer. Without it the page is today's, byte for byte.
  */

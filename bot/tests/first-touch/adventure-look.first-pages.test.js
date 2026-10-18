@@ -63,6 +63,20 @@ describe('the token layer', () => {
   });
 });
 
+describe('the look is drawn only with the one button system on', () => {
+  test('advDrawn(stored values): web_quiz_adventure_look AND web_quiz_one_button, both JSON true; anything else OFF', () => {
+    expect(Adv.ONE_BUTTON_KEY).toBe('web_quiz_one_button');
+    expect(Adv.KEYS).toEqual(['web_quiz_adventure_look', 'web_quiz_one_button']);
+    const by = (a, b) => ({ web_quiz_adventure_look: a, web_quiz_one_button: b });
+    expect(Adv.advDrawn(by(true, true))).toBe(true);
+    for (const [a, b] of [[true, undefined], [true, false], [true, 'true'], [true, 1], [undefined, true], ['true', true], [1, true], [false, false]]) {
+      expect([a, b, Adv.advDrawn(by(a, b))]).toEqual([a, b, false]);
+    }
+    expect(Adv.advDrawn({})).toBe(false);
+    expect(Adv.advDrawn(null)).toBe(false);
+  });
+});
+
 describe('switch OFF: today\'s pages, byte for byte', () => {
   test.each([['no field', {}], ['false', { adv: false }], ['the string "true"', { adv: 'true' }], ['1', { adv: 1 }]])('%s', (_, extra) => {
     const got = pages(extra);
