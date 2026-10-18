@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const express = require('express');
+const httpGet = require('./_fln-http-get'); // not global fetch: see the helper
 
 const HAS_CORPUS = fs.existsSync(path.join(__dirname, '../../dashboard/services/fln-corpus.service.js'))
   && fs.existsSync(path.join(__dirname, 'fixtures/fln-corpus.fixture.js'));
@@ -54,7 +55,7 @@ beforeEach(async () => {
 afterEach(() => (server ? new Promise((r) => server.close(r)) : undefined));
 
 async function get(p) {
-  const res = await fetch(base + p);
+  const res = await httpGet(base + p);
   return { status: res.status, body: await res.json().catch(() => null), cache: res.headers.get('cache-control') };
 }
 
