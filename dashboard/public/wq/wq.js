@@ -2932,10 +2932,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   /* ---------------- M11 league table ---------------- */
   // A row's stars are its score, the card's rule (one lit star per right answer), never one ⭐ for every child.
-  function rowScore(c, t) {
+  // ur (the class table on an Urdu page, web_quiz_class_doors): the score in Urdu digits, kept in its order (U+2066…U+2069)
+  function rowScore(c, t, ur) {
     var n = Number(c) || 0, tot = Number(t) || 0;
     var s = tot > 0 && tot <= 12 ? stars(Math.min(n, tot), tot).replace('class="wq-stars"', 'class="wq-stars wq-rstars"') : '';
-    return '<span class="wq-rscore">' + esc(c) + '/' + esc(t) + '</span>' + s;
+    return '<span class="wq-rscore">' + (ur ? '\u2066' + esc(urDigits(c)) + '/' + esc(urDigits(t)) + '\u2069' : esc(c) + '/' + esc(t)) + '</span>' + s;
   }
   // web_quiz_class_doors (the quiz page's boot): the class table and the league wait as a skeleton of their own rows,
   // and their list root carries the list-state marks: data-fetch pending|done|failed, data-skel-from/-to (when the
@@ -3027,20 +3028,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var you = v.you || null;
     var me = S.child && S.child.first;
     var youShown = false;
+    // class_doors on an Urdu page: one digit system (places and scores in Urdu digits, like the counts around them)
+    var ur = Boolean(b.class_doors) && LANG === 'ur';
+    var place = function (n) { return esc(ur ? urDigits(n) : n); };
     var rows = (v.rows || []).map(function (x) {
       var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
       if (isYou) youShown = true;
-      return '<tr' + (isYou ? ' class="wq-you"' : '') + '><td>' + esc(x.place) + '</td><td>' + ani(x.animal) + ' ' + esc(x.first) +
-        (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + rowScore(x.correct, x.total) + '</td></tr>';
+      return '<tr' + (isYou ? ' class="wq-you"' : '') + '><td>' + place(x.place) + '</td><td>' + ani(x.animal) + ' ' + esc(x.first) +
+        (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + rowScore(x.correct, x.total, ur) + '</td></tr>';
     }).join('');
     if (you && !youShown) {
-      rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
+      rows += '<tr class="wq-you"><td>' + place(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total, ur) + '</td></tr>';
     }
+    // an English quiz's table shown in Urdu: the lesson's name from its Urdu twin when the teacher has one, else the quiz's
+    var topic = ur && UI_SWAP && b.twin && typeof b.twin.topic === 'string' && b.twin.topic ? b.twin.topic : Q.topic;
     var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
     var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
-    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
+    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(topic, T.finN(v.finishers_n || 0)) + '</p>' +
       (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
