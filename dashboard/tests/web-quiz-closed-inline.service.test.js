@@ -21,7 +21,7 @@ const TOKEN_UR = `${b64({ k: 'h', ids: ['a'], exp: 9999999999, l: 'ur' })}.AbCdE
 const HOST = 'portal.example';
 
 const jsonRes = (status, body) => ({ status, ok: status >= 200 && status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) });
-const HUB = () => ({ lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana', animal: 'owl', grade: '3' }], kid: '0123456789abcdef', teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, fast: true });
+const HUB = () => ({ lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef', teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, fast: true });
 const QUIZ = () => ({ quiz: { id: 'q-1', code: 'AB12CD', topic: 'Parts', lang: 'en', dir: 'ltr', grade: '3', subject: 'Science', n: 1, questions: [{ qid: 'x1', i: 1, text: 'Which?', options: [{ slot: 'A', text: 'Roots' }, { slot: 'B', text: 'Leaves' }], correct_slot: 'A' }] }, cls: { label: 'Class 3', teacher: 'T', chips: [] }, live: {}, video: null, preview: false, brand: 'niete', rt: false, fast: true });
 
 let srv;
