@@ -491,7 +491,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
     return { ok, out, fetches, fc, events };
   }
   test('a story read: the deed counts pages in Urdu digits, the headline by `ended`, ONE sticker, the share', async () => {
-    const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur' });
+    const m = mountWith({ source: 'story', ended: 'read', pages_read: 3, stars: 3, title: 'دھوپ', lang: 'ur', sticker: true });
     expect(m.ok).toBe(true);
     expect(m.out).toContain('۳ صفحے پڑھے');
     expect(m.out).toContain('آپ نے جگنو کے ساتھ پڑھا!');
@@ -519,6 +519,7 @@ describe('WQFC.mount({source}) — the result object the reader hands over', () 
     expect(m.out).toContain('Let&#39;s read it together');
     expect(m.out).not.toContain('data-sticker');
     expect(m.out).not.toMatch(/pages? (read|heard)/);
+    expect(m.out).not.toContain('id="wqfc-share"');
     await flush();
     expect(JSON.parse(m.fetches[0].init.body).deed).toBe('read_tried');
   });
@@ -550,7 +551,7 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
   }
   function mountStory(o) {
     let out = '';
-    const ok = fcPage().mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', ended: 'read', pages_read: 3, auth: { hub: 'H', kid: 'K' }, home: '#', ...o });
+    const ok = fcPage().mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', ended: 'read', pages_read: 3, auth: { hub: 'H', kid: 'K' }, home: '#', sticker: true, ...o });
     return { ok, out };
   }
   const prim = (h) => (h.match(/data-primary/g) || []).length;
@@ -620,16 +621,17 @@ describe('a storybook card: the host\'s Next leads (lead: true) and the book\'s 
     expect(FC.CSS).toMatch(/\.wqfc-cov\{[^}]*object-fit:cover/);
   });
   // Hashed from the card file before this change (this harness, these fixtures; the share's label masked): without lead/cover every card is today's.
+  // The try card (read_tried, and a 0-word mount) is hashed again without its Share: a read that never happened is not shared.
   test('golden: without lead and cover, the quiz, read and story cards are today\'s, byte for byte', () => {
-    const GOLD = { html_en_quiz_quiz_done: '01e1a0f735903633', html_en_read_read_all: 'b043be6aa264e61d', html_en_read_read_tried: 'b2842bdc5339f484', html_en_book_book_read: '0ece46b785ebfbbd', html_en_book_read_tried: 'b2842bdc5339f484',
-      mount_en_read_3: '3510ec0aa9772488', mount_en_listened_0: '9d857b57ddae0921', mount_en_read_0: 'c2fce765ca3fe8f5', html_ur_quiz_quiz_done: '9cfaf40c1eb8cc71', html_ur_read_read_all: '98ce274286322afc', html_ur_read_read_tried: 'f1bf08ba8287d328',
-      html_ur_book_book_read: 'd6591dbc87955742', html_ur_book_read_tried: 'f1bf08ba8287d328', mount_ur_read_3: 'f7b33b8fbb2ad4de', mount_ur_listened_0: '75b94e63734cbf11', mount_ur_read_0: '8ed89c79f28c9edc' };
+    const GOLD = { html_en_quiz_quiz_done: '01e1a0f735903633', html_en_read_read_all: 'b043be6aa264e61d', html_en_read_read_tried: 'f6488ede30499302', html_en_book_book_read: '0ece46b785ebfbbd', html_en_book_read_tried: 'f6488ede30499302',
+      mount_en_read_3: '3510ec0aa9772488', mount_en_listened_0: '9d857b57ddae0921', mount_en_read_0: '4f8d27d894cfa346', html_ur_quiz_quiz_done: '9cfaf40c1eb8cc71', html_ur_read_read_all: '98ce274286322afc', html_ur_read_read_tried: '47af56b36e1f7352',
+      html_ur_book_book_read: 'd6591dbc87955742', html_ur_book_read_tried: '47af56b36e1f7352', mount_ur_read_3: 'f7b33b8fbb2ad4de', mount_ur_listened_0: '75b94e63734cbf11', mount_ur_read_0: '8976893727a1390d' };
     const out = {};
     for (const l of ['en', 'ur']) {
       for (const [k, d] of [['quiz', 'quiz_done'], ['read', 'read_all'], ['read', 'read_tried'], ['book', 'book_read'], ['book', 'read_tried']]) out[`html_${l}_${k}_${d}`] = shaS(fcPage().html({ kind: k, deed: d, lang: l, next: NEXT, home: '/h/tok' }));
       for (const [e, pr] of [['read', 3], ['listened', 0], ['read', 0]]) {
         let h = '';
-        fcPage().mount({ insertAdjacentHTML: (p, x) => { h += x; } }, { source: 'story', ended: e, pages_read: pr, pages_listened: 2, title: 'Mina Testwala', lang: l, auth: { hub: 'H', kid: 'K' }, next: NEXT, home: '#' });
+        fcPage().mount({ insertAdjacentHTML: (p, x) => { h += x; } }, { source: 'story', ended: e, pages_read: pr, pages_listened: 2, title: 'Mina Testwala', lang: l, auth: { hub: 'H', kid: 'K' }, next: NEXT, home: '#', sticker: true });
         out[`mount_${l}_${e}_${pr}`] = shaS(h);
       }
     }
@@ -643,7 +645,8 @@ describe('a storybook reached its end (whole: true): "You finished the story!" a
     let out = '';
     const fetches = [];
     const fc = fcAlone({ fetch: (url, init) => { fetches.push(JSON.parse(init.body)); return Promise.resolve({ ok: false }); }, document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } } });
-    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', auth: { hub: 'H', kid: 'K' }, home: '#', ...o });
+    // sticker: the server's answer to story_done (true on a first finish with pages; the reader passes it as it came)
+    const ok = fc.mount({ insertAdjacentHTML: (pos, h) => { out += h; } }, { source: 'story', auth: { hub: 'H', kid: 'K' }, home: '#', sticker: true, ...o });
     return { ok, out, fetches };
   }
   const lines = (h) => [...h.matchAll(/<p class="wqfc-count"[^>]*>([^<]*)</g)].map((m) => m[1]);
@@ -670,14 +673,27 @@ describe('a storybook reached its end (whole: true): "You finished the story!" a
     expect(m.out).toContain('>You finished the story!<');
     expect(lines(m.out)).toEqual(['2 pages read']);
   });
-  test.each(['en', 'ur'])('%s: nothing heard or read but the questions answered -> the finish headline, the questions line only, the sticker; the deed is "answered"', async (lang) => {
-    const m = mountFin({ ended: 'read', pages_read: 0, pages_listened: 0, whole: true, answered: 2, lang });
-    expect(m.out).toContain(lang === 'ur' ? '>آپ نے کہانی پوری کر لی!<' : '>You finished the story!<');
+  // the server keeps no finish for a book only looked through (sticker: false, no ✓ on the shelf): the card says so
+  test.each(['en', 'ur'])('%s: nothing heard or read but the questions answered -> "You looked through the whole book", the questions line only, NO sticker; the deed is "answered"', async (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 0, pages_listened: 0, whole: true, answered: 2, lang, sticker: false });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے پوری کتاب دیکھ لی۔<' : '>You looked through the whole book.<');
+    expect(m.out).not.toMatch(/You finished the story|آپ نے کہانی پوری کر لی/);
     expect(lines(m.out)).toEqual([lang === 'ur' ? '۲ سوالوں کے جواب دیے' : '2 questions answered']);
-    expect((m.out.match(/data-sticker/g) || []).length).toBe(1);
+    expect(m.out).not.toContain('data-sticker');
     expect(m.out).not.toMatch(/together|مل کر پڑھیں/);
     await flush();
     expect(m.fetches[0]).toMatchObject({ kind: 'story', deed: 'answered' });
+  });
+  test.each(['en', 'ur'])('%s: a book read again (the server gave no sticker): the finish and the deeds, NO sticker line', (lang) => {
+    const m = mountFin({ ended: 'read', pages_read: 3, whole: true, answered: 2, lang, sticker: false });
+    expect(m.out).toContain(lang === 'ur' ? '>آپ نے کہانی پوری کر لی!<' : '>You finished the story!<');
+    expect(lines(m.out)).toEqual(lang === 'ur' ? ['۳ صفحے پڑھے', '۲ سوالوں کے جواب دیے'] : ['3 pages read', '2 questions answered']);
+    expect(m.out).not.toContain('data-sticker');
+    expect(m.out).not.toMatch(/A new sticker|ایک نیا اسٹیکر/);
+  });
+  test('the sticker line needs the server\'s exact true: absent, "true" or 1 -> none', () => {
+    for (const st of [undefined, 'true', 1]) expect(mountFin({ ended: 'listened', pages_listened: 2, whole: true, answered: 1, lang: 'en', sticker: st }).out).not.toContain('data-sticker');
+    expect(mountFin({ ended: 'listened', pages_listened: 2, whole: true, answered: 1, lang: 'en', sticker: true }).out).toContain('data-sticker');
   });
   test('the end not reached (no whole): today\'s headline, the questions never counted', () => {
     const m = mountFin({ ended: 'listened', pages_read: 0, pages_listened: 1, answered: 4, lang: 'en' });
@@ -704,8 +720,15 @@ describe('wq.js / wq-trail.js carry guard lines, the card lives in wq-finish-car
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect(l.trim()).toMatch(/^if \(window\.WQFC/);
   });
-  test('the stylesheet the story reader asks for is the card\'s own CSS', () => {
-    expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS);
+  test('one button switch: the sound button shares the main button\'s row (its own row was ~60 px of a 360 x 800 screen)', () => {
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc{grid-template-columns:minmax(0,1fr) auto;grid-auto-flow:row dense}');
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc>*{grid-column:1/-1}');
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc>.wqfc-snd{grid-column:2;align-self:center}');
+    expect(FC.CSS_1B).toContain('html.wq-1b .wqfc>[data-primary]{grid-column:1}');
+  });
+  test('the stylesheet the story reader asks for is the card\'s own CSS (the one button lines apply only under wq-1b)', () => {
+    expect(FC.CSS_1B.split('}').filter(Boolean).every((r) => r.startsWith('html.wq-1b'))).toBe(true);
+    expect(fs.readFileSync(path.join(WQ, 'wq-finish-card.css'), 'utf8')).toBe(FC.CSS + FC.CSS_1B);
   });
 });
 
@@ -743,21 +766,21 @@ describe('golden: switch off, the Urdu Trail cards, Story Time\'s end and a held
   });
 });
 
-describe('a card that certified nothing: the Next tile is the one primary, Share a soft secondary', () => {
+describe('a card that certified nothing: the Next tile is the one primary, and no Share (a read that never happened is not shared)', () => {
   const NEXT = { kind: 'readalong', href: '/c/tok?kid=k1#along', title: 'Read along with Jugnu', minutes: 2, offer: 'o9' };
-  test('the try card leads with the tile; the sticker card keeps Share first', () => {
+  test('the try card leads with the tile and draws no Share; the sticker card keeps Share first', () => {
     const tried = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en', next: NEXT });
     expect((tried.match(/data-primary/g) || []).length).toBe(1);
     expect(tried).toMatch(/<a class="wqfc-next wqfc-lead" id="wqfc-next" data-primary data-tap="next"/);
-    expect(tried).toMatch(/<a class="wq-btn wq-soft wqfc-share" id="wqfc-share" data-tap="card_share" target="_blank"/);
-    expect(tried.indexOf('id="wqfc-next"')).toBeLessThan(tried.indexOf('id="wqfc-share"'));
+    expect(tried).not.toContain('wqfc-share');
     const won = FC.html({ kind: 'read', deed: 'read_all', lang: 'en', next: NEXT });
     expect(won.indexOf('id="wqfc-share"')).toBeLessThan(won.indexOf('id="wqfc-next"'));
     expect(won).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
   });
-  test('no tile to lead with: Share stays the primary', () => {
+  test('no tile to lead with: no Share either (the host\'s own buttons are the way on)', () => {
     const h = FC.html({ kind: 'read', deed: 'read_tried', lang: 'en' });
-    expect(h).toMatch(/class="wq-btn wq-go wqfc-share" id="wqfc-share" data-primary/);
+    expect(h).not.toContain('wqfc-share');
+    expect(h).not.toContain('data-primary');
   });
   test('the tile\'s slot events say it came after a try', () => {
     const events = [];
@@ -842,7 +865,7 @@ describe('switch on: a live read\'s held card is the card at once (the hand-off 
     const t = on();
     t.TR.readHold({ score: { attempted: 0 }, noSticker: true }, null, 0);
     expect(t.html()).toContain('Let&#39;s read it together');
-    expect(t.html()).toContain('id="wqfc-share"');
+    expect(t.html()).not.toContain('id="wqfc-share"');
     await flush();
     expect(mintOf(t).deed).toBe('read_tried');
   });

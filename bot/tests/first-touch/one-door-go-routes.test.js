@@ -12,8 +12,8 @@
  *  - who / role / bind: the remembered answer ONCE per link (writer role_page); the users row and the students rows are
  *    never written; a bind's pick must be one of THIS phone's (or this device's) children; the binding itself is the
  *    join page's write (a stub here).
- * With ONE_DOOR_DUMP_DIR set, the rendered pages are written there (role.html, pick-one.html, pick-many.html,
- * family.html, stale.html) for the page audit.
+ * When the folder <os tmpdir>/one-door-pages exists, the rendered pages are written there (role.html, pick-one.html,
+ * pick-many.html, family.html, stale.html) for the page audit: create the folder to get them. No env name is read.
  */
 process.env.WEB_QUIZ_BASE_URL = 'https://portal.example';
 process.env.WEB_QUIZ_TOKEN_SECRET = 'unit-secret-not-a-secret';
@@ -78,7 +78,8 @@ const DEV2 = 'BBBBBBBBBBBBBBBBBBBBBB';
 const QDEV = 'QQQQQQQQQQQQQQQQQQQQQQ';
 const THIS_YEAR = new Date().toISOString();
 const LAST_YEAR = new Date(Date.now() - 400 * 86400000).toISOString();
-const DUMP = process.env.ONE_DOOR_DUMP_DIR || null;
+const DUMP_DIR = path.join(require('os').tmpdir(), 'one-door-pages');
+const DUMP = fs.existsSync(DUMP_DIR) ? DUMP_DIR : null;
 const dump = (name, html) => { if (DUMP) { fs.mkdirSync(DUMP, { recursive: true }); fs.writeFileSync(path.join(DUMP, name), html); } };
 
 let server;
@@ -92,12 +93,14 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 
 const roster = (id, name, list = 'l-1', phone = PH.family, school = 'sch-1') => ({ id, student_name: name, list_id: list, parent_phone: phone, school_id: school, is_active: true, status: 'active', merged_into: null });
-function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false } = {}) {
+function world({ on = true, family = [], lists = null, schools = { 't-1': 'sch-1', 't-2': 'sch-1' }, quizSessions = [], teacherHome = true, makerPage = false, adv, oneButton } = {}) {
   const settings = [];
   if (on) settings.push({ key: 'quiz_one_door', value: 'true' });
   if (teacherHome) settings.push({ key: 'quiz_teacher_home', value: 'true' });
   if (makerPage) settings.push({ key: 'quiz_maker_page', value: 'true' });
   settings.push({ key: 'web_quiz_hub', value: 'true' });
+  if (adv !== undefined) settings.push({ key: 'web_quiz_adventure_look', value: adv });
+  if (oneButton !== undefined) settings.push({ key: 'web_quiz_one_button', value: oneButton });
   mockDb = fakeDb({
     app_settings: settings,
     users: [{ ...UNKNOWN }, { ...TEACHER }, { ...PARENT }, { ...FAMILY },
@@ -587,5 +590,116 @@ describe('the sandbox walk-through hooks (the module present; its own switch dec
       require('../../shared/services/first-touch/go.routes');
       expect(mount).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('the door\'s v3 lines join the sitting (web_quiz_events_v3)', () => {
+  const KEY = 'k'.repeat(32);
+  const v3Lines = (name) => logEvent.mock.calls.filter(([n]) => n === `web_quiz.${name}`).map(([, d]) => d);
+  let was;
+  beforeEach(() => { was = process.env.WEB_QUIZ_KID_KEY; process.env.WEB_QUIZ_KID_KEY = KEY; });
+  afterEach(() => { if (was === undefined) delete process.env.WEB_QUIZ_KID_KEY; else process.env.WEB_QUIZ_KID_KEY = was; });
+  const eventsOn = () => { mockDb.tables.app_settings.push({ key: 'web_quiz_events_v3', value: 'true' }); OneDoorFlags._resetCache(); };
+
+  test('on: role_asked and role_answered carry kid_v and ONE sitting id keyed by this phone, no raw id', async () => {
+    world();
+    eventsOn();
+    const t = await mint(UNKNOWN, PH.unknown);
+    await post('who', { t });
+    await post('role', { t, side: 'child' });
+    const [asked] = v3Lines('role_asked');
+    const [answered] = v3Lines('role_answered');
+    expect(asked).toMatchObject({ w: 's', ev_v: 3, v3: 1, kid: null, sit: expect.stringMatching(/^[a-z2-9]{10}$/) });
+    expect(answered).toMatchObject({ w: 's', ev_v: 3, v3: 1, kid: null, role: 'student', sit: asked.sit });
+    [asked, answered].forEach((d) => {
+      expect(d).toHaveProperty('kid_v');
+      const s = JSON.stringify(d);
+      expect(s).not.toContain('u-unknown');
+      expect(s).not.toContain(PH.unknown);
+      expect(s).not.toContain(DEV);
+    });
+  });
+
+  test('on: a stale link\'s go_stale line carries the sitting too', async () => {
+    world();
+    eventsOn();
+    const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
+    await land(old);
+    expect(v3Lines('go_stale')).toEqual([expect.objectContaining({ ev_v: 3, kid: null, why: 'expired', sit: expect.stringMatching(/^[a-z2-9]{10}$/) })]);
+  });
+
+  test('off: no v3 line at all (today)', async () => {
+    world();
+    const t = await mint(UNKNOWN, PH.unknown);
+    await post('who', { t });
+    await post('role', { t, side: 'child' });
+    const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });
+    await land(old);
+    expect(['role_asked', 'role_answered', 'go_stale'].flatMap(v3Lines)).toEqual([]);
+  });
+});
+
+describe('the adventure look (web_quiz_adventure_look AND web_quiz_one_button, both JSON true): the same pages in the new look, the same reads', () => {
+  const advClass = (html) => /<html[^>]*class="wq-adv"/.test(html);
+  const cssHash = (html) => require('crypto').createHash('sha256').update(/<style>([\s\S]*?)<\/style>/.exec(html)[1], 'utf8').digest('base64');
+  // the keys of every app_settings read, as the door's one read asks for them
+  function spyKeys() {
+    const keys = [];
+    const from = mockDb.from.bind(mockDb);
+    mockDb.from = (tb) => { const b = from(tb); if (tb === 'app_settings') { const inF = b.in; b.in = (c, vs) => { keys.push(...vs); return inF.call(b, c, vs); }; } return b; };
+    return keys;
+  }
+  async function today(t) {
+    world({});
+    OneDoorFlags._resetCache();
+    return { role: await (await land(t)).text(), stale: await (await land('x.y')).text() };
+  }
+  test.each([
+    [true, true, true],
+    [true, undefined, false], [true, false, false], [true, 'true', false], [true, 1, false],
+    ['true', true, false], [false, true, false], [1, true, false], [undefined, true, false], [undefined, undefined, false],
+  ])('look %p, one button %p → the look %p; the reads are today\'s; off = today\'s page, byte for byte', async (adv, oneButton, want) => {
+    world({});
+    const t = await mint(UNKNOWN, PH.unknown);
+    const off = await today(t);
+    world({ adv, oneButton });
+    const keys = spyKeys();
+    OneDoorFlags._resetCache();
+    mockReads = 0;
+    const cold = await (await land(t)).text();
+    expect(mockReads).toBe(1);                       // the one switch read, as today: both keys ride it
+    expect(advClass(cold)).toBe(want);
+    if (!want) expect(cold).toBe(off.role);
+    mockReads = 0;
+    const r = await land(t);
+    expect(mockReads).toBe(0);                       // the one question still paints with NO database read
+    const html = await r.text();
+    expect(advClass(html)).toBe(want);
+    if (want) expect(r.headers.get('content-security-policy')).toContain(`style-src 'sha256-${cssHash(html)}'`);
+    else expect(html).toBe(off.role);
+    mockReads = 0;
+    const stale = await (await land('x.y')).text();
+    expect(mockReads).toBe(0);
+    expect(stale).toContain('data-screen="go.stale"');
+    expect(advClass(stale)).toBe(want);
+    if (!want) expect(stale).toBe(off.stale);
+    expect(keys).toEqual(expect.arrayContaining(['quiz_one_door', 'web_quiz_adventure_look', 'web_quiz_one_button']));
+  });
+
+  test('the "Is it <First>?" sheet a known family phone lands on carries the look with both switches, and not with the look alone', async () => {
+    for (const [oneButton, want] of [[true, true], [undefined, false]]) {
+      world({ adv: true, oneButton, family: [roster('r-1', 'Ali Testwala')] });
+      OneDoorFlags._resetCache();
+      mockJoin = WRITER();
+      const t = await mint(FAMILY, PH.family, 'child');
+      const r = await land(t);
+      const html = await r.text();
+      expect(html).toContain('data-screen="pick"');
+      expect([oneButton, advClass(html)]).toEqual([oneButton, want]);
+      if (want) {
+        expect(html).toContain('class="yes wq-btn wq-btn--primary"');
+        expect(r.headers.get('content-security-policy')).toContain(`style-src 'sha256-${cssHash(html)}'`);
+      } else expect(html).not.toContain('wq-btn');
+    }
   });
 });

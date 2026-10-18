@@ -28,7 +28,7 @@ const S = Object.freeze({
     ur: 'جگنو کا کوئز لنک سے کھلتا ہے۔ تھوڑی دیر بعد دوبارہ ”کوئز“ لکھ کر بھیجیں۔',
   }),
   // the child-side reply under this switch (no retired door word)
-  'od.child.body': Object.freeze({ en: 'Your stories, videos and quizzes are here.', ur: 'آپ کی کہانیاں، ویڈیوز اور کوئز یہاں ہیں۔' }),
+  'od.child.body': Object.freeze({ en: 'Your stories, games and videos are here.', ur: 'آپ کی کہانیاں، کھیل اور ویڈیوز یہاں ہیں۔' }),
   'od.child.btn': Object.freeze({ en: 'Open', ur: 'کھولیں' }),
   // §2 the role question page
   'rq.h': Object.freeze({ en: 'Tell Jugnu who you are', ur: 'جگنو کو بتائیں، آپ کون ہیں؟' }),
@@ -62,6 +62,9 @@ const S = Object.freeze({
   'go.stale': Object.freeze({ en: 'This link has expired. For a new one, send “quiz” in the chat.', ur: 'اس لنک کی مدت ختم ہو گئی ہے۔ نیا لنک لینے کے لیے چیٹ میں ”کوئز“ لکھ کر بھیجیں۔' }),
   'go.error': Object.freeze({ en: "That didn't work. Try again in a moment.", ur: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' }),
   'go.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس\u00a0ایپ کھولیں' }),
+  // the one tap back on a dead-end page (switch web_quiz_closed_way_back ON): the signed sentence, verbatim (a no-break space
+  // inside the brand name; the straight quotes around «کوئز» are the signed form)
+  'go.back': Object.freeze({ en: "Open WhatsApp and send 'quiz' to Jugnu.", ur: 'واٹس\u00a0ایپ کھولیں اور جگنو کو "کوئز" لکھ کر بھیجیں۔' }),
   'go.family.h': Object.freeze({ en: 'Playing from home?', ur: 'گھر سے کھیلنا ہے؟' }),
   'go.family.none': Object.freeze({ en: 'No class link yet? Ask your teacher.', ur: 'ابھی لنک نہیں ملا؟ اپنے ٹیچر سے پوچھیں۔' }),
 });

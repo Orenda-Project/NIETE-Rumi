@@ -162,6 +162,24 @@ async function markDevice(id, deviceHash) {
   return done.length > 0;
 }
 
+/**
+ * Claim the first home's "remember" line for a live binding (web_quiz_remember_shown_row only): sets remember_shown_at
+ * only while it is still empty → true (this open draws it), false (already drawn, or the link is gone), null (the
+ * write failed — the caller keeps the cache's rule).
+ */
+async function markShown(id, now = new Date()) {
+  if (!id) return false;
+  try {
+    const { data, error } = await supabase.from(TABLE).update({ remember_shown_at: iso(now) })
+      .eq('id', String(id)).is('remember_shown_at', null).is('revoked_at', null).select('id');
+    if (error) throw new Error(error.message || 'write failed');
+    return (data || []).length > 0;
+  } catch (err) {
+    logToFile('⚠️ child bindings: markShown failed — the cache decides', { error: err.message });
+    return null;
+  }
+}
+
 async function erase(label, filter, revokedBy, now) {
   if (!REVOKED_BY.includes(revokedBy)) return [];
   // The phone each row held, read BEFORE the erase: the caller forgets the door cache for it afterwards.
@@ -193,12 +211,14 @@ function eraseAllForPhone(phoneNorm, revokedBy, now = new Date()) {
  * → [{id, student_name, self_reported_class, created_at, src: 'bound'|'chat'}].
  * With web_quiz_phone_bind off it is exactly quizStudentsForPhone(phone).
  */
-async function childrenForPhone(phone) {
+async function childrenForPhone(phone, { together = false } = {}) {
   const StudentMode = require('../student-mode.service');
+  // together (the self-join's fast path, quiz_join_fast): the phone's bindings are read beside its chat rows (never throws)
+  const early = together ? activeForPhone(normalisePhone(phone)) : null;
   const chat = await StudentMode.quizStudentsForPhone(phone);
   if (!(await IdFlags.flags()).phoneBind) return chat;
   try {
-    const bound = await activeForPhone(normalisePhone(phone));
+    const bound = await (early || activeForPhone(normalisePhone(phone)));
     const picks = [...bound.map((b) => ({ id: String(b.canonical_id), src: 'bound' })), ...chat.map((c) => ({ id: String(c.id), src: 'chat' }))];
     if (!picks.length) return chat;
     const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(picks.map((p) => p.id));
@@ -227,7 +247,7 @@ async function childrenForPhone(phone) {
 module.exports = { ukeyOf,
   normalisePhone, tombOf,
   activeForPhone, activeForChild, activeForDevice, findByTomb,
-  insert, renew, markDevice, eraseOne, eraseAllForPhone,
+  insert, renew, markDevice, markShown, eraseOne, eraseAllForPhone,
   expiresAtFor, yearCode, childrenForPhone,
   VIA, REVOKED_BY, TABLE,
 };

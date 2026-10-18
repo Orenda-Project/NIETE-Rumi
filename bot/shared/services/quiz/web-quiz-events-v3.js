@@ -13,7 +13,9 @@
  *   emit3(name, fields, { canonicalId, device }) one v3 server line (callers check the switch)
  *   relayed(e)                                 is this page event a v3 line (next_shown, next_tap, home_view, door_tap
  *                                              with a v3 door, door_row_tap, video_open, video_watched, who_open,
- *                                              card_shown, card_share)? The relay (web-quiz.service.js events) hands
+ *                                              card_shown, card_share, known_ask, identity_pick from the class link's
+ *                                              "Is it <First>?" sheet only, and that sheet's timing lines
+ *                                              link_known_answer / link_known_late)? The relay (web-quiz.service.js events) hands
  *                                              it to `relay` only with `web_quiz_events_v3` on; off, today's path.
  *   relay(e, body, device, { onTap })          the page line, cleaned by the v3 rules (EVENTS v3 §2), keyed by the
  *                                              child (the hub token + chip, else the quiz session), its sitting id, and
@@ -105,9 +107,18 @@ const BY_NAME = Object.freeze({
   who_open: { lang: RULES.lang },
   card_shown: { source: /^(quiz|read|story|challenge)$/, lang: RULES.lang },
   card_share: { source: /^(quiz|read|story|challenge)$/, kind: /^(card_image|invite_link)$/, path: /^(file|native|wa|copy)$/, lang: RULES.lang },
+  // the class link's "Is it <First>?" sheet (web_quiz_link_known_child): asked, and its two answers
+  known_ask: { lang: RULES.lang },
+  identity_pick: { src: /^(known|known_else)$/, lang: RULES.lang },
+  // its timing: every /known answer, and an answer that came after the child touched the page (dropped)
+  link_known_answer: { lang: RULES.lang },
+  link_known_late: { lang: RULES.lang },
 });
 // Small whole numbers a name keeps ([min, max]) and its true/false keys (booleans only, never a string).
-const INTS = Object.freeze({ who_open: { kids: [0, 20], jn: [0, 1] } });
+const INTS = Object.freeze({
+  who_open: { kids: [0, 20], jn: [0, 1] }, known_ask: { kids: [0, 4] },
+  link_known_answer: { ms: [0, 600000], kids: [0, 4], shown: [0, 4], asked: [0, 4] }, link_known_late: { ms: [0, 600000] },
+});
 const BOOLS = Object.freeze({ card_shown: ['share_ok', 'tried'] });
 const POS_MAX = { door_row_tap: 99 };
 const NAMES = new Set(['next_shown', 'next_tap', 'home_view', 'door_tap', ...Object.keys(BY_NAME)]);
@@ -121,6 +132,8 @@ const forged = (e) => SERVER_V3.has(String((e && e.n) || ''));
 function relayed(e) {
   const n = String((e && e.n) || '');
   if (!NAMES.has(n)) return false;
+  // only the sheet's two answers: every other identity_pick is today's line
+  if (n === 'identity_pick') return typeof e.src === 'string' && BY_NAME.identity_pick.src.test(e.src);
   return n !== 'door_tap' || (typeof e.door === 'string' && RULES.door.test(e.door));
 }
 

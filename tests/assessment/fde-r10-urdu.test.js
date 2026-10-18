@@ -58,6 +58,7 @@ jest.mock('../../bot/shared/services/assessment/book-content.service', () => ({
 const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const { topUpTree } = require('./helpers/urdu-spares');
 
 const P = Patterns.get('fde_g5_2027').subjects;
 const U = P.urdu;
@@ -100,19 +101,29 @@ describe('urdu Q1 ↔ Q4: Section A never gives a Q4 answer away', () => {
     const { examJson } = applyLayout(exam, U, L67, { reasked: false });
     const q1 = items(examJson, 'urdu.A.Q1');
     expect(q1.some((q) => q.question.startsWith('قلم، کاپی، بستہ، تختی'))).toBe(false);
-    expect(q1).toHaveLength(19);
+    // 18, not 19: «… اس کا نتیجہ کیا نکلے گا؟» is held too, its option «د) تھیڑ کمپنی ختم ہو جائے گی»
+    // stating «… کیا بنایا؟ → تھیڑ کمپنی» (an option that states a key, fde-r17-urdu.test.js (b)).
+    expect(q1).toHaveLength(18);
+    expect(q1.some((q) => q.question.endsWith('اس کا نتیجہ کیا نکلے گا؟'))).toBe(false);
     expect(items(examJson, 'urdu.C.Q4').map((q) => q.answer)).toContain('الف) اسکول');
   });
 
-  test('after the one re-ask, a held item comes back only for a place nothing else takes', () => {
+  test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {
     const { examJson } = applyLayout(clone(papers.full_1), U, FDE, { reasked: true });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    const held = applyLayout(clone(papers.full_1), U, FDE, { reasked: false }).examJson;
+    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(items(held, 'urdu.A.Q1').length);
   });
 
   test('a paper with no shared key lays out as before', () => {
     const exam = q4Only(clone(papers.lessons_4_5_failed));
     const { examJson } = applyLayout(exam, U, L45, { reasked: false });
-    expect(items(examJson, 'urdu.A.Q1')).toHaveLength(20);
+    // One grammar concept once: the second شکیہ item («شکیہ جملے میں کون سا لفظ آ سکتا ہے؟») and the
+    // second تمنائی item («تمنائی جملے میں کس چیز کا اظہار ہوتا ہے؟») are held.
+    const q1 = items(examJson, 'urdu.A.Q1').map((q) => q.question);
+    expect(q1).toHaveLength(18);
+    expect(q1).not.toContain('شکیہ جملے میں کون سا لفظ آ سکتا ہے؟');
+    expect(q1).toContain('کون سا جملہ تمنائی ہے؟');
+    expect(q1).not.toContain('تمنائی جملے میں کس چیز کا اظہار ہوتا ہے؟');
   });
 
   test('the re-asked Section A is told Q4\'s questions and answers; other sections are not', () => {
@@ -187,7 +198,8 @@ describe('lessons 4–5 through generatePatternExam', () => {
       const prompt = textOf(req);
       const sec = sectionOf(prompt);
       asked.push({ sec, prompt });
-      const tree = treeFor(sec);
+      // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
+      const tree = (sec === 'A' && topUpTree(prompt)) || treeFor(sec);
       if (sec === 'A' && q1GivesQ4Away && asked.filter((a) => a.sec === 'A').length === 1) {
         // Q4 ۲ of this request is «___ تم محنت کرو گے ___» keyed «الف) اگر، تو».
         tree.objective.MCQs[19] = {
@@ -285,8 +297,16 @@ describe('urdu Q6: verses that are not from the poem are never printed', () => {
       const prompt = textOf(req);
       const sec = ['A', 'B', 'C'].find((x) => prompt.includes(`"slot": "urdu.${x}.`));
       asked.push(sec);
-      const tree = treeFor(sec);
+      // A Section A top-up writes new items (helpers/urdu-spares.js); every other call, the recording.
+      const tree = (sec === 'A' && topUpTree(prompt)) || treeFor(sec);
       if (sec === 'C') tree.subjective['Poem Explanation'] = [clone(asked.filter((x) => x === 'C').length === 1 ? first : second)];
+      // The recording's Q4 ارکان key splits «تواضع» apart from its own accepted answer, which asks
+      // Section C again for Q4; these tests are about Q6, so the key here agrees with the answer.
+      if (sec === 'C') {
+        Object.values(tree).flatMap((t) => Object.values(t)).flat()
+          .filter((q) => q.slot === 'urdu.C.Q4' && String(q.answer).includes('+'))
+          .forEach((q) => { q.answer = q.answer.replace('تو + اضع', 'ت + وا + ضع'); });
+      }
       return reply(tree);
     });
     return asked;

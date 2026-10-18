@@ -425,6 +425,28 @@ describe('from the new home\'s Next tile (#next / #numbers): the one game it nam
     expect(card.screen()).toBe('error');
     expect(text(card.html())).toContain(back);
   });
+  test('a game opened by its own id from a tile (#missing, the ranked tile\'s link): back on the list, no Next pill of its own', async () => {
+    const menu = TRAIL();
+    const p = v2page({ href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#missing', menu, routes: { 'ch/HUB.TOKEN/missing': ok({ ex: 'missing', draw: { outcome: 'on_its_way' } }), 'ch/HUB.TOKEN\\?': ok(menu) } });
+    await p.flush();
+    expect(stopAsks(p)).toEqual(['missing']);
+    await p.click('wqc-menu');
+    expect(p.screen()).toBe('trail');
+    expect(p.html()).not.toContain('wqc-pnext');
+    expect(text(p.html())).toContain("Jugnu's games");
+  });
+  // the new words ride the child home (web_quiz_home_v3: the menu's card_fold); with it off the button is today's Home
+  test.each([
+    ['en', true, "Back to Jugnu's games"], ['ur', true, 'جگنو کے کھیلوں پر واپس'],
+    ['en', false, 'Home'], ['ur', false, 'واپس جائیں'],
+  ])('%s, home on %s: the button back to the list says «%s»', async (lang, homeOn, back) => {
+    const menu = { ...TRAIL(), lang, ...(homeOn ? { card_fold: true } : {}) };
+    const p = v2page({ lang, href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#next', menu, routes: { 'ch/HUB.TOKEN/missing': ok({ ex: 'missing', draw: { outcome: 'on_its_way' } }), 'ch/HUB.TOKEN\\?': ok(menu) } });
+    await p.flush();
+    expect(p.screen()).toBe('on-its-way');
+    const b = /id="wqc-menu"[^>]*>([^<]*)</.exec(p.html());
+    expect(b && b[1].replace(/&#39;/g, "'")).toBe(back);
+  });
   test('#numbers on a menu whose warm-up carries no anchor (no pool): the numbers game (missing) still starts', () => {
     const p = v2page({ href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#numbers', menu: { ...TRAIL(), exercises: EXS.map((e) => ({ ...e, anchor_block: undefined })) } });
     expect(p.html()).not.toContain('wqc-trail');

@@ -21,6 +21,11 @@ const STRINGS = Object.freeze({
   // {n} ≥ 1, in the page's digits
   'th.played.n': Object.freeze({ en: '{n} in your class played', ur: 'کلاس میں سے {n} نے کھیلا' }),
   'th.again': Object.freeze({ en: 'Send again', ur: 'دوبارہ بھیجیں' }),
+  // the top card names what it sends again (only while quiz_teacher_home_named_item is on)
+  'th.kind.story': Object.freeze({ en: 'Story:', ur: 'کہانی:' }),
+  'th.kind.quiz': Object.freeze({ en: 'Quiz:', ur: 'کوئز:' }),
+  'th.again.story': Object.freeze({ en: 'Send this story again', ur: 'یہ کہانی دوبارہ بھیجیں' }),
+  'th.again.quiz': Object.freeze({ en: 'Send this quiz again', ur: 'یہ کوئز دوبارہ بھیجیں' }),
   'th.report': Object.freeze({ en: 'See report', ur: 'رپورٹ دیکھیں' }),
   'th.send': Object.freeze({ en: 'Send to my class', ur: 'اپنی کلاس کو بھیجیں' }),
   // the send sheet
@@ -37,13 +42,16 @@ const STRINGS = Object.freeze({
   'th.lastlesson': Object.freeze({ en: 'Quiz from your last lesson: {topic}', ur: 'آپ کے پچھلے سبق کا کوئز: {topic}' }),
   'th.tag.story': Object.freeze({ en: 'Story sent', ur: 'بھیجی گئی کہانی' }),
   'th.quiz.this': Object.freeze({ en: 'Quiz this', ur: 'اس کا کوئز بنائیں' }),
-  'th.job': Object.freeze({ en: 'Your quiz arrives in this chat in about a minute', ur: 'آپ کا کوئز تقریباً ایک منٹ میں اسی چیٹ میں آئے گا' }),
+  'th.job': Object.freeze({ en: 'Your quiz is on its way — it takes a few minutes and arrives in this chat too', ur: 'کوئز تیار ہونے میں چند منٹ لگیں گے — یہ اسی چیٹ میں بھی آ جائے گا' }),
   'th.quiz.making': Object.freeze({ en: 'Making your quiz…', ur: 'آپ کا کوئز بن رہا ہے…' }),
   'th.quiz.late': Object.freeze({ en: 'Taking longer than usual — it will arrive in this chat', ur: 'معمول سے زیادہ وقت لگ رہا ہے — کوئز اسی چیٹ میں آ جائے گا' }),
   'th.more': Object.freeze({ en: 'More', ur: 'مزید' }),
   // the library
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),
+  // the teacher's story sends and the children of those sends who read; {sent} ≥ 1 and {read} in the page's digits
+  'th.stories.counts': Object.freeze({ en: '{sent} stories sent · children who read: {read}', ur: '{sent} کہانیاں بھیجی گئیں · پڑھنے والے بچے: {read}' }),
+  'th.stories.counts.one': Object.freeze({ en: '1 story sent · children who read: {read}', ur: '۱ کہانی بھیجی گئی · پڑھنے والے بچے: {read}' }),
   'th.all.stories': Object.freeze({ en: 'All stories', ur: 'سب کہانیاں' }),
   // a story the teacher sent this month, by its row; {day} = the send's day/month in the page's digits
   'th.sent.on': Object.freeze({ en: 'Sent ✓ {day}', ur: 'بھیجی گئی ✓ {day}' }),
@@ -55,6 +63,8 @@ const STRINGS = Object.freeze({
   'th.try.student': Object.freeze({ en: 'Try it as a student', ur: 'بچوں والا حصہ آزمائیں' }),
   // the one tap back to the chat on every stale / error page and the error line (the link is wa.me/<bot>?text=quiz)
   'th.open.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }), // a no-break space inside the brand name (the signed form)
+  // the home's answer did not come (an error, or nothing after 15 s): ask for it again (the Urdu is mk.error's own words)
+  'th.retry': Object.freeze({ en: 'Try again', ur: 'دوبارہ کوشش کریں' }),
   // the class message's last line; {link} = https://wa.me/<the bot's number>?text=quiz
   'cm.return': Object.freeze({ en: 'Any day: send “quiz” to this number → {link}', ur: 'کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں ← {link}' }),
 });

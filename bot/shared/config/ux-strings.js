@@ -870,6 +870,9 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+  // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
+  appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
+  appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
 
   // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
   // The screens after the first one are served by the endpoint in the language she picked on
@@ -2457,6 +2460,17 @@ const UX_STRINGS = {
   tqNoReportYet: {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
     ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
+  },
+  // quiz_report_send_checked on: the teacher asked for their report from /quiz and WhatsApp did not take it. Never
+  // tqNoReportYet here — children finished. {link} is the class report page the report carried; without one, the
+  // second key. Two keys, not one with an optional placeholder (resolveUx throws on a missing one).
+  tqReportNotThrough: {
+    en: "Your report didn't come through on WhatsApp. You can see it here: {link}",
+    ur: '\u200Fآپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ رپورٹ یہاں دیکھیں:\n{link}',
+  },
+  tqReportNotThroughNoLink: {
+    en: "Your report didn't come through on WhatsApp. Please type /quiz again in a few minutes.",
+    ur: 'آپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ براہِ کرم چند منٹ بعد دوبارہ ⁦/quiz⁩ بھیجیں۔',
   },
   // Names the refetch: the whole point of the button is that a child who
   // finished since the last report is counted this time.

@@ -37,6 +37,7 @@ const Gen = require('../../bot/shared/services/assessment/assessment-generation.
 
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const { applyLayout, takenNote } = require('../../bot/shared/services/assessment/fde-layout');
+const { conceptRepeats } = require('./helpers/urdu-concept-once');
 
 const U = Patterns.get('fde_g5_2027').subjects.urdu;
 const FDE = { kind: 'fde', chapters: null, pages: null };
@@ -63,6 +64,7 @@ const HELD = {
     'لفظ «غلاظت» کا کیا مطلب ہے؟', 'لفظ «بے نوا» کا کیا مطلب ہے؟', 'ندی کا پانی صاف ہو گا تو ہم کس چیز سے بچیں گے؟'],
 };
 const BIRTH_NAME = 'محترمہ فاطمہ جناح کا پیدائشی نام کیا تھا؟';
+const GROUP_NAME = 'ایک ہی موضوع سے تعلق رکھنے والے الفاظ کے گروہ کو کیا کہتے ہیں؟';
 
 describe('one question once: the same stem and key is a twin whatever its distractors', () => {
   test.each([false, true])('full_2 prints «%s» reasked: the birth-name MCQ once', (reasked) => {
@@ -84,8 +86,15 @@ describe('Section A never gives Section C away', () => {
     const after = q1Stems(laid(name));
     for (const s of HELD[name]) expect(after).not.toContain(s);
     // Nothing else is held: every other first-reply item stays (full_2's repeated MCQ once).
-    const kept = q1Stems(papers[name]).filter((s) => !HELD[name].includes(s));
+    // The full syllabus asks the antonym and the synonym once: their later items are held too.
+    const again = conceptRepeats(items(papers[name], 'urdu.A.Q1'));
+    const kept = q1Stems(papers[name]).filter((s) => !HELD[name].includes(s) && !again.includes(s));
     if (name === 'full_2') kept.splice(kept.lastIndexOf(BIRTH_NAME), 1);
+    // A stem that prints another Q1 item's key holds that item: Q1 ۱۹ asks the name for a word group three earlier stems print
+    // («… یہ الفاظ کس کے متلازم ہیں؟» → «متلازم الفاظ»).
+    if (name === 'chapters_2') kept.splice(kept.indexOf(GROUP_NAME), 1);
+    // One grammar concept once: chapters_1's second شکیہ item is held («کون سا جملہ شکیہ ہے؟» stays).
+    if (name === 'chapters_1') kept.splice(kept.indexOf('کون سا لفظ شکیہ جملے میں استعمال ہوتا ہے؟'), 1);
     expect(after.slice().sort()).toEqual(kept.sort());
   });
 
@@ -119,12 +128,14 @@ describe('Section A never gives Section C away', () => {
   test('Q3, Q4, Q5 and Q6 are untouched', () => {
     for (const name of Object.keys(papers)) {
       const out = laid(name);
-      for (const slot of ['urdu.C.Q3', 'urdu.C.Q4', 'urdu.C.Q5', 'urdu.C.Q6']) expect(items(out, slot)).toEqual(items(papers[name], slot));
+      // An ارکان item whose key and accepted answer split a word apart is held by its own rule; left aside here.
+      const own = (list) => list.filter((q) => !String(q.answer).includes('+'));
+      for (const slot of ['urdu.C.Q3', 'urdu.C.Q4', 'urdu.C.Q5', 'urdu.C.Q6']) expect(own(items(out, slot))).toEqual(own(items(papers[name], slot)));
     }
   });
 
-  test('after the one re-ask a held item comes back only for a place nothing else takes', () => {
-    expect(items(laid('full_1', true), 'urdu.A.Q1')).toHaveLength(20);
+  test('after the one re-ask a held Section C give-away still stays out (the engine tops Section A up again instead)', () => {
+    expect(items(laid('full_1', true), 'urdu.A.Q1')).toHaveLength(items(laid('full_1', false), 'urdu.A.Q1').length);
   });
 
   test('the re-asked Section A is told the Q3/Q5 words and the Q6 verse; B and C are not', () => {
@@ -151,10 +162,14 @@ describe('through generatePatternExam: the give-aways send Section A back, told 
     }
     return tree;
   };
-  // Section A first writes full_2's Q1 as recorded; asked again, it writes plain items in their place.
+  // Section A first writes full_2's Q1 as recorded; asked again, it writes plain items in their place,
+  // each keyed on its own word (one stem keyed the same 24 times is one question asked 24 times),
+  // and never printing a kept item's key (full_2 Q1 ۱۵ is keyed «اسم آلہ»).
+  const TOOLS = ['قینچی', 'چھری', 'ہتھوڑا', 'آری', 'کدال', 'بیلچہ', 'سوئی', 'قلم', 'برش', 'چمچ', 'ترازو', 'رندا',
+    'پیچ کس', 'کھرپا', 'درانتی', 'کلہاڑی', 'پلاس', 'چھلنی', 'بیلن', 'توا', 'ڈوئی', 'کنگھی', 'استری', 'چابی'];
   const FRESH = Array.from({ length: 24 }, (_, i) => ({
-    slot: 'urdu.A.Q1', question: `سوال نمبر ${['ایک', 'دو', 'تین', 'چار', 'پانچ', 'چھ', 'سات', 'آٹھ', 'نو', 'دس', 'گیارہ', 'بارہ', 'تیرہ', 'چودہ', 'پندرہ', 'سولہ', 'سترہ', 'اٹھارہ', 'انیس', 'بیس', 'اکیس', 'بائیس', 'تئیس', 'چوبیس'][i]} میں کون سا لفظ اسم آلہ ہے؟`,
-    options: ['الف) قینچی', 'ب) کرسی', 'ج) دریا', 'د) بادل'], answer: 'الف) قینچی',
+    slot: 'urdu.A.Q1', question: `سوال نمبر ${['ایک', 'دو', 'تین', 'چار', 'پانچ', 'چھ', 'سات', 'آٹھ', 'نو', 'دس', 'گیارہ', 'بارہ', 'تیرہ', 'چودہ', 'پندرہ', 'سولہ', 'سترہ', 'اٹھارہ', 'انیس', 'بیس', 'اکیس', 'بائیس', 'تئیس', 'چوبیس'][i]} میں کس چیز سے کام کیا جاتا ہے؟`,
+    options: [`الف) ${TOOLS[i]}`, 'ب) کرسی', 'ج) دریا', 'د) بادل'], answer: `الف) ${TOOLS[i]}`,
   }));
   function serve() {
     const asked = [];

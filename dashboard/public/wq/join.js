@@ -16,6 +16,9 @@
   var goEl = document.getElementById('jn-go');
   var outEl = document.getElementById('jn-out');
   if (!goEl || !outEl) return;   // not the join screen (the file is public): nothing to do
+  // quiz_join_wait_word: the button says the waiting line while the join runs (off: today's button)
+  var going = boot.waitWord === true && typeof C.going === 'string' && C.going ? C.going : null;
+  var goText = goEl.textContent;
   // the home's own animals (hub.js ANIMALS): two children with one name are told apart by the animal they know
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
 
@@ -83,6 +86,11 @@
   }
   function sync() { notice(); goEl.disabled = busy || !grade || (!practice && !okName(name())); }
   function go(url) { try { location.replace(url); } catch (e) { location.href = url; } }
+  function waiting(on) {
+    if (!going) return;
+    goEl.textContent = on ? going : goText;
+    if (on) goEl.setAttribute('aria-busy', 'true'); else goEl.removeAttribute('aria-busy');
+  }
 
   // The home's files, fetched at low priority while the child types (cancelled by the browser if the page leaves).
   function warm(list) {
@@ -99,6 +107,8 @@
 
   function answer(status, b) {
     busy = false;
+    // the line stays only while the home opens
+    if (!(b.next && typeof b.next === 'string' && b.next.charAt(0) === '/' && !b.refused)) waiting(false);
     if (b.next && typeof b.next === 'string' && b.next.charAt(0) === '/') {
       if (b.refused === 'max_kids') return say('<p class="line">' + esc(C.full) + '</p><a class="go" href="' + esc(b.next) + '">' + esc(C.open) + '</a>');
       if (b.refused === 'teacher_phone') { line(C.teacher); return setTimeout(function () { go(b.next); }, 1800); }
@@ -126,11 +136,25 @@
     if (busy) return;
     busy = true;
     sync();
-    say('<p class="small">' + esc(C.wait) + '</p>');
+    if (going) { waiting(true); say(''); } else say('<p class="small">' + esc(C.wait) + '</p>');
     var body = { t: boot.t, grade: grade };
     if (!practice) body.name = name();
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) body[k] = extra[k];
     post('/api/wq/join', body, answer);
+  }
+
+  function tapGrade(el) {
+    grade = Number(el.getAttribute('data-grade'));
+    var all = document.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', all[i] === el ? 'true' : 'false');
+    warm();
+    post('/api/wq/join/grade', { t: boot.t, grade: grade }, function (s, b) {
+      if (b && b.prefetch) warm(b.prefetch);
+      if (b && b.stale) answer(s, b);
+      if (b && b.off) answer(s, b);
+    });
+    sync();
+    if (nameEl && !name()) try { nameEl.focus(); } catch (er) {}
   }
 
   document.addEventListener('click', function (e) {
@@ -138,17 +162,7 @@
     if (!el) return;
     var tap = el.getAttribute('data-tap');
     if (tap === 'grade') {
-      grade = Number(el.getAttribute('data-grade'));
-      var all = document.querySelectorAll('.chip');
-      for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', all[i] === el ? 'true' : 'false');
-      warm();
-      post('/api/wq/join/grade', { t: boot.t, grade: grade }, function (s, b) {
-        if (b && b.prefetch) warm(b.prefetch);
-        if (b && b.stale) answer(s, b);
-        if (b && b.off) answer(s, b);
-      });
-      sync();
-      if (nameEl && !name()) try { nameEl.focus(); } catch (er) {}
+      tapGrade(el);
     } else if (tap === 'go') {
       if (!goEl.disabled) send(null);
     } else if (tap === 'same') {
@@ -162,4 +176,14 @@
     nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !goEl.disabled) send(null); });
   }
   sync();
+  // A grade tapped before this script bound (quiz_join_early_tap: the page's inline keeper put it on <html data-early>):
+  // replayed once, as the tap it was. Without the keeper there is no data-early and nothing happens.
+  window.__jnBound = true;
+  var root = document.documentElement;
+  var early = root && root.getAttribute ? root.getAttribute('data-early') : null;
+  if (early && /^[1-5]$/.test(early)) {
+    root.removeAttribute('data-early');
+    var chip = document.querySelector('.chip[data-grade="' + early + '"]');
+    if (chip) tapGrade(chip);
+  }
 })();

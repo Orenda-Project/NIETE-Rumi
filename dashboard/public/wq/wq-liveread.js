@@ -256,7 +256,8 @@
       settled = true;
       ev('mic_declined', { src: src, how: why });
       var android = /Android/i.test((navigator && navigator.userAgent) || '');
-      var href = 'intent://' + location.host + location.pathname + (location.search || '') + '#Intent;scheme=https;package=com.android.chrome;end';
+      // o.hash: the page's place (#story/<id>/p<N>) too; Android takes the data URI up to the last '#'
+      var href = 'intent://' + location.host + location.pathname + (location.search || '') + (o.hash ? location.hash || '' : '') + '#Intent;scheme=https;package=com.android.chrome;end';
       el.innerHTML = '<div class="lr-ask"' + dl + '><p class="lr-say">' + esc(t.okListen) + '</p>'
         + '<button class="wq-btn wq-go lr-listen" type="button">' + esc(t.listen) + '</button>'
         + (android && why !== 'notallowederror' ? '<a class="wq-btn wq-soft" href="' + esc(href) + '">' + esc(t.chrome) + '</a>' : '') + '</div>';
@@ -297,17 +298,21 @@
     // a counted reading: Done only once this share of the words is lit (an early Done would lose the reading)
     var doneFrom = o.counted ? (typeof o.doneFrom === 'number' ? o.doneFrom : 0.8) : 0;
     var maxMs = o.maxMs || 60000;
+    // the live meter (wq-pace.js, web_quiz_live_meter): in the glow's place, rising with every word heard
+    var pv = window.WQPace && window.WQPace.variant;
     var s = { started: Date.now(), lastAt: Date.now(), v: m.view(), sock: null, live: false, queue: [], chunks: [], ended: null, mr: null, tick: null, quietT: null };
-    el.innerHTML = '<div class="lr" dir="' + (o.dir === 'rtl' || lang === 'ur' ? 'rtl' : 'ltr') + '" lang="' + lang + '">'
+    el.innerHTML = '<div class="lr' + (pv === 'vine' ? ' lr-vine' : '') + '" dir="' + (o.dir === 'rtl' || lang === 'ur' ? 'rtl' : 'ltr') + '" lang="' + lang + '">'
       + '<p class="lr-nudge">' + esc(t.readNow) + '</p>'
+      + (pv === 'sky' ? '<div class="lr-pace"></div>' : '')   // the bar above the words, where the eye starts
       + (img
         ? '<div class="lr-ov" style="aspect-ratio:' + img.w + '/' + img.h + '"><img src="' + esc(img.url) + '" alt="" width="' + img.w + '" height="' + img.h + '">'
           + items.map(function (x, i) { var b = x.box; return '<span class="lr-w lr-box" data-i="' + i + '" style="left:' + pc(b[0], img.w) + ';top:' + pc(b[1], img.h) + ';width:' + pc(b[2], img.w) + ';height:' + pc(b[3], img.h) + '" aria-label="' + esc(x.t) + '"></span>'; }).join('') + '</div>'
         : '<div class="lr-text">' + m.words.map(function (w, i) { return '<span class="lr-w" data-i="' + i + '">' + esc(w) + '</span>'; }).join(' ') + '</div>')
-      + (o.meter === 'none' ? '' : '<div class="lr-glow lr-glow-0" aria-hidden="true"></div>')
+      + (pv || o.meter === 'none' ? '' : '<div class="lr-glow lr-glow-0" aria-hidden="true"></div>')
       + '<div class="lr-bar"><button class="wq-btn wq-navy lr-done" type="button"' + (doneFrom > 0 ? ' hidden' : '') + '>' + doneHtml(t) + '</button>'
       + (o.counted ? '<button class="wq-btn wq-soft lr-stop" type="button">' + esc(t.stop) + '</button>' : '') + '</div></div>';
     var spans = el.querySelectorAll ? el.querySelectorAll('.lr-w') : [];
+    var pace = pv ? window.WQPace.mount(pv === 'vine' ? el.querySelector('.lr') : el.querySelector('.lr-pace'), { variant: pv, grade: o.grade || window.WQPace.grade }) : null;
     var nudge = el.querySelector('.lr-nudge');
     var doneBtn = el.querySelector('.lr-done');
     function paint() {
@@ -328,6 +333,7 @@
       s.v = m.push(tokens);
       juiceWords(m.words, was, s.v.states, o.counted);
       if (s.v.heard > before) {
+        if (pace) pace.word(s.v.heard - before);
         tokSpan(s, tokens);
         s.lastAt = Date.now();
         clearTimeout(s.quietT);
@@ -379,6 +385,7 @@
     function finish(why) {
       if (s.ended) return;
       s.ended = why;
+      if (pace) pace.stop();
       clearInterval(s.tick); clearTimeout(s.quietT);
       juice('mic', false);
       var ms = Date.now() - s.started;
@@ -413,7 +420,7 @@
     }
     return {
       stop: function (why) { finish(why || 'done_tap'); },
-      destroy: function () { if (!s.ended) juice('mic', false); s.ended = s.ended || 'gone'; clearInterval(s.tick); clearTimeout(s.quietT); if (s.mr && s.mr.state !== 'inactive') { try { s.mr.stop(); } catch (e) { /* stopped */ } } },
+      destroy: function () { if (pace) pace.stop(); if (!s.ended) juice('mic', false); s.ended = s.ended || 'gone'; clearInterval(s.tick); clearTimeout(s.quietT); if (s.mr && s.mr.state !== 'inactive') { try { s.mr.stop(); } catch (e) { /* stopped */ } } },
       view: function () { return s.v; },
     };
   }
@@ -440,6 +447,19 @@
     var C = function () { return COPY[h.lang() === 'ur' ? 'ur' : 'en']; };
     var cfg = function () { return h.d().lr3; };
     var counted = function () { return !!cfg().counted; };
+    // the live meter (wq-pace.js) in the glow's place on the reading screen; its state outlives a redraw of the screen
+    var pace = null, keep = null, keptFor = null;
+    function meter() {
+      var pv = window.WQPace && window.WQPace.variant, g = h.q('wqc-lr-glow');
+      if (!pv || !g) return;
+      if (keptFor !== h.live()) { keptFor = h.live(); keep = {}; }
+      if (pace) pace.destroy();
+      g.className = 'lr-pace lr-pace-' + pv;   // the vine stands beside the words (the words redraw; it does not)
+      pace = window.WQPace.mount(g, { variant: pv, grade: window.WQPace.grade, keep: keep });
+      // the vine as tall as the words it stands beside (the box's own height is the floor)
+      var st = pv === 'vine' && h.q('wqc-live-story');
+      if (st && st.offsetHeight > 0 && g.style) g.style.height = Math.max(st.offsetHeight, 240) + 'px';
+    }
     function view() { var l = h.live(); var v = l && l.v; return v ? { heard: v.heardOk, total: v.marks.length, lastHeard: !!v.lastHeard } : { heard: 0, total: 0, lastHeard: false }; }
     // Done always on a practice read; on a counted read once done_from of the words are lit, or whenever the live words
     // are not working (none can light: the child must still be able to say "I'm done")
@@ -455,7 +475,8 @@
       var f = cfg().finish || {};
       var v = view();
       var g = h.q('wqc-lr-glow');
-      if (g) g.className = 'lr-glow lr-glow-' + glowLevel(v);
+      if (pace && keptFor === h.live()) pace.word(v.heard - before);
+      else if (g) g.className = 'lr-glow lr-glow-' + glowLevel(v);
       var from = Number(cfg().done_from) || 0;
       if (from && before / v.total < from && v.heard / v.total >= from && h.screen() === 'read-live') h.paint();
       setTimeout(function () {
@@ -516,7 +537,7 @@
       if (counted()) return '<div class="wqc-sticky">' + (doneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">' + doneHtml(c) + '</button>' : '') + '<button class="wq-btn wq-soft lr-stop" id="wqc-stuck" type="button">' + esc(c.stop) + '</button></div>';
       return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">' + doneHtml(c) + '</button>' + (h.guard() && h.rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(h.stuck()) + '</button>' : '') + '</div>';
     }
-    return { copy: C, counted: counted, view: view, doneOpen: doneOpen, heard: heard, hand: hand, check: check, sayWords: sayWords, sticky: sticky };
+    return { copy: C, counted: counted, view: view, doneOpen: doneOpen, heard: heard, meter: meter, hand: hand, check: check, sayWords: sayWords, sticky: sticky };
   }
 
   window.WQLiveRead = { fold: fold, matcher: matcher, shouldFinish: shouldFinish, glowLevel: glowLevel, result: result, emit: emit, mount: mount, askMic: askMic, juice: juice, juiceWords: juiceWords, doneHtml: doneHtml, wordTaps: wordTaps, spanMs: spanMs, trail: trail, COPY: COPY,
