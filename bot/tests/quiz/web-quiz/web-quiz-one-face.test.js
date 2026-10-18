@@ -26,7 +26,8 @@ function seed() {
         eq(c, v) { if (c === 'key') st.key = v; return b; },
         in() { return b; },
         async maybeSingle() {
-          if (t === 'app_settings') settingsReads += 1;
+          // this switch's own reads (another route switch, e.g. web_quiz_plain_paint, keeps its own count)
+          if (t === 'app_settings' && st.key === KEY) settingsReads += 1;
           if (fail) return { data: null, error: { message: 'down' } };
           return { data: rows.find((r) => r.key === st.key) || null, error: null };
         },

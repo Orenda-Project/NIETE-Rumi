@@ -24,14 +24,22 @@ const QUIZ_VOICE = Object.freeze({
 
 // With app_settings web_quiz_one_voice on (web-quiz-one-voice-flag.js), the ONE voice of the whole child app per
 // language: every quiz line (question, options, why, wrong-answer lines, hint, the bank's own items), Jugnu's
-// shared lines (dashboard/public/wq/voice/one/, its manifest names this table) and the challenge's clips, the same
-// voice as the storybook and passage voice-overs (the voice pick of Oct 2026: ElevenLabs v4, one call per line at
+// shared lines (dashboard/public/wq/voice/one/, its manifest names this table); the challenge's clips take STORY_VOICE
+// below. The same voice as the storybook and passage voice-overs (the voice pick of Oct 2026: ElevenLabs v4, one call per line at
 // the voice's natural speed, its own bytes kept). A new pick is one id per language here; its tag changes, so every
 // clip is recorded again in it. `name` is the tag (readable keys); `voice` is the provider's voice id.
 const ONE_SETTINGS = Object.freeze({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true });
 const ONE_VOICE = Object.freeze({
   en: Object.freeze({ provider: 'elevenlabs', voice: 'hpp4J3VqNfWAUOO0d1Us', name: 'Bella', model: 'eleven_v4', settings: ONE_SETTINGS }),
   ur: Object.freeze({ provider: 'elevenlabs', voice: '9cI5mhBtM4WtQ9Fo6jWQ', name: 'Sara', model: 'eleven_v4', settings: ONE_SETTINGS }),
+});
+
+// Jugnu's challenge (the passages, the listening story, the read-along, its prompts and the door labels) with one voice
+// on: the storybook and passage voice, whatever voice a plan gives the quiz lines (they may be matched to the bank's
+// recordings of people). EN Bella at the storyteller pace (multilingual v2, speed 0.9), UR Sara (v4).
+const STORY_VOICE = Object.freeze({
+  en: Object.freeze({ ...ONE_VOICE.en, model: 'eleven_multilingual_v2', settings: Object.freeze({ ...ONE_SETTINGS, speed: 0.9 }) }),
+  ur: ONE_VOICE.ur,
 });
 
 const PROVIDER_TAG = Object.freeze({ soniox: 'sx', elevenlabs: 'el', openai: 'oa' });
@@ -118,7 +126,7 @@ function voiceTag(language, opts) {
 /** The voice a tag or a rendering's name (setIdOf) names ({ provider, voice, … }): in `plan`'s voices, else either table; or null. */
 function voiceOfTag(tag, plan) {
   const planVoices = plan && typeof plan === 'object' && plan.voices ? Object.values(plan.voices) : [];
-  const all = [...planVoices, ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE), ...Object.values(SET_VOICES)].filter(Boolean);
+  const all = [...planVoices, ...Object.values(STORY_VOICE), ...Object.values(ONE_VOICE), ...Object.values(QUIZ_VOICE), ...Object.values(SET_VOICES)].filter(Boolean);
   return all.find((v) => setIdOf(v) === tag) || all.find((v) => tagOf(v) === tag) || null;
 }
 
@@ -150,4 +158,4 @@ function sharedSets(plan) {
   return out;
 }
 
-module.exports = { QUIZ_VOICE, ONE_VOICE, SHARED_SETS, SET_VOICES, sayAs, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSetOf, sharedSets };
+module.exports = { QUIZ_VOICE, ONE_VOICE, STORY_VOICE, SHARED_SETS, SET_VOICES, sayAs, quizVoice, voiceTag, tagOf, renderOf, setIdOf, voiceOfTag, sharedSetOf, sharedSets };

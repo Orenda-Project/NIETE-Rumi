@@ -633,6 +633,10 @@ html.wq-1b .wqs{--cap-h:20px}
 html.wq-1b .wqs[lang=ur]{--cap-h:26px}
 html.wq-1b .wqs[lang=ur] .wqs-top .wqs-ic::after,html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-arr::after,html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-slow{font-weight:400;line-height:22px}
 html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-slow{row-gap:11px}
+/* Urdu button words in the regular Nastaliq, the Urdu polish class or not: bold breaks its joins («پڑھی» read «پڑ ھی») */
+html.wq-1b[lang=ur] .wq-btn,html.wq-1b[lang=ur] .wq-door{font-weight:400}
+/* a list row (Games, Stories, Videos) and the skeleton that stands in for it while the list loads: the button corner */
+html.wq-1b .wq-row,html.wq-1b .wq-skrow{border-radius:var(--r-btn)}
 @media (prefers-reduced-motion:reduce){html.wq-1b .wq-btn:active,html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wqs-ic:active,html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active,html.wq-1b .wqs-again:active{transform:none}}
 /* The ONE button component for new markup: `.wq-btn` + exactly one kind. Every kind rule sits under wq-1b: the Videos
    shelf and the class table already draw .wq-btn--secondary and .wq-btn-t, so with the switch off they stay today's. Each kind sets only --fill (box), --on
