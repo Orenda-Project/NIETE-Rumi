@@ -93,9 +93,15 @@ describe('the switch', () => {
     expect(await Card.field()).toEqual({ card_v3: true });
   });
   test('a settings failure fails closed', async () => {
-    Object.assign(supabase, { from: () => ({ select: () => ({ in: async () => ({ data: null, error: { message: 'down' } }) }) }) });
+    // both reads fail: the combined one and the card's own key read after it
+    let reads = 0;
+    const down = async () => { reads += 1; return { data: null, error: { message: 'down' } }; };
+    Object.assign(supabase, { from: () => ({ select: () => ({ in: down, eq: down }) }) });
     Card._reset();
     expect(await Card.field()).toEqual({});
+    expect(await Card.on()).toBe(false);
+    expect(await Card.shareOn()).toBe(false);
+    expect(reads).toBe(6);
   });
 });
 
