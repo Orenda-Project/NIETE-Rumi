@@ -1,0 +1,473 @@
+{
+  "brotli_off": {
+    "/wq/wq.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories-q.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories-q.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories-q.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-readalong.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-readalong.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-readalong.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.css?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/css; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.css?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/css; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.css?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/css; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/jugnu/hello.webp raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "image/webp",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/jugnu/hello.webp gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "image/webp",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/jugnu/hello.webp br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "image/webp",
+        "content-length": "source"
+      },
+      "body": "source"
+    }
+  },
+  "brotli_on": {
+    "/wq/wq.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "content-encoding": "br",
+        "vary": "Accept-Encoding",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "source-br"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "content-encoding": "br",
+        "vary": "Accept-Encoding",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "source-br"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories-q.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories-q.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-stories-q.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "content-encoding": "br",
+        "vary": "Accept-Encoding",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "source-br"
+      },
+      "body": "source"
+    },
+    "/wq/wq-readalong.js?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-readalong.js?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq-readalong.js?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "content-encoding": "br",
+        "vary": "Accept-Encoding",
+        "content-type": "application/javascript; charset=UTF-8",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "source-br"
+      },
+      "body": "source"
+    },
+    "/wq/wq.css?v=0123456789 raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/css; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.css?v=0123456789 gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "accept-ranges": "bytes",
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/css; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.css?v=0123456789 br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "content-encoding": "br",
+        "vary": "Accept-Encoding",
+        "content-type": "text/css; charset=UTF-8",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "source-br"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "cache-control": "public, max-age=86400",
+        "accept-ranges": "bytes",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "cache-control": "public, max-age=86400",
+        "accept-ranges": "bytes",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/wq.js br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "cache-control": "public, max-age=86400",
+        "accept-ranges": "bytes",
+        "content-type": "application/javascript; charset=UTF-8",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/jugnu/hello.webp raw": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "cache-control": "public, max-age=86400",
+        "accept-ranges": "bytes",
+        "content-type": "image/webp",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/jugnu/hello.webp gzip": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "cache-control": "public, max-age=86400",
+        "accept-ranges": "bytes",
+        "content-type": "image/webp",
+        "content-length": "source"
+      },
+      "body": "source"
+    },
+    "/wq/jugnu/hello.webp br": {
+      "status": 200,
+      "headers": {
+        "x-powered-by": "Express",
+        "cache-control": "public, max-age=86400",
+        "accept-ranges": "bytes",
+        "content-type": "image/webp",
+        "content-length": "source"
+      },
+      "body": "source"
+    }
+  }
+}

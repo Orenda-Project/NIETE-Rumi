@@ -605,5 +605,8 @@ describe('the weight', () => {
     expect(js).toBeLessThanOrEqual(6 * 1024);
     expect(css).toBeLessThanOrEqual(1024);
     expect(js + css + opus).toBeLessThanOrEqual(30 * 1024);
+    // the cap is on the source; the served gz (web_quiz_wq_strip on: whole-line comments stripped) is printed beside it
+    const served = zlib.gzipSync(require('../lib/wq-strip').stripLineComments(fs.readFileSync(SRC_PATH)), { level: 9 }).length;
+    console.log(`${path.basename(SRC_PATH)} gz: source ${js}, served ${served} (cap ${6 * 1024} on the source)`);
   });
 });

@@ -13,6 +13,16 @@ const DSRC = path.join(__dirname, '..', 'public', 'wq', 'wq-stories-d.js');
 const CSS = path.join(__dirname, '..', 'public', 'wq', 'wq-stories.css');
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const KID = 'kidchipabcdefghi';
+// The served copy: with app_settings web_quiz_wq_strip on, the edge sends these scripts with their whole-line //
+// comments stripped (lib/wq-strip.js). SERVED runs the reader from that copy: inside its own describe at the end, or
+// for this whole file with WQ_SERVED_COPY=1.
+let SERVED = process.env.WQ_SERVED_COPY === '1';
+const codeLoads = [];
+function code(file) {
+  const s = fs.readFileSync(file, 'utf8');
+  codeLoads.push({ file: path.basename(file), served: SERVED });
+  return SERVED ? require('../lib/wq-strip').stripLineComments(s) : s;
+}
 const BANNED = /\b(test|exam|wpm|words per minute)\b|امتحان|ٹیسٹ|استاد/i;
 
 const W = (i, t, s, box) => (box ? { i, t, s_ms: s, e_ms: s + 400, box } : { i, t, s_ms: s, e_ms: s + 400 });
@@ -162,8 +172,8 @@ function env(opt = {}) {
     head: { appendChild(x) {
       calls.loaded.push(x);
       if (x.tag !== 'script') return;
-      if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); if (opt.qHold && !calls.qGo) { calls.qGo = () => { vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); x.onload(); }; return; } vm.runInContext(fs.readFileSync(QSRC, 'utf8'), sb); return x.onload(); }
-      if (/wq-stories-d\.js\?v=abc123$/.test(x.src)) { if (opt.dFail) return x.onerror(); vm.runInContext(fs.readFileSync(DSRC, 'utf8'), sb); return x.onload(); }
+      if (/wq-stories-q\.js\?v=abc123$/.test(x.src)) { if (opt.qFail) return x.onerror(); if (opt.qHold && !calls.qGo) { calls.qGo = () => { vm.runInContext(code(QSRC), sb); x.onload(); }; return; } vm.runInContext(code(QSRC), sb); return x.onload(); }
+      if (/wq-stories-d\.js\?v=abc123$/.test(x.src)) { if (opt.dFail) return x.onerror(); vm.runInContext(code(DSRC), sb); return x.onload(); }
       if (opt.onLoad) { opt.onLoad(win); x.onload(); }
       // a file the reader brings that this test does not serve answers as a 404 does (not on this server)
       else if (/wq-readalong\.js|wq-read-live\.js|wq-liveread\.js/.test(x.src)) x.onerror();
@@ -178,7 +188,7 @@ function env(opt = {}) {
   calls.imgs = [];
   win.Image = function () { const im = this; Object.defineProperty(im, 'src', { set(v) { calls.imgs.push(v); }, get() { return ''; } }); };
   const sb = vm.createContext({ window: win, document: doc, JSON, Math, String, Number, Array, Object, Promise, encodeURIComponent, Date });
-  vm.runInContext(fs.readFileSync(SRC, 'utf8'), sb);
+  vm.runInContext(code(SRC), sb);
   const S = win.WQSTORIES;
   const ctx = (over = {}) => ({ token: TOKEN, kid: KID, lang: 'en', clock, ev: (n, p) => { (calls.ev = calls.ev || []).push([n, p]); }, ...over });
   const E = { S, win, calls, clock, advance, ctx, store, winL, wqRoot, doc, get now() { return now; } };
@@ -1153,6 +1163,12 @@ describe('the shipped files', () => {
     expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12 * 1024);
     expect(zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);
     expect(zlib.gzipSync(fs.readFileSync(DSRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(8 * 1024);   // the questions + done file
+    // the caps are on the source; the served gz (web_quiz_wq_strip on: whole-line comments stripped) is printed beside it
+    const { stripLineComments } = require('../lib/wq-strip');
+    console.log([[SRC, 12], [QSRC, 8], [DSRC, 8]].map(([f, cap]) => {
+      const b = fs.readFileSync(f);
+      return `${path.basename(f)} gz: source ${zlib.gzipSync(b, { level: 9 }).length}, served ${zlib.gzipSync(stripLineComments(b), { level: 9 }).length} (cap ${cap * 1024} on the source)`;
+    }).join('\n'));
     const css = fs.readFileSync(CSS, 'utf8');
     expect(zlib.gzipSync(css, { level: 9 }).length).toBeLessThanOrEqual(3 * 1024);
     expect(css).toContain('prefers-reduced-motion');
@@ -3161,5 +3177,44 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     runBook(e, root); await flush(); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).not.toContain('data-rf');
+  });
+});
+
+// ---- the served copy (web_quiz_wq_strip on) -------------------------------------------------------------------------
+describe('the served copy (the edge strips whole-line // comments): the same reader, screen for screen', () => {
+  afterEach(() => { SERVED = process.env.WQ_SERVED_COPY === '1'; });
+  async function walk(served) {
+    SERVED = served;
+    codeLoads.length = 0;
+    const screens = [];
+    const e = env({ wqj: true });
+    const el = fakeEl('shelf'); e.S.shelf(el, e.ctx()); await flush(); screens.push(el.innerHTML);
+    const root = await openReader(e); screens.push(root.innerHTML);
+    runBook(e, root); await flush(); await flush(); screens.push(root.innerHTML);
+    fire(root, 'ans', 0); await flush(); e.advance(900); screens.push(root.innerHTML);
+    fire(root, 'ans', 1); await flush(); e.advance(900); await flush(); await flush(); screens.push(root.innerHTML);
+    return { screens, posts: e.calls.posts, gets: e.calls.gets, juice: e.calls.juice, loads: codeLoads.slice() };
+  }
+  test('shelf -> reader -> the whole book read -> both questions -> the done card: the stripped scripts draw and send exactly what the source does', async () => {
+    const a = await walk(false);
+    const b = await walk(true);
+    expect(a.loads.map((x) => x.file)).toEqual(['wq-stories.js', 'wq-stories-q.js', 'wq-stories-d.js']);
+    expect(b.loads).toEqual(a.loads.map((x) => ({ ...x, served: true })));
+    expect(screenOf(b.screens[0])).toBe('stories-shelf');
+    expect(screenOf(b.screens[2])).toBe('story-questions');
+    expect(screenOf(b.screens[4])).toBe('story-done');
+    expect(b.screens).toEqual(a.screens);
+    expect(b.posts).toEqual(a.posts);
+    expect(b.gets).toEqual(a.gets);
+    expect(b.juice).toEqual(a.juice);
+  });
+  test('the copy it ran is the stripped one (fewer lines, no whole-line comment left)', () => {
+    const { stripLineComments } = require('../lib/wq-strip');
+    for (const f of [SRC, QSRC, DSRC]) {
+      const s = fs.readFileSync(f, 'utf8');
+      const out = stripLineComments(s);
+      expect(out.split('\n').length).toBeLessThan(s.split('\n').length);
+      expect(out.split('\n').filter((l) => /^\s*\/\//.test(l))).toEqual([]);
+    }
   });
 });

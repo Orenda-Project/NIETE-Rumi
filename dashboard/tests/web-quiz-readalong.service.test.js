@@ -11,6 +11,10 @@ const zlib = require('zlib');
 
 const FILE = path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js');
 const SRC = fs.existsSync(FILE) ? fs.readFileSync(FILE, 'utf8') : '';
+// The served copy (app_settings web_quiz_wq_strip on: whole-line // comments stripped by the edge, lib/wq-strip.js):
+// on inside its own describe at the end, or for this whole file with WQ_SERVED_COPY=1.
+let SERVED = process.env.WQ_SERVED_COPY === '1';
+const served = () => require('../lib/wq-strip').stripLineComments(SRC);
 
 function node(tag) {
   const n = {
@@ -68,7 +72,7 @@ function load({ playRejects = false, imgWidth = 540, raf = true } = {}) {
   };
   const ctx = { window, document, Audio, CustomEvent, console, setTimeout, clearTimeout, Promise, fetch: () => Promise.reject(new Error('no net')) };
   vm.createContext(ctx);
-  vm.runInContext(SRC, ctx);
+  vm.runInContext(SERVED ? served() : SRC, ctx);
   const audio = () => audios[audios.length - 1];
   // one frame at audio time t ms: the pending frame callbacks run once
   const at = (ms) => { audio().currentTime = ms / 1000; const due = frames.splice(0); due.forEach((f) => f && f()); };
@@ -521,6 +525,8 @@ describe('read-along player: the page', () => {
   test('size budget: ≤ 8 KB gzipped', () => {
     expect(SRC.length).toBeGreaterThan(0);
     expect(zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length).toBeLessThanOrEqual(8192);
+    // the cap is on the source; the served gz (web_quiz_wq_strip on) is printed beside it
+    console.log(`wq-readalong.js gz: source ${zlib.gzipSync(Buffer.from(SRC), { level: 9 }).length}, served ${zlib.gzipSync(Buffer.from(served()), { level: 9 }).length} (cap 8192 on the source)`);
   });
 });
 
@@ -653,5 +659,30 @@ describe('read-along player: tap a word to hear its sentence again (tap: \'sente
     expect(lit(el)).toEqual(['1']);
     at(1900); expect(p.state).toBe('playing');
     at(2600); expect(lit(el)).toEqual(['3']);
+  });
+});
+
+describe('read-along player: the served copy (the edge strips whole-line // comments) plays the same', () => {
+  afterEach(() => { SERVED = process.env.WQ_SERVED_COPY === '1'; });
+  function run(useServed) {
+    SERVED = useServed;
+    const { RA, document, at, audio, events } = load();
+    const el = document.createElement('div');
+    const seen = [];
+    const trace = [];
+    const p = RA.mount(el, DATA, { onWord: (i) => seen.push(i), onEnd: () => trace.push('end') });
+    p.play();
+    [100, 150, 650, 1150, 2200, 2550, 2860].forEach((t) => { at(t); trace.push(lit(el).join(',')); });
+    p.pause(); trace.push(p.state); p.toggle(); trace.push(p.state);
+    at(4000); audio().fire('ended'); trace.push(p.state);
+    return { seen, trace, events: events.map((e) => e.type), parsed: RA.parse(DATA) };
+  }
+  test('the same words lit at the same times, the same events, the same end', () => {
+    expect(served().length).toBeLessThan(SRC.length);
+    const a = run(false);
+    const b = run(true);
+    expect(b).toEqual(a);
+    expect(a.seen).toEqual([0, 1, 2, 3, 4, -1]);   // -1: the end clears the pill
+    expect(a.trace).toContain('end');
   });
 });
