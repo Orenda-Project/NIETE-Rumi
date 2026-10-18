@@ -95,15 +95,15 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false, busy_page: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false, wait_home: false, busy_page: false });
   });
 
-  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops and busy_page say false (off is said, never left out)', async () => {
+  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops, wait_home and busy_page say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'busy_page', 'fast', 'learn', 'one_face', 'rt', 'wait_hops', 'wait_share', 'wait_ux']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, wait_hops: false, busy_page: false });
+    expect(Object.keys(body).sort()).toEqual(['brand', 'busy_page', 'fast', 'learn', 'one_face', 'rt', 'wait_home', 'wait_hops', 'wait_share', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, wait_hops: false, wait_home: false, busy_page: false });
     expect(typeof body.brand).toBe('string');
   });
 
@@ -176,6 +176,16 @@ describe('GET /api/internal/wq/edge', () => {
     expect(body.wait_hops).toBe(want);
     expect(supabase.__state.reads).toEqual([HUB_READ]);
     expect(supabase.__state.hubKeys).toEqual(expect.arrayContaining(['web_quiz_wait_ux', 'web_quiz_wait_hops']));
+  });
+
+  // wait_home (the kept Home in the early frame) as web-quiz-wait-ux.js carry() puts it on a hub answer: wait_ux AND wait_home.
+  test.each([[true, true, true], [true, false, false], [false, true, false], [true, 'true', false]])('(e) on: wait_ux %p + web_quiz_wait_home %p → wait_home %p, from the same batched read', async (wu, hops, want) => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_wait_ux: wu, web_quiz_wait_home: hops };
+    await warmPageSwitches(); supabase.__state.reads = [];
+    const { body } = await ask();
+    expect(body.wait_home).toBe(want);
+    expect(supabase.__state.reads).toEqual([HUB_READ]);
+    expect(supabase.__state.hubKeys).toEqual(expect.arrayContaining(['web_quiz_wait_ux', 'web_quiz_wait_home']));
   });
 
   test('another read of the hub\'s KEYS (prime(rows), the join\'s) fills this switch: then no read at all', async () => {

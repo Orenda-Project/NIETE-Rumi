@@ -67,11 +67,16 @@ async function fromRows(data, now) {
 
 /**
  * Another module's one app_settings read that asked for KEYS and the hub's keys too (the join's, quiz_join_fast)
- * fills an empty or expired cache (and the hub flags') from its rows, so no second read follows. Never throws.
+ * fills an empty or expired cache (and the hub flags') from its rows, so no second read follows. `asked` is the key
+ * list that read asked for: a list missing one of this group's keys throws (a hand-written list is caught, never
+ * read as off); a key asked for with no row is the normal off. The hub is primed first, even when this cache is live,
+ * so a warm identity over a cold hub still leaves the first home nothing to read.
  */
-async function prime(rows, now = Date.now()) {
+async function prime(rows, now = Date.now(), asked = KEYS.concat(HubFlags.KEYS || [])) {
+  const missing = KEYS.filter((k) => !asked.includes(k));
+  if (missing.length) throw new Error(`identity flags primed by a read that did not ask for ${missing.join(', ')}`);
+  if (typeof HubFlags.prime === 'function') HubFlags.prime(rows, now, asked);
   if (cache && now - cache.at < TTL_MS) return;
-  if (typeof HubFlags.prime === 'function') HubFlags.prime(rows, now);
   cache = await fromRows(rows, now);
 }
 

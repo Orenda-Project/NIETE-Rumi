@@ -111,7 +111,7 @@
     function spoken(ws) { return ws.filter(function (w) { return !w.silent; }); }
     function lrOn(ws, cb) {
       var p = P[m.i], o = {
-        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false,
+        words: ws, image: p.image, lang: L, dir: b.dir, id: b.id + ':' + p.n, stream: stream, meter: 'none', record: false, counted: false, repeat: b.lrr,
         finish: { pct: 0.8, quiet_ms: 4000, tail_ms: 1000, quiet: true },
         copy: { done: t.done, readNow: t.readNow, keepGoing: t.keepGoing, checking: t.checking, wellRead: t.wellRead },
         getKey: function () { return req('POST', '/api/wq/lr/key', { st: ctx.token, kid: ctx.kid, book: b.id, page: p.n, lang: L }).then(function (r) { if (!r.ok || r.body.error) R.keyNo = 1; return r.body; }, function (x) { R.keyNo = 1; throw x; }); },
@@ -131,7 +131,7 @@
 
     function readScreen() {
       var p = P[m.i], LR = W.WQLiveRead, c, lh = '<div class="wqs-lr" data-lr></div>', st;
-      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, marks: [] }; }
+      if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg') +
@@ -157,16 +157,17 @@
     function result(r) {
       if (m.st !== 'reading') return;
       r = r || {};
-      ['words_total', 'words_read', 'skipped', 'ms'].forEach(function (k) { sum[k] += +r[k] || 0; });
+      ['words_total', 'words_read', 'skipped', 'ms', 'absorbed'].forEach(function (k) { sum[k] += +r[k] || 0; });
       sum.ended = r.ended; sum.marks = sum.marks.concat(r.marks || []);
       if (++ci < ck.length && !stopAll && r.ended !== 'hidden') { R.drop(); return readScreen(); }
       var s = sum;
       sum = null;
       var sk = [];
       s.marks.forEach(function (x, i) { if (x === 'skipped') sk.push(i); });
-      var d = { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read' }, n = micO.notice;
+      var d = { words_total: s.words_total, words_read: s.words_read, skipped: s.skipped, ms: s.ms, ended: s.ended, skipped_words: sk, first: m.first[m.i] || 'read', absorbed: s.absorbed || void 0 }, n = micO.notice;
       if (n.shown && n.keep) { d.notice = 2; n.shown = 0; }   // the kept notice was shown: once, for the Trail (TrailPage.NOTICE_V)
       R.pp('story_page_read', d, m.i);
+      if (b.lrr) s = W.WQLiveRead.practice(s, P[m.i].words, true);
       rd = { s: s, i: m.i };
       m.result(s);
       // Jugnu's sound for it (the badge jingle; the soft chime after a 0-word try)
@@ -247,8 +248,8 @@
       if (m.st === 'listening') { if (R.pl) R.pl.pause(); if (m.st === 'listening') m.set(m.l[m.i] ? 'listened' : 'paused'); }
       R.word(-1); line();
     }
-    // while Jugnu reads: starved of data (readyState under HAVE_FUTURE_DATA) the clock stops at once; the kind line at
-    // 3 s; the rest at 3 s once the voice had played (10 s while it first loads), or at once when the phone is offline.
+    // starved of data while Jugnu reads: the clock stops at once, the kind line at 3 s, the rest at 3 s once the voice
+    // had played (10 s while it first loads), at once offline.
     // Once it plays, the next page's voice and picture are warmed (never before the child's first Listen).
     function watch() {
       if (nt || !on) return;
@@ -266,7 +267,7 @@
         nt = C.set(tk, 500);
       }, 500);
     }
-    // the next page's picture and voice, once this page's voice plays (without the setting: wq-stories.js, on every page drawn)
+    // the next page's picture and voice once this page's voice plays (setting off: wq-stories.js, every page)
     function warm() {
       var nx = P[m.i + 1];
       wq[m.i] = 1;
@@ -309,7 +310,7 @@
       for (k = 0; k < im.length; k++) { if (im[k].complete && im[k].naturalWidth) return hide(); if (im[k].addEventListener) im[k].addEventListener('load', hide); }
     }
     R.ph = ph;
-    // the main button keeps its old meaning (and colour) for 600 ms after it changes: a late tap never lands on the new one
+    // the main button keeps its old meaning for 600 ms after a change: a late tap never lands on the new one
     R.sy = function (mb, lab) {
       var o = R.ml;
       ph();
@@ -319,7 +320,7 @@
       R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk';
       C.set(function () { if (R.ml === lab && / wqs-lk/.test(mb.className)) mb.className = 'wqs-main wqs-' + lab; }, 600);
     };
-    // window events while this book is open: all of them go when the book is left (R.kill), or at the latest the first time one fires after
+    // window events while this book is open: all go when the book is left (R.kill), at the latest when one fires after
     var wl = [];
     function onW(n, f) { var g = function () { if (!live()) return R.un(); f(); }; wl.push([n, g]); W.addEventListener(n, g); }
     R.un = function () { wl.forEach(function (x) { W.removeEventListener(x[0], x[1]); }); wl = []; };

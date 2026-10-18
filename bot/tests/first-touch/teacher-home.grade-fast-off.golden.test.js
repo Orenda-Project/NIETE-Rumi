@@ -40,6 +40,7 @@ const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-grade-fast-off.
 const RECORD = process.env.TEACHER_HOME_RECORD === '1';
 const FAST = 'quiz_teacher_home_grade_fast';
 const PAGED = 'quiz_teacher_home_paged';
+const WAIT = 'quiz_teacher_home_wait';
 // recording on the base: only the OFF test runs (the base has no fast switch to test)
 const onDescribe = RECORD ? describe.skip : describe;
 
@@ -185,7 +186,7 @@ onDescribe('the switch read: the quick answer\'s one app_settings read answers b
   ])('%s → read as expected, in the quick answer\'s single read (30 s cache)', async (_, rows, want) => {
     for (const paged of [false, true]) {
       const all = [{ key: 'quiz_teacher_home', value: true }, ...(paged ? [{ key: PAGED, value: true }] : []), ...rows];
-      expect(await read(all)).toEqual({ paged, fast: want, both: { [PAGED]: paged, [FAST]: want }, reads: 1 });
+      expect(await read(all)).toEqual({ paged, fast: want, both: { [PAGED]: paged, [FAST]: want, [WAIT]: false }, reads: 1 });
     }
   });
   test('a read that fails → both off, and the next call asks again (no failure is held)', async () => {
@@ -193,14 +194,14 @@ onDescribe('the switch read: the quick answer\'s one app_settings read answers b
     fake.db.app_settings = [{ key: PAGED, value: true }, { key: FAST, value: true }];
     failSwitchRead();
     Flags.reset();
-    expect(await Flags.pageSwitches()).toEqual({ [PAGED]: false, [FAST]: false });
+    expect(await Flags.pageSwitches()).toEqual({ [PAGED]: false, [FAST]: false, [WAIT]: false });
     fake = seedMaker(supabase, { on: true });
     fake.db.app_settings = [{ key: PAGED, value: true }, { key: FAST, value: true }];
-    expect(await Flags.pageSwitches()).toEqual({ [PAGED]: true, [FAST]: true });
+    expect(await Flags.pageSwitches()).toEqual({ [PAGED]: true, [FAST]: true, [WAIT]: false });
   });
-  test('the page switches are one list: PAGE_KEYS is the quick answer\'s key and the fast switch\'s, in that order', () => {
-    expect(Flags.PAGE_KEYS).toEqual([Flags.PAGED_KEY, Flags.GRADE_FAST_KEY]);
-    expect(Flags.PAGE_KEYS).toEqual([PAGED, FAST]);
+  test('the page switches are one list: PAGE_KEYS is the quick answer\'s key, the fast switch\'s and the wait\'s, in that order', () => {
+    expect(Flags.PAGE_KEYS).toEqual([Flags.PAGED_KEY, Flags.GRADE_FAST_KEY, Flags.WAIT_KEY]);
+    expect(Flags.PAGE_KEYS).toEqual([PAGED, FAST, WAIT]);
   });
   test('a key added to PAGE_KEYS is read in the same one .in', async () => {
     const EXTRA = 'quiz_teacher_home_test_extra';
@@ -213,9 +214,9 @@ onDescribe('the switch read: the quick answer\'s one app_settings read answers b
       fake.calls.length = 0;
       const all = await Flags.pageSwitches();
       expect(seen.reads).toHaveLength(1);
-      expect(seen.reads[0]).toEqual([PAGED, FAST, EXTRA]);
+      expect(seen.reads[0]).toEqual([PAGED, FAST, WAIT, EXTRA]);
       expect(fake.calls.filter((c) => c.table === 'app_settings')).toHaveLength(1);
-      expect(all).toEqual({ [PAGED]: true, [FAST]: false, [EXTRA]: true });
+      expect(all).toEqual({ [PAGED]: true, [FAST]: false, [WAIT]: false, [EXTRA]: true });
       expect([await Flags.paged(), await Flags.gradeFast()]).toEqual([true, false]);
       expect(seen.reads).toHaveLength(1); // the getters answer from the same reading (30 s cache)
     } finally {
