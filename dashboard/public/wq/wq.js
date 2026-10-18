@@ -2565,7 +2565,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
     // this page's own share (the picture and the class link) is the one that runs
-    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function () { share(line, classUrl, 'card', art.card); }));
+    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function (t, u, late) { if (late) fallback(line + ' ' + classUrl, 'card', line, classUrl, art.card, true); else share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2653,7 +2653,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
     // this page's own share (the picture and the class link) is the one that runs
-    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function () { share(line, classUrl, 'card', art.card); }));
+    if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function (t, u, late) { if (late) fallback(line + ' ' + classUrl, 'card', line, classUrl, art.card, true); else share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     if (res.share_v4 === true) {
       var chalUrl = link('/q/' + (res.challenge_code || CODE));

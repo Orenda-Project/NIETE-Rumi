@@ -14,6 +14,8 @@ const path = require('path');
 const vm = require('vm');
 const { page } = require('./wq-page-harness');
 const { renderCardPage } = require('../routes/web-quiz.routes');
+// the card shows a child's first name: fixtures are "<Name> Testwala", the card gets the first word
+const firstOf = (full) => full.split(' ')[0];
 
 const WQ = path.join(__dirname, '..', 'public', 'wq');
 const FC_SRC = fs.readFileSync(path.join(WQ, 'wq-finish-card.js'), 'utf8');
@@ -131,9 +133,9 @@ describe('the tap', () => {
 
 describe('the quiz card\'s Share (the real button on the real page) opens the one sheet', () => {
   const { flush: pflush } = require('./wq-page-harness');
-  const QRES = { card: { first: 'Noor', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+  const QRES = { card: { first: firstOf('Noor Testwala'), animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
     art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, card_v3: true, share_v4: true };
-  const qstore = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Noor', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
+  const qstore = (result) => ({ wq_s_TEST: { st: 's1', child: { first: firstOf('Noor Testwala'), chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
   async function quizPage(lang, extra, mint) {
     const shares = [];
     const p = page({ lang, store: qstore({ ...QRES, ...extra }), api: { '/api/wq/card': mint }, nav: { share: (d) => { shares.push(d); return Promise.resolve(); } } });
@@ -174,9 +176,9 @@ describe('the quiz card\'s Share (the real button on the real page) opens the on
 });
 
 describe('the quiz card with the home on: "Challenge a friend" is back with the one share', () => {
-  const RESULT = { card: { first: 'Noor', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+  const RESULT = { card: { first: firstOf('Noor Testwala'), animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
     art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl', invite: 'i.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, card_fold: true };
-  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Noor', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
+  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: firstOf('Noor Testwala'), chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
   test.each(['en', 'ur'])('%s: share_v4 → the button, and its tap shares the challenge link', (lang) => {
     const p = page({ lang, store: store({ ...RESULT, share_v4: true }) });
     p.wq.card();
@@ -195,7 +197,7 @@ describe('the quiz card with the home on: "Challenge a friend" is back with the 
 });
 
 describe('the shared link\'s landing (/k/<t>)', () => {
-  const facts = (lang, extra = {}) => ({ kind: 'book', lang, first: 'Noor', deed_text: 'I read a storybook with Jugnu today!', ret: RET, ...extra });
+  const facts = (lang, extra = {}) => ({ kind: 'book', lang, first: firstOf('Noor Testwala'), deed_text: 'I read a storybook with Jugnu today!', ret: RET, ...extra });
   // recorded on origin/sandbox 04bebe647 (before this change) with the same facts
   const GOLDEN = { 'en|false': '9fbf818cf0fd2dea', 'en|true': 'e88ed8084c2d59e8', 'ur|false': '7c826ccd62222f7e', 'ur|true': 'b36b9adfc407a7bf' };
   test('a token minted with the switch off: today\'s page, byte for byte', () => {
@@ -214,7 +216,7 @@ describe('the shared link\'s landing (/k/<t>)', () => {
     expect(html).toContain('href="https://wa.me/15550001111?text=quiz%20please%20jb3b9c1e2a"');
     expect(html).toContain(`dir="${lang === 'ur' ? 'rtl' : 'ltr'}"`);
     // the headline runs in the page's direction, the name isolated (a Latin name never turns an Urdu line around)
-    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi>Noor</bdi>: `);
+    expect(html).toContain(`<h1 dir="${lang === 'ur' ? 'rtl' : 'ltr'}"><bdi>${firstOf('Noor Testwala')}</bdi>: `);
     expect(html).not.toMatch(BANNED);
     // the landing names what it lands on; with no name, no empty line
     const named = renderCardPage({ facts: facts(lang, { v4: true, mark: 'x', accent: '#7C3AED', ret, item_title: 'The lost kite <b>' }), token: TOK, origin: 'https://portal.example', url: 'u', brandKey: null });
@@ -340,9 +342,9 @@ describe('the one share never sends words without the card', () => {
 });
 
 describe('the folded quiz card: "Challenge a friend" only with share_v4 JSON true', () => {
-  const RESULT = { card: { first: 'Noor', animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
+  const RESULT = { card: { first: firstOf('Noor Testwala'), animal: 'owl', correct: 3, total: 5, stars: 3 }, challenge_code: 'CHAL12', score: { correct: 3, total: 5, pct: 60 },
     art: { card: 'c.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl', invite: 'i.DwjiGhssTV6PkKGyw9Tl9g.abcdefghijkl' }, card_fold: true };
-  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: 'Noor', chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
+  const store = (result) => ({ wq_s_TEST: { st: 's1', child: { first: firstOf('Noor Testwala'), chip: 'c1', animal: 'owl' }, answers: {}, queue: [], result, vdone: true } });
   test.each([['absent', {}], ['false', { share_v4: false }], ['the string "true"', { share_v4: 'true' }], ['1', { share_v4: 1 }]])('%s: no challenge door (today\'s fold card)', (_, extra) => {
     for (const lang of ['en', 'ur']) {
       const p = page({ lang, store: store({ ...RESULT, ...extra }) });
