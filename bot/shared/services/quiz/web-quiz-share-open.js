@@ -60,6 +60,17 @@ async function refMenu(text) {
   }
 }
 
+// The language of a shared card's words: Urdu script → 'ur' (the Urdu card's words), else 'bi' (the English card's,
+// the landing's English with its Urdu lines); null with no ref or the switch off. Never throws.
+async function cardLang(text) {
+  try {
+    if (!refOf(text) || !(await Card.shareOn())) return null;
+    return /[\u0600-\u06FF]/.test(String(text)) ? 'ur' : 'bi';
+  } catch (_) {
+    return null;
+  }
+}
+
 async function note(phone, text) {
   try {
     const r = refOf(text);
@@ -138,4 +149,4 @@ async function friendsOf(studentId) {
   }
 }
 
-module.exports = { refOf, refMenu, note, hashFor, withOpen, credit, friendsOf, REF_TOKEN_RX, TTL_S, _keyOf: keyOf };
+module.exports = { refOf, refMenu, cardLang, note, hashFor, withOpen, credit, friendsOf, REF_TOKEN_RX, TTL_S, _keyOf: keyOf };
