@@ -16,8 +16,8 @@
 .wq-shelf{min-height:8px}
 .wq-dempty{display:flex;flex-direction:column;gap:12px}
 .wq-dback{align-self:flex-start;min-height:48px;margin-bottom:6px;padding:0 20px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--navy);font-weight:800;cursor:pointer}
-.wq-wait{animation:wq-pulse 1.2s ease-in-out infinite}
-@keyframes wq-pulse{50%{opacity:.55}}
+.wq-wait{animation:wq-dpulse 1.2s ease-in-out infinite}
+@keyframes wq-dpulse{50%{opacity:.55}}
 .wq-vbox{position:relative;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:16/9}
 .wq-vid{display:block;width:100%;height:100%;background:#000}
 .wq-vplay{position:absolute;inset:0;margin:auto;width:84px;height:84px;border:0;border-radius:50%;background:var(--brand);color:#fff;font-size:34px;box-shadow:0 5px 0 var(--brand-d);cursor:pointer}
@@ -68,10 +68,19 @@ html[lang=ur] .wq-rtext b:has(>.wq-lat),html[lang=ur] .wq-dsec:has(>.wq-lat){lin
 /* a shelf whose lessons did not load: the oops line and one Try again, in the row's place */
 .wq-vrow .wq-voops{flex:1 1 auto;align-self:center;margin:0}
 .wq-vretry{flex:none;width:auto;align-self:center;min-height:48px;padding:0 16px;border-radius:999px}
-.wq-vskel .wq-vthumb{animation:wq-pulse 1.2s ease-in-out infinite;box-shadow:none}
-.wq-vbox.wq-vskel{background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
-.wq-vskh{display:block;height:20px;width:40%;margin:18px 0 12px;border-radius:10px;background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
-.wq-vskel b{display:block;height:14px;width:80%;border-radius:7px;background:var(--tint);animation:wq-pulse 1.2s ease-in-out infinite}
+.wq-vskel .wq-vthumb{animation:wq-dpulse 1.2s ease-in-out infinite;box-shadow:none}
+.wq-vbox.wq-vskel{background:var(--tint);animation:wq-dpulse 1.2s ease-in-out infinite}
+.wq-vskh{display:block;height:20px;width:40%;margin:18px 0 12px;border-radius:10px;background:var(--tint);animation:wq-dpulse 1.2s ease-in-out infinite}
+.wq-vskel b{display:block;height:14px;width:80%;border-radius:7px;background:var(--tint);animation:wq-dpulse 1.2s ease-in-out infinite}
 html[lang=ur] .wq-vct,html[lang=ur] .wq-vsall,html[lang=ur] .wq-vq,html[lang=ur] .wq-vquiz,html[lang=ur] .wq-vretry{font-family:var(--fu);font-weight:400;line-height:1.9}
 html[lang=ur] .wq-vct .wq-lat{font-family:var(--f);font-weight:800;line-height:1.3}
 @media (prefers-reduced-motion:reduce){.wq-vskel .wq-vthumb,.wq-vskel b,.wq-vskh,.wq-vbox.wq-vskel{animation:none}}
+/* a list still on its way (web_quiz_list_states): row-shaped blocks that shimmer, never an empty note */
+.wq-dskel{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.wq-skrow{display:block;height:64px;border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,var(--card) 50%,var(--tint) 75%);background-size:200% 100%;animation:wq-shim 1.2s linear infinite}
+.wq-shelf .wq-dskel{margin-top:0}
+.wq-dskel-in{margin-top:0}
+.wq-dskel-bk{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px}
+.wq-dskel-bk .wq-skrow{height:auto;aspect-ratio:2/3}
+@keyframes wq-shim{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.wq-skrow{animation:none}}
