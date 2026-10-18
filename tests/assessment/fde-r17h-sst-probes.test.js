@@ -126,12 +126,17 @@ describe('1. the religious premise with no honorific is held', () => {
 });
 
 describe('2. the reader pass never refuses a paper for a Q1 item its own D top-up gives away', () => {
-  // Its Q1 «قانون بنانے کا اختیار کس ادارے کے پاس ہے؟ → مقننہ» is named by C.Q5 «مقننہ اور عدلیہ …» and held by
-  // that rule; an item no stem names stands in, so these tests read the D top-up alone.
+  // Its Q1 «قانون بنانے کا اختیار کس ادارے کے پاس ہے؟ → مقننہ» is named by C.Q5 «مقننہ اور عدلیہ …»; an item no stem
+  // names stands in, so these tests read the D top-up alone.
   const FULL = (() => {
     const e = fixture('r15-sst-local-full_2');
     Object.assign(items(e, Q1).find((q) => q.question === 'قانون بنانے کا اختیار کس ادارے کے پاس ہے؟'), {
       question: 'پاکستان کا قومی پھول کون سا ہے؟', options: ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], answer: 'ب) چنبیلی',
+    });
+    // Its Q1 «پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام کون سی حکومت دیکھتی ہے؟ → مقامی حکومت» is stated by a Q6
+    // that prints «مقامی حکومت» beside the water line and the drains, and is held; an item no stem states stands in.
+    Object.assign(items(e, Q1).find((q) => q.question.startsWith('پینے کے پانی کا بندوبست')), {
+      question: 'پاکستان کا قومی پرندہ کون سا ہے؟', options: ['الف) چکور', 'ب) طوطا', 'ج) کبوتر', 'د) مور'], answer: 'الف) چکور',
     });
     return e;
   })();

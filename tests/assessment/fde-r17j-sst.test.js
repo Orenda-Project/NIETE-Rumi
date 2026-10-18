@@ -81,19 +81,26 @@ describe('2. the premise words written without an honorific', () => {
   });
 });
 
-// The twenty Q1 items three readers found a C/D stem gives away (eight that print the key beside the asked
-// fact, twelve that print the name alone), paper by paper. Two of them, chapters_1 ۳ and chapters_3 ۴
-// («ایدھی فاؤنڈیشن کس شخصیت نے قائم کی؟ → عبدالستار ایدھی»), print the name in their own stem first: the C/D stem
-// adds nothing to it, and the Q1 stem's own rule holds them (item 5).
+// The twenty Q1 items three readers found a C/D stem names, paper by paper. A stem that only names a key is reported,
+// not gated (FDE's own paper prints that shape); the layout still holds a NAME a stem prints, as a precaution that
+// costs a Section A re-ask, and never a term the chapter teaches. Two of the names, chapters_1 ۳ and chapters_3 ۴
+// («ایدھی فاؤنڈیشن کس شخصیت نے قائم کی؟ → عبدالستار ایدھی»), print the name in their own stem first, and that rule
+// holds them (item 5).
 const GIVEN = {
   full_1: [11, 18],
-  full_2: [4, 7, 16, 17],
-  chapters_1: [2],
+  full_2: [16, 17],
   chapters_2: [4],
-  chapters_3: [2, 10],
-  chapters_4: [5, 6, 8, 9],
-  chapters_5: [1, 2],
+  chapters_4: [8, 9],
   chapters_6: [10, 11],
+};
+// The twelve term keys among them («مقننہ», «سپریم کورٹ», «قومی اسمبلی», «ڈیجیٹل شہری», «سوشل میڈیا»,
+// «الیکٹرانک میڈیا»): named, not stated.
+const TERMS = {
+  full_2: [4, 7],
+  chapters_1: [2],
+  chapters_3: [2, 10],
+  chapters_4: [5, 6],
+  chapters_5: [1, 2],
 };
 
 const A_RULES = ['key_named_in_stem', 'key_in_stem', 'key_in_own_stem', 'names_q1_key'];
@@ -116,6 +123,22 @@ describe('3. a Q1 key a C/D stem names', () => {
     expect(nth(exam, Q1, 11).question).toBe('پاکستان کا نام سب سے پہلے کس نے تجویز کیا؟');
     expect(nth(exam, Q7, 2).question).toContain('چودھری رحمت علی');
     expect(heldAs(lay(exam), nth(exam, Q1, 11))).toContain('key_named_in_stem');
+  });
+
+  test.each(Object.entries(TERMS))('%s: a term key a C/D stem only names is not held by the name rule', (name, ns) => {
+    const exam = local(name);
+    const laid = lay(exam);
+    for (const n of ns) expect([n, heldAs(laid, nth(exam, Q1, n)).filter((r) => r === 'key_named_in_stem' || r === 'key_in_stem')]).toEqual([n, []]);
+  });
+
+  test('a term key a C/D stem states is held: «مقننہ قوانین بناتی ہے …» beside «قوانین بنانے کا اختیار کس ادارے کے پاس ہے؟ → مقننہ»', () => {
+    const e = clone(local('chapters_5'));
+    const q = nth(e, Q1, 1);
+    expect(q.question).toBe('قوانین بنانے کا اختیار کس ادارے کے پاس ہے؟');
+    expect(heldAs(lay(e), q)).toEqual([]);
+    const q5 = items(e, Q5).find((x) => x.question.includes('مقننہ'));
+    q5.question = 'مقننہ قوانین بنانے کا اختیار رکھتی ہے۔ اس کے دو ایوانوں کا موازنہ کریں۔';
+    expect(heldAs(lay(e), q)).toEqual(['key_in_stem']);
   });
 
   test('a C/D stem that prints the name inside an option of its own («بیگم رعنا لیاقت علی خان» is an option) names no one', () => {
@@ -168,6 +191,13 @@ describe('4. the reader is handed the Q1 keys a C/D stem prints', () => {
     expect(prompt).toContain('Judge every candidate below');
   });
 
+  test('the candidate block says a stem that only names a key gives nothing away; only a stated fact does', () => {
+    const { prompt } = Reader.buildReaderPrompt(local('chapters_4'), SST, {});
+    const block = prompt.slice(prompt.indexOf(CANDIDATES));
+    expect(block).toContain('A stem tells the answer when it states the fact the Q1 item asks');
+    expect(block).toContain('A stem that only names the key, alone or beside a related topic, does not: decide it given_away false.');
+  });
+
   test('a flag on a candidate, quoting the Q1 key, is kept', () => {
     const exam = local('chapters_4');
     const { labels, blocks, split } = Reader.buildReaderPrompt(exam, SST, {});
@@ -176,15 +206,16 @@ describe('4. the reader is handed the Q1 keys a C/D stem prints', () => {
   });
 
   test('a paper whose C/D stems print no Q1 key reads exactly as before: no candidate block', () => {
-    const laid = lay(local('chapters_1'));
+    const laid = lay(local('full_1'));
     const { prompt } = Reader.buildReaderPrompt(laid.examJson, SST, {});
     expect(prompt).not.toContain(CANDIDATES);
     expect(prompt).not.toContain('Judge every candidate below');
   });
 
-  test('what the layout lets print is handed over: a tier, a name inside a wife\'s name', () => {
+  test('what the layout lets print is handed over: a tier, a term only named, a name inside a wife\'s name', () => {
     const block = (name) => { const p = Reader.buildReaderPrompt(lay(local(name)).examJson, SST, {}).prompt; return p.slice(p.indexOf(CANDIDATES)); };
     expect(block('chapters_5')).toMatch(/- Q5\.\d+ prints «وفاقی حکومت», the key of Q1\.\d+/);
+    expect(block('chapters_5')).toMatch(/- Q5\.\d+ prints «مقننہ», the key of Q1\.\d+/);
     expect(block('chapters_6')).toMatch(/- Q5\.\d+ prints «لیاقت علی خان», the key of Q1\.\d+/);
   });
 
@@ -240,15 +271,28 @@ describe('5. a Q1 stem that names its own key, or another Q1 item\'s', () => {
     expect(printed.has(nth(e, Q1, 3).question)).toBe(true);
   });
 
-  test('a key two later stems name costs one item: the item keyed «سوشل میڈیا» is held, both stems print', () => {
-    const e = fixture('r6-sst-held');
+  test('a name two later stems print costs one item: the item keyed «چودھری رحمت علی» is held, both stems print', () => {
+    const e = clone(local('full_1'));
     const mcqs = e.unseen.objective.MCQs;
-    const keyed = mcqs.find((q) => q.question === 'ابلاغ کی جدید ترین شکل کون سی ہے؟');
-    const naming = mcqs.filter((q) => q !== keyed && q.question.includes('سوشل میڈیا'));
-    expect(naming).toHaveLength(2);
-    const laid = applyLayout(clone(e), SST, { kind: 'fde' }, { reasked: true, now: 'T' });
+    const keyed = mcqs[10];
+    expect(keyed.answer).toContain('چودھری رحمت علی');
+    Object.assign(mcqs[12], { question: 'چودھری رحمت علی نے اپنا پمفلٹ «اب یا کبھی نہیں» کس سال جاری کیا؟', options: ['الف) 1930ء', 'ب) 1933ء', 'ج) 1940ء', 'د) 1947ء'], answer: 'ب) 1933ء' });
+    Object.assign(mcqs[14], { question: 'چودھری رحمت علی نے کس شہر میں پمفلٹ لکھا؟', options: ['الف) لاہور', 'ب) کیمبرج', 'ج) دہلی', 'د) کراچی'], answer: 'ب) کیمبرج' });
+    for (const slot of [Q5, Q6, Q7]) for (const q of items(e, slot)) q.question = q.question.split('چودھری رحمت علی').join('ایک رہنما');
+    const laid = lay(e);
     expect(heldAs(laid, keyed)).toEqual(['names_q1_key']);
-    for (const q of naming) expect(heldAs(laid, q)).toEqual([]);
+    // The two naming items are never held for the name; the year item is held on its own, because a Q7 stem prints
+    // «28 جنوری 1933ء» beside the pamphlet (a year beside its event states the fact).
+    for (const q of [mcqs[12], mcqs[14]]) expect(heldAs(laid, q)).not.toContain('names_q1_key');
+    expect(heldAs(laid, mcqs[12])).toEqual(['key_in_stem']);
+    expect(heldAs(laid, mcqs[14])).toEqual([]);
+  });
+
+  test('a term another Q1 stem names is never held for it («سوشل میڈیا»): the chapter\'s own word', () => {
+    const e = fixture('r6-sst-held');
+    const keyed = e.unseen.objective.MCQs.find((q) => q.question === 'ابلاغ کی جدید ترین شکل کون سی ہے؟');
+    const laid = applyLayout(clone(e), SST, { kind: 'fde' }, { reasked: true, now: 'T' });
+    expect(heldAs(laid, keyed)).toEqual([]);
   });
 
   test('controls: a stem that names none of its options, or lists three of them, keeps its item', () => {
@@ -274,8 +318,8 @@ describe('5. a Q1 stem that names its own key, or another Q1 item\'s', () => {
     expect(dNote || '').not.toContain(nth(exam, Q1, 4).question);
   });
 
-  test('every one of the twenty counted rows is held, by one rule or another', () => {
-    const all = { ...GIVEN, chapters_1: [2, 3], chapters_3: [2, 4, 10] };
+  test('every name among the twenty rows is held, by one rule or another', () => {
+    const all = { ...GIVEN, chapters_1: [3], chapters_3: [4] };
     for (const [name, ns] of Object.entries(all)) {
       const exam = local(name);
       const printed = new Set(items(lay(exam).examJson, Q1).map((q) => q.question));
