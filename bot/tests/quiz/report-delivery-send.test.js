@@ -171,14 +171,18 @@ describe.each(KINDS)('%s', (_, kind) => {
   });
 
   if (noRead(kind)) {
-    test('switch on, accepted, no reading of the switch held (nothing read in this process): no id kept, and no read for it', async () => {
+    test('switch on, a fresh process (no switch reading in 10 min), accepted: the id IS kept and the delivery check un-stamps it', async () => {
       stubDb({ ...kind, setting: true });
       whatsappAccepts();
       const n = countReads();
       expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
       expect(db.quiz_share_codes[0].report_sent_at).not.toBeNull();
-      expect(reportWrites()).toHaveLength(0);
-      expect(reads(n)).toEqual(baseOf(kind));
+      expect(reportKeys()).toEqual(['report_msg:wamid.TEST1']);
+      // the one cached read of the switch (at most one per 30 s per process)
+      expect(reads(n).app_settings).toBe(baseOf(kind).app_settings + 1);
+      const Delivery = require('../../shared/services/quiz/report-delivery');
+      expect(await Delivery.onFailedStatus({ id: 'wamid.TEST1', status: 'failed', errors: [{ code: 131000 }] })).toBe(true);
+      expect(db.quiz_share_codes[0].report_sent_at).toBeNull();
     });
   }
 
@@ -189,9 +193,23 @@ describe.each(KINDS)('%s', (_, kind) => {
     expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
     expect(reportWrites()).toHaveLength(0);
     expect(reportKeys()).toHaveLength(0);
-    expect(reads(n)).toEqual(baseOf(kind));
+    // a report nobody took makes no fold read: keeping the id asks the switch's cached reading, one read (cold)
+    expect(reads(n)).toEqual({ ...baseOf(kind), app_settings: baseOf(kind).app_settings + (noRead(kind) ? 1 : 0) });
     // each send exactly as today: (phone, text), nothing added
     for (const c of WhatsAppService.sendMessage.mock.calls) expect(c).toHaveLength(2);
+  });
+
+  test.each([['absent', undefined], ['JSON false', false]])('switch off (%s): the id costs at most one settings read per 30 s per process: the next accepted report within 30 s reads none', async (_n, setting) => {
+    stubDb({ ...kind, setting });
+    whatsappAccepts();
+    const cold = countReads();
+    expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+    expect(reads(cold).app_settings).toBe(baseOf(kind).app_settings + (noRead(kind) ? 1 : 0));
+    stubDb({ ...kind, setting });
+    const warm = countReads();
+    expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
+    expect(reads(warm).app_settings).toBe(0);
+    expect(reportWrites()).toHaveLength(0);
   });
 
   test('switch on, WhatsApp refused: no id kept (nothing went out)', async () => {

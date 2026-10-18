@@ -472,10 +472,11 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     return true;
   };
   // The report sends' WhatsApp ids (whatsapp-sent-ids), kept after the stamp so a later `failed` status finds the
-  // report (report-delivery; quiz_report_send_checked on, from the reading already held — never a read of its own).
+  // report (report-delivery; quiz_report_send_checked on). The switch's 30 s cached reading decides, asked only once a
+  // send was accepted: the fold read carries it where the report makes one; else one read per 30 s per process.
   const sentIds = [];
   const keep = async (fn) => { const { result, ids } = await SentIds.collect(fn); sentIds.push(...ids); return result; };
-  const keepIds = (kind) => (stamp.stamped ? ReportDelivery.remember(sentIds, { kind, share_code_id: shareCodeId }) : null);
+  const keepIds = (kind) => (stamp.stamped ? ReportDelivery.remember(sentIds, { kind, share_code_id: shareCodeId }, { ask: true }) : null);
 
   const { data: sessions } = await supabase
     .from('quiz_sessions')
