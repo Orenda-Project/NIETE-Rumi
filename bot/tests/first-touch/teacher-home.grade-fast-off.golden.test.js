@@ -34,7 +34,7 @@ const Bank = require('../../shared/services/first-touch/maker.bank');
 const Flags = require('../../shared/services/first-touch/teacher-home.flags');
 const HomeToken = require('../../shared/services/first-touch/teacher-home.token');
 const { createRouter } = require('../../shared/services/first-touch/teacher-home.routes');
-const { seedMaker, TEACHER } = require('./maker-fixture');
+const { seedMaker, TEACHER, hookPageRead } = require('./maker-fixture');
 
 const GOLDEN = path.join(__dirname, '__goldens__', 'teacher-home-grade-fast-off.json');
 const RECORD = process.env.TEACHER_HOME_RECORD === '1';
@@ -55,7 +55,7 @@ const url = (p) => `http://127.0.0.1:${srv.address().port}/api/internal/th${p}`;
 
 /**
  * A fresh store with the home on, the quick answer's switch `paged` (true → a JSON true row) and the fast switch in
- * `state`, every switch cache emptied. `state.fail`: the read of the quick answer's / fast switch's row fails.
+ * `state`, every switch cache emptied. `state.fail`: the page read (both switches' rows) fails.
  */
 function seed(state, paged) {
   fake = seedMaker(supabase, { on: true });
@@ -64,21 +64,10 @@ function seed(state, paged) {
   Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache();
   if (state.fail) failSwitchRead();
 }
-/** Every app_settings read that asks for the quick answer's or the fast switch's row answers an error (.eq or .in). */
-function failSwitchRead() {
-  const from0 = supabase.from;
-  const hit = (v) => [].concat(v).some((k) => k === PAGED || k === FAST);
-  const down = { data: null, error: { message: 'settings down' } };
-  supabase.from = (t) => {
-    const b = from0(t);
-    if (t !== 'app_settings') return b;
-    const eq0 = b.eq.bind(b);
-    const in0 = b.in.bind(b);
-    b.eq = (k, v) => { const r = eq0(k, v); if (hit(v)) r.maybeSingle = async () => down; return r; };
-    b.in = (k, v) => { const r = in0(k, v); return hit(v) ? { then: (ok, no) => Promise.resolve(down).then(ok, no) } : r; };
-    return b;
-  };
-}
+/** The page read (the app_settings `.in` whose keys include the quick answer's key) answers an error. */
+const failSwitchRead = () => hookPageRead(supabase, { fail: true });
+/** The page read, watched: → { n, reads } (each read's keys, as asked). */
+const watchPageRead = () => hookPageRead(supabase);
 const STATES = {
   absent: { absent: true }, false: { value: false }, 'string true': { value: 'true' }, 'json string true': { value: '"true"' },
   1: { value: 1 }, '{}': { value: {} }, 'failed read': { value: true, fail: true },
@@ -182,7 +171,7 @@ onDescribe('the switch read: the quick answer\'s one app_settings read answers b
     fake.calls.length = 0;
     const paged = await Flags.paged();
     const fast = await Flags.gradeFast();
-    const both = await Flags.pagedSwitches();
+    const both = await Flags.pageSwitches();
     return { paged, fast, both, reads: fake.calls.filter((c) => c.table === 'app_settings').length };
   };
   test.each([
@@ -196,7 +185,7 @@ onDescribe('the switch read: the quick answer\'s one app_settings read answers b
   ])('%s → read as expected, in the quick answer\'s single read (30 s cache)', async (_, rows, want) => {
     for (const paged of [false, true]) {
       const all = [{ key: 'quiz_teacher_home', value: true }, ...(paged ? [{ key: PAGED, value: true }] : []), ...rows];
-      expect(await read(all)).toEqual({ paged, fast: want, both: { paged, gradeFast: want }, reads: 1 });
+      expect(await read(all)).toEqual({ paged, fast: want, both: { [PAGED]: paged, [FAST]: want }, reads: 1 });
     }
   });
   test('a read that fails → both off, and the next call asks again (no failure is held)', async () => {
@@ -204,10 +193,35 @@ onDescribe('the switch read: the quick answer\'s one app_settings read answers b
     fake.db.app_settings = [{ key: PAGED, value: true }, { key: FAST, value: true }];
     failSwitchRead();
     Flags.reset();
-    expect(await Flags.pagedSwitches()).toEqual({ paged: false, gradeFast: false });
+    expect(await Flags.pageSwitches()).toEqual({ [PAGED]: false, [FAST]: false });
     fake = seedMaker(supabase, { on: true });
     fake.db.app_settings = [{ key: PAGED, value: true }, { key: FAST, value: true }];
-    expect(await Flags.pagedSwitches()).toEqual({ paged: true, gradeFast: true });
+    expect(await Flags.pageSwitches()).toEqual({ [PAGED]: true, [FAST]: true });
+  });
+  test('the page switches are one list: PAGE_KEYS is the quick answer\'s key and the fast switch\'s, in that order', () => {
+    expect(Flags.PAGE_KEYS).toEqual([Flags.PAGED_KEY, Flags.GRADE_FAST_KEY]);
+    expect(Flags.PAGE_KEYS).toEqual([PAGED, FAST]);
+  });
+  test('a key added to PAGE_KEYS is read in the same one .in', async () => {
+    const EXTRA = 'quiz_teacher_home_test_extra';
+    fake = seedMaker(supabase, { on: true });
+    fake.db.app_settings = [{ key: PAGED, value: true }, { key: EXTRA, value: true }];
+    Flags.reset();
+    Flags.PAGE_KEYS.push(EXTRA);
+    try {
+      const seen = watchPageRead();
+      fake.calls.length = 0;
+      const all = await Flags.pageSwitches();
+      expect(seen.reads).toHaveLength(1);
+      expect(seen.reads[0]).toEqual([PAGED, FAST, EXTRA]);
+      expect(fake.calls.filter((c) => c.table === 'app_settings')).toHaveLength(1);
+      expect(all).toEqual({ [PAGED]: true, [FAST]: false, [EXTRA]: true });
+      expect([await Flags.paged(), await Flags.gradeFast()]).toEqual([true, false]);
+      expect(seen.reads).toHaveLength(1); // the getters answer from the same reading (30 s cache)
+    } finally {
+      Flags.PAGE_KEYS.pop();
+      Flags.reset();
+    }
   });
   test('a thrown read → both off', async () => {
     fake = seedMaker(supabase, { on: true });

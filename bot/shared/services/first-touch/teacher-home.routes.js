@@ -88,9 +88,9 @@ function createRouter(deps = null) {
     if (!on) return res.status(404).json({ off: true });
     // the quick answer's switch, asked only once the home is on (its own 30 s cache), by the home and its shell
     // (the same read answers quiz_teacher_home_grade_fast, used by the shell alone)
-    const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pagedSwitches().then((v) => v || {}, () => ({})) : null;
-    req.thPaged = sw ? sw.then((v) => v.paged === true) : null;
-    req.thGradeFast = sw ? sw.then((v) => v.gradeFast === true) : null;
+    const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pageSwitches().then((v) => v || {}, () => ({})) : null;
+    req.thPaged = sw ? sw.then((v) => v[Flags.PAGED_KEY] === true) : null;
+    req.thGradeFast = sw ? sw.then((v) => v[Flags.GRADE_FAST_KEY] === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
