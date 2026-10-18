@@ -208,10 +208,11 @@ describe('switch ON (JSON true): the wait\'s page, in the same reads', () => {
     const html = (await get(shellPath('en', null))).text;
     expect(html).toContain(`<script>${Page.SCRIPT_WAIT}</script>`);
     expect(html).toContain('id="th-retry" type="button" hidden>Try again</button>');
-    // the cost, stated: four page loads, the same reads with the switch OFF and ON (2 app_settings reads on the cold
-    // first load: the home's own switch, then ONE read that carries both page switches; the next loads ride the 30 s caches)
+    // the cost, stated: four page loads, the same reads with the switch OFF and ON (5 app_settings reads over the four
+    // loads: the home's own switch, ONE read that carries every page switch (the wait's among them), and the shell's other
+    // landed switches; the next loads ride the 30 s caches)
     expect({ reads: on.reads, settingsReads: on.settingsReads }).toEqual({ reads: off.reads, settingsReads: off.settingsReads });
-    expect(on.settingsReads).toBe(2);
+    expect(on.settingsReads).toBe(5);
     // something ON changes (the page), so the equal reads above are not a vacuous OFF row
     expect(on.rows.map((r) => r.sha256)).not.toEqual(off.rows.map((r) => r.sha256));
   });
