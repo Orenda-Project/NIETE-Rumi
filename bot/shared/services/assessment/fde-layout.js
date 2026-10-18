@@ -1349,23 +1349,28 @@ function keyAcceptSplit(q) {
 }
 // Urdu Q4 ارکان: a key that splits a word one way («تواضع: تو + اضع») beside an accepted answer that
 // splits it another («تَ وا ضُع») gives the teacher two answers, one of them wrong. Each word the key
-// splits is compared with the accepted answer that spells the same word, by where the cuts fall.
+// splits is compared with every accepted answer that spells the same word, by where the cuts fall.
+// A key cuts its parts with «+», or, in an item that asks for ارکان, with a dash («کہا – نی» beside
+// «کَ – ہا – نی»; «ب - گو - لا» beside «بگ - و - لا»).
+const SYLLABLE_CUT = /[+\-–—ـ]/;
+const SYLLABLE_ASK = /ارکان/;
 function syllableSplit(q) {
-  if (typeof q.answer !== 'string' || !q.answer.includes('+')) return false;
+  if (typeof q.answer !== 'string') return false;
+  const cut = (line) => line.includes('+') || (SYLLABLE_ASK.test(String(q.question || '')) && SYLLABLE_CUT.test(line));
+  if (!cut(q.answer)) return false;
   const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept.filter((a) => typeof a === 'string') : [];
   const cuts = (parts) => { let at = 0; return parts.slice(0, -1).map((p) => { at += p.length; return at; }).join(','); };
   // One word to an entry: a line, or a part of one cut at «؛» or «،». A word's parts are cut at «+»
-  // (or «-»), or, with neither, at its spaces; a part's own letters are read without marks.
+  // (or a dash), or, with neither, at its spaces; a part's own letters are read without marks.
   const entries = (text) => text.split(/[\n؛;،,]/).map((t) => t.split(/[:：]/).pop()).filter((t) => t.trim());
-  const partsOf = (text) => (/[+\-–]/.test(text) ? text.split(/[+\-–]/) : text.split(/\s+/))
+  const partsOf = (text) => (SYLLABLE_CUT.test(text) ? text.split(SYLLABLE_CUT) : text.split(/\s+/))
     .map((part) => plain(part).replace(/ /g, '')).filter(Boolean);
   const accepted = accept.flatMap(entries).map(partsOf).filter((parts) => parts.length > 1);
   return entries(q.answer).some((line) => {
-    if (!line.includes('+')) return false;
+    if (!cut(line)) return false;
     const parts = partsOf(line);
     if (parts.length < 2) return false;
-    const same = accepted.find((a) => a.join('') === parts.join(''));
-    return Boolean(same) && cuts(same) !== cuts(parts);
+    return accepted.some((a) => a.join('') === parts.join('') && cuts(a) !== cuts(parts));
   });
 }
 // Urdu Q4: the group word names what the listed words belong to («تھرمامیٹر، نبض، دوا، ڈاکٹر» →
@@ -1507,8 +1512,9 @@ function lettersOfKey(q) {
   const others = q.options.filter((o) => asWritten(o) !== written).map((o) => plain(String(o).replace(OPTION_HEAD, ''))).filter(Boolean);
   return !others.some((o) => o.split(' ').filter((w) => !termClass(w) && !PAIR_WORDS.has(w) && [...w].length >= 2).some((w) => carries(stem, w, homograph)));
 }
-// Urdu Q1: a stem that names a person or thing of the same story as another item, where that name
-// is the other item's key and none of its other options («سدرہ کی فاختہ آزاد کرنے کے بعد …» beside
+// Urdu Q1: a stem, or a correct option, that names a person or thing of the same story as another
+// item (« … باغ میں کیا کیا؟ → فاختائیں فضا میں اڑائیں»), where that name is the other item's key and
+// none of its other options («سدرہ کی فاختہ آزاد کرنے کے بعد …» beside
 // «سدرہ کی سالگرہ کی صبح … تکیے کے پاس کیا رکھا تھا؟ → کاغذ کی دو فاختائیں»), points the child to
 // that key. The key is a short name or thing (four words at most; a longer key is a reason or an
 // event, read by the reader). The name is an option's last word of three letters or more, singular
@@ -1531,7 +1537,12 @@ function namesKeyOf(q, by) {
   const key = plain(keyOption(q));
   if (!key || key.split(' ').length > NAME_KEY_WORDS) return false;
   const own = new Set(namesOf(q.question).map(nounFold));
-  const named = new Set(namesOf(by.question).map(nounFold).filter((w) => !own.has(w)));
+  // What the other item prints as true: its stem, and its correct option when that option says
+  // something (two words or more, not this item's own key: a bare «کراچی» among four cities tells
+  // nothing). A wrong option is never read.
+  const told = Array.isArray(by.options) && by.options.length ? plain(keyOption(by)) : '';
+  const said = `${by.question || ''} ${told.split(' ').length >= 2 && told !== key ? told : ''}`;
+  const named = new Set(namesOf(said).map(nounFold).filter((w) => !own.has(w)));
   const heads = q.options.map((o) => headOf(String(o).replace(OPTION_HEAD, '')));
   const hit = heads.map((h, i) => (h && named.has(h) ? i : -1)).filter((i) => i >= 0);
   if (hit.length !== 1 || plain(String(q.options[hit[0]]).replace(OPTION_HEAD, '')) !== key) return false;
@@ -1567,6 +1578,8 @@ const CONCEPTS = [
   ['synonym', /مترادف|ہم معنی/],
 ].map(([name, re]) => [name, foldPattern(re)]);
 const LESSON_ONLY = new Set(['antonym', 'synonym']);
+// The holds a grammar concept may make (a repeat, or a tag the stem contradicts).
+const GRAMMAR_REPEAT = new Set(['concept_repeat', 'concept_tag_disagrees']);
 const teaches = (lessons, concept) => lessons.some((l) => l.grammar.some((g) => (g.tags || []).includes(concept)));
 // `lessons`: the chosen lessons (scopeLessons), or null for the full syllabus.
 function conceptOf(q, lessons = null) {
@@ -1899,8 +1912,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
   });
   const sameDeclared = (p, q) => { const [a, b] = [declared.get(p), declared.get(q)]; return Boolean(a && b && a.grammar && b.grammar && !a.pair && a.name === b.name); };
   // The antonym and synonym rows hold a reply to the prompt that gives Q1 its grammar count, one that
-  // declares its concepts; a reply written before it was never asked to keep them once.
-  const counted = declared.size ? lessons : null;
+  // declares its concepts; a reply written before it was never asked to keep them once. A paper
+  // laid out again from a counted one (`_layout.counted`) stays counted: its placed items have lost
+  // their tags, and an item a top-up writes without one is still read by its stem.
+  const counted = declared.size || (src._layout && src._layout.counted === true) ? lessons : null;
   // `id`, the slot both items are placed in: Urdu Q1 items also give each other away by a story
   // name, and ask a grammar concept once.
   // A concept asked again is a twin. `hard`: only a twin that may never print; an antonym or a synonym
@@ -1961,7 +1976,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (outside) { held.push({ slot: slot.slot, rule: 'grammar_outside_lessons', concept: outside }); return no(slot, 'grammar_outside_lessons'); }
       const miss = slot.slot === 'urdu.A.Q1' && counted && declaredMiss(q, declared.get(q), counted);
       // A tag the stem contradicts gives nothing away: the item is asked again first, and comes back
-      // as a concept repeat would, so a label never leaves the paper short.
+      // only when no printed item asks its concept (a concept asked again never comes back).
       if (miss === 'concept_tag_disagrees') { keep(slot.slot, q, miss); return false; }
       if (miss) return no(slot, miss);
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && asksTwo(q)) { keep(slot.slot, q, 'asks_two'); return false; }
@@ -2024,13 +2039,17 @@ function applyLayout(examJson, P, scope, opts = {}) {
     // asks two questions, then an antonym or synonym asked again (a repeat, not a give-away). A twin of
     // a kept item, or a stem that prints a key, never comes back. Q4's ارکان item whose key and
     // accepted answer split a word apart is asked again first, and comes back only if the re-ask leaves
-    // its place empty (it printed so before; a paper that refuses is worse).
+    // its place empty (it printed so before; a paper that refuses is worse). On chosen lessons a
+    // grammar concept a printed item already asks never comes back (a tag the stem contradicts on
+    // the only item of its concept still may): the engine tops Section A up once more, told grammar
+    // is used up, and a place still empty after that fails the paper.
     if (P.key === 'urdu') {
       inSlot.forEach((list, id) => {
         const slot = slots.find((s) => s.slot === id);
         const order = list.filter((x) => x.rule === 'asks_two').concat(list.filter((x) => x.rule !== 'asks_two'));
         for (const { q, rule } of order) {
           if (!room(slot)) return;
+          if (lessons && GRAMMAR_REPEAT.has(rule) && bySlot.get(id).some((p) => conceptTwin(p, q, false))) continue;
           if (bySlot.get(id).some((p) => twin(p, q, id, rule === 'concept_repeat' || rule === 'concept_tag_disagrees')) || (holds(slot) && cross.rule(q))) continue;
           bySlot.get(id).push(q);
           putBack.push({ slot: id, rule });
@@ -2152,6 +2171,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the holds by slot and rule, counts only. A paper laid out again from a laid paper (its held
   // items already gone) keeps the larger count the earlier layout recorded.
   if (P.key === 'urdu') {
+    if (counted) out._layout.counted = true;
     const before = src._layout && Array.isArray(src._layout.holds) ? src._layout.holds : [];
     const counts = new Map(before.map((h) => [`${h.slot}|${h.rule}`, h.n]));
     tally.forEach((n, k) => counts.set(k, Math.max(n, counts.get(k) || 0)));
