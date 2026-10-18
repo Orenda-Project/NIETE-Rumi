@@ -201,17 +201,28 @@ async function whoseTurn({ hub, kid, device, lang } = {}) {
  * The hub's boot JSON under web_quiz_phone_bind: the card's ticket for the chosen child (`bind`), and on the picker
  * ("Who is playing?") each chip's line2 / avatarLine / homonym_in_list / played. Off: `out` untouched.
  */
-async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src } = {}) {
+// tight (web_quiz_hub_waves2, the hub's fanout branch): the pick record is written beside the card's reads (it is still
+// written before the hub answers), the way-back switch and the canonical id are read together, and the canonical id is
+// the visit's shared lookup. The same `out`.
+async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src, tight = false, boundP = null } = {}) {
   try {
     const f = await idFlags();
-    if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
-    if (!f.phoneBind) return out;
+    const pickP = f.canon && chosen ? recordHubPick({ chosen, rows, device, src }) : null;
+    if (pickP && !tight) await pickP;
+    const done = async (v) => { if (pickP) await pickP; return v; };
+    if (!f.phoneBind) return done(out);
     if (chosen) {
       // web_quiz_bind_way_back: `state` none|pending|bound|refused; saved or refused from this device → no card (off: today's)
       const WayBack = require('./web-quiz-bind-way-back');
-      const seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
+      let seen;
+      if (tight) {
+        const [on, canonicalId] = await Promise.all([WayBack.on(), canonicalShared(chosen.id)]);
+        seen = on ? await WayBack.cardState({ canonicalId, device, bound: boundP }) : null;
+      } else {
+        seen = (await WayBack.on()) ? await WayBack.cardState({ canonicalId: await canonicalOf(chosen.id), device }) : null;
+      }
       out.bind = seen && (seen.state === 'bound' || seen.state === 'refused') ? { offer: false, ...seen } : { offer: true, hub: token, kid: out.kid, ...(seen || {}) };
-      return out;
+      return done(out);
     }
     out.bind = { offer: false };
     const played = trust.why === 'played' ? (trust.ids || []).map(String) : [];
@@ -220,7 +231,7 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
       const g = guarded.find((x) => T.chipId('h', x.id) === k.chip) || {};
       return { ...k, ...(g.line2 ? { line2: g.line2 } : {}), ...(g.avatarLine ? { avatarLine: g.avatarLine } : {}), homonym_in_list: Boolean(g.homonym_in_list), played: played.includes(String(g.id)) };
     });
-    return out;
+    return done(out);
   } catch (err) {
     logToFile('⚠️ keep my place: hub extras failed', { error: err.message });
     return out;
@@ -230,6 +241,10 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, devi
 /** The chosen child's canonical id (the codes are minted under it); the id itself when the fold is unavailable. */
 async function canonicalOf(id) {
   try { return (await require('./web-quiz-identity-roster').canonicalStudentId(id)) || id; } catch (_) { return id; }
+}
+/** canonicalOf through the hub visit's shared lookup (the same answer; one lookup per visit while the reads go together). */
+async function canonicalShared(id) {
+  try { return (await require('./web-quiz-identity-roster').canonicalStudentIdsShared([id])).get(String(id)) || id; } catch (_) { return id; }
 }
 
 // A play opened from the hub has no quiz session: its pick is keyed by the child and this phone.
