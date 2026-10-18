@@ -122,6 +122,11 @@ describe('the shelves (switch on)', () => {
     expect(rule('.wq-vretry')).toMatch(/font-size:16px/);
     // Urdu: the See all and Try again words sit clear of the pill's top border
     expect(rule('html[lang=ur] .wq-vsall,html[lang=ur] .wq-vretry')).toMatch(/padding-top:6px/);
+    // the minutes pill keeps its own short line box (≤ 26 px at 13 px), so the Urdu line height never lifts it into the
+    // watched tick in the corner above it (tick: 6 + 26 px from the top of a 73 px thumb; pill: 6 px from the bottom)
+    expect(rule('.wq-vmin')).toMatch(/font-size:13px/);
+    expect(rule('.wq-vmin')).toMatch(/line-height:1\.7/);
+    expect(rule('.wq-vmin')).toMatch(/padding:1px 8px/);
   });
   test.each(['en', 'ur'])('%s: the watch screen with the shelves on marks its player, so the play triangle is never mirrored (it points right in Urdu too)', (lang) => {
     const W = F.load();
