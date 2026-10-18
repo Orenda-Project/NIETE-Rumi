@@ -54,3 +54,20 @@
 .wqs-near{margin:8px 16px;text-align:center;font-weight:700;color:var(--ink,#1F2937)}
 .wqs-near .wqs-sec{margin-top:8px}
 @media (prefers-reduced-motion:reduce){.wqs-jg.wq-moment-lean{animation:none;transform:scale(1.08)}}
+/* a small phone's first screen keeps the host's button: the stars and the badge share a row (the growth line under
+   them), and "read it again" is a one-line chip */
+@media (max-width:440px){
+  .wq-moment:not(.wq-moment--s){display:flex;flex-wrap:wrap;justify-content:center;align-items:center;column-gap:10px}
+  .wq-moment:not(.wq-moment--s)>*{flex:0 0 100%}
+  .wq-moment:not(.wq-moment--s)>.wq-moment-stars{flex:0 0 auto;margin:0 0 4px;gap:4px}
+  .wq-moment:not(.wq-moment--s)>.wq-moment-badge{flex:0 0 auto;order:1;margin:0 0 4px}
+  .wq-moment:not(.wq-moment--s)>.wq-moment-growth{order:2;margin:0 0 4px}
+  .wq-moment:not(.wq-moment--s)>.wq-moment-again{order:3}
+  .wq-moment-stars .wq-moment-star{width:28px;height:28px}
+  .wq-moment-badge svg{width:34px;height:34px}
+  .wq-moment:not(.wq-moment--s){padding:12px 10px}
+  .wq-moment .wq-moment-again .wq-btn{min-height:44px;padding:6px 10px;font-size:var(--fs-2,16px);line-height:1.5}
+  .wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:6px 6px 2px;font-size:15px;line-height:1.7}
+  .wq-moment[lang="ur"] .wq-moment-deed{font-size:22px;line-height:1.6;margin-bottom:10px}
+  .wq-moment[lang="ur"] .wq-moment-num,.wq-moment[lang="ur"] .wq-moment-growth{line-height:1.6}
+}
