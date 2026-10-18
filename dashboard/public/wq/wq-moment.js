@@ -43,7 +43,7 @@
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
       again: 'Read it again to light one more!', again3: 'Read it again for 3 stars!',
-      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu', readAgain: 'Read it again',
+      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu', readAgain: 'Read it again', once: "Let's read it once more!", home: 'Home',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
@@ -55,7 +55,7 @@
       stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
       up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
       again: 'ایک اور روشنی کے لیے پھر سے پڑھیں!', again3: 'تین ستاروں کے لیے پھر سے پڑھیں!',
-      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں', readAgain: 'پھر سے پڑھیں',
+      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں', readAgain: 'پھر سے پڑھیں', once: 'آئیں، ایک بار پھر پڑھیں!', home: 'گھر',
       badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
     }
   };
