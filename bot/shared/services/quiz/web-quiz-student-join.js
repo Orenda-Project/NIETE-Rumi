@@ -61,10 +61,12 @@ const FAST_KEY = 'quiz_join_fast';
 // The go button says "Getting your games ready…" while the join runs (the page draws it; join.js shows it). Read in the
 // join's own switch read (no read of its own); JSON true only, and only with the join switch on.
 const WAIT_WORD_KEY = 'quiz_join_wait_word';
-// The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
+// The child's language switch (web-quiz-return-lang.js KEY): the join reads it once the child row is written.
+const RETURN_LANG_KEY = 'web_quiz_return_lang';
+// The one read asks for every key the join's flags need, so ON fills the identity, hub and child-language caches from it.
 // The one share (web_quiz_card_v3 + web_quiz_share_v4, both JSON true) rides the same read through HubFlags.KEYS: off,
 // a join asks nothing more. The adventure look's two keys (Adv.KEYS) ride it too; the Set drops any duplicate key.
-const flagKeys = () => [...new Set([SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || []), ...Adv.KEYS])];
+const flagKeys = () => [...new Set([SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || []), ...Adv.KEYS, RETURN_LANG_KEY])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
 const GRADES = Object.freeze([1, 2, 3, 4, 5]);
@@ -119,6 +121,7 @@ async function flags(now = Date.now()) {
     if (on && by[FAST_KEY] === true) {
       // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
       if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now, asked);
+      require('./web-quiz-return-lang').prime(by[RETURN_LANG_KEY], now);
       const bind = Boolean((await IdFlags.flags()).phoneBind);
       cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait, ...share, ...look };
       return cache;
@@ -446,6 +449,9 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       if (b && b.outcome === 'refused') return { refused: b.reason, next: set.length ? homeUrl(set, null, 'join', lang) : null };
       return { error: 'unavailable' };
     }
+    // web_quiz_return_lang: the child keeps the language they joined in (child_language 'join'; off: nothing written)
+    const Ret = require('./web-quiz-return-lang');
+    if (Ret.linkLang(r.tok.l) && (await Ret.on())) await require('./child-language.repo').joined(id, r.tok.l);
     try {
       await require('../first-touch/door.keys').markChild(who.userId, who.phoneNorm);
     } catch (err) {
