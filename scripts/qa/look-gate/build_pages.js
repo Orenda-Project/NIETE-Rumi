@@ -48,6 +48,12 @@ function main() {
     const hub = renderHubPage({ payload: field(hubBoot(lang)), token: TOKEN, origin: ORIGIN, assetV: 'look' });
     fs.writeFileSync(path.join(out, 'pages', `hub-${lang}.html`), hub);
     manifest.push({ name: `hub-${lang}`, kind: 'hub', lang, path: `/h/hub-${lang}` });
+    // the storybook shelf on: its wait (the shelf answer held) and its retry (the shelf answer failed)
+    const sb = hubBoot(lang);
+    sb.doors.stories = [{ kind: 'shelf' }, ...sb.doors.stories];
+    sb.stories = { on: true };
+    fs.writeFileSync(path.join(out, 'pages', `shelf-${lang}.html`), renderHubPage({ payload: field(sb), token: TOKEN, origin: ORIGIN, assetV: 'look' }));
+    manifest.push({ name: `shelf-${lang}`, kind: 'shelf', lang, path: `/h/shelf-${lang}` });
     const shape = Matrix.shapes(lang).find((s) => s.id === `${lang}-single-3`);
     const q = Matrix.pageFor(shape);
     const { renderQuizPage } = require(path.join(ROOT, 'dashboard/routes/web-quiz.routes'));

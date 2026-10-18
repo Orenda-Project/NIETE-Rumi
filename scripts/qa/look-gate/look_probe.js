@@ -8,6 +8,7 @@
  *   buttons  each Home / back / share / main button: size, radius, shadow, border, fill, and how far its label's
  *            middle sits from the box's middle
  *   primary  the [data-primary]'s bottom against innerHeight
+ *   rows     the height of every list row (door rows and their loading placeholders)
  *   radii    the distinct corner radii of the boxes a child sees (a circle counts once, as 'circle'); a glyph
  *            ([aria-hidden=true] or an answer's shape marker .wq-shp; the brand mark) is not a box and is not counted
  * It reads only; it changes nothing on the page.
@@ -81,7 +82,9 @@
     if (v <= 0) return;
     radii.add(/%$/.test(s.borderTopLeftRadius) || v >= Math.min(r.width, r.height) / 2 - EPS ? 'circle' : Math.round(v) + 'px');
   });
+  // every list row a child taps (the door rows and their loading placeholders): one height per list
+  const rows = Array.from(document.querySelectorAll('.wq-drow,.wq-skrow')).filter(vis).map((e) => ({ el: name(e), h: Math.round(e.getBoundingClientRect().height) }));
   const prim = document.querySelector('[data-primary]');
   const pr = prim && vis(prim) ? prim.getBoundingClientRect() : null;
-  return { vw, vh, dir: document.documentElement.dir || 'ltr', scrollW: document.documentElement.scrollWidth, oneButton: document.documentElement.classList.contains('wq-1b'), gutter, targets, emoji, buttons, radii: Array.from(radii).sort(), primary: pr ? { el: name(prim), bottom: Math.round(pr.bottom), ok: pr.bottom <= vh } : null, screen: (document.querySelector('[data-screen]') || {}).getAttribute ? document.querySelector('[data-screen]').getAttribute('data-screen') : null };
+  return { vw, vh, dir: document.documentElement.dir || 'ltr', scrollW: document.documentElement.scrollWidth, oneButton: document.documentElement.classList.contains('wq-1b'), gutter, targets, emoji, buttons, radii: Array.from(radii).sort(), rows, primary: pr ? { el: name(prim), bottom: Math.round(pr.bottom), ok: pr.bottom <= vh } : null, screen: (document.querySelector('[data-screen]') || {}).getAttribute ? document.querySelector('[data-screen]').getAttribute('data-screen') : null };
 }

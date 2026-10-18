@@ -96,6 +96,9 @@ describe('wq.css: the one button component', () => {
     expect(CSS).toContain('html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}');
     expect(CSS).toContain('html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile{border-radius:var(--r-btn)}');
   });
+  test('the Stories wait and empty boxes are cards too: the note and the cover placeholders take --r-card (3 radii while the shelf loads)', () => {
+    expect(CSS).toContain('html.wq-1b .wq-soon,html.wq-1b .wqs-skel{border-radius:var(--r-card)}');
+  });
   test('the answer shapes keep their own corners (a colour-blind cue, a glyph, not a box): no wq-1b rule rounds .wq-shp', () => {
     expect(CSS).not.toMatch(/html\.wq-1b[^{}]*\.wq-shp[^{}]*\{[^}]*border-radius/);
   });

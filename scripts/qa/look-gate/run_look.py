@@ -17,6 +17,7 @@ Then verdict(): PASS/FAIL per screen and one line per failing element (results.j
 Synthetic children only. The page's sound is muted and no request leaves the machine.
 """
 import json
+import time
 import os
 import re
 import sys
@@ -52,6 +53,13 @@ def server(out_dir):
                     return self.send(200, open(f, 'rb').read(), 'text/html; charset=utf-8')
                 return self.send(404, b'no page', 'text/plain')
             if p.startswith('/api/'):
+                if p.startswith('/api/wq/doors/') and '/h/shelf-' in (self.headers.get('referer') or ''):
+                    return self.send(200, b'{"shelf":true,"stories":[],"games":[]}', 'application/json')
+                if 'shelf' in p:
+                    # a shelf page opened with ?wait=1 holds its answer (the wait); otherwise the answer fails (the retry)
+                    if 'wait=1' in (self.headers.get('referer') or ''):
+                        time.sleep(15)
+                    return self.send(500, b'{}', 'application/json')
                 return self.send(404, b'{}', 'application/json')
             if p.startswith('/wq/'):
                 f = os.path.normpath(os.path.join(PUBLIC, p.lstrip('/')))
@@ -180,6 +188,19 @@ def main():
                             page.wait_for_selector('[data-screen]', timeout=8000)
                             page.evaluate(CARD_JS, [pg['lang'], man['token'], man['kid']])
                             shot('story-done')
+                        elif pg['kind'] == 'shelf':
+                            page.goto(base + pg['path'] + '?wait=1#stories', wait_until='load')
+                            page.wait_for_selector('[data-screen]', timeout=8000)
+                            page.wait_for_timeout(900)
+                            shot('stories-wait')
+                            page.goto(base + pg['path'] + '#stories', wait_until='load')
+                            page.wait_for_selector('[data-screen]', timeout=8000)
+                            try:
+                                page.wait_for_selector('[data-screen="stories-retry"]', timeout=6000)
+                            except Exception:
+                                pass
+                            page.wait_for_timeout(400)
+                            shot('stories-retry')
                         else:
                             page.goto(base + pg['path'], wait_until='load')
                             page.wait_for_selector('#wq-cont', timeout=8000)
@@ -239,6 +260,9 @@ def verdict(results):
             bad += [b for b in r['buttons'] if not b.get('icon') and b['h'] not in (52, 56, 76)]
             if bad:
                 why.append('size: ' + ', '.join('%s %dx%d r%s' % (b['el'][:30], b['w'], b['h'], b['radius']) for b in bad[:4]))
+            hs = sorted({x['h'] for x in r.get('rows') or []})
+            if len(hs) > 1:
+                why.append('rows %d heights: %s' % (len(hs), ' '.join(map(str, hs))))
             if len(r.get('radii') or []) > 3:
                 why.append('radii %d > 3: %s' % (len(r['radii']), ' '.join(r['radii'])))
         if r.get('targets'):
