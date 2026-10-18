@@ -800,7 +800,9 @@ async function hubTogether(token, opts) {
   const min = require('./web-quiz-minify').on();
   const pace = out.locked ? {} : await require('./web-quiz-live-read-v3').forHub();
   if (opts.st) opts.st.mark('tail');
-  return { ...out, rt, ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
+  // the light Urdu face (web_quiz_face_lite), as in hub(): ui.fl, else the ui as it was
+  const look = require('./web-quiz-ur-polish').lite(ui);
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace };
 }
 
 module.exports = {
