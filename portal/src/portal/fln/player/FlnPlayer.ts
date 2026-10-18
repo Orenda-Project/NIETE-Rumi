@@ -18,7 +18,9 @@ import type {
  *   plays from the head it already has (see the warm section for the bench numbers). A mirror error during the warm
  *   moves that element to `orig` at once, before any tap.
  * - Cold tap: stream `src`; no first byte within 2.5 s → switch the SAME element to `orig` (never race two streams on
- *   a 400 kbps line). After `orig` fails, or 6 s with no `playing`, the control shows the retry state (A6).
+ *   a 400 kbps line). After `orig` fails, or no `playing` and no bytes arriving, the control shows the retry state (A6):
+ *   the give-up is 6 s after the tap, pushed out while bytes still arrive (stall window after the last byte, hard
+ *   ceiling 20 s), so a big clip still downloading on a slow line is never called failed.
  * - Every tap ends in one event: `audio_play` (`ok-mirror` | `ok-orig`) or `audio_error` (`error-<code>`), A12.
  */
 
@@ -26,8 +28,13 @@ import type {
 // on a 400 kbps / 300 ms line is ~1.65 s for the larger clips every time (9 of 60 fresh-connection loads, max 1,654 ms;
 // bench 18 Oct). At 1.5 s those taps always fell to orig and played at ~3.4 s; 2.5 s leaves the real stall path at
 // 2.5 s + orig cold, inside the 6 s give-up.
+// giveUpMs / stallMs / ceilingMs (QA-A2-bigclip, 18 Oct): the RH-EN phonics clips are 192 kbps stereo, 180–240 KB, and on a
+// 400 kbps / 300 ms line the tapped clip was still downloading, bytes arriving, when a flat 6 s give-up fired (22
+// error-timeout in sandbox, p50 6,003 ms). The give-up is now 6 s after the tap OR stallMs after the last byte, whichever
+// is later, never past ceilingMs: no "Couldn't play" while bytes arrive, and a trickle still ends.
 const DEFAULT_TIMING: FlnPlayerTiming = {
-  firstByteMs: 2500, giveUpMs: 6000, warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2, warmStepMs: 8000,
+  firstByteMs: 2500, giveUpMs: 6000, stallMs: 3000, ceilingMs: 20000,
+  warmNow: 3, budgetBytes: 1_500_000, warmConcurrency: 2, warmStepMs: 8000,
 };
 
 type Source = 'mirror' | 'orig';
@@ -52,6 +59,8 @@ interface Session {
   source: Source;
   t0: number;
   gotByte: boolean;
+  /** now() at the last byte event (progress / loadedmetadata / loadeddata / canplay) on the current source. */
+  lastByteAt?: number;
   triedOrig: boolean;
   /** Nothing of this clip was buffered at the tap: it streams over the line and the warm queue waits for it. */
   cold: boolean;
@@ -275,6 +284,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     s.triedOrig = true;
     s.source = 'orig';
     s.gotByte = false;
+    s.lastByteAt = undefined;
     setSrc(e, s.el, e.clip.orig);
     try { s.el.currentTime = 0; } catch { /* ignore */ }
     startPlay(s);
@@ -312,7 +322,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       off: () => {},
     };
 
-    const onByte = () => { s.gotByte = true; };
+    const onByte = () => { s.gotByte = true; s.lastByteAt = now(); };
     const onPlaying = () => {
       if (active !== s) return;
       s.timers.forEach((t) => clearT(t));
@@ -359,9 +369,26 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
         if (active === s && !s.gotByte && s.source === 'mirror' && states.get(id)?.state === 'loading') switchToOrig(s);
       }, timing.firstByteMs));
     }
-    s.timers.push(setT(() => {
-      if (active === s && states.get(id)?.state !== 'playing') fail(s, 'error-timeout');
-    }, timing.giveUpMs));
+    s.timers.push(setT(() => giveUpCheck(s), timing.giveUpMs));
+  }
+
+  /**
+   * The give-up (A6) without calling a download that is still moving a failure: due at the later of giveUpMs after the
+   * tap and stallMs after the last byte, never later than ceilingMs. Re-arms itself while bytes keep it in the future.
+   * Result: `error-timeout` (the plain 6 s rule), `error-stall` (bytes stopped after the 6 s mark), `error-ceiling`.
+   */
+  function giveUpCheck(s: Session) {
+    if (active !== s || states.get(s.id)?.state === 'playing') return;
+    const base = s.t0 + timing.giveUpMs;
+    const ceiling = s.t0 + timing.ceilingMs;
+    const stallAt = s.lastByteAt === undefined ? -Infinity : s.lastByteAt + timing.stallMs;
+    const due = Math.min(ceiling, Math.max(base, stallAt));
+    const t = now();
+    if (t < due) {
+      s.timers.push(setT(() => giveUpCheck(s), due - t));
+      return;
+    }
+    fail(s, due >= ceiling && stallAt > ceiling ? 'error-ceiling' : stallAt > base ? 'error-stall' : 'error-timeout');
   }
 
   return {
