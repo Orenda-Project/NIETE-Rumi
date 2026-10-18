@@ -28,6 +28,7 @@ const { createBotClient, clientIp } = require('./web-quiz.routes');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
 const WayBackSwitch = require('../lib/closed-way-back-switch');
+const CutLink = require('./cut-link-page');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const BOT_BASE = '/api/internal/go';
@@ -93,6 +94,8 @@ function createQuizGoRouter(opts = {}) {
     : (req) => WayBackSwitch.on(req && req.app && req.app.locals ? req.app.locals.supabase : null);
   const doorOf = async (req) => { try { return (await wayBackOn(req)) === true; } catch (_) { return false; } };
   const router = express.Router();
+  // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired page; OFF = today
+  const cutLinkOn = CutLink.switchOf(opts);
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: false, legacyHeaders: false, validate: false,
@@ -113,7 +116,11 @@ function createQuizGoRouter(opts = {}) {
 
   router.get('/quiz/go/:token', limiter, async (req, res, next) => {
     const token = String(req.params.token || '');
-    if (!TOKEN_RX.test(token) || !configured) return next();
+    if (!TOKEN_RX.test(token) || !configured) {
+      // a cut-short or junk link, with quiz_cut_link_page on: the expired page a tampered token gets, no bot call
+      if (configured && CutLink.isOn(cutLinkOn)) return sendPage(res, GoPage.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: botNumber() }), 410);
+      return next();
+    }
     const dv = device(req, res);
     const ask = req.query && req.query.ask === '1' ? '?ask=1' : '';
     let out;
