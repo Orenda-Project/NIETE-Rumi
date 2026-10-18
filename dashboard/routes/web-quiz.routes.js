@@ -320,12 +320,17 @@ const UR_DESC_ON = {
   class: 'کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔',
   challenge: 'وہی کوئز کھیلیں اور اپنا اسکور دیکھیں!',
 };
+const UR_DESC_SHARE_CLASS = 'آپ نے ابھی تک نہیں کھیلا؟ یہ لنک ابھی بھی کھلا ہے، آئیں کھیلیں!';
 function ogText(payload, view, brand) {
   const og = ogTextOf(payload, view, brand);
   const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  // the corrected Urdu share words (web_quiz_ur_share_copy, the bot's `ur_share`): the class table's preview speaks to
+  // the reader and invites, card on or off; off, the card's line (or today's) as before
+  const urShareClass = ur && payload.ur_share === true && view === 'class' && !payload.story;
+  if (urShareClass && payload.card_v3 !== true) return { ...og, desc: UR_DESC_SHARE_CLASS };
   if (!ur || payload.card_v3 !== true) return og;
   const which = payload.challenge && payload.art && payload.art.invite ? 'challenge' : payload.story ? null : view;
-  return { ...og, title: urCount(og.title), desc: urCount(UR_DESC_ON[which] || og.desc) };
+  return { ...og, title: urCount(og.title), desc: urShareClass ? UR_DESC_SHARE_CLASS : urCount(UR_DESC_ON[which] || og.desc) };
 }
 
 function ogTextOf(payload, view, brand) {

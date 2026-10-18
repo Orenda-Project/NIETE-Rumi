@@ -741,6 +741,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
     }
   }[LANG];
+  // The corrected Urdu share words (app_settings web_quiz_ur_share_copy → the payload's `ur_share`): «بھیجیں» for Share,
+  // no masculine form aimed at the child, «دبائیں» for tap. The polished copy below keeps its own lines on top. Off: today's T.
+  if (LANG === 'ur' && B.ur_share === true) {
+    T = Object.assign({}, T, {
+      sharePlain: 'دوستوں کو بھیجیں',
+      shareLine: function (w, s, n, t) { return '\u2068' + w + '\u2069 نے \u2068' + t + '\u2069 میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!'; },
+      tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:'; },
+      whoStreet: 'محلے میں کوئی دوست',
+      chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
+      chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
+    });
+  }
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, shorter
   // lines, Urdu digits isolated left to right, one word for "done". Off, T is today's map, untouched.
   var UR2 = LANG === 'ur' && (function () { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } })();

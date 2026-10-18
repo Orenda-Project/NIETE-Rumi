@@ -430,7 +430,7 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
   const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
   // videos/start answers the watch; the library (after the card's Next) answers no subjects
   const answer = (url) => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(/\/lib\//.test(url) ? { grade: '3', subjects: [] } : WATCH) });
-  function watchPage({ card, wqfc, watch = true }) {
+  function watchPage({ card, wqfc, watch = true, extra = {} }) {
     const nextEl = el();
     const t = live({ win: wqfc ? { WQFC: wqfc } : {}, fetchImpl: answer, byId: { 'wqfc-next': nextEl } });
     const holder = { removeChild: jest.fn() };
@@ -439,7 +439,7 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     const vEl = el({ duration: 100, currentTime: 0 }); const play = el(); play.setAttribute('data-primary', '');
     const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': play, '.wq-after': after });
     const evs = [];
-    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), doors: { stories: [], games: [], videos: { href: '/lib/x', ...(watch ? { watch: true } : {}) } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), ...extra, doors: { stories: [], games: [], videos: { href: '/lib/x', ...(watch ? { watch: true } : {}) } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
     return { ...t, root, after, holder, tile, vEl, play, nextEl, evs };
   }
   test('card_v3 + the card there: WQFC.mount(the tile holder, {kind video, deed video_watched, title, next → this page, auth {hub, kid}}); our own tile goes; its Next does what ours did', async () => {
@@ -470,6 +470,15 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     await flush();
     p.vEl.fire('ended');
     expect(mount.mock.calls[0][1].plain).toBe(true);   // HUB's videos door is { watch: true } in this suite
+  });
+  test('the corrected Urdu share words (the hub\'s ur_share): the card is told (urs); anything but true: not', async () => {
+    for (const [extra, urs] of [[{ ur_share: true }, true], [{ ur_share: 'true' }, undefined], [{}, undefined]]) {
+      const mount = jest.fn(() => true);
+      const p = watchPage({ card: true, wqfc: { mount }, extra });
+      await flush();
+      p.vEl.fire('ended');
+      expect(mount.mock.calls[0][1].urs).toBe(urs);
+    }
   });
   test('a class child (a teacher\'s quiz played: the Videos door is not watch-only): the class words (plain false)', async () => {
     const mount = jest.fn(() => true);
