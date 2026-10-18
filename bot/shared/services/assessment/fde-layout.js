@@ -1071,7 +1071,9 @@ function asksFrame(q) {
 // its answer is the book's description in order, a Q5 in a story. Held when nothing in it asks the child to
 // decide or advise (what someone should do, whom to turn to: «کیا کرنا چاہیے», «مشورے», «کس سے بات کرے»).
 const TELLS = /کو\s+بتائیں\s+کہ[^۔؟?!]*(?:کیسا|کیسی|کیسے|کیا|کون\s*سی|کون\s*سے|کون\s*سا)|موازنہ\s+کرتے\s+ہوئے\s+بتائیں\s+کہ/;
-const DECIDES = /مشورہ|مشورے|مشوروں|رائے دیں|فیصلہ|تجویز|اقدام|کیا کرے|کیا کریں|کیا کرنا|(?:کرنا|کرنی|کرنے)\s*چاہی|(?:رکھے|کرے|کریں|اپنائے|کہے)(?![\p{L}])(?!\s*(?:سکت|گا|گی|گے))/u;
+// An instruction to the child («وضاحت کریں», «بیان کریں») decides nothing, so a subjunctive right after one is no
+// decision; «کیسے … کر سکتا ہے» asks the child how someone can help, which is advice.
+const DECIDES = /مشورہ|مشورے|مشوروں|رائے دیں|فیصلہ|تجویز|اقدام|کیا کرے|کیا کریں|کیا کرنا|(?:کرنا|کرنی|کرنے)\s*چاہی|کیسے[^۔؟?!]{0,40}سکت[اےی]|(?<!(?:وضاحت|بیان|تحریر|واضح)\s*)(?:رکھے|کرے|کریں|اپنائے|کہے)(?![\p{L}])(?!\s*(?:سکت|گا|گی|گے))/u;
 function tellsWhat(q) {
   const stem = String((q && q.question) || '');
   return TELLS.test(stem) && !DECIDES.test(stem);

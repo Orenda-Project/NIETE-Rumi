@@ -11,6 +11,8 @@
  *      the second is held, and Section A is asked again. The engine passes the pages it loaded to the layout.
  *   7. A Q6 whose marking points restate three sentences of the book side by side is recall (book_list): held, and
  *      Section D is told why; Section D's prompt says a Q6 answer is never a list the book gives.
+ *   8. Precision: an instruction («وضاحت کریں», «بیان کریں») is no decision, so it neither keeps a «tell what it is like»
+ *      Q6 nor reads a Q1 stem as Apply; «کیسے … کر سکتا ہے» asks for advice, so tells_what does not hold it.
  * The papers are local model output; the people in their stories are the model's own.
  */
 
@@ -403,5 +405,36 @@ describe('7. a Q6 answered by a list the book gives', () => {
       const S = Patterns.get('fde_g5_2027').subjects[key];
       for (const sec of S.sections) expect(promptOf(S, sec.id, key)).not.toContain(Q6_LIST);
     }
+  });
+});
+
+describe('8. an instruction is no decision; «how can they help» is advice', () => {
+  const r17i = (n) => fixture(`r17i-sst-local-${n}`);
+  const withQ6 = (stem) => { const e = clone(r17i('full_1')); items(e, Q6)[4].question = stem; return e; };
+  const rulesOf = (laid, stem) => laid.held.filter((h) => h.q && h.q.question === stem).map((h) => h.rule);
+
+  test('a «tell what it is like» Q6 that ends «وضاحت کریں» is held as tells_what', () => {
+    const stem = 'زارا گرمیوں میں صحرائے تھر جا رہی ہے۔ زارا کو بتائیں کہ وہاں موسم کیسا ہو گا، اور وضاحت کریں۔';
+    expect(rulesOf(lay(withQ6(stem)), stem)).toContain('tells_what');
+  });
+
+  test('advice asked as «how can they help» is not held as tells_what', () => {
+    const stem = 'احمد اپنے محلے کی صفائی میں حصہ لینا چاہتا ہے۔ احمد کو بتائیں کہ وہ کیسے مدد کر سکتا ہے اور اس سے محلے کو کیا فائدہ ہو گا۔';
+    expect(rulesOf(lay(withQ6(stem)), stem)).not.toContain('tells_what');
+  });
+
+  test('control: a decision still keeps an item («… وہ کیا کرے»)', () => {
+    const stem = 'زارا کو بتائیں کہ وہاں موسم کیسا ہو گا اور وہ سفر میں کیا کرے۔';
+    expect(rulesOf(lay(withQ6(stem)), stem)).not.toContain('tells_what');
+  });
+
+  test.each([
+    ['پارلیمان کے دو ایوان ہیں۔ ان دونوں کی وضاحت کریں۔', 'understand'],
+    ['آئین ملک کا بنیادی قانون ہے۔ اس کی دو خصوصیات بیان کریں۔', 'understand'],
+    ['قائداعظم 1876ء میں پیدا ہوئے۔ ان کی پیدائش کس شہر میں ہوئی؟', 'remember'],
+    ['آپ کے محلے میں گلیوں کا گندا پانی نکالنے کا مسئلہ ہے۔ آپ کو کس حکومت سے رابطہ کرنا چاہیے؟', 'apply'],
+    ['علی کے دوست نے بغیر اجازت اس کی تصویر لگا دی۔ علی کیا کرے؟', 'apply'],
+  ])('the log reads «%s» as %s', (question, level) => {
+    expect(Gen.sstStemLevel({ question })).toBe(level);
   });
 });

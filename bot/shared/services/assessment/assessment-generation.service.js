@@ -1773,8 +1773,9 @@ function _heldNorm(text) {
 // a stem that asks why, the difference, the use or the importance is Understand; any other is Remember.
 // A definition told as a case («… اس نظام کو کیا کہتے ہیں؟») asks for a name, so it is Remember. A steer for
 // the log, never a gate.
-const STEM_DECIDES = /چاہیے|چاہئے|کرے|کریں|رابطہ|فیصلہ|منتخب|کیا کرنا|کس سے|مدد/;
-const STEM_EXPLAINS = /کیوں|وجہ|فرق|اہمیت|فائدہ|فوائد|مقصد|ضروری|کیسے|کس لیے/;
+// An instruction to the child («وضاحت کریں», «بیان کریں») decides nothing.
+const STEM_DECIDES = /چاہیے|چاہئے|(?<!(?:وضاحت|بیان|تحریر|واضح)\s*)(?:کرے|کریں)|رابطہ|فیصلہ|منتخب|کیا کرنا|کس سے|مدد/;
+const STEM_EXPLAINS = /کیوں|وجہ|فرق|اہمیت|فائدہ|فوائد|مقصد|ضروری|کیسے|کس لیے|وضاحت|بیان کریں/;
 function sstStemLevel(q) {
   const stem = String((q && q.question) || '');
   const sentences = stem.split(/[۔؟?!:\n]+/).map((x) => x.trim()).filter(Boolean);
@@ -2324,10 +2325,12 @@ async function _readerPassSst({ examJson, source = null, P, key, layoutScope, no
         exam = laid.examJson;
       }
       const flaggedSpares = new Set(spareFlags.map((h) => _readerId(h.q)));
-      // A spare that would give a Q1 item away is never offered either.
-      const q1Given = _q1Given(lay(exam));
-      const clean = spares.filter((q) => !flaggedSpares.has(_readerId(q)) && _q1Given(lay(_withItems(exam, [q]))) <= q1Given);
-      if (clean.length && laid.shortfall.some((f) => SST_D_SLOTS.includes(f.slot))) {
+      // A spare that would give a Q1 item away is never offered either. Read only when D is short: each spare
+      // costs a layout, and a D that is whole takes none.
+      const dShort = laid.shortfall.some((f) => SST_D_SLOTS.includes(f.slot));
+      const q1Given = dShort ? _q1Given(lay(exam)) : 0;
+      const clean = dShort ? spares.filter((q) => !flaggedSpares.has(_readerId(q)) && _q1Given(lay(_withItems(exam, [q]))) <= q1Given) : [];
+      if (clean.length && dShort) {
         const before = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
         laid = lay(_withItems(exam, clean));
         exam = laid.examJson;
