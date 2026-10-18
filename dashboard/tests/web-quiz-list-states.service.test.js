@@ -30,11 +30,43 @@ describe('switch on: loading is a skeleton, empty only from rows that came back 
     const s = screensFor(lang, ON, W);
     const t = W.WQDOORS.COPY[lang];
     expect(s.gamesBoot).toMatch(/aria-busy="true"/);
-    expect(count(s.gamesBoot, /class="wq-row wq-drow"/g)).toBe(0); // not the generic "Numbers with Jugnu" stand-in
-    expect(visible(s.gamesBoot)).not.toContain(t.g1);
+    expect(visible(s.gamesBoot)).not.toContain(t.g1); // not the generic "Numbers with Jugnu" stand-in
     expect(visible(s.gamesBoot)).not.toContain(t.gamesNone);
     expect(count(s.gamesBoot, /data-primary/g)).toBe(1);
     expect(count(s.gamesBoot, /data-home/g)).toBe(1);
+  });
+  // the skeleton is the list's own shape: what the boot already knows is real, only the rows still on their way are grey,
+  // so the primary does not move when they arrive
+  const primaryRow = (h) => (h.match(/<(a|button) class="wq-row wq-drow" data-primary[^>]*>/) || [''])[0];
+  const before = (h, a, b) => h.indexOf(a) >= 0 && h.indexOf(b) > h.indexOf(a);
+  test.each(['en', 'ur'])('%s: Games before its rows: the teacher\'s quiz is a real row and the primary, the same one the rows keep', (lang) => {
+    const W = load();
+    const t = W.WQDOORS.COPY[lang];
+    const s = screensFor(lang, ON, W);
+    expect(primaryRow(s.gamesBoot)).toMatch(/MATH01/);
+    expect(primaryRow(s.gamesBoot)).toBe(primaryRow(s.gamesRows));
+    expect(visible(s.gamesBoot)).toContain('Fractions');
+    expect(count(s.gamesBoot, /data-primary/g)).toBe(1);
+    // the numbers' heading is known (the boot has a numbers stop): heading, then its grey rows, in the rows' order
+    expect(before(s.gamesBoot, 'Fractions', t.numbers)).toBe(true);
+    expect(before(s.gamesBoot, t.numbers, 'wq-dskel')).toBe(true);
+  });
+  test.each(['en', 'ur'])('%s: Games before its rows with no teacher\'s quiz: the grey rows under the numbers heading are the primary', (lang) => {
+    const W = load();
+    const t = W.WQDOORS.COPY[lang];
+    const B = { ...bootOf(lang, ON), doors: { stories: [{ kind: 'shelf' }], games: [{ kind: 'numbers' }], videos: null } };
+    const h = W.WQDOORS.html(B, { token: TOKEN, lang }, 'games', null);
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(h).toMatch(/<\/h3><div class="wq-dskel wq-dskel-in" data-primary aria-busy="true">/);
+    expect(before(h, t.numbers, 'data-primary')).toBe(true);
+    expect(visible(h)).not.toContain(t.g1);
+  });
+  test.each(['en', 'ur'])('%s: Games before its rows with nothing known: the plain skeleton, the primary', (lang) => {
+    const W = load();
+    const B = { ...bootOf(lang, ON), doors: { stories: [], games: [], videos: null } };
+    const h = W.WQDOORS.html(B, { token: TOKEN, lang }, 'games', null);
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(h).toMatch(/<div class="wq-dskel" data-primary aria-busy="true">/);
   });
   test.each(['en', 'ur'])('%s: Games rows that failed: a retry (the primary), never the "read a story" empty note', (lang) => {
     const W = load();
@@ -51,7 +83,10 @@ describe('switch on: loading is a skeleton, empty only from rows that came back 
   });
   test.each(['en', 'ur'])('%s: Stories while the shelf loads: the slot holds a skeleton, the "on the way" note is hidden', (lang) => {
     const s = screensFor(lang, ON);
-    expect(s.storiesBoot).toMatch(/data-stories-shelf="1" data-host="doors"><div class="wq-dskel[^"]*" aria-busy="true"/);
+    // the skeleton holds the screen's one primary while it waits (the hidden note's button is not a second one)
+    expect(s.storiesBoot).toMatch(/data-stories-shelf="1" data-host="doors"><div class="wq-dskel wq-dskel-bk" data-primary aria-busy="true"/);
+    expect(count(s.storiesBoot, /<i class="wq-skrow"><\/i>/g)).toBe(4); // book-shaped: the shelf's two-by-two covers
+    expect(s.storiesBoot.split('data-shelf-fallback')[1]).not.toMatch(/data-primary/);
     expect(s.storiesBoot).toMatch(/<div data-shelf-fallback="1" hidden>/);
     expect(count(s.storiesBoot, /data-primary/g)).toBe(1);
     // with no shelf at all (the boot says so) the note is the true empty, shown
@@ -137,7 +172,7 @@ describe('the Games door paints its list once', () => {
     W.WQDOORS.mount(r, B_ON, C, 'games');
     expect(r.paints).toHaveLength(1);
     expect(r.paints[0]).toMatch(/aria-busy="true"/);
-    expect(r.paints[0]).not.toMatch(/wq-drow|Numbers with Jugnu|Read a story with Jugnu/);
+    expect(r.paints[0]).not.toMatch(/Numbers with Jugnu|Read a story with Jugnu/);
     answer({ ok: true, status: 200, json: () => Promise.resolve(GAMES) });
     await flush();
     expect(r.paints).toHaveLength(2);
@@ -191,7 +226,7 @@ describe('the Stories door never says "no stories" while the shelf loads', () =>
     W.WQDOORS.mount(root, { ...B_ON, doors: { stories: [{ kind: 'shelf' }], games: [], videos: null } }, C, 'stories');
     expect(shelf).toHaveBeenCalled();
     expect(fb.hidden).toBe(true); // not filled yet
-    expect(root.attrs['data-fetch']).toBe('pending'); // the walkers' tripwire: no empty stamp while pending
+    expect(root.attrs['data-fetch']).toBe('pending'); // the test marker: no empty stamp while pending
     expect(root.attrs['data-empty-at']).toBeUndefined();
     sh.setAttribute('data-filled', '1');
     sh.querySelector = (q) => (q === '[aria-busy="true"]' ? el() : null); // the reader's own skeleton
@@ -311,7 +346,7 @@ describe('a quiz the child opened (from a video) is not the teacher\'s', () => {
   });
 });
 
-describe('the walkers\' tripwires (switch on only): data-fetch, data-skel-from|to, data-empty-at on the door root', () => {
+describe('the test markers (switch on only): data-fetch, data-skel-from|to, data-empty-at on the door root', () => {
   test('Games: pending with a skeleton stamp, then done with the skeleton\'s end stamp; no empty stamp for a list with rows', async () => {
     let answer;
     const { W } = live({ fetchImpl: (u) => (/d=games/.test(u) ? new Promise((res) => { answer = res; }) : new Promise(() => {})) });
@@ -340,7 +375,7 @@ describe('the walkers\' tripwires (switch on only): data-fetch, data-skel-from|t
     expect(r2.attrs['data-fetch']).toBe('failed');
     expect(r2.attrs['data-empty-at']).toBeUndefined();
   });
-  test('switch off: no tripwire attribute is written', async () => {
+  test('switch off: no test-marker attribute is written', async () => {
     const { W } = live({ fetchImpl: OK(GAMES) });
     const r = paintRoot();
     W.WQDOORS.mount(r, bootOf('en', {}), C, 'games');
