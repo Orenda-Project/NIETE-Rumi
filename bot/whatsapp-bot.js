@@ -91,7 +91,7 @@ app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.rou
 app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
 // ── first touch: the optional mounts in shared/services/first-touch/mounts.js, one line each in name order ──
 for (const [, file, mount] of require('./shared/services/first-touch/mounts')) {
-  try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (_) { /* not mounted; every other route is today's */ }
+  try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (err) { require('./shared/services/first-touch/mount-failed')(file, err); } // not mounted; every other route is today's
 }
 // ── end first touch ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
