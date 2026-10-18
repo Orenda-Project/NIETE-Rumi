@@ -14,12 +14,18 @@ afterEach(() => jest.restoreAllMocks());
 
 test('requiring the FLN routes and corpus service never loads lp-ab-ch310 (real Node require.cache)', () => {
   // A child Node process: jest's module registry is not Node's require.cache. The two DB configs are stubbed at
-  // Module._load so nothing connects; everything else loads for real.
+  // Module._load so nothing connects; everything else loads for real. The AWS SDK lives in dashboard/node_modules
+  // only (the root CI job installs root deps, and jest's moduleNameMapper does not reach a child process), so it
+  // loads for real when installed and is an empty stand-in when not.
   const { execFileSync } = require('child_process');
   const root = path.resolve(__dirname, '..', '..');
   const script = `
     const M = require('module'); const orig = M._load;
-    M._load = function (r, p, i) { if (/config\\/(supabase|database)$/.test(r)) return { query: async () => ({ rows: [] }) }; return orig.apply(this, arguments); };
+    M._load = function (r, p, i) {
+      if (/config\\/(supabase|database)$/.test(r)) return { query: async () => ({ rows: [] }) };
+      if (/^@aws-sdk\\//.test(r)) { try { return orig.apply(this, arguments); } catch (e) { if (e.code === 'MODULE_NOT_FOUND') return {}; throw e; } }
+      return orig.apply(this, arguments);
+    };
     require(${JSON.stringify(path.join(root, 'dashboard/services/fln-corpus.service'))});
     require(${JSON.stringify(path.join(root, 'dashboard/routes/portal-fln.routes'))});
     const keys = Object.keys(require.cache);
