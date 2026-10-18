@@ -65,6 +65,9 @@ html[lang=ur] .wq-gsheet .wq-ghost{text-decoration:none;border-bottom:2px solid 
 .wq-remember span{flex:1}
 .wq-remundo{min-height:44px;padding:0 10px;border:0;background:none;color:var(--navy);font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
 .wq-remember.wq-remgone{opacity:0}
+.wq-friend{display:flex;align-items:center;gap:10px;margin:6px 0 2px;padding:10px 12px;border-radius:14px;background:#FFF7E0;border:2px solid #F59E0B;color:var(--navy);font-size:16px;line-height:1.35;font-weight:700}
+.wq-friend .wq-fstamp{display:inline-flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#92400E;flex:0 0 auto}
+[lang="ur"] .wq-friend,.wq-friend[dir="rtl"]{line-height:2}
 html[lang=ur] .wq-remember{font-family:var(--fu);font-size:17px;line-height:1.9}
 html[lang=ur] .wq-remundo{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0}
 /* My class + my school (web_quiz_class_doors): two equal tiles under the Next tile. The look is today's button
