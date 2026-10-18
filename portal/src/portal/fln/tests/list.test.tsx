@@ -54,7 +54,7 @@ describe('LessonList', () => {
     expect(rows.map((r) => r.dataset.flnRow)).toEqual(['9001', '9002', '9003', '9004', '9005', '9006', '9007']);
     expect(rows[0].querySelector('[data-fln-no]')).toBeNull();
     expect(rows.slice(1).map((r) => r.querySelector('[data-fln-no]')?.textContent)).toEqual(['1', '2', '3', '4', '5', '6']);
-    expect(rows[2].getAttribute('href')).toBe('/portal/fln/p/9003');
+    expect(rows[2].getAttribute('href')).toBe('/portal/fln/p/9003?grade=1'); // the list's grade rides to the plan (QT-counts)
   });
 
   it('sub-header from listSub with the strand count; chapter headers in the UI language', async () => {
