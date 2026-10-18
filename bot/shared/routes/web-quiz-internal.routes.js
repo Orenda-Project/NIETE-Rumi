@@ -55,6 +55,8 @@ const warmNext = (run) => { setImmediate(() => { Promise.resolve().then(run).cat
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WaitUx = require('../services/quiz/web-quiz-wait-ux');
+// The busy page (web_quiz_busy_page): the hub and quiz answers say `busy_page: true` only when on.
+const Busy = require('../services/quiz/web-quiz-busy-page');
 // The child home's files in the portal's early head (web_quiz_home_preload): every hub answer says `home_pre: true` only when on.
 const HomePreload = require('../services/quiz/web-quiz-home-preload');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
@@ -117,7 +119,7 @@ async function closedKnows(err) {
 // (`app;dur`, the round-trip count), as the hub's does, a closed link's answer too; this route reads no switch itself,
 // so the hub's batched switch read is refreshed in the background, never waited for. Off: no header, the call as before.
 router.get('/quiz/:code', handle(async (req, res) => {
-  const out = await PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p }))))))).catch(async (err) => {
+  const out = await PlainPaint.carry(ClosedLang.carry(AdvLook.carry(OneButton.carry(Busy.carry(OneFace.carry(withCard(WebQuiz.getQuiz(req.params.code, { p: req.query.p })))))))).catch(async (err) => {
     StepTiming.timeRequest(res, [], { refresh: true });
     throw await closedKnows(err);
   });
@@ -328,9 +330,9 @@ const EdgeLearn = () => require('../services/quiz/web-quiz-edge-learn');
 router.get('/hub/:token', handle((req, res) => {
   const opts = { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src), lang: req.query.lang };
   const st = StepTiming.on() ? StepTiming.steps() : null;
-  if (!st) return ClosedLang.closedHub(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts))))))))), req.params.token);
+  if (!st) return ClosedLang.closedHub(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, opts)))))))))), req.params.token);
   StepTiming.attach(res, st);
-  return ClosedLang.closedHub(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st }))))))))), req.params.token);
+  return ClosedLang.closedHub(PlainPaint.carryHub(ClosedLang.carryHub(EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { ...opts, st })))))))))), req.params.token);
 }));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
@@ -363,7 +365,7 @@ router.get('/stories/book/:id/h/:token', handle((req) => Stories().book(req.para
 router.post('/stories/event/h/:token', handle((req) => Stories().event(req.params.token, req.body || {}, { device: req.get('x-wq-device') })));
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
-router.post('/hub/:token', handle((req) => EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, ...((req.body || {}).keep === 1 ? { keep: true } : {}) })))))))));
+router.post('/hub/:token', handle((req) => EdgeLearn().carry(HomePreload.carry(AdvLook.carry(OneButton.carry(Busy.carry(WaitUx.carry(OneFace.carry(require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref, lang: (req.body || {}).lang, ...((req.body || {}).keep === 1 ? { keep: true } : {}) }))))))))));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 // The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
 router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));

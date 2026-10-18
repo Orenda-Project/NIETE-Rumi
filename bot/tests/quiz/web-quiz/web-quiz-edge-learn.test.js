@@ -95,15 +95,15 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false });
   });
 
-  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops and wait_home say false (off is said, never left out)', async () => {
+  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops, wait_home and busy_page say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'closed_lang', 'fast', 'learn', 'one_face', 'plain_paint', 'rt', 'wait_home', 'wait_hops', 'wait_share', 'wait_ux']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false });
+    expect(Object.keys(body).sort()).toEqual(['brand', 'busy_page', 'closed_lang', 'fast', 'learn', 'one_face', 'plain_paint', 'rt', 'wait_home', 'wait_hops', 'wait_share', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false });
     expect(typeof body.brand).toBe('string');
   });
 
