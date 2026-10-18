@@ -4,6 +4,7 @@
  * Games beyond the hub boot's few ids, fetched when a door opens so the home itself stays light.
  *
  *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
+ *                                         a failed read adds err: 1 (web_quiz_list_states on only)
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
  *   seededOrder(items, seed)              a stable shuffle (pure): the same seed, the same order
  *   daySeed(childId, now)                 the seed for one child on one Pakistan day (pure)
@@ -63,9 +64,16 @@ async function sayAll(texts, lang, waitMs = SAY_WAIT_MS) {
   } finally { clearTimeout(timer); }
 }
 
-async function storiesDoor() {
-  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => false);
-  return { stories: [], shelf: storiesOn };
+async function storiesDoor(list) {
+  const storiesOn = await require('./web-quiz-home-flags').flags().then((f) => f.stories).catch(() => (list ? null : false));
+  // web_quiz_list_states: a shelf switch that could not be read is a failed read, not "the shelf is off"
+  return storiesOn === null ? { stories: [], shelf: false, err: 1 } : { stories: [], shelf: storiesOn };
+}
+
+// A grade or form read that failed: rethrown under web_quiz_list_states (the door answers err: 1), else today's null.
+async function formFailed(err) {
+  if (await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false)) throw err;
+  return null;
 }
 
 async function gamesDoor(who, lang, now) {
@@ -74,7 +82,8 @@ async function gamesDoor(who, lang, now) {
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
-  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(() => null);
+  // web_quiz_list_states: a form read that failed is a failed door (the page offers a retry), not a child with no games
+  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(formFailed);
   if (!form) return { games: [] };
   let ids;
   if (form === G1.FORM) ids = [G1.EXERCISE];
@@ -94,27 +103,33 @@ async function gamesDoor(who, lang, now) {
 }
 
 // web_quiz_wait_ux on: the same rows as gamesDoor, but every read that does not need another's answer starts at once
-// (the switches, the grade, the read cap, the passages' switch and the child's rung), and the spoken labels are waited
-// for at most WaitUx.SAY_WAIT_MS (a label late here is recorded in the background and ready on the next open).
+// (the grade, the read cap, the passages' switch and the child's rung, once the challenge is known to be on), and the
+// spoken labels are waited for at most WaitUx.SAY_WAIT_MS (a label late here is recorded in the background and ready on
+// the next open). Each read is awaited where gamesDoor awaits it, so a read that fails fails the door as it does there
+// (and one gamesDoor would not have asked for is never awaited, so its failure is ignored, as its read was there).
 async function gamesDoorTogether(who, lang, now) {
   const Hub = require('./web-quiz-hub');
+  if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
   const Play = require('./web-quiz-hub-play');
   const WaitUx = require('./web-quiz-wait-ux');
-  const soft = (p) => Promise.resolve(p).catch(() => null);
-  const [flags, form, record, missing, pool, sw, rung, aloud] = await Promise.all([
-    Hub.flags(),
-    Challenge.gradeOf({ studentId: who.studentId }).then((g) => Challenge.formForChild(g)).catch(() => null),
-    soft(Challenge.recordOn()), soft(Challenge.missingOn()), soft(Challenge.poolOn()),
-    soft(Play.switches()), soft(Play.readingRungOf(who.studentId)),
-    require('./web-quiz-challenge-budget').readOpen().catch(() => false),
-  ]);
-  if (!flags.challenge || !form) return { games: [] };
-  const ids = form === G1.FORM ? [G1.EXERCISE] : [...(record && missing ? ['missing'] : []), 'bigger'];
-  const warm = ids.includes('missing') && Boolean(pool);
+  // started now, awaited later: the no-op catch only keeps a read that is never awaited from being an unhandled rejection
+  const early = (fn) => { const p = Promise.resolve().then(fn); p.catch(() => {}); return p; };
+  const gradeP = early(() => Challenge.gradeOf({ studentId: who.studentId }));
+  const recordP = early(() => Challenge.recordOn());
+  const missingP = early(() => Challenge.missingOn());
+  const poolP = early(() => Challenge.poolOn());
+  const swP = early(() => Play.switches());
+  const rungP = early(() => Play.readingRungOf(who.studentId));
+  const aloudP = early(() => require('./web-quiz-challenge-budget').readOpen()).catch(() => false);
+  // web_quiz_list_states: as gamesDoor, a grade or form read that failed is a failed door, not a child with no games
+  const form = await gradeP.then((g) => Challenge.formForChild(g)).catch(formFailed);
+  if (!form) return { games: [] };
+  const ids = form === G1.FORM ? [G1.EXERCISE] : [...((await recordP) && (await missingP) ? ['missing'] : []), 'bigger'];
+  const warm = ids.includes('missing') && (await poolP);
   const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
-  const reads = form === G1.FORM ? [] : await readRowsFrom(Challenge, who, lang, now, { story: Boolean(sw && sw.story), rung, aloud });
+  const reads = form === G1.FORM ? [] : await readRowsFrom(Challenge, who, lang, now, { swP, rungP, aloudP });
   const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.name || r.title)], lang, WaitUx.SAY_WAIT_MS);
   return { games: [
     ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
@@ -122,16 +137,17 @@ async function gamesDoorTogether(who, lang, now) {
   ] };
 }
 
-// readRows with its switch, rung and read cap already read (gamesDoorTogether): the same rows in the same order.
-async function readRowsFrom(Challenge, who, lang, now, { story, rung, aloud: open }) {
+// readRows with its switch, rung and read cap already started (gamesDoorTogether): the same rows in the same order,
+// each awaited where readRows reads it.
+async function readRowsFrom(Challenge, who, lang, now, { swP, rungP, aloudP }) {
   const found = { read: null, listen: null };
-  if (story) {
-    const Play = require('./web-quiz-hub-play');
-    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), Play.openBands(who.grade, rung));
+  const Play = require('./web-quiz-hub-play');
+  if ((await swP).story) {
+    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), Play.openBands(who.grade, await rungP));
     pickPassages(live, lang, found);
   }
   let aloud = null;
-  if (open) {
+  if (await aloudP) {
     const name = (() => { try { return typeof Challenge.nameOf === 'function' ? Challenge.nameOf('read', lang) || null : null; } catch (_) { return null; } })();
     if (name) aloud = { kind: 'read', stop: 'read', name };
   }
@@ -190,17 +206,20 @@ function safeName(Challenge, id, lang) {
 async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
-  if (!(await require('./web-quiz-home-flags').flags()).home) fail(404, 'home_off');
+  const homeFlags = await require('./web-quiz-home-flags').flags();
+  if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
-    return d === 'stories' ? await storiesDoor() : await gamesDoor(who, l, now);
+    return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
-    return d === 'stories' ? { stories: [], shelf: false } : { games: [] };
+    // web_quiz_list_states: the page tells a failed read from an empty one (a retry, never "nothing here")
+    const list = await require('./web-quiz-home-flags').flags().then((f) => f.list).catch(() => false);
+    return { ...(d === 'stories' ? { stories: [], shelf: false } : { games: [] }), ...(list ? { err: 1 } : {}) };
   }
 }
 

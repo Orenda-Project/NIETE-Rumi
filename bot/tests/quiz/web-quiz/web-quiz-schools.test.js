@@ -269,6 +269,25 @@ describe('the board (loaded through Supabase)', () => {
     CD._resetCache();
   });
 
+  // web_quiz_class_doors on: the league's Play opens the quiz's twin in the other language when there is one.
+  test('the class-doors switch on: twin (the same lesson\'s open code in the other language) on the league; off: none', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    require('../../../shared/services/quiz/web-quiz-class-twin')._resetCache();
+    fake.db.quizzes = [{ id: 'q', language: 'en', lesson_plan_id: 'lp-9' }, { id: 'q-ur', language: 'ur', lesson_plan_id: 'lp-9' }];
+    fake.db.quiz_share_codes.push({ id: 'c1u', code: 'ALPHU1', quiz_id: 'q-ur', teacher_user_id: T1, language: 'ur', active: true, expires_at: future, invited_by_student_id: null, parent_share_code_id: null, created_at: '2026-10-10T00:00:00.000Z' });
+    CD._resetCache();
+    const Tw = require('../../../shared/services/quiz/web-quiz-class-twin');
+    const spy = jest.spyOn(Tw, 'twinOf');
+    expect(await S.board('ALPHA1', { now: NOW })).not.toHaveProperty('twin');
+    // off: the twin is never read
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    S._reset(); CD._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    expect((await S.board('ALPHA1', { now: NOW })).twin).toEqual({ code: 'ALPHU1' });
+    CD._resetCache();
+  });
+
   test("a test teacher's quizzes do not count", async () => {
     fake.db.users.find((u) => u.id === T2).is_test_user = true;
     const b = await S.board('ALPHA1', { now: NOW });

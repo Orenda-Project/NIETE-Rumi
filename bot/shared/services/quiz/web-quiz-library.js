@@ -256,6 +256,37 @@ function shelfRoot() {
 }
 
 /**
+ * web_quiz_video_shelf: a grade's lesson lengths read in the background when a child of that grade opens the hub (the
+ * home asks), a few at a time, so the first Videos open after a restart already shows "6 min" on its lessons. Only the
+ * lessons the child's language shows (web_quiz_videos_v3). Held for hours once every lesson was read; a bank that did
+ * not load, or a lesson whose details did not come back, is held a minute only (that lesson is not kept), so one bad
+ * read right after a restart never blanks a grade. Never throws.
+ */
+const WARM_AGAIN_MS = 3 * 60 * 60 * 1000; // half the lengths' life in web-quiz-videos.js
+const WARM_RETRY_MS = 60 * 1000;
+const warmed = new Map();                  // grade|language -> no new read before this time
+function warmGrade(grade, { lang, fetchImpl } = {}) {
+  try {
+    const Videos = require('./web-quiz-videos');
+    const g = Videos.gradesFor(grade)[0];
+    const key = `${g}|${langOf(lang) || ''}`;
+    if (!g || Date.now() < (warmed.get(key) || 0)) return;
+    warmed.set(key, Date.now() + WARM_AGAIN_MS);
+    const retry = () => warmed.set(key, Date.now() + WARM_RETRY_MS);
+    track(new Promise((res) => setImmediate(res)).then(async () => {
+      const ix = (await videosV3On()) ? await inLanguage(await bank(), langOf(lang)) : await bank();
+      const ids = ix.rows.filter((r) => String(r.grade) === g).map((r) => r.id);
+      if (!ids.length) return retry();
+      await Videos.warmMeta(ids, { fetchImpl });
+      const missed = ids.filter((id) => Videos.peekMeta(id) === null);
+      if (!missed.length) return undefined;
+      missed.forEach((id) => Videos._metaCache.delete(id));
+      return retry();
+    }).catch(retry));
+  } catch (_) { /* the hub never waits on this */ }
+}
+
+/**
  * The lesson to watch after a watched one: the next in its grade and subject, in the subject screen's order (the
  * child's language as the library shows it), that this child has not finished — the rest of the list, then wrapping.
  * -> {vid, title, poster?} | null. Never throws (a suggestion never fails a video).
@@ -309,8 +340,8 @@ async function download(code, { st, vid } = {}) {
 }
 
 module.exports = {
-  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH,
+  lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY, nextLesson, lessonOrder, THUMB_PATH, warmGrade,
   inLanguage,
-  _reset: () => { rootHeld = null; require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
+  _reset: () => { rootHeld = null; warmed.clear(); require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
   _idle: () => require('./web-quiz-bank')._idle(),
 };

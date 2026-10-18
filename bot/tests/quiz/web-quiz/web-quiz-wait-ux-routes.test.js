@@ -98,6 +98,29 @@ describe('the routes', () => {
   });
 });
 
+describe('the read share rides only with the hub\'s reads together (web_quiz_hub_fanout)', () => {
+  test('wait_ux and fanout on: the hub answers also say wait_share: true; nothing else changes', async () => {
+    rows = [{ key: KEY, value: true }, { key: 'web_quiz_hub_fanout', value: true }];
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of ['hubGet', 'hubPost']) {
+        expect(JSON.parse(out[k].body)).toMatchObject({ wait_ux: true, wait_share: true });
+        expect(out[k].body.replace(/,"wait_ux":true,"wait_share":true/, '')).toBe(GOLDEN[k]);
+      }
+      expect(out.doors.body).toBe(GOLDEN.doors);
+    });
+  });
+  test('fanout on, wait_ux off: no wait_share (and no wait_ux), every answer the golden', async () => {
+    rows = [{ key: 'web_quiz_hub_fanout', value: true }];
+    await WaitUx.refresh();
+    await serve(async (ask) => {
+      const out = await ask();
+      for (const k of Object.keys(GOLDEN)) expect(out[k].body).toBe(GOLDEN[k]);
+    });
+  });
+});
+
 describe('no settings read of its own', () => {
   test.each([['off', undefined], ['on', true]])('%s, a cold switch cache: a route the hub never touches makes 0 settings reads for it', async (_n, value) => {
     if (value !== undefined) rows = [{ key: KEY, value }];

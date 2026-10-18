@@ -211,8 +211,11 @@ async function open(phone, { language = 'en' } = {}) {
  */
 async function sendHub(phone, known, lang, { home = false, trueCount = false } = {}) {
   // web_quiz_return_lang: the link carries the language this reply speaks (off: today's link)
-  const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id), { lang });
-  if (!url) return false;
+  const link = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id), { lang });
+  if (!link) return false;
+  // a shared card's item kept for this phone (web_quiz_share_v4): the home opens on it. The switch comes from the read
+  // hubLink() just made (HubFlags' cache); off, no kept item is looked for.
+  const url = require('./web-quiz-hub-flags').shareOpenNow() ? await require('./web-quiz-share-open').withOpen(phone, link) : link;
   // family phone binding on: the Home reply is counted on the ledger with the phone BEFORE it is sent (the per-phone
   // daily reply cap); over the cap nothing is sent and the /quiz is still handled. Off: today's path, uncounted.
   // ownReply: a reply to the child's own /quiz — with quiz_one_door ON it is counted on `reply_to_own_message`, not the shared 8
