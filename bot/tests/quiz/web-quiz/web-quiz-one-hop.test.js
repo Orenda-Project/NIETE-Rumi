@@ -342,6 +342,81 @@ describe('with the hub\'s reads started together (web_quiz_hub_fanout on)', () =
   });
 });
 
+// Every switch the bot's services name (each 'web_quiz_…' string in bot/shared/services, read from the source, so a
+// switch added tomorrow is in this list too), all on as JSON true. The two this file sets by hand (web_quiz_one_hop and
+// web_quiz_hub_fanout) are left out and set per row.
+const EVERY_KEY = (() => {
+  const fs = require('fs');
+  const path = require('path');
+  const keys = new Set();
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) walk(f);
+    else if (f.endsWith('.js')) (fs.readFileSync(f, 'utf8').match(/'web_quiz_[a-z0-9_]+'/g) || []).forEach((k) => keys.add(k.slice(1, -1)));
+  });
+  walk(path.join(__dirname, '../../../shared/services'));
+  keys.delete('web_quiz_one_hop');
+  keys.delete('web_quiz_hub_fanout');
+  return [...keys].sort();
+})();
+
+// With every switch on, the one-hop switch changes only its own field (`one_hop`), on the hub's serial builder and on
+// its together builder alike; and with it on, the together answer is the serial answer.
+describe('every switch the services name on (web_quiz_one_hop beside all of them)', () => {
+  const { logEvent } = require('../../../shared/utils/structured-logger');
+  const EVERY = EVERY_KEY.map(TRUE);
+  const FANOUT = TRUE('web_quiz_hub_fanout');
+  afterEach(() => { require('../../../shared/services/quiz/web-quiz-hub-warm')._stop(); });
+  // the ranked next thing's offer ids are new on every answer (web-quiz-next-offer.js offerId), whatever is on
+  const same = (o) => bytes(o).replace(/"offer":"[A-Za-z0-9_-]{10}"/g, '"offer":"*"');
+  // a warm open, as warmed(), with the tables it reads (read-aheads the answer starts included) and its hub_open line
+  async function open(settings) {
+    seed(settings);
+    const from = supabase.from;
+    let seen = null;
+    supabase.from = (t) => { if (seen) seen.add(t); return from(t); };
+    Fast.on(); await tick();
+    await answer(T.signHub([KID]));
+    await tick();
+    waves = 0; settingsReads = 0; seen = new Set(); logEvent.mockClear();
+    const out = await answer(T.signHub([KID]));
+    const w = waves;
+    const reads = settingsReads;
+    await tick(); await tick();
+    const line = JSON.stringify(logEvent.mock.calls.filter(([name]) => name === 'web_quiz.hub_open').map(([, f]) => f));
+    return { out, waves: w, settingsReads: reads, tables: [...seen].sort(), line };
+  }
+
+  test('the list is read from the source', () => {
+    expect(EVERY_KEY.length).toBeGreaterThan(40);
+    expect(EVERY_KEY).toEqual(expect.arrayContaining(['web_quiz_fast', 'web_quiz_stories', 'web_quiz_home_v3', 'web_quiz_card_v3', 'web_quiz_share_v4']));
+  });
+
+  test.each([['the serial builder (fanout off)', []], ['the together builder (fanout on)', [FANOUT]]])('%s: one_hop on changes only `one_hop`; the same hub_open line, tables, settings reads and waves', async (_n, fan) => {
+    const off = await open([...EVERY, ...fan]);
+    const on = await open([...EVERY, ...fan, TRUE('web_quiz_one_hop')]);
+    expect(require('../../../shared/services/quiz/web-quiz-hub-flags').fanoutNow()).toBe(fan.length === 1);
+    expect(on.out.fast).toBe(true);
+    expect(on.out.one_hop).toBe(true);
+    expect(off.out).not.toHaveProperty('one_hop');
+    const { one_hop: _, ...rest } = on.out;
+    expect(same(rest)).toBe(same(off.out));
+    expect(on.line).toBe(off.line);
+    expect(on.tables).toEqual(off.tables);
+    expect(on.settingsReads).toBe(off.settingsReads);
+    expect(on.waves).toBe(off.waves);
+  });
+
+  test('one_hop on: the together answer is the serial answer, byte for byte, with the same hub_open line and tables', async () => {
+    const serial = await open([...EVERY, TRUE('web_quiz_one_hop')]);
+    const together = await open([...EVERY, FANOUT, TRUE('web_quiz_one_hop')]);
+    expect(together.out.one_hop).toBe(true);
+    expect(same(together.out)).toBe(same(serial.out));
+    expect(together.line).toBe(serial.line);
+    expect(together.tables).toEqual(serial.tables);
+  });
+});
+
 describe('the internal route', () => {
   test('GET /hub/:token answers with the switch\'s mark; POST /hub/:token (the page\'s own call) is today\'s', async () => {
     const express = require('express');
