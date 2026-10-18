@@ -191,13 +191,16 @@ async function lookupIds(ids) {
   try {
     // child identity store (web_quiz_identity_canon): the same read also carries merged_into, status.
     const canon = Boolean((await require('./web-quiz-identity-flags').flags()).canon);
+    // inside a hub answer with web_quiz_hub_child_memo on, these rows are the answer's shared read (else read here)
+    const ChildRows = require('./web-quiz-hub-child-rows');
+    const stCols = canon ? 'id, list_id, merged_into, status' : 'id, list_id';
     const [{ data: enr }, { data: st }] = await Promise.all([
-      supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true),
-      supabase.from('students').select(canon ? 'id, list_id, merged_into, status' : 'id, list_id').in('id', ids),
+      ChildRows.read('class_enrollments', ids, 'student_id, class_id', () => supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true)),
+      ChildRows.read('students', ids, stCols, () => supabase.from('students').select(stCols).in('id', ids)),
     ]);
     const listIds = [...new Set((st || []).map((s) => s.list_id).filter(Boolean))];
     const { data: lists } = listIds.length
-      ? await supabase.from('student_lists').select('id, class_id').in('id', listIds)
+      ? await ChildRows.read('student_lists', listIds, 'id, class_id', () => supabase.from('student_lists').select('id, class_id').in('id', listIds))
       : { data: [] };
     const classIds = new Set((enr || []).map((e) => e.class_id).filter(Boolean));
     (lists || []).forEach((l) => { if (l.class_id) classIds.add(l.class_id); });

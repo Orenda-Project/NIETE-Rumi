@@ -300,9 +300,14 @@ describe('the sheet (wq-adventure.css)', () => {
     expect(variants.length).toBeGreaterThanOrEqual(4);
     for (const r of variants) expect([r.split('{')[0].trim(), /--edge:/.test(r)]).toEqual([r.split('{')[0].trim(), true]);
   });
-  it('an Urdu button is never bold (bold Nastaliq breaks its joins), and two Urdu buttons never share a row below 420 px', () => {
+  it('an Urdu button is never bold (bold Nastaliq breaks its joins)', () => {
     expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-btn\{font-weight:400\}/);
-    expect(CSS).toMatch(/@media \(max-width:419px\)\{html\.wq-adv\[lang=ur\] \.wq-social\{flex-direction:column\}\}/);
+  });
+  it('the finish card\'s Next tile takes the whole row: the sound button rides the card\'s corner', () => {
+    // html.wq-adv.wq-1b: the card injects its own one-button rules (html.wq-1b .wqfc …) later in the page, so a tie loses
+    expect(CSS).toMatch(/html\.wq-adv\.wq-1b \.wqfc\{grid-template-columns:minmax\(0,1fr\)\}/);
+    expect(CSS).toMatch(/html\.wq-adv\.wq-1b \.wqfc>\.wqfc-snd\{position:absolute;[^}]*grid-column:auto\}/);
+    expect(CSS).toMatch(/html\.wq-adv\.wq-1b \.wqfc>\[data-primary\]\{grid-column:1\/-1\}/);
   });
   it('the sheet and the kit each stay inside 8 KB gzipped', () => {
     const zlib = require('zlib');

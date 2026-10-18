@@ -419,6 +419,9 @@
       if (pace) pace.destroy();
       g.className = 'lr-pace lr-pace-' + pv;   // the vine stands beside the words (the words redraw; it does not)
       pace = window.WQPace.mount(g, { variant: pv, grade: window.WQPace.grade, keep: keep });
+      // the vine as tall as the words it stands beside (the box's own height is the floor)
+      var st = pv === 'vine' && h.q('wqc-live-story');
+      if (st && st.offsetHeight > 0 && g.style) g.style.height = Math.max(st.offsetHeight, 240) + 'px';
     }
     function view() { var l = h.live(); var v = l && l.v; return v ? { heard: v.heardOk, total: v.marks.length, lastHeard: !!v.lastHeard } : { heard: 0, total: 0, lastHeard: false }; }
     // Done always on a practice read; on a counted read once done_from of the words are lit, or whenever the live words
