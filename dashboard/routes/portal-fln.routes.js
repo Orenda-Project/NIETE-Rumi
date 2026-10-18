@@ -54,7 +54,9 @@ const INSERTED_KINDS = new Set(['share', 'link_copy', 'open_link']);
 // COS schema ruling: audio events are logged as structured events, not stored (`send` is server-written only, m-links).
 const LOGGED_KINDS = Object.freeze({ audio_play: 'fln.audio.play', audio_error: 'fln.audio.error' });
 const PREVIEW_PATH = /^\/portal\/fln\/p\/(\d{1,9})\/?$/;
-const PREVIEW_UA = /WhatsApp\/|facebookexternalhit|Facebot|Twitterbot|Slackbot|TelegramBot|LinkedInBot/i;
+// Anchored as in web-quiz-preview.js: WhatsApp's link FETCHER sends a bare "WhatsApp/2.x A"; its in-app BROWSER sends
+// "Mozilla/5.0 … WhatsApp/2.x", and that is a teacher who must get the app, not the stub.
+const PREVIEW_UA = /^(?:WhatsApp\/\d[\d.]*(?:\s+[AIN])?\s*$|facebookexternalhit\/|Facebot\b|meta-externalagent\/|TelegramBot\b|Twitterbot\/|Slackbot|LinkedInBot\/|Discordbot\/)/;
 
 /**
  * A teacher's keyed reference: hex(HMAC-SHA256(WEB_QUIZ_KID_KEY, 't|' + users.id))[0:16] — byte-identical to
