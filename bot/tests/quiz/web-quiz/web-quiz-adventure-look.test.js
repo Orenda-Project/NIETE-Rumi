@@ -233,11 +233,12 @@ describe('the routes', () => {
     expect(ownReads).toBe(0);
   });
 
-  test('a cold switch never holds the answer: the first answer is today\'s while the one read runs behind it, the next carries the look', async () => {
+  test('a cold switch never holds the answer and reads nothing of its own: the first answer is today\'s, and once the hub\'s one read lands the next carries the look', async () => {
     rows = [{ key: KEY, value: true }, { key: ONE_BUTTON, value: true }];
     await serve(async (ask) => {
-      expect((await ask()).quiz).toBe(GOLDEN.quiz);
+      expect(await ask()).toEqual(GOLDEN);
       await new Promise((r) => setImmediate(r));
+      await require('../../../shared/services/quiz/web-quiz-hub-flags').flags();
       const later = await ask();
       expect(JSON.parse(later.hubGet).adv).toBe(true);
       expect(JSON.parse(later.hubGet).one_button).toBe(true);
