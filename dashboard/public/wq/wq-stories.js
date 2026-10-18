@@ -439,12 +439,12 @@
       sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = '';
       if (ws.length && !p.is_picture) {
         d = dims();
-        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok && x.bs.every(function (y) { return y[2] * 5 > y[3]; }); }) ? 'z' : tb && tb.box ? 'l' : 's';
+        sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok && (!b.tx || x.bs.every(function (y) { return y[2] * 5 > y[3]; })); }) ? 'z' : tb && tb.box ? 'l' : 's';
       }
       var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
       return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage>' + (b.steady ? '<div class="wqs-ph" data-ph><p>' + esc(p.text) + '</p><i>' + esc(t.opening) + '</i></div>' : '') + '<div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
         (bx ? img(tb.url, tb.w, tb.h, 'wqs-lens', ' style="left:' + bx[0] + 'px;top:' + bx[1] + 'px;width:' + bx[2] + 'px;height:' + bx[3] + 'px"') : '') +
-        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div></div>' +
+        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div>' + (wh && b.tx ? '<div class="wqs-tx" data-tx>' + img(im.url, im.w, im.h) + '</div>' : '') + '</div>' +
         (wh ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">' + esc(t.whole) + '</button>' : '');
     }
     function own() { return sm && (sm !== 'z' || !sp.boxes_ok); }
@@ -452,13 +452,24 @@
     R.mode = function () { return sm; };
     R.lines = function () { return LN; };
     function camTo(bs, fit) {
-      var c = root.querySelector('[data-cam]'), d, k;
+      var c = root.querySelector('[data-cam]'), x = root.querySelector('[data-tx]'), d, k;
       if (!c || !sp) return;
+      if (x && bs) x.className = 'wqs-tx';
       d = dims();
       k = cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
     }
-    function rest() { camTo(sm === 'z' ? [].concat.apply([], LN.l.map(function (x) { return x.bs; })) : sm === 'l' ? [sp.text_band.box] : null, 1); }
+    // at rest the whole sheet (its art) and, when the print is small, a lens of the words at a readable size on their side
+    function rest() {
+      camTo(null);
+      var x = root.querySelector('[data-tx]'), d = dims(), y = 0, bs, k;
+      if (!x) return;
+      bs = sm === 'z' ? [].concat.apply([], LN.l.map(function (l) { return l.bs; })) : [sp.text_band.box];
+      k = cam(bs, d[0], d[1] * .4, sp.image.w, sp.image.h, rtl(), 6, 1);
+      bs.forEach(function (b) { y += (b[1] + b[3] / 2) / bs.length; });
+      x.className = 'wqs-tx' + (wu || k.s < cam(0, d[0], d[1], sp.image.w, sp.image.h).s * 1.3 ? '' : ' on') + (y > sp.image.h / 2 ? ' lo' : '');
+      if (x.firstChild) x.firstChild.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
+    }
     function camLine(i) {
       li = i;
       var n = sm === 'z' ? LN.of[i] || 0 : 0;
