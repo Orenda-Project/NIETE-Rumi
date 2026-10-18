@@ -147,6 +147,15 @@ Feature: FDE board-pattern paper for Grade 5
     When a Grade 5 Maths board-pattern paper comes back short twice
     Then the paper fails "PATTERN_SHORT_SLOT" and its row keeps the paper as written and the model's name
 
+  @sandbox
+  Scenario: A board-pattern paper that comes back short is made once more before the teacher hears of it
+    Given the board-pattern switch is on
+    When a Grade 5 Urdu board-pattern paper's whole first run comes back short of a slot
+    Then the paper is made again from nothing, once, in the same paper row, and the teacher sees only the wait screen
+    And the paper is ready if the second run is whole, or fails "PATTERN_SHORT_SLOT" with the second run's record if it is not
+    And a failure with any other code is not made again
+    And the request counts once toward the paper limit
+
   # ── Edge cases ────────────────────────────────────────────────────────────────────────────────────────────────────
 
   @FB07

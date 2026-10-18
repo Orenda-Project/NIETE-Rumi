@@ -155,7 +155,12 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
 
   test('Q1 is never touched', () => {
     const exam = fixture('r9-sst-chapters2');
-    const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question);
+    // The cross-section hold never touches Q1. One recorded Q1 MCQ keys encroachment removal to the
+    // local government; the book's p.29 table says provincial, so the which-government check (a
+    // wrong key, not a repeat) holds it.
+    const WRONG_TIER = 'ایک شہر کی سڑکوں اور راستوں سے تجاوزات ہٹانے کا کام کون سی حکومت کرتی ہے؟';
+    const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question).filter((q) => q !== WRONG_TIER);
+    expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 1);
     const out = lay(exam, 'social_studies');
     expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.sort());
   });
@@ -172,7 +177,7 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'قائد اعظم کس شہر میں پیدا ہوئے؟']));
   });
 
-  test('on the first reply every repeat is held; after the re-ask clean items fill first and a repeat comes back only for a place nothing else takes', () => {
+  test('on the first reply every repeat is held; after the re-ask clean items fill and a repeat never comes back', () => {
     // The recorded round-7 paper's Q7 re-asks three Q1 facts word for word.
     const exam = fixture('r7-sst-item-text');
     const REPEATS = ['پاکستان کی سب سے بڑی عدالت کون سی ہے اور کہاں واقع ہے؟', 'پاکستان میں اس وقت کون سا آئین نافذ ہے؟', 'بیگم رعنا لیاقت علی خان نے 1949ء میں کون سا ادارہ قائم کیا؟'];
@@ -189,11 +194,10 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     const after = layAfter(withExtra(exam, 'social_studies.D.Q7', extra), 'social_studies');
     const q7 = slotItems(after.examJson, 'social_studies.D.Q7').map((q) => q.question);
     expect(after.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
-    expect(q7).toHaveLength(8);
     expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'پاکستان کا قومی کھیل کون سا ہے؟']));
-    // One place is left after the two clean items: the first repeat in reply order takes it.
-    expect(q7.filter((t) => REPEATS.includes(t))).toEqual([REPEATS[0]]);
-    expect(q7.indexOf(REPEATS[0])).toBe(7);
+    // Since round 17 the place left after the two clean items stays empty: Q7 prints seven of eight.
+    expect(q7.filter((t) => REPEATS.includes(t))).toEqual([]);
+    expect(q7).toHaveLength(7);
   });
 
   test('before the re-ask a model extra does not bring a held item back: the slot stays short, so the section is asked again', () => {
@@ -202,10 +206,10 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(out.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 2 }]));
   });
 
-  test('after a re-ask that brought nothing new, the held items come back and the paper is whole', () => {
+  test('after a re-ask that brought nothing new, the held items stay out: Q7 prints five, short of the six to answer plus one', () => {
     const out = layAfter(fixture('r7-sst-item-text'), 'social_studies');
-    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
-    expect(slotItems(out.examJson, 'social_studies.D.Q7')).toHaveLength(8);
+    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toEqual({ slot: 'social_studies.D.Q7', missing: 2 });
+    expect(slotItems(out.examJson, 'social_studies.D.Q7')).toHaveLength(5);
   });
 
   test('one question once per slot: the same stem with the same options is not placed twice', () => {
