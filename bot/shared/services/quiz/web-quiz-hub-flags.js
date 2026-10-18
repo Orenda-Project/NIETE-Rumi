@@ -2,7 +2,7 @@
 /**
  * The kid hub's switches (app_settings web_quiz_hub / web_quiz_challenge / web_quiz_library / web_quiz_hub_door /
  * web_quiz_child_quiz_home / web_quiz_events_v2 / web_quiz_challenge_v2 / web_quiz_challenge_rungs / web_quiz_readalong /
- * web_quiz_wait_ux / web_quiz_server_timing / web_quiz_hub_fanout / web_quiz_hub_child_memo),
+ * web_quiz_wait_ux / web_quiz_server_timing / web_quiz_hub_fanout / web_quiz_hub_early_kid / web_quiz_hub_child_memo),
  * read like web-quiz-link.js (30 s cache, fail closed), and the hub link WhatsApp /quiz sends.
  * Its own module so student-quiz.service can send the link without loading web-quiz-hub.js
  * (which reads student-quiz.service): no require cycle.
@@ -40,6 +40,8 @@ const WAIT_UX_KEY = 'web_quiz_wait_ux';
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // The hub's reads started together and its switches kept warm (web-quiz-hub.js, web-quiz-hub-warm.js): only JSON true.
 const FANOUT_KEY = 'web_quiz_hub_fanout';
+// The chosen child's own reads started from the link (web-quiz-hub.js earlyChild; only with fanout): only JSON true.
+const EARLY_KID_KEY = 'web_quiz_hub_early_kid';
 // The children's own rows read once per hub answer (web-quiz-hub-child-rows.js): only JSON true.
 const CHILD_MEMO_KEY = 'web_quiz_hub_child_memo';
 // The one share (web-quiz-card-switch.js: the card on AND the share on, each only as JSON true) rides this read too, so
@@ -73,7 +75,7 @@ function meterOf(value) {
   return METERS.indexOf(n) >= 0 ? n : null;
 }
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, childMemo, shareOpen, adv, homePreload, waves2, hops }
+let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, earlyKid, childMemo, shareOpen, adv, homePreload, waves2, hops }
 
 function isTrue(value) {
   let v = value;
@@ -81,7 +83,7 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, CLOSED_LANG_KEY, PLAIN_PAINT_KEY, EDGE_LEARN_KEY, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, HOPS_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
@@ -89,7 +91,7 @@ function fromRows(data, now) {
     homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
     challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), oneButton: by[ONE_BUTTON_KEY] === true, waitUx: by[WAIT_UX_KEY] === true,
     // only the JSON boolean true (the string 'true', 1 or an object are off)
-    serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true, childMemo: by[CHILD_MEMO_KEY] === true,
+    serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true, earlyKid: by[EARLY_KID_KEY] === true, childMemo: by[CHILD_MEMO_KEY] === true,
     shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true,
     edgeLearn: by[EDGE_LEARN_KEY] === true,
     homePreload: by[HOME_PRELOAD_KEY] === true, closedLang: by[CLOSED_LANG_KEY] === true, plainPaint: by[PLAIN_PAINT_KEY] === true, waves2: by[WAVES2_KEY] === true, liveMeter: meterOf(by[LIVE_METER_KEY]), liveReadV3: isTrue(by[LIVE_READ_V3_KEY]), hops: by[HOPS_KEY] === true };
@@ -199,6 +201,11 @@ function childMemoNow(now = Date.now()) {
   return Boolean(cache && cache.childMemo && now - cache.at < 2 * TTL_MS);
 }
 
+/** web_quiz_hub_early_kid from the hub's own switch cache, never read here: as fanoutNow. */
+function earlyKidNow(now = Date.now()) {
+  return Boolean(cache && cache.earlyKid && now - cache.at < 2 * TTL_MS);
+}
+
 /**
  * The step-timings switch, never waited for and never reading: the batch's cached answer (refreshed by the hub's own
  * flags() call on every hub answer); off until the first read lands, off on a failed read, off when the cache is older
@@ -264,4 +271,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY };
+module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, closedLangNow, CLOSED_LANG_KEY, plainPaintNow, PLAIN_PAINT_KEY, fanoutNow, earlyKidNow, childMemoNow, shareOpenNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, EARLY_KID_KEY, CHILD_MEMO_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; }, edgeLearnNow, EDGE_LEARN_KEY, waves2Now, WAVES2_KEY, LIVE_METER_KEY, LIVE_READ_V3_KEY, hopsNow, HOPS_KEY };
