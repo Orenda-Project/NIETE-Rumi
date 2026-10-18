@@ -137,7 +137,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     expect(isQuizMenuRequest(words, { ref: true })).toBe(true);
     expect(await Open.note(PHONE, words)).toBe(true);
     const { t } = await landing();
-    const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    const out = await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     // the friend still lands on the book
     expect(out.next).toMatch(new RegExp(`#story/${BOOK}$`));
     expect(await friends()).toEqual({ friends_joined: { n: 1 } });
@@ -150,9 +150,9 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     seed({ students: [sharerRow] });
     const { words } = await cardWords();
     await Open.note(PHONE, words);
-    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     await Open.note(PHONE, words);
-    await Join.join({ t: (await landing()).t, grade: 2, name: 'Ali', device: DEVICE });
+    await Join.join({ t: (await landing()).t, grade: 2, name: 'Ali Testwala', device: DEVICE });
     expect(await friends()).toEqual({ friends_joined: { n: 1 } });
     expect(events('share_joined')).toEqual([{ count: 1 }]);
   });
@@ -168,9 +168,9 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     const { words } = await cardWords();
     await Open.note(PHONE, words);
     const { t } = await landing();
-    const ask = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
+    const ask = await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     expect(ask.ask).toBe('is_this_you');
-    await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE, same: ask.kids[0].chip });
+    await Join.join({ t, grade: 3, name: 'Sara Testwala', device: DEVICE, same: ask.kids[0].chip });
     expect(await friends()).toEqual({});
     expect(events('share_joined')).toEqual([]);
   });
@@ -178,7 +178,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     seed({ students: [{ ...sharerRow, phone: PHONE }], bindings: [binding(SHARER)] });
     const { words } = await cardWords();
     await Open.note(PHONE, words);
-    const out = await Join.join({ t: (await landing()).t, grade: 2, name: 'Ali', device: DEVICE });
+    const out = await Join.join({ t: (await landing()).t, grade: 2, name: 'Ali Testwala', device: DEVICE });
     expect(out.next).toBeTruthy();
     expect(await friends()).toEqual({});
     expect(events('share_joined')).toEqual([]);
@@ -187,7 +187,7 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     seed({ students: [sharerRow] });
     const { words } = await cardWords();
     await Open.note(PHONE, words);
-    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     expect(await friends()).toEqual({ friends_joined: { n: 1 } });
     const now = Date.now();
     jest.spyOn(Date, 'now').mockReturnValue(now + 24 * 3600 * 1000);
@@ -195,9 +195,41 @@ describe('a friend joins from a shared card: the sharer hears it', () => {
     // a friend on the new day (another phone, the same card): today's count is 1 again
     const PHONE2 = fixturePhone(723);
     await Open.note(PHONE2, words);
-    await Join.join({ t: (await landing(UNKNOWN_USER, PHONE2)).t, grade: 2, name: 'Ali', device: OTHER_DEVICE });
+    await Join.join({ t: (await landing(UNKNOWN_USER, PHONE2)).t, grade: 2, name: 'Ali Testwala', device: OTHER_DEVICE });
     expect(await friends()).toEqual({ friends_joined: { n: 1 } });
     expect(events('share_joined')).toEqual([{ count: 1 }, { count: 1 }]);
+  });
+});
+
+describe('the day edge and the flip back', () => {
+  test('18:59Z and 19:01Z are two days in Pakistan: the second day\'s home counts 1, not 2', async () => {
+    seed({ students: [sharerRow] });
+    const edge = new Date(); edge.setUTCDate(edge.getUTCDate() - 1); edge.setUTCHours(18, 59, 0, 0);
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(edge.getTime());
+    const { words } = await cardWords();
+    await Open.note(PHONE, words);
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara Testwala', device: DEVICE });
+    expect(await Open.friendsOf(SHARER)).toEqual({ n: 1 });
+    clock.mockReturnValue(edge.getTime() + 2 * 60 * 1000);
+    const PHONE2 = fixturePhone(725);
+    await Open.note(PHONE2, words);
+    await Join.join({ t: (await landing(UNKNOWN_USER, PHONE2)).t, grade: 2, name: 'Ali Testwala', device: OTHER_DEVICE });
+    expect(await Open.friendsOf(SHARER)).toEqual({ n: 1 });
+    expect(events('share_joined')).toEqual([{ count: 1 }, { count: 1 }]);
+  });
+  test('flipped back OFF after a card went out: a friend joining from its words counts nothing', async () => {
+    seed({ students: [sharerRow] });
+    const { words } = await cardWords();
+    expect(words).toMatch(/^quiz please jb3b9c1e2a[0-9a-f]{8}$/);
+    // the switch goes off (the card's words, with their id, are already out in the world)
+    fake.db.app_settings.splice(fake.db.app_settings.findIndex((r) => r.key === 'web_quiz_share_joined'), 1);
+    Card._reset();
+    await Open.note(PHONE, words);
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara Testwala', device: DEVICE });
+    expect([...redis.__keys.keys()].filter((k) => /wq:share:joined/.test(k))).toEqual([]);
+    expect(await Open.friendsOf(SHARER)).toBeNull();
+    expect(await friends()).toEqual({});
+    expect(events('share_joined')).toEqual([]);
   });
 });
 
@@ -235,7 +267,7 @@ describe('switch off (web_quiz_share_joined absent): today\'s one share, byte fo
     expect(words).toBe('quiz please jb3b9c1e2a');
     expect(Object.keys(m).sort()).toEqual(['img', 'item', 'plain', 'ret', 'token', 'url', 'v4']);
     await Open.note(PHONE, words);
-    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: DEVICE });
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara Testwala', device: DEVICE });
     expect([...redis.__keys.keys()].filter((k) => /wq:share:(card|joined)/.test(k))).toEqual([]);
     expect(await friends()).toEqual({});
     expect(events('share_joined')).toEqual([]);
@@ -256,8 +288,8 @@ describe('the count reaches only the sharer\'s own phone, through the real home 
     seed({ home: true });
     // the sharer joins on their own phone (that phone may name them), then shares a storybook card
     const n = await GoNonce.mint({ phoneNorm: SHARER_PHONE, userId: UNKNOWN_USER.id });
-    await Join.join({ t: Join.signJoin({ n, lang: 'en' }), grade: 3, name: 'Noor', device: DEVICE });
-    const sharerId = String(fake.db.students.find((x) => x.student_name === 'Noor').id);
+    await Join.join({ t: Join.signJoin({ n, lang: 'en' }), grade: 3, name: 'Noor Testwala', device: DEVICE });
+    const sharerId = String(fake.db.students.find((x) => x.student_name === 'Noor Testwala').id);
     // the sharer opened their own home on that phone (the hub trusts the phone with them)
     await require('../../../shared/services/quiz/web-quiz-hub-device').rememberKids([sharerId], DEVICE);
     const ct = T.signChallenge({ studentId: sharerId, ex: 'read', runId: 'run-h' });
@@ -265,7 +297,7 @@ describe('the count reaches only the sharer\'s own phone, through the real home 
     const words = (await Card.landing(m.token)).ret.words;
     // a friend joins from those words on another phone
     await Open.note(PHONE, words);
-    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara', device: OTHER_DEVICE });
+    await Join.join({ t: (await landing()).t, grade: 3, name: 'Sara Testwala', device: OTHER_DEVICE });
     return sharerId;
   }
   const home = (chosenId, device) => HubHome().homeField({ out: { lang: 'en', kids: [], book_on: false }, chosenId, history: [], device, src: 'quiz' });
