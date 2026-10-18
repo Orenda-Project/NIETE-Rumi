@@ -335,8 +335,12 @@ function markCss(f, rtl) {
   if (!m) return '';
   return `.card{border-bottom-color:${m.c}}.name{color:${m.c}}.brand{color:${m.c}}
 .rib{position:absolute;top:0;${rtl ? 'right' : 'left'}:72px;padding:${rtl ? '6px 28px 14px' : '10px 28px 14px'};background:${m.c};color:#fff;font-weight:800;font-size:${rtl ? 30 : 32}px;line-height:${rtl ? 1.6 : 1};border-radius:0 0 18px 18px}
-`;
+${rtl ? INK_CSS : ''}`;
 }
+// Room for the ink on an Urdu card of the one share: Nastaliq at line-height 2, and the clipped name padded (the padding
+// given back as margin, so nothing moves) so a ک or گ keeps the stroke it throws past the start of its line.
+const INK_CSS = `.name{line-height:2;padding:.3em .4em;margin:-.3em -.4em}.deed,.st{line-height:2}.rib{line-height:2;padding:2px 28px 10px}
+`;
 function markHtml(f, lang) {
   const m = markOf(f);
   return m ? `<div class="rib">${esc(m[lang])}</div>` : '';
