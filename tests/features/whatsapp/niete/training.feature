@@ -1516,6 +1516,7 @@ Feature: NIETE (ICT) Teacher Training
     And a viewer the table does not know sees today's title
     And a class field that is not a grade number (a word, a name) never becomes the title: the child sees "Your class"
     And when the shared watch quiz's setting cannot be read, no "See my class" or "My class" opens onto it: the doors stay closed
+    And the shared watch quiz, and any code under it, has no class table: its board answers not found, on the page and the api; when its setting cannot be read it is read once more, and if it still cannot be read the board answers not found
     And the class table's and the league's share links carry the language of the page they were shared from
     But a link with no language, or with a language other than English or Urdu, opens in the quiz's language as today
     And with web_quiz_class_doors off every page, answer and link is exactly as it is today
