@@ -1,9 +1,9 @@
 'use strict';
 /**
  * bd-t7zk3t.12 (PR-D) — the leader routes of Reading Hour + Numeracy (FLN), contracts/api.md v2.
- * Mounted by `portal-fln.routes.js` (`router.use(require('./portal-fln-links.routes'))`, itself at /api/portal):
+ * Mounted from m-app's `portal-fln.routes.js` (itself at /api/portal) by ONE line the m-links manager adds after
+ * PR-C lands: `router.use(require('./portal-fln-links.routes'));`. `GET /fln/me` is m-app's (PR-C), not here.
  *
- *   GET /fln/me          {lessons, share, role, ui_lang} for the SESSION user (fln-access.flnAccess)
  *   GET /fln/links       the "Send a lesson plan" builder's rows — requireFln.share (404 for everyone else)
  *   GET /fln/title/:id   {title, lang, dir} for the signed-out sign-in banner; no sign-in, nothing else
  *
@@ -22,8 +22,6 @@ const SUBJECTS = new Set(['rh-en', 'rh-ur', 'num']);
 const HAS = new Set(['sounds', 'narration', 'additional', 'textbook', 'screener']);
 const SORTS = new Set(['order', 'used']);
 const Q_MAX = 100;
-
-const NOTHING = Object.freeze({ lessons: false, share: false, role: null, ui_lang: 'en' });
 
 function badRequest(res) { return res.status(400).json({ error: 'bad_request' }); }
 function unavailable(res) { return res.status(503).json({ error: 'fln_unavailable' }); }
@@ -131,7 +129,7 @@ function originOf(req, portalOrigin) {
 /**
  * @param {object} [deps]
  * @param {object} [deps.corpus]  the fln-corpus service (catalogue, plan, isHidden); default required on first use
- * @param {object} [deps.access]  fln-access (flnAccess, requireFln, requirePortalAuth, noStore)
+ * @param {object} [deps.access]  fln-access (requireFln, noStore)
  * @param {() => string|null} [deps.portalOrigin]  the portal's public origin; default PORTAL_URL (branding)
  */
 function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = portalUrl } = {}) {
@@ -139,17 +137,6 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
   let svc = corpus || null;
   // eslint-disable-next-line global-require
   const getCorpus = () => { if (!svc) svc = require('../services/fln-corpus.service'); return svc; };
-
-  router.get('/fln/me', acc.noStore, acc.requirePortalAuth, async (req, res) => {
-    let me;
-    try { me = await acc.flnAccess(req.session.portalUserId); } catch (_) { me = NOTHING; }
-    return res.json({
-      lessons: me.lessons === true,
-      share: me.share === true,
-      role: typeof me.role === 'string' ? me.role : null,
-      ui_lang: me.ui_lang === 'ur' ? 'ur' : 'en',
-    });
-  });
 
   router.get('/fln/links', ...acc.requireFln.share, async (req, res) => {
     const p = parseLinksQuery(req.query || {});
@@ -196,6 +183,9 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
       return unavailable(res);
     }
   });
+
+  // PR-E: GET /fln/teachers and POST /fln/send live in their own file, `portal-fln-send.routes.js` (the manager mounts
+  // it beside this one); nothing for them goes in this router.
 
   return router;
 }

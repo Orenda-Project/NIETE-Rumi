@@ -61,18 +61,16 @@ async function get(p, user) {
 }
 
 d('with the real fln-access', () => {
-  it('a coach with share on reaches /links; /me says share:true', async () => {
-    expect((await get('/me', 'u-coach')).body).toEqual({ lessons: true, share: true, role: 'coach', ui_lang: 'ur' });
+  it('a coach with share on reaches /links', async () => {
     const r = await get('/links?grade=1&subject=rh-en', 'u-coach');
     expect([r.status, r.cache, r.body.rows[0].url]).toEqual([200, 'no-store', 'https://portal.example.test/portal/fln/p/5']);
   });
-  it('a teacher on the share list is still not a leader: share:false, 404 on /links', async () => {
-    expect((await get('/me', 'u-teacher')).body.share).toBe(false);
+  it('a teacher on the share list is still not a leader: 404 on /links', async () => {
     const r = await get('/links?grade=1&subject=rh-en', 'u-teacher');
     expect([r.status, r.cache]).toEqual([404, 'no-store']);
   });
-  it('signed out: 401 no-store on /links and /me', async () => {
-    for (const p of ['/links?grade=1&subject=rh-en', '/me']) {
+  it('signed out: 401 no-store on /links', async () => {
+    for (const p of ['/links?grade=1&subject=rh-en']) {
       // eslint-disable-next-line no-await-in-loop
       const r = await get(p);
       expect([p, r.status, r.cache]).toEqual([p, 401, 'no-store']);

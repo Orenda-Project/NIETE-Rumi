@@ -20,7 +20,13 @@ export interface SharePlan {
 
 const SUBJECTS: ReadonlySet<string> = new Set(['rh-en', 'rh-ur', 'num']);
 
-/** The GET plan/:id body → what the sheets need; null when it is not a usable plan. */
+function minutesOf(m: unknown): number | null {
+  if (typeof m === "number") return m;
+  if (m && typeof m === "object" && typeof (m as { total?: unknown }).total === "number") return (m as { total: number }).total;
+  return null;
+}
+
+/** `{plan, placement}` (m-app's FlnPlanResponse, or this file's structural types) → what the sheets need; null when unusable. */
 export function sharePlanOf(data: unknown): SharePlan | null {
   const d = (data || {}) as { plan?: Record<string, unknown> | null; placement?: Array<Record<string, unknown>> };
   const p = d.plan;
@@ -39,7 +45,7 @@ export function sharePlanOf(data: unknown): SharePlan | null {
     level,
     pos: place && typeof place.pos === 'number' ? place.pos : null,
     count: place && typeof place.count === 'number' ? place.count : null,
-    minutes: typeof p.minutes === 'number' ? p.minutes : null,
+    minutes: minutesOf(p.minutes),
   };
 }
 
