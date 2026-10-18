@@ -30,6 +30,9 @@
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
       off: 'No internet. Try again when you are online.', offAgain: 'Try again',
       myClass: 'My class', mySchool: 'My school', social: 'My class and my school',
+      grade: 'Grade', gradeN: function (n) { return 'Grade ' + n; }, inClass: function (n) { return 'In class: Grade ' + n; },
+      gradeSaved: function (n) { return 'Saved. Home now shows Grade ' + n + '.'; }, gradeLater: 'Try again tomorrow.',
+      gradeSavedCls: function (n, c) { return 'Saved. Stories and videos now open at Grade ' + n + '. Class quizzes stay Grade ' + c + '.'; },
     },
     ur: {
       hi: function (n) { return n ? '⁨' + n + '⁩، السلام علیکم!' : 'السلام علیکم!'; },
@@ -50,6 +53,9 @@
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
       off: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', offAgain: 'دوبارہ کوشش کریں',
       myClass: 'میری کلاس', mySchool: 'میرا اسکول', social: 'میری کلاس اور میرا اسکول',
+      grade: 'جماعت', gradeN: function (n) { return 'جماعت ' + urDigits(n); }, inClass: function (n) { return 'اسکول میں: جماعت ' + urDigits(n); },
+      gradeSaved: function (n) { return 'محفوظ ہو گیا۔ اب ہوم پر جماعت ' + urDigits(n) + ' نظر آئے گی۔'; }, gradeLater: 'کل دوبارہ کوشش کریں۔',
+      gradeSavedCls: function (n, c) { return 'محفوظ ہو گیا۔ اب کہانیاں اور ویڈیوز جماعت ' + urDigits(n) + ' کی کھلیں گی۔ کلاس کے کوئز جماعت ' + urDigits(c) + ' کے رہیں گے۔'; },
     },
   };
   // The door icons (inline, one colour, currentColor): a book, a die, a play button.
@@ -123,6 +129,8 @@
   function headHtml(B, ctx) {
     var t = C(ctx); var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var hi = B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '');
+    // the look: «السلام علیکم!» never splits over two lines (a narrow phone breaks after the name instead)
+    if (lookOn()) hi = hi.replace('السلام علیکم', 'السلام\u00a0علیکم');
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
     return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48">' +
       '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + esc(hi) + '</button>' : esc(hi)) + dotsHtml(B, t) + '</span>' + jar +
@@ -504,7 +512,20 @@
     ['pointerdown', 'touchstart'].forEach(function (n) { el.addEventListener(n, start); });
     ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (n) { el.addEventListener(n, stop); });
   }
-  // Behind the hold: the language and, when the server names them, the teacher switch and the phone link's STOP.
+  // The sheet's Grade row (the server's `grownups.grade_on`, web_quiz_grade_change): a label and a value button that
+  // opens the Stories grade chips 1-5; `gr` = {now, cls} once the bot answered (until then a skeleton), `pick` = the chips
+  // are open, `said` = the line under them (saved / tomorrow).
+  function gradeRow(t, l, gr, pick, said) {
+    if (!gr) return '<span class="wq-glabel">' + esc(t.grade) + '</span><span class="wq-gskel" aria-hidden="true"></span>';
+    var chips = '';
+    if (pick) [1, 2, 3, 4, 5].forEach(function (n) { chips += '<button class="wqs-chip" data-tap="g" data-arg="' + n + '" aria-pressed="' + (n === gr.now) + '">' + (l === 'ur' ? urDigits(n) : n) + '</button>'; });
+    return '<span class="wq-glabel">' + esc(t.grade) + '</span>' +
+      '<button class="wq-btn wq-btn--secondary" type="button" data-tap="grade" aria-expanded="' + !!pick + '">' + esc(gr.now ? t.gradeN(gr.now) : t.grade) + ' ▾</button>' +
+      (pick ? '<div class="wqs-pick">' + chips + '</div>' : '') +
+      (gr.cls && gr.cls !== gr.now ? '<p class="wq-gcls">' + esc(t.inClass(gr.cls)) + '</p>' : '') +
+      (said ? '<p class="wq-gsaid" role="status">' + esc(said) + '</p>' : '');
+  }
+  // Behind the hold: the language and, when the server names them, the child's grade, the teacher switch and the phone link's STOP.
   function grownups(root, B, ctx) {
     var t = C(ctx); var other = langOf(ctx) === 'ur' ? 'en' : 'ur';
     var g = B.grownups || {};
@@ -512,6 +533,7 @@
     box.className = 'wq-gsheet'; box.setAttribute('role', 'dialog'); box.setAttribute('data-screen', 'grownups');
     box.innerHTML = '<b>' + esc(t.grown) + '</b>' +
       '<a class="wq-btn wq-go" data-primary data-tap="lang" href="' + esc(withLang('/h/' + encodeURIComponent(ctx.token || '') + '?kid=' + encodeURIComponent(B.kid || ''), other) + '&keep=1') + '">' + esc(t.grownLang) + '</a>' +
+      (g.grade_on === true ? '<div class="wq-ggrade" data-grade>' + gradeRow(t, langOf(ctx), null) + '</div>' : '') +
       (g.teacher_href ? '<a class="wq-btn wq-ghost" data-tap="teacher" href="' + esc(g.teacher_href) + '">' + esc(g.teacher_label || '') + '</a>' : '') +
       (g.stop_href ? '<a class="wq-btn wq-ghost" data-tap="stop" href="' + esc(g.stop_href) + '">' + esc(g.stop_label || '') + '</a>' : '') +
       // the phone that made this child's link (the boot's `forget_phone`, the link's whole life): one tap forgets it
@@ -544,10 +566,44 @@
         .then(function (j) { if (!j || !j.ok) throw new Error('forget'); location.reload(); })
         .catch(function () { fg.disabled = false; });
     });
+    // The grade is asked when the sheet opens (GET /api/wq/hub/grade; a skeleton until it answers; no answer: no row).
+    // A chip tap saves it for good (POST); the saved line shows for 2 s, and Close redraws Home.
+    var saved = false;
+    var row = g.grade_on === true ? box.querySelector('[data-grade]') : null;
+    if (row) {
+      var gr = null; var pick = false; var said = ''; var saidT = null; var busy = false;
+      var draw = function () { row.innerHTML = gradeRow(t, langOf(ctx), gr, pick, said); };
+      var say = function (line, ms) { said = line; clearTimeout(saidT); draw(); if (ms) saidT = setTimeout(function () { said = ''; draw(); }, ms); };
+      draw();
+      fetch('/api/wq/hub/grade?hub=' + encodeURIComponent(ctx.token || '') + '&kid=' + encodeURIComponent(B.kid || ''), { headers: { accept: 'application/json' } })
+        .then(function (r) { if (r.status !== 200) throw new Error('grade'); return r.json(); })
+        .then(function (j) { gr = { now: +(j && j.now) || null, cls: +(j && j.cls) || null }; draw(); })
+        .catch(function () { row.innerHTML = ''; row.hidden = true; });
+      row.addEventListener('click', function (e) {
+        var b = e && e.target && e.target.closest ? e.target.closest('[data-tap]') : null;
+        var tap = b && gr ? b.getAttribute('data-tap') : null;
+        if (tap === 'grade') { pick = !pick; said = ''; return draw(); }
+        var n = tap === 'g' ? +b.getAttribute('data-arg') : 0;
+        if (!n || n === gr.now || busy) return;
+        busy = true;
+        fetch('/api/wq/hub/grade', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify({ hub: ctx.token, kid: B.kid, grade: n }) })
+          .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+          .then(function (a) {
+            busy = false;
+            if (a.s === 429) { pick = false; return say(t.gradeLater); }
+            if (!a.j || !a.j.ok) throw new Error('grade');
+            gr.now = n; saved = true; pick = false;
+            // a class child: Stories and Videos open at the new grade, class quizzes stay at the class's
+            say(gr.cls && gr.cls !== n ? t.gradeSavedCls(n, gr.cls) : t.gradeSaved(n), 2000);
+          })
+          .catch(function () { busy = false; });
+      });
+    }
     var c = box.querySelector('[data-tap="close"]');
     if (c) c.addEventListener('click', function () {
       behind.forEach(function (n) { n.removeAttribute('inert'); n.removeAttribute('aria-hidden'); });
       if (box.parentNode) box.parentNode.removeChild(box);
+      if (saved) location.reload();
     });
   }
   // The jar opens Jugnu's Book (wq-book.js); Back returns to the home.

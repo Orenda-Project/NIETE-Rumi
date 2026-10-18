@@ -3,6 +3,7 @@ import type { ChipData, HistoryGroup } from '../ui';
 import { LESSONS_V2_COPY, type LessonsCopy } from './copy';
 import { dayName, pkDayOf, pkToday } from './days';
 import { openUrl } from './paths';
+import { flnPlanPath } from '../../fln/lib/flnPath';
 
 /**
  * bd-fmf24g.3 — Recent Lesson Plans on the main page: her recent plans (lib/recentLessonPlans) as the
@@ -32,7 +33,7 @@ export function recentGroups(plans: RecentLessonPlan[], today: string = pkToday(
       title: p.title || C.planFallback,
       extra: p.dayLabel ?? p.chapterTitle ?? undefined,
       chip: chipFor(p, C),
-      to: openUrl(o.lane === 'k5'
+      to: o.lane === 'fln' ? flnPlanPath(o.planId) : openUrl(o.lane === 'k5'
         ? { plan: `k5:${o.lessonId}`, title: p.title, grade: p.grade }
         : { plan: `g612:${o.segmentId}`, lang: o.lang, title: p.title, grade: p.grade }),
     });

@@ -171,8 +171,8 @@ body{width:${W}px;height:${H}px;overflow:hidden;background:#222}
 .chip{display:inline-flex;align-items:center;gap:10px;background:#fff;color:var(--edge);font-weight:800;font-size:20px;letter-spacing:${ur ? 0 : '.06em'};text-transform:uppercase;padding:${ur ? '13px 18px 12px' : '9px 18px'};border-radius:999px;box-shadow:0 4px 0 rgba(0,0,0,.18)}
 .chip svg{width:28px;height:28px;color:var(--c);flex:none}
 .mid{display:flex;flex-direction:column;gap:${ur ? 0 : 14}px}
-.deed{color:#fff;font-weight:800;font-size:${ur ? 36 : 40}px;line-height:1.1;padding-block:.06em .16em;text-shadow:0 3px 0 rgba(0,0,0,.22)}
-.dare{color:#ffe55c;font-weight:800;font-size:${ur ? 52 : 68}px;line-height:1.04;padding-block:.06em .18em;letter-spacing:-.01em;text-shadow:0 5px 0 var(--deep),0 0 30px rgba(0,0,0,.25)}
+.deed{color:#fff;font-weight:800;text-wrap:balance;font-size:${ur ? 36 : 40}px;line-height:1.1;padding-block:.06em .16em;text-shadow:0 3px 0 rgba(0,0,0,.22)}
+.dare{color:#ffe55c;font-weight:800;text-wrap:balance;font-size:${ur ? 52 : 68}px;line-height:1.04;padding-block:.06em .18em;letter-spacing:-.01em;text-shadow:0 5px 0 var(--deep),0 0 30px rgba(0,0,0,.25)}
 .ctarow{display:flex;align-items:center;gap:20px}
 .cta{display:inline-flex;align-items:center;gap:14px;background:var(--gold);color:var(--ink);font-weight:800;font-size:34px;line-height:1;padding:${ur ? '12px 30px 14px 18px' : '16px 32px 16px 18px'};border-radius:999px;box-shadow:0 7px 0 var(--gold-d),0 12px 24px rgba(0,0,0,.25);border:4px solid #fff3b8}
 .cta svg{width:48px;height:48px;color:var(--ink);flex:none}

@@ -106,3 +106,42 @@ describe('the shared link\'s page', () => {
     expect(botCalls(/\/card\/[^/.]+$/)).toBe(1);
   });
 });
+
+describe('how long the edge took, on the answer itself (Server-Timing)', () => {
+  test('the picture and the page say where they came from and how long it took; off: no header', async () => {
+    store.set(keyOf('png'), { bytes: PNG, contentType: 'image/png' });
+    store.set(keyOf('json'), { bytes: Buffer.from(JSON.stringify(FACTS)), contentType: 'application/json' });
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    expect((await req(srv, `/wq/card/${TOK}.png`, { ua: WA })).headers['server-timing']).toMatch(/^card;desc="store";dur=\d+$/);
+    expect((await req(srv, `/wq/card/${TOK}.png`, { ua: WA })).headers['server-timing']).toMatch(/^card;desc="edge";dur=\d+$/);
+    expect((await req(srv, `/k/${TOK}`, { ua: WA })).headers['server-timing']).toMatch(/^card;desc="store";dur=\d+$/);
+    expect((await req(srv, `/k/${TOK}`, { ua: WA })).headers['server-timing']).toMatch(/^card;desc="edge";dur=\d+$/);
+    console.log.mockRestore();
+  });
+  test('the switch off: no Server-Timing on the picture or the page', async () => {
+    ready = false;
+    expect((await req(srv, `/wq/card/${TOK}.png`, { ua: WA })).headers['server-timing']).toBeUndefined();
+    expect((await req(srv, `/k/${TOK}`, { ua: WA })).headers['server-timing']).toBeUndefined();
+  });
+});
+
+describe('the switch read never makes a visitor wait', () => {
+  test('read once when the edge starts; a slow re-read answers from the last value', async () => {
+    srv.close();
+    let reads = 0; let release;
+    const slow = () => { reads += 1; return reads === 1 ? Promise.resolve(true) : new Promise((r) => { release = () => r(true); }); };
+    store.set(keyOf('json'), { bytes: Buffer.from(JSON.stringify(FACTS)), contentType: 'application/json' });
+    const app = express();
+    app.set('trust proxy', true);
+    app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: () => {}, fetchImpl: async (url) => answer(url), storyEnv: 'sandbox', cardReadyOn: slow, cardObject: async (key) => store.get(key) || null }));
+    await new Promise((r) => { srv = app.listen(0, r); });
+    expect(reads).toBe(1);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    const r = await Promise.race([req(srv, `/k/${TOK}`, { ua: WA }), new Promise((res) => setTimeout(() => res('waited'), 1500))]);
+    console.log.mockRestore();
+    expect(r).not.toBe('waited');
+    expect(r.status).toBe(200);
+    expect(botCalls(/\/card\//)).toBe(0);
+    if (release) release();
+  });
+});

@@ -631,7 +631,8 @@ function refused(key, lang, batch) {
   const plan = OneVoice.forQuiz(clipPlan(), null, lang);   // a language the plan leaves out: today's recorder
   if (!plan) return false;
   const long = LONG_KEY.exec(String(key || ''));
-  if (!long && batch) return false;
+  // the storybook-voice switch alone (one voice off): a short line is recorded on the fly, as today's voice's lines are
+  if (!long && (batch || !OneVoice.currentPlan())) return false;
   if (!clipRefused.has(key)) {
     clipRefused.add(key);
     const m = long ? [null, long[1], 'story'] : PART_OF_KEY.exec(String(key || '')) || [null, null, null];
@@ -704,6 +705,11 @@ async function storyClip(lang, drawnText = null) {
 /** Story Time read-along: a story read aloud in the quiz voice (the listening story's scheme, exercise 'read'). */
 function readAlongClip(lang, text) {
   return text ? clipUrl(clipKey('read', 'story', lang, text), text, lang) : null;
+}
+
+/** Jugnu's own lines of every exercise in `lang` ({ ex, part, text }: intro, start, stop, done), for the pre-flip check. */
+function exerciseLines(lang) {
+  return EXERCISES.flatMap((e) => PARTS.map((part) => ({ ex: e.id, part, text: lineOf(e.id, part, lang) }))).filter((l) => l.text);
 }
 
 async function clipsFor(ex, lang) {
@@ -2440,7 +2446,7 @@ module.exports = {
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   recordClip,      // the one-voice pre-flip recording of the short lines (scripts/quiz/one-voice-missing-keys.js)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
-  __reset, storyVoiceOn,
+  __reset, storyVoiceOn, exerciseLines,
 };
 // The passage's child-facing title {en, ur} | null: one home for the shelf and the stop's intro (RULING #100(a)(2)).
 module.exports.passageTitle = passageTitle;
