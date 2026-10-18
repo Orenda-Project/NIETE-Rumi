@@ -278,6 +278,7 @@
   var wired = false;
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
+    markFailed = Boolean(B.list_states);
     if (B.practice) ctx = practiceCtx(ctx);
     if (B.offline_guard === true) offGuard(ctx);
     hashOnce(root, B, ctx);
@@ -322,7 +323,8 @@
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
     else if (B.stories && B.stories.on && !window.WQSTORIES && (sh || /^story\//.test(name))) loadOnce('wq-stories');
     if (name === 'book' && B.head && B.head.jar) book(root, B, ctx);
-    if (!window.WQDOORS) loadOnce('wq-doors', function () { var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
+    // the doors ask for their rows as they load (web_quiz_list_states), so a door tap paints its whole list at once
+    if (!window.WQDOORS) loadOnce('wq-doors', function () { if (window.WQDOORS && typeof window.WQDOORS.warm === 'function') window.WQDOORS.warm(B, ctx); var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   // An empty hash (the reader's way home) reads as '' — home again; a door or #watch/<video id> draws its screen;
@@ -512,7 +514,9 @@
     loadOnce('wq-book', open, 'wq-bk-js');
   }
   // /wq/<name>.css + .js at hub.js's own ?v=, at most once per page.
+  // `list_states`: a script that failed is marked (data-failed), so a screen that comes after the error can tell
   var asked = {};
+  var markFailed = false;
   function loadOnce(name, onload, id) {
     if (asked[name]) return;
     asked[name] = true;
@@ -521,7 +525,9 @@
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
       var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l);
-      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload); document.head.appendChild(s);
+      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload);
+      if (markFailed) s.addEventListener('error', function () { s.setAttribute('data-failed', '1'); });
+      document.head.appendChild(s);
     } catch (e) {}
   }
 

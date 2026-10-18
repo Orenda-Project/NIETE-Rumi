@@ -207,7 +207,9 @@ describe('(e) the put-back: spares sized to the gap, one more A-only top-up, and
     q.question = '«بہت زیادہ غصے میں آ جانا» کے لیے کون سا محاورہ درست ہے؟ اس کا مطلب کیا ہے؟';
     const after = lay(exam, true);
     expect(q1Stems(after.examJson)).not.toContain(q.question);
-    expect(after.putBack).toBeUndefined();
+    // Q1's put-back only (this recorded paper's Q4 ارکان item, keyed «کر – کَ – را» and accepting
+    // «کر – کرا», is put back for its own place).
+    expect((after.putBack || []).filter((x) => x.slot === 'urdu.A.Q1')).toEqual([]);
   });
 
   test('a spelling item keyed on a function word in its stem\'s own frame stays («درج ذیل میں سے …» → میں)', () => {
