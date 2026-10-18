@@ -555,7 +555,9 @@ async function hub(token, opts = {}) {
   const listen = !out.locked && f.readalong;
   // The child home's files in the edge's early head (web_quiz_home_preload, in the same batched read): named on every
   // answer, a locked one too, so the edge follows a flip on its next page. Off: no key, the hub JSON is today's.
-  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.homePreload ? { home_pre: true } : {}) };
+  // The home's scripts and styles as one file each (web_quiz_pack, the same read): `pack: true`, else no key.
+  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}), ...(f.homePreload ? { home_pre: true } : {}),
+    ...(f.pack ? { pack: true } : {}) };
 }
 
 module.exports = {

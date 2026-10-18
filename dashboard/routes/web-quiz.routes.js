@@ -13,6 +13,7 @@
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
+ *   GET  /wq/pack/<set>.js|.css  the child home's scripts / styles as one file each (web_quiz_pack, web-quiz-pack.js)
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
  *
  * The edge never touches the database. It checks shape and size, applies the rate
@@ -31,12 +32,15 @@ const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
 const HomePre = require('./web-quiz-home-preload');
+const Pack = require('./web-quiz-pack');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
 const Stream = require('./web-quiz-stream');
 const WaitUx = require('./web-quiz-wait-ux');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
+// The child home's pack (web_quiz_pack): its versions and bodies over this folder's files, kept for the process.
+const PACK = Pack.createPack({ dir: PUBLIC_DIR });
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
@@ -542,9 +546,12 @@ function hubPageParts({ payload, token, origin, assetV }) {
   // The home's own tags (one string, so the head's preloads name the tail's addresses: web-quiz-home-preload.js). A bot
   // answer (it has `kids`) teaches the next early head what to preload (web_quiz_home_preload); the early head's guess
   // (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
-  const tags = `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`;
+  // With the pack (web_quiz_pack, web-quiz-pack.js) the home's files are ONE stylesheet and ONE script, wq-tel inside.
+  const packed = Pack.on(payload);
+  const tags = packed ? `${PACK.tags(payload, assetV)}${payload.home_fb ? homeTags(payload, assetV) : ''}`
+    : `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}`;
   const answer = Boolean(payload && Array.isArray(payload.kids));
-  if (answer) HomePre.learn(payload, tags, assetV);
+  if (answer) HomePre.learn(payload, packed ? (payload.home_fb ? homeTags(payload, assetV) : '') : tags, assetV);
   return {
     lang, dir: lang === 'ur' ? 'rtl' : 'ltr', ur2: ur2On(payload && payload.ui, lang), title: HUB_TITLE[lang], bootsay: HUB_BOOT[lang],
     head: `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}${answer ? '' : HomePre.head()}`,
@@ -552,8 +559,7 @@ function hubPageParts({ payload, token, origin, assetV }) {
     // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>${WaitUx.tag(payload)}`,
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
-<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${tags}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${packed ? '' : `<script src="/wq/wq-tel.js?v=${assetV}" defer></script>\n`}${tags}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };
@@ -570,9 +576,11 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false }) {
+// With the pack on (`pack`: the hrefs of the set this edge last linked, web_quiz_pack) the head preloads those two
+// files in wq-tel.js's place (wq-tel is inside the pack), at the tail tags' exact addresses; hub.js's preload stays.
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, pack = null }) {
   const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}) }, token, origin, assetV });
-  const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
+  const preload = [...(pack ? PACK.preloads(pack) : []), ...(pack ? ['hub.js'] : ['wq-tel.js', 'hub.js']).map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`)].join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
 
@@ -772,6 +780,9 @@ function createWebQuizRouter(opts = {}) {
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
+  // The pack the last hub answer linked (app_settings web_quiz_pack): its two hrefs, for the flushed head's preloads. A
+  // child's answer sets it, a locked one (the link on another phone) keeps it, an answer without `pack` clears it.
+  let lastPack = null;
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -968,7 +979,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, pack: lastPack })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
@@ -983,6 +994,8 @@ function createWebQuizRouter(opts = {}) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       lastUi = shellUi(out.body);
+      if (!Pack.on(out.body)) lastPack = null;
+      else if (!out.body.locked && out.body.kid) lastPack = PACK.hrefs(out.body);
       lastFast = out.body.fast === true;
       lastWaitUx = WaitUx.on(out.body);
       if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
@@ -1183,6 +1196,10 @@ function createWebQuizRouter(opts = {}) {
     return res.status(200).type('html').send(html.replace(/__JV__/g, challengeVersion('wq-juice.js')).replace(/__CV__/g, challengeVersion('wq-juice.css')));
   });
 
+  // The child home's pack (web-quiz-pack.js): a fixed list of names, else 404; immutable at its own ?v=; br with web_quiz_brotli.
+  const packFile = PACK.handler({ brotliOn: opts.brotliOn || require('./web-quiz-brotli-flag').brotliOn });
+  router.get('/wq/pack/:name', packFile);
+  router.packReady = packFile.brReady;
   router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
   // A missing file (a page cached before a deploy asking for a renamed one) is the static server's own 404 or 400,
   // answered here: the portal's last-resort handler would call it a 500 and the error monitors would count it.
