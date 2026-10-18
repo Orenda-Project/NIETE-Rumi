@@ -61,6 +61,13 @@ describe('light face on: every polished Urdu child page names -7 and nothing els
     const lite = /<style id="wq-fl">@font-face\{[^}]*unicode-range:([^;}]+)/.exec(on.quiz)[1];
     expect(lite).toBe(six);
   });
+
+  it('the full face stands right behind the light one: a character the light cut ever lacks falls back to -6, never a box', () => {
+    const fu = /html\.wq-fl\.wq-ur2\[lang=ur\]\{--fu:([^;}]+)/.exec(on.quiz)[1];
+    const ur2 = /html\.wq-ur2\[lang=ur\]\{--fu:([^;}]+)/.exec(CSS)[1];
+    expect(fu).toBe(`"WQ Nastaliq 2L",${ur2}`);
+    expect(fu.split(',').slice(0, 2)).toEqual(['"WQ Nastaliq 2L"', '"WQ Nastaliq 2"']);
+  });
 });
 
 describe('light face off: today\'s pages, byte for byte', () => {

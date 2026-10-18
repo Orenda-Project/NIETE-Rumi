@@ -295,7 +295,7 @@ const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 const URDU_FONT_LITE = '/wq/fonts/wq-nastaliq-7.woff2';
 const flOn = (ui, lang) => Boolean(ur2On(ui, lang) && ui.fl === true);
 const FACE_LITE_STYLE = `<style id="wq-fl">@font-face{font-family:"WQ Nastaliq 2L";src:url(${URDU_FONT_LITE}) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021}
-html.wq-fl.wq-ur2[lang=ur]{--fu:"WQ Nastaliq 2L","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}</style>`;
+html.wq-fl.wq-ur2[lang=ur]{--fu:"WQ Nastaliq 2L","WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}</style>`;
 
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
 function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg' }) {
