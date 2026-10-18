@@ -7,7 +7,7 @@
 import { Fragment, type ReactNode } from 'react';
 
 /** Runs of Latin letters/digits joined by spaces or light punctuation: "SLO", "1 – 12", "c/k", "24/48", "Grade 1". */
-const RUN = /[A-Za-z0-9]+(?:[ .,:'’/+\-–()%]+[A-Za-z0-9]+)*%?/g;
+const RUN = /[A-Za-z0-9]+(?:[ .,:'’/+\-–()%]+[A-Za-z0-9]+)*[%+]?/g;
 
 export function bdiRuns(text: string, rtl: boolean): ReactNode {
   if (!rtl || !text) return text;

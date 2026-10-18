@@ -23,7 +23,7 @@ export const LESSONS_HOME = '/portal/teacher/lessons';
 
 type GateState =
   | { k: 'loading' }
-  | { k: 'off' }
+  | { k: 'off'; lang?: FlnLang }
   | { k: 'error' }
   | { k: 'ok'; me: FlnMe };
 
@@ -68,7 +68,7 @@ export function FlnGate({ children }: { children: ReactNode }) {
     flnApi.me().then(
       (me) => {
         if (!live) return;
-        setState(me && me.lessons ? { k: 'ok', me } : { k: 'off' });
+        setState(me && me.lessons ? { k: 'ok', me } : { k: 'off', lang: me?.ui_lang === 'ur' ? 'ur' : me?.ui_lang === 'en' ? 'en' : undefined });
       },
       (err) => {
         if (!live) return;
@@ -94,8 +94,9 @@ export function FlnGate({ children }: { children: ReactNode }) {
       </Root>
     );
   }
+  const lang: FlnLang = (state.k === 'off' && state.lang) || appLang;
   return (
-    <Root lang={appLang}>
+    <Root lang={lang}>
       {state.k === 'loading' && (
         <div className="fln-page" data-fln-skeleton="gate" aria-busy="true">
           <span className="fln-sr">{flnStrings(appLang).errors.loading}</span>
@@ -104,8 +105,8 @@ export function FlnGate({ children }: { children: ReactNode }) {
           <div className="fln-skel fln-skel-block" />
         </div>
       )}
-      {state.k === 'off' && <FlnNotAvailable lang={appLang} />}
-      {state.k === 'error' && <FlnUnavailable lang={appLang} onRetry={retry} />}
+      {state.k === 'off' && <FlnNotAvailable lang={lang} />}
+      {state.k === 'error' && <FlnUnavailable lang={lang} onRetry={retry} />}
     </Root>
   );
 }
