@@ -252,6 +252,23 @@ describe('the board (loaded through Supabase)', () => {
     expect(b.rows.find((r) => r.name === 'School Bravo')).toEqual(expect.objectContaining({ points: 15 + 15 + 18 + 20, kids: 4 }));
   });
 
+  // app_settings web_quiz_class_doors (default OFF): the league tells the page to draw its fixed play button and sector chip.
+  test('the class-doors switch on: class_doors on the league; off, absent or the string "true": the board is today\'s', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    CD._resetCache();
+    const before = await S.board('ALPHA1', { now: NOW });
+    expect(before).not.toHaveProperty('class_doors');
+    for (const value of [false, 'true']) {
+      S._reset(); CD._resetCache();
+      fake.db.app_settings = [{ key: 'web_quiz_class_doors', value }];
+      expect(await S.board('ALPHA1', { now: NOW })).toEqual(before);
+    }
+    S._reset(); CD._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    expect(await S.board('ALPHA1', { now: NOW })).toEqual({ ...before, class_doors: true });
+    CD._resetCache();
+  });
+
   test("a test teacher's quizzes do not count", async () => {
     fake.db.users.find((u) => u.id === T2).is_test_user = true;
     const b = await S.board('ALPHA1', { now: NOW });
