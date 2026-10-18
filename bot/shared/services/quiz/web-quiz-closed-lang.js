@@ -71,6 +71,14 @@ function carry(answerP) {
 }
 
 /**
+ * The hub's answer: the same field, from the hub's one switch read (web-quiz-hub-flags.js carries this key), so a
+ * child's home makes no settings read of its own for it. The hub's flags() has run by the time its answer resolves.
+ */
+function carryHub(answerP) {
+  return Promise.resolve(answerP).then((out) => (out && typeof out === 'object' && !Array.isArray(out) && require('./web-quiz-hub-flags').closedLangNow() ? Object.assign(out, { [FIELD]: true }) : out));
+}
+
+/**
  * The language of the children a genuine home link names, expired or not; null for a forged or garbled link, or when
  * nothing can be read (the edge then keeps today's language). The same rule as the hub's locked page (web-quiz-hub.js
  * lockedHub): no name, chip or quiz is read out, only the language.
@@ -107,4 +115,4 @@ function closedHub(answerP, token) {
   });
 }
 
-module.exports = { on, flag, carry, hubLang, closedHub, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };
+module.exports = { on, flag, carry, carryHub, hubLang, closedHub, KEY, FIELD, TTL_MS, _reset: () => { cache = null; reading = null; } };

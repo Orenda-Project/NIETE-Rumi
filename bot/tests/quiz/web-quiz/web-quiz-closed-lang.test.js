@@ -35,6 +35,8 @@ function seed() {
           return { data: rows.find((r) => r.key === st.key) || null, error: null };
         },
         then(res, rej) {
+          // the hub's one switch read (.in(KEYS)) fails with this key's own read
+          if (fail && t === 'app_settings' && !st.key) return Promise.resolve({ data: null, error: { message: 'down' } }).then(res, rej);
           if (t === 'students') reads.push('students');
           const out = t === 'students' ? (studentsFail ? { data: null, error: { message: 'down' } } : { data: students, error: null })
             : { data: t === 'app_settings' ? rows.filter((r) => !st.key || r.key === st.key) : [], error: null };
@@ -65,6 +67,8 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+// the hub's one switch read (it carries this key); the stood-in hub does not make it, so the tests do, as the hub would
+const hubFlags = () => require('../../../shared/services/quiz/web-quiz-hub-flags');
 const nowS = () => Math.floor(Date.now() / 1000);
 const expired = (extra = {}) => T.sign({ k: 'h', ids: [KID], ...extra, exp: nowS() - 3600 });
 const forged = () => { const t = expired(); return `${t.slice(0, -4)}AAAA`; };
@@ -146,6 +150,7 @@ describe('the routes', () => {
   test('on: the quiz and hub answers say closed_lang: true, and nothing else changes', async () => {
     rows = [{ key: KEY, value: true }];
     await Closed.flag();
+    await hubFlags().flags();
     await serve(async (ask) => {
       const out = await ask();
       expect(JSON.parse(out.quiz).closed_lang).toBe(true);
@@ -154,9 +159,22 @@ describe('the routes', () => {
     });
   });
 
+  test('the home takes the switch from the hub\'s one settings read (it carries this key): no read of its own', async () => {
+    rows = [{ key: KEY, value: true }];
+    expect(hubFlags().KEYS).toContain(KEY);
+    await hubFlags().flags();
+    reads = [];
+    await serve(async (ask) => {
+      expect((await ask()).hub).toBe(`200 ${JSON.stringify({ ...HUB, closed_lang: true })}`);
+    });
+    // the quiz page's own carry reads this key once (its cache was cold); the home adds none
+    expect(reads.filter((k) => k === KEY)).toHaveLength(1);
+  });
+
   test('on: a genuine expired home link\'s 401 carries the children\'s language', async () => {
     rows = [{ key: KEY, value: true }];
     await Closed.flag();
+    await hubFlags().flags();
     await serve(async (ask) => {
       expect((await ask(expired())).hub).toBe('401 {"error":"bad_token","lang":"ur"}');
     }, { hubFails: true });
@@ -165,6 +183,7 @@ describe('the routes', () => {
   test('on: a forged home link\'s 401 is today\'s (no language), and no child is read', async () => {
     rows = [{ key: KEY, value: true }];
     await Closed.flag();
+    await hubFlags().flags();
     await serve(async (ask) => {
       expect((await ask(forged())).hub).toBe('401 {"error":"bad_token"}');
     }, { hubFails: true });
@@ -174,6 +193,7 @@ describe('the routes', () => {
   test.each([...OFF_VALUES, ['no row', undefined], ['a failed read', 'FAIL']])('%s: every answer, the 401 included, byte for byte today\'s', async (_n, value) => {
     if (value === 'FAIL') { rows = [{ key: KEY, value: true }]; fail = true; } else if (value !== undefined) rows = [{ key: KEY, value }];
     await Closed.flag();
+    await hubFlags().flags();
     await serve(async (ask) => {
       expect(await ask()).toEqual({ quiz: JSON.stringify(QUIZ), hub: `200 ${JSON.stringify(HUB)}` });
     });
