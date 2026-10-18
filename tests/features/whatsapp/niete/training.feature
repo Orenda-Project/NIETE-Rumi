@@ -1549,7 +1549,7 @@ Feature: NIETE (ICT) Teacher Training
     And with the adventure look on, the next visit shows one line over the table: moved up, the same place, or a lower place because more friends played
     And the Urdu lines use Urdu digits and words that are the same for every child
     But with web_quiz_class_doors off nothing is asked early and nothing is kept
-    And a class table that is not there (a friend's challenge code, the shared watch quiz) says "This one has no class table" with Play or My scores, never "no internet" and a retry
+    And a class table that is not there (a friend's challenge code, the shared watch quiz) says "This table opens for a class quiz" with Home for a child on the page or Play for a visitor, never "no internet" and a retry
     # wq.js warmBoard/boardGet/moveLine; T.movedUp/movedNow/samePlace. unit: dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
   @api @quiz @web @wip @draft @P2 @T104 @no-mock-driver
