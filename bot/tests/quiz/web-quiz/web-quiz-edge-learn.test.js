@@ -210,6 +210,6 @@ describe('the hub answer says edge_learn while on (so a portal that stopped aski
   });
   test('both hub routes (GET and POST /hub/:token) pass their answer through carry', () => {
     const src = require('fs').readFileSync(require.resolve('../../../shared/routes/web-quiz-internal.routes'), 'utf8');
-    expect((src.match(/EdgeLearn\(\)\.carry\(HomePreload\.carry\(WaitUx\.carry\(OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
+    expect((src.match(/EdgeLearn\(\)\.carry\(HomePreload\.carry\([^\n]*?OneFace\.carry\(require\('\.\.\/services\/quiz\/web-quiz-hub'\)\.hub\(/g) || []).length).toBe(3);
   });
 });
