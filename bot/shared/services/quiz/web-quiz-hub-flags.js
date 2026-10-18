@@ -223,6 +223,11 @@ function shareOpenNow(now = Date.now()) {
   return Boolean(cache && cache.shareOpen && now - cache.at < TTL_MS);
 }
 
+/** web_quiz_offline_guard, the same way: never waited for, never read on its own, off when the hub's cache is empty or expired. */
+function offlineGuardNow(now = Date.now()) {
+  return Boolean(cache && cache.offlineGuard && now - cache.at < TTL_MS);
+}
+
 /** web_quiz_plain_paint from the hub's own switch cache, never read here: off when the cache is empty or older than 2 TTLs. */
 function plainPaintNow(now = Date.now()) {
   return Boolean(cache && cache.plainPaint && now - cache.at < 2 * TTL_MS);
