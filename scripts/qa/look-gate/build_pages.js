@@ -5,8 +5,10 @@
  * grown-ups hold). `--on` adds the one-button switch's field (`one_button: true`) to every boot, exactly as the bot's
  * answers carry it when app_settings web_quiz_one_button is on; without it the boots are today's. `--adv` adds the
  * adventure look's field (`adv: true`, web_quiz_adventure_look) on top of `--on` (the look is drawn only with it).
+ * `--list-states` adds the hub's `list_states: 1` (web_quiz_list_states: a list still loading is a skeleton, never an
+ * empty note), on its own or with the others.
  *
- *   node build_pages.js <out_dir> [--on] [--adv]   → <out_dir>/pages/<name>-<lang>.html + manifest.json
+ *   node build_pages.js <out_dir> [--on] [--adv] [--list-states]   → <out_dir>/pages/<name>-<lang>.html + manifest.json
  *
  * Invented children only ("Sana Testwala"). Needs no network, no database.
  */
@@ -45,7 +47,8 @@ function main() {
   const out = path.resolve(process.argv[2] || path.join(__dirname, 'out'));
   const adv = process.argv.includes('--adv');
   const on = adv || process.argv.includes('--on');
-  const field = (p) => (on ? { ...p, one_button: true, ...(adv ? { adv: true } : {}) } : p);
+  const lists = process.argv.includes('--list-states');
+  const field = (p) => ({ ...(on ? { ...p, one_button: true, ...(adv ? { adv: true } : {}) } : p), ...(lists ? { list_states: 1 } : {}) });
   fs.mkdirSync(path.join(out, 'pages'), { recursive: true });
   const manifest = [];
   for (const lang of ['en', 'ur']) {

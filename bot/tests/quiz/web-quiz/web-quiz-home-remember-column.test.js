@@ -58,9 +58,10 @@ const USER = { id: 'u-new', registration_completed: false, registration_state: '
 
 let fake;
 let touched; // every column name / payload key the code sent to child_phone_bindings
-function seed({ column = true, home = true } = {}) {
+function seed({ column = true, home = true, shown = 'absent' } = {}) {
   const settings = { web_quiz_hub: true, web_quiz_identity_canon: true, web_quiz_phone_bind: true, quiz_student_join: true, quiz_one_door: true, web_quiz_home_v3: home };
   if (column !== 'absent') settings.web_quiz_remember_column = column;
+  if (shown !== 'absent') settings.web_quiz_remember_shown_row = shown;
   fake = makeFake({
     app_settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
     users: [USER], students: [], child_phone_bindings: [], child_identity: [], user_feature_first_use: [],
@@ -299,6 +300,240 @@ describe('the home render reads the binding rows once, and no setting twice', ()
     const off = await settingsReads('absent', 'join');
     expect(off.f).not.toHaveProperty('remember');
     expect(on.n).toBe(off.n);
+  });
+});
+
+describe('web_quiz_remember_shown_row: "shown" is kept on the row too, so a cache flush never draws the line twice', () => {
+  test('ON: the join URL reopened after a cache flush draws no second line; the row holds when it was shown', async () => {
+    seed({ shown: true });
+    const { kidId } = await joinNew();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect(rowOf(kidId).remember_shown_at).toEqual(expect.any(String));
+    flushCache();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'bind' })).toEqual({});
+    // the corner is untouched: "Forget this phone" still offered from the row
+    expect(await Remember().owns({ device: DEVICE, chosenId: kidId })).toBe(true);
+  });
+
+  test('ON: a row already marked shown wins over a cache note that says "not yet" (two tabs, one line)', async () => {
+    seed({ shown: true });
+    const { kidId } = await joinNew();
+    rowOf(kidId).remember_shown_at = new Date(Date.now() - 5000).toISOString();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
+  });
+
+  test('ON: the line\'s Undo still works after the row claimed it', async () => {
+    seed({ shown: true });
+    const { kidId } = await joinNew();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    const u = await Remember().undo({ device: DEVICE, lang: 'en' });
+    expect(u.ok).toBe(true);
+    expect(rowOf(kidId).revoked_by).toBe('page_undo');
+  });
+
+  test('ON: the row write failing keeps today\'s cache rule (the line shows once from the cache)', async () => {
+    seed({ shown: true });
+    const { kidId } = await joinNew();
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'child_phone_bindings') { const u = b.update; b.update = (row) => (row && 'remember_shown_at' in row ? { eq: () => ({ is: () => ({ is: () => ({ select: async () => ({ data: null, error: { message: 'column missing' } }) }) }) }) } : u.call(b, row)); }
+      return b;
+    };
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
+  });
+
+  test.each([['absent', 'absent'], ['false', false], ['"true"', 'true'], ['\'"true"\'', '"true"'], ['\' TRUE \'', ' TRUE '], ['"yes"', 'yes'], ['1', 1], ['{enabled:true}', { enabled: true }]])('OFF (%s): today\'s path — the row is never marked, and a flush draws it again as before', async (_l, value) => {
+    seed({ shown: value });
+    const { kidId } = await joinNew();
+    touched.length = 0;
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect(touched.join(',')).not.toContain('remember_shown_at');
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+    flushCache();
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+  });
+
+  test.each([['absent', 'absent'], ['false', false]])('column %s, shown ON: it acts only with the column on — no query names the column, and a flush draws the line again', async (_l, column) => {
+    seed({ column, shown: true });
+    const { kidId } = await joinNew();
+    touched.length = 0;
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    // the cache lost: the same join URL reopened writes the cache note again, and today's rule draws the line again
+    flushCache();
+    expect(await Remember().note({ device: DEVICE, bindingId: rowOf(kidId).id, canonicalId: kidId, userId: USER.id })).toBe(true);
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect(touched.join(',')).not.toContain('remember_shown_at');
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+  });
+
+  test('a failed read on the shown key\'s own row: the home and the shelf stay as they are, the column and shown are off, the line comes from the cache', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    let reads = 0;
+    const faulty = throwOn(supabase.from, 'web_quiz_remember_shown_row');
+    supabase.from = (t) => { if (t === 'app_settings') reads += 1; return faulty(t); };
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+    // one extra settings read, on the failure only (the home's own keys, read again alone); then the 30 s cache holds
+    expect(reads).toBe(2);
+    await HomeFlags.flags();
+    expect(reads).toBe(2);
+    const { kidId } = await joinNew();
+    touched.length = 0;
+    const home = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src: 'join' });
+    expect(home.home_v3).toBe(1);
+    expect(home.remember).toEqual({ s: 20 });
+    expect(touched.join(',')).not.toContain('remember_shown_at');
+    // the cache's rule, as with both extras off: a reload draws nothing; after a flush the same join URL reopened
+    // writes the cache note again and the line is drawn again
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({});
+    flushCache();
+    expect(await Remember().note({ device: DEVICE, bindingId: rowOf(kidId).id, canonicalId: kidId, userId: USER.id })).toBe(true);
+    expect(await Remember().field({ device: DEVICE, chosenId: kidId, src: 'join' })).toEqual({ remember: { s: 20 } });
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+  });
+
+  test('a failed read on the column key\'s own row: the home and the shelf stay on, the column and shown are off, and the answer is cached', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    let reads = 0;
+    const faulty = throwOn(supabase.from, 'web_quiz_remember_column');
+    supabase.from = (t) => { if (t === 'app_settings') reads += 1; return faulty(t); };
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+    // the home's own two keys are read again alone, once; the next call is served from the 30 s cache with no read
+    expect(reads).toBe(2);
+    const g = await HomeFlags.flags();
+    expect(reads).toBe(2);
+    expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+  });
+
+  test('the extras (column, shown, shelf, list) are listed as riders, and the read made again after a failure names none of them', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    expect(HomeFlags.RIDERS).toEqual([HomeFlags.COLUMN_KEY, HomeFlags.SHOWN_KEY, HomeFlags.SHELF_KEY, HomeFlags.LIST_KEY]);
+    for (const failing of HomeFlags.RIDERS) {
+      seed({ shown: true });
+      const lists = [];
+      const faulty = throwOn(supabase.from, failing);
+      supabase.from = (t) => {
+        const b = faulty(t);
+        if (t === 'app_settings') { const within = b.in; b.in = (col, vs) => { lists.push([].concat(vs)); return within.call(b, col, vs); }; }
+        return b;
+      };
+      HomeFlags._resetCache();
+      await HomeFlags.flags();
+      expect(lists).toHaveLength(2);
+      expect(lists[1].filter((k) => HomeFlags.RIDERS.includes(k))).toEqual([]);
+      expect(lists[1].sort()).toEqual([HomeFlags.KEY, HomeFlags.STORIES_KEY].sort());
+    }
+  });
+
+  test('the answer is kept 30 s only: the column flipped off after a read is off on the next read past the 30 s', async () => {
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    const t0 = 1800000000000;
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags(t0);
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: true, shown: true });
+    fake.db.app_settings.find((r) => r.key === 'web_quiz_remember_column').value = false;
+    const g = await HomeFlags.flags(t0 + 31000);
+    expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: true });
+  });
+
+  test.each([['web_quiz_remember_column'], ['web_quiz_remember_shown_row']])('a failed read on %s after a good one: the column and shown are off, never the earlier answer kept', async (failingKey) => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: true });
+    const t0 = 1800000000000;
+    const good = supabase.from;
+    const faulty = throwOn(good, failingKey);
+    let failing = false;
+    supabase.from = (t) => (failing ? faulty : good)(t);
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags(t0);
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: true, stories: true, column: true, shown: true });
+    failing = true;
+    const g = await HomeFlags.flags(t0 + 31000);
+    expect({ home: g.home, stories: g.stories, column: g.column, shown: g.shown }).toEqual({ home: true, stories: true, column: false, shown: false });
+  });
+
+  test.each([['web_quiz_remember_column'], ['web_quiz_remember_shown_row']])('a failed read on %s with the home and the shelf stored as the string "true": the read made again keeps them off', async (failingKey) => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ home: 'true', shown: true });
+    fake.db.app_settings.push({ key: 'web_quiz_stories', value: 'true' });
+    supabase.from = throwOn(supabase.from, failingKey);
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: false, stories: false, column: false, shown: false });
+  });
+
+  test('a failed read on the home switch itself still turns every switch off (fails closed, as today)', async () => {
+    const { throwOn } = require('../../helpers/switch-off-matrix');
+    seed({ shown: true });
+    supabase.from = throwOn(supabase.from, 'web_quiz_home_v3');
+    HomeFlags._resetCache();
+    const f = await HomeFlags.flags();
+    expect({ home: f.home, stories: f.stories, column: f.column, shown: f.shown }).toEqual({ home: false, stories: false, column: false, shown: false });
+  });
+
+  test('settings reads on the first home: OFF is the recorded count; ON adds no read; ON stays under the ceiling', async () => {
+    const OFF_READS = 3; // recorded on this head (home, hub and identity switches, each one read, cache cold)
+    const NAMED_ROWS = 0; // the shown key rides that same read
+    const count = async (shown) => {
+      seed({ shown });
+      const { kidId } = await joinNew();
+      flushCache();
+      await Remember().note({ device: DEVICE, bindingId: rowOf(kidId).id, canonicalId: kidId, userId: USER.id });
+      IdFlags._resetCache(); HubFlags._resetCache(); HomeFlags._resetCache();
+      if (typeof OneDoorFlags._resetCache === 'function') OneDoorFlags._resetCache();
+      fake.calls.length = 0;
+      const f = await HubHome().homeField({ out: OUT, chosenId: kidId, history: [], device: DEVICE, src: 'join' });
+      expect(f.remember).toEqual({ s: 20 });
+      return fake.calls.filter((c) => c.table === 'app_settings').length;
+    };
+    const off = await count('absent');
+    const on = await count(true);
+    expect(off).toBe(OFF_READS);
+    expect(on).toBeLessThanOrEqual(off + NAMED_ROWS);
+    expect(on).toBeLessThanOrEqual(OFF_READS);
+  });
+
+  test('ON: a binding whose link is gone is never claimed (no write, the claim says no)', async () => {
+    seed({ shown: true });
+    const { kidId } = await joinNew();
+    rowOf(kidId).revoked_at = new Date(Date.now() - 1000).toISOString();
+    expect(await Bindings.markShown(rowOf(kidId).id)).toBe(false);
+    expect('remember_shown_at' in rowOf(kidId)).toBe(false);
+  });
+
+  test('the key rides the home switches\' one settings read (no extra read)', async () => {
+    seed({ shown: true });
+    HomeFlags._resetCache();
+    fake.calls.length = 0;
+    const f = await HomeFlags.flags();
+    expect(f.shown).toBe(true);
+    expect(fake.calls.filter((c) => c.table === 'app_settings')).toHaveLength(1);
+  });
+});
+
+describe('the shown-mark migration', () => {
+  const dir = path.join(__dirname, '../../../database/migrations');
+  test('additive and idempotent: one nullable column; the rollback drops only it; the schema mirror has it', () => {
+    const up = fs.readFileSync(path.join(dir, 'child_phone_bindings_remember_shown.sql'), 'utf8');
+    const down = fs.readFileSync(path.join(dir, 'child_phone_bindings_remember_shown_rollback.sql'), 'utf8');
+    expect(up).toMatch(/ADD COLUMN IF NOT EXISTS remember_shown_at timestamptz;/);
+    expect(up).not.toMatch(/DROP\s|\bDELETE\b|\bTRUNCATE\b|\bUPDATE\b|NOT NULL/i);
+    expect(down).toMatch(/DROP COLUMN IF EXISTS remember_shown_at;/);
+    expect(down.replace(/^--.*$/gm, '')).not.toMatch(/device_hash|DROP TABLE/i);
+    const mirror = fs.readFileSync(path.join(__dirname, '../../../../infrastructure/supabase/00_complete-schema.sql'), 'utf8');
+    expect(mirror).toMatch(/remember_shown_at\s+timestamptz/);
   });
 });
 
