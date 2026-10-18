@@ -18,10 +18,11 @@ function isOn(value) {
 }
 
 /**
- * createBrotliFlag({ db, now }) → on(). `db()` gives the portal's database client (or null); `now` the clock.
+ * createBrotliFlag({ db, now, key }) → on(). `db()` gives the portal's database client (or null); `now` the clock;
+ * `key` another app_settings key read by the same rule and cache (default web_quiz_brotli).
  * on.ready() resolves when the read in flight (if any) has landed (for tests).
  */
-function createBrotliFlag({ db = () => require('../config/supabase'), now = Date.now } = {}) {
+function createBrotliFlag({ db = () => require('../config/supabase'), now = Date.now, key = KEY } = {}) {
   let at = -Infinity;
   let val = false;
   let reading = null;
@@ -30,7 +31,7 @@ function createBrotliFlag({ db = () => require('../config/supabase'), now = Date
     try {
       const client = db();
       if (!client) return false;
-      const { data, error } = await client.from('app_settings').select('value').eq('key', KEY).maybeSingle();
+      const { data, error } = await client.from('app_settings').select('value').eq('key', key).maybeSingle();
       return !error && data ? isOn(data.value) : false;
     } catch (_) {
       return false;
