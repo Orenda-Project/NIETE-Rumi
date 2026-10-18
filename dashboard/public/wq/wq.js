@@ -618,7 +618,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'Pick a story', sharePlain: 'Share',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
-      leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
+      leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, onlyClass: function (c) { return 'Only Class ' + c; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!',
       schoolsBtn: 'School league', schoolsT: 'School league', schoolsRule: 'This week · 10 points for playing, up to 10 for your score',
@@ -692,7 +692,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
-      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
+      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!',
       schoolsBtn: 'اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
@@ -2871,57 +2871,87 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var s = tot > 0 && tot <= 12 ? stars(Math.min(n, tot), tot).replace('class="wq-stars"', 'class="wq-stars wq-rstars"') : '';
     return '<span class="wq-rscore">' + esc(c) + '/' + esc(t) + '</span>' + s;
   }
+  // web_quiz_class_doors (the quiz page's boot): the class table and the league wait as a skeleton of their own rows,
+  // and their list root carries the list-state marks: data-fetch pending|done|failed, data-skel-from/-to (when the
+  // skeleton came and went) and data-empty-at (when an empty note showed). Off: today's waiting Jugnu, no marks.
+  var LS_ON = B.class_doors === true;
+  var LS_FROM = {};
+  function lsWait(kind) {
+    LS_FROM[kind] = Date.now();
+    var r = '';
+    for (var i = 0; i < 5; i++) r += '<tr class="wq-skrow"><td><i></i></td><td><i></i></td><td><i></i></td></tr>';
+    return '<h2 class="wq-skh"><i></i></h2><table class="wq-table wq-skel" data-list="' + kind + '" data-fetch="pending" data-skel-from="' + LS_FROM[kind] + '" aria-busy="true"><tbody>' + r + '</tbody></table>';
+  }
+  // The marks for a list root once its answer is in (state done|failed; empty: an empty note is what shows).
+  function lsMarks(kind, state, empty) {
+    if (!LS_ON) return '';
+    var now = Date.now();
+    return ' data-list="' + kind + '" data-fetch="' + state + '"' + (LS_FROM[kind] ? ' data-skel-from="' + LS_FROM[kind] + '" data-skel-to="' + now + '"' : '') + (empty ? ' data-empty-at="' + now + '"' : '');
+  }
   function board() {
-    render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M11-wait');
+    render(bar() + (LS_ON ? lsWait('table') : '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>'), 'M11-wait');
     wireBar();
     api('GET', 'board/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
       if (!r.ok) throw new Error('board_' + r.status);
       var b = r.body;
-      var you = b.you || null;
-      var me = S.child && S.child.first;
-      var youShown = false;
-      var rows = (b.rows || []).map(function (x) {
-        var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
-        if (isYou) youShown = true;
-        return '<tr' + (isYou ? ' class="wq-you"' : '') + '><td>' + esc(x.place) + '</td><td>' + ani(x.animal) + ' ' + esc(x.first) +
-          (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + rowScore(x.correct, x.total) + '</td></tr>';
-      }).join('');
-      if (you && !youShown) {
-        rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
-      }
-      var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
-      // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
-      var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(b.my_class) : T.yourClass) : T.leagueT(CLASS_LABEL);
-      var h = bar() + '<h2>' + esc(title) + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(b.finishers_n || 0)) + '</p>' +
-        (rows ? '<table class="wq-table"><tbody>' + rows + '</tbody></table>' : '<div class="wq-card">' + esc(T.noRows) + '</div>') +
-        (b.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(b.more_n)) + '</p>' : '') +
-        '<div class="wq-card wq-cmp">' +
-        (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
-        '<span>' + esc(T.avg) + '</span><span>' + esc(b.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (b.class_avg_pct || 0) + '%"></b></div></div>' +
-        '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
-        '<button class="wq-btn wq-go" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
-        '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
-        (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
-      render(h, 'M11');
-      wireBar();
-      ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
-      // The child's own class picture ("me" named) when they have finished; else the class's. The link carries
-      // ?v=<finishers>: WhatsApp caches a preview per URL, so a group that shared the table earlier would see an old one.
-      var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
-      warmArt('class', tArt);
-      // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
-      // sender's WhatsApp finds it ready instead of waiting for a draw.
-      warmPreviewArt('class', B.art && B.art.class);
-      on('#wq-share-t', function () { var u = link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')); share(T.tableLine(Q.topic, CLASS_LABEL), b.class_doors ? withLang(u) : u, 'table', tArt); });
-      on('#wq-schools', function () { schools(board); });
-      on('#wq-next', history);
-      on('#wq-play', UI_SWAP ? quizPage : landing);
+      // A table of more than one class (web_quiz_class_doors): "Only Class 3" shows the child's class on its own.
+      var mixed = Boolean(b.class_doors && b.my_class && b.only && b.only.rows);
+      drawBoard(b, mixed, false, true);
     }).catch(function (e) {
       ev('error', { err: (e && e.message) || 'board' });
-      render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
+      render(bar() + (LS_ON ? '<div' + lsMarks('table', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
       wireBar();
       on('#wq-retry', board);
     });
+  }
+  // The table drawn from the board's answer: the whole table, or (onlyOn) the child's class on its own.
+  // The child's class number as html: escaped, isolated, in Urdu digits on an Urdu page.
+  function clsNum(c) { return '<bdi>' + esc(LANG === 'ur' ? urDigits(c) : c) + '</bdi>'; }
+  function drawBoard(b, mixed, onlyOn, first) {
+    var v = onlyOn ? b.only : b;
+    var you = v.you || null;
+    var me = S.child && S.child.first;
+    var youShown = false;
+    var rows = (v.rows || []).map(function (x) {
+      var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
+      if (isYou) youShown = true;
+      return '<tr' + (isYou ? ' class="wq-you"' : '') + '><td>' + esc(x.place) + '</td><td>' + ani(x.animal) + ' ' + esc(x.first) +
+        (isYou ? '<span class="wq-tag">' + esc(T.you) + '</span>' : '') + '</td><td>' + rowScore(x.correct, x.total) + '</td></tr>';
+    }).join('');
+    if (you && !youShown) {
+      rows += '<tr class="wq-you"><td>' + esc(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total) + '</td></tr>';
+    }
+    var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
+    // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
+    // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
+    var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
+    var h = bar() + '<h2>' + title + '</h2><p class="wq-sub">' + dotJoin(Q.topic, T.finN(v.finishers_n || 0)) + '</p>' +
+      (mixed ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
+      (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
+      (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
+      '<div class="wq-card wq-cmp">' +
+      (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
+      '<span>' + esc(T.avg) + '</span><span>' + esc(v.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
+      '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
+      '<button class="wq-btn wq-go" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
+      (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
+    render(h, 'M11');
+    wireBar();
+    if (first) ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });
+    // The child's own class picture ("me" named) when they have finished; else the class's. The link carries
+    // ?v=<finishers>: WhatsApp caches a preview per URL, so a group that shared the table earlier would see an old one.
+    var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
+    warmArt('class', tArt);
+    // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
+    // sender's WhatsApp finds it ready instead of waiting for a draw.
+    warmPreviewArt('class', B.art && B.art.class);
+    on('#wq-share-t', function () { var u = link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')); share(T.tableLine(Q.topic, CLASS_LABEL), b.class_doors && UI_SWAP ? withLang(u) : u, 'table', tArt); });
+    on('#wq-schools', function () { schools(board); });
+    on('#wq-next', history);
+    on('#wq-call', function () { drawBoard(b, mixed, false); });
+    on('#wq-conly', function () { drawBoard(b, mixed, true); });
+    on('#wq-play', UI_SWAP ? function () { quizPage(b.twin); } : landing);
   }
 
   /* ---------------- M16 school league ---------------- */
@@ -2946,7 +2976,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function schools(from) {
     SCH.back = typeof from === 'function' ? from : afterResult;
     NAV.schoolsBack = SCH.back;
-    render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M16-wait');
+    render(bar() + (LS_ON ? lsWait('schools') : '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>'), 'M16-wait');
     wireBar();
     api('GET', 'schools/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
       if (!r.ok) throw new Error('schools_' + r.status);
@@ -2958,14 +2988,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       drawSchools();
     }).catch(function (e) {
       ev('error', { err: (e && e.message) || 'schools' });
-      render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M16-error');
+      render(bar() + (LS_ON ? '<div' + lsMarks('schools', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M16-error');
       wireBar();
       on('#wq-retry', function () { schools(SCH.back); });
     });
   }
   // With web_quiz_class_doors (the league's class_doors): a short lower-case sector code reads as a name ("ict" -> "ICT").
   // The quiz page itself (its own language), keeping the hub key: from a class table or league shown in the link's language.
-  function quizPage() { location.assign('/q/' + CODE + (params.k ? '?k=' + encodeURIComponent(params.k) : '')); }
+  // tw: the quiz's twin in the page's language ({code[, k]}, the board's or the league's answer): its own page instead.
+  function quizPage(tw) {
+    if (tw && typeof tw.code === 'string' && /^[A-Za-z0-9]{4,16}$/.test(tw.code)) return location.assign('/q/' + tw.code + (tw.k ? '?k=' + encodeURIComponent(tw.k) : ''));
+    location.assign('/q/' + CODE + (params.k ? '?k=' + encodeURIComponent(params.k) : ''));
+  }
   function sectorName(s, on) { return on && /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s; }
   function drawSchools() {
     var b = SCH.data || {};
@@ -2989,7 +3023,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ? '<details class="wq-zero-list"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
         (zn.length ? '<ul>' + zn.map(function (n) { return '<li><bdi>' + esc(n) + '</bdi></li>'; }).join('') + '</ul>' : '') + '</details>' : '';
     var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +
-      (list ? '<ol class="wq-slist">' + list + '</ol>' : mine ? '' : '<div class="wq-card">' + esc(T.noSchools) + '</div>') + zero +
+      (list ? '<ol class="wq-slist"' + lsMarks('schools', 'done') + '>' + list + '</ol>' : mine ? (LS_ON ? '<div' + lsMarks('schools', 'done') + '></div>' : '') : '<div class="wq-card"' + lsMarks('schools', 'done', true) + '>' + esc(T.noSchools) + '</div>') + zero +
       // A cold recipient of the league link (never played here): the next step is to play, for their school.
       // (class_doors: the label is one flex item, never the words and the name side by side; the go button is the primary)
       (mine && !S.st && !S.result ? '<button class="wq-btn wq-go" id="wq-play-s"' + (cd ? ' data-primary><span class="wq-btn-t">' + T.playFor(nm) + '</span>' : '>' + T.playFor(nm)) + '</button>' : '') +
@@ -3007,9 +3041,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ev('leaderboard_share', { src: 'schools', i: (mine && mine.place) || 0 });
       var hour = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 13).replace(/[-T]/g, '');
       var u = link('/q/' + CODE + '/schools?v=' + hour);
-      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), cd ? withLang(u) : u, 'schools', sArt);
+      share(T.schoolsLine(mine.name, mine.ghost ? null : mine.place), cd && UI_SWAP ? withLang(u) : u, 'schools', sArt);
     });
-    on('#wq-play-s', UI_SWAP ? quizPage : landing);
+    on('#wq-play-s', UI_SWAP ? function () { quizPage(b.twin); } : landing);
     on('#wq-back', SCH.back);
   }
 
