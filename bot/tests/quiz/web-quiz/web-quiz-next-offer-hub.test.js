@@ -817,7 +817,9 @@ describe('the tile: words, picture, tag, source', () => {
     const kinds = new Set(list.map((c) => c.kind));
     ['quiz', 'video', 'story', 'game', 'sticker', 'invite', 'storybook'].forEach((k) => expect(kinds).toContain(k));
     list.forEach((c) => expect(typeof c.art === 'string' && c.art.startsWith('/')).toBe(true));
-    expect(list.find((c) => c.id === 'library').art).toBe('/wq/art/grade-3-1.webp');   // the hub's own grade picture
+    // the library tile only when no lesson can be named: the hub's own grade picture
+    const lib = S.candidatesOf({ out: { ...out, recs: [] }, token: 'tok', watch: true, subjectArt, known: new Set(['TQ0001']) });
+    expect(lib.find((c) => c.id === 'library').art).toBe('/wq/art/grade-3-1.webp');
     expect(list.find((c) => c.rule === 'teacher_quiz' && c.variant === 'new').art).toBe('/wq/art/subject-science-1.webp');
     expect(list.find((c) => c.variant === 'again').art).toBe('/wq/art/subject-english-1.webp');
     expect(list.find((c) => c.id === 'v-1').art).toBe('/p.webp');
@@ -931,5 +933,130 @@ describe('GET /ch/result/:ct with a FINAL result: off -> byte for byte; on -> pl
     expect(on.next_offer).toMatchObject({ kind: 'quiz', ctx: 'after_quiz', rank_src: 'pinned' });
     const { card_v3: c, next_offer: n, ...rest } = on;
     expect(rest).toEqual(finished());
+  });
+});
+
+describe('a child WITH a class: a "Watch a video" tile plays the lesson it names; the library tile says "Pick a video"', () => {
+  const VID = '77777777-7777-4777-8777-000000000002';
+  const VQ = '88888888-8888-4888-8888-000000000002';
+  // the class child of the fixture (a teacher-sent code played) with one grade-3 lesson the bank can name
+  const lessons = () => ({
+    student_videos: [{ id: VID, grade: '3', subject: 'Science', clean_chapter: 'Water', clean_title: 'Where water goes', r2_url: null, migration_status: 'done', superseded_by: null }],
+    quizzes: [...db.quizzes, { id: VQ, video_id: VID, quiz_source: 'video', status: 'ready', topic: 'Where water goes', language: 'en' }],
+  });
+  const videosOf = (out) => [out.next, ...out.next.alts].filter((x) => x && x.kind === 'video');
+  const ALL_ON = () => [...NEXT_ON, ON('web_quiz_home_v3'), ON('web_quiz_library')];
+
+  test('a lesson named (out.recs[].vid) -> {kind video, variant recommended, href the home\'s own player}, never the library picker', async () => {
+    withArm('rank');
+    seed(ALL_ON(), lessons());
+    const tok = T.signHub([KID]);
+    const out = await Hub.hub(tok, A);
+    expect(out.recs.map((r) => r.vid)).toContain(VID);
+    const v = videosOf(out);
+    expect(v).toHaveLength(1);
+    expect(v[0]).toMatchObject({ kind: 'video', variant: 'recommended', id: VID, title: 'Watch a video', title_ur: 'ویڈیو دیکھیں', sub: 'Where water goes' });
+    // the hub's OWN token and chip (nothing minted for the tile), the home's player hash
+    expect(v[0].href).toBe(`/h/${encodeURIComponent(tok)}?kid=${encodeURIComponent(out.kid)}&lang=en#watch/${VID}`);
+    expect(v[0].href).not.toMatch(/^\/lib\//);
+  });
+
+  test('building the tile mints nothing, binds nothing and never reads the watch root', async () => {
+    withArm('rank');
+    seed(ALL_ON(), lessons());
+    const codes0 = db.quiz_share_codes.length;
+    const reads = [];
+    const from = supabase.from;
+    supabase.from = (t) => { const b = from(t); if (t === 'app_settings') { const eq = b.eq.bind(b); b.eq = (k, v) => { reads.push(v); return eq(k, v); }; } return b; };
+    try {
+      const out = await Hub.hub(T.signHub([KID]), A);
+      expect(videosOf(out)[0].variant).toBe('recommended');
+    } finally { supabase.from = from; }
+    expect(db.quiz_share_codes).toHaveLength(codes0);
+    expect(db.child_phone_bindings || []).toEqual([]);
+    expect(reads).not.toContain('web_quiz_watch_root');
+  });
+
+  test('the tap: the class child\'s lesson starts on the class\'s own lesson code (the Videos door\'s rule), no watch root, no binding', async () => {
+    const Videos = require('../../../shared/services/quiz/web-quiz-videos');
+    seed(ALL_ON(), lessons());
+    // a classmate already opened this lesson from the Videos door: its class code is live
+    db.quiz_share_codes.push({ id: 'sc-v', code: 'VID001', quiz_id: VQ, video_id: VID, active: true, expires_at: ahead(240), topic: 'Where water goes', language: 'en', teacher_user_id: TEACHER, parent_share_code_id: 'sc-1', invited_by_student_id: null, created_at: ago(5) });
+    const codes0 = db.quiz_share_codes.length;
+    const tok = T.signHub([KID]);
+    const out = await Hub.hub(tok, A);
+    const a = await Videos.start({ hub: tok, kid: out.kid, vid: VID, device: A.device });
+    const b = await Videos.start({ hub: tok, kid: out.kid, vid: VID, device: A.device });
+    expect(a.code).toBe('VID001');
+    expect(b).toEqual(a);
+    expect(db.quiz_share_codes).toHaveLength(codes0);   // nothing new minted
+    expect(db.child_phone_bindings || []).toEqual([]);  // nothing bound
+  });
+
+  test('no lesson can be named -> the library tile stays, its words are "Pick a video" / «ویڈیو چنیں», on the child\'s grade', async () => {
+    withArm('rank');
+    seed(ALL_ON(), { student_videos: [] });
+    const tok = T.signHub([KID]);
+    const out = await Hub.hub(tok, A);
+    expect(out.recs).toEqual([]);
+    const v = videosOf(out);
+    expect(v).toHaveLength(1);
+    expect(v[0]).toMatchObject({ kind: 'video', variant: 'library', id: 'library', title: 'Pick a video', title_ur: 'ویڈیو چنیں' });
+    // the library on this hub's token: it opens on the child's own grade (the hub's grade picture rides the tile)
+    expect(v[0].href).toMatch(/^\/lib\/[^?]+\?kid=[^&]+&l=en$/);
+  });
+
+  test('the result surface (after a quiz, a video): a class child\'s snapshot names the lesson too, so its tile plays it', async () => {
+    seed(ALL_ON(), lessons());
+    const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+    const snap = await R._snapshot({ studentId: KID, device: A.device, watch: true });
+    expect(snap.out.recs.map((r) => r.vid)).toContain(VID);
+  });
+
+  // The result snapshot's reads. OFF (no lesson asked, `watch` off) = the recorded 16 tables on a cold start:
+  // 12 data reads, exactly, + up to 4 switch reads (app_settings; a warm switch cache skips some, so they are a
+  // ceiling). ON (a class child, the lesson named) <= OFF + its own named rows: the sessions, the quizzes and the
+  // lessons behind the class's quiz (the recs a class-less child already gets), one each; never another table.
+  const SNAP_OFF_DATA = { students: 2, student_lists: 2, class_enrollments: 2, quiz_share_codes: 3, quiz_sessions: 2, quizzes: 1 };
+  const SNAP_SWITCH_MAX = 4;
+  const SNAP_ON_ROWS = { quiz_sessions: 1, quizzes: 1, student_videos: 1 };
+  test('the result snapshot reads 16 tables with the lesson off (12 data + up to 4 switches); on, at most those + quiz_sessions, quizzes, student_videos (one each)', async () => {
+    const readsOf = async (watch) => {
+      seed(ALL_ON(), lessons());
+      const R = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+      const per = {};
+      const from = supabase.from;
+      supabase.from = (t) => { per[t] = (per[t] || 0) + 1; return from(t); };
+      try { await R._snapshot({ studentId: KID, device: A.device, watch }); } finally { supabase.from = from; }
+      const { app_settings: sw = 0, ...data } = per;
+      return { sw, data };
+    };
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    const off = await readsOf(false);
+    const on = await readsOf(true);
+    expect(off.data).toEqual(SNAP_OFF_DATA);
+    expect(off.sw).toBeLessThanOrEqual(SNAP_SWITCH_MAX);
+    // measured, not the constants: the off snapshot's own reads are 12 data tables and, with its switch reads, at most 16
+    expect(sum(off.data)).toBe(12);
+    expect(sum(off.data) + off.sw).toBeLessThanOrEqual(16);
+    // per table: never a table OFF does not read, except the named ones, and never more than OFF + its named row
+    const over = Object.keys(on.data).filter((t) => on.data[t] > (SNAP_OFF_DATA[t] || 0) + (SNAP_ON_ROWS[t] || 0));
+    expect(over).toEqual([]);
+    expect(on.sw).toBeLessThanOrEqual(SNAP_SWITCH_MAX);
+    expect(sum(on.data) + on.sw).toBeLessThanOrEqual(16 + sum(SNAP_ON_ROWS));
+  });
+
+  // GOLDEN: a class-less child's whole `next` (offer ids aside: random per render) equals the base's, written once on
+  // the base commit (fixtures/next-video-classless.golden.json) and compared here. To re-record on a base commit, put
+  // `require('fs').writeFileSync(file, `${got}\n`);` above the expect for one run, then remove it.
+  test('GOLDEN: a class-less child\'s `next` is today\'s byte for byte (the recommended lesson in the home\'s player)', async () => {
+    withArm('rank');
+    seed(ALL_ON(), { ...lessons(), quiz_sessions: [], quiz_share_codes: [] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    const strip = (n) => JSON.parse(JSON.stringify(n, (k, v) => (k === 'offer' ? undefined : v)).replace(/\/h\/[^?"]+\?kid=[^&"]+/g, '/h/<t>?kid=<c>').replace(/\/lib\/[^?"]+\?kid=[^&"]+/g, '/lib/<t>?kid=<c>'));
+    const got = JSON.stringify(strip(out.next));
+    const file = require('path').join(__dirname, 'fixtures', 'next-video-classless.golden.json');
+    expect(got).toBe(require('fs').readFileSync(file, 'utf8').trimEnd());
+    expect(videosOf(out)[0]).toMatchObject({ variant: 'recommended', id: VID, title: 'Watch a video' });
   });
 });

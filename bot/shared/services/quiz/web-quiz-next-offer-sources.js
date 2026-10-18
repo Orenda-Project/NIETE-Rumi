@@ -38,6 +38,8 @@ const COPY = {
   quizOpen: ['Finish your quiz', 'اپنا کوئز پورا کریں'],
   again: ['Play again', 'دوبارہ کھیلیں'],
   video: ['Watch a video', 'ویڈیو دیکھیں'],
+  // the library tile (no lesson can be named): the child picks one there, so the words say so
+  pickVideo: ['Pick a video', 'ویڈیو چنیں'],
   read: ['Read to Jugnu', 'جگنو کو پڑھ کر سناؤ'],
   listen: ['Listen to a story', 'کہانی سنیں'],
   game: ['Play with Jugnu', 'جگنو کے ساتھ کھیلیں'],
@@ -129,14 +131,15 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     push({ kind: 'quiz', variant: 'again', id: qkOf(e.quizId, a.code), href: L.quiz(a.code, a.k, true), ...words('again'), ...subOf(a.topic || a.subject), minutes: 3,
       ...artOr(a.art || subjectArt(a.subject), 'quiz') });
   });
-  // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade)
-  if (out.lib && typeof out.lib.href === 'string' && out.lib.href.startsWith('/lib/') && L.lib) {
-    push({ kind: 'video', variant: 'library', id: 'library', href: L.lib, ...words('video'), minutes: 3, ...artOr(out.lib.art, 'video'), needs_root: true });
-  }
-  // a child with no class quiz: the v3 home's own player watches the recommended lesson (nothing minted, no root needed)
+  // a video: the recommended lesson (`out.recs[].vid`) plays at once in the v3 home's own player (#watch/<vid>, the
+  // hub's own token: nothing minted, nothing bound), for a child with a class too — that child's lesson starts on the
+  // class's own lesson code, the Videos door's rule (web-quiz-videos.js start). Only when no lesson can be named does
+  // the tile open the library on the child's grade, and then its words say "Pick a video".
   const rec = (out.recs || []).find((r) => r && r.vid);
-  if (watch && rec && !hasRootOf(history) && L.watch) {
+  if (watch && rec && L.watch) {
     push({ kind: 'video', variant: 'recommended', id: rec.vid, href: L.watch(rec.vid), ...words('video'), ...subOf(rec.title), minutes: 3, ...artOr(rec.poster || rec.art, 'video') });
+  } else if (out.lib && typeof out.lib.href === 'string' && out.lib.href.startsWith('/lib/') && L.lib) {
+    push({ kind: 'video', variant: 'library', id: 'library', href: L.lib, ...words('pickVideo'), minutes: 3, ...artOr(out.lib.art, 'video'), needs_root: true });
   }
 
   // the Jugnu corner: this month's stops (rule 2), the stories (newest unseen first), the numbers game
@@ -316,7 +319,7 @@ async function hubNext({ out, token, history, collect, lang, chosenId, grade, su
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
   // the verdicts were read for the Trail's stops; the corner offers only the ones still waiting this month
   const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch });
-  const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live });
+  const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live, open: collect.open || null });
   return next ? { next } : {};
 }
 

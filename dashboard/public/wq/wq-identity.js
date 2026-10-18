@@ -31,10 +31,12 @@ var WQID = function (P) {
   // An invited friend, or a teacher with no class: a name only, never a class or a roster question.
   function nameOnly() { return Boolean(ID.invited) || ID.roster === false; }
   function nm(s) { return '<bdi>' + esc(s) + '</bdi>'; }
-  function lbl(s) { return s ? '<bdi dir="ltr" class="wq-nw">' + esc(s) + '</bdi>' : ''; }
+  // A class label as the page draws it (wq.js clsName: Urdu digits on an Urdu page); absent, as sent.
+  var clsOf = typeof P.cls === 'function' ? P.cls : function (s) { return s; };
+  function lbl(s) { return s ? '<bdi dir="ltr" class="wq-nw">' + esc(clsOf(s)) + '</bdi>' : ''; }
   // The same label inside plain text (the mascot's bubble): an LTR isolate with a no-break hyphen, so "4-A"
   // never reads "A-4" in Urdu nor breaks as "4-" / "A".
-  function lblText(s) { return s ? '\u2066' + String(s).replace(/-/g, '\u2011') + '\u2069' : ''; }
+  function lblText(s) { return s ? '\u2066' + String(clsOf(s)).replace(/-/g, '\u2011') + '\u2069' : ''; }
   // The class label is shown only when the child chose it on S1.
   function chosenLabel() {
     var k = P.pick();
@@ -78,7 +80,7 @@ var WQID = function (P) {
     var h = P.bar() +
       P.jug('hello', here.length ? T.whoSay : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, clsOf(CLS.label))) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>' +
       (pic || '') + (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (here.length
@@ -108,7 +110,7 @@ var WQID = function (P) {
     var Q = P.Q, CLS = P.CLS;
     P.render(P.bar() + P.jug('thinking', TW.opening) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>', 'M4-opening');
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, clsOf(CLS.label))) + '</p></div>', 'M4-opening');
     P.wireBar();
   }
 

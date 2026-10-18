@@ -965,6 +965,43 @@ describe('the Urdu polish switch (app_settings web_quiz_ur_polish) rides the qui
   });
 });
 
+describe('the Urdu class-name digits switch (app_settings web_quiz_ur_class_digits) rides the quiz payload', () => {
+  const Digits = require('../../../shared/services/quiz/web-quiz-ur-class-digits');
+  test('absent, false, a string \'true\' or a failed read → no ur_class_digits key (the payload stays today\'s); JSON true → true', async () => {
+    for (const rows of [[], [{ key: 'web_quiz_ur_class_digits', value: false }], [{ key: 'web_quiz_ur_class_digits', value: 'true' }]]) {
+      Digits._reset();
+      fake.db.app_settings = rows;
+      expect(Object.prototype.hasOwnProperty.call(await WQ.getQuiz('AB12CD'), 'ur_class_digits')).toBe(false);
+    }
+    Digits._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_ur_class_digits', value: true }];
+    expect((await WQ.getQuiz('AB12CD')).ur_class_digits).toBe(true);
+    Digits._reset();
+    fake.db.app_settings = [];
+  });
+  test('settings reads with the switch off (absent, false, a string \'true\'): one own read on a cold cache, none warm — the same for each', async () => {
+    const settingsReads = () => fake.calls.filter((c) => c.table === 'app_settings').length;
+    const counts = [];
+    for (const rows of [[], [{ key: 'web_quiz_ur_class_digits', value: false }], [{ key: 'web_quiz_ur_class_digits', value: 'true' }]]) {
+      fake.db.app_settings = rows;
+      await WQ.getQuiz('AB12CD'); // every other switch warm
+      let before = settingsReads();
+      await WQ.getQuiz('AB12CD');
+      const warm = settingsReads() - before;
+      Digits._reset();
+      before = settingsReads();
+      await WQ.getQuiz('AB12CD');
+      counts.push([warm, settingsReads() - before]);
+    }
+    for (const [warm, cold] of counts) expect(cold).toBe(warm + 1);
+    expect(new Set(counts.map(([w]) => w)).size).toBe(1);
+    // warm, a page load reads no settings row at all, as before this switch (measured on the base: 0)
+    expect(counts.map(([w]) => w)).toEqual([0, 0, 0]);
+    Digits._reset();
+    fake.db.app_settings = [];
+  });
+});
+
 describe('the sound + motion kit switch (app_settings web_quiz_juice) rides the quiz payload as juice', () => {
   const Juice = require('../../../shared/services/quiz/web-quiz-juice');
   test('absent → no juice key at all (the payload stays today\'s); on → juice: true', async () => {

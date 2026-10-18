@@ -648,6 +648,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   if (ui) out.ui = ui;
   // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-juice').field()) out.juice = true;
+  // The class's name in Urdu digits on an Urdu page (web-quiz-ur-class-digits.js): named only when on, so a switched-off payload is today's.
+  if (await require('./web-quiz-ur-class-digits').field()) out.ur_class_digits = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;
@@ -2267,7 +2269,9 @@ function events(body = {}, { device = null } = {}) {
     // Events v3 (web_quiz_events_v3): the next-thing slot's lines, keyed and with their sitting id. Off: today's path.
     if ((EV3().relayed(e) || EV3().forged(e)) && require('./web-quiz-next-offer-state').eventsV3Now()) {
       if (EV3().forged(e)) continue;   // a server-only v3 name from a page is never logged
-      EV3().relay(e, body, device, { onTap: (kid, offer) => require('./web-quiz-next-offer-state').noteTap(kid, offer) }).catch(() => {});
+      EV3().relay(e, body, device, { onTap: (kid, offer) => require('./web-quiz-next-offer-state').noteTap(kid, offer),
+        onDoor: (kid) => require('./web-quiz-next-offer-state').noteDoor(kid),
+        onDone: (kid, card) => require('./web-quiz-next-offer-state').noteDone(kid, card) }).catch(() => {});
       logged += 1;
       continue;
     }

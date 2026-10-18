@@ -373,7 +373,7 @@
   // The ranking's own fields ride on next_shown / next_tap when the server's `next` carried them; never invented.
   function rankOf(B, e) {
     var n = B.next;
-    if (n && n.href) ['arm', 'score_v', 'offer', 'rank_src'].forEach(function (k) { if (n[k] != null) e[k] = n[k]; });
+    if (n && n.href) ['arm', 'score_v', 'offer', 'rank_src', 'variant'].forEach(function (k) { if (n[k] != null) e[k] = n[k]; });
     return e;
   }
   // The coach's preview: every event says it is one (kid:null, practice:1); nothing is a child's.

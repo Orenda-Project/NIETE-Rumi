@@ -600,4 +600,16 @@ describe('the hub\'s reads together (web_quiz_hub_fanout): Jugnu\'s corner reads
     const on = await hubAs([...settings, FANOUT], over, patch, shape, A);
     expect(on.runs).toBe(off.runs - 1);
   });
+
+  test('a story opened and left: the one read together still names it for "Carry on reading", as the read off does', async () => {
+    const over = { web_quiz_challenge_runs: [run('read', 'p-done'), run('read', 'p-left', { mode: 'practice', record: false, status: 'served' })], challenge_passages: [story('p-left', 1, 5), story('p-done', 1, 6)] };
+    const openOf = async (together) => {
+      await hubAs(STORY_ON, over, null, null, A);
+      const collect = {};
+      await Play.playFor({ chosenId: KID, lang: 'en', challenge: { on: true }, grade: 3, stopsOf: async () => ['read'], steps: () => require('../../../shared/services/quiz/web-quiz-challenge'), collect, together });
+      return collect.open ? [...collect.open].sort() : collect.open;
+    };
+    expect(await openOf(false)).toEqual(['p-left']);
+    expect(await openOf(true)).toEqual(['p-left']);
+  });
 });

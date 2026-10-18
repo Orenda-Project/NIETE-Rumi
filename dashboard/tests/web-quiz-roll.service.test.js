@@ -52,6 +52,7 @@ function page({ lang = 'en', cls = { roster: { lists: 1 }, chips: [] }, kids = [
       isYou: (n) => `Are you ${n}?`, isYouSub: 'Tap Yes only if this is your own name.', yesMe: "Yes, it's me", diff: (n) => `I'm a different ${n}`,
       oops: 'oops', offline: 'offline' },
     esc: (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+    clsName: (s) => s,
     ani: (a) => `[${a}]`, bar: () => '', jug: (m, say) => `<p class="jug">${say}</p>`, wireBar: () => {},
     render: (h, name) => { screens.push({ h, name }); handlers = []; },
     on: (sel, fn) => { byId[sel] = fn; },

@@ -694,13 +694,17 @@
     return videos(root, B, ctx, view.subject);
   }
   // The finish card's script, asked for while the video plays so the card is there when it ends (`card_v3` only).
+  // A video that ends before the script lands shows our own tile; the script's load then draws the card (cardLate).
+  var cardLate = null;
   function cardSoon(B) {
     if (B.card_v3 !== true || window.WQFC) return;
     try {
       if (document.getElementById('wq-fc-js')) return;
       var me = document.querySelector('script[src*="/wq/hub.js"]');
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
-      var s = document.createElement('script'); s.id = 'wq-fc-js'; s.src = '/wq/wq-finish-card.js' + (v ? '?v=' + v[1] : ''); document.head.appendChild(s);
+      var s = document.createElement('script'); s.id = 'wq-fc-js'; s.src = '/wq/wq-finish-card.js' + (v ? '?v=' + v[1] : '');
+      s.onload = function () { var f = cardLate; cardLate = null; if (f) f(); };
+      document.head.appendChild(s);
     } catch (e) {}
   }
   // The card after a watched video: its block above the hidden tile holder, the one Next tile inside it (our own tile
@@ -732,6 +736,10 @@
       var a = root.querySelector('.wq-after'); if (!a || !a.hidden) return;
       if (playBtn) { playBtn.removeAttribute('data-primary'); playBtn.hidden = true; }
       if (endCard(root, B, ctx, ev)) return;
+      // the card's script not there yet: our tile now, the card when the script lands (while our tile still shows)
+      if (B.card_v3 === true && !window.WQFC) {
+        cardLate = function () { var t = root.querySelector('.wq-after'); if (t && !t.hidden && !document.getElementById('wqfc-next')) endCard(root, B, ctx, ev); };
+      }
       a.hidden = false;
       var nx = a.querySelector('.wq-vnext'); if (nx) nx.setAttribute('data-primary', '');
       view.shownAt = Date.now();
@@ -753,6 +761,6 @@
 
   if (typeof window !== 'undefined') {
     window.WQDOORS = { owns: owns, html: html, watchHtml: watchHtml, shelfHtml: shelfHtml, mount: mountKeep, warm: warm, COPY: COPY, storyHref: storyHref,
-      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; going = false; view = { name: null, subject: null, watch: null, next: null }; } };
+      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; going = false; cardLate = null; view = { name: null, subject: null, watch: null, next: null }; } };
   }
 })();
