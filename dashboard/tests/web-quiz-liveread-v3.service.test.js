@@ -752,19 +752,17 @@ describe('one green on screen', () => {
     expect(rule('.lr-read')).toMatchObject({ color: '#15803D', background: '#BBF7D0' });
     expect(rule('.lr3 .wqc-w.wqc-ok')).toMatchObject({ color: '#15803D', background: '#BBF7D0' });
   });
-  test('a picture: read = a green bar in the bottom 22 % of the box; skipped = a dashed amber bar; only current is filled/outlined', () => {
+  test('a picture: read = a green bar just below the word box (never over its ink); skipped = a dashed amber bar below it; only current is filled/outlined, padded clear of the letters', () => {
     const read = rule('.lr-box.lr-read');
     expect(read).toEqual(rule('.lr-box.lr-heard'));
-    expect(read.background).toMatch(/linear-gradient\(to top, #15803D 0(%)?, #15803D 22%, transparent 22%\)/);
-    expect(read['box-shadow']).toBe('none');
-    const skip = rule('.lr-box.lr-skipped');
-    expect(skip.background).toMatch(/#E65100/);
-    expect(skip.background).toMatch(/repeating-linear-gradient/);
-    expect(skip['background-size']).toMatch(/22%/);
-    expect(skip['box-shadow']).toBe('none');
+    expect(read).toMatchObject({ background: 'none', 'box-shadow': '0 5px 0 #15803D' });
+    const skip = rule('.lr-box.lr-skipped::after');
+    expect(skip).toMatchObject({ content: "''", position: 'absolute', top: 'calc(100% + 1px)' });
+    expect(skip['border-bottom']).toMatch(/dashed #E65100/);
+    expect(rule('.lr-box.lr-skipped')).toMatchObject({ background: 'none', 'box-shadow': 'none' });
     const cur = rule('.lr-box.lr-current');
     expect(cur.background).toBe('rgba(187, 247, 208, .3)');
-    expect(cur['box-shadow']).toBe('inset 0 0 0 3px #15803D');
+    expect(cur).toMatchObject({ 'box-shadow': 'none', outline: '3px solid #15803D', 'outline-offset': '.15em' });
     expect(rule('.lr-box.lr-ahead')).toMatchObject({ background: 'none', 'box-shadow': 'none' });
   });
 });
