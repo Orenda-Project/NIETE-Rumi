@@ -10,6 +10,9 @@
  *                   finished run without the card's door or the Home button switched on; else {} (today's payload)
  *   menuFoldField() the Jugnu page's menu's {card_fold: true} with the child home on (its end cards fold too), else {}
  *   noClassField(id) the same menu's {no_class: true} with the home on for a child no teacher's quiz has reached, else {}
+ *                   With app_settings web_quiz_class_doors on, a class child's fold also carries {class_doors: true}: the
+ *                   card's "See my class" + "School league" and the results' "See my class" (web-quiz-class-doors-flag),
+ *                   only when the run's code is one of the child's class quizzes (never the watch root or a code under it).
  *   door({st, home}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
  *                   phone in the session token — the body's device_ref is never trusted — so a forwarded copy
  *                   meets the hub's lock on any other phone, like a forwarded /quiz hub link.
@@ -27,6 +30,7 @@ const T = require('./web-quiz-token');
 const Flags = require('./web-quiz-hub-flags');
 const Device = require('./web-quiz-hub-device');
 const HomeFlags = require('./web-quiz-home-flags');
+const ClassDoors = require('./web-quiz-class-doors-flag');
 
 // A class child's own run: never the teacher's test run, an invited friend's, or a run with no child.
 function ownRun(s) {
@@ -49,7 +53,11 @@ async function field(s) {
 async function foldField(s) {
   try {
     // a child with no class (noClassField): the card's share says "Share" (no_class beside card_fold)
-    return ownRun(s) && (await HomeFlags.flags()).home ? { card_fold: true, ...(await noClassField(s.student_id)) } : {};
+    if (!(ownRun(s) && (await HomeFlags.flags()).home)) return {};
+    const doorsP = ClassDoors.on().catch(() => false);
+    const [list, rootId] = await Promise.all([quizzesOf(s.student_id), doorsP.then((on) => (on ? ClassDoors.root() : null))]);
+    const noClass = list && !list.some((e) => e && e.teacherSent) ? { no_class: true } : {};
+    return { card_fold: true, ...noClass, ...((await doorsP) && ClassDoors.ownClass(list, s.share_code_id, rootId) ? { class_doors: true } : {}) };
   } catch (_) {
     return {};
   }
@@ -69,11 +77,15 @@ async function menuFoldField() {
 async function noClassField(studentId) {
   try {
     if (!studentId || !(await HomeFlags.flags()).home) return {};
-    const list = await require('./student-quiz.service').quizzesForStudents([{ id: studentId }]);
-    return list.some((e) => e && e.teacherSent) ? {} : { no_class: true };
+    const list = await quizzesOf(studentId);
+    return !list || list.some((e) => e && e.teacherSent) ? {} : { no_class: true };
   } catch (_) {
     return {};
   }
+}
+// The child's quizzes (the hub's own read), or null on any failure.
+function quizzesOf(studentId) {
+  return studentId ? require('./student-quiz.service').quizzesForStudents([{ id: studentId }]).catch(() => null) : Promise.resolve(null);
 }
 
 async function door(body = {}, Err = Error) {
