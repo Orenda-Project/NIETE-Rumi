@@ -652,3 +652,34 @@ describe('no needless seek', () => {
     expect(t).toBe(0);
   });
 });
+
+describe('narrations warm their head only (voice 163503, red-team-pr 164215)', () => {
+  const narr = (id: string, bytes: number): Clip => ({ ...clip(id, 'narration'), bytes });
+
+  it('a narration warms with preload=metadata and costs the sound budget nothing', async () => {
+    const r = rig({ budgetBytes: 2500 });
+    const player = createFlnPlayer(r.deps);
+    player.register([{ ...clip('a'), bytes: 1000 }, narr('n', 2_500_000), { ...clip('b'), bytes: 1000 }]);
+    player.warm(['a', 'n', 'b']);
+    await flush();
+    const n = elOf(r, 'n')!;
+    expect(n.preload).toBe('metadata');
+    n.readyState = 1;
+    n.fire('loadedmetadata');
+    elOf(r, 'a')!.head();
+    await flush();
+    expect(loaded(r)).toContain('https://m.example/b.mp3'); // b still fits: the 2.5 MB narration was not counted
+    expect(elOf(r, 'a')!.preload).toBe('auto');
+  });
+
+  it('a sound clip over the remaining budget never gets a src', async () => {
+    const r = rig({ budgetBytes: 1500 });
+    const player = createFlnPlayer(r.deps);
+    player.register([{ ...clip('a'), bytes: 1000 }, { ...clip('b'), bytes: 1000 }]);
+    player.warm(['a', 'b']);
+    await flush();
+    elOf(r, 'a')!.head();
+    await flush();
+    expect(elOf(r, 'b')?.src ?? '').toBe('');
+  });
+});

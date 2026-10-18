@@ -99,15 +99,23 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
   // over. A tap on a warming element plays from what it has. A mirror error during the warm (429/5xx/404/network) moves
   // the element to `orig` at once.
 
+  /**
+   * A narration (47–323 s, up to 2.5 MB) warms its head only: preload=metadata, one small range, and it streams on the
+   * tap. It never spends the sound budget, so it cannot hold the line against the sound tiles (voice 163503).
+   */
+  const isNarration = (e: Entry) => e.clip.role === 'narration';
+  const cost = (e: Entry) => (isNarration(e) ? 0 : e.clip.bytes ?? 0);
+
   function canSpend(e: Entry) {
-    return spent + (e.clip.bytes ?? 0) <= timing.budgetBytes;
+    return spent + cost(e) <= timing.budgetBytes;
   }
 
   function warmOne(e: Entry) {
     const el = elementFor(e);
     e.warm = 'loading';
     inflight += 1;
-    spent += e.clip.bytes ?? 0;
+    spent += cost(e);
+    const narration = isNarration(e);
     let source: Source = e.preferOrig ? 'orig' : 'mirror';
     let ended = false;
     const end = (state: WarmState) => {
@@ -118,7 +126,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
       inflight -= 1;
       pumpIdle();
     };
-    const onReady = () => { if (el.readyState >= HAVE_FUTURE_DATA) end('done'); };
+    const onReady = () => { if (el.readyState >= (narration ? HAVE_METADATA : HAVE_FUTURE_DATA)) end('done'); };
     const onSuspend = () => { if (el.readyState >= HAVE_METADATA) end('done'); };
     const onError = () => {
       if (source === 'mirror' && e.clip.orig !== e.clip.src) {
@@ -135,6 +143,7 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     const off = () => {
       clearT(step);
       el.removeEventListener('canplay', onReady);
+      el.removeEventListener('loadedmetadata', onReady);
       el.removeEventListener('canplaythrough', onReady);
       el.removeEventListener('suspend', onSuspend);
       el.removeEventListener('error', onError);
@@ -149,10 +158,11 @@ export function createFlnPlayer(deps: FlnPlayerDeps = {}): FlnPlayer {
     };
     e.warmOff = stop;
     el.addEventListener('canplay', onReady);
+    if (narration) el.addEventListener('loadedmetadata', onReady);
     el.addEventListener('canplaythrough', onReady);
     el.addEventListener('suspend', onSuspend);
     el.addEventListener('error', onError);
-    el.preload = 'auto';
+    el.preload = narration ? 'metadata' : 'auto';
     setSrc(e, el, source === 'orig' ? e.clip.orig : e.clip.src);
     el.load();
   }
