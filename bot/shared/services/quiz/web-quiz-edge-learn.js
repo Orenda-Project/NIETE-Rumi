@@ -6,10 +6,11 @@
  * Each portal process remembers a few switches it learns from a quiz or hub payload (`fast`, `brand`, `rt`, `ui`,
  * `one_face`, `wait_ux`); after a deploy it knows none of them until its first page. GET /api/internal/wq/edge answers:
  *   off → { learn: false } and nothing else (the portal then stops asking: one ask per process);
- *   on  → { learn: true, fast, brand, rt[, ui], one_face, wait_ux }: exactly those payload fields, read through the same
+ *   on  → { learn: true, fast, brand, rt[, ui], one_face, wait_ux, wait_share }: exactly those payload fields, read through the same
  *         cached switches the payloads use (no child, teacher or class data, no ids). `one_face` and `wait_ux` are always
  *         there as true or false, so the portal can tell "off" from a bot that does not say (absent: it keeps what it had).
- *         `wait_ux` comes from the same batched read as this switch (no read of its own).
+ *         `wait_ux` and `wait_share` (wait_ux and web_quiz_hub_fanout both on) come from the same batched read as this
+ *         switch (no read of its own).
  * The key rides the hub's one batched settings read (web-quiz-hub-flags.js KEYS, 30 s cache), never a read of its own.
  * carry(): the hub answer says `edge_learn: true` while on (from that read's cache, no read), so a portal process that
  * stopped asking (the switch was off) starts again after a flip on; off, the hub answer is untouched, byte for byte.
@@ -53,7 +54,9 @@ async function answer() {
   const fast = require('./web-quiz-fast').on();
   const oneFace = require('./web-quiz-one-face').on();
   const [brand, rt, ui] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui()]);
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: f.waitUx === true };
+  // wait_share: the frame's read share, on with wait_ux AND web_quiz_hub_fanout (as web-quiz-wait-ux.js carry()), same read.
+  const waitUx = f.waitUx === true;
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true };
 }
 
 /** The hub answer (or its promise) with `edge_learn: true` added while on; the same answer, untouched, while off. */

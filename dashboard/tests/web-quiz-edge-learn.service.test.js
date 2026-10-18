@@ -661,3 +661,65 @@ describe('a fresh process, the bot answers the hub in 11 s (over the edge\'s 10 
     expect(r.body).not.toContain(AGAIN);
   });
 });
+
+// Every switch on (the every-switch shape: every 'web_quiz_…' key the bot's services name, read from their source, so a
+// switch added tomorrow is covered with no edit): with edge learning on, the first /h/ of a fresh process is the page a
+// process that learned from a payload sends today, byte for byte, and the bot is asked the same things besides the learn
+// ask. Off vs on on that first page: only the early head's preload lines differ.
+describe('every switch on: edge learning changes when the frame starts, never the page or the bot calls', () => {
+  let srv;
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+  const fs = require('fs');
+  const path = require('path');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : /\.js$/.test(e.name) ? [path.join(d, e.name)] : []));
+  const EVERY_KEY = [...new Set(walk(path.join(__dirname, '../../bot/shared/services'))
+    .flatMap((f) => fs.readFileSync(f, 'utf8').match(/'web_quiz_[a-z0-9_]+'/g) || []).map((s) => s.slice(1, -1)))].sort();
+  // The hub answer with every field a switch puts on it set on, and every key as true besides.
+  const HUB_ALL = () => HUB({ fast: true, rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: true, edge_learn: true,
+    ...Object.fromEntries(EVERY_KEY.map((k) => [k, true])) });
+  const LEARN_ALL = { learn: true, fast: true, brand: 'niete', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: true };
+
+  async function twoHubOpens(edgeLearn) {
+    const calls = [];
+    const fetchImpl = (url) => {
+      calls.push(url.slice(BOT.length));
+      return Promise.resolve(url.endsWith('/api/internal/wq/edge') ? jsonRes(200, LEARN_ALL) : jsonRes(200, HUB_ALL()));
+    };
+    srv = await start(build(fetchImpl, edgeLearn));
+    await settle();
+    const first = await get(srv, `/h/${TOKEN}`);
+    const second = await get(srv, `/h/${TOKEN}`);
+    await new Promise((ok) => srv.close(ok));
+    srv = null;
+    return { first, second, calls };
+  }
+
+  it('the key list is read from the bot\'s services (not hand-picked)', () => {
+    expect(EVERY_KEY.length).toBeGreaterThan(50);
+    expect(EVERY_KEY).toEqual(expect.arrayContaining(['web_quiz_edge_learn', 'web_quiz_fast', 'web_quiz_wait_ux', 'web_quiz_hub_fanout', 'web_quiz_one_face']));
+  });
+
+  it('on vs off: the same page bytes but the early head\'s preload lines, the same bot calls but the learn ask', async () => {
+    const on = await twoHubOpens({ timers: testTimers() });
+    const off = await twoHubOpens(false);
+    expect(on.first.status).toBe(200);
+    expect(off.first.status).toBe(200);
+    // on: the first open is already the frame-first page, the same bytes today's second open (taught by a payload) sends
+    expect(on.first.chunks.length).toBeGreaterThan(1);
+    expect(on.first.body).toBe(off.second.body);
+    expect(on.second.body).toBe(off.second.body);
+    // off's first open is today's one-piece page: only the early head's preload lines are not in it
+    const lines = (b) => b.split(/(?=<)/);
+    const onlyOn = lines(on.first.body).filter((l) => !lines(off.first.body).includes(l));
+    const onlyOff = lines(off.first.body).filter((l) => !lines(on.first.body).includes(l));
+    expect(onlyOff.map((l) => l.trim()).filter(Boolean)).toEqual([]);
+    expect(onlyOn.length).toBeGreaterThan(0);
+    onlyOn.forEach((l) => expect(l.trim()).toMatch(/^(<link rel="preload" [^>]*>|)$/));
+    // the bot: the same asks in the same order, the learn ask aside
+    expect(on.calls.filter((u) => u !== '/api/internal/wq/edge')).toEqual(off.calls);
+    expect(on.calls.filter((u) => u === '/api/internal/wq/edge').length).toBe(1);
+    expect(off.calls.length).toBe(2);
+  });
+});
+

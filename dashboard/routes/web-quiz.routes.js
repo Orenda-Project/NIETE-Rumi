@@ -834,13 +834,14 @@ function createWebQuizRouter(opts = {}) {
   // lib/edge-learn.js): once in the background, then every 60 s only while the bot says on (5 s after a failed ask); a
   // payload still wins. A test's own fake bot opts in with edgeLearn; inside a test run (JEST_WORKER_ID) it is never on by
   // default, so no test calls out.
-  // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face` and
-  // `wait_ux` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
+  // learned(): the one writer of what a learn answer says (any other learner calls it through edge.apply). `one_face`,
+  // `wait_ux` and `wait_share` are kept as they were when the answer lacks them (absent is not false: before any learn, today's page).
   const learned = (b) => {
     if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
     if (typeof b.rt === 'boolean') lastRt = b.rt;
     lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
+    if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
     lastFast = b.fast === true;
   };
   const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
