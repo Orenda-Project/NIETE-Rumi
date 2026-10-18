@@ -307,6 +307,7 @@
   }
   // Asked by the home when this file loads: the Games and Stories rows, so a door tap paints its whole list at once.
   function warm(B, ctx) {
+    if (B && B.wait_pre === true && !B.practice) warmVideos(B, ctx);
     if (!B || !B.list_states || B.practice) return;
     ['games', 'stories'].forEach(function (n) { if (!cache[n]) ask(B, ctx, n, function () {}); });
   }
@@ -460,12 +461,35 @@
     if (name === 'videos') return videos(root, B, ctx, view.subject);
     if (/^watch\//.test(name)) return start(root, B, ctx, { vid: name.slice(6) });
   }
+  // web_quiz_doors_prefetch (the boot's `wait_pre`): the Videos door's subjects, and with the shelves each subject's
+  // shelf, asked once the home has painted, so a Videos tap paints from rows already here. Never on Data Saver or 2G; a
+  // read that failed is not kept. A tap while one is on its way joins it (libGet: one read of a list at a time).
+  var libAsking = {};
+  function libGet(url, done) {
+    if (libAsking[url]) return libAsking[url].push(done);
+    libAsking[url] = [done];
+    getJson(url, function (err, j) { var all = libAsking[url] || []; libAsking[url] = null; all.forEach(function (fn) { fn(err, j); }); });
+  }
+  function libRead(B) { return B && B.wait_pre === true ? libGet : getJson; }
+  function warmVideos(B, ctx) {
+    var c = (typeof navigator !== 'undefined' && navigator && navigator.connection) || {};
+    if (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || ''))) return;
+    if (lib.subjects && !lib.subjects.err) return;
+    libGet(libUrl(B, ctx), function (err, j) {
+      if (err || !j || j.err) return;
+      lib.subjects = j;
+      if (!shelfOn(B)) return;
+      (j.subjects || []).forEach(function (s) {
+        if (!lib.chapters[s.key]) libGet(libUrl(B, ctx, s.key), function (e, x) { if (!e && x && !x.err && !lib.chapters[s.key]) lib.chapters[s.key] = x; });
+      });
+    });
+  }
   function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (s ? '&s=' + encodeURIComponent(s) : ''); }
   function videos(root, B, ctx, subject) {
     view.subject = subject || null;
     if (!subject) {
       draw(root, B, ctx, 'videos', { lib: lib.subjects });
-      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); getJson(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
+      if (!lib.subjects || lib.subjects.err) { subjState(root, B, true); libRead(B)(libUrl(B, ctx), function (err, j) { lib.subjects = err || !j ? { err: true } : j; if (view.name === 'videos' && !view.subject) { draw(root, B, ctx, 'videos', { lib: lib.subjects }); shelves(root, B, ctx); subjState(root, B); } }); }
       else { shelves(root, B, ctx); subjState(root, B); }
       return;
     }
@@ -473,7 +497,7 @@
     var see = function (st, l) { if (shelfOn(B)) vtrip(root, 'videos/' + subject, st, st === 'done' && !lessonsOf(l).length); };
     if (lib.chapters[subject]) return see('done', lib.chapters[subject]);
     see('pending');
-    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
+    libRead(B)(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
   }
   // The walkers' list-state tripwires on the door root (web_quiz_video_shelf; the four attributes every child list
   // writes): data-fetch pending|done|failed, when its placeholders came and went (a Try again starts a new spell), and
@@ -526,7 +550,7 @@
     };
     if (lib.chapters[key]) return fill(lib.chapters[key]);
     state(at(), 'pending');
-    getJson(libUrl(B, ctx, key), function (err, j) {
+    libRead(B)(libUrl(B, ctx, key), function (err, j) {
       if (err || !j) { var sh = at(); if (sh) { put(sh, oopsHtml(ctx, key, si)); state(sh, 'failed'); } return; }
       lib.chapters[key] = j; fill(j);
     });
