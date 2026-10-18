@@ -106,3 +106,17 @@ html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; lin
    the chip's later taps (wq-moment.js chip()). Only where the chip is drawn */
 :has(> .wq-moment):has(> .wqs-word) > [data-after-chip], :has(> .wq-moment):has(> .wqs-word) > [data-in-chip] { display: none; }
 .wq-moment-chipped > [data-after-chip] { display: revert; }
+/* a phone 860 px tall or less: the answered card keeps Next, Share and Home on the first screen — Jugnu a size smaller
+   above it, and the gaps around the sticker line and the sound switch closed up */
+@media (max-height: 860px) {
+  .wq-screen:has([data-rf]) .wq-jug.wq-big .wq-jimg { width: 96px; height: 96px; }
+  .wq-screen:has([data-rf]) .wq-jug.wq-big .wq-say { margin-bottom: 8px; }
+  .wq-screen:has([data-rf]) #wqc-sticker { margin: 4px 0; }
+  .wq-screen:has([data-rf]) .wqfc { gap: 8px; margin: 6px 0; }
+  .wq-screen:has([data-rf]) #wqfc-snd { min-height: 40px; height: 40px; }
+  .wq-screen:has([data-rf]) { row-gap: 8px; }
+  .wq-screen:has([data-rf]) > .wqc-fold:empty { display: none; }
+  .wq-screen:has([data-rf]) > .wq-moment { margin-block: 4px; }
+  .wq-screen:has([data-rf]) .wqfc-next { padding-block: 8px; min-height: 64px; }
+  html[lang=ur] .wq-screen:has([data-rf]) #wqc-sticker { line-height: 1.7; }
+}

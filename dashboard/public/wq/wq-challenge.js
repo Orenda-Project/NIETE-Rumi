@@ -1540,7 +1540,8 @@
       pose = 'notyet'; r = { failed: true };
     }
     else if (guardOn() && r.ended === 'silent') { line = t.readStopped; pose = 'notyet'; r = { score: r.score, wcpm: 0 }; }
-    else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = t.unheard; pose = 'notyet'; }
+    // key on: Jugnu says what happened only (the moment's line and the button already ask to read it again)
+    else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = rf ? t.unheard.replace(/\s*[^.!۔]*[?؟]\s*$/, '') : t.unheard; pose = 'notyet'; }
     // a scored body without the speed (the server sends it only to the child's own phone) reads as done when words were heard
     else if ((r.score && r.score.stopped) || !(r.wcpm > 0 || (!('wcpm' in r) && r.score && r.score.attempted > 0))) { line = t.readStopped; pose = 'notyet'; }
     else {
