@@ -46,6 +46,7 @@ const HubFlags = require('./web-quiz-hub-flags');
 const BindRepo = require('./child-phone-bindings.repo');
 const Homonym = require('./web-quiz-homonym');
 const GoNonce = require('../first-touch/go-nonce');
+const CardSwitch = require('./web-quiz-card-switch');
 const { clampLanguage } = require('../../config/ux-strings');
 const Adv = require('../first-touch/adventure-look');
 
@@ -61,6 +62,8 @@ const FAST_KEY = 'quiz_join_fast';
 // join's own switch read (no read of its own); JSON true only, and only with the join switch on.
 const WAIT_WORD_KEY = 'quiz_join_wait_word';
 // The one read asks for every key the join's flags need, so ON fills the identity and hub caches from it.
+// The one share (web_quiz_card_v3 + web_quiz_share_v4, both JSON true) rides the same read through HubFlags.KEYS: off,
+// a join asks nothing more. The adventure look's two keys (Adv.KEYS) ride it too; the Set drops any duplicate key.
 const flagKeys = () => [...new Set([SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, ...(IdFlags.KEYS || []), ...(HubFlags.KEYS || []), ...Adv.KEYS])];
 const TTL_MS = 30 * 1000;
 const JOIN_TTL_S = 60 * 60;
@@ -99,7 +102,7 @@ async function earlyTapOn() {
 }
 
 /**
- * → { on, bind, earlyTap, fast?, waitWord?, adv? }; all false on a failed read. Never throws. The adventure look
+ * → { on, bind, earlyTap, fast?, waitWord?, share?, adv? }; all false on a failed read. Never throws. The adventure look
  * (web_quiz_adventure_look AND web_quiz_one_button, both JSON true only) rides the switch's own read: no read is added.
  */
 async function flags(now = Date.now()) {
@@ -110,17 +113,18 @@ async function flags(now = Date.now()) {
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const on = isTrue(by[SWITCH_KEY]);
     const wait = on && by[WAIT_WORD_KEY] === true ? { waitWord: true } : {};
+    const share = on && by[CardSwitch.KEY] === true && by[CardSwitch.SHARE_KEY] === true ? { share: true } : {};
     const look = on && Adv.advDrawn(by) ? { adv: true } : {};
     if (on && by[FAST_KEY] === true) {
       // the identity and hub flags from these same rows (an expired cache only), so the line below reads nothing
       if (typeof IdFlags.prime === 'function') await IdFlags.prime(data, now);
       const bind = Boolean((await IdFlags.flags()).phoneBind);
-      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait, ...look };
+      cache = { at: now, on, bind, earlyTap: by[EARLY_TAP_KEY] === true, fast: true, ...wait, ...share, ...look };
       return cache;
     }
     const bind = on && Boolean((await IdFlags.flags()).phoneBind);
     const earlyTap = on && (await earlyTapOn());
-    cache = { at: now, on, bind, earlyTap, ...wait, ...look };
+    cache = { at: now, on, bind, earlyTap, ...wait, ...share, ...look };
     return cache;
   } catch (err) {
     logToFile('⚠️ student join: settings lookup failed — switch off', { error: err.message });
@@ -447,6 +451,7 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       logToFile('⚠️ student join: the door key was not written (the binding answers the next /quiz)', { error: err.message });
     }
     const kids = [{ id }, ...set];
+    fresh(r.tok.n, id, set);
     await emit('join_done', { grade: g, kids_n: kids.length }, id, device);
     // the home this opens says once "Jugnu will remember you on this phone", with Undo (web_quiz_home_v3; off: nothing)
     await require('./web-quiz-home-remember').note({ device, bindingId: b.bindingId, canonicalId: id, userId: who.userId });
@@ -648,9 +653,40 @@ async function noteRecognised({ phoneNorm } = {}) {
   }
 }
 
+// The NEW child a join just made, by its link's nonce (in this process, read once by opening() below): a shared card's
+// sharer gains a friend only for a new child (web_quiz_share_joined), never for a child the phone already had.
+const FRESH = new Map();
+function fresh(n, id, set) {
+  if (FRESH.size > 500) FRESH.clear();
+  FRESH.set(String(n), { id: String(id), set: (set || []).map((k) => String(k.id)) });
+}
+
+// A shared card's item kept for this phone (web_quiz_share_v4, web-quiz-share-open.js): the home link a join, a
+// landing or a pick answers with opens on it. The nonce names the phone; nothing kept, or the switch off: today's link.
+function opening(fn, nonceOf) {
+  return async (args = {}) => {
+    const out = await fn(args);
+    const n = nonceOf(args);
+    const made = n ? FRESH.get(String(n)) : null;
+    if (made) FRESH.delete(String(n));
+    // the switch from the join's own read (its cache, warm from this join): off, nothing more is asked
+    if (!out || typeof out.next !== 'string' || !(cache && cache.share === true)) return out;
+    try {
+      const who = n ? await GoNonce.peek(n) : null;
+      if (who && who.phoneNorm) out.next = await require('./web-quiz-share-open').withOpen(who.phoneNorm, out.next, made ? { fresh: made } : null);
+    } catch (err) {
+      logToFile('⚠️ student join: the shared item was not added (the home opens as today)', { error: err.message });
+    }
+    return out;
+  };
+}
+const joinOpen = opening(join, (a) => { const r = readToken(a.t); return r && r.tok ? r.tok.n : null; });
+const autoBindOpen = opening(autoBind, (a) => a.n);
+const bindPickOpen = opening(bindPick, (a) => a.n);
+
 module.exports = {
   SWITCH_KEY, EARLY_TAP_KEY, FAST_KEY, WAIT_WORD_KEY, JOIN_PATH, PRACTICE_HOME, HOME_ASSETS, GRADES,
-  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join, autoBind, bindPick, noteRecognised, hideCardIfBound,
+  flags, signJoin, joinUrl, practiceJoinUrl, siblingJoinToken, pageInfo, gradeTap, join: joinOpen, autoBind: autoBindOpen, bindPick: bindPickOpen, noteRecognised, hideCardIfBound,
   cleanFirstName, cleanGrade, pickChips, rosterForPhone, schoolYearStart,
   _resetCache: () => { cache = null; },
 };

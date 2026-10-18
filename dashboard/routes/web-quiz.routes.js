@@ -11,6 +11,7 @@
  *   GET  /s/:book/:file    a storybook's picture or voice, immutable, from storage (web-quiz-story-assets.js)
  *   GET  /wq/card/:t.png   the finish card's picture (web_quiz_card_v3), kept at the edge; HEAD answered from memory
  *   GET  /k/:t             a shared finish card: its og head (the picture) and one way in, the bot's chat
+ *   GET  /wq/vt/:vid.webp  a lesson's small thumbnail for the Videos door's shelves (web_quiz_video_shelf), kept at the edge
  *   *    /api/wq/*         forwarded to the bot's /api/internal/wq/* with the internal key
  *   GET  /wq-probe         a capability probe for real phones; posts its result as one event
  *   GET  /wq/*             the page's own JS/CSS/images, long cache (the page links them with ?v=<hash>)
@@ -28,6 +29,8 @@ const express = require('express');
 // loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
+// The one list of Server-Timing items a child answer may carry (shared with the bot's writers; requires nothing).
+const TimingNames = require('../../bot/shared/services/quiz/web-quiz-server-timing-names');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
 const Preview = require('./web-quiz-preview');
 const { urDigits } = require('../public/wq/wq-digits');
@@ -39,6 +42,8 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+// A lesson's id (student_videos.id), for its thumbnail.
+const VID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
@@ -190,7 +195,8 @@ function assetVersion() {
   }
   // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
   // one): a reader-only change busts a phone's year-long cache too. The player it brings carries its own content version.
-  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js']) {
+  // the reading moment the reader loads at this ?v= when the book says read_fb (web_quiz_read_feedback)
+  for (const f of ['wq-stories.js', 'wq-stories.css', 'wq-stories-q.js', 'wq-stories-d.js', 'wq-moment.js', 'wq-moment.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -375,9 +381,22 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
 
 // The quiz page in three parts (the head, the Jugnu boot frame, the boot JSON + scripts): renderQuizPage joins them;
 // the fast first page sends the first two before the bot answers and the third when it does.
+// The class table and the league (/q/<code>/class|schools) open in the link's ?lang (en|ur) when the bot's answer carries
+// class_doors (app_settings web_quiz_class_doors): the payload's ui_lang. Any other page, no lang, or off: the payload as it came.
+// The order is: the link's ?lang, then the child's stored language (storedLangOf), then the quiz's own (never EN by
+// default). storedLangOf is the named seam the child-language resolver fills when it lands; until then it reads
+// nothing and passes nothing.
+function storedLangOf(_req) { return null; }
+function uiLangOf(body, view, lang) {
+  if (!body || body.class_doors !== true || (view !== 'class' && view !== 'schools') || (lang !== 'en' && lang !== 'ur')) return body;
+  return { ...body, ui_lang: lang };
+}
+
 function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k }) {
   const q = (payload && payload.quiz) || {};
-  const lang = q.lang === 'ur' ? 'ur' : 'en';
+  // ui_lang: the class table / league in the link's language (uiLangOf, web_quiz_class_doors); else the quiz's.
+  const ul = payload && payload.ui_lang;
+  const lang = ul === 'ur' || ul === 'en' ? ul : q.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(payload && payload.brand);
   const og = ogText(payload, view, brand);
@@ -449,7 +468,39 @@ const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(i
  * A shared finish card (/k/<t>): the og head names the card's picture; the page shows it with ONE way in, this
  * bot's chat with the return words typed (the bot's /quiz then opens the child's own home). No script, no boot.
  */
+// The one share's landing (web_quiz_share_v4 tokens: facts.v4): the card, the activity's mark in its colour, who did
+// what, and ONE big way in — the bot's chat with the return words typed (with no bot number: WhatsApp with the words
+// typed, the friend picks the chat), never a page without a door.
+const CARD_LANDING = {
+  en: { sub: 'Join in and play it too!', hint: 'Tap the green button, then press send in WhatsApp.' },
+  ur: { sub: 'آپ بھی آئیں اور کھیلیں!', hint: 'سبز بٹن دبائیں، پھر واٹس ایپ میں بھیجنے کا بٹن دبائیں۔' },
+};
+function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
+  const lang = facts.lang === 'ur' ? 'ur' : 'en';
+  const dir = lang === 'ur' ? 'rtl' : 'ltr';
+  const brand = brandOf(brandKey);
+  const img = `${origin}/wq/card/${token}.png`;
+  const title = facts.first ? `${facts.first}: ${facts.deed_text}` : facts.deed_text;
+  const ret = facts.ret || {};
+  const c = CARD_LANDING[lang];
+  const accent = /^#[0-9A-Fa-f]{6}$/.test(String(facts.accent || '')) ? facts.accent : '#15803D';
+  const href = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href) ? ret.href : `https://wa.me/?text=${encodeURIComponent(ret.words || '')}`;
+  // what the card lands on, by name (its book's title, its video's lesson), in its own script
+  const item = facts.item_title ? `<p class="it"><bdi>${esc(String(facts.item_title).slice(0, 80))}</bdi></p>` : '';
+  const go = `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(href)}">${esc(ret.cta || '')}</a><p class="hint">${esc(c.hint)}</p>`;
+  return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
+<style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:14px;box-sizing:border-box}
+.k img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}.mark{justify-self:start;padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px}
+.k h1{margin:0;font-size:24px;line-height:${lang === 'ur' ? 2 : 1.25};color:${accent}}.k .it{font-weight:800;font-size:21px;color:#1F2937}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
+.wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}
+.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}</style>
+</head>
+<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="${dir}">${facts.first ? `<bdi>${esc(facts.first)}</bdi>: ` : ''}${esc(facts.deed_text)}</h1>${item}<p>${esc(c.sub)}</p>${go}</main></body>
+</html>`;
+}
+
 function renderCardPage({ facts, token, origin, url, brandKey, oneFace = false }) {
+  if (facts && facts.v4 === true) return renderCardPageV4({ facts, token, origin, url, brandKey, oneFace });
   const lang = facts.lang === 'ur' ? 'ur' : 'en';
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
   const brand = brandOf(brandKey);
@@ -563,8 +614,8 @@ ${p.tail}`;
 
 // Fast first page for the hub: the head guessed from the phone's language and the last brand/look, the scripts
 // preloaded, the Jugnu frame; then the corrections (and the install manifest) and today's tail when the bot answers.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false }) {
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}) }, token, origin, assetV });
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false }) {
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}), ...(waitUx && waitShare ? { wait_share: true } : {}) }, token, origin, assetV });
   const preload = ['wq-tel.js', 'hub.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -573,7 +624,10 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   const p = hubPageParts({ payload, token, origin, assetV });
   const fix = flushFixes(guess, p);
   if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
-  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${p.tail}`;
+  // web_quiz_wait_ux on, but this portal process flushed the frame before it learnt so (each process learns from its own
+  // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once.
+  const lateWait = WaitUx.on(payload) && !String(guess.frame || '').includes(WaitUx.TAG) ? WaitUx.TAG : '';
+  return `${fix.length ? `<script>(function(h){${fix.join(';')}})(document.documentElement)</script>\n` : ''}${lateWait}${p.tail}`;
 }
 
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
@@ -672,8 +726,10 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
-      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status });
-      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status });
+      // The bot's Server-Timing items (only sent with a timing switch on), only those on the shared list; else none.
+      const steps = TimingNames.clean(res.headers && res.headers.get ? res.headers.get('server-timing') : null);
+      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status, ...(steps ? { steps } : {}) });
+      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status, ...(steps ? { steps } : {}) });
       const location = res.headers && res.headers.get ? res.headers.get('location') : null;
       // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
@@ -686,7 +742,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
-      return { status: res.status, body: json, location };
+      // `steps`: the bot's timing items (web_quiz_server_timing on its hub answer). Off: today's result.
+      return { status: res.status, body: json, location, ...(steps ? { steps } : {}) };
     } catch (err) {
       const timedOut = Boolean(controller && controller.signal.aborted);
       record(method, where, t0, timedOut ? { outcome: 'timeout' }
@@ -723,7 +780,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(menu)}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
-${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+${menu && menu.lr3 ? `<link rel="stylesheet" href="/wq/wq-liveread.css?v=${challengeVersion('wq-liveread.css')}">\n<script src="/wq/wq-liveread.js?v=${challengeVersion('wq-liveread.js')}" defer></script>\n` : ''}${menu && menu.v2 && menu.card_v3 === true ? `<script src="/wq/wq-finish-card.js?v=${challengeVersion('wq-finish-card.js')}" defer></script>\n` : ''}${menu && menu.read_feedback === true ? `<link rel="stylesheet" href="/wq/wq-moment.css?v=${challengeVersion('wq-moment.css')}">\n<script src="/wq/wq-moment.js?v=${challengeVersion('wq-moment.js')}" defer></script>\n` : ''}${menu && menu.v2 ? `<script src="/wq/wq-trail.js?v=${challengeVersion('wq-trail.js')}" defer></script>\n` : ''}<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
 }
@@ -765,6 +822,7 @@ function createWebQuizRouter(opts = {}) {
   let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
   let lastFast = false; // the last quiz payload's `fast` (app_settings web_quiz_fast): send the page's head first
   let lastWaitUx = false; // the last hub answer's `wait_ux` (app_settings web_quiz_wait_ux): the flushed frame's progress bar
+  let lastWaitShare = false; // and its `wait_share` (web_quiz_hub_fanout on too): the frame's read share
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -919,7 +977,7 @@ function createWebQuizRouter(opts = {}) {
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -961,10 +1019,11 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare })
       : null;
     const wire = flush ? flushWire(req, res, flush.html) : null;
     let out;
+    const b0 = Date.now();
     try {
       out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
     } catch (_) {
@@ -978,8 +1037,20 @@ function createWebQuizRouter(opts = {}) {
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       lastWaitUx = WaitUx.on(out.body);
-      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.body, token, origin, assetV: version() }));
-      return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+      lastWaitShare = WaitUx.share(out.body);
+      // Step timings (the bot's answer carried them: a timing switch is on). The flushed page's headers went before the
+      // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
+      // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
+      // Off: no `st`, and the page and its headers are today's.
+      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version() }));
+      if (!out.steps) return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+      const edgeMs = Date.now() - b0;
+      const r0 = process.hrtime.bigint();
+      const html = renderHubPage({ payload: out.body, token, origin, assetV: version() });
+      const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
+      const items = TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', '));
+      TimingNames.appendTiming(res, items);
+      return res.status(200).type('html').send(html);
     }
     if (out.status === 401) return closed(401, 'hub');
     return closed(out.status === 503 ? 503 : 502, 'off');
@@ -1117,6 +1188,33 @@ function createWebQuizRouter(opts = {}) {
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
     } catch (_) {
       seen('none', { status: 0 });
+      return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
+    }
+  });
+  // A lesson's small thumbnail (the bot draws it from the poster once; off, unknown or not drawn: 404). Kept here a day,
+  // so a class opening the same shelf asks the bot once; the phone keeps it for good (the shelf's URL carries ?v=).
+  // A lesson the bot says has no picture (no_picture) is kept as such for 10 minutes, here and on the phone.
+  const thumbKept = Preview.ttlCache({ max: 600, now });
+  const THUMB_NONE_MS = 10 * 60 * 1000;
+  const NO_PICTURE = { none: true };
+  router.get('/wq/vt/:vid.webp', limiters.read, async (req, res) => {
+    const vid = String(req.params.vid || '').toLowerCase();
+    if (!VID_RX.test(vid)) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
+    if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
+    const send = (pic) => res.status(200).set({ 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    const noPicture = () => res.status(404).set('Cache-Control', `public, max-age=${THUMB_NONE_MS / 1000}`).json({ error: 'no_picture' });
+    const kept = thumbKept.get(vid);
+    if (kept) return kept.none ? noPicture() : send(kept);
+    try {
+      const out = await callBot('GET', `/api/internal/wq/vt/${vid}.webp`, req, null, { route: '/api/internal/wq/vt/:vid.webp' });
+      if (out.bytes) {
+        const pic = { bytes: out.bytes, contentType: out.contentType || 'image/webp' };
+        thumbKept.set(vid, pic, CARD_KEEP_MS);
+        return send(pic);
+      }
+      if (out.status === 404 && out.body && out.body.error === 'no_picture') { thumbKept.set(vid, NO_PICTURE, THUMB_NONE_MS); return noPicture(); }
+      return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
+    } catch (_) {
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
   });

@@ -487,7 +487,7 @@ describe('E6 GET board (the class league table)', () => {
   });
 
   test('"you" is the child\'s own row when the session token is given', async () => {
-    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Example', force: true } });
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Testwala', force: true } });
     await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
     await WQ.finishSession({ st: s.st });
     const out = await WQ.board('AB12CD', { st: s.st });
@@ -510,9 +510,223 @@ describe('E6 GET board (the class league table)', () => {
     CD._resetCache();
   });
 
+  // web_quiz_class_doors on: the table names the child's own class (as the teacher's report reads what children typed),
+  // and says whether every row is of it. Off, or a viewer the table does not know: neither key.
+  test('app_settings web_quiz_class_doors on: my_class + one_class for the child the token names; off: neither', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Testwala', force: true } });
+    await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    await WQ.finishSession({ st: s.st });
+    fake.db.quiz_sessions.forEach((r) => { r.student_class = 'Class 3'; });
+    CD._resetCache();
+    const off = await WQ.board('AB12CD', { st: s.st });
+    expect(off).not.toHaveProperty('my_class');
+    expect(off).not.toHaveProperty('one_class');
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    CD._resetCache();
+    expect(await WQ.board('AB12CD', { st: s.st })).toEqual({ ...off, class_doors: true, my_class: '3', one_class: true });
+    // another class in the table: one_class false; the child's own row keeps the child's class
+    const sid = T.verify(s.st, 's').sid;
+    fake.db.quiz_sessions.filter((r) => r.id !== sid).forEach((r) => { r.student_class = '4'; });
+    const mixed = await WQ.board('AB12CD', { st: s.st });
+    expect(mixed).toMatchObject({ my_class: '3', one_class: false });
+    // no token: the viewer is not known, so no class of theirs
+    const cold = await WQ.board('AB12CD');
+    expect(cold.class_doors).toBe(true);
+    expect(cold).not.toHaveProperty('my_class');
+    // the rows never carry a child's class
+    expect(Object.keys(mixed.rows[0]).sort()).toEqual(['animal', 'correct', 'first', 'place', 'total']);
+    // free text in the class field (a word, a name) is never the child's class: no title, no chip
+    fake.db.quiz_sessions.find((r) => r.id === sid).student_class = 'Iqra Testwala';
+    const typed = await WQ.board('AB12CD', { st: s.st });
+    expect(typed).not.toHaveProperty('my_class');
+    expect(typed).not.toHaveProperty('one_class');
+    expect(JSON.stringify(typed)).not.toContain('Testwala"');
+    // a number past the grades is not a class either
+    fake.db.quiz_sessions.find((r) => r.id === sid).student_class = '15';
+    expect(await WQ.board('AB12CD', { st: s.st })).not.toHaveProperty('my_class');
+    CD._resetCache();
+  });
+
+  test('app_settings web_quiz_class_doors on: the quiz page\'s answer carries class_doors; off, absent or the string "true": today\'s', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    CD._resetCache();
+    const before = await WQ.getQuiz('AB12CD');
+    expect(before).not.toHaveProperty('class_doors');
+    for (const value of [false, 'true']) {
+      CD._resetCache();
+      fake.db.app_settings = [{ key: 'web_quiz_class_doors', value }];
+      expect(await WQ.getQuiz('AB12CD')).not.toHaveProperty('class_doors');
+    }
+    CD._resetCache();
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    expect((await WQ.getQuiz('AB12CD')).class_doors).toBe(true);
+    CD._resetCache();
+  });
+
+  // web_quiz_class_doors on, a table that mixes classes: `only`, the child's own class re-ranked (the page's "Only
+  // Class 3" chip). The rows stay first name + animal + score; no row ever carries a class.
+  test('app_settings web_quiz_class_doors on, a mixed table: only = the child\'s class re-ranked; one class, cold or off: none', async () => {
+    const CD = require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Testwala', force: true } });
+    await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    await WQ.finishSession({ st: s.st });
+    const k1 = 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const k2 = 'bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    fake.db.quiz_sessions.forEach((r) => { r.student_class = '3'; });
+    fake.db.quiz_sessions.push(done('m1', k1, 'Amna Testwala', 4, 4, 5, { student_class: 'Class 4' }), done('m2', k2, 'Bano Testwala', 2, 4, 5, { student_class: 'class 3' }));
+    CD._resetCache();
+    const off = await WQ.board('AB12CD', { st: s.st });
+    expect(off).not.toHaveProperty('only');
+    fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+    CD._resetCache();
+    const on = await WQ.board('AB12CD', { st: s.st });
+    expect(on).toMatchObject({ my_class: '3', one_class: false });
+    // all: Iqra 4/4 (1), Amna 4/4 (1, class 4), Zara 3/4 (3), Bano 2/4 (4); class 3 only: Iqra 1, Zara 2, Bano 3
+    expect(on.only).toEqual({
+      finishers_n: 3, class_avg_pct: 75, more_n: 0, you: { place: 1, correct: 4, total: 4, pct: 100 },
+      rows: [
+        expect.objectContaining({ place: 1, first: 'Iqra', correct: 4, total: 4 }),
+        expect.objectContaining({ place: 2, first: 'Zara', correct: 3, total: 4 }),
+        expect.objectContaining({ place: 3, first: 'Bano', correct: 2, total: 4 }),
+      ],
+    });
+    expect(on.only.rows.every((r) => Object.keys(r).sort().join() === 'animal,correct,first,place,total')).toBe(true);
+    // the whole table is unchanged beside it
+    expect(on.rows).toEqual(off.rows);
+    // one class: no chip
+    fake.db.quiz_sessions.find((r) => r.id === 'm1').student_class = '3';
+    expect(await WQ.board('AB12CD', { st: s.st })).not.toHaveProperty('only');
+    // a viewer the table does not know: no chip
+    fake.db.quiz_sessions.find((r) => r.id === 'm1').student_class = '4';
+    expect(await WQ.board('AB12CD')).not.toHaveProperty('only');
+    CD._resetCache();
+  });
+
+  // web_quiz_class_doors on: the same lesson's code in the other language from the same teacher (the hub's own lesson
+  // match), so Play from a table shown in the child's language opens the quiz in it too. Its hub key when the child is known.
+  describe('the quiz\'s twin in the other language (web_quiz_class_doors)', () => {
+    const QUIZ_UR = '22222222-2222-4222-8222-2222222222ee';
+    const SC_UR = '33333333-3333-4333-8333-3333333333ee';
+    const ur = (over = {}) => ({ id: SC_UR, code: 'UR12CD', quiz_id: QUIZ_UR, teacher_user_id: TEACHER, language: 'ur', active: true, expires_at: future, invited_by_student_id: null, parent_share_code_id: null, created_at: ago(10), ...over });
+    const twinDb = () => {
+      fake.db.quizzes[0].lesson_plan_id = 'lp-1';
+      fake.db.quizzes.push({ id: QUIZ_UR, topic: 'Parts of a plant', grade: '3', subject: 'Science', language: 'ur', lesson_plan_id: 'lp-1' });
+      fake.db.quiz_share_codes.push(ur(), ur({ id: 'sc-ur-old', code: 'UROLD1', expires_at: ago(1), created_at: ago(1) }), ur({ id: 'sc-ur-inv', code: 'URINV1', invited_by_student_id: KID_A, created_at: ago(0.5) }), ur({ id: 'sc-ur-off', code: 'UROFF1', active: false, created_at: ago(0.4) }), ur({ id: 'sc-ur-oth', code: 'UROTH1', teacher_user_id: '11111111-1111-4111-8111-1111111111ee', created_at: ago(0.3) }));
+    };
+    const CD = () => require('../../../shared/services/quiz/web-quiz-class-doors-flag');
+    beforeEach(() => require('../../../shared/services/quiz/web-quiz-class-twin')._resetCache());
+    afterEach(() => CD()._resetCache());
+    test('on: twin = the teacher\'s open code of the same lesson in the other language, with the child\'s key; cold: no key', async () => {
+      twinDb();
+      const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Iqra Testwala', force: true } });
+      await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+      await WQ.finishSession({ st: s.st });
+      fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+      CD()._resetCache();
+      const kid = fake.db.quiz_sessions.find((r) => r.id === T.verify(s.st, 's').sid).student_id;
+      expect((await WQ.board('AB12CD', { st: s.st })).twin).toEqual({ code: 'UR12CD', k: T.chipId(SC_UR, kid) });
+      expect((await WQ.board('AB12CD')).twin).toEqual({ code: 'UR12CD' });
+    });
+    test('off, absent or the string "true": no twin, and not one read of it', async () => {
+      twinDb();
+      const Tw = require('../../../shared/services/quiz/web-quiz-class-twin');
+      const spy = jest.spyOn(Tw, 'find');
+      for (const value of [false, 'true']) {
+        CD()._resetCache();
+        fake.db.app_settings = [{ key: 'web_quiz_class_doors', value }];
+        expect(await WQ.board('AB12CD')).not.toHaveProperty('twin');
+      }
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
+    test('on, but a quiz with no lesson, or no open twin code of this teacher: no twin', async () => {
+      fake.db.app_settings = [{ key: 'web_quiz_class_doors', value: true }];
+      CD()._resetCache();
+      fake.db.quiz_share_codes.push(ur());
+      fake.db.quizzes.push({ id: QUIZ_UR, language: 'ur', lesson_plan_id: 'lp-1' });
+      expect(await WQ.board('AB12CD')).not.toHaveProperty('twin');
+      fake.db.quizzes[0].lesson_plan_id = 'lp-1';
+      fake.db.quiz_share_codes.pop();
+      fake.db.quiz_share_codes.push(ur({ expires_at: ago(1) }));
+      expect(await WQ.board('AB12CD')).not.toHaveProperty('twin');
+    });
+  });
+
   test('rankRows is competition ranking (1,1,3)', () => {
     const r = WQ.rankRows([{ first: 'a', pct: 50, correct: 2 }, { first: 'b', pct: 100, correct: 4 }, { first: 'c', pct: 100, correct: 4 }]);
     expect(r.map((x) => [x.first, x.place])).toEqual([['b', 1], ['c', 1], ['a', 3]]);
+  });
+  // The watch quiz (app_settings VALUE web_quiz_watch_root) has no class, so it has no class table: its board, and the
+  // board of any code under it, is 404, as a friend's challenge code is. An unreadable root fails closed (404).
+  describe('the watch quiz has no class table', () => {
+    const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster');
+    const ROOT = '99999999-9999-4999-8999-999999999999';
+    const rootIs = (id) => { fake.db.app_settings = [{ key: 'web_quiz_watch_root', value: id }]; IdRoster._resetCache(); };
+    afterEach(() => { fake.db.app_settings = []; IdRoster._resetCache(); });
+    test('the root code itself: 404 (its finishers are every class-less child)', async () => {
+      rootIs(SC);
+      await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404, body: { error: 'not_found' } });
+    });
+    test('a code under the root: 404', async () => {
+      fake.db.quiz_share_codes.push({ id: ROOT, code: 'WATCH1', quiz_id: QUIZ, teacher_user_id: TEACHER, language: 'en', active: true, expires_at: ago(-240), invited_by_student_id: null, parent_share_code_id: null, created_at: ago(40) });
+      fake.db.quiz_share_codes.find((r) => r.id === SC).parent_share_code_id = ROOT;
+      rootIs(ROOT);
+      await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404 });
+    });
+    test('the root cannot be read: 404 (fails closed)', async () => {
+      rootIs(ROOT);
+      const from = supabase.from;
+      supabase.from = (t) => { if (t === 'app_settings') throw new Error('down'); return from(t); };
+      try {
+        await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404 });
+      } finally { supabase.from = from; }
+    });
+    // app_settings reads of the page's combined settings (the watch root's VALUE rides in it), failing the first n
+    const rootReads = (failFirst = 0) => {
+      const from = supabase.from;
+      const seen = { n: 0 };
+      supabase.from = (t) => {
+        const b = from(t);
+        if (t !== 'app_settings') return b;
+        const sel = b.select.bind(b);
+        b.select = (...a) => { const q = sel(...a); const inn = q.in && q.in.bind(q); if (inn) q.in = (k, v) => { if (Array.isArray(v) && v.includes('web_quiz_watch_root')) { seen.n += 1; if (seen.n <= failFirst) throw new Error('down'); } return inn(k, v); }; return q; };
+        return b;
+      };
+      seen.restore = () => { supabase.from = from; };
+      return seen;
+    };
+    test('one failed read, then a good one: the table\'s rows as today (a blip never closes a class\'s table)', async () => {
+      const base = await WQ.board('AB12CD');
+      rootIs(ROOT);
+      const r = rootReads(1);
+      try {
+        expect(await WQ.board('AB12CD')).toEqual(base);
+        expect(r.n).toBe(2);
+      } finally { r.restore(); }
+    });
+    test('two failed reads: 404', async () => {
+      rootIs(ROOT);
+      const r = rootReads(2);
+      try {
+        await expect(WQ.board('AB12CD')).rejects.toMatchObject({ status: 404 });
+        expect(r.n).toBe(2);
+      } finally { r.restore(); }
+    });
+    test('a good read: the watch root is read once, never twice', async () => {
+      rootIs(ROOT);
+      const r = rootReads(0);
+      try {
+        await WQ.board('AB12CD');
+        expect(r.n).toBe(1);
+      } finally { r.restore(); }
+    });
+    test('a class code with the root set elsewhere: its rows, as today', async () => {
+      const base = await WQ.board('AB12CD');
+      rootIs(ROOT);
+      expect(await WQ.board('AB12CD')).toEqual(base);
+      expect(base.finishers_n).toBe(1);
+    });
   });
 });
 
