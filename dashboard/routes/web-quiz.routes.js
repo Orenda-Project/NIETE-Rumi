@@ -624,8 +624,8 @@ const cardType = (image) => (image && (/\/wq\/card\/[A-Za-z0-9_-]+\.png$/.test(i
  * A shared finish card (/k/<t>): the og head names the card's picture; the page shows it with ONE way in, this
  * bot's chat with the return words typed (the bot's /quiz then opens the child's own home). No script, no boot.
  */
-// The one share's landing (web_quiz_share_v4 tokens: facts.v4): the card, the activity's mark in its colour, who did
-// what, and ONE big way in — the bot's chat with the return words typed (with no bot number: WhatsApp with the words
+// The one share's landing (web_quiz_share_v4 tokens: facts.v4): the card (its picture already shows the activity's
+// ribbon and who did what, so the page never says them again), what it lands on with its cover, and ONE big way in — the bot's chat with the return words typed (with no bot number: WhatsApp with the words
 // typed, the friend picks the chat), never a page without a door.
 const CARD_LANDING = {
   en: { sub: 'Join in and play it too!', hint: 'Tap the green button, then press send in WhatsApp.' },
@@ -641,19 +641,24 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
   const c = CARD_LANDING[lang];
   const accent = /^#[0-9A-Fa-f]{6}$/.test(String(facts.accent || '')) ? facts.accent : '#15803D';
   const href = ret.href && /^https:\/\/wa\.me\/\d{10,15}\?text=[^"<>\s]+$/.test(ret.href) ? ret.href : `https://wa.me/?text=${encodeURIComponent(ret.words || '')}`;
-  // what the card lands on, by name (its book's title, its video's lesson), in its own script
-  // Urdu is drawn at the Regular weight (a bold Nastaliq breaks joins: «پڑھی» as «پڑ ھی»); the name is its own line.
-  const item = facts.item_title ? `<p class="it"><bdi>${esc(String(facts.item_title).slice(0, 80))}</bdi></p>` : '';
+  // what the card lands on, by name (its book's title, its video's lesson) in its own script, at the start of a line
+  // in the page's direction, beside its cover (a book's tall cover, a lesson's wide picture; only our own paths)
+  // Urdu is drawn at the Regular weight (a bold Nastaliq breaks joins: «پڑھی» as «پڑ ھی»).
+  const cv = String(facts.item_cover || '');
+  const cover = /^\/s\/[0-9a-f-]{36}\/[a-z0-9-]+\.webp$/.test(cv) ? `<img class="cv" src="${esc(cv)}" alt="" width="96" height="144">`
+    : /^\/wq\/vt\/[0-9a-f-]{36}\.webp\?v=\d+$/.test(cv) ? `<img class="cv cv-w" src="${esc(cv)}" alt="" width="160" height="90">` : '';
+  const item = facts.item_title ? `<div class="it" dir="${dir}">${cover}<h1><bdi>${esc(String(facts.item_title).slice(0, 80))}</bdi></h1></div>` : '';
   const go = `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(href)}">${esc(ret.cta || '')}</a><p class="hint">${esc(c.hint)}</p>`;
   return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
 <style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:14px;box-sizing:border-box}
-.k img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}.mark{justify-self:start;padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px}
-.k h1{margin:0;font-size:24px;line-height:${lang === 'ur' ? 2 : 1.25};color:${accent}}.k .it{font-weight:800;font-size:21px;color:#1F2937}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
+.k>img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}
+.k .it{display:flex;align-items:center;gap:14px;text-align:start}.k .cv{flex:none;width:96px;height:144px;object-fit:cover;border-radius:12px;box-shadow:0 4px 0 ${accent}33,0 1px 6px rgba(15,23,42,.14);background:#fff}.k .cv-w{width:160px;height:90px}
+.k h1{margin:0;font-size:22px;font-weight:800;line-height:${lang === 'ur' ? 2 : 1.3};color:#1F2937;min-width:0;overflow-wrap:anywhere}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
 .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}
-.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}.k h1 .nm{display:block}${lang === 'ur' ? `
-.k h1,.k .it,.mark,.wq-btn{font-weight:400}` : ''}</style>
+.wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}${lang === 'ur' ? `
+.k h1,.wq-btn{font-weight:400}` : ''}</style>
 </head>
-<body><main class="k" data-screen="card_landing" data-v="4"><span class="mark" dir="auto">${esc(facts.mark || '')}</span><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630"><h1 dir="${dir}">${facts.first ? `<bdi class="nm">${esc(facts.first)}</bdi>` : ''}${esc(facts.deed_text)}</h1>${item}<p>${esc(c.sub)}</p>${go}</main></body>
+<body><main class="k" data-screen="card_landing" data-v="4"><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630">${item}<p>${esc(c.sub)}</p>${go}</main></body>
 </html>`;
 }
 
