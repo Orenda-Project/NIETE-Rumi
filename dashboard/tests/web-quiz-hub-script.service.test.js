@@ -164,6 +164,11 @@ test('the grown-ups corner\'s language link (?lang=ur&keep=1): the body asks the
     return JSON.parse(p.fetches.find((f) => f.url.indexOf('/api/wq/hub/') === 0).init.body);
   };
   expect(await bodyFor('?kid=x&lang=ur&keep=1')).toMatchObject({ device_ref: DEV, lang: 'ur', keep: 1 });
+  // the server keeps a choice only for the child the request names: the link's kid rides with keep, even when the
+  // server render had no device (the page asks again as this phone, with no child picked yet)
+  expect(await bodyFor('?kid=x&lang=ur&keep=1')).toMatchObject({ kid: 'x', keep: 1 });
+  expect(await bodyFor('?kid=a%20b&lang=ur&keep=1')).toMatchObject({ kid: 'a b', keep: 1 });
+  expect(await bodyFor('?lang=ur&keep=1')).not.toHaveProperty('kid');
   expect(await bodyFor('?kid=x&keep=1')).not.toHaveProperty('keep');
   expect(await bodyFor('?kid=x&lang=ur')).not.toHaveProperty('keep');
 });
