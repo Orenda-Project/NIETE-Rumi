@@ -2,7 +2,7 @@
  * The corrected Urdu share words (app_settings web_quiz_ur_share_copy → the bot's `ur_share: true` beside the card's
  * field; default OFF). On, an Urdu page says:
  *   - the no-class Share button «دوستوں کو بھیجیں» (the quiz finish and the end card), never «شیئر کریں»;
- *   - the score share line ends «اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!»;
+ *   - the score share line ends «اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!», in Urdu digits with the name isolated;
  *   - the class table line and its link preview speak to the reader and invite: «آپ نے ابھی تک نہیں کھیلا؟ … آئیں کھیلیں»
  *     («آپ نے» keeps it the same for any child; «ابھی بھی» = still open), card on or off;
  *   - the challenge ask «محلے میں کوئی دوست» (no gender), and both challenge lines end «لنک دبائیں:».
@@ -37,11 +37,15 @@ const finishCard = (lang, bootExtra, htmlClass) => {
   return p;
 };
 
+const T_ON = () => page({ lang: 'ur', bootExtra: ON }).wq.T;
+
 describe('on: the Urdu page says the corrected words', () => {
   test('the six strings', () => {
     const w = words(page({ lang: 'ur', bootExtra: ON }).wq.T);
     expect(w[0]).toBe('دوستوں کو بھیجیں');
-    expect(w[1]).toBe('نور ٹیسٹوالا نے پودے میں 5 میں سے 3 ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!');
+    // Urdu digits like the card's ۳/۵, the name and topic isolated (a Latin name does not jump the line), like the challenge lines
+    expect(w[1]).toBe('\u2068نور ٹیسٹوالا\u2069 نے \u2068پودے\u2069 میں ۵ میں سے ۳ ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!');
+    expect(T_ON().shareLine('Noor Testwala', 3, 5, 'Plants')).toMatch(/^\u2068Noor Testwala\u2069 نے \u2068Plants\u2069 میں ۵ میں سے ۳ /);
     expect(w[2]).toBe('پودے: جماعت ۳ کی لیگ ٹیبل۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:');
     expect(w[3]).toBe('محلے میں کوئی دوست');
     expect(w[4]).toMatch(/مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:$/);
