@@ -255,6 +255,53 @@ describe('quiz_join_fast ON: the same answer and the same writes, in fewer waves
   });
 });
 
+describe('quiz_join_fast ON: the join\'s one read primes the hub whatever the identity cache holds', () => {
+  const HUB = '../../../shared/services/quiz/web-quiz-hub-flags';
+  const ID = '../../../shared/services/quiz/web-quiz-identity-flags';
+  /** The hub read its own switches at NOW (a /h open), the identity's at NOW+20 s (a bind, hub warm), the join at NOW+35 s. */
+  async function identityWarmHubCold(value) {
+    boot(value);
+    await require(HUB).flags();
+    jest.setSystemTime(NOW + 20 * 1000);
+    await require(ID).flags();
+    jest.setSystemTime(NOW + 35 * 1000);
+  }
+  test('identity warm, hub cold: join + the first home = one settings read ON (two OFF, as today)', async () => {
+    for (const [value, want] of [[true, ['db.app_settings']], [undefined, ['db.app_settings', 'db.app_settings', 'db.app_settings']]]) {
+      await identityWarmHubCold(value);
+      const r = await measure(async () => { await Join.flags(); return require(HUB).flags(); });
+      expect(r.seq).toEqual(want);
+    }
+  });
+  test('the home after a fast join reads the same hub switches it would read itself', async () => {
+    await identityWarmHubCold(true);
+    await Join.flags();
+    const primed = { ...(await require(HUB).flags()) };
+    require(HUB)._resetCache();
+    const own = await require(HUB).flags();
+    expect(primed).toEqual(own);
+  });
+  test('the join forwards the list it asked for to both primes; a list without a group key throws', async () => {
+    await identityWarmHubCold(true);
+    const Hub = require(HUB);
+    const Id = require(ID);
+    const hubPrime = jest.spyOn(Hub, 'prime');
+    const idPrime = jest.spyOn(Id, 'prime');
+    await Join.flags();
+    const asked = idPrime.mock.calls[0][2];
+    expect(asked).toEqual(expect.arrayContaining([...Id.KEYS, ...Hub.KEYS, FAST_KEY]));
+    expect(hubPrime.mock.calls[0][2]).toBe(asked);
+    hubPrime.mockRestore();
+    idPrime.mockRestore();
+    Id._resetCache();
+    for (const drop of [Id.KEYS[0], Hub.KEYS[0]]) {
+      await expect(Id.prime([], NOW, asked.filter((k) => k !== drop))).rejects.toThrow(drop);
+    }
+    // a read that asked for every key with no rows at all is the normal OFF, never a throw
+    await expect(Id.prime([], NOW, asked)).resolves.toBeUndefined();
+  });
+});
+
 describe('the teacher check side by side (activityAll) answers as the serial one (activity)', () => {
   const tables = ['quizzes', 'coaching_sessions', 'lesson_plans', 'student_lists', 'training_assessment_attempts', 'assessment_requests', 'class_teachers'];
   test.each([

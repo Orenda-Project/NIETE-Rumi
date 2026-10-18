@@ -15,6 +15,8 @@
 html.wq-adv{
   /* ground and surfaces: a sunny paper map */
   --ground:#fbf3dc;--card:#fffdf6;--line:#e6d6ae;--tint:#fff1c9;
+  /* skeleton blocks: ≥ 1.3:1 against the ground, so a loading list is seen as one (DQ11 G4) */
+  --skel:#e3cf9f;--skel-hi:#efe2bd;
   --muted:#6d6450; /* --ink is today's #2A2D3A (not overridden: quiz text stays identical) */
   --paper:var(--ground);--paper-2:var(--tint);
   /* reward light */
@@ -131,7 +133,8 @@ html.wq-adv section.wq-home[data-screen=home]{justify-content:space-between}
 /* Urdu: bold Nastaliq breaks its joins, so buttons take the regular weight; below 420 px two Urdu buttons never share a row */
 html.wq-adv[lang=ur] .wq-btn{font-weight:400}
 html.wq-adv[lang=ur] .wq-next .wq-ngo{font-weight:400}
-@media (max-width:419px){html.wq-adv[lang=ur] .wq-social{flex-direction:column}}
+/* a 360 px Urdu Home keeps the hold on the first screen: the trail and the gaps compact, no button is re-shaped */
+@media (max-width:419px){html.wq-adv[lang=ur] section.wq-home[data-screen=home]{gap:var(--sp-2)}html.wq-adv[lang=ur] .wq-next{margin-top:var(--sp-4)}html.wq-adv[lang=ur] .wqa-stop i{width:60px;height:60px}html.wq-adv[lang=ur] .wqa-trail::before{top:36px}html.wq-adv[lang=ur] .wq-nart{width:88px;height:116px}}
 /* hold for grown-ups: a full-size pill, a hand, and a ring that fills while held (never a footnote) */
 html.wq-adv .wq-gbtn{--edge:var(--line);display:inline-flex;align-items:center;gap:var(--sp-2);min-height:var(--btn-h);padding-inline:var(--sp-2) var(--sp-4);border:2px solid var(--line);background:var(--card);color:var(--ink);font-size:var(--fs-2);font-weight:800;box-shadow:0 4px 0 var(--edge)}
 html.wq-adv .wq-gbtn::before{content:"";position:relative;z-index:1;flex:none;width:36px;height:36px;border-radius:50%;background:var(--tint) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d6450' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 13V5a2 2 0 0 1 4 0v6M12 10a2 2 0 0 1 4 0v2M16 12a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-3-5a2 2 0 0 1 3-2l1 1'/%3E%3C/svg%3E") center/22px no-repeat;box-shadow:inset 0 0 0 3px var(--line)}
@@ -191,9 +194,21 @@ html.wq-adv .wqfc-deed,html.wq-adv .wq-moment-deed{color:var(--ink);font-size:va
 html.wq-adv .wqfc-next,html.wq-adv .wq-moment-next{--edge:var(--land-edge,var(--land-st-edge))}
 /* Jugnu answers the finish (wq-adv-more.js): cheering beside the cover, or on top without one; Share + Home stacked under Next (a long Urdu share label never fits half a row) */
 html.wq-adv .wqa-jug{display:block;justify-self:center;width:96px;height:96px;margin:0 auto;border-radius:50%;background:radial-gradient(circle,var(--glow) 0,rgba(255,200,58,0) 68%);animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
-html.wq-adv .wqfc-cov+.wqa-jug{width:80px;height:80px;margin-top:-72px;margin-inline-start:calc(50% + 20px)}
+html.wq-adv .wqfc-cov+.wqa-jug{width:72px;height:72px;margin-top:-60px;margin-inline-start:calc(50% + 12px)}
+/* a compact top (cover, stamp, gaps), so Share and Home stay on a 360 × 740 screen under a long Urdu deed */
+html.wq-adv .wqfc{gap:var(--sp-2)}
+html.wq-adv .wqfc-cov{width:72px;height:108px}
+html.wq-adv .wqfc .wqa-got{margin:0 auto;padding:var(--sp-1) var(--sp-3)}
+html.wq-adv .wqfc .wqa-got .wqa-stamp,html.wq-adv .wqa-brave .wqa-heart{width:48px;height:48px}
 html.wq-adv .wqa-pair{display:grid;gap:var(--sp-3)}
-html.wq-adv .wqa-brave .wqa-heart{width:56px;height:56px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) .3s both}
+/* the sound button rides the card's top corner, so the Next tile takes the whole row (a long Urdu title stays short);
+   html.wq-adv.wq-1b outranks the card's own one-button rules, which it injects later in the page */
+html.wq-adv .wqfc{position:relative}
+html.wq-adv.wq-1b .wqfc{grid-template-columns:minmax(0,1fr)}
+html.wq-adv.wq-1b .wqfc>.wqfc-snd{position:absolute;top:0;inset-inline-end:0;z-index:1;grid-column:auto}
+html.wq-adv.wq-1b .wqfc>[data-primary]{grid-column:1/-1}
+html.wq-adv[lang=ur] .wqfc-nt b{font-size:22px}
+html.wq-adv .wqa-brave .wqa-heart{animation:wqa-pop var(--dur-celebrate) var(--ease-pop) .3s both}
 
 /* 7 · kit parts (wq-adv.js) */
 html.wq-adv .wqa-i{display:inline-block;width:1.25em;height:1.25em;vertical-align:-.25em;flex:none}
@@ -225,7 +240,7 @@ html.wq-adv .wqa-bar>i{position:absolute;inset-block:0;inset-inline-start:0;bord
 html.wq-adv .wqa-badge{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 14px;border-radius:999px;background:var(--tint);color:var(--ink);font-weight:800;box-shadow:inset 0 0 0 2px var(--gold)}
 html.wq-adv .wqa-badge .wqa-i{color:var(--gold-d)}
 /* the designed wait: soft blocks in the real shapes, a shimmer; never an empty message while data is in flight */
-html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b{border-radius:var(--r-chip);background:linear-gradient(90deg,var(--land-bg) 0 40%,#fffaf0 50%,var(--land-bg) 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
+html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqs-skel{border-radius:var(--r-chip);background:linear-gradient(90deg,var(--skel) 0 40%,var(--skel-hi) 50%,var(--skel) 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
 
 /* 8 · motion (WQA.move): each a one-shot; reduced motion gets a 150 ms fade and no movement */
 html.wq-adv .wqa-m-pop{animation:wqa-pop var(--dur-pop) var(--ease-pop)}
@@ -241,7 +256,7 @@ html.wq-adv .wqa-m-fade{animation:wqa-fade 150ms ease-out}
 @keyframes wqa-fade{0%{opacity:.4}100%{opacity:1}}
 @keyframes wqa-sh{0%{background-position:100% 0}100%{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){
-  html.wq-adv .wqa-jug,html.wq-adv .wqa-heart,html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqa-climb .wqa-stamp,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
+  html.wq-adv .wqa-jug,html.wq-adv .wqa-heart,html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqs-skel,html.wq-adv .wqa-climb .wqa-stamp,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
   html.wq-adv .wq-btn:active,html.wq-adv .wq-next:active,html.wq-adv .wq-door:active,html.wq-adv .wqs-book:active,html.wq-adv .wq-dli:has(.wq-drow:active){transform:none}
   html.wq-adv .wq-gbtn.held::before{transition:box-shadow 2s steps(4)}
 }

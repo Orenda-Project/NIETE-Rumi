@@ -631,4 +631,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 
 module.exports = {
   quizLanguage, isCurrent, webOf, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, spokenOperators, voiceText, whyText, withoutPraise, AUDIO_VERSION,
+  levelClip,
 };

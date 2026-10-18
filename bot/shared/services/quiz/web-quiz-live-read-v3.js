@@ -64,25 +64,11 @@ async function settingOn(key) {
 }
 const on = () => settingOn(FLAG_KEY);
 
-// the live meter's variant, or null: only a known name (or a literal true, the sky bar) and only while v3 is on
-const METER_KEY = 'web_quiz_live_meter';
-const METERS = new Set(['sky', 'vine']);
-const meterCache = { v: null, at: 0 };
+// the live meter's variant, or null: only while v3 is on; the key rides the kid hub's one settings read (web-quiz-hub-flags.js),
+// so the meter adds no read of its own
 async function meter() {
   if (!(await on())) return null;
-  if (meterCache.at && Date.now() - meterCache.at < SETTING_TTL_MS) return meterCache.v;
-  let v = null;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', METER_KEY);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    let x = data && data[0] ? data[0].value : null;
-    if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-    v = isTrue(x) ? 'sky' : (typeof x === 'string' && METERS.has(x.trim().toLowerCase()) ? x.trim().toLowerCase() : null);
-  } catch (e) {
-    logError('web_quiz.lr_setting_read_failed', { key: METER_KEY, error: String((e && e.message) || e).slice(0, 120) });
-  }
-  meterCache.v = v; meterCache.at = Date.now();
-  return v;
+  return (await require('./web-quiz-hub-flags').flags()).liveMeter || null;
 }
 // live words need real-time: with web_quiz_challenge_realtime off nothing here mints a key or reads this switch
 const liveOn = async () => (await settingOn(LIVE_FLAG_KEY)) && (await on());
@@ -111,8 +97,8 @@ async function forMenu() {
 
 /** The hub's extra field (its story pages read live there): {} off; on, the live meter's variant. */
 async function forHub() {
-  const m = await meter();
-  return m ? { pace: m } : {};
+  const f = await require('./web-quiz-hub-flags').flags();
+  return f.liveReadV3 && f.liveMeter ? { pace: f.liveMeter } : {};
 }
 
 /** Every story key since `sinceIso`, for the day's read budget (the caller checks the switches); 0 when unreadable (logged). */
@@ -127,6 +113,6 @@ async function keysSince(sinceIso) {
   }
 }
 
-function _reset() { cache.clear(); meterCache.at = 0; meterCache.v = null; }
+function _reset() { cache.clear(); }
 
-module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, FINISH_PCT_UR, QUIET_MS, TAIL_MS, UI_V, METER_KEY, on, liveOn, settingOn, meter, forRead, forMenu, forHub, metaFor, keysSince, _reset };
+module.exports = { FLAG_KEY, LIVE_FLAG_KEY, TABLE, STORY_KEY_WEIGHT, FINISH_PCT, FINISH_PCT_UR, QUIET_MS, TAIL_MS, UI_V, on, liveOn, settingOn, meter, forRead, forMenu, forHub, metaFor, keysSince, _reset };

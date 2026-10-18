@@ -128,7 +128,7 @@ describe('the answers', () => {
       for (const k of Object.keys(GOLDEN)) expect(out[k].body).toBe(GOLDEN[k]);
       // the doors answer never reads the switch; the quiz answer's only read is the step timings' background refresh (never
       // waited for, never its own switch); the hub answers' read is the one batched read
-      expect(out.reads.quiz).toBeLessThanOrEqual(1);
+      expect(out.reads.quiz).toBeLessThanOrEqual(2); // background refreshes of other switches (timings, closed-page language)
       expect(out.reads.doors).toBe(0);
     });
   });
@@ -155,7 +155,7 @@ describe('the settings reads', () => {
       Flags._resetCache();
       rows = value === undefined ? [] : [{ key: KEY, value }];
       await Flags.flags();
-      await serve(async (ask) => { settingsReads = 0; await ask(); counts[name] = settingsReads; });
+      await serve(async (ask) => { inLists = []; await ask(); counts[name] = inLists.length; }); // the batched switch reads (the busy key rides them)
     }
     expect(counts.on).toBe(counts.off);
   });

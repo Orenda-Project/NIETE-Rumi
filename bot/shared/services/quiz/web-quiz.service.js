@@ -660,7 +660,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   out.rt = await got('rt', () => Tel.flag());
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
   const ui = await got('ui', () => require('./web-quiz-ur-polish').ui());
-  if (ui) out.ui = ui;
+  // the light Urdu face (web_quiz_face_lite), from the hub-flags read pageNav just awaited: ui.fl, else the ui as it was
+  if (ui) out.ui = require('./web-quiz-ur-polish').lite(ui);
   // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-juice').field()) out.juice = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
@@ -683,6 +684,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
   if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  if (require('./web-quiz-minify').on()) out.min = true;
   return out;
 }
 
