@@ -647,6 +647,9 @@ html.wq-1b .wq-dskel::after,html.wq-1b .wqs-grid[aria-busy=true]::after,html.wq-
 html.wq-1b .wqs-ctl:has(.wqs-main.wqs-next) .wqs-arr[data-tap=next]{visibility:hidden}
 /* the quiz question wraps balanced: a «؟» or a short last word never sits alone on line 2 */
 html.wq-1b .wq-qtext{text-wrap:balance}
+/* a question picture sent without its size keeps a 4:3 room while it loads (nothing below it moves when it lands) */
+html.wq-1b .wq-figbox:not([style]){aspect-ratio:4/3;max-height:46vh}
+html.wq-1b .wq-figbox:not([style])>img{width:100%;height:100%;max-height:none;object-fit:contain}
 @media (prefers-reduced-motion:reduce){html.wq-1b .wq-btn:active,html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wqs-ic:active,html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active,html.wq-1b .wqs-again:active{transform:none}}
 /* The ONE button component for new markup: `.wq-btn` + exactly one kind. Every kind rule sits under wq-1b: the Videos
    shelf and the class table already draw .wq-btn--secondary and .wq-btn-t, so with the switch off they stay today's. Each kind sets only --fill (box), --on
