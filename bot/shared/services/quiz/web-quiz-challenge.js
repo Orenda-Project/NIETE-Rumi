@@ -765,7 +765,7 @@ async function menu(token, { kid, lang, device } = {}) {
     ...(w.round && rules.v2 ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await got('rt', () => Tel.flag()),
-    ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
+    ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: require('./web-quiz-ur-polish').lite({ ur2: true }) } : {}),
     // the sound + motion kit (web-quiz-juice.js): named only when on
     ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),

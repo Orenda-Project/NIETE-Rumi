@@ -552,7 +552,9 @@ async function hub(token, opts = {}) {
   // The read-along preview (#listen/<pid>, web_quiz_readalong): named only when on and this phone holds the hub, so
   // the edge adds its script to that page alone; off, the hub JSON (and page) is today's.
   const listen = !out.locked && (await Flags.flags()).readalong;
-  return { ...out, rt: await Tel.flag(), ...(ui ? { ui } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
+  // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
+  const look = require('./web-quiz-ur-polish').lite(ui);
+  return { ...out, rt: await Tel.flag(), ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(listen ? { listen: true } : {}) };
 }
 
 module.exports = {
