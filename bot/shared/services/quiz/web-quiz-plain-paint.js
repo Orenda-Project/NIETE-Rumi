@@ -52,9 +52,13 @@ function on(now = Date.now()) {
   return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
 }
 
-/** The cached value only: never starts a read (a cold or expired cache is off). The page answers keep it warm. */
+/**
+ * The cached value only: never starts a read. `undefined` when the cache is cold or expired (not known yet: a fresh bot
+ * process is not "off"), else true or false. The page answers keep it warm.
+ */
 function peek(now = Date.now()) {
-  return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
+  if (!cache || now - cache.at >= 2 * TTL_MS) return undefined;
+  return cache.on === true;
 }
 
 /** The switch, waited for (tests). */

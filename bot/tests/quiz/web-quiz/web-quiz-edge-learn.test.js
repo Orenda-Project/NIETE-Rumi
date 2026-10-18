@@ -95,7 +95,7 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, plain_paint: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false }); // plain-paint cache cold: left out
   });
 
   test('(e) on, with the fast page and web_quiz_plain_paint on: plain_paint says true (its cached value, as the payloads)', async () => {
@@ -108,6 +108,22 @@ describe('GET /api/internal/wq/edge', () => {
     resetAll(); await warmPageSwitches();
     await require('../../../shared/services/quiz/web-quiz-plain-paint').flag();
     expect((await ask()).body).toMatchObject({ learn: true, fast: false, plain_paint: false });
+  });
+
+  test('(e) a fresh bot (cold plain-paint cache) with the switch ON leaves plain_paint out: absent is not false, the portal keeps what it knew', async () => {
+    const PlainPaint = require('../../../shared/services/quiz/web-quiz-plain-paint');
+    supabase.__state.rows = { [KEY]: true, web_quiz_fast: true, web_quiz_plain_paint: true };
+    await warmPageSwitches(); // the fast page is cached; the plain-paint switch is not (no payload has gone out yet)
+    const cold = (await ask()).body;
+    expect(cold.fast).toBe(true);
+    expect(Object.keys(cold)).not.toContain('plain_paint');
+    expect(PlainPaint.peek()).toBeUndefined();
+    // once its cache is warm the answer says it: true while on, false while off (off is said, never left out)
+    await PlainPaint.flag();
+    expect((await ask()).body.plain_paint).toBe(true);
+    supabase.__state.rows = { [KEY]: true, web_quiz_fast: true };
+    resetAll(); await warmPageSwitches(); await PlainPaint.flag();
+    expect((await ask()).body.plain_paint).toBe(false);
   });
 
   test('(e) on with every page switch off: no ui; one_face, wait_ux and wait_share say false (off is said, never left out)', async () => {
