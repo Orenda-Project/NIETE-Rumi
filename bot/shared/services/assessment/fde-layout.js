@@ -1331,6 +1331,8 @@ const CROSS_HOLD = {
 //     وجوہات لکھیں۔»). Words are read without the question's frame («کیا مراد ہے», «وضاحت کریں», «آپ»).
 const SST_A_Q1 = 'social_studies.A.Q1';
 const BACK_RULES = new Set(['key_in_stem', 'key_named_in_stem', 'asked_in_c']);
+// Two words of a Q1 stem's question beside its key: a stem that states the fact.
+const STATES_WORDS = 2;
 const BACK_CONCEPT = /حکومت|جمہوری|شہنشاہ|آمری|مقننہ|انتظامیہ|عدلیہ|عدالت|کورٹ|اسمبلی|سینی?ٹ|ایوان|شہری|ذمہ دار|قانون|آئین/;
 const BACK_ASKS = new Set(['کیوں', 'کیا', 'کون', 'کب', 'کہاں', 'کتنے', 'کتنی', 'کتنا', 'کیسے', 'کس']);
 const asksOf = (text) => new Set(String(text || '').split(/[\s؟?،,۔:]+/).filter((w) => BACK_ASKS.has(w)));
@@ -1360,20 +1362,21 @@ function glossed(key, stemWords, text) {
     return ` ${before} `.endsWith(` ${k} `) && inStem(tokensOf(m[2]));
   });
 }
-// (3) Its key is a name or a term that sits in one of its options and no other, and a C/D stem names that
-//     option («… → عبدالستار ایدھی» beside «ایدھی فاؤنڈیشن نے …»; «… → سپریم کورٹ» beside «سپریم کورٹ آف
-//     پاکستان کے سربراہ کو کیا کہا جاتا ہے؟»). No shared topic is needed, and a concept term is no exception:
-//     a child who reads that stem knows which option to pick. A stem names an option when it prints all of its
-//     words, or all the words no other option has (two or more: «علی گڑھ» for «تحریک علی گڑھ» beside «تحریک
-//     خلافت»), or at least half of those words of four letters or more, the parts many names share («محمد»,
-//     «علی», «خان») aside («ایدھی» for «عبدالستار ایدھی»; «گڑھ» is not «مہر گڑھ»), or the one such word of four
-//     letters or more («سپریم», «کراچی»; «قومی» of «قومی اسمبلی» is not). A key that sits in two options
-//     («لیاقت علی خان» inside «بیگم رعنا لیاقت علی خان») names no one, and neither does a stem that prints it
-//     only inside a wife's name («بیگم رعنا لیاقت علی خان» carries «لیاقت علی خان»). A key that is no name is
-//     not read here: a phrase of three words or more with a function word («ٹیلی وژن میں آواز کے ساتھ تصویر …»,
-//     «کم ہوتا ہے»; «کے ٹو» is a name), an act («بات کرنا»), a number word, a word marking points use for any
-//     fact («نقصان», «فائدہ»), or a key with a digit (that is (1)). A tier («مقامی
-//     حکومت») is the three-tier chapter's own word, which every Q6 there names: the which-government items are
+// (3) Its key is a name (a person, a place, an organisation) that sits in one of its options and no other, and a
+//     C/D stem names that option («… → عبدالستار ایدھی» beside «ایدھی فاؤنڈیشن نے …»; «… → چودھری رحمت علی» beside
+//     «چودھری رحمت علی نے 28 جنوری 1933ء کو …»). No shared topic is needed: a child who reads that stem knows which
+//     option to pick. This is a precaution beyond the gate, which counts only a stem that states the Q1 fact; a
+//     name printed alone is reported there, and holding it here costs one Section A re-ask. A term the chapter
+//     teaches is never read here (TERM_KEY). A stem names an option when it prints all of its words, or all the
+//     words no other option has (two or more: «علی گڑھ» for «تحریک علی گڑھ» beside «تحریک خلافت»), or at least
+//     half of those words of four letters or more, the parts many names share («محمد», «علی», «خان») aside
+//     («ایدھی» for «عبدالستار ایدھی»; «گڑھ» is not «مہر گڑھ»), or the one such word of four letters or more
+//     («کراچی» for «کراچی پورٹ» beside «پورٹ قاسم»). A key that sits in two options («لیاقت علی خان» inside «بیگم
+//     رعنا لیاقت علی خان») names no one, and neither does a stem that prints it only inside a wife's name («بیگم
+//     رعنا لیاقت علی خان» carries «لیاقت علی خان»). A key that is no name is not read here: a phrase of three words
+//     or more with a function word («ٹیلی وژن میں آواز کے ساتھ تصویر …», «کم ہوتا ہے»; «کے ٹو» is a name), an act
+//     («بات کرنا»), a number word, a word marking points use for any fact («نقصان», «فائدہ»), or a key with a digit
+//     (that is (1)). A tier («مقامی حکومت») is the three-tier chapter's own word: the which-government items are
 //     read by their book line (`sameLine`) and the tier slip, not here.
 const NAME_PARTS = new Set(tokensOf('محمد علی خان احمد سید شاہ بیگم حضرت سر قائد اعظم'));
 const NAME_LETTERS = 4;
@@ -1401,8 +1404,12 @@ function namesOption(t, others, words, line, seen) {
   return strong.length === 1 && long.length === 1 && fresh(long[0]);
 }
 // `own`: the stems are the item's own (its stem names its own key), so none of its words is set aside as seen.
+// A term the chapter teaches (a body, a tier, democracy, a citizen; the media) is the chapter's own word, which its
+// stems name as they ask about it: a name hold on it would empty Section A, and FDE's own paper prints that shape
+// (its Q1 «ثقافت» beside a Q6 on culture). It is held only when a stem states its fact (`givenBack`, (1)).
+const TERM_KEY = new RegExp(`${BACK_CONCEPT.source}|میڈیا|ابلاغ`);
 function keyNamedIn(m, stems, own = false) {
-  if (!Array.isArray(m.options) || m.options.length < 3 || /\d/.test(keyText(m)) || notAName(keyText(m))) return false;
+  if (!Array.isArray(m.options) || m.options.length < 3 || /\d/.test(keyText(m)) || notAName(keyText(m)) || TERM_KEY.test(keyText(m))) return false;
   const key = tokensOf(keyText(m));
   if (!key.length || key.every((w) => backGeneric.has(w) || PLACEHOLDER_WORDS.has(w)) || tiersIn(flatUr(keyText(m))).size) return false;
   const opts = m.options.map((o) => tokensOf(String(o).replace(OPTION_HEAD, '')));
@@ -1435,9 +1442,14 @@ function givenBack(placed) {
       const topic = tokensOf(m.question).filter((w) => !key.includes(w) && w.length >= 3 && !backGeneric.has(w));
       if (stems.some((x) => x.line.includes(printedKey) && (dated || topic.some((w) => x.words.has(w))))) return 'key_in_stem';
     }
-    if (key.length && BACK_CONCEPT.test(keyText(m))) {
+    if (key.length && TERM_KEY.test(keyText(m))) {
       const stemWords = tokensOf(m.question).filter((w) => !key.includes(w));
       if (stems.some((x) => glossed(keyText(m), stemWords, x.text))) return 'key_in_stem';
+      // A term a stem prints beside two words of the Q1 stem's own question states the fact the Q1 asks
+      // («قانون بنانے کا اختیار کس ادارے کے پاس ہے؟ → مقننہ» beside «مقننہ قانون بناتی ہے، اس کے دو ایوانوں …»).
+      const printedKey = ` ${key.join(' ')} `;
+      const topic = [...new Set(tokensOf(m.question))].filter((w) => !key.includes(w) && w.length >= 3 && !backGeneric.has(w));
+      if (stems.some((x) => x.line.includes(printedKey) && topic.filter((w) => x.words.has(w)).length >= STATES_WORDS)) return 'key_in_stem';
     }
     if (keyNamedIn(m, stems)) return 'key_named_in_stem';
     const own = contentOf(m.question);

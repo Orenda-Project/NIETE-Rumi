@@ -82,8 +82,9 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
   // Since round 13 D is asked after C, and three Q6 items answered with a Q5 item's points are
   // held too (the angry social-media post is Q5 and Q6 both).
   expect(logged('[assessment] section re-asked')).toEqual([
-    // Two more are held because a C/D stem names their key (a name or a term), whatever the topic.
-    expect.objectContaining({ section: 'A', shortfall: [{ slot: 'social_studies.A.Q1', missing: 4 }] }),
+    // One more is held because a C/D stem names its key, a name. A term the chapter teaches that a stem only
+    // names is not held: the stem tells the child nothing the Q1 asks.
+    expect.objectContaining({ section: 'A', shortfall: [{ slot: 'social_studies.A.Q1', missing: 3 }] }),
     expect.objectContaining({ section: 'C', shortfall: [{ slot: 'social_studies.C.Q5', missing: 1 }] }),
     // Round 15: Q7 «سرسید … 1875ء … کون سا اسکول» is held too; Q6's model answer names the school.
     expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q6', missing: 3 }, { slot: 'social_studies.D.Q7', missing: 2 }] }),

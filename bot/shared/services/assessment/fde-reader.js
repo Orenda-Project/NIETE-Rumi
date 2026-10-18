@@ -371,6 +371,8 @@ function buildSstReaderPrompt(examJson, P, opts = {}) {
     ...(candidates.length ? ['', SST_CANDIDATES_HEAD,
       'Judge every candidate below as well as reading the whole paper: flag the Q5, Q6 or Q7 item when its stem tells a',
       'child the Q1 item\'s answer, with that Q1 label in "by" and the key, copied from the Q1 item, as the evidence.',
+      'A stem tells the answer when it states the fact the Q1 item asks (the Q1 written as a sentence with its key filled',
+      'in). A stem that only names the key, alone or beside a related topic, does not: decide it given_away false.',
       ...candidates] : []),
   ].join('\n');
   return { prompt, labels, only, blocks, split: true };

@@ -247,13 +247,21 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
   // A concept term, or a key printed on another topic, was let through here; a C/D stem that names the key
   // now holds it whatever the topic (the name alone tells the child which option to pick), by its own rule.
   test.each([
-    ['قوانین بنانے کا اختیار حکومت کے کس حصے کے پاس ہے؟', 'الف) مقننہ', 'مقننہ کے دو کام لکھیں۔'],
     ['پاکستان کا سب سے بڑا صوبہ رقبے کے لحاظ سے کون سا ہے؟', 'الف) بلوچستان', 'گوادر کی بندرگاہ بلوچستان کے کس ساحل پر ہے؟'],
   ])('Q1 «%s» → %s beside «%s» is held by the named-key rule, not by key_in_stem', (stem, key, c) => {
     const e = clone(ch2);
     Object.assign(items(e, Q1)[0], { question: stem, answer: key, options: [key, 'ب) سندھ', 'ج) پنجاب', 'د) سرحد'] });
     items(e, Q5)[0].question = c;
     expect(heldRules(lay(e, false), stem)).toEqual(['key_named_in_stem']);
+  });
+
+  // A term the chapter teaches, named by a stem that states nothing the Q1 asks, is reported, not held.
+  test('Q1 «قوانین بنانے کا اختیار حکومت کے کس حصے کے پاس ہے؟» → مقننہ beside «مقننہ کے دو کام لکھیں۔» is not held', () => {
+    const e = clone(ch2);
+    const stem = 'قوانین بنانے کا اختیار حکومت کے کس حصے کے پاس ہے؟';
+    Object.assign(items(e, Q1)[0], { question: stem, answer: 'الف) مقننہ', options: ['الف) مقننہ', 'ب) انتظامیہ', 'ج) عدلیہ', 'د) کابینہ'] });
+    items(e, Q5)[0].question = 'مقننہ کے دو کام لکھیں۔';
+    expect(heldRules(lay(e, false), stem)).toEqual([]);
   });
 
   test('the reader is told both shapes', () => {
@@ -278,7 +286,7 @@ describe('3. a Q1 item given away by a Section C/D stem, or asked again by a Q5,
     expect(aPrompts[1].text).toContain(`- ${radio} →`);
     const reasked = logged('[assessment] section re-asked').filter((l) => l.section === 'A');
     expect(reasked).toHaveLength(1);
-    expect(reasked[0].why).toEqual([expect.objectContaining({ slot: Q1, held: { asked_in_c: 2, key_in_own_stem: 1, key_in_stem: 1, key_named_in_stem: 2 } })]);
+    expect(reasked[0].why).toEqual([expect.objectContaining({ slot: Q1, held: { asked_in_c: 2, key_in_own_stem: 1, key_in_stem: 1, key_named_in_stem: 1 } })]);
     // Q1 is compulsory and full, and none of the items set aside prints.
     const q1 = items(out.examJson, Q1).map((q) => q.question);
     expect(q1).toHaveLength(20);
