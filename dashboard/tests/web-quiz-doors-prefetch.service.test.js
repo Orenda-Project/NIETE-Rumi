@@ -13,7 +13,7 @@ function live({ fetchImpl, connection } = {}) {
   const fetch = jest.fn(fetchImpl || (() => new Promise(() => {})));
   const document = { getElementById: () => null, querySelector: () => null, createElement: () => ({ setAttribute() {} }), head: { appendChild() {} } };
   const location = { hash: '#videos', pathname: `/h/${TOKEN}`, search: '' };
-  const globals = { fetch, document, location, setImmediate, ...(connection ? { navigator: { connection } } : {}) };
+  const globals = { fetch, document, location, setImmediate, setTimeout: (fn) => setImmediate(fn), ...(connection ? { navigator: { connection } } : {}) };
   const W = load({ win: { scrollTo() {}, addEventListener() {} }, globals });
   return { W, fetch };
 }
@@ -77,6 +77,41 @@ describe('switch on: the Videos lists are asked when the door screens load', () 
     W.WQDOORS.warm(bootOf('en', { wait_pre: true }), C);
     await flush();
     expect(libCalls(fetch)).toHaveLength(1);
+  });
+});
+
+describe('a home open never asks every shelf at once', () => {
+  const THREE = { grade: '3', subjects: ['Science', 'Maths', 'English'].map((key) => ({ key, n: 4 })) };
+  test('after the subjects, the shelves one at a time: each asked only when the one before has answered', async () => {
+    const open = [];
+    const { W, fetch } = live({ fetchImpl: (u) => (/[?&]s=/.test(u) ? new Promise((res) => open.push(() => res({ ok: true, status: 200, json: () => Promise.resolve(LIB_CHAPTERS) }))) : OK(THREE)) });
+    W.WQDOORS.warm(ON, C);
+    await flush();
+    const shelves = () => libCalls(fetch).filter((u) => /[?&]s=/.test(u));
+    expect(shelves()).toEqual([expect.stringMatching(/&s=Science$/)]);
+    open.shift()(); await flush();
+    expect(shelves()).toHaveLength(2);
+    expect(shelves()[1]).toMatch(/&s=Maths$/);
+    open.shift()(); await flush();
+    expect(shelves()).toHaveLength(3);
+    open.shift()(); await flush();
+    expect(shelves()).toHaveLength(3);
+  });
+  test('a Videos tap mid-way asks the shelves still to come at once, and joins the one on its way (each shelf read once)', async () => {
+    const open = [];
+    const { W, fetch } = live({ fetchImpl: (u) => (/[?&]s=/.test(u) ? new Promise((res) => open.push(() => res({ ok: true, status: 200, json: () => Promise.resolve(LIB_CHAPTERS) }))) : OK(THREE)) });
+    W.WQDOORS.warm(ON, C);
+    await flush();
+    W.WQDOORS.mount(paintRoot(), ON, C, 'videos');
+    while (open.length) { open.shift()(); await flush(); }
+    const shelves = libCalls(fetch).filter((u) => /[?&]s=/.test(u));
+    expect(shelves.map((u) => u.replace(/^.*&s=/, '')).sort()).toEqual(['English', 'Maths', 'Science']);
+  });
+  test('on 3G: the subjects only, no shelf', async () => {
+    const { W, fetch } = live({ fetchImpl: (u) => (/[?&]s=/.test(u) ? OK(LIB_CHAPTERS) : OK(THREE)), connection: { effectiveType: '3g' } });
+    W.WQDOORS.warm(ON, C);
+    await flush();
+    expect(libCalls(fetch)).toEqual([`/api/wq/lib/h/${encodeURIComponent(TOKEN)}?kid=0123456789abcdef&l=en`]);
   });
 });
 

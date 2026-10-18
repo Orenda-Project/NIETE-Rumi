@@ -461,9 +461,10 @@
     if (name === 'videos') return videos(root, B, ctx, view.subject);
     if (/^watch\//.test(name)) return start(root, B, ctx, { vid: name.slice(6) });
   }
-  // web_quiz_doors_prefetch (the boot's `wait_pre`): the Videos door's subjects, and with the shelves each subject's
-  // shelf, asked once the home has painted, so a Videos tap paints from rows already here. Never on Data Saver or 2G; a
-  // read that failed is not kept. A tap while one is on its way joins it (libGet: one read of a list at a time).
+  // web_quiz_doors_prefetch (the boot's `wait_pre`): the Videos door's subjects, asked once the home has painted, then
+  // with the shelves each subject's shelf one at a time (each when the phone is idle after the last has answered), so a
+  // Videos tap paints from rows already here and a home open never asks every shelf at once. Never on Data Saver or 2G,
+  // the subjects only on 3G; a read that failed is not kept. A tap joins a read on its way (libGet: one read per list).
   var libAsking = {};
   function libGet(url, done) {
     if (libAsking[url]) return libAsking[url].push(done);
@@ -471,17 +472,27 @@
     getJson(url, function (err, j) { var all = libAsking[url] || []; libAsking[url] = null; all.forEach(function (fn) { fn(err, j); }); });
   }
   function libRead(B) { return B && B.wait_pre === true ? libGet : getJson; }
+  function idle(fn) {
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout: 2000 });
+    if (typeof setTimeout === 'function') return setTimeout(fn, 200);
+    fn();
+  }
   function warmVideos(B, ctx) {
     var c = (typeof navigator !== 'undefined' && navigator && navigator.connection) || {};
-    if (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || ''))) return;
+    var net = String(c.effectiveType || '');
+    if (c.saveData || /(^|-)2g$/.test(net)) return;
     if (lib.subjects && !lib.subjects.err) return;
     libGet(libUrl(B, ctx), function (err, j) {
       if (err || !j || j.err) return;
       lib.subjects = j;
-      if (!shelfOn(B)) return;
-      (j.subjects || []).forEach(function (s) {
-        if (!lib.chapters[s.key]) libGet(libUrl(B, ctx, s.key), function (e, x) { if (!e && x && !x.err && !lib.chapters[s.key]) lib.chapters[s.key] = x; });
-      });
+      if (!shelfOn(B) || net === '3g') return;
+      var keys = (j.subjects || []).map(function (s) { return s.key; });
+      (function next() {
+        var k = keys.shift();
+        while (k !== undefined && lib.chapters[k]) k = keys.shift();
+        if (k === undefined) return;
+        idle(function () { if (lib.chapters[k]) return next(); libGet(libUrl(B, ctx, k), function (e, x) { if (!e && x && !x.err && !lib.chapters[k]) lib.chapters[k] = x; next(); }); });
+      })();
     });
   }
   function libUrl(B, ctx, s) { return '/api/wq/lib/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&l=' + langOf(ctx) + (s ? '&s=' + encodeURIComponent(s) : ''); }
