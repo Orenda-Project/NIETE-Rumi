@@ -157,6 +157,14 @@
     try { sessionStorage.setItem(HOME_KEPT, JSON.stringify({ t: Date.now(), l: LANG, k: B.kid, one: (B.kids || []).length === 1, c: look, h: h })); } catch (e) {}
   }
   window.addEventListener('pagehide', keepHome);
+  // The adventure look: a tap on My class or My school (the quiz page's class table or league) keeps the hub's path for this
+  // tab, so the land header there has a Home that comes back here (wq.js hubBack). Nothing with the look off.
+  window.addEventListener('click', function (e) {
+    try {
+      var a = e.target && e.target.closest ? e.target.closest('a[data-social]') : null;
+      if (a && document.documentElement.classList.contains('wq-adv') && /^\/h\/[A-Za-z0-9._-]+$/.test(location.pathname)) sessionStorage.setItem('wq_hub_at', location.pathname);
+    } catch (x) {}
+  }, true);
   function render(html, moment) {
     uncache();
     ROOT.innerHTML = '<section class="wq-screen wq-hub" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
