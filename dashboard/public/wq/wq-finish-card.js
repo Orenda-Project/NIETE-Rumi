@@ -242,6 +242,9 @@
     '.wqfc-sh-in{width:100%;max-width:480px;display:grid;gap:12px;padding:16px;border-radius:24px;background:var(--bg,#FFF8E7);box-sizing:border-box;box-shadow:0 8px 24px rgba(15,23,42,.25)}' +
     '.wqfc-sh-pic{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:16px;background:#FDE68A;object-fit:cover}' +
     '.wqfc-sh-in .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:56px;box-sizing:border-box}' +
+    '.wqfc-sh-msg{background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 rgba(15,23,42,.08);display:grid;gap:6px}' +
+    '.wqfc-sh-msg p{margin:0;font-size:16px;line-height:1.4;color:#1F2937}[lang="ur"] .wqfc-sh-msg p[dir="auto"]{font-size:18px;line-height:1.9}' +
+    '.wqfc-sh-msg .wqfc-sh-url{font-size:14px;color:#475569;overflow-wrap:anywhere;word-break:break-all;text-align:left}' +
     '.wqfc-sh-ok{text-align:center;font-weight:700;margin:0;min-height:1.5em}[lang="ur"] .wqfc-sh-in .wq-btn{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
   function css() {
@@ -393,6 +396,8 @@
   }
 
   var SLOW_MS = 12000;
+  // A phone opens its share sheet (navigator.share) only for a few seconds after the tap: a later fallback is told so.
+  var TAP_MS = 4000;
   // The Share button's own label, kept once per card (a wait or a "tap again" never becomes the label to go back to).
   var labels = {};
   function btnOf(e) { return e && e.currentTarget && typeof e.currentTarget.setAttribute === 'function' ? e.currentTarget : document.getElementById('wqfc-share'); }
@@ -410,17 +415,21 @@
     var was = labels[k];
     if (btn) { btn.innerHTML = esc(w.getting); btn.setAttribute('aria-busy', 'true'); btn.setAttribute('data-wait', '1'); }
     var t = null;
+    var late = false;
+    var tl = setTimeout(function () { late = true; }, TAP_MS);
     var done = function () {
       if (!st.waiting) return;
       st.waiting = false;
       if (t) clearTimeout(t);
+      clearTimeout(tl);
       var sheet = st.ready && st.v4 && st.img;
       // no sheet (no card, or a card without the one share's mark: a switch flipped meanwhile): the host's own share
       // where it has one; else "tap again", whose tap shares the card's link (the anchor has it) or asks again
       if (btn) { btn.removeAttribute('aria-busy'); btn.removeAttribute('data-wait'); btn.innerHTML = sheet || fallback ? was : esc(w.again); }
       if (sheet) { openSheet(o, st); return; }
       if (!st.ready) { delete primed[k]; delete minted[k]; }
-      if (fallback) fallback(st.text, st.url);
+      // late: past the tap's few seconds, so the host draws its own screen instead of asking for the phone's sheet
+      if (fallback) fallback(st.text, st.url, late);
     };
     t = setTimeout(done, SLOW_MS);
     st.wait.then(done, done);
@@ -430,12 +439,21 @@
   var PIC_RX = /^\/wq\/card\/[A-Za-z0-9_-]+\.png$|^\/q\/[A-Za-z0-9]{4,12}\/art\/[a-z]+\.(jpg|png)\?a=[A-Za-z0-9._~%-]+(&f=[a-z]+)?$/;
   function pic(s) { return typeof s === 'string' && PIC_RX.test(s) ? s : ''; }
   // The one share's sheet (pure): the picture first, then ONE primary (WhatsApp), the file where it can go, save, copy, back.
+  // What the sheet sends, shown under the picture: the words (the link taken off their end), then the link on its own
+  // left-to-right line, as the send screen showed it. Nothing to show: no box.
+  function msgHtml(text, url) {
+    var t = String(text == null ? '' : text);
+    if (url && t.slice(-url.length) === url) t = t.slice(0, -url.length).replace(/\s+$/, '');
+    if (!t && !url) return '';
+    return '<div class="wqfc-sh-msg">' + (t ? '<p dir="auto">' + esc(t) + '</p>' : '') + (url ? '<p class="wqfc-sh-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>';
+  }
   function sheetHtml(o) {
     var l = L(o.lang), w = SH[l];
     var img = pic(o.img);
     var save = img ? pic(o.save) || img : '';
     return '<div class="wqfc-sheet" id="wqfc-sheet" role="dialog" aria-modal="true" data-screen="share_sheet" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '"><div class="wqfc-sh-in">' +
       (img ? '<img class="wqfc-sh-pic" src="' + esc(img) + '" alt="" width="1200" height="630">' : '') +
+      msgHtml(o.text, o.url) +
       '<a class="wq-btn wq-go" id="wqfc-sh-wa" data-primary data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(o.text || '')) + '">' + esc(w.wa) + '</a>' +
       (o.file ? '<button class="wq-btn wq-soft" id="wqfc-sh-file" type="button" data-tap="card_file">' + esc(w.file) + '</button>' : '') +
       (save ? '<a class="wq-btn wq-soft" id="wqfc-sh-save" data-tap="card_save" href="' + esc(save) + '" download="jugnu-card.png">' + esc(w.save) + '</a>' : '') +
@@ -625,5 +643,5 @@
 
   window.WQFC = { mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
-    html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS };
+    html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, SHEET_CSS: SHEET_CSS, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS };
 })();
