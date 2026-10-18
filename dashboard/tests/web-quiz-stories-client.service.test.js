@@ -3221,6 +3221,16 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(h2).toContain('You read 3 words!');
     expect(h2).toContain('data-stars="1"');
   });
+  test('read_fb, a page\'s result keeps the whole page in view: the word chip\'s replay never zooms the art past the screen', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    readPage1(e, root, ['read', 'read', 'read', 'skipped', 'read']);
+    e.advance(10);
+    const cam = root.querySelector('[data-cam]');
+    expect(root.querySelector('[data-whole]').getAttribute('aria-pressed')).toBe('true');
+    const p = e.calls.ra[e.calls.ra.length - 1];
+    p.o.onWord(3);
+    expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
+  });
   test('read_fb, nothing read: the kind moment ("let\'s read it together", a brave-try badge), no stars', async () => {
     const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
     const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
@@ -3427,13 +3437,30 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
       expect(h).toContain(lang === 'ur' ? 'ایک منٹ میں ۷۲ لفظ' : '72 words a minute');
     }
   });
+  test('read_fb, a page\'s result: the picture keeps its size (never under 300 px tall), one card, and only the next step under it', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    // the picture gives up a little height for the card, never collapses (it fell to ~170 px wide on a 360 phone)
+    expect(css).toContain('.wqs:has(.wqs-extra .wq-moment--s) .wqs-stage{flex:1 1 0;height:auto;max-height:62vh;min-height:300px}');
+    expect(css).not.toMatch(/min-height:160px/);
+    // while the result is there: no Whole page, no Slower, no Listen again (the sentence plays from the page's own taps)
+    expect(css).toContain('.wqs:has(.wqs-extra > .wq-moment) .wqs-whole,.wqs:has(.wqs-extra > .wq-moment) .wqs-slow,.wqs:has(.wqs-extra > .wq-moment) .wqs-extra > .wqs-again{display:none}');
+    // one soft offer to read again: Read with Jugnu takes the place of "for 3 stars"
+    expect(css).toContain('.wqs-extra:has(> .wq-moment):has(> [data-tap="echo"]) > [data-tap="rfagain"]{display:none}');
+    // the badge: one line beside the stars, 15 px (Urdu 17 px)
+    expect(css).toContain('.wqs .wq-moment--s{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"jg deed deed" "jg meter meter" "jg stars badge" "jg growth growth";');
+    expect(css).toContain('.wqs .wq-moment--s>.wq-moment-badge{grid-area:badge;flex-direction:row;gap:6px;padding:2px 10px 2px 4px;font-size:15px;line-height:1.4;white-space:nowrap}');
+    expect(css).toContain('.wqs .wq-moment--s[lang="ur"]>.wq-moment-badge{padding:0 4px 0 10px;font-size:17px;line-height:1.7}');
+    expect(css).not.toMatch(/font-size:11px/);
+    // when the main button already says Next, the › arrow beside it steps aside (its place kept, so Next stays centred)
+    expect(css).toContain('.wqs:has(.wqs-extra > .wq-moment) .wqs-ctl:has(> .wqs-next) > [data-tap="next"]{visibility:hidden}');
+  });
   test('read_fb, the first screen: the strip is one grid row-set, and only while a page\'s strip is there does the picture give up height (capped at today\'s 62vh)', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
     expect(css).toMatch(/\.wqs \.wq-moment--s\{display:grid;grid-template-columns:auto 1fr auto;/);
     // the Urdu "read it again" chip on a small phone: its label fits its box (scrollHeight 41 > 40 before; measured 40 = 40)
     expect(css).toContain('.wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:4px 6px;font-size:15px;line-height:1.6}');
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
-    expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:160px\}/);
+    expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:300px\}/);
     // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
     const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/^\.wqs-near/.test(sel));
     expect(outside).toEqual([]);
