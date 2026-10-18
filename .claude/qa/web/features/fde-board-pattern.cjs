@@ -55,6 +55,47 @@ async function catalogue(ctx) {
 
 async function bodyText(page) { return page.evaluate(() => document.body.innerText); }
 
+// One fresh ready paper in the teacher's notices list, so the "Paper ready" banner shows without a model call. The list
+// is empty until `arm()` is called: the banner runs about 10 s, so it is armed on Check and Check is reloaded (the app
+// asks for the list when a screen attaches). The seen/opened reports are swallowed, so nothing is written.
+async function readyPaperNotice(page) {
+  let armed = false;
+  const item = () => {
+    const now = Date.now();
+    return { id: 'paper:' + crypto.randomUUID(), kind: 'paper', state: 'ready', title: 'Maths', grade: 5, subject: 'maths',
+      questions: 35, chapterNumber: null, startedAt: new Date(now - 180000).toISOString(), readyAt: new Date(now - 3000).toISOString(),
+      seenAt: null, openedAt: null, homeUntil: new Date(now + 86400000).toISOString(), paperId: crypto.randomUUID() };
+  };
+  await page.route('**/me/notices', (r) => (r.request().method() === 'GET'
+    ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, items: armed ? [item()] : [] }) })
+    : r.fallback()));
+  await page.route('**/me/notices/*/*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' }));
+  return { arm: () => { armed = true; } };
+}
+
+// From the FDE door's Class step to Check and make. The picker shows every grade with only Grade 5 on offer; a
+// picker that opens straight on Grade 5's subjects has no Grade 5 radio, and the tap is skipped.
+async function doorToCheck(page, subject) {
+  await page.getByRole('button', { name: /Select grade and subject/ }).click();
+  const g5 = page.getByRole('radio', { name: /^Grade 5/ });
+  if (await g5.count()) await g5.first().click();
+  await page.getByRole('button', { name: new RegExp('^Grade 5 · ' + subject) }).click();
+}
+
+// Make my paper's box against the banner's, and what a tap at Make's centre would land on.
+async function makeVsBanner(page) {
+  return page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="step-next"]');
+    const ban = document.querySelector('[data-testid="ready-banner"]');
+    if (!btn || !ban) return null;
+    const b = btn.getBoundingClientRect();
+    const n = ban.getBoundingClientRect();
+    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return { makeBottom: b.bottom, bannerTop: n.top, overlap: Math.max(0, b.bottom - n.top),
+      tappable: !!hit && btn.contains(hit), innerH: window.innerHeight };
+  });
+}
+
 
 const scenarios = [
   { id: 'FB01', title: 'The hub offers FDE pattern papers when the switch is on', run: async (page, ctx) => {
@@ -75,9 +116,7 @@ const scenarios = [
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
     await page.getByTestId('fde-door').click();
-    // The door's picker opens straight on Grade 5's subjects (no grade step).
-    await page.getByRole('button', { name: /Select grade and subject/ }).click();
-    await page.getByRole('button', { name: /^Grade 5 · Science/ }).click();
+    await doorToCheck(page, 'Science');
     await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
     // Count the finished page: Make shows before the pattern's rows load, and a count taken then passed headless
     // with words still missing (a slowed --headed run counted 55).
@@ -113,6 +152,39 @@ const scenarios = [
     expect(text.includes('You add'), 'Inside tray lacks "You add"');
     expect(/diagram to label/i.test(text), 'Inside tray lacks "the diagram to label"');
     return { wordsAboveMake: above };
+  } },
+
+  { id: 'FB09', title: 'The New paper dock stays clear of the ready banner', run: async (page, ctx) => {
+    await patternSwitch(ctx, true);
+    const seen = {};
+    try {
+      for (const vp of [{ width: 360, height: 740 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(vp);
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+        const notice = await readyPaperNotice(page);
+        await asRole(page, ctx, 'teacher', 'teacherV2');
+        await visit(page, ctx, HUB, { heading: /^Assessment$/ });
+        await page.getByTestId('fde-door').click();
+        await doorToCheck(page, 'Science');
+        await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
+        notice.arm();
+        await page.reload();
+        await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
+        // The banner runs for about 10 s from here; the check happens inside that window.
+        await page.getByTestId('ready-banner').waitFor({ state: 'visible', timeout: 15000 });
+        const m = await makeVsBanner(page);
+        const at = vp.width + 'x' + vp.height;
+        expect(m !== null, at + ': Make my paper or the banner is missing');
+        expect(m.overlap === 0, at + ': Make my paper runs ' + m.overlap + ' px under the banner');
+        expect(m.tappable, at + ': a tap on Make my paper lands on something else');
+        seen[at] = { gap: Math.round(m.bannerTop - m.makeBottom) };
+        await page.context().clearCookies();
+      }
+      return seen;
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await patternSwitch(ctx, false);
+    }
   } },
 
   { id: 'FB03', title: 'A teacher on plain New paper takes the side door', run: async (page, ctx) => {
