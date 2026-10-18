@@ -92,11 +92,11 @@ describe('storybook seal and landing', () => {
       expect(l.mark).toBe(lang === 'ur' ? 'کہانی کی کتاب' : 'Storybook');
     }
   });
-  test('6d: a storybook finish with only the questions answered (kind story, deed answered) seals the BOOK', async () => {
+  test('a storybook finish with only the questions answered (kind story, deed answered) seals the BOOK', async () => {
     const { body } = await mint({ kind: 'story', deed: 'answered', item: { type: 'book', id: BOOK } });
     expect(Card.facts(body.token).item).toEqual({ type: 'book', id: BOOK });
   });
-  test('6d landing: that finish wears the Storybook mark', async () => {
+  test('the landing of a storybook finished on its questions alone: it wears the Storybook mark', async () => {
     const { body } = await mint({ kind: 'story', deed: 'answered', item: { type: 'book', id: BOOK } });
     expect((await landing(body.token)).mark).toBe('Storybook');
   });

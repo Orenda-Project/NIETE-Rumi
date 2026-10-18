@@ -18,7 +18,8 @@
  * finished (`item: {type: 'book'|'video'|'quiz', id}`); the server checks it exists and seals it into the token, so the
  * shared link lands a new child, through the join, on that item (a Jugnu read, story or game: on the Games door, where
  * those live). The picture gets the kind's ribbon and colour (one
- * theme, one mark per activity); the landing shows the mark and the card.
+ * theme, one mark per activity); the landing's button carries a short ref of the item in the words the child sends.
+ *   ref(item) / byRef(ref)  pure / one read: the ref the join words carry (`jb1a2b3c4d` a book, `jv…` a video) and back
  *
  * The token is the card's facts sealed with AES-256-GCM under a key derived from the web-quiz token secret: a
  * forwarded link carries no readable name or id, and nobody can make the server draw a card it never issued.
@@ -34,10 +35,10 @@ const { clampLanguage } = require('../../config/ux-strings');
 // The card speaks the deployment's two languages only.
 const LANG = (v) => clampLanguage(v, ['en', 'ur']);
 
-const KEY = 'web_quiz_card_v3';
-// The one share on top of the card (finish's `share_v4`): read in the card's own settings read, never a read of its own.
-const SHARE_KEY = 'web_quiz_share_v4';
-const TTL_MS = 30 * 1000;
+// The switches and the item refs live in their own small module, so the bot's join and home paths can read them
+// without loading the picture's renderer (and its quiz requires).
+const Switch = require('./web-quiz-card-switch');
+const { KEY, SHARE_KEY, on, shareOn, field, UUID_RX, REF_RX, ref, byRef } = Switch;
 const W = 1200;
 const H = 630;
 const MAX_BYTES = 40 * 1024;
@@ -114,46 +115,6 @@ class CardError extends Error {
 }
 const fail = (status, error) => { throw new CardError(status, error); };
 
-// ─── the switch ─────────────────────────────────────────────────────────────
-
-let cache = null;
-// On only as JSON true: a string "true" row is off, as every child-page switch reads it (one truth across the pages).
-function isTrue(value) {
-  return value === true;
-}
-/** true only with app_settings web_quiz_card_v3 literally true; 30 s cache; fails closed. Never throws. */
-async function on(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
-    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)) };
-    return cache.on;
-  } catch (err) {
-    // the read that names the share failed: the card reads its own key as before, and only the share is off
-    try {
-      const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
-      if (error) throw new Error(error.message || 'app_settings read failed');
-      cache = { at: now, on: isTrue(((data || [])[0] || {}).value), share: false };
-      return cache.on;
-    } catch (err2) {
-      logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message });
-      return false;
-    }
-  }
-}
-/** true only with the card on AND app_settings web_quiz_share_v4 literally true (the same read and cache). */
-async function shareOn(now = Date.now()) {
-  return (await on(now)) && cache.share === true;
-}
-async function field() {
-  try {
-    if (!(await on())) return {};
-    return cache.share === true ? { card_v3: true, share_v4: true } : { card_v3: true };
-  } catch (_) { return {}; }
-}
-
 // ─── the token ──────────────────────────────────────────────────────────────
 
 function sealKey() {
@@ -196,7 +157,6 @@ function facts(token) {
 
 // ─── the item a share lands on (web_quiz_share_v4) ──────────────────────────
 
-const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM_RX = Object.freeze({ book: UUID_RX, video: UUID_RX, quiz: CODE_RX, door: /^games$/ });
 // The finishes that have no item of their own: the friend lands on the door they live behind.
 const DOOR_OF = Object.freeze({ read: 'games', listen: 'games', story: 'games', game: 'games' });
@@ -463,20 +423,29 @@ async function landing(token) {
   if (!f) fail(404, 'not_found');
   const out = { kind: f.kind, lang: f.lang, first: f.first, deed_text: COPY[f.lang][f.deed], ret: returnLine(f.lang) };
   if (f.v4) {
-    // the one share's landing: the finish's mark in its colour, and the name of what it lands on
+    // the one share's landing: the finish's mark in its colour, the name of what it lands on, and the item's ref in
+    // the join words
     const m = markOf(f);
     out.v4 = true;
     out.mark = m ? m[f.lang] : '';
     out.accent = m ? m.c : '#15803D';
     const title = await itemTitle(f.item);
     if (title) out.item_title = title;
+    // the join words carry the item's short ref, so the bot lands the new child on it
+    const r = ref(f.item);
+    if (r) {
+      out.ref = r;
+      const n = botNumber();
+      const words = `${CARD_RETURN_WORDS[f.lang]} ${r}`;
+      out.ret = { ...out.ret, words, href: n ? `https://wa.me/${n}?text=${encodeURIComponent(words)}` : null };
+    }
   }
   return out;
 }
 
-function _reset() { cache = null; mem.clear(); inflight.clear(); }
+function _reset() { Switch._reset(); mem.clear(); inflight.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK,
-  on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK, REF_RX,
+  on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, _reset, _seal: seal,
 };

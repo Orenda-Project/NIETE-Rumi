@@ -393,6 +393,8 @@
   }
 
   var SLOW_MS = 12000;
+  // A phone opens its share sheet (navigator.share) only for a few seconds after the tap: a later fallback is told so.
+  var TAP_MS = 4000;
   // The Share button's own label, kept once per card (a wait or a "tap again" never becomes the label to go back to).
   var labels = {};
   function btnOf(e) { return e && e.currentTarget && typeof e.currentTarget.setAttribute === 'function' ? e.currentTarget : document.getElementById('wqfc-share'); }
@@ -410,17 +412,21 @@
     var was = labels[k];
     if (btn) { btn.innerHTML = esc(w.getting); btn.setAttribute('aria-busy', 'true'); btn.setAttribute('data-wait', '1'); }
     var t = null;
+    var late = false;
+    var tl = setTimeout(function () { late = true; }, TAP_MS);
     var done = function () {
       if (!st.waiting) return;
       st.waiting = false;
       if (t) clearTimeout(t);
+      clearTimeout(tl);
       var sheet = st.ready && st.v4 && st.img;
       // no sheet (no card, or a card without the one share's mark: a switch flipped meanwhile): the host's own share
       // where it has one; else "tap again", whose tap shares the card's link (the anchor has it) or asks again
       if (btn) { btn.removeAttribute('aria-busy'); btn.removeAttribute('data-wait'); btn.innerHTML = sheet || fallback ? was : esc(w.again); }
       if (sheet) { openSheet(o, st); return; }
       if (!st.ready) { delete primed[k]; delete minted[k]; }
-      if (fallback) fallback(st.text, st.url);
+      // late: past the tap's few seconds, so the host draws its own screen instead of asking for the phone's sheet
+      if (fallback) fallback(st.text, st.url, late);
     };
     t = setTimeout(done, SLOW_MS);
     st.wait.then(done, done);
