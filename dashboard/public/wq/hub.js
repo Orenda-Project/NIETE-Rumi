@@ -89,6 +89,9 @@
   }
 
   /* ---------------- helpers ---------------- */
+  // The one button look (wq-tel.js WQT.oneButton): a home drawn from the page's own hub call (unlock, pick) takes the
+  // look when that answer says so, as the boot's does. Off (no field): nothing changes.
+  function look(b) { if (window.WQT && window.WQT.oneButton) window.WQT.oneButton(b); }
   // The pages' one link helper (wq-tel.js WQT.withLang, loaded first on every page): a link into another page carries lang=.
   function withLang(h, l) { return window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l || LANG) : h; }
   // «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap): escaped HTML in, the same HTML with the word held out.
@@ -231,6 +234,7 @@
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
+      look(B);
       setLang(B.lang || LANG);
       try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)) + doorHash()); } catch (e) {}
       hub();
@@ -259,6 +263,7 @@
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
       if (r.body.locked) { locked(); return; }
       B = r.body; B.token = TOKEN; B.brand = BR;
+      look(B);
       // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
       // default, and the server render's (from this family's children) stays.
       if (B.kid) setLang(B.lang || LANG);

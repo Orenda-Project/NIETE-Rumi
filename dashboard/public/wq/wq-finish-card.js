@@ -237,6 +237,16 @@
     '.wqfc-nt{display:grid;gap:2px;min-width:0}.wqfc-nt b{font-size:19px}.wqfc-nt small{opacity:.8}' +
     '.wqfc-deed{font-weight:800;font-size:22px;margin:8px 0 0}[lang="ur"] .wqfc-nt b,[lang="ur"] .wqfc-nt small,[lang="ur"] .wqfc-nt span,[lang="ur"] .wqfc-deed,html[lang="ur"] .wqfc-share{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc{animation:wqfc-in .4s ease-out .3s both}@keyframes wqfc-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}}';
+  // One button system on (<html class="wq-1b">): the share's label sits in the middle of its box like every button
+  // (the line above draws it as a block, text at the top), and the Urdu label takes the buttons' Urdu line. Off: CSS only.
+  var CSS_1B = 'html.wq-1b .wqfc-share{display:flex;align-items:center;justify-content:center}' +
+    'html.wq-1b[lang="ur"] .wqfc-share{line-height:var(--btn-lh-ur,1.9)}' +
+    // the sound button sits beside the card's main button, not on a row of its own (the card's height goes to the deed)
+    'html.wq-1b .wqfc{grid-template-columns:minmax(0,1fr) auto;grid-auto-flow:row dense}html.wq-1b .wqfc>*{grid-column:1/-1}' +
+    'html.wq-1b .wqfc>.wqfc-snd{grid-column:2;align-self:center}html.wq-1b .wqfc>[data-primary]{grid-column:1}';
+  function oneButton() {
+    try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; }
+  }
   // the sheet's own styles, added only when a sheet opens (the card's CSS above stays today's)
   // A sheet taller than the screen scrolls from its top (the picture never above the screen): the panel sits at the
   // bottom by its own auto margin, not by flex-end.
@@ -251,10 +261,14 @@
     '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
   function css() {
     try {
-      if (document.getElementById('wqfc-css')) return;
-      var st = document.createElement('style');
+      var st = document.getElementById('wqfc-css');
+      if (st) {
+        if (oneButton() && st.textContent === CSS) st.textContent = CSS + CSS_1B;
+        return;
+      }
+      st = document.createElement('style');
       st.id = 'wqfc-css';
-      st.textContent = CSS;
+      st.textContent = oneButton() ? CSS + CSS_1B : CSS;
       (document.head || document.body).appendChild(st);
     } catch (e) { /* unstyled still works */ }
   }
@@ -660,5 +674,5 @@
 
   window.WQFC = { mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
-    html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, SHEET_CSS: SHEET_CSS, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS };
+    html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, SHEET_CSS: SHEET_CSS, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS, CSS_1B: CSS_1B };
 })();
