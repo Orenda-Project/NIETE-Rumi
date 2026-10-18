@@ -649,6 +649,19 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
     : /^\/wq\/vt\/[0-9a-f-]{36}\.webp\?v=\d+$/.test(cv) ? `<img class="cv cv-w" src="${esc(cv)}" alt="" width="160" height="90">` : '';
   const item = facts.item_title ? `<div class="it" dir="${dir}">${cover}<h1><bdi>${esc(String(facts.item_title).slice(0, 80))}</bdi></h1></div>` : '';
   const go = `<a class="wq-btn wq-go" data-primary data-tap="card_return" href="${esc(href)}">${esc(ret.cta || '')}</a><p class="hint">${esc(c.hint)}</p>`;
+  // the finish's result (a web_quiz_share_data token: the bot's own lines, never a speed): stars, the score or the
+  // words, the badge; its dare is the invite
+  const rt = facts.result_text && typeof facts.result_text === 'object' ? facts.result_text : {};
+  const line = (v) => (typeof v === 'string' && v ? v.slice(0, 80) : '');
+  const n = Number.isInteger(rt.stars) && rt.stars >= 0 && rt.stars <= 3 && line(rt.stars_text) ? rt.stars : null;
+  const stars = n === null ? '' : `<span class="stars" role="img" aria-label="${esc(line(rt.stars_text))}">${[0, 1, 2].map((i) => `<i${i < n ? ' class="on"' : ''}>★</i>`).join('')}</span>`;
+  const sc = line(rt.score) || line(rt.words);
+  const res = stars || sc || line(rt.badge) ? `<div class="res" dir="${dir}">${stars}${sc ? `<p class="sc">${esc(sc)}</p>` : ''}${line(rt.badge) ? `<span class="bd">${esc(line(rt.badge))}</span>` : ''}</div>` : '';
+  const invite = line(rt.dare) ? `<p class="dare">${esc(line(rt.dare))}</p>` : `<p>${esc(c.sub)}</p>`;
+  const resCss = res || line(rt.dare) ? `
+.k .res{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 4px 0 ${accent}33,0 1px 6px rgba(15,23,42,.1)}.k .stars{display:inline-flex;gap:2px;font-size:30px;line-height:1;color:#E5E7EB}.k .stars .on{color:#F59E0B;text-shadow:0 2px 0 #B45309}.k .stars i{font-style:normal}
+.k .sc{font-size:22px;font-weight:800;color:#1F2937}.k .bd{padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .dare{font-size:21px;font-weight:800;color:${accent}}${lang === 'ur' ? `
+.k .sc,.k .bd,.k .dare{font-weight:400}` : ''}` : '';
   return `${head({ lang, dir, title, desc: ret.text || '', origin, url, assetV: '', brand, image: img, imageType: 'image/png', ui: oneFace ? { uf: true } : null }).replace(/\n<link rel="stylesheet"[^>]*>/, '')}
 <style>body{margin:0;background:#FFF8E7;font-family:system-ui,sans-serif;color:#1F2937}.k{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:14px;box-sizing:border-box}
 .k>img{width:100%;height:auto;border-radius:20px;box-shadow:0 6px 0 ${accent}33,0 2px 10px rgba(15,23,42,.12)}
@@ -656,9 +669,9 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
 .k h1{margin:0;font-size:22px;font-weight:800;line-height:${lang === 'ur' ? 2 : 1.3};color:#1F2937;min-width:0;overflow-wrap:anywhere}.k p{margin:0;font-size:19px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .hint{font-size:15px;color:#475569;text-align:center}
 .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;border-radius:18px;background:#15803D;color:#fff;font-weight:800;font-size:22px;text-decoration:none;min-height:60px;box-shadow:0 5px 0 #14532D}
 .wq-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #14532D}${lang === 'ur' ? `
-.k h1,.wq-btn{font-weight:400}` : ''}</style>
+.k h1,.wq-btn{font-weight:400}` : ''}${resCss}</style>
 </head>
-<body><main class="k" data-screen="card_landing" data-v="4"><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630">${item}<p>${esc(c.sub)}</p>${go}</main></body>
+<body><main class="k" data-screen="card_landing" data-v="4"><img src="${esc(img)}" alt="${esc(title)}" width="1200" height="630">${item}${res}${invite}${go}</main></body>
 </html>`;
 }
 
