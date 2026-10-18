@@ -91,3 +91,14 @@
   .wq-moment[lang="ur"] .wq-moment-deed{font-size:22px;line-height:1.6;margin-bottom:10px}
   .wq-moment[lang="ur"] .wq-moment-num,.wq-moment[lang="ur"] .wq-moment-growth{line-height:1.6}
 }
+/* the page's own card (no Trail): the moment's screen sits in the middle of the phone, never a block at the top with
+   the rest empty */
+.wq-screen.wqc:has(> #wqc-rf) { min-height: calc(100svh - 32px); display: flex; flex-direction: column; justify-content: center; }
+/* the card's sound switch says what it is (an icon alone read as a stray control) */
+#wqfc-snd { width: auto; min-width: 48px; padding: 0 16px; gap: 8px; justify-self: center; font-weight: 700; font-size: 16px; }
+#wqfc-snd::after { content: attr(aria-label); }
+html[lang=ur] #wqfc-snd::after { font-size: 17px; line-height: 2; }
+/* the Next tile in Urdu: the title one size up from the body, the small lines tight, so Share and Home stay on screen */
+html[lang=ur] .wqfc-nt { gap: 0; }
+html[lang=ur] .wqfc-nt b { font-size: 20px; line-height: 1.8; }
+html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; line-height: 1.6; }
