@@ -92,7 +92,8 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick} className={cn(CHIP, on ? CHIP_ON : CHIP_OFF, FOCUS)}>
-      {children}
+      {/* One inline box: as flex items, "Level " and its <bdi> number would lose the space between them. */}
+      <span>{children}</span>
     </button>
   );
 }

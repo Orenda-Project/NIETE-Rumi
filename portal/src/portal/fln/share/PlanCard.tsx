@@ -55,12 +55,15 @@ export function Kicker({ plan, lang }: { plan: SharePlan; lang: ShareLang }) {
   return (
     <span className="block text-[13px] font-bold uppercase tracking-[0.06em] text-[#47BA7D] rtl:normal-case rtl:tracking-normal">
       {S.subject[plan.subject]}
-      {S.sep}
-      <Fill text={S.level} values={{ n: plan.level }} lang={lang} />
+      {/* Each separator stays with the part after it, so a wrapped kicker never ends a line on «·» / «—». */}
+      {' '}<span className="whitespace-nowrap">{S.sep.trimStart()}<Fill text={S.level} values={{ n: plan.level }} lang={lang} /></span>
       {lesson ? (
         <>
-          {S.sep}
+          {' '}
+          <span className="whitespace-nowrap">
+          {S.sep.trimStart()}
           <Fill text={S.lesson} values={{ pos: plan.pos as number, count: plan.count as number }} lang={lang} />
+          </span>
         </>
       ) : null}
     </span>
