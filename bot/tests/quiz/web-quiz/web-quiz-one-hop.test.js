@@ -217,6 +217,20 @@ describe('the hub\'s answer', () => {
     expect(bytes(H.mark(hub))).toBe(bytes(hub));
     expect(bytes(off.out)).toBe(bytes(await Hub.hub(T.signHub([KID]), A)));
   });
+  test('rule 29 pin: the key is in the hub\'s one batched read (HubFlags.KEYS), and another read\'s prime(rows) of KEYS fills this switch with no read of its own', () => {
+    const HubFlags = require('../../../shared/services/quiz/web-quiz-hub-flags');
+    expect(HubFlags.KEYS).toContain('web_quiz_one_hop');
+    seed([...HOME, TRUE('web_quiz_one_hop')]);
+    const H = Hop();
+    HubFlags._resetCache(); H._reset(); settingsReads = 0;
+    HubFlags.prime([...HOME, TRUE('web_quiz_one_hop')], Date.now());
+    expect(H.hubSwitches.age()).toBe('fresh');
+    expect(H.hubSwitches.peek().on).toBe(true);
+    HubFlags._resetCache();
+    HubFlags.prime([...HOME, { key: 'web_quiz_one_hop', value: 'true' }], Date.now());
+    expect(H.hubSwitches.peek().on).toBe(false); // JSON true only, as the switch's own parse
+    expect(settingsReads).toBe(0);
+  });
   test('the hub\'s one settings read carries the key: a warm and a stale hub make the same settings reads on and off', async () => {
     const off = await warmed(HOME);
     const on = await warmed([...HOME, TRUE('web_quiz_one_hop')]);
