@@ -89,6 +89,13 @@ describe('SendPage — the builder', () => {
     await screen.findByText('Plan 900');
     const levels = within(screen.getByRole('group', { name: 'Level' })).getAllByRole('button');
     expect(levels.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false']);
+    // qa-render (c/d/e): a chip is a flex box, so its label must be ONE inline box, or the space before the <bdi>
+    // number collapses ("Level1", «سطح۱»).
+    for (const b of levels) {
+      expect(b.childNodes).toHaveLength(1);
+      expect((b.firstChild as HTMLElement).tagName).toBe('SPAN');
+    }
+    expect(levels.map((b) => b.textContent)).toEqual(['Level 1', 'Level 2', 'Level 3']);
     const q = new URL(String(callsTo(f, '/fln/links').at(-1)![0]), 'https://x').searchParams;
     expect(q.has('level')).toBe(false);
     const rows = screen.getAllByTestId(/^fln-send-row-/);
