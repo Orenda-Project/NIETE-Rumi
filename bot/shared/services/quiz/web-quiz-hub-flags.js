@@ -29,6 +29,11 @@ const CHALLENGE_V2_KEY = 'web_quiz_challenge_v2';
 const RUNGS_KEY = 'web_quiz_challenge_rungs';
 // The read-along preview on the hub (#listen/<pid>): the hub JSON names it so the edge adds its script (web-quiz-hub.js).
 const READALONG_KEY = 'web_quiz_readalong';
+// One button system on the child pages (web-quiz-one-button.js): rides this one read, so it adds no read of its own.
+// Only the stored JSON boolean true turns it on (not this module's 'true' string rule).
+const ONE_BUTTON_KEY = 'web_quiz_one_button';
+// The adventure look on the child pages (web-quiz-adventure-look.js): rides this one read too, by the same JSON true rule.
+const ADV_KEY = 'web_quiz_adventure_look';
 // The designed wait (web-quiz-wait-ux.js) rides this one read: only the stored JSON boolean true is on.
 const WAIT_UX_KEY = 'web_quiz_wait_ux';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
@@ -44,7 +49,7 @@ const SHARE_KEY = 'web_quiz_share_v4';
 // The child home's files preloaded in the head the edge sends before the hub answers: the hub JSON names it (`home_pre`).
 const HOME_PRELOAD_KEY = 'web_quiz_home_preload';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, waitUx, serverTiming, fanout, shareOpen, offlineGuard, homePreload }
+let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2, challengeV2, rungs, readalong, oneButton, waitUx, serverTiming, fanout, shareOpen, adv, homePreload, offlineGuard }
 
 function isTrue(value) {
   let v = value;
@@ -52,16 +57,16 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY, OFFLINE_GUARD_KEY, HOME_PRELOAD_KEY]);
+const KEYS = Object.freeze([HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY, CHALLENGE_V2_KEY, RUNGS_KEY, READALONG_KEY, ONE_BUTTON_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, CARD_KEY, SHARE_KEY, ADV_KEY, HOME_PRELOAD_KEY, OFFLINE_GUARD_KEY]);
 
 function fromRows(data, now) {
   const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
   return { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
     homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]),
-    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), waitUx: by[WAIT_UX_KEY] === true,
+    challengeV2: isTrue(by[CHALLENGE_V2_KEY]), rungs: isTrue(by[RUNGS_KEY]), readalong: isTrue(by[READALONG_KEY]), oneButton: by[ONE_BUTTON_KEY] === true, waitUx: by[WAIT_UX_KEY] === true,
     // only the JSON boolean true (the string 'true', 1 or an object are off)
     serverTiming: by[SERVER_TIMING_KEY] === true, fanout: by[FANOUT_KEY] === true,
-    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, offlineGuard: by[OFFLINE_GUARD_KEY] === true,
+    shareOpen: by[CARD_KEY] === true && by[SHARE_KEY] === true, adv: by[ADV_KEY] === true, offlineGuard: by[OFFLINE_GUARD_KEY] === true,
     homePreload: by[HOME_PRELOAD_KEY] === true };
 }
 
@@ -74,8 +79,16 @@ function prime(rows, now = Date.now()) {
   cache = fromRows(rows, now);
 }
 
-async function flags(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache;
+// One read in flight at a time: a page that looks at two of these switches at once (the hub and its one-button
+// field) shares the read instead of sending a second.
+let reading = null;
+function flags(now = Date.now()) {
+  if (cache && now - cache.at < TTL_MS) return Promise.resolve(cache);
+  if (!reading) reading = read(now).finally(() => { reading = null; });
+  return reading;
+}
+
+async function read(now) {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
     if (error) throw new Error(error.message || 'app_settings read failed');
@@ -83,7 +96,7 @@ async function flags(now = Date.now()) {
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, waitUx: false, serverTiming: false, fanout: false, offlineGuard: false, homePreload: false };
+    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false, challengeV2: false, rungs: false, readalong: false, oneButton: false, waitUx: false, serverTiming: false, fanout: false, adv: false, homePreload: false, offlineGuard: false };
   }
 }
 
@@ -114,6 +127,22 @@ async function rungsOn() {
 function eventsV2Now(now = Date.now()) {
   if (!cache || now - cache.at >= TTL_MS) flags().catch(() => {});
   return Boolean(cache && cache.hub && cache.eventsV2);
+}
+
+/**
+ * web_quiz_one_button, never waited for and never read on its own from a cold cache: off until the hub's (or the
+ * join's) one read fills the cache; a stale value answers at once and is refreshed in the background; off once it is
+ * older than twice the cache time (a refresh that never comes back).
+ */
+function oneButtonNow(now = Date.now()) {
+  if (cache && now - cache.at >= TTL_MS) flags(now).catch(() => {});
+  return Boolean(cache && cache.oneButton && now - cache.at < 2 * TTL_MS);
+}
+
+/** web_quiz_adventure_look, never waited for: as oneButtonNow (the cached answer, off when cold or too old). */
+function advNow(now = Date.now()) {
+  if (!cache || now - cache.at >= TTL_MS) flags(now).catch(() => {});
+  return Boolean(cache && cache.adv && now - cache.at < 2 * TTL_MS);
 }
 
 /**
@@ -185,4 +214,4 @@ async function hubLink(studentIds, caller) {
   }
 }
 
-module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, waitUxNow, serverTimingNow, fanoutNow, shareOpenNow, offlineGuardNow, rungsOn, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, OFFLINE_GUARD_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, prime, KEYS, hubLink, pageNav, eventsV2On, eventsV2Now, oneButtonNow, advNow, waitUxNow, serverTimingNow, fanoutNow, shareOpenNow, offlineGuardNow, rungsOn, ONE_BUTTON_KEY, ADV_KEY, EVENTS_V2_KEY, WAIT_UX_KEY, SERVER_TIMING_KEY, FANOUT_KEY, OFFLINE_GUARD_KEY, RUNGS_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_PRELOAD_KEY, _resetCache: () => { cache = null; reading = null; } };
