@@ -13,17 +13,20 @@
  * (no class: played here, the quiz offered after as the Next tile when the server says `after`). A watched video ends
  * on the finish card (window.WQFC, only when the boot says `card_v3`): the card's block draws the one Next tile.
  * A teacher's class preview (`B.practice`, no child): the boot's own rows only, nothing fetched, and a row tap shows the
- * home's one line (WQHOME.practiceNote) instead of opening anything. */
+ * home's one line (WQHOME.practiceNote) instead of opening anything.
+ * Every list's three states (the boot's `list_states`, app_settings web_quiz_list_states): loading is a skeleton of the
+ * list, empty is said only from rows that came back empty, a failed read is a retry. WQDOORS.warm(B, ctx) asks for the
+ * Games and Stories rows when this file loads (the home calls it), so a door tap paints its whole list at once. */
 (function () {
   'use strict';
   var COPY = {
     en: {
       weekStory: 'This week\'s story', toRead: 'Stories to read', toListen: 'Stories to listen to', books: 'Storybooks',
       listen: 'Listen to a story', story: 'A story with Jugnu', readAlong: 'Read along', listenW: 'Listen', newTag: 'New', doneTag: 'Done',
-      numbers: 'Number games', fromTeacher: 'From your teacher', again: 'Play again', quiz: 'Your teacher\'s quiz',
+      numbers: 'Number games', fromTeacher: 'From your teacher', lastQ: 'Your last quiz', again: 'Play again', quiz: 'Your teacher\'s quiz',
       warm: 'Number warm-up', missing: 'Missing number', bigger: 'Which is bigger?', g1: 'Numbers with Jugnu',
       pick: 'Pick a subject', back: 'Back', opening: 'Opening the video…', none: 'No videos here yet.',
-      oops: 'This did not load.', retry: 'Try again', watchNext: 'Watch next', quizAfter: 'Play the quiz',
+      oops: 'This did not load.', shelfOops: 'The stories could not open yet.', retry: 'Try again', watchNext: 'Watch next', quizAfter: 'Play the quiz',
       moreVideos: 'More videos', play: 'Play the video', say: 'Listen', prVideos: 'Children watch the videos from their own link',
       seeAll: 'See all', quizBtn: 'Quiz', vquiz: 'Play the quiz',
       storiesNone: 'New stories are on the way. Play a game!', gamesNone: 'Read a story with Jugnu!', toGames: 'Play a game', toStories: 'Read a story',
@@ -33,10 +36,10 @@
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
       listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', readAlong: 'جگنو کے ساتھ ساتھ پڑھیں', listenW: 'سنیں', newTag: 'نئی', doneTag: 'مکمل',
-      numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
+      numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', lastQ: 'آپ کا پچھلا کوئز', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
       warm: 'گنتی کا کھیل', missing: 'کون سا عدد غائب ہے؟', bigger: 'کون سا عدد بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
       pick: 'ایک مضمون چنیں', back: 'واپس', opening: 'ویڈیو کھل رہی ہے…', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
-      oops: 'اوہو! یہ نہیں کھل سکا۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
+      oops: 'اوہو! یہ نہیں کھل سکا۔', shelfOops: 'کہانیاں ابھی نہیں کھل سکیں۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
       moreVideos: 'اور ویڈیوز دیکھیں', play: 'ویڈیو چلائیں', say: 'سنیں', prVideos: 'بچے اپنے لنک سے ویڈیوز دیکھیں گے',
       seeAll: 'سب دیکھیں', quizBtn: 'کوئز', vquiz: 'کوئز کھیلیں',
       storiesNone: 'نئی کہانیاں آ رہی ہیں۔ تب تک کھیل کھیلیں!', gamesNone: 'جگنو کے ساتھ کہانی پڑھیں!', toGames: 'کھیل کھیلیں', toStories: 'کہانی پڑھیں',
@@ -95,8 +98,17 @@
       '<div class="wq-dtop"><a class="wq-homebtn" href="#" data-home data-tap="home" aria-label="' + esc(t.home || 'Home') + '">' + HOMEI + '</a><h2 dir="auto">' + esc(title) + '</h2></div>' +
       body + '</section>' + bar;
   }
-  function emptyNote(text, to, label) {
-    return '<div class="wq-dempty"><p class="wq-soon">' + esc(text) + '</p><a class="wq-btn wq-go" data-primary data-tap="door" data-door="' + to + '" href="#' + to + '">' + esc(label) + '</a></div>';
+  // A list still on its way (`list_states`): row-shaped blocks, never an empty note; `primary` when it is the screen's one.
+  // `mod` 'bk': the Stories shelf's shape (covers two by two), so the shelf replaces it without a jump; 'in': rows under
+  // a section heading already drawn, so the first grey row sits where the first real row will.
+  function skel(n, primary, mod) {
+    var r = ''; for (var i = 0; i < n; i++) r += '<i class="wq-skrow"></i>';
+    return '<div class="wq-dskel' + (mod ? ' wq-dskel-' + mod : '') + '"' + (primary ? ' data-primary' : '') + ' aria-busy="true">' + r + '</div>';
+  }
+  function errNote(t) { return '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><button class="wq-btn wq-go" type="button" data-primary data-tap="retry">' + esc(t.retry) + '</button></div>'; }
+  // `mark` (list_states): a true empty says so (data-empty), so a walker can tell it from a list still on its way
+  function emptyNote(text, to, label, mark) {
+    return '<div class="wq-dempty"' + (mark ? ' data-empty' : '') + '><p class="wq-soon">' + esc(text) + '</p><a class="wq-btn wq-go" data-primary data-tap="door" data-door="' + to + '" href="#' + to + '">' + esc(label) + '</a></div>';
   }
 
   /* ---------------- Stories ---------------- */
@@ -105,21 +117,37 @@
   function storiesBody(B, ctx, data) {
     var t = C(ctx);
     var shelfOn = data ? Boolean(data.shelf) : bootDoors(B).stories.some(function (s) { return s.kind === 'shelf'; });
-    if (!shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames);
-    // the screen still has its one primary until the shelf draws its own (then this one steps aside)
-    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors"></div></div>' +
-      '<div data-shelf-fallback="1">' + emptyNote(t.storiesNone, 'games', t.toGames) + '</div>';
+    if (!shelfOn) return emptyNote(t.storiesNone, 'games', t.toGames, B.list_states);
+    // the screen still has its one primary until the shelf draws its own (then this one steps aside); with `list_states`
+    // the slot shows a skeleton and the note waits, hidden, until the shelf has answered (the reader fills the slot)
+    var wait = Boolean(B.list_states && B.stories && B.stories.on);
+    // (the skeleton is the screen's one primary while it waits; the note's button takes it back only if it shows)
+    var note = emptyNote(t.storiesNone, 'games', t.toGames, B.list_states);
+    return '<div class="wq-shelfwrap"><h3 class="wq-dsec">' + esc(t.books) + '</h3><div class="wq-shelf" data-stories-shelf="1" data-host="doors">' + (wait ? skel(4, true, 'bk') : '') + '</div></div>' +
+      '<div data-shelf-fallback="1"' + (wait ? ' hidden' : '') + '>' + (wait ? note.replace(' data-primary', '') : note) + '</div>';
   }
 
   /* ---------------- Games ---------------- */
   function gameName(g, t) { return g.stop === 'missing' ? (g.warm ? t.warm : (g.name || t.missing)) : g.stop === 'bigger' ? (g.name || t.bigger) : t.g1; }
   function gamesBody(B, ctx, data) {
     var t = C(ctx);
+    // `list_states`: before its rows the door is a skeleton (the boot's one numbers stand-in never shows), and rows that
+    // failed are a retry above the teacher's quizzes the boot already has (never the empty note)
+    var ls = Boolean(B.list_states && !B.practice);
+    // before the rows, what the boot already knows is drawn for real (the teacher's quizzes, the numbers' heading) and
+    // only the rows still on their way are grey, so the primary is where it stays when they arrive
+    var wait = ls && !data;
+    var failed = ls && !wait && Boolean(data.err);
     var boot = bootDoors(B).games;
     var quizzes = boot.filter(function (g) { return g.kind === 'quiz'; });
     var open = quizzes.filter(function (g) { return !g.done; });
+    // `list_states`: a quiz the child opened themself (a video's, `from: 'last'`) is not the teacher's: it sits under
+    // "Your last quiz", after the games, and takes the primary only when it is the screen's one row
+    var last = ls ? open.filter(function (g) { return g.from === 'last'; }) : [];
+    if (ls) open = open.filter(function (g) { return g.from !== 'last'; });
     var done = quizzes.filter(function (g) { return g.done; });
-    var all = data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
+    var hasNums = boot.some(function (g) { return g.kind === 'numbers'; });
+    var all = failed || wait ? [] : data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
     var nums = all.filter(function (g) { return g.kind === 'numbers'; });
     // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
     // story room by id, read aloud on the games page
@@ -129,11 +157,15 @@
       return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
     };
     var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
-    var h = section(t.fromTeacher, open.map(quizRow).join('')) +
+    var numsH = !wait ? '' : hasNums ? '<h3 class="wq-dsec"><bdi' + lat(t.numbers) + '>' + esc(t.numbers) + '</bdi></h3>' + skel(2, !open.length, 'in') : skel(3, !open.length);
+    var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.story, reads.map(readRow).join('')) +
+      section(t.lastQ, last.map(function (g, i) { return row({ href: quizHref(g.code, g.k, false), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
-    if (!open.length && !reads.length && !nums.length && !done.length) return emptyNote(t.gamesNone, 'stories', t.toStories);
+    if (failed) return errNote(t) + h;
+    if (wait) return open.length ? primaryFirst(h) : h;
+    if (!open.length && !reads.length && !nums.length && !done.length && !last.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
     return primaryFirst(h);
   }
 
@@ -142,10 +174,10 @@
     var t = C(ctx);
     if (shelfOn(B) && lib && !lib.err && (lib.subjects || []).length) return shelvesBody(ctx, lib);
     if (shelfOn(B) && !lib) return waitShelves();
-    if (!lib) return '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
-    if (lib.err) return '<div class="wq-dempty"><p class="wq-soon">' + esc(t.oops) + '</p><button class="wq-btn wq-go" type="button" data-primary data-tap="retry">' + esc(t.retry) + '</button></div>';
+    if (!lib) return B.list_states ? skel(5, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
+    if (lib.err) return errNote(t);
     var subs = lib.subjects || [];
-    if (!subs.length) return emptyNote(t.none, 'stories', t.toStories);
+    if (!subs.length) return emptyNote(t.none, 'stories', t.toStories, B.list_states);
     return primaryFirst('<p class="wq-dsay">' + esc(t.pick) + '</p><ul class="wq-rows">' + subs.map(function (s, i) {
       return row({ title: t.subj(s.key), kind: 'subject', item: s.key, pos: i, art: s.art, tap: 'subj' }, ctx);
     }).join('') + '</ul>');
@@ -156,7 +188,8 @@
     if (shelfOn(B) && lib && (lib.chapters || []).length) return back + gridBody(ctx, lib);
     if (shelfOn(B) && !lib) return back + '<div class="wq-vgrid" data-primary aria-busy="true">' + SKEL + SKEL + SKEL + SKEL + '</div>';
     if (shelfOn(B) && lib && lib.err) return back + '<div class="wq-dempty">' + oopsHtml(ctx, subj, 0).replace('type="button"', 'type="button" data-primary') + '</div>';
-    if (!lib) return back + '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>';
+    if (!lib) return back + (B.list_states ? skel(4, true) : '<p class="wq-soon wq-wait" data-primary>' + esc(t.opening) + '</p>');
+    if (lib.err) return back + errNote(t);
     var art = lib.art || null; var i = 0;
     var body = (lib.chapters || []).map(function (ch) {
       return section((langOf(ctx) === 'ur' && ch.name_ur) || ch.name, (ch.videos || []).map(function (v) {
@@ -243,6 +276,7 @@
 
   /* ---------------- live: fetch, wire, play ---------------- */
   var cache = {};
+  var asking = {};
   var lib = { subjects: null, chapters: {} };
   var going = false;
   function getJson(url, done) {
@@ -258,6 +292,23 @@
         return r.text().then(function (x) { var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) {} done(r.ok ? null : r.status, j); });
       }, function () { done(0); });
     } catch (e) { done(0); }
+  }
+  // One read of a door's rows at a time (`list_states`): a tap while warm's read is on its way joins it. Only rows that
+  // came back whole are kept; a failure (or the server's own `err`) is asked again on the next visit or a retry.
+  function doorUrl(B, ctx, name) { return '/api/wq/doors/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&d=' + name + '&l=' + langOf(ctx); }
+  function ask(B, ctx, name, done) {
+    if (asking[name]) return asking[name].push(done);
+    asking[name] = [done];
+    getJson(doorUrl(B, ctx, name), function (err, j) {
+      var all = asking[name] || []; asking[name] = null;
+      if (!err && j && !j.err) cache[name] = j;
+      all.forEach(function (fn) { fn(err, j); });
+    });
+  }
+  // Asked by the home when this file loads: the Games and Stories rows, so a door tap paints its whole list at once.
+  function warm(B, ctx) {
+    if (!B || !B.list_states || B.practice) return;
+    ['games', 'stories'].forEach(function (n) { if (!cache[n]) ask(B, ctx, n, function () {}); });
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
@@ -282,29 +333,64 @@
     var sh = root.querySelector('[data-stories-shelf]');
     if (!sh || !(B.stories && B.stories.on)) return;
     var key = tok(B, ctx) + '|' + (B.kid || '') + '|' + langOf(ctx);
+    var filled = false;
     var fill = function () {
-      if (!window.WQSTORIES || typeof window.WQSTORIES.shelf !== 'function') return;
+      if (filled || !window.WQSTORIES || typeof window.WQSTORIES.shelf !== 'function') return;
       // the slot asked for, or the door's own slot that replaced it; never another screen's (Home drawn meanwhile)
       var cur = root.querySelector('[data-stories-shelf]');
       var slot = cur === sh || (cur && cur.getAttribute('data-host') === 'doors') ? cur : null;
       if (!slot) return;
+      // `list_states`: an earlier draw already gave the reader this very slot (the rows redrew the door in between)
+      if (B.list_states && shelfKept && shelfKept.key === key && shelfKept.el === slot) { filled = true; return; }
       var fb = root.querySelector('[data-shelf-fallback]');
       if (shelfKept && shelfKept.key === key && shelfKept.el !== slot && slot.parentNode) {
-        try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb); return; } catch (e) {}
+        try { slot.parentNode.replaceChild(shelfKept.el, slot); if (fb) shelfPrimary(shelfKept.el, fb, B.list_states && root, C(ctx).shelfOops); filled = true; return; } catch (e) {}
       }
-      if (fb) shelfPrimary(slot, fb);
-      try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) {}
+      if (fb) shelfPrimary(slot, fb, B.list_states && root, C(ctx).shelfOops);
+      filled = true;
+      try { window.WQSTORIES.shelf(slot, B, { token: tok(B, ctx), lang: langOf(ctx), ev: ctx.ev || function () {}, go: ctx.go, primary: Boolean(fb) }); shelfKept = { el: slot, key: key }; } catch (e) { if (B.list_states) slotFailed(root, sh, ctx, true); }
     };
     if (window.WQSTORIES) return fill();
     var H = home();
+    // `list_states`: the home may have asked for the reader already (its loadOnce then drops our callback), so the door
+    // also listens to that script; a reader that never arrives turns the skeleton into a reload, never "no stories"
+    var s0 = B.list_states ? readerScript() : null;
+    if (s0) s0.addEventListener('load', fill);
     if (H && typeof H.loadOnce === 'function') H.loadOnce('wq-stories', fill);
+    var s1 = B.list_states ? readerScript() : null;
+    if (s1) s1.addEventListener('error', function () { slotFailed(root, sh, ctx); });
   }
-  function shelfPrimary(sh, fb) {
+  function readerScript() { try { return document.querySelector('script[src*="/wq/wq-stories.js"]'); } catch (e) { return null; } }
+  // the reader never arrived, or its shelf threw (`thrown`): a reload in the slot, and the door root says failed
+  function slotFailed(root, sh, ctx, thrown) {
+    var cur = root.querySelector('[data-stories-shelf]');
+    if (!cur || (cur !== sh && cur.getAttribute('data-host') !== 'doors') || (window.WQSTORIES && !thrown)) return;
+    var t = C(ctx);
+    cur.innerHTML = '<div class="wq-dempty"><p class="wq-soon">' + esc(t.shelfOops) + '</p><a class="wq-btn wq-go" data-primary href="' + esc(String(location.href || '')) + '">' + esc(t.retry) + '</a></div>';
+    cur.setAttribute('data-filled', '1');
+    cur.setAttribute('data-failed', '1');
+    if (typeof root.setAttribute === 'function') root.setAttribute('data-fetch', 'failed');
+  }
+  // `wait` (list_states): while the shelf has not answered (the reader has not filled it, or shows its own skeleton) the
+  // note stays hidden; it shows only for a shelf that answered with nothing to open. `wait` is the door root, which
+  // carries the test markers.
+  // `words` (list_states): the reader's own Try again sheet on a shelf that did not load names the stories, not one book
+  function shelfPrimary(sh, fb, wait, words) {
     var sync = function () {
       var has = !sh.hidden && Boolean(sh.querySelector('[data-primary]'));
-      fb.hidden = has;
+      var sheet = wait ? sh.querySelector('[data-screen="stories-retry"]') : null;
+      var say = sheet && words ? sheet.querySelector('.wqs-say') : null;
+      if (say && say.textContent !== words) say.textContent = words;
+      var failed = Boolean(wait) && !sh.hidden && (sh.getAttribute('data-failed') === '1' || Boolean(sheet));
+      var busy = Boolean(wait) && !sh.hidden && !failed && (sh.getAttribute('data-filled') !== '1' || Boolean(sh.querySelector('[aria-busy="true"]')));
+      fb.hidden = has || busy || failed;
+      if (wait && typeof wait.getAttribute === 'function') {
+        wait.setAttribute('data-fetch', failed ? 'failed' : busy ? 'pending' : 'done');
+        if (!busy && wait.getAttribute('data-skel-from') != null && wait.getAttribute('data-skel-to') == null) wait.setAttribute('data-skel-to', now());
+        if (!fb.hidden && wait.getAttribute('data-empty-at') == null) wait.setAttribute('data-empty-at', now());
+      }
       var b = fb.querySelector('.wq-go');
-      if (b) { if (has) b.removeAttribute('data-primary'); else b.setAttribute('data-primary', ''); }
+      if (b) { if (has || failed) b.removeAttribute('data-primary'); else b.setAttribute('data-primary', ''); }
     };
     sync();
     try { new MutationObserver(sync).observe(sh, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-primary', 'hidden'] }); } catch (e) {}
@@ -312,14 +398,45 @@
 
   var view = { name: null, subject: null, watch: null, next: null, list: null };
   function draw(root, B, ctx, name, data) {
-    root.innerHTML = html(B, ctx, name, data);
+    var h = html(B, ctx, name, data);
+    root.innerHTML = h;
     root.setAttribute('data-m', 'H3-' + name.split('/')[0]);
+    // (the Videos screens as picture shelves stamp with their own writer, vtrip, after the draw)
+    if (B.list_states && !B.practice && !(shelfOn(B) && (name === 'videos' || /^watch\//.test(name)))) trip(root, name, h, data);
     wire(root, B, ctx, name);
     try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  // The test markers (`list_states` only): data-fetch pending|done|failed, when the skeleton came and went, and
+  // when an empty note showed (a visible empty note beside data-fetch=pending is a FAIL for them).
+  function now() { try { return String(Math.round(window.performance.now())); } catch (e) { return String(Date.now()); } }
+  function trip(root, name, h, data) {
+    if (typeof root.getAttribute !== 'function') return;
+    var pending = /aria-busy="true"/.test(h) && !/<div data-shelf-fallback="1">/.test(h);
+    var failed = Boolean(data && (data.err || (data.lib && data.lib.err)));
+    var key = name.split('/')[0] + (data && data.subject ? '/' + data.subject : '');
+    if (root.getAttribute('data-trip') !== key || root.getAttribute('data-vtrip') != null) {
+      root.setAttribute('data-trip', key);
+      if (root.removeAttribute) root.removeAttribute('data-vtrip');
+      ['data-skel-from', 'data-skel-to', 'data-empty-at'].forEach(function (k) { if (root.removeAttribute) root.removeAttribute(k); });
+    }
+    root.setAttribute('data-fetch', pending ? 'pending' : failed ? 'failed' : 'done');
+    if (pending && root.getAttribute('data-skel-from') == null) root.setAttribute('data-skel-from', now());
+    if (!pending && root.getAttribute('data-skel-from') != null && root.getAttribute('data-skel-to') == null) root.setAttribute('data-skel-to', now());
+    if (!pending && !failed && /class="wq-dempty"/.test(h.replace(/<div data-shelf-fallback="1" hidden>[\s\S]*$/, '')) && root.getAttribute('data-empty-at') == null) root.setAttribute('data-empty-at', now());
   }
   function mount(root, B, ctx, name) {
     view.name = name;
     shelfKept = null;
+    if ((name === 'stories' || name === 'games') && B.list_states && !B.practice) {
+      draw(root, B, ctx, name, cache[name] || null);
+      if (cache[name]) return;
+      return ask(B, ctx, name, function (err, j) {
+        if (view.name !== name) return;
+        if (!err && j && !j.err) return draw(root, B, ctx, name, j);
+        // a failed read: Games says so with a retry; Stories keeps the boot's own shelf (the reader has its own retry)
+        if (name === 'games') draw(root, B, ctx, name, { games: [], err: 1 });
+      });
+    }
     if (name === 'stories' || name === 'games') {
       draw(root, B, ctx, name, cache[name] || null);
       if (!cache[name] && !B.practice) {
@@ -348,7 +465,7 @@
     var see = function (st, l) { if (shelfOn(B)) vtrip(root, 'videos/' + subject, st, st === 'done' && !lessonsOf(l).length); };
     if (lib.chapters[subject]) return see('done', lib.chapters[subject]);
     see('pending');
-    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if (shelfOn(B) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
+    getJson(libUrl(B, ctx, subject), function (err, j) { if (err || !j) { if ((shelfOn(B) || B.list_states) && view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: { err: true } }); see('failed'); } return; } lib.chapters[subject] = j; if (view.name === 'videos' && view.subject === subject) { draw(root, B, ctx, 'videos', { subject: subject, lib: j }); see('done', j); } });
   }
   // The walkers' list-state tripwires on the door root (web_quiz_video_shelf; the four attributes every child list
   // writes): data-fetch pending|done|failed, when its placeholders came and went (a Try again starts a new spell), and
@@ -519,6 +636,8 @@
         }
         if (tap === 'subj') { e.preventDefault(); ev('door_row_tap', { door: 'videos', kind: 'subject', item: el.getAttribute('data-item'), pos: Number(el.getAttribute('data-pos')) }); return videos(root, B, ctx, el.getAttribute('data-item')); }
         if (tap === 'subjects') { e.preventDefault(); return videos(root, B, ctx, null); }
+        if (tap === 'retry' && name === 'games') { e.preventDefault(); return mount(root, B, ctx, 'games'); }
+        if (tap === 'retry' && view.subject) { e.preventDefault(); return videos(root, B, ctx, view.subject); }
         if (tap === 'retry') { e.preventDefault(); lib.subjects = null; return videos(root, B, ctx, null); }
         if (tap === 'vretry') {
           e.preventDefault();
@@ -632,7 +751,7 @@
   function mountKeep(root, B, ctx, name) { going = false; return mount(root, B, ctx, name); }
 
   if (typeof window !== 'undefined') {
-    window.WQDOORS = { owns: owns, html: html, watchHtml: watchHtml, shelfHtml: shelfHtml, mount: mountKeep, COPY: COPY, storyHref: storyHref,
-      _reset: function () { cache = {}; lib = { subjects: null, chapters: {} }; going = false; cardLate = null; view = { name: null, subject: null, watch: null, next: null }; } };
+    window.WQDOORS = { owns: owns, html: html, watchHtml: watchHtml, shelfHtml: shelfHtml, mount: mountKeep, warm: warm, COPY: COPY, storyHref: storyHref,
+      _reset: function () { cache = {}; asking = {}; lib = { subjects: null, chapters: {} }; going = false; cardLate = null; view = { name: null, subject: null, watch: null, next: null }; } };
   }
 })();
