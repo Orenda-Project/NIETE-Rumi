@@ -36,7 +36,7 @@ Feature: Teacher lesson plans
     When portal_fln_lessons is removed
     And they open /portal/teacher/lessons/new again
     Then no FLN band is shown and the page is the same as before the FLN release
-    And every /api/portal/fln/ request answered 404
+    And the catalogue answers 404; /me says lessons:false
 
   @FLN02 @draft @config-gated
   Scenario: A signed-in teacher opens an FLN plan from a deep link

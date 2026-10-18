@@ -16,6 +16,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useFln } from './FlnContext';
 import { FlnNotAvailable, FlnUnavailable } from './FlnGate';
 import { bdiRuns } from './Bdi';
+import { Chrome } from './plan/text';
 import { levelForGrade, num, type FlnSubjectKey, type Strand } from './strings';
 import type { FlnChapter, FlnRow } from './types';
 import { LEVEL_GRADE, NEW_LESSON, TopBar, isGuideRow, listUrl, planUrl, useCatalogue } from './listShared';
@@ -104,10 +105,11 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
     const c = r.chips || {};
     const out: ReactNode[] = [];
     if (isScreener(r)) {
-      out.push(<span key="ak" className="fln-mini fln-mini-b">{s.chip.answerKey}</span>);
+      // The answer-key chip promises audio: only when the screener carries some (Num screeners can have 0 clips).
+      if ((c.sounds || 0) + (c.words || 0) > 0 || c.narration) out.push(<span key="ak" className="fln-mini fln-mini-b">{s.chip.answerKey}</span>);
       return out;
     }
-    if (c.sounds) out.push(<span key="s" className="fln-mini fln-mini-s">🔊 {c.sounds === 1 ? s.chip.soundOne : s.chip.sounds(c.sounds)}</span>);
+    if (c.sounds) out.push(<span key="s" className="fln-mini fln-mini-s">🔊 <Chrome text={s.chip.sounds(c.sounds)} rtl={rtl} /></span>);
     if (c.narration) out.push(<span key="n" className="fln-mini fln-mini-s">▶ {s.chip.narration}</span>);
     if (c.textbook) out.push(<span key="t" className="fln-mini fln-mini-b">{s.chip.textbook}</span>);
     if (c.additional) out.push(<span key="a" className="fln-mini fln-mini-x">{s.chip.additional}</span>);

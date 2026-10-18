@@ -59,6 +59,8 @@ export interface FlnLevel {
   count: number;
   screener_id?: number | null;
   screener_minutes?: number | null;
+  /** The screener has audio (sounds, words or narration): only then the "Answer key audio" chip. */
+  screener_audio?: boolean;
   note_en?: string | null;
   note_ur?: string | null;
 }
