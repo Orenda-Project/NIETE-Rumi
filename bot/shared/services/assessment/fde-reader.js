@@ -28,6 +28,7 @@ const PAPER_HEAD = '=== THE QUESTION PAPER, AS PRINTED (no answers) ===';
 const KEYS_HEAD = '=== Q1 ANSWER KEY (for you only; the paper does not print it) ===';
 const ONLY_HEAD = 'Judge ONLY these items:';
 const ANSWERS_HEAD = '=== ANSWERS (for you only; the paper does not print them) ===';
+const CANDIDATES_HEAD = '=== CANDIDATES CODE FOUND (judge each one too) ===';
 
 const OPTION_HEAD = /^\s*\(?(?:[a-dA-D]|الف|ب|ج|د)\s*[).]\s*/u;
 const strip = (t) => String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
@@ -83,6 +84,61 @@ function printedLines(q) {
   return lines;
 }
 
+// Code's own candidates for the Urdu read, judged beside the open read (the reader missed name cues and
+// neighbouring book facts it was left to find among 20 × 19 pairs):
+// 1. each Q1 item keyed on one or two words, and every printed place its head word stands: another Q1
+//    item's stem or correct option, any Section B–D text (stems, passage, word lists, verses). A wrong
+//    option is never listed: one name among four tells nothing.
+// 2. each pair of Q1 items whose keys stand in the same or neighbouring sentences of the book pages.
+// A word is read without its ending («فاختائیں» / «فاختہ») and the book's own sentences are cut at
+// «۔», «؟» and «!».
+const CANDIDATE_STOP = new Set(wordsOf('کا کی کے کو سے میں نے پر اور یا ہے ہیں تھا تھی تھے ایک بھی یہ وہ کس کیا کون جو'));
+const ENDINGS = /(?:ائیں|اؤں|یاں|یں|وں|ے|ہ|ی|ا)$/u;
+const stemOf = (w) => { const cut = w.replace(ENDINGS, ''); return [...cut].length >= 3 ? cut : w; };
+const contentOf = (t) => wordsOf(t).filter((w) => !CANDIDATE_STOP.has(w) && [...w].length >= 2);
+const KEY_WORDS = 2;
+const PAIR_SHARE = 0.6;
+const PAIR_LINES = 12;
+function bookSentences(pages) {
+  return String(pages || '').replace(/=== Page \d+ ===/g, ' ').replace(/\s+/g, ' ')
+    .split(/[۔؟!?]+/u).map((x) => x.trim()).filter(Boolean).map((t) => ({ t, stems: new Set(contentOf(t).map(stemOf)) }));
+}
+function candidateLines(q1, others, pages) {
+  const lines = [];
+  for (const [label, q] of q1) {
+    const key = contentOf(keyOf(q));
+    if (!key.length || key.length > KEY_WORDS) continue;
+    const head = stemOf(key[key.length - 1]);
+    if ([...head].length < 3) continue;
+    const at = (t) => contentOf(t).some((w) => stemOf(w) === head);
+    const places = [];
+    for (const [other, p] of q1) {
+      if (other === label) continue;
+      if (at(p.question)) places.push(`${other} (stem)`);
+      else if (Array.isArray(p.options) && p.options.length && at(keyOf(p))) places.push(`${other} (correct option)`);
+    }
+    for (const [other, text] of others) if (at(text)) places.push(other);
+    if (places.length) lines.push(`- ${label} «${keyOf(q)}»: its key word is printed in ${places.join(', ')}`);
+  }
+  const sentences = bookSentences(pages);
+  if (sentences.length) {
+    const where = [...q1].map(([label, q]) => {
+      const key = [...new Set(contentOf(keyOf(q)).map(stemOf))];
+      const at = key.length >= KEY_WORDS ? sentences.map((s, i) => (key.filter((w) => s.stems.has(w)).length >= Math.max(KEY_WORDS, Math.ceil(key.length * PAIR_SHARE)) ? i : -1)).filter((i) => i >= 0) : [];
+      return { label, at };
+    }).filter((x) => x.at.length);
+    const pairs = [];
+    for (let i = 0; i < where.length; i += 1) {
+      for (let j = i + 1; j < where.length; j += 1) {
+        const near = where[i].at.flatMap((a) => where[j].at.filter((b) => Math.abs(a - b) <= 1).map((b) => [a, b]))[0];
+        if (near) pairs.push(`- ${where[i].label} and ${where[j].label}: their keys stand in ${near[0] === near[1] ? 'the same sentence' : 'neighbouring sentences'} of the book («${sentences[Math.min(...near)].t}${near[0] === near[1] ? '' : `۔ ${sentences[Math.max(...near)].t}`}»)`);
+      }
+    }
+    lines.push(...pairs.slice(0, PAIR_LINES));
+  }
+  return lines;
+}
+
 /**
  * buildReaderPrompt(examJson, P, { only }) → { prompt, labels }
  *
@@ -93,6 +149,7 @@ function buildReaderPrompt(examJson, P, opts = {}) {
   if (P && P.key === 'social_studies') return buildSstReaderPrompt(examJson, P, opts);
   const labels = new Map();
   const blocks = new Map(); // label → the text printed under it, folded (for the evidence check)
+  const printed = new Map(); // label → the text printed under it, outside Q1 (for the candidates)
   const paper = [];
   for (const section of P.sections) {
     for (const slot of section.slots) {
@@ -105,6 +162,7 @@ function buildReaderPrompt(examJson, P, opts = {}) {
         const label = list.length > 1 || name === 'Q1' ? `${name}.${i + 1}` : name;
         if (name === 'Q1') labels.set(label, q);
         const lines = printedLines(q);
+        if (name !== 'Q1') printed.set(label, lines.join(' '));
         const [first, ...rest] = lines;
         blocks.set(label, fold(lines.join(' ')));
         paper.push(`${label} ${first || ''}`.trim());
@@ -117,6 +175,7 @@ function buildReaderPrompt(examJson, P, opts = {}) {
   const only = Array.isArray(opts.only) && opts.only.length
     ? [...labels.entries()].filter(([, q]) => opts.only.includes(q)).map(([label]) => label)
     : null;
+  const found = candidateLines(labels, printed, opts.pages);
 
   const prompt = [
     READER_MARK,
@@ -150,7 +209,10 @@ function buildReaderPrompt(examJson, P, opts = {}) {
     '- another form of its key is printed elsewhere: the same idiom or word with another verb ending or inflection',
     '  (Q1 asks «دھوم مچ جانا», Q5 sets «دھوم مچانا»);',
     '- an option of another item states its answer as a fact, even as a wrong option («ب) … کی تھیڑ کمپنی بند',
-    '  کرنے کی» tells a child what «… نے کیا بنایا؟» asks).',
+    '  کرنے کی» tells a child what «… نے کیا بنایا؟» asks);',
+    '- another Q1 item\'s CORRECT option states this item\'s answer, or names its key from the same story («… باغ میں',
+    '  بچوں کے ساتھ کیا کیا؟ → فاختائیں فضا میں اڑائیں» gives away «… تکیے کے پاس کاغذ کی کیا چیزیں رکھی تھیں؟ → دو',
+    '  فاختائیں»): the evidence is that option. A wrong option that only names it (one name among four) tells nothing.',
     'Do NOT flag:',
     '- two items on the same lesson that test different facts;',
     '- a bare word elsewhere that tells nothing about the answer (a one-word distractor; a name in another stem that',
@@ -181,6 +243,12 @@ function buildReaderPrompt(examJson, P, opts = {}) {
     ...paper,
     KEYS_HEAD,
     ...keys,
+    ...(found.length ? ['', CANDIDATES_HEAD,
+      'Code found these places where one Q1 item\'s key word is printed elsewhere, and pairs of Q1 items whose answers stand',
+      'side by side in the book. Judge each one by the same test, as well as your own read: does that text tell a child the',
+      'item\'s answer? A pair from neighbouring book sentences is given away when one item\'s printed text states the fact the',
+      'other asks (flag the higher-numbered one, as above). Each is a candidate, not a verdict: decide it in its own entry.',
+      ...found] : []),
   ].join('\n');
   return { prompt, labels, only, blocks };
 }
@@ -380,6 +448,6 @@ function readerNote(flags, labels = null, P = null) {
 }
 
 module.exports = {
-  READER_SUBJECTS, JUDGED, READER_MARK, PAPER_HEAD, KEYS_HEAD, ONLY_HEAD, ANSWERS_HEAD,
+  READER_SUBJECTS, JUDGED, READER_MARK, PAPER_HEAD, KEYS_HEAD, ONLY_HEAD, ANSWERS_HEAD, CANDIDATES_HEAD,
   buildReaderPrompt, parseFlags, readerNote, inQ1, itemsOf, keyOf, fold, giversOf,
 };

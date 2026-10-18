@@ -46,6 +46,8 @@ function useDb(o) {
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   Card._reset();
 }
+// the card shows a child's first name: fixtures are "<Name> Testwala", the card gets the first word
+const firstOf = (full) => full.split(' ')[0];
 beforeAll(async () => {
   process.env.INTERNAL_API_KEY = 'share-key';
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
@@ -155,9 +157,11 @@ describe('the item a share lands on', () => {
   });
   test('the landing: the mark in its colour, the name of what it lands on, today\'s return words (en and ur)', async () => {
     const { body } = await mint({ kind: 'book', deed: 'book_read', item: { type: 'book', id: BOOK } });
-    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: Card.returnLine('en'), v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite' });
+    // the join words carry the item's short ref (the bot lands the new child on it)
+    const words = `${Card.CARD_RETURN_WORDS.en} jb3b9c1e2a`;
+    expect(await landing(body.token)).toEqual({ kind: 'book', lang: 'en', first: 'Noor', deed_text: Card.COPY.en.book_read, ret: { ...Card.returnLine('en'), words, href: `https://wa.me/15550001111?text=${encodeURIComponent(words)}` }, v4: true, mark: 'Storybook', accent: Card.MARK.book.c, item_title: 'The lost kite', ref: 'jb3b9c1e2a' });
     const ur = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
-    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: Card.returnLine('ur'), item_title: 'Parts of a plant' });
+    expect(await landing(ur.body.token)).toMatchObject({ v4: true, mark: 'ویڈیو', ret: { text: Card.returnLine('ur').text, cta: Card.returnLine('ur').cta }, item_title: 'Parts of a plant', ref: 'jva1b2c3d4' });
     // a door finish (a Jugnu read) names no item
     const rd = await mint({ kind: 'read', deed: 'read_all' });
     expect(await landing(rd.body.token)).not.toHaveProperty('item_title');
@@ -168,14 +172,14 @@ describe('the picture: one theme, one mark per activity', () => {
   test('a token minted with the switch off draws today\'s card, byte for byte, for every deed and language', () => {
     for (const [k, h] of Object.entries(GOLDEN)) {
       const [kind, deed, lang] = k.split('|');
-      expect([k, sha(Card.renderCard({ kind, deed, lang, first: lang === 'ur' ? 'امل' : 'Amal' }, { fonts: false }))]).toEqual([k, h]);
+      expect([k, sha(Card.renderCard({ kind, deed, lang, first: lang === 'ur' ? firstOf('امل Testwala') : firstOf('Amal Testwala') }, { fonts: false }))]).toEqual([k, h]);
     }
   });
   test('a one-share token draws its ribbon and colour; each activity its own', () => {
     const seen = new Set();
     for (const kind of Object.keys(Card.DEEDS)) {
       for (const lang of ['en', 'ur']) {
-        const html = Card.renderCard({ kind, deed: Card.DEEDS[kind][0], lang, first: 'Amal', v4: true }, { fonts: false });
+        const html = Card.renderCard({ kind, deed: Card.DEEDS[kind][0], lang, first: firstOf('Amal Testwala'), v4: true }, { fonts: false });
         expect(html).toContain(`<div class="rib">${Card.MARK[kind][lang]}</div>`);
         expect(html).toContain(`border-bottom-color:${Card.MARK[kind].c}`);
         expect(html).not.toMatch(/\b(test|exam|assessment)\b|امتحان|ٹیسٹ/i);

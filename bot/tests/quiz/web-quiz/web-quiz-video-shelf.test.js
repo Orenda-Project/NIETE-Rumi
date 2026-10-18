@@ -316,3 +316,92 @@ describe('the home names the Videos shelf only on the switch\'s strict true', ()
     expect('shelf' in r.doors.videos).toBe(on);
   });
 });
+
+// A grade's lesson lengths read in the background (the hub asks when a child of that grade opens it): once per grade
+// until they would go stale, only that grade's lessons, a bank that does not load asked again next time; never throws.
+describe('the library warms a grade\'s lesson lengths', () => {
+  const Bank = require('../../../shared/services/quiz/web-quiz-bank');
+  let warm;
+  beforeEach(() => { warm = jest.spyOn(Videos, 'warmMeta').mockResolvedValue(undefined); });
+  afterEach(() => { warm.mockRestore(); Videos._metaCache.clear(); });
+  test('its own grade\'s lessons only, once however many children of it open the hub; another grade is its own', async () => {
+    F.seed(supabase, [LIB]);
+    Lib.warmGrade(3);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(1);
+    const ids = warm.mock.calls[0][0];
+    const want = (await Bank.bank()).rows.filter((r) => String(r.grade) === '3').map((r) => r.id);
+    expect(want.length).toBeGreaterThan(3);
+    expect([...ids].sort()).toEqual([...want].sort());
+    expect(ids).not.toContain(F.V(9));
+    Lib.warmGrade('Grade 4');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(2);
+    expect(warm.mock.calls[1][0]).toEqual([F.V(9)]);
+  });
+  test('no grade, or one the bank does not have: nothing is read', async () => {
+    F.seed(supabase, [LIB]);
+    Lib.warmGrade(null);
+    Lib.warmGrade('');
+    await Lib._idle();
+    expect(warm).not.toHaveBeenCalled();
+  });
+  test('a bank that does not load: no throw, held a minute only (an open inside it reads nothing), then the next open warms', async () => {
+    const t0 = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(t0);
+    supabase.from = () => { throw new Error('down'); };
+    expect(() => Lib.warmGrade('3')).not.toThrow();
+    await Lib._idle();
+    expect(warm).not.toHaveBeenCalled();
+    F.seed(supabase, [LIB]);
+    clock.mockReturnValue(t0 + 30 * 1000);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).not.toHaveBeenCalled();
+    clock.mockReturnValue(t0 + 61 * 1000);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(1);
+    clock.mockRestore();
+  });
+  test('lessons whose details did not load are not kept: they leave memory, and the grade is warmed again after a minute', async () => {
+    const t0 = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(t0);
+    F.seed(supabase, [LIB]);
+    warm.mockImplementation(async (ids) => { ids.forEach((id, i) => Videos._metaCache.set(id, { at: t0, v: i === 0 ? null : { secs: 60 } })); });
+    Lib.warmGrade('3');
+    await Lib._idle();
+    const ids = warm.mock.calls[0][0];
+    expect(Videos._metaCache.has(ids[0])).toBe(false);
+    expect(Videos._metaCache.get(ids[1]).v).toEqual({ secs: 60 });
+    clock.mockReturnValue(t0 + 61 * 1000);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(2);
+    clock.mockRestore();
+  });
+  test('every lesson read: held for hours (an open a minute later reads nothing)', async () => {
+    const t0 = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(t0);
+    F.seed(supabase, [LIB]);
+    warm.mockImplementation(async (ids) => { ids.forEach((id) => Videos._metaCache.set(id, { at: t0, v: { secs: 60 } })); });
+    Lib.warmGrade('3');
+    await Lib._idle();
+    clock.mockReturnValue(t0 + 61 * 1000);
+    Lib.warmGrade('3');
+    await Lib._idle();
+    expect(warm).toHaveBeenCalledTimes(1);
+    clock.mockRestore();
+  });
+  test('videos v3 on: only the lessons the child\'s language shows', async () => {
+    F.seed(supabase, [LIB, { key: 'web_quiz_videos_v3', value: true }]);
+    Lib.warmGrade('3', { lang: 'ur' });
+    await Lib._idle();
+    const want = (await Lib.inLanguage(await Bank.bank(), 'ur')).rows.filter((r) => String(r.grade) === '3').map((r) => r.id);
+    const all = (await Bank.bank()).rows.filter((r) => String(r.grade) === '3').map((r) => r.id);
+    expect(want.length).toBeLessThan(all.length);
+    expect([...warm.mock.calls[0][0]].sort()).toEqual([...want].sort());
+  });
+});
+

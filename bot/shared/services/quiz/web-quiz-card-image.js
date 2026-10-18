@@ -18,7 +18,8 @@
  * finished (`item: {type: 'book'|'video'|'quiz', id}`); the server checks it exists and seals it into the token, so the
  * shared link lands a new child, through the join, on that item (a Jugnu read, story or game: on the Games door, where
  * those live). The picture gets the kind's ribbon and colour (one
- * theme, one mark per activity); the landing shows the mark and the card.
+ * theme, one mark per activity); the landing's button carries a short ref of the item in the words the child sends.
+ *   ref(item) / byRef(ref)  pure / one read: the ref the join words carry (`jb1a2b3c4d` a book, `jv…` a video) and back
  *
  * The token is the card's facts sealed with AES-256-GCM under a key derived from the web-quiz token secret: a
  * forwarded link carries no readable name or id, and nobody can make the server draw a card it never issued.
@@ -34,10 +35,13 @@ const { clampLanguage } = require('../../config/ux-strings');
 // The card speaks the deployment's two languages only.
 const LANG = (v) => clampLanguage(v, ['en', 'ur']);
 
-const KEY = 'web_quiz_card_v3';
-// The one share on top of the card (finish's `share_v4`): read in the card's own settings read, never a read of its own.
-const SHARE_KEY = 'web_quiz_share_v4';
-const TTL_MS = 30 * 1000;
+// The switches and the item refs live in their own small module, so the bot's join and home paths can read them
+// without loading the picture's renderer (and its quiz requires).
+const Switch = require('./web-quiz-card-switch');
+const { KEY, SHARE_KEY, JOINED_KEY, on, shareOn, joinedOn, field, UUID_RX, REF_RX, ref, byRef } = Switch;
+// The card's short id (its token hashed) the friend's words carry, kept 90 days against the sharer; never a phone.
+const CARD_KEEP_S = 90 * 24 * 60 * 60;
+const cardId = (token) => crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 8);
 const W = 1200;
 const H = 630;
 const MAX_BYTES = 40 * 1024;
@@ -114,46 +118,6 @@ class CardError extends Error {
 }
 const fail = (status, error) => { throw new CardError(status, error); };
 
-// ─── the switch ─────────────────────────────────────────────────────────────
-
-let cache = null;
-// On only as JSON true: a string "true" row is off, as every child-page switch reads it (one truth across the pages).
-function isTrue(value) {
-  return value === true;
-}
-/** true only with app_settings web_quiz_card_v3 literally true; 30 s cache; fails closed. Never throws. */
-async function on(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
-    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)) };
-    return cache.on;
-  } catch (err) {
-    // the read that names the share failed: the card reads its own key as before, and only the share is off
-    try {
-      const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
-      if (error) throw new Error(error.message || 'app_settings read failed');
-      cache = { at: now, on: isTrue(((data || [])[0] || {}).value), share: false };
-      return cache.on;
-    } catch (err2) {
-      logToFile('⚠️ web quiz card v3: settings lookup failed — card off', { error: err2.message });
-      return false;
-    }
-  }
-}
-/** true only with the card on AND app_settings web_quiz_share_v4 literally true (the same read and cache). */
-async function shareOn(now = Date.now()) {
-  return (await on(now)) && cache.share === true;
-}
-async function field() {
-  try {
-    if (!(await on())) return {};
-    return cache.share === true ? { card_v3: true, share_v4: true } : { card_v3: true };
-  } catch (_) { return {}; }
-}
-
 // ─── the token ──────────────────────────────────────────────────────────────
 
 function sealKey() {
@@ -191,12 +155,13 @@ function facts(token) {
   const out = { kind: f.k, deed: f.d, lang: LANG(f.l), first: f.n || '', code: f.c || null };
   // a one-share token (web_quiz_share_v4 when minted): its mark, and the item it lands on
   if (f.s === 4) { out.v4 = true; out.item = f.i ? { type: f.i.t, id: f.i.id } : null; }
+  // minted with web_quiz_share_joined on: the friend's words carry the card's short id
+  if (f.s === 4 && f.j === 1) out.joined = true;
   return out;
 }
 
 // ─── the item a share lands on (web_quiz_share_v4) ──────────────────────────
 
-const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM_RX = Object.freeze({ book: UUID_RX, video: UUID_RX, quiz: CODE_RX, door: /^games$/ });
 // The finishes that have no item of their own: the friend lands on the door they live behind.
 const DOOR_OF = Object.freeze({ read: 'games', listen: 'games', story: 'games', game: 'games' });
@@ -254,10 +219,10 @@ async function who(body, lang, device, info) {
       code = sc && CODE_RX.test(String(sc.code || '')) ? String(sc.code) : null;
     }
     const first = row.student_id ? await studentFirst(row.student_id, lang) : '';
-    return { first: first || cleanFirst(row.student_name), code };
+    return { first: first || cleanFirst(row.student_name), code, sid: row.student_id || null };
   }
   const c = typeof body.ct === 'string' ? T.verify(body.ct, 'c') : null;
-  if (c && c.sid) return { first: await studentFirst(c.sid, lang, info), code: null };
+  if (c && c.sid) return { first: await studentFirst(c.sid, lang, info), code: null, sid: c.sid };
   const h = typeof body.hub === 'string' ? T.verify(body.hub, 'h') : null;
   if (h && Array.isArray(h.ids)) {
     const ids = h.ids.filter((x) => typeof x === 'string').slice(0, 4);
@@ -266,7 +231,7 @@ async function who(body, lang, device, info) {
     // A forwarded hub link names nobody: only the phone the link is bound to (or one this child played on), as the hub.
     const trust = await require('./web-quiz-hub-device').deviceTrusted(body.hub, device);
     if (!trust.ok || !trust.ids.map(String).includes(String(hit))) fail(403, 'other_device');
-    return { first: await studentFirst(hit, lang, info), code: null };
+    return { first: await studentFirst(hit, lang, info), code: null, sid: hit };
   }
   return fail(401, 'bad_token');
 }
@@ -304,8 +269,17 @@ async function mint(body = {}, { device = null } = {}) {
     w = { first: '', code: null };
   }
   const item = v4 ? await checkItem(body.item, kind, w) : null;
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  // "A friend joined" (web_quiz_share_joined): a card with a child behind it is kept against that child, by its short id
+  const joined = v4 && w.sid && Switch.joinedCached();
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
+  if (joined) {
+    try {
+      await require('../cache/railway-redis.service').set(`wq:share:card:${cardId(token)}`, { s: String(w.sid) }, CARD_KEEP_S);
+    } catch (err) {
+      logToFile('⚠️ web quiz card: the card was not kept for "a friend joined" (the share still works)', { error: err.message });
+    }
+  }
   const url = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
@@ -463,20 +437,30 @@ async function landing(token) {
   if (!f) fail(404, 'not_found');
   const out = { kind: f.kind, lang: f.lang, first: f.first, deed_text: COPY[f.lang][f.deed], ret: returnLine(f.lang) };
   if (f.v4) {
-    // the one share's landing: the finish's mark in its colour, and the name of what it lands on
+    // the one share's landing: the finish's mark in its colour, the name of what it lands on, and the item's ref in
+    // the join words
     const m = markOf(f);
     out.v4 = true;
     out.mark = m ? m[f.lang] : '';
     out.accent = m ? m.c : '#15803D';
     const title = await itemTitle(f.item);
     if (title) out.item_title = title;
+    // the join words carry the item's short ref, so the bot lands the new child on it
+    const r = ref(f.item);
+    if (r) {
+      out.ref = r;
+      const n = botNumber();
+      // with "a friend joined" on when minted: the card's short id right after the ref (one word)
+      const words = `${CARD_RETURN_WORDS[f.lang]} ${r}${f.joined ? cardId(token) : ''}`;
+      out.ret = { ...out.ret, words, href: n ? `https://wa.me/${n}?text=${encodeURIComponent(words)}` : null };
+    }
   }
   return out;
 }
 
-function _reset() { cache = null; mem.clear(); inflight.clear(); }
+function _reset() { Switch._reset(); mem.clear(); inflight.clear(); }
 
 module.exports = {
-  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK,
-  on, shareOn, field, mint, image, facts, landing, returnLine, renderCard, _reset, _seal: seal,
+  KEY, SHARE_KEY, DEEDS, COPY, CARD_RETURN_WORDS, CardError, MAX_BYTES, MARK, REF_RX,
+  JOINED_KEY, on, shareOn, joinedOn, cardId, field, mint, image, facts, landing, returnLine, renderCard, ref, byRef, _reset, _seal: seal,
 };
