@@ -163,8 +163,15 @@ async function handleQuizReport(body) {
   // quiz_report_send_checked (off by default): generateReport answers whether WhatsApp took the report. Off, today:
   // the flag below is set whatever it answered (and a throw still throws). On, a refusal (or a throw) is not marked
   // fired: it is counted and the job queued again (chatReportRefused). The switch is asked only on a refusal.
+  // The report sends' WhatsApp ids are collected (whatsapp-sent-ids) and kept below with the sent flag
+  // (quiz/report-delivery).
   const SendCheck = require('../shared/services/quiz/report-send-check');
-  const accepted = await SendCheck.send(() => QuizReportService.generateReport(quizId, { ...payload, teacherPhone }));
+  let reportIds = [];
+  const accepted = await SendCheck.send(async () => {
+    const { result, ids } = await require('../shared/services/whatsapp-sent-ids').collect(() => QuizReportService.generateReport(quizId, { ...payload, teacherPhone }));
+    reportIds = ids;
+    return result;
+  });
   if (!accepted) return chatReportRefused(quizId, quiz, payload, SendCheck);
   logEvent('quiz.report.fired', { quizId });
 
@@ -175,6 +182,7 @@ async function handleQuizReport(body) {
   } catch (err) {
     logToFile('⚠️ Could not set quiz_report_sent flag (non-fatal — cascade may double-fire)', { quizId, error: err.message });
   }
+  await require('../shared/services/quiz/report-delivery').remember(reportIds, { kind: 'chat_quiz', quiz_id: quizId }, { ask: true });
 
   return { ok: true };
 }

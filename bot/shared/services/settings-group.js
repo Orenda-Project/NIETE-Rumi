@@ -16,6 +16,8 @@
  * - `rider(key, now)`: a riding switch's read. It answers from the row its host's read (or a prime) left, while that
  *   row is younger than ttl. Otherwise (its host has not read within ttl) it reads its own key alone: one read, never
  *   an answer from a host read older than ttl. That read, or its failure (off), is kept for ttl.
+ * - `seen(key)`: the rider's last row and when it was read, with no read (null when none is held); a caller that
+ *   must cost nothing decides its own age limit.
  * Rows are found by key, never by position. Reads answer in the shape of `.maybeSingle()`: `{ data: row | null,
  * error }`. Rows are raw: each switch keeps its own rule for what counts as on, and its own cache and log line.
  * `groupKeys(hostKey)` → the keys a caller must ask for to prime that group (`[hostKey]` when it has no rider).
@@ -89,6 +91,8 @@ function settingsGroup(hostKey, riderKeys = [], ttl = DEFAULT_TTL_MS) {
     host: (now = Date.now()) => readHost(group, now),
     prime: (given, now = Date.now(), asked) => prime(group, given, now, asked),
     rider: (key, now = Date.now()) => readRider(group, key, now),
+    /** A rider's last row as this process holds it, with NO read: `{ at, data }`, or null when none is held. */
+    seen: (key) => { const row = rows.get(key); return row ? { at: row.at, data: row.data } : null; },
     /** Tests only: forget one rider's row. */
     forget: (key) => { rows.delete(key); },
     /** Tests only: forget every rider row of this group. */
