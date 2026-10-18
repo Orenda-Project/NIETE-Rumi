@@ -1007,6 +1007,7 @@ function createWebQuizRouter(opts = {}) {
   const pageHeaders = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
 
   async function page(req, res, view) {
+    const b0 = Date.now();
     pageHeaders(res);
     const origin = originOf(req);
     const code = String(req.params.code || '');
@@ -1059,11 +1060,22 @@ function createWebQuizRouter(opts = {}) {
       lastUi = shellUi(out.body);
       lastFast = out.body.fast === true;
       if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
-      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      // Step timings (the bot's answer carried them: web_quiz_server_timing on), as on the hub page: the flushed page's
+      // ride its boot JSON (`st`); a page whose headers have not gone yet says them as one Server-Timing: this edge's
+      // wait for the bot, the bot's items, this page's render. Off: no `st`, and the page and its headers are today's.
+      // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
+      if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       }
-      return res.status(200).type('html').send(renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      const render = () => renderQuizPage({ payload: uiLangOf(out.body, view, req.query.lang || storedLangOf(req)), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k });
+      if (!out.steps) return res.status(200).type('html').send(render());
+      const edgeMs = Date.now() - b0;
+      const r0 = process.hrtime.bigint();
+      const html = render();
+      const renderMs = Math.round(Number(process.hrtime.bigint() - r0) / 1e6);
+      TimingNames.appendTiming(res, TimingNames.clean([`edge;dur=${edgeMs}`, out.steps, `render;dur=${renderMs}`].join(', ')));
+      return res.status(200).type('html').send(html);
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
     // A 404/410 is "closed" only when it is the contract's answer; a bare 404 means the bot
@@ -1135,6 +1147,7 @@ function createWebQuizRouter(opts = {}) {
       // bot answered, so they ride its boot JSON (`st`); a page whose headers have not gone yet says them as one
       // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
       // Off: no `st`, and the page and its headers are today's.
+      // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
       if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version() }));
       if (!out.steps) return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
       const edgeMs = Date.now() - b0;
