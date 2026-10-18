@@ -33,6 +33,7 @@ const READ_MS = 8;
 const NOW = Date.UTC(2026, 9, 14, 6, 0, 0);
 const KID = '44444444-4444-4444-8444-000000000001';
 const SIB = '44444444-4444-4444-8444-000000000002';
+const OLD = '44444444-4444-4444-8444-000000000003';
 const PEER = (n) => `44444444-4444-4444-8444-0000000001${String(n).padStart(2, '0')}`;
 const TEACHER = '11111111-1111-4111-8111-000000000001';
 const LIST = '55555555-5555-4555-8555-000000000001';
@@ -66,7 +67,7 @@ const passage = (id, kind, band, h) => ({ passage_id: id, twin_of: null, lang: '
   released_at: new Date(NOW - h * 3600000).toISOString(), title_en: `Title ${id}`, title_ur: null });
 
 // loose: the usual quiz child on prod (no class list, no enrolment; their teacher known from the links they played).
-function tables({ fast, loose = false, home = false, stories = false, fanout = false }) {
+function tables({ fast, loose = false, home = false, stories = false, fanout = false, merged = false }) {
   const t = {
     app_settings: [...ON_KEYS.map((key) => ({ key, value: 'true' })), ...(fast ? [{ key: 'web_quiz_fast', value: true }] : []),
       ...(home ? [{ key: 'web_quiz_home_v3', value: true }] : []), ...(stories ? [{ key: 'web_quiz_stories', value: true }] : []),
@@ -121,6 +122,8 @@ function tables({ fast, loose = false, home = false, stories = false, fanout = f
       passage('en.read.1.story03', 'read', 1, -24 * 2),
     ],
   };
+  // merged: the link names an older record of this child, merged into KID (the identity lookup gives another id)
+  if (merged) t.students.push({ id: OLD, student_name: 'Sana Testwala', student_name_urdu: null, self_reported_class: '3', list_id: null, is_active: true, merged_into: KID, status: 'merged', created_at: ago(900) });
   if (loose) {
     t.students[0].list_id = null;
     t.class_enrollments = [];
@@ -230,6 +233,12 @@ describe.each(FIXTURES)('the hub, reads together: %s', (_name, fx) => {
     expect(on.stale.waves).toBeLessThan(off.stale.waves);
   });
 
+  test('on: the children\'s rows and lists ride beside the identity lookup (warm waves at most 40% of off)', async () => {
+    const off = await warmAndStale({ fast: true, ...fx });
+    const on = await warmAndStale({ fast: true, ...fx, fanout: true });
+    expect(on.warm.waves).toBeLessThanOrEqual(Math.floor(off.warm.waves * 0.4));
+  });
+
   // The class roster's own 30 s cache is per class (web-quiz-identity-roster.js), so the keeper does not hold it: a
   // child on a class list pays its 2 reads again after 31 s; a loose child has none.
   test('on, with the keeper ticking: a child back after 31 s waits no longer than a warm visit (+ the class roster)', async () => {
@@ -261,5 +270,24 @@ describe('off is today', () => {
     jest.setSystemTime(NOW + 31 * 1000);
     await W2.tick();
     expect(W2._running()).toBe(false);
+  });
+});
+
+describe('the identity lookup gives another id (a merged record on the link)', () => {
+  test('on: the children\'s rows are read again for that id; the answer and hub_open line are the same as off', async () => {
+    const run2 = async (fanout) => {
+      boot({ fast: true, merged: true, fanout });
+      const tok = T.signHub([OLD]);
+      await measure(tok, { device: DEVICE });
+      return measure(tok, { device: DEVICE });
+    };
+    const off = await run2(false);
+    const on = await run2(true);
+    expect(on.out).toBe(off.out);
+    expect(on.open).toBe(off.open);
+    expect(JSON.parse(on.out).kids.length).toBe(1);
+    // the early read for the link's own id is the only extra one
+    expect(on.perTable.students).toBeLessThanOrEqual(off.perTable.students + 1);
+    console.log('merged students reads', off.perTable.students, on.perTable.students, JSON.parse(on.out).kid);
   });
 });

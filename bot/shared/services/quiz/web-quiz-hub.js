@@ -432,6 +432,32 @@ async function lockedHub(ids, why, asked = null, linked = null) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
+/**
+ * The hub's children rows and their lists, read for the ids as given before the identity lookup has answered
+ * (web_quiz_hub_fanout). take(ids) gives them back only when every one of `ids` was asked for, so the rows are
+ * exactly what the same reads for `ids` would answer (null: read again, as off); lists(listIds) the same for the
+ * lists, when every list id was asked for. A failed early read is never used and never thrown here.
+ */
+function earlyRows(given, readRows, readLists) {
+  const asked = new Set(given);
+  const rowsP = Promise.resolve().then(() => readRows(given));
+  const listsP = rowsP.then((res) => {
+    const listIds = [...new Set(((res && res.data) || []).filter((r) => r && r.is_active !== false).map((r) => r.list_id).filter(Boolean))];
+    return listIds.length ? readLists(listIds).then((l) => ({ listIds: new Set(listIds), res: l })) : null;
+  });
+  rowsP.catch(() => {});
+  listsP.catch(() => {});
+  return {
+    async take(ids) {
+      if (!ids.every((id) => asked.has(id))) return null;
+      const rowsRes = await rowsP.catch(() => null);
+      if (!rowsRes || rowsRes.error) return null;
+      const early = await listsP.catch(() => null);
+      return { rowsRes, lists: (listIds) => (early && !early.res.error && listIds.every((id) => early.listIds.has(id)) ? early.res : null) };
+    },
+  };
+}
+
 async function hubPayload(token, { kid, device, src, lang: wanted, st = null } = {}) {
   const mark = st ? (n) => st.mark(n) : () => {}; // the step timings (web-quiz-server-timing.js); nothing without a stopwatch
   if (!T.secret()) fail(503, 'web_quiz_off');
@@ -455,6 +481,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
   if (!trust.ok) return lockedHub(ids, trust.why, asked, linked);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   let mine = ids.filter((id) => trust.ids.includes(id));
+  const readRows = (them) => dbRead('hubPayload:students:1', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', them));
+  const readLists = (listIds) => dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', listIds));
+  // web_quiz_hub_fanout: the children's rows and lists for the ids as given are read beside the identity lookup below;
+  // used only when every id it gives is one of them (the usual case), else read again for its ids, as off.
+  const early = together ? earlyRows(mine, readRows, readLists) : null;
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
   if ((idFlags || await require('./web-quiz-identity-flags').flags()).canon) {
     const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
@@ -462,11 +494,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted, st = null } =
   }
   mark('gate');
 
-  const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
+  const pre = early ? await early.take(mine) : null;
+  const { data: rows } = pre ? pre.rowsRes : await readRows(mine);
   const kidsRows = mine.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
+  const listIds = kidsRows.map((r) => r.list_id).filter(Boolean);
   const { data: lists } = kidsRows.some((r) => r.list_id)
-    ? await dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
+    ? (pre && pre.lists(listIds)) || await readLists(listIds)
     : { data: [] };
   mark('kids');
   const listOf = (r) => (lists || []).find((l) => l.id === r.list_id) || null;
