@@ -86,7 +86,7 @@ html.wq-adv [data-screen=stories],html.wq-adv [data-screen^=stories-],html.wq-ad
 html.wq-adv [data-screen=games]{--land:var(--land-gm);--land-bg:var(--land-gm-bg);--land-edge:var(--land-gm-edge)}
 html.wq-adv [data-screen=videos],html.wq-adv [data-screen^=video]{--land:var(--land-vd);--land-bg:var(--land-vd-bg);--land-edge:var(--land-vd-edge)}
 /* tiles and pictures inside a box take the small radius, so the pill radius stays with the buttons */
-html.wq-adv .wq-nart,html.wq-adv .wq-tile,html.wq-adv .wq-opt .wq-shp,html.wq-adv .wq-ptile .wq-shp,html.wq-adv .wq-shear .wq-shp{border-radius:var(--r-chip)}
+html.wq-adv .wq-nart,html.wq-adv .wq-tile{border-radius:var(--r-chip)}
 html.wq-adv .wq-opt{border-radius:var(--r-card)}
 html.wq-adv .wq-soon{border-radius:var(--r-chip)}
 html.wq-adv .wq-card{background:var(--card);border:2px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)}
@@ -157,7 +157,7 @@ html.wq-adv .wq-dsec{display:flex;align-items:center;gap:var(--sp-2);margin:var(
 html.wq-adv .wq-dsec::before{content:"";flex:none;width:18px;height:20px;background:var(--land);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 20'%3E%3Cpath d='M2 1h2v18H2zM5 2h11l-3 4 3 4H5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 20'%3E%3Cpath d='M2 1h2v18H2zM5 2h11l-3 4 3 4H5z'/%3E%3C/svg%3E") center/contain no-repeat}
 html.wq-adv .wq-dsay{color:var(--muted)}
 html.wq-adv .wq-dli{position:relative;align-items:center;gap:var(--sp-2);padding:var(--sp-2);padding-inline-end:var(--sp-3);border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);box-shadow:var(--sh-card)}
-html.wq-adv .wq-dli .wq-drow,html.wq-adv .wq-dli .wq-drow[data-primary]{min-height:60px;padding:var(--sp-1);border:0;border-radius:var(--r-chip);background:transparent;box-shadow:none;-webkit-tap-highlight-color:transparent}
+html.wq-adv .wq-dli .wq-drow,html.wq-adv .wq-dli .wq-drow[data-primary]{padding:var(--sp-1);border:0;border-radius:var(--r-chip);background:transparent;box-shadow:none;-webkit-tap-highlight-color:transparent}
 html.wq-adv .wq-dli:has(.wq-drow:active){transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
 html.wq-adv .wq-dli .wq-drow:active{transform:none}
 html.wq-adv .wq-dli.done{background:var(--right-bg)}
@@ -229,10 +229,12 @@ html.wq-adv .wqa-m-fade{animation:wqa-fade 150ms ease-out}
   html.wq-adv .wq-btn:active,html.wq-adv .wq-next:active,html.wq-adv .wq-door:active,html.wq-adv .wqs-book:active,html.wq-adv .wq-dli:has(.wq-drow:active){transform:none}
   html.wq-adv .wq-gbtn.held::before{transition:box-shadow 2s steps(4)}
 }
-/* the class table's climb line: the stamp ring pops in at its start */
-html.wq-adv .wq-climb{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);font-weight:800}
+/* the class table's "how you moved" line: the stamp ring pops in at the start of a climb */
+html.wq-adv .wq-move{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);font-weight:800}
 html.wq-adv .wqa-climb{display:inline-grid;flex:none}
 html.wq-adv .wqa-climb .wqa-stamp{width:36px;height:36px;animation:wqa-pop var(--dur-celebrate) var(--ease-pop) both}
 /* the designed wait (its own switch): its top bar runs through the three lands, Jugnu's dots in the story colour */
 html.wq-adv .wq-wbar i{background:linear-gradient(90deg,var(--land-st),var(--land-gm),var(--land-vd));box-shadow:0 0 8px var(--glow)}
 html.wq-adv .wq-boot.wq-bwait .wq-bootsay::after{background:radial-gradient(circle,var(--land-st) 3px,transparent 3.5px) 0 50%/12px 8px repeat-x}
+/* the reading moment's badge carries the stamp: the same box in the stories land's colours */
+html.wq-adv .wq-moment-badge[data-wqa-stamp]{border-color:var(--land-st);background:var(--land-st-bg);color:var(--land-st-edge)}

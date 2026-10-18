@@ -3,24 +3,21 @@
  * when the page payload carries `adv: true` (app_settings web_quiz_adventure_look, default off). With it absent nothing
  * here runs, so every caller writes `if (window.WQA) …` and keeps today's path otherwise.
  *
- *   WQA.icon(name[, label])       one inline-SVG icon (one stroke style, currentColor): stories listen numbers book video
- *                                 star lantern share home back speaker play pause lock check gift, the 12 class animals,
- *                                 the 8 subjects. An unknown name gives the star. `label` makes it an <svg role=img>.
+ *   WQA.icon(name[, label])       one inline-SVG icon (currentColor; the class animals and subjects too); unknown = star
  *   WQA.animal(key) / WQA.subject(name)   the class avatar / the subject tile, as icons (the emoji maps' keys)
  *   WQA.bar(done, total[, label]) a progress bar (role=progressbar), WQA.badge(text[, icon]) a sticker
  *   WQA.move(el, name)            one motion (pop, rise, wobble, glow), a 150 ms fade under reduced motion
- *   WQA.cue(name[, el])           one sound through the sound kit (wq-juice.js, fetched on the first cue): tap,
- *                                 correct, sentence, badge, finish; never when muted
+ *   WQA.cue(name[, el])           one sound from the sound kit (wq-juice.js, fetched on the first cue); never when muted
  *   WQA.burst(el)                 the celebration: the finish sound, el pops, confetti (none under reduced motion)
  *   WQA.muted() / WQA.mute(b)     the pages' ONE sound switch (the sound kit's own keys)
  *   WQA.still()                   true under prefers-reduced-motion
- *   WQA.stamp(kind)              the ONE "you finished something" hook (story, read, game, quiz, video): keeps the land's
- *                                 stamp on this phone, plays the two blips, answers { kind, land, svg } (the share card's
- *                                 centre element). The finish card and the moment get theirs by themselves.
+ *   WQA.stamp(kind[, quiet])      the ONE "you finished something" hook: keeps the land's stamp on this phone, plays the
+ *                                 two blips (not when quiet), answers { kind, land, svg }
+ *   WQA.award(card) / climb(line) a finish card's stamp (effort only; the moment's badge is its slot) / the class table's
+ *                                 move up (both done by themselves)
  *   WQA.tone(name)                stamp (784 + 1175 Hz) or notyet (a soft 220 Hz), WebAudio, never when muted
  *   WQA.trail(names, next)        Home's three land stops (drawn by itself under the Next tile, with Jugnu's "Next stop!")
- *   WQA.swap(node)                the emoji in node's text become their icons (done by itself for the whole page,
- *                                 and for everything drawn after, while <html> carries wq-adv)
+ *   WQA.swap(node)                the emoji in node's text become their icons (done by itself, page-wide)
  */
 (function (W) {
   'use strict';
@@ -227,13 +224,13 @@
       '" stroke-width="3" stroke-dasharray="3 3"/><circle cx="32" cy="32" r="24" fill="var(' + v + '-bg)" stroke="' + c + '" stroke-width="4"/><circle cx="32" cy="32" r="18" fill="none" stroke="' + c +
       '" stroke-width="1.5" stroke-dasharray="1 3"/><g transform="translate(20 20)" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="' + P[LAND_I[land]] + '"/></g></svg>';
   }
-  function stamp(kind) {
+  function stamp(kind, quiet) {
     var land = LAND[kind];
     if (!land) return null;
     var all = stamps();
     all[land] = { kind: kind, at: Date.now() };
     try { W.localStorage.setItem(SKEY, JSON.stringify(all)); } catch (e) { /* storage blocked: the stamp still shows */ }
-    tone('stamp');
+    if (!quiet) tone('stamp');
     return { kind: kind, land: land, svg: stampSvg(land) };
   }
 
@@ -272,6 +269,14 @@
     card.setAttribute('data-wqa', '1');
     // a try that certified nothing (read_tried: no Share on the card; a 0-word read: the moment's try badge): no stamp
     if (card.querySelector('[data-badge=try]') || !card.querySelector('.wqfc-share,.wq-moment-deed')) return;
+    // the reading moment (alone, or inside a finish card): its badge is the stamp's slot, so no row is added (a long
+    // Urdu read has ~5 px under Next at 360) and no second sound (the moment plays its own, once per result)
+    var badge = card.querySelector('.wq-moment-badge');
+    if (badge) {
+      var m = stamp('read', true);
+      if (m) badge.setAttribute('data-wqa-stamp', m.land);
+      return;
+    }
     var kind = deedOf(card), now = Date.now();
     var s = kind === lastStamp.kind && now - lastStamp.at < 15000 ? { land: LAND[kind], svg: stampSvg(LAND[kind]) } : stamp(kind);
     if (!s) return;
@@ -280,10 +285,10 @@
     var html = '<p class="wqa-got" role="status">' + s.svg + '<b>' + esc(say().got) + '</b></p>';
     if (head) head.insertAdjacentHTML('afterend', html); else card.insertAdjacentHTML('afterbegin', html);
   }
-  // the class table's "you moved up" line (data-climb="up"): the stamp ring at its start and the stamp blip, once;
-  // the same place gets nothing (only a climb is celebrated)
+  // the class table's "how you moved" line (<p class="wq-move" data-move="up|same|down">): a move up gets the stamp
+  // ring at its start and the stamp blip, once; the same place or a move down gets nothing (only a climb is celebrated)
   function climb(el) {
-    if (el.getAttribute('data-climb') !== 'up' || el.getAttribute('data-wqa')) return;
+    if (el.getAttribute('data-move') !== 'up' || el.getAttribute('data-wqa')) return;
     el.setAttribute('data-wqa', '1');
     el.insertAdjacentHTML('afterbegin', '<span class="wqa-climb">' + stampSvg('games') + '</span>');
     tone('stamp');
@@ -303,7 +308,7 @@
     if (home) dress(home);
     var cards = root.matches && root.matches('.wqfc[data-screen=card],.wq-moment') ? [root] : Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wqfc[data-screen=card],.wq-moment') : []);
     cards.forEach(award);
-    Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wq-climb[data-climb=up]') : []).forEach(climb);
+    Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll('.wq-move[data-move=up]') : []).forEach(climb);
   }
 
   W.WQA = {

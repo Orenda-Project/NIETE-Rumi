@@ -157,7 +157,8 @@ describe('award: the stamp on a finish card', () => {
   const card = (sel) => {
     const at = {}, ins = [];
     return { ins, getAttribute: (k) => (k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = v; },
-      querySelector: (q) => (q.split(',').some((x) => sel.includes(x.trim())) ? { insertAdjacentHTML: (w, h) => ins.push(h) } : null),
+      badge: {},
+      querySelector(q) { return q.split(',').some((x) => sel.includes(x.trim())) ? { insertAdjacentHTML: (w, h) => ins.push(h), setAttribute: (k, v) => { this.badge[k] = v; } } : null; },
       insertAdjacentHTML: (w, h) => ins.push(h) };
   };
   it('a finished story or quiz gets its stamp under the deed, once per card', () => {
@@ -174,17 +175,28 @@ describe('award: the stamp on a finish card', () => {
     expect(c.ins).toEqual([]);
     expect(store.wqa_stamps).toBeUndefined();
   });
-  it('the reading moment: a heard read is stamped, a 0-word read (its "try" badge) is not', () => {
-    const { WQA } = load();
-    const heard = card(['.wq-moment-deed']);
-    const zero = card(['.wq-moment-deed', '[data-badge=try]']);
+  it('the reading moment: its badge is the stamp\'s slot (no row added, no second sound); a 0-word read is not stamped', () => {
+    const a = fakeAudio();
+    const { WQA, store } = load({ audio: a.Ctx });
+    const heard = card(['.wq-moment-deed', '.wq-moment-badge']);
+    const zero = card(['.wq-moment-deed', '.wq-moment-badge', '[data-badge=try]']);
     WQA.award(heard); WQA.award(zero);
-    expect([heard.ins.length, zero.ins.length]).toEqual([1, 0]);
+    expect([heard.ins.length, zero.ins.length]).toEqual([0, 0]);
+    expect(heard.badge['data-wqa-stamp']).toBe('stories');
+    expect(zero.badge['data-wqa-stamp']).toBeUndefined();
+    expect(JSON.parse(store.wqa_stamps).stories.kind).toBe('read');
+    expect(a.tones).toEqual([]);
+  });
+  it('a finish card that holds the moment adds no stamp row of its own (the moment\'s badge carries it)', () => {
+    const { WQA } = load();
+    const c = card(['.wqfc-share', '.wqfc-cov', 'h2', '.wq-moment-deed', '.wq-moment-badge']);
+    WQA.award(c);
+    expect(c.ins).toEqual([]);
   });
 });
 
 describe('climb: Jugnu answers a move up the class table', () => {
-  const line = (dir) => { const at = { 'data-climb': dir }, ins = [];
+  const line = (dir) => { const at = { 'data-move': dir }, ins = [];
     return { ins, getAttribute: (k) => (k in at ? at[k] : null), setAttribute: (k, v) => { at[k] = v; }, insertAdjacentHTML: (w, h) => ins.push([w, h]) }; };
   it('a line that says the child moved up gets the stamp ring at its start, once, and the stamp blip', () => {
     const a = fakeAudio();
@@ -196,11 +208,11 @@ describe('climb: Jugnu answers a move up the class table', () => {
     expect(up.ins[0][1]).toMatch(/class="wqa-climb"[\s\S]*<svg class="wqa-stamp/);
     expect(a.tones).toEqual([['sine', 784], ['sine', 1175]]);
   });
-  it('the same place: no ring, no sound (only a climb is celebrated)', () => {
+  it('the same place or a move down: no ring, no sound (only a climb is celebrated)', () => {
     const { WQA } = load();
-    const same = line('same');
-    WQA.climb(same);
-    expect(same.ins).toEqual([]);
+    const same = line('same'), down = line('down');
+    WQA.climb(same); WQA.climb(down);
+    expect([same.ins, down.ins]).toEqual([[], []]);
   });
 });
 
@@ -263,6 +275,12 @@ describe('the sheet (wq-adventure.css)', () => {
     expect(CSS).toMatch(/html\.wq-adv \.wq-wbar i\{background:linear-gradient\(90deg,var\(--land-st\),var\(--land-gm\),var\(--land-vd\)\)/);
     expect(CSS).toMatch(/html\.wq-adv \.wq-boot\.wq-bwait \.wq-bootsay::after\{background:radial-gradient\(circle,var\(--land-st\)/);
     expect(SRC).not.toMatch(/wq-wbar/);
+  });
+  it('never rounds an answer shape marker (each shape keeps its own corners, a colour-blind cue) and never sets a list row\'s height', () => {
+    const rules = CSS.match(/[^{}]*\{[^}]*\}/g) || [];
+    const bad = rules.filter((r) => (/\.wq-shp\b/.test(r.split('{')[0]) && /border-radius/.test(r.split('{')[1]))
+      || (/\.wq-drow\b/.test(r.split('{')[0]) && /(^|[;{])\s*(min-)?height\s*:/.test(r.split('{')[1])));
+    expect(bad.map((r) => r.split('{')[0].trim())).toEqual([]);
   });
   it('no shadow reads a root-level edge: a token built from var(--edge) at :root freezes the root colour for every land', () => {
     expect(CSS).not.toMatch(/var\(--sh-(btn|press)\)/);
