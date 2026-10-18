@@ -676,9 +676,11 @@ function renderCardPageV4({ facts, token, origin, url, brandKey, oneFace }) {
   const n = Number.isInteger(rt.stars) && rt.stars >= 0 && rt.stars <= 3 && line(rt.stars_text) ? rt.stars : null;
   const stars = n === null ? '' : `<span class="stars" role="img" aria-label="${esc(line(rt.stars_text))}">${[0, 1, 2].map((i) => `<i${i < n ? ' class="on"' : ''}>★</i>`).join('')}</span>`;
   const sc = line(rt.score) || line(rt.words);
-  const res = stars || sc || line(rt.badge) ? `<div class="res" dir="${dir}">${stars}${sc ? `<p class="sc">${esc(sc)}</p>` : ''}${line(rt.badge) ? `<span class="bd">${esc(line(rt.badge))}</span>` : ''}</div>` : '';
-  const invite = line(rt.dare) ? `<p class="dare">${esc(line(rt.dare))}</p>` : `<p>${esc(c.sub)}</p>`;
-  const resCss = res || line(rt.dare) ? `
+  // card A (facts.a): its picture already shows the score, the stars and the dare, so nothing repeats them below it
+  const onA = facts.a === true;
+  const res = !onA && (stars || sc || line(rt.badge)) ? `<div class="res" dir="${dir}">${stars}${sc ? `<p class="sc">${esc(sc)}</p>` : ''}${line(rt.badge) ? `<span class="bd">${esc(line(rt.badge))}</span>` : ''}</div>` : '';
+  const invite = onA ? '' : line(rt.dare) ? `<p class="dare">${esc(line(rt.dare))}</p>` : `<p>${esc(c.sub)}</p>`;
+  const resCss = res || (!onA && line(rt.dare)) ? `
 .k .res{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 4px 0 ${accent}33,0 1px 6px rgba(15,23,42,.1)}.k .stars{display:inline-flex;gap:2px;font-size:30px;line-height:1;color:#E5E7EB}.k .stars .on{color:#F59E0B;text-shadow:0 2px 0 #B45309}.k .stars i{font-style:normal}
 .k .sc{font-size:22px;font-weight:800;color:#1F2937}.k .bd{padding:4px 14px;border-radius:999px;background:${accent};color:#fff;font-weight:800;font-size:16px;line-height:${lang === 'ur' ? 2 : 1.4}}.k .dare{font-size:21px;font-weight:800;color:${accent}}${lang === 'ur' ? `
 .k .sc,.k .bd,.k .dare{font-weight:400}` : ''}` : '';
@@ -1536,6 +1538,9 @@ function createWebQuizRouter(opts = {}) {
     const src = typeof req.query.from === 'string' && HUB_SRC_RX.test(req.query.from) ? `${kid ? '&' : '?'}src=${req.query.from}` : '';
     // The language the page that sent the child here was in (?lang=, only en|ur): the bot decides whether it wins.
     const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? `${kid || src ? '&' : '?'}lang=${req.query.lang}` : '';
+    // The grown-ups corner's language tap (?keep=1, only with that language): the bot keeps it on this first ask, since a
+    // phone the render already knows draws this answer and the page asks no second time.
+    const keep = lang && req.query.keep === '1' ? '&keep=1' : '';
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
@@ -1546,7 +1551,7 @@ function createWebQuizRouter(opts = {}) {
     let out;
     const b0 = Date.now();
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}`, req);
+      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}${lang}${keep}`, req);
     } catch (_) {
       if (flush) return failedAgain(wire, req, null, inlineClosed(req, { lang: away(), kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
       if (busy(req, res, null, away())) return undefined;

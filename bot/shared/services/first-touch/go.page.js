@@ -159,17 +159,18 @@ const TEACHER_SVG = '<svg viewBox="0 0 64 64" width="60" height="60"><path d="M3
   + '<path d="M16 21h15M16 27h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'
   + '<circle cx="46" cy="36" r="6" fill="currentColor"/><path d="M37 57c1-8 5-12 9-12s8 4 9 12z" fill="currentColor"/></svg>';
 
-function csp(css = CSS) {
-  return `default-src 'none'; style-src 'sha256-${sha(css)}'; script-src 'sha256-${sha(SCRIPT)}'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
+function csp(css = CSS, script = SCRIPT) {
+  return `default-src 'none'; style-src 'sha256-${sha(css)}'; script-src 'sha256-${sha(script)}'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
 }
 
-function shell({ title, body, script = '', withScript = false, adv = false }) {
+function shell({ title, body, script = '', withScript = false, adv = false, linkLang = null, lang = null }) {
   const css = adv ? ADV_CSS : CSS;
   // the way-back pages have no script; in the adventure look they show Jugnu's picture, from this site only
-  const policy = withScript ? csp(css) : `default-src 'none'; style-src 'sha256-${sha(css)}';${adv ? " img-src 'self';" : ''} base-uri 'none'; frame-ancestors 'none'`;
+  const policy = withScript ? csp(css, linkLang ? SCRIPT_L : SCRIPT) : `default-src 'none'; style-src 'sha256-${sha(css)}';${adv ? " img-src 'self';" : ''} base-uri 'none'; frame-ancestors 'none'`;
   return {
     csp: policy,
-    html: `<!doctype html><html lang="ur" dir="rtl"${adv ? ' class="wq-adv"' : ''}><head><meta charset="utf-8">`
+    // an English-only door ('en': a link opened with ?lang=en, web_quiz_go_link_lang) is an English page; else today's
+    html: `<!doctype html><html ${lang === 'en' ? 'lang="en" dir="ltr"' : 'lang="ur" dir="rtl"'}${adv ? ' class="wq-adv"' : ''}><head><meta charset="utf-8">`
       + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
       // the <meta> copy (the edge forwards only the page): frame-ancestors is header-only, so it is left out here
       + `<meta http-equiv="Content-Security-Policy" content="${esc(policy.replace(/; frame-ancestors 'none'/, ''))}">`
@@ -178,18 +179,23 @@ function shell({ title, body, script = '', withScript = false, adv = false }) {
   };
 }
 
-/** Urdu first, the English under it (the English line is dropped for an Urdu-only page). */
-const two = (id, lang, tag = 'span', params = null) => `<${tag} lang="ur">${esc(str(id, 'ur', params))}</${tag}>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr">${esc(str(id, 'en', params))}</span>`}`;
+/** Urdu first, the English under it (the English line is dropped for an Urdu-only page; an English-only page has only it). */
+const two = (id, lang, tag = 'span', params = null) => lang === 'en' ? `<${tag} lang="en" dir="ltr">${esc(str(id, 'en', params))}</${tag}>` : `<${tag} lang="ur">${esc(str(id, 'ur', params))}</${tag}>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr">${esc(str(id, 'en', params))}</span>`}`;
 /** The same, filled on the page from a template (a name the server sent after paint, or the chip a child tapped). */
-const twoTpl = (id, lang) => `<span lang="ur" data-tpl="${esc(str(id, 'ur'))}"></span>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr" data-tpl="${esc(str(id, 'en'))}"></span>`}`;
+const twoTpl = (id, lang) => lang === 'en' ? `<span lang="en" dir="ltr" data-tpl="${esc(str(id, 'en'))}"></span>` : `<span lang="ur" data-tpl="${esc(str(id, 'ur'))}"></span>${lang === 'ur' ? '' : `<span class="en" lang="en" dir="ltr" data-tpl="${esc(str(id, 'en'))}"></span>`}`;
 
 function wordsFor(lang) {
   const words = {};
-  ['go.error', 'go.stale'].forEach((id) => { words[id] = lang === 'ur' ? str(id, 'ur') : `${str(id, 'ur')} · ${str(id, 'en')}`; });
+  ['go.error', 'go.stale'].forEach((id) => { words[id] = lang === 'ur' ? str(id, 'ur') : lang === 'en' ? str(id, 'en') : `${str(id, 'ur')} · ${str(id, 'en')}`; });
   return words;
 }
 const NOTICE_IDS = ['cl.notice.save', 'cl.notice.stop', 'cl.notice.readings'];
-const bootTag = (o) => `<script type="application/json" id="go-boot">${bootJson(o)}</script><script>${SCRIPT}</script>`;
+// web_quiz_go_link_lang with a link language: the same script, whose posts also carry the boot's `l` (its own CSP hash);
+// without one, today's script, byte for byte
+const LINK_LANGS = Object.freeze(['en', 'ur']);
+const SCRIPT_L = SCRIPT.replace('x.send(JSON.stringify(o))}', 'x.send(JSON.stringify(b.l?Object.assign({l:b.l},o):o))}');
+const scriptOf = (o) => (o && o.l ? SCRIPT_L : SCRIPT);
+const bootTag = (o) => `<script type="application/json" id="go-boot">${bootJson(o)}</script><script>${scriptOf(o)}</script>`;
 
 /** The one question. `t` = the go token (it goes back in each POST). */
 /** ONE tap back to the bot's chat with "quiz" typed (F22), or '' without a dialable number. Hidden until an error. */
@@ -198,7 +204,7 @@ function waTap(lang, bot, hidden = false, adv = false) {
   return n ? `<a class="${btn(adv, 'wa', 'primary')}"${hidden ? ' id="go-wa"' : ''} href="https://wa.me/${n}?text=quiz" data-tap="open_whatsapp"${hidden ? ' hidden' : ''}>${two('go.wa', lang)}</a>` : '';
 }
 
-function buildRolePage({ t, lang = 'bi', extra = '', bot = null, adv = false } = {}) {
+function buildRolePage({ t, lang = 'bi', extra = '', bot = null, adv = false, linkLang = null } = {}) {
   const a = adv === true;
   const body = '<main class="go" data-screen="role">'
     + (a ? JUGNU : '')
@@ -222,14 +228,15 @@ function buildRolePage({ t, lang = 'bi', extra = '', bot = null, adv = false } =
     // the sandbox walk-through row (listed test phones only; its own module builds it) — nothing otherwise
     + (typeof extra === 'string' ? extra : '')
     + '</main>';
-  return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang) }), withScript: true, adv: a });
+  const l = LINK_LANGS.includes(linkLang) ? linkLang : null;
+  return shell({ title: str('rq.h', clampLanguage(lang)), body, script: bootTag({ kind: 'role', t, words: wordsFor(lang), ...(l ? { l } : {}) }), withScript: true, adv: a, linkLang: l, lang });
 }
 
 /**
  * The children the server knows for this phone, before a binding: first names only. `kids` = [{ pick, first }] — `pick`
  * is an opaque per-link id (never a student id). One child → "Is it <First>?"; several → chips.
  */
-function buildPickPage({ t, lang = 'bi', kids = [], bot = null, adv = false } = {}) {
+function buildPickPage({ t, lang = 'bi', kids = [], bot = null, adv = false, linkLang = null } = {}) {
   const a = adv === true;
   const one = kids.length === 1 ? kids[0] : null;
   const head = one
@@ -248,7 +255,7 @@ function buildPickPage({ t, lang = 'bi', kids = [], bot = null, adv = false } = 
     + '</main>';
   return shell({
     title: one ? str('cl.confirm.q', clampLanguage(lang), { first: one.first }) : str('cl.confirm.who', clampLanguage(lang)),
-    body, script: bootTag({ kind: 'pick', t, pick: one ? one.pick : null, words: wordsFor(lang) }), withScript: true, adv: a,
+    body, script: bootTag({ kind: 'pick', t, pick: one ? one.pick : null, words: wordsFor(lang), ...(LINK_LANGS.includes(linkLang) ? { l: linkLang } : {}) }), withScript: true, adv: a, linkLang: LINK_LANGS.includes(linkLang) ? linkLang : null, lang,
   });
 }
 
@@ -266,7 +273,7 @@ function buildMessagePage({ id = 'go.error', lang = 'bi', bot = null, door = fal
   const dead = id === 'go.stale' || id === 'go.error';
   const wa = dead ? (door === true ? backTap(lang, bot, a) : waTap(lang, bot, false, a)) : '';
   const body = `<main class="go" data-screen="${esc(id)}">${a ? JUGNU : ''}${ids.map((x) => `<p class="msg">${two(x, lang)}</p>`).join('')}${wa}</main>`;
-  return shell({ title: str(ids[0], clampLanguage(lang)), body, adv: a });
+  return shell({ title: str(ids[0], clampLanguage(lang)), body, adv: a, lang });
 }
 
 module.exports = { buildRolePage, buildPickPage, buildMessagePage, csp, _CSS: CSS, _SCRIPT: SCRIPT, _ADV_CSS: ADV_CSS };
