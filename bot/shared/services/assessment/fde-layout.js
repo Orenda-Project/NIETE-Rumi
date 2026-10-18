@@ -1550,6 +1550,26 @@ function namesKeyOf(q, by) {
   return namesOf(q.question).some((w) => story.has(nounFold(w)));
 }
 const storyCue = (a, b) => namesKeyOf(a, b) || namesKeyOf(b, a);
+// Urdu Q1: an item that asks a name or a place (a person, a city, a country: «سدرہ کی بہن کا نام کیا
+// تھا؟», «… جاپان کے کس شہر پر …؟»), keyed on one word that only its key option carries, is given away
+// by another Q1 item's stem or correct option that prints that word («سالگرہ کی صبح امینہ گلی میں …» →
+// امینہ; «ہیروشیما پر نظر آنے والے …» → ہیروشیما), with no other word shared. A wrong option that names it
+// tells nothing (one name among four). An item that asks about a word (its meaning, its opposite, its
+// kind: «امن» کا متضاد → جنگ) asks no name, whatever stem prints its key.
+const NAME_ASK = /(?:^| )(?:نام|شہر|ملک|کہاں|جگہ|مقام)(?: |$)|(?:^| )کس نے(?: |$)|(?:^| )کون (?:تھا|تھی|تھے|ہے|ہیں)(?: |$)/;
+const WORD_ASK = /لفظ|الفاظ|متضاد|مترادف|ہم معنی|مطلب|معنی|مفہوم|جملہ|جملے|(?:^| )اسم(?: |$)|(?:^| )حرف|املا/;
+function namePrinted(q, by) {
+  if (!Array.isArray(q.options) || q.options.length < 2) return false;
+  const stem = plain(q.question);
+  if (!NAME_ASK.test(stem) || WORD_ASK.test(stem)) return false;
+  const key = plain(keyOption(q));
+  if (!key || key.includes(' ') || [...key].length < 3 || STOP.has(key) || termClass(key)) return false;
+  const holds = (text) => ` ${plain(text)} `.includes(` ${key} `);
+  if (q.options.filter((o) => holds(String(o).replace(OPTION_HEAD, ''))).length !== 1) return false;
+  const told = Array.isArray(by.options) && by.options.length ? plain(keyOption(by)) : '';
+  return holds(by.question) || (told !== key && told.includes(' ') && holds(told));
+}
+const nameCue = (a, b) => namePrinted(a, b) || namePrinted(b, a);
 // Urdu Q1: one grammar concept once on the paper. An item asks a concept when its key is the term
 // (… کیا کہلاتا ہے؟ → اسم معرفہ), when its stem names the term outside a quoted example (… میں
 // اسم معرفہ کون سا ہے؟), or when its stem or key says what the term is («… خاص نام کے بجائے … عام
@@ -1955,7 +1975,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   };
   const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q)
-      || (id === 'urdu.A.Q1' && (storyCue(p, q) || conceptTwin(p, q, hard)))));
+      || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || conceptTwin(p, q, hard)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
   // `within`: Social Studies, a D item answered by another item's points ([{ slot, rule, name, inSlot }],
   // SAME_POINTS); an in-slot row reads the items already placed in its slot.
