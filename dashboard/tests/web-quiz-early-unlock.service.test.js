@@ -107,11 +107,11 @@ const reset = () => { if (EarlyUnlock) EarlyUnlock._reset(); HomePre._reset(); }
 const SCRIPT_RX = /<script>\(function\(w,d,t\)\{try\{[\s\S]*?\}\)\(window,document,("[^"]*")\);<\/script>\n/;
 
 /** A teaching open, then a flushed open of a phone with no device (its server render locked), then one with a device. */
-async function scenario(lang, extra, { path: p = `/h/${TOKEN}` } = {}) {
+async function scenario(lang, extra, { path: p = `/h/${TOKEN}`, kid = {} } = {}) {
   const bot = heldBot([
-    jsonRes(200, HUB({ lang, ...extra })),
+    jsonRes(200, HUB({ lang, ...extra, ...kid })),
     { hold: true, res: jsonRes(200, LOCKED({ lang, ...extra })) },
-    { hold: true, res: jsonRes(200, HUB({ lang, ...extra })) },
+    { hold: true, res: jsonRes(200, HUB({ lang, ...extra, ...kid })) },
   ]);
   const srv = await start(build(bot.fetchImpl));
   try {
@@ -206,6 +206,27 @@ describe('web_quiz_early_unlock: the head of a new phone\'s first hub open', () 
     expect(run.map((u) => u.split('?')[0])).toContain('/wq/wq-home.js');
     expect(s.fresh).not.toMatch(/<script src="\/wq\/wq-home\.js/);
     expect(s.fresh).not.toMatch(/<link rel="stylesheet" href="\/wq\/wq-home\.css/);
+  });
+
+  test('ON, the bot\'s own field shape (`home_v3: 1`, as web-quiz-hub-home.js sends it): the new phone\'s locked render still carries the home\'s files, EN and UR', async () => {
+    for (const lang of ['en', 'ur']) {
+      reset();
+      const s = await scenario(lang, ON, { kid: { home_v3: 1 } });
+      const boot = JSON.parse(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/.exec(s.fresh)[1]);
+      expect(boot.locked).toBe(true);
+      expect(boot.home_v3).toBe(1);
+      expect(s.fresh).toMatch(/<script src="\/wq\/wq-home\.js\?v=V" defer><\/script>/);
+      expect(s.fresh).toMatch(/<link rel="stylesheet" href="\/wq\/wq-home\.css\?v=V">/);
+      // with the home in one response: carried and run, nothing asked from the network after the hub answer
+      reset();
+      const i = await scenario(lang, { ...ON, home_inline: true }, { kid: { home_v3: 1 } });
+      expect(i.fresh).toMatch(/<script type="text\/x-wq" src="\/wq\/wq-home\.js\?v=V"/);
+      expect(i.fresh).toMatch(/<link rel="wq-src" href="\/wq\/wq-home\.css\?v=V"><style>/);
+      const run = JSON.parse(i.fresh.match(/\}\)\}\)\(document,window,(\[[^\]]*\]),"[0-9A-Za-z]+"\)<\/script>/)[1]);
+      expect(run.map((u) => u.split('?')[0])).toContain('/wq/wq-home.js');
+      expect(i.fresh).not.toMatch(/<script src="\/wq\/wq-home\.js/);
+      expect(i.fresh).not.toMatch(/<link rel="stylesheet" href="\/wq\/wq-home\.css/);
+    }
   });
 
   test('the switch follows the last answer: an answer without it turns the next head off; a locked answer with it turns it on', async () => {
