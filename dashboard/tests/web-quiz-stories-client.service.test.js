@@ -1307,7 +1307,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12720);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13068);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; served minified)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
@@ -3541,7 +3541,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:300px\}/);
     // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
-    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/wqs-near/.test(sel));
+    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/wqs-near/.test(sel) && !/wqs-art/.test(sel));   // (.wqs-art: the moment's own picture box, drawn only with it on)
     expect(outside).toEqual([]);
   });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
@@ -3550,6 +3550,103 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     runBook(e, root); await flush(); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).not.toContain('data-rf');
+  });
+});
+
+// ---- the words framed big never leave a cut sliver of the picture (the reading moment on) ---------------------------
+describe('the framed words and the whole picture: Your turn, and an Urdu page at rest', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };
+  const RFB = (over = {}) => ({ status: 200, body: book({ read_fb: 1, ...over }) });
+  const yourTurn = (e, root) => { toMic(e, root); e.calls.ask[0].onStream({}); return root.querySelector('[data-cam]'); };
+  test('Your turn: the lines framed in their half, the sheet clipped to them, the picture (above the words here) fitted whole over them', async () => {
+    const e = withMoment(env({ replies: { book: RFB() } })); const root = await openReader(e);
+    const cam = yourTurn(e, root);
+    expect(root.innerHTML).toMatch(/<div class="wqs-art" data-art hidden><i><img src="\/s\/b-1\/p01\.webp" width="720" height="1080"/);
+    // the same size of print as before (both lines across the stage), moved to the stage's foot under the picture
+    expect(cam.style.transform).toBe('translate(-97.1px,-497.4px) scale(1.108)');
+    expect(cam.style.clipPath).toBe('inset(793.8px 0 143.8px 0)');
+    const a = root.querySelector('[data-art]');
+    expect(a.hidden).toBe(false);
+    expect([a.style.top, a.style.height, a.getAttribute('data-art')]).toEqual(['0px', '382.1px', 'on']);
+    checkScreen(root.innerHTML, 'en');
+  });
+  test('the reading moment off, or its file not here yet: Your turn exactly as today (no clip, no picture box)', async () => {
+    const off = env(); const r0 = await openReader(off);
+    const c0 = yourTurn(off, r0);
+    expect(r0.innerHTML).not.toContain('data-art');
+    expect(c0.style.transform).toBe('translate(-97.1px,-580.7px) scale(1.108)');
+    expect(c0.style.clipPath).toBeUndefined();
+    const e = env({ replies: { book: RFB() } }); const root = await openReader(e);
+    const cam = yourTurn(e, root);
+    expect(cam.style.transform).toBe('translate(-97.1px,-580.7px) scale(1.108)');
+    expect(cam.style.clipPath).toBe('');
+    expect(root.querySelector('[data-art]').hidden).toBe(true);
+  });
+  test('Urdu page at rest: the words come up to Your turn\'s size with the picture whole beside them; Whole page shows the sheet; English at rest as today', async () => {
+    const e = withMoment(env({ replies: { book: RFB({ lang: 'ur', dir: 'rtl' }) } })); const root = await openReader(e, { lang: 'ur' });
+    const cam = root.querySelector('[data-cam]'), a = root.querySelector('[data-art]');
+    expect(cam.style.transform).toBe('translate(-97.1px,-497.4px) scale(1.108)');
+    expect(a.hidden).toBe(false);
+    fire(root, 'cam');
+    expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
+    expect([cam.style.clipPath, a.hidden]).toEqual(['', true]);
+    fire(root, 'cam');
+    expect(cam.style.transform).toBe('translate(-97.1px,-497.4px) scale(1.108)');
+    expect(a.hidden).toBe(false);
+    const en = withMoment(env({ replies: { book: RFB() } })); const r2 = await openReader(en);
+    expect(r2.innerHTML).not.toContain('data-art');
+    expect(r2.querySelector('[data-cam]').style.transform).toBe('translate(0px,0px) scale(0.5)');
+  });
+  test('Read it together: Jugnu\'s line framed big keeps the picture whole too', async () => {
+    const bk = book({ read_fb: 1 }); bk.pages[0].words = [W(0, 'Mina', 100, [110, 810, 40, 50]), W(1, 'runs.', 600, [160, 810, 50, 50]), W(2, 'The', 1100, [220, 810, 30, 50]), W(3, 'kite', 1600, [230, 870, 40, 50]), W(4, 'flies!', 2100, [280, 870, 60, 50])];
+    const e = withMoment(env({ replies: { book: { status: 200, body: bk } } })); const root = await openReader(e);
+    toMic(e, root); e.calls.ask[0].onStream({ id: 'st' });
+    e.calls.lr[0].o.onResult(READ(['read', 'ahead', 'ahead', 'ahead', 'ahead']));
+    e.win.WQLiveRead.micAgain = () => Promise.resolve({ id: 'echo' });
+    fire(root, 'echo'); await flush();
+    expect(screenOf(root.innerHTML)).toBe('story-echo');
+    expect(root.innerHTML).toContain('data-art hidden');
+    expect(root.querySelector('[data-cam]').style.clipPath).toMatch(/^inset\(/);
+    expect(root.querySelector('[data-art]').hidden).toBe(false);
+  });
+  test('the moment\'s file arriving after the Urdu page was drawn: the page is framed again with its picture box', async () => {
+    const e = env({ replies: { book: RFB({ lang: 'ur', dir: 'rtl' }) } }); const root = await openReader(e, { lang: 'ur' });
+    const cam = root.querySelector('[data-cam]');
+    expect(cam.style.transform).toBe('translate(0px,0px) scale(0.5)');
+    expect(root.querySelector('[data-art]').hidden).toBe(true);
+    const sc = e.calls.loaded.filter((x) => x.tag === 'script' && /wq-moment\.js/.test(x.src))[0];
+    withMoment(e); sc.onload();
+    expect(cam.style.transform).toBe('translate(-97.1px,-497.4px) scale(1.108)');
+    expect(root.querySelector('[data-art]').hidden).toBe(false);
+  });
+  test('pure: no change when the picture is already whole in view; no picture at all (never a piece) when too little room is left', () => {
+    const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: {} }));
+    const e = env(); const cam = e.S._cam;
+    const el = () => { const a = fakeEl('art'); return a; };
+    const im = { w: 720, h: 1080 }, all = [[110, 810, 280, 50], [230, 870, 160, 50]];
+    // lines across the sheet on a stage tall enough for all of it: the picture is already whole, as before
+    const wide = [[10, 810, 700, 50], [10, 870, 700, 50]];
+    expect(win.WQMoment.art(el(), cam, im, wide, wide, [360, 2000], false, 0)).toBeNull();
+    // the same lines framed big on a tall stage (the picture would run off both sides): fitted
+    expect(win.WQMoment.art(el(), cam, im, all, all, [360, 2000], false, 0)).not.toBeNull();
+    // a short stage: the room over the words is under the picture's floor, so the box stays empty
+    const a = el(); const f = win.WQMoment.art(a, cam, im, all, all, [360, 150], false, 0);
+    expect(f && f.clip).toMatch(/^inset\(/);
+    expect(a.getAttribute('data-art')).toBe('off');
+    // Your turn's print is never made smaller for the picture: three lines on a short stage keep the reader's own zoom
+    const three = [[110, 640, 280, 70], [110, 730, 280, 70], [110, 820, 280, 70]];
+    expect(win.WQMoment.art(el(), cam, im, three, three, [360, 208], false, 0).s).toBe(cam(three, 360, 208, 720, 1080, false, 3, 1).s);
+    // words over most of the sheet: no picture side of its own, as before
+    expect(win.WQMoment.art(el(), cam, im, [[10, 100, 700, 50], [10, 1000, 700, 50]], [[10, 100, 700, 50]], [360, 540], false, 0)).toBeNull();
+    // at rest, words that would not come up by a quarter: the whole sheet stays
+    expect(win.WQMoment.art(el(), cam, im, [[10, 900, 700, 60]], [[10, 900, 700, 60]], [360, 540], false, 1)).toBeNull();
+  });
+  test('the picture box: over the cut sheet, centred, its picture shown whole or not at all', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(css).toMatch(/\.wqs-art\{position:absolute;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:center;pointer-events:none\}/);
+    expect(css).toMatch(/\.wqs-art\[data-art=off\] i\{display:none\}/);
+    expect(css).toMatch(/\.wqs-art i\{display:block;overflow:hidden/);
   });
 });
 
