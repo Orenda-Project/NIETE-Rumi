@@ -55,6 +55,11 @@ const maxSpanWpm = (grade) => tolerant(grade <= 2 ? 130 : 145);
 // The voice method gate (a natural-speed take, as delivered): the record's numbers and the whole-clip band.
 const VOICE_GATE_KEY = 'web_quiz_story_voice_gate';
 const MIN_SPEED = 0.9;
+// With app_settings web_quiz_story_voice_young_speed ON (JSON true), a grade 1–2 page may be a take at the provider's
+// slowest natural setting: a one-sentence page read at 0.9 runs near 300 wpm, and the slower pace must come from the voice,
+// never from a pause at a line break. Grades 3–5 keep MIN_SPEED.
+const YOUNG_SPEED_KEY = 'web_quiz_story_voice_young_speed';
+const MIN_SPEED_YOUNG = 0.7;
 const MIN_KBPS = 48;
 const WPM_BAND = [60, 220];
 // On a page this short the words per minute is mostly lead-in and tail silence: it skips the band (the voice build
@@ -66,6 +71,7 @@ const MAX_LEAD_MS = 800;
 const MAX_TAIL_MS = 1200;
 const MAX_EDGE_GAP_MS = 500;
 const voiceGateOn = (value) => value === true;
+const youngSpeedOn = (value) => value === true;
 const TYPES = { webp: 'image/webp', ogg: 'audio/ogg', mp3: 'audio/mpeg', png: 'image/png' };
 const pad = (n) => String(n).padStart(2, '0');
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -135,7 +141,7 @@ function clipMethodWhy(key, rec) {
   return why;
 }
 
-function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
+function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false, youngSpeed = false }) {
   const stem = path.join(voiceDir, `p${pad(n)}`);
   const j = readJson(`${stem}.json`);
   if (!j) return { why: ['no voice'] };
@@ -161,7 +167,8 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
     m('splices', (x) => x === 0, (x) => `splices ${x}`);
     m('atempo', (x) => x === 1, (x) => `atempo ${x}`);
     m('inserted_silence_ms', (x) => x === 0, (x) => (x === 'unknown' ? 'inserted silence unknown' : `inserted silence ${x} ms`));
-    m('speed', (x) => x >= MIN_SPEED, (x) => `speed ${x}`);
+    const minSpeed = youngSpeed && grade <= 2 ? MIN_SPEED_YOUNG : MIN_SPEED;
+    m('speed', (x) => x >= minSpeed, (x) => `speed ${x}`);
     m('kbps', (x) => x >= MIN_KBPS, (x) => (x === 'unknown' ? 'kb/s unknown' : `${x} kb/s`));
     // the word times come from the provider or a forced alignment of the stored audio, never a recogniser's alignment
     const tsrc = j.timing_source || j.timing_src || qa.timing_source || qa.timing_src || null;
@@ -221,7 +228,7 @@ function voiceFor({ voiceDir, n, words, lang, grade = 1, voiceGate = false }) {
  * watermark sweep is done; extra = {pdf_r2_key, slo} from the catalogue; voiceGate = the method gate is on (then a page's
  * failed voice goes to plan.misses, not plan.why: applyPlan decides whether the page keeps the voice it has).
  */
-function planBook({ book, serveDir, voiceDir = null, questionsFile = null, cleared = false, cleanPages = null, cleanDir = null, extra = {}, convert = null, voiceGate = false }) {
+function planBook({ book, serveDir, voiceDir = null, questionsFile = null, cleared = false, cleanPages = null, cleanDir = null, extra = {}, convert = null, voiceGate = false, youngSpeed = false }) {
   const why = [];
   const bookId = Store.bookIdFor(book.source_id);
   const lang = book.lang;
@@ -277,7 +284,7 @@ function planBook({ book, serveDir, voiceDir = null, questionsFile = null, clear
       if (!words.length || !String(p.text || '').trim()) why.push(`${tag}: no words`);
       if (!band) why.push(`${tag}: no word band`);
       if (p.note && /disagree/i.test(String(p.note))) why.push(`${tag}: reads disagree`);
-      const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade, voiceGate }) : { why: ['no voice'] };
+      const v = voiceDir ? voiceFor({ voiceDir, n: p.n, words, lang, grade: book.grade, voiceGate, youngSpeed }) : { why: ['no voice'] };
       if (voiceGate && v.why.length) misses.push({ pageId: pid, n: p.n, why: v.why });
       else v.why.forEach((w) => why.push(`${tag}: ${w}`));
       // A voice that fails any check is not stored: the page is served with no voice (Your turn) until it passes.
@@ -526,4 +533,11 @@ async function readVoiceGate(db) {
   return voiceGateOn(data ? data.value : null);
 }
 
-module.exports = { readVoiceGate, voiceGateOn, VOICE_GATE_KEY, missedPages, planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };
+/** The young-reader speed switch, read once per pass like the method gate: true only when app_settings holds JSON true. */
+async function readYoungSpeed(db) {
+  const { data, error } = await db.from('app_settings').select('key, value').eq('key', YOUNG_SPEED_KEY).maybeSingle();
+  if (error) throw new Error(`${error.code || ''} ${error.message}`);
+  return youngSpeedOn(data ? data.value : null);
+}
+
+module.exports = { readVoiceGate, voiceGateOn, VOICE_GATE_KEY, readYoungSpeed, youngSpeedOn, YOUNG_SPEED_KEY, missedPages, planBook, applyPlan, supabaseStore, voiceFor, cleanWords, webpSize, MAX_PAGE_BYTES, MAX_COVER_BYTES, MAX_WER, MAX_DRIFT_MS };
