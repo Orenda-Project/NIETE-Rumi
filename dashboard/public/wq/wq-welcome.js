@@ -140,7 +140,7 @@
   function voice(key) {
     var base = st.w.voice;
     if (!st.unlocked || !base || typeof base !== 'string' || !/^\/wq\/[A-Za-z0-9/_.-]+\/$/.test(base) || st.muted() || typeof Audio !== 'function') return;
-    try { var a = new Audio(base + 'welcome-' + key + '.mp3'); var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the caption and the hand carry on */ }
+    try { var a = new Audio(base + 'welcome-' + key + '.mp3' + ver(st.w)); var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the caption and the hand carry on */ }
   }
   // The scrim is a spotlight: the whole home dimmed, with an opening on the Next stop at step 4 (taps in it are
   // Let's go) and a ring on the land of the moment at step 3; Jugnu and the caption sit under the opening, or above it
@@ -246,6 +246,8 @@
     }
   }
 
+  // the recorded folder's version (/wq is cached for a year: a re-record is a new hash), else none
+  function ver(w) { return w && typeof w.voice_v === 'string' && /^[0-9a-f]{6,16}$/.test(w.voice_v) ? '?v=' + w.voice_v : ''; }
   function hint(s) {
     var href = s.next.getAttribute ? s.next.getAttribute('href') : null;
     if (typeof href === 'string' && href.charAt(0) === '/' && !/[?&]w=1(&|#|$)/.test(href)) {
@@ -253,7 +255,12 @@
       var path = i >= 0 ? href.slice(0, i) : href;
       s.next.setAttribute('href', path + (path.indexOf('?') >= 0 ? '&' : '?') + 'w=1' + (i >= 0 ? href.slice(i) : ''));
     }
-    try { if (typeof s.w.voice === 'string' && s.w.voice) sessionStorage.setItem('wq.welcome.voice', s.w.voice); } catch (e) {}
+    try {
+      if (typeof s.w.voice === 'string' && s.w.voice) {
+        sessionStorage.setItem('wq.welcome.voice', s.w.voice);
+        if (ver(s.w)) sessionStorage.setItem('wq.welcome.voice_v', s.w.voice_v);
+      }
+    } catch (e) {}
   }
 
   window.WQW = { start: start, replay: replay, up: function () { return Boolean(st); }, COPY: COPY, _reset: function () { st = null; } };

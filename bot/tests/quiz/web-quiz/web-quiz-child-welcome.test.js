@@ -87,6 +87,10 @@ const stable = (o) => JSON.parse(JSON.stringify(o));
 const tok = () => T.signHub([KID, SIB]);
 const hubOf = async (who = KID, t = tok()) => stable(await Hub.hub(t, { ...A, kid: T.chipId('h', who) }));
 const reads = (t) => fake.calls.filter((c) => c.table === t && c.op === 'select').length;
+// the recorded welcome lines (#3146: dashboard/public/wq/voice/welcome/<set>-<lang>/welcome-<key>.mp3), with the folder's
+// hash as the version (/wq is cached for a year): record-one-voice-shared-lines.js setHash of #3146's files
+const VOICE_EN = { voice: '/wq/voice/welcome/sx-reyna-68567f-en/', voice_v: 'f18a655d' };
+const VOICE_UR = { voice: '/wq/voice/welcome/sx-reyna-68567f-ur/', voice_v: 'edb3c4ac' };
 const record = (outcome, who = KID, t = tok()) => Welcome.record({ token: t, kid: T.chipId('h', who), device: A.device, outcome });
 
 describe('switch off, or the home off: today\'s hub answer, byte for byte; Redis never asked', () => {
@@ -116,7 +120,7 @@ describe('switch on with the home on', () => {
   test('a chosen child never welcomed: `welcome: {v, attempt: 1}`, the only key added; the same settings reads as off', async () => {
     const on = await hubOf();
     const onReads = reads('app_settings');
-    expect(on.welcome).toEqual({ v: Welcome.V, attempt: 1 });
+    expect(on.welcome).toEqual({ v: Welcome.V, attempt: 1, ...VOICE_EN });
     seed(HOME_ON);
     const off = await hubOf();
     const offReads = reads('app_settings');
@@ -124,6 +128,12 @@ describe('switch on with the home on', () => {
     delete rest.welcome;
     expect(rest).toEqual(off);
     expect(onReads).toBe(offReads);
+  });
+  test('the voice: the recorded lines in the hub\'s own language, at their folder\'s version', async () => {
+    db.quizzes.forEach((q) => { q.language = 'ur'; });
+    const out = await hubOf();
+    expect(out.lang).toBe('ur');
+    expect(out.welcome).toEqual({ v: Welcome.V, attempt: 1, ...VOICE_UR });
   });
   test('no chosen child (a phone with two and none picked): no `welcome`', async () => {
     const out = stable(await Hub.hub(tok(), A));
@@ -134,22 +144,22 @@ describe('switch on with the home on', () => {
     for (const outcome of ['done', 'skipped']) {
       redis._store.clear();
       expect((await record(outcome)).ok).toBe(true);
-      expect((await hubOf(KID)).welcome).toEqual({ v: Welcome.V, replay: 1 });
-      expect((await hubOf(SIB)).welcome).toEqual({ v: Welcome.V, attempt: 1 });
+      expect((await hubOf(KID)).welcome).toEqual({ v: Welcome.V, replay: 1, ...VOICE_EN });
+      expect((await hubOf(SIB)).welcome).toEqual({ v: Welcome.V, attempt: 1, ...VOICE_EN });
     }
   });
   test('left early: shown again as attempt 2; the second show is written done, so there is never a third', async () => {
     await record('shown');
-    expect((await hubOf()).welcome).toEqual({ v: Welcome.V, attempt: 2 });
+    expect((await hubOf()).welcome).toEqual({ v: Welcome.V, attempt: 2, ...VOICE_EN });
     await record('shown');
-    expect((await hubOf()).welcome).toEqual({ v: Welcome.V, replay: 1 });
+    expect((await hubOf()).welcome).toEqual({ v: Welcome.V, replay: 1, ...VOICE_EN });
   });
   test('a grown-up\'s "Show Jugnu\'s hello again" (reset) re-arms it for that child only', async () => {
     await record('done');
     await record('done', SIB);
     expect((await record('reset')).ok).toBe(true);
-    expect((await hubOf(KID)).welcome).toEqual({ v: Welcome.V, attempt: 1 });
-    expect((await hubOf(SIB)).welcome).toEqual({ v: Welcome.V, replay: 1 });
+    expect((await hubOf(KID)).welcome).toEqual({ v: Welcome.V, attempt: 1, ...VOICE_EN });
+    expect((await hubOf(SIB)).welcome).toEqual({ v: Welcome.V, replay: 1, ...VOICE_EN });
   });
   test('no Redis: no welcome (it cannot be kept once per child), and the hub still answers', async () => {
     redis._up = false;
