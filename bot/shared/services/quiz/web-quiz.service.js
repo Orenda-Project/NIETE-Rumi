@@ -505,8 +505,12 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   const childLang = k ? require('./web-quiz-quiz-lang').field(ctx, k).catch(() => ({})) : null;
   // Fast first page (web_quiz_fast): every read below that needs only the resolved code starts now, beside the
   // questions, and is awaited where today's code reads it; off, each one starts there as today.
+  // web_quiz_link_together: the quiz row is read once, for the page and for the class resolution
+  const quizRowP = fast && require('./web-quiz-hub-flags').linkTogetherNow()
+    ? Fast.early(dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()))
+    : null;
   const pre = fast ? {
-    idn: Fast.early(identityV2(ctx)),
+    idn: Fast.early(identityV2(ctx, quizRowP ? { quizP: quizRowP.then((r) => (r && r.data) || null) } : undefined)),
     label: Fast.early(classLabel(ctx)),
     live: Fast.early(liveCounts(ctx, { together: true })),
     brand: Fast.early(WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName })),
@@ -519,7 +523,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn) : null)));
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
-    dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
+    quizRowP || dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
   ]);
   mark('questions');
   // A storybook the teacher sent (story-teacher.service, web_quiz_stories_teacher) has no questions: the page joins the
@@ -1280,14 +1284,17 @@ const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
  * invited friend (a challenge code) never meets the class roster: no class, no
  * matching, a provisional child (their class is not the inviter's).
  */
-async function identityV2(ctx) {
+// quizP (web_quiz_link_together): the quiz row the page reads anyway, handed to the class resolution.
+async function identityV2(ctx, { quizP = null } = {}) {
   if ((await IdRoster.identityMode()) !== 'v2') return null;
   if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
   // A class-less child's own code under the watch root (or the root): nobody's class, so no class to match a name in.
   if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
+    const together = require('./web-quiz-hub-flags').linkTogetherNow();
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
+      ...(together ? { together: true, ...(quizP ? { quizP } : {}) } : {}),
     });
     return { invited: false, resolved: resolved || NONE_CLASS };
   } catch (e) {
