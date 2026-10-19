@@ -171,3 +171,39 @@ describe('the polished Urdu copy on the library (the wq-ur2 class on <html>)', (
     expect(p.html()).toContain('Ask the child who got this link to open it.');
   });
 });
+
+describe('a finished lesson plays again (the library\'s rewatch_done, app_settings web_quiz_rewatch_done)', () => {
+  const L2R = (on) => ({ ...L2, ...(on ? { rewatch_done: true } : {}), chapters: [{ name: 'Plants', videos: [
+    { vid: V(1), title: 'Roots', code: 'VID001', k: 'chipk1', done: true }, { vid: V(2), title: 'Leaves', done: true }, { vid: V(3), title: 'Stems', code: 'VID003', k: 'chipk3' }] }] });
+  const pick = async (n, { on, lang = 'en', start = API['/api/wq/videos/start'] } = {}) => {
+    const p = libPage({ lang, api: { ...API, '/api/wq/lib/h/HUBTOK?kid=c1&s=Science': L2R(on), '/api/wq/videos/start': start } });
+    await flush(); await flush();
+    p.els['[data-s="Science"]'].fire('click');
+    await flush(); await flush();
+    p.els[`[data-v="${V(n)}"]`].fire('click');
+    await flush(); await flush();
+    return p;
+  };
+  test.each(['en', 'ur'])('%s, on: a finished lesson with a class code opens as a fresh go (again=1), the video first', async (lang) => {
+    expect((await pick(1, { on: true, lang })).assigned).toEqual(['/q/VID001?k=chipk1&again=1']);
+  });
+  test('on: a finished lesson whose code the server makes on the tap: again=1 too (with or without a key)', async () => {
+    expect((await pick(2, { on: true })).assigned).toEqual(['/q/NEW001?k=chipnew&again=1']);
+    expect((await pick(2, { on: true, start: { code: 'NEW002' } })).assigned).toEqual(['/q/NEW002?again=1']);
+  });
+  test('on: an unfinished lesson is today\'s link', async () => {
+    expect((await pick(3, { on: true })).assigned).toEqual(['/q/VID003?k=chipk3']);
+  });
+  test('off: every link is today\'s, byte for byte', async () => {
+    expect((await pick(1, { on: false })).assigned).toEqual(['/q/VID001?k=chipk1']);
+    expect((await pick(2, { on: false })).assigned).toEqual(['/q/NEW001?k=chipnew']);
+    expect((await pick(2, { on: false, start: { code: 'NEW002' } })).assigned).toEqual(['/q/NEW002']);
+    expect((await pick(3, { on: false })).assigned).toEqual(['/q/VID003?k=chipk3']);
+  });
+  test('off: the lesson list screen is today\'s, byte for byte (the same HTML with or without the done marks\' switch)', async () => {
+    const a = libPage({ api: { ...API, '/api/wq/lib/h/HUBTOK?kid=c1&s=Science': L2R(false) } });
+    const b = libPage({ api: { ...API, '/api/wq/lib/h/HUBTOK?kid=c1&s=Science': L2R(true) } });
+    for (const p of [a, b]) { await flush(); await flush(); p.els['[data-s="Science"]'].fire('click'); await flush(); await flush(); }
+    expect(b.html()).toBe(a.html());
+  });
+});

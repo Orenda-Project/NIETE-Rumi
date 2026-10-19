@@ -51,7 +51,7 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 // ─── flag ────────────────────────────────────────────────────────────────────
 
-const { libraryOn, videosV3On, urTitlesOn, videoShelfOn, FLAG_KEY } = require('./web-quiz-library-flag');
+const { libraryOn, videosV3On, urTitlesOn, videoShelfOn, rewatchDoneOn, FLAG_KEY } = require('./web-quiz-library-flag');
 const langOf = (l) => (l === 'en' || l === 'ur' ? l : null);
 
 // ─── the bank, the child, the class's codes (web-quiz-bank.js) ───────────────
@@ -233,6 +233,8 @@ async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
   const grade = Videos.gradesFor(await require('./web-quiz-grade-change').browseGrade(who))[0] || null;
   const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
   if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null);
+  // web_quiz_rewatch_done (the library's own settings read): a finished lesson opens as a fresh go (wq-lib.js again=1)
+  if (out.chapters && await rewatchDoneOn()) out.rewatch_done = true;
   logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined });
   return out;
 }

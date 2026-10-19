@@ -327,3 +327,35 @@ describe('lib from the hub', () => {
     expect(out.chapters[1].videos.every((v) => !v.code && !v.k)).toBe(true);
   });
 });
+
+describe('lib from the hub: a finished lesson plays again (app_settings web_quiz_rewatch_done)', () => {
+  const Flag = require('../../../shared/services/quiz/web-quiz-library-flag');
+  const run = async (value) => {
+    seed();
+    if (value !== undefined) fake.db.app_settings.push({ key: 'web_quiz_rewatch_done', value });
+    Lib._reset();
+    mockKidFromHub.mockResolvedValue({ studentId: KID_A, grade: '3', rootId: SC });
+    const ch = await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science' });
+    const subj = await Lib.libHub('hubtoken', { kid: 'chip-1' });
+    return { ch, subj, reads: callsTo('app_settings') };
+  };
+  test('on (JSON true): a lesson list says rewatch_done; the subjects list does not; the same one settings read', async () => {
+    const off = await run(undefined);
+    const on = await run(true);
+    expect(on.ch.rewatch_done).toBe(true);
+    expect(on.subj).not.toHaveProperty('rewatch_done');
+    expect(on.reads).toBe(off.reads);
+    const rest = { ...on.ch };
+    delete rest.rewatch_done;
+    expect(rest).toEqual(off.ch);
+    expect(Flag.REWATCH_DONE_KEY).toBe('web_quiz_rewatch_done');
+  });
+  test('off (absent, false, the string "true", an object): today\'s answers, key for key', async () => {
+    const base = await run(undefined);
+    for (const value of [false, 'true', { enabled: true }]) {
+      const r = await run(value);
+      expect([value, JSON.stringify(r.ch)]).toEqual([value, JSON.stringify(base.ch)]);
+      expect(JSON.stringify(r.ch)).not.toContain('rewatch');
+    }
+  });
+});

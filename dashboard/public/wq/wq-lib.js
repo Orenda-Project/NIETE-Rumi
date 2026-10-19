@@ -334,7 +334,10 @@
           var at = i++;
           o.on('[data-v="' + attr(v.vid) + '"]', function () {
             if (o.ev) o.ev('lib_pick', { vid: v.vid, ch_i: ci });
-            o.onPick({ vid: v.vid, title: v.title, code: v.code || null, k: v.k || null, done: Boolean(v.done) }, at);
+            var pk = { vid: v.vid, title: v.title, code: v.code || null, k: v.k || null, done: Boolean(v.done) };
+            // the library's rewatch_done (web_quiz_rewatch_done): named only when on
+            if (d.rewatch_done === true) pk.rewatch = true;
+            o.onPick(pk, at);
           });
         });
       });
@@ -413,13 +416,16 @@
       fallback: function () { location.assign(hubUrl); },
       onPick: function (v) {
         if (going) return;
-        if (v.code && v.k) { going = true; flushEv(); location.assign('/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k)); return; }
+        // web_quiz_rewatch_done: a finished lesson opens as a fresh go (again=1: the video first, then "Play again"),
+        // never its old finish card. Off: today's link.
+        var re = v.rewatch && v.done;
+        if (v.code && v.k) { going = true; flushEv(); location.assign('/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + (re ? '&again=1' : '')); return; }
         going = true;
         fetch('/api/wq/videos/start', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' },
           body: JSON.stringify({ hub: o.hub, kid: o.kid, vid: v.vid }) }).then(function (r) {
           return r.text().then(function (x) {
             var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) {}
-            if (r.ok && j && j.code) { flushEv(); location.assign('/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '')); return; }
+            if (r.ok && j && j.code) { flushEv(); location.assign('/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) : '') + (re ? (j.k ? '&' : '?') + 'again=1' : '')); return; }
             // A child with no class (web_quiz_home_v3): the video plays on the child home's own player, the quiz offered after.
             if (r.ok && j && j.watch) { flushEv(); location.assign(hubUrl + '#watch/' + encodeURIComponent(j.watch.vid || v.vid)); return; }
             going = false;
