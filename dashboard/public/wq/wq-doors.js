@@ -6,7 +6,7 @@
  *   WQDOORS.owns(name)                 true for 'stories' | 'games' | 'videos' | 'watch/<id>'
  *   WQDOORS.html(B, ctx, name, data)   a door's markup (pure, for tests); data = the fetched rows, else the boot's
  *   WQDOORS.mount(root, B, ctx, name)  draw it, wire it, fetch the full rows and redraw
- *   WQDOORS.watchHtml(w, ctx, next)    the watch screen's markup (pure)
+ *   WQDOORS.watchHtml(w, ctx, next, shelf, clean)    the watch screen's markup (pure)
  * Data: the boot's `doors` (instant), then GET /api/wq/doors/h/<token>?d=stories|games (every story that opens,
  * shuffled per child per day, with `pos`; the number games), and for Videos the library's own /api/wq/lib/h/<token>.
  * A video: POST /api/wq/videos/start {hub, kid, vid} -> {code, k} (a class: /q/<code>, video then quiz) or {watch}
@@ -296,13 +296,15 @@
   function vTitle(v, ctx) { return (langOf(ctx) === 'ur' && v.title_ur) || v.title; }
 
   /* ---------------- the watch screen (a child with no class) ---------------- */
-  function watchHtml(w, ctx, next, shelf) {
+  // clean (web_quiz_video_clean_start, the boot's video_clean): the player's own controls come with the first play
+  // (wireVideo), so at 0:00 the big ▶ is the only play button
+  function watchHtml(w, ctx, next, shelf, clean) {
     var t = C(ctx);
     // web_quiz_video_shelf: the quiz is a choice from the first second (the 90 % mark stays Jugnu's invite)
     var q = shelf && w.after ? '<button class="wq-btn wq-btn--secondary wq-vquiz" type="button" data-tap="vquiz" data-item="' + esc(w.vid) + '">' + esc(t.vquiz) + '</button>' : '';
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
       '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi' + lat(next.sub) + '>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
-    return '<div class="wq-vbox' + (shelf ? ' wq-vbox--s' : '') + '"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
+    return '<div class="wq-vbox' + (shelf ? ' wq-vbox--s' : '') + '"><video class="wq-vid" playsinline' + (clean ? '' : ' controls') + ' preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
       '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
       '<p class="wq-vtitle"><bdi' + lat(vTitle(w, ctx)) + '>' + esc(vTitle(w, ctx) || '') + '</bdi></p>' + q +
       '<div class="wq-after" hidden>' + nx + '</div>';
@@ -319,7 +321,7 @@
     if (name === 'games') return frame(B, ctx, name, ht.games || 'Games', gamesBody(B, ctx, data));
     if (name === 'videos' && data && data.subject && advOn() && shelfOn(B)) return frame(B, ctx, name, C(ctx).subj(data.subject) + (view.g ? ' · ' + C(ctx).grade(view.g) : ''), chaptersBody(ctx, data.lib, data.subject, B), 'subjects');
     if (name === 'videos') return frame(B, ctx, name, ht.videos || 'Videos', data && data.subject ? chaptersBody(ctx, data.lib, data.subject, B) : subjectsBody(ctx, data && data.lib, B));
-    if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B)) : shelfOn(B) ? WATCH_WAIT : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
+    if (/^watch\//.test(name)) return frame(B, ctx, name, ht.videos || 'Videos', data && data.watch ? watchHtml(data.watch, ctx, data.next, shelfOn(B), B.video_clean === true) : shelfOn(B) ? WATCH_WAIT : '<p class="wq-soon wq-wait" data-primary>' + esc(C(ctx).opening) + '</p>');
     return '';
   }
 
@@ -841,6 +843,7 @@
     if (playBtn) playBtn.addEventListener('click', function () { try { var p = vEl.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} });
     vEl.addEventListener('play', function () {
       if (playBtn) playBtn.hidden = true;
+      if (B.video_clean === true) vEl.setAttribute('controls', '');
       if (!opened) { opened = true; t0 = Date.now(); ev('video_open', { item: vid, via: 'hub_door' }); }
     });
     vEl.addEventListener('timeupdate', function () {
