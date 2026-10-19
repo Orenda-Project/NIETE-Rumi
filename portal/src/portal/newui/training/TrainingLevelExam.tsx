@@ -12,7 +12,7 @@ import { TRAINING_COPY } from '../copy';
 import { Loading, NotLoaded, TrainingActions, TrainingInner } from './frame';
 import { CertificateCard, WrittenAnswer, WrittenField } from './examParts';
 import {
-  isLadder, percent, providerLabel, providerShort, statusOf, trainingBase, trainingPaths, useGet,
+  isLadder, percent, providerLabel, providerShort, refusalMessage, statusOf, trainingBase, trainingPaths, useGet,
   type GrandQuizGate, type Level, type Vendor,
 } from './trainingApi';
 
@@ -74,6 +74,8 @@ export function useLevelExam() {
   const [texts, setTexts] = useState<Record<number, string>>({});
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // bd-te5lae — the server's sentence under the label, when a 503 says nothing was recorded.
+  const [problemDetail, setProblemDetail] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [answersOpen, setAnswersOpen] = useState(false);
 
@@ -83,6 +85,7 @@ export function useLevelExam() {
     if (!g || opening) return;
     setOpening(true);
     setProblem(null);
+    setProblemDetail(null);
     try {
       if (g.exam_kind === 'capstone') {
         const { data } = await api.get(`/training/level/${encodeURIComponent(levelId)}/capstone/questions`);
@@ -112,6 +115,7 @@ export function useLevelExam() {
     if (!paper || sending || !qs.every((x) => answered(x.id))) return;
     setSending(true);
     setProblem(null);
+    setProblemDetail(null);
     try {
       if (paper.kind === 'capstone') {
         const { data } = await api.post(`/training/level/${encodeURIComponent(levelId)}/capstone/attempts`, {
@@ -132,8 +136,11 @@ export function useLevelExam() {
         setResult({ score: a.score, max: a.max_score, passed: a.is_passed, cooldownUntil: a.cooldown_until ?? null, certificate: data.certificate || null });
       }
       setPaper(null);
-    } catch {
+    } catch (err) {
+      // The paper stays on screen either way, so a retry resends the same answers. Only the
+      // written exam's 503 is promised to come before anything is recorded (bd-te5lae).
       setProblem(TRAINING_COPY.notSent);
+      setProblemDetail(paper.kind === 'capstone' ? refusalMessage(err) : null);
       gate.reload();
     } finally {
       setSending(false);
@@ -146,12 +153,12 @@ export function useLevelExam() {
     navigate(-1);
   };
 
-  return { vendorKey, levelId, pathname, navigate, paths, vendors, levels, gate, level, provider, title, levelUrl, paper, setPaper, opening, setOpening, index, setIndex, picks, setPicks, texts, setTexts, sending, setSending, problem, setProblem, result, setResult, answersOpen, setAnswersOpen, g, start, qs, q, answered, last, submit, back };
+  return { vendorKey, levelId, pathname, navigate, paths, vendors, levels, gate, level, provider, title, levelUrl, paper, setPaper, opening, setOpening, index, setIndex, picks, setPicks, texts, setTexts, sending, setSending, problem, setProblem, problemDetail, result, setResult, answersOpen, setAnswersOpen, g, start, qs, q, answered, last, submit, back };
 }
 
 /** The view; every rule and read is useLevelExam's, shared with the teacher app v2 (bd-fmf24g.12). */
 export default function TrainingLevelExam() {
-  const { vendorKey, paths, gate, level, provider, title, levelUrl, paper, opening, index, setIndex, picks, setPicks, texts, setTexts, sending, problem, result, answersOpen, setAnswersOpen, g, start, qs, q, answered, last, submit, back } = useLevelExam();
+  const { vendorKey, paths, gate, level, provider, title, levelUrl, paper, opening, index, setIndex, picks, setPicks, texts, setTexts, sending, problem, problemDetail, result, answersOpen, setAnswersOpen, g, start, qs, q, answered, last, submit, back } = useLevelExam();
   const problemChip = problem ? <Chip tone="error" icon={CircleAlert}>{problem}</Chip> : null;
 
   /* ── the result ───────────────────────────────────────────────────────── */
@@ -204,6 +211,7 @@ export default function TrainingLevelExam() {
         <div className="flex flex-col gap-3 md:max-w-[760px]">
           <QuestionDots label={TRAINING_COPY.questionOf(index + 1, qs.length)} total={qs.length} current={index} />
           {problemChip ? <div className="flex flex-wrap gap-1.5">{problemChip}</div> : null}
+          {problemDetail ? <p role="alert" dir="auto" className="text-[15px] font-semibold leading-[1.45] text-nu-surface-muted">{problemDetail}</p> : null}
           <p dir="auto" className="whitespace-pre-line text-[19px] font-extrabold leading-[1.35] text-nu-surface-text rtl:font-bold rtl:leading-[2]">
             {q.question_text}
           </p>

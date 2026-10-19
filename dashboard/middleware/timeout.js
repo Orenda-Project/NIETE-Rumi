@@ -23,6 +23,23 @@ const GPT_HEAVY_ROUTES = [
   '/observability/retention' // MV fallback can be slow during optimization
 ];
 
+/**
+ * Exact paths that get the GPT budget. Matched against req.path as this middleware sees it:
+ * it is mounted at the app (dashboard/index.js), so that is the full /api/portal/... path.
+ *
+ * bd-te5lae — a written capstone submit marks every answer with the bot's grader, one LLM
+ * call per answer in sequence. On the 30 s default the middleware answered 503 mid-marking,
+ * the handler went on and could still record the attempt, and then wrote its own response
+ * onto a finished one. The route caps marking at CAPSTONE_MARKING_DEADLINE_MS, which leaves
+ * the rest of this budget for the two inserts and the certificate call.
+ */
+const GPT_HEAVY_PATTERNS = [
+  /^\/api\/portal\/training\/level\/\d+\/capstone\/attempts\/?$/
+];
+
+/** The capstone submit's total marking time; must stay well inside GPT_TIMEOUT. */
+const CAPSTONE_MARKING_DEADLINE_MS = 90000;
+
 // Static file patterns
 const STATIC_PATTERNS = [
   '/assets/',
@@ -49,7 +66,8 @@ function getTimeoutForRoute(path) {
   }
 
   // Check if it's a GPT-heavy route
-  if (GPT_HEAVY_ROUTES.some(route => path.startsWith(route))) {
+  if (GPT_HEAVY_ROUTES.some(route => path.startsWith(route))
+    || GPT_HEAVY_PATTERNS.some(pattern => pattern.test(path))) {
     return GPT_TIMEOUT;
   }
 
@@ -124,6 +142,7 @@ module.exports = {
   timeoutMiddleware,
   createTimeoutMiddleware,
   getTimeoutForRoute,
+  CAPSTONE_MARKING_DEADLINE_MS,
   DEFAULT_TIMEOUT,
   GPT_TIMEOUT,
   STATIC_TIMEOUT

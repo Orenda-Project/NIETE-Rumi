@@ -69,6 +69,7 @@ export function LevelExamPage() {
       <TrainingPageV2 crumb={T.crumb(provider)} title={title} backTo={levelUrl} onBack={x.back} right={counter} dock={dock}>
         <Dots total={qs.length} current={index} label={T.questionOf(index + 1, qs.length)} />
         {problemChip ? <div className="flex flex-wrap gap-1.5 px-1">{problemChip}</div> : null}
+        {x.problemDetail ? <p role="alert" dir="auto" className="px-1 text-[15px] font-semibold leading-[1.45] text-[#6b7280]">{x.problemDetail}</p> : null}
         <p dir="auto" className="whitespace-pre-line px-1 text-[20px] font-bold leading-[1.4] rtl:leading-[2]">{q.question_text}</p>
         {urdu ? <p dir="rtl" lang="ur" className="px-1 text-[17px] font-semibold leading-[2] text-[#6b7280]">{urdu}</p> : null}
         {paper.kind === 'capstone' ? (

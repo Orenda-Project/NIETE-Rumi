@@ -3,6 +3,7 @@ import { render, screen, within, waitFor, fireEvent, configure } from "@testing-
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { copyProblem, tapProblems } from "../checks/rules";
 import { CAPSTONE_PAPER, EXAM_QUESTIONS, gate, httpError, trainingGet } from "../../../test/trainingFixtures";
+import { refusalMessage } from "./trainingApi";
 
 /**
  * bd-5rz1v.25 — the level exam (deep-screens.html, Training 8): a Hero (trophy, neutral) "Ready"
@@ -262,6 +263,51 @@ describe("Beacon House — the written exam (capstone)", () => {
     }));
     const hero = await heroWith("Passed");
     expect(within(hero).getByText("8/10")).toBeInTheDocument();
+  });
+
+  // bd-te5lae — a 503 from the capstone route means nothing was written (the bot could not
+  // mark it, or ran out of time). Its own words say so; "Not sent" alone left the teacher
+  // guessing whether to write the paper again.
+  const NOTHING_RECORDED = "We could not mark this exam right now. Nothing has been recorded — please try again.";
+  async function writeAndSubmit() {
+    renderAt(BH);
+    fireEvent.click(await screen.findByRole("button", { name: "Start exam" }));
+    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "With a picture walk and a question." } });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "Exit tickets and two cold calls." } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+  }
+
+  it("a 503 shows the server's words, and keeps every answer in the form", async () => {
+    vi.mocked(api.post).mockRejectedValue(httpError(503, { success: false, error: NOTHING_RECORDED }));
+    await writeAndSubmit();
+    expect(await screen.findByText(NOTHING_RECORDED)).toBeInTheDocument();
+    expect(screen.getByText("Not sent")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveValue("Exit tickets and two cold calls.");
+    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByRole("textbox")).toHaveValue("With a picture walk and a question.");
+  }, 10_000);
+
+  it("any other failure keeps the short label only: a 500 may come after the paper was written", async () => {
+    vi.mocked(api.post).mockRejectedValue(httpError(500, { success: false, error: "Failed to submit the written exam" }));
+    await writeAndSubmit();
+    expect(await screen.findByText("Not sent")).toBeInTheDocument();
+    expect(screen.queryByText("Failed to submit the written exam")).toBeNull();
+  }, 10_000);
+});
+
+describe("refusalMessage — the server's words for a 503, and only a 503", () => {
+  it("returns the 503's error text", () => {
+    expect(refusalMessage(httpError(503, { error: "  Nothing has been recorded.  " }))).toBe("Nothing has been recorded.");
+  });
+  it("is null for any other status, a 503 with no text, or no response at all", () => {
+    expect(refusalMessage(httpError(500, { error: "Failed" }))).toBeNull();
+    expect(refusalMessage(httpError(409, { error: "Cooldown" }))).toBeNull();
+    expect(refusalMessage(httpError(503, {}))).toBeNull();
+    expect(refusalMessage(httpError(503, { error: 42 }))).toBeNull();
+    expect(refusalMessage(new Error("Network Error"))).toBeNull();
+    expect(refusalMessage(null)).toBeNull();
   });
 });
 
