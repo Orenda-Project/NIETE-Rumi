@@ -837,7 +837,7 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('tail');
   // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}) };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}), ...(f.rewatchDone ? { rewatch_done: true } : {}) };
 }
 
 async function hubTogether(token, opts) {
@@ -855,7 +855,7 @@ async function hubTogether(token, opts) {
   // the light Urdu face (web_quiz_face_lite), as the serial path: from the switch read just awaited, ui.fl, else the ui
   // the same later hub field as hub() above: reads started together must not drop the pack
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}) };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}), ...(f.rewatchDone ? { rewatch_done: true } : {}) };
 }
 
 module.exports = {
