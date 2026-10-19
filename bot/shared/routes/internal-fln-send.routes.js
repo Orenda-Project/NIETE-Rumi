@@ -12,6 +12,7 @@
  */
 const express = require('express');
 const { logToFile } = require('../utils/logger');
+const { clampLanguage } = require('../config/ux-strings');
 const { requireInternalKey } = require('../middleware/require-internal-key');
 
 const router = express.Router();
@@ -30,7 +31,7 @@ function parse(body) {
   if (!teachers.every((t) => t && typeof t.id === 'string' && t.id.trim() && KEY_RX.test(String(t.key)))) return null;
   return {
     sender: { id: sender.id.trim(), role: String(sender.role || '') },
-    plan: { id: String(plan.id), title: plan.title, lang: plan.lang === 'ur' ? 'ur' : 'en' },
+    plan: { id: String(plan.id), title: plan.title, lang: clampLanguage(plan.lang) },
     teachers: teachers.map((t) => ({ id: t.id.trim(), key: String(t.key) })),
   };
 }
