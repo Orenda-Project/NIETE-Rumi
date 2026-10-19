@@ -179,7 +179,6 @@
       });
     }).observe(D.body, { childList: true, subtree: true, characterData: true });
   }
-  if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', watch); else watch();
 
   // ── tones: WebAudio, no files (the stamp's two blips, the soft not-yet); after a gesture, never when muted
   var actx = null;
@@ -316,4 +315,6 @@
     bar: bar, badge: badge, move: move, cue: cue, burst: burst, muted: muted, mute: mute, still: still, swap: swap, P: P, EMO: EMO,
     stamp: stamp, stamps: stamps, stampSvg: stampSvg, tone: tone, trail: trail, award: award, climb: climb
   };
+  // last, once every name above is assigned: a page already parsed (the one-response or early Home) is dressed at once
+  if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', watch); else watch();
 })(typeof window !== 'undefined' ? window : null);
