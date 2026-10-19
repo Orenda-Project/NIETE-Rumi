@@ -1974,12 +1974,16 @@ async function me(body = {}) {
     .in('invited_by_student_id', ids).eq('status', 'completed').order('completed_at', { ascending: false }).limit(20);
   const codeIds = [...new Set([...(mine || []), ...(friends || [])].map((r) => r.share_code_id).filter(Boolean))];
   const topics = new Map();
+  const vids = new Map();
   if (codeIds.length) {
-    const { data: codes } = await supabase.from('quiz_share_codes').select('id, topic').in('id', codeIds);
-    (codes || []).forEach((c) => topics.set(c.id, c.topic || ''));
+    const { data: codes } = await supabase.from('quiz_share_codes').select('id, topic, video_id').in('id', codeIds);
+    (codes || []).forEach((c) => { topics.set(c.id, c.topic || ''); if (c.video_id) vids.set(c.id, c.video_id); });
   }
+  // web_quiz_videos_ur_titles: a video lesson's row carries its Urdu-script name (an Urdu page shows it); off: not read
+  const urs = new Map(await Promise.all([...vids].map(async ([id, vid]) => [id, (await urTopicOf(vid)).topic_ur])));
+  const urOf = (codeId) => (urs.get(codeId) ? { topic_ur: urs.get(codeId) } : {});
   out.history = (mine || []).map((r) => ({
-    chip: chipOf.get(r.student_id), topic: topics.get(r.share_code_id) || '',
+    chip: chipOf.get(r.student_id), topic: topics.get(r.share_code_id) || '', ...urOf(r.share_code_id),
     date: String(r.completed_at || '').slice(0, 10), correct: r.correct_answers || 0,
     total: r.total_questions_answered || 0, pct: r.mastery_percentage || 0,
   }));
@@ -1990,7 +1994,7 @@ async function me(body = {}) {
     const theirs = firstOf(r.invited_by_student_id, r.share_code_id);
     const friend = { correct: r.correct_answers || 0, total: r.total_questions_answered || 0 };
     return {
-      chip: chipOf.get(r.invited_by_student_id), first: firstName(r.student_name), topic: topics.get(r.share_code_id) || '',
+      chip: chipOf.get(r.invited_by_student_id), first: firstName(r.student_name), topic: topics.get(r.share_code_id) || '', ...urOf(r.share_code_id),
       ...friend,
       ...(theirs ? { outcome: challengeOutcome(friend, { correct: theirs.correct_answers || 0, total: theirs.total_questions_answered || 0 }) } : {}),
     };

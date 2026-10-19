@@ -122,3 +122,41 @@ describe('the link preview (og:title)', () => {
     expect(title(render(facts('ur', false)))).toContain(EN);
   });
 });
+
+describe('the quiz page: "My scores", the class table and the page head', () => {
+  const { flush } = require('./wq-page-harness');
+  const { renderQuizPage } = require('../routes/web-quiz.routes');
+  const kid = { first: 'Zara', chip: 'c1', animal: 'owl' };
+  const ME = { history: [{ topic: EN, topic_ur: UR, date: '2026-10-06', correct: 3, total: 5 }, { topic: 'Fractions', date: '2026-10-05', correct: 1, total: 2 }],
+    friends_finished: [{ first: 'Omar', topic: EN, topic_ur: UR, correct: 1, total: 2, outcome: 'lose' }] };
+  const scores = async (o) => { const p = page({ store: { wq_kids: [kid] }, me: ME, topic: EN, ...o }); p.wq.history(); await flush(); await flush(); return p.html(); };
+  test('"My scores" on an Urdu page: each video lesson in its Urdu name, a quiz without one as it is', async () => {
+    for (const o of [{ lang: 'en', bootExtra: { ui_lang: 'ur' } }, { lang: 'ur' }]) {
+      const h = await scores(o);
+      expect(h).not.toContain(EN);
+      expect(h.split(UR).length - 1).toBe(2);
+      expect(h).toContain('Fractions');
+    }
+  });
+  test('"My scores" on an English page: the English names', async () => {
+    const h = await scores({ lang: 'en' });
+    expect(h).toContain(EN);
+    expect(h).not.toContain(UR);
+  });
+  test('the class table on an Urdu page: the lesson\'s Urdu name, before a twin\'s topic; without topic_ur the twin as today', async () => {
+    const BOARD = { finishers_n: 1, class_avg_pct: 60, rows: [{ place: 1, first: 'Zara', animal: 'owl', correct: 3, total: 5 }], more_n: 0, class_doors: true, my_class: '3-B', one_class: true, twin: { code: 'UR0001', topic: 'Jangli Aur Paltu Janwar (Urdu)' } };
+    const table = async (quizExtra) => { const p = page({ lang: 'en', store: {}, view: 'class', topic: EN, quizExtra, bootExtra: { ui_lang: 'ur' }, api: { '/board/TEST': BOARD } }); await flush(); await flush(); return p.html(); };
+    const on = await table({ topic_ur: UR });
+    expect(on).toContain(UR);
+    expect(on).not.toContain('(Urdu)');
+    expect(await table({})).toContain('Jangli Aur Paltu Janwar (Urdu)');
+  });
+  test('the page head of an English quiz served in Urdu: the Urdu name in the tab title; none, or an English page: today\'s head', () => {
+    const P = (extra, quiz = {}) => ({ quiz: { id: 'q', code: 'VID001', topic: EN, lang: 'en', dir: 'ltr', grade: '3', n: 1, questions: [], ...quiz }, cls: { label: 'Class 3', teacher: null, chips: [] }, live: {}, ...extra });
+    const title = (payload) => /<title>([^<]*)<\/title>/.exec(renderQuizPage({ payload, code: 'VID001', view: 'quiz', origin: 'https://example.test', assetV: '1' }))[1];
+    expect(title(P({ ui_lang: 'ur' }, { topic_ur: UR }))).toContain(UR);
+    expect(title(P({ ui_lang: 'ur' }))).toContain(EN);
+    expect(title(P({}, { topic_ur: UR }))).toContain(EN);
+    expect(title(P({}, { topic_ur: UR }))).not.toContain(UR);
+  });
+});

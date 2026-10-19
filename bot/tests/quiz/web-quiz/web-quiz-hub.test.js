@@ -819,13 +819,13 @@ describe('a video lesson\'s quiz carries its Urdu name (app_settings web_quiz_vi
   const UR = { key: 'web_quiz_videos_ur_titles', value: true };
   const HOME = { key: 'web_quiz_child_quiz_home', value: 'true' };
   const LibFlag = require('../../../shared/services/quiz/web-quiz-library-flag');
-  // q-maths is lesson V(2) (played: Play again); q-new becomes lesson V(3) (the teacher's new code). Both have Urdu names.
+  // q-new becomes lesson V(3) (the teacher's new code), the one Urdu name in this file (the bank's names are read once,
+  // by the recs above); q-maths is lesson V(2) (played: Play again) and has none.
   function urSeed(settings = []) {
     Hub._resetCache();
     LibFlag._reset();
     seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, ...settings] });
     Object.assign(db.quizzes.find((q) => q.id === 'q-new'), { video_id: V(3), quiz_source: 'video' });
-    db.student_videos.find((v) => v.id === V(2)).title_ur = 'آدھے';
     db.student_videos.find((v) => v.id === V(3)).title_ur = 'چوتھائی';
   }
   const urOf = (out) => [out.teacher, out.last, ...(out.again || [])].filter(Boolean).map((r) => [r.code, r.topic, r.topic_ur]);
@@ -839,20 +839,23 @@ describe('a video lesson\'s quiz carries its Urdu name (app_settings web_quiz_vi
     expect(JSON.stringify(await Hub.hub(T.signHub([KID]), A))).toBe(on);
   });
 
-  test('on: the teacher\'s new video quiz and Play again carry topic_ur beside topic; a quiz with no video has none', async () => {
+  test('on: the teacher\'s new video quiz and Play again carry topic_ur beside topic; a quiz with no video, or a lesson with no Urdu name, has none', async () => {
     urSeed([UR]);
-    const out = await Hub.hub(T.signHub([KID]), A);
-    expect(urOf(out)).toEqual([['NEWQ01', 'Shapes', 'چوتھائی'], ['MATH01', 'Fractions quiz', 'آدھے'], ['ENGL01', 'Nouns', undefined]]);
+    let out = await Hub.hub(T.signHub([KID]), A);
+    expect(urOf(out)).toEqual([['NEWQ01', 'Shapes', 'چوتھائی'], ['MATH01', 'Fractions quiz', undefined], ['ENGL01', 'Nouns', undefined]]);
+    db.quizzes.find((q) => q.id === 'q-maths').video_id = V(3);
+    out = await Hub.hub(T.signHub([KID]), A);
+    expect(urOf(out)[1]).toEqual(['MATH01', 'Fractions quiz', 'چوتھائی']);
   });
 
   test('on: a code the child opened and has not finished (teacher card a), and the last quiz on Home', async () => {
     for (const home of [false, true]) {
       urSeed(home ? [UR, HOME] : [UR]);
-      Object.assign(db.quizzes.find((q) => q.id === 'q-g5'), { video_id: V(2), quiz_source: 'video' });
+      Object.assign(db.quizzes.find((q) => q.id === 'q-g5'), { video_id: V(3), quiz_source: 'video' });
       db.quiz_sessions.push(sess('s5', 'sc-g5', 'q-g5', 'in_progress', 1, 1, ago(1)));
       const out = await Hub.hub(T.signHub([KID]), A);
-      if (home) expect(out.last).toMatchObject({ code: 'GRD501', state: 'open', topic_ur: 'آدھے' });
-      else expect(out.teacher).toMatchObject({ code: 'GRD501', src: 'opened', topic_ur: 'آدھے' });
+      if (home) expect(out.last).toMatchObject({ code: 'GRD501', state: 'open', topic_ur: 'چوتھائی' });
+      else expect(out.teacher).toMatchObject({ code: 'GRD501', src: 'opened', topic_ur: 'چوتھائی' });
     }
   });
 
@@ -868,8 +871,18 @@ describe('a video lesson\'s quiz carries its Urdu name (app_settings web_quiz_vi
     urSeed([UR, { key: 'web_quiz_hub_fanout', value: true }]);
     await Hub.hub(T.signHub([KID]), A);
     expect(require('../../../shared/services/quiz/web-quiz-hub-flags').fanoutNow()).toBe(true);
+    db.quizzes.find((q) => q.id === 'q-maths').video_id = V(3);
     const out = await Hub.hub(T.signHub([KID]), A);
-    expect(urOf(out)).toEqual([['NEWQ01', 'Shapes', 'چوتھائی'], ['MATH01', 'Fractions quiz', 'آدھے'], ['ENGL01', 'Nouns', undefined]]);
+    expect(urOf(out)).toEqual([['NEWQ01', 'Shapes', 'چوتھائی'], ['MATH01', 'Fractions quiz', 'چوتھائی'], ['ENGL01', 'Nouns', undefined]]);
+  });
+
+  test('the finish screen\'s ranked next thing reads its own copy of the rows: the same Urdu names', async () => {
+    urSeed([UR]);
+    db.quizzes.find((q) => q.id === 'q-maths').video_id = V(3);
+    db.quiz_sessions.forEach((x) => { x.device_ref = DEV_A; }); // this phone played as the child
+    const snap = await require('../../../shared/services/quiz/web-quiz-next-offer-result')._snapshot({ studentId: KID, device: DEV_A });
+    expect(snap).toBeTruthy();
+    expect(urOf(snap.out)).toEqual([['NEWQ01', 'Shapes', 'چوتھائی'], ['MATH01', 'Fractions quiz', 'چوتھائی'], ['ENGL01', 'Nouns', undefined]]);
   });
 
   test('the Games door rows carry topic_ur when the hub row has one; none: today\'s row', () => {

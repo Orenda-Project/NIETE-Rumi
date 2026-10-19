@@ -562,7 +562,9 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plai
   const lang = plain ? plain.lang : ul === 'ur' || ul === 'en' ? ul : q.lang === 'ur' ? 'ur' : 'en';
   const dir = plainDir(lang);
   const brand = brandOf(payload && payload.brand);
-  const og = plain ? plainText(brand) : ogText(payload, view, brand);
+  // an English quiz served as an Urdu page with its video lesson's Urdu name (topic_ur): the head's words in Urdu too
+  const urHead = !plain && lang === 'ur' && q.lang !== 'ur' && q.topic_ur;
+  const og = plain ? plainText(brand) : ogText(urHead ? { ...payload, quiz: { ...q, lang: 'ur' } } : payload, view, brand);
   const boot = { ...payload, code, view, brand };
   payload = withLook(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
