@@ -594,6 +594,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var UI_SWAP = LANG !== (Q.lang === 'ur' ? 'ur' : 'en');
   // a video lesson's Urdu-script name (the bot's topic_ur, web_quiz_videos_ur_titles): an Urdu page names the quiz with it
   if (LANG === 'ur' && typeof Q.topic_ur === 'string' && Q.topic_ur) Q.topic = Q.topic_ur;
+  // ...and so does a "My scores" row of one (the server's topic_ur)
+  function topicOf(x) { return (LANG === 'ur' && x.topic_ur) || x.topic; }
   var CLS = B.cls || {};
   var LIVE = B.live || {};
   // The deployment's brand (boot JSON, from bot/shared/config/web-quiz-brand.js): marks, names, mascot, place.
@@ -3071,7 +3073,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rows += '<tr class="wq-you"><td>' + place(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total, ur) + '</td></tr>';
     }
     // an English quiz's table shown in Urdu: the lesson's name from its Urdu twin when the teacher has one, else the quiz's
-    var topic = ur && UI_SWAP && b.twin && typeof b.twin.topic === 'string' && b.twin.topic ? b.twin.topic : Q.topic;
+    // (a video lesson's own Urdu name, topic_ur, comes first: Q.topic is it already)
+    var topic = ur && UI_SWAP && !Q.topic_ur && b.twin && typeof b.twin.topic === 'string' && b.twin.topic ? b.twin.topic : Q.topic;
     var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
@@ -3216,10 +3219,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var fr = (r.ok && r.body.friends_finished) || [];
       if (!hist.length && !fr.length) return today();
       var h = bar() + '<h2>' + esc(T.histT) + '</h2><ul class="wq-hist">' + hist.slice(0, 10).map(function (x) {
-        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
+        return '<li><span>' + esc(topicOf(x)) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
-          return '<li><span>' + dotJoin(x.first, x.topic, T.frOut[x.outcome]) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
+          return '<li><span>' + dotJoin(x.first, topicOf(x), T.frOut[x.outcome]) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
         }).join('') + '</ul>' : '') +
         '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
       render(h, 'M13');

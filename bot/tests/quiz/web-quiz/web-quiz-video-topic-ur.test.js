@@ -43,17 +43,17 @@ const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const UR_NAME = 'جنگلی اور پالتو جانور';
 
-function seed(on) {
+function seed(on, { scVid = null, sessions = [] } = {}) {
   const sc = (id, code, quiz, lang) => ({ id, code, quiz_id: quiz, video_id: null, teacher_user_id: TEACHER, language: lang, active: true,
     expires_at: future, invited_by_student_id: null, parent_share_code_id: null, created_at: ago(48), teacher_name: 'Ms Testwala' });
   const q = (id, topic, lang, vid) => ({ id, topic, grade: '3', subject: 'science', language: lang, quiz_source: vid ? 'video' : 'transcript', video_id: vid, meta: {} });
   const fake = makeFake({
     app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, ...(on ? [{ key: 'web_quiz_videos_ur_titles', value: true }] : [])],
     quizzes: [q(QV, 'Jangli Aur Paltu Janwar', 'ur', VID), q(QN, 'Pani Ka Chakkar', 'ur', VID2), q(QT, 'Fractions', 'en', null)],
-    quiz_share_codes: [sc('sc-v', 'VID001', QV, 'ur'), sc('sc-n', 'VID002', QN, 'ur'), sc('sc-t', 'TRN001', QT, 'en')],
+    quiz_share_codes: [{ ...sc('sc-v', 'VID001', QV, 'ur'), video_id: scVid }, sc('sc-n', 'VID002', QN, 'ur'), sc('sc-t', 'TRN001', QT, 'en')],
     quiz_questions: [QV, QN, QT].map((quiz, n) => ({ id: `cccccc0${n}-cccc-4ccc-8ccc-cccccccccc81`, quiz_id: quiz, external_id: 'q1', sort_order: 1, question_text: 'Q1',
       option_a: 'A', option_b: 'B', option_c: null, option_d: null, correct_option: 'A', explanation: null, option_feedback: null, media: {}, render_pattern: null })),
-    quiz_sessions: [], quiz_answers: [], students: [],
+    quiz_sessions: sessions, quiz_answers: [], students: [],
     student_videos: [
       { id: VID, grade: '3', subject: 'Science', clean_title: 'Jangli Aur Paltu Janwar', title_ur: UR_NAME, chapter_ur: 'جانور', migration_status: 'done', superseded_by: null },
       { id: VID2, grade: '3', subject: 'Science', clean_title: 'Pani Ka Chakkar', title_ur: null, migration_status: 'done', superseded_by: null },
@@ -115,5 +115,26 @@ describe('the home\'s ranked Next: a quiz row\'s Urdu sub-line (web-quiz-next-of
   test('a row with topic_ur: sub_ur is the Urdu name; without: today\'s (sub_ur = sub)', () => {
     expect(subs(out(true))).toEqual([['Jangli Aur Paltu Janwar', UR_NAME], ['Pani Ka Chakkar', 'پانی کا چکر'], ['Fractions', 'کسر']]);
     expect(subs(out(false))).toEqual([['Jangli Aur Paltu Janwar', 'Jangli Aur Paltu Janwar'], ['Pani Ka Chakkar', 'Pani Ka Chakkar'], ['Fractions', 'Fractions']]);
+  });
+});
+
+describe('"My scores" (me): a video lesson\'s rows carry topic_ur', () => {
+  const T = require('../../../shared/services/quiz/web-quiz-token');
+  const KID = '44444444-4444-4444-8444-444444444481';
+  const sit = (id, quiz, sc, at) => ({ id, quiz_id: quiz, share_code_id: sc, student_id: KID, student_name: 'Zara Testwala', status: 'completed', correct_answers: 1, total_questions_answered: 2, mastery_percentage: 50, completed_at: ago(at), created_at: ago(at), invited_by_student_id: null, user_id: null });
+  // a finished sitting on the lesson's code (the code names its video) and one on the quiz with no video
+  const withScores = (on) => seed(on, { scVid: VID, sessions: [sit('s-v', QV, 'sc-v', 2), sit('s-t', QT, 'sc-t', 3)] });
+  test('on: the lesson\'s row has its Urdu name; the quiz with no video has none', async () => {
+    withScores(true);
+    const out = await WQ.me({ code: 'VID001', chips: [T.chipId('sc-v', KID)] });
+    expect(out.history.length).toBe(2);
+    expect(out.history[0].topic_ur).toBe(UR_NAME);
+    expect(out.history[1]).not.toHaveProperty('topic_ur');
+  });
+  test('off: today\'s rows, no topic_ur', async () => {
+    withScores(false);
+    const out = await WQ.me({ code: 'VID001', chips: [T.chipId('sc-v', KID)] });
+    expect(out.history.length).toBe(2);
+    expect(JSON.stringify(out)).not.toContain('topic_ur');
   });
 });
