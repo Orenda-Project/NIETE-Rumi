@@ -144,3 +144,10 @@ describe('an English quiz on an Urdu page (the look on): the answer options', ()
     expect(none).not.toContain('wq-lab" dir');
   });
 });
+
+describe('an English line in the feedback bubble on an Urdu page (the look on): the Latin face and line height', () => {
+  const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  test('a dir=ltr line in the bubble (lead, why) sets in the Latin face at 1.4, left-aligned, over the Urdu why rules', () => {
+    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-fb \[dir=ltr\]\{[^}]*font-family:var\(--f\)[^}]*line-height:1\.4[^}]*text-align:left/);
+  });
+});
