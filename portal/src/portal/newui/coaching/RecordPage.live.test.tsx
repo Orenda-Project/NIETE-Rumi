@@ -67,6 +67,7 @@ import { latestUnsent } from "../../lib/recordingStore";
 import { takeHandedOffRecording } from "../../lib/lessonHandoff";
 import { RecordingSessionProvider, useRecordingSession } from "../../lib/recordingSession";
 import { resetNewUiMemory } from "../../lib/useNewUi";
+import { forgetLiveHold } from "./useLiveMoves";
 import PortalCoachingRecord from "../../pages/PortalCoachingRecord";
 
 const api = portal as unknown as Record<string, ReturnType<typeof vi.fn>>;
@@ -98,6 +99,7 @@ const RECENT = [
 beforeEach(() => {
   vi.clearAllMocks();
   resetNewUiMemory();
+  forgetLiveHold();
   takeHandedOffRecording();
   api.getConfig.mockResolvedValue({ success: true, features: { assessmentGenerator: false, assessmentGeneratorMessage: null, selfObservation: true, newUi: true } });
   vi.mocked(latestUnsent).mockResolvedValue(null);
@@ -214,5 +216,22 @@ describe("group D: pick the lesson before Record", () => {
     expect(api.startCoachingUpload.mock.calls[0][0].liveMoves).toMatchObject({
       lessonId: "g4-sci-ch2-seg3", liveId: "rec-1", moves: [{ idx: 0, covers: ["m1"], tickedAtMs: null }],
     });
+  });
+
+  it("a card → the moves list replaces the Lesson plans row, stays on check, and her tap goes with the lesson", async () => {
+    api.liveCard.mockResolvedValue({ on: true, card: CARD });
+    renderPage({ start: "record" });
+    fireEvent.click(await within(await screen.findByTestId("record-pick")).findByText("Leaves make food"));
+    await screen.findByTestId("live-moves");
+    expect(screen.queryByTestId("record-lesson-plans")).toBeNull();
+    fireEvent.click(screen.getByTestId("live-move-0"));
+    fireEvent.click(screen.getByRole("button", { name: "I did this" }));
+    const send = await finishAndCheck();
+    expect(screen.getByTestId("live-moves")).toBeTruthy();
+    fireEvent.click(send);
+    await waitFor(() => expect(api.startCoachingUpload).toHaveBeenCalled());
+    expect(api.startCoachingUpload.mock.calls[0][0].liveMoves.taps).toEqual([
+      expect.objectContaining({ idx: 0, choice: "did", live_state: "unticked" }),
+    ]);
   });
 });
