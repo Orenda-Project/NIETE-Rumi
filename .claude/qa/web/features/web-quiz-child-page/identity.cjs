@@ -29,7 +29,7 @@ const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
 on('WQ011', 'off', async (page, ctx) => {
   // A child remembered on this phone is listed once: finish the first quiz, open the next, "Not <first>?" → Whose turn
   await L.setMode(ctx, page, 'off');
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Nadia');
+  await L.finishFast(page, ctx, CODES.OPEN, 'Nadia');
   await openQuiz(page, ctx, CODES.NEXT);
   expect((await inner(page, '#wq-play-as')) === 'Play as Nadia', 'the next quiz does not offer Play as Nadia');
   await page.click('#wq-notme');

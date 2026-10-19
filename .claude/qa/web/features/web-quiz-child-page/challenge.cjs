@@ -38,8 +38,7 @@ async function ensureProvenance(ctx) {
 }
 async function child(page, ctx, code, name) {
   await ensureProvenance(ctx);
-  await L.finishAsNew(page, ctx, code, name);
-  const st = (await L.stored(page, 'wq_s_' + code)).st;
+  const { st } = await L.finishFast(page, ctx, code, name);
   expect(st, 'no session token after the finish');
   return st;
 }
@@ -107,8 +106,7 @@ on('WQ097', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   const hub = async (code, name) => {
     await page.evaluate(() => localStorage.clear()).catch(() => {});
-    await L.finishAsNew(page, ctx, code, name);
-    await page.click('#wq-card'); await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
+    await L.finishFast(page, ctx, code, name);
     await page.click('#wq-hubdoor'); await page.waitForURL(/\/h\//, { timeout: WAIT });
     await page.waitForSelector(onScreen('H2'), { state: 'attached', timeout: WAIT });
     return Boolean(await page.$('#wq-h-ch'));

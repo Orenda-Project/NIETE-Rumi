@@ -12,7 +12,7 @@ on('WQ135', 'off', async (page, ctx) => {
   // (one remembered child lands on "Play as <name>" instead). Not a class-list name: that takes the confirm path.
   const hina = await L.chipFor(ctx, CODES.OPEN, 'Hina Testwala');
   await L.remember(page, ctx, [{ chip: hina.chip, first: hina.first, animal: hina.animal }]);
-  await finishAsNew(page, ctx, CODES.OPEN, 'Tooba135');
+  await L.finishFast(page, ctx, CODES.OPEN, 'Tooba135');
   const before = await L.rows(ctx, "select q.id, row_to_json(q)::text from quiz_sessions q join students s on s.id = q.student_id where s.student_name = 'Tooba135' and q.share_code_id = (select id from quiz_share_codes where code = " + q(CODES.OPEN) + ') order by q.created_at desc limit 1');
   expect(before.length, 'no finished session for Tooba');
   // the page reopens on Tooba's card
