@@ -68,6 +68,10 @@
     var ev = ctx.ev || function () {};
     var muted = (opts && typeof opts.muted === 'function') ? opts.muted : function () { return false; };
     st = { root: root, B: B, ctx: ctx, w: w, t: t, lang: lang, form: form, ev: ev, muted: muted, next: next, at: now(), step: 0, timers: [], unlocked: isReplay, el: null, replay: isReplay };
+    // design-qa WF-2: the Home is held at its top while the welcome is up (a child who had scrolled, or a page that came
+    // back scrolled, would show the dimmed home with no Next stop and no trail); only step 3 and 4 move it, and only
+    // as far as they must. Skip's row is measured once, there.
+    hold();
     var o = document.createElement('div');
     o.setAttribute('class', 'wqw');
     o.setAttribute('role', 'dialog');
@@ -106,6 +110,7 @@
   // so they start ≥ 8 px under Skip; the card's own margin comes back at the end.
   var SKIP_H = 48;
   function room() {
+    if (st.scrolled) return; // after a step scrolled the Home, the card stays where Skip's row first put it
     var r = rectOf(st.next);
     if (!r) return;
     var tag = st.next.querySelector ? st.next.querySelector('.wqa-bub') : null;
@@ -123,17 +128,59 @@
     var r = st.el && st.el.querySelector ? rectOf(st.el.querySelector('.wqw-skip')) : null;
     return r && r.height > 0 ? r.bottom : topRow() + SKIP_H;
   }
-  // step 4 on a short screen: the page scrolls just enough for the whole card, never under Skip's row
+  function hold() {
+    var de = document.documentElement;
+    st.ov = de && de.style ? de.style.overflow : '';
+    try { window.scrollTo(0, 0); } catch (e) {}
+    try { de.style.overflow = 'hidden'; } catch (e) {}
+    st.row = null;
+    st.row = topRow();
+  }
+  // the top of what is fixed at the bottom of the screen (the Home's tab bar), else the screen's bottom
+  function floor() {
+    var b = st.root.querySelector ? rectOf(st.root.querySelector('.wq-doors')) : null;
+    return b && b.height > 0 && b.top < vh() && !st.nobar ? b.top : vh();
+  }
+  function scrollBy(by) {
+    if (!by) return;
+    try { window.scrollBy(0, by); } catch (e) {}
+    st.scrolled = true;
+  }
+  // step 3: the lands it lights are on screen, above the tab bar (scrolled only as far as that takes)
+  function showLands(lands) {
+    var bottom = 0;
+    Array.prototype.forEach.call(lands || [], function (l) { var r = rectOf(l); if (r && r.bottom > bottom) bottom = r.bottom; });
+    var by = Math.ceil(bottom - (floor() - 8));
+    if (by > 0) scrollBy(by);
+  }
+  // step 4 (design-qa WF-1): the page scrolls only until Let's go's bottom clears the tab bar by 8 px; a Home scrolled
+  // further (step 3) comes back so the card starts under Skip's row. A page too short to scroll that far: the tab bar
+  // steps aside while the welcome is up. The hand is drawn from Let's go's rect after this.
   function reveal() {
-    var r = rectOf(st.next);
-    if (!r || !(r.bottom > vh() - 8)) return;
-    var tag = st.next.querySelector ? st.next.querySelector('.wqa-bub') : null;
-    var tr = tag ? rectOf(tag) : null;
-    var top = Math.min(r.top, tr && tr.height > 0 ? tr.top : r.top);
-    var by = Math.min(r.bottom - vh() + 16, top - (skipBottom() + 8));
-    if (by > 0) { try { window.scrollBy(0, by); } catch (e) {} }
+    var g = primary();
+    if (!g) return;
+    var by = Math.ceil(g.bottom - (floor() - 8));
+    if (by <= 0) {
+      var r = rectOf(st.next), tag = st.next.querySelector ? st.next.querySelector('.wqa-bub') : null, tr = tag ? rectOf(tag) : null;
+      var top = r ? Math.min(r.top, tr && tr.height > 0 ? tr.top : r.top) : 0;
+      var up = Math.floor(top - (skipBottom() + 8));
+      if (up < 0) by = Math.max(up, by);
+    }
+    if (by) scrollBy(by);
+    g = primary();
+    if (g && g.bottom > floor() - 8) {
+      var bar = st.root.querySelector ? st.root.querySelector('.wq-doors') : null;
+      if (bar && bar.classList) { bar.classList.add('wqw-nobar'); st.nobar = bar; }
+      var more = Math.ceil(g.bottom - (vh() - 8));
+      if (more > 0) scrollBy(more);
+    }
+  }
+  function primary() {
+    var g = rectOf(st.next.querySelector && st.next.querySelector('.wq-ngo'));
+    return g && g.width > 0 ? g : rectOf(st.next);
   }
   function topRow() {
+    if (st.row != null) return st.row;
     var h = rectOf(st.root.querySelector('.wq-hhead'));
     return Math.round((h && h.bottom ? h.bottom : 0) + 8);
   }
@@ -195,6 +242,7 @@
       voice('3');
       var lands = st.root.querySelectorAll('.wqa-stop');
       if (!lands || !lands.length) lands = st.root.querySelectorAll('.wq-door');
+      showLands(lands);
       Array.prototype.forEach.call(lands || [], function (l, i) {
         later(function () { l.classList.add('wqw-lit'); draw(t.lands, '', rectOf(l)); }, i * 1000);
         later(function () { l.classList.remove('wqw-lit'); }, i * 1000 + 1000);
@@ -226,6 +274,8 @@
     s.next.removeEventListener('click', letsGo, true);
     s.next.classList.remove('wqw-up');
     if (s.pushed) s.next.style.marginTop = '';
+    try { document.documentElement.style.overflow = s.ov || ''; } catch (e) {}
+    if (s.nobar) s.nobar.classList.remove('wqw-nobar');
     if (s.el.parentNode) s.el.parentNode.removeChild(s.el);
     st = null;
     if (s.replay) return;
