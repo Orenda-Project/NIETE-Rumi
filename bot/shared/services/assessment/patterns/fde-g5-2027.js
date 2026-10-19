@@ -194,6 +194,7 @@ const MATHS = {
   name_en: 'Mathematics',
   name_ur: 'ریاضی', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 10, Understand: 50, Apply: 40 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -342,6 +343,7 @@ const SCIENCE = {
   name_en: 'Science',
   name_ur: 'سائنس', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 30, Understand: 30, Apply: 40 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -499,6 +501,7 @@ const ENGLISH = {
   name_en: 'English',
   name_ur: 'انگریزی', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 40, Understand: 30, Apply: 30 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -721,6 +724,7 @@ const URDU = {
   name_en: 'Urdu',
   name_ur: 'اردو',
   total_marks: 100,
+  tos: { Remember: 30, Understand: 30, Apply: 40 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -996,6 +1000,7 @@ const SST = {
   name_en: 'Social Studies',
   name_ur: 'معاشرتی علوم', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 30, Understand: 40, Apply: 30 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
