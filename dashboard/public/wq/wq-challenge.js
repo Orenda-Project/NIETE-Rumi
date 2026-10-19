@@ -27,6 +27,8 @@
   function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   var JUG = '/wq/jugnu/';
   // Listen's speaker under the adventure look (drawn in currentColor: the land's edge)
+  // Replay (under the look only): a drawn icon, never the ↻ glyph, which the Urdu face draws like «ج»
+  var RE_SVG = '<svg class="wqc-ric" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="vertical-align:-4px"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>';
   var SPK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
 
   var T = {
@@ -712,7 +714,7 @@
         + '<circle class="wqc-lfill" id="wqc-lbar" cx="60" cy="60" r="' + listen.R + '" stroke-dasharray="' + c + '" stroke-dashoffset="' + c + '"/></svg>'
         + '<span class="wqc-lspk">' + SPK_SVG + '</span></div>'
         + '<p class="wqc-lof" id="wqc-lof" aria-live="polite">' + esc(listen.of(1)) + '</p></div>'
-        + '<div class="wqc-sticky"><button class="wq-btn wq-soft wqc-replay" id="wqc-replay" type="button">↻ ' + esc(t.listenReplay) + '</button></div>');
+        + '<div class="wqc-sticky"><button class="wq-btn wq-soft wqc-replay" id="wqc-replay" type="button">' + RE_SVG + ' ' + esc(t.listenReplay) + '</button></div>');
       return true;
     },
     // "1 of 2": Urdu digits in Urdu (prose, no keypad on this screen)

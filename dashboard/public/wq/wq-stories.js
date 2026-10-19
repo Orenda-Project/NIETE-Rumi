@@ -31,6 +31,8 @@
     slow: sv('M3 16a9 7 0 0 1 18 0zm17-3a2 2 0 1 0 2.5-2.5zM6 16v3h3v-3zm9 0v3h3v-3z'),
     prev: sv('M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z'), next: sv('M8.6 7.4 10 6l6 6-6 6-1.4-1.4 4.6-4.6z'),
   };
+  // the look (wq.css .wqs-re)
+  function adv() { try { return document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
   var cache = {}, opened = {}, codes = {}, cur = null;
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -285,7 +287,7 @@
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
   // the player (and lr3's live reader) come with the book
-  var got = {}, RA_V = '85ba126951';   // the player's content hash (a test pins it)
+  var got = {}, RA_V = '64569caa64';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
@@ -520,7 +522,7 @@
     function extra() {
       var s = m.st, p = P[m.i], a = m.alt(), h = R.ex ? R.ex(s, p) : '';
       if (a) h = '<button class="wqs-sec" data-tap="alt"' + (a === 'hearFirst' ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[a]) + '</button>' + h;
-      if (p.audio && /^(listened|paused|read|practise)$/.test(s)) h += '<button class="wqs-again" data-tap="again" data-sound data-trigger="tap">↻ ' + esc(t.again) + '</button>';
+      if (p.audio && /^(listened|paused|read|practise)$/.test(s)) h += '<button class="wqs-again" data-tap="again" data-sound data-trigger="tap">' + (adv() ? '<i class="wqs-re"></i>' : '↻') + ' ' + esc(t.again) + '</button>';
       return h;
     }
     function sync() {

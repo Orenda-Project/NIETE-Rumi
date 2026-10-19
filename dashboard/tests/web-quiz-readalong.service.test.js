@@ -675,3 +675,17 @@ describe('read-along player: tap a word to hear its sentence again (tap: \'sente
     at(2600); expect(lit(el)).toEqual(['3']);
   });
 });
+
+describe('the round button names its state for the look (data-ic)', () => {
+  test('play → pause while playing → replay at the end; the glyphs are today\'s', () => {
+    const { RA, document, at } = load();
+    const el = document.createElement('div');
+    const p = RA.mount(el, DATA, {});
+    const btn = byClass(el, 'wqra-btn')[0];
+    expect([btn.getAttribute('data-ic'), btn.textContent]).toEqual(['play', '▶']);
+    p.play();
+    expect([btn.getAttribute('data-ic'), btn.textContent]).toEqual(['pause', '❚❚']);
+    at(3000); at(4000);
+    expect([btn.getAttribute('data-ic'), btn.textContent]).toEqual(['replay', '↻']);
+  });
+});

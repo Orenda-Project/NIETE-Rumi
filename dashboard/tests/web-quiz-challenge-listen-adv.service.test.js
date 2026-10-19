@@ -89,7 +89,8 @@ test('look on: Jugnu listening, the ring, "1 of 2" and Replay; never the lone gr
   expect(h).toMatch(/<img[^>]*src="\/wq\/jugnu\/thinking\.webp"/);
   expect(h).toMatch(/id="wqc-lbar"/);
   expect(h).toMatch(/id="wqc-lof"[^>]*>1 of 2</);
-  expect(h).toMatch(/id="wqc-replay"[^>]*>[^<]*Replay</);
+  expect(h).toMatch(/id="wqc-replay"[^>]*><svg class="wqc-ric"[^>]*>.*?<\/svg> Replay</);
+  expect(h).not.toContain('↻');
   expect(h).toContain('id="wqc-say"');
   expect(h).not.toContain('wqc-ear');
 });
@@ -163,7 +164,8 @@ test('look on, Urdu: «۲ میں سے ۱» in Urdu digits and «دوبارہ س�
   await toPlay(p);
   const h = p.html();
   expect(h).toMatch(/id="wqc-lof"[^>]*>۲ میں سے ۱</);
-  expect(h).toMatch(/id="wqc-replay"[^>]*>[^<]*دوبارہ سنیں</);
+  expect(h).toMatch(/id="wqc-replay"[^>]*><svg class="wqc-ric"[^>]*>.*?<\/svg> دوبارہ سنیں</);
+  expect(h).not.toContain('↻');
   expect(h).not.toMatch(/\b(test|exam|assessment)\b|ٹیسٹ|امتحان|جائزہ/i);
 });
 
