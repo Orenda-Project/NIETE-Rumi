@@ -117,7 +117,7 @@ function agreedSyllables(tree) {
 // ── 1. A place the lessons 1–3 filter empties is asked again once ─────────────────────────────
 
 describe.each([
-  ['r18-urdu-refused-full1', 'local full_1'],
+  ['r18-urdu-refused-full1', 'gen-local full_1'],
   ['r18-urdu-refused-chapters1', 'reader round 2 chapters_1 (lessons 4–5)'],
 ])('%s (%s): C.Q8 quotes an everyday phrase the held lessons also print', (name) => {
   const rec = fixture(name);

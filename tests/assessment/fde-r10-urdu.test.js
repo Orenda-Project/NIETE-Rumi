@@ -258,7 +258,7 @@ describe('lessons 4–5 through generatePatternExam', () => {
   });
 });
 
-// An earlier lessons 4–5 sandbox paper built only because Q6's verses alternative printed
+// qa-papers-r5u2's lessons 4–5 sandbox paper built only because Q6's verses alternative printed
 // four sentences of lesson-4 prose (reworded) under «درج ذیل اشعار کا مفہوم واضح کریں». Q6's
 // lines must come from the poem's own pages: an item whose lines do not is taken out before the
 // first layout, so Section C is asked once more; a second prose reply leaves the slot short.
