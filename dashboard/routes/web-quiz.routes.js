@@ -49,6 +49,7 @@ const { securityOf } = require('./edge-security-headers');
 const WaitUx = require('./web-quiz-wait-ux');
 const Hop = require('./web-quiz-fast-hop');
 const HomeInline = require('./web-quiz-home-inline');
+const EarlyUnlock = require('./web-quiz-early-unlock');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 // The child home's pack (web_quiz_pack): its versions and bodies over this folder's files, kept for the process.
@@ -405,7 +406,8 @@ const FACE_LITE_STYLE = `<style id="wq-fl">@font-face{font-family:"WQ Nastaliq 2
 html.wq-fl.wq-ur2[lang=ur]{--fu:"WQ Nastaliq 2L","WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}</style>`;
 
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
-function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg', carry = null }) {
+// `first`: a script the fast first page's head runs before anything else (web_quiz_early_unlock), else nothing.
+function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, imageType = 'image/jpeg', carry = null, first = '' }) {
   const img = image || `${origin}${brand.og.image}`;
   // web_quiz_one_face on: ONE face for both looks, so the preload below names the polished one either way (urduLook).
   const { ur2, cls, URDU_FONT, fl } = urduLook(ui, lang);
@@ -415,7 +417,7 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui, i
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
+${first}<meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="${esc(brand.tokens.theme)}">
 <title>${esc(title)}</title>
 <meta property="og:type" content="website">
@@ -841,7 +843,7 @@ function listenTag(payload) {
 
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
-function hubPageParts({ payload, token, origin, assetV, headPack, plain = null, carry = null }) {
+function hubPageParts({ payload, token, origin, assetV, headPack, plain = null, carry = null, first = '' }) {
   const lang = plain ? plain.lang : payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const title = plain ? plainText(brand).title : HUB_TITLE[lang];
@@ -865,9 +867,11 @@ function hubPageParts({ payload, token, origin, assetV, headPack, plain = null, 
   if (answer) HomePre.learn(payload, Pack.on(payload) ? (payload.home_fb ? homeTags(payload, assetV) : '') : fileTags(false), assetV);
   // web_quiz_home_inline: the scripts this answer's tail names, for the next head that carries them (web-quiz-home-inline.js)
   if (answer) INLINE.learn(payload, fileTags(false));
+  // web_quiz_early_unlock: a locked answer teaches it too (web-quiz-early-unlock.js)
+  if (answer) EarlyUnlock.learn(payload);
   return {
     lang, dir: plainDir(lang), ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title, bootsay,
-    head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui, carry })}${answer || carry ? '' : HomePre.head()}`,
+    head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui, carry, first })}${answer || carry ? '' : HomePre.head()}`,
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(bootsay)}</p></div></main>${WaitUx.tag(payload)}`,
@@ -895,7 +899,7 @@ ${p.tail}`;
 // whether ?lang= wins), so no words; the language and direction from ?lang= when it has one.
 // web_quiz_home_inline (`inline`: this edge learned it and the phone does not hold the files): the head carries the
 // stylesheets and scripts in place of their tags and preloads (web-quiz-home-inline.js); the tail runs them.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false, waitHome = false, plain = false, linkLang = null, pack = null, inline = false }) {
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false, waitHome = false, plain = false, linkLang = null, pack = null, inline = false, hasDevice = true }) {
   const headRun = [];
   const advJs = `/wq/wq-adv.js?v=${advVersion()}`;
   const carry = inline ? {
@@ -906,7 +910,8 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
       return `${INLINE.headCss(`/wq/wq-adventure.css?v=${advVersion()}`)}${js || `<script src="${advJs}" defer></script>\n`}`.trimEnd();
     },
   } : null;
-  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}), ...(waitUx && waitShare ? { wait_share: true } : {}), ...(waitUx && waitHops ? { wait_hops: true } : {}) }, token, origin, assetV, plain: plain ? { lang: plainLang(linkLang) } : null, carry });
+  const first = EarlyUnlock.head(token, { hasDevice });
+  const p = hubPageParts({ payload: { lang, brand: brandKey, ui, ...(waitUx ? { wait_ux: true } : {}), ...(waitUx && waitShare ? { wait_share: true } : {}), ...(waitUx && waitHops ? { wait_hops: true } : {}) }, token, origin, assetV, plain: plain ? { lang: plainLang(linkLang) } : null, carry, first });
   const carried = inline ? INLINE.headJs(assetV) : null;
   // the carried scripts ride after the frame (and the kept Home), so those paint as soon as the styles are in
   const preload = carried ? '' : [...(pack ? PACK.preloads(pack) : []), ...(pack ? ['hub.js'] : ['wq-tel.js', 'hub.js']).map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`)].join('\n');
@@ -914,7 +919,7 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
   const home = waitUx && waitHome ? `${WaitUx.homeTag(token, p.lang, assetV)}\n` : '';
   // The home's next files and first reads, started from here (web-quiz-fast-hop.js): the head reads the hash on the phone.
   const inl = carried ? { headRun, carried: carried.hrefs } : null;
-  return { guess: { ...p, headPack: Boolean(pack) && !carried, inline: inl }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}` };
+  return { guess: { ...p, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
@@ -1588,7 +1593,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops, waitHome: lastWaitHome, plain: lastPlain, linkLang: req.query.lang, pack: lastPack, inline: INLINE.wants(req, version()) })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops, waitHome: lastWaitHome, plain: lastPlain, linkLang: req.query.lang, pack: lastPack, inline: INLINE.wants(req, version()), hasDevice: Boolean(deviceCookie(req)) })
       : null;
     if (flush && lastPlain) firstHead('h', plainLang(req.query.lang) ? 'lang' : 'miss');
     const wire = flush ? flushWire(req, res, flush.html) : null;
@@ -1601,6 +1606,9 @@ function createWebQuizRouter(opts = {}) {
       if (busy(req, res, null, away())) return undefined;
       return closed(502, 'off', away());
     }
+    // web_quiz_early_unlock: this head already asked as the phone, so its locked render is drawn in the last child's shape
+    // (the home's files and look, never a name; still locked) and the answer draws at once (web-quiz-early-unlock.js)
+    if (flush && flush.guess.early && out.status === 200 && out.body && out.body.locked === true) out = { ...out, body: EarlyUnlock.shaped(out.body) };
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out, inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
