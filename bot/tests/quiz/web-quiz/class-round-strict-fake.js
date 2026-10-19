@@ -43,4 +43,8 @@ function strictFrom(fake) {
   };
 }
 
-module.exports = { strictFrom, DRAW_COLS };
+// The school break list the term draw requires (app_settings web_quiz_term_breaks, PKT dates, `to` inclusive): two
+// one-day breaks clear of every round window and class week the class round's tests draw with.
+const TERM_BREAKS = Object.freeze({ key: 'web_quiz_term_breaks', value: [{ from: '2026-11-09', to: '2026-11-09' }, { from: '2027-08-14', to: '2027-08-14' }] });
+
+module.exports = { strictFrom, DRAW_COLS, TERM_BREAKS };

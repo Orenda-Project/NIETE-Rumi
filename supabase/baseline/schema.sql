@@ -4225,6 +4225,7 @@ CREATE TABLE public.lesson_plan_requests (
     error_code text,
     correlation_id text,
     CONSTRAINT lesson_plan_requests_channel_check CHECK (((channel IS NULL) OR (channel = ANY (ARRAY['whatsapp'::text, 'portal'::text])))),
+    CONSTRAINT lesson_plan_requests_error_code_check CHECK (((error_code IS NULL) OR (error_code = ANY (ARRAY['GENERATION_FAILED'::text, 'RENDER_FAILED'::text, 'DELIVERY_FAILED'::text, 'QUEUE_FAILED'::text, 'NO_ASSET'::text, 'NOT_ELIGIBLE'::text])))),
     CONSTRAINT lesson_plan_requests_source_check CHECK (((source IS NULL) OR (source = ANY (ARRAY['gamma_standard'::text, 'gamma_enriched'::text, 'ug_lp'::text, 'ps_pregen'::text, 'v7_segment'::text, 'v7_chapter'::text, 'gamma_chapter'::text, 'pre_gen_chapter'::text, 'homework_bundle'::text, 'pic_to_lp_kieai'::text, 'kenya_browse'::text, 'multigrade_lp'::text, 'niete_grounded'::text, 'niete_v8_segment'::text, 'niete_lp612'::text, 'niete_oxbridge'::text, 'niete_portal_share'::text])))),
     CONSTRAINT lesson_plan_requests_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
 );
@@ -4621,15 +4622,28 @@ CREATE MATERIALIZED VIEW public.mv_dashboard_stats_by_country AS
           GROUP BY ("left"((u.phone_number)::text, 2))
         ), feature_stats AS (
          SELECT "left"((u.phone_number)::text, 2) AS country_code,
-            count(DISTINCT lp.id) AS lesson_plans,
-            count(DISTINCT cs.id) AS coaching_sessions,
-            count(DISTINCT ra.id) AS reading_assessments,
-            count(DISTINCT vr.id) AS video_requests
+            (COALESCE(sum(lp.n), (0)::numeric))::bigint AS lesson_plans,
+            (COALESCE(sum(cs.n), (0)::numeric))::bigint AS coaching_sessions,
+            (COALESCE(sum(ra.n), (0)::numeric))::bigint AS reading_assessments,
+            (COALESCE(sum(vr.n), (0)::numeric))::bigint AS video_requests
            FROM ((((public.users u
-             LEFT JOIN public.lesson_plan_requests lp ON ((lp.user_id = u.id)))
-             LEFT JOIN public.coaching_sessions cs ON ((cs.user_id = u.id)))
-             LEFT JOIN public.reading_assessments ra ON ((ra.user_id = u.id)))
-             LEFT JOIN public.video_requests vr ON ((vr.user_id = u.id)))
+             LEFT JOIN ( SELECT lesson_plan_requests.user_id,
+                    count(*) AS n
+                   FROM public.lesson_plan_requests
+                  WHERE ((lesson_plan_requests.source IS NULL) OR (lesson_plan_requests.delivered_at IS NOT NULL))
+                  GROUP BY lesson_plan_requests.user_id) lp ON ((lp.user_id = u.id)))
+             LEFT JOIN ( SELECT coaching_sessions.user_id,
+                    count(*) AS n
+                   FROM public.coaching_sessions
+                  GROUP BY coaching_sessions.user_id) cs ON ((cs.user_id = u.id)))
+             LEFT JOIN ( SELECT reading_assessments.user_id,
+                    count(*) AS n
+                   FROM public.reading_assessments
+                  GROUP BY reading_assessments.user_id) ra ON ((ra.user_id = u.id)))
+             LEFT JOIN ( SELECT video_requests.user_id,
+                    count(*) AS n
+                   FROM public.video_requests
+                  GROUP BY video_requests.user_id) vr ON ((vr.user_id = u.id)))
           WHERE (COALESCE(u.is_test_user, false) = false)
           GROUP BY ("left"((u.phone_number)::text, 2))
         )
@@ -4651,6 +4665,13 @@ CREATE MATERIALIZED VIEW public.mv_dashboard_stats_by_country AS
      LEFT JOIN message_stats ms ON ((ms.country_code = us.country_code)))
      LEFT JOIN feature_stats fs ON ((fs.country_code = us.country_code)))
   WITH NO DATA;
+
+
+--
+-- Name: MATERIALIZED VIEW mv_dashboard_stats_by_country; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON MATERIALIZED VIEW public.mv_dashboard_stats_by_country IS 'Country stats for the NIETE portal, refreshed concurrently every 5 minutes. total_lesson_plans = lesson_plan_requests rows asked before the lifecycle (source IS NULL) + lifecycle asks delivered (delivered_at IS NOT NULL). Activity tables are counted per user before the join (V1.6.11).';
 
 
 --
@@ -9556,6 +9577,12 @@ CREATE INDEX idx_lp_opens_user_recent ON public.niete_lp_opens USING btree (user
 
 
 --
+-- Name: idx_lp_requests_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp_requests_created ON public.lesson_plan_requests USING btree (created_at DESC) WHERE (source IS NOT NULL);
+
+--
 -- Name: idx_lp_requests_source_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9654,11 +9681,23 @@ CREATE UNIQUE INDEX idx_mv_view_refresh_status_pk ON public.mv_view_refresh_stat
 
 
 --
+-- Name: idx_niete_lp612_deliveries_request_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_niete_lp612_deliveries_request_id ON public.niete_lp612_deliveries USING btree (request_id) WHERE (request_id IS NOT NULL);
+
+--
 -- Name: idx_niete_lp_asset_sources_lesson; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_niete_lp_asset_sources_lesson ON public.niete_lp_asset_sources USING btree (lesson_id);
 
+
+--
+-- Name: idx_niete_lp_downloads_request_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_niete_lp_downloads_request_id ON public.niete_lp_downloads USING btree (request_id) WHERE (request_id IS NOT NULL);
 
 --
 -- Name: idx_niete_lp_fidelity_moves_lesson; Type: INDEX; Schema: public; Owner: -

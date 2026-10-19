@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { fixtureCoaching, fixtureObservations, fixtureResponse, REGION_ORDER } from "./fixtures";
+import { fixtureCoaching, fixtureLpEngagement, fixtureObservations, fixtureResponse, REGION_ORDER } from "./fixtures";
 import { fixtureTrainingLevels } from "./trainingLevelsFixture";
 import { sortSchools } from "./table";
+import { SchoolsList } from "./SchoolsList";
+import { analyticsCopy } from "./copy";
 
 /**
  * bd-97x22y.2 — the schools analytics page in the ICT dashboard's structure (PLAN v6): six tabs (a sidebar on a
@@ -21,6 +23,7 @@ const h = vi.hoisted(() => ({
   // bd-97x22y.4 — the Trainings tab's own read (views/TrainingTab.test.tsx covers the tab)
   getTrainingLevels: vi.fn(),
   getObservations: vi.fn(),
+  getLpEngagement: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -33,7 +36,7 @@ vi.mock("../hooks/useAuth", () => ({
 }));
 vi.mock("../services/api", async (orig) => ({
   ...(await orig<typeof import("../services/api")>()),
-  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching },
+  analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching, getLpEngagement: h.getLpEngagement },
   trainingLevelsAnalytics: { get: h.getTrainingLevels },
   observationsAnalytics: { get: h.getObservations },
 }));
@@ -85,6 +88,7 @@ beforeEach(() => {
   setWidth(1440);
   h.getSchools.mockImplementation(async (p: Params) => fixtureResponse(p));
   h.getCoaching.mockImplementation(async (p: Params) => fixtureCoaching(p));
+  h.getLpEngagement.mockImplementation(async (p: { from?: string | null; to?: string | null; region?: string | null; band?: "primary" | "midhigh" }) => fixtureLpEngagement(p));
   h.getTrainingLevels.mockImplementation(async (p: { region: string | null; band: "primary" | "midhigh" }) => fixtureTrainingLevels(p));
   h.getObservations.mockImplementation(async (p: Params) => fixtureObservations(p));
 });
@@ -99,7 +103,7 @@ describe("loading the page", () => {
 
   it("a window and region in the address are what it asks for", async () => {
     renderPage("/lp?from=2026-09-01&to=2026-09-30&region=Sihala");
-    await screen.findByTestId("tile-lpsOpened");
+    await screen.findByTestId("tile-lpOverall");
     expect(h.getSchools).toHaveBeenCalledWith({ from: "2026-09-01", to: "2026-09-30", region: "Sihala" });
   });
 
@@ -130,7 +134,7 @@ describe("loading the page", () => {
     h.getSchools.mockRejectedValue({ response: { status: 500 } });
     renderPage("/lp");
     expect(await screen.findByTestId("analytics-error")).toBeInTheDocument();
-    expect(screen.queryByTestId("tile-lpsOpened")).toBeNull();
+    expect(screen.queryByTestId("tile-lpOverall")).toBeNull();
   });
 });
 
@@ -179,7 +183,7 @@ describe("the frame: six tabs, her order", () => {
 
   it("the region and the period go with her to every tab, and the numbers are not read again", async () => {
     renderPage("/lp?from=2026-09-01&to=2026-09-30&region=Sihala");
-    await screen.findByTestId("tile-lpsOpened");
+    await screen.findByTestId("tile-lpOverall");
     const search = "?from=2026-09-01&to=2026-09-30&region=Sihala";
     TAB_IDS.forEach((id) => {
       const href = within(sidebar()).getByTestId(`tab-link-${id}`).getAttribute("href");
@@ -328,99 +332,12 @@ describe("Overview", () => {
 });
 
 describe("LP Engagement", () => {
-  it("her sections, in her order", async () => {
+  // bd-97x22y.3 (PLAN v7) — her tab 1 to 1, from its own read; the tab's own tests: LpEngagement.test.tsx.
+  it("her sections, in her order, from the lp-engagement read", async () => {
     renderPage("/lp");
-    await screen.findByTestId("tile-lpsOpened");
-    expect(eyebrows()).toEqual(["Engagement overview", "Sectors — click to view school breakdown", "LPs opened by sector"]);
-  });
-
-  it("engagement overview: LPs opened, teachers who opened (x of N), regions with activity", async () => {
-    renderPage("/lp");
-    await screen.findByTestId("tile-lpsOpened");
-    expect(testIds("tile-")).toEqual(["lpsOpened", "teachersOpenedLp", "regionsActive"]);
-    expect(screen.getByTestId("tile-lpsOpened")).toHaveTextContent("661");
-    expect(screen.getByTestId("tile-lpsOpened")).toHaveTextContent("logged since 4 Oct");
-    expect(screen.getByTestId("tile-teachersOpenedLp")).toHaveTextContent("185");
-    expect(screen.getByTestId("tile-teachersOpenedLp")).toHaveTextContent("of 442 teachers");
-    expect(screen.getByTestId("tile-regionsActive")).toHaveTextContent("6");
-    expect(screen.getByTestId("tile-regionsActive")).toHaveTextContent("of 6 regions");
-  });
-
-  it("regions with activity counts the regions where at least one LP was opened", async () => {
-    h.getSchools.mockImplementation(async (p: Params) => {
-      const r = fixtureResponse(p);
-      return { ...r, regions: r.regions.map((g) => (g.region === "Nilore" || g.region === "Tarnol" ? { ...g, lpsOpened: 0, teachersOpenedLp: 0 } : g)) };
-    });
-    renderPage("/lp");
-    expect(await screen.findByTestId("tile-regionsActive")).toHaveTextContent("4");
-  });
-
-  it("six sector cards in sector order, each with LPs opened and x of N teachers on a plain bar", async () => {
-    renderPage("/lp");
-    const card = await screen.findByTestId("sector-card-Urban-I");
-    expect(testIds("sector-card-")).toEqual(SIX);
-    expect(card).toHaveTextContent("229");
-    expect(card).toHaveTextContent("68 of 135 teachers");
-    expect(within(card).getByTestId("share-bar")).toBeInTheDocument();
-  });
-
-  it("a bar chart of LPs opened per sector", async () => {
-    renderPage("/lp");
-    const chart = await screen.findByTestId("chart-lpsOpened");
-    expect(testIds("column-", chart)).toEqual(SIX);
-    expect(SIX.map((r) => within(within(chart).getByTestId(`column-${r}`)).getByTestId("bar-value").textContent)).toEqual(["59", "109", "229", "63", "95", "106"]);
-  });
-
-  it("no school table until a sector is chosen", async () => {
-    renderPage("/lp");
-    await screen.findByTestId("sector-card-B.K");
-    expect(screen.queryByTestId("breakdown")).toBeNull();
-    expect(screen.queryByTestId("schools-table")).toBeNull();
-  });
-
-  it("a sector card opens that sector's schools in place, and Back returns to all regions", async () => {
-    renderPage("/lp");
-    const user = userEvent.setup();
-    await user.click(await screen.findByTestId("sector-card-Sihala"));
-    await waitFor(() => expect(h.getSchools).toHaveBeenLastCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "Sihala" }));
-    const breakdown = await screen.findByTestId("breakdown");
-    expect(within(breakdown).getByTestId("breakdown-title")).toHaveTextContent("Sihala");
-    await waitFor(() => expect(rowNames()).toHaveLength(3));
-    const headers = within(screen.getByTestId("schools-table")).getAllByRole("columnheader").map((th) => th.textContent || "");
-    expect(headers.map((x) => x.split(/x of N|logged/)[0])).toEqual(["School", "Teachers", "LPs opened"]);
-    const row = screen.getByTestId("school-row-s-02");
-    expect(within(row).getByTestId("cell-lpsOpened")).toHaveTextContent("52");
-    expect(within(row).getByTestId("cell-lpsOpened")).toHaveTextContent("14 of 30");
-    expect(screen.getByTestId("sector-card-Sihala")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("region-chip-Sihala")).toHaveAttribute("aria-pressed", "true");
-    expect(where()).toMatch(/^\/portal\/analytics\/schools\/lp\?.*region=Sihala/);
-
-    await user.click(screen.getByTestId("breakdown-back"));
-    await waitFor(() => expect(h.getSchools).toHaveBeenLastCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "all" }));
-    expect(screen.queryByTestId("breakdown")).toBeNull();
-    expect(testIds("sector-card-")).toEqual(SIX);
-    expect(where()).not.toMatch(/region=/);
-  });
-
-  it("tapping the chosen card again also returns to all regions", async () => {
-    renderPage("/lp?region=B.K");
-    await screen.findByTestId("breakdown");
-    await userEvent.setup().click(screen.getByTestId("sector-card-B.K"));
-    await waitFor(() => expect(screen.queryByTestId("breakdown")).toBeNull());
-  });
-
-  it("a link with a region opens straight onto its breakdown, only that region's schools", async () => {
-    renderPage("/lp?region=Urban-I");
-    await screen.findByTestId("breakdown");
-    expect(rowNames()).toHaveLength(5);
-  });
-
-  it("the LP-opens note sits on the tile and the column", async () => {
-    renderPage("/lp?region=Urban-I");
-    await screen.findByTestId("schools-table");
-    const notes = screen.getAllByTestId("lp-opens-note");
-    expect(notes.length).toBeGreaterThanOrEqual(2);
-    for (const n of notes) expect(n).toHaveTextContent("logged since 4 Oct");
+    await screen.findByTestId("tile-lpOverall");
+    expect(eyebrows()).toEqual(["Engagement overview", "Teacher status", "Sectors — click to view school breakdown"]);
+    expect(h.getLpEngagement).toHaveBeenCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "all", band: "primary" });
   });
 });
 
@@ -756,8 +673,6 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
 
   it.each([
     ["", "tile-avgFico"],
-    ["/lp", "chart-lpsOpened"],
-    ["/lp?region=Urban-I", "schools-table"],
     ["/observations", "chart-sections"],
     ["/observations?region=Urban-I", "obs-schools"],
     ["/observations?obs=dc", "chart-sections"],
@@ -788,8 +703,9 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
   });
 
   it("the usage tabs carry no % at all", async () => {
-    // (Trainings shows her % passed since v7 — its own % rule is in views/TrainingTab.test.tsx)
-    for (const rest of ["/lp", "/coaching"]) {
+    // (Trainings and LP Engagement show her % since v7 — their own tests: views/TrainingTab.test.tsx,
+    // LpEngagement.test.tsx)
+    for (const rest of ["/coaching"]) {
       const { unmount } = renderPage(rest);
       await screen.findByTestId(rest === "/coaching" ? "tile-coaches" : "sector-card-B.K");
       expect(document.body.textContent).not.toMatch(/%/);
@@ -798,9 +714,20 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
   });
 });
 
+// bd-97x22y.3 — since v7 the LP tab has her own breakdown table and Observations her school rows, so only Coaching
+// (one column) still draws the shared school table. Its sort, search, paging and phone cards are checked on the
+// table itself, with the columns the v6 LP tab gave it.
+function renderList(region: string, schools = fixtureResponse({ region }).schools, phone = false) {
+  return render(
+    <MemoryRouter>
+      <SchoolsList c={analyticsCopy("en")} schools={schools} phone={phone} lpOpensNote={null} columns={["teachers", "lpsOpened"]} />
+    </MemoryRouter>,
+  );
+}
+
 describe("a sector's school table", () => {
   it("sorts by name first; a number column biggest first, then flips", async () => {
-    renderPage("/lp?region=Urban-I");
+    renderList("Urban-I");
     await waitFor(() => expect(rowNames()).toHaveLength(5));
     expect(rowNames()).toEqual(["IMCB (VI-XII) F-5/3", "IMCG (VI-XII) F-7/2", "IMCG (VI-XII) G-6/1", "IMSB (I-X) F-7/3", "IMSG (I-V) F-6/4"]);
     const user = userEvent.setup();
@@ -823,7 +750,7 @@ describe("a sector's school table", () => {
   });
 
   it("searches by school name or EMIS code", async () => {
-    renderPage("/lp?region=Urban-I");
+    renderList("Urban-I");
     await waitFor(() => expect(rowNames()).toHaveLength(5));
     const user = userEvent.setup();
     await user.type(screen.getByTestId("school-search"), "f-7");
@@ -835,7 +762,7 @@ describe("a sector's school table", () => {
   });
 
   it("a school with no EMIS shows its name alone", async () => {
-    renderPage("/lp?region=Tarnol");
+    renderList("Tarnol");
     await waitFor(() => expect(rowNames()).toHaveLength(2));
     expect(within(screen.getByTestId("school-row-s-15")).queryByTestId("school-emis")).toBeNull();
     expect(within(screen.getByTestId("school-row-s-14")).getByTestId("school-emis")).toHaveTextContent("55120");
@@ -848,8 +775,7 @@ describe("a sector's school table", () => {
   };
 
   it("shows 25 schools at a time, then 25 more", async () => {
-    h.getSchools.mockResolvedValue(many());
-    renderPage("/lp?region=Urban-I");
+    renderList("Urban-I", many().schools);
     await waitFor(() => expect(rowNames()).toHaveLength(25));
     expect(screen.getByTestId("showing")).toHaveTextContent("Showing 25 of 60");
     const user = userEvent.setup();
@@ -861,16 +787,14 @@ describe("a sector's school table", () => {
   });
 
   it("a search looks through every school, not just the ones shown", async () => {
-    h.getSchools.mockResolvedValue(many());
-    renderPage("/lp?region=Urban-I");
+    renderList("Urban-I", many().schools);
     await waitFor(() => expect(rowNames()).toHaveLength(25));
     await userEvent.setup().type(screen.getByTestId("school-search"), "School 5");
     expect(rowNames()).toEqual(["School 50", "School 51", "School 52", "School 53", "School 54", "School 55", "School 56", "School 57", "School 58", "School 59"]);
   });
 
   it("on a phone: one card per school with a sort menu of the tab's columns, no table", async () => {
-    setWidth(390);
-    renderPage("/lp?region=Urban-I");
+    renderList("Urban-I", undefined, true);
     const cards = await screen.findAllByTestId("school-card");
     expect(cards).toHaveLength(5);
     expect(screen.queryByTestId("schools-table")).toBeNull();

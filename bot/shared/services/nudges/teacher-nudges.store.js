@@ -33,10 +33,11 @@ const { logToFile } = require('../../utils/logger');
 
 const TABLE = 'teacher_nudges';
 
-/** The two kinds the V1.5.3 CHECK constraint allows. A third one is a migration. */
+/** The kinds the CHECK constraint allows (V1.5.3; V1.6.10 adds the weekly report). A new one is a migration. */
 const KINDS = Object.freeze({
   COACHING_AFTER_LP: 'coaching_after_lp',
   LP_QUIZ_OFFER: 'lp_quiz_offer',
+  WEEKLY_USAGE_REPORT: 'weekly_usage_report', // bd-v0toag.32, one row per teacher per week
 });
 
 /** The six states the V1.5.3 CHECK constraint allows. */
@@ -78,6 +79,8 @@ const SKIP_REASONS = Object.freeze([
   'sector_not_piloted',
   'not_school_day',
   'in_progress_coaching',
+  // The Meta template is not approved (or was paused); never sent as free text (bd-v0toag.32).
+  'template_not_approved',
 ]);
 
 /** What a teacher can have answered. `class:<key>` is the list-row pick. */

@@ -127,6 +127,12 @@ function extractJsonFromResponse(response) {
   // Order matters: control characters have to go before the repair patterns
   // run, or a raw newline inside a string looks like a line break between
   // properties and earns itself a comma it should never have had.
+  // A reply that already parses is taken as it is. The repairs below are patterns, and on valid
+  // JSON they can only reach inside a string ("…whole number: 39" lost its closing quote).
+  try {
+    return JSON.parse(jsonStr);
+  } catch { /* repair, then parse */ }
+
   jsonStr = fixControlCharsInStrings(jsonStr);
   jsonStr = repairJson(jsonStr);
 

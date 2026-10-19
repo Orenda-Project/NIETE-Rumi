@@ -219,7 +219,8 @@ describe('the board-pattern paper', () => {
   });
 
   it('renderer throws on review/filler text', () => {
-    for (const bad of ['needs review', 'filler', '⚠', 'مسودہ', 'اسی طرح', 'Islamabad Model School', 'MODEL PAPER FOR']) {
+    // Item text: the English markers only. «مسودہ» / «اسی طرح» in item text are real Urdu (fde-r7-render.test.js).
+    for (const bad of ['needs review', 'filler', '⚠', 'Islamabad Model School', 'MODEL PAPER FOR']) {
       const exam = mathsPaper({ mutate: (raw) => { raw.unseen.objective.MCQs[3].question = `x ${bad} y`; } });
       expect(() => paperHtml(exam)).toThrow(/REVIEW_TEXT/);
       expect(() => R.renderMarkingScheme({ examJson: exam, grade: 5, subject: 'maths' })).toThrow(/REVIEW_TEXT/);

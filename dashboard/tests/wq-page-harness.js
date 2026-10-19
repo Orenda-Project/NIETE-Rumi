@@ -20,7 +20,14 @@ function fakeEl(sel) {
   return {
     sel, listeners: {}, attrs: {}, style: {}, textContent: '', parentNode: null,
     addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); },
-    fire(n, e) { (this.listeners[n] || []).forEach((fn) => fn(e || {})); },
+    // as the browser does: a listener's stopImmediatePropagation() keeps the ones registered after it from running
+    fire(n, e) {
+      const ev = e || {};
+      let stop = false;
+      const own = ev.stopImmediatePropagation;
+      ev.stopImmediatePropagation = () => { stop = true; if (typeof own === 'function') own.call(ev); };
+      for (const fn of (this.listeners[n] || []).slice()) { fn(ev); if (stop) break; }
+    },
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return this.attrs[k]; },
     removeAttribute(k) { delete this.attrs[k]; },
@@ -31,7 +38,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {} } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {}, htmlClass = [] } = {}) {
   // tel: the page-session telemetry (wq-tel.js) loaded first, as the edge's template does, with the switch on.
   const tel = Boolean(arguments[0] && arguments[0].tel);
   const els = {};
@@ -75,8 +82,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const ctx = {
     console,
     document: {
-      // <html> as the edge renders it: lang/dir, and the Urdu polish class `wq-ur2` only for an Urdu page whose boot carries ui.ur2.
-      documentElement: { lang, dir: lang === 'ur' ? 'rtl' : 'ltr', classList: { contains: (c) => c === 'wq-ur2' && lang === 'ur' && Boolean(bootExtra.ui && bootExtra.ui.ur2 === true) } },
+      // <html> as the edge renders it: lang/dir, and the Urdu polish class `wq-ur2` only for an Urdu page whose boot carries ui.ur2;
+      // htmlClass: any other class the edge puts on <html> (the adventure look's `wq-adv`).
+      documentElement: { lang, dir: lang === 'ur' ? 'rtl' : 'ltr', classList: { contains: (c) => (c === 'wq-ur2' && lang === 'ur' && Boolean(bootExtra.ui && bootExtra.ui.ur2 === true)) || htmlClass.indexOf(c) >= 0 } },
       getElementById: (id) => (id === 'boot' ? boot : id === 'wq' ? root : id === 'wq-sheet' ? (root.innerHTML.indexOf('id="wq-sheet"') >= 0 ? sheet : null) : null),
       createElement: () => { const e = fakeEl('new'); created.push(e); return e; }, addEventListener(n, fn) { (dl[n] = dl[n] || []).push(fn); }, body: fakeEl('body'), visibilityState: 'visible',
     },
@@ -126,12 +134,16 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     const set = root.setAttribute;
     root.setAttribute = function (k, v) { set.call(this, k, v); if (k === 'data-m') obs.forEach((fn) => fn([])); };
   }
+  // wqj: a sound kit object on the page (web_quiz_juice on), set before wq.js as the edge loads the kit first.
+  if (arguments[0] && arguments[0].wqj) ctx.WQJ = arguments[0].wqj;
   vm.createContext(ctx);
   // wq-tel.js is on every page the edge renders, before wq.js: its stub (and the link helper WQT.withLang) is always
   // there; the telemetry itself runs only with `tel` (boot rt).
   vm.runInContext(TEL, ctx);
   if (lib) vm.runInContext(LIB, ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass, T: T };\n})();'), ctx);
+  // ident: wq-identity.js (identity v2) before wq.js, as the edge loads it when the boot's cls.identity.mode is 'v2'.
+  if (arguments[0] && arguments[0].ident) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-identity.js'), 'utf8'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, wantsVideo: wantsVideo, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass, T: T };\n})();'), ctx);
   const tap = () => (dl.click || []).forEach((fn) => fn({}));
   const back = () => { if (hist.i > 0) hist.i -= 1; (wl.popstate || []).forEach((fn) => fn({ state: hist.stack[hist.i].state })); };
   const moment = () => root.attrs['data-m'];

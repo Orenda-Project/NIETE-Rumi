@@ -1374,6 +1374,8 @@ async function finish(phone, state) {
   const selfTest = isSelfTestRun(state) ? { kind: SELF_TEST } : {};
   Funnel.emit('child_completed', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, n: total, pct, ...selfTest });
   Funnel.emit('scorecard_sent', { quiz_id: state.quizId, session_id: state.sessionId, source: stream, ok: Boolean(sentScorecard), ...selfTest });
+  // bd-v0toag.10 — "who helped?" one tap; a no-op unless quiz_slo_retest_enabled and a lesson quiz. Never throws.
+  if (!isSelfTestRun(state)) await require('./quiz-helped-by').offer(phone, state, stream);
 
   // A child finishing a shared quiz may be arriving AFTER their teacher's report
   // already went out. bd-mg9c7.145: the old hook here sent an early report the

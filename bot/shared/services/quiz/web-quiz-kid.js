@@ -6,6 +6,7 @@
  *   dk   = hex(HMAC-SHA256(K, 'dev|'  + device ref))[0:12]                 a phone, the per-device count beside a kid
  *   cls  = hex(HMAC-SHA256(K, 'cls|'  + class id, lower-case))[0:12]       a class
  *   ukey = hex(HMAC-SHA256(K, 'ukey|' + normalised phone))[0:16]           an unknown phone, never beside kid/dk/cls
+ *   tk   = hex(HMAC-SHA256(K, 't|'    + users.id))[0:16]                   a teacher, on a log line instead of the id
  *
  * K is the env var WEB_QUIZ_KID_KEY (at least 32 bytes; never in the logs, the repo or the page, and not the token
  * secret, so rotating that never moves a kid); WEB_QUIZ_KID_KEY_V labels it (the academic year it starts, e.g.
@@ -19,7 +20,7 @@
  * every id that would let a row be joined back to a phone, a share code or a session is removed from it.
  */
 const crypto = require('crypto');
-const { logEvent } = require('../../utils/structured-logger');
+const logEvent = (...a) => require('../../utils/structured-logger').logEvent(...a); // lazy: the portal calls tk() without the bot logger
 const T = require('./web-quiz-token');
 
 const KEY_ENV = 'WEB_QUIZ_KID_KEY';
@@ -93,14 +94,42 @@ function ukey(phoneNorm, { now = Date.now() } = {}) {
   return p ? mac('ukey', p, 16, now) : null;
 }
 
-/** The v2 envelope of an event's fields; with a kid present the forbidden ids are removed. Pure (but kidV). */
-function envelope(fields = {}) {
-  const out = { w: 's', ev_v: 2, kid_v: kidV(), kid: null, ...fields };
-  if (out.kid) {
-    for (const k of Object.keys(out)) if (FORBIDDEN.has(k) || FORBIDDEN_RX.test(k)) delete out[k];
-  }
+/** A quiz's key beside a kid (EVENTS v3: a quiz id is never logged beside a kid): hex(HMAC(K, 'q|' + quiz id))[0:10]. */
+function qk(quizId, { now = Date.now() } = {}) {
+  const id = uuidOf(quizId);
+  return id ? mac('q', id, 10, now) : null;
+}
+
+/** A teacher's key from their users.id, for a log line that would otherwise carry the raw id (EVENTS v3 §6). */
+function tk(userId, { now = Date.now() } = {}) {
+  const id = userId == null ? '' : String(userId).trim();
+  return id ? mac('t', id, 16, now) : null;
+}
+
+/** The fields without any id that would join a row back to a phone, a share code or a session. Pure. */
+function stripIds(fields = {}) {
+  const out = { ...fields };
+  for (const k of Object.keys(out)) if (FORBIDDEN.has(k) || FORBIDDEN_RX.test(k)) delete out[k];
   return out;
 }
 
+/** The v2 envelope of an event's fields; with a kid present the forbidden ids are removed. Pure (but kidV). */
+function envelope(fields = {}) {
+  const out = { w: 's', ev_v: 2, kid_v: kidV(), kid: null, ...fields };
+  return out.kid ? stripIds(out) : out;
+}
+
+/** One home for "an event under events v2, else today's fields". kind 'envelope' (the binding events): v2 on →
+ *  envelope({kid, dk?, ...fields}); off → {...fields, w:'s'}. kind 'mark' (the hub door, whose envelope is not yet
+ *  decided): v2 on → {...fields, w:'s'}; off → fields untouched. The switch read is fail-closed (a throw = off).
+ *  The switch module is required lazily so this module stays leaf-like (no require cycle). */
+async function emit(name, fields = {}, { canonicalId = null, device = null, kind = 'envelope' } = {}) {
+  let v2 = false;
+  try { v2 = Boolean(await require('./web-quiz-hub-flags').eventsV2On()); } catch (_) { v2 = false; }
+  if (kind === 'mark') return logEvent(name, v2 ? { ...fields, w: 's' } : { ...fields });
+  if (!v2) return logEvent(name, { ...fields, w: 's' });
+  return logEvent(name, envelope({ kid: canonicalId ? kid(canonicalId) : null, ...(device ? { dk: dk(device) } : {}), ...fields }));
+}
+
 // kidOf / dkOf / clsOf / ukeyOf: the names the callers use (the same functions).
-module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
+module.exports = { kid, dk, cls, ukey, qk, tk, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, stripIds, emit, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };

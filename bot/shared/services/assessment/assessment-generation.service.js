@@ -729,9 +729,10 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout } = require('./fde-layout');
+const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
+const Reader = require('./fde-reader');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -761,9 +762,18 @@ const SECTION_MAX_TOKENS = 32000;
 const SECTION_TIMEOUT_MS = 300000;
 const SECTION_REASONING = { effort: 'low' };
 
+/**
+ * Social Studies C and D: the first ask writes spares past what prints, and the layout keeps the
+ * first items that are new. A held item (a Section A fact asked again, a point set another item
+ * answers) then leaves no gap, and a reader flag later is less likely to take a choice slot below
+ * what it must offer. Every other slot asks exactly what it prints.
+ */
+const FIRST_ASK_SPARES = Object.freeze({ 'social_studies.C.Q5': 2, 'social_studies.D.Q6': 2, 'social_studies.D.Q7': 2 });
+const firstAsk = (slot) => (Number(slot.generate) || 0) + (FIRST_ASK_SPARES[slot.slot] || 0);
+
 /** The output ceiling for one section's call, from the items its slots generate. */
 function sectionMaxTokens(section) {
-  const want = (section.slots || []).reduce((sum, slot) => sum + (Number(slot.generate) || 0)
+  const want = (section.slots || []).reduce((sum, slot) => sum + firstAsk(slot)
     * (slot.shape === 'mcq' ? SECTION_TOKENS_PER_MCQ : SECTION_TOKENS_PER_WRITTEN), 0);
   return Math.min(SECTION_MAX_TOKENS, Math.max(SECTION_MIN_TOKENS, want));
 }
@@ -808,11 +818,13 @@ function _cachedPrefixKey(messages) {
  * Sections run in parallel, and a cache entry is readable only once the request writing it has
  * started answering: sent together, every section writes the same prefix and none reads it. One
  * call with that exact prefix, the sections' own model, effort and JSON instruction, and no output
- * (`max_tokens: 0`, which the API accepts with thinking left at its default) writes it; the
+ * (`max_tokens: 1`; the reasoning is cut off with it) writes it; the
  * sections then read it. Maths sections are set from different pages and share nothing past the
  * system prompt, so they get no warm call. A failure here never fails the paper: the sections
  * simply write the cache themselves. Returns each warm call's usage, which is billed.
  */
+const WARM_MAX_TOKENS = 1;
+
 async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
   if (!String(model || '').startsWith(DIRECT_LANE)) return [];
   const groups = new Map();
@@ -831,7 +843,11 @@ async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
         messages: [system, { role: 'user', content: [user.content[0], { type: 'text', text: 'warmup' }] }],
         temperature: 0.7,
         response_format: { type: 'json_object' },
-        max_tokens: 0,
+        // One token, not zero: the API took 0 as "no limit" and wrote a whole billed answer to
+        // "warmup" (3,702 tokens, ~22 s, before any section could start). The effort stays the
+        // sections' own, because a change of thinking settings would stop the sections reading
+        // the cache this call writes; the one-token cap is what bounds the reasoning.
+        max_tokens: WARM_MAX_TOKENS,
         reasoning: SECTION_REASONING,
       }, { timeout: SECTION_TIMEOUT_MS });
       const usage = (response && response.usage) || {};
@@ -857,6 +873,9 @@ const TOS = {
   social_studies: { Remember: 30, Understand: 40, Apply: 30 },
 };
 
+// The kinds Urdu Q4 asks, which no Q1 item asks, on every scope.
+const URDU_Q4_NEVER = 'Q4 on this paper asks گروہی الفاظ, حروفِ شرط و جزا, a present-to-future tense change and ارکان سازی; no Q1 item asks any of these.';
+
 // The rule sentences every section is given. Copied exactly from the engine's
 // contract with the paper's reviewers; they compare them by text.
 const RULE = {
@@ -879,20 +898,168 @@ const RULE = {
   situationParts: 'Write each situation\'s three sub-questions as objects { question, answer, marks: 2.5, scheme } where scheme.points sum to 2.5; do not prefix a sub-question with a letter.',
   picksVerbatim: 'For each pick kind ask for the count needed plus two extra, copied exactly as the words appear in the passage (same spelling, same form).',
   gender: 'A child or a person in a stem is \'a child\', \'a student\', \'they\', or a named character. Never she/he, his/her for an unnamed person.',
+  people: 'A person in a word problem or story who is not named is \'they\' (a carpenter … they); a named child keeps a name and needs no pronoun.',
   genderUrdu: 'کسی نامعلوم شخص کے لیے صنفی فعل استعمال نہ کریں؛ \'آپ … کریں\' یا نام والا کردار استعمال کریں۔', // needs fluent-Urdu review
   oneKey: 'An anagram, homophone or spelling MCQ has exactly one option that satisfies the stem.',
+  urduSpelling: 'A spelling (املا) MCQ quotes a meaning or a picture-word in its stem, never the word whose spelling is tested.',
+  oneQuestion: 'Each MCQ stem asks one question and ends with its one «؟».',
+  urduPlainOptions: 'An MCQ option is never a word of worship (اذان، نماز، روزہ); a distractor is an everyday word.',
+  urduTermWord: 'A grammar-term item (اسم صفت، حرفِ عطف، فعل …) never prints a word of its own answer in its stem: describe what the term does, and quote an example.',
+  urduConceptOnce: `Q1 asks each grammar concept (شکیہ، تمنائی، شرط و جزا، حرفِ عطف, and so on) in one item only: no other Q1 item names its words, states its rule or gives its example. Each of these is a concept of its own: اسم صوت، اسم آلہ، اسم معرفہ، اسم نکرہ، صفت، موصوف; a definition item asks its concept, so an item that says what a term is («جو لفظ … آواز ظاہر کرے») and an item that asks for that term are one concept asked twice. ${URDU_Q4_NEVER} An antonym item and a synonym item are concepts too: at most one of each.`,
+  urduHomograph: 'A homograph (ایک ہی املا) item never quotes the pair\'s word in its stem, not even inside a longer word or phrase; it gives both meanings only.',
+  urduPunctuation: 'A رموزِ اوقاف item quotes a sentence printed without its mark and asks which mark it takes; its stem never ends with the mark it asks for (an item keyed «؟» ends «… درست علامت منتخب کریں۔»).',
+  urduVerbSense: 'Give a verb sense by a paraphrase or a sentence, never by its infinitive («بننا», «ڈالنا»): the infinitive prints the letters of the word it asks for.',
+  urduFormFamily: 'In a واحد/جمع or مذکر/مؤنث item, every option is a form of the asked word\'s family.',
+  urduOneTable: 'Q1 takes at most 3 items from one word table of the book (a متشابہ، متضاد or مترادف list), and a distractor is never another Q1 item\'s key.',
   oneCorrect: 'Every MCQ has exactly one correct option: check that no other option is also true (another number that fits the rule, a second work by the same author, a value equal to the key).',
   optionsOnly: 'Write the four options only in `options`; never list (a), (b), (c), (d) inside the question.',
   urduQ4: 'Each Q4 item\'s `question` starts with its own directive in Urdu (what to do: choose the group word, choose the conditional word, change to the future tense, split into syllables), then the sentence or words.',
+  urduQ4Group: 'In the Q4 group-word item the group word is one of its four options and is its key; its scheme `accept` names that option only, never another one.',
+  urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا، ڈاکٹر → اسپتال), never the odd one out.',
+  urduQ6Points: 'Q6 (ب) scheme: one idea per point, no point above 2 marks.',
+  urduQ4Syllables: 'In the Q4 ارکان سازی item, split every word into its spoken syllables, as the book does (غ – لا – ظت); every answer `accept` lists splits each word exactly as the key does.',
+  urduRelationNouns: 'In Q2 (ب), relation words (امی، ابو، بھائی) are اسم نکرہ, never اسم معرفہ: اسم معرفہ is the own name of one person or place.',
+  // On chosen lessons, Q1 asks each of their grammar concepts once; a place left after that is never
+  // filled with a concept asked again.
+  urduGrammarUsedUp: 'Grammar is used up: these lessons\' grammar concepts are each asked once on this paper already. Write every new Q1 item as vocabulary, word-meaning or comprehension from these lessons; never another antonym, synonym or other grammar item.',
+  urduOneWordOnePlace: 'Q3 and Q5 never share a word or idiom: each word on the paper is asked in one place.',
+  // The full syllabus: the place was left by a grammar concept asked again.
+  urduGrammarUsedUpFull: 'Grammar is used up: the grammar concepts this paper\'s Q1 asks, an antonym and a synonym included, are each asked once already. Write every new Q1 item as vocabulary, word-meaning or comprehension from lessons 4–10; never another antonym, synonym or other grammar item.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
+  // Social Studies: book p.5 restates the Farewell Sermon's proposition under the hadith without naming it,
+  // and an item keyed on it gives marks for a theological premise.
+  sstPremise: 'Never set an item whose answer rests on a religious premise (what Allah created or commands, a prophet\'s story, a verse or a hadith said in other words); book p.5 is asked only for its civic sentences (the UN charter, equal basic rights).',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
   scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
   noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section.',
+  // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
+  // The sections are written in parallel, so the rule names the slots, not their items.
+  sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
+  // Social Studies: one thinking level per choice group, as FDE's own paper sets them (Q7 recall,
+  // Q5 define / explain / compare, Q6 explain or apply in a situation). A mixed slot put one book-recall
+  // item among situations, so the child's choice changed how hard the paper was. Q6's situations carry
+  // the Apply marks the counted situation rule used to spread over Q5 and Q6.
+  sstBand: {
+    Q5: 'Every Q5 item is Understand: define a term, explain why, give two reasons, or compare two things from these pages. No Q5 item sets a situation to decide, and none is a one-fact recall item.',
+    Q6: 'Every Q6 item is Apply: it sets a situation a Grade 5 child could meet (a decision, a dispute, a journey, a map reading, a weather report) and asks the child to use a concept from these pages to decide or explain. No Q6 item asks to define, list or recall a book fact. '
+      + 'A Q6 situation needs the child to apply two different ideas from these pages; never one fact said twice (never "name the tier" twice, never the same government or body as the answer to both parts). '
+      + 'No computation in a Q6 item (no degrees, hours or numbers to work out), and never a list of names or book facts to recall dressed as a situation (a poster of names, a quiz). '
+      + 'A Q6 situation never asks a history fact; history recall goes to Q7. '
+      + 'Nor does it ask only civics or geography facts (who heads or chairs a body, what it is called, how many, when): that recall goes to Q7 too. '
+      + 'Nor is a Q6 answered by naming which government, court or body does a job, even with the book\'s one-line reason: besides any marking point that names a government, court or body, at least two of its marking points explain an idea without naming one. '
+      + 'A Q6 is never "which map, which medium or which government for each need": such items go to Q7 as one-fact items. '
+      + 'A Q6 poses a decision or advice in a situation; never "X asks what Y is" or "X wants to know why": an answer that is the book\'s text in order is a Q5. '
+      + 'A Q6 answer is never a list the book gives, nor the name of a tier or a body.',
+    Q7: 'Every Q7 item is Remember: one fact (who, what, where, when, how many) answered in one line. No Q7 item asks why or sets a situation. '
+      + 'A Q7 item is never a fact every Grade 5 child knows without the book (the year Pakistan was made, its capital, its national language, washing hands before eating, that television shows pictures («… ٹی وی پر اور کیا دکھایا جاتا ہے؟ → تصویر»), the name of a social media app); it asks a fact these pages teach.',
+  },
+  // Social Studies Q1: Q2–Q4 and nine Understand Q5s already put about 44 attempted marks on Understand, so the paper
+  // keeps inside FDE's band only when Q1 carries few Understand items, with room for one Q6 read as Understand.
+  // FDE's own Q1 is twenty recall items. A count, as the model follows counts.
+  sstQ1Levels: 'Q1: at least 16 Remember items and at most 2 Understand; any other Q1 item is Apply (a situation the child decides).',
+  sstGroups: 'The child chooses which items of a question to answer, so every item of Q5, of Q6 and of Q7 is the same kind as the others in its question and as hard.',
+  // Social Studies: a marking point that names no fact («پہلی وجہ درست بتانا») tells the teacher nothing
+  // to look for, and the layout compares items by their points.
+  sstFactPoints: 'Each marking point states its fact (e.g. «آئین بنیادی حقوق کا تحفظ کرتا ہے»), never «پہلی وجہ», «دوسری وجہ», «درست وضاحت».',
   spreadKeys: 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.',
-  sstQ56: 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.',
+  // The page store runs p.29's three columns together line by line, so a model read the provincial
+  // cell (encroachments on public roads) as local work. Given column by column when the pages hold
+  // it, and to any pages that name a government tier without it. One job per item: a full paper
+  // given the rows still keyed two jobs to one government.
+  sstTiers: (inPages) => [
+    `The book's table on p.29 says which government does what. ${inPages ? 'The page text above runs its three columns together; these are its rows, column by column:' : 'These are its rows, column by column:'}`,
+    '- وفاقی حکومت: ملکی دفاع (مسلح افواج کے امور) کی نگرانی کرتی ہے؛ ملکی معیشت کو سنبھالتی ہے؛ خارجہ پالیسی (بیرونی ممالک سے تعلقات کے معاملات) کی نگرانی کرتی ہے۔',
+    '- صوبائی حکومت: صوبے کا نظم و نسق (قانون سازی، عوامی سڑکوں اور راستوں سے تجاوزات ہٹانا، امن و امان کا قیام) چلاتی ہے؛ صوبائی محصولات کی نگرانی کرتی ہے؛ صوبوں کی داخلی پالیسی کے معاملات سنبھالتی ہے۔',
+    '- مقامی حکومت: مویشی منڈیاں اور عوامی میلے منعقد کرتی ہے؛ پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام دیکھتی ہے؛ بیواؤں، یتیموں، معذوروں اور قدرتی آفات کے متاثرین کی مدد کرتی ہے۔',
+    '  An item, key or marking point that says which government (وفاقی، صوبائی یا مقامی) does a job takes it from these rows only; a job the rows do not name is not asked as a which-government item.',
+    '  A which-government item asks about one job; a situation with two jobs names each job\'s government from its own row, never both under one government.',
+  ].join('\n'),
   accept: '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.',
+  mathsSectionC: 'Section C is also set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take the topic from these pages.',
+  grammarFromPages: 'Q1(a) grammar MCQs test only the grammar these pages teach. If the pages teach fewer grammar points than there are MCQs, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
+  mathsTosFloor: 'Of the 100 marks, 8–12 are Remember (at least 8 of the 20 MCQs recall a definition, fact, formula or property name), at most 60 Understand, at least 30 Apply.',
+  propertyOneKey: 'For an MCQ that tests a property (divisible by, prime, factor, multiple, even, odd, greatest, smallest, rounded to, place value) exactly ONE option satisfies the stem; check every option before writing it.',
+  unitsNumerals: 'Every measurement stem names its unit (cm, m, kg, litres, rupees, degrees). Write mixed numbers as numerals, e.g. 5 2/3, never \'five and two thirds\' or \'5 and 2/3\'.',
+  frameLabels: 'Key labels come only from the book\'s figure; if the figure carries fewer parts than the frame has leader lines, ask for that smaller number.',
+  grade5Words: 'Use Grade 5 vocabulary; a term the book does not use (e.g. \'lactic acid\', \'electrons\') is replaced by the book\'s word.',
+  // Maths Apply marks come from word problems the child must choose the operation for
+  // (convention R1). The model follows counted slot rules, not percentages, so the share is a
+  // count. Target, attempt-weighted under R1: Remember 8–12, Understand ≤ 60, Apply ≥ 30.
+  mathsQ2Words: (n, total) => `In Q2, at least ${n} of the ${total} items are short word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation(s) to use; the other items stay calculations.`,
+  mathsQ2Families: (extra) => `Each Q2 family keeps its word problem; set ${extra} more of the families' number-sense or computation items as such word problems, keeping the skill they test.`,
+  mathsQ1bWords: (n, total) => `In Q1(b), at least ${n} of the ${total} items are one-step word problems set in a situation a Grade 5 child knows (shopping, measuring, time, sharing, travel), in which the child decides which operation to use.`,
+  // English on chosen chapters or pages: FDE's Q1(a)/(b) topic list is not given; the points come from the pages.
+  pagesPoints: 'Q1(a) and Q1(b) test only the grammar and word-study points these pages teach. Before writing, list those points to yourself; the reply is still the JSON only.',
+  pagesRest: 'If the pages teach fewer points than there are items, set the rest on the pages\' vocabulary and comprehension. Never test grammar the pages do not teach.',
+  oneKeyEnglish: 'A homophone or spelling MCQ has exactly one option that satisfies the stem.',
+  q5Poem: 'Q5 uses a poem printed in the book. If these pages hold no poem, take the nearest poem in the syllabus, name its unit in the title, and print its lines verbatim; never write verse and never call prose a poem.',
+  // Maths on chosen chapters or pages: FDE's Q1(b) and Q2 topic lists are not given; the topics come from the pages.
+  mathsPagesAB: 'Q1(b) and Q2 are set from the pages above: keep each slot\'s marks and item shape (a word problem stays a word problem, a calculation a calculation) and take every topic from these pages. The word-problem counts above still apply.',
+  noAnagram: 'Never set an item that asks the child to rearrange, unscramble or reorder letters to make a word.',
+  // English Q1(b): the underline sentence Q1(a) and Q2 carry, and one rewrite per item.
+  q1bQuote: 'Never refer to an underline the paper cannot show; quote the word or phrase instead.',
+  q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
+  // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
+  q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
+  // Urdu Q6 on lessons with no poem: lesson 7's poem page text is given below the book text.
+  urduQ6Given: (p) => `Q6's verses (درج ذیل اشعار کا مفہوم واضح کریں) come from this poem, lesson ${p.unit} «${p.title}» (book pp. ${p.pages}), whatever lessons the paper covers: \`passage\` = four consecutive verse lines copied exactly as given, never a question or note printed between the couplets.`,
+  urduNoMaxims: 'Model answers, passages, dialogues and stories carry no religious maxim, hadith, verse, dua or act of worship; keep them to everyday life.',
+  urduNoDates: 'Never ask an item whose answer is a year, a date or a day of the month; the page text\'s numerals are not reliable.',
 };
+
+// Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
+// the model lands one or two short of a counted rule (round-4 local papers: Q2 5, 8, 5 of 12 asked for 6).
+const MATHS_Q1B_WORDS = 4;
+// Maths on chosen pages: the slots whose rule and grain carry FDE's model-paper topics. Each keeps
+// the rule from its marks sentence on (a count and topics come before it) under a topic-free head.
+const MATHS_PAGES_SLOTS = Object.freeze({
+  'maths.A.Q1b': { head: 'Ten one-step items. ', keepFrom: '2 marks each', number_size: 'the sizes these pages use' },
+  'maths.B.Q2': { head: 'Twelve 5-mark items. ', keepFrom: 'Every word problem names its unit', number_size: 'the sizes these pages use' },
+});
+// English on chosen pages: the slot fields that carry FDE's model-paper topic list, and what replaces them.
+// English bans anagram items, so FDE scope's Q1(a) topic list loses its "anagrams" entry at assembly.
+const ENGLISH_FDE_Q1A_ANAGRAMS = ', anagrams';
+const ENGLISH_PAGES_SLOTS = Object.freeze({
+  'english.A.Q1a': { prompt_rule: 'Twenty four-option MCQs, one point each. Never refer to an underline the paper cannot show; quote the word instead.' },
+  'english.A.Q1b': {
+    prompt_rule: 'Five one-line items, each ending with its direction in round brackets.',
+    grain_kind: 'one-line transformation',
+  },
+});
+
+// Urdu Q1 on chosen lessons or pages: grammar only from those lessons' own «قواعد کا میدان» sections,
+// less the kinds Q4 asks; the rest of Q1 is their vocabulary, word meanings and comprehension. The
+// slot's rule keeps its lessons 1–3 and options sentences from `keepFrom` on.
+const URDU_LESSONS_Q1 = Object.freeze({
+  keepFrom: 'Never lessons 1, 2 or 3',
+  kind: (terms) => `one point per item: lesson facts, word meanings and comprehension from these lessons${terms.length ? `, and grammar only from their قواعد sections (${terms.join('، ')})` : ''}`,
+  rule: (terms) => (terms.length
+    ? `Twenty four-option MCQs. Grammar only from these lessons' قواعد sections, each concept once: ${terms.join('، ')}; every other item is vocabulary, word meaning or comprehension from these lessons. `
+    : 'Twenty four-option MCQs. These lessons\' قواعد sections give Q1 no grammar point to ask (Q4 asks theirs); every item is vocabulary, word meaning or comprehension from these lessons. '),
+});
+
+// Urdu Q1 on chosen lessons: the concept-once and grammar-term rules name those lessons' concepts only
+// (the full syllabus's lists name lesson 10's and lesson 8's, which there are holds); Q4's kinds stay
+// "never in Q1". Lessons whose grammar is all Q4's give Q1 no concept and no grammar-term rule.
+const URDU_LESSONS_RULES = Object.freeze({
+  conceptOnce: (terms) => (terms.length
+    ? `Q1 asks each grammar concept of these lessons (${terms.join('، ')}) in one item only: no other Q1 item names its words, states its rule or gives its example; a definition item asks its concept, so an item that says what a term is and an item that asks for that term are one concept asked twice. ${URDU_Q4_NEVER}`
+    : `Q1 asks no grammar concept on these lessons. ${URDU_Q4_NEVER}`),
+  termWord: (terms) => (terms.length
+    ? `A grammar-term item (${terms.join('، ')}) never prints a word of its own answer in its stem: describe what the term does, and quote an example.`
+    : null),
+  // A count is easier to keep than "once each". `pairs`: the entries that name two concepts.
+  budget: (terms, n, of, pairs) => (n
+    ? `Q1: exactly ${n} of the ${of} items ${n === 1 ? 'is' : 'are'} grammar, one item per concept (${terms.join('، ')}${pairs.length ? `; ${pairs.map((t) => `«${t}»`).join(' and ')} ${pairs.length === 1 ? 'is' : 'are each'} two concepts, one item each` : ''}); the other ${of - n} are vocabulary, word meanings or comprehension from these lessons.`
+    : null),
+  concept: (terms) => (terms.length
+    ? `Give every Q1 item a "concept" field: the grammar concept it asks, written as one of ${terms.join('، ')}; or «ذخیرۂ الفاظ / فہم» for a vocabulary, word-meaning or comprehension item. The field is never printed.`
+    : null),
+  // Lessons with one prose story: twenty items from one story name each other's people and things.
+  story: (of) => `These lessons hold one story: at most ${STORY_ITEMS} of the ${of} Q1 items ask a fact of the story; write the rest from the lessons' own word lists (نئے الفاظ، معمے کے الفاظ), their word meanings and idioms, and the poem's words. `
+    + 'Give every Q1 item a "source" field: story, word, meaning, idiom or poem. The field is never printed.',
+});
 
 // The pages Urdu items are never set from: lessons 1–3 (the Hamd, the Naat, the third).
 const HELD_PAGES = '1-27';
@@ -911,7 +1078,64 @@ const HELD_TERMS_SST = Object.freeze([
   { term: 'دعا', pattern: 'دعا(?:ئیں|ئیہ|ئی|ئے|ؤں|وں|یں|ی|ے)?' },
   { term: 'نعت', pattern: 'نعت(?:یں|وں|یہ)?' },
   { term: 'حمد', pattern: 'حمد(?:یہ)?' },
-].map(({ term, pattern }) => Object.freeze({ term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u') })));
+  // A religious premise as an answer («اللہ تعالیٰ نے تمام انسان برابر پیدا کیے», «… علیہ السلام کی
+  // اولاد»): the item asks a hadith's proposition without naming the hadith. A name that carries one
+  // of these words («عبداللہ», «اللہ دتہ», «عرب») is a whole other word.
+  { term: 'اللہ تعالیٰ', pattern: 'اللہ ?تعالی' },
+  { term: 'علیہ السلام', pattern: 'علیہ ?السلام' },
+  { term: 'علیھا السلام', pattern: 'علی(?:ہ|ھ)م?ا ?السلام' },
+  // The same premise written with no honorific («سب آدم و حوا کی اولاد ہیں»). The two names together,
+  // so a child called «آدم» in a story, or «حوالہ», is a whole other word.
+  { term: 'آدم و حوا', pattern: '(?:حضرت ?)?ادم\u0611? ?(?:و|اور) ?(?:حضرت ?)?حوا' },
+  // The ligature is written against the name it follows («حضورﷺ»), so it needs no word edge.
+  { term: 'ﷺ', pattern: 'ﷺ', bare: true },
+  // «رب» is the word wherever it stands («ہمارا رب سب کو دیکھتا ہے», «اللہ رب کریم», «ربِ کائنات»), except in
+  // the name «رب نواز» («رب نواز نے دکان کھولی»), which is a person.
+  { term: 'رب', pattern: 'رب(?!\\s+نواز(?![\\p{L}\\p{N}]))' },
+  // The same premise with no honorific at all («خدا نے سب کو برابر بنایا», «کسی عربی کو کسی عجمی پر …»,
+  // «… فرمایا گیا کہ …»). «خدا» in every form («خدائے بزرگ و برتر») except in the name «خدا بخش»; «اللہ» only
+  // beside «پاک», «کریم» or «رب», since bare «اللہ» and «نبی» start names («عبد اللہ ہارون», «اکرام اللہ», «غلام نبی»).
+  { term: 'خدا', pattern: 'خدا(?:ؤں|وں|ئی|ئے)?(?!\\s+بخش(?![\\p{L}\\p{N}]))' },
+  { term: 'پیغمبر', pattern: 'پیغمبر(?:وں|ی)?' },
+  { term: 'فرمایا', pattern: 'فرمایا' },
+  { term: 'عجمی', pattern: 'عجمی' },
+  { term: 'پروردگار', pattern: 'پروردگار' },
+  { term: 'خالق', pattern: 'خالق' },
+  { term: 'اللہ پاک', pattern: 'اللہ ?(?:پاک|کریم|رب)' },
+].map(({ term, pattern, bare }) => Object.freeze({
+  term, re: new RegExp(bare ? pattern : `(?<![\\p{L}\\p{N}])(?:${pattern})(?![\\p{L}\\p{N}])`, 'u'),
+})));
+
+// Urdu: the text the model writes itself (a model answer, a passage, a scheme point) never carries
+// a religious maxim, hadith, verse or act of worship. Matched on _heldNorm text, whole words. The
+// operator-allowed classes («اللہ تعالیٰ کرے», «میری دعا ہے کہ», greetings, «دعا» in a letter) are
+// not in the list; «ایمان داری» (honesty) is not «ایمان کا حصہ».
+// The imperative and the obligation; «پڑھوں گا», «پڑھیں گے», «پڑھو گے» are a future, not an exhortation.
+const URDU_EXHORT = '(?:و(?!ں| گ[ےیا])|یں(?! گ[ےیا])|ا کرو|ا کریں|نا چاہی|نی چاہی|نے چاہی)';
+const HELD_TERMS_URDU_AUTHORED = Object.freeze([
+  { term: 'ایمان کا حصہ', pattern: 'ایمان کا حصہ' },
+  { term: 'نصف ایمان', pattern: 'نصف ایمان' },
+  { term: 'حدیث', pattern: 'حدیث(?:یں|وں|ی)?|احادیث' },
+  { term: 'فرمایا', pattern: 'فرمای[اے]' },
+  { term: 'قرآن', pattern: 'قران(?:ی|ے)?' },
+  { term: 'آیت', pattern: 'ایت(?:یں|وں)?|ایات' },
+  { term: 'ارشاد', pattern: 'ارشاد' },
+  // Worship is held as an exhortation or an obligation («نماز پڑھو», «پڑھنی چاہیے», «روزہ رکھنا فرض ہے»);
+  // a narrated routine («صبح اٹھ کر نماز پڑھتا») is the prompt line's, not a maxim.
+  { term: 'نماز پڑھ', pattern: `نماز ?پڑھ${URDU_EXHORT}`, open: true },
+  { term: 'روزہ رکھ', pattern: `روز[ہے] ?رکھ${URDU_EXHORT}`, open: true },
+  // «فرض» is also "duty" («اپنا فرض سمجھا»): only the obligation predicate is held.
+  { term: 'فرض', pattern: '(?:نماز|روز[ہے])[^۔.!?؟]{0,40}?(?:پر (?:فرض|لازم)|(?:فرض|لازم) ہ(?:ے|یں))' },
+].map(({ term, pattern, open }) => Object.freeze({
+  term, re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})${open ? '' : '(?![\\p{L}\\p{N}])'}`, 'u'),
+})));
+
+// Maths Section A's slot rule asks for 3 to 5 recall MCQs; the ToS floor needs at least 8.
+const MATHS_RECALL_FROM = '3 to 5 of them pure recall';
+const MATHS_RECALL_TO = 'at least 8 of them pure recall';
+// Social Studies Q1's slot rule asks for 3 to 5 recall MCQs; its level count asks for at least 16.
+const SST_RECALL_FROM = '3 to 5 pure recall';
+const SST_RECALL_TO = 'at least 16 of them pure recall';
 
 /** "1 mark each", "1.25 marks each", "20 marks (parts 10 + 8 + 2)". */
 function _marksPhrase(slot) {
@@ -924,12 +1148,17 @@ function _marksPhrase(slot) {
 /** One slot as the model is asked for it: every field read from the pattern, nothing typed. */
 function _slotBlock(slot, lang) {
   const label = lang === 'ur' && slot.label_ur ? `${slot.label_en} (${slot.label_ur})` : slot.label_en;
+  const asked = firstAsk(slot);
   const lines = [
-    `• ${label} — generate EXACTLY ${slot.generate} item${slot.generate === 1 ? '' : 's'} under unseen.${slot.category}."${slot.type}"; `
+    `• ${label} — generate EXACTLY ${asked} item${asked === 1 ? '' : 's'} under unseen.${slot.category}."${slot.type}"; `
       + `tag every item "slot": "${slot.slot}"; ${_marksPhrase(slot)}.`,
   ];
   if (slot.attempt < slot.generate) {
     lines.push(`  Choice: the child chooses ${slot.attempt} of ${slot.generate}; make all ${slot.generate} the same difficulty.`);
+  }
+  if (asked > slot.generate) {
+    lines.push(`  Spares: the last ${asked - slot.generate} are spares, the same difficulty; the paper prints the first ${slot.generate} `
+      + 'that ask nothing another item on this paper asks.');
   }
   if (slot.prompt_rule) lines.push(`  Rule: ${slot.prompt_rule}`);
   const g = slot.grain;
@@ -964,30 +1193,115 @@ function _closedLists(P, slots) {
   return `Composition topics come only from these closed lists, exactly as written:\n${lists.join('\n')}`;
 }
 
+// Social Studies p.29: two of the table's own cells, matched with the page store's spacing (and any zero-width mark) removed.
+const SST_TIER_CELLS = ['مویشیمنڈیاں', 'تجاوزاتہٹانا'];
+function _holdsTierTable(pageContent) {
+  const flat = String(pageContent || '').replace(/[\s\u200b-\u200f]+/g, '');
+  return SST_TIER_CELLS.every((cell) => flat.includes(cell));
+}
+// Pages that name a government tier (pp 26-33 in the page store) can ask a which-government item.
+const SST_TIER_NAMED = /(?:وفاقی|صوبائی|مقامی)[\s\u200b-\u200f]*حکومت/;
+const SST_Q1 = 'social_studies.A.Q1';
+
 /**
  * What one section of a board-pattern paper asks for. The book text block is
  * the same as buildUserPrompt's (which stays untouched for every other paper);
  * after it, the section's slots and the rules that apply to this subject and
  * this section. Every pattern-specific word comes from the pattern data.
  */
-function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope }) {
-  const list = Array.isArray(slots) && slots.length ? slots : section.slots;
+function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, section, slots, lang, P, scope, poem = null }) {
   const medium = lang || P.medium;
   const key = P.key || Patterns.normalise(subject);
   const sectionLabel = section.label_en || section.label_ur || section.id;
-  const hasMcq = list.some((s) => s.shape === 'mcq');
 
   // The FDE syllabus names units and kinds per slot; a paper set on chosen chapters or
   // pages keeps each slot's kind and marks but takes its items from those pages only.
   const fde = Boolean(scope) && scope.kind === 'fde';
+  // Maths Section C on chosen pages: the fixed one-of-each-kind list (draw, area, …) is
+  // FDE's Units 11–12 syllabus, so it is not asked for; marks and shape stay.
+  const mathsC = !fde && key === 'maths' && section.id === 'C';
+  const urduLessons = !fde && key === 'urdu' ? scopeLessons(P, scope) : null;
+  // Their grammar concepts, less the kinds Q4 asks.
+  const urduTerms = urduLessons && [...new Set(urduLessons.flatMap((l) => l.grammar.filter((g) => !g.q4).map((g) => g.ur)))];
+  // How many concepts those are: an entry the layout reads as two (تمنائی اور شکیہ) counts two.
+  const urduWidth = (ur) => Math.max(1, ...urduLessons.flatMap((l) => l.grammar).filter((g) => g.ur === ur).map((g) => (g.tags || []).length));
+  const urduPairs = urduTerms && urduTerms.filter((ur) => urduWidth(ur) > 1);
+  const urduConcepts = urduTerms && urduTerms.reduce((n, ur) => n + urduWidth(ur), 0);
+  const given = Array.isArray(slots) && slots.length ? slots : section.slots;
+  const shaped = given.map((s) => {
+    if (mathsC && Array.isArray(s.kinds) && s.kinds.length) {
+      return { ...s, kinds: null, prompt_rule: null, grain: s.grain && { ...s.grain, kind: 'a word problem or a calculation' } };
+    }
+    // Maths on chosen pages: Q1(b)'s ten model topics and Q2's Units 1–8 families go; the topics come from the pages.
+    const mathsSlot = !fde && key === 'maths' && MATHS_PAGES_SLOTS[s.slot];
+    if (mathsSlot && typeof s.prompt_rule === 'string') {
+      const at = s.prompt_rule.indexOf(mathsSlot.keepFrom);
+      return {
+        ...s,
+        prompt_rule: mathsSlot.head + (at >= 0 ? s.prompt_rule.slice(at) : ''),
+        grain: s.grain && {
+          ...s.grain,
+          kind: typeof s.grain.kind === 'string' ? s.grain.kind.split(/[,:]/)[0] : s.grain.kind,
+          number_size: mathsSlot.number_size,
+        },
+        families: null,
+      };
+    }
+    // Urdu on chosen lessons: Q1's grammar is those lessons' own, never "half grammar" from lessons 4–10.
+    if (urduLessons && s.slot === 'urdu.A.Q1' && typeof s.prompt_rule === 'string') {
+      const at = s.prompt_rule.indexOf(URDU_LESSONS_Q1.keepFrom);
+      return {
+        ...s,
+        prompt_rule: URDU_LESSONS_Q1.rule(urduTerms) + (at >= 0 ? s.prompt_rule.slice(at) : ''),
+        grain: s.grain && { ...s.grain, kind: URDU_LESSONS_Q1.kind(urduTerms) },
+      };
+    }
+    // English on chosen pages: the slot's FDE topic list goes; the points come from the pages.
+    const pagesSlot = !fde && key === 'english' && ENGLISH_PAGES_SLOTS[s.slot];
+    if (pagesSlot) {
+      return {
+        ...s,
+        prompt_rule: pagesSlot.prompt_rule,
+        grain: pagesSlot.grain_kind && s.grain ? { ...s.grain, kind: pagesSlot.grain_kind } : s.grain,
+      };
+    }
+    if (key === 'english' && s.slot === 'english.A.Q1a' && typeof s.prompt_rule === 'string') {
+      return { ...s, prompt_rule: s.prompt_rule.replace(ENGLISH_FDE_Q1A_ANAGRAMS, '') };
+    }
+    // Maths MCQs: the ToS floor's recall count replaces the slot's 3-to-5.
+    if (key === 'maths' && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(MATHS_RECALL_FROM)) {
+      return { ...s, prompt_rule: s.prompt_rule.replace(MATHS_RECALL_FROM, MATHS_RECALL_TO) };
+    }
+    if (key === 'social_studies' && s.slot === SST_Q1 && typeof s.prompt_rule === 'string' && s.prompt_rule.includes(SST_RECALL_FROM)) {
+      return { ...s, prompt_rule: s.prompt_rule.replace(SST_RECALL_FROM, SST_RECALL_TO) };
+    }
+    return s;
+  });
+  const list = shaped.map((s) => (key === 'english' && s.slot === 'english.A.Q1b'
+    ? { ...s, prompt_rule: [s.prompt_rule, RULE.q1bQuote, RULE.q1bOne].filter(Boolean).join(' ') }
+    : s));
+  // English Q5 on chosen pages that hold no poem: the nearest poem's page text, when the caller loaded it.
+  const givenPoem = !fde && key === 'english' && poem && poem.content && list.some((s) => s.slot === 'english.C.Q5') ? poem : null;
+  // Urdu Q6 on lessons that hold no poem: lesson 7's poem page text, when the caller loaded it.
+  const urduPoem = !fde && key === 'urdu' && poem && poem.content && list.some((s) => s.slot === 'urdu.C.Q6') ? poem : null;
+  const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
+  if (key === 'social_studies') rules.push(RULE.sstPremise);
   if (!fde) rules.push(RULE.chapterOnly);
+  if (mathsC) rules.push(RULE.mathsSectionC);
+  if (!fde && key === 'english' && hasMcq) rules.push(RULE.grammarFromPages);
+  if (!fde && key === 'english' && list.some((s) => ENGLISH_PAGES_SLOTS[s.slot])) rules.push(RULE.pagesPoints, RULE.pagesRest);
+  if (!fde && key === 'english' && list.some((s) => s.slot === 'english.C.Q5')) rules.push(givenPoem ? RULE.q5Given(givenPoem) : RULE.q5Poem);
+  if (key === 'english') rules.push(RULE.noAnagram);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) {
     rules.push('Science: a situation comes only from the book activities its slot\'s rule lists, never another.');
   }
   const closed = _closedLists(P, list);
   if (closed) rules.push(closed);
   if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
+  if (key === 'urdu') rules.push(RULE.urduNoMaxims);
+  if (key === 'urdu' && list.some((s) => /^urdu\.[AC]\./.test(s.slot))) rules.push(RULE.urduNoDates);
+  if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
   const tos = TOS[key];
   if (tos) {
@@ -995,11 +1309,40 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
+  if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
+  if (key === 'maths') {
+    const q1b = list.find((s) => s.slot === 'maths.A.Q1b');
+    if (q1b) rules.push(RULE.mathsQ1bWords(Math.min(MATHS_Q1B_WORDS, q1b.generate), q1b.generate));
+    const q2 = list.find((s) => s.slot === 'maths.B.Q2');
+    if (q2) {
+      // One above half: the model lands one or two short of a counted rule.
+      const need = Math.ceil(q2.generate / 2) + 1;
+      rules.push(RULE.mathsQ2Words(need, q2.generate));
+      // FDE's families carry one word problem each; the rest of the count comes from their other items.
+      // The families are FDE's syllabus, so on chosen pages they are not asked for (see MATHS_PAGES_SLOTS).
+      const extra = fde && Array.isArray(q2.families) ? need - q2.families.length : 0;
+      if (extra > 0) rules.push(RULE.mathsQ2Families(extra));
+    }
+    if (!fde && list.some((s) => MATHS_PAGES_SLOTS[s.slot])) rules.push(RULE.mathsPagesAB);
+  }
+  if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
-    rules.push(`In this section, ${RULE.recall}.`, RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
+    if (key !== 'maths' && key !== 'social_studies') rules.push(`In this section, ${RULE.recall}.`);
+    rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
     // Word MCQs (anagram, homophone, spelling) on the language papers; number options on Maths and Science.
-    if (key === 'english' || key === 'urdu') rules.push(RULE.oneKey);
+    if (key === 'english') rules.push(RULE.oneKeyEnglish);
+    if (key === 'urdu') rules.push(RULE.oneKey, RULE.urduSpelling, RULE.oneQuestion, RULE.urduPlainOptions);
+    if (key === 'urdu' && list.some((s) => s.slot === 'urdu.A.Q1')) {
+      const q1 = list.find((s) => s.slot === 'urdu.A.Q1');
+      const concepts = urduTerms
+        ? [URDU_LESSONS_RULES.conceptOnce(urduTerms), URDU_LESSONS_RULES.termWord(urduTerms),
+          URDU_LESSONS_RULES.budget(urduTerms, urduConcepts, q1.generate, urduPairs), URDU_LESSONS_RULES.concept(urduTerms)].filter(Boolean)
+        : [RULE.urduConceptOnce, RULE.urduTermWord];
+      rules.push(...concepts, RULE.urduHomograph, RULE.urduVerbSense, RULE.urduPunctuation, RULE.urduFormFamily, RULE.urduOneTable);
+      if (urduLessons && oneStory(urduLessons)) rules.push(URDU_LESSONS_RULES.story(q1.generate));
+    }
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
+    if (key === 'maths') rules.push(RULE.propertyOneKey);
   }
   rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
@@ -1009,13 +1352,32 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   const picks = list.some((s) => Array.isArray(s.parts_spec) && s.parts_spec.some((p) => p.pick));
   if (picks && medium === 'ur') rules.push(RULE.picks);
   if (picks) rules.push(RULE.picksVerbatim);
+  if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
-  if (key === 'social_studies' && list.some((s) => /\.Q[56]$/.test(s.slot))) rules.push(RULE.sstQ56);
-  if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4);
-  rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender);
+  if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group, RULE.urduQ4GroupNotListed, RULE.urduQ4Syllables);
+  // The book's own worked splits, quoted as the book prints them.
+  if (key === 'urdu' && Array.isArray(P.syllables) && P.syllables.length && list.some((s) => /\.Q4$/.test(s.slot))) {
+    const said = P.syllables.map((b) => `«${b.word}» as ${b.parts.join(' – ')}`);
+    rules.push(`The book splits ${said.slice(0, -1).join(', ')}${said.length > 1 ? ' and ' : ''}${said[said.length - 1]}.`);
+  }
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q3') && list.some((s) => s.slot === 'urdu.C.Q5')) rules.push(RULE.urduOneWordOnePlace);
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduQ6Points);
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.B.Q2')) rules.push(RULE.urduRelationNouns);
+  rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
   if (medium === 'ur') rules.push(RULE.genderUrdu);
   rules.push(RULE.noRepeats);
+  if (key === 'social_studies' && list.some((s) => /\.Q[57]$/.test(s.slot))) rules.push(RULE.sstNoReask);
+  if (key === 'social_studies') {
+    const bands = list.map((s) => RULE.sstBand[s.slot.split('.').pop()]).filter(Boolean);
+    if (bands.length) rules.push(...bands, RULE.sstGroups);
+    if (list.some((s) => s.slot === SST_Q1)) rules.push(RULE.sstQ1Levels);
+    if (list.some((s) => /\.[CD]\./.test(s.slot))) rules.push(RULE.sstFactPoints);
+  }
+  if (key === 'social_studies') {
+    const inPages = _holdsTierTable(pageContent);
+    if (inPages || SST_TIER_NAMED.test(String(pageContent || ''))) rules.push(RULE.sstTiers(inPages));
+  }
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -1025,7 +1387,17 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
 \`\`\`
 ${pageContent}
 \`\`\`
-
+${givenPoem ? `
+**Poem for Q5 (book p.${givenPoem.pages}):**
+\`\`\`
+${givenPoem.content}
+\`\`\`
+` : ''}${urduPoem ? `
+**Poem for Q6 (book pp. ${urduPoem.pages}):**
+\`\`\`
+${urduPoem.content}
+\`\`\`
+` : ''}
 **SECTION ${section.id}** — ${sectionLabel}, one section of a board-pattern paper. Write this section only.
 
 **GENERATE THE FOLLOWING:**
@@ -1049,6 +1421,108 @@ function _splitPages(content) {
     page: Number(m[1]),
     text: text.slice(m.index, i + 1 < marks.length ? marks[i + 1].index : text.length).trim(),
   }));
+}
+
+// The slot each subject's given poem is for: English Q5, Urdu Q6's verses.
+const POEM_SLOT = { english: 'english.C.Q5', urdu: 'urdu.C.Q6' };
+
+/**
+ * English Q5 / Urdu Q6 on chosen pages: the book poem nearest those pages when none of them holds one,
+ * or null (the FDE syllabus, another subject, a page list that cannot be read, or a poem page already
+ * chosen). A poem in a held lesson is never given.
+ */
+function patternPoemFor({ P, scope, pageContent }) {
+  if (!P || !Array.isArray(P.poems) || !P.poems.length || !scope || scope.kind === 'fde') return null;
+  const slot = POEM_SLOT[P.key];
+  if (!slot || !P.sections.some((sec) => sec.slots.some((s) => s.slot === slot))) return null;
+  const held = (P.scope && Array.isArray(P.scope.held)) ? P.scope.held : [];
+  const poems = P.poems.filter((poem) => !held.includes(poem.unit));
+  if (!poems.length) return null;
+  const chosen = (_splitPages(pageContent) || []).map((p) => p.page);
+  if (!chosen.length) return null;
+  const pagesOf = (poem) => Patterns.parseRanges(poem.pages).flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+  if (poems.some((poem) => pagesOf(poem).some((n) => chosen.includes(n)))) return null;
+  const distance = (poem) => Math.min(...pagesOf(poem).flatMap((n) => chosen.map((c) => Math.abs(n - c))));
+  const nearest = poems.reduce((best, poem) => (distance(poem) < distance(best) ? poem : best));
+  return { unit: nearest.unit, pages: nearest.pages, title: nearest.title };
+}
+
+/**
+ * Urdu Q6's verses come from the poem's own pages: the given poem's text, or the poem pages inside
+ * the loaded text. Letters only, so spacing and punctuation never decide. '' when neither is there
+ * (another subject, a page that could not be loaded): then nothing is checked.
+ */
+function _versesReference(P, poem, content) {
+  if (!P || P.key !== 'urdu' || !Array.isArray(P.poems) || !P.poems.length) return '';
+  if (poem && poem.content) return _lettersOnly(poem.content);
+  // Only a poem whose every page is loaded: on chosen pages that cut a poem in two, the lines on
+  // the missing page would read as not the poem's, so nothing is checked.
+  const pages = _splitPages(content) || [];
+  const have = new Set(pages.map((pg) => pg.page));
+  const pagesOf = (poem) => Patterns.parseRanges(poem.pages).flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+  const want = new Set(P.poems.map(pagesOf).filter((list) => list.every((n) => have.has(n))).flat());
+  return _lettersOnly(pages.filter((pg) => want.has(pg.page)).map((pg) => pg.text).join('\n'));
+}
+function _lettersOnly(text) { return _heldNorm(text).replace(/[^\p{L}]/gu, ''); }
+// A line is the poem's when it is in the poem's text, or when three in four of its four-letter runs
+// are: a model writes a word as it is spelled, not as the page store read it («بیماری» / «پیماری»).
+function _lineFromPoem(line, ref) {
+  const n = _lettersOnly(line);
+  if (n.length < 8) return false;
+  if (ref.includes(n)) return true;
+  let found = 0;
+  for (let i = 0; i + 4 <= n.length; i += 1) if (ref.includes(n.slice(i, i + 4))) found += 1;
+  return found >= 0.75 * (n.length - 3);
+}
+/**
+ * Urdu Q6: a verses item whose four lines are not the poem's (lesson prose reworded under «درج ذیل
+ * اشعار کا مفہوم واضح کریں») is taken out of the reply, so the slot is short and Section C is asked
+ * once more; it is never printed. An item with fewer than four lines is the layout's to refuse.
+ * Mutates the tree.
+ */
+function _dropProseVerses(tree, ref, requestId) {
+  if (!ref || !tree || typeof tree !== 'object') return;
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values(tree[branch] || {})) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => {
+          if (!q || q.slot !== 'urdu.C.Q6') return true;
+          const fromPassage = verseLines(q.passage).lines;
+          const lines = (fromPassage.length >= 4 ? fromPassage : verseLines(q.question).lines).slice(-4);
+          if (lines.length < 4 || lines.filter((l) => _lineFromPoem(l, ref)).length >= 3) return true;
+          logToFile('[assessment] Q6 verses not from the poem', { requestId, slot: q.slot, lines });
+          return false;
+        });
+      }
+    }
+  }
+}
+
+/** The given poem's page text from the book store; null (and today's rule) when it cannot be loaded. */
+async function _loadPatternPoem({ grade, subject, P, scope, pageContent }) {
+  const poem = patternPoemFor({ P, scope, pageContent });
+  if (!poem) return null;
+  try {
+    const got = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: poem.pages });
+    // The page store keeps the book's picture notes ("Object: Illustration of …") among the
+    // poem's lines, and a page goes on to its activities after the poem ("Diving Deeper"; in the
+    // Urdu book the poet's letter «پیارے طلبہ!» and the exercises); the given lines are printed
+    // exactly, so neither is given.
+    let activities = false;
+    const content = got && got.content
+      ? String(got.content).split('\n').filter((line) => {
+        if (/^=== Page \d+ ===/.test(line)) activities = false;
+        else if (/^\s*(?:Diving Deeper\b|پیارے طلبہ)/i.test(line)) activities = true;
+        return !activities && !/^\s*Object:/.test(line);
+      }).join('\n').trim()
+      : '';
+    return content ? { ...poem, content } : null;
+  } catch (err) {
+    logToFile('[assessment] Q5 poem pages not loaded', { pages: poem.pages, error: err.message });
+    return null;
+  }
 }
 
 /**
@@ -1075,6 +1549,102 @@ function _sectionText(section, loaded, scopeKind, ranges) {
 }
 
 /** Concatenate the sections' trees: the same type under the same category becomes one list. */
+/**
+ * A comprehension item whose "questions" part came back with marks and no questions: the paper would
+ * print the part's head and its marks over nothing. Read on a laid-out paper (the slot's parts_spec
+ * says how many questions the part holds). Only the "questions" part is read: other parts keep
+ * their content under other names.
+ */
+function _emptyQuestionParts(examJson) {
+  const specs = {};
+  for (const section of (examJson && examJson._layout && examJson._layout.sections) || []) {
+    for (const slot of section.slots || []) if (Array.isArray(slot.parts_spec)) specs[slot.slot] = slot.parts_spec;
+  }
+  const out = [];
+  _walkQuestions(examJson, (q) => {
+    if (!q.slot || !specs[q.slot] || !Array.isArray(q.parts)) return;
+    q.parts.forEach((part) => {
+      if (!part || part.key !== 'questions') return;
+      if (Array.isArray(part.questions) && part.questions.length) return;
+      const spec = specs[q.slot].find((x) => x.key === 'questions');
+      out.push({ slot: q.slot, part: 'questions', missing: (spec && spec.n) || 1 });
+    });
+  });
+  return out;
+}
+
+/**
+ * The first reply, plus the second reply's items for the given slots that are not already in it. Nothing else of the second reply is kept.
+ */
+// For each short slot: the items a section's reply wrote under it and the layout's holds of it, by rule.
+function _shortWhy(shortfall, tree, held) {
+  return shortfall.map((f) => {
+    let written = 0;
+    _walkQuestions(tree, (q) => { if (q && q.slot === f.slot) written += 1; });
+    const rules = {};
+    for (const h of held || []) if (h.slot === f.slot) rules[h.rule] = (rules[h.rule] || 0) + 1;
+    return { slot: f.slot, written, held: rules };
+  });
+}
+
+function _topUp(firstTree, secondTree, slots) {
+  // Keyed on everything the item says, not its question line alone: an item whose stem sits in
+  // another field has no question line, and two of those are not the same item.
+  const keyOf = (q) => _textsOf(q).map((t) => _flat(t).toLowerCase()).join('\u0001');
+  const seen = new Set();
+  _walkQuestions(firstTree, (q) => seen.add(keyOf(q)));
+  const extra = JSON.parse(JSON.stringify(secondTree || {}));
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values((extra && extra[branch]) || {})) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => q && slots.has(q.slot) && !seen.has(keyOf(q)));
+      }
+    }
+  }
+  const out = _mergeSections([firstTree, extra]);
+  // A laid paper keeps what its layout recorded (the layout reads it back on Urdu papers only).
+  if (firstTree && firstTree._layout) out._layout = firstTree._layout;
+  return out;
+}
+
+// The markers the paper refuses in a question's own text (the renderer's item list). The renderer's
+// own list is used when it exports one; this copy is the fallback.
+const REVIEW_ITEM_FALLBACK = Object.freeze([/needs review/i, /\bfil{2}er\b/i, /\u26A0/, /Islamabad\sModel\sSchool/i, /MODEL PAPER FOR/i]);
+
+function _reviewItemList() {
+  try {
+    const list = require('./assessment-paper-fde.renderer').REFUSED_ITEM;
+    if (Array.isArray(list) && list.length) return list;
+  } catch { /* the fallback below */ }
+  return REVIEW_ITEM_FALLBACK;
+}
+
+/** Section id → the first refused marker one of its items carries. */
+function _reviewTextHits(results) {
+  const list = _reviewItemList();
+  const hits = new Map();
+  for (const r of results) {
+    _walkQuestions(r.tree, (q) => {
+      if (hits.has(r.id)) return;
+      // The marking scheme prints too, so its text is read with the item's.
+      const texts = _textsOf(q);
+      const walk = (v) => {
+        if (typeof v === 'string') texts.push(v);
+        else if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+      };
+      walk(q.scheme);
+      for (const t of texts) {
+        const re = list.find((x) => x.test(t));
+        if (re) { hits.set(r.id, { slot: q.slot || null, marker: String(re) }); return; }
+      }
+    });
+  }
+  return hits;
+}
+
 function _mergeSections(trees) {
   const out = {};
   for (const tree of trees) {
@@ -1212,6 +1782,23 @@ function _heldNorm(text) {
     .replace(/[آأإٱ]/g, 'ا'));
 }
 
+// Social Studies Q1 read by its stem, beside the model's own level tags (which a reader agreed with on two
+// items in three): a case put to the child, then a question asking what to do or whom to turn to, is Apply;
+// a stem that asks why, the difference, the use or the importance is Understand; any other is Remember.
+// A definition told as a case («… اس نظام کو کیا کہتے ہیں؟») asks for a name, so it is Remember. A steer for
+// the log, never a gate.
+// An instruction to the child («وضاحت کریں», «بیان کریں») decides nothing.
+const STEM_DECIDES = /چاہیے|چاہئے|(?<!(?:وضاحت|بیان|تحریر|واضح)\s*)(?:کرے|کریں)|رابطہ|فیصلہ|منتخب|کیا کرنا|کس سے|مدد/;
+const STEM_EXPLAINS = /کیوں|وجہ|فرق|اہمیت|فائدہ|فوائد|مقصد|ضروری|کیسے|کس لیے|وضاحت|بیان کریں/;
+function sstStemLevel(q) {
+  const stem = String((q && q.question) || '');
+  const sentences = stem.split(/[۔؟?!:\n]+/).map((x) => x.trim()).filter(Boolean);
+  const asked = sentences[sentences.length - 1] || '';
+  if ((sentences.length >= 2 || /^\s*(?:اگر|فرض کریں)\s/.test(stem)) && STEM_DECIDES.test(asked)) return 'apply';
+  if (STEM_EXPLAINS.test(stem)) return 'understand';
+  return 'remember';
+}
+
 /** The first held term a Social Studies item names (its marking scheme included), or null. */
 function _heldTermOf(q) {
   const texts = [..._textsOf(q)];
@@ -1222,6 +1809,94 @@ function _heldTermOf(q) {
     if (hit) return hit.term;
   }
   return null;
+}
+
+/**
+ * The text an item carries that the model wrote as its own: answers, passages, `accept`, the scheme.
+ * An MCQ's answer is one of its options, which are read with the stem, so it is not model prose.
+ */
+function _modelTextsOf(q) {
+  const out = [];
+  const add = (v) => {
+    if (typeof v === 'string') out.push(v);
+    else if (Array.isArray(v)) v.forEach(add);
+    else if (v && typeof v === 'object') Object.values(v).forEach(add);
+  };
+  const visit = (o) => {
+    if (!o || typeof o !== 'object') return;
+    const mcq = Array.isArray(o.options) && o.options.length > 0;
+    ['answer', 'passage', 'accept', 'scheme'].forEach((k) => { if (!(mcq && k === 'answer')) add(o[k]); });
+    ['parts', 'questions'].forEach((k) => { if (Array.isArray(o[k])) o[k].forEach(visit); });
+  };
+  visit(q);
+  return out;
+}
+
+/** Whether the match at `at` (length `len`) in `s` sits in a run of HELD_SHINGLE characters `book` prints. */
+function _quotesBook(s, at, len, book) {
+  if (!book) return false;
+  if (s.length <= HELD_SHINGLE || len >= HELD_SHINGLE) return book.includes(s.length <= HELD_SHINGLE ? s : s.slice(at, at + len));
+  for (let i = Math.max(0, at + len - HELD_SHINGLE); i <= Math.min(at, s.length - HELD_SHINGLE); i += 1) {
+    if (book.includes(s.slice(i, i + HELD_SHINGLE))) return true;
+  }
+  return false;
+}
+
+/**
+ * Urdu: the first held term (HELD_TERMS_URDU_AUTHORED) an item's own model text carries, or null.
+ * `book` is the paper's book text, _heldNorm'd: a term inside a run the book prints is the book's.
+ */
+function _authoredReligiousOf(q, book) {
+  for (const t of _modelTextsOf(q)) {
+    const s = _heldNorm(t);
+    for (const { term, re } of HELD_TERMS_URDU_AUTHORED) {
+      for (const m of s.matchAll(new RegExp(re.source, 'gu'))) {
+        if (!_quotesBook(s, m.index, m[0].length, book)) return term;
+      }
+    }
+  }
+  return null;
+}
+
+/** The book text a paper is set from, the held pages (lessons 1–3) left out, whitespace collapsed. */
+function _keptBookText(allowedText) {
+  // The held pages themselves never count as allowed, even when the teacher's chapters reach into them.
+  const pages = _splitPages(allowedText);
+  const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
+  return _flat(String(kept || '').replace(/=== Page \d+ ===/g, ' '));
+}
+
+/** Section id → the first authored religious term one of its Urdu items carries ({ slot, term }). */
+function _religiousHits(results, book) {
+  const hits = new Map();
+  for (const r of results) {
+    _walkQuestions(r.tree, (q) => {
+      if (hits.has(r.id)) return;
+      const term = _authoredReligiousOf(q, book);
+      if (term) hits.set(r.id, { slot: q.slot || null, term });
+    });
+  }
+  return hits;
+}
+
+/**
+ * Urdu: an item of a printed-word-list slot (`shape: 'words'`, `print_words`) whose FDE instruction
+ * takes no {q} prints FDE's instruction and the list; a `question` the model wrote for it only says
+ * the instruction again. That restatement is stock exercise wording the held lessons also print, so
+ * the held-lessons filter would read it as a quote and drop the item: it is emptied first.
+ * Every other slot, and every other subject, keeps its question. Mutates the tree.
+ */
+function _blankWordsStems(examJson, P, key) {
+  if (key !== 'urdu' || !P || !Array.isArray(P.sections)) return;
+  const blank = new Set();
+  for (const sec of P.sections) {
+    for (const s of sec.slots || []) {
+      if (s.shape === 'words' && s.print_words && !/\{q\}/.test(s.instruction_ur || '')) blank.add(s.slot);
+    }
+  }
+  _walkQuestions(examJson, (q) => {
+    if (blank.has(q.slot) && typeof q.question === 'string' && q.question) q.question = '';
+  });
 }
 
 /** Drop every item `held(q)` names, logging each; returns [{ slot, reason, ... }]. */
@@ -1238,9 +1913,13 @@ function _dropHeld(examJson, held, requestId = null) {
           if (!q || typeof q !== 'object') return true;
           const why = held(q);
           if (!why) return true;
-          const hit = { slot: q.slot || null, ...why };
+          // The kind (the reply's own type key) and, for a quote, the run that matched: one log line
+          // then says whether a drop was a real quote or a phrase the held lessons share with others.
+          const { match, ...reason } = why;
+          const hit = { slot: q.slot || null, ...reason };
           dropped.push(hit);
-          logToFile('[assessment] held item dropped', requestId ? { requestId, ...hit } : hit);
+          const line = { ...hit, kind: type, ...(match ? { match } : {}) };
+          logToFile('[assessment] held item dropped', requestId ? { requestId, ...line } : line);
           return false;
         });
       }
@@ -1253,12 +1932,13 @@ function _dropHeld(examJson, held, requestId = null) {
  * Urdu: drop every item that quotes lessons 1–3 (book pp 1–27: the Hamd,
  * the Naat and the third lesson). The prompt already says so; this makes it
  * true when the model forgets. A quote is any run of 24 characters or more
- * from those pages, whitespace collapsed. The pages are loaded once per paper.
+ * from those pages, whitespace collapsed. The pages are loaded each time the filter runs.
  * Social Studies: drop every item that names a religious text (HELD_TERMS_SST).
- * Either way the emptied place is a shortfall and the paper fails; it is never refilled.
+ * The emptied place is a shortfall. Urdu: a place a quote emptied is asked again once by the caller
+ * (`quotes` collects each matched run for that re-ask's note); a second quote fails the paper.
  * Mutates the tree; returns what was dropped, [{ slot, reason }] (plus `term` for Social Studies).
  */
-async function religiousFilter(examJson, P, { grade, subject, allowedText = '', requestId = null } = {}) {
+async function religiousFilter(examJson, P, { grade, subject, allowedText = '', requestId = null, quotes = null } = {}) {
   const key = (P && P.key) || Patterns.normalise(subject);
   if (key === 'social_studies') {
     return _dropHeld(examJson, (q) => {
@@ -1275,23 +1955,38 @@ async function religiousFilter(examJson, P, { grade, subject, allowedText = '', 
   // questions below") sits on the held pages AND in the lessons the paper is set from. Only
   // what the held lessons alone contain marks an item as quoting them; a shared phrase never
   // drops a good item and fails the paper as a short slot.
-  // The held pages themselves never count as allowed, even when the teacher's chapters reach into them.
-  const pages = _splitPages(allowedText);
-  const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
+  const kept = _keptBookText(allowedText);
   // The pattern's own Urdu (instructions, closed lists, rules) is what the model is told to
   // copy, and a held lesson's exercise can print the same instruction: never a quote.
-  const allowedTexts = [_flat(String(kept || '').replace(/=== Page \d+ ===/g, ' ')), ..._urduStringsOf(P)];
+  const allowedTexts = [kept, ..._urduStringsOf(P)];
   for (const allowed of allowedTexts) {
     for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
   }
 
-  const quotes = (q) => _textsOf(q).some((t) => {
-    const s = _flat(t);
-    for (let i = 0; i + HELD_SHINGLE <= s.length; i += 1) if (shingles.has(s.slice(i, i + HELD_SHINGLE))) return true;
-    return false;
-  });
+  // The first run of the held pages an item carries, or null.
+  const quoteOf = (q) => {
+    for (const t of _textsOf(q)) {
+      const s = _flat(t);
+      for (let i = 0; i + HELD_SHINGLE <= s.length; i += 1) {
+        const run = s.slice(i, i + HELD_SHINGLE);
+        if (shingles.has(run)) return run;
+      }
+    }
+    return null;
+  };
 
-  return _dropHeld(examJson, (q) => (quotes(q) ? { reason: 'lesson_1_3' } : null), requestId);
+  // A religious maxim, hadith or act of worship the model wrote into an answer, passage or scheme.
+  const book = _heldNorm(kept);
+  return _dropHeld(examJson, (q) => {
+    const match = quoteOf(q);
+    if (match) {
+      // The caller's re-ask is told the run, so it writes the place again without it.
+      if (Array.isArray(quotes)) quotes.push({ slot: q.slot || null, match });
+      return { reason: 'lesson_1_3', match };
+    }
+    const term = _authoredReligiousOf(q, book);
+    return term ? { reason: 'authored_religious', term } : null;
+  }, requestId);
 }
 
 /** Where a pattern paper's pages come from: the pattern's syllabus, the job's pages, or a chapter. */
@@ -1300,6 +1995,464 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
   if (pages) return BookContent().loadPageRangeContent({ grade, subject, pageRanges: pages });
   if (chapterNumber != null) return BookContent().loadChapterContent({ grade, subject, chapterNumber });
   throw fail('NO_CONTENT', 'No pages were given for this paper.');
+}
+
+// ── The reader pass (Urdu) ─────────────────────────────────────────────
+//
+// After the final layout, one call reads the question paper as the child sees it, with Q1's keys
+// beside it, and names the Q1 items a child could answer from text printed elsewhere on it. Those
+// are held, Section A is asked for replacements, the paper is laid out again, and the reader
+// checks the replacements against the whole paper. A caught item never prints: a place still empty
+// after one more top-up fails the paper closed (PATTERN_SHORT_SLOT, the record on the paper).
+// Runs only when the caller says so (the reader setting, read by the orchestrator) and only for
+// READER_SUBJECTS. A failed READ (a timeout, a reply with no candidates) keeps the paper as it was:
+// the reader erroring never fails a paper that prints without it.
+const READER_TIMEOUT_MS = 120000;
+// The longest recorded read wrote 3,768 tokens (reasoning included); a cut-off read skips the pass.
+const READER_MAX_TOKENS = 8000;
+// High. At low effort eight recorded papers read 8, 8, 7 and 6 of 8 give-aways. At medium the model
+// may skip thinking altogether (0 reasoning tokens on 48 of 48 reads in one session), and it then
+// misses the by-meaning shapes. High thought on 64 of 64 reads and found 12 of 12, twice.
+const READER_REASONING = { effort: 'high' };
+const READ_SLOT = 'urdu.A.Q1';
+// The Section A top-ups a reader pass may run: the first, and one more for a place the first leaves.
+const READER_TOP_UPS = 2;
+
+const _readerId = (q) => `${_flat(q && q.question)}\u0001${Reader.keyOf(q || {})}`;
+
+// A copy of the paper with the given items of one slot taken out.
+function _dropItems(examJson, slotId, ids) {
+  const out = JSON.parse(JSON.stringify(examJson));
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values(out[branch] || {})) {
+      for (const [type, list] of Object.entries(types || {})) {
+        if (Array.isArray(list)) types[type] = list.filter((q) => !(q && q.slot === slotId && ids.has(_readerId(q))));
+      }
+    }
+  }
+  return out;
+}
+
+// A copy of the paper with one item added at the end of its slot's list.
+function _addItem(examJson, slotId, q) {
+  const out = JSON.parse(JSON.stringify(examJson));
+  for (const types of Object.values(out.unseen || {})) {
+    for (const list of Object.values(types || {})) {
+      if (Array.isArray(list) && list.some((x) => x && x.slot === slotId)) { list.push(JSON.parse(JSON.stringify(q))); return out; }
+    }
+  }
+  return out;
+}
+
+async function _askReader({ examJson, P, only = null, pages = null, model, ownModel, job, usages, reasoning = READER_REASONING }) {
+  const { prompt, labels, only: onlyLabels, blocks, split } = Reader.buildReaderPrompt(examJson, P, { only, pages });
+  const response = await getClient().chat.completions.create({
+    model,
+    job,
+    ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0,
+    response_format: { type: 'json_object' },
+    max_tokens: READER_MAX_TOKENS,
+    reasoning,
+  }, { timeout: READER_TIMEOUT_MS });
+  usages.push(response?.usage || {});
+  // A client that already parsed the JSON hands back an object: read it, never skip the pass for it.
+  const content = response?.choices?.[0]?.message?.content;
+  const reply = content && typeof content === 'object' ? content : extractJsonFromResponse(content || '');
+  return { flags: Reader.parseFlags(reply, labels, onlyLabels, blocks, { split }), labels };
+}
+
+async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
+  const began = Date.now();
+  const readUsages = [];
+  const sectionUsages = [];
+  // put_back stays 0: a reader-caught item never prints (a place it leaves fails the paper closed).
+  const stats = { flagged: 0, replaced: 0, still_flagged: 0, put_back: 0, top_ups: 0 };
+  // What became of each flag, written on the paper (`_layout.reader`) as well as the log line, so a
+  // panel reads from exam_json which items printed over a flag. The renderers never read it.
+  const items = [];
+  const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  // The record keeps its items on every path, an error's included: a failed paper still names them.
+  const done = (exam, laid, error = null) => {
+    logToFile('[assessment] reader pass', {
+      requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
+    });
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items, ...(error ? { error } : {}) };
+    return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
+  };
+  // The book pages ride along, so the reader is handed the pairs whose answers stand side by side in them.
+  const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, pages: loaded && loaded.content, model, ownModel, job, usages: readUsages });
+  // A flag with its item and, when another Q1 item gives it away, that partner: the top-up is told both.
+  const withItems = (read) => read.flags.map((f) => ({ ...f, q: read.labels.get(f.item), partner: read.labels.get(f.by) || null }));
+  const idsOf = (list) => new Set(list.map((h) => _readerId(h.q)));
+
+  let first;
+  try {
+    first = await ask(examJson);
+  } catch (err) {
+    return done(examJson, null, `read: ${err.message}`);
+  }
+  if (!first.flags.length) return done(examJson, null);
+  stats.flagged = first.flags.length;
+  const held = withItems(first);
+  held.forEach((h) => record(h, 'replaced'));
+  // Every item a read has caught: none of them prints, and every top-up is told all of them.
+  let taken = held;
+  let laid = lay(_dropItems(examJson, READ_SLOT, idsOf(held)));
+  const short = (l) => l.shortfall.filter((f) => f.slot === READ_SLOT);
+
+  try {
+    const b = built.find((x) => x.section.slots.some((s) => s.slot === READ_SLOT));
+    for (let round = 0; round < READER_TOP_UPS && short(laid).length; round += 1) {
+      const kept = laid;
+      const shortfall = short(kept);
+      // Ask twice what is missing (plus the note's spares): on a narrow scope the layout holds most of a
+      // top-up's items (5 asked, 4 held on a local lessons 6-7 paper), and the extras never print.
+      const ask2 = shortfall.map((f) => ({ ...f, missing: f.missing * 2 }));
+      // The one more top-up is told grammar is used up: the first one's place was
+      // left by a grammar concept asked again, which never comes back.
+      const usedUp = round > 0 && _grammarUsedUp(P, layoutScope, kept) ? _grammarUsedUpNote(P, layoutScope) : null;
+      const note = [takenNote(P, b.section, kept.examJson, { topUp: true, shortfall: ask2 }), Reader.readerNote(taken), usedUp]
+        .filter(Boolean).join('\n\n');
+      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, reader: taken.map(({ q, partner, ...f }) => f) });
+      stats.top_ups += 1;
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      sectionUsages.push(...second.usages);
+      // A replacement carrying text the paper refuses to print would fail the paper at render.
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return done(kept.examJson, kept, 'top-up: refused text');
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      // Only new Q1 items: a caught item written again is not a replacement.
+      const fresh = _dropItems(second.tree, READ_SLOT, idsOf(taken));
+      let next = lay(_topUp(kept.examJson, fresh, new Set([READ_SLOT])));
+      _blankWordsStems(next.examJson, P, key);
+      if ((await religiousFilter(next.examJson, P, { grade, subject, allowedText: loaded.content, requestId })).length) next = lay(next.examJson);
+
+      const keptIds = new Set(Reader.itemsOf(kept.examJson, READ_SLOT).map(_readerId));
+      const replacements = Reader.itemsOf(next.examJson, READ_SLOT).filter((q) => !keptIds.has(_readerId(q)));
+      let still = [];
+      if (replacements.length) {
+        try {
+          still = withItems(await ask(next.examJson, replacements));
+          stats.rechecked = true;
+        } catch (err) {
+          stats.rechecked = false;
+          logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
+        }
+      }
+      stats.still_flagged += still.length;
+      stats.replaced += replacements.length - still.length;
+      still.forEach((h) => record(h, 'taken_off'));
+      taken = taken.concat(still);
+      laid = still.length ? lay(_dropItems(next.examJson, READ_SLOT, idsOf(still))) : next;
+    }
+    // Still short after the top-ups: the paper fails closed (PATTERN_SHORT_SLOT, with this record),
+    // never printing a caught item to fill the place.
+    if (laid.shortfall.length) return done(laid.examJson, laid, 'the paper would be short');
+    return done(laid.examJson, laid);
+  } catch (err) {
+    return done(laid.examJson, laid, `top-up: ${err.message}`);
+  }
+}
+
+/**
+ * Social Studies: the first-ask spares a D slot could take when the reader's re-check might leave it
+ * short. A slot is at risk when it is short with every replacement taken off; its spares are the items
+ * of `source` (the model's replies) that a layout of the paper, without the replacements, places in
+ * it: new against everything the layout holds against, and not an item the reader caught. Laid out
+ * (their slot, marks and lines set). None when no slot is at risk.
+ */
+function _sstSpares({ exam, source, replacements, caught, lay }) {
+  if (!source) return [];
+  const without = replacements.reduce((e, q) => _dropItems(e, q.slot, new Set([_readerId(q)])), exam);
+  const risk = new Set(lay(without).shortfall.map((f) => f.slot).filter((slot) => SST_D_SLOTS.includes(slot)));
+  if (!risk.size) return [];
+  const onPaper = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+  const caughtIds = new Set(caught.map((h) => _readerId(h.q)));
+  const trial = lay(_topUp(without, source, risk)).examJson;
+  return [...risk].flatMap((slot) => Reader.itemsOf(trial, slot))
+    .filter((q) => !onPaper.has(_readerId(q)) && !caughtIds.has(_readerId(q)));
+}
+
+// Social Studies: how many Q1 items a C or D stem gives away on a laid-out paper (the layout's
+// key_in_stem and asked_in_c holds).
+const _q1Given = (laid) => (laid.held || []).filter((h) => h.slot === SST_Q1 && (h.rule === 'key_in_stem' || h.rule === 'asked_in_c')).length;
+
+/**
+ * Social Studies: the items of a Section D top-up (`fresh`, a reply tree) that would hold a Q1 item the
+ * paper (`exam`) prints now, as { slot, q }. A top-up that leaves Q1 whole has none. Each new item the
+ * layout places is tried without it; one whose absence gives a Q1 item back is a giver, and the trial
+ * goes on without it, since the next item in the reply then takes its place.
+ */
+function _q1GiversOf(exam, fresh, lay, keptIds) {
+  const slots = new Set(SST_D_SLOTS);
+  const out = [];
+  let tree = fresh;
+  for (let round = 0; round < 8; round += 1) {
+    const laid = lay(_topUp(exam, tree, slots));
+    if (!laid.shortfall.some((f) => f.slot === SST_Q1)) break;
+    const n = _q1Given(laid);
+    const placed = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(laid.examJson, slot)).filter((q) => !keptIds.has(_readerId(q)));
+    const giver = placed.find((q) => _q1Given(lay(_topUp(exam, _dropItems(tree, q.slot, new Set([_readerId(q)])), slots))) < n);
+    if (!giver) break;
+    out.push({ slot: giver.slot, q: giver });
+    tree = _dropItems(tree, giver.slot, new Set([_readerId(giver)]));
+  }
+  return out;
+}
+
+// The paper with the given laid-out items added at the end of their slots' lists.
+function _withItems(examJson, list) {
+  const out = JSON.parse(JSON.stringify(examJson));
+  for (const q of list) {
+    const slot = q.slot;
+    const lists = Object.values(out.unseen || {}).flatMap((types) => Object.values(types || {})).filter(Array.isArray);
+    const home = lists.find((l) => l.some((x) => x && x.slot === slot));
+    if (home) home.push(JSON.parse(JSON.stringify(q)));
+    else out.unseen = _mergeSections([out, { unseen: { _spares: { [slot]: [JSON.parse(JSON.stringify(q))] } } }]).unseen;
+  }
+  return out;
+}
+
+// ── The reader pass (Social Studies) ───────────────────────────────────
+//
+// The same read for T6-A: the reader judges the Q5, Q6 and Q7 items (a duplicate, a whole answer
+// Section A prints, a point set another C/D item's answer contains). Every flagged item is taken off.
+// A flagged D item leaves a place that Section D fills in ONE top-up (told what was taken off, asked
+// twice what is missing plus spares), the paper is laid out again and the reader checks the
+// replacements only; one still flagged is taken off too. A flagged Q5 is taken off with no re-ask:
+// Q5 offers more than the child answers. Nothing taken off comes back: a choice slot prints fewer
+// items (applyLayout), and a paper the pass would leave short fails closed (PATTERN_SHORT_SLOT, with
+// this record on it), never printing a caught item to fill the place. A read that fails prints the
+// paper as it was: no caught item is known.
+// A D slot the replacements alone could not fill also offers its first-ask spares (`source`: what the
+// model wrote, before the layout): the items the layout finds new but had no room for. They are read
+// in the same re-check as the replacements, and one fills a place only when the slot is short without
+// it; a spare the re-check flags never prints either.
+const SST_D_SLOTS = ['social_studies.D.Q6', 'social_studies.D.Q7'];
+const _labelSlot = (label) => ({ Q5: 'social_studies.C.Q5', Q6: 'social_studies.D.Q6', Q7: 'social_studies.D.Q7' })[String(label).split('.')[0]];
+
+async function _readerPassSst({ examJson, source = null, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId }) {
+  const began = Date.now();
+  const readUsages = [];
+  const sectionUsages = [];
+  const stats = { flagged: 0, replaced: 0, still_flagged: 0, taken_off: 0, spares_read: 0, spares: 0 };
+  const items = [];
+  const record = (f, outcome) => items.push({ label: f.item, by: f.by, reason: f.reason, outcome });
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true, ...(loaded ? { book: loaded.content } : {}) });
+  const done = (exam, laid, error = null) => {
+    logToFile('[assessment] reader pass', {
+      requestId, subject: key, ...stats, ms: Date.now() - began, tokens: _sumUsage(readUsages).total_tokens || 0, ...(error ? { error } : {}),
+    });
+    // The record keeps its items on every path, an error's included: a refused paper still names them.
+    if (exam && exam._layout) exam._layout.reader = { ...stats, items, ...(error ? { error } : {}) };
+    return { examJson: exam, laid, usages: readUsages.concat(sectionUsages) };
+  };
+  const ask = (exam, only = null) => _askReader({ examJson: exam, P, only, model, ownModel, job, usages: readUsages });
+  const without = (exam, list) => list.reduce((e, h) => _dropItems(e, h.slot, new Set([_readerId(h.q)])), exam);
+  const count = (exam, slot) => Reader.itemsOf(exam, slot).length;
+
+  let first;
+  try {
+    first = await ask(examJson);
+  } catch (err) {
+    return done(examJson, null, `read: ${err.message}`);
+  }
+  if (!first.flags.length) return done(examJson, null);
+  stats.flagged = first.flags.length;
+  const held = first.flags.map((f) => ({ ...f, q: first.labels.get(f.item), slot: _labelSlot(f.item) }));
+
+  const dHeld = held.filter((h) => SST_D_SLOTS.includes(h.slot));
+  // From here on no caught item prints: every exit returns the paper with them taken off, and one the
+  // pass leaves short fails closed in the engine (PATTERN_SHORT_SLOT) with this record attached.
+  let laid = lay(without(examJson, held));
+  let exam = laid.examJson;
+  let still = [];
+  let replacements = [];
+  const settle = (error = null) => {
+    stats.still_flagged = still.length;
+    stats.replaced = error ? 0 : replacements.length - still.length;
+    stats.taken_off = held.length + still.length;
+    held.forEach((h) => record(h, !error && SST_D_SLOTS.includes(h.slot) ? 'replaced' : 'taken_off'));
+    still.forEach((h) => record(h, 'taken_off'));
+    return done(exam, laid, error);
+  };
+  try {
+    if (dHeld.length) {
+      const b = built.find((x) => x.section.slots.some((s) => s.slot === SST_D_SLOTS[0]));
+      const missing = b.section.slots.map((s) => ({ slot: s.slot, missing: s.generate - count(exam, s.slot) })).filter((f) => f.missing > 0);
+      // Asked twice what is missing (and the note's spares): the layout holds some of a top-up's items too.
+      const ask2 = missing.map((f) => ({ ...f, missing: f.missing * 2 }));
+      const note = [takenNote(P, b.section, exam, { topUp: true, shortfall: ask2, held: laid.held }), Reader.readerNote(dHeld, first.labels, P)]
+        .filter(Boolean).join('\n\n');
+      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: missing, reader: dHeld.map(({ q, ...f }) => f) });
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      sectionUsages.push(...second.usages);
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return settle('top-up: refused text');
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      // Only new items: an item taken off and written again is not a replacement.
+      let fresh = without(second.tree, dHeld);
+      const keptIds = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+      // A replacement whose stem gives a Q1 item away (its key printed on its topic) holds that Q1 item,
+      // and Section A has no top-up after the reader: the paper would fail for a D item. That
+      // replacement is left out instead, before the re-check, so the Q1 item prints and every D item
+      // that prints is one the reader reads.
+      const gave = _q1GiversOf(exam, fresh, lay, keptIds);
+      if (gave.length) {
+        fresh = without(fresh, gave);
+        stats.gives_q1 = gave.length;
+      }
+      laid = lay(_topUp(exam, fresh, new Set(SST_D_SLOTS)));
+      exam = laid.examJson;
+      _blankWordsStems(exam, P, key);
+      if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
+        laid = lay(exam);
+        exam = laid.examJson;
+      }
+      replacements = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !keptIds.has(_readerId(q)));
+      const replacedIds = new Set(replacements.map(_readerId));
+      const spares = _sstSpares({ exam, source, replacements, caught: held, lay });
+      let spareFlags = [];
+      if (replacements.length || spares.length) {
+        // The paper as the re-check reads it: the replacements in place, the spares after them.
+        const readExam = _withItems(exam, spares);
+        const ids = new Set([...replacedIds, ...spares.map(_readerId)]);
+        const judged = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(readExam, slot)).filter((q) => ids.has(_readerId(q)));
+        stats.spares_read = spares.length;
+        try {
+          const again = await ask(readExam, judged);
+          const flags = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item), slot: _labelSlot(f.item) }));
+          still = flags.filter((h) => replacedIds.has(_readerId(h.q)));
+          spareFlags = flags.filter((h) => !replacedIds.has(_readerId(h.q)));
+          stats.rechecked = true;
+        } catch (err) {
+          stats.rechecked = false;
+          // An unread spare is never offered: only the replacements are kept, as before.
+          spareFlags = spares.map((q) => ({ q, slot: q.slot }));
+          logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
+        }
+      }
+      if (still.length) {
+        laid = lay(without(exam, still));
+        exam = laid.examJson;
+      }
+      const flaggedSpares = new Set(spareFlags.map((h) => _readerId(h.q)));
+      // A spare that would give a Q1 item away is never offered either. Read only when D is short: each spare
+      // costs a layout, and a D that is whole takes none.
+      const dShort = laid.shortfall.some((f) => SST_D_SLOTS.includes(f.slot));
+      const q1Given = dShort ? _q1Given(lay(exam)) : 0;
+      const clean = dShort ? spares.filter((q) => !flaggedSpares.has(_readerId(q)) && _q1Given(lay(_withItems(exam, [q]))) <= q1Given) : [];
+      if (clean.length && dShort) {
+        const before = new Set(SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot).map(_readerId)));
+        laid = lay(_withItems(exam, clean));
+        exam = laid.examJson;
+        _blankWordsStems(exam, P, key);
+        if ((await religiousFilter(exam, P, { grade, subject, allowedText: loaded.content, requestId })).length) {
+          laid = lay(exam);
+          exam = laid.examJson;
+        }
+        // Nothing the reader caught comes back as a spare, whatever form the model wrote it in.
+        const gone = [...held, ...still, ...spareFlags];
+        if (gone.some((h) => SST_D_SLOTS.some((slot) => Reader.itemsOf(exam, slot).some((q) => _readerId(q) === _readerId(h.q))))) {
+          laid = lay(without(exam, gone.map((h) => ({ ...h, slot: h.slot || h.q.slot }))));
+          exam = laid.examJson;
+        }
+        stats.spares = SST_D_SLOTS.flatMap((slot) => Reader.itemsOf(exam, slot)).filter((q) => !before.has(_readerId(q))).length;
+      }
+    }
+    return settle(laid.shortfall.length ? 'the paper would be short' : null);
+  } catch (err) {
+    return settle(`top-up: ${err.message}`);
+  }
+}
+
+/**
+ * Urdu: the places the lessons 1–3 filter emptied are asked again ONCE, for exactly what each slot
+ * lacks. The filter matches any run of 24 characters only the held lessons print, and an everyday
+ * phrase in a model answer can be one («… کی عادت اپنانی چاہیے۔»); one such run used to fail the whole
+ * paper, since the slot was never refilled. The re-ask is told the runs that matched, and the filter
+ * then reads the paper again exactly as strictly: a second quote leaves the slot short and the paper
+ * fails as it always has. A section call that fails, or carries text the paper refuses, leaves it short too.
+ */
+async function _reaskQuoted({ examJson, laid, quotes, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef }) {
+  const usages = [];
+  const short = laid.shortfall.filter((f) => quotes.some((x) => x.slot === f.slot));
+  if (!short.length) return { examJson, laid, usages };
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const asked = built.filter((b) => b.section.slots.some((s) => short.some((f) => f.slot === s.slot)));
+  const replies = await Promise.all(asked.map(async (b) => {
+    const mine = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const label = (id) => { const slot = b.section.slots.find((s) => s.slot === id); return (slot && slot.label_en) || id.split('.').pop(); };
+    const runs = [...new Set(quotes.filter((x) => mine.some((f) => f.slot === x.slot)).map((x) => x.match))];
+    // Section A's own top-up note names what Q1 keeps (and its spares), so a refill is not a twin of a kept item.
+    const kept = takenNote(P, b.section, examJson, { topUp: true, shortfall: mine });
+    const note = 'This paper cannot print what you wrote for '
+      + `${mine.map((f) => label(f.slot)).join(', ')}: it repeats words from a lesson the paper must never quote. `
+      + `Never write these words, or any longer run that holds them, anywhere in an item, its answer or its scheme:\n${runs.map((r) => `- «${r}»`).join('\n')}\n`
+      + (kept || mine.map((f) => `${label(f.slot)} needs ${f.missing} more. Write ${f.missing} new item${f.missing === 1 ? '' : 's'} for it, in your own everyday words.`).join('\n'));
+    logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: mine, quoted: runs });
+    try {
+      const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+      usages.push(...second.usages);
+      if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return null;
+      stripImageKeys(second.tree);
+      normaliseAnswers(second.tree);
+      _dropProseVerses(second.tree, versesRef, requestId);
+      return { slots: new Set(mine.map((f) => f.slot)), tree: second.tree };
+    } catch (err) {
+      logToFile('[assessment] held quote re-ask failed', { requestId, section: b.section.id, error: err.message });
+      return null;
+    }
+  }));
+  let exam = examJson;
+  for (const r of replies) if (r) exam = _topUp(exam, r.tree, r.slots);
+  let next = lay(exam);
+  _blankWordsStems(next.examJson, P, key);
+  const again = await religiousFilter(next.examJson, P, { grade, subject, allowedText: loaded.content, requestId });
+  if (again.length) next = lay(next.examJson);
+  logToFile('[assessment] held quote re-asked', {
+    requestId, slots: short.map((f) => f.slot), refilled: !next.shortfall.some((f) => short.some((x) => x.slot === f.slot)), held_again: again.length,
+  });
+  return { examJson: next.examJson, laid: next, usages };
+}
+
+/**
+ * Urdu (chosen lessons; the full syllabus when a concept was asked again): a Q1 place the re-asks left empty is never filled with a grammar concept
+ * asked again (applyLayout keeps it out). Section A is topped up once more, for what Q1 lacks plus
+ * spares, told grammar is used up, and the paper is laid out again; a place still empty fails the
+ * paper as a short slot. Runs only when Q1 is the one slot short.
+ */
+// On the full syllabus only when the layout held a concept asked again: a place left by anything else
+// (a lessons 1–3 quote) fails the paper as it did.
+const _conceptHeld = (laid) => Boolean(laid && laid.examJson && laid.examJson._layout
+  && (laid.examJson._layout.holds || []).some((h) => h.slot === READ_SLOT && h.rule === 'concept_repeat'));
+const _grammarUsedUp = (P, scope, laid) => Boolean(P && P.key === 'urdu' && (scopeLessons(P, scope) || _conceptHeld(laid)));
+const _grammarUsedUpNote = (P, scope) => (scopeLessons(P, scope) ? RULE.urduGrammarUsedUp : RULE.urduGrammarUsedUpFull);
+async function _topUpGrammarUsedUp({ examJson, laid, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef }) {
+  const usages = [];
+  const lay = (exam) => applyLayout(exam, P, layoutScope, { now, presetId: pattern, reasked: true });
+  const b = built.find((x) => x.section.slots.some((s) => s.slot === READ_SLOT));
+  const shortfall = laid.shortfall.filter((f) => f.slot === READ_SLOT);
+  const note = [takenNote(P, b.section, examJson, { topUp: true, shortfall }), _grammarUsedUpNote(P, layoutScope)].filter(Boolean).join('\n\n');
+  logToFile('[assessment] section topped up again', { requestId, pattern, section: b.section.id, shortfall, grammar: 'used_up' });
+  try {
+    const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+    usages.push(...second.usages);
+    if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return { examJson, laid, usages };
+    stripImageKeys(second.tree);
+    normaliseAnswers(second.tree);
+    _dropProseVerses(second.tree, versesRef, requestId);
+    let next = lay(_topUp(examJson, second.tree, new Set([READ_SLOT])));
+    _blankWordsStems(next.examJson, P, key);
+    if ((await religiousFilter(next.examJson, P, { grade, subject, allowedText: loaded.content, requestId })).length) next = lay(next.examJson);
+    return { examJson: next.examJson, laid: next, usages };
+  } catch (err) {
+    logToFile('[assessment] grammar top-up failed', { requestId, section: b.section.id, error: err.message });
+    return { examJson, laid, usages };
+  }
 }
 
 /**
@@ -1312,7 +2465,7 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
  */
 // `onSection` is called (and awaited, never thrown from) as each section comes back, so the caller
 // can mark the paper row as alive: a run of several long calls must not look silent.
-async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null }) {
+async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false }) {
   const startedAt = Date.now();
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
@@ -1326,6 +2479,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     ? { kind: 'chapters', chapters: [Number(chapterNumber)], pages: null }
     : { kind: 'pages', chapters: null, pages: pageRanges });
   const sectionRanges = (Patterns.scopeFor(pattern, subject) || {}).section_ranges || {};
+  const poem = await _loadPatternPoem({ grade, subject, P, scope: layoutScope, pageContent: loaded.content });
 
   const family = URDU_MEDIUM.has(canonical(subject) || 'eng') ? 'urdu' : 'eng';
   if (typeof ensureCurrent === 'function') await ensureCurrent();
@@ -1335,16 +2489,12 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
 
   const built = P.sections.map((section) => {
     const text = _sectionText(section, loaded, layoutScope.kind, sectionRanges[section.id]);
-    const messages = _sectionMessages({
-      system,
-      user: buildPatternUserPrompt({
-        grade, subject, pageContent: text.content, pageReference: text.pageReference,
-        section, slots: section.slots, lang: P.medium, P, scope: layoutScope,
-      }),
-      pageContent: text.content,
-      model,
+    const user = buildPatternUserPrompt({
+      grade, subject, pageContent: text.content, pageReference: text.pageReference,
+      section, slots: section.slots, lang: P.medium, P, scope: layoutScope, poem,
     });
-    return { section, messages };
+    const messages = _sectionMessages({ system, user, pageContent: text.content, model });
+    return { section, messages, user, pageContent: text.content };
   });
   // Awaited, so the sections that follow read what it wrote. Empty off the direct lane.
   const warmUsages = await _warmSharedPrefixes({ built, model, job, requestId, pattern });
@@ -1364,8 +2514,30 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     }
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
   };
-  const results = await Promise.all(built.map(writeOne));
+  // Social Studies: Section D is written after Section C's first reply, told C's Q5 items and their
+  // marking points, so its first Q6s are not C's cases again; A and B are still written beside C.
+  const iC = key === 'social_studies' ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.C.Q5')) : -1;
+  const iD = iC >= 0 ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.D.Q6')) : -1;
+  let results;
+  if (iD < 0) {
+    results = await Promise.all(built.map(writeOne));
+  } else {
+    const writes = built.map((b, i) => (i === iD ? null : writeOne(b)));
+    const d = built[iD];
+    writes[iD] = writes[iC].then((c) => {
+      const note = firstAskNote(P, c.tree);
+      return writeOne(note
+        ? { ...d, messages: _sectionMessages({ system, user: `${d.user}\n\n${note}`, pageContent: d.pageContent, model }) }
+        : d);
+    });
+    results = await Promise.all(writes);
+  }
+  // Urdu Q6: verses that are not the poem's are taken out before the layout, so Section C is asked again.
+  const versesRef = key === 'urdu' ? _versesReference(P, poem, loaded.content) : '';
+  results.forEach((r) => _dropProseVerses(r.tree, versesRef, requestId));
   const now = new Date().toISOString();
+  // Social Studies' layout reads the pages the prompts were given (two Q1 items from one passage; a Q6 that is the book's list).
+  const layOpts = (reasked) => ({ now, presetId: pattern, reasked, ...(key === 'social_studies' ? { book: loaded.content } : {}) });
   const merged = () => {
     const tree = _mergeSections(results.map((r) => r.tree));
     stripImageKeys(tree);
@@ -1377,47 +2549,189 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   // is one whole block of a section (Maths C's Q4–8), and the same call usually comes back
   // whole. Decided on the reply as the model wrote it, BEFORE the held-content filter, so an
   // item the filter drops is still never refilled.
-  const firstLaid = applyLayout(merged(), P, layoutScope, { now, presetId: pattern });
-  const short = firstLaid.shortfall.concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall);
+  const firstLaid = applyLayout(merged(), P, layoutScope, layOpts(false));
+  // Social Studies always returns `held` (Section D reads it) and logs its own rows per rule after the last layout.
+  if (firstLaid.held && key !== 'social_studies') logToFile('[assessment] held items', { requestId, pattern, held: firstLaid.held });
+  const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
+  const short = firstLaid.shortfall
+    .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
+    .concat(_emptyQuestionParts(firstLaid.examJson));
   const shortSlots = new Set(short.map((f) => f.slot));
-  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
+  // An item carrying text the paper refuses to print (a review mark the model copied) fails the
+  // paper at render; its section is asked once more instead, and a second hit fails it here.
+  const reviewHits = _reviewTextHits(results);
+  // Urdu: a section whose model text carries an authored religious maxim is asked once more; a
+  // second hit is held by religiousFilter below and the slot is short.
+  const religiousHits = key === 'urdu' ? _religiousHits(results, _heldNorm(_keptBookText(loaded.content))) : new Map();
+  const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot))
+    || reviewHits.has(section.id) || religiousHits.has(section.id));
   const extraUsages = [];
   if (again.length) {
-    await Promise.all(again.map(async (b) => {
-      const shortfall = short.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
-      logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall });
+    // One re-ask of `b`: its note reads the layout `laid`; `shortList` names the short slots and
+    // `layoutShortSet` the ones short only because the layout set items aside.
+    const reask = async (b, laid, shortList, layoutShortSet) => {
+      const shortfall = shortList.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+      const reviewText = reviewHits.get(b.section.id) || null;
+      const religious = religiousHits.get(b.section.id) || null;
       const i = results.findIndex((r) => r.id === b.section.id);
-      extraUsages.push(...results[i].usages);
-      results[i] = await writeOne(b);
-    }));
+      const first = results[i];
+      // Social Studies: why each slot is short, so a re-ask can be read from the log alone: how many
+      // items the reply wrote for it, and how many the layout held, by rule.
+      const why = key === 'social_studies' ? { why: _shortWhy(shortfall, first.tree, [...(laid.held || []), ...(laid.repeated || [])]) } : {};
+      logToFile('[assessment] section re-asked', {
+        requestId, pattern, section: b.section.id, shortfall, ...why, ...(reviewText ? { reviewText } : {}), ...(religious ? { religious } : {}),
+      });
+      extraUsages.push(...first.usages);
+      // The re-ask is told what the first replies already test (Section A's facts, Q4's words), so
+      // it writes something new instead of the item the layout set aside, again.
+      // A slot short only because the layout set items aside (two options of equal value, an item
+      // tagged to a full slot) keeps the first reply and takes the missing items from the second:
+      // the layout fills a slot in reply order, so the first reply's items land first. Any other
+      // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
+      const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
+      // On a top-up the note also names what the slot keeps, and asks for spares.
+      const note = takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held });
+      const second = await writeOne(note
+        ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
+        : b);
+      results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
+      _dropProseVerses(results[i].tree, versesRef, requestId);
+    };
+    // Social Studies: Section D's re-ask is told Q5's situations and its Q6 is held against Q5, so
+    // when C is asked again too, D waits for C and reads the layout of C's second reply. A D that
+    // was full but now restates a new Q5 is asked again as well.
+    const inSection = (b, id) => b.section.slots.some((s) => s.slot.startsWith(`social_studies.${id}.`));
+    const afterC = key === 'social_studies' && again.some((b) => inSection(b, 'C'));
+    await Promise.all(again.filter((b) => !(afterC && inSection(b, 'D')))
+      .map((b) => reask(b, firstLaid, short, layoutShort)));
+    if (afterC) {
+      const midLaid = applyLayout(merged(), P, layoutScope, layOpts(false));
+      const midShort = new Set(midLaid.shortfall.map((f) => f.slot));
+      const otherShort = short.filter((f) => !firstLaid.shortfall.includes(f));
+      // A D that C's second reply left whole (the Q5 its Q6 restated is gone) keeps its first reply;
+      // only a D still short, or with a review or religious hit, is asked again.
+      const later = built.filter((b) => inSection(b, 'D')
+        && (b.section.slots.some((s) => midShort.has(s.slot) || otherShort.some((f) => f.slot === s.slot))
+          || reviewHits.has(b.section.id) || religiousHits.has(b.section.id)));
+      await Promise.all(later.map((b) => reask(b, midLaid, otherShort.concat(midLaid.shortfall), midShort)));
+    }
+    // Social Studies: a D item the layout still sets aside never prints, so before the paper is laid
+    // out D is asked once more, a top-up told what was held. A slot still short of a held item after it
+    // prints fewer items when it is a choice (applyLayout).
+    if (key === 'social_studies' && iD >= 0) {
+      const preLaid = applyLayout(merged(), P, layoutScope, layOpts(false));
+      const dShort = preLaid.shortfall.filter((f) => f.slot.startsWith('social_studies.D.') && preLaid.held.some((h) => h.slot === f.slot));
+      if (dShort.length) {
+        logToFile('[assessment] D asked once more', {
+          requestId, pattern, shortfall: dShort, held: preLaid.held.filter((h) => dShort.some((f) => f.slot === h.slot)).map((h) => ({ slot: h.slot, rule: h.rule })),
+        });
+        await reask(built[iD], preLaid, dShort, new Set(dShort.map((f) => f.slot)));
+      }
+    }
+    // Urdu Section A still short after its re-ask (the top-up's own items held as twins of kept
+    // facts, or a new hold against the re-asked Section C) is topped up once more, for exactly what
+    // it misses plus spares: a held Section C give-away is never put back to fill the place.
+    // Social Studies likewise: a Q1 item a C or D stem gives away is held against the C and D stems
+    // as they finally stand, and Q1 is compulsory, so the place is refilled rather than the paper failed.
+    const sstA = key === 'social_studies';
+    const a = key === 'urdu' || sstA ? built.find(({ section }) => section.slots.some((s) => s.slot === `${key}.A.Q1`)) : null;
+    const check = a && applyLayout(merged(), P, layoutScope, layOpts(false));
+    const shortA = check ? check.shortfall.filter((f) => a.section.slots.some((s) => s.slot === f.slot)) : [];
+    if (shortA.length) {
+      logToFile('[assessment] section topped up again', { requestId, pattern, section: a.section.id, shortfall: shortA, ...(check.held ? { held: check.held } : {}) });
+      const i = results.findIndex((r) => r.id === a.section.id);
+      const first = results[i];
+      extraUsages.push(...first.usages);
+      const note = takenNote(P, a.section, check.examJson, { topUp: true, shortfall: shortA, ...(sstA ? { held: check.held } : {}) });
+      const second = await writeOne(note
+        ? { ...a, messages: _sectionMessages({ system, user: `${a.user}\n\n${note}`, pageContent: a.pageContent, model }) }
+        : a);
+      results[i] = { ...second, tree: _topUp(first.tree, second.tree, new Set(shortA.map((f) => f.slot))) };
+      _dropProseVerses(results[i].tree, versesRef, requestId);
+    }
+    const still = _reviewTextHits(results);
+    if (still.size) {
+      throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
+    }
   }
 
   // Layout first, so the filter sees every item under its pattern slot; a drop
   // then lays the paper out again, and the emptied place is a shortfall — the
   // extras the model wrote were already set aside and never fill it.
   let examJson = merged();
-  let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
+  let laid = applyLayout(examJson, P, layoutScope, layOpts(again.length > 0));
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
-  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId });
+  _blankWordsStems(examJson, P, key);
+  const quotes = [];
+  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content, requestId, quotes });
   if (dropped.length) {
-    laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
+    laid = applyLayout(examJson, P, layoutScope, layOpts(again.length > 0));
     examJson = laid.examJson;
+  }
+  // Urdu: a place the lessons 1–3 filter emptied is asked again once, told the run it matched.
+  if (quotes.length && laid.shortfall.length) {
+    const re = await _reaskQuoted({
+      examJson, laid, quotes, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef,
+    });
+    examJson = re.examJson;
+    laid = re.laid;
+    extraUsages.push(...re.usages);
+  }
+  // Urdu: Q1 still short after the re-asks is topped up once more, told grammar is used up.
+  if (_grammarUsedUp(P, layoutScope, laid) && laid.shortfall.length && laid.shortfall.every((f) => f.slot === READ_SLOT)) {
+    const re = await _topUpGrammarUsedUp({
+      examJson, laid, P, key, layoutScope, now, pattern, built, writeOne, system, model, loaded, grade, subject, requestId, versesRef,
+    });
+    examJson = re.examJson;
+    laid = re.laid;
+    extraUsages.push(...re.usages);
+  }
+  // Social Studies: every item the layout set aside, by slot and rule (a repeat of a placed item
+  // among them), and how many were put back.
+  if (key === 'social_studies' && ((laid.held && laid.held.length) || (laid.repeated && laid.repeated.length))) {
+    const rows = new Map();
+    for (const h of [...(laid.held || []), ...(laid.repeated || [])]) {
+      const row = rows.get(`${h.slot}|${h.rule}`) || { slot: h.slot, rule: h.rule, held: 0, printed: 0 };
+      row.held += 1;
+      if (h.printed) row.printed += 1;
+      rows.set(`${h.slot}|${h.rule}`, row);
+    }
+    logToFile('[assessment] held items', { requestId, pattern, held: [...rows.values()], ...(laid.shortChoice && laid.shortChoice.length ? { shortChoice: laid.shortChoice } : {}) });
+  }
+  // The reader pass reads a whole paper only: a short one fails below as it always has.
+  if (readerPass && Reader.READER_SUBJECTS.includes(key) && !laid.shortfall.length && !_emptyQuestionParts(examJson).length) {
+    const read = await (key === 'social_studies' ? _readerPassSst : _readerPass)({
+      examJson, source: key === 'social_studies' ? merged() : null, P, key, layoutScope, now, pattern, built, writeOne, system, model, ownModel, job, loaded, grade, subject, requestId,
+    });
+    examJson = read.examJson;
+    if (read.laid) laid = read.laid;
+    extraUsages.push(...read.usages);
   }
   const layout = { placed: laid.placed, unplaced: firstUnplaced };
   logToFile('[assessment] layout applied', {
     requestId, pattern, placed: layout.placed, unplaced: layout.unplaced, totalMarks: examJson._layout.total_marks,
     sections: P.sections.map((s) => s.id), dropped: dropped.length, shortfall: laid.shortfall,
+    ...(laid.putBack && laid.putBack.length ? { putBack: laid.putBack } : {}),
+    // The final layout's holds (Urdu Q1 on chosen lessons): the held-items line above is the first
+    // layout's only, and a re-ask, a top-up or the reader pass lays the paper out again.
+    ...(laid.held ? { held: laid.held } : {}),
   });
+  // A failed paper keeps what the model wrote and which model wrote it (on the error, for the
+  // row), so the failure can be read afterwards instead of guessed at.
   if (laid.shortfall.length) {
-    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall });
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: laid.shortfall, examJson, model });
+  }
+  const emptyParts = _emptyQuestionParts(examJson);
+  if (emptyParts.length) {
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: emptyParts, examJson, model });
   }
 
   const scheme = normaliseScheme(examJson);
   examJson = scheme.examJson;
   if (scheme.log.length) logToFile('[assessment] scheme normalised', { pattern, notes: scheme.log.slice(0, 50), count: scheme.log.length });
   if (scheme.shortfall.length) {
-    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall });
+    throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
 
   const notesBefore = (examJson._layout.notes || []).length;
@@ -1425,6 +2739,25 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   (examJson._layout.notes || []).slice(notesBefore).forEach((note) => {
     logToFile('[assessment] maths key replaced', { slot: note.slot, n: note.n ?? note.index ?? null, computed: note.computed, model: note.model });
   });
+
+  // Urdu Q6's verses given from a lesson outside the chosen ones: the paper says where they come from.
+  const versesPrinted = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat()
+    .some((q) => q && q.slot === 'urdu.C.Q6' && typeof q.passage === 'string' && q.passage.trim());
+  if (key === 'urdu' && poem && versesPrinted) examJson._layout.verse_source = { lesson: poem.unit, pages: poem.pages };
+
+  // Social Studies: how Q1 came out by thinking level, against the counts its prompt asks for. The levels are
+  // the model's own tags, so this is a steer to read in the log, never a gate.
+  if (key === 'social_studies') {
+    const q1 = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat().filter((q) => q && q.slot === SST_Q1);
+    const n = (level) => q1.filter((q) => q.blooms === level).length;
+    const [remember, understand, apply] = [n('Remember'), n('Understand'), n('Apply')];
+    const byStem = { remember: 0, understand: 0, apply: 0 };
+    q1.forEach((q) => { byStem[sstStemLevel(q)] += 1; });
+    logToFile('[assessment] q1 levels', {
+      requestId, pattern, remember, understand, apply, untagged: q1.length - remember - understand - apply,
+      meets: remember >= 16 && understand <= 2, by_stem: byStem,
+    });
+  }
 
   // The warm call is billed like any other, so it is in the paper's totals.
   const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));
@@ -1445,7 +2778,13 @@ module.exports = {
   generatePatternExam,
   sectionMaxTokens,
   buildPatternUserPrompt,
+  patternPoemFor,
+  _versesReference,
+  _dropProseVerses,
   religiousFilter,
+  _blankWordsStems,
+  _askReader,
+  sstStemLevel,
   buildSystemPrompt,
   buildUserPrompt,
   planCounts,

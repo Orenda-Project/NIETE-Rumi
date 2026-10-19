@@ -29,19 +29,28 @@ export function currentMenuItem(pathname: string): NavFeature | null {
  * glyphs, the coach's items. Each item names the page it opens; a feature stays current on every page inside it.
  * More (`/portal/coach/more`) is the coach's overflow page: the screen that builds it registers the route.
  */
-export type CoachNavKey = "home" | "schedule" | "observe" | "schools" | "more";
+export type CoachNavKey = "home" | "schedule" | "observe" | "schools" | "training" | "more";
 
 export const COACH_NAV_KEYS: readonly CoachNavKey[] = ["home", "schedule", "observe", "schools", "more"];
+
+/**
+ * bd-s42dye.2 — the coach app v2 while only some of it is ready (coach/training/appReady.ts): the menu is the ready
+ * features' items, then More. Training Library is the first item, so it takes Home's place.
+ */
+export const coachNavKeysFor = (ready: readonly string[]): readonly CoachNavKey[] =>
+  (["home", "schedule", "observe", "schools", "training"] as const).filter((k) => ready.includes(k)).concat("more" as never) as readonly CoachNavKey[];
 
 export const COACH_MENU_PATHS: Record<CoachNavKey, string> = {
   home: "/portal/coach",
   schedule: "/portal/coach/scheduling",
   observe: "/portal/coach/observe",
   schools: "/portal/coach/people",
+  training: "/portal/coach/training",
   more: "/portal/coach/more",
 };
 
 const COACH_SECTIONS: Record<Exclude<CoachNavKey, "home">, readonly string[]> = {
+  training: ["/portal/coach/training"],
   schedule: ["/portal/coach/scheduling", "/portal/coach/schedule", "/portal/coach/team", "/portal/coach/new-visit"],
   observe: ["/portal/coach/observe", "/portal/coach/visit", "/portal/coach/observation", "/portal/coach/reports"],
   schools: ["/portal/coach/people", "/portal/coach/school", "/portal/coach/schools", "/portal/coach/add-teacher", "/portal/coach/teacher"],

@@ -352,6 +352,25 @@ describe('6 · exactly one replica speaks per tick', () => {
   });
 });
 
+describe('6b · the claim is shared: the lesson-plan health check ticks through it too', () => {
+  test('claimTick takes the key to claim, with the TTL of the tick it is given — its own key untouched', async () => {
+    const redis = fakeRedis();
+    await expect(W.claimTick(redis, { tickMin: 60 }, 'lp_health:tick')).resolves.toBe('owner');
+    expect(redis.setNX).toHaveBeenCalledWith('lp_health:tick', expect.any(String), 59 * 60);
+    await expect(W.claimTick(redis, { tickMin: 60 }, 'lp_health:tick')).resolves.toBe('other');
+    await expect(W.claimTick(redis, CFG)).resolves.toBe('owner');
+    expect(redis.setNX).toHaveBeenLastCalledWith(W.TICK_KEY, expect.any(String), 14 * 60);
+  });
+
+  test('a claim that THROWS is said at error level — a broken client must not pass for a quiet cache', async () => {
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    const redis = { isAvailable: () => true, setNX: async () => { throw new Error('ERR wrong number of arguments'); }, get: async () => null };
+    await expect(W.claimTick(redis, CFG)).resolves.toBe('unavailable');
+    expect(logToFile).toHaveBeenCalledWith(expect.stringMatching(/claim/i),
+      expect.objectContaining({ key: W.TICK_KEY, error: 'ERR wrong number of arguments' }), 'error');
+  });
+});
+
 describe('5 · the same incident is sent once', () => {
   const stalled = world({ lifecycle: [life(Q(1), 'accepted', 'transcript', pkt(3, 0) - 70 * MIN)] });
 

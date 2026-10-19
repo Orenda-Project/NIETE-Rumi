@@ -10,8 +10,11 @@
  *   runTermDraw({now, seed, planSha256, window, k})
  *                                       the job: reads the classes, writes class_round_draws, emits
  *                                       class_round_drawn{round, cls, term, stratum, roster_k}. Runs only with
- *                                       web_quiz_class_round on. NOT scheduled anywhere: an operator runs it.
- *   inviteTeacher(draw)                 the teacher's one invitation per term: a stub until its template is approved
+ *                                       web_quiz_class_round on, both order arms' class weeks placeable and the
+ *                                       school breaks (app_settings web_quiz_term_breaks) clear of the round window
+ *                                       and both weeks. NOT scheduled anywhere: an operator runs it.
+ *   inviteTeacher(draw, {now, send})    the teacher's one invitation per term: only on the operator's dated go
+ *                                       (app_settings web_quiz_class_round_go); a stub until a sender is injected
  *                                       (bot.round.invite); the card on the teacher's report is the way in.
  *
  * Sector = schools.region (as web-quiz-schools.js reads it); grade band from classes.grade_code: grades 2–3 → G23,
@@ -21,9 +24,11 @@
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const { clampLanguage, UX_STRINGS } = require('../../config/ux-strings');
 const Flags = require('./web-quiz-class-round-flags');
 const Events = require('./web-quiz-class-round-events');
+const Ledger = require('./message-ledger');
 
 const DRAW_K = 40;
 const MIN_ROSTER = 5; // a round of fewer children is a near-singleton class line (L11)
@@ -140,6 +145,71 @@ const WEIGHTS_VERSION = 'cr-2026-27b.1';
 const SHA256_RX = /^[0-9a-f]{64}$/;
 // Template category rates (US$ per message), passed to the ledger as usd_each when the invitation is built.
 const RATE = Object.freeze({ utility: 0.015, marketing: 0.0473 });
+// The school calendar's breaks (SPEC §1): [{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }] in PKT dates, `to` INCLUSIVE (a
+// break's last day off; a one-day break has from === to).
+const BREAKS_KEY = 'web_quiz_term_breaks';
+// The operator's dated go for the invitation: { by: 'operator', date, term, template, category, max_sends[, consent_v] }.
+const GO_KEY = 'web_quiz_class_round_go';
+const INVITE_TEMPLATE = 'jugnu_round_invite';
+const DATE_RX = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** A PKT calendar date 'YYYY-MM-DD' → the ms of its PKT midnight; null for anything else (2026-02-30 included). */
+function pktDateMs(s) {
+  const m = DATE_RX.exec(String(s || ''));
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const back = new Date(Date.UTC(y, mo - 1, d));
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
+  return Date.UTC(y, mo - 1, d) - PKT_MS;
+}
+
+const pktDay = (t) => new Date(t + PKT_MS).toISOString().slice(0, 10);
+
+/** One app_settings value (read like the flags: key, value; JSON text parsed). { ok, value } | { ok: false }. Never throws. */
+async function settingValue(key) {
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [key]);
+    if (error) return { ok: false };
+    const row = (data || []).find((r) => r.key === key);
+    if (!row || row.value === null || row.value === undefined || row.value === '') return { ok: true, value: null };
+    let v = row.value;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { return { ok: true, value: undefined }; } }
+    return { ok: true, value: v };
+  } catch (_) {
+    return { ok: false };
+  }
+}
+
+/** The stored break list → [{ from, to, s, e }] (ms; e = the PKT midnight after `to`), or null when absent, unreadable or malformed. */
+async function termBreaks() {
+  const r = await settingValue(BREAKS_KEY);
+  if (!r.ok || !Array.isArray(r.value)) return null;
+  const out = [];
+  for (const b of r.value) {
+    const s = b && pktDateMs(b.from);
+    const last = b && pktDateMs(b.to);
+    if (s == null || last == null || s > last) return null;
+    out.push({ from: b.from, to: b.to, s, e: last + DAY_MS });
+  }
+  return out;
+}
+
+/**
+ * A draw refused on the calendar (arm_unplaceable, no_breaks, window_in_break, week_in_break): one log line with
+ * the dates, and counted as web_quiz.sample_drawn{arm:'class_round', unit:'class', term, seed_version, drawn:0,
+ * skipped} (codes only; written with the events switch on, like the class_round_* events). Nothing else written.
+ */
+async function refuseDraw(term, skipped, message, detail) {
+  logToFile(`⚠️ class round: draw refused — ${message}`, { term, skipped, ...detail });
+  try {
+    if ((await Flags.flags()).events) {
+      logEvent('web_quiz.sample_drawn', { w: 's', ev_v: 2, arm: 'class_round', unit: 'class', term, seed_version: WEIGHTS_VERSION, drawn: 0, skipped });
+    }
+  } catch (_) { /* the log line above still counts it */ }
+  return { drawn: 0, skipped };
+}
+
+const overlaps = (s, e, breaks) => breaks.find((b) => s < b.e && b.s < e) || null;
 
 /** A seeded generator (mulberry32): the stored seed reproduces the draw. */
 function seededRng(seed) {
@@ -198,6 +268,22 @@ async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW
   const ws = window ? Date.parse(window.start) : NaN;
   const we = window ? Date.parse(window.end) : NaN;
   if (!windowOk(ws, we, term)) return { drawn: 0, skipped: 'bad_window' };
+  // both order arms need a class week, or the crossover loses a cell: never switch a class to the other arm
+  const weeks = { round_first: weekFor('round_first', ws, we, term), week_first: weekFor('week_first', ws, we, term) };
+  if (!weeks.round_first || !weeks.week_first) {
+    return refuseDraw(term, 'arm_unplaceable', 'an order arm\'s class week cannot be placed', { window: [pktDay(ws), pktDay(we)],
+      round_first: weeks.round_first && [pktDay(weeks.round_first.start), pktDay(weeks.round_first.end)],
+      week_first: weeks.week_first && [pktDay(weeks.week_first.start), pktDay(weeks.week_first.end)] });
+  }
+  // the school calendar: a draw is once a term and cannot be undone, so no break list → no draw
+  const breaks = await termBreaks();
+  if (!breaks) return refuseDraw(term, 'no_breaks', 'no readable school break list', { key: BREAKS_KEY });
+  const hit = overlaps(ws, we, breaks) ? ['window', ws, we, overlaps(ws, we, breaks)]
+    : ['round_first', 'week_first'].map((a) => [a, weeks[a].start, weeks[a].end, overlaps(weeks[a].start, weeks[a].end, breaks)]).find((x) => x[3]);
+  if (hit) {
+    return refuseDraw(term, hit[0] === 'window' ? 'window_in_break' : 'week_in_break', 'a window falls in a school break',
+      { which: hit[0], dates: [pktDay(hit[1]), pktDay(hit[2])], break: [hit[3].from, hit[3].to] });
+  }
   const { data: already, error } = await supabase.from('class_round_draws').select('id, class_id').eq('term_code', term).limit(1);
   if (error) throw new Error(`class_round_draws: ${error.message}`);
   if (already && already.length) return { drawn: 0, skipped: 'already_drawn' };
@@ -211,13 +297,8 @@ async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW
   const iso = (t) => (t == null ? null : new Date(t).toISOString());
   const rows = [];
   for (const c of drawnSet) {
-    let arm = gen() < 0.5 ? 'round_first' : 'week_first';
-    let week = weekFor(arm, ws, we, term);
-    if (!week) {
-      const other = arm === 'round_first' ? 'week_first' : 'round_first';
-      const w2 = weekFor(other, ws, we, term);
-      if (w2) { arm = other; week = w2; }
-    }
+    const arm = gen() < 0.5 ? 'round_first' : 'week_first';
+    const week = weeks[arm];
     const row = { id: crypto.randomUUID(), round: crypto.randomBytes(8).toString('hex'), term_code: term, class_id: c.class_id, stratum: c.stratum,
       N_h: N[c.stratum], n_h: n[c.stratum], p_incl: n[c.stratum] / N[c.stratum], seed: theSeed, weights_version: WEIGHTS_VERSION, plan_sha256: planSha256,
       window_start: iso(ws), window_end: iso(we), k_counted: K_COUNTED, order_arm: arm, week_start: iso(week && week.start), week_end: iso(week && week.end),
@@ -239,17 +320,82 @@ async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW
 }
 
 /**
- * The teacher's invitation (one per drawn class per term): the approved template jugnu_round_invite_{en,ur}, its
- * category rate passed to the ledger as usd_each, trigger class_round. A stub: nothing goes to WhatsApp and nothing
- * to the ledger until the template exists.
+ * The operator's dated go for the draw's invitations → { ok: true, go } | { ok: false, reason }. Valid only when
+ * by 'operator', a real date no later than today (PKT) and inside the current term, term = the draw's term and the
+ * current one, template jugnu_round_invite (or jugnu_round_invite_<lang>), category utility|marketing, max_sends an
+ * integer 1..DRAW_K and consent_v (when present) ≥ 1. Never throws.
  */
-async function inviteTeacher(draw, { lang = 'en', category = 'utility' } = {}) {
+async function readGo(draw, template, now) {
+  const r = await settingValue(GO_KEY);
+  if (!r.ok) return { ok: false, reason: 'read_failed' };
+  if (r.value === null) return { ok: false, reason: 'no_go' };
+  const g = r.value;
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return { ok: false, reason: 'go_bad' };
+  const day = pktDateMs(g.date);
+  const fieldsOk = g.by === 'operator' && day !== null && typeof g.term === 'string' && typeof g.template === 'string'
+    && Object.prototype.hasOwnProperty.call(RATE, g.category)
+    && Number.isInteger(g.max_sends) && g.max_sends >= 1 && g.max_sends <= DRAW_K
+    && (g.consent_v === undefined || (Number.isInteger(g.consent_v) && g.consent_v >= 1));
+  if (!fieldsOk) return { ok: false, reason: 'go_bad' };
+  if (g.template !== INVITE_TEMPLATE && g.template !== template) return { ok: false, reason: 'wrong_template' };
+  if (!draw || g.term !== draw.term_code) return { ok: false, reason: 'wrong_term' };
+  const b = termBounds(g.term);
+  if (g.term !== termCode(now) || !b || day < b.start || day >= b.end) return { ok: false, reason: 'stale_go' };
+  if (g.date > pktDay(now)) return { ok: false, reason: 'go_future' };
+  return { ok: true, go: g };
+}
+
+/** This term's class_round invitations so far (the ledger's bot → teacher class_round counts), or null on a failed read. */
+async function invitesThisTerm(term) {
+  const b = termBounds(term);
+  try {
+    const { data, error } = await supabase.from('message_ledger').select('count').eq('trigger', 'class_round').eq('initiated', 'bot')
+      .eq('recipient', 'teacher').gte('day', pktDay(b.start)).lt('day', pktDay(b.end));
+    if (error) return null;
+    return (data || []).reduce((n, r) => n + (Number(r.count) || 0), 0);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The teacher's invitation (one per drawn class per term): the approved template jugnu_round_invite_{en,ur}, its
+ * category rate passed to the ledger as usd_each, trigger class_round. Refused ({ sent: false, reason }, nothing
+ * written, nothing sent) without the operator's valid dated go. With a go and no injected `send` (production
+ * today) → the stub result: nothing goes to WhatsApp and nothing to the ledger. With both: refused once the term
+ * has max_sends invitations; else the send is counted on the ledger's strict phone-less path (the return value is
+ * the write) and goes only when that write held.
+ */
+async function inviteTeacher(draw, { lang = 'en', category = 'utility', now = Date.now(), send = null } = {}) {
   const l = clampLanguage(lang);
   const template = `jugnu_round_invite_${l}`;
+  const g = await readGo(draw, template, now);
+  if (!g.ok) {
+    logToFile('class round: invitation refused', { reason: g.reason, round: draw && draw.round });
+    return { sent: false, reason: g.reason, template, trigger: 'class_round' };
+  }
+  if (typeof send === 'function') {
+    const { go } = g;
+    const usd = RATE[go.category];
+    const used = await invitesThisTerm(go.term);
+    if (used === null || used >= go.max_sends) {
+      const reason = used === null ? 'ledger_unreadable' : 'term_cap';
+      logToFile('class round: invitation refused', { reason, round: draw.round, used, max_sends: go.max_sends });
+      return { sent: false, reason, template, trigger: 'class_round', usd_each: usd };
+    }
+    const counted = await Ledger.record({ trigger: 'class_round', classId: draw.class_id, initiated: 'bot', recipient: 'teacher', usdEach: usd, now: new Date(now) });
+    if (counted !== true) {
+      logToFile('class round: invitation refused', { reason: 'ledger_refused', round: draw.round });
+      return { sent: false, reason: 'ledger_refused', template, trigger: 'class_round', usd_each: usd };
+    }
+    let delivered = false;
+    try { delivered = Boolean(await send({ template, lang: l, round: draw.round, class_id: draw.class_id })); } catch (_) { delivered = false; }
+    return { sent: delivered, ...(delivered ? {} : { reason: 'send_failed' }), template, trigger: 'class_round', usd_each: usd };
+  }
   const usdEach = category === 'marketing' ? RATE.marketing : RATE.utility;
   logToFile('class round: invitation not sent — template not yet approved', { template, round: draw && draw.round });
   // the template's body (bot.round.invite), read raw: what Meta reviews; nothing is sent from here yet
   return { sent: false, reason: 'stub', template, body: UX_STRINGS.roundInvite[l], trigger: 'class_round', usd_each: usdEach };
 }
 
-module.exports = { termCode, termBounds, windowOk, gradeBand, bandOf, drawClasses, WEIGHTS_VERSION, runTermDraw, inviteTeacher, shuffle, cryptoRng, seededRng, DRAW_K, MIN_ROSTER, K_COUNTED, RATE };
+module.exports = { termCode, termBounds, windowOk, gradeBand, bandOf, drawClasses, WEIGHTS_VERSION, runTermDraw, inviteTeacher, shuffle, cryptoRng, seededRng, DRAW_K, MIN_ROSTER, K_COUNTED, RATE, BREAKS_KEY, GO_KEY };

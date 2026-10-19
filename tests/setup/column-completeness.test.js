@@ -74,6 +74,10 @@ const ALLOWLIST = {
   // that the parser reads as columns; verified 2026-09-04 against the live sandbox DB,
   // which has neither.
   users: ['grade', 'language', 'cols', 'error'],
+  // `error` is the destructured result of the storybook miss write (`const { error } = await ….insert(rows)`, rows a
+  // variable): the scanner walks forward to the next object, the logToFile payload { error: error.message }. Not a
+  // column: story_events rows carry child_id, book_id, page_n, event, data, at.
+  story_events: ['error'],
   // `addSchoolForCoach()` and `removeSchoolForCoach()` build a plain JS result
   // object immediately after a `.from('leader_teachers')` call, so the parser
   // reads that object's keys as columns. All five verified non-columns, from
@@ -154,8 +158,9 @@ function schemaColumns(sql) {
   }
   // idempotent reconcile section
   // The reconcile section writes `ALTER TABLE public.x\n    ADD COLUMN IF NOT EXISTS y` — schema-qualified and
-  // over two lines — so the name and the column are matched across whitespace, not on one line.
-  const alterRe = /ALTER TABLE (?:public\.)?(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi;
+  // over two lines — so the name and the column are matched across whitespace, not on one line. A migration's own
+  // `alter table if exists x add column …` (copied into the mirror as written) names a column just the same.
+  const alterRe = /ALTER TABLE (?:IF EXISTS\s+)?(?:ONLY\s+)?(?:public\.)?(\w+)\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?([a-z_][a-z0-9_]*)/gi;
   let a;
   while ((a = alterRe.exec(sql)) !== null) {
     const name = a[1].toLowerCase();

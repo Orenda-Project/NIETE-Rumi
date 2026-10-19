@@ -172,7 +172,12 @@ const namedButFlagFalse = (over = {}) => ({
   ...over,
 });
 
-const sentTexts = () => WhatsAppService.sendMessage.mock.calls.map((c) => String(c[1]));
+// Since 2026-10-16 "register" in any form now opens the registration Flow for everyone —
+// a registered teacher gets it as "Update your details", never "you're already registered" and
+// never the name question. So "registered" is now read off the Flow's header.
+const flowHeaders = () => WhatsAppService.sendFlow.mock.calls.map((c) => c[1] && c[1].header);
+const UPDATE = 'Update your details';
+const WELCOME = 'Welcome to NIETE';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -181,10 +186,10 @@ beforeEach(() => {
 });
 
 describe('bd-oak77.6 — a name on the row means registered', () => {
-  test('the "register" keyword: a named teacher with the flag false is told she is already registered, and is NOT asked her name again', async () => {
+  test('the "register" keyword: a named teacher with the flag false is treated as registered (update copy), and is NOT asked her name again', async () => {
     await handleTextMessage(MESSAGE, FROM, 'register me please', namedButFlagFalse());
 
-    expect(sentTexts().some((t) => t.includes("already registered, Ayesha"))).toBe(true);
+    expect(flowHeaders()).toEqual([UPDATE]);
     expect(FeatureRegistrationService.sendNameQuestion).not.toHaveBeenCalled();
   });
 
@@ -194,7 +199,7 @@ describe('bd-oak77.6 — a name on the row means registered', () => {
     await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse());
 
     expect(FeatureRegistrationService.sendNameQuestion).not.toHaveBeenCalled();
-    expect(sentTexts().some((t) => t.includes("already registered, Ayesha"))).toBe(true);
+    expect(flowHeaders()).toEqual([UPDATE]);
   });
 
   test('/register offers her the UPDATE copy, not the first-time welcome', async () => {
@@ -209,13 +214,13 @@ describe('bd-oak77.6 — a name on the row means registered', () => {
   test('an EMPTY-STRING first_name is not a name — 212 prod rows have one — so she is still unregistered', async () => {
     await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({ name: '' }));
 
-    expect(sentTexts().some((t) => t.includes('already registered'))).toBe(false);
+    expect(flowHeaders()).toEqual([WELCOME]);
   });
 
   test('a genuinely unregistered user (no name, flag false) is unaffected', async () => {
     await handleTextMessage(MESSAGE, FROM, 'register', namedButFlagFalse({ name: null }));
 
-    expect(sentTexts().some((t) => t.includes('already registered'))).toBe(false);
+    expect(flowHeaders()).toEqual([WELCOME]);
   });
 
   test('the flag alone still means registered, with no name on the row', async () => {
@@ -223,6 +228,6 @@ describe('bd-oak77.6 — a name on the row means registered', () => {
       name: null, registration_completed: true,
     }));
 
-    expect(sentTexts().some((t) => t.includes('already registered'))).toBe(true);
+    expect(flowHeaders()).toEqual([UPDATE]);
   });
 });

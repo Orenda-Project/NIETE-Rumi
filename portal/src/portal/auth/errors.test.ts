@@ -5,8 +5,10 @@ import { loginFailure, resetFailure, verifyFailure } from "./errors";
 describe("login failures, by status", () => {
   it.each([
     [401, { field: "password", key: "wrongPw" }],
-    [403, { field: "password", key: "noPw" }],
-    [404, { field: "phone", key: "noAccount" }],
+    // bd-x7aprz.3: no password → the code; not registered → Register on WhatsApp. Never "No password yet" /
+    // "No account found".
+    [403, { field: "form", key: "byCode" }],
+    [404, { field: "form", key: "notRegistered" }],
     [400, { field: "phone", key: "checkNum" }],
     [429, { field: "form", key: "tooMany" }],
     [0, { field: "form", key: "noConnection" }],
@@ -40,7 +42,7 @@ describe("login failures for an account name", () => {
 
 describe("reset failures", () => {
   it.each([
-    [404, { field: "phone", key: "noAccount" }],
+    [404, { field: "form", key: "notRegistered" }],
     [400, { field: "phone", key: "checkNum" }],
     [429, { field: "form", key: "tooMany" }],
     [0, { field: "form", key: "noConnection" }],

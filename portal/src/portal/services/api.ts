@@ -7,6 +7,7 @@ import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, Ch
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
+import type { LpBand, LpEngagementResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
@@ -82,6 +83,23 @@ export const auth = {
   
   resetPassword: async (password: string) => {
     const response = await api.post('/reset-password', { password });
+    return response.data;
+  },
+
+  // bd-x7aprz.3 — sign in with a 6-digit code sent to her WhatsApp (no password needed).
+  requestCode: async (phoneNumber: string) => {
+    const response = await api.post('/request-code', { phoneNumber });
+    return response.data;
+  },
+
+  verifyCode: async (phoneNumber: string, code: string) => {
+    const response = await api.post('/verify-code', { phoneNumber, code });
+    return response.data;
+  },
+
+  // An old /portal/setup/<token> link signs her in (the token is spent); a dead one answers 400 LINK_EXPIRED.
+  setupSignIn: async (token: string) => {
+    const response = await api.post('/setup-sign-in', { token });
     return response.data;
   }
 };
@@ -886,6 +904,17 @@ export const analytics = {
     if (q.to) params.to = q.to;
     params.region = q.region || 'all';
     const response = await api.get('/analytics/coaching', { params });
+    return response.data;
+  },
+  // bd-97x22y.3 — the LP Engagement tab (schools analytics v7): her formula, her Primary / Mid-High toggle (`band`).
+  // Same window and region as the schools read; its own endpoint so its cost never slows the other tabs.
+  getLpEngagement: async (q: { from: string | null; to: string | null; region: string | null; band: LpBand }): Promise<LpEngagementResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    params.band = q.band;
+    const response = await api.get('/analytics/lp-engagement', { params });
     return response.data;
   },
 };

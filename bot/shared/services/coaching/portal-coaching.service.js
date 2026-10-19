@@ -36,10 +36,10 @@ const crypto = require('crypto');
 
 const PRESIGN_TTL_SECONDS = 15 * 60;
 
-// The WhatsApp path treats a recording under this as a voice note, not a lesson.
-// The portal accepts it (the teacher declared intent by uploading) but the UI
-// warns that a short recording makes a thin report.
-const SHORT_RECORDING_SECONDS = 600;
+// The WhatsApp path treats a recording under this as a voice note, not a lesson. bd-fgj73x.7: so does the
+// portal now — a shorter one is held back before Submit, and one the browser could not measure is closed by
+// the transcription job (portal-short-recording.js). The same 15 minutes, from the one config.
+const SHORT_RECORDING_SECONDS = require('../../config/classroom-audio.config').CLASSROOM_AUDIO_THRESHOLD;
 
 // MAX_COACHING_PHOTOS in photo-capture-routing.js — the WhatsApp photo step's cap. It is also the cap of the coach's
 // portal observation (portal-observe.service imports it), so it stays 3.

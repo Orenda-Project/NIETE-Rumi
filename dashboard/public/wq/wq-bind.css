@@ -9,7 +9,7 @@ html[lang=ur] .wqb-sub,html[lang=ur] .wqb-msg{font-size:20px;line-height:2.1}
 /* The notice: never smaller than 20px in Nastaliq; nothing truncated at 360px. */
 .wqb-notice{background:var(--tint,#ECF4EF);border-radius:14px;padding:10px 12px;margin:8px 0}
 .wqb-notice p{margin:4px 0;font-size:18px;line-height:1.6;color:var(--ink,#2A2D3A)}
-html[lang=ur] .wqb-notice p{font-size:20px;line-height:2.15}
+html[lang=ur] .wqb-notice p{font-size:20px;line-height:1.9}
 .wqb-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
 .wqb-row>.wqb-btn{flex:1 1 140px}
 .wqb-stack{flex-direction:column}
@@ -26,4 +26,3 @@ html[lang=ur] .wqb-saved{font-size:22px;line-height:2}
 .wqb-x{min-width:var(--tap,48px);min-height:var(--tap,48px);border:0;background:transparent;font-size:24px;color:var(--muted,#5F6374);cursor:pointer}
 .wq-kid .wqb-line2{display:block;font-size:15px;font-weight:600;color:var(--muted,#5F6374)}
 html[lang=ur] .wq-kid .wqb-line2{font-size:20px}
-.wqb-nowrap{white-space:nowrap}

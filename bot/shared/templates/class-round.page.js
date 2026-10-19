@@ -2,7 +2,7 @@
 /**
  * The class round's screens on the teacher's phone (web_quiz_class_round), and its card on the teacher's report.
  *
- *   renderCard({ lang, token })              the class tab's card: title, what it asks, "Start the round"
+ *   renderCard({ lang, token })              the class tab's card: title, what it asks, "Start the round" ("Continue" while paused)
  *   renderRound(view, { lang, token, turnHref })
  *     view.mode 'start'     the card's words and Start (a round drawn, not started)
  *     view.mode 'teacher'   the teacher's count (theirs only), every child by first name in the server's order,
@@ -21,6 +21,9 @@
 const { PALETTE } = require('./niete-brand');
 const { clampLanguage } = require('../config/ux-strings');
 
+// Urdu prose writes its numbers in Urdu digits (U+06F0–06F9); a teacher's screen has no Western keypad or cells.
+const ud = (n) => String(n).replace(/[0-9]/g, (c) => '۰۱۲۳۴۵۶۷۸۹'[c]);
+
 // copy.v2.json → the page's T object (key in the comment)
 const T = {
   en: {
@@ -30,7 +33,6 @@ const T = {
     tCount: (done, total, absent) => `${done} of ${total} done, ${absent} absent`, // jg.round.t_count
     tAbsent: 'Mark absent', // jg.round.t_absent
     tNext: 'Hold to call the next child', // jg.round.t_next
-    cStill: 'Still to play:', // jg.round.c_still
     cDone: 'Done ✓', // jg.round.c_done
     cHandback: "Thanks for playing! Hand the phone to your teacher.", // jg.round.c_handback
     turnOf: (name) => `${name}'s turn`, // jg.who.turn_of
@@ -44,16 +46,17 @@ const T = {
     tDnd: "Turn on Do Not Disturb. Give the class some seatwork, then call each child to your phone for about a minute.", // jg.round.t_dnd
     tNeverReported: "Nothing about this class is ever reported by name.", // jg.round.t_never_reported
     tThanks: "Your class took part. Thank you!", // jg.round.t_thanks
+    tPausedHow: 'To carry on, tap "Continue". The list stays as it is.', // jg.round.t_paused_how
+    tPausedKids: 'Until then, the children see nothing about the round.', // jg.round.t_paused_kids
     // each optional control or line renders only while its string is here (never invented)
   },
   ur: {
     cardTitle: 'اس ٹرم کا کلاس راؤنڈ',
     cardSub: "اس ٹرم قرعہ اندازی میں آپ کی کلاس نکلی ہے۔ ہر بچے کے لیے تقریباً ایک منٹ، آپ کے فون پر۔ چاہیں تو کسی اور دن جاری رکھیں۔",
     start: 'راؤنڈ شروع کریں',
-    tCount: (done, total, absent) => `${total} میں سے ${done} مکمل، ${absent} غیر حاضر`,
+    tCount: (done, total, absent) => `${ud(total)} میں سے ${ud(done)} مکمل، ${ud(absent)} غیر حاضر`,
     tAbsent: 'غیر حاضر لگائیں',
     tNext: 'اگلے بچے کے لیے دبا کر رکھیں',
-    cStill: 'ابھی باری آنی ہے:',
     cDone: 'ہو گیا ✓',
     cHandback: "کھیلنے کا شکریہ! اب فون ٹیچر کو دے دیں۔",
     turnOf: (name) => `⁨${name}⁩ کی باری`,
@@ -67,6 +70,8 @@ const T = {
     tDnd: "فون پر ڈو ناٹ ڈسٹرب لگا دیں۔ کلاس کو کچھ لکھنے کا کام دیں، پھر باری باری ہر بچے کو تقریباً ایک منٹ کے لیے اپنے فون پر بلائیں۔",
     tNeverReported: "اس کلاس کی کوئی بات کبھی نام کے ساتھ رپورٹ نہیں کی جاتی۔",
     tThanks: "آپ کی کلاس نے حصہ لیا۔ شکریہ!",
+    tPausedHow: 'راؤنڈ آگے بڑھانے کے لیے «جاری رکھیں» دبائیں۔ فہرست جوں کی توں رہے\u00A0گی۔', // jg.round.t_paused_how (U+00A0 in «رہے گی», as the deck)
+    tPausedKids: 'تب تک بچوں کو راؤنڈ کے بارے میں کچھ نظر نہیں\u00A0آتا۔', // jg.round.t_paused_kids (U+00A0, as the deck)
   },
 };
 
@@ -78,13 +83,17 @@ const q = (lang) => `?lang=${langOf(lang)}`;
 const base = (token) => `/r/${encodeURIComponent(token || '')}/round`;
 
 // jg.round.t_paused, read from copy.v2.json verbatim (the T table above is not touched): a paused round's card says
-// where it stopped, positions only ({done} of {total}, the paused screen's own numbers; ASCII digits, like tCount).
+// where it stopped, positions only ({done} of {total}, the paused screen's own numbers; Urdu digits in Urdu, like tCount).
 // '' when the round is not paused or the key is absent, so every other card is byte-identical.
 function pausedLine(lang, paused) {
   const d = paused && require('../config/copy.v2.json')['jg.round.t_paused'];
   const s = d && d[langOf(lang)];
   if (!s) return '';
-  return `<p class="cr-paused" style="font-weight:700">${esc(s.replace('{done}', String(Number(paused.done) || 0)).replace('{total}', String(Number(paused.total) || 0)))}</p>`;
+  const num = (n) => (langOf(lang) === 'ur' ? ud : String)(Number(n) || 0);
+  const C = T[langOf(lang)];
+  // how to carry on (the card's own button) and what the children see meanwhile (jg.round.t_paused_how, _kids)
+  const how = [C.tPausedHow, C.tPausedKids].filter(Boolean).map((x) => `<p class="muted">${esc(x)}</p>`).join('');
+  return `<p class="cr-paused" style="font-weight:700">${esc(s.replace('{done}', num(paused.done)).replace('{total}', num(paused.total)))}</p>${how}`;
 }
 
 /**
@@ -98,9 +107,13 @@ function renderCard({ lang, token, started = false, early = false, paused = null
     ? `<form method="post" action="${base(token)}/not-this-term${q(lang)}" style="margin-top:8px"><button class="btn btn-ghost" type="submit" style="width:100%;font:inherit;cursor:pointer">${esc(C.tNotThisTerm)}</button></form>`
     : '';
   const never = C.tNeverReported ? `<p class="muted">${esc(C.tNeverReported)}</p>` : '';
+  // paused: the one button carries the round on (/resume, "Continue"), so the teacher taps once, not Start then Continue
+  const go = paused && C.tResume ? { act: 'resume', label: C.tResume } : { act: 'start', label: C.start };
   const startForm = early ? ''
-    : `<form method="post" action="${base(token)}/start${q(lang)}"><button class="btn btn-primary" type="submit" style="width:100%;border:0;font:inherit;font-weight:700;cursor:pointer">${esc(C.start)}</button></form>`;
-  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2>${pausedLine(lang, paused)}<p class="muted">${esc(C.cardSub)}</p>${never}`
+    : `<form method="post" action="${base(token)}/${go.act}${q(lang)}"><button class="btn btn-primary" type="submit" style="width:100%;border:0;font:inherit;font-weight:700;cursor:pointer">${esc(go.label)}</button></form>`;
+  // paused: card_sub is left out (its last sentence repeats the paused line); every other card keeps it
+  const sub = paused ? '' : `<p class="muted">${esc(C.cardSub)}</p>`;
+  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2>${pausedLine(lang, paused)}${sub}${never}`
     + `${startForm}${notThisTerm}</section>`;
 }
 
@@ -149,6 +162,10 @@ function holdForm(action, label) {
     + `<button class="go hold" type="submit">${esc(label)}</button></form>`;
 }
 
+// A name on the Urdu list is a first-strong isolate (as jg.who.turn_of), so a Latin name's initial keeps its full stop
+// on its own side in a right-to-left line ("Bilal T.", never ".Bilal T"). English names stay as typed.
+const nameOf = (l, name) => (l === 'ur' ? `\u2068${esc(name)}\u2069` : esc(name));
+
 // The teacher's screen only: an absent or declined child stays in place, struck (never on a child's screen).
 // In Urdu a line through Nastaliq hides the name's dots, so the name is dimmed there instead of struck.
 const TEACHER_CSS = 'li.absent .nm,li.declined .nm{text-decoration:line-through;color:var(--muted);font-weight:400}li.absent,li.declined{background:transparent;border-style:dashed}.row-acts{display:flex;gap:6px}'
@@ -193,10 +210,10 @@ function renderRound(view, { lang, token, turnHref = null }) {
     const absent = rows.filter((r) => r.s === 'absent').length;
     const posForm = (act, label, pos) => `<form method="post" action="${b}/${act}${q(l)}"><input type="hidden" name="pos" value="${pos}"><button class="small" type="submit">${esc(label)}</button></form>`;
     const items = rows.map((r) => {
-      if (r.s === 'done') return `<li class="done"><span class="nm">${esc(r.name)}</span><span class="tick">${esc(C.cDone)}</span></li>`;
-      if (r.s === 'absent') return `<li class="absent"><span class="nm">${esc(r.name)}</span></li>`;
-      if (r.s === 'declined') return `<li class="declined"><span class="nm">${esc(r.name)}</span>${C.tDeclined ? `<span class="muted">${esc(C.tDeclined)}</span>` : ''}</li>`;
-      return `<li class="todo${r.now ? ' now' : ''}"><span class="nm">${esc(r.name)}</span><span class="row-acts">`
+      if (r.s === 'done') return `<li class="done"><span class="nm">${nameOf(l, r.name)}</span><span class="tick">${esc(C.cDone)}</span></li>`;
+      if (r.s === 'absent') return `<li class="absent"><span class="nm">${nameOf(l, r.name)}</span></li>`;
+      if (r.s === 'declined') return `<li class="declined"><span class="nm">${nameOf(l, r.name)}</span>${C.tDeclined ? `<span class="muted">${esc(C.tDeclined)}</span>` : ''}</li>`;
+      return `<li class="todo${r.now ? ' now' : ''}"><span class="nm">${nameOf(l, r.name)}</span><span class="row-acts">`
         + `${posForm('absent', C.tAbsent, r.pos)}${C.tDeclined ? posForm('declined', C.tDeclined, r.pos) : ''}</span></li>`;
     }).join('');
     const pauseKey = view.paused ? C.tResume : C.tPause;

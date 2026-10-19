@@ -10,6 +10,10 @@
  * captured without touching the page script. Ids only: never a name, a typed text or an answer's text. The
  * session token and the device ref ride the batch (never an event) so the server can log its own ids for them.
  *
+ * window.WQT.setIds({ht, chip}) (hub.js / wq-card.js, only when the server says events v2 is on: boot ev2, the card's
+ * jugnu_ev) puts the hub token and the picked child's chip on every batch from then on, on or off; a later call
+ * replaces both (a call with ht only: no child picked). window.WQT.batchIds() hands them to a page's own batch.
+ *
  *   screen_enter {scr, from}            a new screen is on show
  *   screen_leave {scr, ms, vis_ms}      it went away: how long it was on, and how much of that was visible
  *   vis {state, ms}                     the page was hidden/shown: how long the previous state lasted
@@ -23,6 +27,16 @@
  * window.WQT.withLang(href, lang) is the pages' one link helper, here because this is the one script every page
  * loads first (the hub page does not load wq-lib.js): every link a page mints into another page carries
  * lang=<en|ur>, the language the child sees, so the next page opens in it. Always there, switch on or off.
+ *
+ * window.WQT.nowrap(html) is the pages' one helper for «واٹس ایپ» (WhatsApp), here for the same reason: the word is
+ * never broken across a line («واٹس / ایپ»). Always there, switch on or off.
+ *
+ * window.WQT.oneButton(answer) puts the one-button look's class (`wq-1b`, wq.css) on <html> when a bot answer says
+ * `one_button: true` (app_settings web_quiz_one_button; the Challenge page's boot carries it under `menu`); run here on
+ * the boot, before any page script draws, and by a page that gets its answer later (the library). Anything else:
+ * nothing changes. oneButton(answer, true) is exact: an answer without it takes the class off (a page that drew a
+ * kept copy of an earlier open, then got its live answer after a switch rollback); no answer at all changes nothing.
+ * The same answer with `adv: true` and the edge's `adv_v` also brings the adventure look (wq-adv) to a page drawn without it.
  */
 (function () {
   'use strict';
@@ -37,9 +51,46 @@
     else h += (h.indexOf('?') < 0 ? '?' : /[?&]$/.test(h) ? '' : '&') + 'lang=' + lang;
     return h + frag;
   }
-  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang };
+  // «واٹس ایپ» as one word: in already-escaped HTML each one (a space or a no-break space between) becomes one span
+  // that never wraps (wq.css .wqb-nowrap; a no-break space inside too); one already held is left as it is. Every other byte unchanged.
+  var WA_UR = /<span class="wqb-nowrap">واٹس[ \u00a0]ایپ<\/span>|واٹس[ \u00a0]ایپ/g;
+  function nowrap(html) { return String(html == null ? '' : html).replace(WA_UR, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>'); }
+  // The hub token and the picked chip (setIds): on the batch, never on an event. None set: no batch changes.
+  var HC = {};
+  function setIds(o) {
+    HC = {};
+    if (o && typeof o.ht === 'string' && o.ht) HC.ht = o.ht;
+    if (HC.ht && typeof o.chip === 'string' && o.chip) HC.chip = o.chip;
+  }
+  function batchIds() { var o = {}, k; for (k in HC) o[k] = HC[k]; return o; }
+  function oneButton(o, exact) {
+    try {
+      if (o && o.one_button === true) document.documentElement.classList.add('wq-1b');
+      else if (exact && o) document.documentElement.classList.remove('wq-1b');
+    } catch (e) {}
+    adv(o);
+  }
+  // The adventure look (it rides the one button look): an answer that says adv: true with the edge's version of its
+  // files (adv_v) on a page drawn without it takes the class, then the sheet and the kit (the kit dresses what is there).
+  function adv(o) {
+    try {
+      var h = document.documentElement;
+      if (!o || o.one_button !== true || o.adv !== true || !/^[0-9a-f]{10}$/.test(o.adv_v || '') || h.classList.contains('wq-adv')) return;
+      h.classList.add('wq-adv');
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = '/wq/wq-adventure.css?v=' + o.adv_v;
+      document.head.appendChild(l);
+      var s = document.createElement('script');
+      s.src = '/wq/wq-adv.js?v=' + o.adv_v;
+      document.head.appendChild(s);
+    } catch (e) {}
+  }
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds, oneButton: oneButton };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
+  oneButton(B);
+  oneButton(B.menu); // the Challenge page's boot carries the menu answer under `menu`
   if (!B || B.rt !== true) return;
 
   var ROOT = document.getElementById('wq');
@@ -60,12 +111,14 @@
   var PPS;
   try { PPS = sessionStorage.getItem('wq_ps') || undefined; sessionStorage.setItem('wq_ps', PS); } catch (e) { PPS = undefined; }
 
-  // The ids the server turns into its own (it logs neither): this quiz's session token and this phone's device ref.
+  // The ids the server turns into its own (it logs none): this quiz's session token, this phone's device ref, and
+  // (setIds) the hub token and the picked chip.
   function read(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function ids() {
-    var o = {}, s = CODE ? read('wq_s_' + CODE) : null, d = read('wq_d');
+    var o = {}, s = CODE ? read('wq_s_' + CODE) : null, d = read('wq_d'), h = batchIds(), k;
     if (s && typeof s.st === 'string') o.st = s.st;
     if (typeof d === 'string') o.dr = d;
+    for (k in h) o[k] = h[k];
     return o;
   }
 

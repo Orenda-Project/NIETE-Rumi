@@ -21,6 +21,7 @@ const { requiredHigherOrder } = require('./transcript-quiz-pedagogy');
 const { peopleRule } = require('./transcript-quiz-people');
 const { scrubPupils, PUPILS_RULE } = require('./transcript-quiz-pupils');
 const { sourceFidelityRule } = require('./transcript-quiz-source-fidelity');
+const { avoidBlock } = require('./quiz-avoid-block');
 const {
   languageRule, questionContract, retryNote, languageAgain, SELECTED_BECAUSE_RULE, RELIGIOUS_CONTENT_RULE, DISTINCT_QUESTIONS_RULE,
   GENDER_NEUTRAL_RULE, LP_SUMMARY_VOICE, SUMMARY_TRUTH_RULE, summaryTruthEnabled,
@@ -242,6 +243,7 @@ function buildAuthorPrompt({
   // question also returns its source_quote and teaching_error. Off, the prompt
   // is exactly what it was.
   authorGates = false,
+  avoidQuestions = null, // bd-v0toag.10 day-3 retest — quiz-avoid-block.js
 }) {
   const lp = Boolean(lessonPlan);
   // How many of the n may actually be above bare recall on THIS lesson. A flat
@@ -293,7 +295,7 @@ ${PUPILS_RULE}
 ${peopleRule(digest, language)}
 
 ${figureContract({ subject: digest && digest.subject, gradeBand, nQuestions: n })}
-${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}${authorGates ? `\n\n${sourceFidelityRule({ lessonPlan: lp, gradeBand })}` : ''}
+${lessonDrew ? `${lessonDrew}\n` : ''}${multiContract({ allowMulti, n })}${langAgain}${retry}${picturesAgain({ subject: digest && digest.subject, gradeBand, n })}${authorGates ? `\n\n${sourceFidelityRule({ lessonPlan: lp, gradeBand })}` : ''}${avoidBlock(avoidQuestions)}
 
 Return ONLY this JSON object:
 { "lesson_summary": "", "lesson_summary_short": "", "checks_summary": "",
@@ -323,10 +325,11 @@ ${excerpts}`}`;
 async function author({
   digest, transcript, language, n = DEFAULT_QUESTIONS, gradeBand = null, previousErrors = null,
   quizId = null, allowMulti = Boolean(multiFlowId()), lessonPlan = null, lessonDrew = '', authorGates = false,
+  avoidQuestions = null,
 }) {
   const excerpts = lessonPlan ? '' : excerptsFor(transcript, digest);
   const prompt = buildAuthorPrompt({
-    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan, lessonDrew, authorGates,
+    digest, excerpts, language, n, gradeBand, previousErrors, allowMulti, lessonPlan, lessonDrew, authorGates, avoidQuestions,
   });
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.author' });
   const questions = Array.isArray(json?.questions) ? json.questions : [];

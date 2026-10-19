@@ -26,6 +26,12 @@ function facts(p) {
     art: (p && p.art) || {},
     brand: (p && p.brand) || null,
     invited: Boolean(p && p.invited),
+    // A storybook the teacher sent (web_quiz_stories_teacher): its preview names a story, not "0 questions". Absent otherwise.
+    ...(p && p.story ? { story: true } : {}),
+    // the finish card's switch, named only when on (the Urdu preview's digits); off, the facts are today's
+    ...(p && p.card_v3 === true ? { card_v3: true } : {}),
+    // the corrected Urdu share words (web_quiz_ur_share_copy), named only when on: the class table's preview says them
+    ...(p && p.ur_share === true ? { ur_share: true } : {}),
   };
 }
 

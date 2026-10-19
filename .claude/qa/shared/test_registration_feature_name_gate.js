@@ -28,10 +28,12 @@ function fakeApi({ registeredName }) {
   return {
     async resetFlow() {},
     async sendWait(text) {
+      // The bot since 2026-10-16: a registered teacher asking to register gets the Flow to UPDATE
+      // her details (no "already registered" short-circuit); anyone else gets the welcome Flow.
       if (/register/i.test(text) && !unregistered && registeredName && this._completed) {
-        return { txt: `You're already registered, ${registeredName}! Type /menu to see what I can help you with.`, btns: [], waitedMs: 1 };
+        return { txt: 'Update your details\nCorrect your name, school or classes.', btns: ['Update details'], waitedMs: 1 };
       }
-      return { txt: 'Welcome to registration', btns: ['Get started'], waitedMs: 1 };
+      return { txt: 'Welcome to NIETE', btns: ['Get started'], waitedMs: 1 };
     },
     async openFlow() { return { ok: true }; },
     async flowProbe() { return { text: screen, items: [{ text: 'Your Role' }] }; },
@@ -57,7 +59,7 @@ async function runFeature(api) {
 }
 
 const tests = {
-  async 'R08 runs (not BLOCKED) when the lookup shows a persisted name, and passes on "already registered"'() {
+  async 'R08 runs (not BLOCKED) when the lookup shows a persisted name, and passes on the update-your-details Flow'() {
     const r = await runFeature(fakeApi({ registeredName: 'Mahnoor' }));
     assert.notStrictEqual(r.R08.verdict, 'BLOCKED', 'R08 blocked: ' + JSON.stringify(r.R08.ev));
     assert.strictEqual(r.R08.verdict, 'PASS', JSON.stringify(r.R08.ev));

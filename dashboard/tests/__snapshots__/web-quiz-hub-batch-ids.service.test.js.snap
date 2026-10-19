@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ev2 absent: every /api/wq/e body is today's, byte for byte one child, the hub from the first paint (telemetry off) 1`] = `
+[
+  "{"events":[{"t":1790000000000,"lang":"ur","src":"hub","i":1,"n":"hub_view"}]}",
+  "{"events":[{"t":1790000000000,"lang":"ur","src":"teacher","n":"hub_pick"}]}",
+]
+`;
+
+exports[`ev2 absent: every /api/wq/e body is today's, byte for byte one child, the hub from the first paint (telemetry on) 1`] = `
+[
+  "{"events":[{"n":"page_start","page":"hub","ua":"test-agent","t":1790000000000,"lang":"ur","ps":"lmnopqropqrs","pseq":1,"sm":0},{"t":1790000000000,"lang":"ur","src":"hub","i":1,"n":"hub_view","ps":"lmnopqropqrs","pseq":2,"sm":0},{"t":1790000000000,"lang":"ur","src":"teacher","n":"hub_pick","ps":"lmnopqropqrs","pseq":3,"sm":0},{"n":"page_end","total_ms":0,"vis_ms":0,"count":4,"t":1790000000000,"lang":"ur","ps":"lmnopqropqrs","pseq":4,"sm":0}],"ps":"lmnopqropqrs","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+]
+`;
+
+exports[`ev2 absent: every /api/wq/e body is today's, byte for byte two children, a pick, the teacher's quiz (telemetry off) 1`] = `
+[
+  "{"events":[{"t":1790000000000,"lang":"en","src":"who","i":2,"n":"hub_view"}]}",
+  "{"events":[{"t":1790000000000,"lang":"en","src":"teacher","n":"hub_pick"}]}",
+]
+`;
+
+exports[`ev2 absent: every /api/wq/e body is today's, byte for byte two children, a pick, the teacher's quiz (telemetry on) 1`] = `
+[
+  "{"events":[{"n":"page_start","page":"hub","ua":"test-agent","t":1790000000000,"lang":"en","ps":"lmnopqropqrs","pseq":1,"sm":0},{"t":1790000000000,"lang":"en","src":"who","i":2,"n":"hub_view","ps":"lmnopqropqrs","pseq":2,"sm":0},{"n":"vis","state":"hidden","ms":0,"t":1790000000000,"lang":"en","ps":"lmnopqropqrs","pseq":3,"sm":0}],"ps":"lmnopqropqrs","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+  "{"events":[{"n":"vis","state":"visible","ms":0,"t":1790000000000,"lang":"en","ps":"lmnopqropqrs","pseq":4,"sm":0},{"t":1790000000000,"lang":"en","src":"teacher","n":"hub_pick","ps":"lmnopqropqrs","pseq":5,"sm":0},{"n":"page_end","total_ms":0,"vis_ms":0,"count":6,"t":1790000000000,"lang":"en","ps":"lmnopqropqrs","pseq":6,"sm":0}],"ps":"lmnopqropqrs","dr":"AAAAAAAAAAAAAAAAAAAAAA"}",
+]
+`;

@@ -2,6 +2,7 @@ import api from '../../services/api';
 import { LESSONS_V2_COPY, type LessonsCopy } from './copy';
 import { dayName } from './days';
 import { openUrl } from './paths';
+import { flnPlanPath } from '../../fln/lib/flnPath';
 import type { HistoryGroup } from '../ui';
 
 /**
@@ -31,11 +32,12 @@ export type Kpi = { value: number; previous: number | null };
 
 export type HistoryOpen =
   | { lane: 'k5'; lessonId: string }
-  | { lane: 'g612'; segmentId: string; lang: string };
+  | { lane: 'g612'; segmentId: string; lang: string }
+  | { lane: 'fln'; planId: string };
 
 export type HistoryItem = {
   planKey: string;
-  kind: 'k5' | 'g612';
+  kind: 'k5' | 'g612' | 'fln';
   found: boolean;
   title: string | null;
   grade: number | null;
@@ -120,9 +122,9 @@ export function groupByDay(items: HistoryItem[], today: string, words: LessonsCo
       title,
       ...(it.chapterNumber != null ? { extra: C.chapter(it.chapterNumber) } : {}),
       chip: it.via === 'whatsapp' ? { text: C.whatsapp, tone: 'done' } : { text: C.opened, tone: 'info' },
-      to: openUrl(it.open.lane === 'k5'
-        ? { plan: `k5:${it.open.lessonId}`, title: it.title, grade: it.grade }
-        : { plan: `g612:${it.open.segmentId}`, lang: it.open.lang, title: it.title, grade: it.grade }),
+      to: it.open.lane === 'fln' ? flnPlanPath(it.open.planId) : openUrl(it.open.lane === 'k5'
+        ? { plan: `k5:${it.open.lessonId}`, title: it.title, grade: it.grade, subject: it.subject }
+        : { plan: `g612:${it.open.segmentId}`, lang: it.open.lang, title: it.title, grade: it.grade, subject: it.subject }),
     });
   }
   return groups;

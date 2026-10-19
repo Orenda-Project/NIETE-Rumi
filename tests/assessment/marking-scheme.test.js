@@ -97,11 +97,11 @@ describe('normaliseScheme', () => {
     expect(out2.scheme).toBeUndefined();
   });
 
-  test('points that do not sum to the marks are dropped and accept is kept', () => {
+  test('points that do not sum to the marks are replaced by one A point on the answer; accept is kept', () => {
     const q = wordProblem([{ text: 'a correct method', marks: 2, kind: 'M' }, { text: '327,750', marks: 2, kind: 'A' }]);
     const result = normaliseScheme(paper('maths', [q]));
     const s = first(result).scheme;
-    expect(s.points).toBeUndefined();
+    expect(s.points).toEqual([{ kind: 'A', marks: 5, text: 'Rs. 327,750' }]);
     expect(s.accept).toEqual(['subtracting one amount at a time']);
     expect(s.common_error).toBe('422,250 as the answer');
     expect(first(result).answer).toBe('Rs. 327,750');

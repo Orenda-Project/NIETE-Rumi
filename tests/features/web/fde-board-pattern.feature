@@ -37,8 +37,9 @@ Feature: FDE board-pattern paper for Grade 5
   Scenario: Check and make says what is inside before the paper is made
     Given the board-pattern switch is on
     When a Grade 5 Science teacher reaches Check and make and opens Inside
-    Then the tray shows 3 sections, 100 marks, 3 hrs, the choice line and "You add · the diagram to label"
-    And the screen has at most 40 words above Make my paper
+    Then the Inside row shows 3 sections, 100 marks and 3 hrs
+    And the Inside tray lists the sections and "You add · the diagram to label"
+    And the screen has at most 50 words she reads above Make my paper, not counting "·" or a button that is only its label
 
   # ── Business rules / valid variations ─────────────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,30 @@ Feature: FDE board-pattern paper for Grade 5
     Given a Grade 5 Maths board-pattern paper is being made for this teacher
     When they close the app and open the paper's link again
     Then the wait screen shows the board-pattern chip and how long ago the paper was started
+    And the portal's status answer for that request carries the pattern and when it was asked for
+    And a paper made without the pattern gets a status answer with neither
+
+  @sandbox
+  Scenario: A Maths paper whose first draw set aside two MCQs is still made whole
+    Given the board-pattern switch is on
+    When a Grade 5 Maths board-pattern paper's first reply has two MCQs with two options of equal value
+    Then that section is asked once more and the paper is ready with all 20 MCQs in Q1(a)
+    And 18 of them are the first reply's
+
+  @sandbox
+  Scenario: A paper that still fails keeps what was written
+    Given the board-pattern switch is on
+    When a Grade 5 Maths board-pattern paper comes back short twice
+    Then the paper fails "PATTERN_SHORT_SLOT" and its row keeps the paper as written and the model's name
+
+  @sandbox
+  Scenario: A board-pattern paper that comes back short is made once more before the teacher hears of it
+    Given the board-pattern switch is on
+    When a Grade 5 Urdu board-pattern paper's whole first run comes back short of a slot
+    Then the paper is made again from nothing, once, in the same paper row, and the teacher sees only the wait screen
+    And the paper is ready if the second run is whole, or fails "PATTERN_SHORT_SLOT" with the second run's record if it is not
+    And a failure with any other code is not made again
+    And the request counts once toward the paper limit
 
   # ── Edge cases ────────────────────────────────────────────────────────────────────────────────────────────────────
 

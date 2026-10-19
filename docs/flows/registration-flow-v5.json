@@ -1,0 +1,523 @@
+{
+  "_comment": "WhatsApp Flow — NIETE registration v5 (bd-x7aprz.2, operator decisions 2026-10-16). Endpoint-driven (data_api_version 3.0, POST /api/flows/registration, bot/shared/routes/registration-endpoint.js). `version` is Meta's Flow JSON schema version, not this asset's revision.",
+  "_notes": [
+    "SHORT FORM: no Country (always PK) and no Organization (the deployment's own, only where the row has none) — the endpoint sets both. No free-text school name and no EMIS field that saves an unmatched code: the school is CHOSEN from the schools table.",
+    "SCHOOL SEARCH: ROLE_SCHOOL takes one search box (name, area or EMIS); the endpoint searches the 446 real schools (school-search.service.js) and SCHOOL_PICK lists up to ten plus 'My school isn't here' (id none). Searching again is the client's own back arrow: routing_model must stay forward-only (whatsapp-flows rule 7), so there is no backward route.",
+    "ROLES: Teacher / Principal only (registration-roles.js FORM_ROLES). An admin-set coach/AEO is not asked — the radio is hidden by visible=${data.show_role} — and the endpoint never writes over her role.",
+    "FIRST SCREEN IS BILINGUAL AND STATIC: she has not told us her language yet. Every later screen's words come from the endpoint in the language she picked (ux-strings regForm* keys); the caps are pinned per language by tests/registration/bd-x7aprz2-flow-v5-json.test.js.",
+    "THE COMPLETION PAYLOAD IS FLAT and names itself (registration_action), the shape every working ack in this repo uses (roster-flow-v1 notes); flow-type-detector.js keys on it.",
+    "The underscore keys are documentation; bot/scripts/setup/meta-api.js strips them before upload."
+  ],
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PERSONAL_INFO": [
+      "ROLE_SCHOOL"
+    ],
+    "ROLE_SCHOOL": [
+      "SCHOOL_PICK"
+    ],
+    "SCHOOL_PICK": [
+      "TEACHING"
+    ],
+    "TEACHING": [
+      "SUCCESS"
+    ],
+    "SUCCESS": []
+  },
+  "screens": [
+    {
+      "id": "PERSONAL_INFO",
+      "title": "Registration / رجسٹریشن",
+      "data": {
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "ur",
+              "title": "اردو"
+            },
+            {
+              "id": "en",
+              "title": "English"
+            }
+          ]
+        },
+        "init_language": {
+          "type": "string",
+          "__example__": "ur"
+        },
+        "init_full_name": {
+          "type": "string",
+          "__example__": "Ayesha Siddiqa"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "personal_form",
+            "init-values": {
+              "full_name": "${data.init_full_name}",
+              "language": "${data.init_language}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Welcome to NIETE"
+              },
+              {
+                "type": "TextBody",
+                "text": "Tell us a little about you. It takes about a minute.\nاپنے بارے میں تھوڑا سا بتائیں۔ ایک منٹ لگے گا۔"
+              },
+              {
+                "type": "TextInput",
+                "name": "full_name",
+                "label": "Name / نام",
+                "input-type": "text",
+                "required": true,
+                "helper-text": "Your full name · آپ کا پورا نام"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "language",
+                "label": "Language / زبان",
+                "required": true,
+                "data-source": "${data.languages}"
+              },
+              {
+                "type": "Footer",
+                "label": "Next / آگے",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "full_name": "${form.full_name}",
+                    "language": "${form.language}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ROLE_SCHOOL",
+      "title": "Registration / رجسٹریشن",
+      "data": {
+        "t_heading": {
+          "type": "string",
+          "__example__": "Your role and school"
+        },
+        "t_role_label": {
+          "type": "string",
+          "__example__": "Your role"
+        },
+        "t_search_label": {
+          "type": "string",
+          "__example__": "School name or EMIS"
+        },
+        "t_search_help": {
+          "type": "string",
+          "__example__": "e.g. IMSG G-9/1, a village name or the EMIS code"
+        },
+        "t_search": {
+          "type": "string",
+          "__example__": "Search"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "teacher",
+              "title": "Teacher"
+            },
+            {
+              "id": "principal",
+              "title": "Principal / Head Teacher"
+            }
+          ]
+        },
+        "show_role": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "init_role": {
+          "type": "string",
+          "__example__": "teacher"
+        },
+        "init_query": {
+          "type": "string",
+          "__example__": "IMSG G-9/1"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "role_school_form",
+            "init-values": {
+              "role": "${data.init_role}",
+              "school_query": "${data.init_query}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.t_heading}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "role",
+                "label": "${data.t_role_label}",
+                "required": false,
+                "visible": "${data.show_role}",
+                "data-source": "${data.roles}"
+              },
+              {
+                "type": "TextInput",
+                "name": "school_query",
+                "label": "${data.t_search_label}",
+                "input-type": "text",
+                "required": true,
+                "helper-text": "${data.t_search_help}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_search}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "role": "${form.role}",
+                    "school_query": "${form.school_query}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SCHOOL_PICK",
+      "title": "Registration / رجسٹریشن",
+      "data": {
+        "t_heading": {
+          "type": "string",
+          "__example__": "Pick your school"
+        },
+        "t_note": {
+          "type": "string",
+          "__example__": "Schools matching “G-9/1”. Not in the list? Go back and search again, or choose “My school isn’t here”."
+        },
+        "t_pick_label": {
+          "type": "string",
+          "__example__": "Your school"
+        },
+        "t_next": {
+          "type": "string",
+          "__example__": "Next"
+        },
+        "schools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "a1b2",
+              "title": "IMSG G-9/1",
+              "description": "IMSG(I-X) G-9/1 · Urban-II · EMIS 424"
+            },
+            {
+              "id": "none",
+              "title": "My school isn’t here"
+            }
+          ]
+        },
+        "init_school": {
+          "type": "string",
+          "__example__": "a1b2"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "school_pick_form",
+            "init-values": {
+              "school_id": "${data.init_school}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.t_heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.t_note}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "school_id",
+                "label": "${data.t_pick_label}",
+                "required": true,
+                "data-source": "${data.schools}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_next}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "school_id": "${form.school_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TEACHING",
+      "title": "Registration / رجسٹریشن",
+      "data": {
+        "t_heading": {
+          "type": "string",
+          "__example__": "Your grades and subjects"
+        },
+        "t_note": {
+          "type": "string",
+          "__example__": "Pick all that apply. No class of your own? Leave these empty."
+        },
+        "t_grades": {
+          "type": "string",
+          "__example__": "Grades"
+        },
+        "t_subjects": {
+          "type": "string",
+          "__example__": "Subjects"
+        },
+        "t_finish": {
+          "type": "string",
+          "__example__": "Finish"
+        },
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "grade_1",
+              "title": "Grade 1"
+            }
+          ]
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "maths",
+              "title": "Mathematics"
+            }
+          ]
+        },
+        "init_grades": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "grade_1"
+          ]
+        },
+        "init_subjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": [
+            "maths"
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "teaching_form",
+            "init-values": {
+              "grade": "${data.init_grades}",
+              "subjects": "${data.init_subjects}"
+            },
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.t_heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.t_note}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "grade",
+                "label": "${data.t_grades}",
+                "required": false,
+                "data-source": "${data.grades}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "subjects",
+                "label": "${data.t_subjects}",
+                "required": false,
+                "data-source": "${data.subjects}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_finish}",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "grade": "${form.grade}",
+                    "subjects": "${form.subjects}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Registration / رجسٹریشن",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "t_heading": {
+          "type": "string",
+          "__example__": "You’re registered"
+        },
+        "welcome_message": {
+          "type": "string",
+          "__example__": "Welcome, Ayesha! Tap Done and I’ll send your NIETE portal link in the chat."
+        },
+        "t_done": {
+          "type": "string",
+          "__example__": "Done"
+        },
+        "registration_action": {
+          "type": "string",
+          "__example__": "complete"
+        },
+        "flow_token": {
+          "type": "string",
+          "__example__": "uuid:registration:1760000000000"
+        },
+        "full_name": {
+          "type": "string",
+          "__example__": "Ayesha Siddiqa"
+        },
+        "language": {
+          "type": "string",
+          "__example__": "ur"
+        },
+        "school_linked": {
+          "type": "string",
+          "__example__": "yes"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "success_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.t_heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.welcome_message}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.t_done}",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "registration_action": "${data.registration_action}",
+                    "flow_token": "${data.flow_token}",
+                    "full_name": "${data.full_name}",
+                    "language": "${data.language}",
+                    "school_linked": "${data.school_linked}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -27,6 +27,9 @@ export const AUTH_EN = {
   accountName: 'Account name',
   byPhone: 'Use phone number',
   password: 'Password',
+  // bd-x7aprz.3 — a code on WhatsApp is the sign-in; a password is the second choice. One pair of links ("Use …").
+  usePassword: 'Use password instead',
+  useCode: 'Use a code instead',
   forgot: 'Forgot password',
   privacy: 'Privacy policy',
   deleteAccount: 'Delete account',
@@ -53,8 +56,12 @@ export const AUTH_EN = {
   enterPw: 'Enter password',
   enterName: 'Enter name',
   checkNum: 'Check the number',
-  noAccount: 'No account found',
-  noPw: 'No password yet',
+  // bd-x7aprz.3 — never "No account found" / "No password yet": a number that is not registered gets the way to
+  // register (the bot's form), and an account with no password gets the code.
+  notRegistered: 'Not registered yet',
+  registerOnWa: 'Register on WhatsApp',
+  byCode: 'Log in by code',
+  getNewLink: 'Get a new link',
   wrongCode: 'Wrong code',
   sixDigits: '6 digits needed',
   tooShort: 'Too short',
@@ -67,6 +74,9 @@ export const AUTH_EN = {
   couldntCreate: "Couldn't set up",
   linkExpired: 'Link expired',
   alreadySetUp: 'Already set up',
+  // A short-lived notice for people a server change signed out (auth/SignedOutBanner, which ends it by date). A
+  // sentence on purpose: the operator approved these exact words.
+  signedOut: 'Signed out? Log in with a code on WhatsApp — no password needed.',
 };
 
 export const AUTH_UR: Words<typeof AUTH_EN> = {
@@ -81,6 +91,8 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   accountName: 'اکاؤنٹ کا نام',
   byPhone: 'فون نمبر استعمال کریں',
   password: 'پاس ورڈ',
+  usePassword: 'پاس ورڈ استعمال کریں',
+  useCode: 'کوڈ استعمال کریں',
   forgot: 'پاس ورڈ بھول گئے',
   privacy: 'پرائیویسی پالیسی',
   deleteAccount: 'اکاؤنٹ حذف کریں',
@@ -106,8 +118,10 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   enterPw: 'پاس ورڈ لکھیں',
   enterName: 'نام لکھیں',
   checkNum: 'نمبر چیک کریں',
-  noAccount: 'اکاؤنٹ نہیں ملا',
-  noPw: 'ابھی پاس ورڈ نہیں',
+  notRegistered: 'ابھی رجسٹر نہیں',
+  registerOnWa: 'واٹس ایپ پر رجسٹر کریں',
+  byCode: 'کوڈ سے لاگ اِن',
+  getNewLink: 'نیا لنک لیں',
   wrongCode: 'غلط کوڈ',
   sixDigits: '6 ہندسے درکار ہیں',
   tooShort: 'بہت چھوٹا',
@@ -120,6 +134,8 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   couldntCreate: 'سیٹ اپ نہیں ہوا',
   linkExpired: 'لنک ختم ہو گیا',
   alreadySetUp: 'پہلے سے سیٹ اپ',
+  // The verb agrees with «لاگ ان», never with the reader: no gendered second-person form.
+  signedOut: 'لاگ ان ختم ہو گیا؟ واٹس ایپ پر کوڈ سے لاگ ان کریں، پاس ورڈ کی ضرورت نہیں۔',
 };
 
 export const AUTH = bilingual(AUTH_EN, AUTH_UR);
@@ -132,5 +148,7 @@ export const COPY_ENTRY: CopyEntry = {
   // The brand, the mark's name and the number's shape read the same in both languages.
   same: ['brand', 'logoAlt', 'phoneHint'],
   // The ontology's own words for "it reached her WhatsApp" (واٹس ایپ پر بھیجا گیا is 5 words in Urdu), used word for word.
-  longOk: ['sentOnWhatsapp'],
+  // "Register on WhatsApp" is the same phrase shape in Urdu (واٹس ایپ پر رجسٹر کریں, 5 words): bd-x7aprz.3.
+  // The signed-out notice is the one approved sentence on these pages, and it ends by date (auth/SignedOutBanner).
+  longOk: ['sentOnWhatsapp', 'registerOnWa', 'signedOut'],
 };

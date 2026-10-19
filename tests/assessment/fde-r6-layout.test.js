@@ -172,10 +172,10 @@ describe('C. Science Q2(b): the parent scheme splits into its parts or is droppe
     const text = visible(scheme);
     expect(text).not.toContain('explains the spread by contact');
     expect(text).not.toMatch(/\bA2 |\bA3 /);
-    // The first situation's three parts each print a 2.5 chip.
+    // The first situation's three parts each print an A2.5 point on their answer.
     const rows = scheme.match(/<tr data-row="science\.B\.Q2b">[\s\S]*?<\/tr>/g) || [];
     const firstThree = rows.slice(0, 3);
-    firstThree.forEach((r) => expect(r).toContain('<span class="chip">2.5</span>'));
+    firstThree.forEach((r) => expect(r).toContain('<span class="chip">A2.5</span>'));
     expect(text).toContain('saying handwashing removes every germ');
   });
 

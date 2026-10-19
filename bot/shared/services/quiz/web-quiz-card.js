@@ -7,7 +7,7 @@
  *
  *   field(s)        finish()'s {jugnu_card: true} (+ jugnu_ev: true with web_quiz_events_v2 on, so the page writes
  *                   door_shown / door_tap) for a child's own finished run in grades 2-5, else {}.
- *   go({st}, Err)   POST /hubdoor {st, jugnu: 1}: {href: '/c/<hub token>?kid=<chip>&via=quiz_card', animal} for THIS
+ *   go({st}, Err)   POST /hubdoor {st, jugnu: 1}: {href: '/c/<hub token>?kid=<chip>&via=quiz_card[&home=1]', animal} for THIS
  *                   session's child, checked exactly as the hub door is (the session, an own finished run, the phone
  *                   that played): the link never names the child, and a forwarded copy meets the hub's lock.
  * The page asks "<name>'s turn" before it calls go(): never straight into a run (the identity step).
@@ -53,11 +53,11 @@ function ownRun(s) {
   return Boolean(s && s.student_id && !s.user_id && !(s.invited_by_student_id && s.invited_by_student_id !== s.student_id));
 }
 
-// The challenge's grade rule (web-quiz-hub.js challengeGrade): grades 2-5 have a form; required on use.
+// The challenge's grade rule (web-quiz-hub.js challengeGrade, formForChild): grades 2-5 have a form, grade 1 with its switches; required on use.
 async function challengeGrade(studentId) {
   try {
     const Challenge = require('./web-quiz-challenge');
-    return Boolean(Challenge.formFor(await Challenge.gradeOf({ studentId })));
+    return Boolean(await Challenge.formForChild(await Challenge.gradeOf({ studentId })));
   } catch (err) {
     logToFile('⚠️ web quiz card: challenge grade unavailable', { error: err.message });
     return false;
@@ -135,7 +135,20 @@ async function go(body = {}, Err = Error) {
   await carryPick(s.id, id, tok.d);
   // The hub's own chip for this child (hub.js B.kid): the challenge page resolves it against the token's ids.
   const kid = T.chipId('h', id);
-  return { href: `/c/${token}?kid=${encodeURIComponent(kid)}&via=quiz_card`, animal: T.animalFor(id) };
+  // The Home button (app_settings web_quiz_home_button, with the hub on): home=1, as the hub's own Jugnu link (hub.js
+  // withHome), so the Trail shows Home. Off or unreadable: today's link.
+  const home = (await homeOn()) ? '&home=1' : '';
+  return { href: `/c/${token}?kid=${encodeURIComponent(kid)}&via=quiz_card${home}`, animal: T.animalFor(id) };
+}
+
+// web-quiz-hub-flags (the hub's nav_home, the hub door's home): read fail-closed, never throws.
+async function homeOn() {
+  try {
+    const f = await require('./web-quiz-hub-flags').flags();
+    return Boolean(f && f.hub && f.homeButton);
+  } catch (_) {
+    return false;
+  }
 }
 
 module.exports = { field, go, flags, ownRun, CARD_KEY, _resetCache: () => { cache = null; } };

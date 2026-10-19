@@ -72,7 +72,16 @@ beforeEach(() => {
 
 // ───────────────────────────── Social Studies ─────────────────────────────
 
-const SST_REAL = () => fixture('r6-sst-held');
+// Two Q1 items are held for a stem that names their key: «عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟ → ایدھی
+// فاؤنڈیشن» (its own stem, and a C/D stem) and «ابلاغ کی جدید ترین شکل کون سی ہے؟ → سوشل میڈیا» (two other Q1 stems).
+// Items no stem names stand in, so these tests read the held terms alone.
+const SST_REAL = () => {
+  const src = fixture('r6-sst-held');
+  const swap = (stem, question, options, answer) => Object.assign(src.unseen.objective.MCQs.find((x) => x.question === stem), { question, options, answer });
+  swap('عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟', 'پاکستان کا قومی پھول کون سا ہے؟', ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], 'ب) چنبیلی');
+  swap('ابلاغ کی جدید ترین شکل کون سی ہے؟', 'پاکستان کا قومی جانور کون سا ہے؟', ['الف) شیر', 'ب) ہاتھی', 'ج) مارخور', 'د) ہرن'], 'ج) مارخور');
+  return src;
+};
 // Where the three Sermon items sit in the recorded reply.
 const SERMON = [
   ['objective', 'MCQs', 4],
@@ -113,12 +122,10 @@ describe('Social Studies: an item that names a religious text is held, and the p
     const err = await Gen.generatePatternExam(ARGS('social_studies')).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
-    expect(err.shortfall).toEqual(expect.arrayContaining([
-      { slot: 'social_studies.A.Q1', missing: 1 },
-      { slot: 'social_studies.C.Q5', missing: 1 },
-      { slot: 'social_studies.D.Q7', missing: 1 },
-    ]));
-    expect(err.shortfall).toHaveLength(3);
+    // The three dropped places are short; since round 17 the paper's held items never print either,
+    // so its choice slots fall below what the child answers (Q6 too).
+    expect(err.shortfall.map((f) => f.slot)).toEqual(expect.arrayContaining(['social_studies.A.Q1', 'social_studies.C.Q5', 'social_studies.D.Q7']));
+    expect(err.shortfall.find((f) => f.slot === 'social_studies.A.Q1')).toEqual({ slot: 'social_studies.A.Q1', missing: 1 });
     const drops = logged('[assessment] held item dropped');
     expect(drops.map((d) => d.slot).sort()).toEqual(['social_studies.A.Q1', 'social_studies.C.Q5', 'social_studies.D.Q7']);
     for (const d of drops) expect(d).toMatchObject({ reason: 'religious_text', term: 'حجۃ الوداع' });
@@ -132,11 +139,14 @@ describe('Social Studies: an item that names a religious text is held, and the p
     const src = SST_REAL();
     SERMON.forEach(([category, type, i], k) => { src.unseen[category][type][i] = INNOCENT[k]; });
     replay(src);
-    const out = await Gen.generatePatternExam(ARGS('social_studies'));
+    // Since round 17 this recorded paper's held T6-A items never print, so it may end short in its
+    // choice slots; what this test reads is that no near-miss word drops anything.
+    const out = await Gen.generatePatternExam(ARGS('social_studies')).catch((e) => e);
     expect(logged('[assessment] held item dropped')).toEqual([]);
     expect(out.examJson._layout.medium).toBe('ur');
     const [line] = logged('[assessment] layout applied');
-    expect(line).toMatchObject({ dropped: 0, shortfall: [] });
+    expect(line).toMatchObject({ dropped: 0 });
+    expect(line.shortfall.map((f) => f.slot)).not.toContain('social_studies.A.Q1');
   });
 
   test('every listed term, in any field and in its written variants, is held', async () => {
@@ -185,7 +195,7 @@ describe('Social Studies: an item that names a religious text is held, and the p
 
 // ───────────────────────────────── Urdu ─────────────────────────────────
 
-// gen-local's list: the stock wording the first real Urdu papers were refused on.
+// The stock wording the first real Urdu papers were refused on, as listed by the local review.
 const GEN_LOCAL_STOCK = ['محاورے کا مطلب ہے', 'سوالات کے جواب دیں', 'ان اشعار میں', 'جناب عالی! گزارش ہے', 'چھٹی کی درخواست لکھیں'];
 // Made up: a line only the held pages carry, 30 characters.
 const HELD_ONLY = 'پہلے سبق کی یہ آزمائشی سطر کہیں اور نہیں';
@@ -202,7 +212,7 @@ function replayUrdu(edit) {
 }
 
 describe('Urdu: stock exercise wording passes the held filter; a held-only line still fails the section', () => {
-  test('every phrase on gen-local\'s list, in an item, drops nothing', async () => {
+  test('every phrase on the local review\'s list, in an item, drops nothing', async () => {
     replayUrdu((mcqs) => GEN_LOCAL_STOCK.forEach((s, i) => { mcqs[i].question = `${s}: درست جواب چنیں؟`; }));
     const out = await Gen.generatePatternExam(ARGS('urdu'));
     expect(logged('[assessment] held item dropped')).toEqual([]);
@@ -219,6 +229,7 @@ describe('Urdu: stock exercise wording passes the held filter; a held-only line 
     const err = await Gen.generatePatternExam(ARGS('urdu')).catch((e) => e);
     expect(err.code).toBe('PATTERN_SHORT_SLOT');
     expect(err.shortfall).toEqual([{ slot: 'urdu.A.Q1', missing: 1 }]);
-    expect(logged('[assessment] held item dropped')).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3' }]);
+    // The place is asked again once, and the re-ask's quote is held exactly as strictly.
+    expect(logged('[assessment] held item dropped')).toEqual(Array(2).fill({ slot: 'urdu.A.Q1', reason: 'lesson_1_3', kind: 'MCQs', match: expect.any(String) }));
   });
 });

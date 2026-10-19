@@ -6,7 +6,8 @@
  *
  *   challenge_passages, challenge_items, challenge_periods, challenge_links, challenge_draws
  *                            bot/database/migrations/web_quiz_challenge_registry.sql (challenge_passages: + every
- *                            ADD COLUMN of web_quiz_challenge_passages_provenance.sql)
+ *                            ADD COLUMN of web_quiz_challenge_passages_provenance.sql and
+ *                            web_quiz_challenge_passages_licence_calib.sql)
  *   web_quiz_challenge_runs  the reference schema's CREATE TABLE + every ADD COLUMN of an ALTER on it there and in
  *                            web_quiz_challenge_runs_v2.sql / web_quiz_challenge_runs_sampling.sql
  *   child_identity           bot/database/migrations/child_identity.sql
@@ -42,11 +43,12 @@ const COLUMNS = (() => {
   const v2 = read(path.join(MIG, 'web_quiz_challenge_runs_v2.sql'));
   const sampling = read(path.join(MIG, 'web_quiz_challenge_runs_sampling.sql'));
   const provenance = read(path.join(MIG, 'web_quiz_challenge_passages_provenance.sql'));
+  const licenceCalib = read(path.join(MIG, 'web_quiz_challenge_passages_licence_calib.sql'));
   const schema = read(SCHEMA);
   const runs = 'web_quiz_challenge_runs';
   const sets = {};
   for (const t of ['challenge_passages', 'challenge_items', 'challenge_periods', 'challenge_links', 'challenge_draws']) sets[t] = new Set(createCols(reg, t));
-  for (const c of addedCols(provenance, 'challenge_passages')) sets.challenge_passages.add(c);
+  for (const c of [...addedCols(provenance, 'challenge_passages'), ...addedCols(licenceCalib, 'challenge_passages')]) sets.challenge_passages.add(c);
   sets[runs] = new Set([...createCols(schema, runs), ...addedCols(schema, runs), ...addedCols(v2, runs), ...addedCols(sampling, runs)]);
   sets.child_identity = new Set(createCols(read(path.join(MIG, 'child_identity.sql')), 'child_identity'));
   sets.child_rungs = new Set(createCols(v2, 'child_rungs'));

@@ -14,7 +14,8 @@ test('beating the best earlier score shows New best with both scores, each read 
 test('in Urdu too', () => {
   const p = page({ lang: 'ur', store: card({ correct: 5, total: 5, best: { correct: 4, total: 5 } }) });
   p.wq.card();
-  expect(p.html()).toMatch(/نیا ریکارڈ! <bdi dir="ltr">5\/5<\/bdi> · پہلے <bdi dir="ltr">4\/5<\/bdi> ⭐/);
+  // an Urdu child screen prints every number in Urdu digits
+  expect(p.html()).toMatch(/نیا ریکارڈ! <bdi dir="ltr">۵\/۵<\/bdi> · پہلے <bdi dir="ltr">۴\/۵<\/bdi> ⭐/);
 });
 test('equal to or below the best says nothing extra', () => {
   for (const c of [{ correct: 4, total: 5 }, { correct: 2, total: 5 }]) {

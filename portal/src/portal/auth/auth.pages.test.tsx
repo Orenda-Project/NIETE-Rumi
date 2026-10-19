@@ -13,18 +13,27 @@ import { tapProblems } from "../newui/checks/rules";
  * least 56px; errors that sit under the field as an alert, map from the HTTP status, and stay until she types; no
  * toast anywhere. The handlers and API calls are the old ones (the existing login/session/legal/visibility tests
  * still pin those).
+ *
+ * bd-x7aprz.3: the login now opens on the WhatsApp CODE (number → Send code); the password sign-in below is reached
+ * with "Use password instead". 403 / 404 no longer say "No password yet" / "No account found" (they send her to the
+ * code / to Register on WhatsApp), and the set-password page is gone (an old set-up link signs her in or offers a new
+ * link). Those behaviours are pinned in ./code-sign-in.test.tsx.
  */
 
 const h = vi.hoisted(() => ({
   navigate: vi.fn(),
   toast: vi.fn(),
   login: vi.fn(),
+  checkAuth: vi.fn(),
   api: {
     requestReset: vi.fn(),
     verifyResetCode: vi.fn(),
     resetPassword: vi.fn(),
     validateToken: vi.fn(),
     setup: vi.fn(),
+    setupSignIn: vi.fn(),
+    requestCode: vi.fn(),
+    verifyCode: vi.fn(),
     langGet: vi.fn(),
     langSet: vi.fn(),
   },
@@ -35,7 +44,7 @@ vi.mock("react-router-dom", async (orig) => ({
   useNavigate: () => h.navigate,
 }));
 vi.mock("../hooks/useAuth", () => ({
-  useAuth: () => ({ login: h.login, user: null, loading: false }),
+  useAuth: () => ({ login: h.login, checkAuth: h.checkAuth, user: null, loading: false }),
 }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("../services/api", () => ({
@@ -45,6 +54,9 @@ vi.mock("../services/api", () => ({
     resetPassword: h.api.resetPassword,
     validateToken: h.api.validateToken,
     setup: h.api.setup,
+    setupSignIn: h.api.setupSignIn,
+    requestCode: h.api.requestCode,
+    verifyCode: h.api.verifyCode,
   },
   language: { get: h.api.langGet, set: h.api.langSet },
 }));
@@ -83,10 +95,10 @@ describe("one frame on every auth page", () => {
     expect(screen.getByTestId("login-legal-footer")).toHaveTextContent("Privacy policy · Delete account");
   });
 
-  it("first-time setup: the same frame, once the link is checked", async () => {
-    h.api.validateToken.mockResolvedValue({ success: true, user: { firstName: "Ayesha", lastName: "Bibi", phoneNumber: "923000000000" } });
+  it("an old set-up link that is dead: the same frame, once the link is checked", async () => {
+    h.api.setupSignIn.mockRejectedValue(httpError(400));
     render(<MemoryRouter initialEntries={["/portal/setup/tok"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
-    await screen.findByLabelText("Password");
+    await screen.findByRole("heading", { name: "Link expired" });
     expect(document.querySelector('[data-frame="auth"]')).not.toBeNull();
     expect(screen.getByTestId("login-legal-footer")).toBeInTheDocument();
   });
@@ -126,8 +138,8 @@ describe("Urdu: right-to-left, the number left-to-right", () => {
     const phone = screen.getByLabelText("فون نمبر");
     expect(phone).toHaveAttribute("dir", "ltr");
     expect(phone).toHaveAttribute("inputmode", "tel");
-    expect(screen.getByLabelText("پاس ورڈ")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "لاگ اِن" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "کوڈ بھیجیں" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "پاس ورڈ استعمال کریں" })).toBeInTheDocument();
   });
 
   it("English is left-to-right", () => {
@@ -149,15 +161,17 @@ describe("every tap target is at least 56px", () => {
       expect({ name, problems: tapProblems(container) }).toEqual({ name, problems: [] });
       unmount();
     }
-    h.api.validateToken.mockResolvedValue({ success: true, user: { firstName: "Ayesha", lastName: "Bibi", phoneNumber: "923000000000" } });
+    h.api.setupSignIn.mockRejectedValue(httpError(400));
     const { container } = render(<MemoryRouter initialEntries={["/portal/setup/tok"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
-    await waitFor(() => expect(container.querySelector("input")).not.toBeNull());
+    await waitFor(() => expect(container.querySelector('[data-frame="auth"] a')).not.toBeNull());
     expect({ name: "setup", problems: tapProblems(container) }).toEqual({ name: "setup", problems: [] });
   });
 });
 
 describe("login: errors sit under the field, map from the status, and stay until she types", () => {
+  // bd-x7aprz.3: the password sign-in is the second choice — "Use password instead" first.
   const fill = async (user: ReturnType<typeof userEvent.setup>, phone = "0300 0000000", pw = "madeup123") => {
+    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     await user.type(screen.getByLabelText("Phone number"), phone);
     if (pw) await user.type(screen.getByLabelText("Password"), pw);
     await user.click(screen.getByRole("button", { name: "Log in" }));
@@ -165,8 +179,7 @@ describe("login: errors sit under the field, map from the status, and stay until
 
   it.each([
     [401, "Wrong password", "Password"],
-    [403, "No password yet", "Password"],
-    [404, "No account found", "Phone number"],
+    // 403 and 404 are no longer a field's message: code-sign-in.test.tsx (back to the code / Register on WhatsApp).
     [400, "Check the number", "Phone number"],
   ])("status %i: '%s' under the %s field", async (status, label, field) => {
     h.login.mockResolvedValue({ success: false, status, error: "server sentence" });
@@ -208,20 +221,15 @@ describe("login: errors sit under the field, map from the status, and stay until
     expect(h.toast).not.toHaveBeenCalled();
   });
 
-  it("a no-password account makes Forgot password the emphasised choice", async () => {
-    h.login.mockResolvedValue({ success: false, status: 403, error: "x" });
-    const user = userEvent.setup();
-    at(<PortalLogin />);
-    await fill(user);
-    await screen.findByRole("alert");
-    expect(screen.getByRole("button", { name: "Forgot password" })).toHaveAttribute("data-emphasis", "true");
-  });
+  // (bd-x7aprz.3) "a no-password account makes Forgot password the emphasised choice" is gone: a no-password account
+  // now goes to the WhatsApp code — code-sign-in.test.tsx, "no password on her account".
 
   it("the message is in her language", async () => {
     await setLang("ur");
     h.login.mockResolvedValue({ success: false, status: 401, error: "x" });
     const user = userEvent.setup();
     at(<PortalLogin />);
+    await user.click(screen.getByRole("button", { name: "پاس ورڈ استعمال کریں" }));
     await user.type(screen.getByLabelText("فون نمبر"), "0300 0000000");
     await user.type(screen.getByLabelText("پاس ورڈ"), "madeup123");
     await user.click(screen.getByRole("button", { name: "لاگ اِن" }));
@@ -277,6 +285,7 @@ describe("login: errors sit under the field, map from the status, and stay until
   it("Forgot password carries the number she typed", async () => {
     const user = userEvent.setup();
     at(<PortalLogin />);
+    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     await user.type(screen.getByLabelText("Phone number"), "0300 0000000");
     await user.click(screen.getByRole("button", { name: "Forgot password" }));
     expect(h.navigate).toHaveBeenCalledWith("/portal/reset-password", { state: { phoneNumber: "0300 0000000" } });
@@ -320,6 +329,7 @@ describe("login: errors sit under the field, map from the status, and stay until
   it("Forgot password is not offered for an account name (it has no WhatsApp), and comes back for a phone", async () => {
     const user = userEvent.setup();
     at(<PortalLogin />);
+    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     const field = screen.getByLabelText("Phone number");
     await user.type(field, "fde-islamabad");
     expect(screen.queryByRole("button", { name: "Forgot password" })).toBeNull();
@@ -346,13 +356,14 @@ describe("forgot password", () => {
     expect(h.toast).not.toHaveBeenCalled();
   });
 
-  it("no account: under the number, from the 404", async () => {
+  it("not registered (404): the way to register, never 'No account found'", async () => {
     h.api.requestReset.mockRejectedValue(httpError(404));
     const user = userEvent.setup();
     at(<PortalPasswordReset />, { phoneNumber: "0300 0000000" });
     await user.click(screen.getByRole("button", { name: "Send code" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("No account found");
-    expect(screen.getByLabelText("Phone number")).toHaveAttribute("aria-invalid", "true");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Not registered yet");
+    expect(screen.getByRole("link", { name: "Register on WhatsApp" })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/No account found/);
   });
 
   it("an empty or short number never reaches the API", async () => {
@@ -464,91 +475,33 @@ describe("enter code", () => {
   });
 });
 
-describe("first-time setup", () => {
-  const mount = async () => {
-    h.api.validateToken.mockResolvedValue({ success: true, user: { firstName: "Ayesha", lastName: "Bibi", phoneNumber: "923000000000" } });
-    render(<MemoryRouter initialEntries={["/portal/setup/tok-123"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
-    await screen.findByLabelText("Password");
-  };
+// bd-x7aprz.3: the set-password page is gone. An old /portal/setup/<token> link signs her in, or (dead) offers a new
+// link from WhatsApp; the full behaviour is in code-sign-in.test.tsx. What stays pinned here: no toast, either way.
+describe("an old set-up link", () => {
+  const open = () => render(<MemoryRouter initialEntries={["/portal/setup/tok-123"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
 
-  it("shows who she is as plain information, the number left-to-right", async () => {
-    await mount();
-    expect(screen.getByText("Ayesha Bibi")).toBeInTheDocument();
-    expect(screen.getByText("+92 300 0000000")).toHaveAttribute("dir", "ltr");
-  });
-
-  it("an analytics account sees the name it signs in with, not '+analytics:…' (bd-s6qbts.5)", async () => {
-    h.api.validateToken.mockResolvedValue({ success: true, user: { firstName: "FDE Islamabad", lastName: null, phoneNumber: "analytics:fde-islamabad" } });
-    render(<MemoryRouter initialEntries={["/portal/setup/tok-123"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
-    await screen.findByLabelText("Password");
-    expect(screen.getByText("fde-islamabad")).toHaveAttribute("dir", "ltr");
-    expect(screen.queryByText(/analytics:/)).toBeNull();
-  });
-
-  it("the two requirements are chips that turn done as she meets them", async () => {
-    const user = userEvent.setup();
-    await mount();
-    const chars = screen.getByText("8+ characters").closest("li") as HTMLElement;
-    const num = screen.getByText("1 number").closest("li") as HTMLElement;
-    expect(chars).toHaveAttribute("data-met", "false");
-    await user.type(screen.getByLabelText("Password"), "abcdefgh");
-    expect(chars).toHaveAttribute("data-met", "true");
-    expect(num).toHaveAttribute("data-met", "false");
-    await user.type(screen.getByLabelText("Password"), "1");
-    expect(num).toHaveAttribute("data-met", "true");
-  });
-
-  it("a weak password needs no message row: the requirement chips turn red", async () => {
-    const user = userEvent.setup();
-    await mount();
-    await user.type(screen.getByLabelText("Password"), "abc");
-    await user.type(screen.getByLabelText("Confirm password"), "abc");
-    await user.click(screen.getByRole("button", { name: "Create account" }));
-    expect(h.api.setup).not.toHaveBeenCalled();
-    expect(screen.getByText("8+ characters").closest("li")).toHaveAttribute("data-met", "error");
-    expect(screen.getByText("1 number").closest("li")).toHaveAttribute("data-met", "error");
-  });
-
-  it("different passwords: 'Passwords differ' under the second; unmet requirements turn red; no call", async () => {
-    const user = userEvent.setup();
-    await mount();
-    await user.type(screen.getByLabelText("Password"), "abc");
-    await user.type(screen.getByLabelText("Confirm password"), "abd");
-    await user.click(screen.getByRole("button", { name: "Create account" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Passwords differ");
-    expect(screen.getByText("8+ characters").closest("li")).toHaveAttribute("data-met", "error");
-    expect(h.api.setup).not.toHaveBeenCalled();
-  });
-
-  it("the same call as before, then straight to the dashboard", async () => {
-    h.api.setup.mockResolvedValue({ success: true });
-    const user = userEvent.setup();
-    await mount();
-    await user.type(screen.getByLabelText("Password"), "madeup123");
-    await user.type(screen.getByLabelText("Confirm password"), "madeup123");
-    await user.click(screen.getByRole("button", { name: "Create account" }));
-    await waitFor(() => expect(h.api.setup).toHaveBeenCalledWith("tok-123", "madeup123"));
-    expect(h.navigate).toHaveBeenCalledWith("/portal/dashboard");
+  it("a live link: straight to her home, no password asked, never a toast", async () => {
+    h.api.setupSignIn.mockResolvedValue({ success: true, user: { role: "teacher" } });
+    open();
+    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/portal/dashboard", { replace: true }));
+    expect(screen.queryByLabelText("Password")).toBeNull();
     expect(h.toast).not.toHaveBeenCalled();
   });
 
-  it("a dead link goes to the login with its reason, never a toast", async () => {
-    h.api.validateToken.mockRejectedValue(httpError(400, "This portal account is already set up. Please log in instead."));
-    render(<MemoryRouter initialEntries={["/portal/setup/tok"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
-    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/portal/login", { state: { notice: "alreadySetUp" }, replace: true }));
+  it("a dead link says so on its own page (no password form), never a toast", async () => {
+    h.api.setupSignIn.mockRejectedValue(httpError(400, "This link has expired."));
+    open();
+    expect(await screen.findByRole("heading", { name: "Link expired" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Password")).toBeNull();
     expect(h.toast).not.toHaveBeenCalled();
-  });
-
-  it("a link that is invalid or expired says so", async () => {
-    h.api.validateToken.mockRejectedValue(httpError(400, "Invalid or expired invitation link."));
-    render(<MemoryRouter initialEntries={["/portal/setup/tok"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
-    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/portal/login", { state: { notice: "linkExpired" }, replace: true }));
   });
 });
 
 describe("the page frame inside a card reads as one list", () => {
-  it("the Forgot password link is a real button, not information", () => {
+  it("the Forgot password link is a real button, not information", async () => {
+    const user = userEvent.setup();
     at(<PortalLogin />);
+    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     const forgot = screen.getByRole("button", { name: "Forgot password" });
     expect(within(forgot).queryByRole("img")).toBeNull();
   });

@@ -21,7 +21,7 @@ const { modelFor } = require('../../../config/model-registry');
 const { logToFile } = require('../../../utils/logger');
 const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
-const { resolveTarget, resolveIndicator } = require('../target-resolver');
+const { cardTarget } = require('../next-step');
 const { tooSimilar, countBarFor, rubricAsk } = require('../uptake-loop.service');
 // bd-gr4fy.5.12: the same gendered-address detector the reflective question uses.
 const { genderedAddress } = require('../reflective-questions/guardrails');
@@ -66,35 +66,7 @@ function describeBar(bar) {
   return Object.entries(bar || {}).map(([k, v]) => `${k.replace(/_/g, ' ')} ≥ ${v}`).join(', ') || 'the rubric\'s rung-2 bar';
 }
 
-/**
- * Which indicator this card is about. With the loop on, the sticky loop
- * target (validated against THIS analysis) — except on a bridge lesson, where
- * the target does not apply and the card coaches this lesson's own indicator.
- * Without the loop, the scorer's validated focus_area.
- */
-function cardTarget(analysis, loop) {
-  const st = loop && loop.state && loop.state.target;
-  if (st && !loop.state.bridge) {
-    // A PHASE target is coached as the plan step, not as a rubric indicator.
-    // `try` carries what THIS lesson's plan actually asked for, so the ask can
-    // show her the step she skipped before asking for it next time.
-    if (st.kind === 'phase') {
-      const moves = ((analysis && analysis.lp_fidelity && analysis.lp_fidelity.moves) || [])
-        .filter((m) => m && m.phase === st.phase);
-      const missed = moves.find((m) => m.verdict === 'not_done' || m.verdict === 'partial') || moves[0];
-      return {
-        kind: 'phase', phase: st.phase, name: st.name,
-        try: (missed && String(missed.text || '').trim()) || '',
-        rationale: '', title: st.name, count: null, levels: null,
-      };
-    }
-    if (st.indicator) {
-      const t = resolveIndicator(analysis, st.indicator);
-      if (t) return t;
-    }
-  }
-  return resolveTarget(analysis);
-}
+// cardTarget moved to ../next-step (bd-v0toag.1.5) — one selector for the horizon, the card and the stored focus.
 
 function loopBlock(loop, target, langName) {
   if (!loop || !loop.state || !target) return '';
@@ -279,8 +251,8 @@ async function localisePair(commitment, action, lang) {
  * The rule template ("dedicate 5 minutes to X") is reached only when there is
  * no valid focus_area at all.
  */
-async function fallbackCard(analysis, teacherName, priorAction, lang, loop = null) {
-  const target = cardTarget(analysis, loop);
+async function fallbackCard(analysis, teacherName, priorAction, lang, loop = null, chosen) {
+  const target = chosen !== undefined ? chosen : cardTarget(analysis, loop);
   if (target) {
     // The scorer's own move when it is about this target; with the loop on,
     // the rubric's own rung-2 ask for the target otherwise — never the generic
@@ -313,7 +285,8 @@ async function fallbackCard(analysis, teacherName, priorAction, lang, loop = nul
     }
   }
 
-  const pa = await generatePrioritizedAction(analysis, teacherName, priorAction);
+  // The template names the selected step when there is one (bd-v0toag.1.5), never a second pick.
+  const pa = await generatePrioritizedAction(analysis, teacherName, priorAction, target && target.indicator);
   if (!pa) return null;
 
   // The rule-based path is authored in English. For non-English teachers,
@@ -339,16 +312,17 @@ async function fallbackCard(analysis, teacherName, priorAction, lang, loop = nul
  * @param {object} analysis - enhancedAnalysis (framework + strengths + growth_opportunities)
  * @param {object} conversationState - coaching_sessions.conversation_state (has questions[])
  * @param {string} outputLanguage - language code (en/sw/ur/ar); falls back to en
- * @param {object} [opts] - { teacherName, priorAction }
+ * @param {object} [opts] - { teacherName, priorAction, loop, target }
  * @returns {Promise<object|null>}
  */
 async function generateCommitmentCard(analysis, conversationState, outputLanguage = 'en', opts = {}) {
   const { teacherName = 'Teacher', priorAction = null, loop = null } = opts;
+  // opts.target: the report's ONE selected step (next-step.selectNextStep). Absent → choose here, as before.
   const lang = (outputLanguage || 'en').slice(0, 2);
   if (!analysis) return null;
 
   const q3 = extractQ3(conversationState);
-  const target = cardTarget(analysis, loop);
+  const target = opts.target !== undefined ? opts.target : cardTarget(analysis, loop);
   // The reflection gates the COMMITMENT half of the card, never the ACTION half.
   // When a loop target is open the ask must carry THIS attempt's angle and the
   // prior-action do-not-reuse block, so it is phrased by the model whether or
@@ -358,7 +332,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   // claimed the angle had advanced from `cue` to `show`.
   if (!q3 && !(loop && target)) {
     logToFile('Commitment card: no Q3 commitment and no loop target → rule-based fallback', { framework: analysis.framework });
-    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop));
+    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop, target));
   }
   if (!q3) {
     logToFile('[uptake-loop] no reflection — the ask is still phrased with the angle', {
@@ -421,7 +395,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
     });
   } catch (e) {
     logToFile('Commitment card LLM failed → rule-based fallback', { error: e.message });
-    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop));
+    return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop, target));
   }
 }
 

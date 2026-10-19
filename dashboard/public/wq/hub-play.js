@@ -9,7 +9,10 @@
     en: {
       lanternTrailOne: 'A game is waiting for you on the Trail.',
       lanternTrailMany: 'Games are waiting for you on the Trail.',
+      lanternGameOne: 'A game is waiting for you.', lanternGameMany: 'Games are waiting for you.',
       lanternNewStory: function (title) { return 'A new story is here: ' + title; },
+      // A tile's story title as the deck's {title} places it.
+      tileTitle: function (title) { return title; },
       lanternTomorrow: 'Tomorrow: a new story',
       lanternAllSeen: 'Next story arrives on Monday. Until then, play numbers with Jugnu.',
       nextMonday: 'Next story arrives on Monday',
@@ -19,8 +22,10 @@
     },
     ur: {
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔',
-      lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
+      lanternGameOne: 'ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternGameMany: 'کچھ کھیل آپ کا انتظار کر رہے ہیں۔',
       lanternNewStory: function (title) { return 'ایک نئی کہانی آ گئی ہے: ⁨' + title + '⁩'; },
+      tileTitle: function (title) { return '⁨' + title + '⁩'; },
       lanternTomorrow: 'کل نئی کہانی آئے گی۔',
       lanternAllSeen: 'اگلی کہانی پیر کو آئے گی۔ تب تک جگنو کے ساتھ گنتی کے کھیل کھیلیں۔',
       nextMonday: 'اگلی کہانی پیر کو آئے گی',
@@ -70,7 +75,8 @@
     var x = B.play.lantern;
     if (!x || !x.kind) return null;
     var line = null; var dr = null; var nx = null; var href = chHref;
-    if (x.kind === 'trail') { line = Number(x.stops) > 1 ? L.lanternTrailMany : L.lanternTrailOne; dr = 'next'; nx = 'trail'; }
+    // the hub a v3 home falls back to (web_quiz_home_v3 on, its page failed to load) says "games", never the Trail
+    if (x.kind === 'trail') { line = Number(x.stops) > 1 ? (B.home_v3 ? L.lanternGameMany : L.lanternTrailMany) : (B.home_v3 ? L.lanternGameOne : L.lanternTrailOne); dr = 'next'; nx = 'trail'; }
     else if (x.kind === 'story' && x.title) {
       line = L.lanternNewStory(x.title); dr = 'next'; nx = 'story';
       if (x.pid) href = chHref + '&room=story&pid=' + encodeURIComponent(x.pid);
@@ -94,12 +100,13 @@
       var href = chHref + (t.id === 'numbers' ? '' : '&room=story' + (t.pid ? '&pid=' + encodeURIComponent(t.pid) : ''));
       var tag = t.nx === 'new' && t.id !== 'numbers' ? '<span class="wqp-new">' + esc(L.shelfTagNew) + '</span>' : '';
       return '<a class="wqp-tile" data-shelf="' + (i + 1) + '" data-pid="' + esc(t.pid || '') + '" data-nx="' + (t.nx === 'new' ? 'new' : 'seen') + '" href="' + esc(href) + '">' +
-        tag + '<i aria-hidden="true">' + s[1] + '</i><span>' + esc(L[s[0]]) + '</span></a>';
+        tag + '<i aria-hidden="true">' + s[1] + '</i><span>' + esc(t.title ? L.tileTitle(t.title) : L[s[0]]) + '</span></a>';
     }).join('') + '</div>';
   }
 
   var pending = null;
-  /** The hub's `top` block. parts: {HOME, lastCard, homeTiles, teacher, teacherAny, tiles, T, LANG, MASC, chHref, ROOT, ev}. */
+  /** The hub's `top` block. parts: {HOME, lastCard, homeTiles, teacher, teacherAny, tiles, T, LANG, MASC, chHref, ROOT, ev, afterJug}. */
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function top(B, HT, parts) {
     var L = T[parts.LANG === 'ur' ? 'ur' : 'en'];
     var base = parts.HOME
@@ -111,11 +118,12 @@
     var html;
     if (B.play.first && chOn && base.indexOf('id="wq-h-ch"') >= 0) {
       var card = '<div class="wq-card wq-hcard wqp-jug"><a class="wqp-go" id="wq-h-ch" href="' + esc(parts.chHref) + '">' +
-        '<img src="/wq/jugnu/hello.webp" alt="" width="64" height="64"><span><b>' + esc(HT.chT(parts.MASC[parts.LANG])) + '</b><small>' + esc(HT.chSub) + '</small></span></a>' +
+        '<img src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="64" height="64"><span><b>' + esc((B.home_v3 && HT.chV3 ? HT.chV3 : HT.chT)(parts.MASC[parts.LANG])) + '</b><small>' + esc(HT.chSub) + '</small></span></a>' +
         (lt ? lt.html : '') + '</div>';
       // The tiles row without the Jugnu tile; an emptied row goes.
       var rest = base.replace(CH_TILE, '').replace('<div class="wq-htiles"></div>', '');
-      html = card + sh + inst(B) + rest;
+      // afterJug (hub.js: keep my place's mount, or ''): the Jugnu card leads, the keep card right after it.
+      html = card + (parts.afterJug || '') + sh + inst(B) + rest;
     } else {
       html = base + (lt || sh ? (lt ? lt.html : '') + sh : '') + inst(B);
     }

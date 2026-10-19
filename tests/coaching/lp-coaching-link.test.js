@@ -115,7 +115,11 @@ describe('LP Selection List Builder (bd-619)', () => {
     expect(result.listData.footer.text).toBe('NIETE ڈیجیٹل کوچ');
   });
 
-  test('SCENARIO: Region routing swaps the footer to "Human Coach" for ICT / NIETE', () => {
+  // bd-wa5io (2026-08-21) took the region out of this footer on purpose: the
+  // region map is HITL observe-card branding ("Human Coach") and this menu is the
+  // teacher's own Digital Coach UI. A "niete" region mapped to "Human Coach" must
+  // NOT leak into it.
+  test('SCENARIO: Region map does not swap the teacher-facing footer to "Human Coach" (bd-wa5io)', () => {
     const savedDefault = process.env.DEFAULT_COACH_ROLE_LABEL;
     const savedMap = process.env.REGION_COACH_ROLE_LABEL_MAP;
     process.env.REGION_COACH_ROLE_LABEL_MAP = '{"niete":"Human Coach"}';
@@ -126,7 +130,7 @@ describe('LP Selection List Builder (bd-619)', () => {
         { id: 'lp-1', topic: 'Photosynthesis', grade: '5', created_at: '2026-03-01' },
       ];
       const result = fresh('session-abc', recentLPs, 'en', 'niete');
-      expect(result.listData.footer.text).toBe('Human Coach');
+      expect(result.listData.footer.text).toBe('NIETE Digital Coach');
     } finally {
       if (savedDefault === undefined) delete process.env.DEFAULT_COACH_ROLE_LABEL;
       else process.env.DEFAULT_COACH_ROLE_LABEL = savedDefault;

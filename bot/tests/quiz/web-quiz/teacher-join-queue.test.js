@@ -275,7 +275,7 @@ describe('the strict backward join (a job function)', () => {
     const out = await Queue.runBackwardJoin();
     expect(out.dryRun).toBe(true);
     expect(out.labels).toEqual(EXPECTED);
-    expect(out.counts).toEqual({ phone_name: 1, strict: 1, blocked: 1, ambiguous: 1, none: 2, sibling_phone: 1, grade_mismatch: 2, joined: 2 });
+    expect(out.counts).toEqual({ phone_name: 1, strict: 1, blocked: 1, ambiguous: 1, none: 2, sibling_phone: 1, grade_mismatch: 2, refused_by_teacher: 0, joined: 2 });
     expect(writes()).toEqual([]);
   });
   test('a same-name loose record on another device blocks the join; on the same device it does not', async () => {

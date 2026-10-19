@@ -98,7 +98,7 @@ function at(path: string, state?: unknown) {
 describe("readPrefill (Start DC observation on a lesson plan)", () => {
   it("reads grade, subject and a grades 1–5 plan", () => {
     expect(readPrefill("?grade=4&subject=science&plan=k5:L3")).toEqual({
-      grade: 4, subjectKey: "science", plan: "k5:L3", pick: { lessonId: "L3" },
+      grade: 4, subjectKey: "science", plan: "k5:L3", pick: { lessonId: "L3" }, lpSubject: null, subjectName: null,
     });
   });
   it("reads a grades 6–12 plan with its language", () => {
@@ -106,7 +106,7 @@ describe("readPrefill (Start DC observation on a lesson plan)", () => {
     expect(readPrefill("?plan=g612:S9").pick).toEqual({ segmentId: "S9", lang: "en" });
   });
   it("ignores what is not a plan key or a grade", () => {
-    expect(readPrefill("?grade=nope&plan=lesson-3")).toEqual({ grade: null, subjectKey: null, plan: null, pick: null });
+    expect(readPrefill("?grade=nope&plan=lesson-3")).toEqual({ grade: null, subjectKey: null, plan: null, pick: null, lpSubject: null, subjectName: null });
   });
 });
 
@@ -228,7 +228,7 @@ describe("the page: no class, the recording first", () => {
     expect(await screen.findByText("How plants make food")).toBeTruthy();
   });
 
-  it("Submit with ONLY a recording sends it WITH her class, then its progress on the same screen", async () => {
+  it("Submit with ONLY a recording sends it WITH her class, then its progress on the second screen", async () => {
     at(COACHING_NEW);
     await pickClass();
     await waitFor(() => expect(uploadBtn()).toBeTruthy(), { timeout: 5000 });
@@ -241,7 +241,7 @@ describe("the page: no class, the recording first", () => {
     expect(payload.photos).toEqual([]);
     expect(payload.teacherClass).toEqual(THE_CLASS);
     expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
-    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
+    expect(screen.getByTestId("where").textContent).toMatch(new RegExp(`^${COACHING_NEW}\\?sent=(?!uploading)`)); // the second screen
     expect(peekDraft()).toBeNull(); // sent: nothing held
   });
 

@@ -72,7 +72,8 @@ module.exports = function classRoundRouter({ page, noStore, queryLang }) {
   };
 
   router.get('/:token', gate(async (req, res, v) => {
-    const html = await Round.screen(v.teacherId, { lang: await langOf(req, v.teacherId), token: req.params.token });
+    // device: the phone's wq_dv (the edge forwards it); the hand-back of a turn opened here answers only this phone
+    const html = await Round.screen(v.teacherId, { lang: await langOf(req, v.teacherId), token: req.params.token, device: req.get('x-wq-device') || undefined });
     if (!html) { page(res, 404, 'missing', queryLang(req)); return; }
     noStore(res);
     res.status(200).type('html').send(html);

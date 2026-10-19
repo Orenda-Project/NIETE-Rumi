@@ -735,9 +735,9 @@ function checkWorking(q, answer, exam, index) {
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
 
-// "68,970 ÷ 45 = 1,532 remainder 10": a whole-number division with its quotient and remainder.
+// "68,970 ÷ 45 = 1,532 remainder 10" (or "68,970 / 45 = …"): a whole-number division with its quotient and remainder.
 const WHOLE = String.raw`(\d{1,3}(?:,\d{2,3})+|\d+)`;
-const QUOTIENT_REMAINDER = new RegExp(String.raw`${WHOLE}\s*÷\s*${WHOLE}\s*=\s*${WHOLE}\s*,?\s*(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*${WHOLE}`, 'gi');
+const QUOTIENT_REMAINDER = new RegExp(String.raw`${WHOLE}\s*[÷/]\s*${WHOLE}\s*=\s*${WHOLE}\s*,?\s*(?:with\s+(?:a\s+)?)?(?:remainder|rem\.?|\bR\b)\s*[=:]?\s*${WHOLE}`, 'gi');
 const wholeOf = (raw) => (/^\d{1,3}(?:,\d{2,3})*$|^\d+$/.test(raw) ? BigInt(raw.replace(/,/g, '')) : null);
 
 /**
@@ -760,7 +760,14 @@ function checkRemainder(q, answer, exam, index) {
   return replaceKey(q, exam, answer, at, raw, computed, index);
 }
 
+// Board-pattern papers: a stem that asks for an estimate is keyed with the estimate
+// ("654,000 - 123,000 = 531,000"), so the exact value is not its answer and the key is
+// never compared with it, let alone rewritten to it. Left unchecked, as written.
+// "about" counts only as an amount ("about how much", "about 500"), not "a problem about a shop".
+const ESTIMATE_STEM = /(?<![a-z])(?:estimat[a-z]*|round(?:s|ed|ing)?|nearest|approx[a-z]*|about(?=\s+(?:how\b|(?:rs\.?\s*)?\d)))(?![a-z])|تخمین|اندازہ|قریب\s*ترین|تقریباً/i;
+
 function checkQuestion(q, exam, index) {
+  if (isObject(exam._layout) && typeof q.question === 'string' && ESTIMATE_STEM.test(q.question)) return null;
   if (isObject(exam._layout) && typeof q.answer === 'string' && q.answer.length <= MAX_TEXT) {
     const verdict = checkRemainder(q, q.answer, exam, index);
     if (verdict !== undefined) return verdict;
@@ -778,8 +785,9 @@ function checkQuestion(q, exam, index) {
 
   const all = numbersIn(answer);
   if (!all.length) return null;
-  // "994 remainder 1" is a different kind of answer from 994.25.
-  if (form.wholeDivision && form.value.den !== 1n && REMAINDER.test(answer)) return null;
+  // "994 remainder 1" is a different kind of answer from 994.25. On a board-pattern paper an
+  // exact division keyed "1,352 and remainder 0" is one too: its last number is the remainder.
+  if (form.wholeDivision && (form.value.den !== 1n || isObject(exam._layout)) && REMAINDER.test(answer)) return null;
 
   let target = all[all.length - 1];
   if (agrees(form.value, target)) return 'ok';
@@ -806,6 +814,218 @@ function checkQuestion(q, exam, index) {
     return replaceKey(q, exam, answer, target.index, target.raw, `${computed}%`, index);
   }
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
+}
+
+// ── One right option ───────────────────────────────────────────────────────
+//
+// "Which number is divisible by 11?" with 4,213 and 5,148 among the options has
+// two right answers; the equality check never sees it, because the options
+// differ in value. For a stem that names a property, every option is tested
+// against it. A stem this cannot read with certainty is left unchecked.
+
+const INDIC = /[۰-۹٠-٩]/g;
+const westernDigits = (s) => s.replace(INDIC, (d) => String(('۰۱۲۳۴۵۶۷۸۹'.indexOf(d) + 1 || '٠١٢٣٤٥٦٧٨٩'.indexOf(d) + 1) - 1));
+const OPTION_LETTER = /^\s*\(?([a-h])\s*[).]\s*/i;
+const WHOLE_NUMBER = /^\d{1,3}(?:,\d{3})+$|^\d+$/;
+
+function optionParts(options) {
+  return options.map((opt, i) => {
+    const text = westernDigits(String(opt)).trim();
+    const m = OPTION_LETTER.exec(text);
+    return { letter: m ? m[1].toLowerCase() : 'abcdefgh'[i], body: (m ? text.slice(m[0].length) : text).trim() };
+  });
+}
+
+const wholeValue = (body) => (WHOLE_NUMBER.test(body) ? Number(body.replace(/,/g, '')) : NaN);
+
+// A whole number, decimal, fraction or mixed number and nothing else.
+function plainValue(body) {
+  const s = body.replace(/,/g, '');
+  let m;
+  if ((m = /^\d+(?:\.\d+)?$/.exec(s))) return Number(s);
+  if ((m = /^(\d+)\/(\d+)$/.exec(s)) && Number(m[2])) return Number(m[1]) / Number(m[2]);
+  if ((m = /^(\d+)\s+(\d+)\/(\d+)$/.exec(s)) && Number(m[3])) return Number(m[1]) + Number(m[2]) / Number(m[3]);
+  return NaN;
+}
+
+function isPrime(n) {
+  if (!Number.isInteger(n) || n < 2) return false;
+  for (let d = 2; d * d <= n; d += 1) if (n % d === 0) return false;
+  return true;
+}
+
+const PLACE_WORDS = { ten: 10, hundred: 100, thousand: 1000, 'ten thousand': 10000, 'hundred thousand': 100000 };
+const PLACE_NAMES = ['ones', 'tens', 'hundreds', 'thousands', 'ten thousands', 'hundred thousands', 'millions', 'ten millions', 'hundred millions'];
+const placeName = (body) => body.toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim().replace(/^(?:the )?(.*?)(?: place)?$/, '$1').replace(/(?<!s)$/, 's');
+
+const SUPERLATIVE = /\b(greatest|largest|biggest|highest|smallest|least|lowest)\b/;
+const ASKS_WHICH = /\b(?:which|choose|select|pick)\b|کون/;
+// Words that turn the question round, add a second condition or ask about
+// more than one number: "divisible by 2 and 3", "between 12 and 20", "neither
+// prime nor composite", "rounds to 500", "which is wrong", "face value".
+const NOT_READ = new RegExp([
+  String.raw`\b(?:not|except|never|common|hcf|lcm|gcd|how many|estimate|both|all)\b`,
+  String.raw`\b(?:and|or|nor|neither|but|also|than|between|greater|less|besides|apart)\b`,
+  String.raw`\b(?:wrong|incorrect|false|face value|rounds|when rounded)\b`,
+  String.raw`نہیں|مشترک|(?:^|\s)(?:اور|یا)(?=\s|$)`,
+].join('|'));
+
+// Each property: the stem it reads, and the test an option's whole number must pass.
+const PROPERTIES = [
+  { re: /\bdivisible by (\d+)\b|(\d+)\s*سے\s*(?:پورا|پوری|مکمل)?\s*تقسیم/, test: (n, d) => d > 1 && n % d === 0 },
+  { re: /\bfactor of (\d+)\b/, test: (n, d) => n > 0 && d % n === 0 },
+  { re: /\bmultiple of (\d+)\b/, test: (n, d) => d > 0 && n % d === 0 },
+  { re: /\bprime\b|مفرد/, test: (n) => isPrime(n) },
+  { re: /\b(?:is|are) (?:an )?even\b|\beven number\b|جفت/, test: (n) => n % 2 === 0 },
+  { re: /\b(?:is|are) (?:an )?odd\b|\bodd number\b|طاق/, test: (n) => n % 2 === 1 },
+];
+
+function verdictOf(parts, passes) {
+  const passing = parts.filter(passes).map((p) => p.letter);
+  return passing.length === 1 ? { ok: true, key: passing[0] } : { ok: false, passing };
+}
+
+function propertyVerdict(stem, parts) {
+  const hit = PROPERTIES.map((p) => ({ p, m: p.re.exec(stem) })).filter((x) => x.m);
+  if (!hit.length) return null;
+  // "the smallest prime", "prime factor of": two asks in one stem.
+  if (hit.length > 1 || SUPERLATIVE.test(stem) || /\bprime factor/.test(stem) || !ASKS_WHICH.test(stem)) return { ok: null };
+  const values = parts.map((p) => wholeValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const { p, m } = hit[0];
+  const d = Number(m.slice(1).find((g) => g !== undefined));
+  return verdictOf(parts, (_, i) => p.test(values[i], d));
+}
+
+const ONLY_SUPERLATIVE = /^which (?:(?:one|number|fraction|decimal|of these(?: numbers| fractions| decimals)?|of the following(?: numbers| fractions| decimals)?) )?is (?:the )?(greatest|largest|biggest|highest|smallest|least|lowest)(?: (?:number|fraction|decimal|one))?(?: of (?:these|them|the following))?\s*[?.]?$/;
+
+function superlativeVerdict(stem, parts) {
+  const m = ONLY_SUPERLATIVE.exec(stem);
+  if (!m) return null;
+  const values = parts.map((p) => plainValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const best = /greatest|largest|biggest|highest/.test(m[1]) ? Math.max(...values) : Math.min(...values);
+  return verdictOf(parts, (_, i) => Math.abs(values[i] - best) < 1e-9);
+}
+
+const DECIMAL_PLACES = { tenth: 1, hundredth: 2, thousandth: 3, 'whole number': 0, whole: 0 };
+
+// "What is 7.846 rounded to the nearest tenth?": the stem's one number rounded half up to
+// that many places, compared with each option's value.
+const PLACES_WORD = { one: 1, two: 2, three: 3, 1: 1, 2: 2, 3: 3 };
+
+function decimalRoundingVerdict(stem, parts) {
+  // "to the nearest tenth", or "to 2 decimal places" / "correct to one decimal place".
+  const m = /\bto the nearest (tenth|hundredth|thousandth|whole number|whole)\b|\bto (one|two|three|1|2|3) decimal places?\b/.exec(stem);
+  if (!m || !/\bround(?:ed)?\b|\bcorrect to\b/.test(stem)) return null;
+  // "which digit do we look at?" asks about the method, not the rounded number.
+  if (/\bdigits?\b|(?<!decimal )\bplace\b/.test(stem)) return { ok: null };
+  const k = m[1] ? DECIMAL_PLACES[m[1]] : PLACES_WORD[m[2]];
+  const rest = stem.slice(0, m.index) + ' ' + stem.slice(m.index + m[0].length);
+  const numbers = rest.match(/\d[\d,]*(?:\.\d+)?/g) || [];
+  if (numbers.length !== 1) return { ok: null };
+  const values = parts.map((p) => plainValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const n = Number(numbers[0].replace(/,/g, ''));
+  const rounded = Math.round(n * 10 ** k + 1e-9) / 10 ** k;
+  return verdictOf(parts, (_, i) => Math.abs(values[i] - rounded) < 1e-9);
+}
+
+function roundingVerdict(stem, parts) {
+  const decimal = decimalRoundingVerdict(stem, parts);
+  if (decimal) return decimal;
+  const m = /\bto the nearest (hundred thousand|ten thousand|thousand|hundred|ten|100,000|10,000|1,000|1000|100|10)\b/.exec(stem);
+  if (!m || !/\bround(?:ed)?\b/.test(stem)) return null;
+  const place = PLACE_WORDS[m[1]] || Number(m[1].replace(/,/g, ''));
+  const rest = stem.slice(0, m.index) + ' ' + stem.slice(m.index + m[0].length);
+  const numbers = rest.match(/\d[\d,]*(?:\.\d+)?/g) || [];
+  if (numbers.length !== 1 || !WHOLE_NUMBER.test(numbers[0])) return { ok: null };
+  const values = parts.map((p) => wholeValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const n = Number(numbers[0].replace(/,/g, ''));
+  const rounded = Math.floor((n + place / 2) / place) * place;
+  return verdictOf(parts, (_, i) => values[i] === rounded);
+}
+
+// "the value of the digit 8 in 8,204,631", "the place value of 7 in 573,018": a value (or,
+// for "place value", a place name). "Which place is the digit 9 in 2,395,140?", "in which
+// place is …", "which place does the digit 5 have in …": a place name only. The number may
+// also come first, as FDE writes it: "In the number 4,305,276, what is the place value of
+// the digit 4?". "the number" may stand before N in either form.
+const DIGIT_ASK = String.raw`(?:(place value of (?:the )?(?:digit )?|value of (?:the )?digit )|which place (?:is|does) (?:the )?digit )(\d)`;
+const DIGIT_THEN_NUMBER = new RegExp(String.raw`\b${DIGIT_ASK} (?:(?:have|stand|occupy|take) )?in (?:the number )?(\d[\d,]*)`);
+const NUMBER_THEN_DIGIT = new RegExp(String.raw`\bin (?:the number )?(\d(?:[\d,]*\d)?)(?![\d.])(.*?)\b${DIGIT_ASK}(?!\d|[,.]\d)`);
+const NOT_WHOLE_TAIL = /^(?:\.\d|\s*(?:million|billion|thousand|hundred|lakh|crore|arab)\b|\s*[-+×x*÷/=^])/;
+
+// { value, digit, number, tail } for the one digit-in-a-number ask (value: the stem asks a value,
+// not only a place), { unread: true } when it cannot name one number, or null when there is no ask.
+function digitAsk(stem) {
+  const after = DIGIT_THEN_NUMBER.exec(stem);
+  const before = NUMBER_THEN_DIGIT.exec(stem);
+  // A number on each side ("In 8,943,210, … the digit 4 in 41,000?") names no one number.
+  if (after && before) return { unread: true };
+  if (after) return { value: Boolean(after[1]), digit: after[2], number: after[3], tail: stem.slice(after.index + after[0].length) };
+  // Between the number and the ask only a few plain words ("what is the", "find the").
+  if (before && /^,?\s*(?:[a-z]+\s+){0,3}$/.test(before[2])) {
+    return { value: Boolean(before[3]), digit: before[4], number: before[1], tail: stem.slice(before.index + 3).replace(/^(?:the number )?[\d,]*\d/, '') };
+  }
+  return null;
+}
+
+function placeValueVerdict(stem, parts) {
+  const ask = digitAsk(stem);
+  if (!ask) return null;
+  if (ask.unread) return { ok: null };
+  const value = ask.value;
+  // "3.5 million", "4,250 thousand", "25 + 30": the number read is not the whole number.
+  if (NOT_WHOLE_TAIL.test(ask.tail)) return { ok: null };
+  const digits = ask.number.replace(/,/g, '');
+  // A digit that appears twice (or not at all) names no one place.
+  if (digits.split(ask.digit).length !== 2) return { ok: null };
+  const k = digits.length - 1 - digits.indexOf(ask.digit);
+  const values = parts.map((p) => wholeValue(p.body));
+  if (value && !values.some(Number.isNaN)) return verdictOf(parts, (_, i) => values[i] === Number(ask.digit) * 10 ** k);
+  const names = parts.map((p) => placeName(p.body));
+  if ((value && !/\bplace value\b/.test(stem)) || !names.every((n) => PLACE_NAMES.includes(n))) return { ok: null };
+  return verdictOf(parts, (_, i) => names[i] === PLACE_NAMES[k]);
+}
+
+// The keyed letter of an answer written "d", "d)", "(d)", "D." or "d) 5,148"; null when it has none.
+function answerLetter(answer) {
+  if (typeof answer !== 'string') return null;
+  const t = westernDigits(answer).trim();
+  const m = OPTION_LETTER.exec(t) || /^\(?([a-h])\)?$/i.exec(t);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * mcqPropertyVerdict(item) → { ok: true } | { ok: false, passing: [letters] } | { ok: null }
+ *
+ * For an MCQ whose stem asks for a property (divisible by n, prime, factor of n,
+ * multiple of n, even, odd, the greatest/smallest option, rounded to the nearest
+ * 10/100/1000 or tenth/hundredth/thousandth/whole number, the place value of a digit): ok when exactly one option has it
+ * and the key names that option, otherwise the letters of the options that do. Any other stem, or options
+ * that are not plain numbers, is `{ ok: null }` (unchecked). Never throws.
+ */
+function mcqPropertyVerdict(item) {
+  try {
+    if (!isObject(item) || typeof item.question !== 'string' || !Array.isArray(item.options) || item.options.length < 2) return { ok: null };
+    if (item.options.some((o) => typeof o !== 'string' && typeof o !== 'number')) return { ok: null };
+    const stem = westernDigits(item.question).toLowerCase().replace(/\s+/g, ' ').trim();
+    if (NOT_READ.test(stem)) return { ok: null };
+    const parts = optionParts(item.options);
+    for (const read of [roundingVerdict, placeValueVerdict, propertyVerdict, superlativeVerdict]) {
+      const verdict = read(stem, parts);
+      if (!verdict) continue;
+      if (verdict.ok !== true) return verdict;
+      // One option has the property; when the key names another letter, the key is wrong.
+      const keyed = answerLetter(item.answer);
+      return keyed && keyed !== verdict.key ? { ok: false, passing: [verdict.key] } : { ok: true };
+    }
+  } catch (_) {
+    // Unreadable is unchecked.
+  }
+  return { ok: null };
 }
 
 // ── The paper ──────────────────────────────────────────────────────────────
@@ -893,6 +1113,7 @@ function mathsCheck(examJson, options = {}) {
 
 module.exports = {
   mathsCheck,
+  mcqPropertyVerdict,
   parseForm,
   lastNumber,
 };

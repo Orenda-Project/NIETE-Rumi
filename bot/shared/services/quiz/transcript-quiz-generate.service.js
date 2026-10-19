@@ -48,6 +48,7 @@ const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
 const GatesV2 = require('./quiz-author-gates-v2');
 const ChildReasons = require('./transcript-quiz-child-reasons');
+const SloStamp = require('./quiz-slo-stamp');
 const { completeJson } = require('./transcript-quiz-llm');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
@@ -2346,6 +2347,8 @@ async function processQuiz(quizId, payload, flight) {
       meta = {
         ...meta, ...LpCache.contentMetaFrom(donor, key), step: 'ready', question_count: rows.length, ready_at: new Date().toISOString(),
       };
+      // bd-v0toag.9 — this quiz's own SLO codes (off unless quiz_slo_retest_enabled).
+      meta = await SloStamp.stamp(meta, { slideScript, quizId, quizSource });
       quiz.topic = donor.topic || quiz.topic;
       quiz.subject = donor.subject || quiz.subject;
       quiz.grade = donor.grade || quiz.grade;
@@ -2440,6 +2443,11 @@ async function processQuiz(quizId, payload, flight) {
   // `let`: the summary truth check replaces its SLO statements (a new object,
   // never an edit of the row that was read).
   let digest = meta.digest;
+  // bd-v0toag.9 — the curriculum SLO code per digest SLO, from the slide script; rides the
+  // ready write below. Off unless app_settings quiz_slo_retest_enabled.
+  if (quiz.status !== 'ready' || meta.step !== 'ready') {
+    meta = await SloStamp.stamp(meta, { slideScript, quizId, quizSource });
+  }
   const language = quiz.language || quizLanguageFor(digest.subject, session.transcript_language);
   // A complaint logged by the authoring loop can quote a person's name (a
   // URDU_NAME_LATIN line, a rejected teacher note): each is logged hashed (D4).
@@ -2506,6 +2514,8 @@ async function processQuiz(quizId, payload, flight) {
           // plan's gendered prose are absent here too.
           ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript, { authorGates }), lessonDrew } : {}),
           ...(authorGates ? { authorGates: true } : {}),
+          // bd-v0toag.10 — a day-3 retest (quiz-retest-sweep) names the questions not to reuse.
+          ...(Array.isArray(meta.retest_avoid) && meta.retest_avoid.length ? { avoidQuestions: meta.retest_avoid } : {}),
         });
       } catch (err) {
         attempts.push({ attempt, error: err.message });

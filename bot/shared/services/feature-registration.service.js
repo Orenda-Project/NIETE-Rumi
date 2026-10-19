@@ -10,12 +10,19 @@
  *
  * Replaces the old flow-based registration with WhatsApp Flow template.
  * This is ultra-simple: just ask for name, nothing else.
+ *
+ * With REGISTRATION_FLOW_ID set (every NIETE environment) none of the above runs: the trigger
+ * offers the registration Flow through services/registration-invite.service.js, once, and the
+ * conversational name question is only the open-source default for a deployment with no Flow.
+ * Users already waiting on a name reply (registration_pending_name) are still handled.
  */
 
 const { v4: uuidv4 } = require('uuid');
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const WhatsAppService = require('./whatsapp.service');
+const RegistrationInvite = require('./registration-invite.service');
+const { needsRegistrationForm } = require('../utils/registration-status');
 const tts = require('./tts');
 const { TEMP_DIR } = require('../utils/constants');
 
@@ -38,7 +45,7 @@ class FeatureRegistrationService {
       // Get user to check registration status
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('registration_completed, registration_pending_name, name')
+        .select('registration_completed, registration_pending_name, name, role, school_id, registration_started_at')
         .eq('id', userId)
         .single();
 
@@ -47,7 +54,26 @@ class FeatureRegistrationService {
         return false;
       }
 
-      // Skip if already registered
+      // A deployment with a registration Flow offers the FORM, through the one sender and its
+      // once-only rule — not the name question, and not counted by feature: the first-reply
+      // offer (text-message.handler.js) has usually sent it already, and the once-only claim
+      // (users.registration_started_at) is what stops a second copy when the lesson plan lands.
+      // Who is offered is needsRegistrationForm(): a name with no school or role counts.
+      if (process.env.REGISTRATION_FLOW_ID) {
+        if (!needsRegistrationForm(user) || user.registration_pending_name) {
+          logToFile('Registration Flow not needed after this feature', { userId, featureType });
+          return false;
+        }
+        const offered = await RegistrationInvite.offerRegistrationOnce({
+          user: { id: userId }, phone: phoneNumber, language, reason: 'after_first_feature',
+        });
+        logToFile(offered ? 'Registration Flow offered after a feature' : 'Registration Flow not offered (already offered)', {
+          userId, featureType,
+        });
+        return offered;
+      }
+
+      // The conversational path (no Flow configured): it only ever asks a NAME.
       if (user.name || user.registration_completed) {
         logToFile('User already registered, skipping', { userId, firstName: user.name });
         return false;
@@ -59,7 +85,17 @@ class FeatureRegistrationService {
         return false;
       }
 
-      // Check if this is first feature completion
+      // This process has no Flow id — but the BOT may have, and may already have offered her the
+      // form (users.registration_started_at). Production, 2026-10-16: the id is set on the bot
+      // service only, not on the workers where this trigger runs, so without this she gets the Flow
+      // after her first message and then "By the way, what should I call you?" after her first
+      // lesson plan, and her next message is taken as her name.
+      if (user.registration_started_at) {
+        logToFile('Registration Flow already offered — not asking the name in chat', { userId, featureType });
+        return false;
+      }
+
+      // Check if this is first feature completion (the conversational path, no Flow configured)
       const featureCount = await this.countUserFeatures(userId);
 
       if (featureCount !== 1) {
@@ -150,23 +186,17 @@ class FeatureRegistrationService {
     // conversational path below. The Flow completes via
     // FlowResponseHandler.handleRegistrationFlow (it does not set
     // registration_pending_name, which is the text-name path's flag).
-    const REGISTRATION_FLOW_ID = process.env.REGISTRATION_FLOW_ID || '';
-    if (REGISTRATION_FLOW_ID) {
-      try {
-        await WhatsAppService.sendFlow(phoneNumber, {
-          flowId: REGISTRATION_FLOW_ID,
-          flowToken: userId,
-          header: 'Welcome',
-          body: 'Quick setup — tell us a little about you.',
-          footer: 'Powered by NIETE',
-          buttonText: 'Get started',
-        });
-        logToFile('Registration flow sent (presence-gated)', { userId, phoneNumber });
-        return;
-      } catch (error) {
-        logToFile('Registration flow send failed; falling back to name question', { userId, error: error.message });
-        // fall through to the conversational path
-      }
+    //
+    // The Flow goes through the one sender (services/registration-invite.service.js): its
+    // token, its copy in her language, and a retry line if Meta refuses it. A refused Flow does
+    // NOT fall back to the name question any more — that path sets registration_pending_name
+    // and captures a name with no school or role, which is how a teacher ends up "registered"
+    // with nothing the school features can use.
+    if (process.env.REGISTRATION_FLOW_ID) {
+      await RegistrationInvite.sendRegistrationInvite({
+        user: { id: userId }, phone: phoneNumber, language, reason: 'name_question',
+      });
+      return;
     }
 
     const messages = {

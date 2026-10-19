@@ -34,15 +34,15 @@ describe('the card: first under the score, above the shares', () => {
     const h = withCard({ lang: 'en', store: store(JC) }).html();
     expect(h).toContain('id="wq-jc-go"');
     expect(h).toContain('Jugnu has a game for you');
-    expect(h).toContain('2 minutes, no microphone');
+    expect(h).toContain('2 minutes to start, no microphone');
     expect(h).toMatch(/<button class="wq-btn wq-go" id="wq-jc-go">▶ Play<\/button>/);
     expect(h.indexOf('wq-scorecard')).toBeLessThan(h.indexOf('id="wq-jc-go"'));
     expect(h.indexOf('id="wq-jc-go"')).toBeLessThan(h.indexOf('id="wq-share"'));
   });
   test('UR: in Urdu', () => {
     const h = withCard({ lang: 'ur', store: store(JC) }).html();
-    expect(h).toContain('جگنو کے پاس آپ کے لیے ایک کھیل ہے');
-    expect(h).toContain('۲ منٹ، مائیک کی ضرورت نہیں');
+    expect(h).toContain('جگنو کے پاس آپ کے لیے ایک کھیل ہے');
+    expect(h).toContain('شروع کے ۲ منٹ، مائیک کی ضرورت نہیں');
     expect(h).toContain('کھیلیں</button>');
   });
   test('not on a friend\'s challenge run, nor when finish did not offer it', () => {
@@ -123,6 +123,37 @@ describe('the identity step: a tap asks whose turn it is, never straight into a 
     await flush(); await flush();
     expect(q.hist.assigned).toEqual([]);
     expect(q.toasts().length).toBe(1);
+  });
+});
+
+// The Home button (web_quiz_home_button): the server's card link carries home=1, as the hub's own Jugnu link does,
+// so the Trail page shows Home. The page follows exactly that one extra param and still refuses any other href.
+describe('Play and the Home button (home=1)', () => {
+  const HOME_HREF = HREF + '&home=1';
+  const tapPlay = async (p) => { p.els['#wq-jc-go'].fire('click'); p.els['#wq-jc-play'].fire('click'); await flush(); await flush(); };
+  test('the card\'s Play follows an href with home=1; a foreign href is still refused', async () => {
+    const p = withCard({ lang: 'en', store: store(JC), api: { hubdoor: { href: HOME_HREF, animal: 'owl' } } });
+    await tapPlay(p);
+    expect(p.hist.assigned).toEqual([HOME_HREF + '&lang=en']);
+    const u = withCard({ lang: 'ur', store: store(JC), api: { hubdoor: { href: HOME_HREF } } });
+    await tapPlay(u);
+    expect(u.hist.assigned).toEqual([HOME_HREF + '&lang=ur']);
+    for (const bad of [HREF + '&home=2', HREF + '&home=1&x=1', HREF + '&home=1&home=1', '/c/tok.abc?kid=k1&home=1&via=quiz_card',
+      'https://evil.example' + HOME_HREF, '/h/tok.abc?kid=k1&via=quiz_card&home=1']) {
+      const q = withCard({ lang: 'en', store: store(JC), api: { hubdoor: { href: bad } } });
+      await tapPlay(q);
+      expect(q.hist.assigned).toEqual([]);
+      expect(q.toasts().length).toBe(1);
+    }
+  });
+  test('the #2398 fresh profile: wq_dv is written before leaving on the home=1 link too', async () => {
+    const DEV = 'AbCdEfGhIjKlMnOpQrSt_-';
+    const p = withCard({ lang: 'en', store: { ...store(JC), wq_d: DEV }, api: { hubdoor: { href: HOME_HREF } } });
+    let atLeave = null;
+    p.ctx.location.assign = (u) => { atLeave = p.ctx.document.cookie; p.hist.assigned.push(u); };
+    await tapPlay(p);
+    expect(p.hist.assigned).toEqual([HOME_HREF + '&lang=en']);
+    expect(atLeave).toBe('wq_dv=' + DEV + '; path=/; max-age=2592000; samesite=lax');
   });
 });
 

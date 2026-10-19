@@ -56,6 +56,7 @@ const ExamCheckerHandler = require('./shared/handlers/exam-checker.handler');
 // Import Utils
 const { logToFile, logError, LOGS_DIR } = require('./shared/utils/logger');
 const validators = require('./shared/utils/validators');
+const { handleStatusWebhook } = require('./shared/services/whatsapp-status-pricing');
 const constants = require('./shared/utils/constants');
 const { setUserLanguage } = require('./shared/utils/language-cache');
 
@@ -86,6 +87,13 @@ app.use('/api/flows', flowEndpointRoutes);
 app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'));
 // The teacher's web quiz report (portal /t/<token> -> bot), same x-api-key check.
 app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
+// A teacher sends a storybook to the class (portal /api/teacher/stories, /api/teacher/story/share), same x-api-key check.
+app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
+// ── first touch: the optional mounts in shared/services/first-touch/mounts.js, one line each in name order ──
+for (const [, file, mount] of require('./shared/services/first-touch/mounts')) {
+  try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (err) { require('./shared/services/first-touch/mount-failed')(file, err); } // not mounted; every other route is today's
+}
+// ── end first touch ──
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
@@ -122,6 +130,9 @@ async function handleBroadcastStatusWebhook(statuses) {
           timestamp,
           fullErrors: status.errors
         });
+        // A teacher's report WhatsApp took and then could not deliver: un-stamped, counted, tried again or held for
+        // the next /quiz (quiz_report_send_checked; off: no Redis call). Never throws.
+        await require('./shared/services/quiz/report-delivery').onFailedStatus(status);
         // Don't continue - let it fall through to potentially update broadcast_messages if needed
       }
 
@@ -541,7 +552,7 @@ app.post('/webhook', async (req, res) => {
       // Used for broadcast delivery tracking
       const statusValidation = validators.validateWebhookStatus(req);
       if (statusValidation) {
-        await handleBroadcastStatusWebhook(statusValidation.statuses);
+        await handleStatusWebhook(statusValidation, handleBroadcastStatusWebhook);
         ack();
         return;
       }
@@ -748,6 +759,16 @@ app.post('/webhook', async (req, res) => {
         const ConversationResume = require('./shared/services/conversation-resume.service');
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
+
+      // ── first touch: the maker fallback's three buttons (quiz_maker_page; off or a throw → today's chain) ──
+      if (buttonId.startsWith('ft_fb_')) {
+        try {
+          if (await require('./shared/services/first-touch/maker.fallback').handleFallbackButton({ user, phone: from, id: buttonId, lang: user && user.preferred_language })) return;
+        } catch (err) {
+          logToFile('⚠️ first touch: the fallback tap failed — today\'s handling', { error: err && err.message });
+        }
+      }
+      // ── end first touch ──
 
       // Child test (bd-s1oo0.4): every ctst_ button (offer, Present/Absent/Refused, Stop, Menu,
       // No strip photo) belongs to the child test. Inert unless CHILD_TEST_ENABLED; false → the
@@ -1714,23 +1735,9 @@ app.post('/webhook', async (req, res) => {
           responseFields: Object.keys(responseJson)
         });
 
-        try {
-          const success = await FlowResponseHandler.handleRegistrationFlow(message, from, user?.id);
-
-          if (!success) {
-            logToFile('❌ Registration flow processing failed', { from, responseJson });
-            await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
-          } else {
-            logToFile('✅ Registration flow processed successfully', { from });
-          }
-        } catch (flowError) {
-          logToFile('❌ Exception in registration flow handler', {
-            from,
-            error: flowError.message,
-            stack: flowError.stack
-          });
-          await WhatsAppService.sendMessage(from, 'Sorry, something went wrong with your registration. Please try /register to try again.');
-        }
+        // bd-x7aprz.2: ONE apology at most. The handler already sends it on failure; this branch
+        // used to send a second, near-identical one on top (flow-response.handler.js).
+        await FlowResponseHandler.routeRegistrationSubmission(message, from, user?.id);
       } else if (flowType === 'attendance_setup') {
         // Attendance Setup — endpoint flow's terminal ack. The endpoint at
         // /api/flows/attendance-setup already parsed the roster, created the
@@ -2029,6 +2036,12 @@ app.post('/webhook', async (req, res) => {
         }
         ack();
         return;
+      }
+
+      // bd-v0toag.10 — a child's "who helped?" tap after a lesson quiz (vqh_<n|c|t|f>_<lang>_<session>).
+      if (listId.startsWith('vqh_')) {
+        const QuizHelpedBy = require('./shared/services/quiz/quiz-helped-by');
+        if (await QuizHelpedBy.handleTap(from, listId)) { ack(); return; }
       }
 
       if (listId.startsWith('vq_')) {

@@ -8,7 +8,8 @@
  * generation worker, the queue service and the health check read. The recovery hand-copied its own
  * `3`, so the day the limit changes, recovery would re-queue a request the worker has already given
  * up on (or give up before the worker would). Here the shared limit is set to 2: a request at 2
- * attempts must be finished, not re-queued.
+ * attempts must be finished, not re-queued. A grounded request it does re-queue keeps sourceLpUuid, the
+ * field the worker routes on (the whole round trip: requeue-grounded.test.js).
  *
  * Faked: the network (WhatsApp, SQS), the database (in memory), and the modules the worker file
  * loads that recovery never touches. The recovery and the queue service are real.
@@ -41,6 +42,7 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({
 }));
 
 const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
+const Queue = require('../../bot/shared/services/queue');
 const { recoverStaleLessonPlanRequests } = require('../../bot/workers/sqs-worker');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
@@ -87,4 +89,18 @@ test('a stuck request UNDER the shared limit is re-queued, and nobody is told', 
   await recoverStaleLessonPlanRequests();
   expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   expect(mockEvent.mock.calls.filter(([n]) => n === 'lesson_plan.generation.failed')).toHaveLength(0);
+});
+
+test('a stuck GROUNDED request under the limit is re-queued with its curriculum row — the field the worker routes on', async () => {
+  mockDb.reset({
+    lesson_plan_requests: [{
+      id: 'req-grounded', user_id: TEACHER, phone_number: PHONE, language: 'en', status: 'processing', content_type: 'lesson_plan',
+      retry_count: 1, processing_started_at: longAgo(), source: 'niete_grounded', artifact_ref: 'ast-uuid-7',
+    }],
+    users: [{ id: TEACHER, phone_number: PHONE }],
+  });
+  await recoverStaleLessonPlanRequests();
+  const jobs = Queue.queueCoachingJob.mock.calls
+    .filter(([, type]) => type === 'lesson_plan_generation').map(([, , payload]) => payload);
+  expect(jobs).toEqual([expect.objectContaining({ requestId: 'req-grounded', sourceLpUuid: 'ast-uuid-7' })]);
 });

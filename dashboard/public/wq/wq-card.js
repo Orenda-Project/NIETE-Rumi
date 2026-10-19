@@ -8,7 +8,8 @@
  * A tap never opens a run: one screen asks "<name>'s turn" (Play, or "Not my turn? Go back" to the card). Play asks
  * the server for this child's challenge link (POST hubdoor {st, jugnu: 1}) and opens it. The door events
  * (door_shown / door_tap {door: 'card', surface: 'scorecard', slot: 1}) go through the page's own ev() batch, only
- * when finish says the events are on (result.jugnu_ev). Nothing about the child is computed here.
+ * when finish says the events are on (result.jugnu_ev). Nothing about the child is computed here. With them on, the
+ * hub token and the chip of the link Play is given ride every event batch from then on (wq-tel.js WQT.setIds).
  * ctx (from wq.js): {res, lang, mascot, first, T: {play, oops, offline}, esc, ani, bar, wireBar, render, on, ev,
  * flushEv, api, toast, st, back}.
  */
@@ -16,13 +17,14 @@
   'use strict';
   // Copy: copy.addendum.v1.json jg.card.title / sub / btn and copy.v2.json jg.who.turn_of / not_me / turn.
   var W = {
-    en: { cardTitle: 'Jugnu has a game for you', cardSub: '2 minutes, no microphone', cardBtn: 'Play',
+    en: { cardTitle: 'Jugnu has a game for you', cardSub: '2 minutes to start, no microphone', cardBtn: 'Play',
       whoTurnOf: function (n) { return n + '\'s turn'; }, whoNotMe: 'Not my turn? Go back', whoTurn: 'Whose turn?' },
-    ur: { cardTitle: 'جگنو کے پاس آپ کے لیے ایک کھیل ہے', cardSub: '۲ منٹ، مائیک کی ضرورت نہیں', cardBtn: 'کھیلیں',
-      whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
+    ur: { cardTitle: 'جگنو کے پاس آپ کے لیے ایک کھیل ہے', cardSub: 'شروع کے ۲ منٹ، مائیک کی ضرورت نہیں', cardBtn: 'کھیلیں',
+      whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
   };
   var DOOR = { door: 'card', surface: 'scorecard', slot: 1 };
-  var CH_HREF = /^\/c\/[A-Za-z0-9._-]+\?kid=[A-Za-z0-9_-]+&via=quiz_card$/;
+  // The challenge link only; home=1 (web_quiz_home_button) is the one extra the server may add, so the Trail shows Home.
+  var CH_HREF = /^\/c\/[A-Za-z0-9._-]+\?kid=[A-Za-z0-9_-]+&via=quiz_card(&home=1)?$/;
   var shown = false;   // door_shown: once per page view (a re-render of the card is not another view)
   var lastTap = 0;     // door_tap: debounced 1 s
   var going = false;
@@ -69,6 +71,7 @@
     var now = Date.now();
     if (now - lastTap < 1000) return;
     lastTap = now;
+    if (!shown) show(c);   // a tap proves the card was seen: door_shown first, still once per view
     door(c, 'door_tap');
     confirm(c);
   }
@@ -99,11 +102,19 @@
     } catch (e) {}
   }
 
+  // Events v2 (result.jugnu_ev): the hub token and the chip of this child's challenge link, on the batch (never an
+  // event), so the server can count the child the card was for. Any other link: nothing set.
+  function batchIds(c, href) {
+    var m = c.res && c.res.jugnu_ev && CH_HREF.test(href) ? /^\/c\/([^?]+)\?kid=([^&]+)&/.exec(href) : null;
+    if (m && window.WQT && window.WQT.setIds) window.WQT.setIds({ ht: m[1], chip: m[2] });
+  }
+
   function play(c) {
     if (going) return;
     going = true;
     c.api('POST', 'hubdoor', { st: c.st, jugnu: 1 }).then(function (r) {
       var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
+      batchIds(c, href);
       c.flushEv(true);
       if (CH_HREF.test(href)) { keepDevice(); location.assign(withLang(href, lang(c))); return; }
       going = false;

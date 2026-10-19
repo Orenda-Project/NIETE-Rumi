@@ -167,7 +167,8 @@ test('sends by trigger, bot-to-family and the door-mix numerator come from messa
 test('the sends lines carry their caveat: the ledger counts the switched replies only and is not the bill', async () => {
   install([], { message_ledger: [{ day: '2026-10-12', trigger: 'home_reply', class_id: null, initiated: 'user', recipient: 'family', count: 3, usd: 0.045 }] });
   const out = await Strip.weeklyStrip({ week: WEEK, now: NOW });
-  expect(out.notes).toEqual({ sends: Strip.LINE_NOTES.sends });
+  expect(out.notes).toEqual({ sends: Strip.LINE_NOTES.sends, recognised_without_typing: Strip.LINE_NOTES.recognised_without_typing, cold_clips: Strip.LINE_NOTES.cold_clips,
+    cells_n30: Strip.PERIOD_NOTES['2026-10'], anchor_retest_gap: Strip.PERIOD_NOTES['2026-10'] });   // an October week: the short first period
   expect(Strip.LINE_NOTES.sends).toMatch(/switched replies only/);
   expect(Strip.LINE_NOTES.sends).toMatch(/not the bill/);
   expect(Strip.LINE_NOTES.sends).toMatch(/Meta's billable count is the cost total/);

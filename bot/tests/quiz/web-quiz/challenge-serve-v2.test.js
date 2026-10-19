@@ -164,7 +164,7 @@ const readAloud = async (ct) => {
   r2.downloadFromR2.mockResolvedValue(clip(61));
   AudioService.transcribe.mockResolvedValue(heard(50, 1.1));
   llm.__create.mockResolvedValue(marks(45, 50));
-  return Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'pass', read_s: 61 }, { waitMs: 60000 });
+  return Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'level_ok', read_s: 61 }, { waitMs: 60000 });
 };
 const missingAnswers = (items, wrongFirst = 0) => items.map((it, i) => ({ i, value: String(i < wrongFirst ? it.answer + 1 : it.answer), ms: 3000, first_key_ms: 1200, keys: String(it.answer).length }));
 const biggerTaps = (items) => items.map((it, i) => ({ i, pick: Math.max(it.a, it.b), ms: 2500 }));
@@ -562,52 +562,116 @@ describe('admin_mode and sample_arm under _v2', () => {
     expect(rowOf(home.ct)).toMatchObject({ mode: 'practice', record: false, item_set_id: 'bigger.G3.A' });
   });
 
-  test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
+  test('web_quiz_class_week on without its parent web_quiz_class_round: nothing more is written, the serve goes on', async () => {
     on(V2, ...CANON_ON, PERIOD, 'web_quiz_class_week');
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
   });
 });
 
-describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () => {
+describe('the class-week sample arm: a class-link run over the real window read (web-quiz-class-week → teacher-class-week)', () => {
   const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
-  const CW = '../../../shared/services/quiz/web-quiz-class-week';
-  // jest keeps the first mock it builds: the absent module is tried first (a throwing factory is never kept), then one
-  // stand-in whose answer each test sets
-  let openWindowFor = jest.fn();
+  const Week = require('../../../shared/services/quiz/teacher-class-week');
+  const CLS = 'c1a55000-0000-4000-8000-0000000000c1';
+  const OTHER = 'c1a55000-0000-4000-8000-0000000000c2';
+  // the card's switch: web_quiz_class_week under web_quiz_class_round, web_quiz_class_link (+ _v2 and the challenge)
+  const WEEK_ON = ['web_quiz_class_week', 'web_quiz_class_round', 'web_quiz_class_link'];
+  const clHub = (id = K3) => T.sign({ k: 'h', ids: [id], exp: Math.floor(Date.now() / 1000) + 3600, src: 'cl', cl: { c: CLS, s: 'roster_pick', q: 'high', h: false } });
+  const week = (from, to, classId = CLS) => {
+    db.class_round_draws = [{ round: 'R1', class_id: classId, term_code: Week.termOf(Date.now()), week_start: iso(from), week_end: iso(to) }];
+  };
+  const drawReads = (spy) => spy.mock.calls.filter(([t]) => t === 'class_round_draws').length;
+  beforeEach(() => { require('../../../shared/services/quiz/web-quiz-class-week-flags')._resetCache(); });
 
-  test('the module absent → no sample arm, nothing thrown', async () => {
-    jest.doMock(CW, () => { throw new Error("Cannot find module './web-quiz-class-week'"); }, { virtual: true });
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    jest.doMock(CW, () => ({ openWindowFor: (...a) => openWindowFor(...a) }), { virtual: true });
+  test('a class-link run inside its class\'s open week → sample_arm class_week, admin_mode self_run (the inserted row and its meta)', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const ex = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ via: 'class_link', class_id: CLS, admin_mode: 'self_run', sample_arm: 'class_week' });
+    expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: 'class_week' });
   });
 
-  test('via class_link inside an open class-week window, switch on → sample_arm class_week, admin_mode self_run', async () => {
-    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: 'class_week' });
-    expect(openWindowFor).toHaveBeenCalledWith(expect.objectContaining({ canonicalId: 'c1' }));
+  test('outside the week (not yet open, or another class\'s week) → sample_arm NULL', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    week(Date.now() + DAY, Date.now() + 8 * DAY);
+    const early = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(early.ct)).toMatchObject({ via: 'class_link', admin_mode: 'self_run', sample_arm: null });
+    db.web_quiz_challenge_runs = [];
+    week(Date.now() - DAY, Date.now() + 6 * DAY, OTHER);
+    const other = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(other.ct)).toMatchObject({ via: 'class_link', admin_mode: 'self_run', sample_arm: null });
   });
 
-  test('no open window, another door, or the switch off → no sample arm and no lookup', async () => {
-    openWindowFor = jest.fn(async () => null);
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    openWindowFor.mockClear();
-    expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: false })).toEqual({ admin_mode: 'self_run', sample_arm: null });
-    expect(openWindowFor).not.toHaveBeenCalled();
+  test('switch off (web_quiz_class_week, or its parent web_quiz_class_link) → NULL and no class_round_draws read', async () => {
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_class_round', 'web_quiz_class_link');
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const spy = jest.spyOn(supabase, 'from');
+    const off = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(off.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    expect(drawReads(spy)).toBe(0);
+    spy.mockRestore();
+    // the serve's own gate (week + round) on, the card's parent web_quiz_class_link off: the window module reads nothing
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_class_link');
+    on('web_quiz_class_week');
+    require('../../../shared/services/quiz/web-quiz-class-week-flags')._resetCache();
+    Ch.__reset();
+    db.web_quiz_challenge_runs = [];
+    const spy2 = jest.spyOn(supabase, 'from');
+    const parentOff = await Ch.exercise(clHub(), 'bigger', D);
+    expect(rowOf(parentOff.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    expect(drawReads(spy2)).toBe(0);
+    spy2.mockRestore();
   });
 
-  test('a class round turn (mode class_round) is teacher_present in the class_round arm', async () => {
-    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+  test('a class round run in the open week is unchanged: teacher_present, class_round', async () => {
+    on(V2, ...CANON_ON, PERIOD, POOL, ...WEEK_ON);
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const ex = await Ch.exercise(clHub(), 'missing', { ...D, mode: 'class_round' });
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, admin_mode: 'teacher_present', sample_arm: 'class_round' });
+    expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
   });
 
-  test('a round turn at position 11+ (mode practice, via the round) writes admin_mode teacher_present and sample_arm null', async () => {
-    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
-    expect(await Draw.adminFields({ mode: 'practice', via: 'class_round', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
-    expect(openWindowFor).not.toHaveBeenCalled();
+  test('a hub run (not the class link) in the open week → NULL and no class_round_draws read', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    week(Date.now() - DAY, Date.now() + 6 * DAY);
+    const spy = jest.spyOn(supabase, 'from');
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
+    expect(drawReads(spy)).toBe(0);
+    spy.mockRestore();
   });
 
-  test('an ordinary home run (mode check or practice, via hub): self_run, null', async () => {
+  test('fail-safe: the class_round_draws read refused → no arm, the serve goes on', async () => {
+    on(V2, ...CANON_ON, PERIOD, ...WEEK_ON);
+    const from = supabase.from;
+    const refused = { select: () => refused, eq: () => refused, then: (ok) => ok({ data: null, error: { code: '42P01', message: 'relation "class_round_draws" does not exist' } }) };
+    supabase.from = (t) => (t === 'class_round_draws' ? refused : from(t));
+    try {
+      const ex = await Ch.exercise(clHub(), 'bigger', D);
+      expect(rowOf(ex.ct)).toMatchObject({ via: 'class_link', admin_mode: 'self_run', sample_arm: null });
+    } finally { supabase.from = from; }
+  });
+
+  test('openWindowFor: true only inside [week_start, week_end); no class or a bad moment → false', async () => {
+    on(V2, ...WEEK_ON);
+    const from = Date.now() - DAY;
+    const to = Date.now() + 6 * DAY;
+    week(from, to);
+    const CWin = require('../../../shared/services/quiz/web-quiz-class-week');
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(from) })).toBe(true);
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(to - 1) })).toBe(true);
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(to) })).toBe(false);
+    expect(await CWin.openWindowFor({ classId: CLS, at: new Date(from - 1) })).toBe(false);
+    expect(await CWin.openWindowFor({ classId: null, at: new Date() })).toBe(false);
+    expect(await CWin.openWindowFor({ classId: CLS, at: 'not a date' })).toBe(false);
+  });
+
+  test('adminFields: a class round turn is teacher_present in the class_round arm; position 11+ (via the round) teacher_present, null', async () => {
+    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', classId: CLS, classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+    expect(await Draw.adminFields({ mode: 'practice', via: 'class_round', classId: CLS, classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+  });
+
+  test('adminFields: an ordinary home run (mode check or practice, via hub): self_run, null', async () => {
     expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
     expect(await Draw.adminFields({ mode: 'practice', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
   });
@@ -891,7 +955,12 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
     on(V2, ...CANON_ON, PERIOD, POOL);
     const l = await Ch.exercise(hub(K3), 'listen', D);
     expect(rowOf(l.ct)).toMatchObject({ passage_id: 'en.listen.1.boat01', status: 'served' });
-    expect(l.title).toEqual(TITLE);
+    expect(l).not.toHaveProperty('title');   // the counted-listen title gate: a counted LISTEN passage carries no title while the gate is red
+    // a READ passage with a title (the text is on screen) keeps it through the one home
+    fs.writeFileSync(path.join(PDIR, 'en.read.1.titled01.json'), JSON.stringify({ passage_id: 'en.read.1.titled01', lang: 'en', kind: 'read', band: 1, pool: 'check', status_at_authoring: 'reviewed', is_reference: false,
+      text: W12.join(' '), lines: [{ n: 1, from: 0, to: 4 }, { n: 2, from: 5, to: 9 }, { n: 3, from: 10, to: W12.length - 1 }], tokens: W12, questions: [], twin_of: null, bank_version: 'child-test-items-v4', title_en: TITLE.en, title_ur: TITLE.ur }));
+    Bank._loadPassagesFrom(PDIR);
+    expect(Ch.passageTitle('en.read.1.titled01')).toEqual(TITLE);
     const r = await Ch.exercise(hub(K3), 'read', D);
     expect(['en.read.1.ref01', 'en.read.1.kite']).toContain(rowOf(r.ct).passage_id);   // the random band-1 draw; neither fixture has a title
     expect(r).not.toHaveProperty('title');
@@ -903,7 +972,8 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
     expect(before).not.toHaveProperty('title');
     await Ch.exercise(hub(K3), 'listen', D);
     const after = (await Ch.menu(hub(K3), D)).exercises.find((e) => e.id === 'listen');
-    expect(after.title).toEqual(TITLE);
+    // the counted-listen title gate: a counted LISTEN passage carries no title anywhere while the gate is red (the child would see it before the story)
+    expect(after).not.toHaveProperty('title');
   });
 
   test('the re-served record row (served and left, opened again) carries the same title', async () => {
@@ -911,7 +981,7 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
     const first = await Ch.exercise(hub(K3), 'listen', D);
     const again = await Ch.exercise(hub(K3), 'listen', D);
     expect(runOf(again.ct)).toBe(runOf(first.ct));
-    expect(again.title).toEqual(TITLE);
+    expect(again).not.toHaveProperty('title');   // the counted-listen title gate: no title on a counted listen stop while the gate is red
     // the page is told it is a re-open (r5-redteam-4 025824); a first serve never says so
     expect(again.reopened).toBe(true);
     expect(first).not.toHaveProperty('reopened');
@@ -925,7 +995,7 @@ describe('the passage title on the listen/read payload and the menu (title_ur|ti
   });
 
   test('one home for the shelf: passageTitle(id) gives {en, ur} or null', () => {
-    expect(Ch.passageTitle('en.listen.1.boat01')).toEqual(TITLE);
+    expect(Ch.passageTitle('en.listen.1.boat01')).toBeNull();   // the counted-listen title gate: a counted listening passage, withheld while the gate is red
     expect(Ch.passageTitle('en.read.1.ref01')).toBeNull();
     expect(Ch.passageTitle('no.such.passage')).toBeNull();
   });
@@ -1041,5 +1111,30 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
     const ex = await Ch.exercise(hub(K5), 'missing', D);
     expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, anchor_serves_any: 1, admin_mode: 'self_run', sample_arm: null, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
     expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 0 });
+  });
+});
+
+describe('a reviewed designated reference is served by the counted draw', () => {
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
+  const reviewedRef = (rows) => rows.map((r) => (r.passage_id === 'en.read.1.ref01' ? { ...r, status: 'reviewed', provenance: 'reviewer_levelled', reviewer: 'Reviewer Testwala', reviewed_at: REL } : r));
+
+  test('band 1 holds only the reviewed reference: a grade-3 child\'s counted read serves it', async () => {
+    db.challenge_passages = reviewedRef(REGISTRY()).filter((r) => r.passage_id !== 'en.read.1.kite');
+    Object.assign(supabase, guardColumns(makeFake(db)));
+    const ex = await Ch.exercise(hub(K3), 'read', D);
+    expect(ex).toMatchObject({ mode: 'check', draw: { outcome: 'served' } });
+    expect(rowOf(ex.ct)).toMatchObject({ status: 'served', band: 1, mode: 'check', record: true, passage_id: 'en.read.1.ref01' });
+    expect(db.challenge_draws[0]).toMatchObject({ outcome: 'served', band: 1, band_reason: 'entry_grade', served_id: 'en.read.1.ref01', eligible_n: 1, ref_eligible: true });
+  });
+
+  test('beside a provisional passage it keeps the reference weight: 0.85 / 0.15', async () => {
+    db.challenge_passages = reviewedRef(REGISTRY());
+    Object.assign(supabase, guardColumns(makeFake(db)));
+    const ex = await Ch.exercise(hub(K3), 'read', D);
+    const log = db.challenge_draws[0];
+    expect(log).toMatchObject({ outcome: 'served', band: 1, eligible_n: 2, ref_eligible: true });
+    expect(log.eligible.map((e) => e.id)).toEqual(['en.read.1.ref01', 'en.read.1.kite']);
+    expect(log.eligible.map((e) => e.w)).toEqual([expect.closeTo(0.85, 12), expect.closeTo(0.15, 12)]);
+    expect(['en.read.1.ref01', 'en.read.1.kite']).toContain(rowOf(ex.ct).passage_id);
   });
 });

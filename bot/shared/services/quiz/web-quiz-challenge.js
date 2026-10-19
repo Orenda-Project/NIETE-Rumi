@@ -47,6 +47,10 @@ const Flags = require('./web-quiz-hub-flags');
 const Measure = require('./web-quiz-measure-events');
 // The Trail page v2 (web_quiz_challenge_v2 and its children): {} / null with v2 off, so today's paths are untouched.
 const TrailPage = require('./web-quiz-trail-page');
+// Fast pages (app_settings web_quiz_fast, default off; read without waiting): independent lookups run together.
+const Fast = require('./web-quiz-fast');
+// Live reading v3 (web_quiz_live_read_v3): {} with the switch off, so today's payloads are untouched.
+const LiveReadV3 = () => require('./web-quiz-live-read-v3');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -128,7 +132,9 @@ const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang })
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
 const PARTS = ['intro', 'start', 'stop', 'done'];
 // The quiz's one voice per language (web-quiz-voice.js QUIZ_VOICE), pinned per call: never a fallback provider.
-const { quizVoice, voiceTag } = require('./web-quiz-voice');
+const { quizVoice, voiceTag, voiceOfTag, setIdOf, STORY_VOICE } = require('./web-quiz-voice');
+const OneVoice = require('./web-quiz-one-voice-flag');
+OneVoice.keepFresh();   // clipKey names its voice at once: the switch is read in the background, never on a child's request
 const AudioStore = require('./web-quiz-audio-store');
 
 const nowIso = () => new Date().toISOString();
@@ -162,22 +168,26 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); storyVoice = false; clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
-/** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
-async function settingOn(key) {
-  const c = settingCache.get(key);
+/**
+ * An app_settings switch, true only when its value reads true (fails closed), cached for 30 s.
+ * strict: true only for the JSON value true (a string 'true' is off), as the child-page switches read.
+ */
+async function settingOn(key, { strict = false } = {}) {
+  const ck = strict ? `${key}\u0000strict` : key;
+  const c = settingCache.get(ck);
   if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
   let v = false;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    v = !!(data && data[0] && isTrue(data[0].value));
+    v = !!(data && data[0] && (strict ? data[0].value === true : isTrue(data[0].value)));
   } catch (e) {
     logError('web_quiz.ch_setting_read_failed', { key, error: String(e && e.message || e).slice(0, 120) });
     v = false;
   }
-  settingCache.set(key, { v, at: Date.now() });
+  settingCache.set(ck, { v, at: Date.now() });
   return v;
 }
 const recordOn = () => settingOn(RECORD_FLAG_KEY);
@@ -186,6 +196,10 @@ const itemsOn = () => settingOn(ITEMS_FLAG_KEY);
 const keepAudioOn = () => settingOn(KEEP_FLAG_KEY);
 const trailOn = () => settingOn(TRAIL_FLAG_KEY);
 const missingOn = () => settingOn(MISSING_FLAG_KEY);
+// "Hear it again" on the kind card of a read that certified nothing (default off, JSON true only): the live v3 read's
+// payload says zero_listen, and a read run's token may ask for its passage's timings once it settled as not a reading
+const ZERO_LISTEN_FLAG_KEY = 'web_quiz_zero_read_listen';
+const zeroListenOn = () => settingOn(ZERO_LISTEN_FLAG_KEY, { strict: true });
 // ── challenge v2 switches (web_quiz_challenge_v2 → _period, _pool); each read on its own, each child only under _v2 ──
 //   _v2      the provenance columns on every new run row (inserted when served), the server ch_start's fields
 //   _period  the record rule "one record per canonical child × stop × PKT calendar month" (read-side)
@@ -203,7 +217,14 @@ const poolOn = () => settingOn(POOL_FLAG_KEY);
 // Story Time (SPEC §1 web_quiz_challenge_story, child of _v2): the route reads room/pid only when this is on
 const STORY_FLAG_KEY = 'web_quiz_challenge_story';
 const storyOn = async () => (await v2On()) && settingOn(STORY_FLAG_KEY);
-const rulesOf = async () => {
+const rulesOf = async ({ fast = false } = {}) => {
+  if (fast) {
+    // Fast pages: every rule switch is read at once (each a 30 s cached app_settings read); a child switch whose parent
+    // is off is read and set aside, so the rules are exactly the one-by-one answer.
+    const [record, v2, guard, items, trail, missing, period, pool] = await Promise.all([
+      recordOn(), v2On(), readGuardOn(), itemsOn(), trailOn(), missingOn(), periodOn(), poolOn()]);
+    return { record, guard, items, trail: record && trail, missing: record && missing, v2, period: v2 && period, pool: v2 && pool };
+  }
   const record = await recordOn();
   const v2 = await v2On();
   const head = { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()),
@@ -368,10 +389,15 @@ async function entryOf(token, kid, device) {
  * class, then that quiz's grade. Most quiz children are LOOSE students rows (no list, no enrolment). A band is
  * unknown, never its first digit.
  */
-async function gradeInfo(entry) {
-  const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
-    .eq('student_id', entry.studentId).eq('is_active', true);
-  const { data: kid, error: kidErr } = await supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle();
+async function gradeInfo(entry, { fast = false } = {}) {
+  // Inside a hub answer with web_quiz_hub_child_memo on, the child's rows are that answer's shared read (else read here).
+  const ChildRows = require('./web-quiz-hub-child-rows');
+  const kidRead = () => ChildRows.read('students', [entry.studentId], 'id, list_id, self_reported_class, student_name', () => supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle(), { single: true });
+  // Fast pages: the enrolment and the child's row need only the child's id, so they are read together.
+  const kidP = fast ? Fast.early(Promise.resolve(kidRead())) : null;
+  const { data: enr } = await ChildRows.read('class_enrollments', [entry.studentId], 'id, class_id, student_id, is_active', () => supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
+    .eq('student_id', entry.studentId).eq('is_active', true));
+  const { data: kid, error: kidErr } = await (kidP || kidRead());
   // A refused read (a column that is not there, a pooler error) is logged at error level: silently falling through
   // to the next grade source is how a wrong column name once passed every test.
   if (kidErr) logError('web_quiz.ch_student_read_failed', { code: kidErr.code || null, error: String(kidErr.message || kidErr).slice(0, 160) });
@@ -382,7 +408,7 @@ async function gradeInfo(entry) {
     if (g) return { grade: g, source: 'enrolment', name };
   }
   if (kid && kid.list_id) {
-    const { data: list } = await supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle();
+    const { data: list } = await ChildRows.read('student_lists', [kid.list_id], 'id, class_name', () => supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle(), { single: true });
     const g = list && gradeNum(list.class_name);
     if (g) return { grade: g, source: 'list', name };
   }
@@ -413,6 +439,19 @@ function formFor(grade, { g1 = false } = {}) {
   return null;
 }
 
+/**
+ * The ONE eligibility rule every Jugnu door uses (the serve's who(), the hub tile, the scorecard card): the form for
+ * a child's grade, the grade-1 switches read here so no caller can leave them out. Off, or unreadable ⇒ today's
+ * formFor(grade): grade 1 has no form. Never throws.
+ */
+async function formForChild(grade) {
+  let g1 = false;
+  if (grade === 1) {
+    try { g1 = (await Grade1.on()) === true; } catch (_) { g1 = false; }
+  }
+  return formFor(grade, { g1 });
+}
+
 async function languageOf(entry, asked) {
   const l = langOf(asked);
   if (l) return l;
@@ -429,14 +468,19 @@ async function languageOf(entry, asked) {
   return clampLanguage(null);
 }
 
-async function who(token, { kid, lang, device } = {}) {
+async function who(token, { kid, lang, device } = {}, { fast = false, early = null } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
-  const gi = await gradeInfo(entry);
-  // grade-1 form: the switches are read only for a grade-1 child (off ⇒ formFor(1) is null ⇒ not_eligible, as today)
-  const form = formFor(gi.grade, { g1: gi.grade === 1 && (await Grade1.on()) });
+  // Fast pages: a caller's own lookups that need only the child start here, beside the grade and the language.
+  if (early) early(entry);
+  // Fast pages: the child's language needs only the entry, so it is read beside the grade (and set aside when the
+  // child is not eligible, as today's answer is then the refusal).
+  const langP = fast ? Fast.early(languageOf(entry, lang)) : null;
+  const gi = await gradeInfo(entry, { fast });
+  // grade-1 form: formForChild reads its switches for a grade-1 child only (off ⇒ null ⇒ not_eligible, as today)
+  const form = await formForChild(gi.grade);
   if (!form) fail(403, 'not_eligible');
-  return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await languageOf(entry, lang) };
+  return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await (langP || languageOf(entry, lang)) };
 }
 
 // ── runs (stored) ─────────────────────────────────────────────────────────────────────────────────────
@@ -495,7 +539,7 @@ async function measureOutcome(id) {
 }
 
 async function storedRun(id) {
-  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta, mode, record').eq('id', id).maybeSingle();
   return error ? null : data;
 }
 
@@ -533,24 +577,96 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
-function clipKey(ex, part, lang, text) {
-  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: voiceTag(lang), text });
+// With one voice per quiz (web-quiz-one-voice-flag.js, as last read) the tag names the storybook voice's exact rendering
+// (web-quiz-voice.js STORY_VOICE), never the voice the plan gives the quiz lines.
+// A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
+// rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
+// app_settings `web_quiz_challenge_story_voice` (default off, JSON true only): with one voice off, the challenge's clips
+// still take the storybook voice, at the one-voice rate: the keys the one-voice plan names, so one checked set serves
+// both. The quiz lines keep today's voice. Read in the background (as the one-voice switch): never on a child's request.
+const STORY_VOICE_FLAG_KEY = 'web_quiz_challenge_story_voice';
+const STORY_CLIP_PLAN = OneVoice.normalize({ voices: { en: STORY_VOICE.en, ur: STORY_VOICE.ur }, kbps: 32 });
+let storyVoice = false;
+async function storyVoiceOn() {
+  storyVoice = await settingOn(STORY_VOICE_FLAG_KEY, { strict: true });
+  return storyVoice;
+}
+// The plan the challenge's clips follow: the one-voice plan when it is on, else the storybook voice when this switch is.
+function clipPlan() {
+  storyVoiceOn().catch(() => null);
+  return OneVoice.currentPlan() || (storyVoice ? STORY_CLIP_PLAN : null);
 }
 
-async function recordClip(key, text, lang, now = Date.now()) {
-  if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return;
+function clipKey(ex, part, lang, text) {
+  // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz); a language
+  // it names takes the storybook voice (STORY_VOICE), whatever voice the plan gives the quiz lines.
+  const plan = OneVoice.forQuiz(clipPlan(), null, lang);
+  const one = plan ? STORY_VOICE[lang] || null : null;
+  const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
+  return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });
+}
+
+const KEY_VOICE = /-([a-z]{2}-[a-z0-9]+(?:-[0-9a-f]{6})?)(?:-k(\d+))?-[0-9a-f]{8}\.ogg$/;
+
+// The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
+function voiceOfKey(key, lang) {
+  const m = KEY_VOICE.exec(String(key || ''));
+  return (m && voiceOfTag(m[1], clipPlan())) || quizVoice(lang);
+}
+
+// The rate a clip's key names, else 64.
+function kbpsOfKey(key) {
+  const m = KEY_VOICE.exec(String(key || ''));
+  return (m && Number(m[2])) || 64;
+}
+
+// With one voice per quiz, in a language the plan voices, nothing is recorded on the fly (a paid call at an unknown
+// moment): a long clip (a listening story, a Story Time read-along: read slowly with pauses, each take checked before
+// it is stored) never; a short line only by the pre-flip batch (`batch`, scripts/quiz/one-voice-missing-keys.js
+// --record-short). A refusal is logged once per key per process with `web_quiz.ch_clip_ungated_refused`.
+const LONG_KEY = /\/(listen|read)\/story-[^/]*\.ogg$/;
+const PART_OF_KEY = /\/challenge\/[^/]+\/([^/]+)\/(.+?)-(?:sx|el|oa)-/;
+const clipRefused = new Set();
+function refused(key, lang, batch) {
+  const plan = OneVoice.forQuiz(clipPlan(), null, lang);   // a language the plan leaves out: today's recorder
+  if (!plan) return false;
+  const long = LONG_KEY.exec(String(key || ''));
+  // the storybook-voice switch alone (one voice off): a short line is recorded on the fly, as today's voice's lines are
+  if (!long && (batch || !OneVoice.currentPlan())) return false;
+  if (!clipRefused.has(key)) {
+    clipRefused.add(key);
+    const m = long ? [null, long[1], 'story'] : PART_OF_KEY.exec(String(key || '')) || [null, null, null];
+    logEvent('web_quiz.ch_clip_ungated_refused', { lang, ex: m[1], part: m[2], plan: plan.sig });
+  }
+  return true;
+}
+
+// → the voice's result ({ audio, durationSec, … }) once the clip is stored, else null (capped, busy, refused or failed).
+// With one voice per quiz the Urdu words the voice misreads are respelled for it (web-quiz-ur-say.js); the key is the
+// screen text's. `level`: (audio) → audio, applied before the clip is stored (the batch levels to the plan's loudness).
+async function recordClip(key, text, lang, now = Date.now(), { batch = false, level = null } = {}) {
+  if (refused(key, lang, batch)) return null;
+  if (clipRecording.has(key) || clipsRecordedOn(now) >= MAX_CLIP_RECORDINGS) return null;
   clipRecording.add(key);
   clipsRecorded += 1;
   try {
     const tts = require('../tts');
-    const v = quizVoice(lang);
+    const v = voiceOfKey(key, lang);
+    const said = OneVoice.forQuiz(clipPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
-    const out = await tts.synthesize({ text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice });
+    const out = await tts.synthesize({
+      text: said, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
+      // the one voice: its model, settings and the key's rate, asked of the provider (its own bytes, never re-encoded)
+      ...(v.model ? { model: v.model, voiceSettings: v.settings, outputFormat: `opus_48000_${kbpsOfKey(key)}` } : {}),
+    });
+    if (level) out.audio = await level(out.audio);
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
     logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10, chars: [...String(text)].length, costUsd: clipCostUsd(out) });
+    return out;
   } catch (e) {
     logError('web_quiz.ch_clip_failed', { lang, error: String(e && e.message || e).slice(0, 200) });
+    return null;
   } finally {
     clipRecording.delete(key);
   }
@@ -589,6 +705,11 @@ async function storyClip(lang, drawnText = null) {
 /** Story Time read-along: a story read aloud in the quiz voice (the listening story's scheme, exercise 'read'). */
 function readAlongClip(lang, text) {
   return text ? clipUrl(clipKey('read', 'story', lang, text), text, lang) : null;
+}
+
+/** Jugnu's own lines of every exercise in `lang` ({ ex, part, text }: intro, start, stop, done), for the pre-flip check. */
+function exerciseLines(lang) {
+  return EXERCISES.flatMap((e) => PARTS.map((part) => ({ ex: e.id, part, text: lineOf(e.id, part, lang) }))).filter((l) => l.text);
 }
 
 async function clipsFor(ex, lang) {
@@ -663,32 +784,56 @@ async function sequenceNo(studentId, except = null) {
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
   const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, step: 'f' });
   // counted: under v2 the row's own mode and record (a round, a replay or a story is never counted, RULING #116); else the first scored attempt, as today
-  const counted = run.v2 ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
+  // A run with a mode (a served row read back after a redeploy emptied the memory) follows its mode too: never counted unless a check record.
+  const counted = run.v2 || run.mode != null ? run.mode === 'check' && run.record === true : a.attempt_no === 1;
   return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
 }
 
 async function menu(token, { kid, lang, device } = {}) {
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
-  const w = await who(token, { kid, lang, device });
+  const fast = Fast.on();
+  // Fast pages: the card's no_class (the child home on) needs only the child, so it starts as soon as the child is known.
+  let noClassP = null;
+  const early = fast ? (e) => { noClassP = Fast.early(require('./web-quiz-hub-door').noClassField(e.studentId)); } : null;
+  const w = await who(token, { kid, lang, device }, { fast, early });
+  // Fast pages: the rule switches are read beside the events switch (set aside for a grade-1 child, as today).
+  const rulesP = fast ? Fast.early(rulesOf({ fast })) : null;
   // EVENTS §0.1: the server copy carries the writer's mark under events v2; off, today's event byte for byte
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade, ...((await Flags.eventsV2On()) ? { w: 's' } : {}) });
   if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
-  const rules = await rulesOf();
-  const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
+  const rules = await (rulesP || rulesOf());
+  // Fast pages: the menu's lookups need only the child and the rules, so they start together and are awaited where
+  // today's code reads them. The listening story's clip (asking for it may start a recording) still waits for the
+  // runs check, as today.
+  const pre = fast ? {
+    runs: Fast.early(rules.record ? countedRuns(w.studentId) : storedRuns(w.studentId).then((rs) => rs.filter((r) => r.status === 'scored'))),
+    readOk: Fast.early(Budget.readOpen()),
+    listen: Fast.early(listenOn()),
+    trail: rules.period ? Fast.early(periodTrail(w)) : null,
+    rt: Fast.early(Tel.flag()),
+    ui: Fast.early(require('./web-quiz-ur-polish').ui()),
+    juice: Fast.early(require('./web-quiz-juice').field()),
+    bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    lr3: Fast.early(LiveReadV3().forMenu()),
+    no_class: noClassP,
+  } : null;
+  const got = (key, start) => (pre ? pre[key] : start());
+  const runs = await got('runs', async () => (rules.record ? countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored')));
   if (runs.readFailed) fail(503, 'unavailable');   // fail closed: a missing provenance column (isMissingColumn)
   // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
-  const readOk = await Budget.readOpen();
+  const readOk = await got('readOk', () => Budget.readOpen());
   // "Listen and answer" only once its story is recorded (asking for it starts the recording): never silence to listen to
-  const listenOk = (await listenOn()) && !!(await storyClip(w.lang));
+  const listenOk = (await got('listen', () => listenOn())) && !!(await storyClip(w.lang));
   // challenge v2: under _period a stop is done from THIS period's record row (trailStateFor); under _pool the Trail order
-  const trailNow = rules.period ? await periodTrail(w) : null;
-  return {
+  const trailNow = rules.period ? await got('trail', () => periodTrail(w)) : null;
+  const menuOut = {
     form: `G${w.form}`,
     lang: w.lang,
     exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
-      const done = trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last;
+      // a round turn: done = stored for THIS turn (the round state), never a home run
+      const done = w.round ? (w.roundGames || []).includes(e.id) : (trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last);
       // the record rule: done from the first counted run, and the menu is not a report — no number on it.
       // On the trail that same first counted run, of any outcome (stopped, incomplete), is the stop's badge.
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done, last: rules.record ? null : lastOf(last),
@@ -698,11 +843,20 @@ async function menu(token, { kid, lang, device } = {}) {
     }),
     ...(rules.record ? { record: true } : {}),
     ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
+    // a round turn is served only under _v2 (exercise() refuses it 409 without), so the hand-back card is drawn only then
+    ...(w.round && rules.v2 ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
-    rt: await Tel.flag(),
-    ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
-    ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    rt: await got('rt', () => Tel.flag()),
+    ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: require('./web-quiz-ur-polish').lite({ ur2: true }) } : {}),
+    // the sound + motion kit (web-quiz-juice.js): named only when on
+    ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
+    ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
+    ...(await got('lr3', () => LiveReadV3().forMenu())),   // live reading v3: the page loads its component (off ⇒ nothing)
+    // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
+    ...(await got('no_class', () => require('./web-quiz-hub-door').noClassField(w.studentId))),
   };
+  // the read-along player's preload (web_quiz_ra_preload): a cached answer, never waited for; off ⇒ the menu untouched
+  return require('./web-quiz-ra-preload').mark(menuOut);
 }
 
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
@@ -713,20 +867,29 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const def = byId(ex);
   // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
   if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
-  const w = await who(token, { kid, lang, device });
+  const fast = Fast.on();
+  const w = await who(token, { kid, lang, device }, { fast });
   if (w.round && !ROUND_GAMES.includes(ex)) fail(404, 'not_found'); // class round: the tap games only
   if (w.form === Grade1.FORM || !def) {   // grade-1 form: served there; its ch_start leaves by the one call site below
     const g1 = await Grade1.exercise(w, ex, { device, mode: (arguments[2] || {}).mode });
     await emitChStart(g1.startEv, g1.run, w.studentId);
     return g1.payload;
   }
-  if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
-  if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
-  const rules = await rulesOf();
+  // Fast pages: the day's reading cap, the listening switch and the rule switches are read together, then checked in
+  // today's order (each a read only).
+  const gate = fast ? {
+    readOk: ex === 'read' ? Fast.early(Budget.readOpen()) : null,
+    listen: ex === 'listen' ? Fast.early(listenOn()) : null,
+    rules: Fast.early(rulesOf({ fast })),
+  } : null;
+  if (ex === 'read' && !(await (gate ? gate.readOk : Budget.readOpen()))) fail(429, 'enough_for_today');
+  if (ex === 'listen' && !(await (gate ? gate.listen : listenOn()))) fail(503, 'listen_off');
+  const rules = await (gate ? gate.rules : rulesOf());
   if (ex === 'missing' && !rules.missing) fail(503, 'missing_off');
   // fail closed before anything is served: the runs read names a column this tier lacks (isMissingColumn); under _v2
   // the serve's own read answers "on its way" instead (serveV2)
-  if (!rules.v2 && (rules.record || rules.trail) && (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).readFailed) fail(503, 'unavailable');
+  let attempt = null;
+  if (!rules.v2 && (rules.record || rules.trail) && (attempt = await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).readFailed) fail(503, 'unavailable');
   // Story Time: a practice story by id (room/pid reach here only with web_quiz_challenge_story on); served under _pool
   // only, and a story room never falls back to a check serve
   const storyAsk = (arguments[2] || {}).room === 'story' && (ex === 'read' || ex === 'listen');
@@ -751,10 +914,25 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const startEv = { step: ex, grade: w.grade, run: runId, ...(v2 ? v2.event : {}) };
   // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served
   await emitChStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId);
+  // Fast pages: the page's remaining lookups need only the child, the game and the rules, so they start together and
+  // are awaited where today's code reads them. Without _v2 nothing was written since the attempt check above, so its
+  // answer is the practice-round answer too (the same read, made once).
+  const page = fast ? {
+    attempt: !rules.trail || w.round ? null : (attempt && !v2 ? attempt : Fast.early(attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null))),
+    clips: Fast.early(clipsFor(ex, w.lang)),
+    bits: Fast.early(TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })),
+    story: ex === 'listen' && !v2 ? Fast.early(storyClip(w.lang)) : null,
+    live: ex === 'read' ? Fast.early(liveOn()) : null,
+    previous: ex === 'read' && !rules.record ? Fast.early(previousRun(w.studentId, 'read', w.lang, w.form)) : null,
+    questions: ex === 'read' ? Fast.early(questionsOn()) : null,
+  } : null;
+  const got = (key, start) => (page ? page[key] : start());
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
-  const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
-  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits({ studentId: w.studentId, device, lang: w.lang })) };
+  const practiceRound = !w.round && ((rules.trail ? (await got('attempt', () => attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null))).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
+  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await got('clips', () => clipsFor(ex, w.lang)), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload, token) : {}), ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
+    // a teacher's own visit through the class link (played as practice): the page's banner says nothing counts on their phone
+    ...(w.cl && w.cl.m === 'practice' ? { teacher_preview: true } : {}) };
   if (ex === 'missing' && v2 && v2.items) {
     // the A1 warm-up: the same 10 items in the same order on both forms, no 4-error stop; the try-out after item 10
     const p3 = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.missing' });
@@ -783,16 +961,21 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   }
   if (ex === 'listen') {
     // the story is heard, never shown: only its clip and how many times EGRA reads it
-    const url = v2 ? v2.clipUrl : await storyClip(w.lang);
+    const url = v2 ? v2.clipUrl : await got('story', () => storyClip(w.lang));
     if (!url) fail(503, 'getting_ready');
     return { ...base, read_times: Number(spec.read_times) || 2, story_clip: { url }, ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
   }
   const st = (v2 && v2.story) || spec.story || {};
-  const live = await liveOn();
+  const live = await got('live', () => liveOn());
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
-  const previousWcpm = live ? (rules.record ? null : ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm) : undefined;
-  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
-    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}) };
+  const previousWcpm = live ? (rules.record ? null : ((await got('previous', () => previousRun(w.studentId, 'read', w.lang, w.form))) || {}).wcpm) : undefined;
+  const out = { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await got('questions', () => questionsOn()), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: (v2 && v2.dir) || spec.direction },
+    ...(v2 && v2.story && v2.story.title ? { title: v2.story.title } : {}),
+    // live reading v3 (web_quiz_live_read_v3, read only when real-time is on; off ⇒ nothing): how the reading finishes itself
+    ...(live && await LiveReadV3().forRead({ lang: w.lang, counted: async () => (v2 ? v2.mem.record === true : !!rules.record && !w.round && (await attemptInfo(w.studentId, 'read', w.lang)).attempt_no === 1) })) };
+  // "Hear it again" on the kind card (web_quiz_zero_read_listen, read only under live reading v3; off ⇒ nothing)
+  if (out.lr3 && (await zeroListenOn())) out.zero_listen = true;
+  return out;
 }
 
 // ── challenge v2: the draw, the record decided at serve, the period (web_quiz_challenge_v2 / _period / _pool) ──────
@@ -839,7 +1022,7 @@ function passageFor(id, Bank) {
   if (p && p.text) {
     const tokens = Array.isArray(p.tokens) ? p.tokens : words(p.text);
     return { id, text: p.text, tokens, lines: linesOf(p.lines, tokens.length), direction: p.direction || p.dir || (p.lang === 'ur' ? 'rtl' : 'ltr'), questions: p.questions || [],
-      title_en: p.title_en == null ? null : p.title_en, title_ur: p.title_ur == null ? null : p.title_ur };
+      title_en: p.title_en == null ? null : p.title_en, title_ur: p.title_ur == null ? null : p.title_ur, kind: p.kind, pool: p.pool };   // kind/pool: the counted-listen title gate asks them (web-quiz-passage-title.js)
   }
   const m = /^(en|ur)\.(read|listen)\.2\.setA$/.exec(String(id || ''));
   if (!m) return null;
@@ -848,16 +1031,8 @@ function passageFor(id, Bank) {
   return { id, text: st.text, tokens: st.tokens, lines: st.lines, direction: spec.direction, questions: spec.questions || [] };
 }
 
-/** The child-facing title of a passage as the page renders it (ITEMS §1 title_en/title_ur): { en, ur } or null when it has none. */
-function titleOf(p) {
-  if (!p || (p.title_en == null && p.title_ur == null)) return null;
-  return { en: p.title_en == null ? null : String(p.title_en), ur: p.title_ur == null ? null : String(p.title_ur) };
-}
-/** One home for every surface that names a passage (the shelf, the stop's intro): passageTitle(id) → { en, ur } | null. */
-function passageTitle(passageId) {
-  const { Bank } = childTest();
-  return titleOf(typeof Bank.getPassage === 'function' ? Bank.getPassage(passageId) : null);
-}
+// The passage's child-facing title: its one home is web-quiz-passage-title.js (a leaf)
+const { titleOf, passageTitle } = require('./web-quiz-passage-title');
 /** The menu entry's title field for a Trail stop with a passage served this period: {} when none. */
 function menuTitle(trailStop) {
   const t = trailStop && trailStop.passage_id ? passageTitle(trailStop.passage_id) : null;
@@ -957,8 +1132,8 @@ async function renewBindings(studentId, now = Date.now()) {
 /** A finished served row that is the child's first exposure in a class lights the class light (web_quiz.light_lit). Never throws. */
 async function lightIfFirst(id) {
   try {
-    const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, exposure_no, class_id, anchor_block, canonical_id').eq('id', id).maybeSingle();
-    if (!error && data && data.mode != null) Draw().lightLit(data);
+    const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, exposure_no, class_id, anchor_block, canonical_id, meta').eq('id', id).maybeSingle();
+    if (!error && data && data.mode != null && !(data.meta && data.meta.quality === 'implausible')) Draw().lightLit(data);
   } catch (e) {
     logError('web_quiz.ch_light_failed', { error: String(e && e.message || e).slice(0, 120) });
   }
@@ -1175,6 +1350,13 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   // Story Time read-along: the story in the quiz voice, played with the line lit before the child reads (the lazy clip
   // path; null until recorded, and asking records it); only on a story serve, never on a check
   const readAlong = storyDraw && ex === 'read' ? { url: await readAlongClip(w.lang, story && story.text) } : null;
+  // the word-by-word read-along (web_quiz_readalong, web-quiz-readalong.js): the same story serve only; off ⇒ null
+  const timed = storyDraw && ex === 'read' ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: w.lang, passageId, text: story && story.text }) : null;
+  // the same player on practice runs only (never a counted run, never a class round): a replayed read may be heard
+  // first (hear_first, inlined); a practice listen may show its words AFTER its questions (show_words: a flag only —
+  // the listen payload never carries the story's words; the page asks for them by the run token, listenWords())
+  const practiceTimed = mode === 'practice' && ((ex === 'read' && !storyDraw) || ex === 'listen')
+    ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: w.lang, passageId, text: story && story.text }) : null;
 
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
   const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
@@ -1186,10 +1368,10 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
     ...(prev2 ? { anchor_prev2: prev2 } : {}) } : storyDraw;
   const via = VIA[w.via] || w.via || null;
-  const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: await classWeekOpen(via) });
   const periodId = periodRule ? periodNow : null;
   // the class at write time: the caller's (the class link), else the canonical child's active enrolment; never a share code
   const classId = (typeof askedClass === 'string' && /^[0-9a-f-]{36}$/i.test(askedClass) ? askedClass : null) || await D.activeClassOf([canonicalId, w.studentId]);
+  const admin = await D.adminFields({ mode, via, classId, at: new Date(now), classWeekOn: await classWeekOpen(via) });   // the class-week arm reads the run's class
   const row = {
     id: runId, student_id: w.studentId, exercise: ex, grade: w.grade, lang: w.lang, status: 'served', created_at: nowIso(),
     meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, ...(recordBlocked ? { record_blocked: recordBlocked } : {}) },
@@ -1210,7 +1392,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
-    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}) },
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}), ...(timed ? { readalong: timed } : {}),
+      ...(practiceTimed && ex === 'read' ? { hear_first: practiceTimed } : {}), ...(practiceTimed && ex === 'listen' ? { show_words: true } : {}) },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
@@ -1290,6 +1473,15 @@ function biggerItems(items, taps, served) {
   });
 }
 const BIGGER_FAST_MS = 500;
+// the speed floor: all 10 right AND the median per-item ms under 1500 (a reading child cannot be that fast; a script can)
+const RAPID_PERFECT_MS = 1500;
+// or the server's own clock from the serve under 25 s (that clock also holds ~10 s of the page's own pacing before and between items)
+const RAPID_PERFECT_ELAPSED_S = 25;
+function rapidPerfect(rows, elapsedS) {
+  if (!Array.isArray(rows) || rows.length !== 10 || !rows.every((r) => r.ok === true && r.ms != null)) return false;
+  const ms = rows.map((r) => Number(r.ms)).sort((a, b) => a - b);
+  return (ms[4] + ms[5]) / 2 < RAPID_PERFECT_MS || (Number.isFinite(elapsedS) && elapsedS < RAPID_PERFECT_ELAPSED_S);
+}
 // A run is rapid when three or more items were FAST AND WRONG (fast and right is fluency); abandoned when the stop
 // came from items never touched.
 function itemFlags(rows, { fastMs, stopped }) {
@@ -1344,6 +1536,38 @@ function scoreMissing(items, answers, { stopAfter = 4 } = {}) {
 
 // The endings that are the child's own: a reading ended this way is never a words-per-minute.
 const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
+// the noise floor: a counted read whose numbers cannot be believed — the question is whether SPEECH WAS ALIGNED AT ALL.
+//   no_speech              the speech service heard no word, yet the model (given the printed text) credited the passage
+//   low_stt_support        the speech service heard a quarter or less of what the count credits (stt_words < 0.25 × correct)
+//   no_aligned_words       the alignment of what was heard credits 0 words while the model credits ≥ 90% of the tokens
+//   low_story_confidence   the house confidence is under 0.5 while the model credits ≥ 90% (a 220 Hz tone: 0.44 with 60/60)
+// Never the confidence alone. The reason rides meta.flags; the row reads quality 'implausible' (EVENTS §11) and, like a row the
+// sweeper abandons, record=false with meta.record_lost='implausible' (the month stays open). Null = believed (today's rows).
+// Every record read is judged first by the words the speech service heard (silentFloor), however it ended: fewer than
+// max(3, 10% of the story's tokens) is not a reading at all — implausible, no_speech when nothing was heard, else
+// no_aligned_words; at least that many falls through (real speech that aligns to nothing is unheard, the record kept).
+// A silent or noisy room is never a reader of 0.
+const IMPLAUSIBLE_CONF = 0.5;
+const IMPLAUSIBLE_SHARE = 0.9;
+const IMPLAUSIBLE_STT_SUPPORT = 0.25;   // heard words must be at least a quarter of the credited count
+const SILENT_FLOOR_MIN = 3;
+const SILENT_FLOOR_SHARE = 0.1;
+const heardFloor = (m, tokensN) => (Number(m && m.stt_words) || 0) >= Math.max(SILENT_FLOOR_MIN, Math.ceil(SILENT_FLOOR_SHARE * tokensN));
+function silentFloor(m, tokensN) {
+  if (heardFloor(m, tokensN)) return null;
+  return (Number(m && m.stt_words) || 0) === 0 ? 'no_speech' : 'no_aligned_words';
+}
+function readQuality(m, score, tokensN) {
+  if (m && m.stt_words === 0) return 'no_speech';
+  const correct = score.correct || 0;
+  if (m && m.stt_words > 0 && correct > 0 && m.stt_words < IMPLAUSIBLE_STT_SUPPORT * correct) return 'low_stt_support';
+  const credited = tokensN > 0 && correct >= IMPLAUSIBLE_SHARE * tokensN;
+  if (!credited) return null;
+  if (m && m.align_correct === 0 && m.stt_words > 0) return 'no_aligned_words';
+  const conf = m ? m.story_confidence : null;
+  if (conf != null && conf < IMPLAUSIBLE_CONF) return 'low_story_confidence';
+  return null;
+}
 
 async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = {}, ctx = {}) {
   let file = null;
@@ -1381,13 +1605,22 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       ended: ctx.ended || null, mic_check: ctx.micCheck || null, read_s: Math.round(durationSec), duration_source: source,
       clock: t.clock || null, begin_at_s: t.begin_at_s == null ? null : t.begin_at_s, end_at_s: t.end_at_s == null ? null : t.end_at_s,
       count_flag: m.count_flag || null, story_confidence: m.story_confidence == null ? null : m.story_confidence,
+      ...(m.stt_words == null ? {} : { stt_words: m.stt_words }), ...(m.align_correct == null ? {} : { align_correct: m.align_correct }),
       ...(rules.items ? { items: (m.items || []).map((x) => ({ i: x.i, v: x.verdict })) } : {}),
     } : {};
-    // The microphone was proven working and not one word came: the child was silent — EGRA's discontinue, a 0 —
-    // not "unheard" (which would send them round again).
-    if (rules.record && ctx.micCheck === 'pass' && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
-      const s = { ...score, stopped: true, finished_early: false, time_left: 0 };
-      return { score: s, wcpm: 0, ended: 'silent', meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, ended: 'silent' } };
+    const tokensN = (spec.story && spec.story.tokens && spec.story.tokens.length) || 0;
+    // numbers that cannot be believed are not a reading: zeroed, wcpm null, the raw counts kept, no items; record as served
+    const implausibleRow = (doubt, rate) => {
+      const { items, ...rest } = extra;
+      return { score: { correct: 0, attempted: 0, stopped: false, finished_early: false, time_left: 0 }, wcpm: null, ended: ctx.ended || null, implausible: doubt,
+        meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: [...(m.flags || []), doubt], ...rest, quality: 'implausible', raw: { correct: score.correct, attempted: score.attempted, wcpm: rate } } };
+    };
+    // The floor on the words heard runs first on every record read, however it ended, stopped or not, whatever the marker
+    // credited: fewer words than the floor, none of them aligned to the story, is not a reading. A few words that DO align
+    // are a weak reader's own (the bottom of the distribution): they, and enough words heard, fall through to today's paths.
+    if (rules.record && !(Number(m && m.align_correct) > 0)) {
+      const floor = silentFloor(m, tokensN);
+      if (floor) return implausibleRow(floor, stopped ? 0 : wcpm(score.correct, score.time_left));
     }
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.
@@ -1401,7 +1634,14 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
       const reason = durationSec < 15 ? 'abandoned' : 'incomplete';
       return { failed: true, reason, words: score.correct, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, words: score.correct } };
     }
-    return { score, wcpm: stopped ? 0 : wcpm(score.correct, score.time_left), ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
+    const rate = stopped ? 0 : wcpm(score.correct, score.time_left);
+    // the noise floor
+    const doubt = rules.record ? readQuality(m, score, tokensN) : null;
+    if (doubt) return implausibleRow(doubt, rate);
+    // Speech that aligns to nothing (enough words heard, not one of them the passage's) is not a reading of this text, whatever
+    // the marker credited: unheard, the record kept. A first-line stop keeps its 0 (the discontinue is the child's own result).
+    if (rules.record && !stopped && m.align_correct === 0 && heardFloor(m, tokensN)) return { failed: true, reason: 'unheard', meta: { cost_usd: cost, duration_s: durationS, ...extra } };
+    return { score, wcpm: rate, ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };
   } finally {
@@ -1423,10 +1663,15 @@ async function roundGame(c, rules) {
 }
 // A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
 // warm line for after every item.
-function roundPayload(w, payload) {
+// round_turn: a round run is no voluntary counted stop (the sampling design's NC4), so its end card prints no sticker line and
+// its one button hands the phone back (jg.round.c_handback) via the turn's own /c/<token>/back (round_back), which the
+// server answers with the round page the teacher opened; the teacher's report token never reaches the child's page.
+function roundPayload(w, payload, token) {
   if (!w.round) return payload;
   const { practice_round: _p, mode: _m, ...rest } = payload;
-  return { ...rest, round_say: require('../../templates/class-round.page').T[clampLanguage(w.lang, ['en', 'ur'])].cNextSay };
+  const l = clampLanguage(w.lang, ['en', 'ur']);
+  const C = require('../../templates/class-round.page').T[l];
+  return { ...rest, round_say: C.cNextSay, round_turn: true, round_handback: C.cHandback, round_back: `/c/${encodeURIComponent(token)}/back?lang=${l}` };
 }
 // ── end class round ──
 
@@ -1540,7 +1785,7 @@ async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, ma
   return out;
 }
 
-async function presignUpload({ ct, type, size, audio_consent } = {}) {
+async function presignUpload({ ct, type, size, audio_consent } = {}, { device = null } = {}) {
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
   const base = String(type || '').split(';')[0].trim().toLowerCase();
@@ -1553,7 +1798,11 @@ async function presignUpload({ ct, type, size, audio_consent } = {}) {
   if (!(await uploadable(c, mem))) fail(409, 'already_done');
   if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
   const ts = Date.now();
-  const key = (await keepAudioOn()) && TrailPage.allowsKeep(await TrailPage.consentFor({ audio_consent }))
+  const consent = await TrailPage.consentFor({ audio_consent });
+  // the mic notice: the upload already carries 'notice_shown', so this child's notice is marked seen on this phone now,
+  // not only when the result comes back (a lost connection after the upload would otherwise show it again elsewhere)
+  if (consent === 'notice_shown') await TrailPage.noteNoticeShown(c.sid, device);
+  const key = (await keepAudioOn()) && TrailPage.allowsKeep(consent)
     ? `${keptRunPrefix(c, new Date(ts).toISOString().slice(0, 10))}read-${ts}.${ext}`
     : `${uploadPrefix(c)}${ts}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
@@ -1571,6 +1820,9 @@ async function uploadable(c, mem) {
 }
 
 /** The run's state from what this process knows, else from the table. */
+// A check the scorer judged not a reading (implausible: scored, record lost): no sticker on the card, none in the Book.
+const noiseRun = (row) => row.status === 'scored' && row.record === false && row.mode === 'check';
+
 async function runState(c) {
   const mem = RUNS.get(c.r);
   if (mem && mem.result) return mem.result;
@@ -1579,19 +1831,23 @@ async function runState(c) {
   if (!row || isLiveRow(row) || isServedRow(row)) return null;
   if (row.status === 'scoring') return { pending: true };
   if (row.status === 'failed') return { failed: true, reason: (row.meta && row.meta.reason) || 'failed' };
-  return row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score };
+  return { ...(row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score }), ...(noiseRun(row) ? { sticker: false } : {}) };
 }
 
 /**
  * The child's last scored run of this exercise, for "7 more words than last time!" (null the first time). A reading
  * compares only with readings in the same language: the Urdu and English stories are different passages.
  */
-async function previousRun(studentId, exercise, lang = null) {
-  let qb = supabase.from('web_quiz_challenge_runs').select('id, exercise, status, score, wcpm, created_at')
+async function previousRun(studentId, exercise, lang = null, form = null) {
+  // web_quiz_read_feedback on, a read with its text level (form): "last time" is the child's last read at that level, so
+  // a harder or easier passage never reads as growth or its loss; none at that level ⇒ the last read of any (one query)
+  const level = exercise === 'read' && form != null && (await require('./web-quiz-read-feedback').on()) ? String(form).replace(/\D/g, '') : '';
+  let qb = supabase.from('web_quiz_challenge_runs').select(level ? 'id, exercise, status, score, wcpm, created_at, form' : 'id, exercise, status, score, wcpm, created_at')
     .eq('student_id', studentId).eq('exercise', exercise).eq('status', 'scored');
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
-  const { data, error } = await qb.order('created_at', { ascending: false }).limit(1);
-  const r = !error && data && data[0];
+  const { data, error } = await qb.order('created_at', { ascending: false }).limit(level ? 10 : 1);
+  const rows = (!error && data) || [];
+  const r = (level && rows.find((x) => String(x.form || '').replace(/\D/g, '') === level)) || rows[0];
   if (!r) return null;
   const s = r.score || {};
   return exercise === 'read' ? { wcpm: r.wcpm, correct: s.correct, at: r.created_at } : { correct: s.correct, n: s.n, at: r.created_at };
@@ -1684,6 +1940,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // challenge v2: a run served under _v2 already has its row: it is finished in place, never inserted a second time
   const sv = mem.v2 || (isServedRow(storedRow) ? await servedInfo(c.r) : null);
   if (sv && sv.form && !mem.task) run = { ...run, form: sv.form };   // M8: the served row's (fixed-grade) form
+  if (sv && !run.v2 && sv.mode != null) run = { ...run, mode: sv.mode, record: sv.record };   // the served row's mode, when the memory is gone
   const writeRun = sv ? (row) => finishServed(c.r, row) : insertRun;
   const helpedV2 = sv ? { helped: helpedCol(helpedOf(body.helped)) } : {};
 
@@ -1702,6 +1959,8 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     // clock 'row_paint': each item's ms and first_key_ms run from the moment its row is painted (the page's rule)
     let meta = { ms: Number(body.ms) || null, ...(await provenance(c.sid, 'missing', null, run)), helped: helpedOf(body.helped), clock: 'row_paint', elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < typed };
     if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
+    // the speed floor: a record warm-up with every item right and a median item time under the floor is a scripted 10/10
+    if (rules.items && run.v2 && run.mode === 'check' && run.record === true && run.anchor_block && rapidPerfect(rows, meta.elapsed_s)) meta = { ...meta, quality: 'rapid_perfect' };
     if (sv && sv.tryout) meta = { ...meta, tryout: tryoutAnswer(sv.tryout, body.tryout, Bank) };
     const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta, ...helpedV2 });
     if (stored === 'duplicate') fail(409, 'already_done');
@@ -1755,7 +2014,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   if (!isLive) Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
-  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang);
+  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang, run.form);
   const readRun = sv && sv.passage_id ? { ...run, passage: passageFor(sv.passage_id, Bank) } : run;
   const story = (withPassage(Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }), readRun.passage).story || {});
   const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
@@ -1768,7 +2027,9 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
+  // live reading v3 (off ⇒ {}): the UI version and how the page says it ended, kept through the scorer's final write too
+  const lr3Meta = await LiveReadV3().metaFor(body, { record: !!rules.record });
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio, ...lr3Meta };
   // the mic notice (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run; a run that
   // showed it marks this child's notice seen on this phone (x-wq-device), so it is not shown again
   const consent = await TrailPage.consentFor(body);
@@ -1787,7 +2048,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
   const promise = scoreRead(readRun, key, ext, body.ms, CT, rules, { ended: guardIn.ended, micCheck: guardIn.mic_check, readS: guardIn.read_s, runId: c.r }).then(async (r) => {
     const result = r.failed
       ? { failed: true, reason: r.reason, ...(r.words != null ? { words: r.words } : {}) }
-      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}) };
+      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}), ...(r.implausible ? { sticker: false } : {}) };
     const before = RUNS.get(c.r) || {};
     RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
     // the record rule's stamps ride the final write (which replaces meta); an abandoned reading is an exposure only
@@ -1797,8 +2058,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = 
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
-        : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm, meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp, reason: r.reason }, scored_at: nowIso() }
+        : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm,
+          // an implausible row never became a reading: record cleared (the sweeper's `abandoned` shape), record_lost says why, the month stays open
+          ...(r.implausible && isV2Meta(cur.meta) ? { record: false } : {}),
+          meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...(r.implausible && isV2Meta(cur.meta) ? { record_lost: 'implausible', counted: false } : {}), ...audio, ...(live ? { live } : {}), ...lr3Meta, ...comp }, scored_at: nowIso() };
     }, { force: true });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
@@ -1886,6 +2150,11 @@ async function readingOf(c, lang) {
   if (c.ex !== 'read' && c.ex !== 'listen') fail(400, 'bad_request');
   if (c.ex === 'read' && !(await questionsOn())) fail(503, 'questions_off');
   if (c.ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
+  return readingSpecOf(c, lang);
+}
+
+// The run, its row and its story (a v2 run's own passage), with no switch asked.
+async function readingSpecOf(c, lang) {
   const mem = RUNS.get(c.r) || {};
   const row = await storedRun(c.r);
   const run = await runFor(c, mem.task ? mem : {}, (row && row.lang) || mem.lang || lang);
@@ -1895,6 +2164,71 @@ async function readingOf(c, lang) {
   const sv = mem.v2 || (row && (isServedRow(row) || (await rulesOf()).v2) ? await servedInfo(c.r) : null);
   if (sv && sv.passage_id) return { run, row, mem, spec: { ...withPassage(spec, passageFor(sv.passage_id, Bank)), by_line: true } };
   return { run, row, mem, spec };
+}
+
+// a read run whose result settled as not a reading: nothing heard (failed 'unheard') or not one word read
+const notAReading = (row) => !!row && ((row.status === 'failed' && !!row.meta && row.meta.reason === 'unheard')
+  || (row.status === 'scored' && !!row.score && Number(row.score.attempted != null ? row.score.attempted : row.score.correct) === 0));
+
+/**
+ * A reading's story length in words as the reading page counts them (its story.tokens; the same count the reached
+ * questions use), by the run's token: 0 for any other game or when it cannot be known. Never throws.
+ */
+async function readLength(ct) {
+  try {
+    const c = runOf(ct);
+    if (c.ex !== 'read') return 0;
+    const t = ((await readingSpecOf(c, null)).spec.story || {}).tokens;
+    return Array.isArray(t) ? t.length : 0;
+  } catch (_) { return 0; }
+}
+
+/**
+ * "Show me the words" after a practice listen's questions: the story's timing file (web_quiz_readalong), by the run
+ * token. Only a practice listen run gets it — a counted listen never shows its text (it is heard, never shown).
+ * "Hear it again" on a read that certified nothing: a read run gets its passage's timings only once its result has
+ * settled as not a reading — never before the read (400), never while it is scored (409), never after a heard read
+ * (403). The run is over and recorded; a re-read is the existing "Try again", so hearing it cannot lift a counted score.
+ */
+async function listenWords({ ct, lang } = {}) {
+  const c = runOf(ct);
+  // a read run only with its own switch on (web_quiz_zero_read_listen); off, today's answer
+  if (c.ex !== 'listen' && !(c.ex === 'read' && (await zeroListenOn()))) fail(400, 'bad_request');
+  const { run, row, mem, spec } = await readingOf(c, lang);
+  const sv = mem.v2 || (await servedInfo(c.r)) || {};
+  const mode = sv.mode || (row && row.mode) || mem.mode;
+  if (c.ex === 'read') {
+    if (!notAReading(row)) {
+      if (mem.status === 'scoring' || (row && row.status === 'scoring')) fail(409, 'pending');
+      if (!row || isServedRow(row) || row.status === 'abandoned') fail(400, 'bad_request');
+      fail(403, 'heard');
+    }
+  } else if (mode !== 'practice') fail(403, 'not_practice');
+  const st = spec.story || {};
+  const t = sv.passage_id ? await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: run.lang, passageId: sv.passage_id, text: st.text }) : null;
+  if (!t) fail(404, 'no_words');
+  return { readalong: t };
+}
+
+/**
+ * A grown-up's preview of a practice story (#listen/<pid> on the practice home): the stored clip + its word timings,
+ * for a hub token on the phone it is bound to (as entryOf: a forwarded hub link opens nothing on another phone);
+ * no run, no event keyed by a child. Only a story Story Time could show (released, reviewed, the practice pool, not
+ * withdrawn) — never a counted passage.
+ */
+async function listenPreview(hub, pid, { lang, device } = {}) {
+  if (!T.verify(hub, 'h')) fail(401, 'bad_token');
+  if (!(await require('./web-quiz-hub-device').deviceTrusted(hub, device)).ok) fail(403, 'other_device');
+  const m = /^(en|ur)\.(read|listen)\.([1-5])\.[a-z0-9_-]+$/i.exec(String(pid || ''));
+  if (!m) fail(400, 'bad_request');
+  if (!(await settingOn(require('./web-quiz-readalong').SWITCH_KEY))) fail(404, 'no_words');
+  const { Bank } = childTest();
+  const own = typeof Bank.getPassage === 'function' ? Bank.getPassage(pid) : null;
+  const s = own ? Draw().storyPassageFor({ rows: await Draw().registryPassages(), pid, kind: m[2], lang: m[1], bands: new Set([1, 2, 3, 4, 5]), reserve: own.reserve === true, now: new Date() }) : null;
+  if (!s) fail(404, 'no_words');
+  const t = await require('./web-quiz-readalong').readAlong({ settingOn }).forPassage({ lang: m[1], passageId: s.passage_id, text: own.text });
+  if (!t) fail(404, 'no_words');
+  return { readalong: t };
 }
 
 /**
@@ -2099,14 +2433,20 @@ async function warmClip(key, text, lang, { record = true, now = Date.now() } = {
 }
 const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecordedOn(now));
 
+// Live reading v3: a story page's speech keys spend the same daily read budget (read from the cached switches: with
+// real-time or v3 off nothing is counted and nothing more is read)
+Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
+
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
-  scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
+  _previousRun: previousRun,
+  menu, exercise, entryOf, presignUpload, submit, poll, readLength, listResults, liveKey, liveOn, questions, answer, listenWords, listenPreview, questionsOn, readQuestionsLeft, tapOptions, listenOn, optionAudioOn,
+  scoreBigger, wcpm, formFor, formForChild, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, storyOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, STORY_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
-  EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
+  EXERCISES, TRAIL_ORDER, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
+  recordClip,      // the one-voice pre-flip recording of the short lines (scripts/quiz/one-voice-missing-keys.js)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
-  __reset,
+  __reset, storyVoiceOn, exerciseLines,
 };
 // The passage's child-facing title {en, ur} | null: one home for the shelf and the stop's intro (RULING #100(a)(2)).
 module.exports.passageTitle = passageTitle;
@@ -2114,3 +2454,31 @@ module.exports.passageTitle = passageTitle;
 module.exports.classWeekOpen = classWeekOpen;
 // the runs insert (and its duplicate-record rule), for its test
 module.exports.insertRun = insertRun;
+// the quality floors (speed, noise), pure, for their tests
+module.exports.readQuality = readQuality;
+module.exports.rapidPerfect = rapidPerfect;
+// the read scorer, the passage lookup and the battery loader, for the one-off re-score of kept readings (scripts/quiz/rescore-kept-reads.js)
+module.exports.scoreRead = scoreRead;
+module.exports.passageFor = passageFor;
+module.exports.childTest = childTest;
+// the v3 home's door screens (web-quiz-hub-doors.js): a listening story opens only once its clip is recorded, and a
+// row's words in the quiz voice (the clips' own scheme and recorder; a missing one is recorded in the background, so
+// the row has it on a later open, under the same daily cap as every clip)
+module.exports.storyClip = storyClip;
+module.exports.sayClip = async (text, lang) => {
+  if (!text) return null;
+  const key = clipKey('door', 'say', lang, String(text));
+  // a door label never takes the last half of the day's recordings from the challenge's own clips: past it, known clips only
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, String(text), lang);
+};
+// a listen row on the door's Stories list: the listening story's own key, but like the labels it records only while more
+// than half the day's recordings are left (past it, known clips only), so opening Stories never spends the challenge's half
+module.exports.storyClipCapped = (lang, text) => {
+  if (!text) return null;
+  const key = clipKey('listen', 'story', lang, text);
+  if (clipsLeft() <= MAX_CLIP_RECORDINGS / 2 && clipKnown.get(key) !== true) return null;
+  return clipUrl(key, text, lang);
+};
+// tests only: the day's recordings already made (to stand at a point of the daily cap without recording)
+module.exports.__useClips = (n, now = Date.now()) => { clipsRecordedOn(now); clipsRecorded = n; };

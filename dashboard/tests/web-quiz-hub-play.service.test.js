@@ -20,7 +20,15 @@ const BOOTS = require('./fixtures/hub-play-boots.json');
 
 const CHROME_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36';
 const WA_UA = 'Mozilla/5.0 (Linux; Android 14; SM-A145F Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0 Mobile Safari/537.36 WhatsApp/2.24.21.80 WA4A/2.24.21.80';
-function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = false } = {}) {
+// The page's clock, fixed: the boots' teacher card says how many days ago its quiz was sent (sent_at 6 Oct 10:00Z), so a
+// golden taken against the real clock moves every day. 15 Oct 21:00Z is when the goldens were taken (9 days).
+const NOW = Date.parse('2026-10-15T21:00:00Z');
+class FixedDate extends Date {
+  constructor(...a) { super(...(a.length ? a : [NOW])); }
+  static now() { return NOW; }
+}
+
+function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = false, homeFails = false } = {}) {
   const assigned = [];
   const beacons = [];
   const els = {};
@@ -47,7 +55,7 @@ function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = fals
   };
   const docEl = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, classList: { toggle() {}, contains: () => false } };
   const ctx = {
-    document: { documentElement: docEl, head: { appendChild() {} }, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }), cookie: '' },
+    document: { documentElement: docEl, head: { appendChild(s) { if (homeFails && /wq-home\.js/.test(s.src || '')) (s.ls.error || []).forEach((fn) => fn()); } }, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => (homeFails ? { ls: {}, setAttribute() {}, addEventListener(n, fn) { (this.ls[n] = this.ls[n] || []).push(fn); }, textContent: '' } : { setAttribute() {}, textContent: '' }), querySelector: homeFails ? () => null : undefined, cookie: '' },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); }, matchMedia: (q) => ({ matches: standalone && /standalone/.test(q) }) },
     navigator: { userAgent: ua, sendBeacon: (u, b) => { beacons.push(...JSON.parse(b.parts[0]).events); return true; } },
     history: { replaceState() {} },
@@ -56,7 +64,7 @@ function page(boot, { play = true, store = {}, ua = CHROME_UA, standalone = fals
     fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve('{}') }),
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
     setTimeout: (fn) => { timers.push(fn); return timers.length; },
-    Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
+    Date: FixedDate, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
   vm.createContext(ctx);
   // wq-tel.js first, as on every page the edge renders (the pages' link helper WQT.withLang).
@@ -152,6 +160,30 @@ describe('lantern + shelf', () => {
     expect(p.doors()).toContainEqual(expect.objectContaining({ n: 'door_shown', door: 'next', nx: 'trail' }));
   });
 
+  test('the v3 home switch on (web_quiz_home_v3) and its page failed to load: the hub it falls back to never says "Trail"', () => {
+    const many = page({ ...BOOTS.done, home_v3: 1, play: play({ kind: 'trail', stops: 2 }, null) }, { homeFails: true });
+    expect(many.html()).toContain('Games are waiting for you.');
+    expect(many.html()).not.toMatch(/Trail/);
+    const one = page({ ...BOOTS.done, home_v3: 1, play: play({ kind: 'trail', stops: 1 }, null) }, { homeFails: true });
+    expect(one.html()).toContain('A game is waiting for you.');
+    const ur = page({ ...BOOTS.done, lang: 'ur', home_v3: 1, play: play({ kind: 'trail', stops: 2 }, null) }, { homeFails: true });
+    expect(ur.html()).toContain('کچھ کھیل آپ کا انتظار کر رہے\u00a0ہیں۔');
+    expect(ur.html()).not.toMatch(/راستے/);
+    // the Jugnu tile on that hub is "Jugnu's games" (the games list's own name), never "Challenge"
+    expect(many.html()).toContain("<b>Jugnu&#39;s games</b>");
+    expect(many.html()).not.toMatch(/Challenge/);
+    expect(ur.html()).toContain('<b>جگنو کے کھیل</b>');
+    expect(ur.html()).not.toMatch(/چیلنج/);
+    const bare = page({ ...BOOTS.done, home_v3: 1 }, { play: false, homeFails: true });
+    expect(bare.html()).toContain("<b>Jugnu&#39;s games</b>");
+    expect(bare.html()).not.toMatch(/Challenge/);
+    // GOLDEN: the switch off -> today's line, byte for byte
+    const off = page({ ...BOOTS.done, play: play({ kind: 'trail', stops: 2 }, null) });
+    expect(off.html()).toContain('Games are waiting for you on the Trail.');
+    expect(off.html()).toContain("<b>Jugnu&#39;s Challenge</b>");
+    expect(page({ ...BOOTS.done }, { play: false }).html()).toContain("<b>Jugnu&#39;s Challenge</b>");
+  });
+
   test('new story: its title, a link into Story Time; tomorrow: shown only; all seen (Monday)', () => {
     const s = page({ ...BOOTS.done, play: play({ kind: 'story', title: 'The Kite', pid: 'p-1' }, null) });
     expect(s.html()).toContain('A new story is here: The Kite');
@@ -191,8 +223,39 @@ describe('lantern + shelf', () => {
     expect(p.html()).toContain('آج جگنو کے ساتھ');
   });
 
+  // The story tile names the story when the server gives it a title (bot titleFor, the one title home); the page
+  // renders whatever title a tile carries and decides nothing. No title: today's label, byte for byte.
+  const TILE_BASE = '<a class="wqp-tile" data-shelf="1" data-pid="p-1" data-nx="new" href="/c/abc?kid=0000000000000001&amp;room=story&amp;pid=p-1">' +
+    '<span class="wqp-new">NEW</span><i aria-hidden="true">📖</i><span>This week&#39;s story</span></a>';
+  const tileOf = (h) => (/<a class="wqp-tile" data-shelf="1"[\s\S]*?<\/a>/.exec(h) || [])[0];
+
+  test('a story tile with a title: the tile names it (EN), escaped; the lantern names it too', () => {
+    const p = page({ ...BOOTS.done, play: play({ kind: 'story', title: 'The Kite', pid: 'p-1' }, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: 'The Kite' }]) });
+    expect(tileOf(p.html())).toContain('<span>The Kite</span>');
+    expect(tileOf(p.html())).not.toContain('This week');
+    expect(p.html()).toContain('A new story is here: The Kite');
+    const x = page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'seen', title: '<b>Kite & "Co"</b>' }]) });
+    expect(tileOf(x.html())).toContain('<span>&lt;b&gt;Kite &amp; &quot;Co&quot;&lt;/b&gt;</span>');
+  });
+
+  test('UR: the tile\'s title isolated as the deck\'s {title} (U+2068 … U+2069), like the lantern line', () => {
+    const p = page({ ...BOOTS.done, lang: 'ur', play: play({ kind: 'story', title: 'لال پتنگ', pid: 'p-1' }, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: 'لال پتنگ' }]) });
+    expect(tileOf(p.html())).toContain('<span>\u2068لال پتنگ\u2069</span>');
+    expect(tileOf(p.html())).not.toContain('اس ہفتے کی کہانی');
+    expect(p.html()).toContain('ایک نئی کہانی آ گئی ہے: \u2068لال پتنگ\u2069');
+  });
+
+  test('GOLDEN: no title (absent or null) -> the tile is today\'s label, byte for byte', () => {
+    const chHref = (/href="([^"]*)&amp;room=story/.exec(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html()) || [])[1];
+    const want = TILE_BASE.replace('/c/abc?kid=0000000000000001', chHref);
+    expect(tileOf(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html())).toBe(want);
+    const none = page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new', title: null }]) }).html();
+    expect(none).toBe(page({ ...BOOTS.done, play: play(null, [{ id: 'week_story', pid: 'p-1', nx: 'new' }]) }).html());
+  });
+
   const INST = { first: true, lantern: null, shelf: [{ id: 'numbers', nx: 'seen' }], install: true, doors: ['hub_first', 'install'] };
-  const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((Date.now() + 5 * 3600000) / 86400000)) });
+  // The page's day comes from the fixed NOW (pktDay() in hub-play.js), so the seeded day must too, never the real clock.
+  const SEEN_TODAY = () => ({ wqp_hv_day: String(Math.floor((NOW + 5 * 3600000) / 86400000)) });
   const offer = (p, outcome = 'accepted') => {
     const e = { prevented: 0, prompted: 0, preventDefault() { this.prevented += 1; }, prompt() { this.prompted += 1; }, userChoice: Promise.resolve({ outcome }) };
     p.win.beforeinstallprompt.forEach((fn) => fn(e));
@@ -239,7 +302,7 @@ describe('lantern + shelf', () => {
     const again = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: p.store.wqp_inst_later } });
     offer(again);
     expect(card(again)).toBe('');
-    const later = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: String(Date.now() - 8 * 86400000) } });
+    const later = page({ ...BOOTS.done, play: INST }, { store: { ...SEEN_TODAY(), wqp_inst_later: String(NOW - 8 * 86400000) } });
     offer(later);
     expect(card(later)).toContain('Add Jugnu');
   });
@@ -348,9 +411,18 @@ describe('hub_open route value: /h/<token>?from=… rides to the bot as src', ()
 // loads hub-play.js itself (at its own ?v=) and draws the hub again once it arrives, as it does for the Book.
 describe('first open: the locked server render, then `play` from the unlock', () => {
   const PLAY = { first: false, lantern: null, install: false, doors: [], shelf: [{ id: 'week_story', nx: 'new', pid: 'en.read.1.story01' }, { id: 'numbers', nx: 'seen' }] };
-  function firstOpen(answer, { playLoaded = false } = {}) {
+  // taps: buttons found by id (and tapped with tap('#id')), so a test can leave the hub and come back to it.
+  function firstOpen(answer, { playLoaded = false, taps = false } = {}) {
     const head = [];
-    const root = { _h: '', attrs: {}, set innerHTML(h) { this._h = h; }, get innerHTML() { return this._h; }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; }, querySelector: () => null, querySelectorAll: () => [], appendChild() {} };
+    const beacons = [];
+    const winL = {};
+    const btns = {};
+    const root = { _h: '', attrs: {}, set innerHTML(h) { this._h = h; for (const k of Object.keys(btns)) delete btns[k]; }, get innerHTML() { return this._h; }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; }, querySelectorAll: () => [], appendChild() {},
+      querySelector(sel) {
+        if (!taps || !/^#[\w-]+$/.test(sel) || this._h.indexOf('id="' + sel.slice(1) + '"') < 0) return null;
+        btns[sel] = btns[sel] || { l: [], addEventListener(n, fn) { if (n === 'click') this.l.push(fn); }, getAttribute: () => null };
+        return btns[sel];
+      } };
     const timers = [];
     const ctx = {
       document: {
@@ -360,10 +432,10 @@ describe('first open: the locked server render, then `play` from the unlock', ()
         createElement: (tag) => ({ tag, l: {}, setAttribute() {}, addEventListener(n, fn) { this.l[n] = fn; } }),
         head: { appendChild: (el) => head.push(el) },
       },
-      navigator: { userAgent: CHROME_UA, sendBeacon: () => true },
+      navigator: { userAgent: CHROME_UA, sendBeacon: (u, b) => { beacons.push(...JSON.parse(b.parts[0]).events); return true; } },
       history: { replaceState() {} },
       location: { search: '', protocol: 'https:', host: 'wq.example.test', assign() {}, reload() {} },
-      Blob: function Blob() {},
+      Blob: function Blob(parts) { this.parts = parts; },
       fetch: () => Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(answer)) }),
       localStorage: { getItem: () => null, setItem() {} },
       setTimeout: (fn) => { timers.push(fn); return timers.length; },
@@ -371,12 +443,15 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     };
     ctx.window = ctx;
     ctx.window.scrollTo = () => {};
-    ctx.window.addEventListener = () => {};
+    ctx.window.addEventListener = (n, fn) => { (winL[n] = winL[n] || []).push(fn); };
     vm.createContext(ctx);
     if (playLoaded) vm.runInContext(PLAY_SRC, ctx);
     vm.runInContext(HUB_SRC, ctx);
     const flush = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); while (timers.length) timers.shift()(); } };
-    return { ctx, head, html: () => root._h, flush };
+    const tap = (sel) => (btns[sel] ? btns[sel].l : []).forEach((fn) => fn.call(btns[sel], { preventDefault() {} }));
+    // Back to this page from the back/forward cache: hub.js draws the screen it keeps again.
+    const backAgain = async () => { (winL.pageshow || []).forEach((fn) => fn({ persisted: true })); await flush(); };
+    return { ctx, head, html: () => root._h, moment: () => root.attrs['data-m'], flush, beacons, tap, backAgain };
   }
   test('hub-play.js is loaded at hub.js\'s ?v= and the shelf draws once it arrives', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY });
@@ -389,6 +464,15 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     await p.flush();
     expect(p.html()).toContain('data-shelf="1"');
     expect(p.html()).toContain('&amp;room=story&amp;pid=en.read.1.story01');
+  });
+  // fresh profile: no wq_dv cookie, nothing stored; the unlock's `play` carries a titled story tile.
+  test('fresh profile (no cookie, no storage): the story tile from the unlock names the story', async () => {
+    const titled = { ...PLAY, shelf: [{ id: 'week_story', nx: 'new', pid: 'en.read.1.story01', title: 'The Kite' }, { id: 'numbers', nx: 'seen' }] };
+    const p = firstOpen({ ...BOOTS.done, play: titled }, { playLoaded: true });
+    await p.flush();
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.html()).toContain('<span>The Kite</span>');
+    expect(p.html()).not.toContain('This week&#39;s story');
   });
   test('hub-play.js already on the page: drawn at once, nothing loaded', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
@@ -413,10 +497,123 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     expect(p.html()).toContain('id="wq-bind-slot"');
     expect(cards.length).toBe(1);
   });
+  // Both lazy loads on one first open (`play` and `bind` from the unlock): one hub-play.js, one wq-bind.css, one
+  // wq-bind.js, each at hub.js's ?v=; the hub drawn again when either arrives asks for nothing more.
+  function bothStamped(p) {
+    // hub-play.js adds its own <style> once it runs; only the scripts and stylesheets hub.js asked for count here.
+    const tags = p.head.filter((e) => e.tag === 'script' || e.tag === 'link').map((e) => e.tag + ' ' + (e.tag === 'link' ? e.rel + ' ' + e.href : e.src));
+    expect(tags).toEqual(['script /wq/hub-play.js?v=abc123', 'link stylesheet /wq/wq-bind.css?v=abc123', 'script /wq/wq-bind.js?v=abc123']);
+  }
+  test('`play` and `bind` on a first open: each loaded exactly once at hub.js\'s ?v=; hub-play.js arriving first redraws, nothing more loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY, bind: { offer: true, hub: 'tok.tok' } });
+    await p.flush();
+    bothStamped(p);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    p.head[0].l.load();
+    await p.flush();
+    expect(p.html()).toContain('data-shelf="1"');
+    bothStamped(p);
+    p.ctx.WQBIND = { card() {}, t: () => ({}), chipExtra: () => '' };
+    p.head[2].l.load();
+    await p.flush();
+    expect(p.html()).toContain('id="wq-bind-slot"');
+    bothStamped(p);
+  });
+  test('`play` and `bind` on a first open: wq-bind.js arriving first redraws, nothing more loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY, bind: { offer: true, hub: 'tok.tok' } });
+    await p.flush();
+    bothStamped(p);
+    p.ctx.WQBIND = { card() {}, t: () => ({}), chipExtra: () => '' };
+    p.head[2].l.load();
+    await p.flush();
+    expect(p.html()).toContain('id="wq-bind-slot"');
+    expect(p.html()).not.toContain('data-shelf');
+    bothStamped(p);
+  });
   test('no `bind` in the unlock answer: wq-bind is never loaded', async () => {
     const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
     await p.flush();
     expect(p.head.filter((e) => /wq-bind/.test((e.src || '') + (e.href || '')))).toHaveLength(0);
+  });
+  // hub-play.js arriving late or failing: the corner is still drawn on the next hub, and a failure asks again once.
+  const plays = (p) => p.head.filter((e) => e.tag === 'script' && /hub-play\.js/.test(e.src || ''));
+  const TWO = { ...BOOTS.done, kids: [...BOOTS.done.kids, { chip: '0000000000000002', first: 'Kid Testwala', animal: 'cat', grade: '3' }] };
+  test('hub-play.js arrives after the hub was left ("Who is playing?"): no redraw there, and the hub drawn next has the corner', async () => {
+    const p = firstOpen({ ...TWO, play: PLAY }, { taps: true });
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    p.tap('#wq-h-switch');
+    expect(p.moment()).toBe('H1');
+    const who = p.html();
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[0].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H1');
+    expect(p.html()).toBe(who);
+    await p.backAgain();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(plays(p).map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123']);
+  });
+  test('hub-play.js fails once while the child stays on the hub: asked again at once, the corner drawn without any other navigation', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    expect(plays(p)).toHaveLength(1);
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toEqual([expect.objectContaining({ n: 'hub_play_load_failed', file: 'hub-play.js', i: 1 })]);
+    expect(plays(p).map((e) => e.src)).toEqual(['/wq/hub-play.js?v=abc123', '/wq/hub-play.js?v=abc123']);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[1].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('hub-play.js fails once on another screen ("Who is playing?"): nothing asked there, the next hub asks again and draws the corner', async () => {
+    const p = firstOpen({ ...TWO, play: PLAY }, { taps: true });
+    await p.flush();
+    p.tap('#wq-h-switch');
+    expect(p.moment()).toBe('H1');
+    const who = p.html();
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(1);
+    expect(p.html()).toBe(who);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(2);
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[1].l.load();
+    await p.flush();
+    expect(p.moment()).toBe('H2');
+    expect(p.html()).toContain('data-shelf="1"');
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('hub-play.js fails twice: no third ask however often the hub is drawn, one event, the hub as without the corner', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    const bare = p.html();
+    plays(p)[0].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(2);
+    plays(p)[1].l.error();
+    await p.flush();
+    expect(plays(p)).toHaveLength(2);
+    await p.backAgain();
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(2);
+    expect(p.html()).toBe(bare);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toHaveLength(1);
+  });
+  test('golden: a normal load sends no hub_play_load_failed and asks once', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY });
+    await p.flush();
+    vm.runInContext(PLAY_SRC, p.ctx);
+    plays(p)[0].l.load();
+    await p.backAgain();
+    expect(plays(p)).toHaveLength(1);
+    expect(p.beacons.filter((e) => e.n === 'hub_play_load_failed')).toEqual([]);
   });
   test('no `play` in the unlock answer: nothing loaded', async () => {
     const p = firstOpen({ ...BOOTS.done });

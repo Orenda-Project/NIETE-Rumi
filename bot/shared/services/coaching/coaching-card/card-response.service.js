@@ -38,7 +38,7 @@ async function handleCoachingCardResponse(coachingSessionId, response) {
     // Merge response into existing prioritized_action JSONB
     const { data: session } = await supabase
       .from('coaching_sessions')
-      .select('prioritized_action')
+      .select('prioritized_action, user_id')
       .eq('id', coachingSessionId)
       .single();
 
@@ -54,6 +54,10 @@ async function handleCoachingCardResponse(coachingSessionId, response) {
       coachingSessionId,
       response,
     });
+    // bd-v0toag.1.2 — "Yes" is the teacher committing to the thing to try.
+    if (response === 'yes') {
+      require('../report-events').moveCommitted({ userId: session?.user_id, sessionId: coachingSessionId });
+    }
   } catch (error) {
     logToFile('Error storing coaching card response', {
       error: error.message,

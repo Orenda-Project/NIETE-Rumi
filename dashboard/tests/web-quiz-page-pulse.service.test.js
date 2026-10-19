@@ -125,10 +125,11 @@ describe('M17 peer pulse on the page', () => {
     expect(en.pulses()).toEqual(['A friend got Q2 right ✓']);
     const ur = onQuestion({ lang: 'ur' }, { recorded: ['q1'], pulse: [{ first: 'سارہ', qn: 4, at: 9 }] });
     ur.advance(4000); ur.answer(); await flush(); await flush();
-    expect(ur.pulses()).toEqual(['سارہ نے سوال 4 ٹھیک کیا ✓']);
+    // an Urdu child screen prints every number in Urdu digits
+    expect(ur.pulses()).toEqual(['سارہ نے سوال ۴ ٹھیک کیا ✓']);
     const urf = onQuestion({ lang: 'ur' }, { recorded: ['q1'], pulse: [{ first: null, invited: true, qn: 4, at: 9 }] });
     urf.advance(4000); urf.answer(); await flush(); await flush();
-    expect(urf.pulses()).toEqual(['ایک دوست نے سوال 4 ٹھیک کیا ✓']);
+    expect(urf.pulses()).toEqual(['ایک دوست نے سوال ۴ ٹھیک کیا ✓']);
   });
 
   test('a pulse that would cover content is held, then shown 3 s into the NEXT question', async () => {

@@ -42,6 +42,11 @@ const { logToFile } = require('../../bot/shared/utils/logger');
 const T = '11111111-1111-4111-8111-111111111111';
 const OTHER = '99999999-9999-4999-8999-999999999999';
 const PHONE = '923001234567';
+// A Wednesday noon (PKT). A lesson's date is its delivery's school day (cohortRuleDate): on a weekend clock a
+// Friday afternoon delivery is dated Monday and sorts above Sunday's, so "newest first" depended on the day the
+// suite ran. Pinned before the fixtures below read the clock.
+jest.useFakeTimers({ doNotFake: ['setImmediate', 'setTimeout', 'nextTick'] }).setSystemTime(new Date('2026-10-14T07:00:00Z'));
+afterAll(() => { jest.useRealTimers(); });
 const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
 
 const SEGMENTS = [
@@ -192,10 +197,29 @@ describe('start — the tap makes the quiz, once', () => {
     expect(quiz.meta.source).toBe('flow');
   });
 
+  test('a start from the teacher home ("Quiz this", via home) is the home\'s: meta.source home, funnel channel teacher_home', async () => {
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    expect(out.outcome).toBe('queued');
+    const [quiz] = mockDb.table('quizzes');
+    expect(quiz.meta.source).toBe('home');
+    const accepted = logEvent.mock.calls.filter((c) => c[0] === 'quiz_funnel.accepted');
+    expect(accepted[0][1]).toEqual(expect.objectContaining({ quiz_id: out.quizId, source: 'lp612', channel: 'teacher_home' }));
+  });
+
   test('a second tap makes no second quiz', async () => {
     const first = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE });
     const second = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE });
     expect(mockDb.table('quizzes')).toHaveLength(1);
+    expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
+  });
+
+  test('two taps on "Quiz this" from the teacher home make one quiz and queue one job', async () => {
+    const jobsBefore = mockJobs.length;
+    const first = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    const second = await Provider.start({ id: T, preferred_language: 'en' }, URDU, { phone: PHONE, via: 'home' });
+    expect(mockDb.table('quizzes')).toHaveLength(1);
+    expect(mockJobs.length - jobsBefore).toBe(1);
     expect(second).toEqual(expect.objectContaining({ outcome: 'already', quizId: first.quizId }));
   });
 

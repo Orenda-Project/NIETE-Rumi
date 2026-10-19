@@ -2,20 +2,22 @@
 /**
  * The teacher join queue's per-teacher cache (web-quiz-join-queue.js): the computed rows are kept per teacher for a
  * few minutes (Redis, a local fallback when Redis is down), read by the tab's candidatesFor() AND by decide(); every
- * decision drops the teacher's cache; decide() on a pair the cached queue serves verifies that pair only and goes
+ * 'same' / 'no' takes its pair out of the teacher's cache (an undo puts it back); decide() on a pair the cached queue serves verifies that pair only and goes
  * straight to the guarded write. Supabase (in-memory, filters applied, every call recorded) and Redis (a Map) are the
  * faked boundaries; the module runs for real. The seed is the join-queue suite's (Omar = the served pair).
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/services/cache/railway-redis.service', () => {
   const store = new Map();
+  const ttls = new Map();
   const state = { up: true };
   return {
     _store: store, _state: state,
     isAvailable: () => state.up,
     get: jest.fn(async (k) => (state.up && store.has(k) ? store.get(k) : null)),
-    set: jest.fn(async (k, v) => { if (!state.up) return false; store.set(k, v); return true; }),
-    delete: jest.fn(async (k) => { store.delete(k); return true; }),
+    set: jest.fn(async (k, v, ttl) => { if (!state.up) return false; store.set(k, v); ttls.set(k, ttl == null ? -1 : ttl); return true; }),
+    delete: jest.fn(async (k) => { store.delete(k); ttls.delete(k); return true; }),
+    getTTL: jest.fn(async (k) => (!state.up ? -1 : (store.has(k) ? ttls.get(k) : -2))),
   };
 });
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -78,14 +80,25 @@ describe('the queue is computed once per teacher and kept', () => {
     expect(extra).toEqual([]);
   });
 
-  test('a decision drops the teacher\'s cache: the decided pair is gone on the next read, recomputed from the store', async () => {
+  test('a \'no\' takes its pair out of the teacher\'s cache: the decided pair is gone on the next read, no recompute', async () => {
     await Queue.candidatesFor(T1);
     expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'no' })).toEqual({ ok: true, decision: 'no' });
     const before = calls();
     const after = await Queue.candidatesFor(T1);
     expect(after).toEqual([]);
-    expect(reads('students') + reads('quiz_sessions')).toBeGreaterThan(0);
-    expect(calls()).toBeGreaterThan(before);
+    expect(fake.calls.slice(before).filter((x) => x.op === 'select' && ['students', 'quiz_sessions'].includes(x.table))).toEqual([]);
+    expect(redis.delete).not.toHaveBeenCalled();
+  });
+
+  test('an undo puts the pair back into the teacher\'s cache: served again on the next read, no recompute', async () => {
+    await Queue.candidatesFor(T1);
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'same' })).toEqual({ ok: true, decision: 'same' });
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'undo' })).toEqual({ ok: true, decision: 'undo' });
+    expect(redis.delete).not.toHaveBeenCalled();
+    const before = calls();
+    const after = await Queue.candidatesFor(T1);
+    expect(after.map((x) => ({ loose_id: x.loose_id, candidate_id: x.candidate_id }))).toEqual(SERVED);
+    expect(fake.calls.slice(before).filter((x) => x.op === 'select' && ['students', 'quiz_sessions'].includes(x.table))).toEqual([]);
   });
 
   test('Redis down -> the local fallback serves the same rows and still avoids the re-read', async () => {

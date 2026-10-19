@@ -38,11 +38,15 @@ const scenarios = [
     expect(path === '/portal/login', 'left the login page for ' + path);
     return { message: msg, path };
   } },
-  { id: 'PL04', title: 'A number with no account is named under the phone box', run: async (page, ctx) => {
+  { id: 'PL04', title: 'A number that is not registered is offered Register on WhatsApp, never "No account found"', run: async (page, ctx) => {
     await open(page, ctx); await signIn(page, '03009999999', 'anything');
-    const msg = await fieldError(page, 'phoneNumber');
-    expect(msg === 'No account found', 'phone message was "' + msg + '"');
-    return { message: msg };
+    const link = page.getByRole('link', { name: /register on whatsapp/i });
+    await link.waitFor({ state: 'visible', timeout: 15000 }).catch(() => { throw new Error('no Register on WhatsApp button'); });
+    const href = await link.getAttribute('href');
+    expect(/^https:\/\/wa\.me\/\d+\?text=%2Fregister$/.test(href || ''), 'the button opens ' + href);
+    const body = await page.locator('body').innerText();
+    expect(!/No account found/.test(body), 'the page still says "No account found"');
+    return { href };
   } },
   { id: 'PL05', title: 'A malformed number is stopped before it is sent', run: async (page, ctx) => {
     await open(page, ctx);
@@ -54,15 +58,19 @@ const scenarios = [
     expect(sent === 0, sent + ' /login request(s) went out for a malformed number');
     return { message: msg, loginRequests: sent };
   } },
-  { id: 'PL06', title: 'An activated account with no password yet is told so, not shown an error page', run: async (page, ctx) => {
+  { id: 'PL06', title: 'An account with no password yet is sent to the WhatsApp code, not shown an error page', run: async (page, ctx) => {
     await ctx.sql("update users set portal_activated = true, portal_password_hash = null where phone_number = '92" + NO_PW_TEACHER.slice(1) + "'");
     await open(page, ctx); await signIn(page, NO_PW_TEACHER, 'anything');
-    const msg = await fieldError(page, 'password');
-    expect(msg === 'No password yet', 'password message was "' + msg + '"');
+    const alert = page.getByRole('alert');
+    await alert.waitFor({ state: 'visible', timeout: 15000 });
+    const msg = (await alert.innerText()).trim();
+    expect(msg === 'Log in by code', 'message was "' + msg + '"');
+    expect(await page.getByRole('button', { name: /^send code$/i }).count() === 1, 'no Send code button');
     return { message: msg };
   } },
   { id: 'PL07', title: 'Forgot password opens the reset page with her number carried over', run: async (page, ctx) => {
     await open(page, ctx);
+    await page.getByRole('button', { name: /use password instead/i }).click();
     await page.fill('#phoneNumber', TEACHER);
     await page.getByRole('button', { name: /forgot password/i }).click();
     return { landed: await landsOn(page, '/portal/reset-password') };
@@ -96,6 +104,21 @@ const scenarios = [
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const landed = await landsOn(page, '/portal/teacher');
     return { replyType: item.type, link: url.replace(/\/go\/.*/, '/go/<token>'), tries, landed };
+  } },
+  { id: 'PL12', title: 'A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password', run: async (page, ctx) => {
+    await setFlags(ctx, CLASSIC); await open(page, ctx);
+    const phone = '92' + TEACHER.slice(1);
+    // No code left over from an earlier scenario (a code sent under a minute ago is answered CODE_ALREADY_SENT).
+    await ctx.sql("update users set password_reset_code = null, password_reset_expires_at = null where phone_number = '" + phone + "'");
+    await page.fill('#phoneNumber', TEACHER);
+    await page.getByRole('button', { name: /^send code$/i }).click();
+    await page.locator('#code').waitFor({ state: 'attached', timeout: 20000 })
+      .catch(() => { throw new Error('the code step never opened (the code was not sent)'); });
+    // The code went to the mock WhatsApp; set a known one on THIS run's database so the scenario can type it.
+    await ctx.sql("update users set password_reset_code = '424242' where phone_number = '" + phone + "'");
+    await page.fill('#code', '424242');
+    await page.click('button[type="submit"]');
+    return { landed: await landsOn(page, '/portal/dashboard') };
   } },
 ];
 

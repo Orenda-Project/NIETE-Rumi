@@ -26,12 +26,16 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const { renderMessagePage, REPORT_PATH } = require('../../bot/shared/templates/teacher-report.page');
 
 // base64url(payload) "." base64url(HMAC)[:22] — web-quiz-token's format.
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PKT_MS = 5 * 3600 * 1000;
+// The phone's device ref cookie (the one hub.js writes): the round page gives a phone without one its own.
+const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=[A-Za-z0-9_-]{22}(?:;|$)/;
+const newDeviceRef = () => require('crypto').randomBytes(16).toString('base64url').slice(0, 22);
 const QUERY = {
   lang: (v) => v === 'en' || v === 'ur',
   // 'jugnu' is admitted always; the bot ignores it while web_quiz_teacher_jugnu is off (its golden: the page is byte-identical).
@@ -84,6 +88,8 @@ function createTeacherReportRouter(opts = {}) {
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
   const router = express.Router();
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -97,6 +103,7 @@ function createTeacherReportRouter(opts = {}) {
 
   function forward(kind) {
     return async (req, res) => {
+      const t0 = Date.now();
       const lang = req.query.lang === 'ur' || req.query.lang === 'en' ? req.query.lang : null;
       const fail = (status, k) => res.status(status).type('html').send(renderMessagePage({ kind: k, lang }));
       const token = String(req.params.token || '');
@@ -119,8 +126,17 @@ function createTeacherReportRouter(opts = {}) {
       const type = out.contentType || 'text/html; charset=utf-8';
       if (kind === 'pdf' && out.status === 200 && /application\/pdf/i.test(type)) {
         const day = new Date(Date.now() + PKT_MS).toISOString().slice(0, 10);
-        res.set('Content-Disposition', `attachment; filename="quiz-report-${day}.pdf"`);
+        // The bot names a story's own report story-report-<day>.pdf; anything else it says is a quiz report.
+        const pdfKind = /^attachment; filename="story-report-\d{4}-\d{2}-\d{2}\.pdf"$/.test(out.disposition || '') ? 'story' : 'quiz';
+        res.set('Content-Disposition', `attachment; filename="${pdfKind}-report-${day}.pdf"`);
       }
+      // The report page's timing, when the bot sent it (events v2 on): its own numbers back, and the edge's whole time.
+      if (kind === 'page' && out.status === 200 && out.timing) {
+        if (out.timing.render != null) res.set('x-render-ms', out.timing.render);
+        if (out.timing.queue != null) res.set('x-queue-age', out.timing.queue);
+        res.set('x-edge-ms', String(Date.now() - t0));
+      }
+      carryBotSecurity(res, out, securityOn);
       return res.status(out.status).type(type).send(out.bytes || Buffer.alloc(0));
     };
   }
@@ -142,6 +158,7 @@ function createTeacherReportRouter(opts = {}) {
       if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
       if (out.status >= 300 && out.status < 400) return fail(502, 'error');
       if (out.status >= 500) return fail(502, 'error');
+      carryBotSecurity(res, out, securityOn);
       return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
     };
   }
@@ -162,15 +179,23 @@ function createTeacherReportRouter(opts = {}) {
       if (typeof b.hold === 'string' && /^\d{1,6}$/.test(b.hold)) body.hold = b.hold;
     }
     const path = `/api/internal/tr/round/${token}${isPost ? `/${act}` : ''}${lang ? `?lang=${lang}` : ''}`;
+    // A child's hand-back answers only the phone this page was opened on, so the page must know the phone: one with
+    // no wq_dv gets one now, sent to the bot on this same call and set on the answer when the round page renders.
+    const minted = !isPost && !DEVICE_COOKIE_RX.test(String(req.get('cookie') || '')) ? newDeviceRef() : null;
     let out;
     try {
-      out = await callBot(isPost ? 'POST' : 'GET', path, req, isPost ? body : null, { raw: true });
+      out = await callBot(isPost ? 'POST' : 'GET', path, req, isPost ? body : null, { raw: true, device: minted });
     } catch (_) {
       return fail(502, 'error');
+    }
+    if (minted && out.status === 200) {
+      const secure = req.secure || req.get('x-forwarded-proto') === 'https';
+      res.append('Set-Cookie', `wq_dv=${minted}; Path=/; Max-Age=2592000; SameSite=Lax${secure ? '; Secure' : ''}`);
     }
     if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
     if (out.status >= 300 && out.status < 400) return fail(502, 'error');
     if (out.status >= 500) return fail(502, 'error');
+    carryBotSecurity(res, out, securityOn);
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   }
 

@@ -5,16 +5,6 @@ exports[`switches off: one child picked -> the hub JSON is the snapshot (no bind
   "again": [],
   "brand": "niete",
   "challenge": {
-    "exercises": [
-      {
-        "done": false,
-        "id": "bigger",
-      },
-      {
-        "done": false,
-        "id": "read",
-      },
-    ],
     "on": true,
   },
   "kid": "00d3ff6ae1ddb6ad",
@@ -40,7 +30,7 @@ exports[`switches off: one child picked -> the hub JSON is the snapshot (no bind
 }
 `;
 
-exports[`switches off: one child picked -> the hub JSON is the snapshot (no bind key) 2`] = `"{"lang":"en","kids":[{"chip":"72083b6e8883ac45","first":"Zara","animal":"fish","grade":"3"},{"chip":"00d3ff6ae1ddb6ad","first":"Zara","animal":"dog","grade":"3"}],"kid":"00d3ff6ae1ddb6ad","teacher":null,"again":[],"recs":[],"challenge":{"on":true,"exercises":[{"id":"bigger","done":false},{"id":"read","done":false}]},"lib":null,"brand":"niete","rt":false}"`;
+exports[`switches off: one child picked -> the hub JSON is the snapshot (no bind key) 2`] = `"{"lang":"en","kids":[{"chip":"72083b6e8883ac45","first":"Zara","animal":"fish","grade":"3"},{"chip":"00d3ff6ae1ddb6ad","first":"Zara","animal":"dog","grade":"3"}],"kid":"00d3ff6ae1ddb6ad","teacher":null,"again":[],"recs":[],"challenge":{"on":true},"lib":null,"brand":"niete","rt":false}"`;
 
 exports[`switches off: the redis calls and events of a hub open are the snapshot 1`] = `
 [

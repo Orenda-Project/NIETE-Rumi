@@ -145,33 +145,31 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # /language moved to language.feature (2026-08-11) — selection + per-flow i18n.
 
   @e2e @portal @P2 @M10
-  Scenario: /portal points an activated teacher to their portal login
+  Scenario: /portal opens the portal already signed in — one "Open portal" button with her own sign-in link
     Given the NIETE bot chat is open
-    And my portal account is already activated
-    And I have set a portal password
+    And I am a registered teacher
     When I send "/portal"
-    Then the bot reply contains a URL matching "portal.niete.edu.pk/portal/login"
-    # Verified live on PROD (2026-08-04): "Your NIETE portal is already active!
-    # Log in here: https://portal.niete.edu.pk/portal/login". PORTAL_URL IS set on
-    # the prod deployment — the earlier @known-fail was wrong: it was based on the
-    # repo .env.template (blank), which is the template, not the prod runtime env.
-    # A non-activated teacher instead gets a /portal/setup/<token> link
-    # (portal-invite.service.js:62).
-    # UPDATED 2026-10-12 (bd-kkpg4t): "already set up" now means activated AND a
-    # password saved — see @M21 for activated-with-no-password.
+    Then I get one message with an "Open portal" button
+    And the button's link is this portal's /go/<token> sign-in link, not a /portal/setup/ or /portal/login link
+    # UPDATED 2026-10-16 (bd-x7aprz.3): /portal no longer sends a 7-day set-up link or "log in with the
+    # password you created". A registered adult gets ONE cta_url button carrying her signed /go link
+    # (app-login-link.js — her user id, encrypted, 24 h, re-tappable); the portal turns it into a session and
+    # lands her on her home (dashboard/routes/app-login.routes.js). portal-command.handler.js.
+    # Someone NOT registered is offered the registration Flow by the text handler before /portal reaches it.
+    # History: until 2026-10-16 this scenario expected "portal.niete.edu.pk/portal/login" (verified on PROD
+    # 2026-08-04), and a non-activated teacher got a /portal/setup/<token> link (portal-invite.service.js).
 
   @e2e @portal @P1 @M21
-  Scenario: /portal sends the set-up link to an activated teacher who has no password
+  Scenario: /portal gives an activated teacher with no password the same sign-in link — no password asked
     Given the NIETE bot chat is open
     And my portal account is already activated
     And I have never set a portal password
     When I send "/portal"
-    Then the bot reply contains a URL matching "portal/setup/"
-    And the bot reply does not contain "portal/login"
-    # bd-kkpg4t: the July 2026 migration left 3,350 prod accounts activated with
-    # portal_password_hash NULL. /portal used to tell them to log in "with the
-    # password you created"; now it sends the set-up invite
-    # (portal-command.handler.js — portal_activated && portal_password_hash).
+    Then I get one message with an "Open portal" button
+    And the button's link is this portal's /go/<token> sign-in link, not a /portal/setup/ or /portal/login link
+    # UPDATED 2026-10-16 (bd-x7aprz.3): the July 2026 migration left 3,350 prod accounts activated with
+    # portal_password_hash NULL. bd-kkpg4t sent them the set-up invite; now no account is asked for a password —
+    # the WhatsApp sign-in link is the way in, password or not (portal-command.handler.js).
 
   @obsolete @config-gated @P3
   Scenario: /settings degrades gracefully when the Settings Flow is not configured

@@ -1,0 +1,1447 @@
+{
+  "unseen": {
+    "objective": {
+      "MCQs": [
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which of the following is NOT a type of microorganism?",
+          "options": [
+            "A) Bacteria",
+            "B) Virus",
+            "C) Fungi",
+            "D) Algae"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "D) Algae",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Who developed the process of pasteurization to kill harmful bacteria in milk?",
+          "options": [
+            "A) Alexander Fleming",
+            "B) Louis Pasteur",
+            "C) Selman Waksman",
+            "D) Edward Jenner"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) Louis Pasteur",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which statement best describes bacteria?",
+          "options": [
+            "A) They are the smallest microorganisms and need a host to grow",
+            "B) They are single-celled organisms found in soil, water and even the body",
+            "C) They are multicellular organisms like mushrooms",
+            "D) They only cause diseases and have no benefits"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) They are single-celled organisms found in soil, water and even the body",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Why must viruses live inside the cells of other living things?",
+          "options": [
+            "A) To grow and multiply",
+            "B) To change their colour",
+            "C) To decompose organic material",
+            "D) To produce their own food"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "A) To grow and multiply",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "A student wants to turn warm milk into yoghurt at home. Which microorganism should be added to the milk?",
+          "options": [
+            "A) A harmful virus",
+            "B) A type of mould",
+            "C) A helpful bacteria",
+            "D) An alga"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "C) A helpful bacteria",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "During fermentation, yeast changes sugar into carbon dioxide, which makes bread rise. What is yeast an example of?",
+          "options": [
+            "A) Bacteria",
+            "B) Virus",
+            "C) Fungus",
+            "D) Alga"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "C) Fungus",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which of these diseases is caused by a virus?",
+          "options": [
+            "A) Athlete's foot",
+            "B) Sore throat",
+            "C) Influenza",
+            "D) Food poisoning"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "C) Influenza",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which of these is an example of a fungal infection?",
+          "options": [
+            "A) Chickenpox",
+            "B) Athlete's foot",
+            "C) Cholera",
+            "D) Measles"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) Athlete's foot",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "A boy shakes hands with a sick classmate and later touches his own face. He then falls sick with a cold. What does this best show?",
+          "options": [
+            "A) A non-contagious disease spreading through genetics",
+            "B) A contagious disease spreading through contact",
+            "C) A non-contagious disease spreading through air",
+            "D) A contagious disease spreading through sunlight"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) A contagious disease spreading through contact",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which of the following is a non-contagious disease?",
+          "options": [
+            "A) Flu",
+            "B) Chickenpox",
+            "C) Diabetes",
+            "D) Measles"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "C) Diabetes",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which statement correctly tells apart contagious and non-contagious diseases?",
+          "options": [
+            "A) Contagious diseases spread between people; non-contagious diseases are caused by things like genetics or poor nutrition",
+            "B) Contagious diseases are always caused by fungi only",
+            "C) Non-contagious diseases spread through coughing and sneezing",
+            "D) Both types of diseases spread in exactly the same way"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "A) Contagious diseases spread between people; non-contagious diseases are caused by things like genetics or poor nutrition",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "During a viral outbreak at school, a student wore a mask and kept distance from sick classmates. Which type of disease was she trying to prevent from spreading?",
+          "options": [
+            "A) A non-contagious disease",
+            "B) A genetic disease",
+            "C) A contagious disease",
+            "D) A nutritional disease"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "C) A contagious disease",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "How does washing hands with soap help prevent the spread of disease?",
+          "options": [
+            "A) It kills every virus instantly",
+            "B) It removes germs that could be transferred to the mouth, nose or eyes",
+            "C) It changes the colour of germs so they are harmless",
+            "D) It only makes the skin feel softer"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) It removes germs that could be transferred to the mouth, nose or eyes",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "If a whole community gets vaccinated against polio, what is the most likely effect on the spread of the disease?",
+          "options": [
+            "A) The disease spreads faster among people",
+            "B) The disease spreads less because more people are protected",
+            "C) The vaccine causes the disease to appear in everyone",
+            "D) There is no change at all in the disease's spread"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) The disease spreads less because more people are protected",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "What is the main purpose of a vaccine?",
+          "options": [
+            "A) To cure a disease immediately after it appears",
+            "B) To train the immune system to recognise and fight a disease",
+            "C) To act as a pain reliever for sick people",
+            "D) To provide extra nutrition to the body"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) To train the immune system to recognise and fight a disease",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which scientist discovered penicillin after noticing a mould killing bacteria in his petri dish?",
+          "options": [
+            "A) Louis Pasteur",
+            "B) Alexander Fleming",
+            "C) Selman Waksman",
+            "D) Charles Darwin"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) Alexander Fleming",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "What role do microorganisms play in decomposition?",
+          "options": [
+            "A) They prevent dead material from breaking down",
+            "B) They break down dead plants and animals into nutrient-rich soil",
+            "C) They turn soil directly into fossil fuels",
+            "D) They have no effect on dead matter"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) They break down dead plants and animals into nutrient-rich soil",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "A farmer notices that fallen leaves in his field slowly turn into rich soil over many weeks. Which process, mainly carried out by microorganisms, explains this?",
+          "options": [
+            "A) Fermentation",
+            "B) Vaccination",
+            "C) Decomposition",
+            "D) Pasteurization"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "C) Decomposition",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Which of these is an example of fermentation?",
+          "options": [
+            "A) Mould growing on old bread",
+            "B) Yeast turning sugar into carbon dioxide to make bread rise",
+            "C) A virus infecting a healthy cell",
+            "D) Washing hands with soap and water"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) Yeast turning sugar into carbon dioxide to make bread rise",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "science.A.Q1a",
+          "main_question": "Choose the correct option.",
+          "question": "Selman Waksman's research on soil microorganisms led to the discovery of which antibiotic, used to cure tuberculosis?",
+          "options": [
+            "A) Penicillin",
+            "B) Streptomycin",
+            "C) Insulin",
+            "D) Aspirin"
+          ],
+          "marks": 1,
+          "lines": 0,
+          "answer": "B) Streptomycin",
+          "blooms": "Remember"
+        }
+      ]
+    },
+    "subjective": {
+      "Label the Diagram": [
+        {
+          "slot": "science.A.Q1b",
+          "main_question": "An empty frame for the diagram named below will be printed here. Label the five indicated parts in the correct order using the lines provided.",
+          "question": "Life Cycle of Dead Plants (Decomposition Cycle)",
+          "book_page": 58,
+          "marks": 5,
+          "lines": 0,
+          "answer": "1) Old plant dying, 2) Dead plant, 3) Soil organisms breaking down dead material, 4) Humus (nutrient-rich soil), 5) New plant absorbing nutrients",
+          "blooms": "Remember",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correctly labels part 1 as the old/dying plant",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Correctly labels part 2 as the dead plant",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Correctly labels part 3 as soil organisms/microorganisms breaking down dead material",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Correctly labels part 4 as humus/nutrient-rich soil",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Correctly labels part 5 as the new plant absorbing nutrients",
+                "marks": 1,
+                "kind": "L"
+              }
+            ],
+            "accept": [
+              "Any wording that correctly identifies each stage of the decomposition cycle in…"
+            ],
+            "common_error": "Students often swap the order of 'dead plant' and 'humus/soil', or forget to mention that microorganisms/soil organisms are responsible for breaking down the d…",
+            "checked": null
+          }
+        }
+      ],
+      "Draw and Label": [
+        {
+          "slot": "science.B.Q2a",
+          "main_question": "Draw and label ANY ONE of the following diagrams. (Attempt 1 out of 2)",
+          "question": "Decomposition Cycle: Draw a labelled diagram showing how dead plant material is turned into nutrient-rich soil that helps new plants grow.",
+          "marks": 7,
+          "lines": 0,
+          "answer": "Dead plants/leaves → Decomposers (microorganisms) break down dead matter → Nutrient-rich soil (humus) is formed → New plants absorb nutrients and grow",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correct diagram showing the decomposition cycle with arrows in the correct sequence",
+                "marks": 3,
+                "kind": "L"
+              },
+              {
+                "text": "Label: Dead plants/leaves",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Label: Decomposers (microorganisms) breaking down dead matter",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Label: Nutrient-rich soil (humus)",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Label: New plants absorbing nutrients",
+                "marks": 1,
+                "kind": "L"
+              }
+            ],
+            "accept": [
+              "Any correctly sequenced and labelled cyclic diagram showing decomposition leadi…"
+            ],
+            "common_error": "Child draws the stages as a straight line instead of a cycle, or forgets to show the soil/nutrient stage",
+            "checked": null
+          }
+        },
+        {
+          "slot": "science.B.Q2a",
+          "main_question": "Draw and label ANY ONE of the following diagrams. (Attempt 1 out of 2)",
+          "question": "Groups of Microorganisms: Draw a labelled diagram showing the three main groups of microorganisms, with one example of each.",
+          "marks": 7,
+          "lines": 0,
+          "answer": "Bacteria (e.g., yoghurt bacteria), Virus (e.g., influenza virus), Fungi (e.g., bread mould/yeast)",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correct overall diagram structure showing three separate microorganism groups",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "Label: Bacteria with a correct example (e.g., yoghurt bacteria)",
+                "marks": 2,
+                "kind": "L"
+              },
+              {
+                "text": "Label: Virus with a correct example (e.g., influenza virus)",
+                "marks": 2,
+                "kind": "L"
+              },
+              {
+                "text": "Label: Fungi with a correct example (e.g., bread mould or yeast)",
+                "marks": 2,
+                "kind": "L"
+              }
+            ],
+            "accept": [
+              "Any correctly labelled set of three microorganism groups each with one valid ex…"
+            ],
+            "common_error": "Child mixes up examples, e.g., naming a bacterial example under fungi, or missing an example altogether",
+            "checked": null
+          }
+        }
+      ],
+      "Logical Reasoning": [
+        {
+          "slot": "science.B.Q2b",
+          "main_question": "Read each situation and attempt ANY TWO of the three situations below. For each situation chosen, answer any two of its three questions. Give answers with logical reasons.",
+          "question": "During a class activity, Ali sprayed coloured water mixed with glitter into the air to represent germs from a sneeze. Some glitter landed on the table and on his classmates' hands. One classmate shook hands with three different friends, and one friend touched his own face. Later, some students washed their hands with soap and water, while others only rinsed with plain water.",
+          "questions": [
+            "a) Why did the glitter end up on the hands of students who never touched the sprayed area directly?",
+            "b) What would most likely happen if the student who touched his face did not wash his hands afterward?",
+            "c) Why might rinsing with only water be less effective than washing with soap and water in removing the glitter (germs)?"
+          ],
+          "marks": 5,
+          "lines": 0,
+          "answer": "a) Germs/glitter spread from person to person through touch (handshakes) and contaminated surfaces. b) The germs could enter his body through his face (eyes/nose/mouth) and make him sick. c) Soap breaks down and removes germs/dirt from the skin more effectively than plain water, which only loosens some particles.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correct reasoning for the first chosen question showing understanding of germ transmission through contact",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "Correct reasoning for the second chosen question linking cause and effect of disease spread",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "Correct use of scientific terms such as 'germs', 'contagious' or 'transmission'",
+                "marks": 1,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Any two of the three sub-answers reasoned logically with correct cause-and-effe…"
+            ],
+            "common_error": "Child says germs only spread by air and ignores the role of touch/contact shown in the situation",
+            "checked": null
+          }
+        },
+        {
+          "slot": "science.B.Q2b",
+          "main_question": "Read each situation and attempt ANY TWO of the three situations below. For each situation chosen, answer any two of its three questions. Give answers with logical reasons.",
+          "question": "Sara mixed a spoonful of plain yoghurt into warm milk and kept it in a warm place for two days. At the same time, she placed a piece of bread and a piece of fruit in two separate open jars and left them on a shelf for a week.",
+          "questions": [
+            "a) Why did the milk change into yoghurt after being left in a warm place with the added yoghurt?",
+            "b) What changes would Sara most likely observe on the bread and fruit after a week, and why?",
+            "c) If Sara had kept the milk in the fridge instead of a warm place, would it still turn into yoghurt? Why or why not?"
+          ],
+          "marks": 5,
+          "lines": 0,
+          "answer": "a) The bacteria from the added yoghurt feed on the sugars in warm milk and produce lactic acid, which turns the milk into yoghurt. b) Mould (a fungus) would likely grow on the bread and fruit, causing them to decompose, because microorganisms break down organic matter over time. c) No, because bacteria grow and multiply best in warm conditions; the cold would slow down or stop their activity.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correct reasoning for the first chosen question explaining the role of bacteria in fermentation",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "Correct reasoning for the second chosen question explaining decomposition by fungi/microorganisms",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "Correct use of scientific terms such as 'fermentation', 'bacteria' or 'decomposition'",
+                "marks": 1,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Any two of the three sub-answers reasoned logically using the concepts of ferme…"
+            ],
+            "common_error": "Child thinks the milk changes on its own without connecting the role of the added bacteria",
+            "checked": null
+          }
+        },
+        {
+          "slot": "science.B.Q2b",
+          "main_question": "Read each situation and attempt ANY TWO of the three situations below. For each situation chosen, answer any two of its three questions. Give answers with logical reasons.",
+          "question": "Hassan left one iron nail outside in the rain for several days and kept another iron nail of the same type in a dry box indoors. After a week, he compared both nails.",
+          "questions": [
+            "a) What difference would Hassan most likely notice between the two nails?",
+            "b) Why did the nail left outside change while the other one did not?",
+            "c) What could Hassan do to protect iron objects from this kind of change?"
+          ],
+          "marks": 5,
+          "lines": 0,
+          "answer": "a) The nail left outside would turn reddish-brown and rough (rusted), while the dry one would stay shiny and unchanged. b) The outdoor nail was exposed to both water and air, which causes iron to rust, while the indoor nail was kept dry and away from moisture. c) He could paint, oil, or coat the iron with a protective layer, or keep it away from water and moisture.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correct reasoning for the first chosen question identifying the visible change (rusting)",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "Correct reasoning for the second chosen question linking rusting to presence of water and air",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "Correct use of scientific term 'rust' or 'rusting'",
+                "marks": 1,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Any two of the three sub-answers reasoned logically using the cause of rusting…"
+            ],
+            "common_error": "Child says the nail changed only because of dirt, without connecting it to water and air causing rust",
+            "checked": null
+          }
+        }
+      ],
+      "Brief Answers": [
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "Define microorganisms and name the three main groups mentioned in the text.",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Microorganisms are tiny living organisms that can only be seen under a microscope. The three main groups are bacteria, viruses, and fungi.",
+          "blooms": "Remember",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Definition of microorganisms",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Names bacteria",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "Names viruses",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "Names fungi",
+                "marks": 1,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Any valid definition matching the text and all three groups"
+            ],
+            "common_error": "Missing one of the three groups",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "Explain the difference between contagious and non-contagious diseases, giving one example of each.",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Contagious diseases spread from one person to another (e.g., flu, COVID-19), while non-contagious diseases are caused by factors like genetics or nutrition and do not spread between people (e.g., cancer, diabetes).",
+          "blooms": "Understand",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Difference explained correctly",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "One example of contagious disease",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "One example of non-contagious disease",
+                "marks": 1,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Any valid examples from the text such as polio, cholera, malaria, chickenpox, m…"
+            ],
+            "common_error": "Confusing the examples of contagious and non-contagious diseases",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "If a person with a viral infection sneezes without covering their mouth, how might this affect the people around them?",
+          "marks": 5,
+          "lines": 0,
+          "answer": "When an infected person sneezes, the virus spreads through airborne droplets. These germs enter the air and can be breathed in by people around them, making them sick.",
+          "blooms": "Apply",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Mentions spreading through airborne droplets",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Explains that others breathe it in and get sick",
+                "marks": 2,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Similar explanations involving germs travelling in the air and infecting health…"
+            ],
+            "common_error": "Stating they get sick without explaining the airborne droplet mechanism",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "What is decomposition and which microorganisms primarily carry it out?",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Decomposition is the natural process of breaking down dead organic matter into fertile soil. It is primarily carried out by microorganisms like bacteria and fungi.",
+          "blooms": "Remember",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Correct definition of decomposition",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Identifies bacteria and fungi",
+                "marks": 2,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Turning waste/dead plants into nutrient-rich soil"
+            ],
+            "common_error": "Failing to mention both dead organic matter and fertile soil",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "Why do we need to add a small amount of yoghurt to warm milk to make more yoghurt?",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Yoghurt contains millions of live, good bacteria. When added to milk, these bacteria feed on the sugars in the milk, producing lactic acid and changing the milk into yoghurt through fermentation.",
+          "blooms": "Understand",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Mentions yoghurt has live/good bacteria",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Explains bacteria feed on sugar/produce lactic acid to thicken milk",
+                "marks": 3,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Answers mentioning fermentation and the role of bacteria turning milk to curd"
+            ],
+            "common_error": "Saying 'to give it flavour' without mentioning bacteria",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "You notice a green, fuzzy patch growing on an old piece of bread. Identify the type of microorganism and explain what it is doing to the bread.",
+          "marks": 5,
+          "lines": 0,
+          "answer": "The green fuzzy patch is mould, which is a type of fungus. It is growing there to break down the organic matter of the bread for food, causing decomposition.",
+          "blooms": "Apply",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Identifies the microorganism as fungi/mould",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Explains it is breaking down organic matter/feeding on the bread",
+                "marks": 3,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Mentions decomposition of the bread"
+            ],
+            "common_error": "Identifying it as bacteria instead of fungi/mould",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "How do vaccines work in our body to protect us from diseases like COVID-19 or Polio?",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Vaccines introduce a safe component of a disease-causing microorganism into the body. This teaches the immune system to recognize and fight the real pathogen if exposed to it in the future, without causing the actual illness.",
+          "blooms": "Understand",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Mentions introducing a safe component of the microorganism",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Explains it teaches the immune system to recognize and combat the disease",
+                "marks": 3,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Answers mentioning preparing the immune system to fight germs"
+            ],
+            "common_error": "Stating that vaccines are medicines that cure the disease after you get it",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "Name any two scientists mentioned in the text and state one major discovery for each.",
+          "marks": 5,
+          "lines": 0,
+          "answer": "1. Louis Pasteur developed pasteurization to stop milk from going sour. 2. Alexander Fleming discovered penicillin, the world's first antibiotic.",
+          "blooms": "Remember",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Name of first scientist",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "Discovery of first scientist",
+                "marks": 1.5,
+                "kind": "K"
+              },
+              {
+                "text": "Name of second scientist",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "Discovery of second scientist",
+                "marks": 1.5,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Selman Waksman and the discovery of streptomycin for tuberculosis"
+            ],
+            "common_error": "Mixing up the scientists and their discoveries",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "If a child gets a bacterial infection, what are two possible ways the bacteria could have entered their body?",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Bacteria can enter the body through cuts on the skin, by eating contaminated food, or through close contact with someone who is already sick.",
+          "blooms": "Apply",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "First valid method of entry (e.g., cuts/wounds)",
+                "marks": 2.5,
+                "kind": "K"
+              },
+              {
+                "text": "Second valid method of entry (e.g., contaminated food/close contact)",
+                "marks": 2.5,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Sharing drinks, airborne droplets if applicable to the bacteria"
+            ],
+            "common_error": "Listing symptoms instead of methods of entry",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions briefly. (Attempt any 8)",
+          "question": "Describe how the fungus known as yeast is helpful in making bread.",
+          "marks": 5,
+          "lines": 0,
+          "answer": "Yeast helps bread to rise and become fluffy. During fermentation, the yeast produces carbon dioxide gas, which gets trapped in the dough and makes it expand.",
+          "blooms": "Understand",
+          "slot": "science.C.Q3a",
+          "scheme": {
+            "points": [
+              {
+                "text": "Mentions yeast causes fermentation",
+                "marks": 2.5,
+                "kind": "K"
+              },
+              {
+                "text": "Explains it produces carbon dioxide/gas making the bread rise and become fluffy",
+                "marks": 2.5,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Answers describing yeast converting sugars into gases"
+            ],
+            "common_error": "Saying yeast makes the bread taste sweet",
+            "checked": null
+          }
+        }
+      ],
+      "Long Question": [
+        {
+          "main_question": "Answer the following questions in detail. (Attempt any 2)",
+          "question": "Imagine your school wants to prevent a contagious viral outbreak like the flu or COVID-19. Describe a detailed action plan including at least three preventive measures and explain why each measure is effective.",
+          "marks": 9,
+          "lines": 0,
+          "answer": "To prevent a viral outbreak, the school should implement three main measures. First, enforce regular handwashing with soap and water; this is effective because it removes and kills germs that transfer from touching contaminated surfaces. Second, require wearing masks; this blocks airborne droplets from sneezing or coughing, stopping the virus from entering the air. Third, maintain social distancing and avoid casual contact like handshakes; this prevents the virus from spreading through direct human contact.",
+          "blooms": "Apply",
+          "slot": "science.C.Q3b",
+          "scheme": {
+            "points": [
+              {
+                "text": "First preventive measure and why it is effective",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Second preventive measure and why it is effective",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Third preventive measure and why it is effective",
+                "marks": 3,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Using sanitisers, vaccination drives, isolating sick students, with correct sci…"
+            ],
+            "common_error": "Listing measures without explaining why they work",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions in detail. (Attempt any 2)",
+          "question": "Microorganisms are often thought of as harmful, but many are highly beneficial. Discuss the beneficial roles of microorganisms in both the food industry and the environment, providing specific examples for each.",
+          "marks": 9,
+          "lines": 0,
+          "answer": "Microorganisms play a crucial role in our daily lives. In the food industry, friendly bacteria are used to ferment milk, which creates yoghurt and cheese. Another example is yeast, a fungus that ferments sugar to produce carbon dioxide, making bread fluffy. In the environment, microorganisms like bacteria and fungi are nature's recyclers. They carry out decomposition by breaking down dead plants and leaves. This turns waste into nutrient-rich soil, which is essential for new plants to grow.",
+          "blooms": "Understand",
+          "slot": "science.C.Q3b",
+          "scheme": {
+            "points": [
+              {
+                "text": "Explains role in food industry with an example (e.g., bacteria for yoghurt/cheese or yeast for bread)",
+                "marks": 4.5,
+                "kind": "K"
+              },
+              {
+                "text": "Explains role in the environment with an example (e.g., decomposition of dead matter into soil)",
+                "marks": 4.5,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Mentions of phytoplankton producing oxygen, or fungi making antibiotics"
+            ],
+            "common_error": "Focusing only on food or only on the environment",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions in detail. (Attempt any 2)",
+          "question": "A farmer notices that dead leaves and plants in his field eventually disappear and turn into rich soil. Explain the scientific process happening here. Identify the microorganisms responsible and discuss what would happen to the earth if this process stopped.",
+          "marks": 9,
+          "lines": 0,
+          "answer": "The scientific process happening in the farmer's field is called decomposition. It is the natural breaking down of dead organic matter. Microorganisms, primarily bacteria and fungi, are responsible for this process. They feed on the dead leaves and plants, turning them into fertile, nutrient-rich soil. If this process stopped, dead material and waste would pile up everywhere. Furthermore, the soil would lose its nutrients, making it impossible for new plants to grow, which would disrupt the entire ecosystem.",
+          "blooms": "Apply",
+          "slot": "science.C.Q3b",
+          "scheme": {
+            "points": [
+              {
+                "text": "Identifies the process as decomposition",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Identifies bacteria and fungi as the responsible microorganisms",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Explains that it turns dead matter into nutrient-rich soil",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Discusses the consequences if it stopped (waste piles up, no new plant growth)",
+                "marks": 3,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Any scientifically accurate description of the decay cycle and its importance"
+            ],
+            "common_error": "Failing to explain the consequences of decomposition stopping",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions in detail. (Attempt any 2)",
+          "question": "Compare and contrast bacteria and viruses based on the text. Discuss their size differences, how they survive or grow, and give two examples of diseases caused by each.",
+          "marks": 9,
+          "lines": 0,
+          "answer": "Bacteria and viruses are both tiny microorganisms, but they have major differences. Viruses are much smaller than bacteria. For survival and growth, viruses must live inside the cells of other living hosts, whereas bacteria are single-celled organisms that can live almost anywhere, including in soil, water, and inside our bodies. Two examples of diseases caused by bacteria are food poisoning and sore throat. Two examples of diseases caused by viruses are influenza (flu) and COVID-19.",
+          "blooms": "Understand",
+          "slot": "science.C.Q3b",
+          "scheme": {
+            "points": [
+              {
+                "text": "States viruses are smaller than bacteria",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Explains survival differences (viruses need a host cell, bacteria can live independently)",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Provides two examples of bacterial diseases",
+                "marks": 2,
+                "kind": "K"
+              },
+              {
+                "text": "Provides two examples of viral diseases",
+                "marks": 2,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Hepatitis, polio, common cold for viruses; cholera for bacteria"
+            ],
+            "common_error": "Swapping the diseases caused by bacteria with those caused by viruses",
+            "checked": null
+          }
+        },
+        {
+          "main_question": "Answer the following questions in detail. (Attempt any 2)",
+          "question": "Explain the concept of vaccination. How do vaccines prepare the body's immune system, and why is it important for controlling outbreaks of contagious diseases like Polio and COVID-19?",
+          "marks": 9,
+          "lines": 0,
+          "answer": "Vaccination is a method to protect individuals from contagious diseases without them having to get sick first. Vaccines work by introducing a safe, harmless component of a disease-causing microorganism into the body. This trains the body's immune system to recognize and fight the real pathogen effectively if it ever enters the body in the future. This is crucial for controlling outbreaks of diseases like Polio and COVID-19 because when many people are vaccinated, the disease cannot spread easily from person to person, protecting the whole community.",
+          "blooms": "Apply",
+          "slot": "science.C.Q3b",
+          "scheme": {
+            "points": [
+              {
+                "text": "Explains vaccines prepare the immune system without causing illness",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Explains the mechanism (introducing a safe component to teach recognition)",
+                "marks": 3,
+                "kind": "K"
+              },
+              {
+                "text": "Explains importance in controlling outbreaks (stops person-to-person spread)",
+                "marks": 3,
+                "kind": "K"
+              }
+            ],
+            "accept": [
+              "Descriptions using the 'Vaccine Shield' concept of community protection"
+            ],
+            "common_error": "Stating that vaccines kill the virus after a person is already severely sick",
+            "checked": null
+          }
+        }
+      ]
+    }
+  },
+  "_layout": {
+    "v": 2,
+    "preset_id": "fde_g5_2027",
+    "subject": "science",
+    "medium": "en",
+    "scope": {
+      "kind": "chapters",
+      "chapters": [
+        2
+      ],
+      "pages": null,
+      "label_en": "FDE syllabus 2026–27",
+      "label_ur": "FDE نصاب 2026–27",
+      "line_en": "Chapters 1–6 · Ch 7 diagrams",
+      "line_ur": "ابواب 1–6 · باب 7 کے خاکے",
+      "covers_en": "Covers Chapters 2; every section set from these units.",
+      "covers_ur": "احاطہ: ابواب 2؛ ہر حصہ انہی ابواب سے۔"
+    },
+    "header": {
+      "school_line_en": "School: ____________",
+      "disclaimer_en": "Practice paper in the FDE Grade V Centralised Annual Examination pattern (Feb 2027). Not an official FDE paper.",
+      "student_box_en": [
+        "Student Name",
+        "Roll No",
+        "Date",
+        "Total Marks",
+        "Obtained Marks"
+      ],
+      "footer_en": "Not an official FDE paper",
+      "footer_page_en": "Page {n} of {N}",
+      "scheme_title_en": "MARKING SCHEME",
+      "band_en": "TEACHER'S COPY · Do not give to children",
+      "covers_en": "Covers: {scope}. Not an official FDE paper.",
+      "covers_partial_en": "Covers {units}; every section set from these units.",
+      "record_title_en": "Class record",
+      "record_cols_en": [
+        "Roll",
+        "Name"
+      ],
+      "record_total_en": "Total",
+      "record_grade_en": "Grade",
+      "checked_en": "✓ checked",
+      "notes_title_en": "Notes",
+      "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+      "accept_en": "accept:",
+      "common_error_en": "common error:",
+      "answer_sheet_en": "answer sheet",
+      "or_en": "OR",
+      "school_line_ur": "اسکول: ____________",
+      "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+      "student_box_ur": [
+        "نام طالب علم",
+        "رول نمبر",
+        "تاریخ",
+        "کل نمبر",
+        "حاصل کردہ نمبر"
+      ],
+      "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+      "footer_page_ur": "صفحہ {n} از {N}",
+      "scheme_title_ur": "مارکنگ اسکیم",
+      "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+      "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+      "covers_partial_ur": "احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔",
+      "record_title_ur": "کلاس ریکارڈ",
+      "record_cols_ur": [
+        "رول نمبر",
+        "نام"
+      ],
+      "record_total_ur": "کل",
+      "record_grade_ur": "گریڈ",
+      "checked_ur": "✓ جانچا گیا",
+      "notes_title_ur": "نوٹ",
+      "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+      "accept_ur": "یہ بھی درست:",
+      "common_error_ur": "عام غلطی:",
+      "answer_sheet_ur": "جوابی کاپی",
+      "or_ur": "یا",
+      "title_en": "Grade 5 · Science · FDE pattern practice paper",
+      "title_ur": "جماعت پنجم · سائنس · FDE pattern کا مشقی پرچہ",
+      "time_line_en": "Time Allowed: 3 Hours",
+      "total_line_en": "Total Marks: {t:100}",
+      "note_en": "Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B&C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed."
+    },
+    "sections": [
+      {
+        "id": "A",
+        "time_en": "Time Allowed: 30 minutes",
+        "label_en": "Section A",
+        "marks_en": "Total Marks: {t:25}",
+        "marks": 25,
+        "answer_on": "question_paper",
+        "note_en": null,
+        "slots": [
+          {
+            "slot": "science.A.Q1a",
+            "label_en": "Q1 (a):",
+            "label_ur": "سوال 1 (الف)",
+            "instruction_en": "Encircle the correct answer.",
+            "marks_line_en": "(1×{n:20}={t:20})",
+            "type": "MCQs",
+            "category": "objective",
+            "shape": "mcq",
+            "generate": 20,
+            "attempt": 20,
+            "marks_each": 1,
+            "parts": null,
+            "numbering": "roman",
+            "option_labels": "a",
+            "compulsory": true,
+            "lines": 0,
+            "work_mm": null,
+            "section_pages": "scope",
+            "grain": {
+              "kind": "one concept per item across chapters 1–6: body systems, diseases, food chains, pollution, physical and chemical change, light, sound, magnets, circuits",
+              "number_size": "none",
+              "steps": 1,
+              "unit_choice": false
+            },
+            "families": null,
+            "kinds": null,
+            "prompt_rule": "Twenty four-option MCQs from chapters 1–6 only (Skill Sharpener and Mastery Challenge included); 3 to 5 of them pure recall. Never set an item on chapter 7 here. Detailed respiratory (alveoli) or circulatory (chambers, valves) knowledge is not required.",
+            "frame": null,
+            "teacher_note_en": null,
+            "teacher_note_ur": null,
+            "alternatives": null,
+            "or": false
+          },
+          {
+            "slot": "science.A.Q1b",
+            "label_en": "Q1 (b):",
+            "label_ur": "سوال 1 (ب)",
+            "instruction_en": "Label the given Diagram",
+            "marks_line_en": "({t:5} Marks)",
+            "type": "Label the Diagram",
+            "category": "subjective",
+            "shape": "frame",
+            "generate": 1,
+            "attempt": 1,
+            "marks_each": 5,
+            "parts": null,
+            "numbering": "none",
+            "compulsory": true,
+            "lines": 0,
+            "work_mm": null,
+            "section_pages": "scope",
+            "grain": {
+              "kind": "label an unlabelled book diagram with 5 parts (chapters 1–7)",
+              "number_size": "none",
+              "steps": 1,
+              "unit_choice": false
+            },
+            "families": null,
+            "kinds": null,
+            "prompt_rule": "One item: `question` is the NAME of a diagram printed in the book (e.g. \"Layers of the Earth\"), `book_page` the book page it is on, `answer` the five labels in order. The paper prints an empty frame with five label lines; the teacher draws or pastes the diagram. Never describe the picture and never send the child to a picture.",
+            "frame": {
+              "kind": "diagram",
+              "height_mm": 70,
+              "lines": 5,
+              "book_page": 168,
+              "word_bank": false,
+              "title_en": "Diagram: {q} (drawn on the board or pasted)",
+              "title_ur": "خاکہ: {q} (بورڈ پر بنائیں یا چسپاں کریں)",
+              "supply_en": "Diagram: {q}",
+              "supply_ur": "خاکہ: {q}",
+              "duty_en": "the diagram to label",
+              "duty_ur": "نشان دہی والا خاکہ"
+            },
+            "teacher_note_en": "Draw this diagram on the board or paste the book's figure into the frame before photocopying.",
+            "teacher_note_ur": "فوٹو کاپی سے پہلے یہ خاکہ بورڈ پر بنائیں یا کتاب سے چسپاں کریں۔",
+            "alternatives": null,
+            "or": false
+          }
+        ]
+      },
+      {
+        "id": "B",
+        "time_en": "Time Allowed: 2 hrs. 30 min",
+        "label_en": "Section B",
+        "marks_en": "Total Marks: {t:17}",
+        "marks": 17,
+        "answer_on": "answer_sheet",
+        "note_en": "NOTE: Section B consists of 2 parts (a) and (b)",
+        "slots": [
+          {
+            "slot": "science.B.Q2a",
+            "label_en": "Q2 (a)",
+            "label_ur": "سوال 2 (الف)",
+            "instruction_en": "Draw and label any {w:one} of the following:",
+            "marks_line_en": "({t:7} Marks)",
+            "type": "Draw and Label",
+            "category": "subjective",
+            "shape": "draw",
+            "generate": 2,
+            "attempt": 1,
+            "marks_each": 7,
+            "parts": null,
+            "numbering": "paren_roman",
+            "compulsory": false,
+            "lines": 0,
+            "work_mm": null,
+            "section_pages": "scope",
+            "grain": {
+              "kind": "name a body or ecology diagram the child can draw and label from the book",
+              "number_size": "none",
+              "steps": 1,
+              "unit_choice": false
+            },
+            "families": null,
+            "kinds": null,
+            "prompt_rule": "Two items, each just the name of a diagram the child draws and labels from chapters 1–7 (e.g. \"Respiratory System\", \"Food Chain\"). The scheme lists the labels expected (L points). Not the detailed alveoli or heart chambers.",
+            "frame": null,
+            "teacher_note_en": null,
+            "teacher_note_ur": null,
+            "alternatives": null,
+            "or": true
+          },
+          {
+            "slot": "science.B.Q2b",
+            "label_en": "Q2 (b)",
+            "label_ur": "سوال 2 (ب)",
+            "instruction_en": "Read and attempt any {w:TWO} of the following given situations carefully.",
+            "marks_line_en": "({n:2} × 5 = {t:10})",
+            "type": "Logical Reasoning",
+            "category": "subjective",
+            "shape": "situation",
+            "generate": 3,
+            "attempt": 2,
+            "marks_each": 5,
+            "parts": null,
+            "item_parts": {
+              "per_item": 3,
+              "attempt": 2,
+              "marks_each": 2.5,
+              "line_en": "Answer any two of the given questions.",
+              "marks_line_en": "(2 × 2.5 = 5)"
+            },
+            "numbering": "paren_roman",
+            "compulsory": false,
+            "lines": 0,
+            "work_mm": null,
+            "section_pages": "scope",
+            "grain": {
+              "kind": "an activity situation in words, then three sub-questions (a, b, c), answer any two",
+              "number_size": "none",
+              "steps": 1,
+              "unit_choice": false
+            },
+            "families": null,
+            "kinds": null,
+            "prompt_rule": "Three situations, each from a different one of these book activities only: textures and sounds; spreading diseases; microorganisms at work; how pollution affects our world; solubility and state changes; rusting; physical vs chemical change; shadow and transparency; magnets. Each item: `question` = the situation in words (what the child does and sees), `questions` = three sub-questions a, b, c. Never refer to a picture.",
+            "frame": null,
+            "teacher_note_en": null,
+            "teacher_note_ur": null,
+            "alternatives": null,
+            "or": false
+          }
+        ]
+      },
+      {
+        "id": "C",
+        "time_en": null,
+        "label_en": "Section C",
+        "marks_en": "Total Marks: {t:58}",
+        "marks": 58,
+        "answer_on": "answer_sheet",
+        "note_en": "Note: Section C consists of two parts: Q3 (a) and Q3 (b)",
+        "slots": [
+          {
+            "slot": "science.C.Q3a",
+            "label_en": "Q3 (a).",
+            "label_ur": "سوال 3 (الف)",
+            "instruction_en": "Answer any {w:eight} of the following questions briefly.",
+            "marks_line_en": "({n:8}×5={t:40})",
+            "type": "Brief Answers",
+            "category": "subjective",
+            "shape": "short",
+            "generate": 10,
+            "attempt": 8,
+            "marks_each": 5,
+            "parts": null,
+            "numbering": "arabic",
+            "compulsory": false,
+            "lines": 0,
+            "work_mm": null,
+            "section_pages": "scope",
+            "grain": {
+              "kind": "short constructed response, 1 to 3 sentences, recall or explain",
+              "number_size": "none",
+              "steps": 1,
+              "unit_choice": false
+            },
+            "families": null,
+            "kinds": null,
+            "prompt_rule": "Ten short-answer questions from chapters 1–6, one or two per chapter. Key points (K) that add to 5 marks each.",
+            "frame": null,
+            "teacher_note_en": null,
+            "teacher_note_ur": null,
+            "alternatives": null,
+            "or": false
+          },
+          {
+            "slot": "science.C.Q3b",
+            "label_en": "Q3 (b).",
+            "label_ur": "سوال 3 (ب)",
+            "instruction_en": "Answer any {w:two} of the following questions comprehensively.",
+            "marks_line_en": "({n:2} × 9 = {t:18})",
+            "type": "Long Question",
+            "category": "subjective",
+            "shape": "short",
+            "generate": 5,
+            "attempt": 2,
+            "marks_each": 9,
+            "parts": null,
+            "numbering": "arabic",
+            "compulsory": false,
+            "lines": 0,
+            "work_mm": null,
+            "section_pages": "scope",
+            "grain": {
+              "kind": "extended response: explain a process or relationship in a paragraph",
+              "number_size": "none",
+              "steps": 3,
+              "unit_choice": false
+            },
+            "families": null,
+            "kinds": null,
+            "prompt_rule": "Five explain/discuss questions from chapters 1–6 needing a 6–10 sentence answer; the scheme lists the key points (K) a full answer contains, adding to 9.",
+            "frame": null,
+            "teacher_note_en": null,
+            "teacher_note_ur": null,
+            "alternatives": null,
+            "or": false
+          }
+        ]
+      }
+    ],
+    "legend": {
+      "title_en": "How to mark",
+      "title_ur": "جانچنے کا طریقہ",
+      "lines_en": [
+        "MCQs: 1 mark for the letter. Two circles or an overwritten answer = 0.",
+        "M = method · A = answer · U = unit · K = key point · L = label.",
+        "A correct answer with no working earns the A mark(s) only (Q1(b): both marks).",
+        "A method step with an arithmetic slip keeps half its M marks (round down) if the method is right; later steps that use the slipped number correctly earn full marks, including the final A.",
+        "\"Attempt any N\": tell children to answer exactly N. If more are answered, mark all and keep the best N.",
+        "Grades (FDE p.115): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%."
+      ],
+      "lines_ur": [
+        "معروضی: درست حرف پر 1 نمبر۔ دو دائرے یا اوور رائٹنگ = 0۔",
+        "M = طریقہ، A = جواب، U = اکائی، K = اہم نکتہ، L = نام",
+        "بغیر طریقے کے درست جواب پر صرف A نمبر۔",
+        "طریقہ درست ہو اور حساب میں چوک ہو تو اس مرحلے کے آدھے M نمبر (کم کی طرف)؛ بعد کے مراحل میں اسی غلط عدد پر درست کام ہو تو پورے نمبر، آخری A سمیت۔",
+        "«کوئی سے N»: بچوں کو بالکل N سوال حل کرنے کو کہیں۔ زیادہ حل ہوں تو سب جانچ کر بہترین N رکھیں۔",
+        "A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F <40"
+      ],
+      "bands_line": 5,
+      "bands_lead_ur": "گریڈ (FDE ص 115)؛ پاس = 40٪"
+    },
+    "before_exam": {
+      "title_en": "Teacher: before the exam",
+      "title_ur": "استاد کے لیے: امتحان سے پہلے",
+      "lines_en": [
+        "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+        "Photocopy the question paper, all {n} pages, one per child.",
+        "You add: {duty} on the question paper, page {p} (book p. {b}).",
+        "Tell the class: {sections}; {attempts}.",
+        "Time: {t}.",
+        "Mark question by question across all copies, not copy by copy."
+      ],
+      "lines_ur": [
+        "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+        "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+        "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+        "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+        "وقت: {t}۔",
+        "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+      ],
+      "nothing_en": "You add: nothing.",
+      "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+      "unknown_pages_en": "see the question paper",
+      "unknown_pages_ur": "سوالیہ پرچہ دیکھیں",
+      "on_paper_en": "{sections} on the question paper",
+      "on_paper_ur": "{sections} سوالیہ پرچے پر",
+      "on_sheet_en": "{sections} on the answer sheet",
+      "on_sheet_ur": "{sections} جوابی کاپی پر",
+      "attempt_en": "{label}: attempt any {n} of {g}",
+      "attempt_ur": "{label}: {g} میں سے کوئی سے {n}"
+    },
+    "supplies": [
+      {
+        "slot": "science.A.Q1b",
+        "kind": "diagram",
+        "book_page": 58,
+        "scene": "Life Cycle of Dead Plants (Decomposition Cycle)",
+        "words": [],
+        "line_en": "Q1 (b): Diagram: Life Cycle of Dead Plants (Decomposition Cycle) (book p. 58)",
+        "line_ur": "سوال 1 (ب): خاکہ: Life Cycle of Dead Plants (Decomposition Cycle) (کتاب ص 58)"
+      }
+    ],
+    "total_marks": 100,
+    "total_time_en": "3 hrs",
+    "total_time_ur": "3 گھنٹے",
+    "unplaced": 0,
+    "generated_at": "2026-10-15T15:28:51.814Z",
+    "pages": {
+      "paper": 4,
+      "scheme": 6
+    },
+    "frame_pages": {
+      "science.A.Q1b": 3
+    },
+    "notes": []
+  }
+}

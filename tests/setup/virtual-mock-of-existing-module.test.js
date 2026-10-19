@@ -9,8 +9,9 @@
  * Scans every `jest.mock(<relative path>, …, { virtual: true })` under bot/tests, dashboard/tests and tests, resolves
  * the path against the test file, and fails when `<path>`, `<path>.js`, `<path>.json` or `<path>/index.js` exists.
  * The suites that held such mocks before this gate are in virtual-mock-of-existing-module.allowlist.json as hit counts
- * per DIRECTORY (so the list names no test file); it only shrinks: a new directory or a higher count fails, and a
- * lower count fails until the entry is lowered (or removed at 0).
+ * per DIRECTORY (so the list names no test file); it only shrinks: a new directory or a higher count fails; a lower
+ * count, or a listed directory not in the tree, prints a DOWN:/CLEAN:/GONE: warning and passes (the entry is lowered
+ * on the branch that owns the list).
  *
  * `jest.doMock(<relative path>, …, { virtual: true })` is the same hazard inside a test body, so it is scanned too
  * (the spec a literal, or a const string the file binds, e.g. `jest.doMock(ID_FLAGS, …)`), with one exception:
@@ -21,7 +22,8 @@
 const fs = require('fs');
 const path = require('path');
 const { doMock: ALLOW_DO_MOCK = {}, ...ALLOW } = require('./virtual-mock-of-existing-module.allowlist.json');
-const { virtualDoMocksOfExisting, testFiles, byDir, countRatchet } = require('./test-seam-gates-lib');
+const { virtualDoMocksOfExisting, testFiles, byDir } = require('./test-seam-gates-lib');
+const { countVerdict, report } = require('./ratchet-verdict-lib');
 
 const REPO = path.resolve(__dirname, '../..');
 const ROOTS = ['bot/tests', 'dashboard/tests', 'tests'];
@@ -79,16 +81,11 @@ function scan() {
   return byDir;
 }
 
-function problems(hits, allow) {
-  const out = [];
-  for (const dir of [...new Set([...Object.keys(hits), ...Object.keys(allow)])].sort()) {
-    const now = hits[dir] || 0;
-    const ok = Object.prototype.hasOwnProperty.call(allow, dir) ? allow[dir] : null;
-    if (ok === null) out.push(`NEW: ${dir} has ${now} virtual mock(s) of a module that exists. Drop { virtual: true }.`);
-    else if (now > ok) out.push(`UP: ${dir} has ${now}, the allowlist allows ${ok}. Drop { virtual: true } on the new one.`);
-    else if (now < ok) out.push(now === 0 ? `CLEAN: ${dir} has none now. Remove its entry from the allowlist.` : `DOWN: ${dir} has ${now}, the allowlist says ${ok}. Lower it to ${now}.`);
-  }
-  return out;
+const dirExists = (dir) => fs.existsSync(path.join(REPO, dir));
+
+/** The shrink-only verdict: { failures (new, up), warnings (down, clean, gone) }. */
+function problems(hits, allow, exists = dirExists, what = 'virtual mock(s) of a module that exists. Drop { virtual: true }') {
+  return countVerdict(hits, allow, { what, list: 'virtual-mock-of-existing-module.allowlist.json', exists });
 }
 
 describe('the rule, on in-memory sources', () => {
@@ -112,12 +109,22 @@ describe('the rule, on in-memory sources', () => {
     expect(virtualOfExisting(FILE, src, here(new Set(['bot/shared/a', 'bot/shared/b'])))).toEqual(['../../shared/b']);
   });
 
-  test('the shrink-only check: new, up, down and clean all fail; equal passes', () => {
-    expect(problems({ a: 1 }, { a: 1 })).toEqual([]);
-    expect(problems({ b: 1 }, {})[0]).toMatch(/^NEW: b/);
-    expect(problems({ a: 2 }, { a: 1 })[0]).toMatch(/^UP: a/);
-    expect(problems({ a: 1 }, { a: 2 })[0]).toMatch(/^DOWN: a .* Lower it to 1/);
-    expect(problems({}, { a: 2 })[0]).toMatch(/^CLEAN: a/);
+  test('the shrink-only check: new and up fail; equal passes', () => {
+    expect(problems({ a: 1 }, { a: 1 })).toEqual({ failures: [], warnings: [] });
+    expect(problems({ b: 1 }, {}).failures[0]).toMatch(/^NEW: b/);
+    expect(problems({ a: 2 }, { a: 1 }).failures[0]).toMatch(/^UP: a/);
+  });
+
+  test('below the list, at 0, or absent from the tree: a warning, and the gate passes', () => {
+    expect(problems({ a: 1 }, { a: 2 }, () => true)).toEqual({ failures: [], warnings: [expect.stringMatching(/^DOWN: a .* Lower it to 1/)] });
+    expect(problems({}, { a: 2 }, () => true)).toEqual({ failures: [], warnings: [expect.stringMatching(/^CLEAN: a/)] });
+    expect(problems({}, { gone: 2 }, () => false)).toEqual({ failures: [], warnings: [expect.stringMatching(/^GONE: gone is not in this tree/)] });
+  });
+
+  test('a seeded tree: below and absent pass, above and new fail', () => {
+    const v = problems({ below: 1, above: 3, fresh: 2 }, { below: 2, above: 1, absent: 4 }, (d) => d !== 'absent');
+    expect(v.failures.map((l) => l.split(' ').slice(0, 2).join(' '))).toEqual(['UP: above', 'NEW: fresh']);
+    expect(v.warnings.map((l) => l.split(' ').slice(0, 2).join(' '))).toEqual(['GONE: absent', 'DOWN: below']);
   });
 });
 
@@ -150,11 +157,11 @@ describe('jest.doMock, on in-memory sources', () => {
 const scanDoMock = () => byDir(testFiles(ROOTS).map((file) => ({ file, n: virtualDoMocksOfExisting(file, fs.readFileSync(file, 'utf8')).length })));
 
 describe('the tree', () => {
-  test('no new virtual mock of a module that exists; the allowlist matches today exactly', () => {
-    expect(problems(scan(), ALLOW)).toEqual([]);
+  test('no new virtual mock of a module that exists; no directory above its entry (below or gone: a warning)', () => {
+    expect(report(problems(scan(), ALLOW))).toEqual([]);
   });
 
-  test('no new virtual doMock of a module that exists; the doMock section matches today exactly', () => {
-    expect(countRatchet(scanDoMock(), ALLOW_DO_MOCK, 'virtual jest.doMock(s) of a module that exists. Drop { virtual: true }')).toEqual([]);
+  test('no new virtual doMock of a module that exists; no directory above its doMock entry', () => {
+    expect(report(problems(scanDoMock(), ALLOW_DO_MOCK, dirExists, 'virtual jest.doMock(s) of a module that exists. Drop { virtual: true }'))).toEqual([]);
   });
 });

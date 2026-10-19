@@ -43,7 +43,6 @@
  * reads nothing and route() is a no-op.
  */
 
-const supabase = require('../config/supabase');
 const redisService = require('./cache/railway-redis.service');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
@@ -56,89 +55,9 @@ const QuizMenuFlags = require('./quiz/quiz-menu-flags');
 const VerdictCache = require('./student-ingress-cache');
 const { CACHE_KEY, CACHE_TTL_SECS } = VerdictCache;
 
-const IDENTITY_FIELDS = ['registration_completed', 'registration_state', 'name', 'teacher_uuid',
-  'school_id', 'portal_activated', 'role'];
-
-/** Any real sign that an ADULT registered or was rostered on this row. */
-function identity(user) {
-  if (!user) return false;
-  return Boolean(
-    user.registration_completed === true
-    || user.registration_state === 'completed'
-    || (typeof user.name === 'string' && user.name.trim())
-    || user.teacher_uuid
-    || user.school_id
-    || user.portal_activated === true
-    || user.role === 'coach' || user.role === 'principal',
-  );
-}
-
-/**
- * Does this user own a row in `table` under `column` (optionally with an extra
- * `.or()` filter)? Head count only. null means the read FAILED — never
- * collapsed into "no rows": that collapse is how a teacher becomes a child
- * during a database hiccup.
- */
-async function hasAnyRow(table, column, id, orFilter = null, eqs = null) {
-  try {
-    let q = supabase.from(table).select('*', { count: 'exact', head: true }).eq(column, id);
-    if (orFilter) q = q.or(orFilter);
-    if (eqs) Object.entries(eqs).forEach(([c, v]) => { q = q.eq(c, v); });
-    const { count, error } = await q;
-    if (error) {
-      logToFile('⚠️ student-ingress: activity lookup failed', { table, error: error.message });
-      return null;
-    }
-    return (count || 0) > 0;
-  } catch (err) {
-    logToFile('⚠️ student-ingress: activity lookup threw', { table, error: err.message });
-    return null;
-  }
-}
-
-/** Teacher activity on this user id. true / false / null (a read failed). */
-async function activity(userId) {
-  if (!userId) return false;
-  const checks = [
-    ['quizzes', 'teacher_id', null],
-    ['coaching_sessions', 'user_id', null],
-    ['lesson_plans', 'user_id', 'gamma_url.not.is.null,pdf_url.not.is.null'],
-    ['student_lists', 'user_id', null],
-    ['training_assessment_attempts', 'user_id', null],
-    ['assessment_requests', 'user_id', null],
-  ];
-  for (const [table, column, orFilter] of checks) {
-    const r = await hasAnyRow(table, column, userId, orFilter);
-    if (r === null) return null;
-    if (r) return true;
-  }
-  // family phone binding: a class teacher's own phone is a teacher's even with none of the signs above
-  if (await phoneBindOn()) {
-    const r = await hasAnyRow('class_teachers', 'teacher_user_id', userId, null, { is_active: true });
-    if (r === null) return null;
-    if (r) return true;
-  }
-  return false;
-}
-
-/**
- * The users row from getOrCreateUser may not carry every identity column; if
- * one is missing, read them once rather than guess "no identity".
- */
-async function withIdentityFields(user) {
-  if (!user || !user.id) return user;
-  const missing = IDENTITY_FIELDS.some((f) => !(f in user));
-  if (!missing) return user;
-  try {
-    const { data, error } = await supabase.from('users').select(IDENTITY_FIELDS.join(','))
-      .eq('id', user.id).maybeSingle();
-    if (error || !data) return null;            // unknown, towards teacher
-    return { ...user, ...data };
-  } catch (err) {
-    logToFile('⚠️ student-ingress: identity read threw', { error: err.message });
-    return null;
-  }
-}
+// identity() / activity() / withIdentityFields() live in a leaf module so the one door's role resolver can read the
+// same signs without requiring this file (no require cycle); re-exported below, byte-identical behaviour.
+const { IDENTITY_FIELDS, identity, activity, withIdentityFields } = require('./student-ingress-identity');
 
 const NONE = (mode, reason) => ({ persona: null, mode, reason, language: null, studentClass: null });
 
@@ -198,6 +117,25 @@ function guestAsksForQuiz(type, body) {
 }
 // ── end guest home ──
 
+// ── first touch (quiz_first_door; off → nothing here reads anything but the switch, which rides the identity flags) ──
+const FIRST_DOOR_REASON = 'first_door';
+const FIRST_DOOR_TTL_SECS = 60;   // the door's verdict never outlives a minute, as the guest's: a tap is honoured within one
+
+/**
+ * An unknown phone's quiz-shaped text (the same shape as the guest's, guestAsksForQuiz) with the first-touch door on →
+ * the door's verdict (the guest pattern's shape plus `door`); null for everything else, on any error, and when the
+ * switch is off = today's path. Runs after boundVerdict() and before guestVerdict(); a known phone never reaches it.
+ * The door module is required HERE, lazily: a module that throws at load costs exactly this branch, never the door
+ * every WhatsApp message passes through.
+ */
+async function doorVerdict({ user, phone, body }) {
+  try {
+    const FirstDoor = require('./first-touch/door.service');
+    return await FirstDoor.doorVerdict({ user, phone, body, quizShaped: guestAsksForQuiz('text', body) });
+  } catch (_) { return null; }
+}
+// ── end first touch ──
+
 /**
  * THE DECISION. Never throws. `persona` is 'student' only for a proven child;
  * every other outcome is null, which the caller treats as "today".
@@ -226,7 +164,7 @@ async function classify({ user, phone, body } = {}) {
         const students = await StudentMode.quizStudentsForPhone(phone);
         if (!students.length) {
           // family phone binding: a phone bound to a page child is that child's (read before an unknown is cached)
-          verdict = (await boundVerdict(phone)) || (await guestVerdict()) || NONE('unknown', 'no_student_row');
+          verdict = (await boundVerdict(phone)) || (await doorVerdict({ user: full, phone, body })) || (await guestVerdict()) || NONE('unknown', 'no_student_row');
         } else {
           const { language, studentClass } = await StudentMode.lastQuizSessionForStudents(students.map((s) => s.id));
           verdict = {
@@ -237,7 +175,7 @@ async function classify({ user, phone, body } = {}) {
         }
       }
     }
-    await VerdictCache.set(phone, verdict, verdict.reason === GUEST_REASON ? GUEST_TTL_SECS : undefined);
+    await VerdictCache.set(phone, verdict, verdict.reason === GUEST_REASON ? GUEST_TTL_SECS : (verdict.reason === FIRST_DOOR_REASON ? FIRST_DOOR_TTL_SECS : undefined));
     logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id, ...(await unknownPhoneKey(verdict, phone, body)) });
     return verdict;
   } catch (err) {
@@ -459,8 +397,11 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
       // "quiz" in any bare spelling is the child's /quiz, not a school
       // question for the tutor: 121 of 126 children who typed it in the two
       // weeks to 24 Sep 2026 got a chat answer instead of their quizzes.
-      if (!isCommand && QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(body)) {
+      // a shared card's words with its ref (web_quiz_share_v4 on) are the menu too; without a ref nothing is read
+      if (!isCommand && QuizMenuFlags.bareTextToMenu() && (isQuizMenuRequest(body) || await require('./quiz/web-quiz-share-open').refMenu(body))) {
         logEvent('quiz_menu.requested', { userId: user.id || null, route: 'child_quizzes', trigger: 'ingress' });
+        // the card's item is kept for this phone, so the home link this sends opens it
+        await require('./quiz/web-quiz-share-open').note(from, body);
         await openQuizzes(from, language);
         return true;
       }

@@ -32,6 +32,10 @@ const ORPHAN_JSON_ALLOWLIST = new Set([
   // what teachers were being served.
   'pakistan-lp-flow-v1.json',
   'pakistan-lp-flow-v2.json',
+  // registration-flow-v3.json is SUPERSEDED by registration-flow-v5.json, which the config now
+  // points at. Kept for the same reason: the endpoint still serves those screens to any
+  // environment whose published Flow has not been replaced yet.
+  'registration-flow-v3.json',
 ]);
 
 // *_FLOW_ID env vars the bot reads but for which NO Flow JSON ships yet, so they

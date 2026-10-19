@@ -147,14 +147,23 @@ describe('the account-name rules (dashboard/lib/analytics-account-name)', () => 
     for (const v of [['abc'], { a: 1 }, 923001234567, null, undefined]) expect(isAccountNameInput(v)).toBe(false);
   });
 
-  it('a name is trimmed and lower-cased, then held to ^[a-z][a-z0-9-]{2,39}$', () => {
+  it('a name is trimmed and lower-cased, then held to ^[a-z][a-z0-9_-]{2,39}$', () => {
     const { normaliseAccountName } = lib();
     expect(normaliseAccountName('  FDE-Islamabad ')).toBe('fde-islamabad');
     expect(normaliseAccountName('abc')).toBe('abc');
     expect(normaliseAccountName(`a${'b'.repeat(39)}`)).toHaveLength(40);
-    for (const bad of ['ab', `a${'b'.repeat(40)}`, '9fde', '-fde', 'fde islamabad', 'fde_islamabad', 'analytics:fde', 'fdé', '', null, ['fde']]) {
+    for (const bad of ['ab', `a${'b'.repeat(40)}`, '9fde', '-fde', '_fde', 'fde islamabad', 'analytics:fde', 'fdé', '', null, ['fde']]) {
       expect(normaliseAccountName(bad)).toBeNull();
     }
+  });
+
+  // The FDE's login on the ICT dashboard the portal replaces is fde_admin: the same name must work here.
+  it('a name may hold underscores, as the ICT dashboard logins did (fde_admin)', () => {
+    const { normaliseAccountName, isAccountNameInput } = lib();
+    expect(isAccountNameInput('fde_admin')).toBe(true);
+    expect(normaliseAccountName('fde_admin')).toBe('fde_admin');
+    expect(normaliseAccountName(' FDE_Admin ')).toBe('fde_admin');
+    expect(normaliseAccountName('aeo_sihala')).toBe('aeo_sihala');
   });
 
   // Every phone normaliser that reads a STORED value joins all its digits (scripts/backfill-school-id-from-roster.py,

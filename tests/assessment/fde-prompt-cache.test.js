@@ -7,7 +7,7 @@
  * differ, and they come after the book text. Sections run in parallel, and a cache entry is only
  * readable once the request that writes it has started answering, so sections sent together would
  * each write the prefix and none would read it. So one warm call (the same prefix, the same model and
- * effort, `max_tokens: 0`) goes first; the sections follow it. A maths paper's sections are set from
+ * effort, `max_tokens: 1`) goes first; the sections follow it. A maths paper's sections are set from
  * different pages, share no book block, and get no warm call. Off the direct lane nothing changes.
  *
  * This drives the REAL generator through the REAL model client and the real translation to
@@ -31,7 +31,7 @@ jest.mock('@anthropic-ai/sdk', () => function Anthropic() {
     messages: {
       create: async (body, options) => {
         mockState.sent.push({ body, options });
-        if (body.max_tokens === 0) {
+        if (body.max_tokens === 1) {
           mockState.events.push('warm-start');
           await new Promise((r) => setTimeout(r, 20));
           mockState.events.push('warm-end');
@@ -110,8 +110,8 @@ async function load(subject, { direct = true, warmFails = false } = {}) {
 }
 
 const logged = (line) => mockState.logs.filter(([l]) => l === line).map(([, d]) => d);
-const warms = () => mockState.sent.filter(({ body }) => body.max_tokens === 0);
-const sections = () => mockState.sent.filter(({ body }) => body.max_tokens !== 0);
+const warms = () => mockState.sent.filter(({ body }) => body.max_tokens === 1);
+const sections = () => mockState.sent.filter(({ body }) => body.max_tokens !== 1);
 const cachedPrefix = (body) => JSON.stringify([body.system, body.messages[0].content[0]]);
 
 test('(a) science on the direct lane: one warm call first, then the sections read the cache', async () => {

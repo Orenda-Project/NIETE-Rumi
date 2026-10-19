@@ -9,9 +9,9 @@
   "names": [
     "Omar"
   ],
-  "tokens": 65,
+  "tokens": 62,
   "sentences": 8,
-  "mean_sent_len": 8.1,
+  "mean_sent_len": 7.8,
   "max_word_len": 7,
   "readability": 1,
   "readability_list": "fed-cum-g5-2026",
@@ -20,7 +20,7 @@
   "licence": "generated",
   "title_en": "The Map on the Wall",
   "title_ur": null,
-  "text": "Omar wanted a book about the moon. The library had a lot of books. He looked on each table, but it was not there. He saw a small map on the wall. It showed a star beside the space books. Omar walked to the back of the library. The book was on a table near the door. Next time, he would read the map first.",
+  "text": "Omar wanted a book about the moon. The library had a lot of books. He looked, but it was not there. He saw a small map on the wall. It showed a star beside the space books. Omar walked to the back of the library. The book was on a table near the door. Next time, he would read the map first.",
   "lines": [
     [
       0,
@@ -32,27 +32,27 @@
     ],
     [
       14,
-      23
+      20
     ],
     [
-      24,
-      31
+      21,
+      28
     ],
     [
-      32,
-      39
+      29,
+      36
     ],
     [
-      40,
-      47
+      37,
+      44
     ],
     [
-      48,
-      56
+      45,
+      53
     ],
     [
-      57,
-      64
+      54,
+      61
     ]
   ],
   "tokens_list": [
@@ -72,9 +72,6 @@
     "books",
     "He",
     "looked",
-    "on",
-    "each",
-    "table",
     "but",
     "it",
     "was",
@@ -122,7 +119,7 @@
     "map",
     "first"
   ],
-  "text_hash": "f6e39b15c2477324470f188fc77b80df",
+  "text_hash": "ac754cdecc4960643ea49d2ce935e2d9",
   "q_reach_1": 2,
   "q_reach_2": 3,
   "q_n": 6,
@@ -263,5 +260,14 @@
     "reserve": false
   },
   "twin_of": null,
-  "bank_version": "child-test-items-v4"
+  "bank_version": "child-test-items-v4",
+  "changes": [
+    {
+      "at": "2026-10-16",
+      "field": "text",
+      "what": "sentence 3: 'He looked on each table, but it was not there.' -> 'He looked, but it was not there.'",
+      "why": "sentence 3 said he looked on every table while sentence 7 puts the book on a table; fixed before the passage's first exposure on any served tier",
+      "text_hash_before": "f6e39b15c2477324470f188fc77b80df"
+    }
+  ]
 }

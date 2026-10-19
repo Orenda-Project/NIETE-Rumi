@@ -81,7 +81,7 @@ describe('the minute itself', () => {
     await p.click('wqc-stuck');
     await p.flush();
     const res = p.fetches.find((f) => f.url === '/api/wq/ch/result');
-    expect(JSON.parse(res.init.body)).toMatchObject({ ct: 'CT1', ended: 'stuck', mic_check: 'pass' });
+    expect(JSON.parse(res.init.body)).toMatchObject({ ct: 'CT1', ended: 'stuck', mic_check: 'level_ok' });
     expect(JSON.parse(res.init.body).read_s).toBeGreaterThanOrEqual(0);
     expect(p.mic.closed).toBe(1);
   });
@@ -111,7 +111,7 @@ describe('the minute itself', () => {
     await p.runTimers((x) => x.ms === 10000);
     const res = p.fetches.find((f) => f.url === '/api/wq/ch/result');
     expect(res).toBeTruthy();
-    expect(JSON.parse(res.init.body)).toMatchObject({ ended: 'silent', mic_check: 'pass' });
+    expect(JSON.parse(res.init.body)).toMatchObject({ ended: 'silent', mic_check: 'level_ok' });
   });
 });
 

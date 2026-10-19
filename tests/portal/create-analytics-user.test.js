@@ -279,7 +279,7 @@ describe('run() with an account name', () => {
     expect(inv.generatePortalToken).not.toHaveBeenCalled();
   });
 
-  it.each(['ab', 'fde islamabad', '9fde', 'analytics:fde', 'fde_islamabad', '', 'fde-03001234567'])('refuses the name %p and writes nothing', async (bad) => {
+  it.each(['ab', 'fde islamabad', '9fde', 'analytics:fde', '_fde', '', 'fde-03001234567'])('refuses the name %p and writes nothing', async (bad) => {
     const sb = fakeSupabase({ flagValue: [] });
     await expect(run({ ...base, account: bad, supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
     expect(sb.writes).toEqual([]);

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 /**
  * Digital Coaching in the Assessment flow, on one screen (design v6):
@@ -45,6 +45,8 @@ import coachingRoutes from "./routes";
 import * as paths from "./paths";
 import { COACHING_ALL, COACHING_HOME } from "./paths";
 import { clearDraft } from "./draft";
+import { SendError } from "../../lib/coachingSend";
+import { DC_MIN_SECONDS, readAudioDuration } from "../../lib/coachingUpload";
 import { COACHING_V2_COPY as C } from "./copy";
 
 const COACHING_NEW = (paths as Record<string, unknown>).COACHING_NEW as string;
@@ -86,6 +88,24 @@ beforeEach(() => {
 function Where() {
   const loc = useLocation();
   return <div data-testid="where">{loc.pathname}{loc.search}</div>;
+}
+/** The phone's Back (Android / the browser): one step back in history. */
+function PhoneBack() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate(-1)}>phone back</button>;
+}
+/** The main page, then the one screen: so Back has somewhere to go. */
+function fromMainPage() {
+  return render(
+    <MemoryRouter initialEntries={[COACHING_HOME, COACHING_NEW]} initialIndex={1}>
+      <Routes>
+        {coachingRoutes.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
+        <Route path="*" element={null} />
+      </Routes>
+      <Where />
+      <PhoneBack />
+    </MemoryRouter>,
+  );
 }
 function at(path: string) {
   const [pathname, search] = path.split("?");
@@ -175,7 +195,7 @@ describe("the one screen", () => {
     expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
   });
 
-  it("a recording opens Lesson plan, Photos and Submit; Submit sends the class, then progress on the same screen", async () => {
+  it("a recording opens Lesson plan, Photos and Submit; Submit sends the class, then progress on the second screen", async () => {
     at(COACHING_NEW);
     await pickClass();
     fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
@@ -190,7 +210,7 @@ describe("the one screen", () => {
     // no "Back to Digital Coaching" (operator, 16 Oct): the header's Back is the way out
     expect(screen.queryByRole("link", { name: /Back to Digital Coaching/ })).toBeNull();
     expect(screen.getByRole("note")).toBeTruthy();
-    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
+    expect(screen.getByTestId("where").textContent).toBe(`${COACHING_NEW}?sent=sess-1`);
   });
 
   it("the reflection question is answered on the same screen", async () => {
@@ -240,10 +260,147 @@ describe("Lesson plan before the recording (operator, 16 Oct)", () => {
     const plan = await screen.findByRole("heading", { name: new RegExp(C.lessonPlan) });
     const rec = screen.getByRole("heading", { name: new RegExp(C.recording) });
     expect(!!(plan.compareDocumentPosition(rec) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-    // her recent plan for this class, one tap, with no recording yet
-    fireEvent.click(await screen.findByRole("button", { name: "How plants make food" }));
+    // her recent plans are in the Lesson plan tray, not on the screen (operator, 16 Oct); one tap there, no recording yet
+    await expect(screen.findByRole("button", { name: "How plants make food" }, { timeout: 600 })).rejects.toThrow();
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(C.selectPlan) }));
+    const tray = await screen.findByRole("dialog", { name: new RegExp(C.lessonPlan) });
+    fireEvent.click(await within(tray).findByRole("button", { name: /How plants make food/ }));
     expect(await screen.findByText("How plants make food")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: new RegExp(C.lessonPlan) })).toBeNull();
     expect(await recordingCard()).toBeTruthy();
     expect(screen.queryByRole("heading", { name: new RegExp(C.photos) })?.getAttribute("data-step-state")).toBe("upcoming");
+  });
+});
+
+describe("Submit moves to a second screen (operator, 16 Oct)", () => {
+  /** Nothing she could change is on the second screen. */
+  const noEditors = () => {
+    expect(screen.queryByRole("button", { name: new RegExp(C.gradeAndSubject) })).toBeNull();
+    expect(screen.queryByRole("button", { name: new RegExp(`^${C.recording}`) })).toBeNull();
+    expect(screen.queryByRole("button", { name: new RegExp(C.selectPlan) })).toBeNull();
+    expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
+    expect(screen.queryByTestId("dc-recording")).toBeNull();
+    expect(screen.queryByTestId("dc-photos-input")).toBeNull();
+  };
+  const submitted = async () => {
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+  };
+
+  it("the upload runs on the second screen: its % is there and nothing she can edit", async () => {
+    sendLesson.mockImplementationOnce((..._a: unknown[]) => { (_a[2] as (n: number) => void)(40); return new Promise(() => {}); });
+    at(COACHING_NEW);
+    await submitted();
+    expect(await screen.findByText("40%")).toBeTruthy();
+    expect(screen.getByTestId("where").textContent).toBe(`${COACHING_NEW}?sent=uploading`);
+    noEditors();
+  });
+
+  it("once sent, the address names the lesson; Back goes to the main page, never to the screen she edited", async () => {
+    fromMainPage();
+    await submitted();
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(`${COACHING_NEW}?sent=sess-1`));
+    expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
+    noEditors();
+    fireEvent.click(screen.getByRole("button", { name: "phone back" }));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+  });
+
+  it("opened again (a reload) it shows that lesson's progress, not the editors", async () => {
+    at(`${COACHING_NEW}?sent=sess-1`);
+    expect(await screen.findByRole("region", { name: C.progress })).toBeTruthy();
+    noEditors();
+  });
+
+  it("reloaded mid-upload (that upload is gone): the main page, not an empty editor", async () => {
+    at(`${COACHING_NEW}?sent=uploading`);
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe(COACHING_HOME));
+  });
+
+  it("a send that fails comes back to her screen, everything she chose still there, to try again", async () => {
+    sendLesson.mockRejectedValueOnce(new SendError("network"));
+    at(COACHING_NEW);
+    await submitted();
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
+    expect(screen.getByTestId("dc-recording")).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.submit })).toBeTruthy();
+  });
+});
+
+describe("recordings must be at least 15 minutes (operator, 16 Oct: a few seconds got a full report)", () => {
+  it("Recording says the minimum before she records or uploads", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    const step = await screen.findByRole("heading", { name: new RegExp(C.recording) });
+    expect(step.textContent).toContain(C.atLeastMinutes);
+    expect(C.atLeastMinutes).toMatch(/15/);
+    expect(DC_MIN_SECONDS).toBe(900);
+  });
+
+  it("a recording under 15 minutes cannot be submitted: no Submit, a short line, Redo / Change file still there", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(14 * 60 + 59);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    expect(await screen.findByText(C.tooShort)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
+    expect(screen.getByTestId("dc-recording")).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.changeFile })).toBeTruthy();
+    expect(sendLesson).not.toHaveBeenCalled();
+  });
+
+  it("15 minutes exactly can be submitted, with no warning", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(15 * 60);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    expect(await screen.findByRole("button", { name: C.submit })).toBeTruthy();
+    expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});
+
+describe("a recording the browser could not measure, closed by the server as too short (bd-fgj73x.7)", () => {
+  it("the second screen says it is too short, not just Stopped, and leaves no note to wait", async () => {
+    vi.mocked(readAudioDuration).mockResolvedValueOnce(null as never);
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "cancelled", stage: "stopped", reflection: null, shortRecording: true } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.tooShort)).toBeTruthy();
+    expect(screen.queryByText(C.stopped)).toBeNull();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("stopped for any other reason still says Stopped", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "failed", stage: "stopped", reflection: null, shortRecording: false } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.stopped)).toBeTruthy();
+    expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});
+
+describe("Start DC observation from a lesson plan: the class comes with the plan (operator, 19 Oct)", () => {
+  const classButton = () => screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }, { timeout: 5000 });
+
+  it("a plan for a class that is not hers (Grade 4 · Math): that grade and subject are picked, from the catalogue", async () => {
+    at(`${COACHING_NEW}?grade=4&lpSubject=math&plan=k5:L9`);
+    await waitFor(async () => expect((await classButton()).textContent).toContain("Grade 4 · Math"));
+  });
+
+  it("no subject key in the link (opened through the grade picker), but the catalogue subject is hers: her class", async () => {
+    at(`${COACHING_NEW}?grade=4&lpSubject=general_science&plan=k5:L3`);
+    // her class reads "Your class · Grade 4 · General Science" (the "Grade and subject" label is for one that is not hers)
+    expect(await screen.findByRole("button", { name: /Your class.*Grade 4 · General Science/ }, { timeout: 5000 })).toBeTruthy();
+  });
+
+  it("opened from Recent / All lesson plans (only the subject's name): picked too", async () => {
+    at(`${COACHING_NEW}?grade=4&subjectName=Math&plan=k5:L9`);
+    await waitFor(async () => expect((await classButton()).textContent).toContain("Grade 4 · Math"));
   });
 });

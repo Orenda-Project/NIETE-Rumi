@@ -10,6 +10,7 @@
  *
  *   deviceTrusted(token, device)       {ok, why, ids}: ids = the children this phone may see
  *   deviceMayName(studentIds, device)  boolean
+ *   deviceMayNameEach(groups, device)  [boolean]: deviceMayName for each group of ids (one child each), read together
  *   deviceKids(device)                 the student ids this phone was trusted with (newest hubs), [] if none
  *   noticeSeen(childId, device)        the mic notice's wording version this child has seen on this phone, or null
  *   noteNoticeSeen(childId, device, v) records it (best effort; false when Redis is down or there is no device)
@@ -41,9 +42,10 @@ async function deviceKnows(studentIds, deviceRef) {
 }
 
 /** Which of these children has this phone played as (any code)? [] on a read error. */
+const PLAYED_MAX = 50;
 async function playedOn(studentIds, deviceRef) {
   try {
-    const { data } = await dbRead('playedOn:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(50));
+    const { data } = await dbRead('playedOn:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(PLAYED_MAX));
     const seen = new Set((data || []).map((r) => String(r.student_id)));
     return studentIds.filter((id) => seen.has(String(id)));
   } catch (_) {
@@ -87,7 +89,9 @@ async function deviceTrusted(token, device) {
       await Promise.all(out.ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
       const had = await redis.get(devKidsKey(d));
       const kids = [...new Set([...out.ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
-      await redis.set(devKidsKey(d), kids, ttl);
+      // The list is one key for all the phone's children: never longer than a hub's 7 days, so a longer-lived token
+      // (a high class-link pick) never stretches a sibling's memory; that pick keeps its own record (web-quiz-class-link).
+      await redis.set(devKidsKey(d), kids, Math.min(ttl, T.HUB_TTL_S));
     } catch (_) { /* naming falls back to deviceKnows */ }
   }
   return out;
@@ -110,7 +114,7 @@ async function rememberKids(studentIds, device, ttlS = T.HUB_TTL_S) {
     if (wrote.some((w) => w === false)) return false;
     const had = await redis.get(devKidsKey(d));
     const kids = [...new Set([...ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
-    return (await redis.set(devKidsKey(d), kids, ttl)) !== false;
+    return (await redis.set(devKidsKey(d), kids, Math.min(ttl, T.HUB_TTL_S))) !== false;
   } catch (_) {
     return false;
   }
@@ -132,6 +136,41 @@ async function deviceMayName(studentIds, device) {
   }
 }
 
+
+/**
+ * deviceMayName for several children at once (the class link's "Is it <name>?" sheet): ONE quiz_sessions read for all of
+ * them, then the Redis keys of the children it did not find, all in one wave. groups[i] holds one child's ids; the answer
+ * is [deviceMayName(groups[i], device)] for each i. Never rejects: false for a child whose read fails.
+ */
+async function deviceMayNameEach(groups, device) {
+  const gs = (Array.isArray(groups) ? groups : []).map((g) => (g || []).map(String).filter(Boolean));
+  const out = gs.map(() => false);
+  try {
+    const d = T.cleanDeviceRef(device);
+    const all = [...new Set(gs.flat())];
+    if (!d || !all.length) return out;
+    let seen = new Set();
+    let full = false;
+    try {
+      const { data } = await dbRead('mayNameEach:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').in('student_id', all).eq('device_ref', d).limit(PLAYED_MAX));
+      seen = new Set((data || []).map((r) => String(r.student_id)));
+      full = (data || []).length >= PLAYED_MAX;
+    } catch (_) { /* as playedOn: nobody found by the read */ }
+    gs.forEach((g, i) => { out[i] = g.some((id) => seen.has(id)); });
+    // a read cut at its limit may have missed a child: those few are asked one by one, as deviceMayName would
+    if (full) await Promise.all(gs.map(async (g, i) => { if (!out[i] && g.length) out[i] = await deviceKnows(g, d); }));
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return out;
+    await Promise.all(gs.map(async (g, i) => {
+      if (out[i] || !g.length) return;
+      const hits = await Promise.all(g.map((id) => Promise.resolve(redis.get(kidKey(id, d))).catch(() => null)));
+      out[i] = hits.some((v) => v === 1 || v === '1');
+    }));
+    return out;
+  } catch (_) {
+    return out;
+  }
+}
 
 /** The student ids a hub trusted this phone with ([] when none, no device, or Redis is down). */
 async function deviceKids(device) {
@@ -174,4 +213,4 @@ async function noteNoticeSeen(childId, device, v) {
   }
 }
 
-module.exports = { deviceTrusted, deviceMayName, deviceKids, rememberKids, noticeSeen, noteNoticeSeen };
+module.exports = { deviceTrusted, deviceMayName, deviceMayNameEach, deviceKids, rememberKids, noticeSeen, noteNoticeSeen };

@@ -13,6 +13,7 @@
  * only the FICO / HITL score values use it (the page test checks every % on every tab). No bands, no thresholds.
  */
 import type { SchoolsTab } from './tabs';
+import type { LpBand, LpStatus } from '../types/portal';
 
 export type SortKey =
   | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'trainingModules' | 'dcObservations'
@@ -198,6 +199,10 @@ const EN = {
           { term: 'LPs opened', text: "Different lesson plans the school's teachers opened in the period: opening the same plan again counts once per teacher. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened." },
           { term: 'Teachers who opened', text: 'How many of the N teachers opened at least one lesson plan in the period ("x of N").' },
           { term: 'Regions with activity', text: 'Regions where at least one lesson plan was opened in the period, out of the six.' },
+          { term: 'LP engagement', text: "For each teacher, each week (Sunday to Saturday), each grade and each subject: the different lesson plans she opened plus the lesson plans she generated, out of 5 (5 or more counts as the full week). A teacher's LP engagement is the average over her weeks, grades and subjects with a lesson plan. A school's, a region's or the overall LP engagement adds up its teachers' and divides by all its teachers, so a teacher with no lesson plan counts 0. The subject and grade tables do the same with only that subject's or grade's lesson plans." },
+          { term: 'On-Schedule, Moderate, Off-Schedule', text: "A teacher is On-Schedule at 60 percent or more, Moderate at 40 to 59 percent, and Off-Schedule below 40 percent; a teacher with no lesson plan in the period is Off-Schedule. A school's status reads its LP engagement the same way. In the tables, Overall adds up the teachers in each band across the rows, and its LP engagement is the average of the rows." },
+          { term: 'Primary and Mid / High', text: 'Teachers by the levels they teach (their training levels). Primary counts their grade 1 to 5 lesson plans; Mid / High counts grade 6 to 12 lesson plans. A teacher who teaches both is counted in both.' },
+          { term: 'Active sectors', text: 'Regions where at least one of these teachers has a lesson plan in the period.' },
         ],
       },
       {
@@ -659,6 +664,69 @@ const EN = {
     total: (n: string) => `${n} total`,
     coachesIn: (n: string) => `${n} ${n === '1' ? 'coach' : 'coaches'}`,
     none: 'No coaches',
+  },
+
+  /**
+   * bd-97x22y.3 — the LP Engagement tab (schools analytics v7), her words and her order (LPEngagement.jsx): the
+   * Primary / Mid-High toggle, ENGAGEMENT OVERVIEW, TEACHER STATUS, SECTORS (ring cards → school breakdown), the
+   * subject and grade tables, and the sector-wise grouped bars. v7 shows her percentages (operator, 2026-10-14:
+   * "fully 1 to 1"); they are written with `percent` above.
+   */
+  lpEngagement: {
+    bandLabel: 'Teachers',
+    bands: { primary: 'Primary Teachers', midhigh: 'Mid / High Teachers' } as Record<LpBand, string>,
+    /** Her section labels (set in capitals by the page). */
+    sections: {
+      overview: 'Engagement overview',
+      status: 'Teacher status',
+      sectors: 'Sectors — click to view school breakdown',
+    },
+    /** Her card titles, as she writes them. */
+    cards: {
+      bySubject: 'LP Engagement by Subject',
+      byGrade: (grades: string) => `LP Engagement by Grade — ${grades}`,
+      chart: 'Sector-wise Performance in Subjects & Grades',
+      chartHint: 'LP Engagement % per sector',
+    },
+    grades: { primary: 'Grades 1–5', midhigh: 'Grades 6–12' } as Record<LpBand, string>,
+    /** Her KPI cards (set in capitals by the card). */
+    tiles: {
+      overall: 'Overall LP Engagement',
+      tracked: 'Total Teachers Tracked',
+      activeSectors: 'Active Sectors',
+      onSchedule: 'On-Schedule Teachers',
+      moderate: 'Moderate Teachers',
+      offSchedule: 'Off-Schedule Teachers',
+    },
+    /** Her line under each card. */
+    hints: {
+      overall: { primary: 'Primary teachers', midhigh: 'Mid / High teachers' } as Record<LpBand, string>,
+      tracked: 'Across all LP status categories',
+      activeSectors: 'Sectors with LP data',
+      onSchedule: 'LP ratio ≥ 60%',
+      moderate: 'LP ratio 40–59%',
+      offSchedule: 'LP ratio < 40%',
+    },
+    status: { on: 'On-Schedule', moderate: 'Moderate', off: 'Off-Schedule' } as Record<LpStatus, string>,
+    /** In the middle of a sector's ring, under its %, on two lines. */
+    ring: ['LP', 'Engage'] as [string, string],
+    totalTeachers: 'Total Teachers',
+    columns: {
+      subject: 'Subject',
+      grade: 'Grade',
+      school: 'School Name',
+      lp: 'LP Engagement',
+      status: 'Status',
+      lpShort: 'LP Engage',
+      bands: { on: ['On-Schedule', '(≥60%)'], moderate: ['Moderate', '(40-59%)'], off: ['Off-Schedule', '(<40%)'] } as Record<LpStatus, [string, string]>,
+    },
+    overall: 'Overall',
+    grade: (g: string) => `Grade ${g}`,
+    viewBy: 'View By',
+    viewByOptions: { subjects: 'Subjects', grades: 'Grades' } as Record<'subjects' | 'grades', string>,
+    noSchools: 'No schools found for this sector.',
+    loading: 'Loading LP engagement',
+    error: "The LP engagement numbers didn't load. Check your connection and try again.",
   },
 };
 

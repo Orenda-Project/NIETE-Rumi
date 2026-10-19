@@ -612,7 +612,7 @@ describe('the questions after scored (the settle rule)', () => {
     r2.downloadFromR2.mockResolvedValue(clip(61));
     AudioService.transcribe.mockResolvedValue(heard(50, 1.1));
     llm.__create.mockResolvedValue(marks(45, 50));
-    await Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'pass', read_s: 61 }, { waitMs: 60000 });
+    await Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'level_ok', read_s: 61 }, { waitMs: 60000 });
     return { ct, run };
   }
   const rightPick = (q, ct) => {

@@ -55,6 +55,7 @@ describe("an analytics-only account's way in", () => {
     h.auth.login = vi.fn().mockResolvedValue({ success: true, user: analyticsUser });
     const user = userEvent.setup();
     render(<MemoryRouter><PortalLogin /></MemoryRouter>);
+    await user.click(screen.getByRole("button", { name: "Use password instead" })); // bd-x7aprz.3
     await user.type(screen.getByLabelText("Phone number"), "0300 0000000");
     await user.type(screen.getByLabelText("Password"), "madeup123");
     await user.click(screen.getByRole("button", { name: "Log in" }));
@@ -83,6 +84,7 @@ describe("everyone else's way in is unchanged", () => {
     const user = userEvent.setup();
     h.auth.login = vi.fn().mockResolvedValue({ success: true, user: { role: "teacher", analyticsOnly: false } });
     const { unmount } = render(<MemoryRouter><PortalLogin /></MemoryRouter>);
+    await user.click(screen.getByRole("button", { name: "Use password instead" })); // bd-x7aprz.3
     await user.type(screen.getByLabelText("Phone number"), "0300 0000000");
     await user.type(screen.getByLabelText("Password"), "madeup123");
     await user.click(screen.getByRole("button", { name: "Log in" }));
@@ -92,6 +94,7 @@ describe("everyone else's way in is unchanged", () => {
     h.navigate.mockClear();
     h.auth.login = vi.fn().mockResolvedValue({ success: true, user: { role: "coach" } });
     render(<MemoryRouter><PortalLogin /></MemoryRouter>);
+    await user.click(screen.getByRole("button", { name: "Use password instead" })); // bd-x7aprz.3
     await user.type(screen.getByLabelText("Phone number"), "0300 0000000");
     await user.type(screen.getByLabelText("Password"), "madeup123");
     await user.click(screen.getByRole("button", { name: "Log in" }));

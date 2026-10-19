@@ -511,6 +511,13 @@ const ENGLISH = {
     informal_letters: ['Birthday party invitation', 'To your sister congratulating her on passing the examination', 'Thanking a friend for a gift', 'Inviting your friend to spend summer holidays with you', 'To your friend telling them about your favourite book'],
     applications: ['Sick leave', 'School leaving certificate', 'Leave to attend your brother\'s marriage ceremony', 'Remission of fine', 'Urgent piece of work', 'To your principal to upgrade your school library'],
   },
+  // The book's rhyming poems, for Q5 when the chosen pages hold none. Titles and pages as printed:
+  // p.20 «Colours by Shel Silverstein»; pp.100–101 the unit 8 poem (p.99 is its pre-reading,
+  // p.102 a second poem with no rhyming pairs).
+  poems: [
+    { unit: 2, pages: '20', title: 'Colours' },
+    { unit: 8, pages: '100-101', title: 'City Life vs. Farm Life: A Friendly Debate' },
+  ],
   scope: {
     page_ranges: '1-138',
     chapter_numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -729,6 +736,41 @@ const URDU = {
     applications: ['library books', 'sick leave', 'certificate', 'fee remission', 'brother\'s wedding'],
     letters: ['birthday invitation to a friend', 'thanks to an uncle for a gift', 'to a younger brother on studies', 'to mother on her health', 'to father for money for books'],
   },
+  // The book's poems in lessons 4–10, for Q6's verses when the chosen lessons hold none. Title, poet
+  // and pages as printed: lesson 7 «ندی کی فریاد», «شاعر: کوثر صدیقی», couplets on pp 63–64. It is
+  // the only poem in these lessons; the Naat (lesson 2) is FDE's instruction only, never given.
+  poems: [
+    { unit: 7, pages: '63-64', title: 'ندی کی فریاد', poet: 'کوثر صدیقی' },
+  ],
+  // The book's own worked ارکان splits, as the page store prints them: each lesson's ارکان exercise
+  // splits only its first word, and these two are the ones whose parts the store has whole (p.51
+  // «دامن» دا / من; p.62 «غلاظت» غ / لا / ظت). A Q4 key that splits one of these words splits it so.
+  syllables: [
+    { word: 'دامن', parts: ['دا', 'من'], page: 51 },
+    { word: 'غلاظت', parts: ['غ', 'لا', 'ظت'], page: 62 },
+  ],
+  // Each lesson's book pages and the grammar its own «قواعد کا میدان» section teaches, as the page
+  // store has them. On chosen lessons or pages, Q1 asks grammar from the chosen lessons' list only.
+  // `tags` are the layout's names for a concept it can recognise in an item; `q4` marks a kind Q4 asks
+  // on every paper, which Q1 never asks.
+  // `poem`: the lesson's text is a poem, not prose (lesson 7, «ندی کی فریاد»); lessons with one prose text
+  // among them are one story.
+  lessons: [
+    { lesson: 4, pages: '28-37', grammar: [{ ur: 'متضاد الفاظ', tags: ['antonym'] }] },
+    { lesson: 5, pages: '38-49', grammar: [{ ur: 'مترادف الفاظ', tags: ['synonym'] }, { ur: 'متضاد الفاظ', tags: ['antonym'] }, { ur: 'تمنائی اور شکیہ جملے', tags: ['wish', 'doubt'] }] },
+    { lesson: 6, pages: '50-60', grammar: [{ ur: 'متشابہ الفاظ', tags: ['homograph'] }] },
+    { lesson: 7, pages: '61-70', poem: true, grammar: [{ ur: 'گروہی الفاظ', q4: true }] },
+    { lesson: 8, pages: '71-82', grammar: [{ ur: 'حروفِ عطف', tags: ['conjunction'] }, { ur: 'حروفِ شرط و جزا', tags: ['condition'], q4: true }] },
+    { lesson: 9, pages: '83-94', grammar: [{ ur: 'رموزِ اوقاف' }] },
+    {
+      lesson: 10,
+      pages: '95-107',
+      grammar: [
+        { ur: 'اسم معرفہ و نکرہ', tags: ['naming'] }, { ur: 'صفت و موصوف', tags: ['adjective', 'qualified'] },
+        { ur: 'اسم صوت', tags: ['sound'] }, { ur: 'اسم آلہ', tags: ['tool'] },
+      ],
+    },
+  ],
   scope: {
     page_ranges: '28-107',
     chapter_numbers: [4, 5, 6, 7, 8, 9, 10],
@@ -1044,6 +1086,9 @@ const SST = {
           grain: { kind: 'a geography topic the child turns into a flow chart (title, four boxes, examples, arrows)', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `question` = a topic from chapter 8 or 9 in quotes (e.g. «پاکستان کے طبعی خدوخال»); the child draws the chart; `answer` = the boxes in order with an example under each.',
+          // What the chart must hold, from the pattern whatever the reply writes: the scheme marks a title,
+          // four boxes, an example under each and the arrows.
+          topic_line_ur: '«{q}»: چارٹ میں عنوان، چار خانے، ہر خانے کے نیچے ایک مثال اور خانوں کو جوڑنے والے تیر بنائیں۔', // needs fluent-Urdu review
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {

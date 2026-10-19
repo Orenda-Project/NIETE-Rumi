@@ -225,7 +225,8 @@ describe('r6 renderer', () => {
     lettered.unseen.subjective['Logical Reasoning'][0].answer = 'a) The bits jumped up. b) The balloon pulls them. c) A comb.';
     const v2 = visible(schemeOf(laid(lettered, 'science'), 'science'));
     expect(v2).toContain('The balloon pulls them.');
-    expect(v2.split('The bits jumped up').length - 1).toBe(1);
+    // Once as the row's answer, once as its A point; never again on the parent row.
+    expect(v2.split('The bits jumped up').length - 1).toBe(2);
     expect(v2).not.toContain('b) The balloon pulls them. c)');
   });
 });

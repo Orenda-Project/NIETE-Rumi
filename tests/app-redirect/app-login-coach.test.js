@@ -41,8 +41,10 @@ function forge(f, u = USER) {
 }
 
 describe('the token', () => {
-  test('the coach pages: coach_menu → /portal/coach, coach_observe → /portal/coach/observe', () => {
-    expect(load().COACH_LANDINGS).toEqual({ coach_menu: '/portal/coach', coach_observe: '/portal/coach/observe' });
+  test('the coach pages: coach_menu → /portal/coach, coach_observe → /portal/coach/observe, coach_training → /portal/coach/training (bd-s42dye.3)', () => {
+    expect(load().COACH_LANDINGS).toEqual({
+      coach_menu: '/portal/coach', coach_observe: '/portal/coach/observe', coach_training: '/portal/coach/training',
+    });
   });
 
   test.each(['coach_menu', 'coach_observe'])('%s signs and verifies', (f) => {
@@ -144,7 +146,7 @@ describe('GET /go/:token', () => {
     for (const f of ['observe', 'coach_lesson_plan']) {
       const res = await get(srv, `/go/${forge(f)}`);
       expect(res.status).toBe(200);
-      expect(res.body).toContain('/menu');
+      expect(res.body).toMatch(/\?text=%2Fportal|send \/portal/); // bd-x7aprz.3: the new-link page asks for /portal
     }
     expect(sessions.every((s) => s.portalUserId === undefined)).toBe(true);
   });

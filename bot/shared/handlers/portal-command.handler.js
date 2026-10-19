@@ -1,120 +1,89 @@
 /**
- * Portal Command Handler
- * Handles /portal command for teacher portal access
+ * Portal Command Handler — /portal opens the portal, already signed in (bd-x7aprz.3).
  *
- * Flow:
- * 1. User sends /portal command in WhatsApp
- * 2. Check if portal already activated
- * 3. If yes: Send login link
- * 4. If no: Generate unique token and send setup link
+ * A registered adult gets ONE message: a short line and a button whose link is her signed /go link
+ * (services/app-login-link.js — her user id, encrypted, 24 h, re-tappable). The portal turns it into a
+ * session and lands her on her home (dashboard/routes/app-login.routes.js). No password, no set-up step.
  *
- * Related: portal-invite.service.js, portal.routes.js
+ * What this replaced: a 7-day set-up link (portal-invite.service) for anyone without a password, and
+ * "log in with the password you created" for the rest. 170 teachers who registered on the form let the
+ * set-up link lapse and then met "No account found" on the portal; 3,075 were told to log in with a
+ * password they never made.
+ *
+ * Someone NOT registered is routed to the registration form by the text handler before this runs; if one
+ * reaches it anyway, she is asked to register and gets no link.
  */
 
-const PortalInviteService = require('../services/portal-invite.service');
+const WhatsAppService = require('../services/whatsapp.service');
+const { signAppLink } = require('../services/app-login-link');
+const { isRegistered } = require('../utils/registration-status');
 const { logToFile } = require('../utils/logger');
 const { portalUrl: getPortalUrl } = require('../config/branding');
 
+// en + ur only (NIETE's flat offer). The button is a cta_url display text: 20 code points at most.
+// NIETE stays Latin inside the Urdu line, isolated (LRI … PDI) so it cannot reorder the sentence.
+const COPY = Object.freeze({
+  en: {
+    body: 'Open your NIETE portal. This link works for 24 hours.',
+    button: 'Open portal',
+    unavailable: 'Sorry, the portal link is not available right now. Please try again in a few minutes.',
+    registerFirst: 'Please register first. Type /register to get started.',
+  },
+  ur: {
+    body: 'اپنا ⁦NIETE⁩ پورٹل کھولیں۔ یہ لنک ۲۴ گھنٹے چلتا ہے۔',
+    button: 'پورٹل کھولیں',
+    unavailable: 'معذرت، پورٹل کا لنک ابھی دستیاب نہیں۔ براہ کرم کچھ منٹ بعد دوبارہ کوشش کریں۔',
+    registerFirst: 'براہ کرم پہلے رجسٹریشن مکمل کریں۔ ⁦/register⁩ ٹائپ کریں۔',
+  },
+});
+
+// Her stored language when it is one of the two this catalog has; anything else reads English.
+const copyFor = (language) => COPY[language] || COPY.en;
+
 /**
- * Handle /portal command
+ * Handle /portal.
  *
- * @param {object} user - User object from database (must include id, portal_activated, portal_password_hash, preferred_language)
- * @param {string} phoneNumber - User's WhatsApp phone number (format: 923001234567)
- * @returns {Promise<string>} - Message to send to user in their language
+ * @param {object} user - the users row (id, name, registration_completed, registration_state, preferred_language)
+ * @param {string} phoneNumber - her WhatsApp number, digits only with the 92 prefix
+ * @returns {Promise<string>} '' when this handler sent the message itself, else the text for the caller to send
  */
 async function handlePortalCommand(user, phoneNumber) {
+  const words = copyFor(user && user.preferred_language);
   try {
-    logToFile('📱 Processing /portal command', {
-      userId: user.id,
-      phoneNumber,
-      portalActivated: user.portal_activated,
-      language: user.preferred_language
-    });
-
-    const language = user.preferred_language || 'en';
-    const portalBase = getPortalUrl();
-
-    // Multilingual messages
-    const messages = {
-      // Already activated messages — portal link is omitted entirely if
-      // PORTAL_URL is unset, so cloners don't ship a broken placeholder URL.
-      alreadyActivated: portalBase ? {
-        en: `Your NIETE portal is already active!\n\n🔗 *Log in here:*\n${portalBase}/portal/login\n\nUse your phone number and the password you created.`,
-
-        ur: `آپ کا NIETE پورٹل پہلے سے فعال ہے!\n\n🔗 *یہاں لاگ ان کریں:*\n${portalBase}/portal/login\n\nاپنا فون نمبر اور پاسورڈ استعمال کریں۔`,
-
-        ar: `بوابة NIETE الخاصة بك نشطة بالفعل!\n\n🔗 *سجل الدخول هنا:*\n${portalBase}/portal/login\n\nاستخدم رقم هاتفك وكلمة المرور التي أنشأتها.`,
-
-        es: `¡Tu portal de NIETE ya está activo!\n\n🔗 *Inicia sesión aquí:*\n${portalBase}/portal/login\n\nUsa tu número de teléfono y la contraseña que creaste.`
-      } : {
-        en: 'Your account is already active. Ask your administrator for the portal URL.',
-        ur: 'آپ کا اکاؤنٹ پہلے سے فعال ہے۔ پورٹل کے لیے اپنے ایڈمنسٹریٹر سے رابطہ کریں۔',
-        ar: 'حسابك نشط بالفعل. اطلب من المسؤول لديك عنوان البوابة.',
-        es: 'Tu cuenta ya está activa. Pide la URL del portal a tu administrador.'
-      },
-
-      // Error sending invitation
-      error: {
-        en: `Sorry, I couldn't create your portal invitation right now. Please try again in a few minutes or contact support.\n\nمعذرت، میں ابھی آپ کا پورٹل دعوت نامہ نہیں بنا سکا۔ براہ کرم کچھ منٹوں میں دوبارہ کوشش کریں۔`,
-
-        ur: `معذرت، میں ابھی آپ کا پورٹل دعوت نامہ نہیں بنا سکا۔ براہ کرم کچھ منٹوں میں دوبارہ کوشش کریں یا سپورٹ سے رابطہ کریں۔\n\nSorry, I couldn't create your portal invitation. Please try again in a few minutes.`,
-
-        ar: `عذرًا، لم أتمكن من إنشاء دعوة البوابة الخاصة بك الآن. يرجى المحاولة مرة أخرى خلال بضع دقائق أو الاتصال بالدعم.\n\nSorry, I couldn't create your portal invitation right now.`,
-
-        es: `Lo siento, no pude crear tu invitación al portal en este momento. Por favor intenta de nuevo en unos minutos o contacta con soporte.\n\nSorry, I couldn't create your portal invitation right now.`
-      }
-    };
-
-    // Already set up = activated AND a password saved. Activated with no password (the
-    // July 2026 migration) gets the set-up link — she has no password to log in with (bd-kkpg4t).
-    if (user.portal_activated && user.portal_password_hash) {
-      logToFile('✅ Portal already activated, sending login link', { userId: user.id });
-      return messages.alreadyActivated[language] || messages.alreadyActivated.en;
+    if (!isRegistered(user)) {
+      logToFile('📱 /portal from someone not registered — asked to register, no link', { userId: user && user.id });
+      return words.registerFirst;
     }
 
-    // Send portal invitation (generates token, stores in DB, sends WhatsApp message)
-    const result = await PortalInviteService.sendPortalInvite(
-      user.id,
-      phoneNumber,
-      language
-    );
-
-    if (result.success) {
-      logToFile('✅ Portal invitation sent via /portal command', {
-        userId: user.id,
-        phoneNumber,
-        token: result.token,
-        expiresAt: result.expiresAt
-      });
-
-      // Return empty string because PortalInviteService.sendPortalInvite already sends the WhatsApp message
-      // The message includes the setup link and expiry information in the user's language
-      return '';
-    } else {
-      logToFile('❌ Failed to send portal invitation', {
-        userId: user.id,
-        error: result.error
-      });
-
-      return messages.error[language] || messages.error.en;
+    const base = String(getPortalUrl() || '').replace(/\/+$/, '');
+    const token = base ? signAppLink(user.id, 'menu') : null;
+    if (!token) {
+      logToFile('❌ /portal: no portal URL or signing key on this deployment — no link sent', { userId: user.id }, 'error');
+      return words.unavailable;
     }
+    const url = `${base}/go/${token}`;
+
+    // The button is the nicer form; if Meta refuses it, the same link goes as text. The token is the
+    // credential: it is never logged.
+    let sent = await WhatsAppService.sendCtaUrl(phoneNumber, { body: words.body, buttonText: words.button, url });
+    let via = 'cta_url';
+    if (!sent) {
+      via = 'text';
+      sent = await WhatsAppService.sendMessage(phoneNumber, `${words.body}\n${url}`);
+    }
+    if (!sent) {
+      logToFile('❌ /portal: sign-in link not delivered', { userId: user.id }, 'error');
+      return words.unavailable;
+    }
+    logToFile('🔗 /portal: sign-in link sent', { userId: user.id, via });
+    return '';
   } catch (error) {
     logToFile('❌ Error in handlePortalCommand', {
-      userId: user?.id,
-      phoneNumber,
+      userId: user && user.id,
       error: error.message,
-      stack: error.stack
-    });
-
-    const language = user?.preferred_language || 'en';
-    const errorMessages = {
-      en: `Sorry, something went wrong. Please try again later or contact support.\n\nمعذرت، کچھ غلط ہو گیا۔ براہ کرم بعد میں دوبارہ کوشش کریں۔`,
-      ur: `معذرت، کچھ غلط ہو گیا۔ براہ کرم بعد میں دوبارہ کوشش کریں یا سپورٹ سے رابطہ کریں۔\n\nSorry, something went wrong. Please try again later.`,
-      ar: `عذرًا، حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقًا أو الاتصال بالدعم.\n\nSorry, something went wrong. Please try again later.`,
-      es: `Lo siento, algo salió mal. Por favor intenta de nuevo más tarde o contacta con soporte.\n\nSorry, something went wrong. Please try again later.`
-    };
-
-    return errorMessages[language] || errorMessages.en;
+      stack: error.stack,
+    }, 'error');
+    return words.unavailable;
   }
 }
 

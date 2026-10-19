@@ -101,6 +101,17 @@ class TranscriptionProcessorService {
         transcription_started_at: new Date().toISOString()
       });
 
+      // bd-fgj73x.7 — a teacher's PORTAL upload under 15 minutes gets no flow and no report: measured here,
+      // BEFORE the Step 1/5 message, the transcription and the analysis (portal-short-recording.js). Only that
+      // row is downloaded early; a WhatsApp recording and a coach's observation never enter this branch.
+      const ShortGate = require('./portal-short-recording');
+      let audioData = null;
+      if (ShortGate.isPortalDc(session)) {
+        audioData = await this.fetchAudioForSession(session, payload);
+        const gate = await ShortGate.refuseShortPortalRecording({ session, coachingSessionId, from, audioData });
+        if (gate.refused) return;
+      }
+
       // Send progress update with listening animation.
       //
       // bd-jbjrx — this call used to pass no language, so the parameter default
@@ -141,7 +152,7 @@ class TranscriptionProcessorService {
 
       // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
       // portal upload). Everything below this line is identical either way.
-      const audioData = await this.fetchAudioForSession(session, payload);
+      if (!audioData) audioData = await this.fetchAudioForSession(session, payload);
       fs.writeFileSync(tempAudioPath, audioData);
 
       logToFile('Audio downloaded', {
@@ -523,10 +534,11 @@ class TranscriptionProcessorService {
       // instead of going out as its own text; a reminder too long for the offer's
       // 1,024 body cap is still sent on its own first.
       let priorReminder = null;
+      let priorSessionId = null;
       try {
         const { data: priorSessions } = await supabase
           .from('coaching_sessions')
-          .select('prioritized_action')
+          .select('id, prioritized_action')
           .eq('user_id', session.user_id)
           .not('prioritized_action', 'is', null)
           .order('created_at', { ascending: false })
@@ -539,6 +551,7 @@ class TranscriptionProcessorService {
           const reminderLang = await getUserLanguage(session.user_id) || 'en';
           priorReminder = getCoachingMessage('priorActionReminder', reminderLang)
             .replace('{{action}}', priorAction.action);
+          priorSessionId = priorSessions[0].id || null;
         }
       } catch (agencyError) {
         logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
@@ -569,6 +582,12 @@ class TranscriptionProcessorService {
       const { prompt: photoPrompt, leadMerged } = buildPhotoPromptWithLead(coachingSessionId, userLanguage, priorReminder);
       if (priorReminder && !leadMerged) await WhatsAppService.sendMessage(from, priorReminder);
       await WhatsAppService.sendInteractiveButtons(from, photoPrompt);
+      if (priorReminder) {
+        // bd-v0toag.1.2 — the check-back: her prior commitment, back in front of her.
+        require('./report-events').checkBackSent({
+          userId: session.user_id, sessionId: coachingSessionId, priorSessionId, merged: !!leadMerged,
+        });
+      }
 
       // Update conversation state to AWAITING_PHOTO
       await CoachingSessionService.updateConversationState(coachingSessionId, {

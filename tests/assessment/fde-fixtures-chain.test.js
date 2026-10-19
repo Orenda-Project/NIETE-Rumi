@@ -154,11 +154,11 @@ describe('panel round 1', () => {
     expect(ur.indexOf('data-row="urdu.C.Q6-fixed"')).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q6">'));
   });
 
-  it('C2: a written row with no points still prints its marks (Science Q2(b) sub-questions, 2.5 each)', () => {
+  it('C2: a written row with no points prints an A point worth its marks (Science Q2(b) sub-questions, 2.5 each)', () => {
     const { scheme } = chain('science');
     const rows = scheme.match(/<tr data-row="science\.B\.Q2b">[\s\S]*?<\/tr>/g) || [];
     expect(rows.length).toBe(9);
-    for (const r of rows) expect(r).toMatch(/<td class="pts"><span class="chip">2\.5<\/span>/);
+    for (const r of rows) expect(r).toMatch(/<td class="pts"><span class="pt"><span class="chip">A2\.5<\/span>/);
   });
 
   it('C6: composition criteria marks in an Urdu scheme are Urdu digits', () => {

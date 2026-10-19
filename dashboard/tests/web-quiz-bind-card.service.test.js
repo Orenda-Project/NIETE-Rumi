@@ -7,6 +7,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-bind.js'), 'utf8');
+const TEL = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-tel.js'), 'utf8');
 const flush = () => new Promise((r) => setImmediate(r));
 
 function load({ api = {}, local = {}, session = {} } = {}) {
@@ -30,6 +31,8 @@ function load({ api = {}, local = {}, session = {} } = {}) {
   };
   ctx.window.window = ctx.window;
   vm.createContext(ctx);
+  // wq-tel.js first, as on the hub page (its WQT.nowrap holds «واٹس ایپ» on one line).
+  vm.runInContext(TEL, ctx);
   vm.runInContext(SRC, ctx);
   return { B: ctx.window.WQBIND, fetches, opened, local, session, focus: () => (winL.focus || []).forEach((f) => f()) };
 }
@@ -59,7 +62,7 @@ test('the card: Urdu copy, bind_offered{surface:hub, w:p} once per view; never o
   const m = mount();
   const { evs, c } = ctxOf();
   expect(p.B.card(m, c)).toBe(true);
-  expect(m.innerHTML).toContain('اپنی جگہ واٹس ایپ پر محفوظ کریں');
+  expect(m.innerHTML).toContain('اپنی جگہ واٹس\u00a0ایپ پر محفوظ کریں');   // the title is drawn without nowrap: U+00A0 holds the word
   expect(m.innerHTML).toContain('<bdi dir="ltr" class="wqb-chip">/quiz</bdi>');
   p.B.card(m, c);
   expect(evs).toEqual([['bind_offered', { surface: 'hub', w: 'p' }]]);
@@ -146,9 +149,9 @@ test('focus return: pending shows nothing new; expired asks again', async () => 
   expect(m.innerHTML).toContain('That took too long. Tap Keep my place again.');
 });
 
-test('the notice says the phone link only: STOP removes the number, no readings or deletion claim (EN, UR)', () => {
+test('the STOP line says the phone link only: STOP removes the number, no readings or deletion claim; the sheet makes no deletion claim (EN, UR)', () => {
   const NOTICE = {
-    en: 'A grown-up can undo this any time by sending STOP on WhatsApp.',
+    en: 'A grown-up can remove this phone number any time by sending STOP on WhatsApp.',
     ur: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",   // v2.1: U+00A0 inside «واٹس ایپ»
   };
   for (const lang of ['en', 'ur']) {
@@ -157,7 +160,10 @@ test('the notice says the phone link only: STOP removes the number, no readings 
     p.B.card(m, ctxOf({ lang }).c);
     m.els.keep.click();
     const html = m.innerHTML;
-    for (const w of ['readings', 'deleted', 'ریکارڈنگ', 'مٹا', '90']) expect([lang, w, html.includes(w)]).toEqual([lang, w, false]);
+    for (const w of ['deleted', 'مٹا', '90']) expect([lang, w, html.includes(w)]).toEqual([lang, w, false]);
+    // the readings sentence is its own line; the STOP line itself claims nothing about readings
+    const stopLine = html.split('</p>').find((l) => l.includes('class="wqb-chip">STOP<'));
+    for (const w of ['eadings', 'ریکارڈنگ']) expect([lang, w, stopLine.includes(w)]).toEqual([lang, w, false]);
     expect(p.B.t(lang).noticeStopPhoneOnly).toBe(NOTICE[lang]);
     // rendered: the STOP chip and «واٹس ایپ» held on one line
     expect(html).toContain(NOTICE[lang].replace(/⁦?STOP⁩?/, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩').replace(/واٹس[ \u00a0]ایپ/g, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>'));

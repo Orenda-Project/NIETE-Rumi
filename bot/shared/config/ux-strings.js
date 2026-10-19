@@ -166,6 +166,54 @@ const UX_STRINGS = {
     ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
   },
 
+  // ─── the registration Flow invite (services/registration-invite.service.js) ──
+  // One message, three cases: a new person, a registered teacher fixing her details, and an
+  // unregistered person who reached a feature that needs her school. Header ≤ 60 and button
+  // ≤ 20 CODE POINTS (WhatsApp rejects the whole message otherwise). No footer. The Urdu is
+  // impersonal or the polite imperative, never a second-person verb that picks her gender,
+  // and opens with Urdu so the paragraph lays out right to left.
+  registrationInviteNewHeader: {
+    en: 'Welcome to NIETE',
+    ur: 'خوش آمدید!',
+  },
+  registrationInviteNewBody: {
+    en: 'Let\'s set up your account: your name, your school and the classes you teach. It takes about a minute.',
+    ur: 'آئیے آپ کا اکاؤنٹ بنائیں: آپ کا نام، آپ کا اسکول اور آپ کی جماعتیں۔ اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  registrationInviteUpdateHeader: {
+    en: 'Update your details',
+    ur: 'اپنی تفصیلات درست کریں',
+  },
+  registrationInviteUpdateBody: {
+    en: 'Correct your name, school or classes. What you send replaces what I have on file.',
+    ur: 'اپنا نام، اسکول یا جماعتیں درست کریں۔ نئی معلومات پرانی کی جگہ لے لیں گی۔',
+  },
+  registrationInviteSchoolHeader: {
+    en: 'First, your school',
+    ur: 'پہلے آپ کا اسکول',
+  },
+  registrationInviteSchoolBody: {
+    en: 'To do this I need to know your school. Pick it in this short form — it takes about a minute.',
+    ur: 'اس کے لیے مجھے آپ کا اسکول معلوم ہونا ضروری ہے۔ اس مختصر فارم میں اپنا اسکول چنیں — اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  registrationInviteButton: {
+    en: 'Get started',
+    ur: 'شروع کریں',
+  },
+  registrationInviteUpdateButton: {
+    en: 'Update details',
+    ur: 'تفصیلات درست کریں',
+  },
+  // A refused Flow send: never silence. /register is isolated in Urdu so it is not painted "register/".
+  registrationInviteRetry: {
+    en: 'I couldn\'t open the form just now. Please type /register to try again.',
+    ur: 'فارم ابھی نہیں کھل سکا۔ دوبارہ کوشش کے لیے ⁦/register⁩ لکھیں۔',
+  },
+  registrationInviteUnavailable: {
+    en: 'Registration isn\'t available right now. Please try again a little later.',
+    ur: 'رجسٹریشن ابھی دستیاب نہیں۔ براہ کرم کچھ دیر بعد کوشش کریں۔',
+  },
+
   // ─── /roster — the class-register command ─────────────────────────────────
   // Every string on this command was an English literal, including all four
   // Flow chrome fields, on a deployment where the leaders who use it read Urdu
@@ -248,6 +296,12 @@ const UX_STRINGS = {
   coachingRecordingTooShortUnknownLength: {
     en: 'For a full teaching analysis I need at least {min} minutes of the lesson. If that recording was shorter, send a longer one and I will analyse it. If you only meant to chat, carry on; my answer is below.',
     ur: 'مکمل تدریسی تجزیے کے لیے سبق کے کم از کم \u2066{min}\u2069 منٹ درکار ہیں۔ اگر یہ ریکارڈنگ اس سے مختصر تھی تو لمبی بھیجیں، تجزیہ ہو جائے گا۔ اگر صرف بات کرنی تھی تو نیچے جواب حاضر ہے۔',
+  },
+  // bd-fgj73x.7 — a PORTAL DC upload under the minimum (portal-short-recording.js): no analysis, no report.
+  // Generic, 1-2 lines, no "my answer is below" (there is no chat turn here). {min} isolated in Urdu (§9.8).
+  coachingPortalRecordingTooShort: {
+    en: 'This recording is too short for a coaching report. Please record at least {min} minutes of your lesson and send it again.',
+    ur: 'یہ ریکارڈنگ کوچنگ رپورٹ کے لیے بہت مختصر ہے۔ براہ کرم اپنے سبق کے کم از کم \u2066{min}\u2069 منٹ ریکارڈ کر کے دوبارہ بھیجیں۔',
   },
   coachingRecordingLooksShort: {
     en: 'This sounds like a classroom recording, but it is about {minutes} minutes. A full teaching analysis needs at least {min} minutes of the lesson. Send a longer recording and I will analyse it — or if you only meant to chat, just carry on.',
@@ -816,6 +870,81 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+  // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
+  appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
+  appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
+
+  // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
+  // The screens after the first one are served by the endpoint in the language she picked on
+  // the first (registration-endpoint.js screenCopy), so their words live here. Meta's caps, in
+  // code points: an input label 20, a radio/checkbox label or option 30, a footer 35, a heading
+  // 80 (tests/registration/bd-x7aprz2-flow-v5-json.test.js measures both languages). Imperatives
+  // and noun phrases only, so nothing guesses her gender. A Latin atom inside Urdu (IMSG, EMIS,
+  // NIETE, a typed search) is isolated; a placeholder is isolated with FSI…PDI.
+  regFormRoleSchoolHeading: { en: 'Your role and school', ur: 'آپ کا عہدہ اور اسکول' },
+  regFormRoleLabel: { en: 'Your role', ur: 'آپ کا عہدہ' },
+  regFormRoleTeacher: { en: 'Teacher', ur: 'ٹیچر' },
+  regFormRolePrincipal: { en: 'Principal / Head Teacher', ur: 'پرنسپل / ہیڈ ٹیچر' },
+  regFormSearchLabel: { en: 'School name or EMIS', ur: 'اسکول کا نام یا کوڈ' },
+  regFormSearchHelp: {
+    en: 'e.g. IMSG G-9/1, a village name or the EMIS code',
+    ur: 'مثلاً ⁦IMSG G-9/1⁩، گاؤں کا نام یا ⁦EMIS⁩ کوڈ',
+  },
+  regFormSearchButton: { en: 'Search', ur: 'تلاش کریں' },
+  regFormPickHeading: { en: 'Pick your school', ur: 'اپنا اسکول چنیں' },
+  regFormPickNote: {
+    en: 'Schools matching “{query}”. Not in the list? Go back and search again, or choose “My school isn’t here”.',
+    ur: '«⁨{query}⁩» سے ملتے اسکول۔ فہرست میں نہیں؟ پیچھے جا کر دوبارہ تلاش کریں، یا «میرا اسکول یہاں نہیں» چنیں۔',
+  },
+  regFormPickNothing: {
+    en: 'No school matched “{query}”. Go back and try another spelling, a village name or the EMIS code — or finish now without a school.',
+    ur: '«⁨{query}⁩» سے کوئی اسکول نہیں ملا۔ پیچھے جا کر دوسرا نام، گاؤں یا ⁦EMIS⁩ کوڈ آزمائیں — یا ابھی اسکول کے بغیر مکمل کریں۔',
+  },
+  regFormPickLabel: { en: 'Your school', ur: 'آپ کا اسکول' },
+  regFormPickNone: { en: 'My school isn’t here', ur: 'میرا اسکول یہاں نہیں' },
+  regFormNext: { en: 'Next', ur: 'آگے' },
+  regFormTeachHeading: { en: 'Your grades and subjects', ur: 'آپ کی جماعتیں اور مضامین' },
+  regFormTeachNote: {
+    en: 'Pick all that apply. No class of your own? Leave these empty.',
+    ur: 'جو لاگو ہوں سب چنیں۔ اپنی کوئی کلاس نہیں؟ انہیں خالی چھوڑ دیں۔',
+  },
+  regFormGradesLabel: { en: 'Grades', ur: 'جماعتیں' },
+  regFormSubjectsLabel: { en: 'Subjects', ur: 'مضامین' },
+  regFormFinish: { en: 'Finish', ur: 'مکمل کریں' },
+  regFormDoneHeading: { en: 'You’re registered', ur: 'رجسٹریشن مکمل' },
+  regFormDoneBody: {
+    en: 'Welcome, {name}! Tap Done and I’ll send your NIETE portal link in the chat.',
+    ur: 'خوش آمدید، {name}! «ٹھیک ہے» دبائیں، میں چیٹ میں آپ کا ⁦NIETE⁩ پورٹل لنک بھیج دوں گی۔',
+  },
+  regFormDoneButton: { en: 'Done', ur: 'ٹھیک ہے' },
+  // Grade and subject options the class catalog (GRADE_LABELS / SUBJECT_LABELS, seeded codes)
+  // does not carry; the rest come from gradeLabelFor / subjectLabelFor.
+  regGradeHigherSecondary: { en: 'Higher Secondary (11-12)', ur: 'انٹر (⁦۱۱–۱۲⁩)' },
+  regSubjectIslamiat: { en: 'Islamiat', ur: 'اسلامیات' },
+  regSubjectPhysics: { en: 'Physics', ur: 'فزکس' },
+  regSubjectChemistry: { en: 'Chemistry', ur: 'کیمسٹری' },
+  regSubjectBiology: { en: 'Biology', ur: 'بیالوجی' },
+  regSubjectSocialPakStudies: { en: 'Social Studies / Pak St.', ur: 'معاشرتی علوم / مطالعہ پاکستان' },
+  regSubjectComputerScience: { en: 'Computer Science', ur: 'کمپیوٹر سائنس' },
+  regSubjectOther: { en: 'Other', ur: 'دیگر' },
+  // The chat message after she taps Done — a cta_url to the portal through the signed /go link.
+  regDoneChat: {
+    en: 'Thank you for registering, {name}! You’re all set. Open your NIETE portal below, or tell me what to start on.',
+    ur: 'رجسٹریشن کا شکریہ، {name}! آپ تیار ہیں۔ نیچے اپنا ⁦NIETE⁩ پورٹل کھولیں، یا بتائیں کس کام سے شروع کریں۔',
+  },
+  regDoneChatNoLink: {
+    en: 'Thank you for registering, {name}! You’re all set. Tell me what to start on.',
+    ur: 'رجسٹریشن کا شکریہ، {name}! آپ تیار ہیں۔ بتائیں کس کام سے شروع کریں۔',
+  },
+  regDoneNoSchool: {
+    en: 'Your school isn’t linked yet. Your coach can add it, and the school features open then.',
+    ur: 'آپ کا اسکول ابھی منسلک نہیں ہوا۔ کوچ کے ذریعے اسے شامل کیا جا سکتا ہے، اور اسکول والی سہولتوں کے لیے یہ ضروری ہے۔',
+  },
+  regDonePortalButton: { en: 'Open portal', ur: 'پورٹل کھولیں' },
+  regFailed: {
+    en: 'Sorry, something went wrong with your registration. Please type /register to try again.',
+    ur: 'معذرت، رجسٹریشن میں کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے ⁦/register⁩ ٹائپ کریں۔',
+  },
 
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
@@ -2332,6 +2461,17 @@ const UX_STRINGS = {
     en: 'No one has finished this quiz yet, so there is nothing to report. Resend the link?',
     ur: 'ابھی کسی نے یہ quiz مکمل نہیں کیا، اس لیے رپورٹ کے لیے کچھ نہیں۔ link دوبارہ بھیجیں؟',
   },
+  // quiz_report_send_checked on: the teacher asked for their report from /quiz and WhatsApp did not take it. Never
+  // tqNoReportYet here — children finished. {link} is the class report page the report carried; without one, the
+  // second key. Two keys, not one with an optional placeholder (resolveUx throws on a missing one).
+  tqReportNotThrough: {
+    en: "Your report didn't come through on WhatsApp. You can see it here: {link}",
+    ur: '\u200Fآپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ رپورٹ یہاں دیکھیں:\n{link}',
+  },
+  tqReportNotThroughNoLink: {
+    en: "Your report didn't come through on WhatsApp. Please type /quiz again in a few minutes.",
+    ur: 'آپ کی رپورٹ واٹس ایپ پر نہیں پہنچ سکی۔ براہِ کرم چند منٹ بعد دوبارہ ⁦/quiz⁩ بھیجیں۔',
+  },
   // Names the refetch: the whole point of the button is that a child who
   // finished since the last report is counted this time.
   tqReportComing: {
@@ -2751,7 +2891,7 @@ const UX_STRINGS = {
   vqWhoNameClass: { en: '\u2068{name}\u2069, \u2068{cls}\u2069', ur: '\u2068{name}\u2069، \u2068{cls}\u2069' },
   vqExpired: {
     en: 'That quiz link has expired. Ask your teacher for a new one!',
-    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے استاد سے نیا link لیں!',
+    ur: 'یہ quiz link ختم ہو چکا ہے۔ اپنے ٹیچر سے نیا link لیں!',
   },
 
   // ─── the join Flow a child we have never met opens (screen WHO) ─────────
@@ -2771,7 +2911,7 @@ const UX_STRINGS = {
   vqJoinNameLabel: { en: 'Your name', ur: 'آپ کا نام' },
   vqJoinNameHelp: {
     en: 'So your teacher can see how you did',
-    ur: 'تاکہ آپ کے استاد دیکھ سکیں کہ آپ نے کیسا کیا',
+    ur: 'تاکہ آپ کے ٹیچر دیکھ سکیں کہ آپ نے کیسا کیا',
   },
   vqJoinClassLabel: { en: 'Your class', ur: 'آپ کی جماعت' },
   vqJoinClassHelp: { en: 'For example: Grade 4, or 1-B', ur: 'مثلاً: جماعت 4' },
@@ -2946,6 +3086,15 @@ const UX_STRINGS = {
   vqWhichClass: { en: 'Which class is this quiz for?', ur: 'یہ کوئز کس کلاس کے لیے ہے؟' },
   vqWhichClassAny: { en: 'All / not sure', ur: 'سب / پتا نہیں' },
   vqWhichClassPick: { en: 'Choose class', ur: 'کلاس چنیں' },
+  // bd-v0toag.10 — "who helped?" one tap after a lesson quiz (quiz-helped-by.js; behind
+  // app_settings quiz_slo_retest_enabled). Button ≤20 and row titles ≤24 code points.
+  vqHelpedAsk: { en: 'One last tap: who helped you with this quiz?', ur: 'آخری سوال: اس کوئز میں آپ کی مدد کس نے کی؟' },
+  vqHelpedPick: { en: 'Who helped?', ur: 'کس نے مدد کی؟' },
+  vqHelpedNoOne: { en: 'No one', ur: 'کسی نے نہیں' },
+  vqHelpedClassmate: { en: 'A classmate', ur: 'ہم جماعت' },
+  vqHelpedTeacher: { en: 'My teacher', ur: 'ٹیچر' },
+  vqHelpedFamily: { en: 'My family', ur: 'گھر والے' },
+  vqHelpedThanks: { en: 'Thank you!', ur: 'شکریہ!' },
   // A tap on the class question is always answered (Rule 24d: name the state, never silence).
   vqWhichClassAnyDone: {
     en: 'Okay — the report will show everyone who plays.',
@@ -2971,6 +3120,46 @@ const UX_STRINGS = {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
     ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
+  // A storybook the teacher sends to the class (story-teacher.service.js, web_quiz_stories_teacher): the link
+  // opens the book on its first page, so the message names the story and the one tap, nothing else.
+  storyClassMessage: {
+    en: '📖 *A story for you!*\n\n{teacher} has sent you a story: *{title}*.\n\nTap here to listen and read along with Jugnu:\n{link}',
+    ur: '‏📖 *آپ کے لیے ایک کہانی!*\n\n{teacher} نے آپ کو ایک کہانی بھیجی ہے: *{title}*۔\n\nجگنو کے ساتھ سننے اور پڑھنے کے لیے یہاں ٹیپ کریں:\n{link}',
+  },
+  // The class report of a story send: who opened it, who listened, who read aloud, who answered the questions.
+  storyReportHead: {
+    en: '📖 *{title}* — your class\'s story\n\n{joined} opened it\n🎧 {listened} listened\n🗣️ {read} read aloud\n⭐ {questions} answered the questions',
+    ur: '‏📖 *{title}* — آپ کی کلاس کی کہانی\n\n{joined} بچوں نے کہانی کھولی\n🎧 {listened} نے سنی\n🗣️ {read} نے اونچی آواز میں پڑھی\n⭐ {questions} نے سوالوں کے جواب دیے',
+  },
+  storyReportLine: {
+    en: '• {name}: 🎧 {listened} · 🗣️ {read} · ⭐ {questions}',
+    ur: '‏• {name}: 🎧 {listened}، 🗣️ {read}، ⭐ {questions}',
+  },
+  storyPage1: { en: '{n} page', ur: '{n} صفحہ' },
+  storyPagesN: { en: '{n} pages', ur: '{n} صفحے' },
+  storyReportNoName: {
+    en: '(no name)',
+    ur: '(نام نہیں)',
+  },
+  // Nobody joined by the report's time: said in story words, with the one thing to do (the link stays open).
+  storyReportNoOne: {
+    en: '📖 *{title}* — no one in your class has opened the story yet. The link is still open: forward the class message again.',
+    ur: '‏📖 *{title}* — آپ کی کلاس میں ابھی تک کسی نے کہانی نہیں کھولی۔ لنک اب بھی کام کر رہا ہے: کلاس کو پیغام دوبارہ بھیج دیں۔',
+  },
+  // The class reads this name when the teacher has none on record: neutral, the word children use.
+  storyYourTeacher: { en: 'Your teacher', ur: 'آپ کے ٹیچر' },
+  // The same, with the teacher's name, on a story's landing (the quiz landing keeps its own word).
+  storyTeacherNamed: { en: 'Teacher {name}', ur: '{name} ٹیچر' },
+  // Under Send on the teacher's story page: the honest way back after WhatsApp opens.
+  storyComeBack: { en: 'After sending, come back from the button in your chat.', ur: 'بھیجنے کے بعد اپنی چیٹ میں بٹن دبا کر یہاں واپس آئیں۔' },
+  storyReportKind_literal: { en: 'Finds facts in the story: {right}/{total}', ur: '‏کہانی میں لکھی بات ڈھونڈنا: {right}/{total}' },
+  storyReportKind_inference: { en: 'Works out why: {right}/{total}', ur: '‏وجہ سمجھنا: {right}/{total}' },
+  storyReportKind_vocab: { en: 'Word meanings: {right}/{total}', ur: '‏لفظوں کے معنی: {right}/{total}' },
+  storyReportWords: { en: 'Words the class skipped most: {words}', ur: '‏کلاس نے یہ لفظ سب سے زیادہ چھوڑے: {words}' },
+  // Under the teacher's Send button on the story page.
+  storyReportWhere: { en: 'The report comes to you on WhatsApp, as usual.', ur: 'رپورٹ ہمیشہ کی طرح آپ کو واٹس ایپ پر ملے گی۔' },
+  // Under the books on the teacher's story page when this teacher's class cannot get a web link yet (no Send then).
+  storySendNotOpen: { en: 'Sending stories to your class is not open for your school yet.', ur: 'آپ کے اسکول میں اپنی کلاس کو کہانیاں بھیجنے کی سہولت ابھی شروع نہیں ہوئی۔' },
   // The same schedule as tqReportPromise (one report service): 12 hours after
   // the first child joins, 07:00 PKT at night — never "tomorrow morning", never
   // "as soon as everyone has finished". A video-lesson quiz has no /quiz entry,
@@ -4442,6 +4631,20 @@ const STUDENT_TUTOR_STRINGS = {
   jugnuBindFullRefused: {
     en: "This phone already keeps four children's places, the most Jugnu allows. Send /quiz and tap a name to play.",
     ur: "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔ کھیلنے کے لیے \u2066/quiz\u2069 بھیجیں اور نام دبائیں۔",
+  },
+  // web_quiz_bind_way_back: the outcomes that had no reply. Each is sent with the jugnuBindOpenBtn button back to the
+  // child's page when the code was minted for a known child in the last day (jugnuBindCodeUnknown: never a button).
+  jugnuBindPhonesRefused: {
+    en: "This child's place is already saved on three phones, the most Jugnu allows.",
+    ur: "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔",
+  },
+  jugnuBindCodeOld: {
+    en: "That code has already been used or is more than an hour old, so nothing was saved. Open the page and tap “Keep my place” again for a new one.",
+    ur: "یہ کوڈ پہلے استعمال ہو چکا ہے یا ایک گھنٹے سے پرانا ہے، اس لیے کچھ محفوظ نہیں ہوا۔ نیا کوڈ لینے کے لیے صفحہ کھولیں اور دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
+  },
+  jugnuBindCodeUnknown: {
+    en: "Jugnu could not find that code, so nothing was saved. Open Jugnu's link again and tap “Keep my place”.",
+    ur: "جگنو کو یہ کوڈ نہیں ملا، اس لیے کچھ محفوظ نہیں ہوا۔ جگنو کا لنک دوبارہ کھولیں اور «میری جگہ محفوظ کریں» دبائیں۔",
   },
   jugnuBindStopped: {
     en: "Done. Jugnu has removed this phone number from the children's names it was saved with. Send /quiz any time to start again.",

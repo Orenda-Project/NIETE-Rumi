@@ -50,8 +50,8 @@ describe('Framework Registry (bd-596)', () => {
     test('SCENARIO: getFramework("fico") returns FICO module', () => {
       const fw = getFramework('fico');
       expect(fw.name).toBe('fico');
-      // ICT canonical rubric: 26 indicators × 4 = 104
-      expect(fw.maxMarks).toBe(104);
+      // ICT canonical rubric: FICO V3 (bd-2345), 37 indicators × 4 = 148
+      expect(fw.maxMarks).toBe(148);
     });
 
     test('SCENARIO: Unknown framework key throws error', () => {

@@ -27,6 +27,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { normaliseClasses } = require('../../utils/text-format');
 const crypto = require('crypto');
 const T = require('./web-quiz-token');
 const Steps = require('./web-quiz-steps');
@@ -43,15 +44,17 @@ const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 const { clampLanguage } = require('../../config/ux-strings');
-const { teacherLabel } = require('./quiz-teacher-label');
+const { childTeacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
+const { underWatchRoot } = require('./watch-root');
 const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 const Art = require('./web-quiz-art-id');
 const Tel = require('./web-quiz-telemetry');
+const Fast = require('./web-quiz-fast');
 // Reads on the child's request path: a per-attempt deadline + one retry when web_quiz_db_deadline is on.
 const { read: dbRead } = require('./web-quiz-db-deadline');
 
@@ -347,15 +350,56 @@ function mediaHelpers() {
 // ─── the class's name chips ────────────────────────────────────────────────
 
 /**
+ * A child's own code under the watch root (a class-less child's quiz after a video), or the root code itself: no class,
+ * so no classmates. The root (app_settings VALUE web_quiz_watch_root, the key the videos module mints under) comes in
+ * the page's own identity-mode settings read, so no code pays a read for it; no root = today's page. A failed read may
+ * hide a root, so it fails closed: every code is treated as no class (only its own players, no roster).
+ */
+async function isWatchCode(ctx) {
+  const { root, unreadable } = await IdRoster.watchRootState();
+  if (unreadable) return true;
+  if (!root) return false;
+  if (ctx.moreVideosOf === root || ctx.shareCodeId === root) return true;
+  // deeper: a watch child's lesson code, a friend's code under it, ... (by ancestry; once per request)
+  if (!watchMemo.has(ctx)) {
+    const rows = [ctx.row, ctx.parent].filter((r) => r && r.id);
+    watchMemo.set(ctx, rows.length ? underWatchRoot(rows, root, readCodeParents).then((u) => u.size > 0) : Promise.resolve(false));
+  }
+  return watchMemo.get(ctx);
+}
+const watchMemo = new WeakMap();
+// board()'s own guard: as isWatchCode, but an unreadable root is read once more first (past the 30 s a failed read is
+// kept), so a blip does not close every class's table; still unreadable: treated as the watch quiz (fails closed).
+async function watchBoard(ctx) {
+  if ((await IdRoster.watchRootState()).unreadable && (await IdRoster.watchRootState(Date.now(), { retryFailed: true })).unreadable) return true;
+  return isWatchCode(ctx);
+}
+async function readCodeParents(ids) {
+  const { data, error } = await dbRead('watchRoot:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, parent_share_code_id').in('id', ids));
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+/**
  * Children who played THIS teacher's links in the last 90 days (not invited
  * friends, not the teacher's own runs), most recent first, capped at 40.
  * Internal rows carry studentId; the public chip never does.
  */
 async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
-  const { data: codes } = await dbRead('classChips:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id')
-    .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200));
-  const ids = (codes || []).map((c) => c.id);
+  // A watch code's teacher is the watch root's: its other codes are strangers, so only this code's own players; the
+  // root code itself is no class at all. Every other code of that teacher leaves the watch children's codes out.
+  // One settings read for the whole call: a failed read is no class (a later good read must not open the pool).
+  const { root, unreadable } = await IdRoster.watchRootState();
+  if (root && ctx.shareCodeId === root) return [];
+  const watch = unreadable || await isWatchCode(ctx);
+  const { data: codes } = watch ? { data: [] } : await dbRead('classChips:quiz_share_codes:1', (db) => {
+    const q = db.from('quiz_share_codes').select(root ? 'id, parent_share_code_id' : 'id')
+      .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since);
+    return (root ? q.or(`parent_share_code_id.is.null,parent_share_code_id.neq.${root}`) : q).limit(200);
+  });
+  const deep = root && (codes || []).length ? await underWatchRoot(codes, root, readCodeParents) : new Set();
+  const ids = (codes || []).filter((c) => c.id === root || !deep.has(c.id)).map((c) => c.id);   // the root's own old finishes stay, as today
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
   const { data: sessions } = await dbRead('classChips:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('student_id, student_name, user_id, created_at, share_code_id')
@@ -397,15 +441,28 @@ function rosterChip(ctx, { kid, label }, one = null) {
 
 // ─── live counts ────────────────────────────────────────────────────────────
 
-async function liveCounts(ctx) {
+// A child's page never gets a class count under 5 ("1 in your class played today" tells the next child who): under 5
+// the boot sends class_today 0 and no now, so the page draws neither line. The ICT-wide count is not a class count.
+const CLASS_COUNT_FLOOR = 5;
+function childLive(counts, now) {
+  return { ...counts, class_today: counts.class_today >= CLASS_COUNT_FLOOR ? counts.class_today : 0, ...(now >= CLASS_COUNT_FLOOR ? { now } : {}) };
+}
+
+async function liveCounts(ctx, { together = false } = {}) {
   const since = pktMidnightIso();
   const out = { class_today: 0, ict_today_floor: 0 };
+  const classToday = () => dbRead('liveCounts:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id, user_id, status, completed_at, created_at')
+    .eq('share_code_id', ctx.shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', since));
+  const ictToday = () => dbRead('liveCounts:quiz_sessions:2', (db) => db.from('quiz_sessions').select('id', { count: 'exact', head: true })
+    .eq('source', 'share_link').eq('status', 'completed').is('user_id', null).gte('completed_at', since));
   try {
-    const { data } = await dbRead('liveCounts:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id, user_id, status, completed_at, created_at')
-      .eq('share_code_id', ctx.shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', since));
+    // Fast first page: both counts at once; each lands exactly as it would one after the other (a failed first count
+    // leaves both at 0, a failed second keeps the first).
+    const both = together ? Promise.allSettled([classToday(), ictToday()]) : null;
+    const settled = (i) => both.then((r) => (r[i].status === 'fulfilled' ? r[i].value : Promise.reject(r[i].reason)));
+    const { data } = await (both ? settled(0) : classToday());
     out.class_today = oneAttemptPerChild(excludeSelfTests(data || [], ctx.teacherUserId)).length;
-    const { count } = await dbRead('liveCounts:quiz_sessions:2', (db) => db.from('quiz_sessions').select('id', { count: 'exact', head: true })
-      .eq('source', 'share_link').eq('status', 'completed').is('user_id', null).gte('completed_at', since));
+    const { count } = await (both ? settled(1) : ictToday());
     out.ict_today_floor = count || 0;
   } catch (e) {
     logToFile('⚠️ web-quiz: live counts unavailable', { error: e.message });
@@ -424,16 +481,51 @@ function getQuiz(code, opts = {}) {
   return Steps.run('getquiz', {}, (mark) => getQuizTimed(code, opts, mark));
 }
 
-async function getQuizTimed(code, { p } = {}, mark = () => {}) {
+// The class heading for a code (null until a child has finished): the report's, so the page names the class as the
+// teacher's own texts do. A "watch another video" code is named after the class code it came from; a class-less
+// child's watch code has no class to name.
+async function classLabel(ctx) {
+  try {
+    if (await isWatchCode(ctx)) return null;
+    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
+    return (cls && cls.className) || null;
+  } catch { return null; }
+}
+
+async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   requireOn();
+  const fast = Fast.on();
+  // app_settings web_quiz_class_doors (30 s cache, fails closed), read beside the code: the edge opens the class table
+  // and the league in the link's language only when the answer says so.
+  const classDoors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
   mark('resolve', { shareCodeId: ctx.shareCodeId });
+  // A grown-up's chosen language for the child the link's chip names (web-quiz-quiz-lang.js, web_quiz_return_lang):
+  // started now beside the reads below, only with a chip; it never fails the quiz.
+  const childLang = k ? require('./web-quiz-quiz-lang').field(ctx, k).catch(() => ({})) : null;
+  // Fast first page (web_quiz_fast): every read below that needs only the resolved code starts now, beside the
+  // questions, and is awaited where today's code reads it; off, each one starts there as today.
+  const pre = fast ? {
+    idn: Fast.early(identityV2(ctx)),
+    label: Fast.early(classLabel(ctx)),
+    live: Fast.early(liveCounts(ctx, { together: true })),
+    brand: Fast.early(WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName })),
+    nav: Fast.early(require('./web-quiz-hub-flags').pageNav()),
+    rt: Fast.early(Tel.flag()),
+    ui: Fast.early(require('./web-quiz-ur-polish').ui()),
+    ask: Fast.early(require('./web-quiz-invite-ask').mode()),
+  } : null;
+  const got = (key, start) => (pre ? pre[key] : start());
+  if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn) : null)));
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
     dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
   ]);
   mark('questions');
-  if (!questions.length) fail(404, 'no_questions');
+  // A storybook the teacher sent (story-teacher.service, web_quiz_stories_teacher) has no questions: the page joins the
+  // child and opens the book. Any other quiz with none is the 404 it always was.
+  const story = questions.length ? null : await require('./story-teacher.service').storyForQuiz(quizRow, ctx);
+  if (!questions.length && !story) fail(404, 'no_questions');
   // The language the quiz's clips are recorded in (the row's, else its questions' script).
   const voiceLang = clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions));
   // A library lesson's page speaks the lesson's language, never its class code's: a lesson code minted in
@@ -448,20 +540,28 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
+  // One voice per quiz (web-quiz-one-voice-flag.js): no recorded person's voice beside the quiz voice. Its clips are
+  // in their own slot (meta.web_one): the page is served from it, and meta.web is left as it is. Read in the page's
+  // own settings read (web-quiz-identity-roster.js), so the switch costs the page no read.
+  // The plan as it applies to this quiz (its language): null keeps today's voice, as with the switch off.
+  const oneVoice = story ? null : require('./web-quiz-one-voice-flag').forQuiz(await IdRoster.oneVoicePlan(), ctx.quizId, voiceLang);
+  const quizMeta = (quizRow && quizRow.meta) || {};
+  const audioMeta = oneVoice ? { ...quizMeta, web: quizMeta.web_one || {} } : quizMeta;
   // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and
   // the tap that follows it, or a class opening the same link together, sign them once. The key is
   // everything the links are made from, so new clips or edited questions are signed at once.
   const mediaKey = require('crypto').createHash('sha1').update(JSON.stringify([
     ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
-    (quizRow && quizRow.meta && quizRow.meta.web) || null,
+    audioMeta.web || null,   // the slot the page is served from (meta.web_one with one voice)
     questions.map((q) => [q.id, q.question_text, q.media || null]),
+    ...(oneVoice ? ['one_voice', oneVoice.sig] : []),
   ])).digest('base64');
   const cached = quizMediaCache.get(mediaKey);
   const hit = Boolean(cached && Date.now() - cached.at < QUIZ_MEDIA_CACHE_MS);
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio((quizRow && quizRow.meta) || {}, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
@@ -476,14 +576,21 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
   // Until they are recorded the page is told (audio_pending): it asks again and takes them as they land.
   let audioPending = false;
-  try {
+  if (!story) try {
     const Publish = require('./web-quiz-publish.service');
-    audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
-    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+    audioPending = !Publish.isCurrent(Publish.webOf(quizMeta, { oneVoice }), { oneVoice });
+    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
-    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S, oneVoice }); } catch { /* the page reads aloud */ }
+    // The voice-mix alarm: a one-voice page that still carries two voices (clips of an older plan, a shared-line set
+    // in another voice). The plan's kept bank recordings are expected and do not count. A quiz key, never its id.
+    if (oneVoice) try {
+      const set = require('./web-quiz-voice').sharedSets(oneVoice)[voiceLang];
+      const mix = require('./web-quiz-one-voice-flag').mixOf(audio, { sharedTag: set ? set.path : null });
+      if (mix.mixed) logEvent('web_quiz.voice_mix', { qk: require('./web-quiz-kid').qk(ctx.quizId), tags: mix.tags, bank: [...oneVoice.bank] });
+    } catch { /* an alarm never breaks the page */ }
     if (helpers) {
       if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
       quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
@@ -491,9 +598,10 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   }
   mark('media');
   // Identity v2: the child types their name and the server matches inside the hand-out's class.
-  const idn = await identityV2(ctx);
+  const idn = await got('idn', () => identityV2(ctx));
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
-  const roster = idn ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
+  // A watch code's teacher is the watch root's: the class-less child is on none of that teacher's lists.
+  const roster = idn || (await isWatchCode(ctx)) ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: quizRow && quizRow.grade });
   // v2 ships no classmates' names at all: only this phone's remembered children (page storage).
   // An invited friend is not in the class: no classmates' names, ever (a pick would score as a classmate).
   const invited = Boolean(ctx.invitedByStudentId);
@@ -505,12 +613,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The class and the teacher are named exactly as the teacher's own texts
   // name them: the forwarded WhatsApp message's "Teacher <name>", and the
   // report's class heading for this code (null until a child has finished).
-  let label = null;
-  try {
-    // A "watch another video" code is named after the class code it came from.
-    const cls = await require('./video-quiz-report.service').loadClassRows(ctx.moreVideosOf || ctx.shareCodeId);
-    label = (cls && cls.className) || null;
-  } catch { label = null; }
+  const label = await got('label', () => classLabel(ctx));
   const zooms = await Promise.all(questions.map((q) => PictureZoom.zoomFor(q).catch(() => null)));
   mark('label');
   const out = {
@@ -528,40 +631,66 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     },
     cls: {
       // A friend's challenge names only the challenger: never the challenger's teacher or class.
-      label: invited ? null : label, teacher: invited ? null : teacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
+      label: invited ? null : label, teacher: invited ? null : childTeacherLabel(ctx.parent.teacher_name, ctx.lang), chips: chips.map(publicChip),
       ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
-      ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
+      ...(idn ? { identity: await got('boot', () => identityBoot(ctx, idn)) } : {}),
     },
     // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
     // A friend's challenge gets neither the class count nor who is playing now: the friend is not in the class.
-    live: invited ? { ...(await liveCounts(ctx)), class_today: 0 }
-      : { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
+    live: invited ? { ...(await got('live', () => liveCounts(ctx))), class_today: 0 }
+      : childLive(await got('live', () => liveCounts(ctx)), Pulse.liveNow(ctx.shareCodeId)),
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
-    brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
+    brand: await got('brand', () => WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName })),
   };
   mark('live');
   // A friend's challenge: the page keeps the friend away from the challenger's class (its table, its group).
   if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await challengeOf(ctx); }
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
-  const nav = await require('./web-quiz-hub-flags').pageNav();
+  const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;
   // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
   out.art = {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
     invite: ctx.invitedByStudentId ? Art.artId('i', ctx.code) : null,
   };
+  // The teacher's own class link previews as its class (web-quiz-class-pic.js; quiz_teacher_home, and the story send's
+  // switch for a story): named only when on, so a switched-off payload is today's.
+  const teach = await require('./web-quiz-class-pic').field(ctx, { story });
+  if (teach) Object.assign(out.art, teach);
   // Whether the page sends its page-session events (wq-tel.js).
-  out.rt = await Tel.flag();
+  out.rt = await got('rt', () => Tel.flag());
   // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
-  const ui = await require('./web-quiz-ur-polish').ui();
-  if (ui) out.ui = ui;
+  const ui = await got('ui', () => require('./web-quiz-ur-polish').ui());
+  // the light Urdu face (web_quiz_face_lite), from the hub-flags read pageNav just awaited: ui.fl, else the ui as it was
+  if (ui) out.ui = require('./web-quiz-ur-polish').lite(ui);
+  // The sound + motion kit (web-quiz-juice.js): named only when on, so a switched-off payload is today's.
+  if (await require('./web-quiz-juice').field()) out.juice = true;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
-  const ask = await require('./web-quiz-invite-ask').mode();
+  const ask = await got('ask', () => require('./web-quiz-invite-ask').mode());
   if (ask !== 'off') out.invite_ask = ask;
   // An old, finished class link opens the child's hub (web-quiz-link-home.js): named only when on, so a switched-off payload is today's.
   if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
+  // A lesson video under app_settings web_quiz_videos_v3: the page opened from the child home's Videos door puts the play first (named only when on).
+  if (video && video.url && await require('./web-quiz-library-flag').videosV3On()) out.videos_v3 = true;
+  // web_quiz_video_shelf: a lesson's Quiz button on the Videos door opens the page at its questions (?to=q); named only when on.
+  if (video && video.url && await require('./web-quiz-library-flag').videoShelfOn()) out.video_shelf = true;
+  // A class link on a phone that holds a child asks "Is it <First>?" first (web-quiz-link-known.js): named only when on.
+  if (await require('./web-quiz-link-known').field(ctx, { preview })) out.link_known = true;
+  // The edge sends this page's head before the bot answers next time (named only when on).
+  if (fast) out.fast = true;
+  // One voice per quiz: the page shows a line with no clip instead of reading it in the phone's voice, and plays the
+  // shared lines from the plan voice's set (named only when on).
+  if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
+  // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
+  // the table's skeleton, list-state marks and chips).
+  if (await classDoors) out.class_doors = true;
+  // The edge opens the quiz page in it, before the link's ?lang (named only when on and chosen).
+  if (childLang) Object.assign(out, await childLang);
+  if (story) require('./story-teacher.service').storyBoot(out, story, ctx);
+  // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
+  if (require('./web-quiz-minify').on()) out.min = true;
   return out;
 }
 
@@ -582,7 +711,7 @@ const classKey = (ctx, listId) => T.chipId(ctx.shareCodeId, `list:${listId}`);
  */
 async function oneClass(ctx, chosen) {
   const q = await quizInfo(ctx.quizId);
-  const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
+  const roster = (await isWatchCode(ctx)) ? null : await Roster.loadRoster(ctx.teacherUserId, { grade: q.grade });
   if (!roster) return { roster: null, grade: q.grade };
   const pick = Roster.pickList(roster, { listId: q.listId, grade: q.grade, chosen: chosen == null ? null : String(chosen) }, (id) => classKey(ctx, id));
   return { roster, grade: q.grade, ask: pick.ask || null, one: pick.ask ? null : Roster.onlyList(roster, pick.list) };
@@ -828,13 +957,15 @@ async function countJoin(shareCodeId) {
 }
 
 /** E3, timed: one web_quiz.session_timing line per call (path, steps, total). */
-function startSession(body = {}) {
+// opts.device: the phone's own wq_dv (x-wq-device), for the reads that name a child this phone holds — never the body.
+function startSession(body = {}, opts = {}) {
   const path = body.p ? 'preview' : body.roll != null ? 'roll' : body.chip ? 'chip' : body.from_st ? 'from_st' : body.new ? 'new' : 'other';
-  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark));
+  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark, opts));
 }
 
-async function startSessionTimed(body = {}, mark = () => {}) {
+async function startSessionTimed(body = {}, mark = () => {}, { device = null } = {}) {
   requireOn();
+  const fast = Fast.on();
   const ctx = await resolveCode(body.code);
   mark('resolve', { shareCodeId: ctx.shareCodeId });
   const deviceRef = T.cleanDeviceRef(body.device_ref) || T.newDeviceRef();
@@ -850,9 +981,16 @@ async function startSessionTimed(body = {}, mark = () => {}) {
         || (body.chip && !(s && s.student_id && String(body.chip) === T.chipId(ctx.shareCodeId, s.student_id)));
       if (other && s) logEvent('web_quiz.resume_skipped', { shareCodeId: ctx.shareCodeId, sessionId: s.id });
       if (s && !other && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
-        const answered = await answeredIds(s.id);
-        const prior = await priorFinish(ctx.shareCodeId, s.student_id, s.id);
-        const nameOf = await shownNames(ctx.lang, [s.student_id]);
+        // Fast start (web_quiz_fast): the three lookups need only the session row, so they run together; each is
+        // awaited where today's code reads it, so a failure surfaces as today.
+        const pre = fast ? {
+          answered: Fast.early(answeredIds(s.id)),
+          prior: Fast.early(priorFinish(ctx.shareCodeId, s.student_id, s.id)),
+          names: Fast.early(shownNames(ctx.lang, [s.student_id])),
+        } : null;
+        const answered = await (pre ? pre.answered : answeredIds(s.id));
+        const prior = await (pre ? pre.prior : priorFinish(ctx.shareCodeId, s.student_id, s.id));
+        const nameOf = await (pre ? pre.names : shownNames(ctx.lang, [s.student_id]));
         return {
           st: body.resume_st, device_ref: tok.d || deviceRef,
           ...countedFor(prior, tok.d || deviceRef, Boolean(s.user_id)),
@@ -897,6 +1035,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // (the teacher's recent-player chips below only reach the 40 newest players).
     student = found;
     found = null;
+  } else if (body.chip && body.via === 'known' && (found = await require('./web-quiz-link-known').kidFor(ctx, String(body.chip), device))) {
+    // "Is it <First>?" on a class link (web_quiz_link_known_child): a child this browser holds, as the one id they
+    // are known by, so the finish reaches the home `/quiz` opens and no second child is made.
+    student = found;
+    found = null;
   } else if (body.chip) {
     const want = String(body.chip);
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
@@ -929,7 +1072,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
     const listed = roster ? roster.kids.find((k) => k.id === st.id) : null;
     if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
-  } else if (body.new && typeof body.new === 'object' && !body.new.force && (found = await handsetCard(ctx, body))) {
+  } else if (body.new && typeof body.new === 'object' && !body.new.force && (found = await handsetCard(ctx, body, device))) {
     // A name typed on a phone the handset link (or the hub) trusted that is one of THAT phone's children: the one
     // card to confirm, never a second row for the same child. "Yes, that's my name" (force) still makes a new child.
     logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'handset_confirm', hits: 1 });
@@ -983,7 +1126,9 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     takerName = student.student_name;
     takerClass = student.self_reported_class || null;
   }
-  const prior = student ? await priorFinish(ctx.shareCodeId, student.id) : null;
+  // Fast start: the earlier-finish lookup (completed rows only; the new row is in progress) runs beside the insert.
+  const priorP = fast && student ? Fast.early(priorFinish(ctx.shareCodeId, student.id)) : null;
+  const prior = student && !fast ? await priorFinish(ctx.shareCodeId, student.id) : null;
 
   const { data: session, error: sErr } = await supabase.from('quiz_sessions').insert({
     quiz_id: ctx.quizId,
@@ -1005,13 +1150,10 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     fail(502, 'db_unavailable');
   }
   mark('insert');
+  if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP });
 
   await countJoin(ctx.shareCodeId);
-  let quizSource = null;
-  try {
-    const { data: q } = await dbRead('startSessionTimed:quizzes:1', (db) => db.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle());
-    quizSource = (q && q.quiz_source) || null;
-  } catch { /* a missing label, never a stopped quiz */ }
+  const quizSource = await quizSourceOf(ctx.quizId);
   Funnel.emit('child_joined', {
     quiz_id: ctx.quizId, session_id: session.id, share_code_id: ctx.shareCodeId, source: quizSource, channel: 'web',
     ...(userId ? { kind: 'self_test' } : {}),
@@ -1019,12 +1161,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   // The same call a WhatsApp child's join makes (video-quiz-share startForStudent):
   // the first join of a code schedules the teacher's 12-hour report; later
   // joins are de-duplicated inside scheduleForShareCode.
-  try {
-    // A "watch another video" code was never sent by the teacher: no report of its own (a paid message).
-    if (!ctx.moreVideosOf) await require('./video-quiz-report.service').scheduleForShareCode(ctx.shareCodeId);
-  } catch (e) {
-    logToFile('⚠️ web-quiz: report scheduling failed (the quiz still runs)', { shareCodeId: ctx.shareCodeId, error: e.message });
-  }
+  await scheduleJoin(ctx);
   const counted = countedFor(prior, deviceRef, Boolean(userId));
   if (resolved) logEvent('web_quiz.identity_resolved', { shareCodeId: ctx.shareCodeId, sessionId: session.id, ...resolved });
   // keep my place: the pick record the run row will carry (identity canon switch; off -> nothing stored or emitted).
@@ -1037,6 +1174,62 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
   });
   const nameOf = await shownNames(ctx.lang, [student && student.id]);
+  return {
+    st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
+    device_ref: deviceRef,
+    ...counted,
+    resume: { answered: [] },
+    child: student ? { chip: T.chipId(ctx.shareCodeId, student.id), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) } : null,
+  };
+}
+
+async function quizSourceOf(quizId) {
+  try {
+    const { data: q } = await dbRead('startSessionTimed:quizzes:1', (db) => db.from('quizzes').select('quiz_source').eq('id', quizId).maybeSingle());
+    return (q && q.quiz_source) || null;
+  } catch { return null; /* a missing label, never a stopped quiz */ }
+}
+
+/** The teacher's report schedule on a child's join (never on a "watch another video" code); never throws. */
+async function scheduleJoin(ctx) {
+  try {
+    // A "watch another video" code was never sent by the teacher: no report of its own (a paid message).
+    if (!ctx.moreVideosOf) await require('./video-quiz-report.service').scheduleForShareCode(ctx.shareCodeId);
+  } catch (e) {
+    logToFile('⚠️ web-quiz: report scheduling failed (the quiz still runs)', { shareCodeId: ctx.shareCodeId, error: e.message });
+  }
+}
+
+/**
+ * Fast start (web_quiz_fast), after the session row is written: the use count, the quiz's source for the join event,
+ * the report schedule, the pick record and the shown name need only the code, the child and the new row, so they run
+ * together. Each one already keeps its own failure (today's catches); the join and start events say what they said.
+ * The identity line is logged before the pick starts, so the pick's own line still falls between it and the start line.
+ */
+async function startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP }) {
+  // The earlier-finish lookup ran beside the insert; a failed one stops the start before anything else is written.
+  const prior = priorP ? await priorP : null;
+  if (resolved) logEvent('web_quiz.identity_resolved', { shareCodeId: ctx.shareCodeId, sessionId: session.id, ...resolved });
+  const join = Fast.early(countJoin(ctx.shareCodeId));
+  const source = Fast.early(quizSourceOf(ctx.quizId));
+  const schedule = Fast.early(scheduleJoin(ctx));
+  const pick = resolved ? Fast.early(require('./web-quiz-bind-page').recordPick({ sessionId: session.id, via: resolved.via, studentId: student && student.id, device: deviceRef })) : null;
+  const names = Fast.early(shownNames(ctx.lang, [student && student.id]));
+  await join;
+  Funnel.emit('child_joined', {
+    quiz_id: ctx.quizId, session_id: session.id, share_code_id: ctx.shareCodeId, source: await source, channel: 'web',
+    ...(userId ? { kind: 'self_test' } : {}),
+  });
+  await schedule;
+  const counted = countedFor(prior, deviceRef, Boolean(userId));
+  if (pick) await pick;
+  logEvent('web_quiz.session_started', {
+    sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
+    preview: Boolean(userId), returning: Boolean(body.chip || body.from_st), counted: counted.counted,
+    ...(ctx.moreVideosOf ? { moreVideos: true } : {}),
+    via: /^[a-z_]{1,16}$/.test(String(body.via || '')) ? body.via : null,
+  });
+  const nameOf = await names;
   return {
     st: T.signSession({ sessionId: session.id, deviceRef, shareCodeId: ctx.shareCodeId }),
     device_ref: deviceRef,
@@ -1069,6 +1262,8 @@ const ARABIC_SCRIPT = /[؀-ۿݐ-ݿ]/;
 async function identityV2(ctx) {
   if ((await IdRoster.identityMode()) !== 'v2') return null;
   if (ctx.invitedByStudentId) return { invited: true, resolved: NONE_CLASS };
+  // A class-less child's own code under the watch root (or the root): nobody's class, so no class to match a name in.
+  if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
@@ -1103,7 +1298,7 @@ async function identityBoot(ctx, idn) {
  * A typed name on a phone the handset link / hub trusted that is exactly ONE of that phone's children
  * (Identity.canon equal): that child's card for THIS code, or null (no trust, no match, two matches).
  */
-async function handsetCard(ctx, body) {
+async function handsetCard(ctx, body, device = null) {
   try {
     const d = T.cleanDeviceRef(body.device_ref);
     const name = cleanName(body.new && body.new.name);
@@ -1113,7 +1308,11 @@ async function handsetCard(ctx, body) {
     const want = Identity.canon(name);
     if (!want) return null;
     const { data: rows } = await dbRead('handsetCard:students:1', (db) => db.from('students').select('id, student_name, student_name_urdu, is_active, status').in('id', ids));
-    const hits = (rows || []).filter((r) => r.is_active !== false && r.status !== 'merged' && Identity.canon(r.student_name) === want);
+    const live = (rows || []).filter((r) => r.is_active !== false && r.status !== 'merged');
+    let hits = live.filter((r) => Identity.canon(r.student_name) === want);
+    // web_quiz_link_known_child: a child types the name they are called by — their FIRST name — so on THIS phone's own
+    // children (never a classmate) a first-name match is the same child too.
+    if (!hits.length && T.cleanDeviceRef(device) === d && await require('./web-quiz-link-known').isOn()) hits = live.filter((r) => Identity.canon(firstName(r.student_name)) === want);
     if (hits.length !== 1) return null;
     const k = hits[0];
     const shown = ctx.lang === 'ur' && k.student_name_urdu && String(k.student_name_urdu).trim() ? k.student_name_urdu : k.student_name;
@@ -1511,11 +1710,14 @@ function finishSession(body = {}) {
 
 async function finishSessionTimed(body = {}, mark = () => {}) {
   requireOn();
+  const fast = Fast.on();
   const { s, tok } = await sessionFromToken(body.st);
   mark('session');
+  // Fast finish (web_quiz_fast): the answers need only the session, so they are read beside the questions.
+  const answersP = fast ? Fast.early(answeredIds(s.id)) : null;
   const questions = await loadQuestions(s.quiz_id);
   mark('questions');
-  const answers = await answeredIds(s.id);
+  const answers = await (answersP || answeredIds(s.id));
   mark('answers');
   const byQ = new Map(answers.map((a) => [a.question_id, a]));
   const served = questions.filter((q) => byQ.has(q.id));
@@ -1527,6 +1729,22 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   if (!total || total < need) fail(409, 'too_few_answered', { answered: total, need });
   const pct = Math.round((correct / total) * 100);
   const level = levelFor(pct);
+  // Fast finish: the scorecard's lookups that need only the session start now, beside the completion write (none of
+  // them reads this session's own completion: the earlier finish and best score leave it out, a friend's score is the
+  // challenger's). Each is awaited where today's code reads it, so a failure surfaces as today; a lookup today's code
+  // skips (the best score of a first finish, a class line not counted) is read and set aside.
+  const pre = fast ? {
+    prior: Fast.early(priorFinish(s.share_code_id, s.student_id, s.id)),
+    names: Fast.early((async () => shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]))()),
+    classCode: Fast.early(classCodeOf(s)),
+    storyBoard: Fast.early(require('./story-board').refused(s.quiz_id)),
+    best: s.user_id ? null : Fast.early(bestField(s)),
+    vs: s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? Fast.early(versus(s, { correct, total })) : null,
+    next: Fast.early(nextLesson(s)),
+    door: Fast.early(require('./web-quiz-hub-door').field(s)),
+    jugnu: Fast.early(require('./web-quiz-card').field(s)),
+    fold: Fast.early(require('./web-quiz-hub-door').foldField(s)),
+  } : null;
 
   if (s.status !== 'completed') {
     const { error } = await supabase.from('quiz_sessions').update({
@@ -1544,33 +1762,43 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
   }
   mark('complete', { completed_now: s.status !== 'completed' });
+  // Fast finish: after the write, the challenge code (it may write one) and the class's finishers today (they must
+  // see this completion) start together.
+  if (pre) {
+    pre.challenge = Fast.early(challengeCodeFor(s));
+    pre.place = !s.user_id && !s.invited_by_student_id ? Fast.early(classFinishersToday(s.share_code_id)) : null;
+  }
+  const got = (key, start) => (pre ? pre[key] : start());
 
-  const prior = await priorFinish(s.share_code_id, s.student_id, s.id);
+  const prior = await got('prior', () => priorFinish(s.share_code_id, s.student_id, s.id));
   mark('prior');
   // Counted when no OTHER attempt finished before this one.
   const earlier = prior && s.completed_at && String(prior.completed_at) > String(s.completed_at) ? null : prior;
   const counted = countedFor(earlier, tok.d, Boolean(s.user_id));
-  const nameOf = await shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]);
+  const nameOf = await got('names', async () => shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]));
   const first = nameOf(s.student_id, s.student_name);
   mark('names');
-  const challengeCode = await challengeCodeFor(s);
+  const challengeCode = await got('challenge', () => challengeCodeFor(s));
   mark('challenge');
-  const { data: scRow } = await dbRead('finishSession:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle());
-  const classCode = (scRow && scRow.code) || null;
+  const classCode = await got('classCode', () => classCodeOf(s));
+  // A storybook has no class table (story-board.js, switch off: never read): its finish mints no class picture.
+  const classArt = classCode && !s.invited_by_student_id && !(await got('storyBoard', () => require('./story-board').refused(s.quiz_id)));
   mark('class_code');
   // The card's remaining reads, in the order the payload used to await them, each timed.
-  const best = earlier && !s.user_id ? await bestField(s) : {};
+  const best = earlier && !s.user_id ? await got('best', () => bestField(s)) : {};
   mark('best');
-  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {};
+  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? childPlace(placeToday(await got('place', () => classFinishersToday(s.share_code_id)), s.id)) : {};
   mark('place');
-  const vs = s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {};
+  const vs = s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await got('vs', () => versus(s, { correct, total })) : {};
   mark('versus');
-  const next = await nextLesson(s);
+  const next = await got('next', () => nextLesson(s));
   mark('next_lesson');
-  const door = await require('./web-quiz-hub-door').field(s);
+  const door = await got('door', () => require('./web-quiz-hub-door').field(s));
   mark('hub_door');
   // The Jugnu card (web-quiz-card.js; app_settings web_quiz_challenge_card): {} with the switch off.
-  const jugnu = await require('./web-quiz-card').field(s);
+  const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
+  // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
+  const fold = await got('fold', () => require('./web-quiz-hub-door').foldField(s));
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -1591,15 +1819,22 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...vs,
     // The signed ids of the pictures this child can share (web-quiz-art.js).
-    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null,
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classArt ? Art.artId('l', s.id) : null,
       // The class picture (nobody named) the shared table link /q/<CODE>/class previews as: getQuiz's art.class.
-      table: classCode && !s.invited_by_student_id ? Art.artId('l', classCode) : null },
+      table: classArt ? Art.artId('l', classCode) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
     ...next,
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
     ...door,
     ...jugnu,
+    ...fold,
   };
+}
+
+/** The class code a session was played on (the scorecard's class picture), or null. */
+async function classCodeOf(s) {
+  const { data: scRow } = await dbRead('finishSession:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle());
+  return (scRow && scRow.code) || null;
 }
 
 async function bestField(s) {
@@ -1636,7 +1871,13 @@ async function classFinishersToday(shareCodeId) {
   }
 }
 
-/** "You're the 6th in your class to finish today": this session's place among them ({} when it is not one). Pure. */
+/** The card's class line, never a count under 5: nth from 5 up; under 5 only done_today (the page's "You finished this quiz today!"). */
+function childPlace(p) {
+  if (!p || !p.nth) return {};
+  return p.nth >= CLASS_COUNT_FLOOR ? { nth: p.nth } : { done_today: true };
+}
+
+/** The card's "6 children in your class finished this quiz today.": how many finished up to and including this session ({} when it is not one). Pure. */
 function placeToday(rows, sessionId) {
   const mine = rows.find((r) => r.id === sessionId);
   return mine ? { nth: rows.filter((r) => String(r.completed_at) <= String(mine.completed_at)).length } : {};
@@ -1657,9 +1898,19 @@ function rankRows(rows) {
 
 async function board(code, { st } = {}) {
   requireOn();
+  // app_settings web_quiz_class_doors: `class_doors: true` marks the table's one primary on the page
+  const doors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
   // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
   if (ctx.invitedByStudentId) fail(404, 'not_found');
+  // The watch quiz (and any code under it) has no class: its table would be every class-less child. No root set: today's.
+  // First, so a watch code never starts the twin read.
+  if (await watchBoard(ctx)) fail(404, 'not_found');
+  // A storybook the teacher sent has no class table (web_quiz_story_board_refuse; off: today's board, no extra read).
+  if (await require('./story-board').refused(ctx.quizId)) fail(404, 'no_board');
+  // The quiz's twin in the other language, read beside the table only with the switch on (web-quiz-class-twin).
+  const Twin = require('./web-quiz-class-twin');
+  const twinP = doors.then((on) => (on ? Twin.find(ctx) : null));
   const report = require('./video-quiz-report.service');
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).
@@ -1667,7 +1918,7 @@ async function board(code, { st } = {}) {
   const nameOf = await shownNames(ctx.lang, ((cls && cls.rows) || []).map((r) => r.studentId));
   const rows = ((cls && cls.rows) || []).map((r) => ({
     sessionId: r.sessionId, studentId: r.studentId, first: nameOf(r.studentId, r.name),
-    animal: T.animalFor(r.studentId || r.sessionId), correct: r.correct, total: r.total, pct: r.pct,
+    animal: T.animalFor(r.studentId || r.sessionId), correct: r.correct, total: r.total, pct: r.pct, studentClass: r.studentClass,
   }));
   const ranked = rankRows(rows);
   const n = ranked.length;
@@ -1677,13 +1928,39 @@ async function board(code, { st } = {}) {
     rows: ranked.slice(0, BOARD_TOP).map((r) => ({ place: r.place, first: r.first, animal: r.animal, correct: r.correct, total: r.total })),
     more_n: Math.max(0, n - BOARD_TOP),
   };
+  let me = null;
   if (st) {
     const tok = T.verify(st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
       const { data: s } = await dbRead('board:quiz_sessions:1', (db) => db.from('quiz_sessions').select('id, student_id').eq('id', tok.sid).maybeSingle());
       const mine = s && ranked.find((r) => (s.student_id ? r.studentId === s.student_id : r.sessionId === s.id));
-      if (mine) out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct };
+      if (mine) { me = mine; out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct }; }
     }
+  }
+  if (await doors) {
+    out.class_doors = true;
+    // The child's own class as the teacher's report reads it (what the child typed, one format), and whether every
+    // row is of it: the page titles the table "Class 3" only then. Only a grade number counts: the field is free text,
+    // and on real rows it sometimes holds a word or a name, which must never become a title.
+    const classOf = (r) => { const c = normaliseClasses([r.studentClass])[0]; return /^(1[0-2]|[1-9])$/.test(c || '') ? c : null; };
+    const mc = me && classOf(me);
+    if (mc) { out.my_class = mc; out.one_class = ranked.every((r) => classOf(r) === mc); }
+    // A table of more than one class: the child's own class on its own, re-ranked (the page's "Only Class 3" chip).
+    // Its rows are the table's own shape; no row carries a class.
+    if (mc && !out.one_class) {
+      const own = rankRows(ranked.filter((r) => classOf(r) === mc).map(({ place, ...r }) => r));
+      const you = own.find((r) => r.sessionId === me.sessionId);
+      out.only = {
+        finishers_n: own.length,
+        class_avg_pct: Math.round(own.reduce((a, r) => a + (r.pct || 0), 0) / own.length),
+        rows: own.slice(0, BOARD_TOP).map((r) => ({ place: r.place, first: r.first, animal: r.animal, correct: r.correct, total: r.total })),
+        more_n: Math.max(0, own.length - BOARD_TOP),
+        ...(you ? { you: { place: you.place, correct: you.correct, total: you.total, pct: you.pct } } : {}),
+      };
+    }
+    // The same lesson in the other language (Play from a table shown in the child's language opens it).
+    const twin = Twin.shown(await twinP, me && me.studentId);
+    if (twin) out.twin = twin;
   }
   return out;
 }
@@ -1785,6 +2062,8 @@ const DOOR_PROPS = Object.freeze({
 });
 const HELPED_V = /^(self|helped|not_asked)$/;
 const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
+const CARD_SOURCE = /^(quiz|read|story|challenge)$/;
+const boolOnly = (v) => (typeof v === 'boolean' ? v : null);
 const NAME_PROPS = Object.freeze({
   // The doors (EVENTS §2): which door, on which surface, its 1-based slot as a number (every other name keeps `slot`
   // as the answer letter), a shelf tile's passage id, the next line's choice.
@@ -1796,6 +2075,9 @@ const NAME_PROPS = Object.freeze({
   bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
   // Jugnu's Book: class_wall_shown {shown, term_total?, week_n?} (the class lights line; no class id from the page).
   class_wall_shown: Object.freeze({ shown: /^(total|hidden_under5)$/, term_total: wallNum, week_n: wallNum }),
+  // The finish card (web_quiz_card_v3, wq-finish-card.js): the events contract's names beside src/ok/how.
+  card_shown: Object.freeze({ source: CARD_SOURCE, share_ok: boolOnly, tried: boolOnly }),
+  card_share: Object.freeze({ source: CARD_SOURCE, kind: /^(card_image|invite_link)$/, path: /^(file|native|wa|copy)$/ }),
 });
 const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
 const BATCH_MAX = 20;
@@ -1866,6 +2148,9 @@ function uaApp(ua) {
  * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). `v2`: web_quiz_events_v2
  * (ch_helped keeps its three-valued answer). Pure.
  */
+// The folded card's next_pick kinds: the slot's own, a list (a child's name never rides `kind`).
+const NEXT_PICK_KINDS = new Set(['story', 'storybook', 'game', 'read', 'listen', 'video', 'quiz', 'trail']);
+
 function cleanEvent(e, { rich = false, v2 = false } = {}) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
   if (!rich && TEL_NAMES.has(e.n)) return null;
@@ -1908,6 +2193,9 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
   // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
   // A friend's own run (card_view): 0/1.
   if (e.friend === 0 || e.friend === 1) props.friend = e.friend;
+  // The folded card (the child home on): card_view's fold 1, and the one next thing's kind on its next_pick.
+  if (e.n === 'card_view' && e.fold === 1) props.fold = 1;
+  if (e.n === 'next_pick' && NEXT_PICK_KINDS.has(e.kind)) props.kind = e.kind;
   if (e.iab === 0 || e.iab === 1) props.iab = e.iab;
   else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
   // A page_open's UA names the app: the page's own flag missed WhatsApp's browser (WA4A) and counted other apps'
@@ -1948,7 +2236,51 @@ function cleanProbe(p) {
   return JSON.stringify(out).length <= PROBE_MAX ? out : null;
 }
 
-function events(body = {}) {
+const EV3 = () => require('./web-quiz-events-v3');
+// The page's doors (door_shown / door_tap): with events v2 on each line is keyed (EVENTS §1-2, §6).
+const DOOR_NAMES = new Set(Object.keys(NAME_PROPS).filter((n) => NAME_PROPS[n] === DOOR_PROPS));
+
+/**
+ * A batch's keys for its door lines: dk from the phone's device (the edge's x-wq-device; the body's `dr` only when no
+ * device header came), kid from the page's signed hub token `ht` and the picked child's `chip` (a genuine, unexpired
+ * hub token whose ids name that chip, as the hub resolves a picked chip); anything else is kid null. Never throws;
+ * the token and the chip are never logged.
+ */
+function doorKeys(body, device) {
+  const K = require('./web-quiz-kid');
+  const ref = typeof device === 'string' && device ? device : body.dr;
+  let studentId = null;
+  if (typeof body.ht === 'string' && typeof body.chip === 'string' && body.chip) {
+    const tok = T.verify(body.ht, 'h');
+    if (tok && Array.isArray(tok.ids)) studentId = tok.ids.map(String).find((id) => T.chipId('h', id) === body.chip) || null;
+  }
+  return { kid: studentId ? K.kid(studentId) : null, dk: K.dk(ref) };
+}
+
+/**
+ * The scorecard card's child: its door lines leave the page before Play, so they carry no hub token or chip, but the
+ * batch carries the quiz session's signed token (st) and that session IS this child. The session id comes from the
+ * telemetry's own verifier; ONE read by that id gives the session's student, folded to the canonical child (merges
+ * followed), then its kid. An unknown session, a session with no student or a failed read: null. Never throws; the
+ * token, the session id and the student id are never logged.
+ */
+async function sessionKid(sid) {
+  try {
+    const { data } = await dbRead('cardDoorKid:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').eq('id', sid).maybeSingle());
+    const studentId = data && data.student_id ? String(data.student_id) : null;
+    if (!studentId) return null;
+    const canon = await IdRoster.canonicalStudentIds([studentId]);
+    return require('./web-quiz-kid').kid(canon.get(studentId) || null);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The page's events, relayed. `device`: this phone's device_ref from the request's x-wq-device (the edge's wq_dv
+ * cookie); it keys the door lines only.
+ */
+function events(body = {}, { device = null } = {}) {
   const all = Array.isArray(body.events) ? body.events : [];
   const list = all.slice(0, BATCH_MAX);
   const rich = Tel.on();
@@ -1960,13 +2292,45 @@ function events(body = {}) {
   const forged = v2 ? list.filter(serverOnly).length : 0;
   if (forged) logEvent('web_quiz.ev_dropped', require('./web-quiz-kid').envelope({ n: forged, why: 'server_only' }));
   let logged = 0;
+  let keys = null;
+  let card = null; // the card's door lines waiting for the session's child: { sid, lines }
   for (const e of list) {
+    // Events v3 (web_quiz_events_v3): the next-thing slot's lines, keyed and with their sitting id. Off: today's path.
+    if ((EV3().relayed(e) || EV3().forged(e)) && require('./web-quiz-next-offer-state').eventsV3Now()) {
+      if (EV3().forged(e)) continue;   // a server-only v3 name from a page is never logged
+      EV3().relay(e, body, device, { onTap: (kid, offer) => require('./web-quiz-next-offer-state').noteTap(kid, offer) }).catch(() => {});
+      logged += 1;
+      continue;
+    }
     const c = cleanEvent(e, { rich, v2 });
     if (!c) continue;
-    logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
+    if (v2 && DOOR_NAMES.has(c.name)) {
+      // A door line: the child's and the phone's keys; never the share code, the session or the unkeyed device hash.
+      if (!keys) keys = doorKeys(body, device);
+      const K = require('./web-quiz-kid');
+      const fields = K.stripIds({ ...c.props, ...ids });
+      // The scorecard card with no child from the hub token: keyed by the batch's quiz session once it is read.
+      if (!keys.kid && c.props.door === 'card') {
+        if (!card) card = { sid: Tel.batchIds(body).sid || null, lines: [] };
+        if (card.sid) {
+          card.lines.push([`web_quiz.${c.name}`, fields]);
+          logged += 1;
+          continue;
+        }
+      }
+      logEvent(`web_quiz.${c.name}`, K.envelope({ ...fields, kid: keys.kid, dk: keys.dk }));
+    } else logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
     // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
     if (c.name === 'page_open' && c.props.code) require('./web-quiz-old-link').noteOpen(c.props.code);
     logged += 1;
+  }
+  if (card && card.lines.length) {
+    // The page is answered at once; the card's lines follow the one session read (kid null when it finds no child).
+    const K = require('./web-quiz-kid');
+    const { dk } = keys;
+    sessionKid(card.sid)
+      .then((kid) => { for (const [name, fields] of card.lines) logEvent(name, K.envelope({ ...fields, kid, dk })); })
+      .catch(() => {});
   }
   return { logged };
 }
@@ -2014,6 +2378,8 @@ async function media(code, qid, { k, z } = {}) {
 
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
+  // the children this browser holds, for a class link's "Is it <First>?" (web-quiz-link-known.js)
+  knownKids: (body = {}, { device = null } = {}) => require('./web-quiz-link-known').known(body, resolveCode, { device }),
   // exported for tests and the router
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it

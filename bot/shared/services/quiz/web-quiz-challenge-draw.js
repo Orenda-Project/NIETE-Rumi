@@ -6,7 +6,8 @@
  *                the open band rises with the reading rung (child_rungs); the DRAW band is one lower after a line-1
  *                stop or a 0-word read on the last counted read (never below 1)
  *   the draw     random within band × language × kind over the check pool's released, not-withdrawn, calibrated or
- *                provisional passages the child has never had a run row for (twins excluded together); weights w1:
+ *                provisional passages, and the cell's designated reference while still reviewed (calibrated by
+ *                designation, not by n), the child has never had a run row for (twins excluded together); weights w1:
  *                the reference 0.35, each provisional 0.15 (at most two), calibrated passages share the rest; one band
  *                lower when the cell is exhausted, then "on its way" (no passage, no run row)
  *   the record   decided at serve: one record per canonical child × stop × period (a PKT calendar month read from
@@ -37,13 +38,19 @@ const entryBand = (g) => (g === 2 || g === 3 ? 1 : (g === 4 || g === 5 ? 2 : nul
 const ceilingBand = (g) => (g === 2 || g === 3 ? 2 : (g === 4 || g === 5 ? 3 : null));
 const gradeBand = (g) => (g === 2 || g === 3 ? 'G23' : (g === 4 || g === 5 ? 'G45' : null));
 
+/**
+ * The page's microphone check passed: it measured an input level, not speech. The page writes 'level_ok'; rows and
+ * cached pages from before carry 'pass' for the same fact, so every reader accepts both.
+ */
+const micHeard = (v) => v === 'level_ok' || v === 'pass';
+
 /** A line-1 stop (the story's first-line rule) or 0 words (unheard, or silent with the mic proven working). */
 function isLine1OrZero(row) {
   if (!row || row.exercise !== 'read') return false;
   const s = row.score || {};
   const m = row.meta || {};
   if (row.status === 'failed' && m.reason === 'unheard') return true;
-  if (m.ended === 'silent' && m.mic_check === 'pass') return true;
+  if (m.ended === 'silent' && micHeard(m.mic_check)) return true;
   return row.status === 'scored' && (!!s.stopped || Number(m.stop_line) === 1);
 }
 
@@ -193,7 +200,7 @@ function eligible({ rows, seenIds, kind, lang, band, now = new Date(), counted =
   const t = ms(now);
   return all
     .filter((r) => r.pool === 'check' && r.kind === kind && r.lang === lang && Number(r.band) === Number(band)
-      && DRAWABLE.has(r.status) && ms(r.released_at) <= t && r.withdrawn_at == null && !out.has(r.passage_id)
+      && (DRAWABLE.has(r.status) || (r.is_reference === true && r.status === 'reviewed')) && ms(r.released_at) <= t && r.withdrawn_at == null && !out.has(r.passage_id)
       && (!counted || isCountedSource(r)))
     .sort((a, b) => (Number(!!b.is_reference) - Number(!!a.is_reference)) || String(a.passage_id).localeCompare(String(b.passage_id)));
 }
@@ -462,17 +469,17 @@ async function pickOf({ sessionId = null, canonicalId = null, device = null } = 
  * 'teacher_present', keyed on the round (via 'class_round', the round token's entry) as well as the mode, because
  * positions 11+ of a round are served mode 'practice' with the teacher still there; only the round's own
  * mode='class_round' turns are the 'class_round' sample arm. A run that came by the class link inside an OPEN class-week window of the child's class is the
- * 'class_week' arm (web-quiz-class-week, required lazily under web_quiz_class_week: absent → no arm); every other
+ * 'class_week' arm (web-quiz-class-week, the run's class_id, required lazily under web_quiz_class_week: absent → no arm); every other
  * run is 'self_run' with no arm.
  */
-async function adminFields({ mode, via, canonicalId, at = new Date(), classWeekOn = false } = {}) {
+async function adminFields({ mode, via, classId = null, at = new Date(), classWeekOn = false } = {}) {
   if (via === 'class_round' || mode === 'class_round') return { admin_mode: 'teacher_present', sample_arm: mode === 'class_round' ? 'class_round' : null };
   if (via === 'class_link' && classWeekOn) {
     let mod = null;
     try { mod = require('./web-quiz-class-week'); } catch (_) { mod = null; }
     if (mod && typeof mod.openWindowFor === 'function') {
       try {
-        if (await mod.openWindowFor({ canonicalId, at })) return { admin_mode: 'self_run', sample_arm: 'class_week' };
+        if (await mod.openWindowFor({ classId, at })) return { admin_mode: 'self_run', sample_arm: 'class_week' };
       } catch (e) {
         logError('web_quiz.ch_class_week_read_failed', { error: String(e && e.message || e).slice(0, 120) });
       }
@@ -542,6 +549,7 @@ function lightLit(row, now = new Date()) {
 function __reset() { cache.clear(); periodMissingDay = null; }
 
 module.exports = {
+  micHeard,
   STOPS, WEIGHTS, ON_ITS_WAY_COPY,
   entryBand, ceilingBand, gradeBand, formOfGrade, isLine1OrZero, lastCountedRead, drawBand,
   rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, anchorPrev2, countedThisPeriod, recordAtServe,

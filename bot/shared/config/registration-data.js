@@ -137,15 +137,13 @@ const SUBJECTS_DROPDOWN = [
   { id: 'other', title: 'Other' }
 ];
 
-// FEAT-102 bd-2132 — self-onboarding role picker. Coach/Principal/AEO are the
-// ICT leader family the /observe gate accepts (observe-gate.js LEADER_ROLES);
-// Teacher is the default. Ids map 1:1 to users.role.
-const ROLES_DROPDOWN = [
-  { id: 'teacher', title: 'Teacher' },
-  { id: 'coach', title: 'Coach' },
-  { id: 'principal', title: 'Principal / Head Teacher' },
-  { id: 'aeo', title: 'AEO / Cluster Coordinator' }
-];
+// Self-onboarding role picker. Ids map 1:1 to users.role.
+// The form offers only what registration-roles.js FORM_ROLES says it may grant
+// (teacher, principal). Coach and AEO are admin-set and never offered here. These English
+// titles serve the v4 dropdown; the v5 screen takes its titles from the ux-strings catalog.
+const { FORM_ROLES } = require('./registration-roles');
+const ROLE_TITLES = { teacher: 'Teacher', principal: 'Principal / Head Teacher' };
+const ROLES_DROPDOWN = FORM_ROLES.map((id) => ({ id, title: ROLE_TITLES[id] || id }));
 
 module.exports = {
   COUNTRY_CODES,

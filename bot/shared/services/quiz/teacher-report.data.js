@@ -27,6 +27,14 @@
  *
  * Every read filters on the teacher. Children's names leave this module only
  * as first names with roll numbers, for the teacher's own page.
+ *
+ * A quiz the teacher SENT but did not make (switch `quiz_teacher_home`): a
+ * library quiz from the teacher home — the video bank's, or another teacher's —
+ * whose class code is this teacher's while `quizzes.teacher_id` is not. Its
+ * report is the sender's: their own class codes only (never the author's
+ * class), their own code's link and send date, and none of the author's
+ * per-class guidance. The author's report is unchanged (it reads only the
+ * author's codes). Off: such a quiz is "not this teacher's", as today.
  */
 
 const supabase = require('../../config/supabase');
@@ -35,6 +43,13 @@ const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const Roster = require('./web-quiz-roster');
 const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { v21On } = require('./quiz-v21-flag');
+const V21 = require('./teacher-report-v21');
+const SloCode = require('./quiz-slo-code');
+const FoldFlag = require('./report-fold-flag');
+const LivePreviewFlag = require('./reminder-live-preview-flag');
+// the fold-by-child rule and its facts read: one home, shared with the WhatsApp report's count
+const { childFacts, foldByChild, typedKey } = require('./report-fold');
 
 const QUIZ_COLS = 'id, teacher_id, topic, subject, grade, language, quiz_source, status, list_id, meta, created_at';
 const SESSION_COLS = 'id, quiz_id, share_code_id, student_id, student_name, user_id, status, correct_answers, '
@@ -116,14 +131,15 @@ function classOf(roster, quiz, listId) {
 }
 
 /** The sessions that count, per class code (the class report's rule). */
-function countedSessions(rows, teacherId) {
+// `opened`: a storybook send's sessions count once the child has joined (a story has no finish to wait for).
+function countedSessions(rows, teacherId, { opened = false } = {}) {
   const byCode = new Map();
   excludeSelfTests(rows, teacherId)
     .filter((s) => !s.invited_by_student_id)
     .forEach((s) => { const k = s.share_code_id; if (!byCode.has(k)) byCode.set(k, []); byCode.get(k).push(s); });
   const out = [];
   byCode.forEach((list) => out.push(...oneAttemptPerChild(list, { rule: attemptRuleFor(list) })));
-  return out.filter((s) => s.status === 'completed');
+  return out.filter((s) => s.status === 'completed' || (opened && s.status === 'in_progress'));
 }
 
 /** One counted session per child across a quiz's codes: the earliest finish. Rows without a student pass through. */
@@ -138,11 +154,17 @@ function onePerChildAcrossCodes(sessions) {
     });
 }
 
-async function classCodes(teacherId, quizIds) {
+// The watch root's VALUE read and code rule live in a leaf the join queue shares (one parse, one rule).
+const { watchRootId, notUnderWatchRoot } = require('./watch-root');
+
+// sends: a sender's list — without the watch root's children (they copy its teacher)
+async function classCodes(teacherId, quizIds, { sends = false } = {}) {
   if (!quizIds.length) return [];
-  const { data, error } = await supabase.from('quiz_share_codes')
+  let q = supabase.from('quiz_share_codes')
     .select('id, code, quiz_id, created_at')
     .in('quiz_id', quizIds).eq('teacher_user_id', teacherId).is('invited_by_student_id', null);
+  if (sends) q = notUnderWatchRoot(q, await watchRootId());
+  const { data, error } = await q;
   if (error) throw new Error(error.message);
   return data || [];
 }
@@ -152,6 +174,107 @@ async function sessionsFor(codeIds) {
   const { data, error } = await supabase.from('quiz_sessions').select(SESSION_COLS).in('share_code_id', codeIds);
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+/** Is a library quiz's report its sender's (quiz_teacher_home)? Off, absent or unreadable: no. */
+async function sentQuizzesOn() {
+  try {
+    return await require('../first-touch/teacher-home.flags').on();
+  } catch (err) {
+    logToFile('⚠️ teacher report: teacher home switch unreadable — sent quizzes off', { error: err.message });
+    return false;
+  }
+}
+
+const newestFirst = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+const CODES_MAX = 1000; // PostgREST's default row cap, made explicit
+const IN_CHUNK = 300; // well under the ~390 ids where a PostgREST .in() overflows its header cap
+
+/**
+ * A quiz this teacher sent but did not make, as its row plus `sent_at` (their newest class code's
+ * creation); null when the switch is off, the quiz is the teacher's own, or they hold no class code on it.
+ */
+async function sentQuiz(teacherId, quizId) {
+  if (!teacherId || !quizId || !(await sentQuizzesOn())) return null;
+  const codes = await classCodes(teacherId, [quizId], { sends: true });
+  if (!codes.length) return null;
+  const { data, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data || data.teacher_id === teacherId) return null;
+  return { ...data, list_id: null, sent_at: codes.slice().sort(newestFirst)[0].created_at };
+}
+
+/**
+ * Every quiz this teacher sent but did not make (class codes created since `since`), each with `sent_at`
+ * (the newest of those codes), newest send first. A code the teacher home minted only to SHOW its message
+ * (teacher-home.sent "prepared", cleared by the send tap) is not a send. [] when the switch is off.
+ */
+async function sentQuizzes(teacherId, { since = null } = {}) {
+  if (!teacherId || !(await sentQuizzesOn())) return [];
+  let q = notUnderWatchRoot(supabase.from('quiz_share_codes').select('id, quiz_id, created_at')
+    .eq('teacher_user_id', teacherId).is('invited_by_student_id', null), await watchRootId());
+  if (since) q = q.gte('created_at', since);
+  // Newest first and bounded: a capped read drops only the oldest codes, never a random few.
+  const { data: codes, error } = await q.order('created_at', { ascending: false }).limit(CODES_MAX);
+  if (error) throw new Error(error.message);
+  const ids = [...new Set((codes || []).map((c) => c.quiz_id))];
+  // Who made each quiz first (two columns); the full rows only for the ones the teacher did not make.
+  const notMine = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
+    const { data, error: qErr } = await supabase.from('quizzes').select('id, teacher_id').in('id', ids.slice(i, i + IN_CHUNK));
+    if (qErr) throw new Error(qErr.message);
+    // The teacher's own quizzes are read by teacher_id as always; a NULL author (the bank) is not theirs.
+    notMine.push(...(data || []).filter((r) => r.teacher_id !== teacherId).map((r) => r.id));
+  }
+  if (!notMine.length) return [];
+  const theirs = [];
+  for (let i = 0; i < notMine.length; i += IN_CHUNK) {
+    const { data, error: qErr } = await supabase.from('quizzes').select(QUIZ_COLS).in('id', notMine.slice(i, i + IN_CHUNK));
+    if (qErr) throw new Error(qErr.message);
+    theirs.push(...(data || []).filter((r) => r.teacher_id !== teacherId));
+  }
+  if (!theirs.length) return [];
+  const sentCodes = await notPrepared((codes || []).filter((c) => theirs.some((r) => r.id === c.quiz_id)));
+  const sentAt = new Map();
+  sentCodes.forEach((c) => {
+    if (!sentAt.has(c.quiz_id) || String(c.created_at || '') > String(sentAt.get(c.quiz_id) || '')) sentAt.set(c.quiz_id, c.created_at);
+  });
+  return theirs.filter((r) => sentAt.has(r.id)).map((r) => ({ ...r, list_id: null, sent_at: sentAt.get(r.id) }))
+    .sort((a, b) => String(b.sent_at || '').localeCompare(String(a.sent_at || '')));
+}
+
+/** The codes the teacher really sent: without the home's "prepared" ones (none known → all of them). */
+async function notPrepared(codes) {
+  if (!codes.length) return codes;
+  let Sent = null;
+  try { Sent = require('../first-touch/teacher-home.sent'); } catch (_) { return codes; }
+  const prepared = await Sent.prepared(codes.map((c) => c.id));
+  return codes.filter((c) => !prepared.has(c.id));
+}
+
+/** A sent-quiz read that fails is today's answer (not found / none), never a failed report page. */
+async function softly(read, fallback, ctx = {}) {
+  try {
+    return await read();
+  } catch (err) {
+    logToFile('⚠️ teacher report: sent-quiz read failed — today\'s report', { ...ctx, error: err.message });
+    return fallback;
+  }
+}
+
+/** The children's link for the sender's own code: the web page when it is on for them, else today's chat join link. */
+async function sentLink(teacherId, code) {
+  try {
+    const WQL = require('./web-quiz-link');
+    if (await WQL.webQuizOn(teacherId)) return `${WQL.webBaseUrl()}/q/${code}`;
+    // The chat join link exactly as video-quiz-share sendClassLink builds it (its botNumber: the same env, no
+    // fallback number). Read here, not required: that module reaches back to this one through the report job.
+    const bot = String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
+    return bot ? `https://wa.me/${bot}?text=QUIZ-${code}` : null;
+  } catch (err) {
+    logToFile('⚠️ teacher report: no link for a sent quiz', { error: err.message });
+    return null;
+  }
 }
 
 /**
@@ -169,8 +292,27 @@ function reminderText({ topic, link, language, played = null, of = null, classNa
   return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: lang, params: { topic: t, link } });
 }
 
+// The web quiz page's own link: /q/<CODE> (the page's CODE_RX), an optional trailing slash, an optional query, no fragment.
+const QUIZ_PAGE_LINK_RX = /^(https?:\/\/[^/?#\s]+\/q\/[A-Za-z0-9]{4,12}\/?)(\?[^#\s]*)?$/;
+
+/**
+ * quiz_reminder_live_preview: the reminder's quiz page link with ?v=<played>, the form the page's preview (dashboard
+ * ogImageFor) answers with the live class picture. `played` is a count only (1–10 digits). Any other link (a wa.me
+ * link, a fragment, a link that already names a v, not a /q/<CODE> page) is returned as it is. An existing query
+ * gets &v= (the page reads req.query.v whatever else the link carries).
+ */
+function withLivePlayed(link, played) {
+  if (!Number.isInteger(played) || played <= 0 || played > 9999999999) return link;
+  const m = QUIZ_PAGE_LINK_RX.exec(String(link || ''));
+  if (!m) return link;
+  const q = m[2] || '';
+  if (/[?&]v=/.test(q)) return link;
+  const sep = q.length <= 1 ? '?' : (q.endsWith('&') ? q : `${q}&`);
+  return `${m[1]}${sep}v=${played}`;
+}
+
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
-async function questionStats(quizId, counted) {
+async function questionStats(quizId, counted, { codeOf = null } = {}) {
   const { data: qs, error } = await supabase.from('quiz_questions').select(QUESTION_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true });
   if (error) throw new Error(error.message);
@@ -192,9 +334,11 @@ async function questionStats(quizId, counted) {
     });
     const wrongN = mine.length - right;
     const top = [...wrongs.entries()].sort((a, b) => b[1] - a[1])[0];
+    const code = codeOf ? codeOf(q.external_id) : null;
     return {
       n: i + 1,
       text: q.question_text || '',
+      ...(code ? { code } : {}),
       answered: mine.length,
       correctPct: mine.length ? pct(right, mine.length) : null,
       wrongTop: top && OPTIONS.includes(top[0])
@@ -211,7 +355,7 @@ async function questionStats(quizId, counted) {
  * keys /who/class takes. Null when v2 cannot answer (no class tables, no class
  * for this teacher, a read error) — the teacher's class lists answer instead.
  */
-async function fromIdentity(code, quizId) {
+async function fromIdentity(code, quizId, { foldOn = false } = {}) {
   if (!code) return null;
   let na = null;
   try {
@@ -235,13 +379,20 @@ async function fromIdentity(code, quizId) {
     notPlayed: known && na.notPlayed
       ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number != null ? Number(k.number) : null }))
       : null,
-    provisional: known ? groupProvisional(na.provisional || []) : [],
+    // with quiz_report_fold_by_child on, quizReport folds these with the played rows' facts (one read for both)
+    provisional: known ? (foldOn ? null : groupProvisional(na.provisional || [])) : [],
+    provisionalRaw: known && foldOn ? na.provisional || [] : [],
   };
 }
 
-/** A typed name's grouping key: identity v2's canonical form (case, spaces, script folded). */
-function typedKey(name) {
-  try { return require('./web-quiz-identity').canon(name || '') || ''; } catch { return String(name || '').trim().toLowerCase(); }
+/** The provisional list by child (quiz_report_fold_by_child on, facts read), else by typed name (today). */
+function provisionalRows(rows, facts, listedIds = new Set()) {
+  if (!facts) return groupProvisional(rows);
+  // a typed record merged into a child on the list who played is that child, not a provisional one
+  const isListed = (r) => { const f = r.studentId && facts.get(String(r.studentId)); return Boolean(f && listedIds.has(f.who)); };
+  const sorted = rows.filter((r) => !isListed(r)).sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
+  return foldByChild(sorted, { idOf: (r) => r.studentId, nameOf: (r) => r.typed, facts })
+    .map((c) => ({ ...c.first, repeats: c.n }));
 }
 
 /** Provisional rows of one typed name collapse to the FIRST finish, with how many times it was typed. */
@@ -282,40 +433,38 @@ async function fromLists(teacherId, quiz, listId, counted, lang) {
 }
 
 /**
- * @param {string} teacherId  from the verified token, never from the request
- * @param {string} quizId
- * @param {{listId?: string|null}} [opts] the class the teacher picked on the page
- * @returns {Promise<object|null>} null when the quiz is not this teacher's
+ * WHO is in this quiz's class. Identity v2 answers first. A legacy class list the teacher picked on the page,
+ * or the quiz's own list_id, still decides when v2 does not KNOW the class (a list with no class behind it:
+ * legacy-only teachers).
  */
-async function quizReport(teacherId, quizId, { listId = null } = {}) {
-  if (!teacherId || !quizId) return null;
-  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS)
-    .eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!quiz) return null;
-  const meta = quiz.meta || {};
-
-  const codes = await classCodes(teacherId, [quiz.id]);
-  // Per class code first (the class report's rule), then ONE row per child across the
-  // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
-  // one child — the earlier finish counts.
-  const counted = onePerChildAcrossCodes(countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId));
-
-  const lang = clampLanguage(quiz.language);
-  const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
-  // Identity v2 answers first. A legacy class list the teacher picked on the page,
-  // or the quiz's own list_id, still decides when v2 does not KNOW the class
-  // (a list with no class behind it: legacy-only teachers).
-  let who = await fromIdentity(primary, quizId);
+async function whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn = false } = {}) {
+  const who = await fromIdentity(primary, quiz.id, { foldOn });
   if (!who || (who.roster.state !== 'known' && (listId || quiz.list_id))) {
-    who = await fromLists(teacherId, quiz, listId, counted, lang);
+    return fromLists(teacherId, quiz, listId, counted, lang);
   }
+  return who;
+}
 
-  // A child not on the list who typed the same name on this quiz more than once (a fresh
-  // phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
+/**
+ * A child not on the list who typed the same name on this quiz more than once (a fresh
+ * phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
+ * With quiz_report_fold_by_child on, ONE child is the same child (merged_into ?? student_id) or the same typed name
+ * on a shared phone / no binding; the same name on two different phones is two children.
+ * → { counting, provisionalRaw, facts } (the last two feed the provisional list when the switch is on).
+ */
+async function onePerChildOffList(counted, who, quizId, foldOn) {
+  const byFinish = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
+  const offList = foldOn ? byFinish.filter((s) => !who.listed(s)) : [];
+  const provisionalRaw = foldOn ? who.provisionalRaw || [] : [];
+  const facts = foldOn ? await childFacts([...offList.map((s) => s.student_id), ...provisionalRaw.map((r) => r.studentId)], quizId) : null;
+  // an off-list record merged into a listed child who played this quiz is that child: it never counts a second time
+  const listedIds = new Set(byFinish.filter((s) => who.listed(s) && s.student_id).map((s) => String(s.student_id)));
+  const sameAsListed = (s) => { const f = facts && s.student_id && facts.get(String(s.student_id)); return Boolean(f && listedIds.has(f.who)); };
+  const kept = facts ? new Set(foldByChild(offList.filter((s) => !sameAsListed(s)), { idOf: (s) => s.student_id, nameOf: (s) => s.student_name, facts }).map((c) => c.first)) : null;
   const sameTyped = new Map();
-  const counting = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+  const counting = byFinish
     .filter((s) => {
+      if (kept) return who.listed(s) || kept.has(s);
       if (who.listed(s)) return true;
       const k = typedKey(s.student_name);
       if (!k) return true;
@@ -323,6 +472,80 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       sameTyped.set(k, s.id);
       return true;
     });
+  return { counting, provisionalRaw, facts, listedIds };
+}
+
+/**
+ * The children of ONE storybook class code, counted as the web report's story section counts them (quizReport):
+ * joined children, no teacher's own try, no invited friend, one attempt per child, one row per child off the
+ * class list (by typed name, or by child with quiz_report_fold_by_child on). For the 12 h WhatsApp report of that
+ * code, so both reports of one send name the same children.
+ * `rawSessions` = the code's session rows, before any counting.
+ */
+async function storySendChildren(teacherId, quizId, shareCodeId, rawSessions) {
+  const counted = onePerChildAcrossCodes(countedSessions(rawSessions, teacherId, { opened: true }));
+  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!quiz) return counted;
+  const foldOn = await FoldFlag.on();
+  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, counted, clampLanguage(quiz.language), { foldOn });
+  return (await onePerChildOffList(counted, who, quiz.id, foldOn)).counting;
+}
+
+/**
+ * The 12 h WhatsApp quiz report's finished children for ONE class code, folded as the web report folds them when
+ * quiz_report_fold_by_child is on: children on the class list as they are, a child off it once per CHILD. Off, or
+ * when the quiz or the child facts cannot be read, the rows come back untouched (the WhatsApp report's own count:
+ * one per record). `rows` = that report's finished rows (one attempt per child already applied); order kept.
+ */
+async function foldFinishers(teacherId, quizId, shareCodeId, rows) {
+  if (!rows.length || !(await FoldFlag.on())) return rows;
+  const { data: quiz, error } = await supabase.from('quizzes').select(QUIZ_COLS).eq('id', quizId).maybeSingle();
+  if (error || !quiz) return rows;
+  const who = await whoFor(teacherId, quiz, { id: shareCodeId }, null, rows, clampLanguage(quiz.language), { foldOn: true });
+  const { counting, facts } = await onePerChildOffList(rows, who, quiz.id, true);
+  if (!facts) return rows;
+  const kept = new Set(counting);
+  return rows.filter((r) => kept.has(r));
+}
+
+/**
+ * @param {string} teacherId  from the verified token, never from the request
+ * @param {string} quizId
+ * @param {{listId?: string|null}} [opts] the class the teacher picked on the page
+ * @returns {Promise<object|null>} null when the quiz is not this teacher's
+ */
+async function quizReport(teacherId, quizId, { listId = null } = {}) {
+  if (!teacherId || !quizId) return null;
+  const { data: own, error } = await supabase.from('quizzes').select(QUIZ_COLS)
+    .eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
+  if (error) throw new Error(error.message);
+  // A library quiz this teacher sent (quiz_teacher_home): their own codes, link and date; the author's
+  // forwarded message, lesson date, class list and per-class guidance are not theirs.
+  const sent = own ? null : await softly(() => sentQuiz(teacherId, quizId), null, { quizId });
+  const quiz = own || sent;
+  if (!quiz) return null;
+  const meta = quiz.meta || {};
+  const handout = sent ? {} : meta;
+
+  const codes = await classCodes(teacherId, [quiz.id]);
+  // Per class code first (the class report's rule), then ONE row per child across the
+  // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
+  // one child — the earlier finish counts.
+  const rawSessions = await sessionsFor(codes.map((c) => c.id));
+  const counted = onePerChildAcrossCodes(countedSessions(rawSessions, teacherId, { opened: quiz.quiz_source === 'story' }));
+  // bd-v0toag.9/.10, behind quiz_slo_retest_enabled: tries per child, completion, SLO codes.
+  const v21 = await v21On();
+  const tries = v21 ? V21.attemptCounts(rawSessions, teacherId) : null;
+
+  const lang = clampLanguage(quiz.language);
+  const primary = sent ? codes.slice().sort(newestFirst)[0] || null
+    : codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
+  // the fold switch and the reminder's live-preview switch: one shared settings read
+  const switches = await LivePreviewFlag.withFold();
+  const foldOn = switches.fold;
+  const who = await whoFor(teacherId, quiz, primary, listId, counted, lang, { foldOn });
+  const { counting, provisionalRaw, facts, listedIds } = await onePerChildOffList(counted, who, quiz.id, foldOn);
   const played = counting.map((s) => {
     const listed = who.listed(s);
     const correct = s.correct_answers || 0;
@@ -332,18 +555,22 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       roll: listed && listed.number != null ? Number(listed.number) : null,
       onList: Boolean(listed),
       correct, total, pct: pct(correct, total),
+      ...(tries ? { attempts: tries.get(V21.childKey(s)) || 1 } : {}),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
-  const { roster: rosterView, notPlayed, provisional } = who;
+  const { roster: rosterView, notPlayed } = who;
+  const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts, listedIds);
 
-  const questions = await questionStats(quiz.id, counting);
+  const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
-  const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
+  const code = sent ? (primary && primary.code) || null
+    : (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
   // The children's link: the one the hand-out forwarded; else (a hand-out whose message
   // carries none) the quiz's own class code on the web page, when the web quiz is on.
-  let link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
-  if (!link && code) {
+  let link = ((handout.student_message || '').match(LINK_RX) || [null])[0];
+  if (sent && code) link = await sentLink(teacherId, code);
+  if (!link && code && !sent) {
     try {
       const WQL = require('./web-quiz-link');
       if (await WQL.webQuizOn(teacherId)) link = `${WQL.webBaseUrl()}/q/${code}`;
@@ -352,10 +579,15 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     }
   }
 
-  return {
+  // quiz_reminder_live_preview (off by default): the reminder's link previews as the live class picture. A quiz only
+  // (a story's preview stays the story's), once a child has played.
+  const reminderLink = link && quiz.quiz_source !== 'story' && played.length > 0 && switches.live
+    ? withLivePlayed(link, played.length) : link;
+
+  const report = {
     quiz: {
       id: quiz.id, topic: quiz.topic || '', subject: quiz.subject || null, grade: quiz.grade || null,
-      source: quiz.quiz_source, language: lang, date: meta.lesson_date || quiz.created_at, code, link,
+      source: quiz.quiz_source, language: lang, date: sent ? sent.sent_at : meta.lesson_date || quiz.created_at, code, link,
     },
     roster: rosterView,
     summary: {
@@ -369,20 +601,24 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       avg: mean((rosterView.state === 'known' ? played.filter((p) => p.onList) : played).map((p) => p.pct)),
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
       hardestN: hardest ? hardest.n : null,
+      ...(v21 ? { completion: V21.completion(rawSessions, teacherId, played.length) } : {}),
     },
     played,
     notPlayed,
     provisional,
     questions,
-    guidance: meta.report_guidance && typeof meta.report_guidance === 'object' ? meta.report_guidance : null,
+    guidance: handout.report_guidance && typeof handout.report_guidance === 'object' ? handout.report_guidance : null,
     reminder: link ? {
       language: lang,
       text: reminderText({
-        topic: quiz.topic, link, language: lang,
+        topic: quiz.topic, link: reminderLink, language: lang,
         ...(rosterView.state === 'known' ? { played: played.filter((p) => p.onList).length, of: rosterView.of, className: rosterView.className } : {}),
       }),
     } : null,
   };
+  // A storybook the teacher sent: listened / read aloud / questions per child instead of scores (story-teacher-report.js).
+  if (quiz.quiz_source === 'story') return require('./story-teacher-report').forQuizReport(report, { quiz, sessions: counting, firstOf: (s) => { const l = who.listed(s); return l ? l.first : firstName(s.student_name); } });
+  return report;
 }
 
 /** Monday 00:00 PKT of the week `iso` falls in, as YYYY-MM-DD. */
@@ -395,19 +631,34 @@ function weekStart(iso) {
 
 /**
  * @param {string} teacherId
- * @param {{days?: number, now?: number}} [opts]
+ * @param {{days?: number, now?: number, ownOnly?: boolean}} [opts] `ownOnly` (the teacher home's quick answer): the
+ *   teacher's own quizzes only, never the library quizzes they sent (each own quiz's row is the same either way: it
+ *   counts its own codes' sessions), with the class list read alongside the quizzes instead of after them; a story
+ *   row also carries its `book` (meta.story.book_id or null).
  */
-async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
+/** A story send's book id (as the jsonb path `meta->story->>book_id` reads it), or null. */
+const bookOf = (q) => { const b = q.meta && q.meta.story && q.meta.story.book_id; return b ? String(b) : null; };
+
+async function classReport(teacherId, { days = 60, now = Date.now(), ownOnly = false } = {}) {
   if (!teacherId) return null;
   const since = new Date(now - days * 86400000).toISOString();
+  const rosterSoon = ownOnly ? readRoster(teacherId).then((v) => ({ v }), (err) => ({ err })) : null;
   const { data: quizzes, error } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('teacher_id', teacherId).in('status', ['sent', 'report_sent']).gte('created_at', since)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  const qs = quizzes || [];
+  // The library quizzes this teacher sent (quiz_teacher_home), by their send date, among their own.
+  const sentList = ownOnly ? [] : await softly(() => sentQuizzes(teacherId, { since }), []);
+  const qs = sentList.length
+    ? [...(quizzes || []), ...sentList].sort((a, b) => String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || '')))
+    : quizzes || [];
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
-  const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
+  // The fold switch is read alongside the sessions (one round trip, not a serial one after them).
+  const [allSessions, foldOn] = await Promise.all([sessionsFor(codes.map((c) => c.id)), FoldFlag.on()]);
+  const counted = countedSessions(allSessions, teacherId);
+  // A storybook send's children count once they joined (story-teacher-report.js); a no-op when there is none.
+  require('./story-teacher-report').countStoryJoins(counted, { quizzes: qs, sessions: allSessions, quizOfCode, count: (rows) => countedSessions(rows, teacherId, { opened: true }) });
   const sessionsOf = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
@@ -416,29 +667,49 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   });
 
   let roster = null;
-  try { roster = await readRoster(teacherId); } catch (err) {
+  try { roster = rosterSoon ? await rosterSoon.then((r) => { if (r.err) throw r.err; return r.v; }) : await readRoster(teacherId); } catch (err) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
+  // quiz_report_fold_by_child: a child not on the class list counts once per CHILD here too, so the teacher home
+  // (which reads this count) names the same children as the quiz's own report; off, one row per record (today).
+  const listedOf = (q) => { const { one } = classOf(roster, q, null); return one ? new Set(one.kids.map((k) => k.id)) : null; };
+  const offListOf = (q, rows, ids) => rows.filter((x) => !(ids && x.student_id && ids.has(x.student_id)));
+  const facts = foldOn
+    ? await childFacts(qs.flatMap((q) => offListOf(q, onePerChildAcrossCodes(sessionsOf.get(q.id) || []), listedOf(q)).map((x) => x.student_id)), null)
+    : null;
   const rows = qs.map((q) => {
     // One child per quiz across its codes (as the quiz page), and "N of M" counts the
     // class list only: a typed child who is not on it is never set against the class size.
-    const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
+    const once = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
     const { roster: view, one } = classOf(roster, q, null);
     const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
+    const byFinish = (list) => list.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')));
+    const playedIds = new Set(once.filter((x) => ids && x.student_id && ids.has(x.student_id)).map((x) => String(x.student_id)));
+    const sameAsListed = (x) => { const f = facts && x.student_id && facts.get(String(x.student_id)); return Boolean(f && playedIds.has(f.who)); };
+    const kept = facts
+      ? new Set(foldByChild(byFinish(offListOf(q, once, ids).filter((x) => !sameAsListed(x))), { idOf: (x) => x.student_id, nameOf: (x) => x.student_name, facts }).map((c) => c.first))
+      : null;
+    const mine = kept ? once.filter((x) => (ids && x.student_id && ids.has(x.student_id)) || kept.has(x)) : once;
     // the same children for the average as for "N of M"
-    const scores = (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
+    // A storybook send has no questions: its children count as played, never as a 0 % score in an average.
+    const scores = q.quiz_source === 'story' ? [] : (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
       .map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
     return {
       of: view.of,
       onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
-      id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
+      id: q.id, date: q.sent_at || (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
+      // a library quiz this teacher SENT (sentQuizzes gives it sent_at); their own quizzes carry no key
+      ...(q.sent_at ? { sent: true } : {}),
+      // the quick answer: a story send's book from this read's own meta (the home's "sent" pill, the pick's skip)
+      ...(ownOnly && q.quiz_source === 'story' ? { book: bookOf(q) } : {}),
     };
   });
 
   const cellMap = new Map();
   const weekMap = new Map();
   rows.forEach((r) => {
+    if (r.source === 'story') return;   // a story send is listed, never mixed into the class's quiz cells and weeks
     const ck = `${r.grade || ''}|${r.subject || ''}`;
     if (!cellMap.has(ck)) cellMap.set(ck, { grade: r.grade, subject: r.subject, quizzes: 0, played: 0, scores: [] });
     const c = cellMap.get(ck);
@@ -458,8 +729,13 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
 }
 
 module.exports = {
-  quizReport, classReport, reminderText, weekStart, gradesOf, listLabel,
+  quizReport, classReport, foldFinishers, reminderText, withLivePlayed, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor, onePerChildAcrossCodes,
+  // A library quiz's sender (quiz_teacher_home): the report list and the 12 h report's quiz-row guard read these.
+  sentQuiz, sentQuizzes, sentQuizzesOn,
+  // A storybook send's 12 h WhatsApp report counts the children its web report counts.
+  storySendChildren,
+  watchRootId, notUnderWatchRoot,   // re-exported from ./watch-root: the watch root's VALUE read and code rule
 };

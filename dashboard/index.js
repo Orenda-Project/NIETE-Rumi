@@ -7,7 +7,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const { sessionCookie } = require('./lib/local-dev');
+const { sessionCookie, sessionBehaviour } = require('./lib/local-dev');
 const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
 const bcrypt = require('bcryptjs');
@@ -170,10 +170,17 @@ app.get(ASSET_LINKS_PATH, assetLinksHandler);
 // never answer a quiz link.
 const { createWebQuizRouter } = require('./routes/web-quiz.routes');
 app.use(createWebQuizRouter());
+// The edge routers in routes/edge-mounts.js, one line each in name order (a new edge adds its line there; off → falls through).
+for (const [, file, make] of require('./routes/edge-mounts')) app.use(require(`./routes/${file}`)[make]());
 // The teacher's web quiz report /r/:token (+ /pdf, /remind), same bot client as /q.
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
+// A teacher sends a storybook to the class (/api/teacher/stories, /api/teacher/story/share, /quiz/teacher/:th/stories);
+// the bot answers 404 while web_quiz_stories_teacher is off and the page falls through.
+// After the edge list: its /quiz/teacher/:th/stories is the teacher home's page too, which answers first.
+const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
+app.use(createTeacherStoriesRouter());
 // The phone test page for WhatsApp's in-app browser (/iab/:token, /api/iab-probe/*): camera,
 // gallery, file picker and microphone, each file confirmed by the server and thrown away. Before
 // the body parsers, so it reads every upload as bytes under its own size cap.
@@ -214,6 +221,8 @@ if (process.env.REDIS_URL) {
       redisConnected = true;
  // Initialize GPT cache with Redis client 
       setGptCacheRedisClient(redisClient);
+      // the web quiz edge's shared answers (a shared link's page facts)
+      require('./lib/edge-redis').setClient(redisClient);
     });
 
     redisClient.on('reconnecting', () => {
@@ -225,6 +234,7 @@ if (process.env.REDIS_URL) {
       redisConnected = false;
  // Disable GPT cache when Redis disconnects 
       setGptCacheRedisClient(null);
+      require('./lib/edge-redis').setClient(null);
     });
 
     // Attempt connection with timeout
@@ -284,6 +294,7 @@ app.use(session({
   name: process.env.SESSION_COOKIE_NAME || 'app.sid', // Custom name (hide that it's express-session)
   resave: false,
   saveUninitialized: false,
+  ...sessionBehaviour(), // rolling: 30 days from her last visit (bd-x7aprz.3)
   cookie: sessionCookie(process.env),
 }));
 
@@ -2835,6 +2846,9 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
+// bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the
@@ -3783,6 +3797,7 @@ app.get('*', (req, res, next) => {
   // - /api/* - Backend API routes (portal + observability APIs)
   // - /observability/* - Admin observability dashboard
   const isExcludedPath = req.path.startsWith('/api/') || req.path.startsWith('/observability/');
+  if (require('./routes/portal-fln.routes').flnPreview.wants(req)) return require('./routes/portal-fln.routes').flnPreview.send(req, res);
 
   if (!isExcludedPath) {
     // Serve portal frontend (teacher portal React app)

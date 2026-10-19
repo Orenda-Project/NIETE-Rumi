@@ -8,7 +8,8 @@
  *   3 list          the child is on a configured seed student list (students.list_id)
  *   4 teacher       the child is in a class of a configured test teacher: an active class_teachers row
  *                   (teacher_user_id, the table the class-link mint reads) and an active class_enrollments row; a
- *                   run row played in such a class (class_id) counts too
+ *                   run row played in such a class (class_id) counts too; or created by a configured test teacher
+ *                   (`students.enrolled_by_user_id` ∈ teachers), enrolled or not
  * The configured ids are data, never code: app_settings `web_quiz_fixture_rule` =
  * {"student_lists": [...], "teachers": [...]}. Absent, unreadable or malformed → empty sets (rules 1-2 still apply).
  * Read-only; no switch (a data rule, the same on every tier).
@@ -19,7 +20,7 @@
  *   fixtureStudentIds({ ids, rows, config })
  *                                       Set of test-child ids. With `ids`, only those children are checked (the
  *                                       students rows read ≤ 200 ids a read); with no `ids`, the whole population
- *                                       (Testwala names, the seed lists, the test teachers' classes). `rows` (run
+ *                                       (Testwala names, the seed lists, the test teachers' classes and the children they created). `rows` (run
  *                                       rows) add rule 1 (every id of a child with a meta.test row) and a row's
  *                                       class for rule 4. The Set carries `counts` {meta_test, name, list, teacher}
  *                                       (each child once, under the first rule that holds) and `unreadable` (the
@@ -96,14 +97,30 @@ async function pagesIn(make, col, values) {
   return { rows: out };
 }
 
-/** The classes of the configured test teachers, then the children enrolled in them. { classes, children } or null. */
+/**
+ * Rule 4's children: those enrolled in a configured test teacher's classes, and those a test teacher created
+ * (students.enrolled_by_user_id), enrolled or not. The two reads stand alone: one failing leaves the other.
+ * { classes, children, failed: [{ what, error }] }.
+ */
 async function teacherChildren(teachers) {
+  const failed = [];
+  let classes = new Set();
+  const children = new Set();
   const ct = await pagesIn(() => supabase.from('class_teachers').select('id, class_id').eq('is_active', true), 'teacher_user_id', teachers);
-  if (ct.error) return { error: ct.error, what: 'class_teachers' };
-  const classes = new Set(ct.rows.map((r) => r.class_id).filter(Boolean));
-  const en = await pagesIn(() => supabase.from('class_enrollments').select('id, student_id').eq('is_active', true), 'class_id', classes);
-  if (en.error) return { error: en.error, what: 'class_enrollments' };
-  return { classes, children: new Set(en.rows.map((r) => r.student_id).filter(Boolean)) };
+  if (ct.error) failed.push({ what: 'class_teachers', error: ct.error });
+  else {
+    const taught = new Set(ct.rows.map((r) => r.class_id).filter(Boolean));
+    const en = await pagesIn(() => supabase.from('class_enrollments').select('id, student_id').eq('is_active', true), 'class_id', taught);
+    if (en.error) failed.push({ what: 'class_enrollments', error: en.error });
+    else {
+      classes = taught;
+      en.rows.forEach((r) => { if (r.student_id) children.add(r.student_id); });
+    }
+  }
+  const made = await pagesIn(() => supabase.from('students').select('id'), 'enrolled_by_user_id', teachers);
+  if (made.error) failed.push({ what: 'students', error: made.error });
+  else made.rows.forEach((r) => { if (r.id) children.add(r.id); });
+  return { classes, children, failed };
 }
 
 /** The test children (see the header): a Set of ids with `counts` and `unreadable`. */
@@ -115,6 +132,7 @@ async function fixtureStudentIds({ ids, rows, config } = {}) {
   const hit = new Map();                      // id -> the first rule that holds
   const unreadable = [];
   const failed = (what, error) => {
+    if (unreadable.includes(what)) return;    // a table named once, however many of its reads failed
     unreadable.push(what);
     if (!isMissingTable(error)) logError('web_quiz.fixture_read_failed', { what, code: (error && error.code) || null });
   };
@@ -141,14 +159,12 @@ async function fixtureStudentIds({ ids, rows, config } = {}) {
     }
   }
 
-  // rule 4: the test teachers' classes
+  // rule 4: the test teachers' classes, and the children they created
   if (cfg.teachers.size && (all || want.size)) {
     const got = await teacherChildren(cfg.teachers);
-    if (got.error) failed(got.what, got.error);
-    else {
-      for (const id of got.children) if (all || want.has(id)) mark(id, 'teacher');
-      for (const r of runs) if (r && r.class_id != null && got.classes.has(r.class_id)) idsOf(r).forEach((id) => mark(id, 'teacher'));
-    }
+    got.failed.forEach((f) => failed(f.what, f.error));
+    for (const id of got.children) if (all || want.has(id)) mark(id, 'teacher');
+    for (const r of runs) if (r && r.class_id != null && got.classes.has(r.class_id)) idsOf(r).forEach((id) => mark(id, 'teacher'));
   }
 
   // a child known by two ids (student and canonical) is one child: the rest of its ids follow it

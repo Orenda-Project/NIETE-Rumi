@@ -131,7 +131,7 @@ async function scoreStory({ lang, spec, file, window, words, coachSpeaker, flags
     return {
       ok: true,
       modelVersion: model,
-      part: { words_correct: correct, words_attempted: attempted, seconds, finished_early: finishedEarly, flagged, confidence },
+      part: { words_correct: correct, words_attempted: attempted, seconds, finished_early: finishedEarly, flagged, confidence, align_correct: alignCorrect },
       evidence: { align_correct: alignCorrect, speechace_correct: sa ? sa.correct : null, notes: r.json.notes || null },
     };
   } catch (e) {

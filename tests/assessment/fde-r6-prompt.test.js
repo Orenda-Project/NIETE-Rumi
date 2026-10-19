@@ -34,7 +34,9 @@ const SCIENCE_Q3 = 'Q3(a): two of the three long questions are Remember (state, 
 const UNEQUAL = 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.';
 const NO_REPEATS = 'No item repeats another item\'s content, numbers or answer on this paper, in any section.';
 const SPREAD = 'Spread the correct options across a, b, c and d; no letter holds more than a third of the keys.';
-const SST_Q56 = 'Q5 and Q6 are situations, \'why\' questions and comparisons that need the child to use a concept, not name or list it; at most one of each slot\'s items is a list.';
+// Round 14 replaced the mixed Q5/Q6 kinds rule with one thinking level per choice group.
+const SST_Q5 = 'Every Q5 item is Understand: define a term, explain why, give two reasons, or compare two things from these pages.';
+const SST_Q6 = 'Every Q6 item is Apply: it sets a situation a Grade 5 child could meet';
 const ACCEPT = '`accept` lists real alternative answers or methods, never \'as per the book\' or \'any correct answer\'.';
 
 describe('pattern prompt rules', () => {
@@ -93,7 +95,8 @@ describe('pattern prompt rules', () => {
   });
 
   test('one-key anagram rule', () => {
-    expect(prompt('english', 'A')).toContain(ANAGRAM);
+    // English bans anagram items (round 4), so its one-key sentence no longer names them.
+    expect(prompt('english', 'A')).not.toContain(ANAGRAM);
     expect(prompt('urdu', 'A')).toContain(ANAGRAM);
     expect(prompt('english', 'C')).not.toContain(ANAGRAM);
     for (const s of ['maths', 'science', 'social_studies']) expect(prompt(s, 'A')).not.toContain(ANAGRAM);
@@ -126,10 +129,10 @@ describe('pattern prompt rules', () => {
   });
 
   test('sst Q5-Q6 kinds rule', () => {
-    expect(prompt('social_studies', 'C')).toContain(SST_Q56);
-    expect(prompt('social_studies', 'D')).toContain(SST_Q56);
-    expect(prompt('social_studies', 'B')).not.toContain(SST_Q56);
-    expect(prompt('science', 'C')).not.toContain(SST_Q56);
+    expect(prompt('social_studies', 'C')).toContain(SST_Q5);
+    expect(prompt('social_studies', 'D')).toContain(SST_Q6);
+    expect(prompt('social_studies', 'B')).not.toMatch(/Every Q[56] item is/);
+    expect(prompt('science', 'C')).not.toMatch(/Every Q[56] item is/);
   });
 
   test('accept means alternatives', () => {

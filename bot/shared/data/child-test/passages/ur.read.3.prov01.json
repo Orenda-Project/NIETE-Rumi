@@ -15,7 +15,7 @@
   "readability_band_above": null,
   "q_reach_1": 2,
   "q_reach_2": 3,
-  "q_n": 4,
+  "q_n": 6,
   "text_hash": "f84c718dbeeaf993fc28dcba37ff5eb7",
   "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
   "licence": "generated",
@@ -202,6 +202,48 @@
       ],
       "reject": [],
       "rubric": "Inferential turn. Correct if the child says the address (پتا) had not been written on the letter."
+    },
+    {
+      "id": "q5",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "خط کس نے بھیجا؟",
+      "right": "ابو نے",
+      "wrong": [
+        "دانیال نے",
+        "امی نے"
+      ],
+      "accept": [
+        "ابو نے",
+        "ابو"
+      ],
+      "reject": [
+        "دانیال نے",
+        "امی نے"
+      ],
+      "rubric": "Correct if the child says his father (ابو)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دادا نے خوش ہو کر کیا لکھا؟",
+      "right": "جواب",
+      "wrong": [
+        "کہانی",
+        "نظم"
+      ],
+      "accept": [
+        "جواب",
+        "خط کا جواب"
+      ],
+      "reject": [
+        "کہانی",
+        "نظم"
+      ],
+      "rubric": "Correct if the child says a reply (جواب)."
     }
   ],
   "params": {

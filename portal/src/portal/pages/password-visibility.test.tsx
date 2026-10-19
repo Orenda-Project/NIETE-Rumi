@@ -32,11 +32,8 @@ vi.mock("../hooks/useAuth", () => ({
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("../services/api", () => ({
   auth: {
-    validateToken: vi.fn().mockResolvedValue({
-      success: true,
-      user: { firstName: "Ayesha", lastName: "Khan", phoneNumber: "923001234567" },
-    }),
-    setup: vi.fn(),
+    // bd-x7aprz.3: the set-up page no longer sets a password; a dead link shows its own page.
+    setupSignIn: vi.fn().mockRejectedValue(Object.assign(new Error("x"), { response: { status: 400, data: {} } })),
   },
 }));
 
@@ -46,17 +43,22 @@ import PortalSetup from "./PortalSetup";
 const renderAt = (ui: React.ReactElement) =>
   render(<MemoryRouter>{ui}</MemoryRouter>);
 
+// bd-x7aprz.3: the login opens on the WhatsApp code; its password field is behind "Use password instead".
+const toPassword = () => userEvent.setup().click(screen.getByRole("button", { name: /use password instead/i }));
+
 describe("PortalLogin — password visibility toggle (bd-2668)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("masks the password by default", () => {
+  it("masks the password by default", async () => {
     renderAt(<PortalLogin />);
+    await toPassword();
     expect(screen.getByLabelText(/^password$/i)).toHaveAttribute("type", "password");
   });
 
   it("reveals the password when the toggle is pressed, and re-masks on a second press", async () => {
     const user = userEvent.setup();
     renderAt(<PortalLogin />);
+    await toPassword();
     const input = screen.getByLabelText(/^password$/i);
     const toggle = screen.getByRole("button", { name: /show password/i });
 
@@ -72,6 +74,7 @@ describe("PortalLogin — password visibility toggle (bd-2668)", () => {
   it("keeps whatever was typed when visibility flips", async () => {
     const user = userEvent.setup();
     renderAt(<PortalLogin />);
+    await toPassword();
     const input = screen.getByLabelText(/^password$/i) as HTMLInputElement;
 
     await user.type(input, "secret123");
@@ -83,19 +86,15 @@ describe("PortalLogin — password visibility toggle (bd-2668)", () => {
     // A bare <button> inside a <form> defaults to type=submit, which would
     // fire a login attempt every time someone peeked at their password.
     renderAt(<PortalLogin />);
+    await toPassword();
     expect(screen.getByRole("button", { name: /show password/i })).toHaveAttribute("type", "button");
   });
 });
 
-describe("PortalSetup — password visibility toggle (bd-2668)", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  // Setup reads its token from the URL and validates it before rendering the
-  // form at all, so this has to mount at a real :token route — a bare render
-  // leaves token undefined, which bounces straight to /portal/login and there
-  // is never a password field to test. The fields appear only once that
-  // validation promise resolves.
-  const renderSetup = async () => {
+// bd-x7aprz.3: the set-up page sets no password any more (an old link signs her in, or offers a new one), so its
+// two-field toggle has nothing to toggle. What stays true: it shows no password field at all.
+describe("PortalSetup — no password fields any more", () => {
+  it("a dead set-up link shows no password or confirm field", async () => {
     render(
       <MemoryRouter initialEntries={["/portal/setup/tok-123"]}>
         <Routes>
@@ -103,32 +102,8 @@ describe("PortalSetup — password visibility toggle (bd-2668)", () => {
         </Routes>
       </MemoryRouter>,
     );
-    return screen.findByLabelText(/^password$/i);
-  };
-
-  it("masks both fields by default", async () => {
-    await renderSetup();
-    expect(screen.getByLabelText(/^password$/i)).toHaveAttribute("type", "password");
-    expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute("type", "password");
-  });
-
-  it("reveals BOTH fields from the one toggle", async () => {
-    // Both, deliberately: the failure this fixes is "these two don't match and
-    // I can't see why", which needs them visible at the same time.
-    const user = userEvent.setup();
-    await renderSetup();
-
-    await user.click(screen.getByRole("button", { name: /show password/i }));
-    expect(screen.getByLabelText(/^password$/i)).toHaveAttribute("type", "text");
-    expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute("type", "text");
-
-    await user.click(screen.getByRole("button", { name: /hide password/i }));
-    expect(screen.getByLabelText(/^password$/i)).toHaveAttribute("type", "password");
-    expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute("type", "password");
-  });
-
-  it("does not submit the form — the toggle is type=button", async () => {
-    await renderSetup();
-    expect(screen.getByRole("button", { name: /show password/i })).toHaveAttribute("type", "button");
+    await screen.findByRole("heading", { name: /link expired/i });
+    expect(screen.queryByLabelText(/^password$/i)).toBeNull();
+    expect(screen.queryByLabelText(/confirm password/i)).toBeNull();
   });
 });

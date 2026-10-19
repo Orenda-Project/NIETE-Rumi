@@ -547,4 +547,6 @@ module.exports = {
   createResponseCache,
   // bd-97x22y.5 — shared with observations-analytics.service: one counted-sessions read, one memo.
   loadCountedSessions,
+  // Shared with lp-engagement.service: one spelling of "a rostered teacher".
+  ROSTER_TEACHER,
 };

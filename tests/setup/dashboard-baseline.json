@@ -1,0 +1,30 @@
+{
+  "why": "The full dashboard Jest run (cd dashboard && npx jest) fails these tests on every base, for reasons outside any web quiz or report change. tests/setup/dashboard-baseline-lib.js reads a jest --json output and counts only failures outside this list. A name behind rot13: is stored ROT13-encoded. Shrink only.",
+  "suites": {
+    "tests/materialized-views-partner.service.test.js": {
+      "reason": "Its expectations of the partner country-scope filter no longer match the service (array shape; the empty-scope case now throws).",
+      "tests": [
+        "rot13:Cnegare-Fpbcrq Zngrevnyvmrq Ivrjf (oq-045) Pbhagel Fpbcr Svygrevat fubhyq erghea bayl +92 hfref sbe Cnxvfgna-fpbcrq cnegare",
+        "Security: Scope Enforcement CRITICAL: Empty scope value should return no users (not all users)"
+      ]
+    },
+    "tests/leader-schedule-write.service.test.js": {
+      "reason": "Expects u.last_name in the PATCH SQL; the service reads users.name.",
+      "tests": [
+        "rot13:oq-43530 · gur cbegny jevgrf n shyy anzr, abg n svefg anzr cersref hfref.anzr, snyyvat onpx gb svefg+ynfg"
+      ]
+    },
+    "tests/queue/portal-sqs.service.test.js": {
+      "reason": "The suite holds no test, so Jest fails it as a suite.",
+      "tests": [
+        "(suite failed to run)"
+      ]
+    },
+    "tests/github-api.test.js": {
+      "reason": "Calls the live GitHub API (repo, branch and token of the original deployment): which of its tests fail depends on the network, the token and the rate limit, so the whole suite is the baseline ('*'). The six seen failing on every base: getFileContent fetch and decode, listDirectory, getRepoTree, authenticate, repository mappings.",
+      "tests": [
+        "*"
+      ]
+    }
+  }
+}

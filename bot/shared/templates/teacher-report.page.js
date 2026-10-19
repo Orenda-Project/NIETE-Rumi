@@ -35,6 +35,7 @@ const fs = require('fs');
 const path = require('path');
 const { wrapLatinRuns } = require('./latin-runs');
 const { PALETTE, FONTS, TYPE_FLOOR, scriptOf, dirOf, diamondSvg } = require('./niete-brand');
+const V21 = require('./teacher-report-v21.parts');
 // Maths in a stem or an option is inline TeX ($…$): typeset server-side, never shown raw.
 const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 
@@ -239,6 +240,54 @@ const CHROME = {
     errorBody: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 };
+
+/**
+ * A storybook send's report (r.story, web_quiz_stories_teacher) reads as a story: these replace the quiz words of the
+ * page's chrome for that page only. A quiz report never sees them.
+ */
+const STORY_CHROME = {
+  en: {
+    title: 'Story report',
+    notPlayed: 'Not opened yet',
+    allPlayed: 'Everyone on your class list has opened it.',
+    ambiguousBody: 'Children who opened it are above. Pick the class to see who has not opened it yet.',
+    noneTitle: 'See who has not opened it',
+    noneBody: 'Send /roster on WhatsApp to add your class list, then reopen this report to see who has not opened it.',
+    noticeClosed: 'This story link has closed, so its class can no longer be changed.',
+  },
+  ur: {
+    title: 'کہانی کی رپورٹ',
+    notPlayed: 'ابھی نہیں کھولی',
+    allPlayed: 'کلاس کی فہرست میں سب بچوں نے کہانی کھول لی ہے۔',
+    ambiguousTitle: 'یہ کہانی کس کلاس کے لیے تھی؟',
+    ambiguousBody: 'جن بچوں نے کہانی کھولی ہے، ان کے نام اوپر ہیں۔ کلاس چنیں تاکہ پتا چلے کہ کس نے ابھی نہیں کھولی۔',
+    noneTitle: 'دیکھیں کس نے ابھی کہانی نہیں کھولی',
+    noticeClosed: 'اس کہانی کا لنک بند ہو چکا ہے، اس لیے اب کلاس نہیں بدلی جا سکتی۔',
+  },
+};
+/**
+ * A storybook send's row on the "All my classes" tab: how many children OPENED it, never "played". A tab whose rows
+ * are all stories heads its list (and its subtitle) with stories. Quiz rows and a tab with any quiz on it are unchanged.
+ */
+const STORY_ROWS = {
+  en: {
+    playedOf: (p, of) => `<b class="num">${p}</b> of <b class="num">${of}</b> opened`,
+    quizLine: (p) => `<b class="num">${p}</b> opened`,
+    noOne: 'No one has opened it yet',
+    classSub: 'Your stories from the last 60 days',
+    yourQuizzes: 'Your stories',
+  },
+  ur: {
+    playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھولی`,
+    quizLine: (p) => `<b class="num">${p}</b> نے کھولی`,
+    noOne: 'ابھی کسی نے نہیں کھولی',
+    classSub: 'پچھلے <span class="num">60</span> دن کی کہانیاں',
+    yourQuizzes: 'آپ کی کہانیاں',
+  },
+};
+const isStoryRow = (q) => Boolean(q) && q.source === 'story';
+/** The chrome for one report: the quiz's own, or the story's words over it for a story send. */
+const chromeOf = (C, lang, r) => (r && r.story ? { ...C, ...(STORY_CHROME[lang] || STORY_CHROME.en) } : C);
 
 const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -464,7 +513,8 @@ function topBar({ C, L, langHref, print }) {
 }
 
 function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null, ok = null }) {
-  const { rtl, C, T, L, K, M } = kit(lang);
+  const { rtl, C: quizChrome, T, L, K, M } = kit(lang);
+  const C = chromeOf(quizChrome, lang, r);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
   const quiz = r.quiz || {};
@@ -506,10 +556,11 @@ ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
   const onListN = played.filter((p) => p.onList).length;
   const offListN = played.length - onListN;
   const ringP = of ? Math.min(100, Math.round((100 * onListN) / of)) : 0;
-  const tiles = `<div class="tiles">
+  const doneTile = V21.completionTile(summary.completion, lang);
+  const tiles = `<div class="tiles${doneTile ? ' tiles-4' : ''}">
 <div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.tilePlayedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
 <div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? `${avg}%` : esc(C.none)}</div></div>
-<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
+${doneTile}<div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
 </div>`;
 
   // Reserved lines, shown only when their data is present: the school's place
@@ -577,7 +628,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
   const offList = (p) => known && p.onList === false;
   const rows = played.map((p) => {
     const pc = num(p.pct) || 0;
-    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
+    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}${V21.triesTag(p.attempts, lang)}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
   }).join('');
   const scores = `<section class="card" id="scores"><h2>${L(C.scores)}</h2>${played.length ? `<ul class="sc">${rows}</ul>` : `<p class="muted">${L(C.noPlayers)}</p>`}</section>`;
 
@@ -587,7 +638,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const head = p == null ? C.qNone(num(q.n)) : C.qRight(num(q.n), p);
     const w = q.wrongTop && num(q.wrongTop.pct) >= 25 && p !== 100
       ? `<div class="wrong">${L(C.mostChose(`<span class="num">${esc(q.wrongTop.option)}</span>`))} ${M(q.wrongTop.text)}</div>` : '';
-    return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span></div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
+    return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span>${V21.codeChip(q.code)}</div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
   }).join('');
   const questions = qrows ? `<section class="card" id="questions"><h2>${L(C.questions)}</h2><ul class="qs">${qrows}</ul></section>` : '';
 
@@ -597,6 +648,8 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
   const blocks = g ? keys.filter((k) => g[k]).map((k) => `<div class="g"><div class="gk">${L(C.guidance[k])}</div>${K(g[k], 'div')}</div>`).join('') : '';
   const reteach = `<section class="card" id="reteach"><h2>${L(C.reteach)}</h2>${blocks || `<p class="muted">${L(C.guidanceMissing)}</p>`}</section>`;
 
+  // A storybook the teacher sent: its own tiles and rows (story-teacher-report.js); the class follow-up as for a quiz.
+  if (r.story) return { header, main: `${notice}${require('../services/quiz/story-teacher-report').pageSections(r.story, { lang, L, K, esc })}${follow}` };
   return { header, main: `${tiles}${notice}${extra}${follow}${provisional}${scores}${questions}${reteach}` };
 }
 
@@ -611,13 +664,17 @@ function classSections(r, { lang, print, tokens }) {
   const cells = Array.isArray(r.cells) ? r.cells : [];
   const weeks = Array.isArray(r.weeks) ? r.weeks : [];
   const quizzes = Array.isArray(r.quizzes) ? r.quizzes : [];
+  const SR = STORY_ROWS[lang] || STORY_ROWS.en;
+  const RC = quizzes.length && quizzes.every(isStoryRow) ? { ...C, ...SR } : C; // a tab of stories only
   const header = `<header class="top"><div class="in">
 ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang]])}`, print })}
-<h1>${L(C.classTitle)}</h1><div class="sub">${L(C.classSub)}</div>
+<h1>${L(C.classTitle)}</h1><div class="sub">${L(RC.classSub)}</div>
 </div></header>`;
   // ── standing class link card (web_quiz_class_link; r.classLink is absent when the switch is off → '') ──
   const linkCard = r.classLink ? require('./teacher-class-link-card').renderClassLinkCard(r.classLink, { lang, base, print }) : '';
   // ── end standing class link card ──
+  // The class report did not answer within the page's budget: never "no quizzes" — the existing retry line instead.
+  if (r.pending) return { header, main: `<section class="card" style="margin-top:16px"><p class="muted">${L(C.errorBody)}</p></section>${linkCard}` };
   if (!cells.length && !quizzes.length) {
     return { header, main: `<section class="card" style="margin-top:16px"><p class="muted">${L(C.emptyClass)}</p></section>${linkCard}` };
   }
@@ -636,10 +693,12 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   const qmap = tokens.quiz || {};
   // "12 of 31 played" when the row knows its class size, "4 played" when not, and
   // a plain sentence when nobody has played (M3c's class tab, folded in).
+  // A story row says how many OPENED it (STORY_ROWS).
   const playedText = (q) => {
+    const W = isStoryRow(q) ? SR : C;
     const p = num(q.played) || 0;
-    if (!p) return L(C.noOne);
-    return num(q.of) ? L(C.playedOf(p, num(q.of))) : L(C.quizLine(p));
+    if (!p) return L(W.noOne);
+    return num(q.of) ? L(W.playedOf(p, num(q.of))) : L(W.quizLine(p));
   };
   const ql = quizzes.map((q) => {
     const tok = qmap[q.id];
@@ -649,7 +708,7 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>
 ${weeks.length ? `<section class="card"><h2>${L(C.trend)}</h2><div class="wk">${wk}</div></section>` : ''}
-${quizzes.length ? `<section class="card"><h2>${L(C.yourQuizzes)}</h2><ul class="ql">${ql}</ul></section>` : ''}${linkCard}`;
+${quizzes.length ? `<section class="card"><h2>${L(RC.yourQuizzes)}</h2><ul class="ql">${ql}</ul></section>` : ''}${linkCard}`;
   return { header, main };
 }
 
@@ -688,8 +747,10 @@ function renderPage(data, opts = {}) {
   const roundCard = tab === 'class' && !print && typeof opts.roundCard === 'string' ? opts.roundCard : '';
   const upd = `<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div>`;
   const needUrdu = rtl || scriptOf(JSON.stringify(data || {})) === 'ur';
-  const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || C.title} · ${C.title}` : C.classTitle;
-  const css = usesMath(parts.main) ? `${extraCss}\n${mathCss()}` : extraCss;
+  const PC = tab === 'quiz' ? chromeOf(C, lang, data.quiz) : C;
+  const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || PC.title} · ${PC.title}` : C.classTitle;
+  const pageCss = V21.usedIn(parts.main) ? `${extraCss}${V21.CSS}` : extraCss; // v21 pieces (bd-v0toag.9/.10), switch on only
+  const css = usesMath(parts.main) ? `${pageCss}\n${mathCss()}` : pageCss;
   return shell({ lang, rtl, print, needUrdu, extraCss: css, title, body: `${parts.header}<main class="wrap">${roundCard}${parts.main}${foot}${upd}</main>` });
 }
 

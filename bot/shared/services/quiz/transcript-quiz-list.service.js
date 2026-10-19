@@ -148,7 +148,8 @@ function lessonItems(sessions, quizzes, lessons = []) {
   const all = quizzes || [];
   const bySession = new Map(all.filter((q) => !isPlanQuiz(q.quiz_source)).map((q) => [q.coaching_session_id, q]));
   const items = (sessions || [])
-    .filter((s) => String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
+    // a light session (loadEligibleSessionsLight) was tested in the database and carries no transcript
+    .filter((s) => s.eligible === true || String(s.transcript_text || '').length >= MIN_TRANSCRIPT_CHARS)
     .map((s) => ({ kind: 'session', key: s.id, session: s, quiz: bySession.get(s.id) || null, date: s.created_at }));
   all.filter((q) => isPlanQuiz(q.quiz_source)).forEach((q) => {
     const session = lessonSessionFor(q);
@@ -264,7 +265,8 @@ async function loadLpQuizzes(userId, needed) {
  * the eligible sessions, their transcript quizzes, the lp_v8 quizzes, and the
  * started/finished counts stamped on every sent quiz as `_started`/`_finished`.
  */
-async function loadLessonPage(userId, needed) {
+async function loadLessonPage(userId, needed, { light = false } = {}) {
+  if (light) return loadLessonPageLight(userId, needed);
   // The recorded lessons come through their provider like every other source.
   const recorded = await Providers.providerFor(TRANSCRIPT).list(userId, { limit: needed });
   const sessions = recorded.map((r) => r.session);
@@ -287,6 +289,31 @@ async function loadLessonPage(userId, needed) {
   return { sessions, quizzes, counts, lessons };
 }
 
+/**
+ * The same page for the teacher home's quick answer (quiz_teacher_home_paged): the same rows from the same sources,
+ * with every read that does not need another started at once (the sessions, the plan quizzes, the plan lessons), the
+ * sessions read light (eligibility tested in the database, no transcript), and no started/finished counts (`counts`
+ * is empty; the home shows the class report's own counts).
+ */
+async function loadLessonPageLight(userId, needed) {
+  const [recorded, lpQuizzes, lessons] = await Promise.all([
+    Providers.providerFor(TRANSCRIPT).list(userId, { limit: needed, light: true }),
+    loadLpQuizzes(userId, needed),
+    Providers.listPlanLessons(userId, { limit: needed, light: true }),
+  ]);
+  const sessions = recorded.map((r) => r.session);
+  const ids = sessions.map((s) => s.id);
+  const parts = [];
+  for (let i = 0; i < ids.length; i += 300) { // under PostgREST's .in() header cap; the chunks go together
+    parts.push(supabase.from('quizzes')
+      .select('id, coaching_session_id, quiz_source, status, topic, subject') // the row needs no meta
+      .eq('teacher_id', userId).eq('quiz_source', TRANSCRIPT).in('coaching_session_id', ids.slice(i, i + 300))
+      .then(({ data }) => data || []));
+  }
+  const quizzes = (await Promise.all(parts)).flat().concat(lpQuizzes);
+  return { sessions, quizzes, counts: new Map(), lessons };
+}
+
 async function showList(user, phone, language, page = 1) {
   const lang = teacherLanguageFor({ preferredLanguage: language || user?.preferred_language });
   const p = Number.isFinite(page) && page > 0 ? page : 1;
@@ -300,6 +327,14 @@ async function showList(user, phone, language, page = 1) {
     ({ rows, from, to } = buildRows(sessions, quizzes, lang, { page: 1, lessons }));
   }
   if (!rows.length) {
+    // ── first touch: the empty line → the maker (quiz_maker_page; off → today's reply below) ──
+    try {
+      if (await require('../first-touch/maker.empty').emptyLine({ user, phone, lang })) {
+        logEvent('transcript_quiz.list_empty', { userId: user.id });
+        return true;
+      }
+    } catch (_) { /* today's reply */ }
+    // ── end first touch ──
     await WhatsAppService.sendMessage(phone, resolveUx(QuizMenuFlags.lessonRows() ? 'tqListEmptyPlans' : 'tqListEmpty', { language: lang }));
     logEvent('transcript_quiz.list_empty', { userId: user.id });
     return true;
@@ -495,8 +530,17 @@ async function handleActionButton(buttonId, phone) {
   await WhatsAppService.sendMessage(phone, resolveUx('tqReportComing', { language: lang }));
   const Report = require('./video-quiz-report.service');
   const sent = await Report.generate(shareCodeId, { reason: 'requested', force: true });
-  if (!sent) await WhatsAppService.sendMessage(phone, resolveUx('tqNoReportYet', { language: lang }));
-  logEvent('transcript_quiz.report_requested', { quizId, sent: Boolean(sent) });
+  // quiz_report_send_checked on: a false may be WhatsApp refusing the report (children did finish), never "no one
+  // has finished" then. lastRefusal() tells it apart; a stub with generate alone has none (nothing to report).
+  const refused = !sent && typeof Report.lastRefusal === 'function' ? Report.lastRefusal(shareCodeId) : null;
+  if (refused) {
+    await WhatsAppService.sendMessage(phone, refused.link
+      ? resolveUx('tqReportNotThrough', { language: lang, params: { link: refused.link } })
+      : resolveUx('tqReportNotThroughNoLink', { language: lang }));
+  } else if (!sent) {
+    await WhatsAppService.sendMessage(phone, resolveUx('tqNoReportYet', { language: lang }));
+  }
+  logEvent('transcript_quiz.report_requested', { quizId, sent: Boolean(sent), ...(refused ? { refused: true } : {}) });
   return true;
 }
 

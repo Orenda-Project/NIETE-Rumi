@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +39,8 @@ import { noticeTracker } from './tracker';
  * real reason, Try again). It is mounted for a coach on v2 as it is for a teacher.
  *
  * The strip's height goes to the page (`--notice-h` on <html>, and a spacer in flow) so a page's last row and its
- * bottom action stay above the strip.
+ * bottom action stay above the strip. The banner's height, measured while it shows, goes to the page as
+ * `--notice-banner-h`: a dock that must stay usable under it (New paper's Make) pads itself by it.
  */
 
 function useTrackedItems(): readonly NoticeItem[] {
@@ -147,6 +148,25 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false, local = fa
     return () => { root.style.removeProperty('--notice-h'); };
   }, [height]);
 
+  // The banner is as tall as its words (two rows, a reason, Urdu): measured, not summed, and only while it shows.
+  const bannerSlot = useRef<HTMLDivElement | null>(null);
+  // Ready and failed are two different slots: a change from one to the other is measured again.
+  const bannerShown = bare ? '' : readyItems.length > 0 ? 'ready' : failedItem ? 'failed' : '';
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const el = bannerSlot.current;
+    if (!bannerShown || !el) { root.style.removeProperty('--notice-banner-h'); return undefined; }
+    const put = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      if (h > 0) root.style.setProperty('--notice-banner-h', `${h}px`);
+      else root.style.removeProperty('--notice-banner-h');
+    };
+    put();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(put);
+    ro?.observe(el);
+    return () => { ro?.disconnect(); root.style.removeProperty('--notice-banner-h'); };
+  }, [bannerShown]);
+
   const openItem = (id: string) => {
     const item = items.find((i) => i.id === id);
     if (!item) return;
@@ -183,7 +203,7 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false, local = fa
       >
         <div className="pointer-events-auto mx-auto flex w-full max-w-xl flex-col">
           {readyItems.length > 0 ? (
-            <div className="px-2 pb-2">
+            <div ref={bannerSlot} data-testid="notice-banner-slot" className="px-2 pb-2">
               <ReadyBanner
                 items={readyItems.map(banner)}
                 onOpen={openItem}
@@ -194,7 +214,7 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false, local = fa
               />
             </div>
           ) : failedItem ? (
-            <div className="px-2 pb-2">
+            <div ref={bannerSlot} data-testid="notice-banner-slot" className="px-2 pb-2">
               <ReadyBanner
                 variant="failed"
                 items={[banner(failedItem)]}

@@ -39,6 +39,10 @@
  * rejecting a draft mid-loop. It is not a delivery failure and no query here
  * reads it; the suite asserts that.
  *
+ * SHARED. The lesson-plan health check (lesson-plan-health.service) alerts through this same stream —
+ * slackTarget, postToSlack, claimTick under its own key — and a 6-12 incident it pages sets this
+ * watcher's lp612_failed key (ALERT_KEY), so the two never page one incident twice.
+ *
  * ENV (names only; a no-op until the first is set):
  *   QUIZ_FUNNEL_WATCH_ENABLED        'true' arms it. Unset = nothing runs, nothing is logged.
  *   QUIZ_FUNNEL_WATCH_SLACK_TOKEN    bot token (falls back to PROD_DIGEST_SLACK_TOKEN)
@@ -625,16 +629,21 @@ const ALERT_KEY = (incident, id) => (id
  * de-dup, wrong for a monitor — ten replicas would each post). So the claim is
  * read back: only the replica whose token is IN the key speaks, and a read that
  * returns nothing is 'unavailable' — a skip, logged, never a post.
+ *
+ * Shared: the lesson-plan health check claims its hourly tick through this too, under its own `key`.
+ * A claim that THROWS is a broken client, not a down cache, and is said at error level — otherwise it
+ * would look exactly like an outage, on every tick, for ever.
  */
-async function claimTick(redis, cfg) {
+async function claimTick(redis, cfg, key = TICK_KEY) {
   const token = `tick:${process.pid}:${Math.random().toString(36).slice(2)}`;
   try {
     if (!redis || (typeof redis.isAvailable === 'function' && !redis.isAvailable())) return 'unavailable';
-    await redis.setNX(TICK_KEY, token, Math.max(60, cfg.tickMin * 60 - 60));
-    const holder = await redis.get(TICK_KEY);
+    await redis.setNX(key, token, Math.max(60, cfg.tickMin * 60 - 60));
+    const holder = await redis.get(key);
     if (holder === null || holder === undefined) return 'unavailable';
     return holder === token ? 'owner' : 'other';
-  } catch {
+  } catch (error) {
+    logToFile('❌ monitor tick: the claim threw', { key, error: error && error.message }, 'error');
     return 'unavailable';
   }
 }
@@ -877,4 +886,7 @@ async function postToSlack(text, slack) {
 module.exports = {
   DEFAULTS, config, slackTarget, toMillis, slotFor, dayStart, aplFor, streamCounts, verdictFor, findIncidents,
   buildAlert, buildSummary, buildReport, run, claimTick, axiomQuery, confirmFromDb, TICK_KEY,
+  // The lesson-plan health check alerts through the same stream: the sender, the clock it is read in,
+  // and the key each incident is de-duplicated under (so one incident is not paged by both).
+  postToSlack, hhmm, ALERT_KEY,
 };

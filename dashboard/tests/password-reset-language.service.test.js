@@ -12,8 +12,10 @@
  * ask Meta for a template variant that doesn't exist.
  */
 
+// A registered teacher as the row really is: the name lives in `name` (bd-x7aprz.3 sends a code to a registered adult;
+// `first_name` is a dead column).
 const mockUserRow = {
-  id: 'u-1', first_name: 'Rifat', portal_activated: true, preferred_language: 'ur',
+  id: 'u-1', name: 'Rifat', portal_activated: true, preferred_language: 'ur',
 };
 
 jest.mock('../config/supabase', () => ({

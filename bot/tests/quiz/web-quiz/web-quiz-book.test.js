@@ -39,6 +39,7 @@ const WED = '2026-11-11T04:00:00Z';
 const THU_LAST = '2026-11-05T06:00:00Z';
 const OCT = '2026-10-15T06:00:00Z';
 const GOLDEN = path.join(__dirname, 'web-quiz-book-hub-golden.json');
+const GOLDEN_V2 = path.join(__dirname, 'web-quiz-book-hub-golden-v2.json');
 
 let db;
 const ON = ['web_quiz_hub', 'web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_challenge_book'];
@@ -168,6 +169,76 @@ describe('class lights (shown only with >= 5 children in the term)', () => {
   });
 });
 
+// The class lights follow the child's VOLUNTARY counted stops only (SAMPLING_RULING NC4; BADGES §3): a run the
+// teacher's class round served (mode 'class_round', via 'class_round') lights nothing.
+describe('class lights ignore the teacher\'s class round', () => {
+  const { lightsOf } = require('../../../shared/services/quiz/web-quiz-book');
+  const id = (i) => `77777777-7777-4777-8777-${String(i).padStart(12, '0')}`;
+  // four other children with one October light each: with the looking child, five in the term
+  const others = () => [1, 2, 3, 4].map((i) => run({ student_id: id(i), class_id: CLASS, passage_id: `p-o-${i}`, created_at: OCT, scored_at: OCT }));
+  const round = (extra = {}) => run({ mode: 'class_round', record: true, via: 'class_round', class_id: CLASS, ...extra });
+
+  test('a round run lights nothing; the child\'s later voluntary check run lights one', () => {
+    const roundOnly = [...others(), round({ passage_id: 'p-round', created_at: OCT, scored_at: OCT })];
+    expect(lightsOf(roundOnly, NOW, KID)).toEqual({ shown: false });
+    const later = [...roundOnly, run({ class_id: CLASS, passage_id: 'p-mine', created_at: MON, scored_at: MON })];
+    expect(lightsOf(later, NOW, KID)).toEqual({ shown: true, term_total: 5 });
+  });
+  test('a row marked only by via (no mode) is a round row too', () => {
+    const rows = [...others(), round({ mode: null, passage_id: 'p-round', created_at: MON, scored_at: MON })];
+    expect(lightsOf(rows, NOW, KID)).toEqual({ shown: false });
+  });
+  test('through the Book: another child\'s round row alone is not "your class is playing too"', async () => {
+    db.app_settings.push({ key: 'web_quiz_class_wall', value: 'true' });
+    db.web_quiz_challenge_runs.push(round({ student_id: id(1), passage_id: 'p-round', created_at: MON, scored_at: MON }), run({ class_id: CLASS, passage_id: 'p-mine' }));
+    const out = await book();
+    expect(out.class_lights).toEqual({ shown: false, none: true });
+  });
+  test('golden: rows without mode or via (legacy) light exactly as before', () => {
+    const legacy = (extra) => { const r = run(extra); delete r.mode; delete r.record; delete r.period_id; delete r.exposure_no; return r; };
+    const rows = [1, 2, 3, 4, 5].map((i) => legacy({ student_id: id(i), class_id: CLASS, passage_id: `p-l-${i}`, created_at: i < 3 ? OCT : MON, scored_at: i < 3 ? OCT : MON }));
+    rows.push(legacy({ student_id: id(6), class_id: CLASS, exercise: 'bigger', created_at: MON, scored_at: MON }));
+    expect(lightsOf(rows, NOW, KID)).toEqual({ shown: true, term_total: 6 });
+    expect(lightsOf(rows.slice(0, 2), NOW, KID)).toEqual({ shown: false });
+    expect(lightsOf([], NOW, KID)).toEqual({ shown: false, none: true });
+  });
+});
+
+// The week dots and story stickers follow the same rule as the class lights (RULING #116, #142a).
+describe('week dots and story stickers ignore the teacher\'s class round', () => {
+  const B = require('../../../shared/services/quiz/web-quiz-book');
+  const round = (extra = {}) => run({ mode: 'class_round', record: true, via: 'class_round', class_id: CLASS, ...extra });
+  const NONE = [false, false, false, false, false, false, false];
+
+  test('a round turn adds no week dot and no story sticker; the child\'s later voluntary run adds one', () => {
+    const roundOnly = [round({ passage_id: 'p-round', created_at: MON, scored_at: MON })];
+    expect(B.daysOf(roundOnly, NOW)).toEqual(NONE);
+    expect(B.storyIdsOf(roundOnly)).toEqual([]);
+    const later = [...roundOnly, run({ passage_id: 'p-mine', created_at: WED, scored_at: WED })];
+    expect(B.daysOf(later, NOW)).toEqual([false, false, true, false, false, false, false]);
+    expect(B.storyIdsOf(later)).toEqual(['p-mine']);
+  });
+  test('a row marked only by via (no mode) adds nothing either', () => {
+    const rows = [round({ mode: null, passage_id: 'p-round', created_at: MON, scored_at: MON })];
+    expect(B.daysOf(rows, NOW)).toEqual(NONE);
+    expect(B.storyIdsOf(rows)).toEqual([]);
+  });
+  test('through the Book: a round turn alone gives no dot and no story sticker', async () => {
+    db.web_quiz_challenge_runs.push(round({ passage_id: 'p-round', created_at: MON, scored_at: MON }));
+    const out = await book();
+    expect(out.days_this_week).toEqual(NONE);
+    expect(out.story_stickers).toEqual([]);
+  });
+  test('golden: rows without mode or via (legacy) give today\'s dots and stickers exactly', () => {
+    const legacy = (extra) => { const r = run(extra); delete r.mode; delete r.record; delete r.period_id; delete r.exposure_no; return r; };
+    const rows = [legacy({ passage_id: 'p-b', created_at: WED, scored_at: WED }), legacy({ passage_id: 'p-a', created_at: MON, scored_at: MON }),
+      legacy({ passage_id: 'p-a', created_at: WED, scored_at: WED }), legacy({ status: 'served', passage_id: 'p-s', created_at: THU_LAST, scored_at: THU_LAST }),
+      legacy({ exercise: 'bigger', created_at: THU_LAST, scored_at: THU_LAST })];
+    expect(B.daysOf(rows, NOW)).toEqual([true, false, true, false, false, false, false]);
+    expect(B.storyIdsOf(rows)).toEqual(['p-a', 'p-b']);
+  });
+});
+
 describe('days this week: Mon..Sun PKT, lit only', () => {
   test('Monday and Wednesday lit; last week is not shown', async () => {
     db.web_quiz_challenge_runs.push(run({ created_at: MON, scored_at: MON }), run({ exercise: 'bigger', created_at: WED, scored_at: WED }), run({ created_at: THU_LAST, scored_at: THU_LAST }));
@@ -233,22 +304,20 @@ describe('stickers', () => {
     expect(out.lamps.reading).toBe(0);
   });
   test('practice rows and last month\'s rows give no Trail sticker; a story finish gives one story sticker per passage', async () => {
-    db.challenge_passages = [{ passage_id: 'p-st-1', title_en: 'The kite', title_ur: 'پتنگ' }];
+    db.challenge_passages = [{ passage_id: 'en.read.1.story03', title_en: 'The Toy Car', title_ur: null }];
     db.web_quiz_challenge_runs.push(
       run({ exercise: 'bigger', mode: 'practice', record: false, item_set_id: 'x' }),
       run({ exercise: 'listen', period_id: '2026-10', created_at: OCT, scored_at: OCT }),
-      run({ mode: 'practice', record: false, passage_id: 'p-st-1' }),
-      run({ mode: 'practice', record: false, passage_id: 'p-st-1', exposure_no: 2 }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story03' }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story03', exposure_no: 2 }),
     );
     const out = await book();
     expect(out.trail_stickers).toEqual([]);
-    expect(out.story_stickers).toEqual([{ passage_id: 'p-st-1', title: 'The kite' }]);
+    expect(out.story_stickers).toEqual([{ passage_id: 'en.read.1.story03', title: 'The Toy Car' }]);
   });
-  test('a story sticker carries the title in the child\'s language (registry title_en / title_ur)', async () => {
-    db.challenge_passages = [{ passage_id: 'p-st-2', title_en: 'The mango tree', title_ur: 'آم کا درخت' }];
-    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'p-st-2' }));
-    expect((await book()).story_stickers).toEqual([{ passage_id: 'p-st-2', title: 'The mango tree' }]);
-    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'p-st-2', title: 'آم کا درخت' }]);
+  test('a story sticker carries the title in the child\'s language (the passage file\'s title_en / title_ur)', async () => {
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'ur.read.1.story01' }));
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'ur.read.1.story01', title: 'گاجر کا حلوہ' }]);
   });
   test('first name only, in the page language', async () => {
     expect((await book()).name).toBe('Zara');
@@ -303,6 +372,7 @@ describe('golden: every new switch off -> the hub payload is the base\'s', () =>
       seed({ app_settings: settings(keys), web_quiz_challenge_runs: [run({ class_id: CLASS, passage_id: 'p-g' })], child_rungs: [{ canonical_id: KID, ladder: 'reading', rung: 3, period_id: '2026-11', set_at: WED }] });
       Hub._resetCache();
       try { require('../../../shared/services/quiz/web-quiz-book')._resetCache(); } catch (_) { /* absent on the base */ }
+      require('../../../shared/services/quiz/web-quiz-hub-play')._resetCache();   // its 30 s switch cache, so every snap reads its own switches
       redis._store.clear();
       logEvent.mockClear();
       const payload = await Hub.hub(T.signHub([KID]), { kid: T.chipId('h', KID), device: DEV });
@@ -311,13 +381,15 @@ describe('golden: every new switch off -> the hub payload is the base\'s', () =>
       jest.useRealTimers();
     }
   }
-  test('switches absent, book off under v2, book on without v2, wall on without book: all equal the base', async () => {
+  test('switches absent and book or wall on without v2 equal the base; book and wall off under v2 equal v2 alone', async () => {
     const base = await snap(BASE);
     const golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
     expect(base).toEqual(golden);
-    expect(await snap([...BASE, 'web_quiz_challenge_v2'])).toEqual(golden);
+    const v2 = await snap([...BASE, 'web_quiz_challenge_v2']);
+    // under v2 the hub carries v2's own `play`: book and wall off under v2 are compared to v2 alone, recorded from the base
+    expect(v2).toEqual(JSON.parse(fs.readFileSync(GOLDEN_V2, 'utf8')));
     expect(await snap([...BASE, 'web_quiz_challenge_book', 'web_quiz_class_wall'])).toEqual(golden);
-    expect(await snap([...BASE, 'web_quiz_challenge_v2', 'web_quiz_class_wall'])).toEqual(golden);
+    expect(await snap([...BASE, 'web_quiz_challenge_v2', 'web_quiz_class_wall'])).toEqual(v2);
   });
 });
 
@@ -336,5 +408,121 @@ describe('class_wall_shown passes the page-event allow-list (NAME_PROPS, web_qui
   });
   test('v2 off: the relay is today\'s (no wall props)', () => {
     expect(cleanEvent({ n: 'class_wall_shown', shown: 'total', term_total: 41, week_n: 7 }).props).toEqual({});
+  });
+});
+
+// One title home. A story sticker names the passage by its FILE's title (web-quiz-challenge.js
+// passageTitle: Urdu ur → en, English en), never the registry row's; no file title ⇒ '' (the Book prints its generic).
+describe('a story sticker\'s title is the passage file\'s (one title home)', () => {
+  test('a passage whose file has a title and whose registry row has another: the child sees the file\'s', async () => {
+    db.challenge_passages = [{ passage_id: 'en.read.1.ref01', title_en: 'Registry Title', title_ur: 'رجسٹری عنوان' }];
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'en.read.1.ref01' }));
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'en.read.1.ref01', title: 'The Pink Kite' }]);
+    // an Urdu child on a passage whose file has only an English title: ur → en
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'en.read.1.ref01', title: 'The Pink Kite' }]);
+  });
+  test('an Urdu passage: the file\'s Urdu title for an Urdu child; an English child gets no Urdu ("" → the generic)', async () => {
+    db.challenge_passages = [{ passage_id: 'ur.read.1.ref01', title_en: 'Registry Title', title_ur: 'رجسٹری عنوان' }];
+    db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'ur.read.1.ref01' }));
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'ur.read.1.ref01', title: 'لال پتنگ' }]);
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'ur.read.1.ref01', title: '' }]);
+  });
+  test('a passage whose file has no title (a registry title only): "" (the generic), never "null"', async () => {
+    // a bank of the shipped files plus one passage whose file carries no title in either language
+    const Bank = require('../../../shared/services/child-test/item-bank');
+    const shipped = path.join(__dirname, '../../../shared/data/child-test/passages');
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'wqbook-'));
+    fs.readdirSync(shipped).filter((f) => f.endsWith('.json')).forEach((f) => fs.copyFileSync(path.join(shipped, f), path.join(dir, f)));
+    fs.writeFileSync(path.join(dir, 'en.read.1.plain01.json'), JSON.stringify({ passage_id: 'en.read.1.plain01', lang: 'en', kind: 'read', band: 1, pool: 'practice', title_en: null, title_ur: null }));
+    Bank._loadPassagesFrom(dir);
+    try {
+      db.challenge_passages = [{ passage_id: 'en.read.1.plain01', title_en: 'Registry Title', title_ur: null }];
+      db.web_quiz_challenge_runs.push(run({ mode: 'practice', record: false, passage_id: 'en.read.1.plain01' }));
+      const out = await book();
+      expect(out.story_stickers).toEqual([{ passage_id: 'en.read.1.plain01', title: '' }]);
+      expect(JSON.stringify(out.story_stickers)).not.toMatch(/null|undefined|Registry/);
+    } finally { Bank._loadPassagesFrom(); fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+// A story sticker is the first FINISH of a passage (the child reached the end card): a `scored` row only. A swept run
+// (written `failed`) still lights its Trail stop, but it was never finished, so it gives no story sticker.
+describe('a story sticker is a finish (scored rows only)', () => {
+  test('a swept failed listen: its Trail sticker stays, no story sticker', async () => {
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', status: 'failed', passage_id: 'en.listen.2.setA', wcpm: null, score: null }));
+    const out = await book();
+    expect(out.trail_stickers).toEqual(['listen']);
+    expect(out.story_stickers).toEqual([]);
+  });
+  test('golden: a scored listen gives the story sticker as before', async () => {
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', passage_id: 'en.listen.2.setA', wcpm: null }));
+    const out = await book();
+    expect(out.trail_stickers).toEqual(['listen']);
+    expect(out.story_stickers).toEqual([{ passage_id: 'en.listen.2.setA', title: '' }]);
+  });
+  test('a swept try and a later finish of one passage: one sticker, placed at the finish', async () => {
+    db.web_quiz_challenge_runs.push(
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story01', status: 'failed', created_at: MON, scored_at: MON }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story02', created_at: '2026-11-10T06:00:00Z', scored_at: '2026-11-10T06:00:00Z' }),
+      run({ mode: 'practice', record: false, passage_id: 'en.read.1.story01', created_at: WED, scored_at: WED }),
+    );
+    const out = await book();
+    expect(out.story_stickers.map((s) => s.passage_id)).toEqual(['en.read.1.story02', 'en.read.1.story01']);
+  });
+});
+
+// The new lamp: when one sitting lights lamps on two ladders, the lamp a SCORED run set is the one the child sees,
+// not the one a swept (failed) run set. A rung row names its run by row_id (child_rungs.row_id, the run that set it).
+describe('the new lamp prefers a scored run\'s lamp over a swept run\'s', () => {
+  const T1 = '2026-11-11T03:00:00Z';
+  const T2 = '2026-11-11T03:10:00Z';
+  test('N5 from a scored warm-up at t1, R1 from a swept listen at t2, same period -> levelup names numbers 5', async () => {
+    db.web_quiz_challenge_runs.push(
+      run({ id: 'run-warm', exercise: 'missing', item_set_id: 's-a1', created_at: T1, scored_at: T1 }),
+      run({ id: 'run-listen', exercise: 'listen', status: 'failed', passage_id: 'en.listen.2.setA', created_at: T2, scored_at: T2 }),
+    );
+    db.child_rungs = [
+      { canonical_id: KID, ladder: 'numbers', rung: 5, period_id: '2026-11', set_at: T1, row_id: 'run-warm' },
+      { canonical_id: KID, ladder: 'reading', rung: 1, period_id: '2026-11', set_at: T2, row_id: 'run-listen' },
+    ];
+    expect((await book()).levelup).toEqual({ ladder: 'numbers', rung: 5 });
+  });
+  test('golden: a single lamp from a swept run -> that lamp, exactly as before', async () => {
+    db.web_quiz_challenge_runs.push(run({ id: 'run-listen', exercise: 'listen', status: 'failed', passage_id: 'en.listen.2.setA', created_at: T2, scored_at: T2 }));
+    db.child_rungs = [{ canonical_id: KID, ladder: 'reading', rung: 1, period_id: '2026-11', set_at: T2, row_id: 'run-listen' }];
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 1 });
+  });
+  test('golden: two lamps from scored runs (or with no run named) -> the newest, as before', async () => {
+    db.web_quiz_challenge_runs.push(
+      run({ id: 'run-warm', exercise: 'missing', item_set_id: 's-a1', created_at: T1, scored_at: T1 }),
+      run({ id: 'run-read', passage_id: 'en.read.2.setA', created_at: T2, scored_at: T2 }),
+    );
+    db.child_rungs = [
+      { canonical_id: KID, ladder: 'numbers', rung: 5, period_id: '2026-11', set_at: T1, row_id: 'run-warm' },
+      { canonical_id: KID, ladder: 'reading', rung: 2, period_id: '2026-11', set_at: T2, row_id: 'run-read' },
+    ];
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 2 });
+    db.child_rungs.forEach((r) => { delete r.row_id; });
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 2 });
+  });
+});
+
+// The counted-listen title gate (web-quiz-passage-title.js) reaches the Book: while it is red, a counted listening
+// passage's sticker carries no title even when its file has one; a practice listening story keeps its title.
+describe('the Book\'s story_stickers carry no counted-listen title while the gate is red', () => {
+  test('a counted listen whose file has titles in both languages -> "" (the generic) in English and Urdu', async () => {
+    const { LISTEN_TITLE_GATE_RED } = require('../../../shared/services/quiz/web-quiz-passage-title');
+    const Bank = require('../../../shared/services/child-test/item-bank');
+    const p = Bank.getPassage('en.listen.2.setA');
+    expect(p).toMatchObject({ kind: 'listen', pool: 'check' });
+    expect(p.title_en && p.title_ur).toBeTruthy();
+    expect(LISTEN_TITLE_GATE_RED).toBe(true);
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', passage_id: 'en.listen.2.setA', wcpm: null }));
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'en.listen.2.setA', title: '' }]);
+    expect((await book({ lang: 'ur' })).story_stickers).toEqual([{ passage_id: 'en.listen.2.setA', title: '' }]);
+  });
+  test('a practice listening story keeps its file title (the gate is for counted listens only)', async () => {
+    db.web_quiz_challenge_runs.push(run({ exercise: 'listen', mode: 'practice', record: false, passage_id: 'en.listen.1.story01', wcpm: null }));
+    expect((await book()).story_stickers).toEqual([{ passage_id: 'en.listen.1.story01', title: 'Ice Cream in the Sun' }]);
   });
 });

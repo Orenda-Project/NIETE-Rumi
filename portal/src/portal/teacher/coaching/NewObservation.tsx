@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { Check, ChevronDown, Mic, Pause, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
-import { acceptFor, checkFile, DC_MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
+import { acceptFor, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { SendError, sendLesson } from '../../lib/coachingSend';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
@@ -25,6 +25,8 @@ import { useCopy } from '../i18n';
 import { NOTICES } from '../notices/copy';
 import { COACHING } from './copy';
 import { clearDraft, holdDraft, peekDraft, planKeyOf, readPrefill, type DraftClass, type DraftPlan } from './draft';
+import { DC_PICK } from './libraryPick';
+import { lessonsUrl, openUrl } from '../lessons/paths';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
 import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard } from './parts';
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
@@ -38,14 +40,18 @@ import { useDcReport } from './useDcReport';
  *
  *   1 Grade and subject   the kit's ClassPicker, as Lesson Plans and Assessment have it (every grade, the Lesson Plans
  *                         catalogue, hers starred), in the grade colours. Sent with the lesson as teacherClass.
- *   2 Lesson plan         optional: her recent plans for this class in one tap, or the plan sheet (photo, library).
+ *   2 Lesson plan         optional: one Lesson plan button; its tray has her recent plans, the library, a photo or a file.
  *                         Before the recording (operator, 16 Oct); it opens with it, so it never holds the recording back.
  *   3 Recording           Start recording records HERE (clock, level, Pause, Stop and "Yes, finish"); the recording bar's
  *                         Return comes back here. Or Upload recording. Then Listen / Redo / Change file.
  *   4 Photos              up to ten, No faces.
- *   Submit                sends exactly that, with the class; then, on the same screen, the lesson's progress
- *                         (Analysing → Reflection question → Report ready), the question answered here, the leave note
- *                         and Back to Digital Coaching. The main page lists it under Analysing until it is ready.
+ *   Submit                sends exactly that, with the class, and moves to a second screen (operator, 16 Oct): the
+ *                         upload %, then the lesson's progress (Analysing → Reflection question → Report ready), the
+ *                         question answered there and the leave note. Nothing on it can be changed, and the history
+ *                         entry of the editable screen is replaced, so Back goes to the main page, never to the edits.
+ *                         Its address is ?sent=uploading while uploading, then ?sent=<session>, so a reload finds the
+ *                         lesson (a reload mid-upload has lost the upload: the main page). A send that fails comes back
+ *                         to her screen with everything she chose. The main page lists it under Analysing until ready.
  *
  * What she has chosen is held in memory (draft.ts) so a trip to the library or her lesson plan, and Back, finds it.
  * Opened from a lesson plan (?grade&subject&plan) the class and the plan arrive filled in.
@@ -54,6 +60,7 @@ import { useDcReport } from './useDcReport';
 type AudioProblem = 'too_large' | 'not_audio' | null;
 type RecPhase = 'idle' | 'starting' | 'recording' | 'micBlocked';
 type Sending = { pct: number } | null;
+const UPLOADING = 'uploading';
 
 const NO_SUBJECTS: SubjectsByGrade = {};
 const norm = (s: string | null | undefined) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -95,15 +102,27 @@ export function NewObservationPage() {
 
   useEffect(() => { holdDraft({ audio, plan, photos, cls }); }, [audio, plan, photos, cls]);
 
-  // Opened from a lesson plan: her class (named from her classes) and that plan (named from her recent plans).
+  // Opened from a lesson plan: the plan's class and that plan (named from her recent plans). bd-fgj73x.10: the class
+  // always comes with the plan (operator, 19 Oct) — hers when it is one of her classes (by her subject key, the
+  // catalogue key or the name), else the plan's own grade and subject from the lesson catalogue (or the name the link
+  // carries, from Recent / All lesson plans). It used to be filled in only when the link named one of HER classes.
   const prefilled = useRef(!!kept);
   useEffect(() => {
     if (prefilled.current || (!prefill.pick && prefill.grade == null)) return;
     if (combos.status === 'loading' || combos.status === 'idle' || recentPlans.status === 'loading' || recentPlans.status === 'idle') return;
+    if (cat.status === 'loading' || cat.status === 'idle') return;
     prefilled.current = true;
-    if (prefill.grade != null && prefill.subjectKey) {
-      const hers = mine.find((c) => c.grade === prefill.grade && norm(c.subjectKey) === norm(prefill.subjectKey));
+    if (prefill.grade != null) {
+      const g = prefill.grade;
+      const book = (catalogue?.byGrade[g] ?? []).find((s) => (prefill.lpSubject != null && s.key === prefill.lpSubject)
+        || (prefill.subjectName != null && norm(s.name) === norm(prefill.subjectName)));
+      const name = book?.name ?? prefill.subjectName;
+      const hers = mine.find((c) => c.grade === g && (
+        (prefill.subjectKey != null && norm(c.subjectKey) === norm(prefill.subjectKey))
+        || (prefill.lpSubject != null && norm(c.featureKey) === norm(prefill.lpSubject))
+        || (name != null && norm(c.subject) === norm(name))));
       if (hers) setCls({ grade: hers.grade, subject: hers.subject, subjectKey: hers.subjectKey ?? null });
+      else if (name) setCls({ grade: g, subject: name, subjectKey: null });
     }
     if (prefill.pick) {
       const key = planKeyOf(prefill.pick);
@@ -115,7 +134,7 @@ export function NewObservationPage() {
         chips: known ? planChips(known, C.picker) : [],
       });
     }
-  }, [prefill, combos, recentPlans, mine, C]);
+  }, [prefill, combos, recentPlans, cat, catalogue, mine, C]);
 
   // 2 Recording, on this screen. A lesson already recording (the bar's Return) is shown, never a second one.
   const [phase, setPhase] = useState<RecPhase>(() => (session?.active ? 'recording' : 'idle'));
@@ -169,20 +188,18 @@ export function NewObservationPage() {
     setAudioProblem(null);
   };
 
-  // 3 Lesson plan: her recent plans for THIS class, one tap each.
-  const forClass = useMemo(() => (cls
-    ? (dataOf(recentPlans) ?? []).filter((p) => p.grade === cls.grade && norm(p.subject) === norm(cls.subject)).slice(0, 3)
-    : []), [recentPlans, cls]);
-
   // Submit, and what came of it — on this screen.
   const [sending, setSending] = useState<Sending>(null);
   const [failure, setFailure] = useState<SendError | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // The second screen (after Submit) is ?sent=uploading, then ?sent=<session>.
+  const sentParam = new URLSearchParams(location.search).get('sent');
+  const [sessionId, setSessionId] = useState<string | null>(() => (sentParam && sentParam !== UPLOADING ? sentParam : null));
   const report = useDcReport(sessionId);
   const submit = async () => {
     if (!audio || !cls) return;
     setFailure(null);
     setSending({ pct: 0 });
+    navigate(`${COACHING_NEW}?sent=${UPLOADING}`, { replace: true });
     try {
       const { coachingSessionId } = await sendLesson({
         audio: { blob: audio.blob, filename: audio.filename },
@@ -193,20 +210,51 @@ export function NewObservationPage() {
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       clearDraft();
       setSessionId(coachingSessionId);
+      navigate(`${COACHING_NEW}?sent=${encodeURIComponent(coachingSessionId)}`, { replace: true });
     } catch (err) {
       setFailure(err instanceof SendError ? err : new SendError('network'));
+      navigate(COACHING_NEW, { replace: true });
     } finally {
       setSending(null);
     }
   };
 
-  const ready = !!cls && !!audio;
-  const after = !!sessionId;
+  // From the library (bd-fgj73x.5): her class's chapters, to CHOOSE a plan (lessons/ pages with pick=dc; a tap attaches it
+  // and comes back here). The class is named in the library's own subject key; one it does not know: Lesson Plans.
+  const libraryHref = () => {
+    const key = cls ? catalogue?.byGrade[cls.grade]?.find((s) => norm(s.name) === norm(cls.subject))?.key : null;
+    return cls && key
+      ? lessonsUrl('chapters', { grade: cls.grade, subject: key, key: cls.subjectKey, pick: DC_PICK })
+      : teacherPath('lessons');
+  };
+  // The eye on her attached library plan: open it to read; Back comes back here (the draft is held).
+  const viewPlan = plan && plan.kind === 'library' && planKeyOf(plan.pick)
+    ? () => {
+      holdDraft({ audio, plan, photos, cls });
+      navigate(openUrl({
+        plan: planKeyOf(plan.pick) as string,
+        lang: 'lang' in plan.pick ? plan.pick.lang : null,
+        title: plan.title,
+        grade: cls?.grade ?? null,
+        from: 'dc',
+      }));
+    }
+    : undefined;
+
+  // At least 15 minutes (bd-fgj73x.7): a shorter recording cannot be submitted. An unknown length is not held back.
+  const tooShort = !!audio && audio.durationMs != null && audio.durationMs < DC_MIN_SECONDS * 1000;
+  const ready = !!cls && !!audio && !tooShort;
+  const after = !!sessionId || !!sending;
+  // Reloaded mid-upload: that upload is gone, and there is nothing to show; the main page lists what did arrive.
+  const reloadedMidUpload = useRef(sentParam === UPLOADING);
+  useEffect(() => {
+    if (reloadedMidUpload.current) navigate(COACHING_HOME, { replace: true });
+  }, [navigate]);
   const s1 = cls ? 'done' : 'now';
   // Lesson plan before the recording (operator, 16 Oct): both open once a class is picked; the plan is optional, so it
   // never holds the recording back.
   const s2 = !cls ? 'upcoming' : plan ? 'done' : 'now';
-  const s3 = !cls ? 'upcoming' : audio ? 'done' : 'now';
+  const s3 = !cls ? 'upcoming' : audio && !tooShort ? 'done' : 'now';
   const s4 = !ready ? 'upcoming' : photos.length ? 'done' : 'now';
   const micLine = micBlockedLine({ browserBlocked, retried: micTries > 0, inApp: isInAppBrowser() }, C);
   const progress = report.state.progress;
@@ -259,35 +307,17 @@ export function NewObservationPage() {
           />
 
           <FlowStep n={2} state={s2} chips={[C.optional]}>{C.lessonPlan}</FlowStep>
+          {/* While she records, the plan she picked stays in sight, to read with the eye (operator, 16 Oct); no Change
+              mid-lesson. The recording goes on in the background while the plan is open (the frame's recording bar). */}
+          {cls && phase === 'recording' && plan ? <PlanPicker plan={plan} readOnly onOpen={() => {}} onView={viewPlan} /> : null}
           {cls && phase !== 'recording' ? (
             <>
-              {!plan && forClass.length ? (
-                <div className={LIST_CARD}>
-                  {forClass.map((p, i) => (
-                    <button
-                      key={p.planKey}
-                      type="button"
-                      aria-label={p.title || C.planFallback}
-                      className="block w-full text-start"
-                      onClick={() => setPlan({ kind: 'library', pick: pickOf(p), title: p.title || C.planFallback, chips: planChips(p, C.picker) })}
-                    >
-                      <HistoryRow
-                        subject={p.subject ?? cls?.subject ?? ''}
-                        grade={p.grade ?? cls?.grade ?? null}
-                        title={p.title || C.planFallback}
-                        extra={[p.chapterTitle, p.dayLabel].filter(Boolean).join(' · ') || undefined}
-                        action="none"
-                        first={i === 0}
-                      />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
+              {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}
+              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} onView={viewPlan} />
             </>
           ) : null}
 
-          <FlowStep n={3} state={s3}>{C.recording}</FlowStep>
+          <FlowStep n={3} state={s3} chips={[C.atLeastMinutes]}>{C.recording}</FlowStep>
           {cls && !audio && phase === 'recording' ? (
             <section aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
               <span className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold', session?.paused ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#fee4e2] text-[#c8331f]')}>
@@ -345,6 +375,9 @@ export function NewObservationPage() {
           {audio && cls ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
           ) : null}
+          {audio && cls && tooShort ? (
+            <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.tooShort}</p>
+          ) : null}
           {audioProblem ? (
             <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : C.notAudio}</p>
           ) : null}
@@ -357,13 +390,6 @@ export function NewObservationPage() {
             </>
           ) : null}
 
-          {sending ? (
-            <section aria-live="polite" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
-              <span className="text-[18px] font-semibold">{C.sending}</span>
-              <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
-              <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
-            </section>
-          ) : null}
           {failure ? (
             <section role="alert" className={cn(CARD, 'flex flex-col gap-3 p-4')}>
               <span className="text-[17px] font-semibold text-[#c8331f]">
@@ -394,8 +420,17 @@ export function NewObservationPage() {
               />
             </section>
           ) : null}
-          {progress?.stage === 'stopped' ? (
-            <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>{C.stopped}</section>
+          {sending ? (
+            <section aria-live="polite" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
+              <span className="text-[18px] font-semibold">{C.sending}</span>
+              <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
+              <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+            </section>
+          ) : progress?.stage === 'stopped' ? (
+            <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>
+              {/* bd-fgj73x.7: closed by the server as under 15 minutes (a length the browser could not read). */}
+              {progress.shortRecording ? C.tooShort : C.stopped}
+            </section>
           ) : (
             <ProgressSteps
               heading={C.progress}
@@ -404,8 +439,13 @@ export function NewObservationPage() {
               doneLabel={C.reportReady}
             />
           )}
-          <Reflection r={report} />
-          {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}
+          {/* While it uploads she keeps the app open (the card says so); the leave note comes once it has arrived. */}
+          {!sending && progress?.stage !== 'stopped' ? (
+            <>
+              <Reflection r={report} />
+              {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}
+            </>
+          ) : null}
         </>
       )}
 
@@ -424,7 +464,8 @@ export function NewObservationPage() {
         open={planSheet}
         onClose={() => setPlanSheet(false)}
         onPick={(p) => { setPlan({ kind: 'library', ...p }); setPlanSheet(false); }}
-        onLibrary={() => { setPlanSheet(false); holdDraft({ audio, plan, photos, cls }); navigate(teacherPath('lessons')); }}
+        forClass={cls}
+        onLibrary={() => { setPlanSheet(false); holdDraft({ audio, plan, photos, cls }); navigate(libraryHref()); }}
         onFile={(file, asPhoto) => {
           setPlanProblem(null);
           if (!file) return false;

@@ -1,0 +1,30 @@
+{
+  "why": "Bot migrations that carried top-level transaction control (BEGIN; / COMMIT;) when this gate landed. They need not change: a tool that applies migrations in its own transaction strips these. A new migration leaves transaction control to the tool. Shrink only.",
+  "files": [
+    "015_exam_checker.sql",
+    "20260119_add_image_analysis_requests.sql",
+    "add-schools-emis-and-role-not-null.sql",
+    "add_attendance_leave_count.sql",
+    "create_video_quiz_tables.sql",
+    "web_quiz_challenge_passages_licence_calib.sql",
+    "web_quiz_challenge_passages_licence_calib_rollback.sql",
+    "web_quiz_challenge_passages_provenance.sql",
+    "web_quiz_challenge_passages_provenance_rollback.sql",
+    "web_quiz_challenge_registry_seed.sql",
+    "web_quiz_challenge_runs_notice_shown.sql",
+    "web_quiz_challenge_runs_notice_shown_rollback.sql",
+    "web_quiz_challenge_runs_record_locks.sql",
+    "web_quiz_challenge_runs_record_locks_rollback.sql",
+    "web_quiz_challenge_runs_sampling.sql",
+    "web_quiz_challenge_runs_sampling_rollback.sql",
+    "web_quiz_challenge_runs_v2.sql",
+    "web_quiz_challenge_runs_v2_rollback.sql",
+    "web_quiz_child_rungs_once.sql",
+    "web_quiz_child_rungs_once_rollback.sql",
+    "web_quiz_message_ledger.sql",
+    "web_quiz_message_ledger_capped.sql",
+    "web_quiz_message_ledger_capped_rollback.sql",
+    "web_quiz_message_ledger_minutes.sql",
+    "web_quiz_message_ledger_minutes_rollback.sql"
+  ]
+}

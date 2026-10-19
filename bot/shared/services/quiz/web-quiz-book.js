@@ -12,12 +12,14 @@
  *     that "would" meet a rung never lights a lamp here.
  *   - next_outline: one unlabelled outline per ladder after the lit lamps; none after rung 5; none for grade 1.
  *   - trail stickers: the stops of this PKT month with a final record row (any outcome, 0 words included).
- *   - story stickers: the first finish of each passage, keyed on passage_id.
+ *   - story stickers: the first finish (a `scored` row: the child reached the end card) of each passage, keyed on
+ *     passage_id; a swept (`failed`) run keeps its Trail sticker but gives no story sticker.
  *   - days this week: 7 booleans Mon..Sun PKT, a finished stop or story that day.
  *   - class lights: one light = one first finish by a child of the class in the term; shown only with >= 5 distinct
  *     children in the term; "+n this week" only when n >= 5 and from >= 3 children; never a name, never who has not
  *     played.
- *   - levelup: the newest lamp set this period ({ladder, rung, opens}); the page shows it once.
+ *   - levelup: the newest lamp set this period ({ladder, rung, opens}), a lamp a scored run set before one a swept run
+ *     set (child_rungs.row_id names the run); the page shows it once.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -84,10 +86,12 @@ function termStart(ms) {
   return m >= 9 ? pktMidnightUtc(y, 9, 1) : pktMidnightUtc(y - 1, 9, 1);
 }
 const rowAt = (r) => Date.parse(r.scored_at || r.created_at || '') || 0;
+// A run the teacher's class round served (mode or via): the Book follows the child's voluntary stops only (SAMPLING_RULING NC4).
+const roundRow = (r) => r.mode === 'class_round' || r.via === 'class_round';
 
 // ─── reads (each fails closed) ────────────────────────────────────────────────────────────────────────
 
-const V2_COLS = 'id, student_id, canonical_id, exercise, status, mode, record, period_id, passage_id, item_set_id, class_id, exposure_no, created_at, scored_at';
+const V2_COLS = 'id, student_id, canonical_id, exercise, status, mode, record, period_id, passage_id, item_set_id, class_id, exposure_no, via, created_at, scored_at';
 const BASE_COLS = 'id, student_id, exercise, status, created_at, scored_at';
 
 /** The child's runs, newest first: the v2 columns when they exist, else today's columns ({rows, v2}). */
@@ -106,7 +110,7 @@ async function childRuns(studentId) {
 /** The child's rung rows (child_rungs, append-only). No table or an error: none. */
 async function rungRows(canonicalId) {
   try {
-    const { data, error } = await supabase.from('child_rungs').select('ladder, rung, period_id, set_at').eq('canonical_id', canonicalId);
+    const { data, error } = await supabase.from('child_rungs').select('ladder, rung, period_id, set_at, row_id').eq('canonical_id', canonicalId);
     return error ? [] : (data || []).filter((r) => (r.ladder === 'reading' || r.ladder === 'numbers') && Number.isFinite(Number(r.rung)));
   } catch (_) {
     return [];
@@ -123,23 +127,19 @@ async function fixedGrade(canonicalId, fallback) {
   return n || null;
 }
 
-// The registry's title in the child's language (challenge_passages.title_en / title_ur); '' when absent.
+// The passage FILE's title in the child's language (one title home: web-quiz-passage-title.js;
+// Urdu ur → en, English en); '' when the file has none (the Book prints its generic).
 async function titlesOf(passageIds, lang) {
   if (!passageIds.length) return new Map();
-  try {
-    const { data, error } = await supabase.from('challenge_passages').select('passage_id, title_en, title_ur').in('passage_id', passageIds);
-    const col = lang === 'ur' ? 'title_ur' : 'title_en';
-    return error ? new Map() : new Map((data || []).map((r) => [r.passage_id, r[col] || '']));
-  } catch (_) {
-    return new Map();
-  }
+  const { titleFor } = require('./web-quiz-passage-title');
+  return new Map(passageIds.map((id) => [id, titleFor(id, lang) || '']));
 }
 
 async function classOf(studentId, rows) {
   const hit = rows.find((r) => r.class_id);
   if (hit) return hit.class_id;
   try {
-    const { data, error } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    const { data, error } = await require('./web-quiz-hub-child-rows').read('class_enrollments', [studentId], 'class_id', () => supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
     const r = !error && (data || []).find((x) => x.class_id);
     return r ? r.class_id : null;
   } catch (_) {
@@ -180,17 +180,21 @@ function daysOf(rows, now) {
   const days = [false, false, false, false, false, false, false];
   rows.forEach((r) => {
     const at = rowAt(r);
-    if (!FINAL.has(r.status) || at < start || at >= start + 7 * DAY_MS) return;
+    if (!FINAL.has(r.status) || roundRow(r) || noiseRow(r) || at < start || at >= start + 7 * DAY_MS) return;
     days[Math.floor((at - start) / DAY_MS)] = true;
   });
   return days;
 }
 
+// A check the scorer judged not a reading (implausible: scored, record lost) earns no story sticker and lights no day.
+const noiseRow = (r) => r.status === 'scored' && r.record === false && r.mode === 'check';
+
 function storyIdsOf(rows) {
   const first = new Map();
   rows.forEach((r) => {
-    if (!r.passage_id || !FINAL.has(r.status)) return;
+    if (!r.passage_id || !FINAL.has(r.status) || roundRow(r) || noiseRow(r)) return;
     const at = rowAt(r);
+    if (r.status !== 'scored') return; // a finish only: a swept (failed) run keeps its Trail sticker, no story sticker
     if (!first.has(r.passage_id) || at < first.get(r.passage_id)) first.set(r.passage_id, at);
   });
   return [...first.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id);
@@ -199,13 +203,14 @@ function storyIdsOf(rows) {
 /**
  * The class lights from the class's rows in the term (pure; BADGES §4.1). `self` is the child looking: under 5
  * children the line says "your class is playing too", which is only true when some OTHER child has a light; with
- * nobody else, `none: true` and the page prints nothing.
+ * nobody else, `none: true` and the page prints nothing. A class round run lights nothing (roundRow).
  */
 function lightsOf(rows, now, self = null) {
   const week = weekStart(now);
   const keys = new Map();
   rows.forEach((r) => {
     if (!FINAL.has(r.status) || (r.exposure_no != null && Number(r.exposure_no) !== 1)) return;
+    if (roundRow(r) || noiseRow(r)) return;
     const child = r.canonical_id || r.student_id;
     if (!child) return;
     const thing = r.passage_id || r.item_set_id || (r.exercise ? `${r.exercise}|${r.period_id || periodOf(rowAt(r))}` : null);
@@ -277,9 +282,14 @@ async function storyStock(band, lang, now) {
   }
 }
 
-/** The newest lamp lit this period, or null (the page shows it once). */
-function levelupOf(rungs, period, grade, storyOn = false) {
-  const mine = rungs.filter((r) => r.period_id === period).sort((a, b) => String(b.set_at || '').localeCompare(String(a.set_at || '')) || Number(b.rung) - Number(a.rung));
+/**
+ * The newest lamp lit this period, or null (the page shows it once). `runs` (the child's rows) names each rung row's run
+ * by row_id: a lamp a swept run set (a known run whose status is not `scored`) comes after any other lamp of the period.
+ */
+function levelupOf(rungs, period, grade, storyOn = false, runs = []) {
+  const status = new Map(runs.map((r) => [r.id, r.status]));
+  const swept = (r) => (r.row_id != null && status.has(r.row_id) && status.get(r.row_id) !== 'scored' ? 1 : 0);
+  const mine = rungs.filter((r) => r.period_id === period).sort((a, b) => swept(a) - swept(b) || String(b.set_at || '').localeCompare(String(a.set_at || '')) || Number(b.rung) - Number(a.rung));
   if (!mine.length) return null;
   const top = mine[0];
   const rung = Math.min(TOP_RUNG, Number(top.rung));
@@ -317,7 +327,10 @@ async function bookFor({ hub, kid, device, lang } = {}, now = Date.now()) {
     class_lights: f.wall ? await classLights(who.studentId, rows, now) : null,
     grade_band: bandOf(grade),
   };
-  const up = levelupOf(rungs, period, grade, f.story);
+  // Storybooks (web_quiz_stories): one sticker per book finished; off, no key (the Book is today's).
+  const Stories = require('./web-quiz-stories');
+  if (await Stories.storiesOn()) out.book_stickers = await Stories.stickersFor(who.studentId);
+  const up = levelupOf(rungs, period, grade, f.story, rows);
   // RULING #59: the room is named only when its shelf has a released story in that band and the child's language.
   if (up && up.opens) {
     const band = openedBand(up.ladder, up.rung, grade);
@@ -345,6 +358,6 @@ async function hubBits({ studentId } = {}, now = Date.now()) {
 }
 
 module.exports = {
-  bookFor, hubBits, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, levelupOf, periodOf, weekStart, termStart,
+  bookFor, hubBits, flags, lightsOf, lampsOf, outlineOf, trailStickersFor, daysOf, storyIdsOf, levelupOf, periodOf, weekStart, termStart,
   BOOK_KEY, WALL_KEY, V2_KEY, _resetCache: () => { cache = null; },
 };

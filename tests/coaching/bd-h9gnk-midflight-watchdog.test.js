@@ -52,10 +52,13 @@ describe('bd-h9gnk — classifyStuckMidFlightSession', () => {
     }
   });
 
-  it("skips observe sessions — the bd-tju8f sweep owns those, coach-addressed", () => {
+  // bd-go4tl (2026-08-28) reversed the original skip: the "bd-tju8f sweep" never
+  // existed, so observations are classified like teacher sessions and the worker
+  // addresses the coach. Coverage: bot/tests/observe/bd-go4tl-midflight-observe.test.js.
+  it("classifies observe sessions like teacher sessions (bd-go4tl)", () => {
     const d = classifyStuckMidFlightSession(
       base({ observation_type: 'leader_observation' }), NOW);
-    expect(d.action).toBe('skip');
+    expect(d.action).toBe('retry');
   });
 
   it('first strike: retries from the phase the session died in', () => {
@@ -101,10 +104,10 @@ describe('bd-h9gnk — worker wiring', () => {
     expect(body[0]).toContain('processStuckMidFlightSessions');
   });
 
-  it('the sweep query excludes observe rows and orders by staleness', () => {
+  it('the sweep query includes observe rows (bd-go4tl) and orders by staleness', () => {
     const sweep = src().match(/async function processStuckMidFlightSessions\(\)[\s\S]*?\n}/);
     expect(sweep).toBeTruthy();
-    expect(sweep[0]).toContain("observation_type.is.null,observation_type.neq.leader_observation");
+    expect(sweep[0]).not.toContain("observation_type.neq.leader_observation");
     expect(sweep[0]).toContain('updated_at');
   });
 });

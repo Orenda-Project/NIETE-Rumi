@@ -112,7 +112,7 @@ const TABLE = [
   { id: 'WQ084', title: 'No peer line for grades 1 and 2, in the teacher\'s preview or on a quiet page' },
   { id: 'WQ085', title: 'The peer line costs no extra database reads' },
   { id: 'WQ086', title: 'The landing says when classmates are playing right now' },
-  { id: 'WQ087', title: 'The card says the child\'s place among today\'s class finishers' },
+  { id: 'WQ087', title: 'The card says how many children of the class finished today, never the child\'s place' },
   { id: 'WQ088', title: 'A picture question whose picture cannot be drawn for one option plays as words' },
   { id: 'WQ089', title: 'Every item shape the quiz engine can write renders on a phone' },
   { id: 'WQ090', title: 'Maths from real questions is typeset, never spelled out' },

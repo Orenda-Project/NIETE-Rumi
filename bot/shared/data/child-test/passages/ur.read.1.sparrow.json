@@ -6,46 +6,46 @@
   "pool": "check",
   "status_at_authoring": "draft",
   "is_reference": false,
-  "tokens": 40,
+  "tokens": 39,
   "sentences": 6,
-  "mean_sent_len": 6.7,
+  "mean_sent_len": 6.5,
   "max_word_len": 4,
-  "readability": 0.966,
+  "readability": 0.933,
   "readability_list": "fed-cum-g2-2026",
-  "readability_band_above": 0.966,
+  "readability_band_above": 0.967,
   "q_reach_1": 2,
   "q_reach_2": 3,
   "q_n": 5,
-  "text_hash": "cf7320656d516694cb13d39dd13f0815",
+  "text_hash": "bcae53c65119e451f1a2e6e64aa3aba9",
   "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
   "licence": "generated",
   "title_en": null,
   "title_ur": "چھوٹی چڑیا",
-  "text": "ایک چھوٹی چڑیا نمرہ کے پاس آ گئی۔ چڑیا کو بہت بھوک لگی تھی۔ نمرہ نے اسے کچھ کھانا دیا۔ چڑیا پہلے دور ہی رہی۔ پھر وہ آگے آ کر کھانے لگی۔ اب وہ روز نمرہ کے پاس آنے لگی۔",
+  "text": "ایک چھوٹی چڑیا نمرہ کو نظر آئی۔ چڑیا کو بہت بھوک لگی تھی۔ نمرہ نے اسے کچھ کھانا دیا۔ چڑیا پہلے دور ہی رہی۔ پھر وہ آگے آ کر کھانے لگی۔ اب وہ روز نمرہ کے پاس آنے لگی۔",
   "lines": [
     [
       0,
-      7
+      6
     ],
     [
-      8,
-      13
+      7,
+      12
     ],
     [
-      14,
-      19
+      13,
+      18
     ],
     [
-      20,
-      24
+      19,
+      23
     ],
     [
-      25,
-      31
+      24,
+      30
     ],
     [
-      32,
-      39
+      31,
+      38
     ]
   ],
   "tokens_list": [
@@ -53,10 +53,9 @@
     "چھوٹی",
     "چڑیا",
     "نمرہ",
-    "کے",
-    "پاس",
-    "آ",
-    "گئی",
+    "کو",
+    "نظر",
+    "آئی",
     "چڑیا",
     "کو",
     "بہت",
@@ -96,7 +95,7 @@
       "needs_line": 1,
       "type": "literal",
       "tap_ok": true,
-      "prompt": "نمرہ کے پاس کیا آ گئی؟",
+      "prompt": "نمرہ کو کیا نظر آئی؟",
       "right": "چڑیا",
       "wrong": [
         "مرغی",
@@ -200,5 +199,21 @@
   "bank_version": "child-test-items-v4",
   "names": [
     "نمرہ"
+  ],
+  "changes": [
+    {
+      "at": "2026-10-16",
+      "field": "text",
+      "what": "sentence 1: 'ایک چھوٹی چڑیا نمرہ کے پاس آ گئی۔' -> 'ایک چھوٹی چڑیا نمرہ کو نظر آئی۔'",
+      "why": "sentence 1 said the sparrow came right up to the child while sentence 4 says it first kept its distance; the reviewer's replacement word is a word-task item the gate bans, so the sentence says the sparrow came into view",
+      "text_hash_before": "cf7320656d516694cb13d39dd13f0815"
+    },
+    {
+      "at": "2026-10-16",
+      "field": "questions.q1.prompt",
+      "what": "'نمرہ کے پاس کیا آ گئی؟' -> 'نمرہ کو کیا نظر آئی؟'",
+      "why": "the q1 prompt follows the new sentence 1",
+      "text_hash_before": "cf7320656d516694cb13d39dd13f0815"
+    }
   ]
 }

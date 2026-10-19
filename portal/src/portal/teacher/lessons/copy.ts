@@ -61,6 +61,10 @@ export const LESSONS_V2_COPY = {
   aboutTwoMinutes: '~2 min',
   notPrepared: "Couldn't make it",
   otherLessons: 'Other lesson plans',
+  /* Digital Coaching's From the library (bd-fgj73x.5): the pages choose a plan for her lesson */
+  choosePlan: 'Select a lesson plan',
+  usePlan: 'Use this lesson plan',
+  viewPlan: (title: string) => `View ${title}`,
   /* the viewer */
   startDc: 'Start DC observation',
   answerKey: 'Answer key',
@@ -124,6 +128,10 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   aboutTwoMinutes: 'تقریباً 2 منٹ',
   notPrepared: 'نہیں بن سکا',
   otherLessons: 'دوسرے لیسن پلان',
+  choosePlan: 'لیسن پلان منتخب کریں',
+  usePlan: 'یہ لیسن پلان استعمال کریں',
+  // The title is isolated (FSI … PDI): its direction is unknowable here (language-protocol §9.8).
+  viewPlan: (title: string) => `\u2068${title}\u2069 دیکھیں`,
   startDc: 'ڈیجیٹل کوچنگ مشاہدہ شروع کریں',
   answerKey: 'جوابی کلید',
   openOutside: 'دوسری ایپ میں کھولیں',
@@ -160,5 +168,6 @@ export const COPY_ENTRY: CopyEntry = {
   same: ['crumb'],
   // The waiting page's title is the operator's own sentence (2026-10-08), not a label.
   // Urdu: "Sent on WhatsApp" is five words (واٹس ایپ is one name), and the DC observation's own name is three words.
-  longOk: ['pleaseHold', 'all.whatsapp', 'startDc'],
+  // "Use this lesson plan" is four words in Urdu (لیسن پلان is one term).
+  longOk: ['pleaseHold', 'all.whatsapp', 'startDc', 'usePlan'],
 };
