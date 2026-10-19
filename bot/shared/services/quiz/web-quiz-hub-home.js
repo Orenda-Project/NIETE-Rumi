@@ -223,7 +223,8 @@ function rememberRows(device) {
 }
 
 /** `{home_v3, doors, head}` for the hub payload of a chosen child, or `{}` (switch off, no child, any failure). Never throws. */
-async function homeField({ out, chosenId, history, now = Date.now(), pre, device = null, src = null, grade = null, rows: rowsP = null } = {}) {
+// welcome: web-quiz-child-welcome.js field()'s promise (the hub starts it beside the next thing, which it also holds)
+async function homeField({ out, chosenId, history, now = Date.now(), pre, device = null, src = null, grade = null, rows: rowsP = null, welcome = null } = {}) {
   try {
     const p = pre || prefetch(chosenId, now);
     const f = await p.flags;
@@ -244,7 +245,7 @@ async function homeField({ out, chosenId, history, now = Date.now(), pre, device
     const rows = rowsP || R.rowsFor(device);
     const [remember, own, phones, cd, friends] = await Promise.all([R.field({ device, chosenId, src, rows }), R.owns({ device, chosenId, binds: d.binds, rows }), phoneRows(d.binds, out.lang), classDoorsOf(history, chosenId, p.cd, p.cdRoot, out.lang), friendsFor(d.friends, chosenId, device)]);
     if (own) remember.forget_phone = true;
-    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...friends, ...phones, ...remember, ...cd, ...(f.list ? { list_states: 1 } : {}) };
+    return { home_v3: 1, doors: doorsOf({ out, stories: f.stories, hasRoot, videoShelf: f.shelf === true }), head, ...d.card, ...friends, ...phones, ...remember, ...cd, ...(f.list ? { list_states: 1 } : {}), ...(welcome ? await welcome : {}) };
   } catch (err) {
     logToFile('⚠️ web quiz home: unavailable', { error: err.message });
     return {};
