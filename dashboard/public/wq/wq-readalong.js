@@ -421,7 +421,8 @@
       stopAt = words[i].e; stopI = i;
     };
     // the storybook's Slower: with gaps (its switch) the voice keeps its own speed and waits between phrases; else the old stretch
-    api.slow = function (on, g) { audio.playbackRate = on && !g ? 0.85 : 1; audio.preservesPitch = true; setGaps(on && g); };
+    // a page with no gap keeps 0.85: Slower always sounds slower
+    api.slow = function (on, g) { setGaps(on && g); audio.playbackRate = on && (!g || !Object.keys(gapAt).length) ? 0.85 : 1; audio.preservesPitch = true; };
     api.destroy = function () {
       if (dead) return;
       pause();
