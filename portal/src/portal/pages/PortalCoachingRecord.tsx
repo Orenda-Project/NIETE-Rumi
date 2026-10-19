@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import {
@@ -24,6 +24,11 @@ import { hasHistoryBehind, lessonFilename, useMicLevel } from '../lib/recordFlow
 import { useCoachingUi } from '../lib/coachingUi';
 import { AuthContext } from '../hooks/authContext';
 import RecordPage from '../newui/coaching/RecordPage';
+import { useLiveMoves } from '../newui/coaching/useLiveMoves';
+import { LiveMovesPanel } from '../newui/coaching/LiveMovesList';
+import { PickStage } from '../newui/coaching/PickStage';
+import { liveEligibleNow } from '../newui/coaching/liveEligible';
+import { asFlowPlan, heldPlan, holdPlan, type LegacyPlan } from './legacyLive';
 
 /**
  * bd-5rz1v — recording and sending a lesson. Reached from Coaching's "Send a
@@ -147,12 +152,10 @@ type Audio = {
   sub: string;
 };
 
-type Plan =
-  | { kind: 'library'; pick: LibraryPick; title: string; sub: string }
-  | { kind: 'file'; file: File; title: string; sub: string };
+type Plan = LegacyPlan;
 
 type Stage =
-  | 'starting' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
+  | 'starting' | 'pick' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
 
 const Card = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
   <div className={`rounded-[14px] border border-[#e5e7eb] bg-white p-3.5 ${className}`}>{children}</div>
@@ -197,7 +200,8 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
 
   // check
   const [audio, setAudio] = useState<Audio | null>(null);
-  const [plan, setPlan] = useState<Plan | null>(null);
+  // bd-v0toag.31.1 — a group D teacher picks her lesson before Record; it survives leaving mid-lesson.
+  const [plan, setPlan] = useState<Plan | null>(() => (session.active ? heldPlan() : null));
   const [planSheet, setPlanSheet] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -221,6 +225,8 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
   const photosInput = useRef<HTMLInputElement>(null);
 
   const level = useMicLevel(session.stream, stage === 'recording' && !paused);
+  const flowPlan = useMemo(() => asFlowPlan(plan), [plan]);
+  const live = useLiveMoves({ session, plan: flowPlan, recording: stage === 'recording' });
 
   // ── first load: is it on for her? ─────────────────────────────────────────
   useEffect(() => {
@@ -256,6 +262,13 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
   const startRecording = async () => {
     const result = await session.start({ returnTo: RECORD_PATH });
     setStage(result === 'recording' ? 'recording' : 'micBlocked');
+  };
+
+  const startAfterPick = (p?: { pick: LibraryPick; title: string; chips: string[] }) => {
+    const picked: Plan | null = p ? { kind: 'library', pick: p.pick, title: p.title, sub: p.chips.join(' · ') } : null;
+    holdPlan(picked);
+    setPlan(picked);
+    void startRecording();
   };
 
   /** A recording file she picked; false (and a message) when it is not one. */
@@ -304,7 +317,11 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
     // A lesson already recording (Return, Send a lesson, Back) is shown, never
     // a second one started next to it.
     if (session.active) { setStage('recording'); return; }
-    if (start === 'record') { void startRecording(); return; }
+    if (start === 'record') {
+      holdPlan(null);
+      void liveEligibleNow().then((on) => { if (on) setStage('pick'); else void startRecording(); });
+      return;
+    }
     if (start === 'file') {
       const file = takeHandedOffRecording();
       if (!file) { toCoaching(); return; }
@@ -412,7 +429,9 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
         audio: { blob: audio.blob, filename: audio.filename },
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
         photos,
+        liveMoves: live.toRecord(),
       }, portal, setProgress);
+      holdPlan(null);
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       setSessionId(coachingSessionId);
       setStage('sent');
@@ -469,6 +488,7 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
         </div>
 
         {stage === 'starting' && <LoadingState type="full" />}
+        {stage === 'pick' && <PickStage onStart={startAfterPick} />}
 
         {/* the one place a recording file is picked on this page: "Choose a
             recording instead" (microphone refused) and "Choose a different file" */}
@@ -526,11 +546,13 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
             {/* bd-5rz1v.10 — the recording outlives this page: one obvious way to
                 the thing she is most likely to need, and a chip, not a sentence. */}
             <div className="flex w-full flex-col items-center gap-2">
-              <button type="button" onClick={() => navigate('/portal/curriculum')}
-                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] border-2 border-[#1f6b46] bg-[#e8f5ee] text-lg font-bold text-[#1f6b46]">
-                <BookOpen className="h-6 w-6" aria-hidden="true" />
-                {COPY.lessonPlans}
-              </button>
+              {live.state ? <LiveMovesPanel live={live} /> : (
+                <button type="button" onClick={() => navigate('/portal/curriculum')}
+                  className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] border-2 border-[#1f6b46] bg-[#e8f5ee] text-lg font-bold text-[#1f6b46]">
+                  <BookOpen className="h-6 w-6" aria-hidden="true" />
+                  {COPY.lessonPlans}
+                </button>
+              )}
               <RecordingContinuesChip />
             </div>
           </div>
@@ -550,6 +572,7 @@ const LegacyRecord = ({ known }: { known?: boolean }) => {
         {/* 3. check and send */}
         {stage === 'check' && audio && (
           <div className="flex flex-col gap-3.5">
+            {live.state && <LiveMovesPanel live={live} />}
             <div className="flex flex-col gap-3.5 rounded-2xl border-2 border-accent bg-white p-4">
               <div className="flex items-center gap-3.5">
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-accent">
