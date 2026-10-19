@@ -159,7 +159,12 @@ describe("Mid / High — the programmes, under NIETE's short names", () => {
 
   it("Teacher Development Programme (I-SAPS): its card, the modules chart, the table ending with Completed all; the full NIETE name under What is this?", async () => {
     await midHigh();
+    // exactly one Teacher Development (I-SAPS) button, panel and card: #3065's card, now on the v8 rule — no second one
+    expect(screen.getAllByTestId("partner-isaps")).toHaveLength(1);
     await userEvent.setup().click(screen.getByTestId("partner-isaps"));
+    expect(screen.getAllByTestId("partner-panel-isaps")).toHaveLength(1);
+    expect(screen.getAllByTestId("partner-card-isaps")).toHaveLength(1);
+    expect(screen.queryByText(/I-SAPS Training/)).toBeNull();
     const panel = screen.getByTestId("partner-panel-isaps");
     const is = mh().overview.partners!.isaps;
     const card = within(panel).getByTestId("partner-card-isaps");
