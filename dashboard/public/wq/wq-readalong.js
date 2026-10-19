@@ -314,6 +314,7 @@
       api.state = s;
       var icon = s === 'playing' ? 'pause' : s === 'ended' ? 'replay' : 'play';
       btn.textContent = ICON[icon];
+      btn.setAttribute('data-ic', icon);
       btn.setAttribute('aria-label', labels[icon] || LABEL[icon]);
       btn.className = 'wqra-btn' + (s === 'blocked' ? ' wqra-pulse' : '');
       if (opts.onState) opts.onState(s === 'blocked' ? 'paused' : s);
