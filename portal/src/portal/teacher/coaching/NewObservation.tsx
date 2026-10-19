@@ -393,7 +393,7 @@ export function NewObservationPage() {
           {ready ? (
             <>
               <p className="mx-1 -mt-1 whitespace-pre-line text-[14px] text-[#6b7280]">{C.photosHint}</p>
-              <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" max={DC_MAX_PHOTOS} />
+              <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" max={DC_MAX_PHOTOS} camera />
             </>
           ) : null}
 

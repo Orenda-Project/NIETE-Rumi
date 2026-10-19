@@ -160,22 +160,23 @@ describe("Digital Coaching in Urdu — the hub", () => {
     expect(screen.getByText(U.photosHint.replace(/\s+/g, " "))).toBeTruthy();
     expect(screen.getByText(U.noFaces)).toBeTruthy();
     expect(screen.getByText(U.upToPhotos(10))).toBeTruthy();
-    expect(screen.getByRole("button", { name: U.addPhoto })).toBeTruthy();
+    // bd-rt8wky: the teacher's photos are Take photo and From gallery (the coach's grid keeps Add photo).
+    expect(screen.getByRole("button", { name: U.takePhoto })).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.fromGallery })).toBeTruthy();
     expect(englishLeft(["Submit", "Listen", "Change file", "Up to 10 photos", "Add photo", "Photos", "Optional"])).toEqual([]);
   });
 
-  it("bd-r5ckgn — the Urdu Photos hint is ICT's three photos, each on its own line and never cut off", async () => {
+  // bd-rt8wky (operator, 19 Oct): one running paragraph, (2) where (1) ends.
+  it("bd-r5ckgn — the Urdu Photos hint is ICT's three photos in one paragraph and never cut off", async () => {
     holdDraft({ audio: audioOf(), plan: null, photos: [], cls: { grade: 4, subject: "General Science", subjectKey: "science" } });
     at(COACHING_NEW, <NewObservationPage />, COACHING_NEW, { keep: true });
     await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
     const hint = screen.getByText((_, el) => el?.tagName === "P" && (el.textContent ?? "").includes("بورڈ کی تصویر"));
-    expect(hint.textContent!.split("\n")).toEqual([
-      "(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو",
-      "(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر",
-      "(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر",
-    ]);
+    expect(hint.textContent).toBe(
+      "(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو (2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر "
+      + "(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر",
+    );
     expect(hint.className).not.toMatch(/\btruncate\b/);
-    expect(hint.className).toMatch(/\bwhitespace-pre-line\b/);
     expect(screen.queryByText("بورڈ، چارٹ، کلاس روم")).toBeNull();
   });
 
