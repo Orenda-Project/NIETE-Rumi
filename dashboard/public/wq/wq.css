@@ -243,7 +243,7 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-vbox{position:relative;border-radius:16px;overflow:hidden}
 .wq-vcover{position:absolute;inset:0;width:100%;border:0;margin:0;padding:0;border-radius:16px;background:var(--green-l);display:grid;place-items:center;cursor:pointer}
 /* a finished lesson opened again (web_quiz_rewatch_done): the "Done watching" chip over the video, never in the way of a tap */
-.wq-vbox .wq-vwatched{position:absolute;z-index:2;inset-block-start:10px;inset-inline-start:10px;pointer-events:none}
+.wq-vbox .wq-vwatched{position:absolute;z-index:2;inset-block-start:10px;inset-inline-start:10px;pointer-events:none;font-size:15px;padding:5px 12px}
 .wq-vcover.wq-vposter{background:transparent}
 .wq-vcover[hidden]{display:none}
 .wq-vjug{position:absolute;inset-inline-start:10px;bottom:6px;width:84px;height:84px;object-fit:contain}
@@ -823,6 +823,7 @@ html.wq-ur2[lang=ur] .wq-vitem{padding:10px 12px 8px 8px;min-height:80px}
 html.wq-ur2[lang=ur] .wq-vtext b{font-size:16px;line-height:var(--ulh1);padding-top:.3em}
 html.wq-ur2[lang=ur] .wq-vtext small{font-size:14px;line-height:var(--ulh1)}
 html.wq-ur2[lang=ur] .wq-vdone,html.wq-ur2[lang=ur] .wql-done{font-size:13px;line-height:var(--ulh1);padding:2px 8px 0}
+html.wq-ur2[lang=ur] .wq-vbox .wq-vwatched{font-size:15px;padding:3px 12px 0}
 html.wq-ur2[lang=ur] .wql-g{font-size:15px;line-height:var(--ulh1);padding:6px 12px 4px 6px}
 html.wq-ur2[lang=ur] .wql-sub b{font-size:17px;line-height:var(--ulh1);margin-top:4px;padding-top:.3em}
 html.wq-ur2[lang=ur] .wql-sub small{font-size:14px;line-height:var(--ulh1)}
