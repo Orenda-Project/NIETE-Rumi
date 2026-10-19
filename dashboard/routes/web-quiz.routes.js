@@ -460,7 +460,12 @@ const advOnOf = (payload) => Boolean(payload && payload.adv === true);
 const advOn = (ui) => Boolean(ui && ui.adv === true);
 const advClass = (cls) => (cls ? cls.replace(/"$/, ' wq-adv"') : ' class="wq-adv"');
 let advV = null;
+// 'm' while the router links the minified files (web_quiz_minify; the router names it here): the kit rides them too
+let advSfx = () => '';
 function advVersion() {
+  return `${advHash()}${advSfx()}`;
+}
+function advHash() {
   if (advV) return advV;
   const h = crypto.createHash('sha256');
   // the sound kit the look fetches on its first cue rides this version too (wq-adv.js asks for it at its own ?v=)
@@ -1211,6 +1216,7 @@ function createWebQuizRouter(opts = {}) {
   // The last payload's `min` (app_settings web_quiz_minify, read by the bot): link the minified files, once made.
   let lastMin = false;
   const sfx = () => (lastMin && minified.ready && minified.files.size > 0 ? 'm' : '');
+  advSfx = sfx;
   // web_quiz_home_inline: a minified version's text is this router's own copy
   inlineMin = (file) => (lastMin && minified.ready ? minified.files.get(file) || null : null);
   let assetV = null;
@@ -1279,8 +1285,10 @@ function createWebQuizRouter(opts = {}) {
     if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
     if (typeof b.wait_home === 'boolean') lastWaitHome = b.wait_home;
     // web_quiz_home_inline / web_quiz_early_unlock: known on before any page (absent: kept as they were)
-    if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline);
+    // `home_v3` (the v3 home on, said with these two): a fresh process's first new phone carries the home's own files
+    if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline, Boolean(b.home_v3));
     if (typeof b.early_unlock === 'boolean') EarlyUnlock.learn({ early_unlock: b.early_unlock, locked: true, kids: [] });
+    EarlyUnlock.guess(b);
     // web_quiz_minify: known on before any page, so the first page after a deploy names the m copies (absent: kept as it was)
     if (b.min === true) lastMin = true;
     lastFast = b.fast === true;

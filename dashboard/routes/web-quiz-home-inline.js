@@ -87,7 +87,10 @@ function create({ source }) {
     // a locked answer (a new phone) keeps what a child's answer taught; with nothing taught yet (a fresh process), the
     // switch is known on: the head carries the page's own files (wq.css, the look's, wq-tel, hub.js)
     if (payload.locked || !payload.kid) { if (last === null && payload.pack !== true) last = []; return; }
-    if (!on(payload)) { last = null; return; }
+    // a child's answer the head cannot carry (no v3 home on this one answer, the fallback home, the pack) leaves what was
+    // learned as it was: after a carried home, the next new phone still gets the inline Home (an answer without
+    // `home_inline` is the only off); with nothing learned, those pages stay the switch-off pages
+    if (!on(payload)) return;
     const out = [];
     let m;
     TAG_RX.lastIndex = 0;
@@ -146,10 +149,13 @@ function create({ source }) {
     return end < 0 ? `${out}${go}` : `${out.slice(0, end)}${go}${out.slice(end)}`;
   }
 
-  /** The switch as the edge's learner says it before any page (true: on, nothing taught yet; false: off). */
-  function know(on) {
+  /**
+   * The switch as the edge's learner says it before any page (true: on, nothing taught yet; false: off). `home`: the
+   * learner says the v3 home is on (`home_v3`), so with nothing taught yet the head carries the home's script too.
+   */
+  function know(on, home = false) {
     if (!on) last = null;
-    else if (last === null) last = [];
+    else if (last === null || (home && !last.length)) last = home ? [`/wq/wq-home.js${AT_PAGE}`] : [];
   }
 
   const carrier = { learn, know, wants, holds, check: () => CHECK, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; } };

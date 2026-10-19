@@ -46,6 +46,19 @@ async function brandKey() {
   }
 }
 
+/**
+ * The v3 home on and carried by the inline Home (web_quiz_home_v3 on, its fallback off; each its own cached read), for a
+ * fresh portal's first new phone. Off on any failure.
+ */
+async function homeV3() {
+  try {
+    const [h, fb] = await Promise.all([require('./web-quiz-home-flags').flags(), require('./web-quiz-home-fallback-flag').on()]);
+    return Boolean(h && h.home === true && fb !== true);
+  } catch (_) {
+    return false;
+  }
+}
+
 /** The answer to GET /api/internal/wq/edge. */
 async function answer() {
   const f = await hubFlags();
@@ -55,6 +68,9 @@ async function answer() {
   const oneFace = require('./web-quiz-one-face').on();
   // web_quiz_edge_warm (web-quiz-edge-warm.js): `edge_warm: true` and the hub's switches touched, while on
   const [brand, rt, ui, warm] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui(), require('./web-quiz-edge-warm').field()]);
+  // home_v3: the v3 home, said only with the inline Home or the early unlock on (and never with the pack: its head
+  // carries no home script), so a fresh portal's first new phone carries the home's files (absent: the portal guesses none)
+  const home = (f.homeInline === true || f.earlyUnlock === true) && f.pack !== true ? await homeV3() : false;
   // wait_share: the frame's read share, on with wait_ux AND web_quiz_hub_fanout (as web-quiz-wait-ux.js carry()), same read.
   const waitUx = f.waitUx === true;
   // wait_hops: the bar while the page is left, on with wait_ux AND web_quiz_wait_hops (as web-quiz-wait-ux.js carry()), same read.
@@ -64,7 +80,7 @@ async function answer() {
   return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, busy_retry: f.busyPage === true && f.busyRetry === true, ...warm,
     // the Home's first open in one response and the early unlock (same read): named only when on, so a fresh portal's
     // first new phone gets them too (absent: the portal keeps what it had)
-    ...(f.homeInline === true ? { home_inline: true } : {}), ...(f.earlyUnlock === true ? { early_unlock: true } : {}),
+    ...(f.homeInline === true ? { home_inline: true } : {}), ...(f.earlyUnlock === true ? { early_unlock: true } : {}), ...(home ? { home_v3: 1 } : {}),
     // the minified files (web_quiz_minify, same read): named only when on, so a fresh portal's first page names the m copies
     ...(f.minify === true ? { min: true } : {}) };
 }
