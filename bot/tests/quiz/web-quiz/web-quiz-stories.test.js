@@ -695,15 +695,16 @@ describe('the switch read: one failing key never turns stories off', () => {
     expect(reads.n).toBe(1);
   });
   // [key that fails to read, what the book says, settings reads]: the read is tried again without each rider, the last
-  // first (the warmed reader, keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two, then the main switch alone; the keys left
+  // first (the reader's polish, the text lens, the warmed reader, keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two, then the main switch alone; the keys left
   // out are off, the rest read as before.
   test.each([
-    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 4],
-    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 8],
-    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 8],
-    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 9],
-    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 9],
-    ['web_quiz_stories_text_lens', { band: true, steady: true, lr3: true, keep: true }, 2],
+    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 5],
+    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 9],
+    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 9],
+    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 10],
+    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 10],
+    ['web_quiz_stories_text_lens', { band: true, steady: true, lr3: true, keep: true }, 3],
+    ['web_quiz_stories_polish', { band: true, steady: true, lr3: true, keep: true }, 2],
   ])('a failed read naming %s keeps the shelf and the book on', async (key, want, n) => {
     seedAllOn();
     const reads = counting(throwOn(fake.from, key));
@@ -721,13 +722,21 @@ describe('the switch read: one failing key never turns stories off', () => {
       expect([value, out.tx]).toEqual([value, want]);
     }
   });
+  test('the reader polish (web_quiz_stories_polish): the book says pl: 1 only for the JSON true; any other value, or no row, no key', async () => {
+    for (const [value, want] of [[true, 1], ['true', undefined], [1, undefined], [null, undefined]]) {
+      Stories._reset(); seedAllOn();
+      if (value !== null) fake.db.app_settings.push({ key: 'web_quiz_stories_polish', value });
+      const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+      expect([value, out.pl, Object.prototype.hasOwnProperty.call(out, 'pl')]).toEqual([value, want, want !== undefined]);
+    }
+  });
   test('a failed read naming web_quiz_stories itself is off: shelf and book 404 stories_off, cached', async () => {
     seedAllOn();
     const reads = counting(throwOn(fake.from, 'web_quiz_stories'));
     expect(await body(Stories.shelf(TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
     expect(await body(Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
     expect(await Stories.hubBits()).toEqual({});
-    expect(reads.n).toBe(9);
+    expect(reads.n).toBe(10);
     expect(mockKidFromHub).not.toHaveBeenCalled();
   });
   test('the fallback reads stories as strictly as the normal path: every OFF value of web_quiz_stories is off', async () => {
