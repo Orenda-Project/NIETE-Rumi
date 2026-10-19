@@ -637,7 +637,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'Pick a story', sharePlain: 'Share',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
-      leagueT: function (c) { return c + ' league table'; }, myClassT: function (c) { return 'Class ' + c; }, onlyClass: function (c) { return 'Only Class ' + c; },
+      leagueT: function (c) { return c + ' league table'; }, leagueW: 'League table', myClassT: function (c) { return 'Class ' + c; }, onlyClass: function (c) { return 'Only Class ' + c; },
       movedUp: function (n) { return 'You moved up ' + n + (n === 1 ? ' place!' : ' places!'); }, movedNow: function (p) { return 'More friends played. You are at place ' + p + ' now.'; }, samePlace: 'Same place as last time.', you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
       finN: function (n) { return n + ' finished'; }, yourScore: 'Your score', avg: 'Class average', firstOnly: 'First names only. Ties share a place.',
       shareTable: 'Share the class table', noRows: 'Nobody has finished yet. Be the first!', tableNone: 'This table opens for a class quiz.',
@@ -712,7 +712,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
-      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; },
+      leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, leagueW: 'لیگ ٹیبل', myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; },
       movedUp: function (n) { return 'آپ اب ' + urDigits(n) + (n === 1 ? ' درجہ' : ' درجے') + ' اوپر ہیں!'; }, movedNow: function (p) { return 'کچھ اور دوستوں نے بھی کھیلا۔ اب آپ ' + urDigits(p) + ' نمبر پر ہیں۔'; }, samePlace: 'آپ پچھلی بار والی جگہ پر ہیں۔', you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!', tableNone: 'کلاس ٹیبل صرف کلاس کے کوئز میں ہوتی ہے۔',
@@ -3055,14 +3055,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // with one way on; never "no internet" and a retry that cannot work. Home for a child on this page (the hub door
       // needs the session); a visitor from a link with no session has no home here, so Play.
       if (LS_ON && e && e.message === 'board_404') {
-        render((advOn() ? landBar('games', esc(T.leagueT(CLASS_LABEL))) : bar()) + '<div' + lsMarks('table', 'failed') + ' data-why="not_found">' + jug('thinking', T.tableNone) + '</div>' +
+        render((advOn() ? landBar('games', leagueTitle()) : bar()) + '<div' + lsMarks('table', 'failed') + ' data-why="not_found">' + jug('thinking', T.tableNone) + '</div>' +
           (S.st ? '<button class="wq-btn wq-go" id="wq-thome" data-primary data-home>' + esc(T.homeBtn) + '</button>' : '<button class="wq-btn wq-go" id="wq-play" data-primary>' + esc(T.play) + '</button>'), 'M11-none');
         wireBar();
         on('#wq-thome', function () { homeGo('table'); });
         on('#wq-play', landing);
         return;
       }
-      render((advOn() ? landBar('games', esc(T.leagueT(CLASS_LABEL))) : bar()) + (LS_ON ? '<div' + lsMarks('table', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
+      render((advOn() ? landBar('games', leagueTitle()) : bar()) + (LS_ON ? '<div' + lsMarks('table', 'failed') + '>' + jug('notyet', T.offline) + '</div>' : jug('notyet', T.offline)) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M11-error');
       wireBar();
       on('#wq-retry', board);
     });
@@ -3070,6 +3070,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // The table drawn from the board's answer: the whole table, or (onlyOn) the child's class on its own.
   // The child's class number as html: escaped, isolated, in Urdu digits on an Urdu page.
   function clsNum(c) { return '<bdi>' + esc(LANG === 'ur' ? urDigits(c) : c) + '</bdi>'; }
+  // The league's name in the land header (the look): "League table" with the class list as a small line under it, so
+  // the header is 2 even lines at 360 and never breaks inside the list ("Classes 2, 3, 4, / 5 league table").
+  function leagueTitle() {
+    if (!advOn() || !T.leagueW) return esc(T.leagueT(CLASS_LABEL));
+    return '<span class="wq-lgt">' + esc(T.leagueW) + '</span><small class="wq-lgc" dir="auto">' + esc(CLASS_LABEL) + '</small>';
+  }
   function drawBoard(b, mixed, onlyOn, first) {
     var v = onlyOn ? b.only : b;
     var you = v.you || null;
@@ -3094,19 +3100,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
-    var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
+    var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : leagueTitle();
+    // the look: the names note has its own row above the rows (never near the sticky button), and Play is the one
+    // primary with Share soft; a child with a result (no Play here) keeps Share as the primary
+    var look = Boolean(b.class_doors) && advOn();
+    var playOne = look && !S.result;
+    var note = '<p class="wq-small' + (look ? ' wq-tnote' : '') + '">' + esc(T.firstOnly) + '</p>';
     var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(topic, T.finN(v.finishers_n || 0)) + '</p>' +
-      (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
+      (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') + (look ? note : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
       '<div class="wq-card wq-cmp">' +
       (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + pct(yourPct) + '</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
       '<span>' + esc(T.avg) + '</span><span>' + esc(pct(v.class_avg_pct || 0)) + '</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
-      '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
+      (look ? '' : note) +
       // the look: a long table keeps its one primary on the screen (sticky at the bottom until the page reaches it)
-      '<button class="wq-btn wq-go' + (b.class_doors && advOn() ? ' wq-stick' : '') + '" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
+      (playOne ? '<button class="wq-btn wq-go wq-stick" id="wq-play" data-primary>' + esc(T.play) + '</button>' : '') +
+      (playOne ? '<button class="wq-btn wq-soft" id="wq-share-t">' : '<button class="wq-btn wq-go' + (look ? ' wq-stick' : '') + '" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>') + esc(T.shareTable) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-schools">' + ic(IC.school, '🏫') + ' ' + esc(T.schoolsBtn) + '</button>' +
-      (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
+      (S.result ? '<button class="wq-btn wq-soft" id="wq-next">' + esc(T.myScores) + '</button>' : playOne ? '' : '<button class="wq-btn wq-navy" id="wq-play">' + esc(T.play) + '</button>');
     render(h, 'M11');
     wireBar();
     if (first) ev('board_view', { src: B.view === 'class' ? 'class_link' : 'page', i: b.finishers_n });

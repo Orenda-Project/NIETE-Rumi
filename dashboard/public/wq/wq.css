@@ -912,3 +912,9 @@ html.wq-adv .wqs-main.wqs-pause:not(.wqs-lk),html.wq-adv .wqs-main.wqs-to-pause{
 @keyframes wqs-on{50%{outline-color:var(--land-edge,var(--line))}}
 @media (prefers-reduced-motion:no-preference){html.wq-adv .wqs-main.wqs-pause:not(.wqs-lk){outline:3px solid transparent;outline-offset:2px;animation:wqs-on 1.4s ease-in-out infinite}}
 html.wq-adv .wqs-book small{display:block}
+/* the class table's names note: its own row above the rows, never near the sticky primary */
+html.wq-adv .wq-tnote{margin:-4px 0 10px}
+/* the league's land header: "League table", the class list as a small line under it */
+html.wq-adv .wq-ltop .wq-lgt{display:block}
+html.wq-adv .wq-ltop .wq-lgc{display:block;font-size:15px;line-height:1.3;opacity:.92}
+html.wq-adv[lang=ur] .wq-ltop .wq-lgc{font-size:16px;line-height:1.7}
