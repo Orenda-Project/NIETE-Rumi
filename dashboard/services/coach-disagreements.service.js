@@ -1,0 +1,134 @@
+'use strict';
+/**
+ * bd-tbprit.1 — a coach's disagreements in the portal: the C/D teachers who answered "Not accurate" to their
+ * coaching report and pinged her (v10 coaching test; coach-visit-request.js writes the rows).
+ *
+ *   listFor  her coach_visit_requests as To do (not visited yet) and Done (visited). To do: most tags first,
+ *            then longest waiting. Only two tags while the test runs: waiting48h and second (the teacher's
+ *            second disagreement or later). Amena, 19 Oct: no "Recording less" tag until after the 7 Dec read.
+ *   cardFor  one request, for its own coach only (null otherwise): the report view, the grader's evidence for
+ *            each reason, every indicator with its AI score, and the plan steps when the plan was checked.
+ *
+ * "I have visited" stays coach-visit-request.markVisited — one-way, as the tracker's visited_7d needs.
+ */
+const { fullNameOf } = require('../../bot/shared/utils/person-name');
+const { cleanReasons } = require('./coach-ping-reasons');
+const { evidenceFor, indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
+
+const OPEN = ['pending', 'sent', 'failed'];
+const LIST_LIMIT = 200;
+const WAIT_MS = 48 * 3600 * 1000;
+const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, school_id, status, reasons, voice_note_key, created_at, updated_at';
+
+const ms = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? t : 0; };
+const pctOf = (scores) => {
+  const p = scores && scores.overall_percentage;
+  return p == null || p === '' || !Number.isFinite(Number(p)) ? null : Math.round(Number(p));
+};
+
+/** rows: her requests; look: { teachers, schools, sessions } Maps; now: a Date. Pure. */
+function shapeList(rows, look, now) {
+  const firstOf = new Map();
+  [...rows].sort((a, b) => ms(a.created_at) - ms(b.created_at)).forEach((r) => {
+    if (!firstOf.has(r.teacher_user_id)) firstOf.set(r.teacher_user_id, r.id);
+  });
+  const shaped = rows.map((r) => {
+    const done = r.status === 'visited';
+    const session = look.sessions.get(r.coaching_session_id) || {};
+    const tags = [];
+    if (!done && now.getTime() - ms(r.created_at) > WAIT_MS) tags.push('waiting48h');
+    if (!done && firstOf.get(r.teacher_user_id) !== r.id) tags.push('second');
+    return {
+      id: r.id,
+      teacher: look.teachers.get(r.teacher_user_id) || null,
+      school: look.schools.get(r.school_id) || null,
+      reasons: cleanReasons(r.reasons || []),
+      status: r.status,
+      done,
+      createdAt: r.created_at,
+      visitedAt: done ? r.updated_at : null,
+      sessionDate: session.createdAt || null,
+      pct: session.pct == null ? null : Math.round(session.pct),
+      hasNote: !!r.voice_note_key,
+      tags,
+    };
+  });
+  const todo = shaped.filter((r) => !r.done)
+    .sort((a, b) => (b.tags.length - a.tags.length) || (ms(a.createdAt) - ms(b.createdAt)));
+  const done = shaped.filter((r) => r.done).sort((a, b) => ms(b.visitedAt) - ms(a.visitedAt));
+  return { todo, done };
+}
+
+const rowsOf = (res) => (res && res.data) || [];
+const uniq = (xs) => [...new Set(xs.filter(Boolean))];
+
+async function listFor(supabase, coachId, opts = {}) {
+  const now = opts.now || new Date();
+  const res = await supabase.from('coach_visit_requests').select(ROW_SELECT).eq('coach_user_id', coachId)
+    .in('status', [...OPEN, 'visited']).order('created_at', { ascending: false }).limit(LIST_LIMIT);
+  if (res.error) throw new Error(res.error.message || 'coach_visit_requests read failed');
+  const rows = rowsOf(res);
+  if (!rows.length) return { todo: [], done: [] };
+  const [users, schools, sessions] = await Promise.all([
+    supabase.from('users').select('id, name').in('id', uniq(rows.map((r) => r.teacher_user_id))),
+    supabase.from('leader_schools').select('school_id, school_name').eq('leader_user_id', coachId).in('school_id', uniq(rows.map((r) => r.school_id))),
+    supabase.from('coaching_sessions').select('id, created_at, scores:analysis_data->scores').in('id', uniq(rows.map((r) => r.coaching_session_id))),
+  ]);
+  const look = {
+    teachers: new Map(rowsOf(users).map((u) => [u.id, fullNameOf(u) || u.name || null])),
+    schools: new Map(rowsOf(schools).map((s) => [s.school_id, s.school_name || null])),
+    sessions: new Map(rowsOf(sessions).map((s) => [s.id, {
+      createdAt: s.created_at || null,
+      pct: pctOf(s.scores || (s.analysis_data && s.analysis_data.scores)),
+    }])),
+  };
+  return shapeList(rows, look, now);
+}
+
+/** deps.loadReport(supabase, sessionId, teacherId) — coaching-report.routes loadReport; deps.presign(key, s). */
+async function cardFor(supabase, coachId, requestId, deps = {}) {
+  const { data: row } = await supabase.from('coach_visit_requests').select(ROW_SELECT).eq('id', requestId).maybeSingle();
+  if (!row || !coachId || row.coach_user_id !== coachId) return null;
+  const [teacher, coach, school, data] = await Promise.all([
+    supabase.from('users').select('name').eq('id', row.teacher_user_id).maybeSingle(),
+    supabase.from('users').select('preferred_language').eq('id', coachId).maybeSingle(),
+    row.school_id ? supabase.from('leader_schools').select('school_name').eq('school_id', row.school_id) : null,
+    deps.loadReport(supabase, row.coaching_session_id, row.teacher_user_id),
+  ]);
+  if (!data || !data.session) return null;
+  const { buildReportView } = require('./coaching-report-view');
+  const view = buildReportView(data);
+  const done = row.status === 'visited';
+  let noteUrl = null;
+  if (!done && row.voice_note_key) {
+    try { noteUrl = (await deps.presign(row.voice_note_key, 3600)) || null; } catch (_) { noteUrl = null; }
+  }
+  const a = data.session.analysis_data || {};
+  const s = rowsOf(school)[0] || {};
+  return {
+    id: row.id,
+    teacher: fullNameOf((teacher && teacher.data) || {}) || null,
+    school: s.school_name || null,
+    language: coach && coach.data && coach.data.preferred_language === 'ur' ? 'ur' : 'en',
+    status: row.status,
+    done,
+    reasons: cleanReasons(row.reasons || []),
+    createdAt: row.created_at,
+    noteUrl,
+    view,
+    evidence: evidenceFor(a, row.reasons, view.thing),
+    indicators: indicatorsOf(a),
+    moves: movesOf(a),
+  };
+}
+
+/** bd-tbprit.2 — the recording behind the clip, for the request's own coach only; presigned for five minutes. */
+async function recordingFor(supabase, coachId, requestId, presign) {
+  const { data: row } = await supabase.from('coach_visit_requests').select('coach_user_id, coaching_session_id').eq('id', requestId).maybeSingle();
+  if (!row || !coachId || row.coach_user_id !== coachId || !row.coaching_session_id) return null;
+  const { data: session } = await supabase.from('coaching_sessions').select('audio_url').eq('id', row.coaching_session_id).maybeSingle();
+  if (!session || !session.audio_url) return null;
+  return (await presign(session.audio_url, 300)) || null;
+}
+
+module.exports = { shapeList, listFor, cardFor, recordingFor };
