@@ -8636,32 +8636,32 @@ router.get('/config', async (req, res) => {
   }
 });
 
-// ── Schools analytics v7: LP Engagement ─────────────────────────────────────────
+// ── Schools analytics v8: LP Engagement (Active / Non-Active) ───────────────────
 const LpEngagement = require('../services/lp-engagement.service');
 
-// Its own ten-minute cache, keyed from|to|region|band: the tab's reads never slow the other tabs.
+// Its own ten-minute cache, keyed from|to|region|band and the lists' state: the tab's reads never slow the
+// other tabs, and a list arriving (or going) is seen at once.
 const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
 
 /**
  * GET /api/portal/analytics/lp-engagement?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>&band=primary|midhigh
  *
- * The LP Engagement tab, the ICT dashboard's formula 1 to 1 (PLAN v7): per teacher × Sunday-week ×
- * grade × subject, lp_ratio = min(distinct LPs / 5, 1); a teacher's ratio is the mean of her rows;
- * overall / sector / school = Σ teacher ratios ÷ rostered teachers of the band; On-Schedule ≥ 60%,
- * Moderate ≥ 40%, Off-Schedule below. LPs = plans opened + lesson plans generated. Primary = K-5
- * plans over Primary-band teachers; midhigh = 6-12 plans over Middle/High-band teachers.
+ * The LP Engagement tab as Active / Non-Active teachers, on the RDF's numbers (PLAN v8): the band's RDF
+ * teacher population (lib/analytics-lists), each teacher in her RDF sector; Active = used at least one
+ * lesson plan in the period by the RDF's rule for the band (Primary: a lesson_plans row or a K-5 app open;
+ * Mid/High: a 6-12 app open, WhatsApp delivery, render requested or 6-12 survey); Non-Active = the rest.
  *
- * Answer: { success, range, band, lpOpensLoggedSince,
- *   overview  {teachers, lpRatio, lpPct, activeSectors, onSchedule, moderate, offSchedule}
- *   regions   the six sectors, each {region, teachers, lpRatio, lpPct, onSchedule, moderate,
- *             offSchedule, onPct, moderatePct, offPct}
- *   schools   counted schools with a band teacher, {schoolId, emis, name, region, teachers, lpRatio,
- *             lpPct, status: on|moderate|off}
- *   bySubject / byGrade  {rows: [{subject, name | grade, …the region numbers}], overall}
- *   sectorSubjects / sectorGrades  [{region, values: {<subject|grade>: lpPct}}] for the grouped bars }
- * lpPct and the shares are her displayed integers; lpRatio is the 0–1 ratio to 4 places. A level with
- * no band teacher has lpPct null, never a 0. The region filter scopes overview, schools, bySubject and
- * byGrade; regions and the sector matrices always carry all six. No teacher identity.
+ * Answer: { success, range, band, basis (which rule each list follows, as on the other analytics answers),
+ *   overview  {teachers, active, nonActive, activePct, activeSectors}
+ *   regions   the six sectors, each {region, teachers, active, nonActive, activePct}
+ *   schools   per sector, its FDE-list schools then its "No school" line (noSchool true,
+ *             schoolId 'no-school:<sector>', emis and name null):
+ *             {region, schoolId, emis, name, noSchool, teachers, active, nonActive, activePct}
+ *   bySubject / byGrade  {rows: [{subject, name | grade, teachers, active, nonActive, activePct}], overall}
+ *   sectorSubjects / sectorGrades  [{region, values: {<subject|grade>: activePct}}] for the grouped bars }
+ * activePct = active ÷ teachers, one decimal; null (never 0) when there is no teacher. The region filter
+ * scopes overview, schools, bySubject and byGrade; regions and the sector matrices always carry all six.
+ * No teacher identity.
  *
  * Same gate, window and regions as /analytics/schools (the cache sits behind the gate); an unknown
  * region or band is a 400. Definitions: services/lp-engagement.service.js.
@@ -8677,15 +8677,15 @@ router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer
       return res.status(400).json({ success: false, error: 'Unknown band.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
     const body = await lpEngagementCache.getOrLoad(key, async () => {
-      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band);
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists });
       return {
         success: true,
         range,
         band: band.band,
-        // LP opens are logged from this day on; the page says so for an earlier window.
-        lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
+        basis: listsBasis(lists),
         ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region }),
       };
     });

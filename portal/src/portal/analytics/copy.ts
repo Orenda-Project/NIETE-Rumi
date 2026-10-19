@@ -13,7 +13,7 @@
  * only the FICO / HITL score values use it (the page test checks every % on every tab). No bands, no thresholds.
  */
 import type { SchoolsTab } from './tabs';
-import type { LpBand, LpStatus } from '../types/portal';
+import type { LpBand, LpGroup } from '../types/portal';
 
 export type SortKey =
   | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'trainingModules' | 'dcObservations'
@@ -208,10 +208,13 @@ const EN = {
           { term: 'LPs opened', text: "Different lesson plans the school's teachers opened in the period: opening the same plan again counts once per teacher. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened." },
           { term: 'Teachers who opened', text: 'How many of the N teachers opened at least one lesson plan in the period ("x of N").' },
           { term: 'Regions with activity', text: 'Regions where at least one lesson plan was opened in the period, out of the six.' },
-          { term: 'LP engagement', text: "For each teacher, each week (Sunday to Saturday), each grade and each subject: the different lesson plans she opened plus the lesson plans she generated, out of 5 (5 or more counts as the full week). A teacher's LP engagement is the average over her weeks, grades and subjects with a lesson plan. A school's, a region's or the overall LP engagement adds up its teachers' and divides by all its teachers, so a teacher with no lesson plan counts 0. The subject and grade tables do the same with only that subject's or grade's lesson plans." },
-          { term: 'On-Schedule, Moderate, Off-Schedule', text: "A teacher is On-Schedule at 60 percent or more, Moderate at 40 to 59 percent, and Off-Schedule below 40 percent; a teacher with no lesson plan in the period is Off-Schedule. A school's status reads its LP engagement the same way. In the tables, Overall adds up the teachers in each band across the rows, and its LP engagement is the average of the rows." },
-          { term: 'Primary and Mid / High', text: 'Teachers by the levels they teach (their training levels). Primary counts their grade 1 to 5 lesson plans; Mid / High counts grade 6 to 12 lesson plans. A teacher who teaches both is counted in both.' },
-          { term: 'Active sectors', text: 'Regions where at least one of these teachers has a lesson plan in the period.' },
+          // v8 (FDE feedback, 2026-10-19): the LP Engagement tab is Active / Non-Active, on the daily RDF's numbers.
+          { term: 'Teachers tracked', text: "The daily RDF's teachers for the band, each in the RDF's sector: Primary is teachers whose levels include Primary; Mid / High is teachers whose levels include Middle or High. A teacher who teaches both is in both. Every sector's teachers add up to the total." },
+          { term: 'Active and Non-Active', text: "A teacher is Active when she used at least one lesson plan in the period; using more does not count her again. Primary: a lesson plan she got on WhatsApp or opened in the app. Mid / High: a grade 6 to 12 lesson she opened in the app, got on WhatsApp, asked for, or rated. Non-Active: every other teacher tracked. This is the RDF's own rule, so the RDF's day or week gives the RDF's number." },
+          { term: 'Overall LP Engagement', text: "Active teachers out of the teachers tracked, as a percentage to one decimal, as the RDF writes it. A sector's and a school's are worked out the same way over their own teachers." },
+          { term: 'Sectors and schools', text: "Schools are those on FDE's programme list. A teacher with no school on record, at a school that is not on the list, or at a school in another region, is counted in her region on the No school line." },
+          { term: 'By subject and by grade', text: "For each subject (or grade): the teachers who used at least one lesson plan of that subject (or grade) in the period, out of all teachers tracked. A teacher can be Active in several rows, so the rows do not add up to the overall; the Overall row is the tab's Overall LP Engagement. A plan whose grade or subject is not known makes her Active but is in no row." },
+          { term: 'Active sectors', text: 'Sectors where at least one teacher tracked is Active, out of the six.' },
         ],
       },
       {
@@ -684,10 +687,10 @@ const EN = {
   },
 
   /**
-   * bd-97x22y.3 — the LP Engagement tab (schools analytics v7), her words and her order (LPEngagement.jsx): the
-   * Primary / Mid-High toggle, ENGAGEMENT OVERVIEW, TEACHER STATUS, SECTORS (ring cards → school breakdown), the
-   * subject and grade tables, and the sector-wise grouped bars. v7 shows her percentages (operator, 2026-10-14:
-   * "fully 1 to 1"); they are written with `percent` above.
+   * The LP Engagement tab: her sections in her order (LPEngagement.jsx) — the Primary / Mid-High toggle, ENGAGEMENT
+   * OVERVIEW, TEACHER STATUS, SECTORS (ring cards → school breakdown), the subject and grade tables and the sector-wise
+   * grouped bars — with Active / Non-Active teachers in place of her three schedule bands (FDE feedback, 2026-10-19).
+   * Percentages are written with `percent` above.
    */
   lpEngagement: {
     bandLabel: 'Teachers',
@@ -703,7 +706,7 @@ const EN = {
       bySubject: 'LP Engagement by Subject',
       byGrade: (grades: string) => `LP Engagement by Grade — ${grades}`,
       chart: 'Sector-wise Performance in Subjects & Grades',
-      chartHint: 'LP Engagement % per sector',
+      chartHint: 'Active teachers, % per sector',
     },
     grades: { primary: 'Grades 1–5', midhigh: 'Grades 6–12' } as Record<LpBand, string>,
     /** Her KPI cards (set in capitals by the card). */
@@ -711,36 +714,36 @@ const EN = {
       overall: 'Overall LP Engagement',
       tracked: 'Total Teachers Tracked',
       activeSectors: 'Active Sectors',
-      onSchedule: 'On-Schedule Teachers',
-      moderate: 'Moderate Teachers',
-      offSchedule: 'Off-Schedule Teachers',
+      active: 'Active Teachers',
+      nonActive: 'Non-Active Teachers',
     },
-    /** Her line under each card. */
+    /** The line under each card. */
     hints: {
-      overall: { primary: 'Primary teachers', midhigh: 'Mid / High teachers' } as Record<LpBand, string>,
-      tracked: 'Across all LP status categories',
-      activeSectors: 'Sectors with LP data',
-      onSchedule: 'LP ratio ≥ 60%',
-      moderate: 'LP ratio 40–59%',
-      offSchedule: 'LP ratio < 40%',
+      overall: { primary: 'Primary teachers who used a lesson plan', midhigh: 'Mid / High teachers who used a lesson plan' } as Record<LpBand, string>,
+      /** Whose teachers: the RDF's, or — when the RDF lists are not loaded — the schools' roster today. */
+      tracked: { rdf: "The daily RDF's teachers", roster: 'Teachers at the schools today' } as Record<'rdf' | 'roster', string>,
+      activeSectors: 'Sectors with an active teacher',
+      active: 'Used a lesson plan in the period',
+      nonActive: 'No lesson plan in the period',
     },
-    status: { on: 'On-Schedule', moderate: 'Moderate', off: 'Off-Schedule' } as Record<LpStatus, string>,
+    groups: { active: 'Active', nonActive: 'Non-Active' } as Record<LpGroup, string>,
     /** In the middle of a sector's ring, under its %, on two lines. */
-    ring: ['LP', 'Engage'] as [string, string],
+    ring: ['Active', 'teachers'] as [string, string],
     totalTeachers: 'Total Teachers',
     columns: {
       subject: 'Subject',
       grade: 'Grade',
       school: 'School Name',
       lp: 'LP Engagement',
-      status: 'Status',
       lpShort: 'LP Engage',
-      bands: { on: ['On-Schedule', '(≥60%)'], moderate: ['Moderate', '(40-59%)'], off: ['Off-Schedule', '(<40%)'] } as Record<LpStatus, [string, string]>,
     },
     overall: 'Overall',
     grade: (g: string) => `Grade ${g}`,
     viewBy: 'View By',
     viewByOptions: { subjects: 'Subjects', grades: 'Grades' } as Record<'subjects' | 'grades', string>,
+    /** A sector's teachers with no school on FDE's list, as one line of its school breakdown. */
+    noSchool: 'No school',
+    noSchoolHint: "No school on FDE's list",
     noSchools: 'No schools found for this sector.',
     loading: 'Loading LP engagement',
     error: "The LP engagement numbers didn't load. Check your connection and try again.",
