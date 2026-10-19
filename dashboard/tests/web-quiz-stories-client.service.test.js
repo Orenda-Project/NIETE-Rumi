@@ -3326,6 +3326,25 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(text(h).match(lang === 'ur' ? /مل کر پڑھیں/g : /read it together/gi)).toHaveLength(1);
     expect(h).toMatch(new RegExp(`data-tap="echo"[^>]*>${lang === 'ur' ? 'جگنو کے ساتھ پڑھیں' : 'Read with Jugnu'}<`));
   });
+  test.each(['en', 'ur'])('%s, read_fb, nothing read on a G3+ book: the card still offers "Read with Jugnu" (never only Listen)', async (lang) => {
+    const e = withMoment(env({ replies: { book: RFB({ grade: 4, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } })); const root = await openReader(e, { lang });
+    const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
+    expect(h).toMatch(new RegExp(`data-tap="echo"[^>]*>${lang === 'ur' ? 'جگنو کے ساتھ پڑھیں' : 'Read with Jugnu'}<`));
+    // a word read on the same G3+ book: no echo offer (today's G1-2 rule for a partial read)
+    const r = withMoment(env({ replies: { book: RFB({ grade: 4 }) } })); const rr = await openReader(r);
+    expect(readPage1(r, rr, ['read', 'skipped', 'skipped', 'skipped', 'skipped'])).not.toContain('data-tap="echo"');
+  });
+  test.each(['en', 'ur'])('%s, read_fb, nothing read and no voice to read with: "Read it again" opens Your turn again', async (lang) => {
+    // the reading key never came (no Read with Jugnu possible)
+    const e = withMoment(env({ replies: { book: RFB({ grade: 4, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }), key: { status: 404, body: { error: 'not_found' } } } })); const root = await openReader(e, { lang });
+    toMic(e, root); e.calls.ask[0].onStream({}); await e.calls.lr[0].o.getKey();
+    e.calls.lr[0].o.onResult(READ(['skipped', 'skipped', 'skipped', 'skipped', 'skipped']));
+    const h = root.innerHTML;
+    expect(h).not.toContain('data-tap="echo"');
+    expect(h).toMatch(new RegExp(`data-tap="rfagain"[^>]*>${lang === 'ur' ? 'پھر سے پڑھیں' : 'Read it again'}<`));
+    fire(root, 'rfagain');
+    expect(screenOf(root.innerHTML)).toBe('story-mic');
+  });
   test('key off, nothing read: today\'s line and chip, as they are', async () => {
     const e = withMoment(env()); const root = await openReader(e);
     const h = readPage1(e, root, ['skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
@@ -3503,6 +3522,17 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     // when the main button already says Next, the › arrow beside it steps aside (its place kept, so Next stays centred)
     expect(css).toContain('.wqs:has(.wqs-extra > .wq-moment) .wqs-ctl:has(> .wqs-next) > [data-tap="next"]{visibility:hidden}');
   });
+  test('read_fb, the read screen: room for the quiet-read nudge (2 Urdu lines) and Read with Jugnu above the done button, kept from the first frame', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    // the screen is the phone's height and the picture gives up what the nudge needs (never under 200 px)
+    expect(css).toContain('.wqs:has(> .wqs-near){height:100vh;height:100svh;min-height:0}');
+    expect(css).toContain('.wqs:has(> .wqs-near) .wqs-stage{flex:1 1 0;height:auto;max-height:62vh;min-height:200px}');
+    // the line's place is kept while it is hidden, so nothing moves mid-read: the words, then the pill under them
+    expect(css).toContain('.wqs .wqs-near[hidden]{display:block!important;visibility:hidden}');   // over the reader's own [hidden] rule
+    expect(css).toContain('.wqs-near{flex:none;margin:0 8px;min-height:calc(3em + 52px);text-align:center;font-weight:700;line-height:1.5;color:var(--ink,#1F2937)}');
+    expect(css).toContain('.wqs[lang=ur] .wqs-near{min-height:calc(4em + 60px);line-height:2}');
+    expect(css).toContain('.wqs-near>span{display:block;text-wrap:balance}');
+  });
   test('read_fb, the first screen: the strip is one grid row-set, and only while a page\'s strip is there does the picture give up height (capped at today\'s 62vh)', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
     expect(css).toMatch(/\.wqs \.wq-moment--s\{display:grid;grid-template-columns:auto 1fr auto;/);
@@ -3511,7 +3541,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:300px\}/);
     // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
-    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/^\.wqs-near/.test(sel));
+    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/wqs-near/.test(sel));
     expect(outside).toEqual([]);
   });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
