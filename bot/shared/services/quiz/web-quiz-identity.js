@@ -337,13 +337,20 @@ async function othersList(list, teacherUserId) {
   try { return await require('../first-touch/teacher-home.flags').on(); } catch (_) { return false; }
 }
 
-async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false } = {}) {
+// together (web_quiz_link_together): the three steps' first reads start at once, each still used in its turn (a step
+// that answers ends it, as one by one); quizP: the quiz row (grade, list_id, meta) the caller is reading anyway.
+async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false, together = false, quizP = null } = {}) {
   let quizGrade = grade;
   let soft = Boolean(gradeSoft);
+  const once = (fn) => { let p = null; return () => (p || (p = Promise.resolve().then(fn))); };
+  const codeRead = once(() => supabase.from('quiz_share_codes').select('class_id').eq('id', shareCodeId).maybeSingle());
+  const quizRead = once(() => (quizP ? Promise.resolve(quizP).then((row) => ({ data: row || null })) : supabase.from('quizzes').select('grade, list_id, meta').eq('id', quizId).maybeSingle()));
+  const teacherRead = once(() => supabase.from('class_teachers').select('class_id').eq('teacher_user_id', teacherUserId).eq('is_active', true));
+  if (together) [[shareCodeId, codeRead], [quizId, quizRead], [teacherUserId, teacherRead]].forEach(([on, read]) => { if (on) read().catch(() => {}); });
   // 1. the hand-out's class
   if (shareCodeId) {
     try {
-      const { data, error } = await supabase.from('quiz_share_codes').select('class_id').eq('id', shareCodeId).maybeSingle();
+      const { data, error } = await codeRead();
       if (error && isMissingColumn(error)) {
         if (!warnedNoColumn) { warnedNoColumn = true; logToFile('⚠️ web quiz identity: quiz_share_codes.class_id is not on this database yet — hand-outs resolve by quiz/teacher only', {}); }
       } else if (data && data.class_id) {
@@ -356,7 +363,7 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
   }
   // 2. the quiz's list
   if (quizId) {
-    const { data: q } = await supabase.from('quizzes').select('grade, list_id, meta').eq('id', quizId).maybeSingle();
+    const { data: q } = await quizRead();
     if (q) {
       if (quizGrade == null) quizGrade = q.grade || null;
       // A coaching-born quiz's grade is the digest's reading of the transcript — a guess, not a fact.
@@ -372,7 +379,7 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
   }
   // 3. the teacher's classes
   if (!teacherUserId) return { state: 'none', class: null, classes: [], bound: null };
-  const { data: ct } = await supabase.from('class_teachers').select('class_id').eq('teacher_user_id', teacherUserId).eq('is_active', true);
+  const { data: ct } = await teacherRead();
   const ids = [...new Set((ct || []).map((t) => t.class_id).filter(Boolean))];
   let classes = [];
   if (ids.length) {
