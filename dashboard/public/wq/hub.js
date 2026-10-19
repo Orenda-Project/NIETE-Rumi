@@ -190,9 +190,19 @@
   function api(method, path, body) {
     var init = { method: method, headers: { accept: 'application/json' } };
     if (body) { init.headers['content-type'] = 'application/json'; init.body = JSON.stringify(body); }
-    return fetch('/api/wq/' + path, init).then(function (r) {
-      return r.text().then(function (t) { var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {} return { status: r.status, ok: r.ok, body: j || {} }; });
-    });
+    return fetch('/api/wq/' + path, init).then(answer);
+  }
+  function answer(r) {
+    return r.text().then(function (t) { var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {} return { status: r.status, ok: r.ok, body: j || {} }; });
+  }
+  // web_quiz_early_unlock: the head already started this phone's first hub call (window.WQHUB0, web-quiz-early-unlock.js).
+  // Used once, only when it asked exactly what this call asks for this token; a failed one is asked again.
+  function early(body) {
+    var e = window.WQHUB0;
+    if (!e) return null;
+    window.WQHUB0 = null;
+    if (e.t !== TOKEN || e.b !== JSON.stringify(body) || !e.r || typeof e.r.then !== 'function') return null;
+    return e.r.then(answer, function () { return api('POST', 'hub/' + encodeURIComponent(TOKEN), body); });
   }
   // This phone's device_ref: the same key the quiz page keeps it under (wq.js sget 'wq_d', JSON), so a
   // phone that opens the hub and then plays is one phone to the server. Minted here when there is none.
@@ -234,7 +244,7 @@
       URL_KEEP = false;
       try { history.replaceState(null, '', selfUrl('/h/' + TOKEN + (kid ? '?kid=' + encodeURIComponent(kid) : ''))); } catch (e) {}
     }
-    return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
+    return early(body) || api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
   }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.
   function ev(n, props) {
