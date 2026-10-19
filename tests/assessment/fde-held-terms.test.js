@@ -186,7 +186,7 @@ describe('Social Studies: an item that names a religious text is held, and the p
 
 // ───────────────────────────────── Urdu ─────────────────────────────────
 
-// gen-local's list: the stock wording the first real Urdu papers were refused on.
+// The stock wording the first real Urdu papers were refused on, as listed by the local review.
 const GEN_LOCAL_STOCK = ['محاورے کا مطلب ہے', 'سوالات کے جواب دیں', 'ان اشعار میں', 'جناب عالی! گزارش ہے', 'چھٹی کی درخواست لکھیں'];
 // Made up: a line only the held pages carry, 30 characters.
 const HELD_ONLY = 'پہلے سبق کی یہ آزمائشی سطر کہیں اور نہیں';
@@ -203,7 +203,7 @@ function replayUrdu(edit) {
 }
 
 describe('Urdu: stock exercise wording passes the held filter; a held-only line still fails the section', () => {
-  test('every phrase on gen-local\'s list, in an item, drops nothing', async () => {
+  test('every phrase on the local review\'s list, in an item, drops nothing', async () => {
     replayUrdu((mcqs) => GEN_LOCAL_STOCK.forEach((s, i) => { mcqs[i].question = `${s}: درست جواب چنیں؟`; }));
     const out = await Gen.generatePatternExam(ARGS('urdu'));
     expect(logged('[assessment] held item dropped')).toEqual([]);
