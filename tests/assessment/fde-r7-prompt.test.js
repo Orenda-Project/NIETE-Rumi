@@ -84,8 +84,9 @@ describe('round-3 pattern prompt rules', () => {
       expect(text).not.toMatch(/3 to 5 of them pure recall/);
       expect(text).toContain('at least 8 of them pure recall (a fact or a name)');
     }
-    // Every other subject keeps the 3–5 recall line.
-    for (const s of ['science', 'english', 'social_studies', 'urdu']) {
+    // Every other subject keeps the 3–5 recall line but Social Studies, whose Q1 asks for at least 16 recall
+    // items (fde-r17i-sst).
+    for (const s of ['science', 'english', 'urdu']) {
       expect(prompt(s, 'A')).toContain('include 3–5 straight recall MCQs');
     }
   });

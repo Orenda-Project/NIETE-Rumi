@@ -275,7 +275,11 @@ describe('4. Section A\'s keys never run in a strict period', () => {
   test('a paper whose keys have no period is left as it is', () => {
     const FULL1 = paper('full_1');
     expect(periodic(letters(FULL1))).toBe(false);
-    expect(letters(lay(FULL1, { reasked: true }).examJson)).toEqual(letters(FULL1));
+    // Read against the items that print: a Q1 item a C/D stem gives away is held, the rest keep their order.
+    const laid = lay(FULL1, { reasked: true });
+    const gone = new Set(laid.held.filter((h) => h.slot === A1).map((h) => h.q.question));
+    const kept = { unseen: { x: { y: items(FULL1, A1).filter((q) => !gone.has(q.question)) } } };
+    expect(letters(laid.examJson)).toEqual(letters(kept));
   });
 
   test('another subject\'s periodic keys are not touched here', () => {

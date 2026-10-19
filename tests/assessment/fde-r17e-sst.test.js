@@ -40,7 +40,9 @@ const lay = (exam) => applyLayout(clone(exam), SST, scopeOf(exam), { reasked: tr
 const FACT_POINTS = 'Each marking point states its fact (e.g. «آئین بنیادی حقوق کا تحفظ کرتا ہے»), never «پہلی وجہ», «دوسری وجہ», «درست وضاحت».';
 
 async function replay(rec) {
-  const queue = { A: [...rec.replies.A], B: [...rec.replies.B], C: [...rec.replies.C], D: [...rec.replies.D] };
+  // Section A's re-ask writes new Q1 items: a Q1 item a C or D stem gives away is held and Section A asked
+  // again, and a recorded paper has no reply of its own for that.
+  const queue = { A: [...rec.replies.A, fixture('sst-a-reask-fresh').reply], B: [...rec.replies.B], C: [...rec.replies.C], D: [...rec.replies.D] };
   const asked = [];
   mockCreate.mockReset();
   mockLog.mockReset();

@@ -52,6 +52,14 @@ function fakeDb() {
 
 const FIXTURE = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'maths.json'), 'utf8'));
 const SST = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'r6-sst-held.json'), 'utf8'));
+// Two Q1 items are held for a stem that names their key («… → ایدھی فاؤنڈیشن», «… → سوشل میڈیا»), which asks Section A
+// again; items no stem names stand in, so the Sermon items are A's only loss.
+Object.assign(SST.unseen.objective.MCQs.find((x) => x.question === 'عبدالستار ایدھی نے کس تنظیم کی بنیاد رکھی؟'), {
+  question: 'پاکستان کا قومی پھول کون سا ہے؟', options: ['الف) گلاب', 'ب) چنبیلی', 'ج) سورج مکھی', 'د) کنول'], answer: 'ب) چنبیلی',
+});
+Object.assign(SST.unseen.objective.MCQs.find((x) => x.question === 'ابلاغ کی جدید ترین شکل کون سی ہے؟'), {
+  question: 'پاکستان کا قومی جانور کون سا ہے؟', options: ['الف) شیر', 'ب) ہاتھی', 'ج) مارخور', 'د) ہرن'], answer: 'ج) مارخور',
+});
 
 /** The section's own items from a worked paper; `drop(slot)` true leaves that slot out. */
 function reply(source, req, drop = () => false) {

@@ -559,6 +559,47 @@ function stripStemOptions(q, urdu = false) {
   q.question = text.slice(0, four[0].index + four[0][1].length).trim();
 }
 
+// Social Studies Section B prints the topic alone. FDE's Q4 line («'{q}' پر مشتمل ذہنی خاکہ بنائیں۔») wraps
+// it, so a topic that carries its own instruction («اچھے شہری کی ذمہ داریاں: اس موضوع پر 4 سے 6 شاخوں والا
+// ذہنی خاکہ بنائیں۔») printed the instruction twice; Q3's box, example and arrow line is the pattern's
+// (`topic_line_ur`), so a reply that writes only a title still asks for what the scheme marks. The topic is
+// the first «…» quote, else what comes before a colon, else the stem with its trailing instruction cut;
+// a stem with no instruction is the topic as written, and one that cannot be read is left as it is.
+const B_SLOTS = { 'social_studies.b.q3': 'social_studies.B.Q3', 'social_studies.b.q4': 'social_studies.B.Q4' };
+const B_INSTRUCTS = /ذہنی\s*خاکہ|مائنڈ\s*میپ|شاخ|چارٹ|خاکہ|خانے|خانوں|تیر|بنائیں|شامل\s*کریں/;
+const B_TAIL = /\s*(?:(?:کے|کی)\s*(?:موضوع|عنوان)\s*پر|کے\s*بارے\s*میں|کے\s*لیے|پر\s*مشتمل|پر\s*ایک|پر|کا|کی|کے)?\s*(?:ایک\s*)?(?:[\d۰-۹]+\s*سے\s*[\d۰-۹]+\s*شاخوں\s*(?:والا|پر\s*مشتمل)\s*)?(?:ذہنی\s*خاکہ|ذہنی\s*نقشہ|مائنڈ\s*میپ|فلو\s*چارٹ|بہاؤ\s*چارٹ|خاکہ)[\s\S]*$/;
+// An instruction in brackets after the topic («جمہوریت کی اہمیت (مرکزی خیال کے گرد 4 سے 6 شاخیں بنا کر …)»).
+const B_BRACKET = /\s*\(([^()]*)\)\s*[۔.]?\s*$/;
+const topicBare = (t) => t.replace(/^['‘"“\s]+|['’"”\s]+$/g, '').replace(/[۔.]+$/, '').trim();
+function sectionBTopic(text) {
+  const raw = String(text || '').trim();
+  const bracket = raw.match(B_BRACKET);
+  const t = bracket && B_INSTRUCTS.test(bracket[1]) ? raw.slice(0, bracket.index).trim() : raw;
+  const quoted = t.match(/«([^»]+)»/);
+  if (quoted) return quoted[1].trim();
+  if (!B_INSTRUCTS.test(t)) return t;
+  // The topic, then its instruction: after a colon, a full stop or a new line.
+  const head = topicBare(t.split(/[:：۔\n]/)[0]);
+  if (head && head !== topicBare(t) && !B_INSTRUCTS.test(head)) return head;
+  const cut = topicBare(t.replace(B_TAIL, ''));
+  return cut && !B_INSTRUCTS.test(cut) ? cut : null;
+}
+function sectionBStem(q, P) {
+  const id = B_SLOTS[slotKey(q.slot)];
+  if (!id || typeof q.question !== 'string') return;
+  const topic = sectionBTopic(q.question);
+  if (!topic) return;
+  const slot = P.sections.flatMap((sec) => sec.slots).find((x) => x.slot === id);
+  q.question = id === 'social_studies.B.Q3' && slot && slot.topic_line_ur ? fill(slot.topic_line_ur, { q: topic }) : topic;
+}
+
+// Social Studies: the label the model gives a spare it writes for a slot («سوال نمبر 5 کا اضافی سوال: …»)
+// never prints.
+const SPARE_LABEL = /^\s*(?:سوال\s*(?:نمبر\s*)?[\d۰-۹]+\s*کا\s*)?اضافی\s*سوال\s*(?:[\d۰-۹]+\s*)?[:：۔-]\s*/;
+function stripSpareLabel(q) {
+  if (q && typeof q.question === 'string' && SPARE_LABEL.test(q.question)) q.question = q.question.replace(SPARE_LABEL, '');
+}
+
 function stripTags(holder) {
   if (!holder || typeof holder !== 'object') return;
   for (const field of TAGGED_FIELDS) {
@@ -979,7 +1020,7 @@ const Q6_SLOT = 'social_studies.D.Q6';
 const ASK_WORDS = new Set(['کون', 'کونسا', 'کونسی', 'کیا', 'کیوں', 'کیسے', 'کتنے', 'کتنی', 'کتنا', 'کب', 'کہاں', 'کس', 'کن']);
 const FACT_WORDS = new Set(['کون', 'کونسا', 'کونسی', 'کتنے', 'کتنی', 'کتنا', 'کب', 'کہاں', 'کس', 'کن']);
 const ASKS = /بتائیں|بتاؤ|لکھیں|وضاحت|سمجھائیں|بیان کریں|جواب دیں|پوچھت|جاننا چاہت/;
-const APPLIES = /چاہیے|چاہئے|چاہییں|مشورہ|تجویز|اقدام|طریق|مراحل|اپنائیں|کرائیں|کریں گے|سکتے ہیں|سکتی ہے|سکتا ہے|ہوتے تو|فیصلہ کریں|منتخب کرے|لاگو|درست ہے|صحیح ہے|مناسب|استعمال|انتظامات|اپنا حل/;
+const APPLIES = /چاہیے|چاہئے|چاہییں|مشورہ|مشورے|مشوروں|رائے دیں|بتائیں کہ وہ کیا کرے|تجویز|اقدام|طریق|مراحل|اپنائیں|کرائیں|کریں گے|سکتے ہیں|سکتی ہے|سکتا ہے|ہوتے تو|فیصلہ کریں|منتخب کرے|لاگو|درست ہے|صحیح ہے|مناسب|استعمال|انتظامات|اپنا حل/;
 const EXPLAINS = /کیوں|وجہ|اثر|فائدہ|فائدے|نقصان|اہمیت|ضروری|فرق|موازنہ|جیسے|مشابہ|ملتا|ملتی|مختلف|خوبی|کیسے(?!\s*(چنا|چنے|چنی|منتخب))/;
 const WHICH_TIER = /(کون|کس)\s+(کس\s+)?(سی\s+|سا\s+)?(کام\s+)?(سطح\s+(کی\s+)?)?(مقامی\s+|صوبائی\s+|وفاقی\s+)?حکومت/;
 const DONE = /^(تھا|تھی|تھے|کیا|کی|کیے|اٹھایا|دیا|گیا|گئی|گئے|ہوا|ہوئی)$/;
@@ -1010,6 +1051,34 @@ function asksRecall(q) {
   return facts >= 2 && facts > reasons;
 }
 
+// Social Studies Q6: a story that only relays a child's question («بلال نے پوچھا کہ زلزلہ کیا ہوتا ہے …
+// آپ بلال کو مفصل جواب دیں»; «حمزہ جاننا چاہتا ہے کہ صحرا میں کھیتی باڑی کیوں نہیں ہوتی …»): its answer is
+// the book's text in order, a Q5 in a story. The relayed question is read apart from the rest of the
+// stem, so what it asks («… کیا کرنا چاہیے») is not a decision the child makes. Held when no sentence
+// outside it asks the child to decide or advise. «بغیر پوچھے» relays nothing. A relay may end in a colon
+// («علی نے استاد سے پوچھا: زلزلہ کیا ہوتا ہے …؟»), and what the child is asked may follow it in the same
+// sentence, after a comma, spoken to the child («…، آپ اسے دو مشورے دیں کہ وہ کیا کرے»).
+const RELAYS = /(?:پوچھا|پوچھتا|پوچھتی|پوچھتے|پوچھنا|جاننا\s*چاہت[اےی]|معلوم\s*کرنا\s*چاہت[اےی])(?:\s*(?:ہے|ہیں|تھا|تھی|تھے))?\s*(?:کہ(?:\s|$)|[:：])/;
+function asksFrame(q) {
+  const sentences = String((q && q.question) || '').split(/(?<=[۔؟?!])|\n/).map((x) => x.trim()).filter(Boolean);
+  if (!sentences.some((x) => RELAYS.test(x))) return false;
+  const outside = sentences.flatMap((x) => (RELAYS.test(x) ? x.split(/[،,]/).slice(1).filter((c) => /^\s*آپ\s/.test(c)) : [x]));
+  return !outside.some((x) => APPLIES.test(x));
+}
+
+// Social Studies Q6: a story that only asks the child to tell someone what a place or a system is like
+// («زارا کو بتائیں کہ وہاں موسم کیسا ہو گا …», «دونوں نظاموں کا موازنہ کرتے ہوئے بتائیں کہ … کون سی سہولتیں …»):
+// its answer is the book's description in order, a Q5 in a story. Held when nothing in it asks the child to
+// decide or advise (what someone should do, whom to turn to: «کیا کرنا چاہیے», «مشورے», «کس سے بات کرے»).
+const TELLS = /کو\s+بتائیں\s+کہ[^۔؟?!]*(?:کیسا|کیسی|کیسے|کیا|کون\s*سی|کون\s*سے|کون\s*سا)|موازنہ\s+کرتے\s+ہوئے\s+بتائیں\s+کہ/;
+// An instruction to the child («وضاحت کریں», «بیان کریں») decides nothing, so a subjunctive right after one is no
+// decision; «کیسے … کر سکتا ہے» asks the child how someone can help, which is advice.
+const DECIDES = /مشورہ|مشورے|مشوروں|رائے دیں|فیصلہ|تجویز|اقدام|کیا کرے|کیا کریں|کیا کرنا|(?:کرنا|کرنی|کرنے)\s*چاہی|کیسے[^۔؟?!]{0,40}سکت[اےی]|(?<!(?:وضاحت|بیان|تحریر|واضح)\s*)(?:رکھے|کرے|کریں|اپنائے|کہے)(?![\p{L}])(?!\s*(?:سکت|گا|گی|گے))/u;
+function tellsWhat(q) {
+  const stem = String((q && q.question) || '');
+  return TELLS.test(stem) && !DECIDES.test(stem);
+}
+
 // Social Studies: a Q6 whose answer only names who does a job («تجاوزات ہٹانے کے لیے صوبائی حکومت کا
 // درست نام», «سب سے بڑی عدالت سپریم کورٹ کا ذکر») is recall in a story, even with the book's line for
 // a reason: an Apply item's answer explains with two ideas or more. Read on the marking points: an
@@ -1031,6 +1100,26 @@ function namesBody(q) {
   const stem = String((q && q.question) || '');
   if (!points.some((t) => names(t) && BODY.test(t)) && !WHICH_BODY.test(stem) && !CALLED.test(stem)) return false;
   return points.filter((t) => !BODY.test(t) && !names(t) && statesFact(t)).length < EXPLAINING_POINTS;
+}
+
+// Social Studies Q6: an answer that is a list the book gives (a party's jobs, a quarrel settled by the book's
+// steps in its own words), set in a story, is recall: the child copies the book. Held when at least three of its
+// marking points each restate a sentence of the pages (seven tenths of its words, marking words aside), all within
+// three sentences side by side, or within one sentence that lists them. A point that uses a book idea in the
+// story's own words is not a restatement: an Apply item's points carry the book's ideas too, so the test asks
+// for the book's wording, in the book's order.
+const LIST_POINTS = 3;
+const LIST_SPAN = 2;
+const LIST_SHARE = 0.7;
+function bookList(q, sentences) {
+  if (!sentences) return false;
+  const at = (q && q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
+    .map((p) => [...new Set(tokensOf(String(typeof p === 'string' ? p : (p && p.text) || '')))].filter((w) => !PLACEHOLDER_WORDS.has(w) && !backGeneric.has(w)))
+    .filter((words) => words.length >= PASSAGE_WORDS)
+    .map((words) => sentences.flatMap((s, i) => (words.filter((w) => s.has(w)).length >= LIST_SHARE * words.length ? [i] : [])))
+    .filter((list) => list.length);
+  if (at.length < LIST_POINTS) return false;
+  return [...new Set(at.flat())].some((from) => at.filter((list) => list.some((i) => i >= from && i <= from + LIST_SPAN)).length >= LIST_POINTS);
 }
 
 // Urdu: a Q1 MCQ keyed on a word of a Q6 verse line it asks about: its key's words are all in the
@@ -1237,6 +1326,15 @@ function keyInPoints(others) {
     }));
   };
 }
+// Social Studies Q7: an answer whose words are all in its own question («انٹرنیٹ کی مدد سے طلبہ کون سے مواد تک
+// رسائی حاصل کر سکتے ہیں جو تحقیق میں کام آتا ہے؟ → تحقیقی مواد») is printed for the child to copy. A bracket
+// in the answer (an English gloss) is set aside; an answer that adds a word of its own stays.
+const Q7_SLOT = 'social_studies.D.Q7';
+function keyInOwnStem(q) {
+  const key = tokensOf(keyText(q).replace(/\([^()]*\)/g, ' '));
+  const stem = tokensOf(q.question);
+  return key.length > 0 && key.every((w) => holdsWord(stem, w));
+}
 // The point-set rows, laid in this order: a Q6 against the Q5s, a Q6 against the Q6s placed before
 // it (one online disagreement told twice with the same four points), then a Q7 against the Q5s and
 // the Q6s now placed. The held slot's item is held, never the other one.
@@ -1251,6 +1349,155 @@ const CROSS_HOLD = {
   urdu: { held: ['urdu.A.Q1'], against: ['urdu.C.Q4', 'urdu.C.Q6', 'urdu.C.Q3', 'urdu.C.Q5'], rule: urduTwin },
   social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
 };
+
+// Social Studies, Section A read against the C and D stems placed: a Q1 item a later stem gives away
+// is held, and Section A is asked again (A's re-ask is a top-up; C and D are never moved for A).
+// (1) Its key, a name, a year or a number, is printed in a C/D stem on the same topic: the stems share a
+//     word besides the key («قراردادِ پاکستان 23 مارچ 1940ء کو …» beside «قراردادِ پاکستان کس سال منظور
+//     ہوئی؟ → 1940ء»). A concept term (a tier, a body, democracy, a citizen's duty) is the chapter's own
+//     word and every stem may name it; the words every stem shares («حکومت», «پاکستان») are no topic.
+// (2) It asks what a Q5 asks: the same question word; the same civics terms, every one of either stem's
+//     in the other (legislature against executive is not executive against judiciary); a shared word
+//     besides them; and at least three of the shorter stem's words, three fifths of them («جمہوریت کو
+//     بہترین طرزِ حکومت کیوں سمجھا جاتا ہے؟» beside «جمہوریت کو بہترین نظام حکومت کیوں کہا جاتا ہے؟ دو
+//     وجوہات لکھیں۔»). Words are read without the question's frame («کیا مراد ہے», «وضاحت کریں», «آپ»).
+const SST_A_Q1 = 'social_studies.A.Q1';
+const BACK_RULES = new Set(['key_in_stem', 'key_named_in_stem', 'asked_in_c']);
+// Two words of a Q1 stem's question beside its key: a stem that states the fact.
+const STATES_WORDS = 2;
+const BACK_CONCEPT = /حکومت|جمہوری|شہنشاہ|آمری|مقننہ|انتظامیہ|عدلیہ|عدالت|کورٹ|اسمبلی|سینی?ٹ|ایوان|شہری|ذمہ دار|قانون|آئین/;
+const BACK_ASKS = new Set(['کیوں', 'کیا', 'کون', 'کب', 'کہاں', 'کتنے', 'کتنی', 'کتنا', 'کیسے', 'کس']);
+const asksOf = (text) => new Set(String(text || '').split(/[\s؟?،,۔:]+/).filter((w) => BACK_ASKS.has(w)));
+const SAME_ASK_WORDS = 3;
+const SAME_ASK_SHARE = 0.6;
+// Civics terms as tokensOf leaves them (an ending cut: انتظامیہ → انتظامی, شہری → شہر).
+const BACK_TERM = /^(?:حکوم|جمہور|شہنشاہ|آمر|مقنن|انتظامی|عدلی|عدالت|کورٹ|اسمبل|سینی?ٹ|ایوان|شہر|ذمہ|دار|قانون|آئین)/;
+// One word in two forms: equal, or one the other's start (داری / داریاں), three letters or more.
+const nearWord = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)));
+const holdsWord = (list, w) => list.some((x) => nearWord(x, w));
+let backGeneric = new Set(tokensOf('حکومت ملک کام پاکستان ادارہ ادارے لوگ لوگوں کسی کوئی نام کرنا معاملات علاقہ علاقے شخص شخصیت سال'));
+let backFrame = null;
+// A key that is a date («23 مارچ 1940ء», «1940ء») belongs to one event, so a stem that prints it gives it away
+// whatever words the stems share. A concept term is given away when a stem prints it as the gloss of what the
+// Q1 stem asks about, or the other way round: «ایوانِ زیریں (قومی اسمبلی)» beside «ایوانِ زیریں کا دوسرا نام
+// کیا ہے؟ → قومی اسمبلی»; «شہنشاہیت (بادشاہت)» beside «بادشاہ یا ملکہ کے ملک چلانے کا نظام → شہنشاہیت».
+const DATE_KEY = /^\s*(?:[\d۰-۹]{1,2}\s+\p{L}+\s+)?[\d۰-۹]{4}\s*ء?\s*(?:میں|کو)?\s*[۔.]?\s*$/u;
+const GLOSS = /([^()\n]+?)\s*\(([^()\n]+)\)/g;
+function glossed(key, stemWords, text) {
+  const k = plain(key);
+  if (!k) return false;
+  const inStem = (words) => words.length > 0 && words.every((w) => holdsWord(stemWords, w));
+  return [...String(text).matchAll(GLOSS)].some((m) => {
+    const before = plain(m[1]);
+    const inside = plain(m[2]);
+    if (inside === k) return inStem(tokensOf(before.split(' ').slice(-2).join(' ')).filter((w) => w.length >= 3));
+    return ` ${before} `.endsWith(` ${k} `) && inStem(tokensOf(m[2]));
+  });
+}
+// (3) Its key is a name (a person, a place, an organisation) that sits in one of its options and no other, and a
+//     C/D stem names that option («… → عبدالستار ایدھی» beside «ایدھی فاؤنڈیشن نے …»; «… → چودھری رحمت علی» beside
+//     «چودھری رحمت علی نے 28 جنوری 1933ء کو …»). No shared topic is needed: a child who reads that stem knows which
+//     option to pick. This is a precaution beyond the gate, which counts only a stem that states the Q1 fact; a
+//     name printed alone is reported there, and holding it here costs one Section A re-ask. A term the chapter
+//     teaches is never read here (TERM_KEY). A stem names an option when it prints all of its words, or all the
+//     words no other option has (two or more: «علی گڑھ» for «تحریک علی گڑھ» beside «تحریک خلافت»), or at least
+//     half of those words of four letters or more, the parts many names share («محمد», «علی», «خان») aside
+//     («ایدھی» for «عبدالستار ایدھی»; «گڑھ» is not «مہر گڑھ»), or the one such word of four letters or more
+//     («کراچی» for «کراچی پورٹ» beside «پورٹ قاسم»). A key that sits in two options («لیاقت علی خان» inside «بیگم
+//     رعنا لیاقت علی خان») names no one, and neither does a stem that prints it only inside a wife's name («بیگم
+//     رعنا لیاقت علی خان» carries «لیاقت علی خان»). A key that is no name is not read here: a phrase of three words
+//     or more with a function word («ٹیلی وژن میں آواز کے ساتھ تصویر …», «کم ہوتا ہے»; «کے ٹو» is a name), an act
+//     («بات کرنا»), a number word, a word marking points use for any fact («نقصان», «فائدہ»), or a key with a digit
+//     (that is (1)). A tier («مقامی حکومت») is the three-tier chapter's own word: the which-government items are
+//     read by their book line (`sameLine`) and the tier slip, not here.
+const NAME_PARTS = new Set(tokensOf('محمد علی خان احمد سید شاہ بیگم حضرت سر قائد اعظم'));
+const NAME_LETTERS = 4;
+// A stem that names three of the item's options or more lists them («مقننہ، انتظامیہ اور عدلیہ») and picks none.
+const LISTS_OPTIONS = 3;
+const WIFE = 'بیگم';
+const NUMBER_WORDS = new Set('ایک دو تین چار پانچ چھ چھے سات آٹھ نو دس'.split(' '));
+const notAName = (key) => {
+  const words = plain(key).split(' ').filter(Boolean);
+  return words.some((w) => NUMBER_WORDS.has(w)) || (words.length >= 3 && words.some((w) => STOP.has(w)))
+    || (words.length >= 2 && /نا$/.test(words[words.length - 1]));
+};
+// Where the words `t` stand in a row in `line` (a stem's tokens in order), none inside a wife's name.
+const printsRun = (t, line) => line.some((_, i) => t.every((w, j) => line[i + j] === w) && !line.slice(Math.max(0, i - 2), i).includes(WIFE));
+// `seen`: the Q1 stem's own words. Part of a name the Q1 stem prints itself («ایدھی» in «عبدالستار ایدھی نے کون
+// سی تنظیم قائم کی؟ → ایدھی فاؤنڈیشن») tells the child nothing new when a C/D stem prints it too.
+function namesOption(t, others, words, line, seen) {
+  if (t.length && t.every((w) => words.has(w))) return printsRun(t, line);
+  const own = t.filter((w) => !others.has(w) && !backGeneric.has(w));
+  const fresh = (w) => words.has(w) && !seen.has(w);
+  if (own.length >= 2 && own.every((w) => words.has(w)) && own.some(fresh)) return true;
+  const strong = own.filter((w) => !NAME_PARTS.has(w));
+  const long = strong.filter((w) => w.length >= NAME_LETTERS);
+  if (strong.length >= 2) { const printed = long.filter(fresh).length; return printed > 0 && printed * 2 >= strong.length; }
+  return strong.length === 1 && long.length === 1 && fresh(long[0]);
+}
+// `own`: the stems are the item's own (its stem names its own key), so none of its words is set aside as seen.
+// A term the chapter teaches (a body, a tier, democracy, a citizen; the media) is the chapter's own word, which its
+// stems name as they ask about it: a name hold on it would empty Section A, and FDE's own paper prints that shape
+// (its Q1 «ثقافت» beside a Q6 on culture). It is held only when a stem states its fact (`givenBack`, (1)).
+const TERM_KEY = new RegExp(`${BACK_CONCEPT.source}|میڈیا|ابلاغ`);
+function keyNamedIn(m, stems, own = false) {
+  if (!Array.isArray(m.options) || m.options.length < 3 || /\d/.test(keyText(m)) || notAName(keyText(m)) || TERM_KEY.test(keyText(m))) return false;
+  const key = tokensOf(keyText(m));
+  if (!key.length || key.every((w) => backGeneric.has(w) || PLACEHOLDER_WORDS.has(w)) || tiersIn(flatUr(keyText(m))).size) return false;
+  const opts = m.options.map((o) => tokensOf(String(o).replace(OPTION_HEAD, '')));
+  const at = m.options.findIndex((o) => plain(String(o).replace(OPTION_HEAD, '')) === plain(keyText(m)));
+  if (at < 0 || opts.filter((t) => key.every((w) => t.includes(w))).length !== 1) return false;
+  const others = (i) => new Set(opts.filter((_, j) => j !== i).flat());
+  const seen = own ? new Set() : new Set(tokensOf(m.question));
+  return stems.some((x) => namesOption(opts[at], others(at), x.words, x.tokens, seen)
+    && opts.filter((t, i) => namesOption(t, others(i), x.words, x.tokens, seen)).length < LISTS_OPTIONS);
+}
+// Social Studies Q1 against itself: a stem that names its own key («ایدھی فاؤنڈیشن کس شخصیت نے قائم کی؟ →
+// عبدالستار ایدھی»), or the key of another Q1 item on the paper, prints that answer for the child to pick (read as
+// a C/D stem is, above). The item whose key is named is the one held: a key many stems name («سوشل میڈیا») costs
+// one item, not every stem that names it.
+const stemOf = (q) => ({ words: new Set(tokensOf(q.question)), tokens: tokensOf(q.question) });
+const namesOwnKey = (q) => keyNamedIn(q, [stemOf(q)], true);
+const stemNamesKey = (stemQ, keyQ) => keyNamedIn(keyQ, [stemOf(stemQ)]);
+function givenBack(placed) {
+  const stems = placed.filter((q) => typeof q.question === 'string' && q.question.trim())
+    .map((q) => ({ slot: q.slot, text: q.question, line: ` ${tokensOf(q.question).join(' ')} `, tokens: tokensOf(q.question), words: new Set(tokensOf(q.question)), asks: asksOf(q.question) }));
+  backFrame = backFrame || new Set(tokensOf('مراد وضاحت بیان کریں کیجیے جاتا جاتی جاتے سمجھا کہا دو تین کوئی وجہ وجوہات بات طور آپ چاہیے کرنا مختصر جواب'));
+  const contentOf = (text) => [...new Set(tokensOf(text).filter((w) => !backFrame.has(w)))];
+  if (!stems.length) return null;
+  const q5s = stems.filter((x) => x.slot === 'social_studies.C.Q5');
+  return (m) => {
+    const key = tokensOf(keyText(m));
+    if (key.length && !BACK_CONCEPT.test(keyText(m)) && (key.some((w) => /\d/.test(w)) || key.join('').length >= 3)) {
+      const printedKey = ` ${key.join(' ')} `;
+      const dated = DATE_KEY.test(keyText(m));
+      const topic = tokensOf(m.question).filter((w) => !key.includes(w) && w.length >= 3 && !backGeneric.has(w));
+      if (stems.some((x) => x.line.includes(printedKey) && (dated || topic.some((w) => x.words.has(w))))) return 'key_in_stem';
+    }
+    if (key.length && TERM_KEY.test(keyText(m))) {
+      const stemWords = tokensOf(m.question).filter((w) => !key.includes(w));
+      if (stems.some((x) => glossed(keyText(m), stemWords, x.text))) return 'key_in_stem';
+      // A term a stem prints beside two words of the Q1 stem's own question states the fact the Q1 asks
+      // («قانون بنانے کا اختیار کس ادارے کے پاس ہے؟ → مقننہ» beside «مقننہ قانون بناتی ہے، اس کے دو ایوانوں …»).
+      const printedKey = ` ${key.join(' ')} `;
+      const topic = [...new Set(tokensOf(m.question))].filter((w) => !key.includes(w) && w.length >= 3 && !backGeneric.has(w));
+      if (stems.some((x) => x.line.includes(printedKey) && topic.filter((w) => x.words.has(w)).length >= STATES_WORDS)) return 'key_in_stem';
+    }
+    if (keyNamedIn(m, stems)) return 'key_named_in_stem';
+    const own = contentOf(m.question);
+    const asks = asksOf(m.question);
+    const same = q5s.some((x) => {
+      if (![...asks].some((w) => x.asks.has(w))) return false;
+      const other = contentOf(x.text);
+      const terms = (list) => list.filter((w) => BACK_TERM.test(w));
+      if (!terms(own).every((w) => holdsWord(other, w)) || !terms(other).every((w) => holdsWord(own, w))) return false;
+      const shared = own.filter((w) => holdsWord(other, w));
+      return shared.some((w) => !BACK_TERM.test(w))
+        && shared.length >= SAME_ASK_WORDS && shared.length >= SAME_ASK_SHARE * Math.min(own.length, other.length);
+    });
+    return same ? 'asked_in_c' : null;
+  };
+}
 
 // One question once per slot: the same stem, and for an MCQ the same options too, compared as
 // written (letter forms, diacritics, digits and case aside; no word dropped, so «silent 'k'»
@@ -1309,6 +1556,67 @@ function sameTask(a, b) {
   if (!Array.isArray(a.options) || !Array.isArray(b.options) || !/حکومت/.test(keyText(a)) && !BODY.test(keyText(a))) return false;
   const bare = (q) => ({ ...q, question: tokensOf(q.question).filter((w) => !TASK_FRAME.has(w)).join(' ') });
   return sameStemKey(bare(a), bare(b));
+}
+// Social Studies: two MCQs keyed on the same government whose jobs come from one line of the book's
+// table (p.29) are one fact asked twice, once directly and once as a case («پینے کے پانی کا بندوبست کون
+// سی حکومت دیکھتی ہے؟» beside «… گلیوں کا گندا پانی نکالنے کا مسئلہ … کس حکومت سے رابطہ …؟», both →
+// مقامی حکومت, from «پینے کے پانی کا بندوبست اور نکاسی آب کا انتظام دیکھتی ہے»). Jobs from two lines
+// («مویشی منڈیاں» and «نکاسی آب») stay two questions. A stem that names jobs from two lines is no line's.
+const BOOK_LINES = [
+  ['ملکی دفاع', 'مسلح افواج'],
+  ['ملکی معیشت'],
+  ['خارجہ پالیسی', 'بیرونی ممالک'],
+  ['نظم و نسق', 'نظم ونسق', 'قانون سازی', 'تجاوزات', 'امن و امان'],
+  ['صوبائی محصولات'],
+  ['داخلی پالیسی'],
+  ['مویشی منڈی', 'عوامی میلے', 'میلے'],
+  ['پینے کے پانی', 'پینے کا پانی', 'نکاسی', 'گندا پانی', 'گندے پانی', 'پانی نکال'],
+  ['بیواؤں', 'یتیموں', 'معذوروں', 'قدرتی آفات'],
+].map((line) => line.map(flatUr));
+function bookLineOf(stem) {
+  const flat = flatUr(stem);
+  const lines = BOOK_LINES.map((line, i) => (line.some((w) => flat.includes(w)) ? i : -1)).filter((i) => i >= 0);
+  return lines.length === 1 ? lines[0] : null;
+}
+function sameLine(a, b) {
+  if (!Array.isArray(a.options) || !Array.isArray(b.options) || !tiersIn(flatUr(keyText(a))).size) return false;
+  if (plain(keyText(a)) !== plain(keyText(b))) return false;
+  const line = bookLineOf(a.question);
+  return line !== null && line === bookLineOf(b.question);
+}
+// Social Studies: the book's page text (`opts.book`, the pages the section prompts were given) read as its
+// sentences, in order, each as its words. A page's lines are joined first: the page store breaks a sentence
+// across lines, so a line is no sentence; a sentence ends at «۔», «؟», «!» or «?», and at a page's end.
+let bookCache = null;
+function bookSentences(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  if (bookCache && bookCache.text === text) return bookCache.sentences;
+  const sentences = text.split(/^=== Page [^\n]*===\s*$/m)
+    .flatMap((page) => page.replace(/\s*\n\s*/g, ' ').split(/[۔؟?!]+/))
+    .map((t) => new Set(tokensOf(t))).filter((w) => w.size >= 2);
+  bookCache = { text, sentences };
+  return sentences;
+}
+// The sentences that hold `words` (at least two of them, and at least half), by index: a fact the book states
+// twice (its lesson, then its exercise) sits in both.
+const PASSAGE_WORDS = 2;
+function sentencesHolding(words, sentences) {
+  if (!sentences || words.length < PASSAGE_WORDS) return [];
+  return sentences.flatMap((s, i) => { const n = words.filter((w) => s.has(w)).length; return n >= PASSAGE_WORDS && n * 2 >= words.length ? [i] : []; });
+}
+// Social Studies: two MCQs with the same key whose facts sit in one book sentence or two sentences side by side
+// are one fact asked twice («پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟» beside «1973ء میں سندھ کی گورنر کون
+// بنیں؟», both → بیگم رعنا لیاقت علی خان, from «1973ء میں وہ صوبہ سندھ کی گورنر بن گئیں۔ وہ پاکستان کی پہلی خاتون
+// صوبائی گورنر تھیں۔»). Each stem is placed by its own words, its key and the words every stem shares aside.
+// Facts from sentences further apart stay two questions (APWA, founded four sentences before). A tier is read
+// by its table line instead (`sameLine`): the table's lines stand side by side, and each is its own job.
+function samePassage(a, b, sentences) {
+  if (!sentences || !Array.isArray(a.options) || !Array.isArray(b.options)) return false;
+  const key = plain(keyText(a));
+  if (!key || key !== plain(keyText(b)) || tiersIn(flatUr(keyText(a))).size) return false;
+  const at = (q) => { const k = new Set(tokensOf(keyText(q))); return sentencesHolding([...new Set(tokensOf(q.question))].filter((w) => !k.has(w) && !backGeneric.has(w)), sentences); };
+  const [x, y] = [at(a), at(b)];
+  return x.some((i) => y.some((j) => Math.abs(i - j) <= 1));
 }
 // Urdu: a Q1 stem that prints another Q1 item's key gives that item away («سدرہ نے اپنی تھیڑ کمپنی
 // کس مقصد کے لیے بنائی؟» beside «… کیا بنایا؟ → تھیڑ کمپنی»): a key of two words or more, all in the
@@ -1834,7 +2142,9 @@ function takenNote(P, section, examJson, opts = {}) {
     if (P.key === 'urdu' && opts.topUp) return [q3Note(section, examJson, opts.shortfall), q4Note(section, examJson, opts.shortfall)].filter(Boolean).join('\n\n') || null;
     if (P.key !== 'social_studies' || !opts.topUp) return null;
     const kept = keptNotes(P, section, examJson, cross, opts.shortfall);
-    return kept.length ? kept.join('\n\n') : null;
+    const back = backNote(section, examJson, opts.held);
+    const notes = back ? [back, ...kept] : kept;
+    return notes.length ? notes.join('\n\n') : null;
   }
   const against = [];
   for (const branch of ['seen', 'unseen']) {
@@ -1894,16 +2204,46 @@ function takenNote(P, section, examJson, opts = {}) {
     if (aside) notes.push(aside);
     const recall = recallNote(section, opts.held);
     if (recall) notes.push(recall);
+    const ownKey = (Array.isArray(opts.held) ? opts.held : []).filter((h) => h && h.slot === Q7_SLOT && h.rule === 'key_in_own_stem' && h.q && typeof h.q.question === 'string');
+    if (ownKey.length) {
+      notes.push(`These Q7 items were set aside: each prints its own answer in its question:\n${ownKey.map(({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`).join('\n')}\n`
+        + 'A Q7 asks one fact its question does not say.');
+    }
+    // A D stem that prints a Q1 answer gives that Q1 item away (Section A is then asked again).
+    const keys = [...new Set(against.map((q) => keyText(q).trim()).filter(Boolean))];
+    if (keys.length) notes.push(`Never print any of these Section A answers in a stem you write (as a name, a date, a number or a term): ${keys.join('، ')}`);
   }
   // A top-up keeps the first reply's items: name what each short held slot keeps, and ask for spares,
   // since the refill is held against Section A as well.
   if (opts.topUp) notes.push(...keptNotes(P, section, examJson, cross, opts.shortfall));
   return notes.length ? notes.join('\n\n') : null;
 }
+// Social Studies: Section A's top-up, when Q1 items were held because a C/D stem gives them away
+// (givenBack), is told every C/D question and those items: a re-ask told nothing keys the same name again.
+const SELF_RULES = new Set(['key_in_own_stem', 'names_q1_key']);
+function backNote(section, examJson, held) {
+  if (!section.slots.some((s) => s.slot === SST_A_Q1)) return null;
+  const ofA = (rules) => (Array.isArray(held) ? held : []).filter((h) => h && h.slot === SST_A_Q1 && rules.has(h.rule) && h.q && typeof h.q.question === 'string');
+  const line = ({ q }) => `- ${q.question.trim()} → ${keyText(q).trim()}`;
+  const set = ofA(BACK_RULES);
+  const self = ofA(SELF_RULES);
+  const notes = [];
+  if (set.length) {
+    const asked = ['social_studies.C.Q5', Q6_SLOT, 'social_studies.D.Q7'].flatMap((id) => itemsOf(examJson, id)).map((q) => `- ${q.question.trim()}`);
+    notes.push(`${asked.length ? `Sections C and D of this paper ask these questions:\n${asked.join('\n')}\n` : ''}`
+      + `These Q1 items were set aside, because one of those questions prints their answer or asks the same thing:\n${set.map(line).join('\n')}\n`
+      + 'No Q1 item may be keyed on a name, term, year or number those questions print, or ask what any of them asks.');
+  }
+  if (self.length) {
+    notes.push(`These Q1 items were set aside, because a Q1 question names their answer:\n${self.map(line).join('\n')}\n`
+      + 'A Q1 question never names its own answer, nor the answer of another Q1 item.');
+  }
+  return notes.length ? notes.join('\n\n') : null;
+}
 // Social Studies: the held items of a section's slots (`held` from applyLayout), never these.
 function heldNote(section, held) {
   const own = new Set(section.slots.map((s) => s.slot));
-  const lines = (Array.isArray(held) ? held : []).filter((h) => h && !RECALL_RULES.has(h.rule) && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
+  const lines = (Array.isArray(held) ? held : []).filter((h) => h && !RECALL_RULES.has(h.rule) && h.rule !== 'key_in_own_stem' && own.has(h.slot) && h.q && typeof h.q.question === 'string' && h.q.question.trim())
     .map(({ q }) => {
       const points = (q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : [])
         .map((p) => (typeof p === 'string' ? p : p && p.text)).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
@@ -1915,13 +2255,16 @@ function heldNote(section, held) {
     + 'Never these: write none of them again, and no item answered by any of these answers or points, in any wording.';
 }
 // Social Studies: the Q6 items set aside as book-fact recall (asksRecall, namesBody), and what a Q6 is instead.
-const RECALL_RULES = new Set(['recall', 'names_body']);
+const RECALL_RULES = new Set(['recall', 'names_body', 'asks_frame', 'tells_what', 'book_list']);
 function recallNote(section, held) {
   if (!section.slots.some((s) => s.slot === Q6_SLOT)) return null;
   const list = (Array.isArray(held) ? held : []).filter((h) => h && RECALL_RULES.has(h.rule) && h.slot === Q6_SLOT && h.q && typeof h.q.question === 'string');
   const lines = list.map(({ q }) => `- ${q.question.trim()}`);
   if (!lines.length) return null;
-  const why = list.some((h) => h.rule === 'names_body') ? ', or only names a government, court or body as its answer' : '';
+  const why = (list.some((h) => h.rule === 'names_body') ? ', or only names a government, court or body as its answer' : '')
+    + (list.some((h) => h.rule === 'asks_frame') ? ', or only relays what someone asks («… نے پوچھا کہ …», «… جاننا چاہتا ہے کہ …») so its answer is the book\'s text' : '')
+    + (list.some((h) => h.rule === 'tells_what') ? ', or only asks to tell someone what a place or a system is like («… کو بتائیں کہ … کیسا …») so its answer is the book\'s description' : '')
+    + (list.some((h) => h.rule === 'book_list') ? ', or is answered by a list the book gives, its points the book\'s own sentences in order' : '');
   return `These Q6 items were set aside: each asks only book facts (who heads or chairs a body, what it is called, how many, when, what was done)${why}, whatever the story around them:\n${lines.join('\n')}\n`
     + 'A Q6 is a situation that needs two ideas applied; history recall goes to Q7. Write each new Q6 so the child decides, advises or explains what to do in the case, using two different ideas from these pages.';
 }
@@ -2112,6 +2455,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
   const storyIds = new Set(story && src._layout && Array.isArray(src._layout.story_ids) ? src._layout.story_ids : []);
   all.forEach((entry) => {
     stripTags(entry.q); stripStemOptions(entry.q);
+    if (P.key === 'social_studies') { stripSpareLabel(entry.q); sectionBStem(entry.q, P); }
     if (P.key !== 'urdu') return;
     stripStemOptions(entry.q, true);
     if (Object.prototype.hasOwnProperty.call(entry.q, 'concept')) {
@@ -2163,7 +2507,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const shared = [...conceptsOf(p)].filter((c) => mine.has(c));
     return hard ? shared.some((c) => !LESSON_ONLY.has(c)) : shared.length > 0;
   };
-  const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q)))
+  // Social Studies: the book's sentences, when the engine passes its pages.
+  const sentences = P.key === 'social_studies' ? bookSentences(opts.book) : null;
+  const twin = (p, q, id, hard = false) => sameQuestion(p, q) || (P.key === 'social_studies' && (sameKeyFact(p, q) || sameTask(p, q) || sameLine(p, q) || samePassage(p, q, sentences)))
     || (P.key === 'urdu' && (sameStemKey(p, q) || stemGivesKey(p, q) || (id === 'urdu.C.Q4' && sameQ4Kind(p, q))
       || (id === 'urdu.A.Q1' && (storyCue(p, q) || nameCue(p, q) || conceptTwin(p, q, hard)))));
   // `cross`: a subject whose sections can give each other away (CROSS_HOLD), with its rule.
@@ -2174,8 +2520,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
   // Urdu: the Q5 items the last pass held only for a Q3 word: they may come back after the re-ask, so
   // Section A is read against their words too.
   let mayReturn = [];
-  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : 'same_task');
-  const place = (cross, within) => {
+  const twinRule = (p, q) => (sameQuestion(p, q) ? 'same_question' : sameKeyFact(p, q) ? 'same_key_fact' : sameTask(p, q) ? 'same_task'
+    : sameLine(p, q) ? 'same_line' : 'same_passage');
+  // `back`: Social Studies, the Q1 items a placed C/D stem gives away (givenBack), with the test that matched.
+  const place = (cross, within, back = null) => {
     bySlot.forEach((list) => { list.length = 0; });
     unplaced = 0;
     held = [];
@@ -2208,6 +2556,9 @@ function applyLayout(examJson, P, scope, opts = {}) {
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return no(slot, 'unprintable');
       if (P.key === 'social_studies' && tierSlip(q)) return false;
+      if (P.key === 'social_studies' && slot.slot === Q7_SLOT && keyInOwnStem(q)) return hold(slot, q, 'key_in_own_stem');
+      if (P.key === 'social_studies' && slot.slot === SST_A_Q1 && namesOwnKey(q)) return hold(slot, q, 'key_in_own_stem');
+      if (P.key === 'social_studies' && slot.slot === SST_A_Q1 && bySlot.get(slot.slot).some((p) => stemNamesKey(p, q))) return hold(slot, q, 'names_q1_key');
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return no(slot, 'date_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bySlot.get(slot.slot).some((p) => sameQ4Kind(p, q))) return no(slot, 'q4_kind_repeat');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
@@ -2235,8 +2586,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
       // out before Section C is in prints no Q1 twin either.
       if (P.key === 'urdu' && slot.slot === 'urdu.A.Q1' && !holds(slot) && bySlot.get(slot.slot).some((p) => twin(p, q, slot.slot))) return twinOf(slot, q);
       if (!holds(slot)) {
+        const given = back && slot.slot === SST_A_Q1 ? back(q) : null;
+        if (given) return hold(slot, q, given);
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksRecall(q)) return hold(slot, q, 'recall');
         if (P.key === 'social_studies' && slot.slot === Q6_SLOT && namesBody(q)) return hold(slot, q, 'names_body');
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && asksFrame(q)) return hold(slot, q, 'asks_frame');
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && tellsWhat(q)) return hold(slot, q, 'tells_what');
+        if (P.key === 'social_studies' && slot.slot === Q6_SLOT && bookList(q, sentences)) return hold(slot, q, 'book_list');
         // Social Studies: one question once in every slot, not only the held ones (a top-up wrote a
         // kept MCQ again with its options shuffled). The repeat is the last resort: it comes back
         // after the re-ask only for a place nothing else takes.
@@ -2247,7 +2603,13 @@ function applyLayout(examJson, P, scope, opts = {}) {
           return false;
         }
         const row = restated(slot, q);
-        return row ? hold(slot, q, row.name) : true;
+        if (row) return hold(slot, q, row.name);
+        // A Q1 item that will print sets aside each placed Q1 item whose key its stem names.
+        if (P.key === 'social_studies' && slot.slot === SST_A_Q1) {
+          const list = bySlot.get(slot.slot);
+          list.filter((p) => stemNamesKey(q, p)).forEach((p) => { list.splice(list.indexOf(p), 1); hold(slot, p, 'names_q1_key'); });
+        }
+        return true;
       }
       const again = bySlot.get(slot.slot).find((p) => twin(p, q, slot.slot));
       if (again) {
@@ -2360,6 +2722,10 @@ function applyLayout(examJson, P, scope, opts = {}) {
       rows.push({ slot: row.held, rule: test, name: row.name, inSlot });
       place(rule ? { held: cross.held, rule } : null, rows);
     }
+    // Then Section A against the C and D stems now placed (they are laid out the same way again).
+    const back = bySlot.has(SST_A_Q1) && givenBack(['social_studies.C.Q5', Q6_SLOT, 'social_studies.D.Q7']
+      .flatMap((id) => (bySlot.get(id) || []).map((q) => ({ ...q, slot: id }))));
+    if (back) place(rule ? { held: cross.held, rule } : null, rows, back);
   }
   // Urdu Q4 prints its kinds in FDE's order, whatever order the reply wrote them in.
   if (P.key === 'urdu' && bySlot.has('urdu.C.Q4')) {
