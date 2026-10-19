@@ -32,3 +32,5 @@
   .wqw-hand,.wqw-call{animation:wqw-fade 1.4s ease-in-out infinite}
   .wqw-stage{transition:opacity .4s ease}
 }
+/* a page too short to clear Let's go of the tab bar: the bar steps aside while the welcome is up (design-qa WF-1) */
+.wqw-nobar{visibility:hidden}
