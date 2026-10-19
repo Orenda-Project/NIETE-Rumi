@@ -199,6 +199,7 @@
   var dayChecked = false;
   var installWired = false;
   var IB = null; var IEV = null; var IROOT = null;
+  var H3 = false;          // the v3 home's slot (wq-home.js): the card in the shared button system
   // Where the page runs: an installed app (no card), an in-app browser (no card: opening the hub in the system browser
   // lands on the lock screen because the device differs there; a signed one-time device hand-over is pending), or a
   // browser (the card waits for beforeinstallprompt). The UA test is the quiz page's (wq.js IAB) plus WhatsApp's `WA4A/`.
@@ -235,9 +236,13 @@
     if (!box) return;
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
     if (!deferred || firstView || snoozed()) { box.innerHTML = ''; return; }
-    box.innerHTML = '<div class="wqp-inst"><b>' + esc(L.installTitle) + '</b><div>' +
-      '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
-      '<button type="button" class="wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>';
+    box.innerHTML = H3
+      ? '<div class="wq-icard"><b>' + esc(L.installTitle) + '</b><div class="wq-ibtns">' +
+        '<button type="button" class="wq-btn wq-go wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
+        '<button type="button" class="wq-btn wq-soft wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>'
+      : '<div class="wqp-inst"><b>' + esc(L.installTitle) + '</b><div>' +
+        '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
+        '<button type="button" class="wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>';
     if (!shown.install && door(IB, 'install')) {
       shown.install = true;
       IEV('door_shown', { door: 'install', surface: 'hub', slot: installSlot(IROOT.innerHTML || '') });
@@ -286,5 +291,7 @@
   window.WQPLAY = {
     top: function (B, HT, parts) { var h = top(B, HT, parts); install(B, parts.ev, parts.ROOT); return h; },
     wire: wire,
+    // the v3 home (wq-home.js) draws its own slot and hands it here: {h3: true} draws the card in its button system
+    install: function (B, ev, ROOT, o) { H3 = Boolean(o && o.h3); install(B, ev, ROOT); },
   };
 })();
