@@ -602,3 +602,29 @@ describe('the one share (web_quiz_share_v4) gives the Urdu class picture room fo
     expect(on).toEqual(off);
   });
 });
+
+describe('an Urdu class picture of a video lesson\'s quiz names the lesson in Urdu (web_quiz_videos_ur_titles)', () => {
+  const LibFlag = require('../../../shared/services/quiz/web-quiz-library-flag');
+  const VID = 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaa91';
+  function withVideo(on) {
+    setFlags({ home: true, story: false });
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_videos_ur_titles');
+    if (on) db.app_settings.push({ key: 'web_quiz_videos_ur_titles', value: true });
+    db.student_videos = [{ id: VID, grade: '3', subject: 'Science', clean_title: 'Podon Ke Hisse', title_ur: 'پودوں کے حصے', migration_status: 'done', superseded_by: null }];
+    for (const id of [QUIZ, QUIZ_UR]) Object.assign(db.quizzes.find((q) => q.id === id), { video_id: VID, quiz_source: 'video' });
+    LibFlag._reset();
+  }
+  test('on: the Urdu picture names the lesson\'s Urdu name; the English picture keeps its topic', async () => {
+    withVideo(true);
+    expect((await ClassPic.factsFor(SC_UR)).topic).toBe('پودوں کے حصے');
+    expect((await ClassPic.factsFor(SC)).topic).toBe('Parts of a plant');
+  });
+  test('off: today\'s topic and version', async () => {
+    withVideo(false);
+    const off = await ClassPic.factsFor(SC_UR);
+    seed();
+    setFlags({ home: true, story: false });
+    expect(off).toEqual(await ClassPic.factsFor(SC_UR));
+    expect(off.topic).toBe('پودے کے حصے');
+  });
+});
