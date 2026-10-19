@@ -74,6 +74,19 @@ describe('/s/<id>', () => {
     expect(r.status).toBe(302);
     expect(r.headers.location).toBe(`/q/AB12CD?k=${TOK}`);
   });
+  test('an Urdu card\'s class link (&lang=ur): the redirect keeps its language, so the door opens in Urdu', async () => {
+    short(() => jsonRes(200, { token: TOK, url: `/q/AB12CD?k=${TOK}&lang=ur` }));
+    const r = await req(srv, `/s/${ID}`);
+    expect(r.status).toBe(302);
+    expect(r.headers.location).toBe(`/q/AB12CD?k=${TOK}&lang=ur`);
+  });
+  test('a class link with any other tail: the join door, never a redirect', async () => {
+    for (const tail of ['&lang=fr', '&lang=ur&x=1', '&next=//evil.example']) {
+      short(() => jsonRes(200, { token: TOK, url: `/q/AB12CD?k=${TOK}${tail}` }));
+      const r = await req(srv, `/s/${ID}`);
+      expect(r.status).toBe(200);
+    }
+  });
   test('an unknown or expired id: the join door with the bot\'s words, one green button, never a 404', async () => {
     short(() => jsonRes(404, { error: 'not_found', ret: RET }));
     const r = await req(srv, `/s/${ID}`);

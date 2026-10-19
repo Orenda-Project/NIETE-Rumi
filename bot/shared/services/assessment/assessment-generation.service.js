@@ -732,6 +732,7 @@ const Patterns = require('./patterns');
 const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
+const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
 const Reader = require('./fde-reader');
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -862,8 +863,8 @@ async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
 
 /**
  * The marks split FDE's table of specification asks for, per subject, by
- * marks (from the FDE pattern document). Not yet in the pattern
- * data, so it lives here until the pattern carries it.
+ * marks. A pattern subject carries its own (`tos`, set per grade by FDE);
+ * this is the fallback for a subject whose pattern does not.
  */
 const TOS = {
   maths: { Remember: 10, Understand: 50, Apply: 40 },
@@ -1303,7 +1304,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'urdu' && list.some((s) => /^urdu\.[AC]\./.test(s.slot))) rules.push(RULE.urduNoDates);
   if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
-  const tos = TOS[key];
+  const tos = P.tos || TOS[key];
   if (tos) {
     const split = Object.entries(tos).map(([band, pct]) => `${band} ${pct}%`).join(', ');
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
@@ -2465,7 +2466,39 @@ async function _topUpGrammarUsedUp({ examJson, laid, P, key, layoutScope, now, p
  */
 // `onSection` is called (and awaited, never thrown from) as each section comes back, so the caller
 // can mark the paper row as alive: a run of several long calls must not look silent.
-async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false }) {
+/**
+ * A board-pattern paper, written once more when it misses FDE's split by level (bd-5jmnfj.18): the
+ * second run is told the first paper's split and the target, the nearer paper is returned, and both
+ * runs are billed. A second run that fails leaves the first paper. Only when the caller asks
+ * (`splitRetry`): the orchestrator does; a direct call writes one paper, as it always has.
+ */
+async function generatePatternExam({ splitRetry = false, ...args }) {
+  const first = await _writePatternPaper(args);
+  const bp = first.examJson._layout.blueprint;
+  if (!splitRetry || !missesSplit(bp)) return first;
+  const { pattern, subject, requestId = null } = args;
+  logToFile('[assessment] paper re-asked for its level split', { requestId, pattern, subject: Patterns.normalise(subject), levels: bp.levels });
+  let second;
+  try {
+    second = await _writePatternPaper({ ...args, levelNote: levelNote(bp) });
+  } catch (err) {
+    logToFile('[assessment] level split re-ask failed', { requestId, pattern, code: err.code || null, error: err.message });
+    return first;
+  }
+  const better = levelDistance(second.examJson._layout.blueprint) < levelDistance(bp);
+  logToFile('[assessment] level split re-ask kept', {
+    requestId, pattern, kept: better ? 'second' : 'first',
+    first: levelDistance(bp), second: levelDistance(second.examJson._layout.blueprint),
+  });
+  const t = (k) => (first.tokenData[k] || 0) + (second.tokenData[k] || 0);
+  return {
+    ...(better ? second : first),
+    tokenData: { inputTokens: t('inputTokens'), outputTokens: t('outputTokens'), totalTokens: t('totalTokens'), cost: t('cost'), model: first.tokenData.model },
+    elapsedMs: first.elapsedMs + second.elapsedMs,
+  };
+}
+
+async function _writePatternPaper({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false, levelNote: splitNote = null }) {
   const startedAt = Date.now();
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
@@ -2492,7 +2525,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     const user = buildPatternUserPrompt({
       grade, subject, pageContent: text.content, pageReference: text.pageReference,
       section, slots: section.slots, lang: P.medium, P, scope: layoutScope, poem,
-    });
+    }) + (splitNote ? `\n\n${splitNote}` : '');
     const messages = _sectionMessages({ system, user, pageContent: text.content, model });
     return { section, messages, user, pageContent: text.content };
   });
@@ -2758,6 +2791,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       meets: remember >= 16 && understand <= 2, by_stem: byStem,
     });
   }
+
+  // Report-only: what the paper carries against its pattern and FDE's split; it never fails a paper.
+  const blueprint = checkBlueprint(examJson, { tos: P.tos || TOS[key] || null });
+  examJson._layout.blueprint = blueprint;
+  logToFile('[assessment] blueprint checked', { pattern, subject: key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
 
   // The warm call is billed like any other, so it is in the paper's totals.
   const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));

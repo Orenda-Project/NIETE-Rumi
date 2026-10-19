@@ -34,9 +34,10 @@ const KEY = { 'x-api-key': 'share-key', 'content-type': 'application/json' };
 const SID = '0f8e2c1a-1b2c-4d5e-8f90-a1b2c3d4e5f6';
 const idOf = (token) => crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 8);
 
-function seed({ short = true, shortValue } = {}) {
+function seed({ short = true, shortValue, linkLang } = {}) {
   const fake = makeFake({
-    app_settings: [{ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_v4', value: true }, ...(short ? [{ key: 'web_quiz_share_short', value: shortValue === undefined ? true : shortValue }] : [])],
+    app_settings: [{ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_v4', value: true }, ...(short ? [{ key: 'web_quiz_share_short', value: shortValue === undefined ? true : shortValue }] : []),
+      ...(linkLang === undefined ? [] : [{ key: 'web_quiz_share_link_lang', value: linkLang }])],
     quiz_share_codes: [{ id: 'sc-1', code: 'CLS001', quiz_id: 'qz-1', topic: 'Plants', language: 'en', active: true }],
     students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Noor Testwala' }],
     quiz_sessions: [{ id: SID, quiz_id: 'qz-1', student_id: 'st-1', student_name: 'Amal Testwala', share_code_id: 'sc-1', status: 'completed' }],
@@ -117,5 +118,35 @@ describe('on', () => {
   test('a token that no longer opens (a new secret): the id answers 404 with the door', async () => {
     redis.__keys.set('wq:share:short:0123abcd', 'not-a-real-token-but-long-enough-to-pass-the-shape-check_xx');
     expect((await resolve('0123abcd')).status).toBe(404);
+  });
+});
+
+// The link's language (app_settings web_quiz_share_link_lang, default OFF): an Urdu card's class link opens the class's
+// page, and so the join door, in Urdu (&lang=ur), short or long; an English card's link is today's. Off: today's links.
+describe('the link carries the card\'s language', () => {
+  test.each([['absent', undefined], ['false', false], ['the string "true"', 'true']])('off (%s): an Urdu card\'s class link is today\'s', async (_, v) => {
+    seed({ linkLang: v });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect((await resolve(idOf(body.token))).body).toEqual({ token: body.token, url: `/q/CLS001?k=${body.token}` });
+    expect(body).not.toHaveProperty('link_lang');
+  });
+  test('on: an Urdu card\'s short id answers its class link with &lang=ur', async () => {
+    seed({ linkLang: true });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body.url).toBe(`/s/${idOf(body.token)}`);
+    expect((await resolve(idOf(body.token))).body).toEqual({ token: body.token, url: `/q/CLS001?k=${body.token}&lang=ur` });
+    expect(body.link_lang).toBe(true);
+  });
+  test('on: an English card, and a card with no class, keep today\'s links', async () => {
+    seed({ linkLang: true });
+    const en = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'en' });
+    expect((await resolve(idOf(en.body.token))).body.url).toBe(`/q/CLS001?k=${en.body.token}`);
+    const read = await mint({ ...READ, ct: ct(), lang: 'ur' });
+    expect((await resolve(idOf(read.body.token))).body.url).toBe(`/k/${read.body.token}`);
+  });
+  test('on, short links off: an Urdu card\'s long class link carries &lang=ur', async () => {
+    seed({ short: false, linkLang: true });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body.url).toBe(`/q/CLS001?k=${body.token}&lang=ur`);
   });
 });

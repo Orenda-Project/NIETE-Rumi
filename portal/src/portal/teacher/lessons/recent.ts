@@ -1,4 +1,5 @@
 import type { RecentLessonPlan } from '../../lib/recentLessonPlans';
+import { withSubject } from './paths';
 import type { ChipData, HistoryGroup } from '../ui';
 import { LESSONS_V2_COPY, type LessonsCopy } from './copy';
 import { dayName, pkDayOf, pkToday } from './days';
@@ -34,9 +35,11 @@ export function recentGroups(plans: RecentLessonPlan[], today: string = pkToday(
       extra: p.dayLabel ?? p.chapterTitle ?? undefined,
       chip: chipFor(p, C),
       to: o.lane === 'fln' ? flnPlanPath(o.planId) : openUrl(o.lane === 'k5'
-        ? { plan: `k5:${o.lessonId}`, title: p.title, grade: p.grade, subject: p.subject }
-        : { plan: `g612:${o.segmentId}`, lang: o.lang, title: p.title, grade: p.grade, subject: p.subject }),
+        ? { plan: `k5:${o.lessonId}`, title: p.title, grade: p.grade }
+        : { plan: `g612:${o.segmentId}`, lang: o.lang, title: p.title, grade: p.grade }),
     });
+    // bd-fgj73x.10: the plan's subject rides along to Start DC observation (paths.withSubject says why it is added here).
+    if (o.lane !== 'fln') g.items[g.items.length - 1].to = withSubject(g.items[g.items.length - 1].to, p.subject);
   }
   return groups;
 }

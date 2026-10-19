@@ -743,6 +743,16 @@ def test_web_and_whatsapp_changes_together_select_both_lanes():
     assert s.features and s.web_features == ["portal-login"], (s.features, s.web_features)
 
 
+def test_child_quiz_page_files_select_web_quiz_child_page_not_the_smoke():
+    # The child's quiz page (/q/<code>) is its own web feature: the public page, its client script and the edge
+    # route that serves it must drive web-quiz-child-page, never fall through to portal-smoke.
+    for path in ["dashboard/public/wq/wq.js", "dashboard/routes/web-quiz.routes.js", "tests/features/web/web-quiz-child-page.feature"]:
+        s = _sel([path])
+        assert "web-quiz-child-page" in s.web_features, (path, s.web_features)
+        assert "portal-smoke" not in s.web_features, (path, s.web_features)
+        assert s.features == [] and not s.fallback, (path, s.features, s.fallback)
+
+
 def test_a_portal_file_no_area_claims_selects_portal_smoke_not_the_whatsapp_fallback():
     # bd-hnhlgn.8: no portal change is silent. An unclaimed portal/dashboard file runs the portal-wide smoke —
     # the web lane's SAFE subset — and still never drags in the WhatsApp fallback.

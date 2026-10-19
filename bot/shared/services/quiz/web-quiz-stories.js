@@ -55,9 +55,12 @@ const WARM_KEY = 'web_quiz_story_warm';
 // The reader's text lens (JSON true only): the book says `tx: 1`, and a page of small print shows, at rest, its words at a
 // readable size over the sheet's own beside the art (and a sliver word box never zooms the page). Off ⇒ no key.
 const LENS_KEY = 'web_quiz_stories_text_lens';
+// The reader's polish (JSON true only): the book says `pl: 1`; while it is open <html> carries the book's language and
+// direction, and the voice's word ring is drawn round the word instead of on its letters. Off ⇒ no key.
+const POLISH_KEY = 'web_quiz_stories_polish';
 // Keys that ride the stories read. A read naming them that fails is made again without them, the last first (they are off),
 // so a rider's failure never turns stories off.
-const RIDERS = [GAPS_KEY, MS_KEY, REPEAT_KEY, KEEP_KEY, WARM_KEY, LENS_KEY];
+const RIDERS = [GAPS_KEY, MS_KEY, REPEAT_KEY, KEEP_KEY, WARM_KEY, LENS_KEY, POLISH_KEY];
 const HOST_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
@@ -128,10 +131,10 @@ async function flags(now = Date.now()) {
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
     const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
     const gaps = on && isTrue(by.get(GAPS_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)), keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null, warm: on && by.get(WARM_KEY) === true, lens: on && by.get(LENS_KEY) === true };
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)), keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null, warm: on && by.get(WARM_KEY) === true, polish: on && by.get(POLISH_KEY) === true, lens: on && by.get(LENS_KEY) === true };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, lrr: false, keep: false, steady: false, gaps: false, ms: null, warm: false, lens: false };
+    cache = { at: now, on: false, band: false, lr3: false, lrr: false, keep: false, steady: false, gaps: false, ms: null, warm: false, lens: false, polish: false };
   }
   return cache;
 }
@@ -448,7 +451,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...(f.polish ? { pl: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
     // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
     ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {
