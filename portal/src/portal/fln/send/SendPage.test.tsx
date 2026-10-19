@@ -6,9 +6,8 @@ import SendPage from './SendPage';
 import { stubFetch, callsTo, ME_LEADER, ME_LEADER_UR, ME_TEACHER } from '../share/testFetch';
 
 /**
- * The "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade → subject → level
- * (pre-selected for 1–5, NONE for 6–12 with the screener on top) → search + filters → rows with Send to teacher and
- * Share link. State lives in the URL so Back works. 404 → "not available"; no rows → the §7 empty line.
+ * The "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade (1–5 only, bd-elc1qz) → subject →
+ * level (pre-selected from the grade) → search + filters → rows with Send to teacher and Share link. State lives in the URL so Back works. 404 → "not available"; no rows → the §7 empty line.
  */
 const ROW = (id: number, extra: Record<string, unknown> = {}) => ({
   id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips: {}, opened: false,
@@ -54,12 +53,12 @@ describe('SendPage — access', () => {
 });
 
 describe('SendPage — the builder', () => {
-  it('title, 12 grade chips, every chip ≥48 px', async () => {
+  it('title, grade chips 1–5 only (bd-elc1qz), every chip ≥48 px', async () => {
     stubFetch({ '/api/portal/fln/me': { status: 200, body: ME_LEADER } });
     mount('/portal/fln/send');
     expect(await screen.findByRole('heading', { name: 'Send a lesson plan' })).toBeTruthy();
     const grades = within(screen.getByRole('group', { name: 'Grade' })).getAllByRole('button');
-    expect(grades.map((b) => b.textContent)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+    expect(grades.map((b) => b.textContent)).toEqual(['1', '2', '3', '4', '5']);
     for (const b of grades) expect(b.className).toContain('min-h-[48px]');
   });
 
@@ -81,15 +80,30 @@ describe('SendPage — the builder', () => {
     expect(screen.getByTestId('where').textContent).toBe('/portal/fln/send?grade=2&subject=rh-en&level=2');
   });
 
-  it('grade 8: NO level pre-selected, /links without level, the screener row on top', async () => {
+  it('an old ?grade=8 link (6–12 retired, bd-elc1qz) is no grade: no chip on, "pick a grade", /links never asked', async () => {
     const f = stubFetch({
       '/api/portal/fln/me': { status: 200, body: ME_LEADER },
-      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(900, { chips: { screener: true, sounds: 4 } }), ROW(101, { pos: 2 })] } },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(900, { chips: { screener: true, sounds: 4 } })] } },
     });
     mount('/portal/fln/send?grade=8&subject=rh-en');
-    await screen.findByText('Plan 900');
+    const grades = within(await screen.findByRole('group', { name: 'Grade' })).getAllByRole('button');
+    expect(grades.map((b) => b.textContent)).toEqual(['1', '2', '3', '4', '5']);
+    expect(grades.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false', 'false', 'false']);
+    expect(screen.getByText('Choose a grade')).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Level' })).toBeNull();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(callsTo(f, '/fln/links')).toHaveLength(0);
+    expect(screen.queryByText('Plan 900')).toBeNull();
+  });
+
+  it('level chips: one inline label box each ("Level 1", never "Level1")', async () => {
+    stubFetch({
+      '/api/portal/fln/me': { status: 200, body: ME_LEADER },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(101)] } },
+    });
+    mount('/portal/fln/send?grade=1&subject=rh-en&level=1');
+    await screen.findByText('Plan 101');
     const levels = within(screen.getByRole('group', { name: 'Level' })).getAllByRole('button');
-    expect(levels.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false']);
     // qa-render (c/d/e): a chip is a flex box, so its label must be ONE inline box, or the space before the <bdi>
     // number collapses ("Level1", «سطح۱»).
     for (const b of levels) {
@@ -97,11 +111,21 @@ describe('SendPage — the builder', () => {
       expect((b.firstChild as HTMLElement).tagName).toBe('SPAN');
     }
     expect(levels.map((b) => b.textContent)).toEqual(['Level 1', 'Level 2', 'Level 3']);
+    expect(levels.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+  });
+
+  it('filter chips are exactly Screener / Has sounds / Story audio; an old has=additional is dropped (bd-e5ieg0)', async () => {
+    const f = stubFetch({
+      '/api/portal/fln/me': { status: 200, body: ME_LEADER },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(101)] } },
+    });
+    mount('/portal/fln/send?grade=1&subject=rh-en&level=1&has=additional');
+    await screen.findByText('Plan 101');
+    const chips = within(screen.getByRole('group', { name: 'Filters' })).getAllByRole('button');
+    expect(chips.map((b) => b.textContent)).toEqual(['Screener', 'Has sounds', 'Story audio']);
+    expect(screen.queryByRole('button', { name: 'Additional practice' })).toBeNull();
     const q = new URL(String(callsTo(f, '/fln/links').at(-1)![0]), 'https://x').searchParams;
-    expect(q.has('level')).toBe(false);
-    const rows = screen.getAllByTestId(/^fln-send-row-/);
-    expect(rows.map((r) => r.getAttribute('data-testid'))).toEqual(['fln-send-row-900', 'fln-send-row-101']);
-    expect(rows[0].textContent).toContain('Answer key audio · teacher only');
+    expect(q.has('has')).toBe(false);
   });
 
   it('a row: n/N, the title in its own direction, chips, minutes; Share link offers Copy + WhatsApp with the row\'s link', async () => {
@@ -163,7 +187,7 @@ describe('SendPage — the builder', () => {
     const page = await screen.findByTestId('fln-send-page');
     expect(page.getAttribute('dir')).toBe('rtl');
     const grades = within(screen.getByRole('group', { name: 'جماعت' })).getAllByRole('button');
-    expect(grades[11].textContent).toBe('۱۲');
+    expect(grades.map((g) => g.textContent)).toEqual(['۱', '۲', '۳', '۴', '۵']);
     expect(page.textContent).toContain('ریڈنگ آور — انگریزی');
     expect(page.textContent).not.toContain('·');
   });

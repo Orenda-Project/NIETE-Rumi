@@ -5,7 +5,7 @@ import { FlnGate } from '../FlnGate';
 import { useFln } from '../FlnContext';
 import { flnStrings } from '../strings';
 import FlnRoutes from '../FlnRoutes';
-import { ME_TEACHER, rhEnG1, rhEnG8, stubFetch } from './listFixtures';
+import { ME_TEACHER, rhEnG1, stubFetch } from './listFixtures';
 
 /**
  * FlnGate: GET /fln/me on EVERY mount (no cache), 401 → sign-in with next=, 404 or lessons:false →
@@ -122,16 +122,31 @@ describe('FlnRoutes (behind the gate)', () => {
     return render(
       <MemoryRouter initialEntries={[{ pathname, search: search ? `?${search}` : '' }]}>
         <Routes>
-          <Route path="/portal/fln/*" element={<FlnRoutes />} />
+          <Route path="/portal/fln/*" element={<><FlnRoutes /><Where /></>} />
         </Routes>
       </MemoryRouter>,
     );
   }
 
-  it('list/<subject>?grade=8 (no level) → the level chooser', async () => {
-    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': { status: 200, body: rhEnG8() } });
-    renderRoutes('/portal/fln/list/rh-en?grade=8');
-    expect(await screen.findByRole('heading', { name: flnStrings('en').chooser.title })).toBeInTheDocument();
+  it('an old 6–12 list URL (FLN is Grades 1–5, bd-elc1qz) → replaced by a Grade 1–5 list, never a level chooser', async () => {
+    const cases: Array<[string, string]> = [
+      ['/portal/fln/list/rh-en?grade=8', '?grade=1'],
+      ['/portal/fln/list/rh-en?grade=12', '?grade=1'],
+      ['/portal/fln/list/rh-en?grade=6&level=1', '?grade=1'],
+      ['/portal/fln/list/rh-en?grade=8&level=2', '?grade=3'],
+      ['/portal/fln/list/rh-en?grade=9&level=3', '?grade=5'],
+    ];
+    for (const [from, search] of cases) {
+      const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': { status: 200, body: rhEnG1() } });
+      renderRoutes(from);
+      expect(await screen.findByText('Synthetic guide')).toBeInTheDocument();
+      expect([from, screen.getByTestId('where').getAttribute('data-path'), screen.getByTestId('where').getAttribute('data-search')])
+        .toEqual([from, '/portal/fln/list/rh-en', search]);
+      expect(screen.queryByRole('heading', { name: 'Which level?' })).toBeNull();
+      const asked = f.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/catalogue'));
+      expect(asked.every((u) => Number(new URL(u, 'http://x').searchParams.get('grade')) <= 5)).toBe(true);
+      cleanup();
+    }
   });
 
   it('list/<subject>?grade=1 → the lesson list', async () => {

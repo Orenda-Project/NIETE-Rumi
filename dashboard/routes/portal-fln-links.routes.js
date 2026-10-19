@@ -45,7 +45,8 @@ function parseLinksQuery(query) {
   const grade = one(query.grade); const subject = one(query.subject); const level = one(query.level);
   const q = one(query.q); const has = one(query.has); const sort = one(query.sort);
   if ([grade, subject, level, q, has, sort].some((p) => p.bad)) return null;
-  const g = grade.value === undefined ? null : intIn(grade.value, 1, 12);
+  // FLN is Grades 1–5 only (bd-elc1qz).
+  const g = grade.value === undefined ? null : intIn(grade.value, 1, 5);
   if (g === null) return null;
   if (!SUBJECTS.has(subject.value)) return null;
   let lv = null;
@@ -184,17 +185,7 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
         if (!out) throw new Error('catalogue unavailable');
         return out;
       };
-      if (p.grade >= 6 && !p.level) {
-        // Grades 6–12 with no level: the screener of every level on top, then each level in teaching order.
-        const per = [];
-        for (const lv of [1, 2, 3]) {
-          // eslint-disable-next-line no-await-in-loop
-          per.push(flatten(await cat(lv), linkFor));
-        }
-        rows = dedupe([...per.flatMap((r) => r.filter(isScreener)), ...per.flatMap((r) => r.filter((x) => !isScreener(x)))]);
-      } else {
-        rows = dedupe(flatten(await cat(p.level), linkFor));
-      }
+      rows = dedupe(flatten(await cat(p.level), linkFor));
     } catch (_) {
       return unavailable(res);
     }

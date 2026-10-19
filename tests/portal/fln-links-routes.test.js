@@ -178,15 +178,17 @@ describe('GET /fln/links', () => {
       expect(x.url).not.toContain(LEADER);
     }
   });
-  it('grade 8 with no level: every level\'s screener first, then each level in order', async () => {
-    const r = await get('/links?grade=8&subject=rh-en', LEADER);
-    expect(r.status).toBe(200);
-    expect(r.body.rows.map((x) => x.id)).toEqual([900, 901, 902, 800, 101, 102, 103, 201, 202, 301]);
-    expect(r.body.rows[1].level).toBe(2);
-    expect(corpus.catalogue.mock.calls.map((c) => c[0].level)).toEqual([1, 2, 3]);
+  it('FLN is Grades 1–5 (bd-elc1qz): grade 6–12 is 400 bad_request, with or without a level, and the corpus is not read', async () => {
+    for (const path of ['/links?grade=7&subject=rh-en', '/links?grade=6&subject=num', '/links?grade=12&subject=rh-ur', '/links?grade=8&subject=num&level=2']) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await get(path, LEADER);
+      expect([path, r.status, r.body]).toEqual([path, 400, { error: 'bad_request' }]);
+      expect(r.cache).toBe('no-store');
+    }
+    expect(corpus.catalogue).not.toHaveBeenCalled();
   });
-  it('grade 8 with level=2 gives that level only', async () => {
-    const r = await get('/links?grade=8&subject=num&level=2', LEADER);
+  it('grade 3 with level=2 gives that level only', async () => {
+    const r = await get('/links?grade=3&subject=num&level=2', LEADER);
     expect(r.body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
   });
   it('q filters case-insensitively on the title', async () => {
@@ -206,7 +208,7 @@ describe('GET /fln/links', () => {
   it('sort=used falls back to teaching order when q is set or no row has used_by', async () => {
     // "Sounds of c and k" (used 5) and "The cat story" (used 40) both hold an "s": teaching order, not 40-before-5.
     expect((await get('/links?grade=1&subject=rh-en&sort=used&q=s', LEADER)).body.rows.map((x) => x.id)).toEqual([101, 102]);
-    expect((await get('/links?grade=8&subject=rh-en&level=2&sort=used', LEADER)).body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
+    expect((await get('/links?grade=3&subject=rh-en&level=2&sort=used', LEADER)).body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
   });
   it('malformed params are 400 bad_request (no-store) and the corpus is not read', async () => {
     const bad = [

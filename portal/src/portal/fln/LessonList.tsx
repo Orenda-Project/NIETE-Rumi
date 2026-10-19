@@ -9,7 +9,7 @@
  *                  The screener's chip is the answer key, never a sounds count.
  *   Next           a thin marker on the first unopened numbered row, scrolled into view on first load — unless the
  *                  teacher is coming back from a plan, when the saved scroll position is restored instead
- *   Back           grades 1–5 → the New-lesson page; 6–12 → the level chooser
+ *   Back           the New-lesson page (FlnRoutes replaces a 6–12 list URL before this page renders, bd-elc1qz)
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';

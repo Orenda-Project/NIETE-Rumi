@@ -18,6 +18,7 @@ const combos = (...grades: Array<number | null>) => ({
 import { eventSinks, resetPlayerMock, useFlnPlayerSpy } from './fixtures/playerMock';
 import { renderPlan } from './fixtures/renderPlan';
 import { numEn, rhEn, rhUr } from './fixtures/plans';
+import { linkBackTarget } from '../PlanPage';
 
 beforeEach(() => {
   resetPlayerMock();
@@ -127,13 +128,27 @@ describe('leaders, back, footer, telemetry', () => {
     expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=1');
   });
 
-  it('Back by link, teacher of grades 8 and 9 → her lowest grade (the server shows the level chooser)', async () => {
+  it('Back by link, teacher of grades 8 and 9 only → the plan’s own grade, never a 6–12 list (FLN is Grades 1–5, bd-elc1qz)', async () => {
     http.get.mockResolvedValue(combos(9, 8, 9));
     renderPlan(rhEn);
     await screen.findByText(rhEn.plan.title);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=8');
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=1');
     expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } });
+  });
+
+  it('Back by link, teacher of grades 9 and 4 → her Grade 4, the only grade FLN serves', async () => {
+    http.get.mockResolvedValue(combos(9, 4));
+    renderPlan(rhEn);
+    await screen.findByText(rhEn.plan.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect((await screen.findByTestId('probe')).textContent).toBe('/portal/fln/list/rh-en?grade=4');
+  });
+
+  it('linkBackTarget: a 6–12 grade is never a target; nothing to go on → Grade 1', () => {
+    expect(linkBackTarget('num', undefined, [])).toBe('/portal/fln/list/num?grade=1');
+    expect(linkBackTarget('num', undefined, [7, 11])).toBe('/portal/fln/list/num?grade=1');
+    expect(linkBackTarget('num', [{ ...numEn.placement[0], grades: [8] }], [])).toBe('/portal/fln/list/num?grade=1');
   });
 
   it('Back by link, teacher of grade 3 (a grade-1 plan) → her own grade, not the plan’s', async () => {
