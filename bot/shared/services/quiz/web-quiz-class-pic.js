@@ -66,10 +66,13 @@ function asciiDigits(s) {
 
 const memo = new Map();
 
-/** The sender's own class label for a code, or null: the class resolution, then the class must be one they teach. */
-async function ownLabel(sc) {
+/**
+ * The sender's own class label for a code, or null: the class resolution, then the class must be one they teach.
+ * `classP`: the same resolution the page already works out (its identity), so it is not read twice.
+ */
+async function ownLabel(sc, classP = null) {
   const { resolveQuizClass } = require('./web-quiz-identity');
-  const r = await resolveQuizClass({ teacherUserId: sc.teacher_user_id, quizId: sc.quiz_id, shareCodeId: sc.id });
+  const r = (classP && (await classP)) || await resolveQuizClass({ teacherUserId: sc.teacher_user_id, quizId: sc.quiz_id, shareCodeId: sc.id });
   if (!r || r.state !== 'known' || !r.class) return null;
   const c = r.class;
   if (c.id) {
@@ -83,8 +86,10 @@ async function ownLabel(sc) {
   return label || null;
 }
 
-async function factsNow(shareCodeId) {
-  const { data: sc } = await supabase.from('quiz_share_codes')
+// given (web_quiz_class_pic_early): `sc`, the code row the page resolved (its id is this one); `classP`, the page's
+// own class resolution of that code. Absent: each is read here, as before.
+async function factsNow(shareCodeId, { sc: given = null, classP = null } = {}) {
+  const { data: sc } = given && given.id === shareCodeId ? { data: given } : await supabase.from('quiz_share_codes')
     .select('id, code, quiz_id, teacher_user_id, topic, language, active, expires_at, invited_by_student_id, parent_share_code_id')
     .eq('id', shareCodeId).maybeSingle();
   // a teacher's own class code only: never a child's challenge code, never a "watch another video" code
@@ -102,12 +107,12 @@ async function factsNow(shareCodeId) {
     const title = book && String(book.title || '').trim();
     if (!title) return null;
     const cover = book.cover_file && StoryStore.FILE_RX.test(book.cover_file) && StoryStore.BOOK_RX.test(String(book.id)) ? book.cover_file : null;
-    f = { kind: 'story', lang, code, label: await ownLabel(sc), title, bookId: String(book.id), cover };
+    f = { kind: 'story', lang, code, label: await ownLabel(sc, classP), title, bookId: String(book.id), cover };
   } else {
     // an Urdu picture of a video lesson's quiz: the lesson's Urdu-script name first (web_quiz_videos_ur_titles; off: not read)
     const urName = lang === 'ur' && q.video_id ? (await require('./web-quiz-videos').urTitleOf(q.video_id)).title_ur : null;
     const topic = String(urName || pageTopic({ lang, meta: q.meta, fallback: sc.topic || q.topic }) || '').trim();
-    const label = await ownLabel(sc);
+    const label = await ownLabel(sc, classP);
     // a class quiz's picture is the class and its topic: without the sender's own class it is today's picture
     if (!topic || !label) return null;
     f = { kind: 'quiz', lang, code, label, topic };
@@ -119,8 +124,11 @@ async function factsNow(shareCodeId) {
   return f;
 }
 
-/** The picture's facts for a class code's id, or null. Both switches are read first; off, nothing else is. */
-async function factsFor(shareCodeId) {
+/**
+ * The picture's facts for a class code's id, or null. Both switches are read first; off, nothing else is. `given`: what
+ * the page already holds (factsNow).
+ */
+async function factsFor(shareCodeId, given = undefined) {
   if (!UUID_RX.test(String(shareCodeId || ''))) return null;
   if (!(await require('../first-touch/teacher-home.flags').on())) return null;
   const kept = memo.get(shareCodeId);
@@ -128,18 +136,21 @@ async function factsFor(shareCodeId) {
     if (kept.f && kept.f.kind === 'story' && !(await require('./story-teacher.service').flagOn())) return null;
     return kept.f;
   }
-  const f = await factsNow(shareCodeId);
+  const f = await factsNow(shareCodeId, given);
   memo.set(shareCodeId, { f, until: Date.now() + FACTS_MS });
   if (memo.size > MEM_MAX * 8) memo.delete(memo.keys().next().value);
   return f;
 }
 
-/** The page's `art` fields for this code ({teach, teach_v}), else null. Never throws. */
-async function field(ctx, { story = null } = {}) {
+/**
+ * The page's `art` fields for this code ({teach, teach_v}), else null. Never throws. `factsP`: the facts already started
+ * (early(), web_quiz_class_pic_early).
+ */
+async function field(ctx, { story = null, factsP = null } = {}) {
   try {
     if (!ctx || ctx.invitedByStudentId || ctx.moreVideosOf) return null;
     if (ctx.row && (ctx.row.invited_by_student_id || ctx.row.parent_share_code_id)) return null;
-    const f = await factsFor(ctx.shareCodeId);
+    const f = await (factsP || factsFor(ctx.shareCodeId));
     if (!f || f.code !== String(ctx.code || '').toUpperCase()) return null;
     // a story's picture only where the page opens the story
     if (f.kind === 'story' && !story) return null;
@@ -149,6 +160,19 @@ async function field(ctx, { story = null } = {}) {
     logToFile('⚠️ class link picture: facts failed — today\'s picture', { error: e && e.message });
     return null;
   }
+}
+
+/**
+ * The facts started as soon as the code is resolved, for field(ctx, {factsP}) later, or null where field() would not
+ * look (a friend's challenge, a "watch another video" code). `classP`: the page's own class resolution of this code.
+ * Its rejection is kept for field(), which never throws.
+ */
+function early(ctx, { classP = null } = {}) {
+  if (!ctx || ctx.invitedByStudentId || ctx.moreVideosOf) return null;
+  if (ctx.row && (ctx.row.invited_by_student_id || ctx.row.parent_share_code_id)) return null;
+  const p = factsFor(ctx.shareCodeId, { sc: ctx.parent, classP });
+  p.catch(() => {});
+  return p;
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────
@@ -292,4 +316,4 @@ async function image(id, { code = null, drawTurn, ArtError } = {}) {
 
 function _reset() { memo.clear(); mem.clear(); inflight.clear(); }
 
-module.exports = { KIND, PIC_V, COPY, MAX_BYTES, TEST_WORDS, field, image, factsFor, renderClassPic, urDigits, _reset };
+module.exports = { KIND, PIC_V, COPY, MAX_BYTES, TEST_WORDS, field, early, image, factsFor, renderClassPic, urDigits, _reset };
