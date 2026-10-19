@@ -68,32 +68,39 @@ export default function SendSheet({ plan, lang, onClose, onShareLink }: {
       ) : (
         <>
           <TeacherPicker lang={lang} selected={selected} onChange={setSelected} onState={setPicker} />
-          <div role="status" aria-live="polite" className="flex flex-col gap-1 text-[16px] font-semibold">
-            {out.kind === 'done' && out.sent > 0 ? (
-              <p className="text-[#0B6B2E]">
-                <Fill text={out.sent === 1 ? S.sentOne : S.sent} values={{ n: out.sent }} lang={lang} />
-              </p>
+          {/* Sticky inside the panel's scroll box, edge to edge, so Send stays in view however long the list is.
+              The negative bottom and margin cancel the panel's bottom padding so the footer meets the sheet's edge. */}
+          <div
+            data-testid="fln-send-footer"
+            className="sticky bottom-[calc(-1*max(16px,env(safe-area-inset-bottom)))] z-10 -mx-4 -mb-[max(16px,env(safe-area-inset-bottom))] flex flex-col gap-4 border-t border-[#e5e7eb] bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3"
+          >
+            <div role="status" aria-live="polite" className="flex flex-col gap-1 text-[16px] font-semibold">
+              {out.kind === 'done' && out.sent > 0 ? (
+                <p className="text-[#0B6B2E]">
+                  <Fill text={out.sent === 1 ? S.sentOne : S.sent} values={{ n: out.sent }} lang={lang} />
+                </p>
+              ) : null}
+              {out.kind === 'done' && out.failed > 0 ? (
+                <p className="text-[#7a271a]">
+                  <Fill text={out.failed === 1 ? S.sentPartialOne : S.sentPartial} values={{ n: out.failed }} lang={lang} />
+                </p>
+              ) : null}
+              {out.kind === 'rate' ? <p className="text-[#7a271a]"><Fill text={S.rateLimited} values={{ n: MAX_RECIPIENTS }} lang={lang} /></p> : null}
+              {out.kind === 'error' ? <p className="text-[#7a271a]">{S.sendFailed}</p> : null}
+            </div>
+            {picker === 'ready' || picker === 'empty' ? (
+              <button
+                type="button"
+                onClick={send}
+                disabled={selected.length === 0 || out.kind === 'sending'}
+                aria-busy={out.kind === 'sending'}
+                style={{ backgroundColor: WA_GREEN, borderColor: WA_GREEN }}
+                className={cn(BTN, 'text-white disabled:cursor-not-allowed disabled:opacity-50', FOCUS)}
+              >
+                {out.kind === 'sending' ? S.sending : S.send}
+              </button>
             ) : null}
-            {out.kind === 'done' && out.failed > 0 ? (
-              <p className="text-[#7a271a]">
-                <Fill text={out.failed === 1 ? S.sentPartialOne : S.sentPartial} values={{ n: out.failed }} lang={lang} />
-              </p>
-            ) : null}
-            {out.kind === 'rate' ? <p className="text-[#7a271a]"><Fill text={S.rateLimited} values={{ n: MAX_RECIPIENTS }} lang={lang} /></p> : null}
-            {out.kind === 'error' ? <p className="text-[#7a271a]">{S.sendFailed}</p> : null}
           </div>
-          {picker === 'ready' || picker === 'empty' ? (
-            <button
-              type="button"
-              onClick={send}
-              disabled={selected.length === 0 || out.kind === 'sending'}
-              aria-busy={out.kind === 'sending'}
-              style={{ backgroundColor: WA_GREEN, borderColor: WA_GREEN }}
-              className={cn(BTN, 'text-white disabled:cursor-not-allowed disabled:opacity-50', FOCUS)}
-            >
-              {out.kind === 'sending' ? S.sending : S.send}
-            </button>
-          ) : null}
         </>
       )}
     </Sheet>
