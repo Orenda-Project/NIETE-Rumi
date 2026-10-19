@@ -1093,7 +1093,15 @@ async function runRecovery() {
   } catch (err) {
     logToFile('⚠️ mid-flight watchdog threw (non-blocking)', { error: err.message });
   }
-  return { coaching, stuckInitiated, untapped, undelivered, photoGate, midFlight };
+  // bd-aqotzx — a portal recording that did not sound like a class, unanswered for 24 hours: closed, no report.
+  let classCheck = { found: 0, closed: 0 };
+  try {
+    classCheck = await require('../shared/services/coaching/portal-class-check').closeUnanswered();
+    if (classCheck.closed) logToFile('🧭 class check: closed unanswered sessions', classCheck);
+  } catch (err) {
+    logToFile('⚠️ class-check sweep threw (non-blocking)', { error: err.message });
+  }
+  return { coaching, stuckInitiated, untapped, undelivered, photoGate, midFlight, classCheck };
 }
 
 /**

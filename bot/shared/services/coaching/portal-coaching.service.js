@@ -594,5 +594,7 @@ module.exports = {
   startPortalSession,
   afterTranscription,
   submitReflection,
+  // bd-aqotzx — her answer when the recording did not sound like a class (portal-class-check owns it).
+  answerClassCheck: (args, deps) => require('./portal-class-check').answerClassCheck(args, deps),
   recentLessonPlans,
 };

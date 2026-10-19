@@ -337,6 +337,12 @@ export const portal = {
     return response.data;
   },
 
+  /** bd-aqotzx — her answer when the recording did not sound like a class: yes carries on, no closes it. */
+  answerClassCheck: async (id: string, answer: 'yes' | 'no'): Promise<{ next?: 'analysis' | 'record_again' }> => {
+    const response = await api.post(`/coaching-session/${id}/class-check`, { answer });
+    return response.data;
+  },
+
   submitCoachingReflection: async (id: string, answer: string): Promise<{
     done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
   }> => {
@@ -599,6 +605,8 @@ export type ActiveCoachingSession = {
   needsAnswer: boolean;
   topic?: string | null;
   subject?: string | null;
+  /** bd-aqotzx — set on a stopped row kept in the list (a recording that did not sound like a class). */
+  stopReason?: string | null;
 };
 
 // ── bd-5rz1v: the lesson-plan library, for "Record your class" ─────────────
