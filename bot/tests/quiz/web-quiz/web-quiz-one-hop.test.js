@@ -374,7 +374,14 @@ describe('every switch the services name on (web_quiz_one_hop beside all of them
     seed(settings);
     const from = supabase.from;
     let seen = null;
-    supabase.from = (t) => { if (seen) seen.add(t); return from(t); };
+    // a table brought inside another read's request (an embedded select, web_quiz_hub_embed) is read too
+    supabase.from = (t) => {
+      if (seen) seen.add(t);
+      const b = from(t);
+      const select = b.select;
+      b.select = (cols, o) => { if (seen) for (const m of String(cols || '').matchAll(/(\w+)\(/g)) seen.add(m[1]); return select(cols, o); };
+      return b;
+    };
     Fast.on(); await tick();
     await answer(T.signHub([KID]));
     await tick();
