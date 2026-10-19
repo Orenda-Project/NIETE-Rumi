@@ -18,7 +18,10 @@ import type { PickTarget } from '../coaching/libraryPick';
 /** Start DC observation's prefill for a plan opened from these pages. */
 export function dcFor(lesson: Pick<LpLesson, 'id' | 'lane'>, at: LessonsAt): DcPrefill {
   const g612 = lesson.lane === 'g612';
-  return { grade: at.grade, subjectKey: at.key ?? null, plan: `${g612 ? 'g612' : 'k5'}:${lesson.id}`, lang: g612 ? 'en' : null };
+  return {
+    grade: at.grade, subjectKey: at.key ?? null, plan: `${g612 ? 'g612' : 'k5'}:${lesson.id}`, lang: g612 ? 'en' : null,
+    lpSubject: at.subject || null,
+  };
 }
 
 export function useOpenLesson() {

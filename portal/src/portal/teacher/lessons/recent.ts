@@ -34,8 +34,8 @@ export function recentGroups(plans: RecentLessonPlan[], today: string = pkToday(
       extra: p.dayLabel ?? p.chapterTitle ?? undefined,
       chip: chipFor(p, C),
       to: o.lane === 'fln' ? flnPlanPath(o.planId) : openUrl(o.lane === 'k5'
-        ? { plan: `k5:${o.lessonId}`, title: p.title, grade: p.grade }
-        : { plan: `g612:${o.segmentId}`, lang: o.lang, title: p.title, grade: p.grade }),
+        ? { plan: `k5:${o.lessonId}`, title: p.title, grade: p.grade, subject: p.subject }
+        : { plan: `g612:${o.segmentId}`, lang: o.lang, title: p.title, grade: p.grade, subject: p.subject }),
     });
   }
   return groups;
