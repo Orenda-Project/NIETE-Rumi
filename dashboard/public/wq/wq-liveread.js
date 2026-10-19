@@ -302,8 +302,9 @@
 
   // ── the microphone sheet, one on every reading surface (WhatsApp in-app browser on Android: ask only after a tap) ──
   //   askMic(el, {lang, src, onStream, onNotNow, onDenied, ev, facts, notice: {kid, keep}})
-  //   0. notice (when this child has not seen it on this phone): the microphone notice under the child's line, above the fold;
-  //      "Start reading" marks it seen ("Not now" is not a microphone use: it stays owed);
+  //   0. notice (when this child has not seen it on this phone): the microphone notice in full, no tap needed, under the two
+  //      buttons (the long Urdu notice never pushes them off a small phone); "Start reading" marks it seen ("Not now" is not
+  //      a microphone use: it stays owed);
   //   1. one line for the child + the big "Start reading" (getUserMedia only inside this tap) + "For grown-ups" (what is
   //      heard, what is kept, how to stop — closed until opened);
   //   2. the phone's own prompt as a picture (which button to tap);
@@ -318,10 +319,10 @@
     var dl = o.lang === 'ur' ? ' dir="rtl" lang="ur"' : ' dir="ltr" lang="en"';
     var nt = o.notice && !noticeSeen(o.notice.kid, !!o.notice.keep) ? o.notice : null;
     el.innerHTML = '<div class="lr-ask"' + dl + '><p class="lr-say">' + esc(t.micAsk) + '</p>'
-      + (nt ? '<p class="lr-notice" role="note">' + esc(noticeText(o.lang, !!nt.keep)) + '</p>' : '')
       + '<div class="lr-os-pic">' + OS_PIC + '<p class="lr-os-say">' + esc(t.osAsk) + '</p></div>'
       + '<button class="wq-btn wq-go lr-go" type="button">' + MIC + ' ' + esc(t.micGo) + '</button>'
       + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.notNow) + '</button>'
+      + (nt ? '<p class="lr-notice" role="note">' + esc(noticeText(o.lang, !!nt.keep)) + '</p>' : '')
       + '<details class="lr-grown"><summary>' + esc(t.grownUps) + '</summary><p>' + esc(o.facts || t.facts) + '</p></details></div>';
     ev('mic_ask', { src: src });
     var settled = false;

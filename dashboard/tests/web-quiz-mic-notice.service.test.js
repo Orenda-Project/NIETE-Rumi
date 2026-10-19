@@ -113,15 +113,18 @@ describe('the words: true, a parent\'s, EN + UR', () => {
 });
 
 describe('fresh child, the storybook\'s Your turn first', () => {
-  test('the sheet carries the notice above the fold, visible without a tap (before the phone\'s prompt picture, the buttons and the grown-ups fold)', () => {
-    const { el } = sheet(store());
-    const h = el.innerHTML;
-    const at = h.indexOf('lr-notice');
-    expect(at).toBeGreaterThan(h.indexOf('lr-say'));
-    expect(at).toBeLessThan(h.indexOf('lr-os-pic'));
-    expect(at).toBeLessThan(h.indexOf('lr-go'));
-    expect(at).toBeLessThan(h.indexOf('<details'));
-    expect(plain(h)).toContain(copyOf('en').noticeKept);
+  test('the sheet carries the notice visible without a tap, under the two buttons (the long Urdu notice never pushes "Start reading" or "Not now" off a small phone) and above the grown-ups fold', () => {
+    ['en', 'ur'].forEach((lang) => {
+      const { el } = sheet(store(), { lang });
+      const h = el.innerHTML;
+      const at = h.indexOf('lr-notice');
+      expect(h.indexOf('lr-say')).toBeLessThan(h.indexOf('lr-os-pic'));
+      expect(h.indexOf('lr-os-pic')).toBeLessThan(h.indexOf('lr-go'));
+      expect(h.indexOf('lr-go')).toBeLessThan(h.indexOf('lr-listen'));
+      expect(at).toBeGreaterThan(h.indexOf('lr-listen'));
+      expect(at).toBeLessThan(h.indexOf('<details'));
+      expect(plain(h)).toContain(copyOf(lang).noticeKept);
+    });
   });
   test('"Start reading" marks it seen for this child on this phone; then Jugnu\'s passage shows no notice and asks for the microphone at once', async () => {
     const storage = store();
