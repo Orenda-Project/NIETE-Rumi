@@ -14,7 +14,7 @@
  * - Which bands are open lives here (keyed by section index), so it survives a sound playing, and is mirrored to
  *   `history.state` with replaceState so Back/forward restores it.
  * - Back: an in-app previous entry → navigate(-1); opened by a link → the plan's subject list for the teacher's own
- *   lowest grade (`loadGradeSubjects('lessons')`; 6–12 shows the level chooser), else `placement[0].grades[0]`.
+ *   lowest Grade 1–5 (`loadGradeSubjects('lessons')`), else `placement[0].grades[0]`, else Grade 1.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -47,16 +47,17 @@ type QueuedEvent = { kind: string; plan: number | string; clip?: string; ms?: nu
 
 /**
  * Where Back goes when the plan was opened by a link (no list behind it in history) — DESIGN v2 decision 15:
- * the teacher's OWN lowest grade when she has one (6–12 → the server answers with the level chooser; 1–5 → her level
- * list), else (a leader, no classes, a failed read) the first grade of the plan's level.
+ * the teacher's OWN lowest grade when they have one in 1–5 (FLN is Grades 1–5 only, bd-elc1qz), else (a leader, no
+ * classes, only 6–12, a failed read) the first grade of the plan's level, else Grade 1.
  */
 export function linkBackTarget(subject: string | undefined, placement: FlnPlacement[] | undefined, ownGrades: number[] = []): string {
   const p = placement?.[0];
   const sub = p?.subject ?? subject;
   if (!sub) return LESSONS_HOME;
-  const own = ownGrades.filter((g) => Number.isInteger(g) && g >= 1 && g <= 12);
+  const fln = (g: unknown): g is number => Number.isInteger(g) && (g as number) >= 1 && (g as number) <= 5;
+  const own = ownGrades.filter(fln);
   const grade = own.length ? Math.min(...own) : p?.grades?.[0];
-  return `/portal/fln/list/${sub}?grade=${grade && grade >= 1 && grade <= 12 ? grade : 6}`;
+  return `/portal/fln/list/${sub}?grade=${fln(grade) ? grade : 1}`;
 }
 
 /** Her grades from her classes/history; empty for a leader or on a failed read (never blocks Back). */
@@ -244,8 +245,9 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
 
   const p = load.data.plan;
   // ?grade= (set by the list row) picks that grade's placement; the kicker and the share card read the same row.
+  // Grades 1–5 only (bd-elc1qz): an old 6–12 ?grade= falls back to placement[0].
   const opened = Number(new URLSearchParams(location.search).get('grade'));
-  const first = placementForGrade(placement, Number.isInteger(opened) && opened >= 1 && opened <= 12 ? opened : null);
+  const first = placementForGrade(placement, Number.isInteger(opened) && opened >= 1 && opened <= 5 ? opened : null);
   const sharePlacement = first ? [first, ...placement.filter((x) => x !== first)] : placement;
   const homeworkIndex = p.sections.length;
   return (

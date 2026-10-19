@@ -1,13 +1,13 @@
 /**
  * "Send a lesson plan", the leaders' link builder at /portal/fln/send (DESIGN v2 §4 L3, §7).
  *
- *   grade chips 1–12 → subject chips (3) → level chips (pre-selected for 1–5: G1→1, G2–3→2, G4–5→3; NONE for 6–12,
- *   where the server puts the screener rows on top) → search + filter chips (Screener · Has sounds · Story audio ·
- *   Additional practice) → rows ("n/N", the title in its own language and direction, chips, minutes), each with
+ *   grade chips 1–5 (FLN is Grades 1–5 only, bd-elc1qz; an old ?grade=6..12 reads as no grade) → subject chips (3) →
+ *   search + filter chips (Screener · Has sounds · Story audio) → rows ("n/N", the title in its own language and direction, chips, minutes), each with
  *   **Send to teacher** (the teacher sheet) and **Share link** (Copy + WhatsApp).
  *
  * The rows are GET /api/portal/fln/links — the catalogue the teacher sees, so a hidden plan can never be linked. All
- * state is in the URL query (grade, subject, level, q, has) so Back works. /me without share, or /links 404 → the "not
+ * state is in the URL query (grade, subject, q, has) so Back works; an old link's `level` is ignored, since the grade
+ * decides a Grade 1–5 list's rows (the corpus never reads a level for them) and every level is reachable by its grade. /me without share, or /links 404 → the "not
  * available" page; 503 → the calm line with Try again; no rows → the §7 empty line. Every control is ≥48 px.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,14 +22,14 @@ import { shareMessage, waUrl } from '../share/message';
 import { type SharePlan } from '../share/PlanCard';
 import SendSheet from '../share/SendSheet';
 import ShareSheet, { BTN, Toast, WA_GREEN, useCopyLink } from '../share/ShareSheet';
-import { levelForGrade, num, SHARE_DIR, shareStrings, type HasChip, type ShareLang, type ShareSubject } from '../share/strings.share';
+import { num, SHARE_DIR, shareStrings, type HasChip, type ShareLang, type ShareSubject } from '../share/strings.share';
 import { langOf, useFlnMe } from '../share/useFlnMe';
 import '../share/share.css';
 
-const GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const GRADES = [1, 2, 3, 4, 5];
 const SUBJECTS: ShareSubject[] = ['rh-en', 'rh-ur', 'num'];
-const LEVELS = [1, 2, 3];
-const FILTERS: HasChip[] = ['screener', 'sounds', 'narration', 'additional'];
+// No 'additional': the 2023-24 Additional practice plans leave the corpus (bd-e5ieg0), so that filter would always be empty.
+const FILTERS: HasChip[] = ['screener', 'sounds', 'narration'];
 
 const CHIP = 'flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-2 px-4 text-[17px] font-semibold leading-tight';
 const CHIP_ON = 'border-[#333748] bg-[#333748] text-white';
@@ -38,7 +38,6 @@ const CHIP_OFF = 'border-[#d1d5db] bg-white text-[#333748]';
 interface BuilderState {
   grade: number | null;
   subject: ShareSubject | null;
-  level: number | null;
   q: string;
   has: HasChip[];
 }
@@ -48,10 +47,8 @@ function readState(p: URLSearchParams): BuilderState {
   const grade = GRADES.includes(g) ? g : null;
   const s = p.get('subject') as ShareSubject | null;
   const subject = s && SUBJECTS.includes(s) ? s : null;
-  const l = Number(p.get('level'));
-  const level = LEVELS.includes(l) ? l : null;
   const has = (p.get('has') || '').split(',').filter((h): h is HasChip => (FILTERS as string[]).includes(h));
-  return { grade, subject, level, q: (p.get('q') || '').slice(0, 100), has };
+  return { grade, subject, q: (p.get('q') || '').slice(0, 100), has };
 }
 
 /** One canonical order, so the same builder state is always the same URL. */
@@ -59,7 +56,6 @@ function writeState(s: BuilderState): URLSearchParams {
   const p = new URLSearchParams();
   if (s.grade) p.set('grade', String(s.grade));
   if (s.subject) p.set('subject', s.subject);
-  if (s.level) p.set('level', String(s.level));
   if (s.q) p.set('q', s.q);
   if (s.has.length) p.set('has', s.has.join(','));
   return p;
@@ -93,7 +89,7 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick} className={cn(CHIP, on ? CHIP_ON : CHIP_OFF, FOCUS)}>
-      {/* One inline box: as flex items, "Level " and its <bdi> number would lose the space between them. */}
+      {/* One inline box: as flex items, a label's words and a <bdi> number would lose the space between them. */}
       <span>{children}</span>
     </button>
   );
@@ -198,16 +194,16 @@ export default function SendPage() {
     if (!ready || !st.grade || !st.subject) { setLoad({ kind: 'idle' }); return undefined; }
     let alive = true;
     setLoad({ kind: 'loading' });
-    void shareApi.links({ grade: st.grade, subject: st.subject, level: st.level, q: st.q, has: st.has }).then((r) => {
+    void shareApi.links({ grade: st.grade, subject: st.subject, q: st.q, has: st.has }).then((r) => {
       if (!alive) return;
       if (r.ok) setLoad({ kind: 'rows', rows: Array.isArray(r.data.rows) ? r.data.rows : [] });
       else if (r.status === 404) setLoad({ kind: 'off' });
       else setLoad({ kind: 'down' });
     });
     return () => { alive = false; };
-  }, [ready, st.grade, st.subject, st.level, st.q, st.has.join(','), attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, st.grade, st.subject, st.q, st.has.join(','), attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pickGrade = (g: number) => update({ grade: g, level: levelForGrade(g) });
+  const pickGrade = (g: number) => update({ grade: g });
   const toggleHas = (h: HasChip) => update({ has: st.has.includes(h) ? st.has.filter((x) => x !== h) : [...st.has, h] });
   const clearFilters = () => { setQDraft(''); update({ q: '', has: [] }); };
 
@@ -237,14 +233,6 @@ export default function SendPage() {
             ) : <p className="text-[16px] text-[#5b6475]">{S.pickGrade}</p>}
             {st.grade && st.subject ? (
               <>
-                <Group label={S.levelLabel}>
-                  {LEVELS.map((l) => (
-                    <Chip key={l} on={st.level === l} onClick={() => update({ level: st.level === l ? null : l })}>
-                      <Fill text={S.level} values={{ n: l }} lang={lang} />
-                    </Chip>
-                  ))}
-                </Group>
-                {!st.level && st.grade >= 6 ? <p className="text-[15px] text-[#5b6475]">{S.pickLevel}</p> : null}
                 <label className="relative block">
                   <span className="sr-only">{S.searchLessons}</span>
                   <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#6b7280]" aria-hidden="true" />
