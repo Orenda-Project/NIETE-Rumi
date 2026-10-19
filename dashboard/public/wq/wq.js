@@ -354,6 +354,12 @@ var WQI = (function () {
     return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
       picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }
+  // the adventure look on an Urdu page: an English question is marked Latin (its face and line height, wq-adventure.css)
+  function latQ(text, lang) {
+    var adv = false;
+    try { adv = lang === 'ur' && document.documentElement.classList.contains('wq-adv'); } catch (e) { adv = false; }
+    return adv && /[A-Za-z]/.test(String(text || '')) && !/[\u0600-\u06FF]/.test(String(text || '')) ? ' wq-qlat" dir="ltr"' : '"';
+  }
   function itemHtml(q, T, lang) {
     var k = kind(q), o = opts(q);
     LETTERS = !figureOf(q);
@@ -361,7 +367,7 @@ var WQI = (function () {
     var stim = q.audio && q.audio.stim ? '<button class="wq-btn wq-soft" id="wq-stim">' + BELL + ' ' + esc(T.playSound || '') + '</button>' : '';
     var stem = k === 'listen'
       ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p>' + stim + '</div>'
-      : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button></div>' + stim;
+      : '<div class="wq-qcard"><p class="wq-qtext' + latQ(q.text, lang) + '>' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button></div>' + stim;
     var body = '';
     var pics = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); });
     // A picture grid needs every option to be a picture (or an emoji, drawn big): one the bot could not
@@ -3043,6 +3049,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // class_doors on an Urdu page: one digit system (places and scores in Urdu digits, like the counts around them)
     var ur = Boolean(b.class_doors) && LANG === 'ur';
     var place = function (n) { return esc(ur ? urDigits(n) : n); };
+    var pct = function (n) { return ur ? urDigits(n) + '\u066A' : n + '%'; };
     var rows = (v.rows || []).map(function (x) {
       var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
       if (isYou) youShown = true;
@@ -3063,8 +3070,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
       '<div class="wq-card wq-cmp">' +
-      (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
-      '<span>' + esc(T.avg) + '</span><span>' + esc(v.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
+      (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + pct(yourPct) + '</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
+      '<span>' + esc(T.avg) + '</span><span>' + esc(pct(v.class_avg_pct || 0)) + '</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
       '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
       // the look: a long table keeps its one primary on the screen (sticky at the bottom until the page reaches it)
       '<button class="wq-btn wq-go' + (b.class_doors && advOn() ? ' wq-stick' : '') + '" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
