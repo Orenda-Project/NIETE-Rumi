@@ -97,3 +97,6 @@ html[lang=ur] .wq-glabel,html[lang=ur] .wq-gcls,html[lang=ur] .wq-gsaid,html[lan
 .wq-gskel{display:block;width:120px;height:48px;border-radius:14px;background:var(--tint)}
 /* the grown-ups language button on an English page reads «اردو»: the Urdu face, sized like the sheet */
 html.wq-adv:not([lang=ur]) .wq-gsheet a[data-tap=lang]{font-family:var(--fu),var(--f);font-size:calc(var(--fs-4) + 4px);line-height:1.5}
+/* the Next tile's video picture is a wide thumbnail: a wide box, shown whole (never cropped to a sliver by the tall box) */
+html.wq-adv .wq-next:is([data-kind=video],[data-kind=lesson]) .wq-nart:not([src*="/wq/jugnu/"]){width:144px;height:81px;object-fit:contain}
+@media (max-width:419px){html.wq-adv[lang=ur] .wq-next:is([data-kind=video],[data-kind=lesson]) .wq-nart:not([src*="/wq/jugnu/"]){width:88px;height:50px}}
