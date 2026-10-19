@@ -4443,7 +4443,8 @@ router.get('/training/level/:id/capstone/questions', requirePortalAuth, async (r
  * bd-2673 — submit a written capstone from the portal.
  *
  * Every rule here belongs to the bot: eligibility (checkExamGateByLevel), the
- * per-answer rubric (scoreAnswer — the same LLM prompt WhatsApp grades with),
+ * per-answer rubric (scoreAnswer — the same LLM prompt WhatsApp grades with,
+ * asked of the bot over the internal API: bd-te5lae),
  * and the pass decision including bd-2478's refusal to score a short answer set
  * (decideCapstonePass). This route sequences them and writes rows.
  *
@@ -4538,10 +4539,23 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     // these are LLM calls and a written paper is ~8 of them, so a burst risks a
     // provider rate-limit mid-paper — which would look to the teacher like a
     // partial failure of work they cannot resubmit.
+    //
+    // bd-te5lae — over the internal API, never in-process: Capstone.scoreAnswer's
+    // deps() needs dotenv and pino, which this service cannot resolve, and calling
+    // it here answered 500 on every submit. Nothing is written yet, so a marking
+    // failure tells her plainly that nothing was recorded.
     const scored = [];
-    for (const p of pending) {
-      const { score, feedback } = await Capstone.scoreAnswer(p.question, p.answerText);
-      scored.push({ ...p, score, feedback });
+    try {
+      for (const p of pending) {
+        const { score, feedback } = await TrainingRules.scoreCapstoneAnswer(p.question, p.answerText);
+        scored.push({ ...p, score, feedback });
+      }
+    } catch (markErr) {
+      console.error('capstone submit — the bot could not mark it', { levelId, error: markErr?.message });
+      return res.status(503).json({
+        success: false,
+        error: 'We could not mark this exam right now. Nothing has been recorded — please try again.',
+      });
     }
 
     const totalScore = qList.length * Capstone.POINTS_PER_QUESTION;

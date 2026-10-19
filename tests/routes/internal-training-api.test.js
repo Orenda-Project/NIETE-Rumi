@@ -299,3 +299,46 @@ describe('bd-2479 — validation and failure reporting', () => {
     expect(logError).toHaveBeenCalledWith('Internal training API failed', expect.objectContaining({ error: 'supabase down' }));
   });
 });
+
+describe('bd-te5lae — /training/capstone-score marks one written answer with the bot\'s own grader', () => {
+  let scoreAnswer;
+  const QUESTION = { id: 900, question_text: 'How do you group readers?' };
+
+  beforeEach(() => {
+    scoreAnswer = jest.fn().mockResolvedValue({ score: 3, feedback: 'Specific.' });
+    jest.doMock('../../bot/shared/services/training/capstone-delivery.service', () => ({ scoreAnswer }));
+  });
+
+  it('rejects a call without the key', async () => {
+    const { statusCode } = await invoke('/training/capstone-score', { body: { question: QUESTION, answerText: 'a' } });
+    expect(statusCode).toBe(401);
+    expect(scoreAnswer).not.toHaveBeenCalled();
+  });
+
+  it('refuses a body without question text or an answer, before any marking', async () => {
+    const noText = await invoke('/training/capstone-score', { headers: auth, body: { question: { id: 1 }, answerText: 'a' } });
+    const noAnswer = await invoke('/training/capstone-score', { headers: auth, body: { question: QUESTION } });
+    expect(noText.statusCode).toBe(400);
+    expect(noAnswer.statusCode).toBe(400);
+    expect(scoreAnswer).not.toHaveBeenCalled();
+  });
+
+  it('passes the bot\'s score and feedback through verbatim', async () => {
+    const { statusCode, payload } = await invoke('/training/capstone-score', {
+      headers: auth, body: { question: QUESTION, answerText: 'We group by level.' },
+    });
+    expect(statusCode).toBe(200);
+    expect(payload).toEqual({ success: true, score: 3, feedback: 'Specific.' });
+    expect(scoreAnswer).toHaveBeenCalledWith(QUESTION, 'We group by level.', undefined);
+  });
+
+  it('fails closed when marking throws: a 5xx, and no score at all', async () => {
+    scoreAnswer.mockRejectedValueOnce(new Error('provider 429'));
+    const { statusCode, payload } = await invoke('/training/capstone-score', {
+      headers: auth, body: { question: QUESTION, answerText: 'We group by level.' },
+    });
+    expect(statusCode).toBe(500);
+    expect(payload.success).toBe(false);
+    expect(payload.score).toBeUndefined();
+  });
+});
