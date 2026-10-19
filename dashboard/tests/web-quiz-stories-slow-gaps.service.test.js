@@ -1,7 +1,7 @@
 /**
  * The storybook's "Slower" (switch `web_quiz_stories_slow_gaps`, the book says `slow_gaps: true`): the voice always plays
  * at its own speed and the reader waits BETWEEN phrases instead — ~700 ms after a sentence's last word, ~400 ms after a
- * comma or a printed line's end, nothing elsewhere — with the highlight resting on the last word. The wait is
+ * comma, nothing elsewhere (a printed line that merely wraps mid-sentence gets no wait) — with the highlight resting on the last word. The wait is
  * max(least, target − (next word's start − this word's end)): 700 / 500 ms after a sentence, 400 / 250 ms after a comma or
  * a line end, for every clip alike (an old take with no pause gets the full target, a take that already pauses still gets
  * the least, so Slower is always heard; timings that overlap get none). A tap, Pause, a page
@@ -90,15 +90,18 @@ const W = (i, t, s, e) => ({ i, t, s_ms: s, e_ms: e });
 // "Mina has a kite. It goes up, up and away." — a sentence ends INSIDE the first printed line; line 1 is words 0–5
 const EN = {
   v: 1, id: 'b-1/p1', lang: 'en', dir: 'ltr', audio: { url: '/a/p1.ogg', ms: 3600 },
-  words: [W(0, 'Mina', 100, 400), W(1, 'has', 420, 600), W(2, 'a', 620, 700), W(3, 'kite.', 720, 1100), W(4, 'It', 1120, 1300), W(5, 'goes', 1320, 1600),
+  words: [W(0, 'Mina', 100, 400), W(1, 'has', 420, 600), W(2, 'a', 620, 700), W(3, 'kite.', 720, 1100), W(4, 'It', 1120, 1300), W(5, 'goes,', 1320, 1600),
     W(6, 'up,', 1620, 1900), W(7, 'up', 1920, 2200), W(8, 'and', 2220, 2400), W(9, 'away.', 2420, 3000)],
 };
 const EN_LINES = [[0, 5], [6, 9]];
+// the fixtures' first lines end on a comma ("goes,", «اڑتی،»): a pause there is the comma's; the same lines with the bare
+// word show that a line that merely wraps gets none
+const bare = (pg, k, t) => ({ ...pg, words: pg.words.map((x) => (x.i === k ? { ...x, t } : x)) });
 // «مینا کی پتنگ اونچی ہے۔ وہ اڑتی ہے، اوپر اور اوپر۔» — ۔ ends a sentence inside line 1, ، is a comma; line 1 is words 0–6
 const UR = {
   v: 1, id: 'b-2/p1', lang: 'ur', dir: 'rtl', audio: { url: '/a/u1.ogg', ms: 3800 },
   words: [W(0, 'مینا', 100, 400), W(1, 'کی', 420, 600), W(2, 'پتنگ', 620, 900), W(3, 'اونچی', 920, 1200), W(4, 'ہے۔', 1220, 1500), W(5, 'وہ', 1520, 1700),
-    W(6, 'اڑتی', 1720, 2000), W(7, 'ہے،', 2020, 2300), W(8, 'اوپر', 2320, 2600), W(9, 'اور', 2620, 2800), W(10, 'اوپر۔', 2820, 3300)],
+    W(6, 'اڑتی،', 1720, 2000), W(7, 'ہے،', 2020, 2300), W(8, 'اوپر', 2320, 2600), W(9, 'اور', 2620, 2800), W(10, 'اوپر۔', 2820, 3300)],
 };
 const UR_LINES = [[0, 6], [7, 10]];
 
@@ -117,6 +120,19 @@ function gapsOf(w, p) {
   });
   return out.map((s) => [s.at, s.ms, [...s.lit]]);
 }
+
+describe('the player: a printed line that wraps mid-sentence gets no wait (pauses only at punctuation)', () => {
+  test('EN: "goes" ends line 1 with no mark, so Slower does not stop there; the sentence end and the comma keep theirs', () => {
+    const w = world();
+    const p = w.RA.mount(w.document.createElement('div'), bare(EN, 5, 'goes'), { lines: EN_LINES, gaps: true });
+    expect(gapsOf(w, p)).toEqual([[1110, 680, [3]], [1910, 380, [6]]]);
+  });
+  test('UR: «اڑتی» ends line 1 with no mark: no wait; ۔ and ، keep theirs', () => {
+    const w = world();
+    const p = w.RA.mount(w.document.createElement('div'), bare(UR, 6, 'اڑتی'), { lines: UR_LINES, gaps: true });
+    expect(gapsOf(w, p).map((g) => g[2])).toEqual([[4], [7]]);
+  });
+});
 
 describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
   test('EN: 700 ms after a sentence end (one that ends inside a line), 400 ms after a comma and after a printed line end, nothing elsewhere, none after the last word, each less the clip\'s own pause; the highlight rests on the last word', () => {
@@ -201,7 +217,7 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
     });
     test('a take that already pauses (a storyteller take) still gets the least: 500 after a sentence, 250 after a comma or a line end, so Slower is always heard', () => {
       // kite. → It: 900 ms of its own (700 − 900 < 500: 500); goes → up,: 500 (250); up, → up: 250 (400 − 250 = 150 < 250: 250)
-      const words = [W(0, 'Mina', 100, 400), W(1, 'has', 420, 600), W(2, 'a', 620, 700), W(3, 'kite.', 720, 1100), W(4, 'It', 2000, 2200), W(5, 'goes', 2220, 2500),
+      const words = [W(0, 'Mina', 100, 400), W(1, 'has', 420, 600), W(2, 'a', 620, 700), W(3, 'kite.', 720, 1100), W(4, 'It', 2000, 2200), W(5, 'goes,', 2220, 2500),
         W(6, 'up,', 3000, 3300), W(7, 'up', 3550, 3800), W(8, 'and', 3820, 4000), W(9, 'away.', 4020, 4600)];
       const w2 = world();
       const p2 = w2.RA.mount(w2.document.createElement('div'), { ...EN, audio: { url: '/a/p1.ogg', ms: 5000 }, words }, { lines: EN_LINES, gaps: true });
@@ -218,7 +234,7 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
       const w = world();
       // kite. ends at 1100 and up, at 3300 + n's shift; every later word moves by the added pause
       const sh = (k) => (k >= 4 ? n - 20 : 0) + (k >= 7 ? n - 20 : 0);
-      const words = EN.words.map((x, k) => ({ ...x, s_ms: x.s_ms + sh(k), e_ms: x.e_ms + sh(k) }));
+      const words = bare(EN, 5, 'goes').words.map((x, k) => ({ ...x, s_ms: x.s_ms + sh(k), e_ms: x.e_ms + sh(k) }));
       const p = w.RA.mount(w.document.createElement('div'), { ...EN, audio: { url: '/a/p1.ogg', ms: 3600 + 2 * n }, words }, { gaps: true });
       const got = gapsOf(w, p);
       expect(got.map((g) => [g[2][0], g[1]])).toEqual([[3, sent], [6, comma]]);
@@ -612,6 +628,19 @@ describe('the first tap on Slower is heard (switch on)', () => {
     r.store.setItem = function (k, v) { if (/^wq_st_slow:/.test(k)) n.slow += 1; return set.call(this, k, v); };
     return n;
   }
+
+  test.each(['en', 'ur'])('%s: the tortoise\'s start shows on the main button at once: the pause kind (wqs-to-pause) while it holds, then wqs-pause', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    const mb = root.querySelector('[data-main]');
+    expect(mb.className).toMatch(/\bwqs-listen\b/);
+    fire(root, 'slow');                                                  // before the first Listen the tap IS that Listen
+    expect(pl(r).paused).toBe(false);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    expect(mb.className).toMatch(/\bwqs-(to-)?pause\b/);
+    r.w.run(700);
+    expect(root.querySelector('[data-main]').className).toBe('wqs-main wqs-pause');
+  });
 
   test.each(['en', 'ur'])('%s (1): paused mid-page, Slower ON says the current sentence again from its first word, with the pauses; one stored toggle', async (lang) => {
     const r = reader({ lang, gapsKey: true });

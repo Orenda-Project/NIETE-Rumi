@@ -274,12 +274,12 @@
     }
 
     function setGaps(g) {
-      var ends = {}, last = indexAt(words, 1e9);
+      // a wait only at punctuation (a sentence end or a comma), never where a printed line merely wraps mid-sentence
+      var last = indexAt(words, 1e9);
       gapAt = {}; gf = audio.currentTime * 1000 || 0;
       if (g === true) g = { sentence: [700, 500], comma: [400, 250] };
-      if (g) (opts.lines || (boxed ? boxLines(words) : [])).forEach(function (l) { ends[l[1]] = 1; });
       // [target, least]: the wait is max(least, target − the clip's own pause (next start − this end)); none where the timings overlap
-      if (g) words.forEach(function (w, k) { var n = k < last && !w.sil ? words[k + 1].s - w.e : -1, v = END_RX.test(w.t) ? g.sentence : COMMA_RX.test(w.t) || ends[k] ? g.comma : 0; if (n >= 0 && v) gapAt[k] = Math.max(v[1], v[0] - n); });
+      if (g) words.forEach(function (w, k) { var n = k < last && !w.sil ? words[k + 1].s - w.e : -1, v = END_RX.test(w.t) ? g.sentence : COMMA_RX.test(w.t) ? g.comma : 0; if (n >= 0 && v) gapAt[k] = Math.max(v[1], v[0] - n); });
     }
     function unhold() { clearTimeout(hold); hold = null; }
     function resume() { hold = null; if (!dead && api.state === 'playing') play(1); }
