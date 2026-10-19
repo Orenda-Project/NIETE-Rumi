@@ -204,6 +204,9 @@
       return '<a class="wq-btn wq-soft wq-soc" data-tap="social" data-social="' + x[0] + '" href="' + esc(withLang(x[1], langOf(ctx))) + '">' + ICON[x[0]] + '<span>' + esc(t[x[0]]) + '</span></a>';
     }).join('') + '</nav>';
   }
+  // The add-to-home-screen card's slot (web_quiz_install_prompt, the hub's play.install): under the Next tile (the trail
+  // goes between them) and above My class, never above Next; hub-play.js fills it once the browser offers the install.
+  function instHtml(B) { return B.play && B.play.install && !B.practice ? '<div id="wqp-inst" class="wq-inst"></div>' : ''; }
   // The one-button look (the bot's `one_button`, web_quiz_one_button): the hold says what it is ("Hold for grown-ups"),
   // a ring around the lock fills over the 2 s, the words stay above the fill, and a short tap says "Keep holding".
   var LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>';
@@ -222,7 +225,7 @@
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + instHtml(B) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
   }
   /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
    * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
@@ -378,6 +381,10 @@
     });
     var g = root.querySelector('[data-tap="grownups"]');
     if (g) hold(g, function () { grownups(root, B, ctx); }, B.one_button === true ? root.querySelector('[data-hold-hint]') : null);
+    if (root.querySelector('#wqp-inst')) {
+      var inst = function () { if (window.WQPLAY && typeof window.WQPLAY.install === 'function') window.WQPLAY.install(B, ev, root, { h3: true }); };
+      if (window.WQPLAY) inst(); else loadOnce('hub-play', function () { if (root.querySelector('#wqp-inst')) inst(); }, null, true);
+    }
     // The stories reader (wq-stories.js, web_quiz_stories: the boot's `stories.on`) fills [data-shelf] and owns #story/<id>.
     var sh = root.querySelector('[data-stories-shelf]');
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
@@ -627,14 +634,14 @@
   // `list_states`: a script that failed is marked (data-failed), so a screen that comes after the error can tell
   var asked = {};
   var markFailed = false;
-  function loadOnce(name, onload, id) {
+  function loadOnce(name, onload, id, noCss) {
     if (asked[name]) return;
     asked[name] = true;
     try {
       var me = document.querySelector('script[src*="/wq/hub.js"]');
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
-      var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l);
+      if (!noCss) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l); }
       var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload);
       if (markFailed) s.addEventListener('error', function () { s.setAttribute('data-failed', '1'); });
       document.head.appendChild(s);
