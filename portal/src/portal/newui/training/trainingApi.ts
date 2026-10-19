@@ -259,6 +259,18 @@ export function statusOf(error: unknown): number | null {
   return typeof s === 'number' ? s : null;
 }
 
+/**
+ * bd-te5lae — the server's own words for a 503, when it sent them. The written exam's submit
+ * answers 503 only before anything is written ("Nothing has been recorded — please try again"),
+ * so those words are safe to show. Any other failure gets null: a 500 can come after the paper
+ * was recorded, and its message would mislead.
+ */
+export function refusalMessage(error: unknown): string | null {
+  if (statusOf(error) !== 503) return null;
+  const said = (error as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
+  return typeof said === 'string' && said.trim() ? said.trim() : null;
+}
+
 /** previous_level_order from a 403 "level locked" refusal (0-based), when the server sent it. */
 export function lockedBehind(error: unknown): number | null {
   const n = (error as { response?: { data?: { previous_level_order?: number } } })?.response?.data?.previous_level_order;

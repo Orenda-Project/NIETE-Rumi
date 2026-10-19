@@ -9,7 +9,7 @@
  *                  The screener's chip is the answer key, never a sounds count.
  *   Next           a thin marker on the first unopened numbered row, scrolled into view on first load — unless the
  *                  teacher is coming back from a plan, when the saved scroll position is restored instead
- *   Back           grades 1–5 → the New-lesson page; 6–12 → the level chooser
+ *   Back           always the New-lesson page (FlnRoutes replaces a 6–12 list URL before this page renders, bd-elc1qz)
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -53,16 +53,17 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
   const { s, lang, dir } = useFln();
   const rtl = dir === 'rtl';
   const { pathname, search } = useLocation();
-  const own = levelForGrade(grade);
-  const want = (level === 1 || level === 2 || level === 3 ? level : own) as 1 | 2 | 3 | null;
-  // Grades 1–5 asking for another level than their own read that level's book grade; 6–12 send their level.
+  // FLN is Grades 1–5 (bd-elc1qz): FlnRoutes only renders this page for grades 1–5.
+  const own = levelForGrade(grade) ?? 1;
+  const want: 1 | 2 | 3 = level === 1 || level === 2 || level === 3 ? level : own;
+  // Asking for another level than the grade's own reads that level's book grade.
   const query = useMemo(() => {
-    if (want && own && want !== own) return { subject, grade: LEVEL_GRADE[want], level: want };
-    return { subject, grade, level: own ? null : want };
+    if (want !== own) return { subject, grade: LEVEL_GRADE[want], level: want };
+    return { subject, grade, level: null };
   }, [subject, grade, want, own]);
   const [state, retry] = useCatalogue(query);
-  // The grade whose rows this list shows (6–12 read their level's book grade), carried to the plan as ?grade=.
-  const rowsGrade = own ? query.grade : want ? LEVEL_GRADE[want] : null;
+  // The grade whose rows this list shows, carried to the plan as ?grade=.
+  const rowsGrade = query.grade;
   const [strand, setStrand] = useState<Strand | null>(null);
   const [others, setOthers] = useState(false);
   const rowRefs = useRef(new Map<number, HTMLAnchorElement>());
@@ -74,7 +75,7 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
   const chapters = useMemo(() => (active ? arrange(active.chapters) : []), [active]);
   const rows = chapters.flatMap((c) => c.plans);
   const nextRow = rows.find((r) => !isGuide(r) && !r.opened) ?? null;
-  const lvl = (cat?.level ?? want ?? 1) as 1 | 2 | 3;
+  const lvl = (cat?.level ?? want) as 1 | 2 | 3;
   const count = rows.find((r) => !isGuide(r))?.count ?? cat?.levels.find((l) => l.level === lvl)?.count ?? 0;
 
   // First load: restore the position she left for a plan, else bring "Next" into view.
@@ -86,7 +87,7 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
     if (nextRow) rowRefs.current.get(nextRow.id)?.scrollIntoView?.({ block: 'center' });
   }, [cat, nextRow, pathname, search]);
 
-  const back = own ? NEW_LESSON : listUrl(subject, grade);
+  const back = NEW_LESSON;
   const top = <TopBar back={back} backLabel={s.back} title={s.subject[subject]} rtl={rtl} />;
 
   if (state.k === 'off') return <div className="fln-page">{top}<FlnNotAvailable lang={lang} /></div>;
@@ -133,7 +134,6 @@ export function LessonList({ subject, grade, level }: { subject: FlnSubjectKey; 
               {s.level(n)}{s.sep}{s.levelGrades[n]}
             </Link>
           ))}
-          {!own && <Link to={listUrl(subject, grade)} className="fln-chip">{s.chooseLevel}</Link>}
         </div>
       )}
 

@@ -303,3 +303,70 @@ describe('bd-2673 — content and status still work', () => {
     expect(statusCode).toBe(200);
   });
 });
+
+/**
+ * bd-te5lae — the written exam is MARKED by the bot, over the internal API.
+ *
+ * On production every written-exam submit answered 500 (504 of 513 since 12 Oct; 45 in four
+ * minutes on 19 Oct). The route called `Capstone.scoreAnswer` in-process, and its `deps()` pulls
+ * `bot/shared/config/supabase` -> `dotenv` and the LLM client -> structured-logger -> `pino`,
+ * none of which the portal service can resolve: bd-60085's trap, where lazy only moved the
+ * failure from import to call time. The delegation fixture fakes `dotenv` and those modules for
+ * every portal suite, which is why no route test caught it. These tests put the portal's real
+ * condition back for exactly those modules and stub only the network boundary, the client.
+ */
+describe('bd-te5lae — the written exam is marked by the bot, over HTTP', () => {
+  const ANSWER = 'In my class I group the children by reading level and give each group a text it can read. '.repeat(6);
+
+  function portalCannotLoadBotIO() {
+    jest.doMock('../../bot/shared/config/supabase', () => { throw new Error("Cannot find module 'dotenv'"); });
+    jest.doMock('../../bot/shared/services/llm-client', () => { throw new Error("Cannot find module 'pino'"); });
+  }
+
+  function trainingClient(scoreCapstoneAnswer) {
+    jest.doMock('../../dashboard/services/training-rules.service', () => ({
+      checkExamGateByLevel: jest.fn().mockResolvedValue({ ok: true, pass_pct: 70 }),
+      certifyLevel: jest.fn().mockResolvedValue({ issued: false }),
+      scoreCapstoneAnswer,
+    }));
+  }
+
+  function submitFullPaper() {
+    return invoke('post', '/training/level/:id/capstone/attempts', {
+      params: { id: String(LEVEL) },
+      body: { answers: [900, 901, 902].map(id => ({ question_id: id, answer_text: ANSWER })) },
+    });
+  }
+
+  it('marks every answer through the training client and records the attempt', async () => {
+    seed('capstone');
+    tableStates.training_assessment_attempts = { rows: [{ id: 'attempt-1', user_id: UID, quiz_kind: 'capstone' }] };
+    portalCannotLoadBotIO();
+    const scoreCapstoneAnswer = jest.fn(async (q) => ({ score: 4, feedback: `Specific about ${q.question_text}.` }));
+    trainingClient(scoreCapstoneAnswer);
+
+    const { statusCode, payload } = await submitFullPaper();
+
+    expect(statusCode).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(scoreCapstoneAnswer).toHaveBeenCalledTimes(3);
+    expect(scoreCapstoneAnswer.mock.calls.map(c => c[0].question_text)).toEqual(['Q1', 'Q2', 'Q3']);
+    expect(scoreCapstoneAnswer.mock.calls[0][1]).toBe(ANSWER.trim());
+    expect(payload.answers.map(a => a.answer_score)).toEqual([4, 4, 4]);
+    expect(payload.answers[0].feedback_text).toBe('Specific about Q1.');
+    expect(inserted).toEqual(expect.arrayContaining(['training_assessment_attempts', 'training_assessment_answers']));
+  });
+
+  it('when the bot cannot mark, says so and records nothing', async () => {
+    seed('capstone');
+    portalCannotLoadBotIO();
+    trainingClient(jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED')));
+
+    const { statusCode, payload } = await submitFullPaper();
+
+    expect(statusCode).toBe(503);
+    expect(payload.success).toBe(false);
+    expect(payload.error).toMatch(/nothing has been recorded/i);
+    expect(inserted).toHaveLength(0);
+  });
+});

@@ -28,21 +28,17 @@ interface FlnStrings {
   subject: Record<FlnSubjectKey, string>;
   /** Kicker line 1, upper-cased in EN by CSS, never by the string. */
   subjectKicker: Record<FlnSubjectKey, string>;
-  band: { title: string; sub: string; subSenior: string; loading: string; error: string; retry: string; gradeLabel: string };
+  band: { title: string; sub: string; loading: string; error: string; retry: string; gradeLabel: string };
   bandRow: (count: number, level: number) => string;
   grade: (g: number) => string;
   level: (n: number) => string;
   levelGrades: Record<1 | 2 | 3, string>;
-  levelDesc: Record<FlnSubjectKey, Record<1 | 2 | 3, string>>;
   listSub: (level: number, gradesLabel: string, count: number) => string;
-  lessons: (n: number) => string;
   otherLevels: string;
-  chooseLevel: string;
   next: string;
   opened: string;
   strand: Record<Strand, string>;
   chapter: (n: number) => string;
-  chooser: { title: string; line: string; screener: string; startHere: string; groupMap: Record<1 | 2 | 3, string> };
   minutes: (n: number) => string;
   chip: {
     sounds: (n: number) => string;
@@ -92,8 +88,7 @@ const EN: FlnStrings = {
   subjectKicker: { 'rh-en': 'Reading Hour · English', 'rh-ur': 'Reading Hour · Urdu', num: 'Numeracy' },
   band: {
     title: 'Reading Hour & Numeracy',
-    sub: 'Foundational reading and maths · for every grade',
-    subSenior: 'By level · start with the screener',
+    sub: 'Foundational reading and maths · Grades 1–5',
     loading: 'Loading…',
     error: "Reading Hour plans aren't available right now",
     retry: 'Try again',
@@ -103,38 +98,12 @@ const EN: FlnStrings = {
   grade: (g) => `Grade ${g}`,
   level: (n) => `Level ${n}`,
   levelGrades: { 1: 'Grade 1', 2: 'Grades 2–3', 3: 'Grades 4–5' },
-  levelDesc: {
-    'rh-en': {
-      1: 'Letter sounds and first words',
-      2: 'Blends, digraphs and short stories',
-      3: 'Longer words, fluency and comprehension',
-    },
-    'rh-ur': {
-      1: 'Letter sounds and first words',
-      2: 'The same letters and sounds as Level 1, plus textbook comprehension',
-      3: 'Longer words, fluency and comprehension',
-    },
-    num: {
-      1: 'Numbers to 100, add and subtract',
-      2: 'Numbers to 999, carrying and times tables',
-      3: 'Thousands, long operations, fractions',
-    },
-  },
   listSub: (level, gradesLabel, count) => `Level ${level} · ${gradesLabel} · ${count} lessons`,
-  lessons: (n) => `${n} lessons`,
   otherLevels: 'Other levels',
-  chooseLevel: 'Choose a level',
   next: 'Next',
   opened: 'Opened',
   strand: { daily: 'Daily lessons', extended: 'Weekly · Extended Hour' },
   chapter: (n) => `Chapter ${n}`,
-  chooser: {
-    title: 'Which level?',
-    line: 'Struggling readers exist in every grade. Run the screener first to place each student.',
-    screener: 'Screener',
-    startHere: 'Start here',
-    groupMap: { 1: 'Beginner → Level 1', 2: 'Intermediate → Level 2', 3: 'Advanced → Level 3' },
-  },
   minutes: (n) => `${n} min`,
   chip: {
     sounds: (n) => (n === 1 ? '1 sound' : `${n} sounds`),
@@ -193,8 +162,7 @@ const UR: FlnStrings = {
   subjectKicker: { 'rh-en': 'ریڈنگ آور — انگریزی', 'rh-ur': 'ریڈنگ آور — اردو', num: 'بنیادی حساب' },
   band: {
     title: 'ریڈنگ آور اور بنیادی حساب',
-    sub: 'بنیادی پڑھائی اور حساب — ہر جماعت کے لیے',
-    subSenior: 'سطح کے مطابق — اسکرینر سے شروع کریں',
+    sub: 'بنیادی پڑھائی اور حساب — جماعت ۱ تا ۵',
     loading: 'لوڈ ہو رہا ہے…',
     error: 'ریڈنگ آور کے اسباق ابھی دستیاب نہیں — دوبارہ کوشش کریں',
     retry: 'دوبارہ کوشش کریں',
@@ -204,26 +172,12 @@ const UR: FlnStrings = {
   grade: (g) => `جماعت ${num(g, 'ur')}`,
   level: (n) => `سطح ${num(n, 'ur')}`,
   levelGrades: { 1: 'پہلی جماعت', 2: 'دوسری اور تیسری جماعت', 3: 'چوتھی اور پانچویں جماعت' },
-  levelDesc: {
-    'rh-en': { 1: 'حروف کی آوازیں اور پہلے الفاظ', 2: 'مرکب آوازیں اور چھوٹی کہانیاں', 3: 'لمبے الفاظ، روانی اور فہم' },
-    'rh-ur': { 1: 'حروف کی آوازیں اور پہلے الفاظ', 2: 'سطح ۱ کے حروف اور آوازیں، اور درسی کتاب سے فہم', 3: 'لمبے الفاظ، روانی اور فہم' },
-    num: { 1: '۱۰۰ تک گنتی، جمع اور تفریق', 2: '۹۹۹ تک اعداد، ہاتھ کا جمع اور پہاڑے', 3: 'ہزاروں تک اعداد، لمبی تقسیم، کسریں' },
-  },
   listSub: (level, gradesLabel, count) => `سطح ${num(level, 'ur')} — ${gradesLabel} — ${num(count, 'ur')} اسباق`,
-  lessons: (n) => `${num(n, 'ur')} اسباق`,
   otherLevels: 'دوسری سطحیں',
-  chooseLevel: 'سطح منتخب کریں',
   next: 'اگلا',
   opened: 'کھولا گیا',
   strand: { daily: 'روزانہ اسباق', extended: 'ہفتہ وار — توسیعی گھنٹہ' },
   chapter: (n) => `باب ${num(n, 'ur')}`,
-  chooser: {
-    title: 'کون سی سطح؟',
-    line: 'پڑھنے میں پیچھے رہ جانے والے بچے ہر جماعت میں ہوتے ہیں۔ ہر بچے کی سطح جاننے کے لیے پہلے اسکرینر کریں۔',
-    screener: 'اسکرینر',
-    startHere: 'یہاں سے شروع کریں',
-    groupMap: { 1: 'ابتدائی گروپ ← سطح ۱', 2: 'درمیانی گروپ ← سطح ۲', 3: 'اعلیٰ گروپ ← سطح ۳' },
-  },
   minutes: (n) => `${num(n, 'ur')} منٹ`,
   chip: {
     sounds: (n) => (n === 1 ? '۱ آواز' : `${num(n, 'ur')} آوازیں`),

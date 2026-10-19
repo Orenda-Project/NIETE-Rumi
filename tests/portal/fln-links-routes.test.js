@@ -50,9 +50,12 @@ function row(id, extra = {}) {
   return { id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips: {}, opened: false, ...extra };
 }
 
-/** A catalogue body per api.md: grade 1–5 → its level; grade 6–12 + level → that level's rows. */
-function catalogueFor(grade, subject, level) {
-  const lv = level || (grade === 1 ? 1 : grade <= 3 ? 2 : grade <= 5 ? 3 : null);
+/**
+ * A catalogue body as the real corpus answers it (fln-corpus.service catalogue): grade 1–5 → that grade's level and
+ * rows, whatever `level` says; any other grade → no rows (the routes never ask for one — FLN is Grades 1–5).
+ */
+function catalogueFor(grade, subject) {
+  const lv = grade === 1 ? 1 : grade >= 2 && grade <= 3 ? 2 : grade >= 4 && grade <= 5 ? 3 : null;
   const levels = [
     { level: 1, label_en: 'Level 1', label_ur: 'سطح ۱', grades: [1], count: 4, screener_id: 900 },
     { level: 2, label_en: 'Level 2', label_ur: 'سطح ۲', grades: [2, 3], count: 3, screener_id: 901 },
@@ -123,7 +126,7 @@ beforeEach(async () => {
   corpus = {
     // The real service's shape (PR-C fln-corpus.service): ensure() loads lazily; catalogue({grade, subject, level}).
     ensure: jest.fn(async () => true),
-    catalogue: jest.fn(({ grade, subject, level = null }) => catalogueFor(grade, subject, level)),
+    catalogue: jest.fn(({ grade, subject }) => catalogueFor(grade, subject)),
     isHidden: jest.fn(async (id) => String(id) === '555'),
     plan: jest.fn(async (id) => (String(id) === '101' ? { id: 101, title: 'Sounds of c and k', lang: 'en', dir: 'ltr', slo: ['secret goal'] } : null)),
     placementOf: jest.fn(async () => []),
@@ -169,7 +172,7 @@ describe('GET /fln/links', () => {
       count: 4,
       used_by: 5,
     });
-    expect(corpus.catalogue).toHaveBeenCalledWith({ grade: 1, subject: 'rh-en', level: null });
+    expect(corpus.catalogue).toHaveBeenCalledWith({ grade: 1, subject: 'rh-en' });
   });
   it('the link carries no identity: no phone, no user id, no token, no query string', async () => {
     const r = await get('/links?grade=1&subject=rh-en', LEADER);
@@ -178,16 +181,20 @@ describe('GET /fln/links', () => {
       expect(x.url).not.toContain(LEADER);
     }
   });
-  it('grade 8 with no level: every level\'s screener first, then each level in order', async () => {
-    const r = await get('/links?grade=8&subject=rh-en', LEADER);
-    expect(r.status).toBe(200);
-    expect(r.body.rows.map((x) => x.id)).toEqual([900, 901, 902, 800, 101, 102, 103, 201, 202, 301]);
-    expect(r.body.rows[1].level).toBe(2);
-    expect(corpus.catalogue.mock.calls.map((c) => c[0].level)).toEqual([1, 2, 3]);
+  it('FLN is Grades 1–5 (bd-elc1qz): grade 6–12 is 400 bad_request, with or without a level, and the corpus is not read', async () => {
+    for (const path of ['/links?grade=7&subject=rh-en', '/links?grade=6&subject=num', '/links?grade=12&subject=rh-ur', '/links?grade=8&subject=num&level=2']) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await get(path, LEADER);
+      expect([path, r.status, r.body]).toEqual([path, 400, { error: 'bad_request' }]);
+      expect(r.cache).toBe('no-store');
+    }
+    expect(corpus.catalogue).not.toHaveBeenCalled();
   });
-  it('grade 8 with level=2 gives that level only', async () => {
-    const r = await get('/links?grade=8&subject=num&level=2', LEADER);
-    expect(r.body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
+  it('level is still accepted (old links) but the grade decides: grade 4 + level=1 → the grade-4 rows, and level never reaches the corpus', async () => {
+    const r = await get('/links?grade=4&subject=num&level=1', LEADER);
+    expect(r.status).toBe(200);
+    expect(r.body.rows.map((x) => x.id)).toEqual([902, 301]);
+    expect(corpus.catalogue.mock.calls.map((c) => c[0])).toEqual([{ grade: 4, subject: 'num' }]);
   });
   it('q filters case-insensitively on the title', async () => {
     const r = await get('/links?grade=1&subject=rh-en&q=CAT', LEADER);
@@ -206,7 +213,7 @@ describe('GET /fln/links', () => {
   it('sort=used falls back to teaching order when q is set or no row has used_by', async () => {
     // "Sounds of c and k" (used 5) and "The cat story" (used 40) both hold an "s": teaching order, not 40-before-5.
     expect((await get('/links?grade=1&subject=rh-en&sort=used&q=s', LEADER)).body.rows.map((x) => x.id)).toEqual([101, 102]);
-    expect((await get('/links?grade=8&subject=rh-en&level=2&sort=used', LEADER)).body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
+    expect((await get('/links?grade=3&subject=rh-en&level=2&sort=used', LEADER)).body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
   });
   it('malformed params are 400 bad_request (no-store) and the corpus is not read', async () => {
     const bad = [

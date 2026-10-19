@@ -1,5 +1,5 @@
 /**
- * What the level chooser and the lesson list share: loading a catalogue, the top bar with Back,
+ * What the lesson list and its neighbours share: loading a catalogue, the top bar with Back,
  * the subject list, and where each list page lives.
  */
 import { useCallback, useEffect, useState } from 'react';

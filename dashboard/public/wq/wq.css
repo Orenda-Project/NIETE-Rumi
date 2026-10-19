@@ -898,3 +898,17 @@ html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
 /* the adventure look's English question, over the polish's own .wq-qtext rule */
 html.wq-ur2[lang=ur].wq-adv .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
+/* the adventure look (html.wq-adv), kept outside the ONE button block above, whose rules all sit under wq-1b */
+/* every Jugnu bubble and line under the look wraps in balanced lines, so no line holds one lone word (EN + UR);
+   balance needs a block box, so a shelf book's author line becomes one (it already sat on its own line) */
+html.wq-adv .wq-say,html.wq-adv .wqs-say,html.wq-adv .wq-dsay,html.wq-adv .wq-bootsay,html.wq-adv .wq-hnonesay,html.wq-adv .wqs-book small{text-wrap:balance}
+/* the storybook reader's main button says what it does without its word (a pre-reader): ▶ to play, ❚❚ while the voice
+   plays, and playing is the soft kind, so play and pause never look alike; the held button (.wqs-lk, 600 ms) already
+   wears its new state (.wqs-to-*), only its tap waits. The icon is a media sign, so it never turns in Urdu */
+html.wq-adv .wqs-main.wqs-listen:not(.wqs-lk)::before,html.wq-adv .wqs-main.wqs-to-listen::before,html.wq-adv .wqs-main.wqs-pause:not(.wqs-lk)::before,html.wq-adv .wqs-main.wqs-to-pause::before{content:"";flex:none;width:20px;height:20px;margin-inline-end:8px;background:currentColor}
+html.wq-adv .wqs-main.wqs-listen:not(.wqs-lk)::before,html.wq-adv .wqs-main.wqs-to-listen::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 4.5v15l12.5-7.5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 4.5v15l12.5-7.5z'/%3E%3C/svg%3E") center/contain no-repeat}
+html.wq-adv .wqs-main.wqs-pause:not(.wqs-lk)::before,html.wq-adv .wqs-main.wqs-to-pause::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 4.5h4.5v15H6zm7.5 0H18v15h-4.5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 4.5h4.5v15H6zm7.5 0H18v15h-4.5z'/%3E%3C/svg%3E") center/contain no-repeat}
+html.wq-adv .wqs-main.wqs-pause:not(.wqs-lk),html.wq-adv .wqs-main.wqs-to-pause{background:var(--card);color:var(--ink);border:2px solid var(--line);box-shadow:0 var(--btn-d2) 0 var(--line)}
+@keyframes wqs-on{50%{outline-color:var(--land-edge,var(--line))}}
+@media (prefers-reduced-motion:no-preference){html.wq-adv .wqs-main.wqs-pause:not(.wqs-lk){outline:3px solid transparent;outline-offset:2px;animation:wqs-on 1.4s ease-in-out infinite}}
+html.wq-adv .wqs-book small{display:block}

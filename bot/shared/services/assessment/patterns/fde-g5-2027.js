@@ -194,6 +194,7 @@ const MATHS = {
   name_en: 'Mathematics',
   name_ur: 'ریاضی', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 10, Understand: 50, Apply: 40 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -229,6 +230,8 @@ const MATHS = {
       label_en: 'SECTION - A',
       marks_en: 'Total Marks: {t:40}',
       marks: 40,
+      // FDE's split for this section (ToS p.5-6 mapped onto the paper design p.12; bd-5jmnfj.19).
+      levels: { Remember: 10, Understand: 30, Apply: 0 },
       answer_on: 'question_paper',
       note_en: null,
       slots: [
@@ -266,6 +269,7 @@ const MATHS = {
       label_en: 'Section-B',
       marks_en: '({t:40} marks)',
       marks: 40,
+      levels: { Remember: 0, Understand: 20, Apply: 20 }, // FDE ToS (bd-5jmnfj.19)
       answer_on: 'answer_sheet',
       note_en: null,
       slots: [
@@ -296,6 +300,7 @@ const MATHS = {
       label_en: 'Section-C',
       marks_en: '({t:20} marks)',
       marks: 20,
+      levels: { Remember: 0, Understand: 0, Apply: 20 }, // FDE ToS (bd-5jmnfj.19)
       answer_on: 'answer_sheet',
       note_en: 'Note: Q3 is compulsory. Attempt any {w:three} from the remaining questions. All questions carry 5 marks each. ({n:4} × 5 = {t:20})',
       note_slot: 'maths.C.Q4-8',
@@ -320,11 +325,13 @@ const MATHS = {
           type: 'Graphs & Geometric Problems', category: 'subjective', shape: 'word_problem',
           generate: 5, attempt: 3, marks_each: 5, parts: null,
           numbering: 'continue:4', compulsory: false, lines: 0, work_mm: null,
+          // FDE prints Q4's angles as i) ii) iii) so the teacher marks the two chosen (CAE 2026 p.11, bd-5jmnfj.11).
+          sub_numbering: 'roman',
           section_pages: 'units:11-12',
           grain: { kind: 'one each: draw and identify angles, area, perimeter, average, missing angle', number_size: 'single or 2-digit lengths and values', steps: 2, unit_choice: true },
           families: null,
           kinds: ['draw', 'area', 'perimeter', 'average', 'missing_angle'],
-          prompt_rule: 'Five items in this order, one of each kind: draw and identify any two of three named angles (obtuse, supplementary, straight); the area of a parallelogram or a triangle; the perimeter of a rectangle or a square; the average of five values; a missing angle stated in WORDS ("Two angles are supplementary. One of them is 115°. Find the other angle and name the pair."). Never send the child to a figure that is not printed.',
+          prompt_rule: 'Five items in this order, one of each kind: draw and identify any two of three named angles (obtuse, supplementary, straight): `question` = "Draw and identify any two of the following angles.", `questions` = exactly three strings, "Obtuse angle", "Supplementary angle", "Straight angle", with no letter or number in front (the paper numbers them i, ii, iii); the area of a parallelogram or a triangle; the perimeter of a rectangle or a square; the average of five values; a missing angle stated in WORDS ("Two angles are supplementary. One of them is 115°. Find the other angle and name the pair."). Never send the child to a figure that is not printed.',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
       ],
@@ -340,6 +347,7 @@ const SCIENCE = {
   name_en: 'Science',
   name_ur: 'سائنس', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 30, Understand: 30, Apply: 40 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -497,6 +505,7 @@ const ENGLISH = {
   name_en: 'English',
   name_ur: 'انگریزی', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 40, Understand: 30, Apply: 30 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -719,6 +728,7 @@ const URDU = {
   name_en: 'Urdu',
   name_ur: 'اردو',
   total_marks: 100,
+  tos: { Remember: 30, Understand: 30, Apply: 40 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
@@ -793,6 +803,8 @@ const URDU = {
       marks_ur: '(کل نمبر {t:20})', // transcribed (FDE p.54)
       label_en: 'Section A (objective)',
       marks: 20,
+      // FDE's split for this section (ToS PDF p.50-53; how R30 divides between A and C is ours; bd-5jmnfj.19).
+      levels: { Remember: 20, Understand: 0, Apply: 0 },
       answer_on: 'question_paper',
       note_ur: null,
       slots: [
@@ -818,6 +830,7 @@ const URDU = {
       marks_ur: '(کل نمبر {t:20})', // transcribed (FDE p.56)
       label_en: 'Section B (subjective)',
       marks: 20,
+      levels: { Remember: 0, Understand: 20, Apply: 0 }, // FDE ToS (bd-5jmnfj.19)
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [
@@ -849,6 +862,8 @@ const URDU = {
       marks_ur: '(کل نمبر {t:60})', // transcribed (FDE p.57)
       label_en: 'Section C (subjective)',
       marks: 60,
+      // FDE ToS; the writing tasks Q7-Q10 are Apply, Q4-Q5 Understand, Q3 and Q6 Remember (bd-5jmnfj.19).
+      levels: { Remember: 10, Understand: 10, Apply: 40 },
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [
@@ -994,6 +1009,7 @@ const SST = {
   name_en: 'Social Studies',
   name_ur: 'معاشرتی علوم', // needs fluent-Urdu review
   total_marks: 100,
+  tos: { Remember: 30, Understand: 40, Apply: 30 }, // FDE's table of specification, % of marks by level (GRADE V MODEL PAPERS CAE 2026)
   total_time_en: '3 hrs',
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
