@@ -109,3 +109,13 @@ describe('the re-ask tells each section where it stood', () => {
     expect(typeof levelNote(checkBlueprint(laid('maths'), { tos: P.maths.tos }))).toBe('string');
   });
 });
+
+describe('Urdu Q4 and Q5 are Understand', () => {
+  // Sandbox run 2026-10-19: Q4 (rewrite) and Q5 (word in a sentence) came back Apply, putting C 9 marks over.
+  it('Section C names them', () => {
+    expect(prompt('urdu', 'C')).toMatch(/rewrite-the-sentences \(Q4\) and use-the-words-in-sentences \(Q5\) items are Understand/);
+  });
+  it('no other section is told', () => {
+    expect(prompt('urdu', 'A')).not.toMatch(/\(Q4\)/);
+  });
+});
