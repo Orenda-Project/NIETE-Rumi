@@ -218,6 +218,23 @@ export const portal = {
     return response.data;
   },
 
+  // ── bd-v0toag.31: live moves while she records (group D only; the bot decides) ──
+
+  liveEligible: async (): Promise<{ on: boolean }> => (await api.post('/coaching-live/eligible', {})).data,
+  liveCard: async (lessonId: string): Promise<{ on: boolean; card?: LiveCard }> => (
+    (await api.post('/coaching-live/card', { lessonId })).data
+  ),
+  liveKey: async (liveId: string): Promise<LiveKey> => (await api.post('/coaching-live/key', { liveId })).data,
+  liveDetect: async (body: {
+    liveId: string; lessonId: string; window: string; unticked: number[];
+  }): Promise<{ ticked: number[] }> => (await api.post('/coaching-live/detect', body)).data,
+  liveEnd: async (body: { liveId: string; drops: number; bytesSent: number }): Promise<{ ok: boolean }> => (
+    (await api.post('/coaching-live/end', body)).data
+  ),
+  liveTaps: async (body: { coachingSessionId: string; taps: LiveTap[] }): Promise<{ ok: boolean; reason?: string }> => (
+    (await api.post('/coaching-live/taps', body)).data
+  ),
+
   /**
    * The library, one step at a time. Grades 1-5 and 6-12 are two catalogues
    * behind one picker (as on the Curriculum page): `lane` says which one a grade
@@ -570,6 +587,14 @@ export type ActiveCoachingSession = {
 };
 
 // ── bd-5rz1v: the lesson-plan library, for "Record your class" ─────────────
+// ── bd-v0toag.31: live moves ──
+export interface LiveMove { idx: number; covers: string[]; chip: string; do: string; say: string }
+export interface LiveCard { lessonId: string; stamp: string; sections: { sec: string; minutes: number; moves: LiveMove[] }[] }
+export type LiveKey =
+  | { ok: true; api_key: string; expires_at: string; ws: string; model: string }
+  | { ok: false; reason: 'off' | 'cap' | 'mint' };
+export interface LiveTap { idx: number; choice: 'did' | 'did_not'; at: string; live_state: 'ticked' | 'unticked' }
+
 export type RecentLessonPlan = {
   assetId: string;
   lessonId: string;

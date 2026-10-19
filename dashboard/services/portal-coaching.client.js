@@ -114,9 +114,20 @@ function previewObservationReport({ userId, coachingSessionId }) {
 }
 function sendObservationReport({ userId, coachingSessionId }) { return post('observe/report/send', { userId, coachingSessionId }); }
 
+// ── bd-v0toag.31: live moves while she records. Same rules: `userId` from the SESSION. ──
+function liveEligible({ userId }) { return post('live/eligible', { userId }); }
+function liveCard({ userId, lessonId }) { return post('live/card', { userId, lessonId }); }
+function liveKey({ userId, liveId }) { return post('live/key', { userId, liveId }); }
+function liveDetect({ userId, liveId, lessonId, window, unticked }) {
+  return post('live/detect', { userId, liveId, lessonId, window, unticked });
+}
+function liveEnd({ userId, liveId, drops, bytesSent }) { return post('live/end', { userId, liveId, drops, bytesSent }); }
+function liveTaps({ userId, coachingSessionId, taps }) { return post('live/taps', { userId, coachingSessionId, taps }); }
+
 module.exports = {
   presignUpload, startSession, submitReflection, recentPlans,
   startObservation, observeRecentPlans, listObservations, observationView, getObservationDraft,
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
   previewObservationReport, sendObservationReport,
+  liveEligible, liveCard, liveKey, liveDetect, liveEnd, liveTaps,
 };

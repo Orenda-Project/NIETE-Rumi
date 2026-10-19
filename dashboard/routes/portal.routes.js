@@ -7404,6 +7404,26 @@ router.get('/coaching-upload/recent-plans', requirePortalAuth, requireSelfObserv
 ));
 
 /**
+ * POST /api/portal/coaching-live/*  (bd-v0toag.31) — live moves while she records; relays to the bot's live/*.
+ * Only the named fields go through, and the user is always the session's.
+ */
+const LIVE_RELAYS = {
+  eligible: ['liveEligible', []],
+  card: ['liveCard', ['lessonId']],
+  key: ['liveKey', ['liveId']],
+  detect: ['liveDetect', ['liveId', 'lessonId', 'window', 'unticked']],
+  end: ['liveEnd', ['liveId', 'drops', 'bytesSent']],
+  taps: ['liveTaps', ['coachingSessionId', 'taps']],
+};
+for (const [name, [fn, fields]] of Object.entries(LIVE_RELAYS)) {
+  router.post(`/coaching-live/${name}`, requirePortalAuth, requireSelfObservation, (req, res) => {
+    const body = req.body || {};
+    const args = Object.fromEntries(fields.map((f) => [f, body[f]]));
+    return relayToBot(res, `live-${name}`, () => PortalCoachingClient[fn]({ ...args, userId: req.session.portalUserId }));
+  });
+}
+
+/**
  * GET /api/portal/coaching-sessions/active  (bd-5rz1v)
  * → { sessions: [{ id, createdAt, status, stage, source, needsAnswer, topic, subject }] }, OLDEST first.
  *
