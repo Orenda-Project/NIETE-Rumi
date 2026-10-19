@@ -160,7 +160,7 @@ function noSchoolRow(band: TrainingBand): TrainingLevelsSchool {
   const n = band === 'primary' ? 7 : 3;
   const levels = ORDERS[band].map((order) => counts(order, { passed: order < 2 ? 3 : 1, inProgress: 1, notStarted: n - (order < 2 ? 3 : 1) - 1 }));
   return {
-    schoolId: null, emis: null, name: null, region: 'B.K', teachers: n, passedAll: 1,
+    schoolId: 'no-school:B.K', emis: null, name: null, noSchool: true, region: 'B.K', teachers: n, passedAll: 1,
     levels: levels.map(({ levelOrder, passed, teachers, pctPassed }) => ({ levelOrder, passed, teachers, pctPassed })),
   };
 }
@@ -174,10 +174,10 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
   const overviewLevels = sum(band, inScope).map((l) => ({ ...l, name: FIXTURE_LEVELS[l.levelOrder].name }));
 
   const schools: TrainingLevelsSchool[] = inScope
-    .map(({ school, cells }) => {
+    .map(({ school, cells }): TrainingLevelsSchool => {
       const levels = ORDERS[band].map((order) => counts(order, cells.get(order)!));
       return {
-        schoolId: school.schoolId, emis: school.emis, name: school.name, region: school.region,
+        schoolId: school.schoolId, emis: school.emis, name: school.name, noSchool: false, region: school.region,
         teachers: top(levels).teachers, passedAll: top(levels).passed,
         levels: levels.map(({ levelOrder, passed, teachers, pctPassed }) => ({ levelOrder, passed, teachers, pctPassed })),
       };
@@ -185,7 +185,7 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
     .filter((s) => s.levels.some((l) => l.teachers > 0))
     .concat(!wanted || wanted === 'b.k' ? [noSchoolRow(band)] : [])
     .sort((a, b) => REGION_ORDER.indexOf(a.region as (typeof REGION_ORDER)[number]) - REGION_ORDER.indexOf(b.region as (typeof REGION_ORDER)[number])
-      || (a.schoolId ? 0 : 1) - (b.schoolId ? 0 : 1)
+      || (a.noSchool ? 1 : 0) - (b.noSchool ? 1 : 0)
       || String(a.name ?? '').localeCompare(String(b.name ?? '')));
 
   if (band === 'midhigh') {
@@ -214,7 +214,7 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
       }),
       noSector: noSectorBlock(band),
       schools: schools.map((s) => {
-        if (!s.schoolId) return s;
+        if (s.noSchool) return s;
         const p = partnersOf([s.schoolId]);
         return { ...s, teachers: p.cohort, passedAll: p.passedAll };
       }),

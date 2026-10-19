@@ -401,11 +401,11 @@ function SectorCards({ p, data, midHigh }: { p: TabProps; data: TrainingLevelsRe
           ) : (
             <ul data-testid="training-schools" className="flex flex-col gap-2">
               {schools.map((s) => (
-                <li key={`${s.region}:${s.schoolId ?? 'none'}`} data-testid="training-school" className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3">
+                <li key={s.schoolId} data-testid="training-school" className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3">
                   <span className="min-w-0">
-                    <span data-testid="school-name" className={`block text-sm font-medium ${s.schoolId ? 'text-gray-800' : 'italic text-gray-500'}`}>{s.name ?? t.school.noSchool}</span>
+                    <span data-testid="school-name" className={`block text-sm font-medium ${s.noSchool ? 'italic text-gray-500' : 'text-gray-800'}`}>{s.noSchool ? t.school.noSchool : s.name}</span>
                     {s.emis ? <span className="block text-xs text-gray-400">{c.schools.emis(s.emis)}</span> : null}
-                    {s.schoolId ? null : <span className="block text-xs text-gray-400">{t.school.noSchoolHint}</span>}
+                    {s.noSchool ? <span className="block text-xs text-gray-400">{t.school.noSchoolHint}</span> : null}
                   </span>
                   <span className="flex shrink-0 gap-5 text-end text-sm">
                     <span>

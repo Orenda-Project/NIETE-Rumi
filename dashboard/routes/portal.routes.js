@@ -1862,7 +1862,7 @@ const TrainingLevels = require('../services/training-levels-analytics.service');
 const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
   load: () => TrainingLevels.loadTrainingLevelRows(
     dbQuery,
-    () => require('../lib/analytics-lists').loadAnalyticsLists(supabase),
+    () => require('../lib/analytics-lists').loadAnalyticsLists(supabase, { query: dbQuery }),
   ),
   maxAgeMs: 30 * 60 * 1000,
 });
@@ -1881,8 +1881,9 @@ const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
  *     overview: { teachers, passedAll, levels: [L], partners? },
  *     regions:  [{ region, teachers, passedAll, levels: [L without name], partners? }],   the six RDF sectors
  *     noSector: { teachers, passedAll, levels, partners? },        members the RDF allocation does not place
- *     schools:  [{ schoolId|null, emis|null, name|null, region, teachers, passedAll,
- *                  levels: [{ levelOrder, passed, teachers, pctPassed }] }] }   FDE's schools; null = "No school"
+ *     schools:  [{ schoolId, emis|null, name|null, noSchool, region, teachers, passedAll,
+ *                  levels: [{ levelOrder, passed, teachers, pctPassed }] }] }   FDE's schools; noSchool = the sector's
+ *                                                                               "No school" row, id 'no-school:<sector>'
  *   L = { levelId, levelOrder (0-3), name, passed, inProgress, notStarted, teachers, pctPassed }
  * Sector = the RDF allocation sector (lib/analytics-lists). The overview and the schools follow ?region=; the six
  * regions and noSector do not. No teacher appears. Definitions: services/training-levels-analytics.service.js.
