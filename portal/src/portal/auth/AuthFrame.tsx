@@ -25,6 +25,8 @@ import { AUTH } from './copy';
  */
 export interface AuthFrameProps {
   title: string;
+  /** One line under the title, on the band (the analytics sign-in's "Log in with your account name"). None: no line. */
+  subtitle?: string;
   /** Shows the round back button in the band. */
   onBack?: () => void;
   children: ReactNode;
@@ -32,7 +34,7 @@ export interface AuthFrameProps {
 
 const MAX_COL = 'mx-auto w-full max-w-[460px] md:max-w-[480px]';
 
-export function AuthFrame({ title, onBack, children }: AuthFrameProps) {
+export function AuthFrame({ title, subtitle, onBack, children }: AuthFrameProps) {
   const c = useCopy(AUTH);
   const lang = useLang();
   const switchTo = lang === 'ur' ? 'en' : 'ur';
@@ -71,6 +73,9 @@ export function AuthFrame({ title, onBack, children }: AuthFrameProps) {
             </button>
           </div>
           <h1 className="mt-[30px] break-words text-[34px] font-light leading-[1.15] tracking-[-0.015em] md:text-[38px] rtl:mt-2.5 rtl:font-normal rtl:leading-[1.6]">{title}</h1>
+          {subtitle ? (
+            <p className="mt-2 break-words text-[17px] font-medium leading-snug text-nu-frame-chip rtl:mt-3 rtl:leading-[1.9]">{subtitle}</p>
+          ) : null}
         </div>
       </header>
 

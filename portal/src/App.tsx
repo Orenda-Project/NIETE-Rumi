@@ -113,12 +113,14 @@ const SchoolAnalytics = page(() => import("./portal/pages/SchoolAnalytics"));
 const SchoolLessons = page(() => import("./portal/pages/SchoolLessons"));
 // bd-s6qbts.3 — school-wise analytics for analytics-only accounts (FDE / AEO).
 const SchoolsAnalytics = page(() => import("./portal/analytics/SchoolsAnalytics"));
+// The analytics accounts' own sign-in: an account name and a password (portal/auth/AnalyticsLogin).
+const AnalyticsLogin = page(() => import("./portal/auth/AnalyticsLogin"));
 const FlnRoutes = page(() => import("./portal/fln/FlnRoutes"));
 
 /** While a page's chunk arrives on a cold start at that page: its outline, never a spinner. */
 function RouteFallback() {
   const { pathname } = useLocation();
-  if (/^\/portal\/(setup|reset-password|delete-account|privacy)/.test(pathname) || pathname === "/how-it-works") {
+  if (/^\/portal\/(setup|reset-password|delete-account|privacy|analytics\/login)/.test(pathname) || pathname === "/how-it-works") {
     return <LoginSkeleton />;
   }
   return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
@@ -324,6 +326,9 @@ const App = () => {
             {/* bd-97x22y.2 — the page and its six tabs (/portal/analytics/schools/<tab>), one route so a tab change
                 keeps the page and its numbers. */}
             <Route path="/portal/analytics/schools/:tab?" element={<SchoolsAnalytics />} />
+            {/* PUBLIC, like /portal/login: the analytics accounts' own sign-in (name + password). lib/homeRoute keeps
+                the guard off it, and the API client's 401 handler leaves it in place. */}
+            <Route path="/portal/analytics/login" element={<AnalyticsLogin />} />
 
             <Route path="/portal/fln/*" element={<FlnRoutes />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
