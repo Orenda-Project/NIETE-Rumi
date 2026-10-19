@@ -242,6 +242,11 @@
         'html.wq-adv .wqc-mid .wq-jug.wq-big .wq-say{flex:0 0 auto;margin:0;max-width:100%;text-align:center;font-size:var(--fs-5,24px);line-height:1.3;padding:var(--sp-3,12px) var(--sp-5,24px)}',
         'html.wq-adv .wqc-mid .wq-jug.wq-big .wq-say::after{bottom:auto;top:-9px;inset-inline-start:calc(50% - 9px);border:9px solid transparent;border-bottom-color:var(--card);border-top:0}',
         'html.wq-adv .wqc-mid .wqc-hear{align-self:center}',
+        // the English Story Time intro stacks like the Urdu one (Jugnu above, a full-width bubble, its tail up)
+        'html.wq-adv:not([lang=ur]) .wqc-land .wq-jug.wq-big{flex-direction:column;align-items:center;flex-wrap:nowrap;gap:var(--sp-3,12px)}',
+        'html.wq-adv:not([lang=ur]) .wqc-land .wq-jug.wq-big .wq-jimg{width:112px;height:112px}',
+        'html.wq-adv:not([lang=ur]) .wqc-land .wq-jug.wq-big .wq-say{flex:0 0 auto;align-self:stretch;margin:0;max-width:100%;text-align:center;font-size:var(--fs-5,24px);line-height:1.3;padding:var(--sp-3,12px) var(--sp-5,24px)}',
+        'html.wq-adv:not([lang=ur]) .wqc-land .wq-jug.wq-big .wq-say::after{bottom:auto;top:-9px;inset-inline-start:calc(50% - 9px);border:9px solid transparent;border-bottom-color:var(--card);border-top:0}',
         'html.wq-adv[lang=ur] .wqc-mid .wq-jug.wq-big .wq-say{line-height:var(--lh,2);padding-inline:var(--sp-5,24px)}',
         'html.wq-adv .wqc-mid .wqc-hear{font-size:var(--fs-3,17px);min-height:48px}',
         'html.wq-adv .wqc-pill{font-size:var(--fs-2,15px);padding:var(--sp-1,4px) var(--sp-3,12px)}',
