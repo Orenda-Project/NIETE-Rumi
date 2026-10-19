@@ -26,6 +26,8 @@ const {
 const { REGION_BUCKETS } = require('../../dashboard/services/schools-analytics.service');
 
 const school = (id, emis, extra = {}) => ({ id, name: `School ${id}`, emis, ...extra });
+// The fixture's schools sit in these sectors (a school is listed only under its own sector).
+const REGION_OF = { s0: 'B.K', s1: 'B.K', s3: 'Sihala', s7: 'Nilore' };
 const at = (id, schoolId) => ({ id, school_id: schoolId });
 const lp = (user, grade, subject) => ({ user_id: user, grade, subject, ref: null });
 const ref = (user, planRef) => ({ user_id: user, grade: null, subject: null, ref: planRef });
@@ -39,7 +41,7 @@ function primaryFixture() {
       ['t10', 'Nilore'], // at a school that is not on FDE's list
     ]),
     fdeSchoolEmis: new Set(['101', '303']),
-    schools: [school('s1', '101'), school('s3', '303'), school('s7', '707')],
+    schools: [school('s1', '101', { region: 'B.K' }), school('s3', '303', { region: 'Sihala' }), school('s7', '707', { region: 'Nilore' })],
     teachers: [at('t1', 's1'), at('t2', 's1'), at('t4', 's1'), at('t5', 's3'), at('t9', null), at('t10', 's7')],
     activity: [
       // t1: a WhatsApp plan (Grade 4 Maths) and an app open (Grade 4 English).
@@ -95,10 +97,10 @@ describe('Active / Non-Active — Primary', () => {
 
   it('school breakdown: schools on FDE\'s list; no school, or one off the list, is the sector\'s "No school" line', () => {
     expect(primary().schools).toEqual([
-      { region: 'B.K', schoolId: 's1', emis: '101', name: 'School s1', teachers: 3, active: 3, nonActive: 0, activePct: 100 },
-      { region: 'Sihala', schoolId: 's3', emis: '303', name: 'School s3', teachers: 1, active: 0, nonActive: 1, activePct: 0 },
-      { region: 'Urban-I', schoolId: 'no-school:Urban-I', emis: null, name: null, teachers: 1, active: 1, nonActive: 0, activePct: 100 },
-      { region: 'Nilore', schoolId: 'no-school:Nilore', emis: null, name: null, teachers: 1, active: 0, nonActive: 1, activePct: 0 },
+      { region: 'B.K', schoolId: 's1', emis: '101', name: 'School s1', noSchool: false, teachers: 3, active: 3, nonActive: 0, activePct: 100 },
+      { region: 'Sihala', schoolId: 's3', emis: '303', name: 'School s3', noSchool: false, teachers: 1, active: 0, nonActive: 1, activePct: 0 },
+      { region: 'Urban-I', schoolId: 'no-school:Urban-I', emis: null, name: null, noSchool: true, teachers: 1, active: 1, nonActive: 0, activePct: 100 },
+      { region: 'Nilore', schoolId: 'no-school:Nilore', emis: null, name: null, noSchool: true, teachers: 1, active: 0, nonActive: 1, activePct: 0 },
     ]);
   });
 
@@ -106,11 +108,20 @@ describe('Active / Non-Active — Primary', () => {
     const f = primaryFixture();
     f.population.set('t11', 'B.K');
     f.teachers.push(at('t11', null));
-    f.schools.push(school('s0', '303', { name: 'AAA School' }));
+    f.schools.push(school('s0', '303', { name: 'AAA School', region: 'B.K' }));
     f.population.set('t12', 'B.K');
     f.teachers.push(at('t12', 's0'));
     const out = summarizeLpEngagement(f, { band: 'primary' });
     expect(out.schools.filter((s) => s.region === 'B.K').map((s) => s.name)).toEqual(['AAA School', 'School s1', null]);
+  });
+
+  it('a teacher whose school is in another sector than her RDF sector is on her sector\'s No school line', () => {
+    const f = primaryFixture();
+    f.population.set('t13', 'Tarnol');
+    f.teachers.push(at('t13', 's1')); // s1 is a B.K school
+    const out = summarizeLpEngagement(f, { band: 'primary' });
+    expect(out.schools.find((s) => s.region === 'Tarnol')).toMatchObject({ schoolId: 'no-school:Tarnol', noSchool: true, teachers: 1 });
+    expect(out.schools.find((s) => s.schoolId === 's1').teachers).toBe(3);
   });
 
   it('FDE\'s list not loaded (null, never empty): the v7 school rule — active, non-test, in the six sectors', () => {
@@ -189,7 +200,7 @@ describe('Active / Non-Active — Mid / High', () => {
   const fixture = () => ({
     population: new Map([['m1', 'Sihala'], ['m2', 'Sihala'], ['m3', 'Tarnol'], ['m4', 'Tarnol']]),
     fdeSchoolEmis: ['303'], // an array works as well as a Set
-    schools: [school('s3', '303')],
+    schools: [school('s3', '303', { region: 'Sihala' })],
     teachers: [at('m1', 's3'), at('m2', 's3'), at('m3', 's3'), at('m4', 's3')],
     activity: [
       // Every 6-12 trace is a segment id: app open, WhatsApp delivery, render requested, survey answered.
@@ -281,14 +292,9 @@ describe('the reads', () => {
   }
   const activityCall = (q) => q.calls.find((c) => /lesson_plans|niete_lp612/.test(c.sql));
 
-  it('the population is the band\'s RDF list from analytics-lists, read once per request', async () => {
+  it('the population is the band\'s RDF list from analytics-lists (loaded once by the route)', async () => {
     const q = fakeQuery();
-    const loadLists = jest.fn(async () => LISTS);
-    const supabase = { tag: 'sb' };
-    const rows = await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { supabase, loadLists });
-    expect(loadLists).toHaveBeenCalledTimes(1);
-    // the dashboard's pg query resolves the lists in two reads (lib/analytics-lists)
-    expect(loadLists).toHaveBeenCalledWith(supabase, { query: q });
+    const rows = await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { lists: LISTS });
     expect(rows.population).toBe(LISTS.primary);
     expect(rows.fdeSchoolEmis).toBe(LISTS.fdeSchoolEmis);
     expect(rows.schools).toHaveLength(1);
@@ -300,14 +306,14 @@ describe('the reads', () => {
     expect(users.params).toEqual([['11111111-0000-4000-8000-000000000001']]);
 
     const q2 = fakeQuery();
-    const mh = await loadLpEngagementRows(q2, {}, 'midhigh', { supabase, loadLists });
+    const mh = await loadLpEngagementRows(q2, {}, 'midhigh', { lists: LISTS });
     expect(mh.population).toBe(LISTS.midHigh);
     expect(activityCall(q2).params[0]).toEqual([...LISTS.midHigh.keys()]);
   });
 
   it('Primary activity: lesson_plans rows OR k5 app opens, in the window\'s Pakistan days, population only', async () => {
     const q = fakeQuery();
-    await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { loadLists: async () => LISTS });
+    await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { lists: LISTS });
     const a = activityCall(q);
     expect(a.sql).toMatch(/FROM lesson_plans l/);
     expect(a.sql).toMatch(/FROM niete_lp_opens o/);
@@ -322,7 +328,7 @@ describe('the reads', () => {
 
   it('Mid / High activity: the RDF 6-12 rule — g612 open, WhatsApp delivery (not a portal claim), render requested, 6-12 survey', async () => {
     const q = fakeQuery();
-    await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'midhigh', { loadLists: async () => LISTS });
+    await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'midhigh', { lists: LISTS });
     const a = activityCall(q);
     expect(a.sql).toMatch(/o\.plan_kind = 'g612'/);
     expect(a.sql).toMatch(/FROM niete_lp612_deliveries g[\s\S]*g\.surface <> 'portal'/);
@@ -357,7 +363,7 @@ describe('the reads', () => {
       return { rows: [lp('p1', '1', 'urdu')] };
     };
     const lists = { fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: {}, missing: { schools: true, teachers: true, coaches: true } };
-    const rows = await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { loadLists: async () => lists });
+    const rows = await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { lists });
     const roster = calls.find((c) => /teacher_level/.test(c.sql));
     expect(roster.sql).toMatch(/u\.role = 'teacher'/);
     expect(roster.sql).toMatch(/u\.school_id IS NOT NULL/);
@@ -370,13 +376,13 @@ describe('the reads', () => {
 
     // one band missing is enough to fall back (the lists say "teachers missing")
     const half = { ...LISTS, midHigh: null, missing: { schools: false, teachers: true, coaches: false } };
-    const mh = await loadLpEngagementRows(q, {}, 'midhigh', { loadLists: async () => half });
+    const mh = await loadLpEngagementRows(q, {}, 'midhigh', { lists: half });
     expect([...mh.population]).toEqual([['p2', 'B.K'], ['h1', 'B.K']]);
   });
 
   it('no window: no bounds, only the population', async () => {
     const q = fakeQuery();
-    await loadLpEngagementRows(q, { from: null, to: null }, 'primary', { loadLists: async () => LISTS });
+    await loadLpEngagementRows(q, { from: null, to: null }, 'primary', { lists: LISTS });
     const a = activityCall(q);
     expect(a.params).toEqual([['11111111-0000-4000-8000-000000000001']]);
     expect(a.sql).not.toMatch(/\$2/);

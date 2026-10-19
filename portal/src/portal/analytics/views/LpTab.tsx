@@ -119,7 +119,7 @@ function LpBody({ p, data, busy }: { p: TabProps; data: LpEngagementResponse; bu
       <Section id="lp-overview" eyebrow={w.sections.overview}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <KpiCard k="lpOverall" look={KPI_LOOK.overall} label={w.tiles.overall} value={o.activePct === null ? null : c.percent(String(o.activePct))} hint={w.hints.overall[shown]} />
-          <KpiCard k="lpTracked" look={KPI_LOOK.tracked} label={w.tiles.tracked} value={count(o.teachers, c)} hint={w.hints.tracked} />
+          <KpiCard k="lpTracked" look={KPI_LOOK.tracked} label={w.tiles.tracked} value={count(o.teachers, c)} hint={w.hints.tracked[data.basis?.teachers ?? 'rdf']} />
           <KpiCard k="lpActiveSectors" look={KPI_LOOK.activeSectors} label={w.tiles.activeSectors} value={count(o.activeSectors, c)} hint={w.hints.activeSectors} />
         </div>
       </Section>
@@ -297,7 +297,7 @@ function LpSchoolsTable({ c, schools }: { c: AnalyticsWords; schools: LpEngageme
           {schools.map((s, i) => (
             <tr key={s.schoolId} data-testid={`lp-school-row-${s.schoolId}`} className="hover:bg-gray-50" style={{ borderBottom: i < schools.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
               <th scope="row" className="px-3 py-3 text-start font-medium sm:px-4">
-                {s.name === null ? (
+                {s.noSchool ? (
                   <>
                     <span data-testid="school-name" className="block text-gray-700">{w.noSchool}</span>
                     <span className="block text-xs font-normal text-gray-400">{w.noSchoolHint}</span>

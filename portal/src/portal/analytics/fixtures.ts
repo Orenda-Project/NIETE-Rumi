@@ -322,15 +322,16 @@ export function fixtureLpEngagement(opts: { from?: string | null; to?: string | 
   const schools = REGION_ORDER.filter((r) => !wanted || r.toLowerCase() === wanted).flatMap((region) => {
     const listed = FIXTURE_SCHOOLS.filter((s) => s.region === region).flatMap((s) => {
       const mine = all.filter((t) => t.schoolId === s.schoolId);
-      return mine.length ? [{ region, schoolId: s.schoolId, emis: s.emis, name: s.name, ...lpCounts(mine) }] : [];
+      return mine.length ? [{ region, schoolId: s.schoolId, emis: s.emis, name: s.name, noSchool: false, ...lpCounts(mine) }] : [];
     }).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
     const none = all.filter((t) => t.region === region && t.schoolId === null);
-    return none.length ? [...listed, { region, schoolId: `no-school:${region}`, emis: null, name: null, ...lpCounts(none) }] : listed;
+    return none.length ? [...listed, { region, schoolId: `no-school:${region}`, emis: null, name: null, noSchool: true, ...lpCounts(none) }] : listed;
   });
   return {
     success: true,
     range: { from: opts.from ?? null, to: opts.to ?? null },
     band,
+    basis: { schools: 'fde', teachers: 'rdf', coaches: 'rdf', asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-08-04' } },
     overview: {
       ...overall,
       activeSectors: REGION_ORDER.filter((r) => (!wanted || r.toLowerCase() === wanted) && lpCounts(inRegion(r)).active > 0).length,
