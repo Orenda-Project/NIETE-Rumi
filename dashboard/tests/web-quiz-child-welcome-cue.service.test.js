@@ -31,7 +31,7 @@ function mkEl(tag, rect) {
   return e;
 }
 // a page: `els` names what the page has drawn, by selector (a function: drawn later); `search` its address
-function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', els = {}, sess = {}, store = {}, tel = true, obstacles = [], qsa = {}, vw = 360, vh = 640 } = {}) {
+function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', hash = '', els = {}, sess = {}, store = {}, tel = true, obstacles = [], qsa = {}, vw = 360, vh = 640 } = {}) {
   const timers = [];
   let clock = 0;
   const body = mkEl('body');
@@ -53,7 +53,7 @@ function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', el
       querySelectorAll: (sel) => (sel in qsa ? qsa[sel] : sel === 'button' || /button/.test(sel) ? obstacles : []),
       addEventListener: (n, fn) => { (docL[n] = docL[n] || []).push(fn); }, removeEventListener: (n, fn) => { docL[n] = (docL[n] || []).filter((f) => f !== fn); },
     },
-    location: { search, pathname, hash: '' },
+    location: { search, pathname, hash },
     history: { state: null, replaceState: (st, t, u) => replaced.push(u) },
     navigator: { userAgent: 'test', sendBeacon: () => true },
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
@@ -275,5 +275,57 @@ describe('step 5\'s clip (#3146): welcome-5 at its folder\'s version', () => {
     const p = cuePage({ lang: 'ur', els: { '[data-primary]': mkEl('a', R(300, 16, 328, 60)) }, sess: { 'wq.welcome.voice': '/wq/voice/welcome/sx-reyna-68567f-ur/', 'wq.welcome.voice_v': 'edb3c4ac' } });
     p.load(); p.run(300);
     expect(p.audios.map((x) => x.src)).toEqual(['/wq/voice/welcome/sx-reyna-68567f-ur/welcome-5.mp3?v=edb3c4ac']);
+  });
+});
+
+describe('S5-3 on every video surface, and S5-5 (design-qa, the live walk)', () => {
+  const CAP_H = 60;
+  const bubbleOf = (p) => {
+    const m = /<p class="wqc-cap" style="([^"]*)"/.exec(p.cue()._h);
+    const st = Object.fromEntries(m[1].split(';').filter(Boolean).map((x) => x.split(':')));
+    return { top: parseInt(st.top, 10), bottom: parseInt(st.top, 10) + CAP_H, left: 16, right: p.ctx.innerWidth - 16 };
+  };
+  const handOf = (p) => { const m = /class="wqc-hand" style="top:(\d+)px;left:(\d+)px/.exec(p.cue()._h); return { y: +m[1], x: +m[2] }; };
+  const inside = (pt, r) => pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom;
+  const dist = (a, b) => Math.max(0, b.top - a.bottom, a.top - b.bottom, b.left - a.right, a.left - b.right);
+  test.each([['en', 390, 844], ['ur', 360, 740], ['ur', 360, 640]])('the Videos tab\'s inline player (#watch), %s %ix%i: its ▶ once the player is in, never the loading frame', (lang, vw, vh) => {
+    const frame = R(110, 16, vw - 32, (vw - 32) * 9 / 16);
+    const play = R(frame.top + frame.height / 2 - 42, vw / 2 - 42, 84, 84);
+    const skel = mkEl('div', R(110, 16, vw - 32, 300));
+    const ready = (t) => t >= 900;
+    // the home is drawn first (its Next stop is a primary), the #watch player over it a moment later
+    const homeNext = mkEl('a', R(120, 16, vw - 32, 260));
+    const p = cuePage({ lang, vw, vh, pathname: '/h/tok', search: '?kid=a&w=1', hash: '#watch/aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa', els: {
+      '.wq-btn.wq-go': (t) => (t < 300 ? homeNext : null),
+      '[data-primary]': (t) => (t < 300 ? homeNext : ready(t) ? mkEl('button', play) : skel), '[aria-busy="true"]': (t) => (t >= 300 && !ready(t) ? skel : null), '.wq-vskel': (t) => (t >= 300 && !ready(t) ? skel : null),
+      '.wq-vplay': (t) => (ready(t) ? mkEl('button', play) : null), '.wq-vbox': (t) => (ready(t) ? mkEl('div', frame) : skel),
+    }, qsa: { '.wq-vbox': [mkEl('div', frame)], video: [mkEl('div', frame)], button: [mkEl('button', play)] } });
+    p.load();
+    p.run(600);
+    expect(p.cue()).toBeNull(); // neither the home under it nor the loading frame is a target
+    p.run(900);
+    expect(inside(handOf(p), play)).toBe(true);
+    expect(dist(bubbleOf(p), play)).toBeLessThanOrEqual(24);
+  });
+  test.each([['en', 390, 844], ['ur', 360, 740]])('a native player alone (no ▶ of the page\'s own), %s %ix%i: the frame\'s centre', (lang, vw, vh) => {
+    const frame = R(150, 16, vw - 32, 200);
+    const p = cuePage({ lang, vw, vh, els: { video: mkEl('video', frame) }, qsa: { video: [mkEl('video', frame)] } });
+    p.load();
+    p.run(300);
+    const h = handOf(p);
+    expect(Math.abs(h.y - (frame.top + frame.height / 2))).toBeLessThanOrEqual(34);
+    expect(Math.abs(h.x - (frame.left + frame.width / 2))).toBeLessThanOrEqual(40);
+  });
+  test.each([['ur', 360, 740], ['ur', 360, 640], ['en', 390, 844]])('S5-5, the lesson page, %s %ix%i: the bubble covers the heading over the frame fully or not at all, still within 24 px of ▶', (lang, vw, vh) => {
+    const head = R(140, 16, vw - 32, 50); // «سبق دیکھیں (اختیاری)»
+    const frame = R(200, 16, vw - 32, 200);
+    const play = R(262, vw / 2 - 38, 76, 76);
+    const p = cuePage({ lang, vw, vh, els: { '.wq-vplay': mkEl('span', play), '.wq-vcover': mkEl('button', frame) }, qsa: { h2: [mkEl('h2', head)], '.wq-vbox': [mkEl('div', frame)], button: [mkEl('button', frame)] } });
+    p.load();
+    p.run(300);
+    const b = bubbleOf(p);
+    const o = Math.max(0, Math.min(b.bottom, head.bottom) - Math.max(b.top, head.top));
+    expect([o === 0 || o >= head.height]).toEqual([true]);
+    expect(dist(b, play)).toBeLessThanOrEqual(24);
   });
 });
