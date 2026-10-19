@@ -237,3 +237,48 @@ describe('web_quiz_minify with the early home head: each file once, at one addre
     expect(versions(body)).toEqual(allAt(body, HEX));
   });
 });
+
+describe('web_quiz_minify: the adventure look\'s own files (wq-adventure.css, wq-adv.js, wq-adv-more.js) ride it too', () => {
+  let srv;
+  beforeEach(() => { HomeInline._resetAll(); HomePre._reset(); EarlyUnlock._reset(); });
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+  const advAt = (html) => {
+    const out = {};
+    for (const m of html.matchAll(/\/wq\/(wq-adv\.js|wq-adv-more\.js|wq-adventure\.css)\?v=([0-9A-Za-z]+)/g)) (out[m[1]] = out[m[1]] || new Set()).add(m[2]);
+    return Object.fromEntries(Object.entries(out).map(([f, s]) => [f, [...s]]));
+  };
+
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: on, the page names the kit once, at its m version, and a carried kit file is the minified copy; off, raw`, async () => {
+      const bot = heldBot([jsonRes(200, HUB({ lang, ...MIN })), { hold: true, res: jsonRes(200, LOCKED({ lang, ...MIN })) }]);
+      srv = await start(build(bot.fetchImpl));
+      await get(srv, `/h/${TOKEN}`, { cookie: 'wq_dv=AAAAAAAAAAAAAAAAAAAAAA' });
+      const { body } = await flushedOpen(srv, bot);
+      const at = advAt(body);
+      expect(Object.keys(at).sort()).toEqual(expect.arrayContaining(['wq-adv.js', 'wq-adventure.css']));
+      for (const [f, vs] of Object.entries(at)) expect([f, vs.length, /m$/.test(vs[0])]).toEqual([f, 1, true]);
+      for (const [href, text] of Object.entries(carriedJs(body))) {
+        if (!/\/wq\/wq-adv\.js\?/.test(href)) continue;
+        expect(text.length).toBeLessThan(fs.readFileSync(path.join(WQ, 'wq-adv.js'), 'utf8').length);
+      }
+      // the minified copy is served at that address
+      const v = at['wq-adv.js'][0];
+      const r = await get(srv, `/wq/wq-adv.js?v=${v}`);
+      expect(r.status).toBe(200);
+      expect(r.body.length).toBeLessThan(fs.readFileSync(path.join(WQ, 'wq-adv.js'), 'utf8').length);
+      await new Promise((ok) => srv.close(ok)); srv = null;
+      HomeInline._resetAll(); HomePre._reset(); EarlyUnlock._reset();
+      const off = heldBot([jsonRes(200, HUB({ lang })), { hold: true, res: jsonRes(200, LOCKED({ lang })) }]);
+      srv = await start(build(off.fetchImpl));
+      await get(srv, `/h/${TOKEN}`, { cookie: 'wq_dv=AAAAAAAAAAAAAAAAAAAAAA' });
+      const plain = await flushedOpen(srv, off);
+      for (const [f, vs] of Object.entries(advAt(plain.body))) expect([f, vs.length, /m$/.test(vs[0])]).toEqual([f, 1, false]);
+    });
+  }
+
+  test('wq-adv.js asks for wq-adv-more.js (and the sound kit) at its own version, the m one included', () => {
+    const src = fs.readFileSync(path.join(WQ, 'wq-adv.js'), 'utf8');
+    const rx = new RegExp(/\[\?&\]v=\(([^)]*)\)/.exec(src)[1]);
+    expect(rx.exec('d7e696eec1m')[0]).toBe('d7e696eec1m');
+  });
+});
