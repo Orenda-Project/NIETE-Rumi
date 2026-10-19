@@ -633,6 +633,11 @@ function flushFixes(guess, p) {
   // a head sent with the light face for a page without it goes back to -6; the other way the page keeps the face its
   // head declared and preloaded (-6), so it never draws with a face nobody declared
   if (guess.fl === true && p.fl !== true) fix.push('h.classList.remove("wq-fl")');
+  // a head guessed for another language preloaded no Urdu face: a light-face page declares and preloads the light one
+  // here, before any Urdu is drawn, so -6 is never fetched
+  if (p.fl === true && guess.fl !== true && guess.lang !== 'ur') {
+    fix.push(`h.classList.add("wq-fl");document.head.insertAdjacentHTML("beforeend",${jsStr(`<link rel="preload" href="${URDU_FONT_LITE}" as="font" type="font/woff2" crossorigin>\n${FACE_LITE_STYLE}`)})`);
+  }
   // the adventure look: the class, its sheet and its kit (a head guessed with the look and answered without it drops the class)
   if (p.adv !== guess.adv) {
     fix.push(p.adv ? `h.classList.add("wq-adv");var l=document.createElement("link");l.rel="stylesheet";l.href=${jsStr(`/wq/wq-adventure.css?v=${advVersion()}`)};document.head.appendChild(l);var s=document.createElement("script");s.src=${jsStr(`/wq/wq-adv.js?v=${advVersion()}`)};document.head.appendChild(s)` : 'h.classList.remove("wq-adv")');
@@ -1268,7 +1273,8 @@ function createWebQuizRouter(opts = {}) {
   const learned = (b) => {
     if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, b.brand)) lastBrand = b.brand;
     if (typeof b.rt === 'boolean') lastRt = b.rt;
-    lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true) });
+    // `adv` (the adventure look) as `one_face`: an answer without it keeps the look this process had
+    lastUi = shellUi({ ui: b.ui, one_face: typeof b.one_face === 'boolean' ? b.one_face : Boolean(lastUi && lastUi.uf === true), adv: typeof b.adv === 'boolean' ? b.adv : Boolean(lastUi && lastUi.adv === true) });
     if (typeof b.wait_ux === 'boolean') lastWaitUx = b.wait_ux;
     if (typeof b.wait_share === 'boolean') lastWaitShare = b.wait_share;
     lastEdgeWarm = b.edge_warm === true; // absent = off (the learner's field is {} while web_quiz_edge_warm is off)

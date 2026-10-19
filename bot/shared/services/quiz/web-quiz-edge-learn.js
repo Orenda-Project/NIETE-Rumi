@@ -54,14 +54,19 @@ async function answer() {
   const fast = require('./web-quiz-fast').on();
   const oneFace = require('./web-quiz-one-face').on();
   // web_quiz_edge_warm (web-quiz-edge-warm.js): `edge_warm: true` and the hub's switches touched, while on
-  const [brand, rt, ui, warm] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui(), require('./web-quiz-edge-warm').field()]);
+  const [brand, rt, polish, warm] = await Promise.all([brandKey(), require('./web-quiz-telemetry').flag(), require('./web-quiz-ur-polish').ui(), require('./web-quiz-edge-warm').field()]);
+  // the light Urdu face (web_quiz_face_lite, the read just awaited) as the hub answer says it: ui.fl, so the streamed
+  // head of a portal's Urdu page declares and preloads that face (a head that preloaded -6 keeps -6 for that page)
+  const ui = require('./web-quiz-ur-polish').lite(polish);
   // wait_share: the frame's read share, on with wait_ux AND web_quiz_hub_fanout (as web-quiz-wait-ux.js carry()), same read.
   const waitUx = f.waitUx === true;
   // wait_hops: the bar while the page is left, on with wait_ux AND web_quiz_wait_hops (as web-quiz-wait-ux.js carry()), same read.
   // plain_paint (a guessed first paint says no words) is on only with the fast page; closed_lang (the closed pages in the
   // child's language): both from this same batched read, as the payloads say them (web-quiz-plain-paint.js, -closed-lang.js).
   // wait_home: the kept Home in the early frame, on with wait_ux AND web_quiz_wait_home (as carry()), same read.
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, busy_retry: f.busyPage === true && f.busyRetry === true, ...warm,
+  // adv: the adventure look (with the one button system, as web-quiz-adventure-look.js carry()), same read: said either
+  // way, so a learn tick never drops the look from the streamed head (its sheet and kit would then load from the tail)
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, adv: f.adv === true && f.oneButton === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, busy_retry: f.busyPage === true && f.busyRetry === true, ...warm,
     // the Home's first open in one response and the early unlock (same read): named only when on, so a fresh portal's
     // first new phone gets them too (absent: the portal keeps what it had)
     ...(f.homeInline === true ? { home_inline: true } : {}), ...(f.earlyUnlock === true ? { early_unlock: true } : {}),
