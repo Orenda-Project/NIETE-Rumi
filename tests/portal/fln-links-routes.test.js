@@ -50,9 +50,12 @@ function row(id, extra = {}) {
   return { id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips: {}, opened: false, ...extra };
 }
 
-/** A catalogue body per api.md: grade 1–5 → its level; grade 6–12 + level → that level's rows. */
-function catalogueFor(grade, subject, level) {
-  const lv = level || (grade === 1 ? 1 : grade <= 3 ? 2 : grade <= 5 ? 3 : null);
+/**
+ * A catalogue body as the real corpus answers it (fln-corpus.service catalogue): grade 1–5 → that grade's level and
+ * rows, whatever `level` says; any other grade → no rows (the routes never ask for one — FLN is Grades 1–5).
+ */
+function catalogueFor(grade, subject) {
+  const lv = grade === 1 ? 1 : grade >= 2 && grade <= 3 ? 2 : grade >= 4 && grade <= 5 ? 3 : null;
   const levels = [
     { level: 1, label_en: 'Level 1', label_ur: 'سطح ۱', grades: [1], count: 4, screener_id: 900 },
     { level: 2, label_en: 'Level 2', label_ur: 'سطح ۲', grades: [2, 3], count: 3, screener_id: 901 },
@@ -123,7 +126,7 @@ beforeEach(async () => {
   corpus = {
     // The real service's shape (PR-C fln-corpus.service): ensure() loads lazily; catalogue({grade, subject, level}).
     ensure: jest.fn(async () => true),
-    catalogue: jest.fn(({ grade, subject, level = null }) => catalogueFor(grade, subject, level)),
+    catalogue: jest.fn(({ grade, subject }) => catalogueFor(grade, subject)),
     isHidden: jest.fn(async (id) => String(id) === '555'),
     plan: jest.fn(async (id) => (String(id) === '101' ? { id: 101, title: 'Sounds of c and k', lang: 'en', dir: 'ltr', slo: ['secret goal'] } : null)),
     placementOf: jest.fn(async () => []),
@@ -169,7 +172,7 @@ describe('GET /fln/links', () => {
       count: 4,
       used_by: 5,
     });
-    expect(corpus.catalogue).toHaveBeenCalledWith({ grade: 1, subject: 'rh-en', level: null });
+    expect(corpus.catalogue).toHaveBeenCalledWith({ grade: 1, subject: 'rh-en' });
   });
   it('the link carries no identity: no phone, no user id, no token, no query string', async () => {
     const r = await get('/links?grade=1&subject=rh-en', LEADER);
@@ -187,9 +190,11 @@ describe('GET /fln/links', () => {
     }
     expect(corpus.catalogue).not.toHaveBeenCalled();
   });
-  it('grade 3 with level=2 gives that level only', async () => {
-    const r = await get('/links?grade=3&subject=num&level=2', LEADER);
-    expect(r.body.rows.map((x) => x.id)).toEqual([901, 201, 202]);
+  it('level is still accepted (old links) but the grade decides: grade 4 + level=1 → the grade-4 rows, and level never reaches the corpus', async () => {
+    const r = await get('/links?grade=4&subject=num&level=1', LEADER);
+    expect(r.status).toBe(200);
+    expect(r.body.rows.map((x) => x.id)).toEqual([902, 301]);
+    expect(corpus.catalogue.mock.calls.map((c) => c[0])).toEqual([{ grade: 4, subject: 'num' }]);
   });
   it('q filters case-insensitively on the title', async () => {
     const r = await get('/links?grade=1&subject=rh-en&q=CAT', LEADER);

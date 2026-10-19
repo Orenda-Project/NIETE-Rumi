@@ -138,15 +138,16 @@ describe('LessonList', () => {
     expect(screen.queryAllByRole('tab')).toHaveLength(0);
   });
 
-  it('Back: G1–5 → the New-lesson page; G6–12 → the chooser', async () => {
-    stubFetch({ '/catalogue': { status: 200, body: rhEnG1() } });
-    renderList('rh-en', 1);
-    await screen.findByText('Synthetic guide');
-    expect(screen.getByRole('link', { name: EN.back }).getAttribute('href')).toBe('/portal/teacher/lessons/new');
-    cleanup();
-    renderList('rh-en', 8, 1);
-    await screen.findByText('Synthetic guide');
-    expect(screen.getByRole('link', { name: EN.back }).getAttribute('href')).toBe('/portal/fln/list/rh-en?grade=8');
+  it('Back always goes to the New-lesson page, and Other levels never offers "Choose a level" (bd-elc1qz)', async () => {
+    for (const [grade, level] of [[1, null], [2, 3], [8, 1]] as Array<[number, number | null]>) {
+      stubFetch({ '/catalogue': { status: 200, body: rhEnG1() } });
+      renderList('rh-en', grade, level);
+      await screen.findByText('Synthetic guide');
+      expect([grade, level, screen.getByRole('link', { name: EN.back }).getAttribute('href')]).toEqual([grade, level, '/portal/teacher/lessons/new']);
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(EN.otherLevels) }));
+      expect(screen.queryByRole('link', { name: 'Choose a level' })).toBeNull();
+      cleanup();
+    }
   });
 
   it('saves the scroll position when a plan is opened and restores it on return (no Next scroll then)', async () => {
