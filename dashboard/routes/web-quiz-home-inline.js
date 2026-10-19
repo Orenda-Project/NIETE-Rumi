@@ -43,6 +43,11 @@ function on(payload) {
   return Boolean(payload && payload.home_inline === true && payload.home_v3 && !payload.home_fb && payload.pack !== true);
 }
 
+// A phone that says it holds the files (its cookie) but whose cache dropped them gets today's page, every file fetched
+// again: after the load, when hub.js came from the network (its entry has bytes on the wire) the cookie is forgotten, so
+// the next open carries the files. From the cache (0 bytes on the wire), or nothing to tell by: the cookie stays.
+const CHECK = `<script>(function(w,d){w.addEventListener("load",function(){setTimeout(function(){try{var e=w.performance.getEntriesByType("resource").filter(function(r){return /\\/wq\\/hub\\.js\\?v=/.test(r.name)})[0];if(e&&e.transferSize>0&&e.decodedBodySize>0)d.cookie="${COOKIE}=; Max-Age=0; Path=/h; SameSite=Lax"}catch(x){}},0)})})(window,document)</script>\n`;
+
 /** This phone already holds the home's files at this version (its cookie). */
 function held(req, v) {
   const m = /(?:^|;\s*)wqhc=([0-9A-Za-z]+)(?:;|$)/.exec(String((req && req.headers && req.headers.cookie) || ''));
@@ -92,6 +97,8 @@ function create({ source }) {
 
   /** The head carries: true once an answer with the switch was seen and this phone does not hold the files. */
   const wants = (req, v) => last !== null && !held(req, v);
+  /** The switch is on and this phone says it holds the files (its cookie at this version): the head carries the check. */
+  const holds = (req, v) => last !== null && held(req, v);
 
   /**
    * The head's pieces: headCss(href) in place of a stylesheet tag; headJs(v) the scripts in place of their preloads
@@ -145,7 +152,7 @@ function create({ source }) {
     else if (last === null) last = [];
   }
 
-  const carrier = { learn, know, wants, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; } };
+  const carrier = { learn, know, wants, holds, check: () => CHECK, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; } };
   made.push(carrier);
   return carrier;
 }
