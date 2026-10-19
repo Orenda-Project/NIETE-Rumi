@@ -178,7 +178,7 @@ const BOOK_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * previewed; `known` = the codes whose quiz row was read (a failed or empty read leaves a code unknown, and the
  * teacher card's code unknown is never offered: fail closed); `covers` = a sent book's cover. Never throws.
  */
-async function quizIdsOf(codes, { history = [], quizOfCode = null } = {}) {
+async function quizIdsOf(codes, { history = [], quizOfCode = null, quizRows = null } = {}) {
   const want = [...new Set(codes.filter(Boolean))].slice(0, 20);
   const none = { quizIds: new Map(), storyCodes: new Set(), unsentCodes: new Set(), known: new Set(), covers: new Map() };
   if (!want.length) return none;
@@ -195,10 +195,14 @@ async function quizIdsOf(codes, { history = [], quizOfCode = null } = {}) {
     if (error || !Array.isArray(data)) return none;
     const quizIds = new Map([...want.filter((c) => had.has(c)).map((c) => [c, had.get(c)]), ...data.map((r) => [r.code, r.quiz_id])]);
     const ids = [...new Set([...quizIds.values()].filter(Boolean))];
-    const { data: rows, error: qErr } = ids.length
-      ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source, status, meta').in('id', ids))
+    // ...and the quizzes rows the teacher card read a moment ago (web_quiz_hub_waves3, the same columns): read only the rest
+    const kept = quizRows ? ids.filter((id) => quizRows.has(id)).map((id) => quizRows.get(id)) : [];
+    const need = quizRows ? ids.filter((id) => !quizRows.has(id)) : ids;
+    const { data: read, error: qErr } = need.length
+      ? await dbRead('nextOffer:quizzes:1', (db) => db.from('quizzes').select('id, quiz_source, status, meta').in('id', need))
       : { data: [] };
-    if (qErr || !Array.isArray(rows)) return { ...none, quizIds };
+    if (qErr || !Array.isArray(read)) return { ...none, quizIds };
+    const rows = kept.length ? [...kept, ...read] : read;
     const stories = rows.filter((q) => q.quiz_source === 'story');
     // a story's code is minted when the teacher OPENS the book (the send link is built at render); only a tapped send
     // (status 'sent' / 'report_sent' / meta.sent_at) is the teacher's — a preview is never pinned
