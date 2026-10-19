@@ -245,8 +245,9 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
 
   const p = load.data.plan;
   // ?grade= (set by the list row) picks that grade's placement; the kicker and the share card read the same row.
+  // Grades 1–5 only (bd-elc1qz): an old 6–12 ?grade= falls back to placement[0].
   const opened = Number(new URLSearchParams(location.search).get('grade'));
-  const first = placementForGrade(placement, Number.isInteger(opened) && opened >= 1 && opened <= 12 ? opened : null);
+  const first = placementForGrade(placement, Number.isInteger(opened) && opened >= 1 && opened <= 5 ? opened : null);
   const sharePlacement = first ? [first, ...placement.filter((x) => x !== first)] : placement;
   const homeworkIndex = p.sections.length;
   return (

@@ -66,7 +66,6 @@ export interface LinkRow {
 export interface LinksQuery {
   grade: number;
   subject: ShareSubject;
-  level?: number | null;
   q?: string;
   has?: string[];
 }
@@ -87,7 +86,6 @@ export const shareApi = {
 
   links: (q: LinksQuery) => {
     const p = new URLSearchParams({ grade: String(q.grade), subject: q.subject });
-    if (q.level) p.set('level', String(q.level));
     if (q.q) p.set('q', q.q);
     if (q.has && q.has.length) p.set('has', q.has.join(','));
     p.set('sort', 'used');

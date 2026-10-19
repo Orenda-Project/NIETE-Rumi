@@ -148,12 +148,12 @@ function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivi
     const subject = String(q.subject || '');
     const hasLevel = q.level !== undefined && q.level !== '';
     const level = hasLevel && /^[123]$/.test(String(q.level)) ? Number(q.level) : null;
-    // FLN is Grades 1–5 only (bd-elc1qz); a grade 1–5 catalogue is that grade's own rows, so `level` is validated
-    // (the list's "Other levels" chip sends it) but never changes the answer.
+    // FLN is Grades 1–5 only (bd-elc1qz); a grade's catalogue is that grade's own rows, so `level` is validated (the
+    // list's "Other levels" chip and old links send it) but never passed on.
     if (!(grade >= 1 && grade <= 5) || !SUBJECTS.has(subject) || (hasLevel && level == null)) return badRequest(res);
     if (!(await corpus.ensure())) return unavailable(res);
     const opened = await openedRefs(query, req.session.portalUserId);
-    const out = corpus.catalogue({ grade, subject, level: null, opened });
+    const out = corpus.catalogue({ grade, subject, opened });
     if (!out) return unavailable(res);
     return res.json(out);
   });

@@ -158,7 +158,7 @@ function originOf(req, portalOrigin) {
 
 /**
  * @param {object} [deps]
- * @param {object} [deps.corpus]  the fln-corpus service (ensure, catalogue({grade, subject, level}), plan, isHidden);
+ * @param {object} [deps.corpus]  the fln-corpus service (ensure, catalogue({grade, subject}), plan, isHidden);
  *                                default required on first use
  * @param {object} [deps.access]  fln-access (requireFln, noStore)
  * @param {() => string|null} [deps.portalOrigin]  the portal's public origin; default PORTAL_URL (branding)
@@ -180,12 +180,10 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
       // The service loads the bundle lazily: a cold process (restart, a second replica) must load it first, and a
       // bundle that cannot load is 503, never an empty 200 (RT #2953).
       if (!(await c.ensure())) return unavailable(res);
-      const cat = async (level) => {
-        const out = await c.catalogue({ grade: p.grade, subject: p.subject, level });
-        if (!out) throw new Error('catalogue unavailable');
-        return out;
-      };
-      rows = dedupe(flatten(await cat(p.level), linkFor));
+      // `level` is accepted for old links but never passed on: for Grades 1–5 the grade decides the rows.
+      const out = await c.catalogue({ grade: p.grade, subject: p.subject });
+      if (!out) throw new Error('catalogue unavailable');
+      rows = dedupe(flatten(out, linkFor));
     } catch (_) {
       return unavailable(res);
     }

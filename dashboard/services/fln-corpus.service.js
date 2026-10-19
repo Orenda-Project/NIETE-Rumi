@@ -42,7 +42,7 @@ const SUBJECTS = Object.freeze(['rh-en', 'rh-ur', 'num']);
 const STRANDS = Object.freeze(['daily', 'extended']);
 /** Grade → level for grades 1-5 (SPEC v2 §1). */
 const LEVEL_OF_GRADE = Object.freeze({ 1: 1, 2: 2, 3: 2, 4: 3, 5: 3 });
-/** The grade whose rows a level shows to a grade 6-12 teacher (L1 → 1, L2 → 3, L3 → 5). */
+/** A level's representative grade (L1 → 1, L2 → 3, L3 → 5): its count and screener in `levels()`. */
 const REP_GRADE = Object.freeze({ 1: 1, 2: 3, 3: 5 });
 const LEVEL_GRADES = Object.freeze({ 1: [1], 2: [2, 3], 3: [4, 5] });
 
@@ -358,7 +358,7 @@ function placementOf(id) {
   return out;
 }
 
-/** The levels of a subject, for the grade 6-12 chooser: count, screener id/minutes/note from the bundle or computed. */
+/** The levels of a subject (count, screener id/minutes/note from the bundle or computed), for a list's "Other levels". */
 function levels(subject) {
   const i = idx();
   if (!i) return [];
@@ -395,16 +395,16 @@ function levels(subject) {
 }
 
 /**
- * @param {{grade:number, subject:string, level?:number|null, opened?:Set<string>}} q (validated by the route)
+ * A grade's catalogue: its level and its own rows. FLN is Grades 1–5 only (bd-elc1qz) — the routes answer 400 above
+ * grade 5 before asking, and any other grade is no rows; there is no level parameter (the grade decides).
+ * @param {{grade:number, subject:string, opened?:Set<string>}} q (validated by the route)
  */
-function catalogue({ grade, subject, level = null, opened = null }) {
+function catalogue({ grade, subject, opened = null }) {
   if (!idx()) return null;
   const g = Number(grade);
-  const lv = level == null || level === '' ? null : Number(level);
   const base = { subject: subjectOf(subject) || { key: subject, name_en: null, name_ur: null, lang: subject === 'rh-ur' ? 'ur' : 'en', dir: subject === 'rh-ur' ? 'rtl' : 'ltr' }, grade: g, levels: levels(subject) };
   if (g >= 1 && g <= 5) return { ...base, level: LEVEL_OF_GRADE[g], strands: strandsFor(subject, g, opened) };
-  if (!lv) return { ...base, level: null, strands: [] };
-  return { ...base, level: lv, strands: strandsFor(subject, REP_GRADE[lv], opened) };
+  return { ...base, level: null, strands: [] };
 }
 
 /** 'Reading Hour · English · Level 1' / 'ریڈنگ آور — انگریزی — سطح ۱' — for the link preview and share text. */
