@@ -351,7 +351,8 @@ var WQI = (function () {
   function shpAttr() { try { return document.documentElement.classList.contains('wq-1b') ? ' aria-hidden="true"' : ''; } catch (e) { return ''; } }
   function optBtn(o, k, extra) {
     // over 28 code points a label runs to three lines beside the badge and 🔊 at 360 px (measured on the live quizzes: 32–36 cp)
-    var longLab = ur2On() && Array.from(String(o.text || '')).length > 28 ? ' wq-long' : '';
+    // an English label on an Urdu page with the look (latin) keeps the one layout beside its icon, never the Nastaliq long one
+    var longLab = ur2On() && !latin(o.text || o.name, ILANG) && Array.from(String(o.text || '')).length > 28 ? ' wq-long' : '';
     return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
       picHtml(o, o.name) + '<span class="wq-lab"' + latDir(o.text || o.name, ILANG) + '>' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }

@@ -151,3 +151,24 @@ describe('an English line in the feedback bubble on an Urdu page (the look on): 
     expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-fb \[dir=ltr\]\{[^}]*font-family:var\(--f\)[^}]*line-height:1\.4[^}]*text-align:left/);
   });
 });
+
+describe('English options on an Urdu page (the look + the Urdu polish): one layout', () => {
+  const LONG = 'Same first letter, same sound';
+  const Q = () => ({ qid: 'q1', text: 'Which pair rhymes?', correct_slot: 'A', options: [{ slot: 'A', text: LONG }, { slot: 'B', text: 'cat' }] });
+  const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  test('a long English label is not the Urdu "long" layout: it stays beside its icon, like the short ones', () => {
+    const h = withHtml(['wq-adv', 'wq-ur2'], () => WQI.itemHtml(Q(), T, 'ur'));
+    expect(h).not.toContain('wq-long');
+    expect(h).toContain(`<span class="wq-lab" dir="ltr">${LONG}</span>`);
+  });
+  test('a long URDU label keeps the long layout (today)', () => {
+    const h = withHtml(['wq-adv', 'wq-ur2'], () => WQI.itemHtml({ ...Q(), options: [{ slot: 'A', text: 'ایک ہی پہلا حرف اور ایک ہی آواز والے الفاظ' }, { slot: 'B', text: 'بلی' }] }, T, 'ur'));
+    expect(h).toContain('wq-long');
+  });
+  test('without the look: today\'s layout, byte for byte', () => {
+    expect(withHtml(['wq-ur2'], () => WQI.itemHtml(Q(), T, 'ur'))).toContain('wq-long');
+  });
+  test('an English label on an Urdu page sets at a Latin line height', () => {
+    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-opt \.wq-lab\[dir=ltr\]\{[^}]*font-family:var\(--f\)[^}]*line-height:1\.35/);
+  });
+});
