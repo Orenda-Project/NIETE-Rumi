@@ -997,6 +997,8 @@ const RULE = {
   urduQ6Given: (p) => `Q6's verses (درج ذیل اشعار کا مفہوم واضح کریں) come from this poem, lesson ${p.unit} «${p.title}» (book pp. ${p.pages}), whatever lessons the paper covers: \`passage\` = four consecutive verse lines copied exactly as given, never a question or note printed between the couplets.`,
   urduNoMaxims: 'Model answers, passages, dialogues and stories carry no religious maxim, hadith, verse, dua or act of worship; keep them to everyday life.',
   urduNoDates: 'Never ask an item whose answer is a year, a date or a day of the month; the page text\'s numerals are not reliable.',
+  // FDE's table puts the writing tasks at Apply (bd-5jmnfj.19); the model tagged them Understand.
+  urduWritingApply: 'The picture description, paragraph, story and letter or application are Apply: tag each of them Apply.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1266,6 +1268,12 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
       + `Tag each item: ${RULE.r1}${key === 'english' ? `; ${RULE.r1English}` : ''}.`);
   }
+  // Each section is its own call: told only the paper's split, every section tried to carry it alone (bd-5jmnfj.19).
+  if (section && section.levels) {
+    const own = Object.entries(section.levels).map(([band, marks]) => `${band} ${marks}`).join(', ');
+    rules.push(`This section's ${section.marks} marks split by thinking level as ${own}. Tag this section's items to match it.`);
+  }
+  if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(7|8|9|10)$/.test(s.slot))) rules.push(RULE.urduWritingApply);
   if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
   if (key === 'maths') {
     const q1b = list.find((s) => s.slot === 'maths.A.Q1b');
@@ -2420,10 +2428,13 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
 
   const built = P.sections.map((section) => {
     const text = _sectionText(section, loaded, layoutScope.kind, sectionRanges[section.id]);
-    const user = buildPatternUserPrompt({
+    const prompt = buildPatternUserPrompt({
       grade, subject, pageContent: text.content, pageReference: text.pageReference,
       section, slots: section.slots, lang: P.medium, P, scope: layoutScope, poem,
-    }) + (splitNote ? `\n\n${splitNote}` : '');
+    });
+    // A per-section note (bd-5jmnfj.19) is keyed by section id; the paper-level one is a string.
+    const note = splitNote && typeof splitNote === 'object' ? splitNote[section.id] : splitNote;
+    const user = prompt + (note ? `\n\n${note}` : '');
     const messages = _sectionMessages({ system, user, pageContent: text.content, model });
     return { section, messages, user, pageContent: text.content };
   });
@@ -2672,7 +2683,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   if (key === 'urdu' && poem && versesPrinted) examJson._layout.verse_source = { lesson: poem.unit, pages: poem.pages };
 
   // Report-only: what the paper carries against its pattern and FDE's split; it never fails a paper.
-  const blueprint = checkBlueprint(examJson, { tos: P.tos || TOS[key] || null });
+  const sectionLevels = P.sections.every((s) => s.levels) ? Object.fromEntries(P.sections.map((s) => [s.id, s.levels])) : null;
+  const blueprint = checkBlueprint(examJson, { tos: P.tos || TOS[key] || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
   logToFile('[assessment] blueprint checked', { pattern, subject: key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
 

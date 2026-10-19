@@ -114,7 +114,8 @@ describe('a paper written once', () => {
   it('makes no second run', async () => {
     mockCreate.mockImplementation(async (params) => reply(JSON.stringify(mathsSection(asked(params), onSplit))));
     const { examJson } = await Gen.generatePatternExam(ARGS);
-    expect(examJson._layout.blueprint.problems).toEqual([]);
+    // Its sections miss FDE's per-section split (bd-5jmnfj.19): reported, but only the paper's split re-asks.
+    expect(examJson._layout.blueprint.problems.filter((p) => p.code !== 'SECTION_LEVEL')).toEqual([]);
     expect(reaskedRuns()).toHaveLength(0);
     expect(logged('[assessment] paper re-asked for its level split')).toHaveLength(0);
   });
