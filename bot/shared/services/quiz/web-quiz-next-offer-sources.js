@@ -131,7 +131,8 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
   });
   const rec = (out.recs || []).find((r) => r && r.vid);
   // the recommended lesson's name as the tile's sub-line: its Urdu-script name on an Urdu page when it has one
-  const recSub = rec ? { ...subOf(rec.title), ...(recTitleUr ? { sub_ur: String(recTitleUr) } : {}) } : {};
+  const recUr = recTitleUr || (rec && rec.title_ur);
+  const recSub = rec ? { ...subOf(rec.title), ...(recUr ? { sub_ur: String(recUr) } : {}) } : {};
   // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade).
   // A class child with the v3 home: the same tile names the first recommended lesson (its title and poster) and opens
   // it at the home's #watch door, whose start POST mints that lesson's quiz for a class child (video, then the quiz).
@@ -338,18 +339,22 @@ function hubEarly({ token, lang, chosenId, grade, chip, stopsP }) {
 }
 
 /**
- * On an Urdu page, the first recommended lesson's Urdu-script name (web_quiz_videos_ur_titles; a cached map), or null.
+ * On an Urdu page, a lesson's Urdu-script name (web_quiz_videos_ur_titles; a cached map), or null.
  * An English page reads nothing. Never rejects.
  */
-function recTitleUrOf(out, lang) {
-  const rec = ((out && out.recs) || []).find((r) => r && r.vid);
-  if (!rec || lang !== 'ur') return Promise.resolve(null);
+function videoTitleUrOf(vid, lang) {
+  if (!vid || lang !== 'ur') return Promise.resolve(null);
   return (async () => {
     if (!(await require('./web-quiz-library-flag').urTitlesOn())) return null;
     const of = await require('./web-quiz-bank').urTitles();
-    const u = of && of.get(rec.vid);
+    const u = of && of.get(vid);
     return (u && u.t) || null;
   })().catch(() => null);
+}
+/** The first recommended lesson's Urdu-script name, as videoTitleUrOf. */
+function recTitleUrOf(out, lang) {
+  const rec = ((out && out.recs) || []).find((r) => r && r.vid);
+  return videoTitleUrOf(rec && rec.vid, lang);
 }
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }) {
@@ -378,4 +383,4 @@ async function hubField({ out, token, history, collect = {}, lang, chosenId, gra
   }
 }
 
-module.exports = { titled, candidatesOf, hubPrep, hubEarly, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
+module.exports = { titled, candidatesOf, videoTitleUrOf, recTitleUrOf, hubPrep, hubEarly, hubField, withDeadline, quizIdsOf, onItsWayOf, storybooks, hasRootOf, qkOf, words, subOf, links, artOr, COPY, TAG, JUGNU_ART, HUB_DEADLINE_MS };
