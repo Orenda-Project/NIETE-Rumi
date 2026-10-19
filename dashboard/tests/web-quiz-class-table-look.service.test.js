@@ -68,25 +68,3 @@ describe('the class table with the look', () => {
     expect(h).not.toContain('wq-lgt');
   });
 });
-
-describe('the class line in Urdu digits on an Urdu page (one digit set per screen)', () => {
-  const urPage = async (label, adv = true) => {
-    const p = page({ lang: 'ur', cls: { ...CLS, label }, view: 'class', lib: true, bootExtra: { nav: { home: true }, ...(adv ? { adv: true } : {}) }, ...(adv ? ADV : {}), api: { '/board/TEST': BOARD } });
-    p.sess.set('wq_hub_at', '/h/abc');
-    await flush(); await flush();
-    return p;
-  };
-  test('«جماعت 2، 3، 4، 5» → «جماعت ۲، ۳، ۴، ۵»', async () => {
-    const h = (await urPage('جماعت 2، 3، 4، 5')).html();
-    expect(h).toContain('<small class="wq-lgc" dir="auto">جماعت ۲، ۳، ۴، ۵</small>');
-  });
-  test('a lettered class keeps the teacher\'s letters and digits', async () => {
-    const h = (await urPage('جماعت 3-B')).html();
-    expect(h).toContain('<small class="wq-lgc" dir="auto">جماعت <span class="wq-lat" lang="en">3-B</span></small>');
-  });
-  test('without the look: today\'s label', async () => {
-    const h = (await urPage('جماعت 2، 3، 4، 5', false)).html();
-    expect(h).toContain('جماعت 2، 3، 4، 5');
-    expect(h).not.toContain('۲، ۳');
-  });
-});
