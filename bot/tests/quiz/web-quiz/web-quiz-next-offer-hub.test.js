@@ -843,6 +843,11 @@ describe('the tile: words, picture, tag, source', () => {
     const off = S.candidatesOf({ out, token: 'tok', watch: false, history }).find((c) => c.id === 'library');
     expect(off).not.toHaveProperty('sub');
     expect(off.href).toBe('/lib/tok?kid=c1&l=en');
+    // an Urdu page: the lesson's Urdu-script name when it has one (the same name as the list's), never the Roman one
+    const ur = S.candidatesOf({ out, token: 'tok', watch: true, history, lang: 'ur', recTitleUr: 'پانی ہمارے ارد گرد' }).find((c) => c.id === 'library');
+    expect(ur).toMatchObject({ sub: 'Water around us', sub_ur: 'پانی ہمارے ارد گرد' });
+    const loose = S.candidatesOf({ out, token: 'tok', watch: true, lang: 'ur', recTitleUr: 'پانی ہمارے ارد گرد' }).find((c) => c.variant === 'recommended');
+    expect(loose).toMatchObject({ sub: 'Water around us', sub_ur: 'پانی ہمارے ارد گرد' });
     const none = S.candidatesOf({ out: { ...out, recs: [] }, token: 'tok', watch: true, history }).find((c) => c.id === 'library');
     expect(none).not.toHaveProperty('sub');
     expect(none.art).toBe('/wq/art/grade-3-1.webp');

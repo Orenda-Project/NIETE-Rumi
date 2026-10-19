@@ -95,7 +95,7 @@ function links({ token, chip, lang, home }) {
  * quizzesForStudents rows; `collect` = what the Jugnu corner read ({ trail, onItsWay, live, unseen, lantern, story });
  * `quizIds` = share code -> quiz id; `extra` = more candidates (storybooks, the finish's own). Returns the list.
  */
-function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en', quizIds = new Map(), storyCodes = new Set(), unsentCodes = new Set(), known = null, covers = new Map(), subjectArt = () => null, extra = [], watch = false, nowMs = Date.now() } = {}) {
+function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en', quizIds = new Map(), storyCodes = new Set(), unsentCodes = new Set(), known = null, covers = new Map(), subjectArt = () => null, extra = [], watch = false, recTitleUr = null, nowMs = Date.now() } = {}) {
   const L = links({ token, chip: out.kid, lang, home: out.nav_home });
   const list = [];
   const push = (c) => { if (c && c.href && c.id) list.push(c); };
@@ -130,17 +130,19 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
       ...artOr(a.art || subjectArt(a.subject), 'quiz') });
   });
   const rec = (out.recs || []).find((r) => r && r.vid);
+  // the recommended lesson's name as the tile's sub-line: its Urdu-script name on an Urdu page when it has one
+  const recSub = rec ? { ...subOf(rec.title), ...(recTitleUr ? { sub_ur: String(recTitleUr) } : {}) } : {};
   // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade).
   // A class child with the v3 home: the same tile names the first recommended lesson (its title and poster) and opens
   // it at the home's #watch door, whose start POST mints that lesson's quiz for a class child (video, then the quiz).
   if (out.lib && typeof out.lib.href === 'string' && out.lib.href.startsWith('/lib/') && L.lib) {
     const named = watch && rec && hasRootOf(history) && L.watch;
-    push({ kind: 'video', variant: 'library', id: 'library', href: named ? L.watch(rec.vid) : L.lib, ...words('video'), ...(named ? subOf(rec.title) : {}), minutes: 3,
+    push({ kind: 'video', variant: 'library', id: 'library', href: named ? L.watch(rec.vid) : L.lib, ...words('video'), ...(named ? recSub : {}), minutes: 3,
       ...artOr(named ? rec.poster || rec.art || out.lib.art : out.lib.art, 'video'), needs_root: true });
   }
   // a child with no class quiz: the v3 home's own player watches the recommended lesson (nothing minted, no root needed)
   if (watch && rec && !hasRootOf(history) && L.watch) {
-    push({ kind: 'video', variant: 'recommended', id: rec.vid, href: L.watch(rec.vid), ...words('video'), ...subOf(rec.title), minutes: 3, ...artOr(rec.poster || rec.art, 'video') });
+    push({ kind: 'video', variant: 'recommended', id: rec.vid, href: L.watch(rec.vid), ...words('video'), ...recSub, minutes: 3, ...artOr(rec.poster || rec.art, 'video') });
   }
 
   // the Jugnu corner: this month's stops (rule 2), the stories (newest unseen first), the numbers game
@@ -335,12 +337,25 @@ function hubEarly({ token, lang, chosenId, grade, chip, stopsP }) {
   return { swP, booksP, waysP };
 }
 
+/** The first recommended lesson's Urdu-script name (web_quiz_videos_ur_titles; a cached map), or null. Never rejects. */
+function recTitleUrOf(out) {
+  const rec = ((out && out.recs) || []).find((r) => r && r.vid);
+  if (!rec) return Promise.resolve(null);
+  return (async () => {
+    if (!(await require('./web-quiz-library-flag').urTitlesOn())) return null;
+    const of = await require('./web-quiz-bank').urTitles();
+    const u = of && of.get(rec.vid);
+    return (u && u.t) || null;
+  })().catch(() => null);
+}
+
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }) {
+  const urP = recTitleUrOf(out);
   const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
   if (!p) return {};
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
   // the verdicts were read for the Trail's stops; the corner offers only the ones still waiting this month
-  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch });
+  const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch, recTitleUr: await urP });
   const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live });
   return next ? { next } : {};
 }
