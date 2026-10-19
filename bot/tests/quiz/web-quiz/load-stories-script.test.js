@@ -106,7 +106,26 @@ test('the voice method gate is read once from app_settings web_quiz_story_voice_
   const on = await run(db(true));
   expect(on[0]).toMatchObject({ status: 'ready', why: [], voiced: '1/1', kept_voice: [], misses: [], question_kept: [] });
   expect(on[1]).toEqual({ books: 1, ready: 1, draft: 0, failed: 0, dry_run: true, voice_gate: true });
-  expect(reads).toEqual(['app_settings']);
+  // on: the gate read, then the young-reader speed read (only ever asked when the gate is on)
+  expect(reads).toEqual(['app_settings', 'app_settings']);
+});
+
+test('the young-reader speed is read from app_settings web_quiz_story_voice_young_speed under the gate: a grade 1 take at 0.7 is stored only when it is JSON true', async () => {
+  const vj = path.join(dir, 'voices', SRC, 'p01.json');
+  fs.writeFileSync(vj, JSON.stringify({ ...JSON.parse(fs.readFileSync(vj, 'utf8')), wpm: 150, pace_wpm: 160, timing_src: 'forced_align' }));
+  fs.writeFileSync(path.join(dir, 'voices', SRC, 'p01.qa.json'), JSON.stringify({ wer: 0, splices: 0, atempo: 1, inserted_silence_ms: 0, speed: 0.7, kbps: 64, midword_hits: 0, head_silence_ms: 400, tail_silence_ms: 100 }));
+  const keys = [];
+  const db = (young) => ({ from: (t) => { const b = {}; let key = null; ['select', 'in', 'maybeSingle'].forEach((m) => { b[m] = () => b; }); b.eq = (c, v) => { if (c === 'key') key = v; return b; };
+    b.then = (res) => { if (t !== 'app_settings') return res({ data: null, error: null }); keys.push(key); const value = key === 'web_quiz_story_voice_gate' ? true : young; return res({ data: value === undefined ? null : { key, value }, error: null }); }; return b; } });
+  const run = async (d) => { const o = io(); await main({ argv: [...base(), '--cleared', path.join(dir, 'cleared.csv'), '--dry-run'], env: {}, io: o, db: d }); return o.o.out.trim().split('\n').map((l) => JSON.parse(l)); };
+  for (const young of [undefined, 'true', false]) {
+    const off = await run(db(young));
+    expect(off[0]).toMatchObject({ status: 'draft', misses: ['p01: voice method: speed 0.7'] });
+  }
+  keys.length = 0;
+  const on = await run(db(true));
+  expect(on[0]).toMatchObject({ status: 'ready', why: [], voiced: '1/1', misses: [] });
+  expect(keys).toEqual(['web_quiz_story_voice_gate', 'web_quiz_story_voice_young_speed']);
 });
 
 test('gate on, dry run with a database: the current voices are read (read only), so a kept page reads as the write would', async () => {

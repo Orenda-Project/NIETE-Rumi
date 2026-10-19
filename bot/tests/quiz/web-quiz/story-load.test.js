@@ -501,6 +501,23 @@ describe('the voice method gate (app_settings web_quiz_story_voice_gate; absent 
     expect(L.planBook({ ...naturalize(fixture({ long: true, mismatch: true })), voiceGate: true }).misses.map((m) => m.why)).toEqual([['voice words differ from the page words']]);
   });
 
+  test('young-reader speed (app_settings web_quiz_story_voice_young_speed): a grade 1–2 page may be a take at speed 0.7; off = today', () => {
+    [undefined, null, false, 'true', 1, {}, { on: true }].forEach((v) => expect(L.youngSpeedOn(v)).toBe(false));
+    expect(L.youngSpeedOn(true)).toBe(true);
+    const miss = (grade, qa, youngSpeed) => L.planBook({ ...naturalize(naturalize(fixture({ long: true, grade })), { pages: [2], qa }), voiceGate: true, youngSpeed }).misses.map((m) => [m.n, m.why]);
+    // off (absent, false, null): the 0.9 floor as today
+    for (const off of [undefined, false, null]) expect(miss(1, { speed: 0.7 }, off)).toEqual([[2, ['voice method: speed 0.7']]]);
+    // on: grades 1–2 take the provider's slowest natural setting, never slower
+    expect(miss(1, { speed: 0.7 }, true)).toEqual([]);
+    expect(miss(2, { speed: 0.7 }, true)).toEqual([]);
+    expect(miss(2, { speed: 0.69 }, true)).toEqual([[2, ['voice method: speed 0.69']]]);
+    // grades 3–5 keep the 0.9 floor
+    expect(miss(3, { speed: 0.7 }, true)).toEqual([[2, ['voice method: speed 0.7']]]);
+    // the switch never loosens anything without the method gate
+    const strip = (p) => JSON.parse(JSON.stringify({ ...p, files: p.files.map((x) => x.name) }));
+    expect(strip(L.planBook({ ...fixture({ long: true }), youngSpeed: true }))).toEqual(strip(L.planBook(fixture({ long: true }))));
+  });
+
   test('on: the method gate refuses a stretched, cut, padded, slowed, thin or broken take, and a missing method record', () => {
     const miss = (o) => L.planBook({ ...naturalize(naturalize(fixture({ long: true })), { pages: [2], ...o }), voiceGate: true }).misses.map((m) => [m.n, m.why]);
     expect(miss({ qa: { splices: 3 } })).toEqual([[2, ['voice method: splices 3']]]);

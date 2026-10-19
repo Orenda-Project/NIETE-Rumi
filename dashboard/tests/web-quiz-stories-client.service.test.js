@@ -1307,7 +1307,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13148);   // the ruled core budget (12,288 less 8; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; served minified)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13380);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +232 for its live-state fix: the opening words hidden under a clipped sheet once its picture is in, framed again when the stage resizes, 19 Oct; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; served minified)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
@@ -3553,7 +3553,7 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\)\{height:100vh;height:100svh;min-height:0\}/);
     expect(css).toMatch(/\.wqs:has\(\.wqs-extra \.wq-moment--s\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:62vh;min-height:300px\}/);
     // every rule that reaches the reader's own boxes is scoped to a moment being there (key off: never matched)
-    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/wqs-near/.test(sel) && !/wqs-art/.test(sel));   // (.wqs-art: the moment's own picture box, drawn only with it on)
+    const outside = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => /\.wqs\b|\.wqs-stage/.test(sel) && !/wq-moment/.test(sel) && !/wqs-near/.test(sel) && !/wqs-art|data-art/.test(sel));   // (.wqs-art / [data-art]: the moment's own picture box, drawn only with it on)
     expect(outside).toEqual([]);
   });
   test('read_fb, the end of a book only listened to (no reading back): today\'s done screen', async () => {
@@ -3562,6 +3562,83 @@ describe('every read-aloud answered: the page after Your turn and the book\'s en
     runBook(e, root); await flush(); await flush(); await flush();
     expect(screenOf(root.innerHTML)).toBe('story-done');
     expect(root.innerHTML).not.toContain('data-rf');
+  });
+});
+
+// ---- Your turn LIVE (the meter on, 3–25 s into a read): only the lines being read, and the picture whole or not at all ----
+describe('Your turn live: the crop holds only the lines being read, the picture whole or left out', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };
+  const yourTurn = (e, root) => { toMic(e, root); e.calls.ask[0].onStream({}); return root.querySelector('[data-cam]'); };
+  const inset = (c) => { const m = /^inset\(([\d.]+)px 0 ([\d.]+)px 0\)$/.exec(c); return m ? [+m[1], +m[2]] : null; };
+  // three printed lines close together (Nastaliq-tall, 5 px apart), the picture under them; the first two being read
+  const im = { w: 720, h: 1080 }, L1 = [110, 300, 500, 70], L2 = [110, 375, 500, 70], L3 = [110, 450, 500, 70];
+  test('the sheet is clipped to the lines being read: no band of the next printed line, nor of the one before', () => {
+    const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: {} }));
+    const cam = env().S._cam, a = fakeEl('art'); a.querySelector = () => null;
+    const f = win.WQMoment.art(a, cam, im, [L1, L2, L3], [L1, L2], [360, 600], false, 0);
+    const [t, b] = inset(f.clip);
+    expect(im.h - b).toBeLessThanOrEqual(L3[1]);           // stops above line 3's glyphs
+    expect(im.h - b).toBeGreaterThanOrEqual(L2[1] + L2[3]); // and line 2 whole
+    const g = win.WQMoment.art(fakeEl('art'), cam, im, [L1, L2, L3], [L2, L3], [360, 600], false, 0);
+    expect(inset(g.clip)[0]).toBeGreaterThanOrEqual(L1[1] + L1[3]);   // reading lines 2–3: nothing of line 1
+  });
+  test('the picture starts below the whole printed block and sits flush on the lines; whole, or left out under 96 px', () => {
+    const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: {} }));
+    const cam = env().S._cam;
+    const pic = () => { const a = fakeEl('art'), i = fakeEl('i'), m = fakeEl('img'); a.querySelector = () => i; i.querySelector = () => m; a.i = i; a.m = m; return a; };
+    const a = pic();
+    win.WQMoment.art(a, cam, im, [L1, L2, L3], [L1, L2], [360, 600], false, 0);
+    const z = parseFloat(a.m.style.width) / im.w, cy = -parseFloat(/translateY\(([-\d.]+)px\)/.exec(a.m.style.transform)[1]) / z;
+    expect(cy).toBeGreaterThanOrEqual(L3[1] + L3[3] - 0.5);                         // no printed glyph inside the picture
+    expect(parseFloat(a.i.style.height)).toBeLessThanOrEqual(parseFloat(a.style.height));   // whole inside its box
+    expect(a.style.alignItems).toBe('flex-start');                                  // flush under the lines (no gap)
+    expect(a.getAttribute('data-art')).toBe('on');
+    // the last lines read: the picture carries on exactly where the clipped sheet stops (one piece)
+    const b = pic(), f = win.WQMoment.art(b, cam, im, [L1, L2, L3], [L2, L3], [360, 600], false, 0);
+    const zb = parseFloat(b.m.style.width) / im.w, cb = -parseFloat(/translateY\(([-\d.]+)px\)/.exec(b.m.style.transform)[1]) / zb;
+    expect(Math.abs(cb - (im.h - inset(f.clip)[1]))).toBeLessThan(0.6);
+    // a picture that would be 72–95 px tall: left out, never a stamp-sized piece
+    const c = pic(); win.WQMoment.art(c, cam, im, [L1, L2, L3], [L1, L2, L3], [360, 270], false, 0);
+    const zc = parseFloat(c.m.style.width) / im.w;
+    expect(zc * (im.h - (L3[1] + L3[3]))).toBeGreaterThanOrEqual(72); expect(zc * (im.h - (L3[1] + L3[3]))).toBeLessThan(96);
+    expect(c.getAttribute('data-art')).toBe('off');
+  });
+  test('a page with the opening words placeholder (steady): the placeholder goes once the page is clipped, so its words never show under the lines', async () => {
+    const e = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, steady: 1 }) } } })); const root = await openReader(e);
+    expect(root.innerHTML).toContain('data-ph');
+    yourTurn(e, root);
+    expect(root.querySelector('[data-cam]').style.clipPath).toMatch(/^inset\(/);
+    expect(root.querySelector('[data-ph]').style.display).toBe('none');
+    // the picture still loading: "Opening…" stays until it is in, then goes
+    const e2 = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, steady: 1 }) } } })); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    const pic = fakeEl('img'); pic.complete = false;
+    const q0 = r2.querySelector.bind(r2);
+    r2.querySelector = (sel) => { const x = q0(sel); if (x && sel === '[data-art]') x.querySelector = (s2) => (s2 === 'img' ? pic : null); return x; };
+    e2.calls.ask[0].onStream({});
+    expect(r2.querySelector('[data-ph]').style.display).not.toBe('none');
+    pic.L.load.forEach((f) => f());
+    expect(r2.querySelector('[data-ph]').style.display).toBe('none');
+  });
+  test('the stage changes size after it is framed (the meter comes in, the stage grows into the room): framed again to the new size', async () => {
+    const ros = [];
+    const e = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1 }) } } }));
+    e.win.ResizeObserver = function (f) { const o = { f, els: [], observe(el) { o.els.push(el); }, disconnect() { o.off = 1; } }; ros.push(o); return o; };
+    const root = await openReader(e);
+    const cam = yourTurn(e, root), before = [cam.style.transform, root.querySelector('[data-art]').style.height];
+    const st = root.querySelector('[data-stage]'), ro = ros.filter((o) => !o.off && o.els.includes(st))[0];
+    expect(ro).toBeTruthy();
+    st.clientHeight = 300; ro.f();
+    expect([cam.style.transform, root.querySelector('[data-art]').style.height]).not.toEqual(before);
+    expect(parseFloat(root.querySelector('[data-art]').style.top) + parseFloat(root.querySelector('[data-art]').style.height)).toBeLessThanOrEqual(300);
+  });
+  test('Your turn with the picture box: the stage takes the room down to the primary (no empty band above it)', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(css).toMatch(/\.wqs\[data-screen=story-read\]:has\(\[data-art\]\)\{height:100vh;height:100svh;min-height:0\}/);
+    expect(css).toMatch(/\.wqs\[data-screen=story-read\]:has\(\[data-art\]\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:none;min-height:200px\}/);
+    // the nudge's room (kept so its two lines never hide under the primary) is given to the page while the nudge is hidden
+    expect(css).toMatch(/\.wqs\[data-screen=story-read\]:has\(\[data-art\]\) \.wqs-near\[hidden\]\{display:none!important\}/);
   });
 });
 

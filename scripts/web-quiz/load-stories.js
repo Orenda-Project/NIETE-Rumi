@@ -125,6 +125,13 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
       io.stderr.write(`${JSON.stringify({ event: 'web_quiz.story_voice_gate_read_failed', error: String(e.message || e).slice(0, 200) })}\n`);
     }
   }
+  let youngSpeed = false;
+  if (client && voiceGate) {
+    try { youngSpeed = await Load.readYoungSpeed(client); } catch (e) {
+      gateReadFailed = true; dryRun = true;
+      io.stderr.write(`${JSON.stringify({ event: 'web_quiz.story_voice_young_speed_read_failed', error: String(e.message || e).slice(0, 200) })}\n`);
+    }
+  }
   // gate on, dry run: the current voices are read (and only read), so the dry answer is the write's
   if (dryRun && client && voiceGate) store = { currentVoices: Load.supabaseStore(client).currentVoices };
   if (!dryRun) {
@@ -154,6 +161,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
       cleanDir: cleanRoot ? path.join((cleanOf.get(book.source_id) || {}).serve_root || cleanRoot, (cleanOf.get(book.source_id) || {}).serve_root ? '' : book.source_id) : null,
       extra: { pdf_r2_key: (catalogue.get(book.source_id) || {}).r2_pdf_key || null },
       voiceGate,
+      youngSpeed,
     });
     let out;
     try {
