@@ -667,7 +667,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       chalLine: function (w, s, n, t) { return w + ' here! I got ' + s + '/' + n + ' stars on ' + t + '. Can you beat me? 🏆 Tap the link to play:'; },
       chalPlayed: function (w, t) { return w + ' here! I played ' + t + '. Your turn! Tap the link to play:'; },
       moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
-      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done',
+      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done', playAgain: 'Play again',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
@@ -741,7 +741,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
-      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل',
+      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل', playAgain: 'دوبارہ کھیلیں',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
@@ -1901,16 +1901,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // heading is not "optional"; "Go to the questions" waits in the secondary style until the video ends. Else today's.
     var door = Boolean(B.videos_v3 && params.via === 'videos');
     var vT = door ? T.vT3 : T.vT;
+    // web_quiz_rewatch_done (the answer's rewatch_done): a finished lesson opened again (?again=1) says it is a replay —
+    // "Done watching ✓" on the video and "Play again" into the questions. Else today's.
+    var rw = B.rewatch_done === true && params.again === '1';
     // The look: the Videos land header, and the questions are the one primary from the start (the video stays a choice).
     var adv = advOn();
     var h = (adv ? landBar('videos', esc(T.vT3)) + jug('hello', T.vSay) : bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>') +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
-      '<div class="wq-vbox"><video class="wq-video"' + (adv ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
+      '<div class="wq-vbox">' + (rw ? '<span class="wq-vdone wq-vwatched">' + esc(T.watched) + ' ' + ic(IC.check, '✓') + '</span>' : '') + '<video class="wq-video"' + (adv ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door && !adv ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + jv(IMG + 'hello.webp') + '" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
-      (adv ? '<button class="wq-btn wq-go" id="wq-skip" data-primary>' : '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">') + esc(T.skip) + '</button>' + vDownload(v);
+      (adv ? '<button class="wq-btn wq-go" id="wq-skip" data-primary>' : '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">') + esc(rw ? T.playAgain : T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
     if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
