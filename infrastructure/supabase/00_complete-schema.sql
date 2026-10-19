@@ -4055,6 +4055,10 @@ $function$;
 -- users.levels is the array ['PRIMARY','MIDDLE','HIGH'] used by future access rules.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_uuid UUID;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS levels VARCHAR(16)[];
+-- users.teacher_level: the live name of the band array (PRIMARY / MIDDLE / HIGH) since the 2026-09-15
+-- reload dropped `levels` on NIETE (supabase/baseline/schema.sql: character varying(16)[]). The schools
+-- analytics lists resolve the RDF's Primary and 6-12 teachers against it. Recorded here so a clone has it.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_level VARCHAR(16)[];
 
 -- users.training_bands: the teacher's OWN statement of which grade
 -- bands they teach, chosen on the bot or portal. TRAINING SCOPING ONLY: it maps
