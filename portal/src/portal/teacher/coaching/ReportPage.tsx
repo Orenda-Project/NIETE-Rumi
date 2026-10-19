@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronDown, Download, Mic, Send, Square, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../hooks/useAuth';
@@ -19,9 +19,9 @@ import { COACHING } from './copy';
 import { SectionHeading } from './parts';
 import { goTo } from './navigate';
 import { useStableSignedUrl } from '../../lib/stableSignedUrl';
-import { COACHING_HOME } from './paths';
+import { COACHING_HOME, COACHING_NEW } from './paths';
 import { dcSteps, toReportData } from './report';
-import { Reflection } from './reportLive';
+import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
 
 /**
@@ -51,6 +51,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const { user } = useAuth();
   // The progress and her answer, shared with the one screen (reportLive.tsx).
   const r = useDcReport(id);
+  const navigate = useNavigate();
   const { state, missing, sent } = r;
   const [answersOpen, setAnswersOpen] = useState(false);
 
@@ -118,10 +119,15 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       {!progress ? <p aria-live="polite" className="mx-1 text-[15px] text-[#6b7280]">{C.loading}</p> : null}
 
       {progress?.stage === 'stopped' ? (
-        <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>{C.stopped}</section>
+        <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>{stoppedLine(progress, C)}</section>
       ) : null}
 
-      {progress && progress.stage !== 'stopped' && !isVisit ? (
+      {/* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class; opened from her list. */}
+      {progress?.stage === 'confirm_class' && id ? (
+        <ClassCheck sessionId={id} onYes={r.recheck} onNo={() => navigate(COACHING_NEW)} />
+      ) : null}
+
+      {progress && progress.stage !== 'stopped' && progress.stage !== 'confirm_class' && !isVisit ? (
         <ProgressSteps
           heading={C.progress}
           steps={dcSteps(progress.stage, !!sent, C)}

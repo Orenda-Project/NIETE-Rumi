@@ -566,6 +566,19 @@ class TranscriptionProcessorService {
       const PortalCoaching = require('./portal-coaching.service');
       const { isPortalSession } = PortalCoaching;
       if (isPortalSession(session)) {
+        // bd-aqotzx (ICT IAB row 16): a recording that does not sound like a class waits for her answer on
+        // the portal — nothing is queued until she says it is her class. A failed check lets it through.
+        const { pauseIfNotAClass } = require('./portal-class-check');
+        const classCheck = await pauseIfNotAClass({ session, coachingSessionId, transcript: transcriptionResult.transcript });
+        if (classCheck.paused) {
+          if (fs.existsSync(tempAudioPath)) {
+            fs.unlinkSync(tempAudioPath);
+          }
+          logToFile('⏸️ Transcription complete (portal — not a class, waiting for her answer)', {
+            coachingSessionId, kind: classCheck.verdict && classCheck.verdict.kind,
+          });
+          return;
+        }
         await PortalCoaching.afterTranscription(session, coachingSessionId, from);
         if (fs.existsSync(tempAudioPath)) {
           fs.unlinkSync(tempAudioPath);

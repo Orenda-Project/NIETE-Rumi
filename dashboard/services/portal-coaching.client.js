@@ -77,6 +77,11 @@ function submitReflection({ userId, coachingSessionId, answer, audioKey }) {
   return post('reflection', { userId, coachingSessionId, answer, audioKey }, REFLECTION_TIMEOUT_MS);
 }
 
+/** bd-aqotzx — her answer when the recording did not sound like a class. @param {{userId, coachingSessionId, answer}} args */
+function answerClassCheck({ userId, coachingSessionId, answer }) {
+  return post('class-check', { userId, coachingSessionId, answer });
+}
+
 /** bd-5rz1v — her recent plans, from the WhatsApp list's source. @param {{userId}} args */
 function recentPlans({ userId }) {
   return post('recent-plans', { userId });
@@ -115,7 +120,7 @@ function previewObservationReport({ userId, coachingSessionId }) {
 function sendObservationReport({ userId, coachingSessionId }) { return post('observe/report/send', { userId, coachingSessionId }); }
 
 module.exports = {
-  presignUpload, startSession, submitReflection, recentPlans,
+  presignUpload, startSession, submitReflection, answerClassCheck, recentPlans,
   startObservation, observeRecentPlans, listObservations, observationView, getObservationDraft,
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
   previewObservationReport, sendObservationReport,

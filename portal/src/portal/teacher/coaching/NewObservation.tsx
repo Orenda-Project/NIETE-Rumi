@@ -31,7 +31,7 @@ import { micBlockedLine, micPermissionDenied } from './micBlocked';
 import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard } from './parts';
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
 import { dcSteps } from './report';
-import { Reflection } from './reportLive';
+import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
 
 /**
@@ -258,6 +258,13 @@ export function NewObservationPage() {
   const s4 = !ready ? 'upcoming' : photos.length ? 'done' : 'now';
   const micLine = micBlockedLine({ browserBlocked, retried: micTries > 0, inApp: isInAppBrowser() }, C);
   const progress = report.state.progress;
+  // bd-aqotzx — "No, record again": that session is closed; this screen comes back with her class, plan and photos.
+  const recordAgain = () => {
+    setSessionId(null);
+    setAudio(null);
+    setAudioProblem(null);
+    navigate(COACHING_NEW, { replace: true });
+  };
 
   const dock = after || sending
     ? undefined
@@ -426,10 +433,15 @@ export function NewObservationPage() {
               <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
               <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
             </section>
+          ) : progress?.stage === 'confirm_class' && sessionId ? (
+            /* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class. No: back to this screen with her
+               class, plan and photos kept, to record or upload again. */
+            <ClassCheck sessionId={sessionId} onYes={report.recheck} onNo={recordAgain} />
           ) : progress?.stage === 'stopped' ? (
             <section aria-live="polite" className={cn(CARD, 'px-4 py-5 text-center text-[16px] font-semibold text-[#c8331f]')}>
-              {/* bd-fgj73x.7: closed by the server as under 15 minutes (a length the browser could not read). */}
-              {progress.shortRecording ? C.tooShort : C.stopped}
+              {/* bd-fgj73x.7: closed by the server as under 15 minutes (a length the browser could not read).
+                  bd-aqotzx: closed because it did not sound like a class — the note says why. */}
+              {stoppedLine(progress, C)}
             </section>
           ) : (
             <ProgressSteps
@@ -440,7 +452,7 @@ export function NewObservationPage() {
             />
           )}
           {/* While it uploads she keeps the app open (the card says so); the leave note comes once it has arrived. */}
-          {!sending && progress?.stage !== 'stopped' ? (
+          {!sending && progress?.stage !== 'stopped' && progress?.stage !== 'confirm_class' ? (
             <>
               <Reflection r={report} />
               {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}

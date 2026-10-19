@@ -677,7 +677,9 @@ export interface AddStudentsResponse {
  * transcription has measured the audio.
  */
 export type CoachingStage =
-  | 'queued' | 'transcribing' | 'analysing' | 'reflection' | 'report' | 'done' | 'stopped';
+  | 'queued' | 'transcribing' | 'analysing' | 'reflection' | 'report' | 'done' | 'stopped'
+  /** bd-aqotzx — the recording did not sound like a class; waiting for her yes/no. */
+  | 'confirm_class';
 
 export interface CoachingProgress {
   id: string;
@@ -690,6 +692,8 @@ export interface CoachingProgress {
   shortRecording?: boolean | null;
   hasLessonPlan?: boolean;
   photoCount?: number;
+  /** bd-aqotzx — why a stopped session stopped: 'not_a_class' | 'not_a_class_no_answer' | 'too_short' | … */
+  stopReason?: string | null;
   createdAt?: string;
 }
 

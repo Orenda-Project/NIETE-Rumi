@@ -23,6 +23,8 @@ export type DcItem = {
   minutes: number | null;
   percentage: number | null;
   reportReady: boolean;
+  /** bd-aqotzx — a recording that did not sound like a class: waiting for her answer, or closed unanswered. */
+  state?: 'needs_answer' | 'stopped';
 };
 
 export type DcKpi = { value: number; previous: number | null };
@@ -49,6 +51,8 @@ const BAND_CHIP: Record<BandKey, ChipData['tone']> = {
 
 /** A lesson's chip: its band (never the number), or Analysing until it has one. */
 export function lessonChip(item: DcItem, C: CoachingCopy = COACHING_V2_COPY): ChipData | null {
+  if (item.state === 'needs_answer') return { text: C.classNeedsAnswer, tone: 'waiting' };
+  if (item.state === 'stopped') return { text: C.stoppedChip, tone: 'error' };
   const band = scoreBandFor(item.percentage);
   if (band) return { text: C.bands[band], tone: BAND_CHIP[band] };
   if (!item.reportReady) return { text: C.analysing, tone: 'waiting' };

@@ -24,6 +24,7 @@ const portal = vi.hoisted(() => ({
   getCoachingProgress: vi.fn(async () => ({ id: "sess-1", status: "analysing", stage: "analysing", reflection: null })),
   submitCoachingReflection: vi.fn(async () => ({ acknowledgement: "Thank you" })),
   getCoachingSession: vi.fn(),
+  answerClassCheck: vi.fn(async (..._a: unknown[]) => ({ next: "analysis" })),
 }));
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() }, portal }));
 const sendLesson = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => ({ coachingSessionId: "sess-1" })));
@@ -382,6 +383,56 @@ describe("a recording the browser could not measure, closed by the server as too
     fireEvent.click(await screen.findByRole("button", { name: C.submit }));
     expect(await screen.findByText(C.stopped)).toBeTruthy();
     expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});
+
+describe("a recording that did not sound like a class (bd-aqotzx, ICT IAB row 16)", () => {
+  const submitted = async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+  };
+
+  it("asks whether it is her class, with two answers and the 24-hour line — no progress steps, no question box", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "awaiting_class_confirm", stage: "confirm_class", reflection: null } as never);
+    await submitted();
+    expect(await screen.findByText(C.classQuestion)).toBeTruthy();
+    expect(screen.getByText(C.classWhy)).toBeTruthy();
+    expect(screen.getByText(C.classDeadline)).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.classYes })).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.classNo })).toBeTruthy();
+    expect(screen.queryByText(C.progress)).toBeNull();
+  });
+
+  it("Yes, my class: her answer is sent and the progress is read again", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "awaiting_class_confirm", stage: "confirm_class", reflection: null } as never);
+    await submitted();
+    await screen.findByText(C.classQuestion);
+    const calls = portal.getCoachingProgress.mock.calls.length;
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "analyzing", stage: "analysing", reflection: null } as never);
+    fireEvent.click(await screen.findByRole("button", { name: C.classYes }));
+    await waitFor(() => expect(portal.answerClassCheck).toHaveBeenCalledWith("sess-1", "yes"));
+    await waitFor(() => expect(portal.getCoachingProgress.mock.calls.length).toBeGreaterThan(calls));
+    await waitFor(() => expect(screen.queryByText(C.classQuestion)).toBeNull());
+  });
+
+  it("No, record again: back to this screen, her class still picked, to record or upload again", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "awaiting_class_confirm", stage: "confirm_class", reflection: null } as never);
+    portal.answerClassCheck.mockResolvedValueOnce({ next: "record_again" });
+    await submitted();
+    fireEvent.click(await screen.findByRole("button", { name: C.classNo }));
+    await waitFor(() => expect(portal.answerClassCheck).toHaveBeenCalledWith("sess-1", "no"));
+    expect(await screen.findByTestId("dc-audio-input")).toBeTruthy();
+    expect(screen.queryByText(C.classQuestion)).toBeNull();
+    expect(screen.getAllByText(/General Science/).length).toBeGreaterThan(0);
+  });
+
+  it("closed unanswered after 24 hours: the note says why it was not carried forward", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "cancelled", stage: "stopped", reflection: null, stopReason: "not_a_class_no_answer" } as never);
+    await submitted();
+    expect(await screen.findByText(C.classNoAnswerNote)).toBeTruthy();
+    expect(screen.queryByText(C.stopped)).toBeNull();
   });
 });
 

@@ -110,6 +110,8 @@ export function useDcReport(id: string | null) {
 
   return {
     state, missing, ready, asked, askedAudio,
+    // bd-aqotzx — read the progress again now (after her answer to the not-a-class question).
+    recheck,
     answer, setAnswer, sending, sent, sentAudio, sendError, sendAnswer,
     voice, clipUrl, sendVoice,
   };
