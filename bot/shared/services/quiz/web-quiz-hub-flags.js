@@ -74,6 +74,9 @@ const EARLY_UNLOCK_KEY = 'web_quiz_early_unlock';
 // A finished lesson's picture on the Videos door plays the lesson again (wq-doors.js, again=1), never its old finish
 // card: the hub JSON names it (`rewatch_done`). Only the stored JSON boolean true is on.
 const REWATCH_DONE_KEY = 'web_quiz_rewatch_done';
+// One play button at 0:00 on the video players (the lesson page, the Videos tab's): the player's own controls come with
+// the first play. The hub JSON and the quiz answer name it (`video_clean`). Only the stored JSON boolean true is on.
+const VIDEO_CLEAN_KEY = 'web_quiz_video_clean_start';
 // The quiz page in the child's language (web-quiz-page-lang.js): the quiz and hub answers say `page_lang`, JSON true only.
 const PAGE_LANG_KEY = 'web_quiz_page_lang';
 // The wordless first paint (web-quiz-plain-paint.js) rides this read on the hub, so a child's home adds no settings read.
@@ -188,6 +191,7 @@ const SWITCHES = Object.freeze([
   ['rewatchDone',  REWATCH_DONE_KEY,      'json'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
   [null,           SHARE_KEY,             'read'],
+  ['videoClean',   VIDEO_CLEAN_KEY,       'json'],
   ['home',         HOME_KEY,              'json'],
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
@@ -525,6 +529,7 @@ module.exports = {
   HOME_INLINE_KEY,
   EARLY_UNLOCK_KEY,
   REWATCH_DONE_KEY,
+  VIDEO_CLEAN_KEY,
   HOME_PRELOAD_KEY,
   homeNow,
   HOPS_KEY,

@@ -813,3 +813,40 @@ describe('a child with a class: a video row opens the lesson page marked as comi
     expect(go).toHaveBeenCalledWith('/q/ABC123?via=videos', 'door_video');
   });
 });
+
+// app_settings web_quiz_video_clean_start (the boot's `video_clean`, default off): one play button at 0:00 on the Videos
+// tab's player. With it on the player has no controls of its own until the first play, then it has them (pause, seek,
+// fullscreen); off, today's player with its controls from the start.
+describe('the watch screen\'s clean start (web_quiz_video_clean_start)', () => {
+  const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
+  const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(WATCH) });
+  const markup = (lang, extra) => load().WQDOORS.html({ ...HUB, lang, home_v3: 1, ...extra, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, ctxOf(lang), `watch/${VID}`, { watch: { vid: VID, url: 'https://r2.example.test/v.mp4', title: 'Life cycle of a hen', title_ur: 'مرغی کی زندگی' }, next: null });
+  async function played(extra) {
+    const t = live({ fetchImpl: answer });
+    const vEl = el({ duration: 100, currentTime: 0 }); const play = el(); play.setAttribute('data-primary', '');
+    const after = el({ hidden: true, parentNode: { removeChild() {} } });
+    t.W.WQDOORS.mount(fakeRoot({ '.wq-vid': vEl, '.wq-vplay': play, '.wq-after': after }), { ...HUB, home_v3: 1, ...extra, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {} }, `watch/${VID}`);
+    await flush();
+    const before = vEl.getAttribute('controls');
+    vEl.fire('play');
+    return { before, after: vEl.getAttribute('controls'), play };
+  }
+  test.each(['en', 'ur'])('on, %s: no native controls before the first play, only the big ▶', (lang) => {
+    const h = markup(lang, { video_clean: true });
+    expect(h).toMatch(/<video class="wq-vid" playsinline preload="none"/);
+    expect(h).not.toMatch(/<video[^>]* controls[ >]/); // the attribute itself (controlslist stays)
+    expect(h).toMatch(/class="wq-vplay" type="button" data-primary/);
+  });
+  test('on: the first play gives the player its controls (pause, seek, fullscreen)', async () => {
+    const p = await played({ video_clean: true });
+    expect(p.after).toBe('');
+    expect(p.play.hidden).toBe(true);
+  });
+  test.each(['en', 'ur'])('off (absent, false, the string "true"), %s: today\'s player with its controls from the start', (lang) => {
+    for (const v of [undefined, false, 'true']) expect([v, markup(lang, v === undefined ? {} : { video_clean: v })]).toEqual([v, expect.stringMatching(/<video class="wq-vid" playsinline controls preload="none"/)]);
+  });
+  test('off: a play changes nothing about the controls', async () => {
+    const p = await played({});
+    expect(p.after).toBeNull();
+  });
+});
