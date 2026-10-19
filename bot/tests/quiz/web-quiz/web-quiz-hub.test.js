@@ -117,6 +117,7 @@ beforeEach(() => {
   delete process.env.WEB_QUIZ_BASE_URL;
   delete process.env.STUDENT_QUIZ_FLOW_ID;
   Hub._resetCache();
+  require('../../../shared/services/quiz/web-quiz-library-flag')._reset();   // the recs read its Urdu-names switch
   redis._store.clear();
   redis._up = true;
   seed();
@@ -794,5 +795,22 @@ describe('hub(): the last quiz counts the answers a web sitting has saved', () =
     db.quiz_answers = [{ id: 'a1', session_id: 's9' }, { id: 'a2', session_id: 's9' }, { id: 'a3', session_id: 's9' }, { id: 'x1', session_id: 's1' }];
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.last).toMatchObject({ code: 'NEWQ01', state: 'open', answered: 3 });
+  });
+});
+
+describe('hub(): recommended for you, Urdu names (web_quiz_videos_ur_titles)', () => {
+  beforeEach(() => {
+    db.student_videos.find((v) => v.id === V(3)).title_ur = 'چوتھائی';
+  });
+  test('on: each recommended lesson with an Urdu name carries it as title_ur; one without keeps only its title', async () => {
+    db.app_settings.push({ key: 'web_quiz_videos_ur_titles', value: true });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.recs[0]).toMatchObject({ vid: V(3), title: 'Quarters', title_ur: 'چوتھائی' });
+    expect(out.recs[1]).not.toHaveProperty('title_ur');
+  });
+  test('off: no title_ur, today\'s recs', async () => {
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.recs[0]).toEqual(expect.not.objectContaining({ title_ur: expect.anything() }));
+    expect(out.recs[0]).toMatchObject({ vid: V(3), title: 'Quarters' });
   });
 });
