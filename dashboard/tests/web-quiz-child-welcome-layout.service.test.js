@@ -102,11 +102,14 @@ const VIEWS = [
 const cases = [];
 for (const [lang, vw, vh, cardTop] of VIEWS) for (const kind of ['quiz', 'video']) for (const busy of [0, 120]) for (const scrolled of [0, 260]) cases.push([lang, vw, vh, kind, busy, scrolled, cardTop]);
 
-describe('WF-2: steps 1–3 hold the Home at scroll 0; the lands step 3 lights are on screen', () => {
+describe('WF-2: the Home starts from its top (only as far down as the card needs); the lands step 3 lights are on screen', () => {
   test.each(cases)('%s %ix%i, %s Next stop, %i px more above it, scrolled %i px before', (lang, vw, vh, kind, above, scrolled, cardTop) => {
     const h = home({ vw, vh, cardTop, cardH: CARD[kind], above, scrolled });
     expect(h.start(lang)).toBe(true);
-    expect(h.S.y).toBe(0);
+    // a child's own scroll is undone: from the top, and down only as far as the card (and the trail's start) need
+    const fits = cardTop + above + CARD[kind] + 40 + 20 <= vh - 86 - 8;
+    if (fits) expect(h.S.y).toBe(0);
+    else expect(h.S.y).toBeLessThanOrEqual(cardTop + above + CARD[kind] + 60 - (vh - 86 - 8) + 1);
     h.tap('jugnu');
     h.run(3000);
     for (let i = 0; i < 3; i += 1) {
@@ -145,5 +148,31 @@ describe('WF-1: step 4 scrolls only until Let\'s go clears the tab bar by 8 px, 
     expect(h.S.overflow).toBe('hidden');
     h.tap('skip');
     expect(h.S.overflow).toBe('');
+  });
+});
+
+describe('WF-2 remainder (the live walk, UR 360×740): steps 1–2 show the Next stop card and the start of the trail; the step-4 ring stays above the tab bar', () => {
+  // a Home with a lot above the card (the first open after a join, a friend's line, the install card...): at scroll 0
+  // the card starts below the fold
+  const tall = [['ur', 360, 740, 92, 300], ['ur', 360, 740, 92, 380], ['en', 390, 844, 108, 420], ['ur', 360, 640, 92, 220], ['en', 360, 640, 108, 260]];
+  test.each(tall)('%s %ix%i, card at %i + %i px', (lang, vw, vh, cardTop, above) => {
+    for (const kind of ['quiz', 'video']) {
+      const h = home({ vw, vh, cardTop, cardH: CARD[kind], above });
+      h.start(lang);
+      const barTop = h.bar.getBoundingClientRect().top;
+      const skipBottom = h.head.getBoundingClientRect().bottom + 8 + 48;
+      for (const at of ['step1', 'step2']) {
+        if (at === 'step2') { h.tap('jugnu'); h.run(100); } else h.run(2600);
+        const c = h.next.getBoundingClientRect();
+        const t = h.lands[0].getBoundingClientRect();
+        expect([kind, at, 'card on screen', Math.round(c.top) >= 0 && Math.round(c.bottom) <= barTop - 8]).toEqual([kind, at, 'card on screen', true]);
+        expect([kind, at, 'trail starts on screen', t.top < barTop - 8]).toEqual([kind, at, 'trail starts on screen', true]);
+        expect([kind, at, 'the card not under Skip', Math.round(c.top - 28) >= Math.round(skipBottom) + 8 - 1]).toEqual([kind, at, 'the card not under Skip', true]);
+      }
+      h.run(7000);
+      const m = /class="wqw-dim wqw-hole" style="top:(-?\d+)px;left:\d+px;width:\d+px;height:(\d+)px"/.exec(h.overlay()._h);
+      expect(m).toBeTruthy();
+      expect([kind, 'ring above the bar', +m[1] + +m[2] <= barTop]).toEqual([kind, 'ring above the bar', true]);
+    }
   });
 });
