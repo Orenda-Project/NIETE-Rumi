@@ -1944,10 +1944,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var rw = B.rewatch_done === true && params.again === '1';
     // The look: the Videos land header, and the questions are the one primary from the start (the video stays a choice).
     var adv = advOn();
+    // web_quiz_video_clean_start (the answer's video_clean): the same one play button at 0:00 without the look too
+    var clean = adv || B.video_clean === true;
     var h = (adv ? landBar('videos', esc(T.vT3)) + jug('hello', T.vSay) : bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>') +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
-      '<div class="wq-vbox">' + (rw ? '<span class="wq-vdone wq-vwatched">' + esc(T.watched) + ' ' + ic(IC.check, '✓') + '</span>' : '') + '<video class="wq-video"' + (adv ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
+      '<div class="wq-vbox">' + (rw ? '<span class="wq-vdone wq-vwatched">' + esc(T.watched) + ' ' + ic(IC.check, '✓') + '</span>' : '') + '<video class="wq-video"' + (clean ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door && !adv ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + jv(IMG + 'hello.webp') + '" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
@@ -1958,7 +1960,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var vid = $('video');
     var cover = $('.wq-vcover');
     // the look: the player's own controls come with the first play, so at 0:00 the cover's play is the only one
-    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; if (adv) vid.setAttribute('controls', ''); ev('video_play', at ? { t: at } : {}); });
+    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; if (clean) vid.setAttribute('controls', ''); ev('video_play', at ? { t: at } : {}); });
     if (vid && FROM && FROM.t) {
       var ff = function () { vid.removeEventListener('loadeddata', ff); ev('more_timing', { ff_ms: Date.now() - FROM.t }); FROM.t = 0; };
       vid.addEventListener('loadeddata', ff);
