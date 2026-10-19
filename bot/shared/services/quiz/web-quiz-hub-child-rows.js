@@ -14,6 +14,8 @@
  *                              by student_id, active ones only), as { data, error }; `single` gives one row or null,
  *                              like maybeSingle(). Outside an answer: own(), the caller's read, exactly as today.
  *                              A shared read that failed or threw is never shared: the caller reads its own, as today.
+ *   forget(ids)                these children's shared rows dropped from the answer open here (a write to their row,
+ *                              web-quiz-grade-change.js), so a later ask in it reads them again; outside an answer, nothing
  *
  * Nothing is kept past the answer (LIFE_MS at most, for a timer an answer started), so no child waits on a stale row.
  */
@@ -79,4 +81,11 @@ function read(table, ids, cols, own, { single = false } = {}) {
   });
 }
 
-module.exports = { run, inside, read, COLS, LIFE_MS };
+/** Drops these children's rows (every table asked by the child's id) from the answer open here; none open: nothing. */
+function forget(ids) {
+  const s = store();
+  if (!s) return;
+  (ids || []).forEach((id) => Object.keys(BY).forEach((table) => s.rows.delete(`${table}:${id}`)));
+}
+
+module.exports = { run, inside, read, forget, COLS, LIFE_MS };

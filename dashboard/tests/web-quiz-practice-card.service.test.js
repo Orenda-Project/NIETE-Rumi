@@ -24,6 +24,8 @@ function page(result, lang = 'en') {
     stars: (n, t) => `<stars ${n}/${t}>`, render: (h, n) => out.screens.push({ h, n }), wireBar: () => {}, ev: () => {},
     // the page's mark helper (wq.js ic): without the sound kit it draws today's emoji
     IC: {}, ic: (svg, emoji) => emoji,
+    // the page's jv (a Jugnu picture's version): no map on the page here, so the URL as it is
+    jv: (u) => u,
     on: (sel, fn) => { out[sel] = fn; }, share: (line) => out.shared.push(line), link: (p) => p, board: () => {}, warmArt: () => {}, warmLink: () => {}, B: {}, pickVideo: () => {}, sset: () => {}, flushEv: () => {},
   };
   vm.createContext(ctx);

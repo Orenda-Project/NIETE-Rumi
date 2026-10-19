@@ -15,6 +15,8 @@
 html.wq-adv{
   /* ground and surfaces: a sunny paper map */
   --ground:#fbf3dc;--card:#fffdf6;--line:#e6d6ae;--tint:#fff1c9;
+  /* skeleton blocks: ≥ 1.3:1 against the ground, so a loading list is seen as one (DQ11 G4) */
+  --skel:#e3cf9f;--skel-hi:#efe2bd;
   --muted:#6d6450; /* --ink is today's #2A2D3A (not overridden: quiz text stays identical) */
   --paper:var(--ground);--paper-2:var(--tint);
   /* reward light */
@@ -238,7 +240,7 @@ html.wq-adv .wqa-bar>i{position:absolute;inset-block:0;inset-inline-start:0;bord
 html.wq-adv .wqa-badge{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 14px;border-radius:999px;background:var(--tint);color:var(--ink);font-weight:800;box-shadow:inset 0 0 0 2px var(--gold)}
 html.wq-adv .wqa-badge .wqa-i{color:var(--gold-d)}
 /* the designed wait: soft blocks in the real shapes, a shimmer; never an empty message while data is in flight */
-html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b{border-radius:var(--r-chip);background:linear-gradient(90deg,var(--land-bg) 0 40%,#fffaf0 50%,var(--land-bg) 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
+html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqs-skel{border-radius:var(--r-chip);background:linear-gradient(90deg,var(--skel) 0 40%,var(--skel-hi) 50%,var(--skel) 60%) 0 0/300% 100%;animation:wqa-sh 1.4s linear infinite;color:transparent}
 
 /* 8 · motion (WQA.move): each a one-shot; reduced motion gets a 150 ms fade and no movement */
 html.wq-adv .wqa-m-pop{animation:wqa-pop var(--dur-pop) var(--ease-pop)}
@@ -254,7 +256,7 @@ html.wq-adv .wqa-m-fade{animation:wqa-fade 150ms ease-out}
 @keyframes wqa-fade{0%{opacity:.4}100%{opacity:1}}
 @keyframes wqa-sh{0%{background-position:100% 0}100%{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){
-  html.wq-adv .wqa-jug,html.wq-adv .wqa-heart,html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqa-climb .wqa-stamp,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
+  html.wq-adv .wqa-jug,html.wq-adv .wqa-heart,html.wq-adv .wqa-skel,html.wq-adv [data-skel],html.wq-adv .wq-wait,html.wq-adv .wq-skrow,html.wq-adv .wq-skh,html.wq-adv .wq-vskel .wq-vthumb,html.wq-adv .wq-vskel b,html.wq-adv .wqs-skel,html.wq-adv .wqa-climb .wqa-stamp,html.wq-adv .wqa-stop.next i,html.wq-adv .wqfc .wq-jimg,html.wq-adv .wq-moment-jug,html.wq-adv .wqa-got .wqa-stamp{animation:none}
   html.wq-adv .wq-btn:active,html.wq-adv .wq-next:active,html.wq-adv .wq-door:active,html.wq-adv .wqs-book:active,html.wq-adv .wq-dli:has(.wq-drow:active){transform:none}
   html.wq-adv .wq-gbtn.held::before{transition:box-shadow 2s steps(4)}
 }
@@ -267,3 +269,18 @@ html.wq-adv .wq-wbar i{background:linear-gradient(90deg,var(--land-st),var(--lan
 html.wq-adv .wq-boot.wq-bwait .wq-bootsay::after{background:radial-gradient(circle,var(--land-st) 3px,transparent 3.5px) 0 50%/12px 8px repeat-x}
 /* the reading moment's badge carries the stamp: the same box in the stories land's colours */
 html.wq-adv .wq-moment-badge[data-wqa-stamp]{border-color:var(--land-st);background:var(--land-st-bg);color:var(--land-st-edge)}
+/* the quiz page's land header (wq.js landBar): the lesson video page, the class table and the school league wear the land
+   screens' banner, with the round Home at the start, the screen's name and the sound; the row stays left to right, as the hub's */
+html.wq-adv .wq-ltop{display:flex;align-items:center;direction:ltr;margin:0}
+html.wq-adv .wq-ltop h2{flex:1;min-width:0;margin:0;font-size:var(--fs-5);line-height:1.2;text-align:start;text-wrap:balance;overflow-wrap:anywhere}
+html.wq-adv[lang=ur] .wq-ltop h2{direction:rtl;font-family:var(--fu);font-weight:400;line-height:1.9}
+html.wq-adv .wq-ltop button.wq-home,html.wq-adv .wq-ltop #wq-snd{color:var(--land-edge)}
+/* on the land's colour the sound stays a solid circle when off: its crossed bell says so (a faded circle read as broken) */
+html.wq-adv .wq-ltop #wq-snd[aria-pressed=false],html.wq-adv .wq-ltop .wqj-snd[aria-pressed=false]{opacity:1}
+html.wq-adv .wq-ltop h2:empty{visibility:hidden}
+/* the see-all screen: one round back in the head (its arrow: wq.css, mirrored right to left), the lessons two by two */
+html.wq-adv .wq-droom[dir=rtl] .wq-backbtn::before,html.wq-adv .wq-droom[dir=rtl] .wq-backbtn svg{transform:scaleX(-1)}
+html.wq-adv .wq-vgrid--one{grid-template-columns:repeat(2,minmax(0,1fr))}
+html.wq-adv .wq-vch{display:block;color:var(--muted);font-size:var(--fs-1);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the Videos grade picker (wq-doors.js gradePick; its shape in wq-doors.css): the picked grade in the land's colour */
+html.wq-adv .wq-vpick .wq-chip.wq-on{background:var(--land);border-color:var(--land);color:var(--land-on)}

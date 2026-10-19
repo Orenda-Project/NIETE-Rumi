@@ -35,7 +35,8 @@ async function flag(now = Date.now()) {
  */
 function carry(answerP) {
   const one = OneButton.on() && on();
-  return Promise.resolve(answerP).then((out) => (one && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
+  // web_quiz_look_after on: looked at again once the answer lands (as OneButton.late()); off, the look before only
+  return Promise.resolve(answerP).then((out) => ((one || (OneButton.late() && on())) && out && typeof out === 'object' && !Array.isArray(out) ? Object.assign(out, { [FIELD]: true }) : out));
 }
 
 module.exports = { on, flag, carry, KEY, FIELD };

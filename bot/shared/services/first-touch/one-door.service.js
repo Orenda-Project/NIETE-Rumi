@@ -135,9 +135,11 @@ async function reply({ user, from, door = 'text', body = '', language = null } =
   const userId = (user && user.id) || null;
   try {
     // a shared card's ref in the words (web_quiz_share_v4): its item is kept for this phone, and the home link opens it;
-    // kept alongside the role answer, never before it (note never throws, and reads nothing without a ref)
-    const [, who] = await Promise.all([require('../quiz/web-quiz-share-open').note(from, body), Role.resolveRole({ user, phone: from, body })]);
-    const lang = who.lang;
+    // kept alongside the role answer, never before it (note never throws, and reads nothing without a ref); the card's
+    // own words also decide the reply's language and the landing's, never the new phone's stored one
+    const Open = require('../quiz/web-quiz-share-open');
+    const [, who, cardLang] = await Promise.all([Open.note(from, body), Role.resolveRole({ user, phone: from, body }), Open.cardLang(body)]);
+    const lang = cardLang || who.lang;
     const event = (reply_, extra = {}) => logEvent('onboard.quiz_door', {
       door: d, verdict: who.side, src: who.src, reply: reply_, lang, userId, ...(who.persona ? { persona: who.persona } : {}), ...extra,
     });
@@ -184,7 +186,7 @@ async function reply({ user, from, door = 'text', body = '', language = null } =
     let sent = false;
     if (url) {
       const childSide = who.side === 'child' || who.side === 'join';
-      const childLang = lang === 'ur' ? 'ur' : clampLanguage(user && user.preferred_language);
+      const childLang = lang === 'ur' ? 'ur' : (cardLang ? 'en' : clampLanguage(user && user.preferred_language));
       const { body: text, button } = messageFor(who.side, childSide ? childLang : lang);
       sent = await WhatsAppService.sendCtaUrl(from, { body: text, buttonText: button, url });
     }

@@ -384,3 +384,23 @@ describe("a recording the browser could not measure, closed by the server as too
     expect(screen.queryByText(C.tooShort)).toBeNull();
   });
 });
+
+describe("Start DC observation from a lesson plan: the class comes with the plan (operator, 19 Oct)", () => {
+  const classButton = () => screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }, { timeout: 5000 });
+
+  it("a plan for a class that is not hers (Grade 4 · Math): that grade and subject are picked, from the catalogue", async () => {
+    at(`${COACHING_NEW}?grade=4&lpSubject=math&plan=k5:L9`);
+    await waitFor(async () => expect((await classButton()).textContent).toContain("Grade 4 · Math"));
+  });
+
+  it("no subject key in the link (opened through the grade picker), but the catalogue subject is hers: her class", async () => {
+    at(`${COACHING_NEW}?grade=4&lpSubject=general_science&plan=k5:L3`);
+    // her class reads "Your class · Grade 4 · General Science" (the "Grade and subject" label is for one that is not hers)
+    expect(await screen.findByRole("button", { name: /Your class.*Grade 4 · General Science/ }, { timeout: 5000 })).toBeTruthy();
+  });
+
+  it("opened from Recent / All lesson plans (only the subject's name): picked too", async () => {
+    at(`${COACHING_NEW}?grade=4&subjectName=Math&plan=k5:L9`);
+    await waitFor(async () => expect((await classButton()).textContent).toContain("Grade 4 · Math"));
+  });
+});

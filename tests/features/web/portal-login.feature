@@ -107,3 +107,15 @@ Feature: Portal sign-in
     When she enters the code
     And she taps Log in
     Then she is on /portal/dashboard
+
+  @PL13
+  Scenario: One-tap sign-in from a Send to teacher message lands on the FLN plan, whatever the teacher-app switch says
+    # PR-E (m-links): a /go token whose feature is fln:<id> (bot/shared/services/fln-go-target.js) is signable
+    # (app-login-link.js linkable) and lands on /portal/fln/p/<id>?src=send (app-login.routes.js landing line).
+    # Every other /go feature lands exactly where it did before (PL11 unchanged).
+    Given the bot minted a /go link for the demo teacher with the target fln:11156
+    And the teacher app v2 is off for the demo teacher
+    When the demo teacher opens that link in the browser
+    Then the teacher settles on /portal/fln/p/11156, signed in, without typing a password
+    When the link is altered by one character
+    Then the "get a new link" page opens and nobody is signed in

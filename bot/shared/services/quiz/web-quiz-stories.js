@@ -36,6 +36,9 @@ const FLAG_KEY = 'web_quiz_stories';
 const BAND_KEY = 'web_quiz_stories_band';
 // "Read it together" needs the live reader's story keys: offered only when both of its switches are on.
 const LR3_KEYS = ['web_quiz_live_read_v3', 'web_quiz_challenge_realtime'];
+// Your turn's word rules (a word said again absorbed, words run together, the longest skipped word to practise, the page
+// event's absorbed count): the book's lrr, only with live reading on and this switch the boolean true; off ⇒ today's reader.
+const REPEAT_KEY = 'web_quiz_lr_repeat';
 // The reader's kind screen on every stall (a dropped voice, a missing book, the page kept in the address, the mic per
 // page, the never-blank stage, no voice before Listen, the 600 ms button hold): the book says `steady: 1`. Off ⇒ no key.
 const STEADY_KEY = 'web_quiz_stories_steady';
@@ -46,9 +49,15 @@ const GAPS_KEY = 'web_quiz_stories_slow_gaps';
 const MS_KEY = 'web_quiz_stories_slow_ms';
 // Jugnu keeps its passage recordings (web-quiz-challenge.js keepAudioOn): the microphone notice says so (book.lr3_keep)
 const KEEP_KEY = 'web_quiz_challenge_keep_audio';
+// The reader warmed from the shelf (JSON true only): the shelf's answer says `warm: true`, so the page fetches the reader's
+// files while the child looks at the shelf and the first page's picture as soon as the book arrives (wq-stories.js).
+const WARM_KEY = 'web_quiz_story_warm';
+// The reader's text lens (JSON true only): the book says `tx: 1`, and a page of small print shows, at rest, its words at a
+// readable size over the sheet's own beside the art (and a sliver word box never zooms the page). Off ⇒ no key.
+const LENS_KEY = 'web_quiz_stories_text_lens';
 // Keys that ride the stories read. A read naming them that fails is made again without them, the last first (they are off),
 // so a rider's failure never turns stories off.
-const RIDERS = [GAPS_KEY, MS_KEY, KEEP_KEY];
+const RIDERS = [GAPS_KEY, MS_KEY, REPEAT_KEY, KEEP_KEY, WARM_KEY, LENS_KEY];
 const HOST_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
@@ -62,7 +71,7 @@ const EVENTS = new Set(['story_opened', 'story_page_listened', 'story_page_read'
 const KEEP = {
   story_opened: { shelf_position: 'int', from_teacher: 'bool', grade: 'int', lang: 'lang', code: 'code' },
   story_page_listened: { ms: 'int', completed: 'bool', miss: 'bool', slow: 'one' },
-  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints' },
+  story_page_read: { words_total: 'int', words_read: 'int', skipped: 'int', ms: 'int', ended: 'ended', first: 'first', skipped_words: 'ints', absorbed: 'count' },
   story_questions_done: {},
   story_done: { pages_listened: 'int', pages_read: 'int', stars: 'int' },
   story_shared: {},
@@ -95,7 +104,7 @@ async function readRows(keys) {
 }
 
 // One read on the normal path. If it fails, a fault on a switch folded into it never turns the stories off: the read is
-// tried again without the riders (the last first: keep-audio, then Slower's two), then without the live reader's two
+// tried again without the riders (the last first: keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two
 // (lr3 off), then the main switch alone (band and steady off too). Only a failed read of the main switch itself is off.
 const READS = [
   ...RIDERS.map((_, i) => [...HOST_KEYS, ...RIDERS.slice(0, RIDERS.length - i)]),
@@ -119,10 +128,10 @@ async function flags(now = Date.now()) {
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
     const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
     const gaps = on && isTrue(by.get(GAPS_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null };
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)), keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null, warm: on && by.get(WARM_KEY) === true, lens: on && by.get(LENS_KEY) === true };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, keep: false, steady: false, gaps: false, ms: null };
+    cache = { at: now, on: false, band: false, lr3: false, lrr: false, keep: false, steady: false, gaps: false, ms: null, warm: false, lens: false };
   }
   return cache;
 }
@@ -216,6 +225,9 @@ function mergeWords(words, timings, endMs) {
     if (w.silent === true) out.silent = true;
     else if (tm && Number.isFinite(Number(tm.s_ms)) && Number.isFinite(Number(tm.e_ms))) { out.s_ms = Number(tm.s_ms); out.e_ms = Number(tm.e_ms); }
     if (Array.isArray(w.box) && w.box.length === 4) out.box = w.box.map(Number);
+    // the printed spelling(s) of a word stored in its dictionary form: Your turn counts them as the word
+    const alt = Array.isArray(w.alt) ? w.alt.filter((x) => typeof x === 'string' && x).slice(0, 3) : [];
+    if (alt.length) out.alt = alt;
     return out;
   });
   // The player needs every word timed and in order: a silent word gets zero length at the next spoken word's start
@@ -248,6 +260,7 @@ function keep(event, data) {
     else if (spec[k] === 'ended' && ENDED.has(v)) out[k] = v;
     else if (spec[k] === 'code' && typeof v === 'string' && /^[A-Za-z0-9]{4,12}$/.test(v)) out[k] = v;
     else if (spec[k] === 'first' && (v === 'listen' || v === 'read')) out[k] = v;
+    else if (spec[k] === 'count' && Number.isInteger(v) && v >= 0) out[k] = Math.min(v, 2000);   // words said again, absorbed
     else if (spec[k] === 'ints' && Array.isArray(v)) out[k] = v.filter((n) => Number.isInteger(n) && n >= 0 && n < 2000).slice(0, 10);
   });
   return out;
@@ -282,7 +295,8 @@ async function orderedBooks(studentId, { grade, lang, teacher = [], now = Date.n
 
 async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
   const who = await guard(token, kid, device);
-  const grade = gradeOf(g) || gradeOf(who.grade) || 1;
+  // web_quiz_grade_change: with no grade asked, a class child opens at the grade the family chose (off: the hub's, no read)
+  const grade = gradeOf(g) || gradeOf(g ? who.grade : await require('./web-quiz-grade-change').browseGrade(who)) || 1;
   const lang = clampLanguage(l);
   const teacher = String(t || '').split(',').map((s) => s.trim()).filter((s) => UUID_RX.test(s)).slice(0, MAX_TEACHER);
   const { ordered, done } = await orderedBooks(who.studentId, { grade, lang, teacher, now });
@@ -295,6 +309,17 @@ async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
       ...(b.author ? { by: b.author } : {}),
     })),
   };
+  // web_quiz_story_warm (from the stories' own read, cached by now): the shelf says warm, and each book its first page's
+  // picture (`p1`), so the page asks for it the moment the child taps the book (wq-stories-w.js). Off: today's answer.
+  if ((await flags(now)).warm) {
+    out.warm = true;
+    const ids = out.books.map((b) => b.id);
+    const { data: firsts } = ids.length
+      ? await supabase.from('story_pages').select('book_id, image_file').in('book_id', ids).eq('n', 1)
+      : { data: [] };
+    const p1 = new Map((firsts || []).filter((r) => r && r.image_file).map((r) => [r.book_id, fileUrl(r.book_id, r.image_file)]));
+    out.books.forEach((b) => { if (p1.has(b.id)) b.p1 = p1.get(b.id); });
+  }
   logEvent('web_quiz.stories_shelf', { g: grade, l: lang, n: out.books.length });
   return out;
 }
@@ -423,7 +448,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.steady ? { steady: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1 } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
     // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
     ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {

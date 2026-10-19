@@ -168,7 +168,7 @@ function clipsRecordedOn(now = Date.now()) {
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); storyVoice = false; clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
 
 /**
  * An app_settings switch, true only when its value reads true (fails closed), cached for 30 s.
@@ -581,10 +581,26 @@ async function updateRunMeta(id, build, { force = false } = {}) {
 // (web-quiz-voice.js STORY_VOICE), never the voice the plan gives the quiz lines.
 // A one-voice clip's key names the plan's rate when it is not the default 64 kb/s ("-k32"), so a clip made at another
 // rate is never served as this one (and the pre-flip check counts it missing); a 64 kb/s key is unchanged.
+// app_settings `web_quiz_challenge_story_voice` (default off, JSON true only): with one voice off, the challenge's clips
+// still take the storybook voice, at the one-voice rate: the keys the one-voice plan names, so one checked set serves
+// both. The quiz lines keep today's voice. Read in the background (as the one-voice switch): never on a child's request.
+const STORY_VOICE_FLAG_KEY = 'web_quiz_challenge_story_voice';
+const STORY_CLIP_PLAN = OneVoice.normalize({ voices: { en: STORY_VOICE.en, ur: STORY_VOICE.ur }, kbps: 32 });
+let storyVoice = false;
+async function storyVoiceOn() {
+  storyVoice = await settingOn(STORY_VOICE_FLAG_KEY, { strict: true });
+  return storyVoice;
+}
+// The plan the challenge's clips follow: the one-voice plan when it is on, else the storybook voice when this switch is.
+function clipPlan() {
+  storyVoiceOn().catch(() => null);
+  return OneVoice.currentPlan() || (storyVoice ? STORY_CLIP_PLAN : null);
+}
+
 function clipKey(ex, part, lang, text) {
   // A language the plan leaves out keeps today's voice and today's key (web-quiz-one-voice-flag.js forQuiz); a language
   // it names takes the storybook voice (STORY_VOICE), whatever voice the plan gives the quiz lines.
-  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);
+  const plan = OneVoice.forQuiz(clipPlan(), null, lang);
   const one = plan ? STORY_VOICE[lang] || null : null;
   const rate = one && plan.kbps && plan.kbps !== 64 ? `-k${plan.kbps}` : '';
   return AudioStore.clipKey({ quizId: 'challenge', lang, qid: ex, part, voice: one ? `${setIdOf(one)}${rate}` : voiceTag(lang), text });
@@ -595,7 +611,7 @@ const KEY_VOICE = /-([a-z]{2}-[a-z0-9]+(?:-[0-9a-f]{6})?)(?:-k(\d+))?-[0-9a-f]{8
 // The voice a clip's key names (its tag), so a clip is always recorded in the voice its key says; else the quiz voice.
 function voiceOfKey(key, lang) {
   const m = KEY_VOICE.exec(String(key || ''));
-  return (m && voiceOfTag(m[1], OneVoice.currentPlan())) || quizVoice(lang);
+  return (m && voiceOfTag(m[1], clipPlan())) || quizVoice(lang);
 }
 
 // The rate a clip's key names, else 64.
@@ -612,10 +628,11 @@ const LONG_KEY = /\/(listen|read)\/story-[^/]*\.ogg$/;
 const PART_OF_KEY = /\/challenge\/[^/]+\/([^/]+)\/(.+?)-(?:sx|el|oa)-/;
 const clipRefused = new Set();
 function refused(key, lang, batch) {
-  const plan = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang);   // a language the plan leaves out: today's recorder
+  const plan = OneVoice.forQuiz(clipPlan(), null, lang);   // a language the plan leaves out: today's recorder
   if (!plan) return false;
   const long = LONG_KEY.exec(String(key || ''));
-  if (!long && batch) return false;
+  // the storybook-voice switch alone (one voice off): a short line is recorded on the fly, as today's voice's lines are
+  if (!long && (batch || !OneVoice.currentPlan())) return false;
   if (!clipRefused.has(key)) {
     clipRefused.add(key);
     const m = long ? [null, long[1], 'story'] : PART_OF_KEY.exec(String(key || '')) || [null, null, null];
@@ -635,7 +652,7 @@ async function recordClip(key, text, lang, now = Date.now(), { batch = false, le
   try {
     const tts = require('../tts');
     const v = voiceOfKey(key, lang);
-    const said = OneVoice.forQuiz(OneVoice.currentPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
+    const said = OneVoice.forQuiz(clipPlan(), null, lang) && String(lang).startsWith('ur') ? require('./web-quiz-ur-say').sayOf(text) : text;
     // The provider and voice pinned per call, no fallback: a clip that cannot be made in this voice stays missing.
     const out = await tts.synthesize({
       text: said, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice,
@@ -688,6 +705,11 @@ async function storyClip(lang, drawnText = null) {
 /** Story Time read-along: a story read aloud in the quiz voice (the listening story's scheme, exercise 'read'). */
 function readAlongClip(lang, text) {
   return text ? clipUrl(clipKey('read', 'story', lang, text), text, lang) : null;
+}
+
+/** Jugnu's own lines of every exercise in `lang` ({ ex, part, text }: intro, start, stop, done), for the pre-flip check. */
+function exerciseLines(lang) {
+  return EXERCISES.flatMap((e) => PARTS.map((part) => ({ ex: e.id, part, text: lineOf(e.id, part, lang) }))).filter((l) => l.text);
 }
 
 async function clipsFor(ex, lang) {
@@ -805,7 +827,7 @@ async function menu(token, { kid, lang, device } = {}) {
   const listenOk = (await got('listen', () => listenOn())) && !!(await storyClip(w.lang));
   // challenge v2: under _period a stop is done from THIS period's record row (trailStateFor); under _pool the Trail order
   const trailNow = rules.period ? await got('trail', () => periodTrail(w)) : null;
-  return {
+  const menuOut = {
     form: `G${w.form}`,
     lang: w.lang,
     exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
@@ -825,7 +847,7 @@ async function menu(token, { kid, lang, device } = {}) {
     ...(w.round && rules.v2 ? { round_turn: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await got('rt', () => Tel.flag()),
-    ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: { ur2: true } } : {}),
+    ...((await got('ui', () => require('./web-quiz-ur-polish').ui())) ? { ui: require('./web-quiz-ur-polish').lite({ ur2: true }) } : {}),
     // the sound + motion kit (web-quiz-juice.js): named only when on
     ...((await got('juice', () => require('./web-quiz-juice').field())) ? { juice: true } : {}),
     ...(await got('bits', () => TrailPage.bits({ studentId: w.studentId, device, lang: w.lang }))),
@@ -833,6 +855,8 @@ async function menu(token, { kid, lang, device } = {}) {
     // the child home on: a child with no class shares with "Share" (web-quiz-hub-door.js; off ⇒ nothing)
     ...(await got('no_class', () => require('./web-quiz-hub-door').noClassField(w.studentId))),
   };
+  // the read-along player's preload (web_quiz_ra_preload): a cached answer, never waited for; off ⇒ the menu untouched
+  return require('./web-quiz-ra-preload').mark(menuOut);
 }
 
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
@@ -2422,7 +2446,7 @@ module.exports = {
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   recordClip,      // the one-voice pre-flip recording of the short lines (scripts/quiz/one-voice-missing-keys.js)
   updateRunMeta,   // the meta compare-and-set write, reused by the stuck-run sweeper (web-quiz-challenge-sweeper.js)
-  __reset,
+  __reset, storyVoiceOn, exerciseLines,
 };
 // The passage's child-facing title {en, ur} | null: one home for the shelf and the stop's intro (RULING #100(a)(2)).
 module.exports.passageTitle = passageTitle;

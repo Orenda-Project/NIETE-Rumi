@@ -5,6 +5,7 @@ import { Lock, Smartphone, KeyRound, UserRound, MessageCircle } from 'lucide-rea
 import { cn } from '@/lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { homeFor } from '../lib/homeRoute';
+import { FlnLoginBanner, goAfterSignIn, safeNext } from '../fln/login';
 import { isAccountName, isValidPkMobile } from '../lib/phone';
 import { forgetConfig } from '../lib/useNewUi';
 import { BottomButton } from '../newui';
@@ -16,6 +17,7 @@ import { AuthFrame, AuthMessage } from '../auth/AuthFrame';
 import { AuthField } from '../auth/AuthField';
 import { CodeSlots } from '../auth/CodeSlots';
 import { RegisterOnWhatsApp } from '../auth/RegisterOnWhatsApp';
+import { SignedOutBanner } from '../auth/SignedOutBanner';
 import { AUTH } from '../auth/copy';
 import { loginFailure, resetFailure, serverCode, serverWhatsapp, statusOf, verifyFailure, type AuthError } from '../auth/errors';
 import { useCopy } from '../teacher/i18n';
@@ -57,7 +59,7 @@ const PortalLogin = () => {
   // dashboard (bd-s6qbts.3: an analytics-only account to its analytics page — lib/homeRoute).
   useEffect(() => {
     if (sessionLoading || !user) return;
-    navigate(homeFor(user), { replace: true });
+    navigate(safeNext(new URLSearchParams(location.search).get('next')) ?? homeFor(user), { replace: true });
   }, [user, sessionLoading, navigate]);
 
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -121,7 +123,7 @@ const PortalLogin = () => {
   const signedIn = async (who: unknown) => {
     forgetConfig();
     await checkAuth();
-    navigate(homeFor(who as Parameters<typeof homeFor>[0]));
+    goAfterSignIn(navigate, location.search, homeFor(who as Parameters<typeof homeFor>[0]));
   };
 
   const sendCode = async () => {
@@ -172,7 +174,7 @@ const PortalLogin = () => {
         // bd-2434: school leaders go straight to My Patch, not the teacher dashboard.
         // bd-s6qbts.3: an analytics-only account to its analytics page (lib/homeRoute).
         // The button stays on "Logging in" until the page changes.
-        navigate(homeFor(result.user));
+        goAfterSignIn(navigate, location.search, homeFor(result.user));
         return;
       }
       const status = (result as { status?: number }).status;
@@ -218,6 +220,7 @@ const PortalLogin = () => {
   if (!usePassword && step === 'code') {
     return (
       <AuthFrame title={c.codeTitle} onBack={() => { setStep('number'); setError(null); }}>
+        <SignedOutBanner />
         <form onSubmit={handleSubmit} noValidate>
           <div className="mb-[22px] flex min-h-[48px] flex-wrap items-center gap-x-2.5 gap-y-1 rounded-[14px] bg-nu-surface px-3.5 py-2.5 text-[17px] font-semibold">
             <MessageCircle className="h-[22px] w-[22px] shrink-0 text-nu-surface-muted" aria-hidden="true" />
@@ -242,6 +245,9 @@ const PortalLogin = () => {
 
   return (
     <AuthFrame title={c.welcome}>
+      <FlnLoginBanner />
+      {/* On the password form (a phone's, the one with "Use a code instead") the notice's tap is that same switch. */}
+      <SignedOutBanner onUseCode={usePassword && !nameMode ? () => switchMode('code') : undefined} />
       <form onSubmit={handleSubmit} noValidate>
         <AuthField
           id="phoneNumber"

@@ -263,12 +263,18 @@
     hb = box.querySelector('[data-in-chip]');
     if (hb) { e.stopPropagation(); e.preventDefault(); hb.click(); }
   }
+  // a page's result keeps the whole page in view (the reader's own Whole page, which the next page resets): a word
+  // replayed from the chip never zooms the art past the screen's edges
+  function whole(root) {
+    var w = root.querySelector('[data-whole]');
+    if (w && w.getAttribute('aria-pressed') !== 'true' && root._wqs) root._wqs('cam');
+  }
   function q(k, R, m, x) {
     var y;
     // its first draw: the picture has just given up height (wq-moment.css), so the page's word taps are placed again
     if (k === 'page') {
       if (x.st === 'practise') { chipRd = x.rd; if (!chipOn && document.addEventListener) { chipOn = 1; document.addEventListener('click', chip, true); } }
-      y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', chipped: x.rd.chipped, sents: x.sents, still: x.rd.drawn }); if (!x.rd.drawn) R.C.set(fit, 0); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
+      y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', chipped: x.rd.chipped, sents: x.sents, still: x.rd.drawn }); if (!x.rd.drawn) R.C.set(fit, 0); R.C.set(function () { if (R.live()) whole(R.root); }, 0); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
     if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear, live: R.live });
     if (k === 'withJ') return say(k, R.L);
     if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';
