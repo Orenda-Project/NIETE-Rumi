@@ -20,6 +20,8 @@ import { ClassCard, LoadState, SearchBox } from './ui';
  * with what was saved and saves as "Save changes" (the bot replaces the day). Every child is listed —
  * the search narrows the list, it never hides anyone by default. Counts and Save stay at the bottom.
  * The window (today back 90 days) is WhatsApp's; the server checks it again.
+ * A name wraps to two lines and P/A/L are 44px wide: one cut line beside 52px buttons left a phone ~108px,
+ * about a first name, and many children share one (bd-qvnzh5).
  */
 
 const SEG: { s: Status; short: keyof AttendanceCopy; label: keyof AttendanceCopy; on: string }[] = [
@@ -212,7 +214,7 @@ export function MarkPage() {
                       st === 'absent' && 'bg-[#fff7f6]', st === 'leave' && 'bg-[#fffbeb]')}
                   >
                     <span className="w-7 shrink-0 text-center text-[13px] font-bold tabular-nums text-[#6b7280]">{s.roll ?? ''}</span>
-                    <span className="min-w-0 flex-1 truncate text-[16px] font-semibold">{s.name}</span>
+                    <span className="min-w-0 flex-1 line-clamp-2 break-words text-[16px] font-semibold leading-tight">{s.name}</span>
                     <div role="radiogroup" aria-label={s.name} className="flex shrink-0 gap-0.5 rounded-[14px] bg-[#f3f4f6] p-0.5">
                       {SEG.map((g) => (
                         <button
@@ -222,7 +224,7 @@ export function MarkPage() {
                           aria-checked={st === g.s}
                           aria-label={C[g.label] as string}
                           onClick={() => setMarks((m) => setStatus(m, s.id, g.s))}
-                          className={cn('h-14 w-[52px] rounded-xl text-[16px] font-bold', FOCUS, st === g.s ? g.on : 'text-[#6b7280]')}
+                          className={cn('h-14 w-11 rounded-xl text-[16px] font-bold', FOCUS, st === g.s ? g.on : 'text-[#6b7280]')}
                         >
                           {C[g.short] as string}
                         </button>

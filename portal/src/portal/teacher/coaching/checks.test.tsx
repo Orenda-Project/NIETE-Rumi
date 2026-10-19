@@ -34,7 +34,9 @@ describe("coaching: copy", () => {
     const bad = collectCopy(COACHING_V2_COPY)
       // bd-idkgm2: and the one-line how-to under "Microphone blocked" (operator-approved, ICT row 18).
       // bd-qccbrv: and the other two lines of that card (same mockup).
-      .filter((c) => !["photosHint", "voiceNote", "micBlockedHint", "micBrowserBlocked", "micStillBlockedWhatsApp", "micStillBlocked", "tooShort"].includes(c.path))
+      .filter((c) => !["photosHint", "voiceNote", "micBlockedHint", "micBrowserBlocked", "micStillBlockedWhatsApp", "micStillBlocked", "tooShort",
+        // bd-aqotzx — ICT IAB row 16: the question, why it stopped, the 24-hour line and the two notes are sentences.
+        "classQuestion", "classWhy", "classDeadline", "classNoAnswerNote", "classRecordAgainNote"].includes(c.path))
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
@@ -42,13 +44,14 @@ describe("coaching: copy", () => {
 
   // bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the hint is the three photos to take, one per
   // line, the same three in English and Urdu (and the same three the bot's coachingPhotoOffer names).
-  it("the Photos hint is ICT's three photos, one per line, in both languages, no full stop", () => {
-    expect(COACHING_V2_COPY.photosHint.split("\n")).toEqual([
-      "(1) A photo of the board with today's objective or task",
-      "(2) A photo of a student's notebook or worksheet",
-      "(3) A photo of teaching aids, e.g. drawings, charts or cards",
-    ]);
-    expect(COACHING_V2_COPY_UR.photosHint.split("\n")).toHaveLength(3);
+  // bd-rt8wky (operator, 19 Oct): one running paragraph — (2) starts where (1) ends — in both languages.
+  it("the Photos hint is ICT's three photos as one paragraph, in both languages, no full stop", () => {
+    expect(COACHING_V2_COPY.photosHint).toBe(
+      "(1) A photo of the board with today's objective or task (2) A photo of a student's notebook or worksheet "
+      + "(3) A photo of teaching aids, e.g. drawings, charts or cards",
+    );
+    expect(COACHING_V2_COPY_UR.photosHint).not.toMatch(/\n/);
+    expect(COACHING_V2_COPY_UR.photosHint).toMatch(/\(1\).*\(2\).*\(3\)/);
     expect(COACHING_V2_COPY.photosHint).not.toMatch(/[.?!]$/);
   });
 

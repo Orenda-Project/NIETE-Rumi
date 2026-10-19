@@ -46,14 +46,18 @@ export const COACHING_V2_COPY = {
   planFallback: 'Lesson plan',
   change: 'Change',
   photos: 'Photos',
-  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line, as the Urdu
-     and the bot's coachingPhotoOffer. */
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take. bd-rt8wky (operator, 19 Oct):
+     one running paragraph, (2) starting where (1) ends, in both languages. */
   photosHint:
-    "(1) A photo of the board with today's objective or task\n" +
-    "(2) A photo of a student's notebook or worksheet\n" +
+    "(1) A photo of the board with today's objective or task " +
+    "(2) A photo of a student's notebook or worksheet " +
     '(3) A photo of teaching aids, e.g. drawings, charts or cards',
   noFaces: 'No faces',
   addPhoto: 'Add photo',
+  /* bd-rt8wky — the teacher's photos: the phone camera, or the gallery (one or several), up to ten in all. */
+  takePhoto: 'Take photo',
+  fromGallery: 'From gallery',
+  photoCount: (n: number, max: number) => `${n} of ${max} photos`,
   removePhoto: (n: number) => `Remove photo ${n}`,
   /** The photo cap said aloud: ten here, three for the coach (one grid, parts.tsx PhotoGrid). */
   upToPhotos: (n: number) => `Up to ${n} photos`,
@@ -137,6 +141,16 @@ export const COACHING_V2_COPY = {
   couldNotSend: 'Could not send',
   download: 'Download',
   stopped: 'Could not analyse',
+  /* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class being taught. */
+  classNeedsAnswer: 'Needs your answer',
+  classQuestion: 'Is this the recording of your class?',
+  classWhy: "Your recording doesn't sound like a class being taught.",
+  classYes: 'Yes, my class',
+  classNo: 'No, record again',
+  classDeadline: "No answer in 24 hours? This recording will be closed and won't count.",
+  classNoAnswerNote: "Not carried forward: this recording didn't sound like a class being taught and we didn't get your answer within 24 hours, so no report was made.",
+  classRecordAgainNote: 'Not carried forward: you chose to record this class again, so no report was made.',
+  stoppedChip: 'Stopped',
   notFound: 'DC observation not found',
   loading: 'Loading',
   retry: 'Try again',
@@ -189,14 +203,17 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
   photos: 'تصاویر',
-  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line (CoachingHome
-     renders it whitespace-pre-line). Human-written Urdu, not machine-drafted. */
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take. Human-written Urdu, not
+     machine-drafted. bd-rt8wky (operator, 19 Oct): one running paragraph, (2) starting where (1) ends. */
   photosHint:
-    '(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو\n' +
-    '(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر\n' +
+    '(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو ' +
+    '(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر ' +
     '(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر',
   noFaces: 'چہرے نہ دکھائیں',
   addPhoto: 'تصویر شامل کریں',
+  takePhoto: 'تصویر لیں',
+  fromGallery: 'گیلری سے',
+  photoCount: (n: number, max: number) => `${max} میں سے ${n} تصاویر`,
   removePhoto: (n: number) => `تصویر ${n} ہٹائیں`,
   upToPhotos: (n: number) => `${n} تصاویر تک`,
   atLeastMinutes: `${MIN_MINUTES} منٹ یا زیادہ`,
@@ -269,6 +286,15 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   couldNotSend: 'بھیجا نہیں جا سکا',
   download: 'ڈاؤن لوڈ',
   stopped: 'تجزیہ نہیں ہو سکا',
+  classNeedsAnswer: 'آپ کا جواب چاہیے',
+  classQuestion: 'کیا یہ آپ کی کلاس کی ریکارڈنگ ہے؟',
+  classWhy: 'آپ کی ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگتی۔',
+  classYes: 'جی، میری کلاس',
+  classNo: 'نہیں، دوبارہ ریکارڈ',
+  classDeadline: '24 گھنٹے میں جواب نہ دیا تو یہ ریکارڈنگ بند ہو جائے گی اور شمار نہیں ہوگی۔',
+  classNoAnswerNote: 'آگے نہیں بڑھایا گیا: یہ ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگی اور 24 گھنٹے میں آپ کا جواب نہیں ملا، اس لیے رپورٹ نہیں بنی۔',
+  classRecordAgainNote: 'آگے نہیں بڑھایا گیا: آپ نے یہ کلاس دوبارہ ریکارڈ کرنے کا انتخاب کیا، اس لیے رپورٹ نہیں بنی۔',
+  stoppedChip: 'روک دیا گیا',
   notFound: 'ڈیجیٹل کوچنگ مشاہدہ نہیں ملا',
   loading: 'لوڈ ہو رہا ہے',
   retry: 'دوبارہ کوشش کریں',
@@ -323,5 +349,7 @@ export const COPY_ENTRY: CopyEntry = {
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
   longOk: ['startObservation', 'summaryCount', 'noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked',
     // bd-fgj73x.7: the operator asked for a short line that says why a recording under 15 minutes cannot be sent.
-    'tooShort'],
+    'tooShort',
+    // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
+    'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote'],
 };

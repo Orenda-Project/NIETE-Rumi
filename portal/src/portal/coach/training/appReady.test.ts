@@ -20,6 +20,16 @@ describe("COACH_APP_READY", () => {
     "/portal/leader/observations", "/portal/training", "/portal/training/v2", "/portal/training/provider/X", "/portal/curriculum", "/",
   ])("%s is not", (p) => expect(coachPathReady(p)).toBe(false));
 
+  // bd-tbprit.6 — the disagreement card gates itself on coach_disagreement_card, so the guard lets it through;
+  // otherwise its /cv link and its list land her back on the Training Library.
+  it.each(["/portal/coach/disagreements", "/portal/coach/disagreements/", "/portal/coach/disagreements/4650f2b9"])(
+    "%s is reachable (the card's own flag gates it)", (p) => expect(coachPathReady(p)).toBe(true));
+
+  it("only the card's addresses open, not look-alikes", () => {
+    expect(coachPathReady("/portal/coach/disagreementsx")).toBe(false);
+    expect(coachPathReady("/portal/coach/disagreements/4650f2b9/edit")).toBe(false);
+  });
+
   it("enabling observe later is one entry: its pages open, the others stay shut", () => {
     expect(coachPathReady("/portal/coach/observe", ["training", "observe"])).toBe(true);
     expect(coachPathReady("/portal/coach/visit/3/record", ["training", "observe"])).toBe(true);

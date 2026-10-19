@@ -157,7 +157,7 @@ export function ViewPage() {
               <div key={s.id} className={cn('flex min-h-[64px] items-center gap-3 py-2 pe-3.5 ps-2.5', i > 0 && ROW_DIVIDER)}>
                 <span className="w-7 shrink-0 text-center text-[13px] font-bold text-[#6b7280]">{s.roll ?? ''}</span>
                 <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <span className="truncate text-[16px] font-semibold">{s.name}</span>
+                  <span className="line-clamp-2 break-words text-[16px] font-semibold leading-tight">{s.name}</span>
                   {s.pct != null && (
                     <span className="relative h-1.5 overflow-hidden rounded-full bg-[#e5e7eb]">
                       <span className={cn('absolute inset-y-0 start-0 rounded-full', s.pct >= 90 ? 'bg-[#2f7a52]' : s.pct >= 75 ? 'bg-[#7cc49b]' : 'bg-[#d97706]')} style={{ width: `${s.pct}%` }} />
