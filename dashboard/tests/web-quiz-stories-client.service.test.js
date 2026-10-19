@@ -2909,11 +2909,11 @@ describe('a kind screen on every stall', () => {
     expect(e.calls.ra[0].log).toEqual(['play']);
   });
 
-  test('the main button holds for 600 ms after it changes: a tap at 300 ms does nothing, at 700 ms it acts; it keeps its old colour meanwhile', async () => {
+  test('the main button holds for 600 ms after it changes: a tap at 300 ms does nothing, at 700 ms it acts; it keeps its old colour meanwhile (under the look it already wears the new state, .wqs-to-*)', async () => {
     const e = env(); const root = await openReader(e);
     const p = e.calls.ra[0];
     e.advance(700); fireNow(root, 'main');                               // Listen -> Pause
-    expect(root.querySelector('[data-main]').className).toBe('wqs-main wqs-listen wqs-lk');
+    expect(root.querySelector('[data-main]').className).toBe('wqs-main wqs-listen wqs-lk wqs-to-pause');
     e.advance(300); fireNow(root, 'main');
     expect(p.log).toEqual(['play']);
     e.advance(400);
@@ -2929,6 +2929,18 @@ describe('a kind screen on every stall', () => {
     e.advance(400); fireNow(root, 'main');
     expect(screenOf(root.innerHTML)).toBe('story-mic');
     expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wqs-lk\{pointer-events:none\}/);
+  });
+
+  test('play and pause look different from the first tap: the first paint is the play kind, the held button names its new state', async () => {
+    const e = env(); const root = await openReader(e);
+    const mb = () => root.querySelector('[data-main]');
+    expect(mb().className).toMatch(/\bwqs-listen\b/);                  // ▶ on the first paint, before any tap
+    e.advance(700); fireNow(root, 'main');                              // Listen -> Pause: held, already the pause kind
+    expect(mb().className).toBe('wqs-main wqs-listen wqs-lk wqs-to-pause');
+    e.advance(700);
+    expect(mb().className).toBe('wqs-main wqs-pause');
+    fireNow(root, 'main');                                              // Pause -> Listen: held, already the play kind
+    expect(mb().className).toBe('wqs-main wqs-pause wqs-lk wqs-to-listen');
   });
 
   test('an Urdu title is never cut at its first letter: the clipped title row keeps room at its start', () => {
