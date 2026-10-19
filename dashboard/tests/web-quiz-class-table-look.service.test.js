@@ -18,7 +18,7 @@ const primaries = (h) => (h.match(/\sdata-primary[\s>=]/g) || []).length;
 const boardPage = async (o = {}) => {
   const adv = o.adv !== false;
   const store = o.result ? { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result: RESULT, vdone: true } } : {};
-  const p = page({ lang: o.lang || 'en', cls: CLS, view: 'class', lib: true, store, bootExtra: { nav: { home: true }, ...(adv ? { adv: true } : {}) }, ...(adv ? ADV : {}), api: { '/board/TEST': BOARD } });
+  const p = page({ lang: o.lang || 'en', cls: CLS, view: 'class', lib: true, store, bootExtra: { nav: { home: true }, ...(adv ? { adv: true } : {}) }, ...(adv ? ADV : {}), api: { '/board/TEST': o.board || BOARD } });
   p.sess.set('wq_hub_at', '/h/abc');
   await flush(); await flush();
   if (o.result) { p.wq.board(); await flush(); await flush(); }
@@ -47,7 +47,18 @@ describe('the class table with the look', () => {
     test(`${lang}: the header is "League table" with the class list on its own small line`, async () => {
       const p = await boardPage({ lang });
       const t = /<h2 dir="auto">(.*?)<\/h2>/.exec(p.html())[1];
-      expect(t).toBe('<span class="wq-lgt">' + p.wq.T.leagueW + '</span><small class="wq-lgc" dir="auto">' + (lang === 'ur' ? '<span class="wq-lat" lang="en">Classes 2, 3, 4, 5</span>' : 'Classes 2, 3, 4, 5') + '</small>');
+      expect(t).toBe('<span class="wq-lgt">' + p.wq.T.leagueW + '</span><small class="wq-lgc" dir="auto">' + (lang === 'ur' ? 'کلاس ۲، ۳، ۴، ۵' : 'Classes 2, 3, 4, 5') + '</small>');
+    });
+    // one header pattern on every class table: the title is always "League table", the small line says whose table
+    test(`${lang}: the child's own class table keeps the "League table" title, the class on the small line`, async () => {
+      const p = await boardPage({ lang, board: { ...BOARD, my_class: '3', one_class: true } });
+      const t = /<h2 dir="auto">(.*?)<\/h2>/.exec(p.html())[1];
+      expect(t).toBe('<span class="wq-lgt">' + p.wq.T.leagueW + '</span><small class="wq-lgc" dir="auto">' + (lang === 'ur' ? 'کلاس <bdi>۳</bdi>' : 'Class <bdi>3</bdi>') + '</small>');
+    });
+    test(`${lang}: a table of more than one class keeps the "League table" title, "Your class" on the small line`, async () => {
+      const p = await boardPage({ lang, board: { ...BOARD, my_class: '3', one_class: false } });
+      const t = /<h2 dir="auto">(.*?)<\/h2>/.exec(p.html())[1];
+      expect(t).toBe('<span class="wq-lgt">' + p.wq.T.leagueW + '</span><small class="wq-lgc" dir="auto">' + p.wq.T.yourClass + '</small>');
     });
   }
   test('a child with a result: Share stays the primary (no Play here), the note still above it', async () => {
