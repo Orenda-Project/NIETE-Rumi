@@ -3643,6 +3643,76 @@ describe('Your turn live: the crop holds only the lines being read, the picture 
 });
 
 // ---- the words framed big never leave a cut sliver of the picture (the reading moment on) ---------------------------
+// ---- one sheet (web_quiz_read_sheet: the book's read_sheet): «رانی کی مُرغی» p1, its printed lines on a sky band over the
+// picture. The band and the picture are one sheet (one width, one scale, the picture carrying on where the band stops),
+// and the card ends at the picture. #3131's rules hold: only the lines being read, the picture whole or left out.
+describe('Your turn, one sheet: the sky band and the picture are one piece, the card ends at the picture', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const moment = () => { const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: {} })); return win.WQMoment; };
+  const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };
+  const yourTurn = (e, root) => { toMic(e, root); e.calls.ask[0].onStream({}); return root.querySelector('[data-cam]'); };
+  const clipOf = (c) => { const m = /^inset\(([\d.]+)px 0 ([\d.]+)px 0(?: round [^)]*)?\)$/.exec(c); return m ? [+m[1], +m[2]] : null; };
+  // the page as the reader has it (720 x 1019; three printed lines on the sky, the hen and her bowl under them)
+  const im = { w: 720, h: 1019 }, L1 = [163, 79, 386, 84], L2 = [167, 189, 363, 89], L3 = [99, 300, 517, 93], ALL = [L1, L2, L3];
+  const Y1 = L3[1] + L3[3];
+  const pic = () => { const a = fakeEl('art'), i = fakeEl('i'), m = fakeEl('img'); a.querySelector = () => i; i.querySelector = () => m; a.i = i; a.m = m; return a; };
+  // the stage at Your turn: Urdu 360 x 740 and 390 x 844 (the reader's own sizes there)
+  const STAGES = [['ur 360x740', [328, 470]], ['ur 390x844', [358, 574]]];
+  const draw = (d, bs, one) => { const a = pic(); const f = moment().art(a, env().S._cam, im, ALL, bs, d, true, 0, one); return { a, f }; };
+  const shape = ({ a, f }, d) => {
+    const z = parseFloat(a.m.style.width) / im.w, pw = parseFloat(a.i.style.width), ph = parseFloat(a.i.style.height);
+    const cy = -parseFloat(/translateY\(([-\d.]+)px\)/.exec(a.m.style.transform)[1]) / z;
+    const [c0, cb] = clipOf(f.clip), c1 = im.h - cb;
+    return { z, pw, ph, cy, c0, c1, band: [Math.max(0, f.tx), Math.min(d[0], f.tx + im.w * f.s)], pic: [(d[0] - pw) / 2, (d[0] + pw) / 2], box: parseFloat(a.style.height) };
+  };
+  test.each(STAGES)('%s, the whole page being read: the picture at the band\'s width and scale, carrying on where the band stops; the card ends at it', (tag, d) => {
+    const g = draw(d, ALL, true), x = shape(g, d);
+    expect(g.a.getAttribute('data-art')).toBe('on');
+    expect(Math.abs(x.pw - (x.band[1] - x.band[0]))).toBeLessThanOrEqual(1);          // one width
+    expect(Math.abs(x.pic[0] - x.band[0])).toBeLessThanOrEqual(1);                      // one left edge (no white corner)
+    expect(Math.abs(x.z - g.f.s)).toBeLessThan(0.002);                                  // one scale: the cloud is never sliced
+    expect(Math.abs(x.cy - x.c1)).toBeLessThan(0.6);                                    // the picture carries on where the band stops
+    expect(x.box).toBeLessThanOrEqual(x.ph + 0.5);                                      // the box ends at the picture: no strip under it
+    expect(L1[3] * g.f.s).toBeGreaterThanOrEqual(25.5);                                 // the lines still read at that size
+    expect(g.f.one).toBe(true);
+  });
+  test.each(STAGES)('%s, #3131 kept: only the lines being read show; the picture below every printed line, whole', (tag, d) => {
+    const g = draw(d, [L1], true), x = shape(g, d);
+    expect(x.c1).toBeLessThanOrEqual(L2[1]);                                            // nothing of the next line
+    expect(x.cy).toBeGreaterThanOrEqual(Y1 - 0.5);                                      // no printed glyph inside the picture
+    expect(x.ph).toBeLessThanOrEqual(x.box + 0.5);                                      // whole inside its box
+    expect(Math.abs(x.pw - (x.band[1] - x.band[0]))).toBeLessThanOrEqual(1);
+    expect(Math.abs(x.z - g.f.s)).toBeLessThan(0.002);
+  });
+  test('a stage too short for the picture at the band\'s width: the band and the picture shrink together (one width), or the picture is left out', () => {
+    for (const d of [[328, 380], [328, 300], [328, 220]]) {
+      const g = draw(d, ALL, true);
+      if (g.a.getAttribute('data-art') !== 'on') continue;
+      const x = shape(g, d);
+      expect([d[1], Math.abs(x.pw - (x.band[1] - x.band[0])) <= 1, Math.abs(x.pic[0] - x.band[0]) <= 1]).toEqual([d[1], true, true]);
+      expect(x.ph * 1).toBeGreaterThanOrEqual(96);
+      expect(L1[3] * g.f.s).toBeGreaterThanOrEqual(25.5);
+    }
+  });
+  test('without the switch: today\'s picture box, number for number', () => {
+    for (const [, d] of STAGES) {
+      const a = draw(d, ALL, undefined), b = draw(d, ALL, false);
+      expect([a.f, a.a.style, a.a.i.style, a.a.m.style]).toEqual([b.f, b.a.style, b.a.i.style, b.a.m.style]);
+      expect(a.f.one).toBeUndefined();
+    }
+  });
+  test('the reader: the book\'s read_sheet marks the picture box as one sheet, so the stage drops its white card (no white card under the picture); without it, no mark', async () => {
+    const e = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, read_sheet: 1 }) } } })); const root = await openReader(e);
+    yourTurn(e, root);
+    expect(root.querySelector('[data-art]').getAttribute('data-one')).toBe('on');
+    const e2 = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1 }) } } })); const r2 = await openReader(e2);
+    yourTurn(e2, r2);
+    expect(r2.querySelector('[data-art]').getAttribute('data-one')).toBeNull();
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(css).toContain('.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none}');
+  });
+});
+
 describe('the framed words and the whole picture: Your turn, and an Urdu page at rest', () => {
   const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
   const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };

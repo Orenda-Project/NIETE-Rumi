@@ -32,7 +32,8 @@ beforeAll(async () => {
     from: (t) => {
       if (t !== 'app_settings') return fake.from(t);
       reads.n += 1;
-      return { select: () => ({ eq: (_k, key) => Promise.resolve({ data: settings.filter((r) => r.key === key), error: null }) }) };
+      // the moment's one read names its key and the one-sheet picture's (web_quiz_read_sheet) together
+      return { select: () => ({ eq: (_k, key) => Promise.resolve({ data: settings.filter((r) => r.key === key), error: null }), in: (_k, keys) => Promise.resolve({ data: settings.filter((r) => keys.includes(r.key)), error: null }) }) };
     },
     rpc: fake.rpc,
   });
@@ -80,7 +81,7 @@ describe('the switch reads strictly: only the JSON true is on', () => {
   });
   test('a failed settings read is off, never on', async () => {
     const from = supabase.from;
-    supabase.from = () => ({ select: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'down' } }) }) });
+    supabase.from = () => ({ select: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'down' } }), in: () => Promise.resolve({ data: null, error: { message: 'down' } }) }) });
     try { expect(await RF.on()).toBe(false); expect(await RF.withBand(copy(scored))).toEqual(scored); } finally { supabase.from = from; }
   });
   test('one settings read per 30 s, whatever the key holds (absent, false, the string "true")', async () => {
