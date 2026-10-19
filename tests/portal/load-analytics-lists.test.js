@@ -79,3 +79,68 @@ describe('load-analytics-lists — the target guard', () => {
     expect(L.parseArgs(['--env', 'sandbox', '--commit']).commit).toBe(true);
   });
 });
+
+describe('load-analytics-lists — never writes an empty or shrunken list (fails loudly BEFORE any write)', () => {
+  const SNAP = { _as_of: '2026-10-19', by_sector: { 'B.K': ['401', '402'], Sihala: ['501'] } };
+  const big = (n) => ({ 'B.K': Array.from({ length: n }, (_, i) => U(1000 + i)) });
+
+  function fakeSupabase({ users = USERS, stored = [] } = {}) {
+    const writes = [];
+    return {
+      writes,
+      from(table) {
+        const chain = {
+          select() { return chain; },
+          order() { return chain; },
+          range: async (a) => ({ data: table === 'users' && a === 0 ? users : [], error: null }),
+          in: async () => (table === 'app_settings'
+            ? { data: stored, error: null }
+            : { data: SNAP.by_sector['B.K'].concat(SNAP.by_sector.Sihala).map((emis) => ({ emis })), error: null }),
+          upsert: async (rows) => { writes.push(rows); return { error: null }; },
+        };
+        return chain;
+      },
+    };
+  }
+  const go = (o) => L.run({ snapshot: SNAP, alloc: ALLOC, commit: true, log: () => {}, ...o });
+
+  it('the happy path writes the three rows', async () => {
+    const sb = fakeSupabase();
+    await go({ supabase: sb });
+    expect(sb.writes).toHaveLength(1);
+    expect(sb.writes[0].map((r) => r.key).sort()).toEqual(['analytics_fde_schools', 'analytics_rdf_coaches', 'analytics_rdf_teachers']);
+  });
+
+  it.each([
+    ['a snapshot with no by_sector', { snapshot: { _as_of: '2026-10-19' } }, /FDE school list.*0|by_sector/i],
+    ['an allocation file with no tphone2sect', { alloc: { coachph2name: ALLOC.coachph2name, coachph2sector: ALLOC.coachph2sector } }, /Primary.*empty|empty.*Primary/i],
+    ['an allocation file with no coachph2name', { alloc: { tphone2sect: ALLOC.tphone2sect } }, /coach roster.*empty/i],
+    ['no users read', { users: [] }, /empty/i],
+  ])('%s: refused before any write — even with --force', async (_name, o, msg) => {
+    for (const force of [false, true]) {
+      const sb = fakeSupabase({ users: o.users });
+      await expect(go({ supabase: sb, force, ...(o.snapshot ? { snapshot: o.snapshot } : {}), ...(o.alloc ? { alloc: o.alloc } : {}) })).rejects.toThrow(msg);
+      expect(sb.writes).toHaveLength(0);
+    }
+  });
+
+  it('a count that drops more than 20% below the stored row is refused; --force writes it', async () => {
+    const stored = [{ key: 'analytics_rdf_teachers', value: { primary: big(10), midHigh: big(1), sectorByUser: big(1) } }];
+    const sb = fakeSupabase({ stored });
+    await expect(go({ supabase: sb })).rejects.toThrow(/Primary.*10.*2|dropped/i);
+    expect(sb.writes).toHaveLength(0);
+    const forced = fakeSupabase({ stored });
+    await go({ supabase: forced, force: true });
+    expect(forced.writes).toHaveLength(1);
+  });
+
+  it('a dry run with an empty list also exits non-zero (the operator sees it before trying --commit)', async () => {
+    const sb = fakeSupabase();
+    await expect(L.run({ supabase: sb, snapshot: SNAP, alloc: { tphone2sect: {} }, commit: false, log: () => {} })).rejects.toThrow(/empty/i);
+  });
+
+  it('--force is read from the command line', () => {
+    expect(L.parseArgs(['--env', 'prod', '--commit', '--force']).force).toBe(true);
+    expect(L.parseArgs(['--env', 'prod']).force).toBe(false);
+  });
+});
