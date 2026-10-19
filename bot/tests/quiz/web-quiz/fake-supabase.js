@@ -25,6 +25,17 @@ const same = (cell, v) => {
   return cell === v;
 };
 
+// Embedded reads (PostgREST `select('…, other(cols)')`), along the foreign keys production has: [the row's column, the
+// other table's column, one | many]. The inner column list is not applied, as the outer one is not; an embed not listed
+// here leaves the row as it was (as this fake always did).
+const EMBEDS = {
+  quiz_sessions: { quiz_share_codes: ['share_code_id', 'id', 'one'], quizzes: ['quiz_id', 'id', 'one'] },
+  quiz_share_codes: { quizzes: ['quiz_id', 'id', 'one'] },
+  student_videos: { quizzes: ['id', 'video_id', 'many'] },
+  students: { student_lists: ['list_id', 'id', 'one'] },
+};
+const embedsOf = (cols) => [...String(cols || '').matchAll(/(?:^|,)\s*(\w+)\(/g)].map((m) => m[1]);
+
 // `maxRows` ({ table: n }, default none): PostgREST's max-rows — a read of that table answers at most n rows, whatever
 // range or limit it asked for, as the server does; a read that does not page past it goes red.
 function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_id'], quiz_share_codes: ['code'] }, maxRows = {} } = {}) {
@@ -35,7 +46,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
   function builder(t) {
     const st = { t, filters: [], order: [], limit: null, op: 'select', count: false, head: false, payload: null, single: null };
     const b = {
-      select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
+      select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; st.embeds = embedsOf(cols); if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
       eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
       // SQL `<>`: a NULL cell is not "not equal" — PostgREST's neq never returns it
       neq(c, v) { st.filters.push((r) => r[c] != null && r[c] !== v); return b; },
@@ -128,8 +139,19 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     if (st.limit != null) hit = hit.slice(0, st.limit);
     if (maxRows[st.t] != null) hit = hit.slice(0, maxRows[st.t]);
     if (st.count) return { data: st.head ? null : hit, count: hit.length, error: null };
-    if (st.single) return { data: hit[0] ? { ...hit[0] } : null, error: null };
-    return { data: hit.map((r) => ({ ...r })), error: null };
+    const out = (r) => {
+      const o = { ...r };
+      for (const name of st.embeds || []) {
+        const rel = (EMBEDS[st.t] || {})[name];
+        if (!rel) continue;
+        const [mine, theirs, kind] = rel;
+        const found = table(name).filter((x) => r[mine] != null && x[theirs] === r[mine]).map((x) => ({ ...x }));
+        o[name] = kind === 'one' ? found[0] || null : found;
+      }
+      return o;
+    };
+    if (st.single) return { data: hit[0] ? out(hit[0]) : null, error: null };
+    return { data: hit.map(out), error: null };
   }
 
   const fake = {
