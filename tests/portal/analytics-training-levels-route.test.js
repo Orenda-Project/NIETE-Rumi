@@ -93,18 +93,23 @@ const SCHOOLS = [
   { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false },
   { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false },
 ];
-const st = (school_id, level_id, state, teachers, primary_band, midhigh_band) => ({
-  school_id, level_id: String(level_id), state, teachers, primary_band, midhigh_band,
+/** One programme member of the members read (the RDF population), with her facts. */
+const mem = (user_id, extra = {}) => ({
+  user_id, school_id: null, primary_cohort: false, mh_cohort: false, middle_band: false, high_band: false,
+  cert_levels: null, active_levels: null, ox_mask: 0, ox_cert: false, ox_active: false, bh_mask: 0, bh_active: false,
+  isaps_assigned: false, isaps_cert: false, isaps_mask: 0, isaps_active: false, ...extra,
 });
-let STATES;
+let MEMBERS;
+let LISTS;
 
 const CATALOGUE = [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({ partner: 'oxbridge', bit: n - 1, name: `SESSION#${n}` })),
   { partner: 'beaconhouse', bit: 1, name: 'English' },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ partner: 'isaps', bit: n - 1, name: `Module ${n}` })),
 ];
 
 function poolRows(sql) {
-  if (/partner_facts/.test(sql)) return STATES;
+  if (/member_facts/.test(sql)) return MEMBERS;
   if (/'oxbridge' AS partner/.test(sql)) return CATALOGUE;
   if (/FROM training_levels/.test(sql)) return LEVELS;
   if (/FROM schools/.test(sql)) return SCHOOLS;
@@ -115,21 +120,27 @@ beforeEach(() => {
   jest.resetModules();
   tableStates = {};
   queries = [];
-  STATES = [
-    st('s1', 1, 'certified', 3, true, false), st('s1', 1, 'in_progress', 1, true, false),
-    st('s1', 2, 'certified', 2, true, false), st('s1', 2, 'locked', 2, true, false),
-    st('s1', 3, 'certified', 1, true, true), st('s1', 3, 'ready_for_quiz', 2, true, false), st('s1', 3, 'not_started', 1, false, true),
-    st('s1', 4, 'certified', 1, true, true), st('s1', 4, 'locked', 3, true, false), st('s1', 4, 'not_started', 1, false, true),
-    st('s2', 1, 'certified', 2, true, false), st('s2', 2, 'certified', 2, true, false),
-    st('s2', 3, 'certified', 2, true, false), st('s2', 4, 'certified', 1, true, false), st('s2', 4, 'in_progress', 1, true, false),
-    // uncounted schools: in no number
-    st('s3', 1, 'certified', 40, true, false), st('s4', 4, 'certified', 40, false, true),
-    // her Mid/High partner rows (one per school, bands and masks)
-    { kind: 'partner', school_id: 's1', primary_band: false, middle_band: true, high_band: false, midhigh_band: true, ox_mask: 127, bh_mask: 2, bh_active: true, niete_both: true, teachers: 1 },
-    { kind: 'partner', school_id: 's1', primary_band: false, middle_band: true, high_band: false, midhigh_band: true, ox_mask: 7, bh_mask: 0, bh_active: false, niete_both: false, teachers: 1 },
-    { kind: 'partner', school_id: 's2', primary_band: false, middle_band: false, high_band: true, midhigh_band: true, ox_mask: 0, bh_mask: 0, bh_active: false, niete_both: false, teachers: 1 },
-    { kind: 'partner', school_id: 's4', primary_band: false, middle_band: true, high_band: false, midhigh_band: true, ox_mask: 127, bh_mask: 2, bh_active: true, niete_both: true, teachers: 40 },
+  MEMBERS = [
+    mem('p1', { primary_cohort: true, school_id: 's1', cert_levels: ['1', '2', '3', '4'] }),
+    mem('p2', { primary_cohort: true, school_id: 's2', cert_levels: ['1'], active_levels: ['2'] }),
+    // on the programme, no allocation sector, at a school off FDE's list
+    mem('p3', { primary_cohort: true, school_id: 's3' }),
+    mem('m1', {
+      mh_cohort: true, middle_band: true, school_id: 's1', cert_levels: ['3', '4'], ox_mask: 127, ox_cert: true,
+      ox_active: true, bh_mask: 2, bh_active: true, isaps_assigned: true, isaps_cert: true, isaps_mask: 511, isaps_active: true,
+    }),
+    mem('m2', { mh_cohort: true, high_band: true, school_id: 's2', ox_mask: 7, ox_active: true, isaps_assigned: true, isaps_active: true }),
   ];
+  LISTS = {
+    fdeSchoolEmis: new Set(['101', '202']),
+    primary: new Map([['p1', 'B.K'], ['p2', 'Sihala']]),
+    midHigh: new Map([['m1', 'B.K'], ['m2', 'Sihala']]),
+    coaches: [],
+    asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-09-24' },
+  };
+  jest.doMock('../../dashboard/lib/analytics-lists', () => ({
+    loadAnalyticsLists: jest.fn(async () => LISTS),
+  }), { virtual: true });
   jest.doMock('../../dashboard/config/supabase', () => ({
     from: jest.fn((tbl) => makeChain(tbl)),
     rpc: jest.fn().mockResolvedValue({ error: null }),
@@ -200,7 +211,7 @@ describe('GET /analytics/training-levels — the answer', () => {
     tableStates.app_settings = flag([VIEWER]);
     const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER });
     expect(statusCode).toBe(200);
-    expect(Object.keys(payload).sort()).toEqual(['band', 'computedAt', 'overview', 'regions', 'schools', 'success']);
+    expect(Object.keys(payload).sort()).toEqual(['band', 'computedAt', 'noSector', 'overview', 'regions', 'schools', 'success']);
     expect(payload.success).toBe(true);
     expect(payload.band).toBe('primary');
     expect(new Date(payload.computedAt).toISOString()).toBe(payload.computedAt);
@@ -215,16 +226,18 @@ describe('GET /analytics/training-levels — the answer', () => {
     }
   });
 
-  it('Primary: four levels, her three states, % passed of the teachers whose programme shows the level', async () => {
+  it('Primary: the RDF primary-programme population, Passed = certificate, % passed of the whole population', async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER, query: { band: 'primary' } });
     expect(payload.overview.levels.map((l) => [l.name, l.passed, l.inProgress, l.notStarted, l.teachers, l.pctPassed])).toEqual([
-      ['Aspiring Teacher', 5, 1, 0, 6, 83.3],
-      ['Emerging Practitioner', 4, 0, 2, 6, 66.7],
-      ['Skilled Practitioner', 3, 2, 0, 5, 60],
-      ['Teacher Leader', 2, 1, 3, 6, 33.3],
+      ['Aspiring Teacher', 2, 0, 1, 3, 66.7],
+      ['Emerging Practitioner', 1, 1, 1, 3, 33.3],
+      ['Skilled Practitioner', 1, 0, 2, 3, 33.3],
+      ['Teacher Leader', 1, 0, 2, 3, 33.3],
     ]);
-    expect(payload.overview).toMatchObject({ passedAll: 2, teachers: 6 });
+    expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 3 });
+    // the member with no allocation sector is the noSector block, so the parts still sum to the whole
+    expect(payload.noSector).toMatchObject({ teachers: 1, passedAll: 0 });
   });
 
   it('Mid/High: Skilled Practitioner and Teacher Leader only, over MIDDLE or HIGH teachers', async () => {
@@ -236,6 +249,7 @@ describe('GET /analytics/training-levels — the answer', () => {
       ['Skilled Practitioner', 1, 0, 1, 2],
       ['Teacher Leader', 1, 0, 1, 2],
     ]);
+    expect(payload.overview.partners.isaps).toMatchObject({ passed: 1, inProgress: 1, notStarted: 0, teachers: 2 });
   });
 
   it('Mid/High carries her partner panels: Oxbridge (sessions) and Beaconhouse (levels), and passed all = all four', async () => {
@@ -245,21 +259,22 @@ describe('GET /analytics/training-levels — the answer', () => {
     const { oxbridge, beaconhouse } = payload.overview.partners;
     expect(Object.keys(oxbridge).sort()).toEqual(['completedAll', 'inProgress', 'notStarted', 'passed', 'pctPassed', 'sessions', 'teachers']);
     expect(Object.keys(beaconhouse).sort()).toEqual(['inProgress', 'levels', 'notStarted', 'passed', 'pctPassed', 'teachers']);
-    // s1: one middle teacher did everything, one has three sessions; s2: one high teacher with nothing
-    expect(oxbridge).toMatchObject({ passed: 1, inProgress: 1, notStarted: 1, teachers: 3 });
+    // m1 holds every certificate; m2 has three sessions and I-SAPS activity
+    expect(oxbridge).toMatchObject({ passed: 1, inProgress: 1, notStarted: 0, teachers: 2 });
     expect(oxbridge.sessions).toHaveLength(7);
-    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 0, notStarted: 2, teachers: 3 });
-    expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 3 });
+    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 0, notStarted: 1, teachers: 2 });
+    expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 2 });
     // I-SAPS (operator, 2026-10-19): a fourth panel, laid out like Oxbridge, not part of passed all
     expect(Object.keys(payload.overview.partners.isaps).sort())
       .toEqual(['completedAll', 'inProgress', 'modules', 'notStarted', 'passed', 'pctPassed', 'teachers']);
     for (const r of payload.regions) expect(Object.keys(r.partners).sort()).toEqual(['beaconhouse', 'isaps', 'oxbridge']);
   });
 
-  it('six regions only; schools outside them (no region, Durbeen) are in no number', async () => {
+  it("six sectors from the RDF allocation (the lists), schools from FDE's list only", async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER });
     expect(payload.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
+    expect(payload.regions.map((r) => r.teachers)).toEqual([1, 1, 0, 0, 0, 0]);
     expect(payload.schools.map((s) => s.name)).toEqual(['IMSG B.K 1', 'IMCG Sihala']);
     expect(JSON.stringify(payload)).not.toMatch(/unassigned|Durbeen|No Region School/i);
   });
@@ -331,7 +346,7 @@ describe('GET /analytics/training-levels — the snapshot', () => {
       call('get', ROUTE, { userId: VIEWER, query: { band: 'midhigh' } }),
       call('get', ROUTE, { userId: VIEWER, query: { region: 'Sihala' } }),
     ]);
-    expect(queries.filter((q) => /partner_facts/.test(q.sql))).toHaveLength(1);
+    expect(queries.filter((q) => /member_facts/.test(q.sql))).toHaveLength(1);
   });
 
   it('after 30 minutes the old snapshot answers at once while one refresh runs; the next answer is the new one', async () => {
@@ -339,16 +354,16 @@ describe('GET /analytics/training-levels — the snapshot', () => {
     tableStates.app_settings = flag([VIEWER]);
     const first = await call('get', ROUTE, { userId: VIEWER });
     jest.setSystemTime(Date.now() + 30 * 60 * 1000 + 1);
-    STATES = STATES.concat([st('s2', 1, 'certified', 10, true, false)]);
+    MEMBERS = MEMBERS.concat([{ ...MEMBERS[0], user_id: 'p9', cert_levels: ['1'] }]);
     const stale = await call('get', ROUTE, { userId: VIEWER });
     expect(stale.payload.computedAt).toBe(first.payload.computedAt);
-    expect(stale.payload.overview.levels[0].passed).toBe(5);
+    expect(stale.payload.overview.levels[0].passed).toBe(2);
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
     const fresh = await call('get', ROUTE, { userId: VIEWER });
     expect(fresh.payload.computedAt).not.toBe(first.payload.computedAt);
-    expect(fresh.payload.overview.levels[0].passed).toBe(15);
-    expect(queries.filter((q) => /partner_facts/.test(q.sql))).toHaveLength(2);
+    expect(fresh.payload.overview.levels[0].passed).toBe(3);
+    expect(queries.filter((q) => /member_facts/.test(q.sql))).toHaveLength(2);
   });
 
   it('is its own read: a warm schools answer does not answer the Trainings tab', async () => {

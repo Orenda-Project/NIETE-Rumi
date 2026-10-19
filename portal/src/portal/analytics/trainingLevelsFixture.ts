@@ -136,6 +136,35 @@ function partnersOf(schools: string[]): Partners {
       schoolPartners(0, 0));
 }
 
+/** The I-SAPS card counts the teachers assigned it, a few fewer than the programme's (v8). */
+const isapsTeachers = (cohort: number) => cohort - Math.round(cohort * 0.03);
+
+/** The programme's teachers the RDF gives no sector (v8): a block of their own, so the sectors add up. */
+function noSectorBlock(band: TrainingBand) {
+  const n = band === 'primary' ? 240 : 61;
+  const levels = ORDERS[band].map((order) => {
+    const passed = Math.round(n * PASSED[band][order] * 0.3);
+    const inProgress = Math.round(n * IN_PROGRESS[order]);
+    return counts(order, { passed, inProgress, notStarted: n - passed - inProgress });
+  });
+  const base = { teachers: n, passedAll: top(levels).passed, levels };
+  if (band !== 'midhigh') return base;
+  const ox = { passed: 9, inProgress: 4 };
+  const bh = { passed: 5, inProgress: 6 };
+  const is = { passed: 1, inProgress: 3 };
+  return { ...base, passedAll: 2, partners: { oxbridge: card(ox, n), beaconhouse: card(bh, n), isaps: card(is, isapsTeachers(n)) } };
+}
+
+/** A sector's teachers at no school on FDE's list (v8): one "No school" row, here in B.K. */
+function noSchoolRow(band: TrainingBand): TrainingLevelsSchool {
+  const n = band === 'primary' ? 7 : 3;
+  const levels = ORDERS[band].map((order) => counts(order, { passed: order < 2 ? 3 : 1, inProgress: 1, notStarted: n - (order < 2 ? 3 : 1) - 1 }));
+  return {
+    schoolId: null, emis: null, name: null, region: 'B.K', teachers: n, passedAll: 1,
+    levels: levels.map(({ levelOrder, passed, teachers, pctPassed }) => ({ levelOrder, passed, teachers, pctPassed })),
+  };
+}
+
 /** The answer for one band and region filter ('all' or a region name), shaped as the server sends it. */
 export function fixtureTrainingLevels(opts: { region?: string | null; band?: TrainingBand } = {}): TrainingLevelsResponse {
   const band = opts.band ?? 'primary';
@@ -154,8 +183,10 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
       };
     })
     .filter((s) => s.levels.some((l) => l.teachers > 0))
+    .concat(!wanted || wanted === 'b.k' ? [noSchoolRow(band)] : [])
     .sort((a, b) => REGION_ORDER.indexOf(a.region as (typeof REGION_ORDER)[number]) - REGION_ORDER.indexOf(b.region as (typeof REGION_ORDER)[number])
-      || a.name.localeCompare(b.name));
+      || (a.schoolId ? 0 : 1) - (b.schoolId ? 0 : 1)
+      || String(a.name ?? '').localeCompare(String(b.name ?? '')));
 
   if (band === 'midhigh') {
     // Hers on Mid/High: teachers = the cohort, passed all = NIETE's two + Oxbridge + Beaconhouse (I-SAPS is not in it).
@@ -170,7 +201,7 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
         partners: {
           oxbridge: { ...card(o.ox, o.cohort), sessions: FIXTURE_SESSIONS.map((name, k) => ({ name, ...o.ox.sessions[k] })), completedAll: o.ox.completedAll },
           beaconhouse: { ...card(o.bh, o.cohort), levels: FIXTURE_BH_LEVELS.map((name, k) => ({ name, ...o.bh.levels[k] })) },
-          isaps: { ...card(o.is, o.cohort), modules: FIXTURE_ISAPS_MODULES.map((name, k) => ({ name, ...o.is.modules[k] })), completedAll: o.is.completedAll },
+          isaps: { ...card(o.is, isapsTeachers(o.cohort)), modules: FIXTURE_ISAPS_MODULES.map((name, k) => ({ name, ...o.is.modules[k] })), completedAll: o.is.completedAll },
         },
       },
       regions: REGION_ORDER.map((region) => {
@@ -178,10 +209,12 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
         const p = partnersOf(ids(rows));
         return {
           region, teachers: p.cohort, passedAll: p.passedAll, levels: sum(band, rows),
-          partners: { oxbridge: card(p.ox, p.cohort), beaconhouse: card(p.bh, p.cohort), isaps: card(p.is, p.cohort) },
+          partners: { oxbridge: card(p.ox, p.cohort), beaconhouse: card(p.bh, p.cohort), isaps: card(p.is, isapsTeachers(p.cohort)) },
         };
       }),
+      noSector: noSectorBlock(band),
       schools: schools.map((s) => {
+        if (!s.schoolId) return s;
         const p = partnersOf([s.schoolId]);
         return { ...s, teachers: p.cohort, passedAll: p.passedAll };
       }),
@@ -197,6 +230,7 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
       const levels = sum(band, all.filter((r) => r.school.region === region));
       return { region, teachers: top(levels).teachers, passedAll: top(levels).passed, levels };
     }),
+    noSector: noSectorBlock(band),
     schools,
   };
 }

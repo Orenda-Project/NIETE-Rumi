@@ -1,15 +1,19 @@
 /**
- * bd-97x22y.4 — the v7 Trainings tab, her levels 1 to 1 (PLAN v7 "Trainings"): the pure summariser, the
- * band / region filters, the SQL's shape, and the 30-minute snapshot.
+ * The Trainings tab (schools analytics v8, FDE feedback 2026-10-19): the RDF's training numbers, NIETE's level rule
+ * for the rest, the RDF's sectors, FDE's school list. The pure summariser, the band / region filters, the SQL's
+ * shape, and the 30-minute snapshot.
  *
- * Per teacher × visible NIETE level, the state is the bot's own (loadVisibleLevelsWithProgress,
- * bot/shared/routes/teacher-training-endpoint.js:1148, states at :1312-1319), mapped to her three:
- *   Passed      = certified
- *   In Progress = in_progress + ready_for_quiz
- *   Not Started = not_started + locked
- * The denominator of a level is the band's teachers whose programme shows that level. Primary = teacher_level
- * holds PRIMARY, levels 1-4; Mid/High = MIDDLE or HIGH, levels 3-4 (her Mid/High tab shows Skilled Practitioner
- * and Teacher Leader only). "Passed all levels" = passed Teacher Leader (hers: views.py, passed_all_levels).
+ * Population (the RDF certificate card, rdf_niete/render.py training_certificates_block): live users — no deleted_at,
+ * phone not a `merged:` tombstone — holding an ACTIVE assignment on the programme, any role, any school or none.
+ *   Primary   niete_primary       NIETE levels 1-4
+ *   Mid/High  niete_middle_high   NIETE Skilled Practitioner + Teacher Leader, GBTLA (Oxbridge), AI-Powered Subject
+ *                                 Pedagogy (Beaconhouse), and the Teacher Development Programme (I-SAPS) for those
+ *                                 assigned it
+ * Passed = a certificate for the level (the RDF's numerator). Without one: In Progress when the bot's level rule has
+ * the level under way (in progress, ready for its exam, exam passed); Not Started otherwise (incl. locked, or not on
+ * her programme). Every level's denominator is the whole population, as the RDF's.
+ * Sector = the RDF allocation sector (loadAnalyticsLists: the primary Map, then midHigh); none → the noSector block.
+ * School = the member's school when its EMIS is on FDE's list, else a "No school" row in her sector.
  */
 
 const {
@@ -18,7 +22,6 @@ const {
   createSnapshot,
   trainingStatesSql,
   loadTrainingLevelRows,
-  STATE_GROUP,
   BANDS,
 } = require('../../dashboard/services/training-levels-analytics.service');
 const { REGION_BUCKETS } = require('../../dashboard/services/schools-analytics.service');
@@ -35,196 +38,349 @@ const school = (id, region, extra = {}) => ({
   id, name: `School ${id}`, emis: `E-${id}`, region, is_active: true, is_probable_test: false, ...extra,
 });
 
-/** One grouped row of the states read: how many teachers of this school, band pair, level, state. */
-const st = (school_id, level_id, state, teachers, { primary = true, midhigh = false } = {}) => ({
-  school_id, primary_band: primary, midhigh_band: midhigh, level_id: String(level_id), state, teachers,
-});
+const CATALOGUE = [
+  ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({ partner: 'oxbridge', bit: n - 1, name: `SESSION#${n}` })),
+  { partner: 'beaconhouse', bit: 1, name: 'English' },
+  { partner: 'beaconhouse', bit: 2, name: 'Mathematics' },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ partner: 'isaps', bit: n - 1, name: `Module ${n}` })),
+];
 
-const P = { primary: true, midhigh: false };
-const M = { primary: false, midhigh: true };
-const BOTH = { primary: true, midhigh: true };
+/** One row of the members read: a programme member and her facts. Level ids arrive as strings (bigint). */
+const mem = (user_id, extra = {}) => ({
+  user_id,
+  school_id: null,
+  primary_cohort: false,
+  mh_cohort: false,
+  middle_band: false,
+  high_band: false,
+  cert_levels: null,
+  active_levels: null,
+  ox_mask: 0,
+  ox_cert: false,
+  ox_active: false,
+  bh_mask: 0,
+  bh_active: false,
+  isaps_assigned: false,
+  isaps_cert: false,
+  isaps_mask: 0,
+  isaps_active: false,
+  ...extra,
+});
+const ids = (...n) => n.map(String);
+
+/** loadAnalyticsLists' answer (dashboard/lib/analytics-lists.js, the v8 shared contract). */
+function lists(extra = {}) {
+  return {
+    fdeSchoolEmis: new Set(['E-s1', 'E-s2', 'E-s3']),
+    primary: new Map([['p1', 'B.K'], ['p2', 'B.K'], ['p3', 'B.K'], ['p4', 'Sihala'], ['b1', 'Sihala']]),
+    midHigh: new Map([['m1', 'Urban-I'], ['m2', 'Urban-I'], ['m4', 'Urban-I'], ['b1', 'Tarnol']]),
+    coaches: [],
+    asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-09-24' },
+    ...extra,
+  };
+}
+
+const P = { primary_cohort: true };
+const MH = { mh_cohort: true };
 
 function baseRows() {
   return {
     levels: LEVELS,
-    schools: [
-      school('s1', 'B.K'),
-      school('s2', 'B.K'),
-      school('s3', 'Sihala'),
-      // Not counted anywhere (bd-s6qbts.4): no region, another region, inactive, a probable test school.
-      school('x1', null),
-      school('x2', 'Durbeen'),
-      school('x3', 'Tarnol', { is_active: false }),
-      school('x4', 'Nilore', { is_probable_test: true }),
-    ],
-    states: [
-      // s1, Primary-only teachers: L1 3 certified + 1 ready + 1 locked? (L1 is first, never locked) + 1 not started
-      st('s1', 1, 'certified', 3, P), st('s1', 1, 'ready_for_quiz', 1, P), st('s1', 1, 'not_started', 1, P),
-      st('s1', 2, 'certified', 2, P), st('s1', 2, 'in_progress', 1, P), st('s1', 2, 'locked', 2, P),
-      st('s1', 3, 'certified', 1, P), st('s1', 3, 'locked', 4, P),
-      st('s1', 4, 'locked', 5, P),
-      // s1, a teacher in both bands (both programmes: all four levels)
-      st('s1', 1, 'certified', 1, BOTH), st('s1', 2, 'certified', 1, BOTH),
-      st('s1', 3, 'certified', 1, BOTH), st('s1', 4, 'certified', 1, BOTH),
-      // s2, Mid/High-only teachers: their programme shows levels 3-4 only
-      st('s2', 3, 'certified', 2, M), st('s2', 3, 'in_progress', 1, M),
-      st('s2', 4, 'certified', 1, M), st('s2', 4, 'not_started', 2, M),
-      // s3, Primary
-      st('s3', 1, 'certified', 4, P), st('s3', 2, 'certified', 4, P), st('s3', 3, 'certified', 3, P), st('s3', 3, 'ready_for_quiz', 1, P),
-      st('s3', 4, 'certified', 2, P), st('s3', 4, 'in_progress', 1, P), st('s3', 4, 'not_started', 1, P),
-      // uncounted schools: in no number
-      st('x1', 1, 'certified', 50, P), st('x2', 4, 'certified', 50, M), st('x3', 1, 'certified', 50, P), st('x4', 3, 'certified', 50, BOTH),
-      // a teacher with no band at all is in neither tab
-      st('s1', 1, 'certified', 7, { primary: false, midhigh: false }),
+    schools: [school('s1', 'B.K'), school('s2', 'Urban-I'), school('s3', 'Sihala'), school('x9', 'B.K')],
+    partners: CATALOGUE,
+    lists: lists(),
+    members: [
+      // Primary
+      mem('p1', { ...P, school_id: 's1', cert_levels: ids(1, 2, 3, 4) }),
+      mem('p2', { ...P, school_id: 's1', cert_levels: ids(1), active_levels: ids(2) }),
+      // her school is not on FDE's list: a "No school" row in her sector
+      mem('p3', { ...P, school_id: 'x9', cert_levels: ids(1, 2) }),
+      mem('p4', { ...P, school_id: 's3', active_levels: ids(1) }),
+      // a principal with no allocation sector, and someone with nothing at all and no school
+      mem('p5', { ...P, school_id: 's1', cert_levels: ids(1), active_levels: ids(1) }),
+      mem('p6', { ...P }),
+      // Mid/High
+      mem('m1', {
+        ...MH, middle_band: true, school_id: 's2', cert_levels: ids(3, 4), ox_mask: 127, ox_cert: true, ox_active: true,
+        bh_mask: 2, bh_active: true, isaps_assigned: true, isaps_cert: true, isaps_mask: 511, isaps_active: true,
+      }),
+      mem('m2', {
+        ...MH, high_band: true, school_id: 's2', cert_levels: ids(3), active_levels: ids(4), ox_mask: 7, ox_active: true,
+        bh_active: true, isaps_assigned: true, isaps_mask: 3, isaps_active: true,
+      }),
+      mem('m3', { ...MH, high_band: true, isaps_assigned: true }),
+      // a migrated Oxbridge certificate with no session on record; not assigned I-SAPS
+      mem('m4', { ...MH, middle_band: true, school_id: 's2', cert_levels: ids(3, 4), ox_cert: true }),
     ],
   };
 }
 
 const lvl = (block, order) => block.levels.find((l) => l.levelOrder === order);
+const cells = (block) => block.levels.map((l) => [l.levelOrder, l.passed, l.inProgress, l.notStarted, l.teachers]);
 
-describe('state mapping (her three states from the bot\'s five)', () => {
-  it('Passed = certified; In Progress = in_progress + ready_for_quiz; Not Started = not_started + locked', () => {
-    expect(STATE_GROUP).toEqual({
-      certified: 'passed',
-      in_progress: 'inProgress',
-      ready_for_quiz: 'inProgress',
-      not_started: 'notStarted',
-      locked: 'notStarted',
-    });
-  });
-
-  it('an unknown state is counted nowhere rather than guessed into a bucket', () => {
-    const rows = { levels: LEVELS, schools: [school('s1', 'B.K')], states: [st('s1', 1, 'certified', 2, P), st('s1', 1, 'mystery', 9, P)] };
-    const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(lvl(out.overview, 0)).toMatchObject({ passed: 2, inProgress: 0, notStarted: 0, teachers: 2 });
-  });
-});
-
-describe('Primary band — levels 1-4 over the Primary teachers whose programme shows them', () => {
+describe('Primary — the RDF primary-programme population, certificates passed, NIETE rule for the rest', () => {
   const out = summarizeTrainingLevels(baseRows(), { band: 'primary' });
 
-  it('four level cards in ladder order, with her three counts, the denominator and % passed', () => {
-    expect(out.overview.levels.map((l) => [l.levelOrder, l.name])).toEqual([
-      [0, 'Aspiring Teacher'], [1, 'Emerging Practitioner'], [2, 'Skilled Practitioner'], [3, 'Teacher Leader'],
+  it('four levels over every primary-programme member: Passed = certificate, In Progress = under way, else Not Started', () => {
+    expect(out.overview.levels.map((l) => l.name)).toEqual(LEVELS.map((l) => l.name));
+    expect(cells(out.overview)).toEqual([
+      [0, 4, 1, 1, 6],
+      [1, 2, 1, 3, 6],
+      [2, 1, 0, 5, 6],
+      [3, 1, 0, 5, 6],
     ]);
-    // L1: s1 3+1(both) passed, 1 ready → in progress, 1 not started; s3 4 passed
-    expect(lvl(out.overview, 0)).toEqual({
-      levelId: 1, levelOrder: 0, name: 'Aspiring Teacher', passed: 8, inProgress: 1, notStarted: 1, teachers: 10, pctPassed: 80,
-    });
-    // L2: s1 2+1 passed, 1 in progress, 2 locked → not started; s3 4 passed
-    expect(lvl(out.overview, 1)).toMatchObject({ passed: 7, inProgress: 1, notStarted: 2, teachers: 10, pctPassed: 70 });
-    // L3: s1 1+1 passed, 4 locked; s3 3 passed, 1 ready
-    expect(lvl(out.overview, 2)).toMatchObject({ passed: 5, inProgress: 1, notStarted: 4, teachers: 10, pctPassed: 50 });
-    // L4: s1 1 passed (both), 5 locked; s3 2 passed, 1 in progress, 1 not started
-    expect(lvl(out.overview, 3)).toMatchObject({ passed: 3, inProgress: 1, notStarted: 6, teachers: 10, pctPassed: 30 });
+    expect(lvl(out.overview, 0).pctPassed).toBe(66.7);
   });
 
-  it('Mid/High-only teachers, no-band teachers and uncounted schools are in no Primary number', () => {
-    const json = JSON.stringify(out);
-    expect(json).not.toMatch(/School x\d|Durbeen/);
-    expect(out.schools.map((s) => s.schoolId)).toEqual(['s1', 's3']); // s2 has no Primary teacher
+  it('a certificate wins over the level rule (the RDF counts the certificate, never the state)', () => {
+    // p5 holds the Aspiring Teacher certificate and the rule still has the level under way
+    expect(lvl(out.overview, 0).passed).toBe(4);
   });
 
-  it('passed all levels = passed Teacher Leader, of the Teacher Leader denominator', () => {
-    expect(out.overview).toMatchObject({ passedAll: 3, teachers: 10 });
+  it('passed all levels = holds the Teacher Leader certificate, of the whole population', () => {
+    expect(out.overview).toMatchObject({ teachers: 6, passedAll: 1 });
+  });
+
+  it('Mid/High-only members are in no Primary number', () => {
+    expect(JSON.stringify(out)).not.toMatch(/m1|m2/);
+    expect(out.overview.teachers).toBe(6);
+  });
+
+  it('per sector by the RDF allocation; members with none are the noSector block, and the parts sum to the whole', () => {
+    expect(out.regions.map((r) => r.region)).toEqual(REGION_BUCKETS);
     const bk = out.regions.find((r) => r.region === 'B.K');
-    expect(bk).toMatchObject({ passedAll: 1, teachers: 6 });
-    const sihala = out.regions.find((r) => r.region === 'Sihala');
-    expect(sihala).toMatchObject({ passedAll: 2, teachers: 4 });
-  });
-
-  it('per sector × level: counts and % passed', () => {
-    const bk = out.regions.find((r) => r.region === 'B.K');
-    expect(lvl(bk, 0)).toEqual({ levelId: 1, levelOrder: 0, passed: 4, inProgress: 1, notStarted: 1, teachers: 6, pctPassed: 66.7 });
-    expect(lvl(bk, 3)).toMatchObject({ passed: 1, inProgress: 0, notStarted: 5, teachers: 6, pctPassed: 16.7 });
-  });
-
-  it('all six regions, in sector order, whatever the data; an empty one is zeros with no %', () => {
-    expect(out.regions.map((r) => r.region)).toEqual([...REGION_BUCKETS]);
-    const tarnol = out.regions.find((r) => r.region === 'Tarnol');
-    expect(tarnol).toMatchObject({ teachers: 0, passedAll: 0 });
-    for (const l of tarnol.levels) expect(l).toMatchObject({ passed: 0, inProgress: 0, notStarted: 0, teachers: 0, pctPassed: null });
-  });
-
-  it('per school, for the drill-down: passed all levels of the teachers, and per level passed of teachers', () => {
-    const s3 = out.schools.find((s) => s.schoolId === 's3');
-    expect(Object.keys(s3).sort()).toEqual(['emis', 'levels', 'name', 'passedAll', 'region', 'schoolId', 'teachers']);
-    expect(s3).toMatchObject({ emis: 'E-s3', name: 'School s3', region: 'Sihala', teachers: 4, passedAll: 2 });
-    expect(lvl(s3, 2)).toEqual({ levelOrder: 2, passed: 3, teachers: 4, pctPassed: 75 });
-  });
-
-  it('sums: schools → region → overview', () => {
-    for (const order of [0, 1, 2, 3]) {
-      for (const k of ['passed', 'inProgress', 'notStarted', 'teachers']) {
-        const fromSchools = ['passed', 'teachers'].includes(k)
-          ? out.schools.reduce((n, s) => n + lvl(s, order)[k], 0)
-          : lvl(out.overview, order)[k];
-        const fromRegions = out.regions.reduce((n, r) => n + lvl(r, order)[k], 0);
-        expect(fromSchools).toBe(lvl(out.overview, order)[k]);
-        expect(fromRegions).toBe(lvl(out.overview, order)[k]);
-      }
+    expect(cells(bk)).toEqual([[0, 3, 0, 0, 3], [1, 2, 1, 0, 3], [2, 1, 0, 2, 3], [3, 1, 0, 2, 3]]);
+    expect(out.regions.find((r) => r.region === 'Sihala')).toMatchObject({ teachers: 1, passedAll: 0 });
+    expect(out.noSector).toMatchObject({ teachers: 2, passedAll: 0 });
+    expect(lvl(out.noSector, 0)).toMatchObject({ passed: 1, inProgress: 0, notStarted: 1 });
+    const sum = out.regions.reduce((n, r) => n + r.teachers, 0) + out.noSector.teachers;
+    expect(sum).toBe(out.overview.teachers);
+    for (const o of [0, 1, 2, 3]) {
+      const passed = out.regions.reduce((n, r) => n + lvl(r, o).passed, 0) + lvl(out.noSector, o).passed;
+      expect(passed).toBe(lvl(out.overview, o).passed);
     }
   });
+
+  it("schools are FDE's list: a member at a school off the list is a 'No school' row in her sector", () => {
+    expect(out.schools.map((s) => [s.region, s.name, s.teachers, s.passedAll])).toEqual([
+      ['B.K', 'School s1', 2, 1],
+      ['B.K', null, 1, 0],
+      ['Sihala', 'School s3', 1, 0],
+    ]);
+    const none = out.schools.find((s) => s.name === null);
+    expect(none).toMatchObject({ schoolId: null, emis: null });
+    expect(none.levels.map((l) => [l.levelOrder, l.passed, l.teachers])).toEqual([[0, 1, 1], [1, 1, 1], [2, 0, 1], [3, 0, 1]]);
+  });
+
+  it('the sector comes from the primary Map first, then midHigh', () => {
+    const rows = baseRows();
+    rows.members = [mem('b1', { ...P, mh_cohort: true, cert_levels: ids(1) })];
+    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
+    rows.lists = lists({ primary: new Map() });
+    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Tarnol').teachers).toBe(1);
+  });
 });
 
-describe('Mid/High band — levels 3-4 (her Mid/High tab), over MIDDLE or HIGH teachers', () => {
+describe('Mid/High — the RDF middle/high-programme population', () => {
   const out = summarizeTrainingLevels(baseRows(), { band: 'midhigh' });
+  const { oxbridge, beaconhouse, isaps } = out.overview.partners;
 
-  it('two levels only: Skilled Practitioner and Teacher Leader', () => {
-    expect(out.overview.levels.map((l) => l.name)).toEqual(['Skilled Practitioner', 'Teacher Leader']);
+  it('NIETE Skilled Practitioner and Teacher Leader over every middle/high member, certificates passed', () => {
+    expect(cells(out.overview)).toEqual([[2, 3, 0, 1, 4], [3, 2, 1, 1, 4]]);
   });
 
-  it('a teacher in both bands counts in both tabs (hers double-counts too)', () => {
-    // L3: s1 both 1 passed; s2 2 passed + 1 in progress
-    expect(lvl(out.overview, 2)).toMatchObject({ passed: 3, inProgress: 1, notStarted: 0, teachers: 4, pctPassed: 75 });
-    // L4: s1 both 1 passed; s2 1 passed, 2 not started
-    expect(lvl(out.overview, 3)).toMatchObject({ passed: 2, inProgress: 0, notStarted: 2, teachers: 4, pctPassed: 50 });
-    // (Mid/High "passed all" is hers — NIETE's two plus Oxbridge and Beaconhouse: see the partners block below.)
-    expect(out.schools.map((s) => s.schoolId)).toEqual(['s1', 's2']);
+  it('GBTLA (Oxbridge) passed = its certificate, even with no session on record; sessions only move In Progress', () => {
+    expect(oxbridge).toMatchObject({ passed: 2, inProgress: 1, notStarted: 1, teachers: 4, pctPassed: 50 });
+    expect(oxbridge.sessions.map((s) => [s.name, s.middle, s.high, s.total])[0]).toEqual(['SESSION#1', 1, 1, 2]);
+    expect(oxbridge.sessions[6]).toMatchObject({ middle: 1, high: 0, total: 1 });
+    expect(oxbridge.completedAll).toEqual({ middle: 1, high: 0, total: 1 });
+  });
+
+  it('AI-Powered Subject Pedagogy (Beaconhouse) passed = a certificate for any subject; per subject middle / high / total', () => {
+    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 1, notStarted: 2, teachers: 4 });
+    expect(beaconhouse.levels.map((l) => [l.name, l.middle, l.high, l.total])).toEqual([['English', 1, 0, 1], ['Mathematics', 0, 0, 0]]);
+  });
+
+  it('Teacher Development Programme (I-SAPS): over the members assigned it; Passed = its certificate', () => {
+    expect(isaps).toMatchObject({ passed: 1, inProgress: 1, notStarted: 1, teachers: 3 });
+    expect(isaps.modules).toHaveLength(9);
+    expect(isaps.modules[0]).toMatchObject({ name: 'Module 1', middle: 1, high: 1, total: 2 });
+    expect(isaps.modules[8]).toMatchObject({ middle: 1, high: 0, total: 1 });
+    expect(isaps.completedAll).toEqual({ middle: 1, high: 0, total: 1 });
+  });
+
+  it('I-SAPS: every module exam passed without the certificate is still In Progress; a certificate without the assignment counts nowhere', () => {
+    const rows = baseRows();
+    rows.members = [
+      mem('m1', { ...MH, isaps_assigned: true, isaps_mask: 511, isaps_active: true }),
+      mem('m2', { ...MH, isaps_assigned: false, isaps_cert: true, isaps_active: true }),
+    ];
+    expect(summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.partners.isaps)
+      .toMatchObject({ passed: 0, inProgress: 1, notStarted: 0, teachers: 1 });
+  });
+
+  it('passed all levels = NIETE Skilled Practitioner + Teacher Leader + GBTLA + Beaconhouse certificates; I-SAPS is not in it', () => {
+    expect(out.overview).toMatchObject({ teachers: 4, passedAll: 1 });
+    const rows = baseRows();
+    rows.members = rows.members.map((m) => (m.user_id === 'm1' ? { ...m, isaps_cert: false, isaps_assigned: false } : m));
+    expect(summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.passedAll).toBe(1);
+  });
+
+  it('per sector, each partner with its own denominator; noSector carries partners too', () => {
+    const ui = out.regions.find((r) => r.region === 'Urban-I');
+    expect(ui.teachers).toBe(3);
+    expect(ui.partners.oxbridge).toMatchObject({ passed: 2, teachers: 3 });
+    expect(ui.partners.isaps).toMatchObject({ passed: 1, inProgress: 1, notStarted: 0, teachers: 2 });
+    expect(out.noSector.partners.isaps).toMatchObject({ passed: 0, notStarted: 1, teachers: 1 });
+    expect(ui.partners.isaps.modules).toBeUndefined();
+  });
+
+  it('Primary carries no partners', () => {
+    const pr = summarizeTrainingLevels(baseRows(), { band: 'primary' });
+    expect(pr.overview.partners).toBeUndefined();
+    expect(pr.noSector.partners).toBeUndefined();
+  });
+
+  it('a member of both programmes counts in both tabs', () => {
+    const rows = baseRows();
+    rows.members = [mem('b1', { primary_cohort: true, mh_cohort: true, cert_levels: ids(1, 2, 3, 4) })];
+    expect(summarizeTrainingLevels(rows, { band: 'primary' }).overview).toMatchObject({ teachers: 1, passedAll: 1 });
+    expect(summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.teachers).toBe(1);
   });
 });
 
-describe('band "all" — every teacher whose programme shows the level (the sanity check\'s denominator)', () => {
-  it('counts each teacher once, band or none', () => {
+describe('band "all" — every member of either programme, once', () => {
+  it('counts each member once', () => {
     const out = summarizeTrainingLevels(baseRows(), { band: 'all' });
-    expect(out.overview.levels).toHaveLength(4);
-    // L1: Primary 10 + no-band 7 (both-band teacher once)
-    expect(lvl(out.overview, 0)).toMatchObject({ passed: 15, teachers: 17 });
-    // L3: Primary-only 9 + both 1 + Mid/High 3 = 13
-    expect(lvl(out.overview, 2)).toMatchObject({ passed: 7, inProgress: 2, notStarted: 4, teachers: 13 });
+    expect(out.overview.teachers).toBe(10);
   });
 });
 
 describe('the region filter', () => {
-  it('scopes the overview and the schools to that region; the six region blocks stay', () => {
-    const out = summarizeTrainingLevels(baseRows(), { band: 'primary', region: 'Sihala' });
-    expect(out.schools.map((s) => s.schoolId)).toEqual(['s3']);
-    const { region, ...card } = out.regions.find((r) => r.region === 'Sihala');
-    expect(out.overview.teachers).toBe(card.teachers);
-    expect(out.overview.passedAll).toBe(card.passedAll);
-    expect(out.overview.levels.map(({ name, ...l }) => l)).toEqual(card.levels);
+  it('scopes the overview and the schools to that sector; the six sectors and noSector stay', () => {
+    const out = summarizeTrainingLevels(baseRows(), { band: 'primary', region: 'B.K' });
+    expect(out.overview.teachers).toBe(3);
+    expect(out.schools.every((s) => s.region === 'B.K')).toBe(true);
     expect(out.regions).toHaveLength(6);
+    expect(out.noSector.teachers).toBe(2);
   });
 });
 
 describe('empty and odd input', () => {
   it('no rows: zeros, never null counts, % passed null', () => {
     const out = summarizeTrainingLevels({ levels: LEVELS }, { band: 'primary' });
-    expect(out.overview).toMatchObject({ teachers: 0, passedAll: 0 });
-    for (const l of out.overview.levels) expect(l).toMatchObject({ passed: 0, inProgress: 0, notStarted: 0, teachers: 0, pctPassed: null });
+    expect(cells(out.overview)).toEqual([[0, 0, 0, 0, 0], [1, 0, 0, 0, 0], [2, 0, 0, 0, 0], [3, 0, 0, 0, 0]]);
+    expect(lvl(out.overview, 0).pctPassed).toBeNull();
+    expect(out.noSector.teachers).toBe(0);
+  });
+
+  it('no lists yet (the app_settings rows not loaded): everyone is noSector and "No school", nothing is lost', () => {
+    const rows = baseRows();
+    rows.lists = undefined;
+    const out = summarizeTrainingLevels(rows, { band: 'primary' });
+    expect(out.overview.teachers).toBe(6);
+    expect(out.noSector.teachers).toBe(6);
     expect(out.schools).toEqual([]);
   });
 
-  it('a level row for a level outside the band is ignored', () => {
-    const rows = { levels: LEVELS, schools: [school('s1', 'B.K')], states: [st('s1', 1, 'certified', 3, M), st('s1', 3, 'certified', 1, M)] };
-    const out = summarizeTrainingLevels(rows, { band: 'midhigh' });
-    expect(lvl(out.overview, 2)).toMatchObject({ passed: 1, teachers: 1 });
-    expect(out.overview.levels).toHaveLength(2);
+  it('carries no member identity', () => {
+    const out = summarizeTrainingLevels(baseRows(), { band: 'midhigh' });
+    expect(JSON.stringify(out)).not.toMatch(/"m[1-4]"|"p[1-6]"|user_id|userId/);
+  });
+});
+
+describe('the members read (set-based; one statement)', () => {
+  const code = trainingStatesSql().replace(/--[^\n]*/g, '');
+
+  it('the population is the RDF\'s: an ACTIVE niete_primary / niete_middle_high assignment, live users, any role or school', () => {
+    expect(code).toMatch(/'niete_primary'/);
+    expect(code).toMatch(/'niete_middle_high'/);
+    expect(code).toMatch(/a\.is_active/);
+    expect(code).toMatch(/u\.deleted_at IS NULL/);
+    expect(code).toMatch(/NOT LIKE 'merged%'/);
+    expect(code).not.toMatch(/u\.role = 'teacher'/);
+    expect(code).not.toMatch(/is_test_user/);
+    expect(code).not.toMatch(/u\.school_id IS NOT NULL/);
   });
 
-  it('carries no teacher identity', () => {
-    const json = JSON.stringify(summarizeTrainingLevels(baseRows(), { band: 'primary' }));
-    expect(json).not.toMatch(/user_id|userId|phone|teacher_level/);
+  it('Passed is the certificate: cert_levels from training_certificates; the rule\'s states only feed active_levels', () => {
+    expect(code).toMatch(/FROM training_certificates/);
+    expect(code).toMatch(/cert_levels/);
+    expect(code).toMatch(/active_levels/);
+    expect(code).toMatch(/state IN \('in_progress', 'ready_for_quiz', 'certified'\)/);
+  });
+
+  it('one row per member, folded by UNION ALL + GROUP BY: no LATERAL, no JOIN between two big CTEs', () => {
+    expect(code).not.toMatch(/LATERAL/i);
+    expect((code.match(/AS MATERIALIZED/g) || []).length).toBeGreaterThanOrEqual(5);
+    const big = ['members', 'visible', 'done', 'exams', 'certs', 'facts', 'judged', 'ordered', 'states', 'member_facts'];
+    const joined = [...code.matchAll(/JOIN\s+([a-z_]+)/g)].map((m) => m[1]);
+    expect(joined.filter((t) => big.includes(t))).toEqual([]);
+    expect(code).toMatch(/GROUP BY f\.user_id/);
+  });
+
+  it('keeps the bot\'s level rule for In Progress / Not Started: chain lock first, then the five states in order', () => {
+    expect(code).toMatch(/level_unlock_logic/);
+    expect(code).toMatch(/prev_order = o\.order_index - 1 AND NOT o\.prev_certified/);
+    const at = (s) => code.indexOf(`THEN '${s}'`);
+    expect(at('locked')).toBeGreaterThan(-1);
+    expect(at('locked')).toBeLessThan(at('certified'));
+    expect(at('certified')).toBeLessThan(at('ready_for_quiz'));
+    expect(at('ready_for_quiz')).toBeLessThan(at('in_progress'));
+  });
+
+  it('partners: Oxbridge / Beaconhouse certificates; I-SAPS by vendor KEY, its assignment through the programme scopes', () => {
+    expect(code).toMatch(/v\.key = 'OXBRIDGE'/);
+    expect(code).toMatch(/v\.key = 'BEACONHOUSE'/);
+    expect(code).toMatch(/v\.key = 'ISAPS'/);
+    expect(code).not.toMatch(/Teacher Development Programme|'I-SAPS'/);
+    for (const col of ['ox_cert', 'ox_mask', 'bh_mask', 'bh_active', 'isaps_assigned', 'isaps_cert', 'isaps_mask', 'isaps_active']) {
+      expect(code).toMatch(new RegExp(`AS ${col}`));
+    }
+    expect(code).toMatch(/isaps_exams AS MATERIALIZED/);
+    expect(code).toMatch(/training_program_scopes/);
+  });
+});
+
+describe('loadTrainingLevelRows', () => {
+  it('four reads (levels, schools, the partner catalogue, members) plus the lists, no parameters from the request', async () => {
+    const seen = [];
+    const query = jest.fn(async (sql, params) => {
+      seen.push({ sql, params });
+      if (/member_facts/.test(sql)) return { rows: [mem('p1', P)] };
+      if (/'oxbridge' AS partner/.test(sql)) return { rows: [{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }] };
+      if (/FROM training_levels l\s+JOIN training_vendors/.test(sql)) return { rows: LEVELS };
+      if (/FROM schools/.test(sql)) return { rows: [school('s1', 'B.K')] };
+      return { rows: [] };
+    });
+    const theLists = lists();
+    const loadLists = jest.fn(async () => theLists);
+    const rows = await loadTrainingLevelRows(query, loadLists);
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(loadLists).toHaveBeenCalledTimes(1);
+    for (const q of seen) expect(q.params === undefined || q.params.length === 0).toBe(true);
+    expect(rows.levels).toEqual(LEVELS);
+    expect(rows.schools).toHaveLength(1);
+    expect(rows.partners).toEqual([{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }]);
+    expect(rows.members).toHaveLength(1);
+    expect(rows.lists).toBe(theLists);
+  });
+
+  it('the catalogue still lists the I-SAPS modules with the same numbering', async () => {
+    let catalogue = '';
+    await loadTrainingLevelRows(async (sql) => {
+      if (/'oxbridge' AS partner/.test(sql)) catalogue = sql;
+      return { rows: [] };
+    }, async () => lists());
+    expect(catalogue).toMatch(/'isaps'/);
+    expect(catalogue).toMatch(/Module \(\\d\+\)/);
+  });
+});
+
+describe('BANDS', () => {
+  it('Primary levels 1-4, Mid/High levels 3-4', () => {
+    expect(BANDS.primary.orders).toEqual([0, 1, 2, 3]);
+    expect(BANDS.midhigh.orders).toEqual([2, 3]);
   });
 });
 
@@ -249,91 +405,6 @@ describe('parseBandFilter', () => {
     expect(BANDS.primary.orders).toEqual([0, 1, 2, 3]);
     expect(BANDS.midhigh.orders).toEqual([2, 3]);
     expect(BANDS.all.orders).toEqual([0, 1, 2, 3]);
-  });
-});
-
-describe('the states read (set-based; the bot\'s rule in SQL)', () => {
-  const sql = trainingStatesSql();
-  const code = sql.replace(/--[^\n]*/g, ''); // assert on the SQL, not on its comments
-
-  it('is one statement of materialised CTEs: no per-teacher LATERAL, no correlated loop over teachers', () => {
-    expect(code).not.toMatch(/LATERAL/i);
-    expect((code.match(/AS MATERIALIZED/g) || []).length).toBeGreaterThanOrEqual(5);
-    expect(code).toMatch(/GROUP BY/);
-  });
-
-  it('never JOINs two CTEs except the four-row ladder: facts are folded by UNION ALL + GROUP BY, then windows', () => {
-    const ctes = ['roster', 'visible', 'done', 'module_totals', 'exams', 'certs', 'facts', 'judged', 'ordered', 'states', 'partner_facts'];
-    const joined = [...code.matchAll(/JOIN\s+([a-z_]+)/g)].map((m) => m[1]);
-    // the roster is joined only to real tables (assignments, scopes) and the small catalogues (the four-row ladder,
-    // module_totals, the partner levels and Oxbridge's seven sessions)
-    expect(joined.filter((t) => ctes.includes(t) && t !== 'module_totals')).toEqual([]);
-    expect(code).toMatch(/UNION ALL/);
-    expect(code).toMatch(/OVER \(PARTITION BY f\.user_id\)/);
-  });
-
-  it('visible levels come from active assignments → programme scopes (NULL or empty level_ids = the whole vendor)', () => {
-    expect(code).toMatch(/teacher_training_assignments/);
-    expect(code).toMatch(/a\.is_active/);
-    expect(code).toMatch(/training_program_scopes/);
-    expect(code).toMatch(/level_ids IS NULL/);
-    expect(code).toMatch(/cardinality\(s\.level_ids\) = 0/);
-  });
-
-  it('only a level EXAM certifies: quiz_kind grand|capstone, the quiz an active grand_quiz|capstone, never a diagnostic', () => {
-    expect(code).toMatch(/quiz_kind IN \('grand', 'capstone'\)/);
-    expect(code).toMatch(/quiz_type IN \('grand_quiz', 'capstone'\)/);
-    expect(code).toMatch(/is_passed IS TRUE/);
-    expect(code).not.toMatch(/'diagnostic'/);
-    expect(code).toMatch(/training_certificates/);
-  });
-
-  it('the chain lock reads the vendor\'s level_unlock_logic (parallel = unchained) and the previous VISIBLE level', () => {
-    expect(code).toMatch(/level_unlock_logic/);
-    expect(code).toMatch(/'parallel'/);
-    // the level just below among the teacher's VISIBLE levels (lag over her visible rows of one vendor)
-    expect(code).toMatch(/HAVING max\(f\.vis\) = 1/);
-    expect(code).toMatch(/lag\(j\.order_index\) OVER w/);
-    expect(code).toMatch(/PARTITION BY j\.user_id, j\.vendor_id ORDER BY j\.order_index/);
-    expect(code).toMatch(/prev_order = o\.order_index - 1 AND NOT o\.prev_certified/);
-  });
-
-  it('the roster is the analytics roster: teachers with a school, test accounts out; the band from teacher_level', () => {
-    expect(code).toMatch(/u\.role = 'teacher'/);
-    expect(code).toMatch(/u\.school_id IS NOT NULL/);
-    expect(code).toMatch(/u\.is_test_user IS NOT TRUE/);
-    expect(code).toMatch(/teacher_level/);
-    expect(code).not.toMatch(/training_bands/);
-  });
-
-  it('the five states, in the bot\'s order of precedence: locked, certified, ready_for_quiz, in_progress, not_started', () => {
-    const at = (s) => code.indexOf(`'${s}'`);
-    for (const s of ['locked', 'certified', 'ready_for_quiz', 'in_progress', 'not_started']) expect(at(s)).toBeGreaterThan(-1);
-    expect(at('locked')).toBeLessThan(at('certified'));
-    expect(at('certified')).toBeLessThan(at('ready_for_quiz'));
-    expect(at('ready_for_quiz')).toBeLessThan(at('in_progress'));
-    expect(at('in_progress')).toBeLessThan(at('not_started'));
-  });
-});
-
-describe('loadTrainingLevelRows', () => {
-  it('four reads (levels, schools, the partner catalogue, states), no parameters from the request', async () => {
-    const seen = [];
-    const query = jest.fn(async (sql, params) => {
-      seen.push({ sql, params });
-      if (/partner_facts/.test(sql)) return { rows: [st('s1', 1, 'certified', 1, P)] };
-      if (/'oxbridge' AS partner/.test(sql)) return { rows: [{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }] };
-      if (/FROM training_levels l\s+JOIN training_vendors/.test(sql)) return { rows: LEVELS };
-      if (/FROM schools/.test(sql)) return { rows: [school('s1', 'B.K')] };
-      return { rows: [] };
-    });
-    const rows = await loadTrainingLevelRows(query);
-    expect(query).toHaveBeenCalledTimes(4);
-    for (const q of seen) expect(q.params === undefined || q.params.length === 0).toBe(true);
-    expect(rows.levels).toEqual(LEVELS);
-    expect(rows.schools).toHaveLength(1);
-    expect(rows.partners).toEqual([{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }]);
-    expect(rows.states).toHaveLength(1);
   });
 });
 
@@ -423,246 +494,5 @@ describe('createSnapshot — at most every 30 minutes, never blocking on a refre
     fail = false;
     expect((await snap.get()).rows).toEqual({ v: 'ok' });
     expect(load).toHaveBeenCalledTimes(2);
-  });
-});
-
-// ── her Mid/High partner panels (operator, 2026-10-15: include Oxbridge and Beaconhouse, her rules) ──────────────
-//
-// Hers (bigquery_queries.py get_oxbridge_counts_direct / get_beaconhouse_counts / get_mid_high_passed_all_by_sector,
-// views.py TrainingView MID_HIGH): over the mid/high cohort,
-//   Oxbridge     passed = every session passed (7); in progress = at least one; not started = none
-//   Beaconhouse  passed = passed at least one Beaconhouse level; in progress = some activity, no pass; not started
-//   passed all   = NIETE Skilled Practitioner + Teacher Leader + Oxbridge (all sessions) + Beaconhouse (>= 1 level)
-// NIETE's data: a session passed = a progress row on the Oxbridge module; a Beaconhouse level passed = its
-// certificate or a passed exam attempt. One 'partner' row per (school, bands, masks) from the same read.
-describe('Mid/High partners — Oxbridge and Beaconhouse, her rules', () => {
-  const CATALOGUE = [
-    ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({ partner: 'oxbridge', bit: n - 1, name: `SESSION#${n}` })),
-    { partner: 'beaconhouse', bit: 1, name: 'English' },
-    { partner: 'beaconhouse', bit: 2, name: 'Mathematics' },
-    { partner: 'beaconhouse', bit: 3, name: 'General Science' },
-    { partner: 'beaconhouse', bit: 4, name: 'Computer Science' },
-  ];
-  const ALL7 = 0b1111111;
-  const pr = (school_id, { middle = true, high = false, primary = false, ox = 0, bh = 0, bhActive = false, niete = false }, teachers) => ({
-    kind: 'partner', school_id, primary_band: primary, middle_band: middle, high_band: high, midhigh_band: middle || high,
-    level_id: null, state: null, ox_mask: ox, bh_mask: bh, bh_active: bhActive, niete_both: niete, teachers,
-  });
-  function rows() {
-    const r = baseRows();
-    return {
-      ...r,
-      partners: CATALOGUE,
-      states: r.states.concat([
-        // s1 (B.K): 2 did everything; 1 all Oxbridge + English but not the NIETE two; 1 three sessions, no Beaconhouse
-        pr('s1', { ox: ALL7, bh: 0b10, niete: true }, 2),
-        pr('s1', { high: true, middle: false, ox: ALL7, bh: 0b10 }, 1),
-        pr('s1', { ox: 0b0000111, bhActive: true }, 1),
-        // s2 (B.K): 1 middle+high teacher passed Maths and Science, sessions 1-2; 3 with nothing at all
-        pr('s2', { middle: true, high: true, ox: 0b11, bh: 0b1100, niete: true }, 1),
-        pr('s2', {}, 3),
-        // an uncounted school is in no number
-        pr('x2', { ox: ALL7, bh: 0b10, niete: true }, 40),
-      ]),
-    };
-  }
-
-  it('Primary carries no partners (her Primary tab has none)', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'primary' });
-    expect(out.overview.partners).toBeUndefined();
-    for (const r of out.regions) expect(r.partners).toBeUndefined();
-  });
-
-  it('Oxbridge: all sessions = passed, some = in progress, none = not started, of the mid/high teachers', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh' });
-    expect(out.overview.partners.oxbridge).toMatchObject({ passed: 3, inProgress: 2, notStarted: 3, teachers: 8, pctPassed: 37.5 });
-  });
-
-  it('Oxbridge sessions funnel: per session middle / high / total, then completed all', () => {
-    const { sessions, completedAll } = summarizeTrainingLevels(rows(), { band: 'midhigh' }).overview.partners.oxbridge;
-    expect(sessions.map((s) => s.name)).toEqual(['SESSION#1', 'SESSION#2', 'SESSION#3', 'SESSION#4', 'SESSION#5', 'SESSION#6', 'SESSION#7']);
-    // session 1: s1 2 (middle) + 1 (high) + 1 (middle) + s2 1 (middle and high)
-    expect(sessions[0]).toEqual({ name: 'SESSION#1', middle: 4, high: 2, total: 5 });
-    expect(sessions[2]).toEqual({ name: 'SESSION#3', middle: 3, high: 1, total: 4 });
-    expect(sessions[6]).toEqual({ name: 'SESSION#7', middle: 2, high: 1, total: 3 });
-    expect(completedAll).toEqual({ middle: 2, high: 1, total: 3 });
-  });
-
-  it('Beaconhouse: passed >= 1 level = passed, activity without a pass = in progress; per level middle / high / total', () => {
-    const bh = summarizeTrainingLevels(rows(), { band: 'midhigh' }).overview.partners.beaconhouse;
-    expect(bh).toMatchObject({ passed: 4, inProgress: 1, notStarted: 3, teachers: 8, pctPassed: 50 });
-    expect(bh.levels).toEqual([
-      { name: 'English', middle: 2, high: 1, total: 3 },
-      { name: 'Mathematics', middle: 1, high: 1, total: 1 },
-      { name: 'General Science', middle: 1, high: 1, total: 1 },
-      { name: 'Computer Science', middle: 0, high: 0, total: 0 },
-    ]);
-  });
-
-  it('passed all levels on Mid/High = NIETE Skilled Practitioner + Teacher Leader + Oxbridge + Beaconhouse, of the mid/high teachers', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh' });
-    expect(out.overview).toMatchObject({ passedAll: 2, teachers: 8 });
-    const bk = out.regions.find((r) => r.region === 'B.K');
-    expect(bk).toMatchObject({ passedAll: 2, teachers: 8 });
-    expect(bk.partners).toEqual({
-      oxbridge: { passed: 3, inProgress: 2, notStarted: 3, teachers: 8, pctPassed: 37.5 },
-      beaconhouse: { passed: 4, inProgress: 1, notStarted: 3, teachers: 8, pctPassed: 50 },
-      isaps: { passed: 0, inProgress: 0, notStarted: 8, teachers: 8, pctPassed: 0 },
-    });
-    const s1 = out.schools.find((s) => s.schoolId === 's1');
-    expect(s1).toMatchObject({ teachers: 4, passedAll: 2 });
-    expect(out.schools.find((s) => s.schoolId === 's2')).toMatchObject({ teachers: 4, passedAll: 0 });
-  });
-
-  it('no Oxbridge sessions on record: nobody has passed Oxbridge, so nobody has passed all', () => {
-    const r = rows();
-    const out = summarizeTrainingLevels({ ...r, partners: r.partners.filter((p) => p.partner !== 'oxbridge') }, { band: 'midhigh' });
-    expect(out.overview.partners.oxbridge).toMatchObject({ passed: 0, teachers: 8 });
-    expect(out.overview.passedAll).toBe(0);
-  });
-
-  it('the region filter scopes the partner panels too', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh', region: 'Sihala' });
-    expect(out.overview.partners.oxbridge).toMatchObject({ passed: 0, teachers: 0, pctPassed: null });
-    expect(out.overview.partners.oxbridge.sessions.every((s) => s.total === 0)).toBe(true);
-  });
-});
-
-describe('the states read — partners', () => {
-  const code = trainingStatesSql().replace(/--[^\n]*/g, '');
-
-  it('one read: level rows and partner rows, told apart by kind', () => {
-    expect(code).toMatch(/'level' AS kind/);
-    expect(code).toMatch(/'partner'/);
-    expect(code).toMatch(/UNION ALL/);
-  });
-
-  it('Oxbridge sessions are the active modules of its active course, a progress row a passed session', () => {
-    expect(code).toMatch(/'OXBRIDGE'/);
-    expect(code).toMatch(/ox_sessions/);
-    expect(code).toMatch(/teacher_training_progress p\s+JOIN ox_sessions/);
-  });
-
-  it('a Beaconhouse level passed is its certificate or a passed exam attempt; any attempt or module is activity', () => {
-    expect(code).toMatch(/'BEACONHOUSE'/);
-    expect(code).toMatch(/bit_or/);
-    expect(code).toMatch(/niete_both/);
-  });
-});
-
-// ── I-SAPS, the fourth Mid/High partner (operator, 2026-10-19) ───────────────────────────────────────────────────
-//
-// Not one of hers: NIETE's own rule, laid out like her Oxbridge panel. Over the same mid/high cohort,
-//   passed       the I-SAPS level certificate, or every module exam passed (what the bot certifies on)
-//   in progress  any I-SAPS unit done or module exam sat, without a pass
-//   not started  none
-// A module is a course titled "Module N"; its exam is the active grand quiz with source_quiz_id 900 + N (the bot's
-// own mapping, quiz-delivery.service.js). Per module: the teachers who passed its exam, middle / high / total, then
-// completed all (= passed). I-SAPS is NOT part of "passed all" (operator, 2026-10-19: shown separately).
-describe('Mid/High partners — I-SAPS', () => {
-  const MODULES = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ partner: 'isaps', bit: n - 1, name: `Module ${n}` }));
-  const ALL9 = 0b111111111;
-  const pr = (school_id, {
-    middle = true, high = false, isaps = 0, active = false, cert = false, ox = 0, bh = 0, niete = false,
-  }, teachers) => ({
-    kind: 'partner', school_id, primary_band: false, middle_band: middle, high_band: high, midhigh_band: middle || high,
-    level_id: null, state: null, ox_mask: ox, bh_mask: bh, bh_active: false, niete_both: niete,
-    isaps_mask: isaps, isaps_active: active, isaps_cert: cert, teachers,
-  });
-  function rows(extra = []) {
-    const r = baseRows();
-    return {
-      ...r,
-      partners: [{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }, { partner: 'beaconhouse', bit: 1, name: 'English' }, ...MODULES],
-      states: r.states.concat([
-        // s1 (B.K): 2 certified with all nine passed; 1 high teacher passed modules 1-3; 1 did a unit, no exam passed
-        pr('s1', { isaps: ALL9, active: true, cert: true }, 2),
-        pr('s1', { middle: false, high: true, isaps: 0b111, active: true }, 1),
-        pr('s1', { active: true }, 1),
-        // s2 (B.K): 1 middle+high teacher holds the certificate though module 9's pass is not on record; 3 nothing
-        pr('s2', { middle: true, high: true, isaps: 0b011111111, active: true, cert: true }, 1),
-        pr('s2', {}, 3),
-        // s3 (Sihala): 1 teacher passed all nine exams, no certificate minted yet
-        pr('s3', { isaps: ALL9, active: true }, 1),
-        // an uncounted school is in no number
-        pr('x2', { isaps: ALL9, active: true, cert: true }, 40),
-      ], extra),
-    };
-  }
-
-  it('passed = certificate or all nine module exams; in progress = activity without a pass; of the mid/high teachers', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh' });
-    expect(out.overview.partners.isaps).toMatchObject({ passed: 4, inProgress: 2, notStarted: 3, teachers: 9, pctPassed: 44.4 });
-  });
-
-  it('per module middle / high / total, named as the catalogue names them, then completed all (= passed)', () => {
-    const { modules, completedAll } = summarizeTrainingLevels(rows(), { band: 'midhigh' }).overview.partners.isaps;
-    expect(modules.map((m) => m.name)).toEqual(MODULES.map((m) => m.name));
-    // module 1: s1 2 (middle) + 1 (high) + s2 1 (middle and high) + s3 1 (middle)
-    expect(modules[0]).toEqual({ name: 'Module 1', middle: 4, high: 2, total: 5 });
-    expect(modules[3]).toEqual({ name: 'Module 4', middle: 4, high: 1, total: 4 });
-    expect(modules[8]).toEqual({ name: 'Module 9', middle: 3, high: 0, total: 3 });
-    expect(completedAll).toEqual({ middle: 4, high: 1, total: 4 });
-  });
-
-  it('per sector, without the module detail', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh' });
-    expect(out.regions.find((r) => r.region === 'B.K').partners.isaps)
-      .toEqual({ passed: 3, inProgress: 2, notStarted: 3, teachers: 8, pctPassed: 37.5 });
-    expect(out.regions.find((r) => r.region === 'Sihala').partners.isaps)
-      .toEqual({ passed: 1, inProgress: 0, notStarted: 0, teachers: 1, pctPassed: 100 });
-  });
-
-  it('is not part of "passed all": the NIETE two + Oxbridge + Beaconhouse still pass all with no I-SAPS at all', () => {
-    const out = summarizeTrainingLevels(rows([pr('s1', { ox: 1, bh: 0b10, niete: true }, 1)]), { band: 'midhigh' });
-    expect(out.overview.passedAll).toBe(1);
-    expect(out.overview.partners.isaps).toMatchObject({ passed: 4, notStarted: 4, teachers: 10 });
-  });
-
-  it('no I-SAPS modules in the catalogue: a certificate still passes, and there is no module row', () => {
-    const r = rows();
-    const out = summarizeTrainingLevels({ ...r, partners: r.partners.filter((p) => p.partner !== 'isaps') }, { band: 'midhigh' });
-    expect(out.overview.partners.isaps).toMatchObject({ passed: 3, inProgress: 3, teachers: 9 });
-    expect(out.overview.partners.isaps.modules).toEqual([]);
-  });
-
-  it('the region filter scopes it; Primary carries none', () => {
-    const sihala = summarizeTrainingLevels(rows(), { band: 'midhigh', region: 'Sihala' }).overview.partners.isaps;
-    expect(sihala).toMatchObject({ passed: 1, teachers: 1, pctPassed: 100 });
-    expect(sihala.modules.every((m) => m.total === 1)).toBe(true);
-    expect(summarizeTrainingLevels(rows(), { band: 'primary' }).overview.partners).toBeUndefined();
-  });
-});
-
-describe('the states read — I-SAPS', () => {
-  const code = trainingStatesSql().replace(/--[^\n]*/g, '');
-
-  it('finds I-SAPS by its vendor KEY, never its display name (renamed 2026-10-13)', () => {
-    expect(code).toMatch(/v\.key = 'ISAPS'/);
-    expect(code).not.toMatch(/Teacher Development Programme|'I-SAPS'/);
-  });
-
-  it('a module is a course titled "Module N"; a passed attempt on its ACTIVE grand quiz 900 + N passes it', () => {
-    expect(code).toMatch(/isaps_exams AS MATERIALIZED/);
-    expect(code).toMatch(/Module \(\\d\+\)/);
-    expect(code).toMatch(/900/);
-    expect(code).toMatch(/q\.is_active/);
-  });
-
-  it('carries the certificate, the activity and the module mask on every partner row', () => {
-    for (const col of ['isaps_mask', 'isaps_active', 'isaps_cert']) {
-      expect(code).toMatch(new RegExp(`GROUP BY school_id, primary_band, middle_band, high_band, ox_mask, bh_mask, bh_active, niete_both[^;]*${col}`));
-    }
-  });
-
-  it('the partner catalogue lists the I-SAPS modules with the same numbering', async () => {
-    let catalogue = '';
-    await loadTrainingLevelRows(async (sql) => {
-      if (/'oxbridge' AS partner/.test(sql)) catalogue = sql;
-      return { rows: [] };
-    });
-    expect(catalogue).toMatch(/'isaps'/);
-    expect(catalogue).toMatch(/v\.key = 'ISAPS'/);
-    expect(catalogue).toMatch(/Module \(\\d\+\)/);
   });
 });

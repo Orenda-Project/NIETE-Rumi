@@ -810,16 +810,17 @@ export interface CoachingAnalyticsResponse {
 /* ── bd-97x22y.4 — GET /api/portal/analytics/training-levels (PLAN v7 "Trainings") ──────────────────────────────── */
 
 /**
- * Her Primary / Mid-High toggle: the teacher's training band (users.teacher_level). Primary shows levels 1-4 (order
- * 0-3), Mid/High levels 3-4 (order 2-3) — her two tabs. A teacher in both bands counts in both.
+ * The Primary / Mid-High toggle: NIETE's two training programmes, as the RDF counts them (v8): Primary = everyone on
+ * niete_primary (levels 1-4, order 0-3), Mid/High = everyone on niete_middle_high (levels 3-4, order 2-3, and the
+ * partner programmes) — any role, any school. A teacher on both programmes counts in both.
  */
 export type TrainingBand = 'primary' | 'midhigh';
 
 /**
- * One NIETE training level for a school, a region or the selection, all time. The state is the bot's own level rule,
- * in her three states: passed = certified; inProgress = in progress or ready for the exam; notStarted = not started or
- * locked. teachers = the band's teachers whose programme shows the level (= passed + inProgress + notStarted);
- * pctPassed = passed ÷ teachers × 100, one decimal, null when teachers is 0.
+ * One NIETE training level for a school, a region or the selection, all time. passed = holds the level's certificate
+ * (the RDF's count); inProgress = no certificate, but the bot's level rule has it under way; notStarted = the rest.
+ * teachers = the programme's teachers there (= passed + inProgress + notStarted); pctPassed = passed ÷ teachers × 100,
+ * one decimal, null when teachers is 0.
  */
 export interface TrainingLevelCounts {
   levelId: number;
@@ -839,9 +840,9 @@ export interface TrainingLevelsBlock {
 }
 
 /**
- * Her Mid/High partner cards, over the Mid/High cohort (every teacher holding Middle or High): Oxbridge passed = all
- * sessions passed, in progress = at least one; Beaconhouse passed = at least one subject (level) passed, in progress
- * = activity without a pass. teachers = the cohort; pctPassed = passed ÷ teachers × 100, one decimal.
+ * A Mid/High programme card: passed = holds its certificate (Beaconhouse: in any subject); inProgress = activity
+ * without it. teachers = the middle/high programme's teachers (I-SAPS: those of them assigned it); pctPassed = passed
+ * ÷ teachers × 100, one decimal.
  */
 export interface TrainingPartnerCard {
   passed: number;
@@ -861,7 +862,7 @@ export interface TrainingBandSplit {
 export interface TrainingPartners {
   oxbridge: TrainingPartnerCard;
   beaconhouse: TrainingPartnerCard;
-  /** Not one of hers: NIETE's I-SAPS (passed = its certificate or all module exams passed). */
+  /** The Teacher Development Programme (I-SAPS): over the teachers assigned it; passed = its certificate. */
   isaps: TrainingPartnerCard;
 }
 
@@ -879,10 +880,11 @@ export interface TrainingLevelsRegion extends TrainingLevelsBlock {
   partners?: TrainingPartners;
 }
 
+/** A school on FDE's list, or (schoolId and name null) the sector's teachers at no school on that list. */
 export interface TrainingLevelsSchool extends TrainingLevelsBlock {
-  schoolId: string;
+  schoolId: string | null;
   emis: string | null;
-  name: string;
+  name: string | null;
   region: string;
   levels: Array<Pick<TrainingLevelCounts, 'levelOrder' | 'passed' | 'teachers' | 'pctPassed'>>;
 }
@@ -898,8 +900,10 @@ export interface TrainingLevelsResponse {
    * Teacher Leader.
    */
   overview: TrainingLevelsBlock & { levels: Array<TrainingLevelCounts & { name: string }>; partners?: TrainingPartnersDetail };
-  /** The six regions, whatever the filter. */
+  /** The six regions (the RDF's sectors), whatever the filter. */
   regions: TrainingLevelsRegion[];
+  /** The programme's teachers the RDF gives no sector: with the six, they add up to the unfiltered overview. */
+  noSector: TrainingLevelsBlock & { levels: TrainingLevelCounts[]; partners?: TrainingPartners };
   /** The chosen region's schools (all regions' when none is chosen); a school with none of the band's teachers is left out. */
   schools: TrainingLevelsSchool[];
 }
