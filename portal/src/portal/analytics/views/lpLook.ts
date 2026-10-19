@@ -1,12 +1,13 @@
-import { CheckCircle2, Clock, TrendingUp, XCircle, type LucideIcon } from 'lucide-react';
-import type { LpStatus } from '../../types/portal';
+import { CheckCircle2, TrendingUp, XCircle, type LucideIcon } from 'lucide-react';
+import type { LpGroup } from '../../types/portal';
 
 export { HER_GREEN } from './trainingLook';
 
 /**
- * bd-97x22y.3 — her LP Engagement colours, 1 to 1 (operator, 2026-10-14: "fully 1 to 1"; the Trainings tab's
- * trainingLook.ts is the same idea): one table, read by every part of the tab, so a band or a subject is the same
- * colour on its card, its table cell and its bar. Hers: frontend/src/pages/LPEngagement.jsx (LPKPICard calls,
+ * bd-97x22y.3 — her LP Engagement colours (operator, 2026-10-14: "fully 1 to 1"; the Trainings tab's trainingLook.ts
+ * is the same idea): one table, read by every part of the tab, so a group or a subject is the same colour on its card,
+ * its table cell and its bar. v8 (FDE feedback, 2026-10-19): her On-Schedule green and Off-Schedule red now mark
+ * Active and Non-Active. Hers: frontend/src/pages/LPEngagement.jsx (LPKPICard calls,
  * SectorLPCard, SectorBreakdownTable, LPBySubjectTable, SUBJECT_COLORS, CHART_PALETTE).
  */
 
@@ -21,16 +22,15 @@ export const KPI_LOOK = {
   overall: { color: '#47ba7c', light: '#EDFDF5', Icon: TrendingUp },
   tracked: { color: '#F59E0B', light: '#FEF9EE', Icon: CheckCircle2 },
   activeSectors: { color: '#818CF8', light: '#F0EFFE', Icon: XCircle },
-  on: { color: '#47ba7c', light: '#EDFDF5', Icon: CheckCircle2 },
-  moderate: { color: '#F59E0B', light: '#FEF9EE', Icon: Clock },
-  off: { color: '#F43F5E', light: '#FFF1F2', Icon: XCircle },
+  active: { color: '#47ba7c', light: '#EDFDF5', Icon: CheckCircle2 },
+  nonActive: { color: '#F43F5E', light: '#FFF1F2', Icon: XCircle },
 } as const satisfies Record<string, KpiLook>;
 
-/** Her band colours in the sector cards and the school status pill (SectorLPCard, SectorBreakdownTable). */
-export const BAND_COLOR: Record<LpStatus, string> = { on: '#47ba7c', moderate: '#F59E0B', off: '#EF4444' };
+/** Active / Non-Active in the sector cards (her SectorLPCard green and red). */
+export const GROUP_COLOR: Record<LpGroup, string> = { active: '#47ba7c', nonActive: '#EF4444' };
 
-/** Her table columns (LPBySubjectTable / LPByGradeTable: text-green-600, text-amber-500, text-red-500). */
-export const TABLE_COLOR: Record<LpStatus, string> = { on: '#16A34A', moderate: '#F59E0B', off: '#EF4444' };
+/** Active / Non-Active in the tables (her LPBySubjectTable text-green-600 and text-red-500). */
+export const TABLE_COLOR: Record<LpGroup, string> = { active: '#16A34A', nonActive: '#EF4444' };
 
 /** Her chart palette (CHART_PALETTE): a grade's bar takes the colour of its place, as hers does. */
 const CHART_PALETTE = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#3B82F6', '#EC4899', '#14B8A6', '#84CC16', '#6366F1'];
