@@ -4,7 +4,7 @@
  *   - every story screen opens with the land header: the round Home (back to the hub) and the banner's words on the
  *     land's colour, in place of the purple "just for fun" strip and the old Home row
  *   - the story's title on the intro is its cover card (CSS), the options are button-system tiles, and the option
- *     being read aloud shows the button system's selected state (the land's pale fill and edge), never a black outline
+ *     being read aloud has the land edge as an outline and its speaker pulses (no fill: green fill is the right answer)
  *   - look off (no `adv`, or no class on <html>): the screens are today's, byte for byte
  * Only the network and the audio are faked.
  */
@@ -91,8 +91,17 @@ describe('the look\'s Story Time rules (the page\'s own style block)', () => {
     expect(SRC).toMatch(/html\.wq-adv \.wqc-land #wqc-ptitle\{[^}]*background:var\(--land-bg\)[^}]*border-radius:var\(--r-card\)[^}]*\}/);
     expect(SRC).toMatch(/html\.wq-adv \.wqc-land #wqc-ptitle::before\{/);
   });
-  test('option tiles are the secondary button (card fill, line edge, ledge, button radius); being read = selected (land fill + edge), never navy', () => {
+  test('option tiles are the secondary button (card fill, line edge, ledge, button radius)', () => {
     expect(SRC).toMatch(/html\.wq-adv \.wqc-land \.wqc-opt,html\.wq-adv \.wqc-land \.wqc-ohear\{[^}]*border:2px solid var\(--line\)[^}]*border-radius:var\(--r-btn\)[^}]*box-shadow:0 var\(--btn-d2\) 0 var\(--line\)[^}]*\}/);
-    expect(SRC).toMatch(/html\.wq-adv \.wqc-land \.wqc-opt\.wqc-reading\{background:var\(--land-bg\);border-color:var\(--land-edge\);box-shadow:0 var\(--btn-d2\) 0 var\(--land-edge\)\}/);
+  });
+  test('being read aloud = the land edge as an outline on the card fill, never a fill (green fill means "right" on Games)', () => {
+    const rule = (SRC.match(/html\.wq-adv \.wqc-land \.wqc-opt\.wqc-reading\{[^}]*\}/) || [''])[0];
+    expect(rule).toMatch(/background:var\(--card\)/);
+    expect(rule).toMatch(/outline:3px solid var\(--land-edge\);outline-offset:-3px/);   // inside the tile: the 16 px gutter holds
+    expect(rule).not.toMatch(/--land-bg|--right/);
+  });
+  test('the speaker beside the option being read pulses (still for a child who asks for less motion)', () => {
+    expect(SRC).toMatch(/html\.wq-adv \.wqc-land \.wqc-ohear:has\(\+\.wqc-opt\.wqc-reading\)\{[^}]*border-color:var\(--land-edge\)[^}]*animation:wqc-pulse[^}]*\}/);
+    expect(SRC).toMatch(/@media \(prefers-reduced-motion:reduce\)\{html\.wq-adv \.wqc-land \.wqc-ohear:has\(\+\.wqc-opt\.wqc-reading\)\{animation:none\}\}/);
   });
 });

@@ -285,12 +285,15 @@
         'html.wq-adv .wqc-land #wqc-ptitle{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2,8px);margin-inline:0;padding:var(--sp-4,16px);background:var(--land-bg);border:2px solid var(--land);border-radius:var(--r-card);box-shadow:0 4px 0 var(--land-edge);color:var(--land-edge);font-size:var(--fs-5,26px);font-weight:800;line-height:1.25;text-align:center;text-wrap:balance}',
         'html.wq-adv .wqc-land #wqc-ptitle::before{content:"";width:96px;height:96px;border-radius:50%;background:var(--card) center/60px 60px no-repeat url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23296e37\' stroke-width=\'1.8\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z\'/%3E%3C/svg%3E");box-shadow:0 0 0 6px rgba(255,255,255,.6),0 4px 12px var(--glow,rgba(0,0,0,.12))}',
         'html.wq-adv[lang=ur] .wqc-land #wqc-ptitle{font-family:var(--fu);font-weight:400;line-height:1.9}',
-        // the options: the secondary button (card, line edge, ledge, the button radius); being read = the selected state
+        // the options: the secondary button (card, line edge, ledge, the button radius); being read = the land edge as an
+        // outline with its speaker pulsing, never a fill (on Games the land is green, and a green fill says "right")
         'html.wq-adv .wqc-land .wqc-opt,html.wq-adv .wqc-land .wqc-ohear{background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:var(--r-btn);box-shadow:0 var(--btn-d2) 0 var(--line)}',
         'html.wq-adv .wqc-land .wqc-opt{padding-inline:var(--sp-5,24px);text-align:start}',
         'html.wq-adv .wqc-land .wqc-ohear{flex-basis:var(--btn-icon,56px);color:var(--land-edge)}',
         'html.wq-adv .wqc-land .wqc-ohear-none{border-color:transparent;background:transparent;box-shadow:none}',
-        'html.wq-adv .wqc-land .wqc-opt.wqc-reading{background:var(--land-bg);border-color:var(--land-edge);box-shadow:0 var(--btn-d2) 0 var(--land-edge)}',
+        'html.wq-adv .wqc-land .wqc-opt.wqc-reading{background:var(--card);outline:3px solid var(--land-edge);outline-offset:-3px}',
+        'html.wq-adv .wqc-land .wqc-ohear:has(+.wqc-opt.wqc-reading){border-color:var(--land-edge);animation:wqc-pulse 1.2s ease-in-out infinite}',
+        '@media (prefers-reduced-motion:reduce){html.wq-adv .wqc-land .wqc-ohear:has(+.wqc-opt.wqc-reading){animation:none}}',
         'html.wq-adv .wqc-land .wqc-opt.wqc-ok{background:var(--right-bg);border-color:var(--right);box-shadow:0 var(--btn-d2) 0 var(--right)}',
         'html.wq-adv .wqc-land .wqc-opt.wqc-no{background:var(--notyet-bg);border-color:var(--notyet);box-shadow:0 var(--btn-d2) 0 var(--notyet)}',
       ].join('\n');
