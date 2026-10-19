@@ -1036,6 +1036,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # the asset served at the open), newest use first, one row per lesson. No switch (bd-2wgr3d.22.1).
     # Unit: tests/coaching/fidelity/recent-fidelity-lps-app-opens.test.js.
 
+  @e2e @wip @draft @no-mock-driver @P1 @COA83
+  Scenario: A lesson I record in the teacher app sends no step messages to my WhatsApp, only the report
+    Given the NIETE bot chat is open on a teacher who can record in the teacher app
+    When I record a 20-minute lesson in the teacher app and send it
+    And I answer the reflective question in the app
+    Then no "Step 1/5", "Step 2/5", "Step 4/5" or "Step 5/5" message arrives in my WhatsApp chat
+    And the report image arrives in my WhatsApp chat, its caption without a Step 5/5 line
+    And the voice note follows it in my WhatsApp chat
+    # ADDED 2026-10-19 (bd-s7c31y). Operator: the status is already in the portal, so the step
+    # lines only pulled teachers into the chat to send a plan and photos the session could no
+    # longer take. isPortalTeacherSession (portal audio key, no observation_type). A WhatsApp
+    # recording keeps every step; a coach's portal observation already skipped Step 1/2.
+    # Unit: tests/observe/bd-5rz1v.6.9-portal-observation-no-step-messages.test.js,
+    # tests/coaching/bd-s7c31y-portal-report-no-step-messages.test.js.
+
   @e2e @wip @draft @P1 @COA59
   Scenario: Picking my lesson plan from the list asks me to confirm before it is used
     Given the NIETE bot chat is open

@@ -138,6 +138,9 @@ class TranscriptionProcessorService {
       // staging and production carry, where that rule does not exist yet.
       if (require('./portal-coaching.service').isPortalObservation(session)) {
         logToFile('🔕 Step 1/5 not sent — a portal observation (the portal shows its progress)', { coachingSessionId });
+      } else if (require('./portal-coaching.service').isPortalTeacherSession(session)) {
+        // bd-s7c31y: her own portal recording — the portal shows the progress.
+        logToFile('🔕 Step 1/5 not sent — a portal recording (the portal shows its progress)', { coachingSessionId });
       } else if (session.observation_type === 'leader_observation') {
         logToFile('🔕 Step 1/5 not sent — a leader observation (the coach was told the wait on capture)', { coachingSessionId });
       } else if (!payload.step1Announced) {
