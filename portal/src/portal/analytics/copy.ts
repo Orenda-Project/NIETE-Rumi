@@ -212,8 +212,8 @@ const EN = {
           { term: 'Teachers trained', text: 'How many of the N teachers finished at least one module in the period ("x of N").' },
           // bd-97x22y.4 (PLAN v7) — the Trainings tab's level progress.
           { term: 'Passed, In Progress, Not Started', text: "Each NIETE level (Aspiring Teacher, Emerging Practitioner, Skilled Practitioner, Teacher Leader) for every teacher whose training programme includes it. Passed: holds the level's certificate or passed its exam. In Progress: has finished at least one of its modules. Not Started: none yet, or the level before is not passed yet. The percentage is how many passed. All time: the period does not change it; the tab says when the numbers were read." },
-          { term: 'Primary and Mid / High', text: 'Primary is teachers whose grades include Primary: all four levels. Mid / High is teachers whose grades include Middle or High: Skilled Practitioner and Teacher Leader, with Oxbridge (Passed: all 7 sessions passed) and Beaconhouse (Passed: at least one subject passed). A teacher who teaches both is in both.' },
-          { term: 'Passed all levels', text: 'Primary: passed Teacher Leader. Mid / High: passed Skilled Practitioner, Teacher Leader, Oxbridge and Beaconhouse.' },
+          { term: 'Primary and Mid / High', text: 'Primary is teachers whose grades include Primary: all four levels. Mid / High is teachers whose grades include Middle or High: Skilled Practitioner and Teacher Leader, with Oxbridge (Passed: all 7 sessions passed), Beaconhouse (Passed: at least one subject passed) and I-SAPS (Passed: the I-SAPS certificate, all 9 module exams passed). A teacher who teaches both is in both.' },
+          { term: 'Passed all levels', text: 'Primary: passed Teacher Leader. Mid / High: passed Skilled Practitioner, Teacher Leader, Oxbridge and Beaconhouse. I-SAPS is shown on its own and is not part of it.' },
         ],
       },
       {
@@ -365,17 +365,20 @@ const EN = {
       /** How the three states and the % are worked out on NIETE's data. */
       counted: 'Passed: holds the level\'s certificate or passed its exam. In Progress: has finished at least one of its modules, not yet the exam. Not Started: no module finished yet, or the level below is not passed yet. Each level counts the teachers whose training programme includes it, and the % is how many of them passed. "Passed all levels" means passed Teacher Leader.',
       /** Mid / High: her partner rules on NIETE's records. */
-      countedMidHigh: 'Mid / High teachers are those whose grades include Middle or High. Oxbridge: Passed = all 7 sessions passed, In Progress = at least one. Beaconhouse: Passed = at least one subject passed, In Progress = started without a pass. "Passed all levels" on Mid / High means NIETE Skilled Practitioner, NIETE Teacher Leader, Oxbridge and Beaconhouse all passed.',
+      countedMidHigh: 'Mid / High teachers are those whose grades include Middle or High. Oxbridge: Passed = all 7 sessions passed, In Progress = at least one. Beaconhouse: Passed = at least one subject passed, In Progress = started without a pass. I-SAPS: Passed = holds the I-SAPS certificate (all 9 module exams passed), In Progress = has done a unit or sat a module exam without passing. "Passed all levels" on Mid / High means NIETE Skilled Practitioner, NIETE Teacher Leader, Oxbridge and Beaconhouse all passed; I-SAPS is not part of it.',
     },
-    /** Her Mid / High "Training Partners": Oxbridge, NIETE, Beaconhouse (Trainings.jsx, TrainingLevelCard.jsx). */
+    /** Her Mid / High "Training Partners": Oxbridge, NIETE, Beaconhouse (Trainings.jsx, TrainingLevelCard.jsx); then I-SAPS. */
     partners: {
       title: 'Training Partners',
       oxbridge: 'Oxbridge Training',
       niete: 'NIETE Trainings',
       beaconhouse: 'Beaconhouse Training',
+      /** Not one of hers (operator, 2026-10-19): a fourth partner, named after the partner as hers are. */
+      isaps: 'I-SAPS Training',
       /** Short names in the chart, the sector cards and the filter. */
       oxbridgeShort: 'Oxbridge',
       beaconhouseShort: 'Beaconhouse',
+      isapsShort: 'I-SAPS',
       nieteFilter: (name: string) => `NIETE — ${name}`,
       summary: (passed: string, inProgress: string) => `${passed} passed · ${inProgress} in progress`,
       nieteSummary: 'Skilled Practitioner & Teacher Leader',
@@ -383,8 +386,10 @@ const EN = {
       bySession: 'Breakdown by session',
       perLevel: 'Teachers per level',
       byLevel: 'Breakdown by level',
+      perModule: 'Teachers per module',
+      byModule: 'Breakdown by module',
       perSector: 'Per-sector breakdown',
-      columns: { session: 'Session', level: 'Level', sector: 'Sector', middle: 'Middle', high: 'High', total: 'Total' },
+      columns: { session: 'Session', level: 'Level', module: 'Module', sector: 'Sector', middle: 'Middle', high: 'High', total: 'Total' },
       completedAll: 'Completed all',
       unique: 'Unique teachers (any level)',
       uniqueNote: 'a teacher may appear in multiple levels above',
@@ -400,6 +405,9 @@ const EN = {
           ['Session 6', 'STEM/STEAM, Creativity and Advanced Applications: Introduces the application of GBTLA to STEM/STEAM education through inquiry, design thinking, problem-solving, creativity, and interdisciplinary learning experiences that extend beyond traditional classroom activities.'],
           ['Session 7', 'Bringing It All Together – GBTLA in Practice: A capstone session where participants integrate all components of GBTLA by designing, facilitating, and reflecting on complete game-based lessons, demonstrating effective planning, implementation, assessment, and classroom management.'],
         ] as ReadonlyArray<readonly [string, string]>,
+      },
+      isapsDefinition: {
+        short: 'I-SAPS Level 1 (Novice) is a nine-module programme for Middle and High teachers. Each module is a set of units followed by a module exam: multiple-choice questions and one written answer. A teacher who passes all nine module exams receives the I-SAPS certificate. It is shown on its own and is not part of “passed all levels”.',
       },
       beaconhouseDefinition: {
         short: "Beaconhouse Trainings build teachers' professional knowledge and practical classroom skills to deliver engaging, inclusive, and effective instruction. The programme covers evidence-based teaching methodologies, AI-enhanced instruction, inquiry-based learning, problem-solving, and learner-centred practices across four core subjects.",

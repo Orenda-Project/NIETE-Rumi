@@ -6,7 +6,7 @@ import { count } from '../format';
 import { TrainingBarChart } from './TrainingBarChart';
 import { TrainingLevelCard } from './TrainingLevelCard';
 import {
-  BEACONHOUSE_LOOK, HER_GREEN, HIGH_COLOR, LEVEL_LOOK, MIDDLE_COLOR, OXBRIDGE_LOOK, ROW_COLOR,
+  BEACONHOUSE_LOOK, HER_GREEN, HIGH_COLOR, ISAPS_LOOK, LEVEL_LOOK, MIDDLE_COLOR, OXBRIDGE_LOOK, ROW_COLOR,
 } from './trainingLook';
 
 /**
@@ -16,13 +16,17 @@ import {
  *   NIETE        the (NIETE) Skilled Practitioner and Teacher Leader cards and her per-sector table
  *   Beaconhouse  her level card (with its courses), "Teachers per level" and "Breakdown by level" with "Unique
  *                teachers (any level)"
+ *   I-SAPS       not one of hers (operator, 2026-10-19): laid out like Oxbridge, its card, "Teachers per module" and
+ *                "Breakdown by module" with "Completed all"
  * Numbers from GET /analytics/training-levels?band=midhigh (overview.partners, overview.levels, regions).
  */
-export type PartnerId = 'oxbridge' | 'niete' | 'beaconhouse';
+export type PartnerId = 'oxbridge' | 'niete' | 'beaconhouse' | 'isaps';
 
-const PARTNERS: readonly PartnerId[] = ['oxbridge', 'niete', 'beaconhouse'];
+const PARTNERS: readonly PartnerId[] = ['oxbridge', 'niete', 'beaconhouse', 'isaps'];
 
-const LOOK: Record<PartnerId, string> = { oxbridge: OXBRIDGE_LOOK.color, niete: HER_GREEN, beaconhouse: BEACONHOUSE_LOOK.color };
+const LOOK: Record<PartnerId, string> = {
+  oxbridge: OXBRIDGE_LOOK.color, niete: HER_GREEN, beaconhouse: BEACONHOUSE_LOOK.color, isaps: ISAPS_LOOK.color,
+};
 
 export function TrainingPartners({ c, data, active, onActive, nieteOrders }: {
   c: AnalyticsWords;
@@ -34,16 +38,19 @@ export function TrainingPartners({ c, data, active, onActive, nieteOrders }: {
 }) {
   const t = c.trainingLevels;
   const p = data.overview.partners;
-  const label: Record<PartnerId, string> = { oxbridge: t.partners.oxbridge, niete: t.partners.niete, beaconhouse: t.partners.beaconhouse };
+  const label: Record<PartnerId, string> = {
+    oxbridge: t.partners.oxbridge, niete: t.partners.niete, beaconhouse: t.partners.beaconhouse, isaps: t.partners.isaps,
+  };
   const summary: Record<PartnerId, string> = {
     oxbridge: p ? t.partners.summary(count(p.oxbridge.passed, c), count(p.oxbridge.inProgress, c)) : '',
     niete: t.partners.nieteSummary,
     beaconhouse: p ? t.partners.summary(count(p.beaconhouse.passed, c), count(p.beaconhouse.inProgress, c)) : '',
+    isaps: p ? t.partners.summary(count(p.isaps.passed, c), count(p.isaps.inProgress, c)) : '',
   };
 
   return (
     <div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {PARTNERS.map((id) => {
           const on = active === id;
           const color = LOOK[id];
@@ -70,6 +77,7 @@ export function TrainingPartners({ c, data, active, onActive, nieteOrders }: {
       {active === 'oxbridge' && p ? <OxbridgePanel c={c} data={data} /> : null}
       {active === 'niete' ? <NietePanel c={c} data={data} orders={nieteOrders} /> : null}
       {active === 'beaconhouse' && p ? <BeaconhousePanel c={c} data={data} /> : null}
+      {active === 'isaps' && p ? <IsapsPanel c={c} data={data} /> : null}
     </div>
   );
 }
@@ -124,6 +132,31 @@ function BeaconhousePanel({ c, data }: { c: AnalyticsWords; data: TrainingLevels
   );
 }
 
+function IsapsPanel({ c, data }: { c: AnalyticsWords; data: TrainingLevelsResponse }) {
+  const t = c.trainingLevels;
+  const is = data.overview.partners!.isaps;
+  return (
+    <div data-testid="partner-panel-isaps" className="mt-4 rounded-xl bg-white p-4 sm:p-5" style={{ border: `2px solid ${ISAPS_LOOK.color}`, boxShadow: `0 1px 4px ${ISAPS_LOOK.color}18` }}>
+      <div className="mb-5">
+        <TrainingLevelCard
+          c={c} testId="partner-card-isaps" look={ISAPS_LOOK} label={null} name={t.partners.isaps}
+          passed={is.passed} inProgress={is.inProgress} notStarted={is.notStarted}
+          definition={t.partners.isapsDefinition}
+        />
+      </div>
+      <Funnel
+        c={c}
+        testId="isaps"
+        chartTitle={t.partners.perModule}
+        tableTitle={t.partners.byModule}
+        firstColumn={t.partners.columns.module}
+        rows={is.modules}
+        last={{ name: t.partners.completedAll, ...is.completedAll }}
+      />
+    </div>
+  );
+}
+
 /** Her middle / high chart and table under a partner card. */
 function Funnel({ c, testId, chartTitle, tableTitle, firstColumn, rows, last, unique }: {
   c: AnalyticsWords;
@@ -132,7 +165,7 @@ function Funnel({ c, testId, chartTitle, tableTitle, firstColumn, rows, last, un
   tableTitle: string;
   firstColumn: string;
   rows: Array<TrainingBandSplit & { name: string }>;
-  /** Oxbridge: "Completed all", set apart. */
+  /** Oxbridge and I-SAPS: "Completed all", set apart. */
   last?: TrainingBandSplit & { name: string };
   /** Beaconhouse: unique teachers across its levels. */
   unique?: number;
