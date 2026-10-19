@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 bd-s42dye.4 — import the 66 conducted legacy TALEEMABAD courses of fde_production into the NIETE
-platform as a SEPARATE provider "Taleemabad Archive" (vendor key TALEEMABAD_LEGACY), for the coach Training
+platform as a SEPARATE provider "NIETE Archive" (vendor key TALEEMABAD_LEGACY), for the coach Training
 Library only. All decisions live in scripts/lib/legacy_taleemabad_import.py (and are tested there).
 
   Reads   fde_production (read-only session)           creds: TALEEMABAD_DB_* in the repo .env
