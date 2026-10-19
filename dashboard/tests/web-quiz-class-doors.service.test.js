@@ -693,6 +693,13 @@ describe('the Urdu class table and league: an Urdu class label, Play always in r
     await flush(); await flush();
     return p;
   };
+  test('an Urdu quiz\'s table with the Urdu polish: its stored «جماعت 2، 3» reads in the one class word with Urdu digits', async () => {
+    const urQuiz = async (label, ur2) => { const p = page({ lang: 'ur', store: {}, view: 'class', cls: { label, teacher: 'Ms Testwala', chips: [] }, bootExtra: { class_doors: true, ...(ur2 ? { ui: { ur2: true } } : {}) }, api: { '/board/TEST': COLD } }); await flush(); await flush(); return p.html(); };
+    const on = await urQuiz('جماعت 2، 3، 4، 5', true);
+    expect(on).toContain('کلاس ۲، ۳، ۴، ۵');
+    expect(on).not.toContain('جماعت 2');
+    expect(await urQuiz('جماعت 2، 3، 4، 5', false)).toContain('جماعت 2، 3، 4، 5');   // polish off: as stored (today)
+  });
   test('the Urdu polish: no rendered Urdu text puts a «·» beside an Urdu digit (it reads as «۰»), on the class table and the school league', async () => {
     const DOT_DIGIT = /[۰-۹]\s*·|·\s*[۰-۹]/;
     const text = (h) => h.replace(/<[^>]+>/g, '');

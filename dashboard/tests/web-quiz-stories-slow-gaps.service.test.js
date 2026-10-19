@@ -331,6 +331,16 @@ describe('the player: gaps between phrases (opts.gaps, opt-in)', () => {
       expect(gapsOf(w, p)).toEqual([]);
       expect(w.rates.every((r) => r === 1)).toBe(true);
     });
+    test('a page with nowhere to wait (one sentence, no comma): Slower still sounds slower, at 0.85, pitch kept', () => {
+      const w = world();
+      const one = { ...EN, words: [W(0, 'Mina', 100, 400), W(1, 'has', 420, 600), W(2, 'a', 620, 700), W(3, 'red', 720, 900), W(4, 'kite.', 920, 1300)] };
+      const p = w.RA.mount(w.document.createElement('div'), one, { lines: [[0, 4]] });
+      p.slow(true, true);
+      expect(w.audio()._r).toBe(0.85);
+      expect(w.audio().preservesPitch).toBe(true);
+      p.slow(false, true);
+      expect(w.audio()._r).toBe(1);
+    });
     test('turned on mid-page: gaps start from where the clip is (never a jump back to a passed word)', () => {
       const w = world();
       const p = w.RA.mount(w.document.createElement('div'), EN, { lines: EN_LINES });
