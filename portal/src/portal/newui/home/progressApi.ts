@@ -22,14 +22,15 @@ export type ProgressCounts = {
   attendance?: { days?: number; registers?: number; unit?: 'days' };
 };
 
-export type LessonPlanOpen = { lane: 'k5'; lessonId: string } | { lane: 'g612'; segmentId: string; lang: 'en' | 'ur' | string };
+export type LessonPlanOpen = { lane: 'k5'; lessonId: string } | { lane: 'g612'; segmentId: string; lang: 'en' | 'ur' | string } | { lane: 'fln'; planId: string };
 
 /** One plan she used (opened in the portal or received on WhatsApp), most recent first. */
 export type LessonPlanUsed = {
   planKey: string;
-  kind: 'k5' | 'g612';
+  kind: 'k5' | 'g612' | 'fln';
   lessonId?: string;
   segmentId?: string;
+  planId?: string;
   lang?: string | null;
   /** The catalogue still has it. */
   found: boolean;

@@ -1,0 +1,32 @@
+/*
+ * Share, Send to teacher, the builder and the sign-in banner. Scoped under .fln-root: index.css forces
+ * the Urdu font on every element of an Urdu page with !important, and an Urdu line inside an English page (the
+ * bilingual banner, an Urdu title in an English builder) needs the same Nastaliq and room for its descenders.
+ */
+.fln-root[lang="ur"],
+.fln-root [lang="ur"] {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+.fln-root [lang="en"],
+.fln-root .fln-ltr-atom {
+  font-family: var(--font-latin);
+}
+
+/* A URL or a code: one left-to-right atom that wraps anywhere, never reordered by the text around it. */
+.fln-root .fln-ltr-atom {
+  direction: ltr;
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  text-align: left;
+}
+
+.fln-root .fln-sheet-panel {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.fln-root .fln-share-bar {
+  padding-bottom: env(safe-area-inset-bottom);
+}

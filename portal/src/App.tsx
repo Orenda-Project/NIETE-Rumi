@@ -112,6 +112,7 @@ const SchoolAnalytics = page(() => import("./portal/pages/SchoolAnalytics"));
 const SchoolLessons = page(() => import("./portal/pages/SchoolLessons"));
 // bd-s6qbts.3 — school-wise analytics for analytics-only accounts (FDE / AEO).
 const SchoolsAnalytics = page(() => import("./portal/analytics/SchoolsAnalytics"));
+const FlnRoutes = page(() => import("./portal/fln/FlnRoutes"));
 
 /** While a page's chunk arrives on a cold start at that page: its outline, never a spinner. */
 function RouteFallback() {
@@ -320,6 +321,7 @@ const App = () => {
                 keeps the page and its numbers. */}
             <Route path="/portal/analytics/schools/:tab?" element={<SchoolsAnalytics />} />
 
+            <Route path="/portal/fln/*" element={<FlnRoutes />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

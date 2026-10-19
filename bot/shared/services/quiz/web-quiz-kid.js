@@ -20,7 +20,7 @@
  * every id that would let a row be joined back to a phone, a share code or a session is removed from it.
  */
 const crypto = require('crypto');
-const { logEvent } = require('../../utils/structured-logger');
+const logEvent = (...a) => require('../../utils/structured-logger').logEvent(...a); // lazy: the portal calls tk() without the bot logger
 const T = require('./web-quiz-token');
 
 const KEY_ENV = 'WEB_QUIZ_KID_KEY';

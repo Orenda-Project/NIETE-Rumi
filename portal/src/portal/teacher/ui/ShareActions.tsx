@@ -96,7 +96,7 @@ export function handoffIntentUrl(fileUrl: string, pageOrigin: string): string | 
   return `intent://${new URL(pageOrigin).host}/open-file.html?f=${b64url(f.href)}#Intent;scheme=https;end`;
 }
 
-async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
   } catch { /* fall through to the old way */ }

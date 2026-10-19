@@ -19,3 +19,104 @@ Feature: Teacher lesson plans
     Then the curriculum page "Lesson Plans" opens
     When she opens /portal/lesson-plans
     Then /portal/lesson-plans settles on /portal/curriculum
+
+  # FLN Reading Hour + Numeracy (bd-t7zk3t.11, SPEC_v2 §8; m-app owns FLN01/02/05/07, m-links FLN03/04/06).
+  # Behind app_settings `portal_fln_lessons` (missing = OFF). Written by hand AFTER the generated TL scenarios: these
+  # are not page-health rows, so gen_page_features.py cannot express them and the web driver has no code for them yet
+  # (@draft). Re-running the generator rewrites this file — carry this block over when it does.
+
+  @FLN01 @draft @config-gated
+  Scenario: FLN switch on: the New lesson plan page shows the FLN band; switch off: the page is unchanged
+    Given the teacher app v2 is on and the coach app v2 is off
+    And portal_fln_lessons is true
+    And the demo teacher is signed in
+    When they open /portal/teacher/lessons/new
+    Then under the grade and subject picker a band lists Reading Hour English, Reading Hour Urdu and Numeracy
+    And each row shows its lesson count and level and links to /portal/fln/list/<subject>?grade=<grade>
+    When portal_fln_lessons is removed
+    And they open /portal/teacher/lessons/new again
+    Then no FLN band is shown and the page is the same as before the FLN release
+    And the catalogue answers 404; /me says lessons:false
+
+  @FLN02 @draft @config-gated
+  Scenario: A signed-in teacher opens an FLN plan from a deep link
+    Given the teacher app v2 is on and the coach app v2 is off
+    And portal_fln_lessons is true
+    And the demo teacher is signed in
+    When they open /portal/teacher/lessons/open?plan=fln:<id of a Reading Hour English grade 1 plan>
+    Then the page settles on /portal/fln/p/<that id> and the open page is not left in the history
+    And the plan's title, its minutes and its section bands are shown
+    And one open is recorded for the plan with kind fln
+
+  @FLN05 @draft @config-gated
+  Scenario: A sound plays on tap, one at a time, and tapping it again restarts it
+    Given portal_fln_lessons is true
+    And the demo teacher is signed in
+    And they are on the plan page of a Reading Hour English grade 1 plan with a sound grid
+    When they tap the first sound
+    Then that sound plays and its tile shows it is playing
+    When they tap the second sound while the first is playing
+    Then the first sound stops and only the second plays
+    When they tap the second sound again
+    Then it plays again from the start, and still only one sound plays
+
+  @FLN07 @draft @config-gated
+  Scenario: The plan opens with every section closed; a tap opens one in place
+    Given portal_fln_lessons is true
+    And the demo teacher is signed in
+    When they open the plan page of a Reading Hour English grade 1 plan
+    Then the sound grid is visible before any tap
+    And every section band is closed, showing its title, minutes and first move
+    When they tap the second section band
+    Then that section opens in place with its moves, its band reads expanded, and the page does not scroll
+    And every other section stays closed
+    When they tap the same band again
+    Then it closes
+  # FLN03 (PR-D, m-links): a shared plan link opened signed out → sign-in → back on the plan (next=, replace).
+  # Covers portal/src/portal/fln/lib/safeNext.ts, fln/login/FlnLoginBanner.tsx, TeacherGate.tsx:29, PortalLogin.tsx.
+  @FLN03
+  Scenario: A signed-out teacher opens a shared Reading Hour link, signs in, and lands on that plan
+    Given portal_fln_lessons is on for the demo teacher
+    And the demo teacher is signed out
+    When the teacher opens /portal/fln/p/11156
+    Then the sign-in page shows the plan's title with "Sign in to open" and «کھولنے کے لیے سائن اِن کریں»
+    When the teacher signs in with a code
+    Then /portal/fln/p/11156 opens
+    And Back from the plan does not return to the sign-in page
+    And a sign-in link whose next= points at another site lands on the teacher's home instead
+
+  # FLN04 (PR-D, m-links): Share is for leaders only, and the builder makes a plain link.
+  # Covers dashboard/routes/portal-fln-links.routes.js, fln/share/*, fln/send/SendPage.tsx, FlnSendCard, FlnSendTile.
+  @FLN04
+  Scenario: A coach sees Share on a plan and finds a plan in the link builder; a teacher sees neither
+    Given portal_fln_lessons and portal_fln_share are on for the demo coach and the demo teacher
+    And the demo coach is signed in
+    When the coach opens /portal/fln/p/11156
+    Then a bar with "Send to teacher" and "Share link" sits at the bottom of the plan
+    When the coach taps "Share link"
+    Then the sheet offers "Send on WhatsApp" and "Copy link"
+    And the message names the plan and its level, never a grade, with the link alone on its last line
+    When the coach opens "Send a lesson plan" from My Patch
+    And picks Grade 1, Reading Hour English
+    Then each row shows its position in the level, with Copy and WhatsApp buttons
+    When the demo teacher signs in and opens /portal/fln/p/11156
+    Then there is no Share bar
+    And GET /api/portal/fln/links answers 404 for the teacher
+
+  # FLN06 (PR-E, m-links): Send to teacher. Leader → bot message → the teacher's OWN /go → the FLN plan, signed in.
+  # Covers dashboard/routes/portal-fln-send.routes.js, bot/shared/services/fln-send.service.js,
+  # bot/shared/services/fln-go-target.js and the /go landing hook. Sandbox test accounts only; never a real teacher.
+  @FLN06
+  Scenario: A coach sends a Reading Hour plan to an assigned teacher, and the teacher's own link opens it signed in
+    Given portal_fln_lessons and portal_fln_share are on for the demo coach and the demo teacher
+    And the demo teacher is in the demo coach's school assignments
+    And the demo coach is signed in
+    When the coach opens Send to teacher on Reading Hour plan 11156
+    Then the teacher picker lists the demo teacher by name, with no phone number on screen
+    And a teacher outside the coach's schools is not in the list
+    When the coach picks the demo teacher and taps Send
+    Then the sheet shows "Sent ✓" for 1 teacher
+    And the demo teacher's WhatsApp message carries a button to that teacher's own /go link
+    When the demo teacher taps the button
+    Then /portal/fln/p/11156 opens signed in as the demo teacher, with no Share bar
+    And a send to a teacher key outside the coach's scope is refused with 403 and nothing is sent
