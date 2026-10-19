@@ -95,5 +95,6 @@ describe('featureOfRoute', () => {
     ['/portal/teacher/training', 'teacher_training'], ['/portal/training/level/:id', 'teacher_training'],
     ['/portal/teacher/attendance', 'attendance'], ['/portal/teacher/classes', 'classes'], ['/portal/teacher/coaching', 'ai_coaching'],
     ['/portal/coach/observe', 'coach'], ['/portal/dashboard', 'dashboard'], ['/portal/account', 'other'],
+    ['/portal/fln/send', 'lesson_plan'], ['/portal/fln/p/:id', 'lesson_plan'], ['/portal/fln/list/:id', 'lesson_plan'], // bd-zcgpkx
   ])('%s → %s', (route, f) => expect(journey.featureOfRoute(route)).toBe(f));
 });

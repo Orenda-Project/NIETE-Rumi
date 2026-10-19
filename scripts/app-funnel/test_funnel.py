@@ -80,6 +80,23 @@ class Funnel(unittest.TestCase):
         res = funnel.build(rows)
         self.assertEqual(sorted(res['by_feature']), ['classes', 'menu'])
 
+    def test_a_leader_or_coach_journey_is_its_own_funnel_never_mixed_into_the_teachers(self):
+        # bd-zcgpkx: leaders' lesson-plan asks land on Send a lesson plan, not the teacher app; mixed in, ~7% of the
+        # lesson_plan asks would never reach a teacher page and the teachers' rates would sag for no teacher reason.
+        rows = journey_full('j_t', pages=('/portal/teacher/lessons',))
+        rows += [bot('app_funnel.command', 'j_l', 0, 'lesson_plan', door='bare_command', verdict='link', audience='leader'),
+                 bot('app_funnel.link_sent', 'j_l', 0, 'lesson_plan', via='cta_url', audience='leader'),
+                 row('app_link.open', 'j_l', 1, outcome='ok', feature='fln:send'),
+                 row('app_funnel.page_view', 'j_l', 2, route='/portal/fln/send', feature='lesson_plan'),
+                 row('app_funnel.action', 'j_l', 5, action='fln.sent', feature='lesson_plan')]
+        rows += [bot('app_funnel.command', 'j_c', 0, 'teacher_training', door='command', verdict='link', audience='coach')]
+        rows += [bot('app_funnel.command', 'j_x', 0, 'lesson_plan', door='command', verdict='link', audience='teacher')]
+        res = funnel.build(rows)
+        self.assertEqual(sorted(res['by_feature']), ['lesson_plan', 'lesson_plan@leader', 'teacher_training@coach'])
+        self.assertEqual(res['by_feature']['lesson_plan']['steps'][0], {'name': 'asked', 'n': 2, **{k: v for k, v in res['by_feature']['lesson_plan']['steps'][0].items() if k not in ('name', 'n')}})
+        leader = dict((s['name'], s['n']) for s in res['by_feature']['lesson_plan@leader']['steps'])
+        self.assertEqual((leader['asked'], leader['acted']), (1, 1))
+
     def test_journeys_are_counted_once_even_when_the_link_is_tapped_twice(self):
         rows = journey_full('j_a', pages=('/portal/teacher/lessons',))
         rows.append(row('app_link.open', 'j_a', 20, outcome='ok', feature='lesson_plan'))
