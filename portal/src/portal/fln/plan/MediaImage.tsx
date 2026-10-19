@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — a picture in a reserved box (DESIGN v2 §2 S4.5, §5 dual-source, §7 "Image fails").
+ * A picture in a reserved box (DESIGN v2 §2 S4.5, §5 dual-source, §7 "Image fails").
  * The box is sized by `aspect-ratio: w / h` (4 / 3 without sizes) before a byte arrives, so nothing shifts on 3G.
  * `loading="lazy"`, `decoding="async"`, alt = the step's text. On `error`, or 6 s without `load`, it retries ONCE,
  * silently, from `orig`; after that the box keeps its size and shows the failed caption. Tap → full-screen overlay.

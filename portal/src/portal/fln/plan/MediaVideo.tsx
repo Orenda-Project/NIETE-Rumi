@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — a video, tap-to-play only (DESIGN v2 §5 "Videos"): the poster (or a neutral box) and a
+ * A video, tap-to-play only (DESIGN v2 §5 "Videos"): the poster (or a neutral box) and a
  * "Watch · <min> min · <MB> MB" button; nothing is fetched before the tap (`preload="none"`, `src` set on tap).
  * After 5 s in `waiting` the smaller copy (`src_low`, 360p) is offered. Dual-source like the picture: one retry
  * from `orig` on `error`.

@@ -1,8 +1,8 @@
 'use strict';
 /**
- * bd-t7zk3t.12 — describe a Reading Hour / Numeracy (FLN) plan, for lp-describe.service.
+ * Describe a Reading Hour / Numeracy (FLN) plan, for lp-describe.service.
  *
- * An FLN open is `fln:<id>` (taleemabad_core slo_lessonplan.id). Its name comes from the sidecar
+ * An FLN open is `fln:<id>` (the plan's id in the FLN source corpus). Its name comes from the sidecar
  * index (fln-index.service), never from the corpus. The answer has the same fields as a k5/g612
  * description, so every list that names opens keeps working, plus the FLN extras (level, minutes).
  * Names are in English like the k5 book names; the portal's FLN pages carry their own en/ur strings.
@@ -20,7 +20,7 @@ const SUBJECTS = Object.freeze({
   'rh-ur': 'Reading Hour · Urdu',
   num: 'Numeracy',
 });
-/** taleemabad_core subject ids, in case an index carries the id rather than the key. */
+/** The FLN source corpus's subject ids, in case an index carries the id rather than the key. */
 const SUBJECT_IDS = Object.freeze({ 12: 'rh-en', 10: 'rh-ur', 13: 'num' });
 
 const LEVELS = Object.freeze({

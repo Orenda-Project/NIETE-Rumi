@@ -1,12 +1,12 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — the Reading Hour + Numeracy (FLN) corpus: one versioned, immutable bundle on the content mirror,
+ * The Reading Hour + Numeracy (FLN) corpus: one versioned, immutable bundle on the content mirror,
  * read by this server and held in memory (SPEC v2 §1; contracts/plan-json.md v2).
  *
  *   ${base}/${ver}/corpus.json = { version, built_at, subjects[], levels[], placement[], plans{<id>: Plan} }
  *
  *   base  env FLN_CORPUS_BASE, else `${CONTENT_R2_PUBLIC_URL}/fln/corpus`
- *   ver   app_settings `fln_corpus_version` (the COS switches bundles without a redeploy), else env
+ *   ver   app_settings `fln_corpus_version` (an operator switches bundles without a redeploy), else env
  *         FLN_CORPUS_VERSION, else DEFAULT_VERSION below
  *   FLN_CORPUS_FILE  a local path (dev/QA only): loaded from disk instead of the network; its embedded version is
  *         accepted even when it differs from `ver` (logged), so a dev bundle runs without touching app_settings
@@ -29,7 +29,7 @@ const fs = require('fs');
 const zlib = require('zlib');
 const supabase = require('../config/supabase');
 
-// Last resort only (COS 163228): app_settings `fln_corpus_version` is the source of truth on every tier; a missing or
+// Last resort only: app_settings `fln_corpus_version` is the source of truth on every tier; a missing or
 // garbled row degrades to bundle v1 instead of hiding the band, and says so in the log.
 const DEFAULT_VERSION = 'v1-20261018-786b5bff';
 const VERSION_RE = /^v\d+-\d{8}-[0-9a-f]{8}$/;

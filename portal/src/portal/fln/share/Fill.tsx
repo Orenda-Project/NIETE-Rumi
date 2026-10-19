@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — a catalogue string with `{slot}`s, drawn with each value inside <bdi> in the chrome's digits, so a
+ * A catalogue string with `{slot}`s, drawn with each value inside <bdi> in the chrome's digits, so a
  * number or a Latin run never takes its direction from the Urdu around it (language-protocol §8–9).
  */
 import { Fragment } from 'react';

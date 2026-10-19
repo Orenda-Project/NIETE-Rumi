@@ -4,7 +4,7 @@ import SendSheet from './SendSheet';
 import { stubFetch, callsTo, PLAN_DATA, wholeText } from './testFetch';
 
 /**
- * bd-t7zk3t.12 — "Send to teacher" (DESIGN v2 §4 L2a, §7): the leader's own teachers (keyed ids, never a phone), search,
+ * "Send to teacher" (DESIGN v2 §4 L2a, §7): the leader's own teachers (keyed ids, never a phone), search,
  * multi-select up to 30, Send → POST /send; Sent ✓ / partial failure / rate limit / no teachers; and while the server
  * routes (PR-E) are not deployed, /teachers 404 → one calm line and a button to Share link.
  */

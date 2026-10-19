@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import i18n from 'i18next';
 
 /**
- * bd-t7zk3t.12 — the one-line hook in the coach Training Library (LibraryPages.tsx LibraryHome tiles grid): the
+ * The one-line hook in the coach Training Library (LibraryPages.tsx LibraryHome tiles grid): the
  * "Send a lesson plan" tile, only when /me.share, inside the providers grid, in the page's own language.
  */
 vi.mock('../components/PortalLayout', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the "Reading Hour & Numeracy" band's door on the New-lesson page. NewLessonPage loads with the
+ * The "Reading Hour & Numeracy" band's door on the New-lesson page. NewLessonPage loads with the
  * teacher app's first screen, so this file stays tiny: it asks GET /fln/me and only when lessons are on does it load
  * the band itself (FlnBandBody + its CSS) as a separate chunk. Off, pending, 404 or any failure → null, so the page is
  * byte-identical to today and no teacher downloads FLN code while the switch is off.

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — SYNTHETIC plan fixtures for the plan-page tests. Same SHAPE as the normalised corpus plans
+ * SYNTHETIC plan fixtures for the plan-page tests. Same SHAPE as the normalised corpus plans
  * (a Reading Hour English phonics plan, a Reading Hour Urdu plan, a Numeracy plan, a screener) and the same hazards
  * (Latin tokens inside Urdu headers, mixed ASCII/Urdu digits, `**bold**`, repeated clips, images with true sizes).
  * No text here comes from the corpus; every URL is a placeholder host.

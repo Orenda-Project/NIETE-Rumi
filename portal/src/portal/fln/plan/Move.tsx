@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — one numbered move (DESIGN v2 §2 S4.5): the step text (markdown subset, escaped), the Say:/Ask:/Answer:
+ * One numbered move (DESIGN v2 §2 S4.5): the step text (markdown subset, escaped), the Say:/Ask:/Answer:
  * label in the PLAN's own words (the corpus's item types; `instruction` gets none), then the step's media in order:
  * a SoundPill for EVERY audio occurrence (repeats keep their own pill; the label chain lives in the player's clips.ts),
  * images in reserved boxes, videos as poster + Watch, pdfs as a ≥48 px link.

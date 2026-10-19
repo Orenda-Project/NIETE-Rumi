@@ -8,7 +8,7 @@ import FlnRoutes from '../FlnRoutes';
 import { ME_TEACHER, rhEnG1, rhEnG8, stubFetch } from './listFixtures';
 
 /**
- * bd-t7zk3t.11 — FlnGate: GET /fln/me on EVERY mount (no cache), 401 → sign-in with next=, 404 or lessons:false →
+ * FlnGate: GET /fln/me on EVERY mount (no cache), 401 → sign-in with next=, 404 or lessons:false →
  * "This lesson isn't available" with the link to the lessons home, else `.fln-root` with lang/dir + the context.
  */
 

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * FLN media served as presigned URLs on the portal's OWN private R2 bucket (COS ruling 190012 item 2, red team 190210).
+ * FLN media served as presigned URLs on the portal's OWN private R2 bucket, never the public mirror.
  *
  * The public mirror rate-limits (429s at 1.9% from one client), so GET /api/portal/fln/plan/:id must never hand a
  * mirror URL to the browser: every `fln/<kind>/<sha8>/<name>` key is re-addressed to the same key on R2_BUCKET_NAME,

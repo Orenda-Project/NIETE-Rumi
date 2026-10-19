@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the leader's own teachers (GET /api/portal/fln/teachers?q=, PR-E): search, multi-select up to 30.
+ * The leader's own teachers (GET /api/portal/fln/teachers?q=, PR-E): search, multi-select up to 30.
  * Only a keyed id, the name and the school are ever read off a row — a phone number is never drawn, even if a server
  * sent one. 404 = sending is not deployed here (the sheet offers Share link instead).
  */

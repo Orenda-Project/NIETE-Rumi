@@ -22,3 +22,6 @@ export const WHATSAPP_NUMBER = '923206281951';
 
 /** Base chat link. Append `?text=…` for a prefilled message. */
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
+
+/** WhatsApp's contact picker: no number, so the sender chooses the chat. Append `?text=…` (a leader sharing a link). */
+export const WHATSAPP_URL_PICKER = 'https://wa.me/';

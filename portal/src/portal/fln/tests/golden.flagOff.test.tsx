@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within, cleanup } from "@testi
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 /**
- * bd-t7zk3t.11 — SPEC_v2 §7 goldens: with the FLN switch OFF the K-5 / 6–12 pages are byte-identical.
+ * SPEC_v2 §7 goldens: with the FLN switch OFF the K-5 / 6–12 pages are byte-identical.
  *
  * The snapshots in __snapshots__/golden.flagOff.test.tsx.snap were RECORDED on the pre-FLN code (sandbox 67e22b0 +
  * c4a2c874f, before any hook line). With the hooks in place and every `/api/portal/fln/*` call answering 404, each

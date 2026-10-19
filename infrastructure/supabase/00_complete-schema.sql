@@ -6671,7 +6671,7 @@ COMMENT ON COLUMN child_test_sessions.visit_key IS
 CREATE TABLE IF NOT EXISTS niete_lp_opens (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  plan_kind   text NOT NULL CHECK (plan_kind IN ('k5', 'g612')),
+  plan_kind   text NOT NULL CHECK (plan_kind IN ('k5', 'g612', 'fln')),
   plan_ref    text NOT NULL CHECK (length(plan_ref) BETWEEN 1 AND 200),
   lang        text CHECK (lang IN ('en', 'ur')),
   source      text NOT NULL CHECK (source IN ('viewer', 'external')),
@@ -6691,6 +6691,31 @@ COMMENT ON COLUMN niete_lp_opens.lang IS
   'Internal. The 6-12 document language (en | ur); NULL for K-5.';
 COMMENT ON COLUMN niete_lp_opens.source IS
   'Internal. viewer = the portal''s own PDF viewer; external = handed to another app by a presigned link.';
+
+-- ─── niete_fln_events (migration V1.6.15) — Reading Hour / Numeracy (FLN) sharing events ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.15__niete_lp_opens_fln.sql, which also widens
+-- niete_lp_opens.plan_kind to admit 'fln' (above). Append-only leader sharing actions: share, link
+-- copy, open-link and a leader-to-teacher send. Keyed ids only; audio telemetry goes to the logs.
+CREATE TABLE IF NOT EXISTS niete_fln_events (
+  id          bigserial PRIMARY KEY,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  user_key    text NOT NULL,
+  kind        text NOT NULL CHECK (kind IN ('share', 'link_copy', 'open_link', 'send')),
+  plan_ref    text,
+  clip        text,
+  ms          integer,
+  result      text,
+  ua_class    text
+);
+CREATE INDEX IF NOT EXISTS niete_fln_events_created_idx
+  ON niete_fln_events (created_at);
+ALTER TABLE niete_fln_events ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE niete_fln_events IS
+  'Internal. Append-only FLN sharing events (share, link copy, open link, send). Keyed ids only — no phone, name or message text. Owner: Digital Coach team.';
+COMMENT ON COLUMN niete_fln_events.user_key IS
+  'Internal. Keyed id of the actor. For kind=send this is the SENDER''s keyed id.';
+COMMENT ON COLUMN niete_fln_events.clip IS
+  'Internal. For kind=send the RECIPIENT''s keyed id; otherwise unused.';
 
 -- ─── lesson-plan lifecycle (migration V1.6.4) — every ask's path, stage times, outcome, log id ──
 -- One row per lesson-plan ask in lesson_plan_requests, on every path; each plan row and each row of
