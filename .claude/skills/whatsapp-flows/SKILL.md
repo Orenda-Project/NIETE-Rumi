@@ -121,6 +121,17 @@ Uploading the JSON as an asset returns `validation_errors` at once, and needs no
 **publishing** needs the endpoint deployed. So upload to the draft first, fix everything Meta reports, and only
 then deploy and publish; otherwise a rename found at publish time costs a second deploy.
 
+### 15. The final endpoint reply closes the Flow only if it carries `extension_message_response`
+
+`{ screen: 'SUCCESS', data: { extension_message_response: { params } } }` closes the Flow at once and sends
+`params` as the `nfm_reply`. `{ screen: 'SUCCESS', data: { …anything else } }` is a different instruction —
+render the SUCCESS screen — and a render the client refuses leaves the user tapping a button that does nothing,
+with no error sent back to the endpoint. The v5 registration Flow shipped exactly that on its last screen (the
+reply matched SUCCESS's declared data key for key and was still never rendered). Close from the endpoint, declare
+`extension_message_response.properties.params` on the terminal screen, and keep every param a string.
+`tests/setup/flow-completion-contract.test.js` fails any endpoint reply naming `SUCCESS` without it, unless that
+endpoint is on its explicit render-a-SUCCESS-screen list.
+
 ## Endpoint response formats
 
 ```js

@@ -173,7 +173,7 @@ describe('v4 screens with the real redis contract', () => {
 
 // ─── 3. v5 screens ─────────────────────────────────────────────────────────
 describe('v5: name + language -> role + school -> pick -> teaching -> done', () => {
-  it('INIT prefills what we already know and still serves the v4 first screen', async () => {
+  it('INIT prefills what we already know', async () => {
     mockUsers.set(UID, { ...mockUsers.get(UID), name: 'Ayesha Bano', preferred_language: 'ur', language_locked: true });
     const ep = loadEndpoint();
     const init = await ep.handleRegistrationInit(UID);
@@ -181,7 +181,7 @@ describe('v5: name + language -> role + school -> pick -> teaching -> done', () 
     expect(init.data.init_full_name).toBe('Ayesha Bano');
     expect(init.data.init_language).toBe('ur');
     expect(Array.isArray(init.data.languages)).toBe(true);
-    expect(Array.isArray(init.data.countries)).toBe(true); // v4 still served by prod until it is republished
+    expect(init.data.countries).toBeUndefined(); // v4 is published nowhere since 2026-10-19 (bd-x7aprz.9)
   });
 
   it('PERSONAL_INFO (no country) -> ROLE_SCHOOL in her language, name + PK + language stored', async () => {
@@ -238,13 +238,14 @@ describe('v5: name + language -> role + school -> pick -> teaching -> done', () 
     expect(writesTo(UID).region).toBe('Tarnol');
   });
 
-  it('TEACHING completes: grades + subjects stored, flag set, flat params for the chat ack', async () => {
+  it('TEACHING completes: grades + subjects stored, flag set, params for the chat ack', async () => {
     const ep = loadEndpoint();
     await ep.handleRegistrationDataExchange(UID, 'PERSONAL_INFO', { full_name: 'Ayesha Bano', language: 'en' }, TOKEN);
     const done = await ep.handleRegistrationDataExchange(UID, 'TEACHING',
       { grade: ['grade_1', 'grade_2'], subjects: ['maths', 'urdu'] }, TOKEN);
     expect(done.screen).toBe('SUCCESS');
-    expect(done.data.registration_action).toBe('complete');
+    // bd-x7aprz.9: the reply closes the Flow — the chat ack's fields ride in extension_message_response.params.
+    expect(done.data.extension_message_response.params.registration_action).toBe('complete');
     expect(done.data.welcome_message).toContain('Ayesha');
     const w = writesTo(UID);
     expect(w.registration_completed).toBe(true);

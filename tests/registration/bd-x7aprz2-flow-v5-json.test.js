@@ -10,7 +10,8 @@ const path = require('path');
 
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
-const FLOW_FILE = path.join(__dirname, '../../docs/flows/registration-flow-v5.json');
+// v5.1 (bd-x7aprz.9) is the asset flow-configs registers; v5 is kept only as the superseded record.
+const FLOW_FILE = path.join(__dirname, '../../docs/flows/registration-flow-v5.1.json');
 const cp = (s) => [...String(s)].length;
 const flow = () => JSON.parse(fs.readFileSync(FLOW_FILE, 'utf8'));
 const screens = () => Object.fromEntries(flow().screens.map((s) => [s.id, s]));
@@ -22,7 +23,7 @@ function walk(children, visit) {
   }
 }
 
-describe('registration-flow-v5.json', () => {
+describe('registration-flow-v5.1.json', () => {
   it('is the five v5 screens, forward-only, ending in a terminal SUCCESS', () => {
     const f = flow();
     expect(f.data_api_version).toBe('3.0');
@@ -59,12 +60,16 @@ describe('registration-flow-v5.json', () => {
     }
   });
 
-  it('the completion payload is flat and names itself, so the chat ack can find it', () => {
+  it('SUCCESS declares the params the endpoint closes the Flow with, and its Done still names itself', () => {
+    // The endpoint's TEACHING reply closes the Flow with extension_message_response.params
+    // (bd-x7aprz.9); the screen declares that object so Meta does not strip it. If the screen is
+    // ever shown, Done completes with registration_action so the chat ack still recognises it.
+    const params = screens().SUCCESS.data.extension_message_response.properties.params.properties;
+    expect(Object.keys(params).sort()).toEqual(['flow_token', 'full_name', 'language', 'registration_action', 'school_linked']);
     let footer = null;
     walk(screens().SUCCESS.layout.children, (c) => { if (c.type === 'Footer') footer = c; });
     expect(footer['on-click-action'].name).toBe('complete');
-    expect(footer['on-click-action'].payload.registration_action).toBe('${data.registration_action}');
-    expect(footer['on-click-action'].payload.flow_token).toBe('${data.flow_token}');
+    expect(footer['on-click-action'].payload.registration_action).toBe('complete');
   });
 
   it('the static first screen fits Meta caps (labels 20, heading 80)', () => {
