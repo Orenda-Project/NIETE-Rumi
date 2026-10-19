@@ -218,3 +218,11 @@ describe('S5-1 (design-qa DQ68 v2): the bubble covers nothing a child could tap 
     expect(p.cue()._h).toMatch(new RegExp('class="wqc-hand" style="top:' + Math.round(L.target[0] + (L.target[1] - L.target[0]) / 2) + 'px;'));
   });
 });
+
+describe('step 5\'s clip (#3146): welcome-5 at its folder\'s version', () => {
+  test('the path and version the welcome handed over: welcome-5.mp3?v=<hash>', () => {
+    const p = cuePage({ lang: 'ur', els: { '[data-primary]': mkEl('a', R(300, 16, 328, 60)) }, sess: { 'wq.welcome.voice': '/wq/voice/welcome/sx-reyna-68567f-ur/', 'wq.welcome.voice_v': 'edb3c4ac' } });
+    p.load(); p.run(300);
+    expect(p.audios.map((x) => x.src)).toEqual(['/wq/voice/welcome/sx-reyna-68567f-ur/welcome-5.mp3?v=edb3c4ac']);
+  });
+});

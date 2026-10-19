@@ -2,7 +2,7 @@
  * welcome's Let's go opened carries ?w=1 (wq-welcome.js), and wq-tel.js loads this file there. ONCE, it points the hand
  * at that page's own first control (the lesson's play, else its primary, else the first answer) with "Your turn. Tap
  * here!" (the native read's final), for 6 s or until the first tap anywhere. The address forgets w=1 at once, so a
- * reload or a later visit never shows it again. The voice: the welcome's recorded clip welcome-5 under the path the
+ * reload or a later visit never shows it again. The voice: the welcome's recorded clip welcome-5 (at its folder's ?v=) under the path the
  * welcome named (sessionStorage), with the sound on; else none. Never the phone's own voice. Nothing to point at in
  * 10 s: nothing shows. Only a label: it never takes a tap. */
 (function () {
@@ -69,12 +69,12 @@
     el = null;
   }
   function voice() {
-    var base = null;
-    try { base = sessionStorage.getItem('wq.welcome.voice'); sessionStorage.removeItem('wq.welcome.voice'); } catch (e) { base = null; }
+    var base = null, v = null;
+    try { base = sessionStorage.getItem('wq.welcome.voice'); v = sessionStorage.getItem('wq.welcome.voice_v'); sessionStorage.removeItem('wq.welcome.voice'); sessionStorage.removeItem('wq.welcome.voice_v'); } catch (e) { base = null; }
     var off = false;
     try { off = localStorage.getItem('wq_snd') === '0' || localStorage.getItem('wq_sound') === 'false'; } catch (e) { off = false; }
     if (!base || off || !/^\/wq\/[A-Za-z0-9/_.-]+\/$/.test(base) || typeof Audio !== 'function') return;
-    try { var a = new Audio(base + 'welcome-5.mp3'); var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the line carries it */ }
+    try { var a = new Audio(base + 'welcome-5.mp3' + (v && /^[0-9a-f]{6,16}$/.test(v) ? '?v=' + v : '')); var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the line carries it */ }
   }
   function show(r) {
     done = true;
