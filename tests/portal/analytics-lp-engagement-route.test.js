@@ -84,10 +84,10 @@ const ROUTE = '/analytics/lp-engagement';
 const W1 = '2026-10-04';
 
 const SCHOOLS = [
-  { id: 's1', name: 'IMSG B.K 1', emis: '101' },
-  { id: 's2', name: 'IMCG Sihala', emis: '202' },
+  { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false },
+  { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false },
   // Not on FDE's list: its teachers are their sector's "No school" line.
-  { id: 's3', name: 'NIETE Support', emis: '1122' },
+  { id: 's3', name: 'NIETE Support', emis: '1122', region: null, is_active: true, is_probable_test: false },
 ];
 // The RDF populations, as analytics-lists hands them over (userId → the RDF's sector).
 const LISTS = {
@@ -101,12 +101,18 @@ const TEACHERS = [
   { id: 'u1', school_id: 's1' }, { id: 'u2', school_id: 's1' }, { id: 'u3', school_id: 's2' },
   { id: 'u4', school_id: null }, { id: 'u5', school_id: 's3' },
 ];
+// Today's roster with levels: the v7 rule the tab keeps when the lists are not loaded (sandbox).
+const ROSTER = [
+  { id: 'u1', school_id: 's1', bands: ['PRIMARY'] }, { id: 'u2', school_id: 's1', bands: ['PRIMARY'] },
+  { id: 'u3', school_id: 's2', bands: ['PRIMARY', 'HIGH'] }, { id: 'u5', school_id: 's3', bands: ['MIDDLE'] },
+];
 let activity;
 let loadAnalyticsLists;
 
 function poolRows(sql) {
   if (/lesson_plans|niete_lp612/.test(sql)) return activity.filter((a) => (/lesson_plans/.test(sql) ? a.k5 : !a.k5));
   if (/FROM schools\b/.test(sql)) return SCHOOLS;
+  if (/teacher_level/.test(sql)) return ROSTER;
   if (/FROM users\b/.test(sql)) return TEACHERS;
   return [];
 }
@@ -123,7 +129,7 @@ beforeEach(() => {
     { user_id: 'u5', grade: null, subject: null, ref: 'grade_9_physics.c01.p008-009', k5: false },
   ];
   loadAnalyticsLists = jest.fn(async () => LISTS);
-  jest.doMock('../../dashboard/lib/analytics-lists', () => ({ loadAnalyticsLists }), { virtual: true });
+  jest.doMock('../../dashboard/lib/analytics-lists', () => ({ ...jest.requireActual('../../dashboard/lib/analytics-lists'), loadAnalyticsLists }));
   jest.doMock('../../dashboard/config/supabase', () => ({
     from: jest.fn((tbl) => makeChain(tbl)),
     rpc: jest.fn().mockResolvedValue({ error: null }),
@@ -206,13 +212,14 @@ describe('GET /analytics/lp-engagement — the answer', () => {
   it('Primary: the RDF Primary population from analytics-lists, Active = used a lesson plan', async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER });
-    expect(loadAnalyticsLists).toHaveBeenCalledWith(require('../../dashboard/config/supabase'));
+    expect(loadAnalyticsLists).toHaveBeenCalledWith(require('../../dashboard/config/supabase'), { query: expect.any(Function) });
     expect(payload.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
     // u1 and u3 used a plan; u2 and u4 did not — 2 of 4.
     expect(payload.overview).toEqual({ teachers: 4, active: 2, nonActive: 2, activePct: 50, activeSectors: 2 });
     expect(payload.schools.map((s) => [s.region, s.name, s.active, s.nonActive])).toEqual([
       ['B.K', 'IMSG B.K 1', 1, 1], ['Sihala', 'IMCG Sihala', 1, 0], ['Urban-I', null, 0, 1],
     ]);
+    expect(payload.schools[2].schoolId).toBe('no-school:Urban-I');
   });
 
   it('band=midhigh: the RDF Mid / High population over 6-12 traces', async () => {
@@ -265,6 +272,18 @@ describe('GET /analytics/lp-engagement — the answer', () => {
     const { payload } = await call('get', ROUTE, { userId: VIEWER, query: { from: "2026-10-01'; drop", to: 'yesterday' } });
     expect(payload.range).toEqual({ from: null, to: null });
     for (const q of queries) expect(JSON.stringify(q.params || [])).not.toContain('drop');
+  });
+
+  it('the lists are not loaded (sandbox): the v7 roster and schools, never zeros', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    loadAnalyticsLists.mockResolvedValue({
+      fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: {},
+      missing: { schools: true, teachers: true, coaches: true },
+    });
+    const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER });
+    expect(statusCode).toBe(200);
+    // ROSTER: u1, u2 at s1 (B.K) and u3 at s2 (Sihala) are Primary; s3's region is not one of the six.
+    expect(payload.overview).toEqual({ teachers: 3, active: 2, nonActive: 1, activePct: 66.7, activeSectors: 2 });
   });
 
   it('the lists cannot be read: a 500, and nothing shown', async () => {
