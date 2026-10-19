@@ -555,7 +555,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
   if (printsWords(slot) && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
-  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, 'alpha_paren', ctx));
+  if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx));
   if (ctx.answerLines !== false) parts.push(workSpace(q, slot));
   return parts.join('');
 }
