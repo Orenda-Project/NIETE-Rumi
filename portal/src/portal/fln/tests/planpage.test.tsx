@@ -69,6 +69,14 @@ describe('header', () => {
     expect(document.querySelector('.fln-plan-header')!.textContent).toContain('30 min');
   });
 
+  it('?grade= above 5 never picks a placement row: the kicker reads placement[0] (FLN is Grades 1–5, bd-elc1qz)', async () => {
+    const placement = [{ ...numEn.placement[0], grade: 2, pos: 7 }, { ...numEn.placement[0], grade: 7, pos: 9 }];
+    renderPlan({ ...numEn, placement }, { entries: [`/portal/fln/p/${numEn.plan.id}?grade=7`] });
+    await screen.findByText(numEn.plan.title);
+    const k = [...document.querySelectorAll('.fln-kicker')].map((e) => e.textContent);
+    expect(k).toEqual(['Numeracy', 'Level 2 · Lesson 7/30']);
+  });
+
   it('a guide (pos 0) shows the level only', async () => {
     renderPlan({ ...numEn, placement: [{ ...numEn.placement[0], pos: 0, label: 'guide' }] });
     await screen.findByText(numEn.plan.title);
@@ -137,7 +145,7 @@ describe('leaders, back, footer, telemetry', () => {
     expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } });
   });
 
-  it('Back by link, teacher of grades 9 and 4 → her Grade 4, the only grade FLN serves', async () => {
+  it('Back by link, teacher of grades 9 and 4 → their Grade 4, the only grade FLN serves', async () => {
     http.get.mockResolvedValue(combos(9, 4));
     renderPlan(rhEn);
     await screen.findByText(rhEn.plan.title);

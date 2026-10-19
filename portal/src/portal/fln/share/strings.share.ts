@@ -71,7 +71,6 @@ export interface ShareStrings {
   back: string;
   grade: string;
   subjectLabel: string;
-  levelLabel: string;
   searchLessons: string;
   filters: Record<HasChip, string>;
   filtersLabel: string;
@@ -150,7 +149,6 @@ const EN: ShareStrings = {
   back: 'Back',
   grade: 'Grade',
   subjectLabel: 'Subject',
-  levelLabel: 'Level',
   searchLessons: 'Search lessons',
   filters: { screener: 'Screener', sounds: 'Has sounds', narration: 'Story audio', additional: 'Additional practice' },
   filtersLabel: 'Filters',
@@ -226,7 +224,6 @@ const UR: ShareStrings = {
   back: 'واپس',
   grade: 'جماعت',
   subjectLabel: 'مضمون',
-  levelLabel: 'سطح',
   searchLessons: 'سبق تلاش کریں',
   filters: { screener: 'اسکرینر', sounds: 'آوازوں والے', narration: 'کہانی کی آواز', additional: 'اضافی مشق' },
   filtersLabel: 'فلٹر',
@@ -257,14 +254,6 @@ export function shareStrings(lang: ShareLang): ShareStrings {
 }
 
 export const SHARE_DIR: Record<ShareLang, 'ltr' | 'rtl'> = { en: 'ltr', ur: 'rtl' };
-
-/** The level a grade 1–5 list lands on (G1 → 1, G2–3 → 2, G4–5 → 3); grades 6–12 choose (null). */
-export function levelForGrade(grade: number): 1 | 2 | 3 | null {
-  if (grade === 1) return 1;
-  if (grade === 2 || grade === 3) return 2;
-  if (grade === 4 || grade === 5) return 3;
-  return null;
-}
 
 /** Fill `{key}` slots with plain values (the message text, which is not HTML). Digits follow `lang`. */
 export function fillText(template: string, values: Record<string, number | string>, lang: ShareLang): string {

@@ -33,11 +33,8 @@ interface FlnStrings {
   grade: (g: number) => string;
   level: (n: number) => string;
   levelGrades: Record<1 | 2 | 3, string>;
-  levelDesc: Record<FlnSubjectKey, Record<1 | 2 | 3, string>>;
   listSub: (level: number, gradesLabel: string, count: number) => string;
-  lessons: (n: number) => string;
   otherLevels: string;
-  chooseLevel: string;
   next: string;
   opened: string;
   strand: Record<Strand, string>;
@@ -101,27 +98,8 @@ const EN: FlnStrings = {
   grade: (g) => `Grade ${g}`,
   level: (n) => `Level ${n}`,
   levelGrades: { 1: 'Grade 1', 2: 'Grades 2–3', 3: 'Grades 4–5' },
-  levelDesc: {
-    'rh-en': {
-      1: 'Letter sounds and first words',
-      2: 'Blends, digraphs and short stories',
-      3: 'Longer words, fluency and comprehension',
-    },
-    'rh-ur': {
-      1: 'Letter sounds and first words',
-      2: 'The same letters and sounds as Level 1, plus textbook comprehension',
-      3: 'Longer words, fluency and comprehension',
-    },
-    num: {
-      1: 'Numbers to 100, add and subtract',
-      2: 'Numbers to 999, carrying and times tables',
-      3: 'Thousands, long operations, fractions',
-    },
-  },
   listSub: (level, gradesLabel, count) => `Level ${level} · ${gradesLabel} · ${count} lessons`,
-  lessons: (n) => `${n} lessons`,
   otherLevels: 'Other levels',
-  chooseLevel: 'Choose a level',
   next: 'Next',
   opened: 'Opened',
   strand: { daily: 'Daily lessons', extended: 'Weekly · Extended Hour' },
@@ -194,15 +172,8 @@ const UR: FlnStrings = {
   grade: (g) => `جماعت ${num(g, 'ur')}`,
   level: (n) => `سطح ${num(n, 'ur')}`,
   levelGrades: { 1: 'پہلی جماعت', 2: 'دوسری اور تیسری جماعت', 3: 'چوتھی اور پانچویں جماعت' },
-  levelDesc: {
-    'rh-en': { 1: 'حروف کی آوازیں اور پہلے الفاظ', 2: 'مرکب آوازیں اور چھوٹی کہانیاں', 3: 'لمبے الفاظ، روانی اور فہم' },
-    'rh-ur': { 1: 'حروف کی آوازیں اور پہلے الفاظ', 2: 'سطح ۱ کے حروف اور آوازیں، اور درسی کتاب سے فہم', 3: 'لمبے الفاظ، روانی اور فہم' },
-    num: { 1: '۱۰۰ تک گنتی، جمع اور تفریق', 2: '۹۹۹ تک اعداد، ہاتھ کا جمع اور پہاڑے', 3: 'ہزاروں تک اعداد، لمبی تقسیم، کسریں' },
-  },
   listSub: (level, gradesLabel, count) => `سطح ${num(level, 'ur')} — ${gradesLabel} — ${num(count, 'ur')} اسباق`,
-  lessons: (n) => `${num(n, 'ur')} اسباق`,
   otherLevels: 'دوسری سطحیں',
-  chooseLevel: 'سطح منتخب کریں',
   next: 'اگلا',
   opened: 'کھولا گیا',
   strand: { daily: 'روزانہ اسباق', extended: 'ہفتہ وار — توسیعی گھنٹہ' },

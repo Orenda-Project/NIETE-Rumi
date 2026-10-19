@@ -7,7 +7,7 @@ import { stubFetch, callsTo, ME_LEADER, ME_LEADER_UR, ME_TEACHER } from '../shar
 
 /**
  * The "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade (1–5 only, bd-elc1qz) → subject →
- * level (pre-selected from the grade) → search + filters → rows with Send to teacher and Share link. State lives in the URL so Back works. 404 → "not available"; no rows → the §7 empty line.
+ * search + filters → rows with Send to teacher and Share link. No level chips: the grade decides the rows. State lives in the URL so Back works. 404 → "not available"; no rows → the §7 empty line.
  */
 const ROW = (id: number, extra: Record<string, unknown> = {}) => ({
   id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips: {}, opened: false,
@@ -62,7 +62,7 @@ describe('SendPage — the builder', () => {
     for (const b of grades) expect(b.className).toContain('min-h-[48px]');
   });
 
-  it('grade 2 pre-selects level 2 and asks /links with it (no-store, sort=used)', async () => {
+  it('grade 2 asks /links with grade and subject only: no Level chips, no level in the request or the URL (no-store, sort=used)', async () => {
     const f = stubFetch({
       '/api/portal/fln/me': { status: 200, body: ME_LEADER },
       '/api/portal/fln/links': { status: 200, body: { rows: [ROW(201, { level: 2 })] } },
@@ -70,14 +70,15 @@ describe('SendPage — the builder', () => {
     mount('/portal/fln/send');
     fireEvent.click(within(await screen.findByRole('group', { name: 'Grade' })).getByRole('button', { name: '2' }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Subject' })).getByRole('button', { name: 'Reading Hour · English' }));
-    const level2 = within(screen.getByRole('group', { name: 'Level' })).getByRole('button', { name: 'Level 2' });
-    expect(level2.getAttribute('aria-pressed')).toBe('true');
     await screen.findByText('Plan 201');
+    expect(screen.queryByRole('group', { name: 'Level' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Level \d$/ })).toBeNull();
     const [url, init] = callsTo(f, '/fln/links').at(-1)!;
     const q = new URL(String(url), 'https://x').searchParams;
-    expect([q.get('grade'), q.get('subject'), q.get('level'), q.get('sort')]).toEqual(['2', 'rh-en', '2', 'used']);
+    expect([q.get('grade'), q.get('subject'), q.get('sort')]).toEqual(['2', 'rh-en', 'used']);
+    expect(q.has('level')).toBe(false);
     expect(init).toMatchObject({ cache: 'no-store', credentials: 'same-origin' });
-    expect(screen.getByTestId('where').textContent).toBe('/portal/fln/send?grade=2&subject=rh-en&level=2');
+    expect(screen.getByTestId('where').textContent).toBe('/portal/fln/send?grade=2&subject=rh-en');
   });
 
   it('an old ?grade=8 link (6–12 retired, bd-elc1qz) is no grade: no chip on, "pick a grade", /links never asked', async () => {
@@ -96,22 +97,16 @@ describe('SendPage — the builder', () => {
     expect(screen.queryByText('Plan 900')).toBeNull();
   });
 
-  it('level chips: one inline label box each ("Level 1", never "Level1")', async () => {
-    stubFetch({
+  it('an old link with &level=1 on Grade 4 draws no Level chips and asks /links without level: the grade decides', async () => {
+    const f = stubFetch({
       '/api/portal/fln/me': { status: 200, body: ME_LEADER },
-      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(101)] } },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(401, { level: 3, grades: [4, 5] })] } },
     });
-    mount('/portal/fln/send?grade=1&subject=rh-en&level=1');
-    await screen.findByText('Plan 101');
-    const levels = within(screen.getByRole('group', { name: 'Level' })).getAllByRole('button');
-    // qa-render (c/d/e): a chip is a flex box, so its label must be ONE inline box, or the space before the <bdi>
-    // number collapses ("Level1", «سطح۱»).
-    for (const b of levels) {
-      expect(b.childNodes).toHaveLength(1);
-      expect((b.firstChild as HTMLElement).tagName).toBe('SPAN');
-    }
-    expect(levels.map((b) => b.textContent)).toEqual(['Level 1', 'Level 2', 'Level 3']);
-    expect(levels.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+    mount('/portal/fln/send?grade=4&subject=rh-en&level=1');
+    await screen.findByText('Plan 401');
+    expect(screen.queryByRole('group', { name: 'Level' })).toBeNull();
+    const q = new URL(String(callsTo(f, '/fln/links').at(-1)![0]), 'https://x').searchParams;
+    expect([q.get('grade'), q.get('subject'), q.has('level')]).toEqual(['4', 'rh-en', false]);
   });
 
   it('filter chips are exactly Screener / Has sounds / Story audio; an old has=additional is dropped (bd-e5ieg0)', async () => {
@@ -164,7 +159,8 @@ describe('SendPage — the builder', () => {
     mount('/portal/fln/send?grade=1&subject=rh-en&level=1&has=sounds&q=zz');
     expect(await screen.findByText('No lessons match. Clear the filters.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear the filters' }));
-    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/portal/fln/send?grade=1&subject=rh-en&level=1'));
+    // An old link's &level=1 is dropped the first time the builder writes the URL (the grade decides the rows).
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/portal/fln/send?grade=1&subject=rh-en'));
   });
 
   it('Send to teacher on a row opens the teacher sheet for that plan', async () => {

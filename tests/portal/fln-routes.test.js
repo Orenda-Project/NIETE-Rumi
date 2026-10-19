@@ -212,12 +212,17 @@ describe('GET /fln/catalogue', () => {
     spy.mockRestore();
   });
 
-  it('grade 5 with level=3 (the list\'s "Other levels" chip) → 200, the grade-5 rows', async () => {
+  it('grade 5 with level=3 (the list\'s "Other levels" chip) → 200, the grade-5 rows; level is validated, never passed on', async () => {
     const srv = await app();
+    const spy = jest.spyOn(corpus(), 'catalogue');
     const r = await call(srv, 'GET', '/api/portal/fln/catalogue?grade=5&subject=rh-en&level=3');
     expect(r.status).toBe(200);
     expect(r.json.level).toBe(3);
     expect(r.json.strands[0].chapters[0].plans.map((x) => x.id)).toEqual([900009]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).toMatchObject({ grade: 5, subject: 'rh-en' });
+    expect(spy.mock.calls[0][0]).not.toHaveProperty('level');
+    spy.mockRestore();
   });
 });
 
