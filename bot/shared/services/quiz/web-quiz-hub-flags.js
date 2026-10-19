@@ -68,6 +68,9 @@ const HOME_PRELOAD_KEY = 'web_quiz_home_preload';
 // The child home's first open in one response (the edge carries the home's files in the page): the hub JSON names it
 // (`home_inline`). Only the stored JSON boolean true is on.
 const HOME_INLINE_KEY = 'web_quiz_home_inline';
+// The inline Home on every open of a saved phone too, not only while it lacks the files' cookie (with home_inline): the
+// hub JSON names it (`home_every`). Only the stored JSON boolean true is on.
+const HOME_EVERY_KEY = 'web_quiz_home_inline_every';
 // A new phone's first Home asks for itself from the page's head (the edge starts the phone's own hub call before the
 // page's scripts arrive): the hub JSON names it (`early_unlock`). Only the stored JSON boolean true is on.
 const EARLY_UNLOCK_KEY = 'web_quiz_early_unlock';
@@ -165,6 +168,7 @@ const SWITCHES = Object.freeze([
   ['gradeChange',  GRADE_CHANGE_KEY,      'json'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
   ['homeInline',   HOME_INLINE_KEY,       'json'],
+  ['homeEvery',    HOME_EVERY_KEY,        'json'],
   ['homePreload',  HOME_PRELOAD_KEY,      'json'],
   ['hub',          HUB_KEY,               'loose'],
   ['childMemo',    CHILD_MEMO_KEY,        'json'],
@@ -527,6 +531,7 @@ module.exports = {
   HOME_BUTTON_KEY,
   HOME_KEY,
   HOME_INLINE_KEY,
+  HOME_EVERY_KEY,
   EARLY_UNLOCK_KEY,
   REWATCH_DONE_KEY,
   VIDEO_CLEAN_KEY,
