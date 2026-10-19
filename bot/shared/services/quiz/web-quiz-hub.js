@@ -185,13 +185,25 @@ async function recentCodes(teachers) {
 
 const { lessonRefs } = require('./web-quiz-lesson-refs');
 
+// web_quiz_videos_ur_titles: a video lesson's quiz row carries the lesson's Urdu-script name as topic_ur (the page shows
+// it on an Urdu screen). Off: the names are not read and the rows are today's; no video quiz: the switch is not read.
+async function urNames() { return (await require('./web-quiz-library-flag').urTitlesOn()) ? require('./web-quiz-bank').urTitles() : null; }
+async function urTopics(pairs) {
+  const vids = pairs.filter(([r, vid]) => r && vid);
+  const of = vids.length ? await urNames() : null;
+  if (of) vids.forEach(([r, vid]) => { const u = of.get(vid); if (u && u.t) r.topic_ur = u.t; });
+}
+const vidOf = (history, code) => (history.find((e) => e.code === code) || {}).videoId;
+const withUrTopic = async (row, vid) => { await urTopics([[row, vid]]); return row; };
+const urRows = (out, history) => urTopics([out.last, ...(out.again || [])].map((r) => [r, r && vidOf(history, r.code)]));
+
 // pageLang: the language the child's page resolved (web_quiz_return_lang on: the twin in that language is picked first);
 // null: the child's newest quiz's, as before.
 // quizOfCode (web_quiz_hub_waves2): told the chosen code's quiz id, so the next thing need not read that code again.
 async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang = null, quizOfCode = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
-  if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
+  if (opened) return withUrTopic({ code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' }, opened.videoId);
   // (b) an open code from the last 7 days from the child's teachers: the class list's teacher, and the teachers
   // whose links this child has played (every quiz child on prod is a loose students row with no list).
   const teachers = [...new Set([list && list.user_id, ...history.filter((e) => e.teacherSent).map((e) => e.teacherUserId)].filter(Boolean))];
@@ -206,7 +218,7 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang 
   const Home = require('./web-quiz-hub-home');
   const home = homeP ? (await homeP.flags).home === true : false;
   const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id, video_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
   const previews = home ? Home.storyPreviews(quizzes) : null;
   const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
@@ -242,7 +254,7 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang 
   const hit = ranked[0];
   if (!hit) return null;
   if (quizOfCode && hit.c.code && hit.c.quiz_id) quizOfCode.set(hit.c.code, hit.c.quiz_id);
-  return { code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' };
+  return withUrTopic({ code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' }, hit.q.video_id);
 }
 
 /**
@@ -315,7 +327,7 @@ const readDone = (kidId) => dbRead('recsFor:quiz_sessions:1', (db) => db.from('q
 
 async function recsFor(kidId, history, grade, tight = false) {
   // web_quiz_videos_ur_titles: each lesson's Urdu-script name, from the library's own cached read; off = not read at all
-  const urP = require('./web-quiz-library-flag').urTitlesOn().then((on) => (on ? require('./web-quiz-bank').urTitles() : null)).catch(() => null);
+  const urP = urNames().catch(() => null);
   const lastDone = history.filter((e) => e.latest)
     .sort((a, b) => String(b.latest.completed_at || '').localeCompare(String(a.latest.completed_at || '')))[0] || null;
   const doneP = tight ? readDone(kidId) : null;
@@ -666,6 +678,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
     if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
     if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   }
+  await urRows(out, history);
   try {
     out.recs = await recsFor(chosen.id, history, grade);
   } catch (err) {
@@ -770,6 +783,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
     if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
     if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   }
+  await urRows(out, history);
   if (recs !== NO_RECS) out.recs = recs;
   if (form) out.challenge = { on: true };
   const newest = history.find((e) => e.active && e.code);

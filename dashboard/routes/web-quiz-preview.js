@@ -53,7 +53,7 @@ function ogFacts(p) {
   const q = (p && p.quiz) || {};
   const cls = (p && p.cls) || {};
   return {
-    quiz: { lang: q.lang, topic: q.topic, n: q.n || (q.questions || []).length || 0 },
+    quiz: { lang: q.lang, topic: q.topic, n: q.n || (q.questions || []).length || 0, ...(q.topic_ur ? { topic_ur: q.topic_ur } : {}) },
     cls: { label: cls.label },
     challenge: (p && p.challenge) || null,
     art: (p && p.art) || {},
