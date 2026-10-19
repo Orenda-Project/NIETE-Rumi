@@ -68,6 +68,7 @@ import { takeHandedOffRecording } from "../../lib/lessonHandoff";
 import { RecordingSessionProvider, useRecordingSession } from "../../lib/recordingSession";
 import { resetNewUiMemory } from "../../lib/useNewUi";
 import { forgetLiveHold } from "./useLiveMoves";
+import { prefetchLiveEligible, forgetLiveEligible } from "./liveEligible";
 import PortalCoachingRecord from "../../pages/PortalCoachingRecord";
 
 const api = portal as unknown as Record<string, ReturnType<typeof vi.fn>>;
@@ -100,6 +101,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetNewUiMemory();
   forgetLiveHold();
+  forgetLiveEligible();
   takeHandedOffRecording();
   api.getConfig.mockResolvedValue({ success: true, features: { assessmentGenerator: false, assessmentGeneratorMessage: null, selfObservation: true, newUi: true } });
   vi.mocked(latestUnsent).mockResolvedValue(null);
@@ -163,6 +165,15 @@ describe("group D: pick the lesson before Record", () => {
     api.liveEligible.mockReturnValue(new Promise(() => {}));
     renderPage({ start: "record" });
     await screen.findByTestId("record-clock", {}, { timeout: 3000 });
+    expect(screen.queryByTestId("record-pick")).toBeNull();
+  });
+
+  it("an answer Coaching already has → Record starts at once, no wait on the hop (review I-1)", async () => {
+    api.liveEligible.mockResolvedValue({ on: false });
+    await prefetchLiveEligible();
+    api.liveEligible.mockReturnValue(new Promise(() => {}));
+    renderPage({ start: "record" });
+    await screen.findByTestId("record-clock", {}, { timeout: 500 });
     expect(screen.queryByTestId("record-pick")).toBeNull();
   });
 

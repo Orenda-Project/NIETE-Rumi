@@ -8,6 +8,7 @@ import { lessonFilename } from '../../lib/recordFlow';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
 import type { RecordingSession } from '../../lib/recordingSession';
 import { portal, type LiveMovesRecord } from '../../services/api';
+import { liveEligibleNow } from './liveEligible';
 import { withDuration } from '../../lib/webmDuration';
 
 /**
@@ -80,19 +81,8 @@ export type SendFlowOptions = {
   liveMoves?: () => LiveMovesRecord | null;
 };
 
-const ELIGIBLE_WAIT_MS = 1500;
 /** The plan she picked before Record, for her return to this page while still recording. */
 let heldPlan: Plan | null = null;
-
-async function liveEligibleSoon(): Promise<boolean> {
-  try {
-    const r = await Promise.race([
-      portal.liveEligible(),
-      new Promise<null>((res) => { setTimeout(() => res(null), ELIGIBLE_WAIT_MS); }),
-    ]);
-    return !!r && r.on === true;
-  } catch { return false; }
-}
 
 export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TODAY_PATHS, options: SendFlowOptions = {}) {
   const navigate = useNavigate();
@@ -163,7 +153,7 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
     }
     if (start === 'record' && options.pickBeforeRecord) {
       heldPlan = null;
-      void liveEligibleSoon().then((on) => { if (on) setStage('pick'); else void startRecording(); });
+      void liveEligibleNow().then((on) => { if (on) setStage('pick'); else void startRecording(); });
       return;
     }
     if (start === 'record') { void startRecording(); return; }
