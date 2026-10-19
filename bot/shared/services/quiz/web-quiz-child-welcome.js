@@ -6,9 +6,12 @@
  *
  *   field({ chosenId })                       {} | { welcome: { v, attempt } } for the hub answer: while on, for a chosen
  *                                             child who has not finished or skipped version V and was shown it fewer
- *                                             than SHOW_MAX times. Off: {} and nothing is read. No Redis: {} (once per
- *                                             child cannot be kept without it). Never throws.
+ *                                             than SHOW_MAX times; { welcome: { v, replay: 1 } } once they have (the
+ *                                             greeting's Jugnu replays step 4, the grown-ups row re-arms it). Off: {} and
+ *                                             nothing is read. No Redis: {} (once per child cannot be kept without it).
+ *                                             Never throws.
  *   record({ token, kid, device, outcome })   the page's one write (POST /hub/:token/welcome): shown | done | skipped,
+ *                                             or reset (the grown-ups row "Show Jugnu's hello again": shown afresh),
  *                                             for the child a hub chip names on a phone the hub trusts. The SHOW_MAX-th
  *                                             show is written done at once, so a child who always leaves early is never
  *                                             shown it again. {ok: true}; 400 bad outcome, 403 not this link's child or
@@ -25,7 +28,7 @@ const { logToFile } = require('../../utils/logger');
 const V = 1;                      // bump on purpose when the welcome's content changes: every child sees it once more
 const SHOW_MAX = 2;
 const TTL_S = 400 * 24 * 3600;
-const OUTCOMES = Object.freeze(['shown', 'done', 'skipped']);
+const OUTCOMES = Object.freeze(['shown', 'done', 'skipped', 'reset']);
 // the page's clips under the one-voice set path: <path>welcome-<key>.mp3 (step 2 full / short, 3, 4, the step-4 nudge)
 const VOICE_KEYS = Object.freeze(['2', '2s', '3', '4', '4n']);
 
@@ -52,7 +55,8 @@ async function field({ chosenId } = {}) {
   try {
     if (!chosenId || !(await on())) return {};
     const st = await stateOf(chosenId);
-    if (!st || st.s || st.n >= SHOW_MAX) return {};
+    if (!st) return {};
+    if (st.s || st.n >= SHOW_MAX) return { welcome: { v: V, replay: 1 } };
     return { welcome: { v: V, attempt: st.n + 1 } };
   } catch (err) {
     logToFile('⚠️ web quiz welcome: state unavailable — not shown', { error: err.message });
@@ -66,6 +70,10 @@ async function record({ token, kid, device, outcome } = {}) {
   const { who } = await require('./web-quiz-grade-change').guardedChild(token, kid, device);
   const st = await stateOf(who.studentId);
   if (!st) fail(503, 'unavailable');
+  if (outcome === 'reset') {
+    await require('../cache/railway-redis.service').set(keyOf(who.studentId), { s: null, v: V, n: 0 }, TTL_S);
+    return { ok: true };
+  }
   const n = outcome === 'shown' ? st.n + 1 : st.n;
   const s = st.s || (outcome === 'shown' ? (n >= SHOW_MAX ? 'done' : null) : outcome);
   await require('../cache/railway-redis.service').set(keyOf(who.studentId), { s, v: V, n }, TTL_S);

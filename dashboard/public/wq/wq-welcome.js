@@ -32,9 +32,34 @@
   function start(root, B, ctx, opts) {
     var w = B && B.welcome;
     if (!w || !B.kid || B.practice || st || !root || typeof document === 'undefined' || !document.body) return false;
+    if (w.replay) return false;
     var had = seenOf(B.kid, w.v);
     // this phone already holds it (a lost write, or a Let's go tap before this script arrived): tell the server again
     if (had) { post(ctx, B.kid, had); return false; }
+    if (!layer(root, B, ctx, opts, false)) return false;
+    var w2 = st.w, ev = st.ev, form = st.form, lang = st.lang;
+    post(ctx, B.kid, 'shown');
+    // the second show is the last: done as it shows, so a child who always leaves early is never caught in a loop
+    if ((w2.attempt || 1) >= 2) keep(B.kid, w2.v, 'done');
+    ev('welcome_shown', { form: form, v: w2.v, attempt: w2.attempt || 1, lang: lang });
+    go(1);
+    room();
+    // ...and again once the look has dressed the card (its tag comes a moment after the home paints)
+    [300, 1000, 2500].forEach(function (ms) { setTimeout(function () { if (st) room(); }, ms); });
+    return true;
+  }
+  // The replay (DESIGN §5; the boot's `welcome.replay`): the greeting's Jugnu shows step 4 alone again, about 5 s; nothing
+  // is written or counted, and its Let's go is the plain Next path.
+  function replay(root, B, ctx, opts) {
+    if (!B || !B.welcome || !B.welcome.replay || !B.kid || B.practice || st || !root || typeof document === 'undefined' || !document.body) return false;
+    if (!layer(root, B, ctx, opts, true)) return false;
+    go(4);
+    room();
+    return true;
+  }
+  // the layer over the home, its taps and the Next stop's own; st is set up
+  function layer(root, B, ctx, opts, isReplay) {
+    var w = B.welcome;
     var next = root.querySelector('.wq-next');
     if (!next) return false;
     var lang = ctx.lang === 'ur' ? 'ur' : 'en';
@@ -42,7 +67,7 @@
     var form = get(DEV) === '1' ? 'short' : 'full';
     var ev = ctx.ev || function () {};
     var muted = (opts && typeof opts.muted === 'function') ? opts.muted : function () { return false; };
-    st = { root: root, B: B, ctx: ctx, w: w, t: t, lang: lang, form: form, ev: ev, muted: muted, next: next, at: now(), step: 0, timers: [], unlocked: false, el: null };
+    st = { root: root, B: B, ctx: ctx, w: w, t: t, lang: lang, form: form, ev: ev, muted: muted, next: next, at: now(), step: 0, timers: [], unlocked: isReplay, el: null, replay: isReplay };
     var o = document.createElement('div');
     o.setAttribute('class', 'wqw');
     o.setAttribute('role', 'dialog');
@@ -63,14 +88,6 @@
     });
     next.addEventListener('click', letsGo, true);
     document.body.appendChild(o);
-    post(ctx, B.kid, 'shown');
-    // the second show is the last: done as it shows, so a child who always leaves early is never caught in a loop
-    if ((w.attempt || 1) >= 2) keep(B.kid, w.v, 'done');
-    ev('welcome_shown', { form: form, v: w.v, attempt: w.attempt || 1, lang: lang });
-    go(1);
-    room();
-    // ...and again once the look has dressed the card (its tag comes a moment after the home paints)
-    [300, 1000, 2500].forEach(function (ms) { setTimeout(function () { if (st) room(); }, ms); });
     return true;
   }
   function later(fn, ms) { var id = setTimeout(function () { if (st) fn(); }, ms); st.timers.push(id); }
@@ -158,7 +175,7 @@
   function go(n) {
     clear();
     st.step = n;
-    st.ev('welcome_step', { step: n, ms_since_shown: Math.max(0, Math.round(now() - st.at)) });
+    if (!st.replay) st.ev('welcome_step', { step: n, ms_since_shown: Math.max(0, Math.round(now() - st.at)) });
     var t = st.t;
     if (n === 1) {
       draw('');
@@ -190,6 +207,7 @@
       reveal();
       draw(t.stop);
       voice('4');
+      if (st.replay) { later(function () { end('idle'); }, 5000); return; }
       later(function () { draw(t.nudge, ' wqw-big'); voice('4n'); }, 8000);
       later(function () { end('idle'); }, 28000);
     }
@@ -209,6 +227,11 @@
     s.next.classList.remove('wqw-up');
     if (s.pushed) s.next.style.marginTop = '';
     if (s.el.parentNode) s.el.parentNode.removeChild(s.el);
+    st = null;
+    if (s.replay) return;
+    // step 5's hint: the page this Let's go opens is the child's first activity (w=1; wq-tel.js -> wq-cue.js there),
+    // with the recorded voice's path when the welcome named one
+    if (via === 'letsgo') hint(s);
     var outcome = via === 'skip' ? 'skipped' : 'done';
     keep(s.B.kid, s.w.v, outcome);
     if (s.form === 'full') put(DEV, '1');
@@ -216,7 +239,6 @@
     var ms = Math.max(0, Math.round(now() - s.at));
     if (via === 'skip') s.ev('welcome_skip', { at_step: s.step });
     else s.ev('welcome_done', { via: via, ms_since_shown: ms });
-    st = null;
     // Skip or idle: the Next stop pulses once (2 s), then the home is today's home
     if (via !== 'letsgo') {
       s.next.classList.add('wqw-pulse');
@@ -224,5 +246,15 @@
     }
   }
 
-  window.WQW = { start: start, up: function () { return Boolean(st); }, COPY: COPY, _reset: function () { st = null; } };
+  function hint(s) {
+    var href = s.next.getAttribute ? s.next.getAttribute('href') : null;
+    if (typeof href === 'string' && href.charAt(0) === '/' && !/[?&]w=1(&|#|$)/.test(href)) {
+      var i = href.indexOf('#');
+      var path = i >= 0 ? href.slice(0, i) : href;
+      s.next.setAttribute('href', path + (path.indexOf('?') >= 0 ? '&' : '?') + 'w=1' + (i >= 0 ? href.slice(i) : ''));
+    }
+    try { if (typeof s.w.voice === 'string' && s.w.voice) sessionStorage.setItem('wq.welcome.voice', s.w.voice); } catch (e) {}
+  }
+
+  window.WQW = { start: start, replay: replay, up: function () { return Boolean(st); }, COPY: COPY, _reset: function () { st = null; } };
 })();
