@@ -16,9 +16,9 @@ describe('the Urdu greeting with the look', () => {
   test('«السلام علیکم!» is joined by a no-break space; the name may still wrap before it', () => {
     const W = F.load({ globals: LOOK });
     const hi = hello(W.WQHOME.html(boot('ur'), { token: F.TOKEN, lang: 'ur' }));
-    expect(hi).toContain('السلام علیکم!');
+    expect(hi).toContain('السلام علیکم، ');
     expect(hi).not.toContain('السلام علیکم');
-    expect(hi).toMatch(/Noor Testwala⁩، السلام/);
+    expect(hi).toMatch(/<bdi>Noor Testwala<\/bdi>!<\/span>$/); // the greeting first, the name after it (web-quiz-greeting-second-try)
   });
   test('without the look, and in English: today\'s words', () => {
     const W = F.load();
