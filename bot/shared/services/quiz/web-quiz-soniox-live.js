@@ -21,8 +21,11 @@ const TIMEOUT_MS = 3000;
 
 const configured = (env = process.env) => !!String(env.SONIOX_API_KEY || '').trim();
 
-/** → { ok:true, api_key, expires_at } | { ok:false, status, reason } — never throws, never logs a key. */
-async function mintTempKey(runId, { env = process.env, timeoutMs = TIMEOUT_MS } = {}) {
+/**
+ * → { ok:true, api_key, expires_at } | { ok:false, status, reason } — never throws, never logs a key.
+ * The third argument lets live moves (bd-v0toag.31) ask for an hour-long session; read-aloud keeps the defaults.
+ */
+async function mintTempKey(runId, { env = process.env, timeoutMs = TIMEOUT_MS } = {}, { singleUse = true, sessionSeconds = SESSION_S } = {}) {
   const key = String(env.SONIOX_API_KEY || '').trim();
   if (!key) return { ok: false, status: 0, reason: 'no_key' };
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
@@ -31,7 +34,7 @@ async function mintTempKey(runId, { env = process.env, timeoutMs = TIMEOUT_MS } 
     const res = await globalThis.fetch(MINT_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usage_type: 'transcribe_websocket', expires_in_seconds: CONNECT_S, single_use: true, max_session_duration_seconds: SESSION_S, client_reference_id: String(runId) }),
+      body: JSON.stringify({ usage_type: 'transcribe_websocket', expires_in_seconds: CONNECT_S, single_use: singleUse, max_session_duration_seconds: sessionSeconds, client_reference_id: String(runId) }),
       ...(ctl ? { signal: ctl.signal } : {}),
     });
     if (!res || !res.ok) return { ok: false, status: (res && res.status) || 0, reason: 'refused' };
