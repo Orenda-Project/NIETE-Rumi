@@ -14,6 +14,8 @@
  *                               coach roster, teacher_level holds MIDDLE or HIGH, phone on the allocation file in
  *                               one of the six sectors.
  *                           The sector is the allocation file's. A phone is normalised as the RDF's norm() does.
+ *                           Also sectorByUser: EVERY user whose phone is on the allocation file in the six sectors,
+ *                           any role (the RDF's uid2sect) — so a number over principals too can be placed in a sector.
  *   analytics_rdf_coaches   the RDF's declared coach roster (alloc coachph2name + coachph2sector): one entry per
  *                           name, its sector, and the users.id on its phones.
  *
@@ -79,17 +81,20 @@ function buildTeacherLists(users, alloc) {
   };
   const primary = [];
   const midHigh = [];
+  const all = [];
   for (const u of users || []) {
-    if (!u || u.role !== 'teacher') continue;
+    if (!u) continue;
     const s = sectorOf(u);
     if (!s) continue;
+    all.push([u.id, s]);
+    if (u.role !== 'teacher') continue;
     const lv = levels(u);
     if (lv.includes('PRIMARY')) primary.push([u.id, s]);
     if (!u.deleted_at && !coachPhones.has(norm(u.phone_number)) && (lv.includes('MIDDLE') || lv.includes('HIGH'))) {
       midHigh.push([u.id, s]);
     }
   }
-  return { primary: bySector(primary), midHigh: bySector(midHigh) };
+  return { primary: bySector(primary), midHigh: bySector(midHigh), sectorByUser: bySector(all) };
 }
 
 /** The coach roster: one entry per name (a coach with two SIMs is one), its declared sector, its users. */
@@ -146,7 +151,7 @@ const SOURCES = Object.freeze({
 });
 
 const schoolsValue = (s, asOf) => ({ asOf, source: SOURCES.schools, emis: s.emis });
-const teachersValue = (t, asOf) => ({ asOf, source: SOURCES.teachers, primary: t.primary, midHigh: t.midHigh });
+const teachersValue = (t, asOf) => ({ asOf, source: SOURCES.teachers, primary: t.primary, midHigh: t.midHigh, sectorByUser: t.sectorByUser });
 const coachesValue = (c, asOf) => ({ asOf, source: SOURCES.coaches, coaches: c });
 
 /** Abort before any client exists if SUPABASE_URL names a different project. */
@@ -213,6 +218,7 @@ async function run({ supabase, snapshot, alloc, asOf, rosterAsOf, commit, log = 
     + `${matched.size} match a school in this database`);
   log(`  ${KEYS.teachers}: Primary ${total(teachers.primary)} (${perSector(teachers.primary)})`);
   log(`  ${' '.repeat(KEYS.teachers.length)}  6-12   ${total(teachers.midHigh)} (${perSector(teachers.midHigh)})`);
+  log(`  ${' '.repeat(KEYS.teachers.length)}  sectorByUser (any role) ${total(teachers.sectorByUser)} (${perSector(teachers.sectorByUser)})`);
   const withUser = coaches.filter((c) => c.userIds.length).length;
   log(`  ${KEYS.coaches}: ${coaches.length} names (${SECTORS.map((s) => `${s} ${coaches.filter((c) => c.sector === s).length}`).join(' · ')}); `
     + `${withUser} matched to a user, ${coaches.reduce((n, c) => n + c.userIds.length, 0)} user ids`);

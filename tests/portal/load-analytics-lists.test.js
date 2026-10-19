@@ -35,6 +35,10 @@ describe('load-analytics-lists — the RDF populations', () => {
     expect(t.midHigh).toEqual({ Sihala: [U(2), U(9)] });
   });
 
+  it('sectorByUser: EVERY user on the allocation file in the six sectors, any role (the RDF\'s uid2sect) — principals included', () => {
+    expect(t.sectorByUser).toEqual({ 'B.K': [U(1)], Sihala: [U(2), U(9)], 'Urban-I': [U(3)], Nilore: [U(5)], Tarnol: [U(7)] });
+  });
+
   it('stores ids only — no phone anywhere in the value', () => {
     const json = JSON.stringify(L.teachersValue(t, '2026-10-19'));
     expect(json).not.toMatch(/9230|0300/);

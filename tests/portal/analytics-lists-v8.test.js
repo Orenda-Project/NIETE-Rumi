@@ -23,6 +23,7 @@ const STORED = {
     asOf: '2026-10-19',
     primary: { 'B.K': [U(1), U(2), U(3)], Sihala: [U(4), U(9)], Nowhere: [U(8)] },
     midHigh: { 'B.K': [U(5)], Sihala: [U(6), U(7)] },
+    sectorByUser: { 'B.K': [U(1), U(2), U(3), U(5), U(60)], Sihala: [U(4), U(6), U(7), U(9)] },
   },
   coaches: {
     asOf: '2026-09-24',
@@ -43,6 +44,7 @@ const LIVE_USERS = new Map([
   [U(6), { role: 'teacher', teacher_level: ['MIDDLE'], deleted_at: '2026-10-01' }], // 6-12 drops deleted
   [U(7), { role: 'teacher', teacher_level: ['MIDDLE'] }],
   // U(9) gone from users: out
+  [U(60), { role: 'principal', teacher_level: null }], // a principal on the allocation file
   [U(50), { role: 'coach' }],
   [U(51), { role: 'coach' }],
 ]);
@@ -62,6 +64,16 @@ describe('analytics-lists: resolveLists', () => {
 
   it('6-12: teacher, not deleted, MIDDLE or HIGH (RDF 6-12 cohort)', () => {
     expect([...lists.midHigh.entries()].sort()).toEqual([[U(5), 'B.K'], [U(7), 'Sihala']]);
+  });
+
+  it('sectorByUser: every allocation-file user still in users, ANY role (principals too), with the RDF sector', () => {
+    expect([...lists.sectorByUser.entries()].sort()).toEqual([
+      [U(1), 'B.K'], [U(2), 'B.K'], [U(3), 'B.K'], [U(4), 'Sihala'], [U(5), 'B.K'], [U(6), 'Sihala'], [U(60), 'B.K'], [U(7), 'Sihala'],
+    ].sort());
+    // a stored value from before the key existed: null, and the teacher lists are unaffected
+    const old = Lists.resolveLists({ ...STORED, teachers: { ...STORED.teachers, sectorByUser: undefined } }, LIVE);
+    expect(old.sectorByUser).toBeNull();
+    expect(old.primary.size).toBe(3);
   });
 
   it('coaches: the roster entries as they are, names tidied, userIds cut to live users', () => {
