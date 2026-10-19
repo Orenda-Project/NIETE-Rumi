@@ -1093,9 +1093,9 @@ const HELD_TERMS_SST = Object.freeze([
   // the name «رب نواز» («رب نواز نے دکان کھولی»), which is a person.
   { term: 'رب', pattern: 'رب(?!\\s+نواز(?![\\p{L}\\p{N}]))' },
   // The same premise with no honorific at all («خدا نے سب کو برابر بنایا», «کسی عربی کو کسی عجمی پر …»,
-  // «… فرمایا گیا کہ …»). «خدا» except in the name «خدا بخش»; «اللہ» only beside «پاک», «کریم» or «رب», since
-  // bare «اللہ» and «نبی» start names («عبد اللہ ہارون», «اکرام اللہ», «غلام نبی»).
-  { term: 'خدا', pattern: 'خدا(?:ؤں|وں|ئی)?(?!\\s+بخش(?![\\p{L}\\p{N}]))' },
+  // «… فرمایا گیا کہ …»). «خدا» in every form («خدائے بزرگ و برتر») except in the name «خدا بخش»; «اللہ» only
+  // beside «پاک», «کریم» or «رب», since bare «اللہ» and «نبی» start names («عبد اللہ ہارون», «اکرام اللہ», «غلام نبی»).
+  { term: 'خدا', pattern: 'خدا(?:ؤں|وں|ئی|ئے)?(?!\\s+بخش(?![\\p{L}\\p{N}]))' },
   { term: 'پیغمبر', pattern: 'پیغمبر(?:وں|ی)?' },
   { term: 'فرمایا', pattern: 'فرمایا' },
   { term: 'عجمی', pattern: 'عجمی' },
