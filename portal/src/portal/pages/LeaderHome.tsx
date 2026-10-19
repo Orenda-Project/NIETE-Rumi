@@ -10,6 +10,7 @@ import type { LeaderOverview } from "../types/portal";
 import { useCoachV2, isCoachV2For } from "../coach/useCoachV2";
 import { useTeacherV2, isTeacherV2For } from "../teacher/useTeacherV2";
 import { teacherPath } from "../teacher/routes";
+import FlnSendCard from "../fln/FlnSendCard";
 
 /**
  * Leader Portal — "My Patch" home (bd-2434, NIETE port of upstream bd-2391).
@@ -87,6 +88,7 @@ const LeaderHome = () => {
                 icon={GraduationCap}
               />
             </div>
+            <FlnSendCard />
 
             {/* the "Average recent coaching score" panel is gone.
                 It was the headline number against which teachers were read, and

@@ -10,6 +10,7 @@ import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_HOME, lessonsUrl } from './paths';
 import { Steps } from './Steps';
+import { FlnBand } from '../../fln/FlnBand';
 
 /**
  * bd-fgj73x — step 1 of 3 of a new lesson plan, Grade and subject (Assessment's Class step, the same kit picker).
@@ -81,6 +82,7 @@ export function NewLessonPage() {
         to={toChapters}
         onChange={(v, pick) => { void openOther(v, pick); }}
       />
+      <FlnBand />
     </TeacherPage>
   );
 }

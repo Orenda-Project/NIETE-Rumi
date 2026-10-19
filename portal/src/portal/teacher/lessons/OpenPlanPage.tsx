@@ -35,6 +35,7 @@ export function OpenPlanPage() {
     if (once.current) return;
     once.current = true;
     const q = new URLSearchParams(search);
+    if ((q.get('plan') || '').startsWith('fln:')) { navigate('/portal/fln/p/' + encodeURIComponent((q.get('plan') || '').slice(4)), { replace: true }); return; }
     const m = /^(k5|g612):(.+)$/.exec(q.get('plan') || '');
     const home = () => navigate(teacherPath('lessons'), { replace: true });
     if (!m) { home(); return; }
