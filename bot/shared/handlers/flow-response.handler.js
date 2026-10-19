@@ -523,7 +523,7 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
   try {
     logToFile('📝 Processing registration flow submission', { phoneNumber, userId });
 
-    const responseJson = JSON.parse(message.interactive?.nfm_reply?.response_json || '{}');
+    const responseJson = registrationPayload(JSON.parse(message.interactive?.nfm_reply?.response_json || '{}'));
     logToFile('📋 Registration flow response:', { responseJson: Object.keys(responseJson) });
 
     if (!userId) throw new Error('registration submission without a user id');
@@ -584,7 +584,8 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
       { userId, language: registrationLanguage, rule: 'registration-asked' }
     );
 
-    const schoolLinked = isV5 ? responseJson.school_linked === 'yes' : true;
+    // Only an explicit 'no' says the school is missing (a footer-posted payload may not carry it).
+    const schoolLinked = !(isV5 && responseJson.school_linked === 'no');
     await sendRegistrationWelcome({ userId, phoneNumber, language: registrationLanguage, name: greetName, schoolLinked });
 
     logToFile('✅ Registration completed via flow', { userId, version: isV5 ? 5 : 4, role, country, organization: resolvedOrg });
@@ -602,6 +603,18 @@ async function handleRegistrationFlow(message, phoneNumber, userId) {
 
     return false;
   }
+}
+
+/**
+ * The registration completion as one flat object, whichever way it arrived (bd-x7aprz.9).
+ * The endpoint close delivers extension_message_response.params flat on the nfm_reply; a SUCCESS
+ * screen that posted its declared extension_message_response would nest them. Flat keys win.
+ */
+function registrationPayload(responseJson) {
+  const nested = responseJson && responseJson.extension_message_response && responseJson.extension_message_response.params;
+  if (!nested || typeof nested !== 'object') return responseJson || {};
+  const { extension_message_response: _ignored, ...flat } = responseJson;
+  return { ...nested, ...flat };
 }
 
 /**
