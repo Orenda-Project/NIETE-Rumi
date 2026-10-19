@@ -771,7 +771,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
   // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
   // web_quiz_child_welcome (with the home on): the child's "Jugnu says hello"; the next thing shown under it is not an untapped show
-  const welcomeP = require('./web-quiz-child-welcome').field({ chosenId: chosen.id });
+  const welcomeP = require('./web-quiz-child-welcome').field({ chosenId: chosen.id, lang: out.lang });
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
     require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade, welcome: welcomeP }),
@@ -866,7 +866,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   Object.assign(out, await bookP);
   mark('play');
   // web_quiz_child_welcome (with the home on): the child's "Jugnu says hello"; the next thing shown under it is not an untapped show
-  const welcomeP = require('./web-quiz-child-welcome').field({ chosenId: chosen.id });
+  const welcomeP = require('./web-quiz-child-welcome').field({ chosenId: chosen.id, lang: out.lang });
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
     require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade, rows: rememberP, welcome: welcomeP }),

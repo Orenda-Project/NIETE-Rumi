@@ -19,8 +19,11 @@
  *
  * Kept per child in Redis `wq:welcome:<sha256(id)>` = { s: done|skipped|null, v, n: shows } for 400 days (never the raw
  * id). The page keeps its own copy too (localStorage), so a lost write never replays it on that phone.
- * The voice: each line has a key (VOICE_KEYS) under the one-voice set's path; until those clips are recorded the answer
- * names no `voice` and the page shows captions only, silent (never the phone's own voice).
+ * The voice: each line has a key (VOICE_KEYS); the clips are the one voice's recording of the reviewed lines
+ * (dashboard/public/wq/voice/welcome/<set>-<lang>/welcome-<key>.mp3, recorded by record-welcome-lines.js). The answer
+ * names the folder in the hub's own language (`voice`) and its version (`voice_v`: the folder's hash,
+ * record-one-voice-shared-lines.js setHash), since /wq is cached for a year; a re-record changes the hash here. A clip
+ * that fails leaves the caption; never the phone's own voice.
  */
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
@@ -30,7 +33,11 @@ const SHOW_MAX = 2;
 const TTL_S = 400 * 24 * 3600;
 const OUTCOMES = Object.freeze(['shown', 'done', 'skipped', 'reset']);
 // the page's clips under the one-voice set path: <path>welcome-<key>.mp3 (step 2 full / short, 3, 4, the step-4 nudge)
-const VOICE_KEYS = Object.freeze(['2', '2s', '3', '4', '4n']);
+const VOICE_KEYS = Object.freeze(['2', '2s', '3', '4', '4n', '5']);
+const VOICE = Object.freeze({
+  en: Object.freeze({ voice: '/wq/voice/welcome/sx-reyna-68567f-en/', voice_v: 'f18a655d' }),
+  ur: Object.freeze({ voice: '/wq/voice/welcome/sx-reyna-68567f-ur/', voice_v: 'edb3c4ac' }),
+});
 
 const keyOf = (id) => `wq:welcome:${crypto.createHash('sha256').update(String(id)).digest('hex').slice(0, 32)}`;
 const fail = (status, error) => { const { WqError } = require('./web-quiz.service'); throw new WqError(status, { error }); };
@@ -51,13 +58,14 @@ async function stateOf(id) {
   return st && st.v === V ? { s: st.s || null, n: Number(st.n) || 0 } : { s: null, n: 0 };
 }
 
-async function field({ chosenId } = {}) {
+async function field({ chosenId, lang = 'en' } = {}) {
   try {
     if (!chosenId || !(await on())) return {};
     const st = await stateOf(chosenId);
     if (!st) return {};
-    if (st.s || st.n >= SHOW_MAX) return { welcome: { v: V, replay: 1 } };
-    return { welcome: { v: V, attempt: st.n + 1 } };
+    const voice = VOICE[lang === 'ur' ? 'ur' : 'en'];
+    if (st.s || st.n >= SHOW_MAX) return { welcome: { v: V, replay: 1, ...voice } };
+    return { welcome: { v: V, attempt: st.n + 1, ...voice } };
   } catch (err) {
     logToFile('⚠️ web quiz welcome: state unavailable — not shown', { error: err.message });
     return {};
@@ -80,4 +88,4 @@ async function record({ token, kid, device, outcome } = {}) {
   return { ok: true };
 }
 
-module.exports = { field, record, on, V, SHOW_MAX, VOICE_KEYS, KEY: require('./web-quiz-home-flags').WELCOME_KEY };
+module.exports = { field, record, on, V, SHOW_MAX, VOICE_KEYS, VOICE, KEY: require('./web-quiz-home-flags').WELCOME_KEY };
