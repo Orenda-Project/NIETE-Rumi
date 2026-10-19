@@ -123,12 +123,28 @@ describe('a coach\'s portal observation', () => {
   });
 });
 
-describe('a teacher\'s own session keeps its step messages', () => {
-  test.each([
-    ['a portal recording', { observation_type: null, audio_url: PORTAL_AUDIO.replace('coach-1', 'teacher-1') }],
-    ['a WhatsApp recording', { observation_type: null, audio_url: WA_AUDIO }],
-  ])('%s: Step 1/5 and Step 2/5 are sent', async (_label, over) => {
-    mockSession = { id: SID, user_id: 'teacher-1', status: 'transcribing', ...over };
+// bd-s7c31y (operator, 19 Oct): a teacher's PORTAL recording is followed in the portal too, so
+// its Step 1/5 and Step 2/5 stay out of WhatsApp — they pulled teachers into the chat to send
+// a plan and photos the session could no longer take. Her WhatsApp recording keeps them.
+describe('a teacher\'s portal recording sends no step messages', () => {
+  beforeEach(() => {
+    mockSession = { id: SID, user_id: 'teacher-1', status: 'transcribing', observation_type: null, audio_url: PORTAL_AUDIO.replace('coach-1', 'teacher-1') };
+  });
+
+  test('sends no Step 1/5 (transcription)', async () => {
+    await driveStep1();
+    expect(sentStep('step1_transcribing')).toBe(false);
+  });
+
+  test('sends no Step 2/5 (analysis)', async () => {
+    await driveStep2();
+    expect(sentStep('step2_analyzing')).toBe(false);
+  });
+});
+
+describe('a teacher\'s WhatsApp recording keeps its step messages', () => {
+  test('Step 1/5 and Step 2/5 are sent', async () => {
+    mockSession = { id: SID, user_id: 'teacher-1', status: 'transcribing', observation_type: null, audio_url: WA_AUDIO };
     await driveStep1();
     expect(sentStep('step1_transcribing')).toBe(true);
     mockSent.length = 0;

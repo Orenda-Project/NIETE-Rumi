@@ -219,7 +219,11 @@ class ReportGeneratorService {
       // FX1 (bd-w2daa.22): once per session, like the other report pieces (NC5
       // N1-13) — a redelivered job used to say Step 4/5 again. A send that did not
       // go out gives the claim back.
-      if (!isRetry && !payload.progressNoticeSent) {
+      // bd-s7c31y: her own portal recording — the portal shows the progress, so no Step 4/5.
+      const portalTeacher = require('./portal-coaching.service').isPortalTeacherSession(session);
+      if (portalTeacher) {
+        logToFile('🔕 Step 4/5 not sent — a portal recording (the portal shows its progress)', { coachingSessionId });
+      } else if (!isRetry && !payload.progressNoticeSent) {
         const { claimPiece, releasePiece } = require('./report-piece-once');
         if (await claimPiece(coachingSessionId, 'step4')) {
           const step4Sent = await WhatsAppService.sendMessage(from, getCoachingMessage('step4_generatingReport', _languageFromSession(session)));
@@ -1697,7 +1701,9 @@ class ReportGeneratorService {
           : 'reportCaption_autoCompletedAudioOnly', language),
       });
     }
-    if (!isRetry) lines.push({ key: 'step5', text: getCoachingMessage('step5_voiceDebrief', language) });
+    // bd-s7c31y: no Step 5/5 line for her own portal recording — the portal shows the progress.
+    const portalTeacher = require('./portal-coaching.service').isPortalTeacherSession(session);
+    if (!isRetry && !portalTeacher) lines.push({ key: 'step5', text: getCoachingMessage('step5_voiceDebrief', language) });
     return lines;
   }
 
@@ -1790,7 +1796,8 @@ class ReportGeneratorService {
       // Meta bill cut NC2 (N2-C03): when the report image's caption already
       // carried "Step 5/5: Creating your personalized voice debrief…", the
       // separate text would repeat it seconds later.
-      if (!opts.stepAnnounced) {
+      // bd-s7c31y: nor for her own portal recording — the voice note itself still goes.
+      if (!opts.stepAnnounced && !require('./portal-coaching.service').isPortalTeacherSession(session)) {
         await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step5_voiceDebrief', lang));
       }
 
