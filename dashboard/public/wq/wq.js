@@ -592,6 +592,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var LANG = B.ui_lang === 'ur' || B.ui_lang === 'en' ? B.ui_lang : Q.lang === 'ur' ? 'ur' : 'en';
   // ...and when that is not the quiz's, Play opens the quiz page itself, in the quiz's own language.
   var UI_SWAP = LANG !== (Q.lang === 'ur' ? 'ur' : 'en');
+  // a video lesson's Urdu-script name (the bot's topic_ur, web_quiz_videos_ur_titles): an Urdu page names the quiz with it
+  if (LANG === 'ur' && typeof Q.topic_ur === 'string' && Q.topic_ur) Q.topic = Q.topic_ur;
   var CLS = B.cls || {};
   var LIVE = B.live || {};
   // The deployment's brand (boot JSON, from bot/shared/config/web-quiz-brand.js): marks, names, mascot, place.

@@ -76,6 +76,8 @@
   function urDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function langOf(ctx) { return ctx && ctx.lang === 'ur' ? 'ur' : 'en'; }
+  // a quiz row's name: a video lesson's Urdu-script name on an Urdu screen (the hub's topic_ur), else its topic
+  function topicOf(g, ctx) { return (langOf(ctx) === 'ur' && g.topic_ur) || g.topic; }
   function C(ctx) { return COPY[langOf(ctx)]; }
   function withLang(h, l) { return typeof window !== 'undefined' && window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l) : h; }
   function withHome(B, h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
@@ -96,8 +98,8 @@
     // No `next` from the server (web_quiz_next_offer off): today's order — the teacher's quiz, the quiz left open, the lantern.
     // The teacher's pending quiz IS the Next tile: "New · From your teacher", the topic beneath.
     // The fallback carries the same minutes the ranker uses (quiz/video 3, story 2, numbers 1) and the thing's own art.
-    if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.fromTeacher, tag: t.newQuiz, sub: B.teacher.topic || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher', art: artOfCode(B, B.teacher.code), minutes: 3 };
-    if (B.last && B.last.code && B.last.state === 'open') return { kind: 'quiz', title: t.nextCont, sub: B.last.topic || '', href: quizHref(B.last.code, B.last.k), src: 'last', art: artOfCode(B, B.last.code), minutes: 3 };
+    if (B.teacher && B.teacher.code) return { kind: 'quiz', title: t.fromTeacher, tag: t.newQuiz, sub: topicOf(B.teacher, ctx) || '', href: quizHref(B.teacher.code, B.teacher.k), src: 'teacher', art: artOfCode(B, B.teacher.code), minutes: 3 };
+    if (B.last && B.last.code && B.last.state === 'open') return { kind: 'quiz', title: t.nextCont, sub: topicOf(B.last, ctx) || '', href: quizHref(B.last.code, B.last.k), src: 'last', art: artOfCode(B, B.last.code), minutes: 3 };
     // A game tile opens the one game it names (#next: the first not done; #numbers: the warm-up; wq-trail.js), never the list.
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
@@ -113,7 +115,7 @@
     if (d.videos && d.videos.href) return { kind: 'video', title: t.nextVideo, sub: '', href: withHome(B, d.videos.href), src: 'door', art: d.videos.art || null, minutes: 3 };
     var g = d.games[0];
     if (g) return g.kind === 'numbers' ? { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx) + '#numbers', src: 'door', minutes: 1 }
-      : { kind: 'quiz', title: g.done ? t.nextAgain : t.playQuiz, sub: g.topic || '', href: quizHref(g.code, g.k, g.done), src: 'door', art: g.art || null, minutes: 3 };
+      : { kind: 'quiz', title: g.done ? t.nextAgain : t.playQuiz, sub: topicOf(g, ctx) || '', href: quizHref(g.code, g.k, g.done), src: 'door', art: g.art || null, minutes: 3 };
     // Nothing to offer: the primary still opens something (the Stories door); the sentence becomes the sub-line.
     return { kind: 'door', title: t.nextPick, sub: t.nextNone, href: '#stories', src: 'none' };
   }
@@ -306,7 +308,7 @@
     } else if (name === 'games') {
       rows = d.games.map(function (g) {
         if (g.kind === 'numbers') return rowHtml(chHref(B, ctx), t.numbers, '', '', 'numbers');
-        return rowHtml(qLang(B, ctx, quizHref(g.code, g.k, g.done)), g.topic || (g.done ? t.playQuiz : t.nextQuiz), g.done ? t.again : t.fromTeacher, '', g.done ? 'again' : 'quiz', g.art);
+        return rowHtml(qLang(B, ctx, quizHref(g.code, g.k, g.done)), topicOf(g, ctx) || (g.done ? t.playQuiz : t.nextQuiz), g.done ? t.again : t.fromTeacher, '', g.done ? 'again' : 'quiz', g.art);
       }).join('');
     } else if (name === 'videos' && d.videos) {
       rows = rowHtml(withHome(B, d.videos.href), t.openVideos, '', '', 'videos');
