@@ -207,6 +207,13 @@ describe('S5-1, S5-2, S5-3 (design-qa, the live walk): a neutral target only, an
     const top = 'top' in st ? parseInt(st.top, 10) : p.ctx.innerHeight - parseInt(st.bottom, 10) - CAP_H;
     return { top, bottom: top + CAP_H };
   };
+  // the bubble's rect (it spans the page between its 16 px gutters) and the distance between two rects (0 when they meet)
+  const bubbleRect = (p, vw) => ({ ...bubbleOf(p), left: 16, right: vw - 16 });
+  const dist = (a, b) => Math.max(0, b.top - a.bottom, a.top - b.bottom, b.left - a.right, a.left - b.right);
+  const near = (b, target, others) => {
+    const d = dist(b, target);
+    return [d <= 24, others.every((o) => d < dist(b, o))];
+  };
   const handOf = (p) => { const m = /class="wqc-hand" style="top:(\d+)px;left:(\d+)px/.exec(p.cue()._h); return { y: +m[1], x: +m[2] }; };
   const clear = (b, r) => b.bottom <= r.top || b.top >= r.bottom;
   const inside = (pt, r) => pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom;
@@ -220,9 +227,11 @@ describe('S5-1, S5-2, S5-3 (design-qa, the live walk): a neutral target only, an
     expect(inside(handOf(p), L.spk)).toBe(true);
     for (const o of L.opts) expect(inside(handOf(p), o)).toBe(false);
     const b = bubbleOf(p);
-    for (const r of [L.card, L.text, ...L.opts]) expect([r.top, clear(b, r)]).toEqual([r.top, true]);
+    for (const r of [L.text, ...L.opts]) expect([r.top, clear(b, r)]).toEqual([r.top, true]);
     expect(b.top).toBeGreaterThanOrEqual(8);
     expect(b.bottom).toBeLessThanOrEqual(vh - 8);
+    // S5-4: right next to the speaker (≤ 24 px), and nearer to it than to any answer
+    expect(near(bubbleRect(p, vw), L.spk, L.opts)).toEqual([true, true]);
   });
   test.each(VIEWS)('a question with no speaker, %s %ix%i: no hand and no bubble at all (step 5 is skipped)', (lang, vw, vh) => {
     const L = quiz(vw);
@@ -251,8 +260,13 @@ describe('S5-1, S5-2, S5-3 (design-qa, the live walk): a neutral target only, an
     p.run(300);
     expect(inside(handOf(p), L.play)).toBe(true);
     const b = bubbleOf(p);
-    for (const r of [L.frame, L.go, ...L.rows]) expect([r.top, clear(b, r)]).toEqual([r.top, true]);
+    for (const r of [L.go, ...L.rows]) expect([r.top, clear(b, r)]).toEqual([r.top, true]);
+    expect(b.top).toBeGreaterThanOrEqual(8);
     expect(b.bottom).toBeLessThanOrEqual(vh - 8);
+    // S5-4: right next to ▶ (≤ 24 px; over the frame's edge only as far as that takes), nearer to it than to Go to the questions
+    expect(near(bubbleRect(p, vw), L.play, [L.go])).toEqual([true, true]);
+    const into = Math.max(0, Math.min(b.bottom, L.frame.bottom) - Math.max(b.top, L.frame.top));
+    expect(into).toBeLessThanOrEqual(Math.max(0, L.play.top - L.frame.top - 8 - 24) + CAP_H);
   });
 });
 

@@ -48,49 +48,51 @@
     var p = vis('[data-primary]') || vis('.wq-btn.wq-go');
     return p ? { r: p, kind: 'primary' } : null;
   }
-  // Where the bubble goes (design-qa S5-1, S5-2, S5-3): in the free band nearest the pointed control, over nothing a
-  // child could tap, never over the video's frame or the question (its card and text), and never over the control; the
-  // lesson's rows are kept clear too when there is room. The video's bubble goes below its frame when it fits. No free
-  // band at all: just under the pointed control.
+  // Where the bubble goes (design-qa S5-1 to S5-4): right next to its own target, directly above or below it within
+  // 8–24 px, so "Tap here" reads as that control and never as another: it is never nearer to another button than to its
+  // target. It covers no other answer or button, never the question's text; the lesson's rows only when nothing else is
+  // free. What holds the target (the question card, the video's frame and cover) it overlaps only as much as being next
+  // to the target takes, the least of all the places it could go.
   var TAP = ['button', 'a[href]', '[data-primary]', '.wq-opt', 'input', 'select', 'textarea', '[role="button"]', '[data-tap]'];
-  var KEEP = ['.wq-vbox', 'video', '.wq-qcard', '.wq-qtext'];
+  var TEXT = ['.wq-qtext'];
+  var HOLD = ['.wq-vbox', 'video', '.wq-qcard'];
   var ROWS = ['.wq-how li'];
-  function spans(sels, vh) {
-    var iv = [];
+  function rects(sels, vh) {
+    var out = [];
     sels.forEach(function (sel) {
       var list = [];
       try { list = document.querySelectorAll(sel) || []; } catch (x) { list = []; }
       Array.prototype.forEach.call(list, function (e) {
         if (e.closest && e.closest('.wqc')) return;
         var b = e.getBoundingClientRect ? e.getBoundingClientRect() : null;
-        if (b && b.width > 0 && b.height > 0 && b.bottom > 0 && b.top < vh) iv.push([b.top, b.bottom]);
+        if (b && b.width > 0 && b.height > 0 && b.bottom > 0 && b.top < vh) out.push(b);
       });
     });
-    return iv;
+    return out;
   }
-  function gap(r, h, vh, iv, below) {
-    iv = iv.concat([[0, 8], [vh - 8, vh], [r.top, r.bottom]]);
-    iv.sort(function (a, b) { return a[0] - b[0]; });
-    var best = null, end = iv[0][1];
-    for (var i = 1; i < iv.length; i++) {
-      var g0 = end, g1 = iv[i][0];
-      if (g1 - g0 >= h + 16) {
-        var above = g1 <= r.top;
-        var d = above ? r.top - g1 : g0 - r.bottom;
-        if (d >= 0 && !(below && above) && (!best || d < best.d)) best = { d: d, top: above ? g1 - 8 - h : g0 + 8 };
-      }
-      end = Math.max(end, iv[i][1]);
-    }
-    return best ? best.top : null;
-  }
+  function holds(o, t) { return o.top <= t.top && o.bottom >= t.bottom && o.left <= t.left && o.right >= t.right; }
+  function same(o, t) { return Math.abs(o.top - t.top) < 1 && Math.abs(o.bottom - t.bottom) < 1 && Math.abs(o.left - t.left) < 1 && Math.abs(o.right - t.right) < 1; }
+  function over(a, b) { return Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) * (a.left < b.right && b.left < a.right ? 1 : 0); }
+  function dist(a, b) { return Math.max(0, b.top - a.bottom, a.top - b.bottom, b.left - a.right, a.left - b.right); }
   function capTop(t, h, vh) {
-    var core = spans(TAP.concat(KEEP), vh), rows = spans(ROWS, vh);
-    var r = t.r, video = t.kind === 'play', top = null;
-    if (video) top = gap(r, h, vh, core.concat(rows), true);
-    if (top == null) top = gap(r, h, vh, core.concat(rows), false);
-    if (top == null && video) top = gap(r, h, vh, core, true);
-    if (top == null) top = gap(r, h, vh, core, false);
-    return top == null ? Math.min(r.bottom + 8, vh - h - 8) : top;
+    var r = t.r, vw = window.innerWidth || 360;
+    var taps = rects(TAP, vh), text = rects(TEXT, vh), hold = rects(HOLD, vh), rows = rects(ROWS, vh);
+    var own = taps.filter(function (o) { return holds(o, r); });       // the target's own control (the video's cover)
+    var others = taps.filter(function (o) { return !holds(o, r) && !same(o, r); });
+    hold = hold.concat(own);
+    var best = null;
+    [8, 12, 16, 20, 24].forEach(function (g) {
+      [r.top - g - h, r.bottom + g].forEach(function (top) {
+        if (top < 8 || top + h > vh - 8) return;
+        var b = { top: top, bottom: top + h, left: 16, right: vw - 16 };
+        var d = dist(b, r);
+        // never nearer to another button than to its target, never over another button or answer, never the question text
+        if (others.some(function (o) { return over(b, o) > 0 || dist(b, o) <= d; }) || text.some(function (o) { return over(b, o) > 0; })) return;
+        var cost = hold.reduce(function (n, o) { return n + over(b, o); }, 0) + rows.reduce(function (n, o) { return n + 1000 * (over(b, o) > 0 ? 1 : 0); }, 0) + g / 100;
+        if (!best || cost < best.cost) best = { cost: cost, top: top };
+      });
+    });
+    return best ? best.top : null;
   }
   function hide() {
     if (!el) return;
@@ -126,8 +128,10 @@
     var p = el.querySelector ? el.querySelector('.wqc-cap') : null;
     var ph = p && p.getBoundingClientRect ? p.getBoundingClientRect().height : 0;
     var top = capTop(t, ph > 0 ? ph : 60, vh);
+    // nowhere next to its target without standing nearer to another control: the hand alone
+    if (top == null) { el.innerHTML = '<span class="wqc-hand" style="' + hand + '">' + HAND + '</span>'; }
     var hs = '<span class="wqc-hand" style="' + hand + '">' + HAND + '</span>';
-    el.innerHTML = hs + '<p class="wqc-cap" style="top:' + px(top) + '">' + esc(COPY[ur ? 'ur' : 'en']) + '</p>';
+    if (top != null) el.innerHTML = hs + '<p class="wqc-cap" style="top:' + px(top) + '">' + esc(COPY[ur ? 'ur' : 'en']) + '</p>';
     try { document.addEventListener('pointerdown', hide, true); } catch (e) {}
     setTimeout(hide, 6000);
     voice();
