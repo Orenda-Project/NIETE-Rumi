@@ -644,6 +644,10 @@ html.wq-1b[lang=ur] .wq-btn,html.wq-1b[lang=ur] .wq-door{font-weight:400}
 html.wq-1b .wq-row,html.wq-1b .wq-skrow{border-radius:var(--r-btn)}
 /* a Jugnu bubble with no words yet is not drawn (an empty white pill reads as broken) */
 html.wq-1b .wq-say:empty{display:none}
+/* every Jugnu bubble and line under the look wraps in balanced lines, so no line holds one lone word (EN + UR);
+   balance needs a block box, so a shelf book's author line becomes one (it already sat on its own line) */
+html.wq-adv .wq-say,html.wq-adv .wqs-say,html.wq-adv .wq-dsay,html.wq-adv .wq-bootsay,html.wq-adv .wq-hnonesay,html.wq-adv .wqs-book small{text-wrap:balance}
+html.wq-adv .wqs-book small{display:block}
 /* a list (or a book page) loading in the page: Jugnu flies over its skeleton 1.5 s in (still, at once, with reduced motion) */
 html.wq-1b .wq-dskel,html.wq-1b .wqs-grid[aria-busy=true],html.wq-1b .wqs-skel.wqs-big{position:relative}
 html.wq-1b .wq-dskel::after,html.wq-1b .wqs-grid[aria-busy=true]::after,html.wq-1b .wqs-skel.wqs-big::after{content:"";position:absolute;left:50%;top:24px;width:88px;height:88px;margin-left:-44px;background:url(/wq/jugnu/idle.webp) center/contain no-repeat;opacity:0;animation:wq-skjug 1.6s ease-in-out 1.5s infinite alternate both;pointer-events:none}
