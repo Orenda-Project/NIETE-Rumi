@@ -80,6 +80,12 @@ class Funnel(unittest.TestCase):
         res = funnel.build(rows)
         self.assertEqual(sorted(res['by_feature']), ['classes', 'menu'])
 
+    def test_the_feature_filter_keeps_a_commands_coach_and_leader_funnels(self):
+        # bd-zcgpkx: `--feature lesson_plan` must still show lesson_plan@leader (and menu must keep menu@coach).
+        keys = ['lesson_plan', 'lesson_plan@leader', 'menu', 'menu@coach', 'lesson_plans_extra']
+        self.assertEqual([k for k in keys if funnel.feature_matches(k, 'lesson_plan')], ['lesson_plan', 'lesson_plan@leader'])
+        self.assertEqual([k for k in keys if funnel.feature_matches(k, 'menu@coach')], ['menu@coach'])
+
     def test_a_leader_or_coach_journey_is_its_own_funnel_never_mixed_into_the_teachers(self):
         # bd-zcgpkx: leaders' lesson-plan asks land on Send a lesson plan, not the teacher app; mixed in, ~7% of the
         # lesson_plan asks would never reach a teacher page and the teachers' rates would sag for no teacher reason.

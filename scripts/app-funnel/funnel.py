@@ -74,6 +74,12 @@ def _t(row):
     return str(row.get('_time') or '')
 
 
+def feature_matches(key, name):
+    """`--feature lesson_plan` keeps lesson_plan and its coach/leader funnels (lesson_plan@leader); a name with an
+    @audience matches only itself (bd-zcgpkx)."""
+    return key == name or ('@' not in name and key.startswith(f'{name}@'))
+
+
 def build(raw_rows):
     rows = [flat(r) for r in raw_rows]
     order = {id(r): i for i, r in enumerate(rows)}
@@ -225,7 +231,8 @@ def main(argv=None):
     ap.add_argument('--day', help='a Pakistan day, YYYY-MM-DD (default: today)')
     ap.add_argument('--from', dest='frm', help='UTC start, ISO (overrides --day)')
     ap.add_argument('--to', help='UTC end, ISO or "now"')
-    ap.add_argument('--feature', help='only this starting command (menu, lesson_plan, ...)')
+    ap.add_argument('--feature', help='only this starting command (menu, lesson_plan, ...), with its coach/leader funnels '
+                                      '(lesson_plan@leader); name one of those to see it alone')
     ap.add_argument('--journey', help='print one journey\'s rows in order and stop')
     ap.add_argument('--json', action='store_true')
     a = ap.parse_args(argv)
@@ -255,7 +262,7 @@ def main(argv=None):
         print(f'WARNING: {ROW_LIMIT} rows is the cap; narrow the window', file=sys.stderr)
     res = build(rows)
     if a.feature:
-        res['by_feature'] = {k: v for k, v in res['by_feature'].items() if k == a.feature}
+        res['by_feature'] = {k: v for k, v in res['by_feature'].items() if feature_matches(k, a.feature)}
     print(json.dumps(res, ensure_ascii=False, indent=1) if a.json else render(res, f'{a.env}  {start} -> {end}  ({len(rows)} rows)'))
     return 0
 
