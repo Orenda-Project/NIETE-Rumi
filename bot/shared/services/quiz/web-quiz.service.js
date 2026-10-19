@@ -494,11 +494,15 @@ async function classLabel(ctx) {
 
 async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   requireOn();
-  const fast = Fast.on();
+  // web_quiz_page_warm (never waited for): every page switch's read starts now beside the code's, and the fast page is
+  // decided once they answered (a cold cache no longer drops it); off, the switches are read where each is used.
+  const warm = require('./web-quiz-page-warm').onNow() ? require('./web-quiz-page-warm').touch() : null;
+  let fast = warm ? false : Fast.on();
   // app_settings web_quiz_class_doors (30 s cache, fails closed), read beside the code: the edge opens the class table
   // and the league in the link's language only when the answer says so.
   const classDoors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
+  if (warm) { await warm; fast = Fast.on(); }
   mark('resolve', { shareCodeId: ctx.shareCodeId });
   // A grown-up's chosen language for the child the link's chip names (web-quiz-quiz-lang.js, web_quiz_return_lang):
   // started now beside the reads below, only with a chip; it never fails the quiz.
