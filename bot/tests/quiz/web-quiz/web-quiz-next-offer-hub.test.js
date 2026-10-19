@@ -364,6 +364,19 @@ describe('the quiz finish: next_offer', () => {
     expect(await Sources.finishField({ st: st() }, finished(), { device: A.device })).toEqual({});
   });
 
+  test('an Urdu finish: the quiz\'s own next-in-chapter video tile carries the lesson\'s Urdu name (web_quiz_videos_ur_titles)', async () => {
+    require('../../../shared/services/quiz/web-quiz-library-flag')._reset();
+    const NV = 'cccccccc-cccc-4ccc-8ccc-000000000001';
+    seed([...NEXT_ON, ON('web_quiz_videos_ur_titles')], {
+      ...pending(),
+      student_videos: [{ id: NV, grade: '3', subject: 'Urdu', clean_chapter: 'Nazm', clean_title: 'Nazm Ki Pehchan', title_ur: 'نظم کی پہچان', chapter_ur: 'نظم', r2_url: null, migration_status: 'done', superseded_by: null }],
+    });
+    const next = { code: 'URD002', title: 'Nazm Ki Pehchan', vid: NV };
+    const { next_offer: n } = await Sources.finishField({ st: st(), lang: 'ur' }, finished({ next }), { device: A.device });
+    const tile = [n, ...(n.alts || [])].find((x) => x.id === `chapter.${NV}`);
+    expect(tile).toMatchObject({ sub: 'Nazm Ki Pehchan', sub_ur: 'نظم کی پہچان' });
+  });
+
   test('a forged or missing session token -> {}', async () => {
     seed(NEXT_ON, pending());
     expect(await Sources.finishField({ st: 'nope' }, finished(), { device: A.device })).toEqual({});
@@ -851,6 +864,13 @@ describe('the tile: words, picture, tag, source', () => {
     const none = S.candidatesOf({ out: { ...out, recs: [] }, token: 'tok', watch: true, history }).find((c) => c.id === 'library');
     expect(none).not.toHaveProperty('sub');
     expect(none.art).toBe('/wq/art/grade-3-1.webp');
+  });
+
+  test('the finish\'s copy of the candidates: a recommendation\'s own title_ur is the tile\'s Urdu line when no Urdu name was read', () => {
+    const rec = { vid: '11111111-2222-4333-8444-555555555555', title: 'Nazm Ki Pehchan', title_ur: 'نظم کی پہچان', poster: '/p.webp' };
+    const out = { kid: 'c1', lib: { href: '/lib/tok?kid=c1&l=ur', art: '/a.webp' }, recs: [rec] };
+    const tile = S.candidatesOf({ out, token: 'tok', watch: true, history: [], lang: 'ur' }).find((c) => c.variant === 'recommended');
+    expect(tile).toMatchObject({ sub: 'Nazm Ki Pehchan', sub_ur: 'نظم کی پہچان' });
   });
 
   test('on the hub: `source` on next, arm + score_v + source on every alt, art everywhere', async () => {

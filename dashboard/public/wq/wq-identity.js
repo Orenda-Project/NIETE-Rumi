@@ -77,8 +77,8 @@ var WQID = function (P) {
     var someone = '<button class="wq-btn wq-navy" id="wq-someone">' + esc(TW.someone) + '</button>';
     var h = P.bar() +
       P.jug('hello', here.length ? T.whoSay : T.hello, true, true) +
-      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<div class="wq-card wq-stack"><h1' + (P.lat ? P.lat(Q.topic) : '') + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, P.doorLabel ? P.doorLabel() : CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>' +
       (pic || '') + (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (here.length
@@ -107,8 +107,8 @@ var WQID = function (P) {
   function opening() {
     var Q = P.Q, CLS = P.CLS;
     P.render(P.bar() + P.jug('thinking', TW.opening) +
-      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>', 'M4-opening');
+      '<div class="wq-card wq-stack"><h1' + (P.lat ? P.lat(Q.topic) : '') + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, P.doorLabel ? P.doorLabel() : CLS.label)) + '</p></div>', 'M4-opening');
     P.wireBar();
   }
 

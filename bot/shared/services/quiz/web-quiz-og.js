@@ -20,7 +20,7 @@ function facts(p) {
   const cls = (p && p.cls) || {};
   const ch = p && p.challenge;
   return {
-    quiz: { lang: q.lang, topic: q.topic, n: q.n || (q.questions || []).length || 0 },
+    quiz: { lang: q.lang, topic: q.topic, n: q.n || (q.questions || []).length || 0, ...(q.topic_ur ? { topic_ur: q.topic_ur } : {}) },
     cls: { label: cls.label || null },
     challenge: ch ? { first: ch.first, correct: ch.correct, total: ch.total } : null,
     art: (p && p.art) || {},

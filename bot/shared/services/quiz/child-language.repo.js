@@ -3,7 +3,8 @@
  * A child's own language, kept on one row per child (child_language) under app_settings `web_quiz_return_lang`, the
  * same switch as the /quiz reply's link: "the child's language follows the child". Two writes: the join's language
  * ('join', once, when a child joins on their own) and a grown-up's tap on the home's grown-ups corner ('chosen', the
- * only update). The order every link and page uses (web-quiz-child-lang.js ladder()):
+ * only update). A friend who comes in through a card's door in its language (web_quiz_share_link_lang) keeps that
+ * language as strongly as a grown-up's choice ('chosen', once, never over a row), until a grown-up changes it. The order every link and page uses (web-quiz-child-lang.js ladder()):
  *   a grown-up's choice → the page's own ?lang= → the newest class quiz's language → the link's `l` → the join's →
  *   the newest library lesson's → English.
  * stored(id) hands a child's row to ladder(); web-quiz-child-lang.js childLang(id) answers it for a link. Off, or any read error: null, and nothing is read or written. Logs carry an error code
@@ -107,4 +108,22 @@ async function choose(canonicalId, language) {
   }
 }
 
-module.exports = { stored, chosenOf, keptOf, joined, choose, TABLE };
+/**
+ * A friend's door: the language of the card's link the new child came in by, kept as strongly as a grown-up's choice, so
+ * every later page and link opens in it; once (an existing row is never changed), and only with web_quiz_return_lang on
+ * (the caller decides the share switch). Never throws.
+ */
+async function doorKept(canonicalId, language) {
+  if (!canonicalId || !R.linkLang(language)) return false;
+  try {
+    if (!(await R.on())) return false;
+    const { error } = await supabase.from(TABLE).insert({ canonical_id: String(canonicalId), language, source: 'chosen' });
+    if (error && error.code !== '23505') throw Object.assign(new Error(error.message || 'insert failed'), { code: error.code });
+    return !error;
+  } catch (err) {
+    logToFile('⚠️ child language: the door\'s language was not kept (the start goes on)', { code: err.code || null });
+    return false;
+  }
+}
+
+module.exports = { stored, chosenOf, keptOf, joined, choose, doorKept, TABLE };

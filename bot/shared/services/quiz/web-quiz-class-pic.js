@@ -90,7 +90,7 @@ async function factsNow(shareCodeId) {
   // a teacher's own class code only: never a child's challenge code, never a "watch another video" code
   if (!sc || sc.invited_by_student_id || sc.parent_share_code_id || !sc.teacher_user_id || !sc.quiz_id) return null;
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) return null;
-  const { data: q } = await supabase.from('quizzes').select('id, topic, meta, quiz_source').eq('id', sc.quiz_id).maybeSingle();
+  const { data: q } = await supabase.from('quizzes').select('id, topic, meta, quiz_source, video_id').eq('id', sc.quiz_id).maybeSingle();
   if (!q) return null;
   const lang = LANG(sc.language);
   const code = String(sc.code || '').toUpperCase();
@@ -104,7 +104,9 @@ async function factsNow(shareCodeId) {
     const cover = book.cover_file && StoryStore.FILE_RX.test(book.cover_file) && StoryStore.BOOK_RX.test(String(book.id)) ? book.cover_file : null;
     f = { kind: 'story', lang, code, label: await ownLabel(sc), title, bookId: String(book.id), cover };
   } else {
-    const topic = String(pageTopic({ lang, meta: q.meta, fallback: sc.topic || q.topic }) || '').trim();
+    // an Urdu picture of a video lesson's quiz: the lesson's Urdu-script name first (web_quiz_videos_ur_titles; off: not read)
+    const urName = lang === 'ur' && q.video_id ? (await require('./web-quiz-videos').urTitleOf(q.video_id)).title_ur : null;
+    const topic = String(urName || pageTopic({ lang, meta: q.meta, fallback: sc.topic || q.topic }) || '').trim();
     const label = await ownLabel(sc);
     // a class quiz's picture is the class and its topic: without the sender's own class it is today's picture
     if (!topic || !label) return null;

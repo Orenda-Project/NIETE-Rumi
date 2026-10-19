@@ -71,6 +71,9 @@ const HOME_INLINE_KEY = 'web_quiz_home_inline';
 // A new phone's first Home asks for itself from the page's head (the edge starts the phone's own hub call before the
 // page's scripts arrive): the hub JSON names it (`early_unlock`). Only the stored JSON boolean true is on.
 const EARLY_UNLOCK_KEY = 'web_quiz_early_unlock';
+// A finished lesson's picture on the Videos door plays the lesson again (wq-doors.js, again=1), never its old finish
+// card: the hub JSON names it (`rewatch_done`). Only the stored JSON boolean true is on.
+const REWATCH_DONE_KEY = 'web_quiz_rewatch_done';
 // The quiz page in the child's language (web-quiz-page-lang.js): the quiz and hub answers say `page_lang`, JSON true only.
 const PAGE_LANG_KEY = 'web_quiz_page_lang';
 // The wordless first paint (web-quiz-plain-paint.js) rides this read on the hub, so a child's home adds no settings read.
@@ -166,6 +169,7 @@ const SWITCHES = Object.freeze([
   ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
   ['readalong',    READALONG_KEY,         'loose'],
+  ['rewatchDone',  REWATCH_DONE_KEY,      'json'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
   [null,           SHARE_KEY,             'read'],
   ['home',         HOME_KEY,              'json'],
@@ -484,6 +488,7 @@ module.exports = {
   HOME_KEY,
   HOME_INLINE_KEY,
   EARLY_UNLOCK_KEY,
+  REWATCH_DONE_KEY,
   HOME_PRELOAD_KEY,
   homeNow,
   HOPS_KEY,

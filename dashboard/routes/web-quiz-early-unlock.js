@@ -28,6 +28,9 @@ let shape = null; // the last child's answer's page shape (shaped() below), or n
 // The look's ui booleans, and the switches that name the page's files or its look (hubPageParts, withLook).
 const UI = ['ur2', 'fl', 'uf', 'adv'];
 const KEYS = ['home_v3', 'home_fb', 'pack', 'listen', 'adv', 'one_face'];
+// The bot sends the home's own two as 1 (web-quiz-hub-home.js `home_v3: 1`, `home_fb: 1`), the rest as true: either is on,
+// kept as sent (homeTags reads them as truthy).
+const isOn = (v) => v === true || v === 1;
 
 /** Every hub answer (a locked one too) says whether the switch is on; a child's answer also gives its page's shape. */
 function learn(payload) {
@@ -35,7 +38,7 @@ function learn(payload) {
   if (!last) { shape = null; return; }
   if (payload.locked || !payload.kid) return;
   const out = {};
-  for (const k of KEYS) if (payload[k] === true) out[k] = true;
+  for (const k of KEYS) if (isOn(payload[k])) out[k] = payload[k];
   if (payload.play && typeof payload.play === 'object') out.play = {};
   if (payload.ui && typeof payload.ui === 'object') {
     const ui = {};
