@@ -876,11 +876,12 @@ export interface TrainingLevelsRegion extends TrainingLevelsBlock {
   partners?: TrainingPartners;
 }
 
-/** A school on FDE's list, or (schoolId and name null) the sector's teachers at no school on that list. */
+/** A school on FDE's list, or (noSchool, id 'no-school:<sector>', no name) the sector's teachers at no school on it. */
 export interface TrainingLevelsSchool extends TrainingLevelsBlock {
-  schoolId: string | null;
+  schoolId: string;
   emis: string | null;
   name: string | null;
+  noSchool?: boolean;
   region: string;
   levels: Array<Pick<TrainingLevelCounts, 'levelOrder' | 'passed' | 'teachers' | 'pctPassed'>>;
 }

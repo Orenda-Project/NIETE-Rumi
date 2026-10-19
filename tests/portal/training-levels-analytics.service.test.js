@@ -76,9 +76,17 @@ function lists(extra = {}) {
     midHigh: new Map([['m1', 'Urban-I'], ['m2', 'Urban-I'], ['m4', 'Urban-I'], ['b1', 'Tarnol']]),
     coaches: [],
     asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-09-24' },
+    missing: { schools: false, teachers: false, coaches: false },
     ...extra,
   };
 }
+
+/** The lists when their app_settings rows are not usable (sandbox): null, never empty (FAIL-CLOSED). */
+const MISSING = {
+  fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null,
+  asOf: { schools: null, teachers: null, coaches: null },
+  missing: { schools: true, teachers: true, coaches: true },
+};
 
 const P = { primary_cohort: true };
 const MH = { mh_cohort: true };
@@ -86,7 +94,11 @@ const MH = { mh_cohort: true };
 function baseRows() {
   return {
     levels: LEVELS,
-    schools: [school('s1', 'B.K'), school('s2', 'Urban-I'), school('s3', 'Sihala'), school('x9', 'B.K')],
+    schools: [
+      school('s1', 'B.K'), school('s2', 'Urban-I'), school('s3', 'Sihala'), school('x9', 'B.K'),
+      // v7's rule (used only when the school list is missing) does not count these
+      school('t1', 'B.K', { is_probable_test: true }), school('t2', 'Durbeen'),
+    ],
     partners: CATALOGUE,
     lists: lists(),
     members: [
@@ -161,14 +173,14 @@ describe('Primary — the RDF primary-programme population, certificates passed,
     }
   });
 
-  it("schools are FDE's list: a member at a school off the list is a 'No school' row in her sector", () => {
-    expect(out.schools.map((s) => [s.region, s.name, s.teachers, s.passedAll])).toEqual([
-      ['B.K', 'School s1', 2, 1],
-      ['B.K', null, 1, 0],
-      ['Sihala', 'School s3', 1, 0],
+  it("schools are FDE's list: a member at a school off the list is her sector's 'No school' row (the shared no-school id)", () => {
+    expect(out.schools.map((s) => [s.region, s.schoolId, s.name, s.noSchool, s.teachers, s.passedAll])).toEqual([
+      ['B.K', 's1', 'School s1', false, 2, 1],
+      ['B.K', 'no-school:B.K', null, true, 1, 0],
+      ['Sihala', 's3', 'School s3', false, 1, 0],
     ]);
-    const none = out.schools.find((s) => s.name === null);
-    expect(none).toMatchObject({ schoolId: null, emis: null });
+    const none = out.schools.find((s) => s.noSchool);
+    expect(none).toMatchObject({ emis: null });
     expect(none.levels.map((l) => [l.levelOrder, l.passed, l.teachers])).toEqual([[0, 1, 1], [1, 1, 1], [2, 0, 1], [3, 0, 1]]);
   });
 
@@ -274,13 +286,43 @@ describe('empty and odd input', () => {
     expect(out.noSector.teachers).toBe(0);
   });
 
-  it('no lists yet (the app_settings rows not loaded): everyone is noSector and "No school", nothing is lost', () => {
+  it('lists not usable (null, FAIL-CLOSED): v7 rules — sector = her counted school\'s region, rows = counted schools; never zeros', () => {
+    for (const theLists of [MISSING, undefined]) {
+      const rows = baseRows();
+      rows.lists = theLists;
+      rows.members = rows.members.concat([mem('p7', { ...P, school_id: 't1', cert_levels: ids(1) }), mem('p8', { ...P, school_id: 't2' })]);
+      const out = summarizeTrainingLevels(rows, { band: 'primary' });
+      // the population and its numbers do not depend on the lists
+      expect(out.overview.teachers).toBe(8);
+      expect(lvl(out.overview, 0).passed).toBe(5);
+      expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(4);
+      expect(out.regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
+      // no school (p6), a probable-test school (p7), a school outside the six (p8)
+      expect(out.noSector.teachers).toBe(3);
+      expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([
+        ['B.K', 'School s1', 3], ['B.K', 'School x9', 1], ['Sihala', 'School s3', 1],
+      ]);
+    }
+  });
+
+  it('only the school list missing: the RDF sectors stand, every counted school is a row', () => {
     const rows = baseRows();
-    rows.lists = undefined;
+    rows.lists = lists({ fdeSchoolEmis: null, missing: { schools: true, teachers: false, coaches: false } });
     const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.overview.teachers).toBe(6);
-    expect(out.noSector.teachers).toBe(6);
-    expect(out.schools).toEqual([]);
+    expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
+    expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([
+      ['B.K', 'School s1', 2], ['B.K', 'School x9', 1], ['Sihala', 'School s3', 1],
+    ]);
+  });
+
+  it('only the teacher lists missing: sectors from the counted school, FDE\'s list still decides the rows', () => {
+    const rows = baseRows();
+    rows.lists = lists({ primary: null, midHigh: null, missing: { schools: false, teachers: true, coaches: false } });
+    const out = summarizeTrainingLevels(rows, { band: 'primary' });
+    expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(4);
+    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toEqual([
+      ['B.K', 's1', 3], ['B.K', 'no-school:B.K', 1], ['Sihala', 's3', 1],
+    ]);
   });
 
   it('carries no member identity', () => {

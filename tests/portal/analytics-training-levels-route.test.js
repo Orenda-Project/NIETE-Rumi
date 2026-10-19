@@ -137,10 +137,12 @@ beforeEach(() => {
     midHigh: new Map([['m1', 'B.K'], ['m2', 'Sihala']]),
     coaches: [],
     asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-09-24' },
+    missing: { schools: false, teachers: false, coaches: false },
   };
   jest.doMock('../../dashboard/lib/analytics-lists', () => ({
+    ...jest.requireActual('../../dashboard/lib/analytics-lists'),
     loadAnalyticsLists: jest.fn(async () => LISTS),
-  }), { virtual: true });
+  }));
   jest.doMock('../../dashboard/config/supabase', () => ({
     from: jest.fn((tbl) => makeChain(tbl)),
     rpc: jest.fn().mockResolvedValue({ error: null }),
@@ -221,7 +223,7 @@ describe('GET /analytics/training-levels — the answer', () => {
     }
     for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['levels', 'passedAll', 'region', 'teachers']);
     for (const s of payload.schools) {
-      expect(Object.keys(s).sort()).toEqual(['emis', 'levels', 'name', 'passedAll', 'region', 'schoolId', 'teachers']);
+      expect(Object.keys(s).sort()).toEqual(['emis', 'levels', 'name', 'noSchool', 'passedAll', 'region', 'schoolId', 'teachers']);
       for (const l of s.levels) expect(Object.keys(l).sort()).toEqual(['levelOrder', 'passed', 'pctPassed', 'teachers']);
     }
   });
@@ -310,6 +312,14 @@ describe('GET /analytics/training-levels — the answer', () => {
       expect(payload).toEqual({ success: false, error: 'Unknown band.' });
     }
     expect(queries).toHaveLength(0);
+  });
+
+  it('reads the shared lists with the dashboard\'s pg query (two reads, not PostgREST chunks)', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    await call('get', ROUTE, { userId: VIEWER });
+    const { loadAnalyticsLists } = require('../../dashboard/lib/analytics-lists');
+    expect(loadAnalyticsLists).toHaveBeenCalledTimes(1);
+    expect(loadAnalyticsLists.mock.calls[0][1]).toEqual({ query: expect.any(Function) });
   });
 
   it('all time: a window in the address is ignored, and nothing from the request reaches SQL', async () => {
