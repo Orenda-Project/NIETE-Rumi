@@ -1260,6 +1260,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // and the school league wear the land header of the hub's land screens (wq-doors.js frame) in place of bar(): the round
   // Home, the screen's name on the land's colour, the sound. landBar() names the land; render() puts it on the screen.
   var LAND = '';
+  function oneB() { try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; } }
   function advOn() { try { return B.adv === true && document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
   // The hub this tab came from (hub.js keeps its path with the look on): the way home from the class table or the league
   // opened from My class, where the page has no session of its own to ask the hub door with.
@@ -2069,7 +2070,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var q = QS[i];
     var shown = Date.now();
     if (!retry) CURQ = i;
-    var h = bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i)) +
+    // the look (wq-1b): the second-try label is a chip on its own row under the bar, so it never wraps beside the logo and Home
+    var h = (retry && oneB() ? bar() + '<div class="wq-dotrow wq-2nd"><span class="wq-chip">' + esc(T.second) + '</span></div>' : bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i))) +
       (retry ? '' : qRow(i, T.qof(i + 1, N))) +
       '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
       '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>' + WQI.rewatchHtml(B.video, T);
