@@ -96,6 +96,8 @@ const EN = {
     teachers: 'Total teachers',
     lpsOpened: 'LPs opened',
     teachersOpenedLp: 'Teachers who opened',
+    /** v8 — the Overview's lesson-plan tile (the RDF's rule). */
+    lpsUsed: 'Lesson plans used',
     regionsActive: 'Regions with activity',
     trainingModulesShort: 'Training modules',
     trainingModules: 'Modules completed',
@@ -167,6 +169,8 @@ const EN = {
     /** The small line under a column's name. */
     columnHints: { lpsOpened: 'x of N teachers', trainingModules: 'x of N teachers', dcObservations: 'x of N teachers', avgFico: '(n scored)', avgHitl: '(n scored)' } as Partial<Record<SortKey, string>>,
     emis: (code: string) => `EMIS ${code}`,
+    /** v8 — a sector's row for its teachers with no school on FDE's list there. */
+    noSchool: 'No school',
     search: 'Search schools',
     searchHint: 'School name or EMIS code',
     count: (shown: string, total: string) => `${shown} of ${total} schools`,
@@ -185,17 +189,22 @@ const EN = {
   /** The Information tab: what each number counts, grouped as the tabs are (PLAN v6 §2). */
   how: {
     title: 'How these numbers are worked out',
+    /** v8 — the dates of the three lists the numbers are counted against. */
+    listsAsOf: (schools: string, teachers: string, coaches: string) =>
+      `Lists used: FDE's school list as of ${schools} · RDF teachers as of ${teachers} · RDF coach roster as of ${coaches}.`,
     groups: [
       {
         title: 'Schools and teachers',
         items: [
-          { term: 'Schools', text: 'Active NIETE schools in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Test schools are left out. A school with no region on record, or with a region outside these six, is not shown and not counted in any number.' },
-          { term: 'Teachers', text: "Teachers registered at the school today; test accounts are left out. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
+          { term: 'Schools', text: "The schools on FDE's programme list (its primary list or its middle and high list) in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Any other school is not shown and not counted in any number." },
+          { term: 'Teachers', text: "The teachers the Routine Data Flow (RDF) reports count, so both show the same numbers: Primary teachers and Grades 6-12 teachers, each in the region the RDF gives her. A teacher who teaches both is counted once. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
+          { term: 'No school', text: "A region's teachers who have no school on FDE's list in that region: no school on record, a school that is not on the list, or a school in another region. They count in the region's totals, on a \"No school\" line of its school list." },
         ],
       },
       {
         title: 'LP Engagement',
         items: [
+          { term: 'Lesson plans used', text: "The lesson plans the school's teachers used in the period, counted as the RDF counts them: every lesson plan sent on WhatsApp, and, on a day a teacher had none on WhatsApp, each different plan she opened in the app. On the Overview, x of N is how many of the N teachers used at least one." },
           { term: 'LPs opened', text: "Different lesson plans the school's teachers opened in the period: opening the same plan again counts once per teacher. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened." },
           { term: 'Teachers who opened', text: 'How many of the N teachers opened at least one lesson plan in the period ("x of N").' },
           { term: 'Regions with activity', text: 'Regions where at least one lesson plan was opened in the period, out of the six.' },
@@ -234,11 +243,11 @@ const EN = {
       {
         title: 'Coaching',
         items: [
-          { term: 'Total coaches', text: 'Coaches (test accounts left out) with at least one school in the region on record. A coach whose schools are in two regions counts in both region cards and once in the total. It is who is assigned today, so the period does not change it.' },
-          { term: 'Coach visits', text: 'Scheduled coach visits marked done, on a day in the period, at an active school in the six regions.' },
+          { term: 'Total coaches', text: "The coaches on the RDF's ICT coach roster, each in the region the roster gives her. A coach with two phone numbers counts once. The period does not change it." },
+          { term: 'Coach visits', text: "Scheduled coach visits marked done, on a day in the period, at a school on FDE's list." },
           { term: 'Schools visited', text: 'Schools with at least one coach visit in the period ("x of N" schools).' },
           { term: 'Schools in a region', text: "A region card's schools: every school counted in that region, visited or not." },
-          { term: 'Coaches by sector', text: "The names of each region's coaches, A to Z. A coach whose schools are in two regions is listed in both. Coaches are NIETE staff; no teacher is named." },
+          { term: 'Coaches by sector', text: "The names of each region's coaches on the RDF roster, A to Z. Coaches are NIETE staff; no teacher is named." },
         ],
       },
       {

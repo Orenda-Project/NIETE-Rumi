@@ -704,8 +704,13 @@ export interface CoachingProgress {
  */
 export interface SchoolsAnalyticsCounts {
   teachers: number;
+  /** v7: LPs opened. v8 (basis.teachers 'rdf'): lesson plans used — the same number as lpsUsed. */
   lpsOpened: number;
   teachersOpenedLp: number;
+  /** v8 — "Lesson plans used": the RDF's lp_use (lesson_plans rows + app opens, deduped as the RDF does). */
+  lpsUsed?: number;
+  /** v8 — teachers with at least one lesson plan used ("x of N"). */
+  teachersUsedLp?: number;
   /** bd-9vkl9x — training modules completed in the window, each counted once per teacher. */
   trainingModules: number;
   /** bd-9vkl9x — teachers who completed at least one module in the window. */
@@ -732,8 +737,24 @@ export interface SchoolsAnalyticsRegion extends SchoolsAnalyticsCounts {
 export interface SchoolsAnalyticsSchool extends SchoolsAnalyticsCounts {
   schoolId: string;
   emis: string | null;
-  name: string;
+  /** null on a v8 "No school" row. */
+  name: string | null;
   region: string;
+  /** v8 — the sector's teachers with no school on FDE's list in that sector (schoolId 'no-school:<sector>'). */
+  noSchool?: boolean;
+}
+
+/**
+ * v8 — which rule each list follows (the server falls back to v7 for a list it cannot read) and the snapshot dates.
+ *   schools  'fde' = FDE's programme list · 'all' = every active school in the six regions (v7)
+ *   teachers 'rdf' = the RDF's Primary + 6-12 populations · 'roster' = teachers at a school today (v7)
+ *   coaches  'rdf' = the RDF coach roster · 'leader_schools' = coaches with a school on record (v7)
+ */
+export interface AnalyticsBasis {
+  schools: 'fde' | 'all';
+  teachers: 'rdf' | 'roster';
+  coaches: 'rdf' | 'leader_schools';
+  asOf: { schools: string | null; teachers: string | null; coaches: string | null };
 }
 
 export interface SchoolsAnalyticsResponse {
@@ -742,6 +763,8 @@ export interface SchoolsAnalyticsResponse {
   range: { from: string | null; to: string | null };
   /** LP opens are recorded from this day (YYYY-MM-DD) only; a window starting earlier undercounts them. */
   lpOpensLoggedSince: string;
+  /** v8 — absent from an older server. */
+  basis?: AnalyticsBasis;
   overview: SchoolsAnalyticsOverview;
   regions: SchoolsAnalyticsRegion[];
   schools: SchoolsAnalyticsSchool[];
@@ -913,8 +936,11 @@ export interface ObservationsRegion extends ObservationsCounts {
 export interface ObservationsSchool extends ObservationsCounts {
   schoolId: string;
   emis: string | null;
-  name: string;
+  /** null on a v8 "No school" row. */
+  name: string | null;
   region: string;
+  /** v8 — observations of the sector's teachers with no school on FDE's list in that sector. */
+  noSchool?: boolean;
 }
 
 /** One kind of observation (Digital Coach or Human): the whole selection, the six regions (whatever the filter), the schools. */
@@ -927,6 +953,8 @@ export interface ObservationsKind {
 export interface ObservationsAnalyticsResponse {
   success: boolean;
   range: { from: string | null; to: string | null };
+  /** v8 — absent from an older server. */
+  basis?: AnalyticsBasis;
   dc: ObservationsKind;
   human: ObservationsKind;
 }

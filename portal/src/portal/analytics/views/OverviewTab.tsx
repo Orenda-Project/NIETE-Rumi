@@ -15,6 +15,9 @@ export function OverviewTab({ c, data, lpOpensNote, coaching }: TabProps & { coa
   const teachers = count(o.teachers, c);
   const of = (x: number) => chip(c.xOfN(count(x, c), teachers));
   const coach = coaching.status === 'ready' ? coaching.data?.overview ?? null : null;
+  // v8: "Lesson plans used" (lesson_plans + app opens, the RDF's rule) whenever the server counts the RDF teachers;
+  // an older or fallen-back answer is still LPs opened, with its logged-since note.
+  const used = data.basis?.teachers === 'rdf';
 
   return (
     <div data-testid="overview" className="grid grid-cols-2 gap-x-2.5 gap-y-7 lg:grid-cols-4 lg:gap-x-4">
@@ -27,7 +30,7 @@ export function OverviewTab({ c, data, lpOpensNote, coaching }: TabProps & { coa
 
       <Section id="snapshot" eyebrow={c.sections.snapshot} className="col-span-2 lg:col-span-4">
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <Tile k="lpsOpened" feature="lessonPlans" value={count(o.lpsOpened, c)} label={c.tiles.lpsOpened} chips={<>{of(o.teachersOpenedLp)}{lpNoteChip(lpOpensNote)}</>} />
+          <Tile k="lpsOpened" feature="lessonPlans" value={count(used ? o.lpsUsed ?? o.lpsOpened : o.lpsOpened, c)} label={used ? c.tiles.lpsUsed : c.tiles.lpsOpened} chips={<>{of(used ? o.teachersUsedLp ?? o.teachersOpenedLp : o.teachersOpenedLp)}{used ? null : lpNoteChip(lpOpensNote)}</>} />
           <Tile k="dcObservations" feature="coaching" value={count(o.dcObservations, c)} label={c.tiles.dcObservations} chips={of(o.teachersWithDc)} />
           <Tile k="humanObservations" feature="assessment" value={count(o.humanObservations, c)} label={c.tiles.humanObservations} />
           <Tile k="trainingModules" feature="training" value={count(o.trainingModules, c)} label={c.tiles.trainingModulesShort} chips={of(o.teachersTrained)} />
