@@ -1307,7 +1307,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13240);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +172 for its live-state fix: the opening words hidden under a clipped sheet, framed again when the stage resizes, 19 Oct; served minified)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13300);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +232 for its live-state fix: the opening words hidden under a clipped sheet once its picture is in, framed again when the stage resizes, 19 Oct; served minified)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
@@ -3598,6 +3598,16 @@ describe('Your turn live: the crop holds only the lines being read, the picture 
     yourTurn(e, root);
     expect(root.querySelector('[data-cam]').style.clipPath).toMatch(/^inset\(/);
     expect(root.querySelector('[data-ph]').style.display).toBe('none');
+    // the picture still loading: "Opening…" stays until it is in, then goes
+    const e2 = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, steady: 1 }) } } })); const r2 = await openReader(e2);
+    toMic(e2, r2);
+    const pic = fakeEl('img'); pic.complete = false;
+    const q0 = r2.querySelector.bind(r2);
+    r2.querySelector = (sel) => { const x = q0(sel); if (x && sel === '[data-art]') x.querySelector = (s2) => (s2 === 'img' ? pic : null); return x; };
+    e2.calls.ask[0].onStream({});
+    expect(r2.querySelector('[data-ph]').style.display).not.toBe('none');
+    pic.L.load.forEach((f) => f());
+    expect(r2.querySelector('[data-ph]').style.display).toBe('none');
   });
   test('the stage changes size after it is framed (the meter comes in, the stage grows into the room): framed again to the new size', async () => {
     const ros = [];
@@ -3615,6 +3625,8 @@ describe('Your turn live: the crop holds only the lines being read, the picture 
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
     expect(css).toMatch(/\.wqs\[data-screen=story-read\]:has\(\[data-art\]\)\{height:100vh;height:100svh;min-height:0\}/);
     expect(css).toMatch(/\.wqs\[data-screen=story-read\]:has\(\[data-art\]\) \.wqs-stage\{flex:1 1 0;height:auto;max-height:none;min-height:200px\}/);
+    // the nudge's room (kept so its two lines never hide under the primary) is given to the page while the nudge is hidden
+    expect(css).toMatch(/\.wqs\[data-screen=story-read\]:has\(\[data-art\]\) \.wqs-near\[hidden\]\{display:none!important\}/);
   });
 });
 

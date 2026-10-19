@@ -454,7 +454,7 @@
     function al() { return [].concat.apply([], LN.l.map(function (l) { return l.bs; })); }
     // the reading moment's picture box (stage(.., art); wq-moment.js art): framed words never leave a sliver of the picture
     function camTo(bs, fit, rs) {
-      var c = root.querySelector('[data-cam]'), x = root.querySelector('[data-tx]'), a = root.querySelector('[data-art]'), M = W.WQMoment, d, k, f;
+      var c = root.querySelector('[data-cam]'), x = root.querySelector('[data-tx]'), a = root.querySelector('[data-art]'), M = W.WQMoment, d, k, f, ph;
       if (!c || !sp) return;
       if (x && bs) x.className = 'wqs-tx';
       d = dims(); lc = [bs, fit, rs];
@@ -462,8 +462,9 @@
       k = f || cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
       if (a) { c.style.clipPath = f ? f.clip : ''; a.hidden = !f; }
-      // clipped: the opening words under the sheet never show past its lines; the stage resized (the meter came in): framed again
-      if (f && (x = root.querySelector('[data-ph]'))) x.style.display = 'none';
+      // clipped: the opening words under the sheet go once its picture is in (they never show past its lines); the stage
+      // resized (the meter came in): framed again
+      if (f && (ph = root.querySelector('[data-ph]'))) { k = a.querySelector('img'); if (!k || k.complete && k.naturalWidth) ph.style.display = 'none'; else k.addEventListener('load', function () { ph.style.display = 'none'; }); }
       if (a && W.ResizeObserver && (x = root.querySelector('[data-stage]')) !== ros) { if (ro) ro.disconnect(); ros = x; ro = new W.ResizeObserver(function () { R.af(); }); ro.observe(x); }
       return f;
     }
