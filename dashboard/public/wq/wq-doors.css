@@ -100,3 +100,5 @@ html[dir=rtl] .wq-vbox--s .wq-vplay{transform:none}
 html.wq-adv[lang=ur] .wq-vct:has(>bdi.wq-lat){direction:ltr;text-align:right;line-height:1.3}
 /* the empty Stories note: Jugnu waves above it, the words in balanced lines */
 html.wq-adv .wq-dempty .wq-soon{text-wrap:balance;color:var(--ink);padding-top:108px;background:var(--tint) url(/wq/jugnu/hello.webp) center 14px/84px auto no-repeat}
+/* the see-all card's chapter line on an Urdu page: the Urdu one-line height, so Nastaliq's deep tails are not cut into stray marks */
+html.wq-adv[lang=ur] .wq-vch{line-height:var(--ulh1,2)}

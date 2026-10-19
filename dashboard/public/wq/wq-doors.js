@@ -279,7 +279,9 @@
     var chName = function (ch) { return (langOf(ctx) === 'ur' && ch.name_ur) || ch.name; };
     var h = one ? '<div class="wq-vgrid wq-vgrid--one">' + (lib.chapters || []).map(function (ch) {
       return (ch.videos || []).map(function (v) {
-        return card(v, ctx, lib.quiz === true, i++).replace('<b class="wq-vct">', (chName(ch) ? '<small class="wq-vch"><bdi' + lat(chName(ch)) + '>' + esc(chName(ch)) + '</bdi></small>' : '') + '<b class="wq-vct">');
+        // a lesson named like its chapter shows the name once (no chapter line on that card)
+        var cn = chName(ch) !== vTitle(v, ctx) ? chName(ch) : '';
+        return card(v, ctx, lib.quiz === true, i++).replace('<b class="wq-vct">', (cn ? '<small class="wq-vch"><bdi' + lat(cn) + '>' + esc(cn) + '</bdi></small>' : '') + '<b class="wq-vct">');
       }).join('');
     }).join('') + '</div>' : (lib.chapters || []).map(function (ch) {
       var cards = (ch.videos || []).map(function (v) { return card(v, ctx, lib.quiz === true, i++); }).join('');
