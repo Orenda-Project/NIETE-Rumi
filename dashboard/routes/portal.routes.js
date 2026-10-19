@@ -1858,31 +1858,34 @@ router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, asy
 // summarised from it per request (cheap, pure).
 const TrainingLevels = require('../services/training-levels-analytics.service');
 
+// The lists (FDE's schools, the RDF sectors) are read with the rows, so one snapshot holds both.
 const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
-  load: () => TrainingLevels.loadTrainingLevelRows(dbQuery),
+  load: () => TrainingLevels.loadTrainingLevelRows(
+    dbQuery,
+    () => require('../lib/analytics-lists').loadAnalyticsLists(supabase),
+  ),
   maxAgeMs: 30 * 60 * 1000,
 });
 
 /**
  * GET /api/portal/analytics/training-levels?region=<sector|all>&band=<primary|midhigh|all>
  *
- * The schools-analytics v7 Trainings tab (bd-97x22y.4, PLAN v7 "Trainings"): the ICT dashboard's training
- * level progress 1 to 1, on NIETE's own level rule. All time, as hers (no window; from/to are ignored).
- * band: primary (default; levels 1-4 over teachers whose teacher_level holds PRIMARY) or midhigh (levels 3-4
- * over MIDDLE or HIGH teachers); all = every teacher, band or none. Anything else is a 400, like an unknown
- * region. Same gate and six regions as /analytics/schools.
+ * The schools-analytics Trainings tab, v8: the RDF's training numbers. Population = live users holding an ACTIVE
+ * assignment on the programme (band primary: niete_primary, NIETE levels 1-4; midhigh: niete_middle_high, levels 3-4
+ * and the partner cards), any role, any school; all = either. Passed = a certificate for the level; In Progress = none
+ * but the bot's level rule has it under way; Not Started = the rest. All time (from/to are ignored). Same gate and six
+ * regions as /analytics/schools; anything else is a 400.
  *
  * Answer:
  *   { success, band, computedAt,                                   computedAt: when the snapshot's read began
- *     overview: { teachers, passedAll, levels: [L] },
- *     regions:  [{ region, teachers, passedAll, levels: [L without name] }],
- *     schools:  [{ schoolId, emis, name, region, teachers, passedAll, levels: [{ levelOrder, passed, teachers, pctPassed }] }] }
+ *     overview: { teachers, passedAll, levels: [L], partners? },
+ *     regions:  [{ region, teachers, passedAll, levels: [L without name], partners? }],   the six RDF sectors
+ *     noSector: { teachers, passedAll, levels, partners? },        members the RDF allocation does not place
+ *     schools:  [{ schoolId|null, emis|null, name|null, region, teachers, passedAll,
+ *                  levels: [{ levelOrder, passed, teachers, pctPassed }] }] }   FDE's schools; null = "No school"
  *   L = { levelId, levelOrder (0-3), name, passed, inProgress, notStarted, teachers, pctPassed }
- * passed = certified; inProgress = in_progress + ready_for_quiz; notStarted = not_started + locked; teachers =
- * the band's teachers whose programme shows the level; pctPassed = passed / teachers × 100, one decimal, null
- * when teachers is 0. passedAll = passed Teacher Leader, of its teachers. Regions are always the six; the
- * overview and the schools follow ?region= (a school with none of the band's teachers is left out). No teacher
- * appears. Definitions: services/training-levels-analytics.service.js.
+ * Sector = the RDF allocation sector (lib/analytics-lists). The overview and the schools follow ?region=; the six
+ * regions and noSector do not. No teacher appears. Definitions: services/training-levels-analytics.service.js.
  */
 router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {

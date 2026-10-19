@@ -222,10 +222,12 @@ const EN = {
         items: [
           { term: 'Modules completed', text: "Training modules the school's teachers finished in the period, each module counted once per teacher." },
           { term: 'Teachers trained', text: 'How many of the N teachers finished at least one module in the period ("x of N").' },
-          // bd-97x22y.4 (PLAN v7) — the Trainings tab's level progress.
-          { term: 'Passed, In Progress, Not Started', text: "Each NIETE level (Aspiring Teacher, Emerging Practitioner, Skilled Practitioner, Teacher Leader) for every teacher whose training programme includes it. Passed: holds the level's certificate or passed its exam. In Progress: has finished at least one of its modules. Not Started: none yet, or the level before is not passed yet. The percentage is how many passed. All time: the period does not change it; the tab says when the numbers were read." },
-          { term: 'Primary and Mid / High', text: 'Primary is teachers whose grades include Primary: all four levels. Mid / High is teachers whose grades include Middle or High: Skilled Practitioner and Teacher Leader, with Oxbridge (Passed: all 7 sessions passed), Beaconhouse (Passed: at least one subject passed) and I-SAPS (Passed: the I-SAPS certificate, all 9 module exams passed). A teacher who teaches both is in both.' },
-          { term: 'Passed all levels', text: 'Primary: passed Teacher Leader. Mid / High: passed Skilled Practitioner, Teacher Leader, Oxbridge and Beaconhouse. I-SAPS is shown on its own and is not part of it.' },
+          // The Trainings tab (v8): the RDF's training numbers.
+          { term: 'Teachers on the Trainings tab', text: "The same people the RDF's training cards count: everyone on NIETE's primary training programme (Primary) or its middle and high programme (Mid / High), whatever their role and whether or not they have a school. A teacher on both programmes is in both." },
+          { term: 'Passed, In Progress, Not Started', text: "Each level of NIETE's ladder (Aspiring Teacher, Emerging Practitioner, Skilled Practitioner, Teacher Leader). Passed: holds the level's certificate. In Progress: no certificate yet, but has started the level (finished a module, or is ready for or has sat its exam). Not Started: nothing yet, or the level before is not passed yet. The percentage is how many of the programme's teachers passed. All time: the period does not change it; the tab says when the numbers were read." },
+          { term: 'Mid / High programmes', text: 'Skilled Practitioner and Teacher Leader, then three programmes, each Passed with its certificate: Game-Based Teaching (GBTLA, by Oxbridge), AI-Powered Subject Pedagogy (by Beaconhouse; a certificate in any subject) and the Teacher Development Programme (by I-SAPS; counted over the teachers it is assigned to).' },
+          { term: 'Sectors', text: 'A teacher is in the sector the RDF gives her. Teachers it gives no sector are shown together under No sector, so the sectors add up to the total. In a sector, a teacher at a school that is not on FDE\'s list is under No school.' },
+          { term: 'Passed all levels', text: 'Primary: holds the Teacher Leader certificate. Mid / High: holds the Skilled Practitioner, Teacher Leader, Game-Based Teaching and AI-Powered Subject Pedagogy certificates. The Teacher Development Programme is shown on its own and is not part of it.' },
         ],
       },
       {
@@ -365,7 +367,14 @@ const EN = {
       view: 'View Details',
       hide: 'Hide schools',
     },
-    school: { passed: 'Passed', teachers: 'Teachers', none: 'No schools found.' },
+    school: { passed: 'Passed', teachers: 'Teachers', none: 'No schools found.', noSchool: 'No school', noSchoolHint: "Not at a school on FDE's list" },
+    /** Members the RDF allocation gives no sector: shown, never dropped, so the sectors add up to the total. */
+    noSector: { title: 'No sector', note: 'On the programme, but the RDF gives them no sector (no school, principals and others)' },
+    /** The population line in the filter bar. */
+    population: {
+      primary: (n: string) => `${n} teachers on NIETE's primary programme (any role, any school), as the RDF counts them`,
+      midhigh: (n: string) => `${n} teachers on NIETE's middle and high programme (any role, any school), as the RDF counts them`,
+    },
     about: {
       title: 'About Training Levels',
       items: [
@@ -375,22 +384,24 @@ const EN = {
         { term: 'Teacher Leader (Level 3):', text: 'Develops school-wide leadership and peer mentoring capabilities.' },
       ] as ReadonlyArray<{ term: string; text: string }>,
       /** How the three states and the % are worked out on NIETE's data. */
-      counted: 'Passed: holds the level\'s certificate or passed its exam. In Progress: has finished at least one of its modules, not yet the exam. Not Started: no module finished yet, or the level below is not passed yet. Each level counts the teachers whose training programme includes it, and the % is how many of them passed. "Passed all levels" means passed Teacher Leader.',
+      counted: 'Teachers: everyone on NIETE\'s primary training programme, whatever their role and school, as the RDF counts them. Passed: holds the level\'s certificate. In Progress: no certificate yet, but has started the level (a module finished, or ready for or past its exam). Not Started: nothing yet, or the level below is not passed yet. The % is how many of the programme\'s teachers passed. "Passed all levels" means holds the Teacher Leader certificate.',
       /** Mid / High: her partner rules on NIETE's records. */
-      countedMidHigh: 'Mid / High teachers are those whose grades include Middle or High. Oxbridge: Passed = all 7 sessions passed, In Progress = at least one. Beaconhouse: Passed = at least one subject passed, In Progress = started without a pass. I-SAPS: Passed = holds the I-SAPS certificate (all 9 module exams passed), In Progress = has done a unit or sat a module exam without passing. "Passed all levels" on Mid / High means NIETE Skilled Practitioner, NIETE Teacher Leader, Oxbridge and Beaconhouse all passed; I-SAPS is not part of it.',
+      countedMidHigh: 'Mid / High teachers: everyone on NIETE\'s middle and high programme, whatever their role and school. Game-Based Teaching (GBTLA) and AI-Powered Subject Pedagogy: Passed = holds the certificate (in any subject, for AI-Powered Subject Pedagogy), In Progress = started without it. Teacher Development Programme: counted over the teachers assigned it; Passed = holds its certificate, In Progress = has done a unit or sat a module exam without it. "Passed all levels" on Mid / High means the NIETE Skilled Practitioner, NIETE Teacher Leader, Game-Based Teaching and AI-Powered Subject Pedagogy certificates; the Teacher Development Programme is not part of it.',
     },
-    /** Her Mid / High "Training Partners": Oxbridge, NIETE, Beaconhouse (Trainings.jsx, TrainingLevelCard.jsx); then I-SAPS. */
+    /**
+     * The Mid / High programmes under NIETE's own short names (operator, 2026-10-19: "NIETE's names, short"); the full
+     * NIETE name and the partner who delivers it sit under "What is this?".
+     */
     partners: {
-      title: 'Training Partners',
-      oxbridge: 'Oxbridge Training',
+      title: 'Training Programmes',
+      oxbridge: 'Game-Based Teaching (GBTLA)',
       niete: 'NIETE Trainings',
-      beaconhouse: 'Beaconhouse Training',
-      /** Not one of hers (operator, 2026-10-19): a fourth partner, named after the partner as hers are. */
-      isaps: 'I-SAPS Training',
-      /** Short names in the chart, the sector cards and the filter. */
-      oxbridgeShort: 'Oxbridge',
-      beaconhouseShort: 'Beaconhouse',
-      isapsShort: 'I-SAPS',
+      beaconhouse: 'AI-Powered Subject Pedagogy',
+      isaps: 'Teacher Development Programme',
+      /** The names in the chart, the sector cards and the filter. */
+      oxbridgeShort: 'Game-Based Teaching (GBTLA)',
+      beaconhouseShort: 'AI-Powered Subject Pedagogy',
+      isapsShort: 'Teacher Development Programme',
       nieteFilter: (name: string) => `NIETE — ${name}`,
       summary: (passed: string, inProgress: string) => `${passed} passed · ${inProgress} in progress`,
       nieteSummary: 'Skilled Practitioner & Teacher Leader',
@@ -407,7 +418,8 @@ const EN = {
       uniqueNote: 'a teacher may appear in multiple levels above',
       courses: 'Courses',
       oxbridgeDefinition: {
-        short: 'Oxbridge Trainings focus on Game-Based Teaching, Learning, and Assessment (GBTLA) — a learner-centred approach that integrates curriculum-aligned games into teaching to promote active engagement, collaboration, critical thinking, and continuous formative assessment.',
+        title: 'NIETE: Smart Schools Project: Game-Based Teaching, Learning and Assessment (GBTLA), 6-10 · delivered by Oxbridge',
+        short: 'Game-Based Teaching, Learning, and Assessment (GBTLA) is a learner-centred approach that integrates curriculum-aligned games into teaching to promote active engagement, collaboration, critical thinking, and continuous formative assessment. Passed: holds the GBTLA certificate.',
         coverage: [
           ['Session 1', "Foundation – Purpose and Overview of GBTLA: Introduction to the principles, philosophy, and rationale of GBTLA. Participants explore how game-based learning supports curriculum delivery, student engagement, and assessment while understanding the teacher's role as a facilitator of learning."],
           ['Session 2', "Implementation – Structure and Teacher's Role: Focuses on the planning and implementation cycle of GBTLA, including lesson design, alignment with learning outcomes, classroom organisation, and effective facilitation using available classroom resources."],
@@ -419,10 +431,12 @@ const EN = {
         ] as ReadonlyArray<readonly [string, string]>,
       },
       isapsDefinition: {
-        short: 'I-SAPS Level 1 (Novice) is a nine-module programme for Middle and High teachers. Each module is a set of units followed by a module exam: multiple-choice questions and one written answer. A teacher who passes all nine module exams receives the I-SAPS certificate. It is shown on its own and is not part of “passed all levels”.',
+        title: 'NIETE: Teacher Development Programme, 9-12 · delivered by I-SAPS',
+        short: 'Level 1 (Novice) is nine modules for Middle and High teachers. Each module is a set of units followed by a module exam: multiple-choice questions and one written answer. Passed: holds the programme\'s certificate. It is counted over the teachers assigned it, shown on its own, and is not part of “passed all levels”.',
       },
       beaconhouseDefinition: {
-        short: "Beaconhouse Trainings build teachers' professional knowledge and practical classroom skills to deliver engaging, inclusive, and effective instruction. The programme covers evidence-based teaching methodologies, AI-enhanced instruction, inquiry-based learning, problem-solving, and learner-centred practices across four core subjects.",
+        title: 'NIETE: AI-Powered Subject Pedagogy, 6-10 · delivered by Beaconhouse',
+        short: "AI-Powered Subject Pedagogy builds teachers' professional knowledge and practical classroom skills to deliver engaging, inclusive, and effective instruction. The programme covers evidence-based teaching methodologies, AI-enhanced instruction, inquiry-based learning, problem-solving, and learner-centred practices across four core subjects. Passed: holds the certificate in at least one subject.",
         courses: [
         {
           name: 'English',
