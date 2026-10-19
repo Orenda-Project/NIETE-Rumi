@@ -1474,9 +1474,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
-  // the door's class line, with the Urdu polish (wq-ur2): an English quiz on an Urdu page names the class in Urdu, as the
-  // class table does (CLASS_LABEL)
-  function doorLabel() { return CLS.label && typeof UI_SWAP !== 'undefined' && UI_SWAP && typeof UR2 !== 'undefined' && UR2 && typeof urClassLabel === 'function' ? urClassLabel(CLS.label) : CLS.label; }
+  // the class label on an Urdu page with the Urdu polish (wq-ur2), whatever the quiz's language: in Urdu, as the class
+  // table does (urClassLabel). The door's line and the finish card's header.
+  function doorLabel() { return CLS.label && typeof UR2 !== 'undefined' && UR2 && typeof urClassLabel === 'function' ? urClassLabel(CLS.label) : CLS.label; }
   // the quiz title's dir on the door: an English title on an Urdu page with the look is left to right (WQI.latDir)
   function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
@@ -2618,7 +2618,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // The name notice is for the share it sits on: always directly above "Share to class group".
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
-      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
       '<img src="' + jv(IMG + 'celebrate.webp') + '" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
@@ -2718,7 +2718,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var tile = foldNext(nx, fc);
     var h = bar(FOLD_BAR) +
-      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
       '<img src="' + jv(IMG + 'celebrate.webp') + '" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
