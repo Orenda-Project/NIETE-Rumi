@@ -17,9 +17,9 @@ type Mark = 'done' | 'now' | 'later';
 const markOf = (m: MoveView, now: number | null): Mark => (m.ticked ? 'done' : m.idx === now ? 'now' : 'later');
 const ICON: Record<Mark, string> = { done: '✓', now: '▶', later: '○' };
 const ROW: Record<Mark, string> = {
-  done: 'text-[#888]',
-  now: 'bg-[#fff7d6] border-l-4 border-l-[#f0ad00]',
-  later: 'text-[#555]',
+  done: 'text-nu-surface-muted',
+  now: 'bg-nu-chip-warning-bg border-s-4 border-s-nu-button-warning',
+  later: 'text-nu-surface-text',
 };
 
 export function LiveMovesList({ state, now, status, onTap }: {
@@ -33,10 +33,10 @@ export function LiveMovesList({ state, now, status, onTap }: {
   return (
     <section data-testid="live-moves" className="overflow-hidden rounded-2xl border-[1.5px] border-nu-surface-line bg-nu-surface-card">
       <p className="px-3 py-2 text-[13px] text-nu-surface-text">{L.caveat}</p>
-      {status !== 'live' ? <p data-testid="live-moves-paused" className="px-3 pb-2 text-[13px] font-semibold text-[#9a6b00]">{L.paused}</p> : null}
+      {status !== 'live' ? <p data-testid="live-moves-paused" className="px-3 pb-2 text-[13px] font-semibold text-nu-chip-warning">{L.paused}</p> : null}
       {state.sections.map((sec) => (
         <div key={sec.sec}>
-          <div className="bg-[#f3f3f3] px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#666]">
+          <div className="bg-nu-ink-xlight px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wide text-nu-surface-muted">
             {`${names[sec.sec] ?? sec.sec} · ${L.minutes(sec.minutes)}`}
           </div>
           {state.moves.filter((m) => m.sec === sec.sec).map((m) => {
@@ -48,12 +48,12 @@ export function LiveMovesList({ state, now, status, onTap }: {
                 data-testid={`live-move-${m.idx}`}
                 data-mark={mark}
                 onClick={() => onTap(m.idx)}
-                className={cn('flex w-full gap-2 border-b border-[#eee] px-3 py-2.5 text-start text-[14px]', ROW[mark])}
+                className={cn('flex w-full gap-2 border-b border-nu-surface-line px-3 py-2.5 text-start text-[14px]', ROW[mark])}
               >
-                <span aria-hidden="true" className={cn('w-5 flex-none text-center font-bold', mark === 'done' && 'text-[#198754]')}>{ICON[mark]}</span>
+                <span aria-hidden="true" className={cn('w-5 flex-none text-center font-bold', mark === 'done' && 'text-nu-done')}>{ICON[mark]}</span>
                 <span className="flex flex-col">
                   <span>{m.do}</span>
-                  {mark === 'now' && m.say ? <span className="italic text-[#333]">{`“${m.say}”`}</span> : null}
+                  {mark === 'now' && m.say ? <span className="italic text-nu-surface-text">{`“${m.say}”`}</span> : null}
                 </span>
               </button>
             );

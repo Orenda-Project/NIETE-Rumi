@@ -42,7 +42,7 @@ describe("LiveMovesList", () => {
     expect(screen.getByTestId("live-move-0").textContent).toContain("✓");
     expect(screen.getByTestId("live-move-1").textContent).toContain("▶");
     expect(screen.getByTestId("live-move-2").textContent).toContain("○");
-    expect(screen.getByTestId("live-move-1").className).toMatch(/#fff7d6/);
+    expect(screen.getByTestId("live-move-1").className).toMatch(/bg-nu-chip-warning-bg/);
     expect(screen.getByText(/Say 1/)).toBeTruthy();
     expect(screen.queryByText(/Say 0/)).toBeNull();
     expect(screen.queryByText(/Say 2/)).toBeNull();
