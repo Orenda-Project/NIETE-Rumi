@@ -732,6 +732,7 @@ const Patterns = require('./patterns');
 const { applyLayout, takenNote, verseLines } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
+const { checkBlueprint } = require('./blueprint-check');
 const Reader = require('./fde-reader');
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -853,8 +854,8 @@ async function _warmSharedPrefixes({ built, model, job, requestId, pattern }) {
 
 /**
  * The marks split FDE's table of specification asks for, per subject, by
- * marks (from the FDE pattern document). Not yet in the pattern
- * data, so it lives here until the pattern carries it.
+ * marks. A pattern subject carries its own (`tos`, set per grade by FDE);
+ * this is the fallback for a subject whose pattern does not.
  */
 const TOS = {
   maths: { Remember: 10, Understand: 50, Apply: 40 },
@@ -1159,7 +1160,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'urdu') rules.push(RULE.urduNoMaxims);
   if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
-  const tos = TOS[key];
+  const tos = P.tos || TOS[key];
   if (tos) {
     const split = Object.entries(tos).map(([band, pct]) => `${band} ${pct}%`).join(', ');
     rules.push(`Across the whole paper the marks split by thinking level is ${split} (FDE's table of specification). `
@@ -2212,6 +2213,11 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   (examJson._layout.notes || []).slice(notesBefore).forEach((note) => {
     logToFile('[assessment] maths key replaced', { slot: note.slot, n: note.n ?? note.index ?? null, computed: note.computed, model: note.model });
   });
+
+  // Report-only: what the paper carries against its pattern and FDE's split; it never fails a paper.
+  const blueprint = checkBlueprint(examJson, { tos: P.tos || TOS[key] || null });
+  examJson._layout.blueprint = blueprint;
+  logToFile('[assessment] blueprint checked', { pattern, subject: key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
 
   // The warm call is billed like any other, so it is in the paper's totals.
   const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));
