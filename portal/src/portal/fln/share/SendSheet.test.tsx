@@ -143,6 +143,38 @@ describe('SendSheet', () => {
     expect((boxes[30] as HTMLButtonElement).disabled).toBe(true);
   });
 
+  // On a phone the teacher list is longer than the sheet; the leader's primary action must stay in view.
+  it('Send and the status line sit in a sticky footer, the panel\'s last child, below the whole list', async () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({ key: `k${i}`, name: `T${i}`, school: 'School A' }));
+    stubFetch({
+      '/api/portal/fln/teachers': { status: 200, body: { teachers: many } },
+      '/api/portal/fln/send': { status: 200, body: { queued: 1, failed: [] } },
+    });
+    mount();
+    const dialog = await screen.findByRole('dialog', { name: 'Send to teacher' });
+    fireEvent.click(await screen.findByRole('checkbox', { name: /T0/ }));
+    const footer = within(dialog).getByTestId('fln-send-footer');
+    expect(dialog.lastElementChild).toBe(footer);
+    expect(footer.className).toMatch(/\bsticky\b/);
+    // The panel pads its bottom by max(16px, safe-area); the footer cancels that padding so it meets the sheet's edge
+    // instead of floating above it with rows showing underneath.
+    const cls = footer.className.split(/\s+/);
+    const inset = 'max(16px,env(safe-area-inset-bottom))';
+    expect(cls).toContain(`bottom-[calc(-1*${inset})]`);
+    expect(cls).toContain(`-mb-[${inset}]`);
+    expect(cls).toContain(`pb-[${inset}]`);
+    expect(cls).not.toContain('bottom-0');
+    const send = within(footer).getByRole('button', { name: 'Send' }) as HTMLButtonElement;
+    expect(send.disabled).toBe(false);
+    expect(within(footer).getByRole('status')).toBeTruthy();
+    // The last teacher row stays in the scrolling flow, above the footer, so it can still be reached.
+    const last = screen.getByRole('checkbox', { name: /T13/ });
+    expect(footer.contains(last)).toBe(false);
+    expect(last.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(send);
+    expect(await within(footer).findByText(wholeText('Sent ✓ · 1 teacher'))).toBeTruthy();
+  });
+
   it('Urdu chrome: the sheet is rtl with Urdu words and digits; the plan title keeps its own direction', async () => {
     stubFetch({ '/api/portal/fln/teachers': { status: 200, body: { teachers: TEACHERS } } });
     mount({ lang: 'ur' });
