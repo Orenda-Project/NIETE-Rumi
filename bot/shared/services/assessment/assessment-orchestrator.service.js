@@ -52,7 +52,7 @@ const ENV = globalThis.process.env;
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const { resolveUx } = require('../../config/ux-strings');
 const Delivery = require('./assessment-delivery');
-const { isAssessmentVersionsEnabled, fdeReaderPassSubjects } = require('../../config/feature-flags');
+const { isAssessmentVersionsEnabled, fdeReaderPassSubjects, isFlagEnabled } = require('../../config/feature-flags');
 const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
 
@@ -250,9 +250,13 @@ async function _buildPatternPaper({ job, user, paperId }) {
   // never read for any other subject, so their papers are built as before.
   const readKey = Patterns.normalise(subject);
   const readerPass = READER_SUBJECTS.includes(readKey) && (await fdeReaderPassSubjects()).includes(readKey);
+  // A paper off FDE's split by thinking level is written once more and the nearer kept, while the
+  // `assessment_fde_split_retry` setting is on (bd-5jmnfj.18): it can double a paper's cost and time.
+  const splitRetry = await isFlagEnabled('assessment_fde_split_retry');
   const generate = () => Generation.generatePatternExam({
     grade, subject, pattern, scope, pageRanges, chapterNumber, requestId,
     ...(readerPass ? { readerPass: true } : {}),
+    ...(splitRetry ? { splitRetry: true } : {}),
     // A write per section, so the row reads as a live run. Only while it IS this run's: a paper a
     // stopping worker handed back (`queued`) is never flipped back to `generating`, or the next
     // delivery would skip it and ack its only message.

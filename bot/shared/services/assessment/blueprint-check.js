@@ -87,4 +87,27 @@ function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE } = {}) {
   return { ok: problems.length === 0, total, expected: L.total_marks, sections, levels, problems };
 }
 
-module.exports = { checkBlueprint, TOLERANCE };
+/** True when the paper's split by level misses its target (bd-5jmnfj.18: such a paper is written once more). */
+function missesSplit(bp) {
+  return Boolean(bp && bp.problems.some((p) => p.code === 'LEVEL'));
+}
+
+/** How far a paper sits from its target: the sum of each level's miss, in percentage points. */
+function levelDistance(bp) {
+  return LEVELS.reduce((sum, band) => {
+    const l = bp.levels[band];
+    return sum + (typeof l.target === 'number' ? Math.abs(l.pct - l.target) : 0);
+  }, 0);
+}
+
+/** The note a second run is given: the first paper's split by marks, and the target. */
+function levelNote(bp) {
+  const split = (pick) => LEVELS.map((band) => `${band} ${pick(bp.levels[band])}%`).join(', ');
+  return [
+    `The paper written for this request came out at ${split((l) => Math.round(l.pct))} of the marks.`,
+    `The board's split is ${split((l) => l.target)}. Write this section so the paper meets that split:`,
+    'change which questions you ask, not just their tags. Tag every item with the level it truly tests.',
+  ].join(' ');
+}
+
+module.exports = { checkBlueprint, missesSplit, levelDistance, levelNote, TOLERANCE };
