@@ -131,3 +131,10 @@ describe('Urdu Section C split fits its questions', () => {
     expect(sum).toEqual(P.urdu.tos);
   });
 });
+
+describe('Urdu Q6 poem is Remember', () => {
+  // Two sandbox runs tagged it Remember, then Apply; C's R10 needs Q3 + Q6 both Remember (model paper sets writing at A40).
+  it('Section C names it', () => {
+    expect(prompt('urdu', 'C')).toMatch(/poem question \(Q6\).*is Remember/);
+  });
+});
