@@ -32,6 +32,11 @@ const TAG_RX = /<link rel="stylesheet" href="([^"]+)">\n?|<script src="([^"]+)"(
 // The home's scripts a head may carry for the next child (the ones the last child's tail named, from this list only).
 const HOME_JS = new Set(['wq-tel.js', 'wq-bind.js', 'wq-home.js', 'hub-play.js', 'wq-readalong-listen.js', 'hub.js']);
 const made = []; // every carrier, so a test can clear what each learned
+// A learned address at the page's own version is kept without it, and named at the version of the head that carries it
+// (the minified copies, web_quiz_minify, are another version: a head never names a file at two).
+const AT_PAGE = '?v=\u0000';
+const unversion = (href, v) => (v && href.endsWith(`?v=${v}`) ? `${href.slice(0, -`?v=${v}`.length)}${AT_PAGE}` : href);
+const versionAt = (href, v) => (href.endsWith(AT_PAGE) ? `${href.slice(0, -AT_PAGE.length)}?v=${v}` : href);
 
 /** The hub answer asks for it (JSON true only), and its home can be carried (the v3 home, not its fallback). */
 function on(payload) {
@@ -71,8 +76,8 @@ function create({ source }) {
     return t == null ? null : `<link rel="wq-src" href="${href}"><style>${inStyle(t)}</style>\n`;
   };
 
-  /** A hub answer's tail named these tags: remember the scripts the next head carries. */
-  function learn(payload, tags) {
+  /** A hub answer's tail (at version `v`) named these tags: remember the scripts the next head carries. */
+  function learn(payload, tags, v) {
     if (!payload || payload.home_inline !== true) { last = null; return; }
     // a locked answer (a new phone) keeps what a child's answer taught; with nothing taught yet (a fresh process), the
     // switch is known on: the head carries the page's own files (wq.css, the look's, wq-tel, hub.js)
@@ -81,7 +86,7 @@ function create({ source }) {
     const out = [];
     let m;
     TAG_RX.lastIndex = 0;
-    while ((m = TAG_RX.exec(tags))) if (m[2] && HREF_RX.test(m[2]) && HOME_JS.has(HREF_RX.exec(m[2])[1])) out.push(m[2]);
+    while ((m = TAG_RX.exec(tags))) if (m[2] && HREF_RX.test(m[2]) && HOME_JS.has(HREF_RX.exec(m[2])[1])) out.push(unversion(m[2], v));
     last = out;
   }
 
@@ -97,7 +102,7 @@ function create({ source }) {
     return style(href) || `<link rel="stylesheet" href="${href}">\n`;
   }
   function headJs(assetV) {
-    const all = [`/wq/wq-tel.js?v=${assetV}`, ...(last || []), `/wq/hub.js?v=${assetV}`];
+    const all = [`/wq/wq-tel.js?v=${assetV}`, ...(last || []).map((h) => versionAt(h, assetV)), `/wq/hub.js?v=${assetV}`];
     const hrefs = [];
     const html = [...new Set(all)].map((h) => {
       const s = script(h);

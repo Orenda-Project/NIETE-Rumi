@@ -856,7 +856,7 @@ function homeFileTags(payload, assetV, asPack) {
 // server render is locked, and its child arrives on that call (the unlock), so the edge learns from that child too.
 function learnHome(payload, assetV) {
   HomePre.learn(payload, Pack.on(payload) ? (payload.home_fb ? homeTags(payload, assetV) : '') : homeFileTags(payload, assetV, false), assetV);
-  INLINE.learn(payload, homeFileTags(payload, assetV, false));
+  INLINE.learn(payload, homeFileTags(payload, assetV, false), assetV);
   EarlyUnlock.learn(payload);
 }
 
@@ -882,7 +882,7 @@ function hubPageParts({ payload, token, origin, assetV, headPack, plain = null, 
   if (answer) learnHome(payload, assetV);
   return {
     lang, dir: plainDir(lang), ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title, bootsay,
-    head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui, carry, first })}${answer || carry ? '' : HomePre.head()}`,
+    head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui, carry, first })}${answer || carry ? '' : HomePre.head(assetV)}`,
     manifest: play && play.install ? `/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}` : null,
     // web_quiz_wait_ux on (the bot's `wait_ux`): the progress bar and Jugnu's waiting moment ride the frame (web-quiz-wait-ux.js)
     frame: `<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(bootsay)}</p></div></main>${WaitUx.tag(payload)}`,
@@ -930,7 +930,7 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
   const home = waitUx && waitHome ? `${WaitUx.homeTag(token, p.lang, assetV)}\n` : '';
   // The home's next files and first reads, started from here (web-quiz-fast-hop.js): the head reads the hash on the phone.
   const inl = carried ? { headRun, carried: carried.hrefs } : null;
-  return { guess: { ...p, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}` };
+  return { guess: { ...p, assetV, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
@@ -1649,7 +1649,8 @@ function createWebQuizRouter(opts = {}) {
       // Server-Timing: any items already on it, this edge's wait for the bot, the bot's items, this page's render.
       // Off: no `st`, and the page and its headers are today's.
       // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
-      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: version() }));
+      // the tail names the files at its head's version (an answer that turns web_quiz_minify on or off shows from the next open)
+      if (flush) return wire.page(renderHubFlushTail({ guess: flush.guess, payload: out.steps ? { ...out.body, st: out.steps } : out.body, token, origin, assetV: flush.guess.assetV || version() }));
       if (!out.steps) return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
       const edgeMs = Date.now() - b0;
       const r0 = process.hrtime.bigint();

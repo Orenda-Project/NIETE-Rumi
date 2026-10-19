@@ -22,7 +22,12 @@
  * phone (keep my place, Jugnu's corner, the read-along preview, or any other tag) are never preloaded for the next
  * child: they stay in the tail, asked for after the answer as today.
  */
-let last = null; // [[href, as], …] from the last hub answer with `home_pre`, or null
+let last = null; // [[href, as], …] from the last hub answer with `home_pre`, or null (hrefs at that page's version: AT_PAGE)
+// An address at the page's own version is kept without it, and preloaded at the version of the head (the minified
+// copies, web_quiz_minify, are another version: a head's preloads are exactly what its own page asks for).
+const AT_PAGE = '?v=\u0000';
+const unversion = (href, v) => (v && href.endsWith(`?v=${v}`) ? `${href.slice(0, -`?v=${v}`.length)}${AT_PAGE}` : href);
+const versionAt = (href, v) => (v && href.endsWith(AT_PAGE) ? `${href.slice(0, -AT_PAGE.length)}?v=${v}` : href);
 
 const HREF_RX = /^\/wq\/[A-Za-z0-9._-]+\.(js|css)\?v=[0-9A-Za-z]+$/;
 // The files every child home asks for (the v3 home, and the door screens wq-home.js loads): the only files a head preloads.
@@ -48,12 +53,12 @@ function addresses(payload, tags, assetV) {
 function learn(payload, tags, assetV) {
   if (!payload || payload.home_pre !== true) { last = null; return; }
   if (payload.locked || !payload.kid) return;
-  last = addresses(payload, tags, assetV);
+  last = addresses(payload, tags, assetV).map(([h, as]) => [unversion(h, assetV), as]);
 }
 
-/** The preloads for the early head ('' when nothing is learned): one line each, after the head's stylesheet. */
-function head() {
-  return last && last.length ? last.map(([h, as]) => `\n<link rel="preload" href="${h}" as="${as}">`).join('') : '';
+/** The preloads for the early head at version `assetV` ('' when nothing is learned): one line each, after the head's stylesheet. */
+function head(assetV) {
+  return last && last.length ? last.map(([h, as]) => `\n<link rel="preload" href="${versionAt(h, assetV)}" as="${as}">`).join('') : '';
 }
 
 module.exports = { learn, head, addresses, SHARED, _reset: () => { last = null; } };
