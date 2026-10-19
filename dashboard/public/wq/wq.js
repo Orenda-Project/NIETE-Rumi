@@ -792,6 +792,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑا سا رہ گیا! پھر کھیلیں؟' },
       ghost: function (s) { return s + ' سے ابھی کسی نے نہیں کھیلا۔ آپ پہلے بنیں!'; },
       noSchools: 'ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا بنے!',
+      // lists join with «،»: in Nastaliq a «·» reads as the zero «۰»
+      schoolsRule: 'اس ہفتے، کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک', second: 'دوسری کوشش، ' + MASC.ur + ' کے ساتھ',
       // the league's counts: Urdu digits, thousands split with «٬» (urCount)
       pts: function (n) { return urCount(n) + ' پوائنٹس'; }, kidsN: function (n) { return urCount(n) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
       zeroN: function (n) { return urCount(n) + ' اسکول ابھی شروع نہیں ہوئے'; },
@@ -1600,7 +1602,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       setRoll: 'رول نمبر دیں', noList: 'یہ کوئز کسی کلاس لسٹ سے جڑا نہیں، اس لیے نام ویسے ہی ہیں جیسے بچوں نے لکھے۔',
       fixT: function (n) { return n + ' کا رول نمبر؟'; }, fixSay: 'کلاس لسٹ سے رول نمبر لکھیں۔',
       isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
-      practice: function (c, t) { return 'مشق کا راؤنڈ · پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
+      // sep(): «،» with the Urdu polish, else today's «·» (guarded: this table runs in the identity tests' slice)
+      practice: function (c, t) { return 'مشق کا راؤنڈ' + (typeof sep === 'function' ? sep() : ' · ') + 'پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
       preview: 'یہ صرف آپ کے دیکھنے کے لیے تھا۔ آپ کے جوابات کلاس کے ریکارڈ میں محفوظ نہیں کیے گئے۔',
       newBest: 'نیا ریکارڈ!', wasBest: 'پہلے',
       tFor: 'استاد کے لیے', tLead: 'آپ کی کلاس یہ کوئز آپ کے بھیجے ہوئے لنک سے کھیلتی ہے۔ دیکھیں کس نے کھیلا، یا خود آزمائیں۔',
@@ -3152,7 +3155,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function schoolMove(m) {
     if (m === 'new') return '<span class="wq-move wq-new">' + esc(T.moveNew) + '</span>';
     if (typeof m !== 'number' || !m) return '';
-    return m > 0 ? '<span class="wq-move wq-up" dir="ltr">▲' + m + '</span>' : '<span class="wq-move wq-down" dir="ltr">▼' + (-m) + '</span>';
+    // with the Urdu polish the step is in Urdu digits, like the rank
+    var n = UR2 ? urDigits(Math.abs(m)) : Math.abs(m);
+    return m > 0 ? '<span class="wq-move wq-up" dir="ltr">▲' + n + '</span>' : '<span class="wq-move wq-down" dir="ltr">▼' + n + '</span>';
   }
   function schoolRow(r) {
     return '<li class="wq-srow' + (r.mine ? ' wq-you' : '') + '"' + (r.mine ? ' id="wq-mine"' : '') + '>' +
@@ -3207,7 +3212,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
       ? '<div class="wq-chips wq-schips' + (cd ? ' wq-tall' : '') + '"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
-        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
+        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + sep() + '<bdi>' + esc(sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
     var zn = b.zero_names || [];
     var zero = b.zero_n && !SCH.sector
       ? '<details class="wq-zero-list' + (cd ? ' wq-tall' : '') + '"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
