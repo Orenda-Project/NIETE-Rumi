@@ -237,8 +237,8 @@
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
     if (!deferred || firstView || snoozed()) { box.innerHTML = ''; return; }
     box.innerHTML = H3
-      ? '<div class="wq-icard"><b>' + esc(L.installTitle) + '</b><div class="wq-ibtns">' +
-        '<button type="button" class="wq-btn wq-go wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
+      ? '<div class="wq-icard"><div class="wq-ihead"><img class="wq-iicon" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48"><b>' + esc(L.installTitle) + '</b></div><div class="wq-ibtns">' +
+        '<button type="button" class="wq-btn wq-soft wq-itint wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
         '<button type="button" class="wq-btn wq-soft wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>'
       : '<div class="wqp-inst"><b>' + esc(L.installTitle) + '</b><div>' +
         '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
