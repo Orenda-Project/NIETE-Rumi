@@ -14,7 +14,7 @@ const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout
 const layoutOf = (subject) => applyLayout({ unseen: { subjective: {} } }, P.subjects[subject], { kind: 'fde' }, { now: '2026-10-20T07:12:00.000Z' }).examJson._layout;
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const SCIENCE = require('./fixtures/fde/r7-science-full1.exam.json');
-// A locally generated Science paper (gen-local corpus) whose Q2(b) parts came back as plain strings.
+// A locally generated Science paper (the local corpus) whose Q2(b) parts came back as plain strings.
 const STRING_PARTS = require(process.env.RT_STRING_PARTS_FIXTURE || path.join(__dirname, 'fixtures/fde/rt-r7s-science-string-parts.exam.json'));
 
 const html = (exam) => { const o = R.renderMarkingScheme({ examJson: exam, grade: 5, subject: exam._layout.subject, allowShort: true }); return typeof o === 'string' ? o : (o.html || o.body); };
@@ -22,7 +22,7 @@ const bareChips = (h) => [...String(h).matchAll(/<span class="chip">(?:<span cla
 const Q2B = 'Logical Reasoning';
 
 describe('rt-r7s: situation parts the model wrote as strings', () => {
-  test('recorded gen-local science paper: parts are strings, parent answer is lettered', () => {
+  test('recorded local science paper: parts are strings, parent answer is lettered', () => {
     const item = Object.values(STRING_PARTS.unseen.subjective).flat().find((q) => q.slot === 'science.B.Q2b');
     expect(typeof item.questions[0]).toBe('string');
     expect(item.answer).toMatch(/a\)/);

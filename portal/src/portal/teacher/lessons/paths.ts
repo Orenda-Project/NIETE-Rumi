@@ -30,6 +30,8 @@ export type LessonsAt = {
   render?: string;
   /** A plan's title, when the page cannot look it up (Preparing reached from Recent). */
   title?: string;
+  /** `dc`: Digital Coaching's From the library (bd-fgj73x.5): the pages CHOOSE a plan for her lesson. */
+  pick?: string;
 };
 
 export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
@@ -39,6 +41,7 @@ export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   if (at.lesson) q.set('lesson', at.lesson);
   if (at.render) q.set('render', at.render);
   if (at.title) q.set('title', at.title);
+  if (at.pick) q.set('pick', at.pick);
   return `${LESSONS_HOME}/${view}?${q.toString()}`;
 }
 
@@ -49,7 +52,7 @@ export function readAt(search: string): LessonsAt | null {
   const subject = q.get('subject');
   if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject) return null;
   const at: LessonsAt = { grade, subject };
-  for (const k of ['key', 'chapter', 'lesson', 'render', 'title'] as const) {
+  for (const k of ['key', 'chapter', 'lesson', 'render', 'title', 'pick'] as const) {
     const v = q.get(k);
     if (v) at[k] = v;
   }
@@ -61,7 +64,11 @@ export function readAt(search: string): LessonsAt | null {
  * `k5:<lesson_id>` or `g612:<segment_id>` with its language, the keys GET /lesson-plans/recent uses
  * and the coaching upload takes ({ lessonId } | { segmentId, lang }).
  */
-export type DcPrefill = { grade: number | null; subjectKey: string | null; plan: string | null; lang: string | null };
+export type DcPrefill = {
+  grade: number | null; subjectKey: string | null; plan: string | null; lang: string | null;
+  /** bd-fgj73x.10 — so DC picks the plan's class even when it is not hers: the catalogue's subject key, or its name. */
+  lpSubject?: string | null; subjectName?: string | null;
+};
 
 export function dcHref(base: string, dc: DcPrefill | null | undefined): string {
   if (!dc) return base;
@@ -70,17 +77,40 @@ export function dcHref(base: string, dc: DcPrefill | null | undefined): string {
   if (dc.subjectKey) q.set('subject', dc.subjectKey);
   if (dc.plan) q.set('plan', dc.plan);
   if (dc.plan && dc.plan.startsWith('g612:') && dc.lang) q.set('lang', dc.lang);
+  if (dc.lpSubject) q.set('lpSubject', dc.lpSubject);
+  if (dc.subjectName) q.set('subjectName', dc.subjectName);
   const s = q.toString();
   return s ? `${base}?${s}` : base;
 }
 
 /** A plan to reopen by its key, with what the viewer and Start DC need. */
-export type PlanRef = { plan: string; lang?: string | null; title?: string | null; grade?: number | null };
+export type PlanRef = {
+  plan: string; lang?: string | null; title?: string | null; grade?: number | null;
+  /** `dc`: opened from Digital Coaching's attached plan, to read it (no Start DC on it). */
+  from?: 'dc';
+  /** bd-fgj73x.10 — the plan's subject name (Recent / All lesson plans), carried on to Start DC observation. */
+  subject?: string | null;
+};
+
+/**
+ * bd-fgj73x.10 — a plan link already built by openUrl, with the plan's subject name added (openUrl's `subject`). The
+ * Recent and All lesson plans rows add it this way, after the row is built, so their `to:` lines stay exactly as on
+ * `main` (the FLN link): a change beside those lines would conflict on every promotion.
+ */
+export function withSubject(url: string | undefined, subject: string | null | undefined): string | undefined {
+  if (!url || !subject) return url;
+  const [path, query = ''] = url.split('?');
+  const q = new URLSearchParams(query);
+  q.set('subject', subject);
+  return `${path}?${q.toString()}`;
+}
 
 export function openUrl(ref: PlanRef): string {
   const q = new URLSearchParams({ plan: ref.plan });
   if (ref.lang && ref.plan.startsWith('g612:')) q.set('lang', ref.lang);
   if (ref.title) q.set('title', ref.title);
   if (ref.grade != null) q.set('grade', String(ref.grade));
+  if (ref.from) q.set('from', ref.from);
+  if (ref.subject) q.set('subject', ref.subject);
   return `${LESSONS_OPEN}?${q.toString()}`;
 }

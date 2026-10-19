@@ -6,6 +6,7 @@ import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import { LESSONS_VIEWER, lessonsUrl, type DcPrefill, type LessonsAt } from './paths';
+import type { PickTarget } from '../coaching/libraryPick';
 
 /**
  * bd-fmf24g.3 — Open, the one way for every grade, onto the v2 pages. The deciding is the shared
@@ -17,7 +18,10 @@ import { LESSONS_VIEWER, lessonsUrl, type DcPrefill, type LessonsAt } from './pa
 /** Start DC observation's prefill for a plan opened from these pages. */
 export function dcFor(lesson: Pick<LpLesson, 'id' | 'lane'>, at: LessonsAt): DcPrefill {
   const g612 = lesson.lane === 'g612';
-  return { grade: at.grade, subjectKey: at.key ?? null, plan: `${g612 ? 'g612' : 'k5'}:${lesson.id}`, lang: g612 ? 'en' : null };
+  return {
+    grade: at.grade, subjectKey: at.key ?? null, plan: `${g612 ? 'g612' : 'k5'}:${lesson.id}`, lang: g612 ? 'en' : null,
+    lpSubject: at.subject || null,
+  };
 }
 
 export function useOpenLesson() {
@@ -29,13 +33,14 @@ export function useOpenLesson() {
   const live = useRef(true);
   useEffect(() => () => { live.current = false; }, []);
 
-  const open = useCallback(async (lesson: LpLesson, at: LessonsAt, opts: { crumb?: string; replace?: boolean } = {}) => {
+  // `pick`: opened with the eye from Digital Coaching's From the library; the viewer offers Use this lesson plan.
+  const open = useCallback(async (lesson: LpLesson, at: LessonsAt, opts: { crumb?: string; replace?: boolean; pick?: PickTarget } = {}) => {
     setBusy(true);
     try {
       const r = await lessonPlans.open(lesson);
       if (r.state === 'ready') {
         const how = await openPlan(r.source, lesson.title, {
-          crumb: opts.crumb, replace: opts.replace, page: LESSONS_VIEWER, state: { dc: dcFor(lesson, at) },
+          crumb: opts.crumb, replace: opts.replace, page: LESSONS_VIEWER, state: { dc: dcFor(lesson, at), ...(opts.pick ? { pick: opts.pick } : {}) },
         });
         if (how === 'not_ready') toast({ title: C.notReady });
       } else if (r.state === 'preparing') {

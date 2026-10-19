@@ -6655,6 +6655,13 @@ DO $$ BEGIN
     CHECK (channel IS NULL OR channel IN ('whatsapp', 'portal')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+-- V1.6.14: the six codes the lifecycle writer writes (tests/lesson-plan-lifecycle/vocabulary.test.js keeps them one list).
+DO $$ BEGIN
+  ALTER TABLE lesson_plan_requests ADD CONSTRAINT lesson_plan_requests_error_code_check
+    CHECK (error_code IS NULL OR error_code IN (
+      'GENERATION_FAILED', 'RENDER_FAILED', 'DELIVERY_FAILED', 'QUEUE_FAILED', 'NO_ASSET', 'NOT_ELIGIBLE')) NOT VALID;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE lesson_plans ADD CONSTRAINT lesson_plans_request_id_fkey
     FOREIGN KEY (request_id) REFERENCES lesson_plan_requests(id) ON DELETE SET NULL;
@@ -6675,6 +6682,13 @@ CREATE INDEX IF NOT EXISTS idx_lesson_plans_request_id
   ON lesson_plans (request_id) WHERE request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_lp_requests_source_created
   ON lesson_plan_requests (source, created_at DESC) WHERE source IS NOT NULL;
+-- V1.6.14: the health check reads lifecycle rows by time alone; the two ledger links back ON DELETE SET NULL.
+CREATE INDEX IF NOT EXISTS idx_lp_requests_created
+  ON lesson_plan_requests (created_at DESC) WHERE source IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_niete_lp_downloads_request_id
+  ON niete_lp_downloads (request_id) WHERE request_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_niete_lp612_deliveries_request_id
+  ON niete_lp612_deliveries (request_id) WHERE request_id IS NOT NULL;
 
 COMMENT ON COLUMN lesson_plan_requests.source IS
   'Internal. The path that served the ask (one value per path, listed in the CHECK). NULL on rows written before the lifecycle writer was switched on for that path.';
@@ -6687,13 +6701,13 @@ COMMENT ON COLUMN lesson_plan_requests.grade IS
 COMMENT ON COLUMN lesson_plan_requests.subject IS
   'Internal. The subject the plan is for, when the path knows it.';
 COMMENT ON COLUMN lesson_plan_requests.artifact_ref IS
-  'Internal. The id of what was delivered, in the path''s own catalogue: a curriculum_lp_ast source_lp_uuid (niete_grounded), a niete_lp_assets lesson id (niete_v8_segment), a niete_lp612_segments segment_id (niete_lp612), a pic_lp_sessions id (pic_to_lp_kieai).';
+  'Internal. The id of what she was given, in the path''s own catalogue: niete_grounded = curriculum_lp_ast.source_lp_uuid; pre_gen_chapter = pre_generated_lps.id; niete_v8_segment = a niete_lp_assets lesson id; niete_lp612 = niete_lp612_segments.segment_id; niete_oxbridge = lesson_plan_catalog.id; niete_portal_share = the shared plan''s lesson or segment id, else the share item id; homework_bundle = the selection itself (e.g. grade_3:maths:1,2;grade_3:english:4); pic_to_lp_kieai = a pic_lp_sessions id.';
 COMMENT ON COLUMN lesson_plan_requests.generated_at IS
   'Internal. When the artefact was ready to send (generated, rendered, or found ready in a cache).';
 COMMENT ON COLUMN lesson_plan_requests.delivered_at IS
-  'Internal. When the send was accepted (WhatsApp) or the plan was served (portal). Set together with status = completed.';
+  'Internal. When she got it: WhatsApp accepted the send, or the portal served the plan. NULL on every ask that did not reach her, whatever its status: a plan WhatsApp refused stays completed for the queue, with error_code DELIVERY_FAILED. Delivered means delivered_at IS NOT NULL.';
 COMMENT ON COLUMN lesson_plan_requests.error_code IS
-  'Internal. Short machine code for a failed ask (e.g. GENERATION_FAILED, DELIVERY_FAILED, NO_ASSET); error_message keeps the detail.';
+  'Internal. Why the ask did not end in a delivery; one of six codes (the CHECK). GENERATION_FAILED, RENDER_FAILED, DELIVERY_FAILED and QUEUE_FAILED are failures; NO_ASSET (nothing to send for what she asked) and NOT_ELIGIBLE (held, or no version for her group) are answers, never failures. error_message keeps the detail.';
 COMMENT ON COLUMN lesson_plan_requests.correlation_id IS
   'Internal. The correlationId of the request''s log lines in Axiom; joins this row to its logs.';
 COMMENT ON COLUMN lesson_plans.request_id IS
@@ -6701,7 +6715,7 @@ COMMENT ON COLUMN lesson_plans.request_id IS
 COMMENT ON COLUMN niete_lp_downloads.request_id IS
   'Internal. The lesson_plan_requests row of the ask this grade 1-5 delivery attempt answered. NULL before the lifecycle writer was switched on for niete_v8_segment.';
 COMMENT ON COLUMN niete_lp612_deliveries.request_id IS
-  'Internal. The lesson_plan_requests row of the ask this grade 6-12 delivery answered. NULL before the lifecycle writer was switched on for niete_lp612, and on portal/backfill rows.';
+  'Internal. The lesson_plan_requests row of the ask this grade 6-12 row answered: a WhatsApp delivery or a portal claim. NULL before the lifecycle writer was switched on for niete_lp612, and on backfill rows.';
 
 -- ─── web quiz Challenge runs (bot/database/migrations/web_quiz_challenge.sql) ──
 -- One row per finished self-run Challenge exercise (bigger, read, …) a child played on the web quiz.

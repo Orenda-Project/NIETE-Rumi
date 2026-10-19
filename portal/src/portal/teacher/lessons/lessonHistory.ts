@@ -1,4 +1,5 @@
 import api from '../../services/api';
+import { withSubject } from './paths';
 import { LESSONS_V2_COPY, type LessonsCopy } from './copy';
 import { dayName } from './days';
 import { openUrl } from './paths';
@@ -126,6 +127,8 @@ export function groupByDay(items: HistoryItem[], today: string, words: LessonsCo
         ? { plan: `k5:${it.open.lessonId}`, title: it.title, grade: it.grade }
         : { plan: `g612:${it.open.segmentId}`, lang: it.open.lang, title: it.title, grade: it.grade }),
     });
+    // bd-fgj73x.10: the plan's subject rides along to Start DC observation (paths.withSubject says why it is added here).
+    if (it.open.lane !== 'fln') g.items[g.items.length - 1].to = withSubject(g.items[g.items.length - 1].to, it.subject);
   }
   return groups;
 }

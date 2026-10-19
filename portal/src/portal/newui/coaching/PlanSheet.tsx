@@ -24,7 +24,7 @@ import { PICKER_WORDS_EN, type PickerWords } from './pickerWords';
  * `words`: the teacher v2's translation of the picker's words (bd-fmf24g.13); English when left out.
  */
 
-export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem, words }: {
+export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem, words, forClass }: {
   open: boolean;
   onClose: () => void;
   onPick: (plan: Picked) => void;
@@ -33,18 +33,28 @@ export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem, w
   onFile: (file: File | undefined, asPhoto: boolean) => boolean;
   problem: 'not_a_plan' | null;
   words?: PickerWords;
+  /** The class she picked (Digital Coaching's one screen, bd-fgj73x.5): Recent are that class's plans only. */
+  forClass?: { grade: number; subject: string } | null;
 }) {
   const W = words ?? PICKER_WORDS_EN;
   const [recent, setRecent] = useState<LessonPlanUsed[]>([]);
   const photo = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const classGrade = forClass?.grade ?? null;
+  const classSubject = forClass?.subject ?? null;
 
   useEffect(() => {
     if (!open) return undefined;
     let live = true;
-    getRecentPlans(3).then((plans) => { if (live) setRecent(plans); });
+    const same = (s: string | null | undefined) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    getRecentPlans(classSubject != null ? 20 : 3).then((plans) => {
+      if (!live) return;
+      setRecent(classSubject != null
+        ? plans.filter((p) => p.grade === classGrade && same(p.subject) === same(classSubject)).slice(0, 3)
+        : plans);
+    });
     return () => { live = false; };
-  }, [open]);
+  }, [open, classGrade, classSubject]);
 
   const chosen = (file: File | undefined, asPhoto: boolean) => { if (onFile(file, asPhoto)) onClose(); };
 

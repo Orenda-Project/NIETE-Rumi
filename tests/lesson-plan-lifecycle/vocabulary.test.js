@@ -18,6 +18,9 @@ const path = require('path');
 const ROOT = path.join(__dirname, '../..');
 const MIGRATION = fs.readFileSync(path.join(ROOT, 'infrastructure/supabase/migrations/V1.6.4__lp_lifecycle.sql'), 'utf8');
 const REFERENCE = fs.readFileSync(path.join(ROOT, 'infrastructure/supabase/00_complete-schema.sql'), 'utf8');
+// V1.6.14 adds the error_code CHECK. Read without throwing, so a missing file fails ITS test, not the suite.
+const readIf = (rel) => { const f = path.join(ROOT, rel); return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''; };
+const HARDENING = readIf('infrastructure/supabase/migrations/V1.6.14__lp_lifecycle_hardening.sql');
 
 const Lifecycle = require('../../bot/shared/services/lesson-plan-lifecycle.service');
 
@@ -63,6 +66,13 @@ describe('lesson-plan lifecycle vocabulary — code and database are one list', 
     ['the reference schema', REFERENCE],
   ])('channel: %s lists exactly the channels the writer knows', (_label, sql) => {
     expect(checkValues(sql, 'lesson_plan_requests_channel_check')).toEqual(sorted(Object.values(LIFECYCLE.CHANNELS)));
+  });
+
+  test.each([
+    ['the migration (V1.6.14)', HARDENING],
+    ['the reference schema', REFERENCE],
+  ])('error_code: %s lists exactly the codes the writer can write — and only those', (_label, sql) => {
+    expect(checkValues(sql, 'lesson_plan_requests_error_code_check')).toEqual(sorted(Object.values(LIFECYCLE.ERROR_CODES)));
   });
 
   test('the plan table gets no source CHECK — its source column is not the lifecycle writer\'s (a dev seed writes its own value there)', () => {
