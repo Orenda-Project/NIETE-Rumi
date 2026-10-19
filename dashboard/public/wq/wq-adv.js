@@ -16,7 +16,8 @@
   'use strict';
   if (!W || W.WQA) return;
   var D = W.document;
-  var ME = (D.currentScript && D.currentScript.src) || '';
+  // run from the page's own text (web_quiz_home_inline) the script has no src: its address rides data-src
+  var ME = (D.currentScript && (D.currentScript.src || D.currentScript.getAttribute('data-src'))) || '';
   var V = (/[?&]v=([0-9a-f]+)/.exec(ME) || [])[1] || '0';
   // the second part (wq-adv-more.js: finish cards, trail pictures), asked for now so it is here before a finish
   if (D.documentElement.classList.contains('wq-adv') && D.head) { var mo = D.createElement('script'); mo.src = '/wq/wq-adv-more.js?v=' + V; D.head.appendChild(mo); }
@@ -178,7 +179,6 @@
       });
     }).observe(D.body, { childList: true, subtree: true, characterData: true });
   }
-  if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', watch); else watch();
 
   // ── tones: WebAudio, no files (the stamp's two blips, the soft not-yet); after a gesture, never when muted
   var actx = null;
@@ -315,4 +315,6 @@
     bar: bar, badge: badge, move: move, cue: cue, burst: burst, muted: muted, mute: mute, still: still, swap: swap, P: P, EMO: EMO,
     stamp: stamp, stamps: stamps, stampSvg: stampSvg, tone: tone, trail: trail, award: award, climb: climb
   };
+  // last, once every name above is assigned: a page already parsed (the one-response or early Home) is dressed at once
+  if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', watch); else watch();
 })(typeof window !== 'undefined' ? window : null);

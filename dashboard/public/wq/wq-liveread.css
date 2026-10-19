@@ -46,6 +46,7 @@ html[lang=ur] .lr-text .lr-w, .lr[lang=ur] .lr-text .lr-w { display: inline-bloc
 .lr-os-pic { margin: 0 auto 8px; max-width: 220px; }
 .lr-os { display: block; width: 100%; height: auto; }
 .lr-os-say { margin: 6px 0 0; font-size: 16px; }
+.lr-notice { margin: 16px 0 0; text-align: start; font-size: 15px; color: #4b5563; }
 .lr-grown { margin-top: 16px; text-align: start; font-size: 15px; color: #4b5563; }
 .lr-grown summary { cursor: pointer; min-height: 44px; line-height: 44px; font-weight: 600; }
 .lr-say { font-size: 20px; margin: 0 0 16px; }

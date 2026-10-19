@@ -317,6 +317,7 @@ var WQI = (function () {
     return String(t == null ? '' : t).replace(/(\b(?:answer is|answer|option|choice)\s+|\(|جواب\s+|آپشن\s+)([A-D])(?![A-Za-z])/gi, function (m, pre, l) { return pre + (map[l.toUpperCase()] || l); });
   }
   var LETTERS = true; // off while a figure is on screen: its own A/B/C labels would mean something else
+  var ILANG = 'en'; // the page language itemHtml was last drawn for (latDir on the option labels)
   // The clip of ONE option, by its stored slot (its content), never by where the shuffle put it.
   function optClip(q, slot) {
     var au = q && q.audio, si = 'ABCD'.indexOf(String(slot || '').charAt(0));
@@ -352,16 +353,26 @@ var WQI = (function () {
     // over 28 code points a label runs to three lines beside the badge and 🔊 at 360 px (measured on the live quizzes: 32–36 cp)
     var longLab = ur2On() && Array.from(String(o.text || '')).length > 28 ? ' wq-long' : '';
     return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp"' + shpAttr() + '>' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
-      picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
+      picHtml(o, o.name) + '<span class="wq-lab"' + latDir(o.text || o.name, ILANG) + '>' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }
+  // the adventure look on an Urdu page: an English line (no Urdu letter) is set left to right, so its marks sit at its own
+  // ends; an English question is also marked Latin (its face and line height, wq-adventure.css)
+  function latin(text, lang) {
+    var adv = false;
+    try { adv = lang === 'ur' && document.documentElement.classList.contains('wq-adv'); } catch (e) { adv = false; }
+    return adv && /[A-Za-z]/.test(String(text || '')) && !/[\u0600-\u06FF]/.test(String(text || ''));
+  }
+  function latQ(text, lang) { return latin(text, lang) ? ' wq-qlat" dir="ltr"' : '"'; }
+  function latDir(text, lang) { return latin(text, lang) ? ' dir="ltr"' : ''; }
   function itemHtml(q, T, lang) {
     var k = kind(q), o = opts(q);
     LETTERS = !figureOf(q);
+    ILANG = lang;
     HEAR = k === 'single' || k === 'multi' ? { q: q, label: T.hearOption || T.listen || '' } : null;
     var stim = q.audio && q.audio.stim ? '<button class="wq-btn wq-soft" id="wq-stim">' + BELL + ' ' + esc(T.playSound || '') + '</button>' : '';
     var stem = k === 'listen'
       ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p>' + stim + '</div>'
-      : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button></div>' + stim;
+      : '<div class="wq-qcard"><p class="wq-qtext' + latQ(q.text, lang) + '>' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">' + SPK + '</button></div>' + stim;
     var body = '';
     var pics = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); });
     // A picture grid needs every option to be a picture (or an emoji, drawn big): one the bot could not
@@ -379,7 +390,7 @@ var WQI = (function () {
       }).join('') + '</div>';
     } else if (k === 'tf') {
       body = '<div class="wq-tf" role="group">' + o.slice(0, 2).map(function (x, i) {
-        return '<button class="wq-opt wq-tf' + (i ? 'n' : 'y') + '" data-slot="' + esc(x.slot) + '"><span class="wq-tfi" aria-hidden="true">' + ic(i ? ICON.cross : ICON.check, i ? '✗' : '✓') + '</span><span class="wq-lab">' + tex(x.text || (i ? T.no : T.yes)) + '</span></button>';
+        return '<button class="wq-opt wq-tf' + (i ? 'n' : 'y') + '" data-slot="' + esc(x.slot) + '"><span class="wq-tfi" aria-hidden="true">' + ic(i ? ICON.cross : ICON.check, i ? '✗' : '✓') + '</span><span class="wq-lab"' + latDir(x.text, ILANG) + '>' + tex(x.text || (i ? T.no : T.yes)) + '</span></button>';
       }).join('') + '</div>';
     } else if (k === 'order') {
       body = '<p class="wq-small">' + esc(T.orderHelp) + '</p><ol class="wq-seq">' + o.map(function (x, i) {
@@ -554,7 +565,7 @@ var WQI = (function () {
       });
     });
   }
-  return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
+  return { kind: kind, grade: grade, tex: tex, latDir: latDir, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
     rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, optClip: optClip, rewatchHtml: rewatchHtml, openRewatch: openRewatch, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, SPK: SPK, ICON: ICON, ic: ic, TEX_SUPPORTED: TEX_SUPPORTED };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
@@ -1249,6 +1260,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // and the school league wear the land header of the hub's land screens (wq-doors.js frame) in place of bar(): the round
   // Home, the screen's name on the land's colour, the sound. landBar() names the land; render() puts it on the screen.
   var LAND = '';
+  function oneB() { try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; } }
   function advOn() { try { return B.adv === true && document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
   // The hub this tab came from (hub.js keeps its path with the look on): the way home from the class table or the league
   // opened from My class, where the page has no session of its own to ask the hub door with.
@@ -1885,7 +1897,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = (adv ? landBar('videos', esc(T.vT3)) + jug('hello', T.vSay) : bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>') +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
-      '<div class="wq-vbox"><video class="wq-video" controls playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
+      '<div class="wq-vbox"><video class="wq-video"' + (adv ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door && !adv ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + jv(IMG + 'hello.webp') + '" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
@@ -1895,7 +1907,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
     var vid = $('video');
     var cover = $('.wq-vcover');
-    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', at ? { t: at } : {}); });
+    // the look: the player's own controls come with the first play, so at 0:00 the cover's play is the only one
+    if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; if (adv) vid.setAttribute('controls', ''); ev('video_play', at ? { t: at } : {}); });
     if (vid && FROM && FROM.t) {
       var ff = function () { vid.removeEventListener('loadeddata', ff); ev('more_timing', { ff_ms: Date.now() - FROM.t }); FROM.t = 0; };
       vid.addEventListener('loadeddata', ff);
@@ -2057,7 +2070,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var q = QS[i];
     var shown = Date.now();
     if (!retry) CURQ = i;
-    var h = bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i)) +
+    // the look (wq-1b): the second-try label is a chip on its own row under the bar, so it never wraps beside the logo and Home
+    var h = (retry && oneB() ? bar() + '<div class="wq-dotrow wq-2nd"><span class="wq-chip">' + esc(T.second) + '</span></div>' : bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i))) +
       (retry ? '' : qRow(i, T.qof(i + 1, N))) +
       '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
       '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>' + WQI.rewatchHtml(B.video, T);
@@ -2180,9 +2194,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var fb = $('#wq-fb');
     var loopIt = !!ok && !jugRightDone;
     if (ok) jugRightDone = true;
-    fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet', loopIt) + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + esc(line) +
-      (why ? '<div class="wq-why">' + WQI.tex(why) + '</div>' : '') +
-      (reason ? '<div class="wq-why">' + WQI.tex(reason) + '</div>' : '') +
+    var ld = WQI.latDir(line, LANG);
+    fb.innerHTML = '<div class="wq-jug">' + jugImg(ok ? 'correct' : 'notyet', loopIt) + '<div class="wq-fb ' + (ok ? 'wq-ok' : 'wq-no') + '">' + (ld ? '<div' + ld + '>' + esc(line) + '</div>' : esc(line)) +
+      (why ? '<div class="wq-why"' + WQI.latDir(why, LANG) + '>' + WQI.tex(why) + '</div>' : '') +
+      (reason ? '<div class="wq-why"' + WQI.latDir(reason, LANG) + '>' + WQI.tex(reason) + '</div>' : '') +
       (!ok && !retry ? '<div class="wq-why">' + esc(T.again) + '</div>' : '') + '</div></div>' +
       (cheer ? '<p class="wq-proof">🎉 ' + esc(cheer.text) + '</p>' : '') +
       '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
@@ -2234,7 +2249,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar(dots(j)) + qRow(j, T.qof(j + 1, N)) +
       '<div class="wq-revnote" role="note">' + ic(IC.back, '↩') + ' ' + esc(T.revSay(j + 1)) + '</div>' +
       '<div class="wq-item wq-review" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
-      (why ? '<div class="wq-fb ' + (a.ok ? 'wq-ok' : 'wq-no') + '"><div class="wq-why">' + WQI.tex(why) + '</div></div>' : '') +
+      (why ? '<div class="wq-fb ' + (a.ok ? 'wq-ok' : 'wq-no') + '"><div class="wq-why"' + WQI.latDir(why, LANG) + '>' + WQI.tex(why) + '</div></div>' : '') +
       '<button class="wq-btn wq-go" id="wq-revnext" type="button">' + esc(nxt >= 0 ? T.revBack(nxt + 1) : T.next) + '</button>';
     render(h, 'M6-review');
     wireBar();
@@ -3031,6 +3046,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // class_doors on an Urdu page: one digit system (places and scores in Urdu digits, like the counts around them)
     var ur = Boolean(b.class_doors) && LANG === 'ur';
     var place = function (n) { return esc(ur ? urDigits(n) : n); };
+    var pct = function (n) { return ur ? urDigits(n) + '\u066A' : n + '%'; };
     var rows = (v.rows || []).map(function (x) {
       var isYou = you && x.place === you.place && x.first === me && x.correct === you.correct && !youShown;
       if (isYou) youShown = true;
@@ -3051,8 +3067,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
       '<div class="wq-card wq-cmp">' +
-      (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + yourPct + '%</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
-      '<span>' + esc(T.avg) + '</span><span>' + esc(v.class_avg_pct || 0) + '%</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
+      (yourPct != null ? '<span>' + esc(T.yourScore) + '</span><span>' + pct(yourPct) + '</span><div class="wq-meter" style="grid-column:1/3"><b style="width:' + yourPct + '%"></b></div>' : '') +
+      '<span>' + esc(T.avg) + '</span><span>' + esc(pct(v.class_avg_pct || 0)) + '</span><div class="wq-meter wq-avg" style="grid-column:1/3"><b style="width:' + (v.class_avg_pct || 0) + '%"></b></div></div>' +
       '<p class="wq-small">' + esc(T.firstOnly) + '</p>' +
       // the look: a long table keeps its one primary on the screen (sticky at the bottom until the page reaches it)
       '<button class="wq-btn wq-go' + (b.class_doors && advOn() ? ' wq-stick' : '') + '" id="wq-share-t"' + (b.class_doors ? ' data-primary' : '') + '>' + esc(T.shareTable) + '</button>' +
