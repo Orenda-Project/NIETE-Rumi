@@ -306,6 +306,28 @@ describe('the finish card after a watched video: the home says when the card is 
       expect(out).toHaveProperty('card_v3', true);
     } finally { supabase.from = from; }
   });
+  test('the one share beside the card (share_v4 JSON true): the home carries it; anything else, or no card: not', async () => {
+    Home._useModules({ card: { field: async () => ({ card_v3: true, share_v4: true }) } });
+    seed(HOME_ON);
+    expect(await Hub.hub(T.signHub([KID]), A)).toMatchObject({ card_v3: true, share_v4: true });
+    for (const field of [{ card_v3: true }, { card_v3: true, share_v4: 'true' }, { card_v3: true, share_v4: 1 }, { share_v4: true }]) {
+      Home._useModules({ card: { field: async () => field } });
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('share_v4');
+    }
+  });
+  test('the corrected Urdu share words (ur_share JSON true): the home carries it, with the card or without; anything else: not', async () => {
+    for (const field of [{ card_v3: true, ur_share: true }, { ur_share: true }]) {
+      Home._useModules({ card: { field: async () => field } });
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).toHaveProperty('ur_share', true);
+    }
+    for (const field of [{ card_v3: true }, { card_v3: true, ur_share: 'true' }, { ur_share: 1 }, {}]) {
+      Home._useModules({ card: { field: async () => field } });
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('ur_share');
+    }
+  });
   test('GOLDEN: web_quiz_home_v3 off -> no key even with the card on', async () => {
     Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
     seed(BASE_ON);
@@ -406,6 +428,13 @@ describe('pure parts', () => {
     });
     expect(d.stories).toEqual([{ kind: 'passage', id: 'p1', fresh: true, title: 'The red kite' }, { kind: 'listen', id: 'p2', fresh: false }]);
     expect(d).toEqual({ stories: d.stories, games: [], videos: null });
+  });
+
+  test('doorsOf: the hub\'s "Try these next" quizzes ride on the doors (up to 3, ids and words only); none -> no key', () => {
+    const recs = [1, 2, 3, 4].map((n) => ({ vid: `v${n}`, title: `Lesson ${n}`, chapter: 'Ch 1', subject: 'Maths', grade: '3', poster: 'https://p.example.test/x.jpg', art: '/wq/art/subject-maths.webp', secs: 120 }));
+    const d = Home.doorsOf({ out: { recs } });
+    expect(d.recs).toEqual([1, 2, 3].map((n) => ({ vid: `v${n}`, title: `Lesson ${n}`, subject: 'Maths', art: '/wq/art/subject-maths.webp' })));
+    expect(Home.doorsOf({ out: { recs: [] } })).not.toHaveProperty('recs');
   });
 
   test('headOf: counts days, not finishes; ignores last week', () => {

@@ -6,7 +6,7 @@
  * for them (web-quiz-hub-device deviceTrusted). The teacher's class link, opened later in the same browser, used to
  * ask "What is your name?" as for a stranger: the child typed their first name, the server could not tell it from a
  * new child, and the finish went to a second child the home never shows. With app_settings `web_quiz_link_known_child`
- * on (JSON `true` only; 30 s cache; off on any read error) the page asks the server which children this browser holds
+ * on (JSON `true` only; 30 s cache; a read error: the last good answer, else off, for 30 s) the page asks the server which children this browser holds
  * and asks "Is it <First>?" (two or more: "Who is playing?") before the name box; "Yes" starts the session as that
  * child — the one id the child is known by — and "Someone else" is today's name box.
  *
@@ -15,6 +15,9 @@
  *                                to this link, as cards for this code (first names only, ≤ KIDS_MAX, newest first);
  *                                {kids: []} otherwise
  *   kidFor(ctx, chip, device)    the session's child for a `via: 'known'` start: one of those children, or null
+ *   closedHome({device})         a CLOSED class link's way home: {on: false} when off; else {on: true, home} where home is
+ *                                '/h/<token>?from=link' for the children this browser holds (a hub token bound to THIS
+ *                                browser, as the old-link home does), or null when it holds nobody
  *
  * The device is always the phone's own `wq_dv` cookie, forwarded by the edge as `x-wq-device` (the routes pass it) —
  * never a ref the page sends in a body: a page never names a child by what it sends.
@@ -34,12 +37,12 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Device = require('./web-quiz-hub-device');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const KEY = 'web_quiz_link_known_child';
 const TTL_MS = 30 * 1000;
 // "Who is playing?" never grows past the one-door chips' size: a phone passed around a class shows its newest four.
 const KIDS_MAX = 4;
-let cache = null; // { at, on }
 
 // JSON `true` only: a string 'true' row is off.
 const isTrue = (value) => value === true;
@@ -47,19 +50,36 @@ const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 // A grade digit in a class label ("Grade 4", "4-B"), as the join queue reads it; null when there is none.
 const gradeOf = (txt) => { const m = /[1-8]/.exec(String(txt == null ? '' : txt)); return m ? Number(m[0]) : null; };
 
-/** The switch. Off on any read error (never cached then). */
-async function isOn(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache.on;
-  try {
+const cache = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: false,
+  read: async () => {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === KEY);
-    cache = { at: now, on: Boolean(row) && isTrue(row.value) };
-    return cache.on;
-  } catch (err) {
-    logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message });
-    return false;
+    return Boolean(row) && isTrue(row.value);
+  },
+  log: (err) => logToFile('⚠️ web quiz link known child: settings lookup failed — off', { error: err.message }),
+});
+
+/** The switch. A read error is the last good answer, else off, kept 30 s (an outage costs one read per 30 s). */
+async function isOn(now = Date.now()) {
+  return cache.get(now);
+}
+
+let peekAt = -Infinity;   // when the closed path last started a read of its own
+/**
+ * The switch for a closed link's answer, never waited on: the 30 s cache as it stands. On a cold cache it starts ONE
+ * read in the background (at most one per 30 s per process, failing or not) and answers off, so that GET is today's and
+ * the next one within the window knows. A failing background read logs once (the shared cache's log, once per 30 s).
+ */
+function peekOn(now = Date.now()) {
+  if (cache.fresh(now)) return cache.peek(now);
+  if (now - peekAt >= TTL_MS) {
+    peekAt = now;
+    cache.get(now).catch(() => {});
   }
+  return false;
 }
 
 /** May the quiz payload carry `link_known`? Never on a friend's challenge or the teacher's preview. Never throws. */
@@ -104,8 +124,9 @@ async function heldBy(device, onHeld = null) {
     seen.add(c);
     each.push({ id: String(id), c });
   }
-  // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it — all at once
-  const may = await Promise.all(each.map((x) => Device.deviceMayName([...new Set([x.id, x.c])], d).catch(() => false)));
+  // read-only: the child (or the record the phone was trusted with) on THIS browser, as the next offer checks it — one read for all
+  // (deviceMayNameEach never rejects today; the catch keeps a future rejection a "nobody", never a thrown ask)
+  const may = await Device.deviceMayNameEach(each.map((x) => [...new Set([x.id, x.c])]), d).catch(() => each.map(() => false));
   const out = each.filter((_, i) => may[i]);
   if (!out.length) return [];
   const { data, error } = await dbRead('linkKnown:students:1', (db) => db.from('students')
@@ -201,4 +222,26 @@ async function kidFor(ctx, chip, device) {
   }
 }
 
-module.exports = { field, known, kidFor, isOn, KEY, KIDS_MAX, _resetCache: () => { cache = null; } };
+/** A closed class link's way home (the edge's closed page asks once, with the phone's device). Never throws. */
+async function closedHome({ device } = {}) {
+  if (!(await isOn())) return { on: false };
+  const none = (reason) => { logEvent('web_quiz.link_known', { ok: false, reason, w: 'closed' }); return { on: true, home: null }; };
+  try {
+    const d = T.cleanDeviceRef(device);
+    if (!d) return none('no_device');
+    // the newest KIDS_MAX this browser holds (a closed link names no child on the page; the home asks who is playing)
+    const kids = (await heldBy(d)).slice(0, KIDS_MAX);
+    if (!kids.length) return none('nobody');
+    const token = T.signHub(kids.map((k) => String(k.id)));
+    if (!token) return none('no_secret');
+    const bound = await Device.deviceTrusted(token, d);
+    if (!bound.ok) return none(bound.why);
+    // no door line here: the edge writes it when it draws the button (it may give up on this answer first)
+    return { on: true, home: `/h/${token}?from=link` };
+  } catch (err) {
+    logToFile('⚠️ web quiz link known child: no way home on a closed link', { error: err.message });
+    return { on: true, home: null };
+  }
+}
+
+module.exports = { field, known, kidFor, closedHome, isOn, peekOn, KEY, KIDS_MAX, _resetCache: () => { cache.reset(); peekAt = -Infinity; } };

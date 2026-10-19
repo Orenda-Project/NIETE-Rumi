@@ -15,6 +15,9 @@
  * One event per run: `web_quiz.ch_clip_warm {n, missing, missing_listen, missing_story, w:'s'}` (n = clips asked for,
  * missing = still absent, missing_listen = those of them a check-pool listening passage needs: its story, prompts and
  * options; missing_story = the Story Time read-along clips still absent).
+ * With one voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) a long clip is never recorded here (the
+ * recorder refuses it: only a checked take is stored), and the run also writes `web_quiz.one_voice_coverage
+ * {plan, total, present, missing_long, missing_short, math_unlit}`; off, no such event.
  * Behind app_settings `web_quiz_challenge_clip_warm`, effective only with `web_quiz_challenge_v2` and
  * `web_quiz_challenge` on (each fails closed). Off ⇒ one switch read and nothing else: clips record on first serve.
  * Cost ≈ US$0.0002 a clip (Soniox by audio time).
@@ -35,6 +38,7 @@ const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const AudioStore = require('./web-quiz-audio-store');
 const Ch = require('./web-quiz-challenge');
+const OneVoice = require('./web-quiz-one-voice-flag');
 
 const SWITCH_KEY = 'web_quiz_challenge_clip_warm';
 const V2_KEY = 'web_quiz_challenge_v2';
@@ -67,6 +71,7 @@ const CHECK_LISTEN_REST = 1;
 const STORY_READ_ALONG = 1.5;
 const OTHER = 2;
 const RESERVE_ID = /\.reserve\d+$/;   // the reserve the Story Time shelf never lists (web-quiz-challenge-draw.js)
+const LONG_KEY = /\/(?:listen|read)\/story-[^/]*\.ogg$/;   // a listening story or a Story Time read-along
 
 /** One passage's clips as the serve asks for them, each with its tier: [{ key, text, lang, tier }]. */
 function clipsOf(p, optAudio, pool = p.pool) {
@@ -128,6 +133,7 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   const tally = { recorded: 0, had: 0, missing: 0 };
   let missingListen = 0;
   let missingStory = 0;
+  const cover = { missing_long: 0, missing_short: 0 };
   let capped = false;
   let attempts = 0;
   for (const c of ordered) {
@@ -137,10 +143,17 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
     tally[r] += 1;
     if (r === 'missing' && c.tier <= CHECK_LISTEN_REST) missingListen += 1;
     if (r === 'missing' && c.tier === STORY_READ_ALONG) missingStory += 1;
+    if (r === 'missing') cover[LONG_KEY.test(c.key) ? 'missing_long' : 'missing_short'] += 1;
   }
   const out = { n: ordered.length, missing: tally.missing, missing_listen: missingListen, missing_story: missingStory, recorded: tally.recorded, had: tally.had, capped, passages };
   logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, missing_listen: out.missing_listen, missing_story: out.missing_story, w: 's' });
   logToFile('🔊 Challenge clip warm', out);
+  // with one voice per quiz: how much of it is there (a maths stem is recorded but never lit word by word)
+  const plan = OneVoice.currentPlan();
+  if (plan) {
+    logEvent('web_quiz.one_voice_coverage', { plan: plan.sig, total: out.n, present: out.had + out.recorded, ...cover,
+      math_unlit: ordered.filter((c) => String(c.text).includes('$')).length });
+  }
   return out;
 }
 
@@ -165,4 +178,5 @@ async function daily({ now = Date.now() } = {}) {
 
 function __reset() { lastDay = null; cappedToday = { day: null, cappedRuns: 0 }; }
 
-module.exports = { switchOn, warmClips, daily, SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, MAX_CAPPED_RUNS_PER_DAY, __reset };
+module.exports = { switchOn, warmClips, daily, passageRows, clipsOf,   // the list: also the one-voice pre-flip check's
+  SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, MAX_CAPPED_RUNS_PER_DAY, __reset };

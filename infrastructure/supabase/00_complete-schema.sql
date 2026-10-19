@@ -6671,7 +6671,7 @@ COMMENT ON COLUMN child_test_sessions.visit_key IS
 CREATE TABLE IF NOT EXISTS niete_lp_opens (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  plan_kind   text NOT NULL CHECK (plan_kind IN ('k5', 'g612')),
+  plan_kind   text NOT NULL CHECK (plan_kind IN ('k5', 'g612', 'fln')),
   plan_ref    text NOT NULL CHECK (length(plan_ref) BETWEEN 1 AND 200),
   lang        text CHECK (lang IN ('en', 'ur')),
   source      text NOT NULL CHECK (source IN ('viewer', 'external')),
@@ -6691,6 +6691,31 @@ COMMENT ON COLUMN niete_lp_opens.lang IS
   'Internal. The 6-12 document language (en | ur); NULL for K-5.';
 COMMENT ON COLUMN niete_lp_opens.source IS
   'Internal. viewer = the portal''s own PDF viewer; external = handed to another app by a presigned link.';
+
+-- ─── niete_fln_events (migration V1.6.15) — Reading Hour / Numeracy (FLN) sharing events ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.15__niete_lp_opens_fln.sql, which also widens
+-- niete_lp_opens.plan_kind to admit 'fln' (above). Append-only leader sharing actions: share, link
+-- copy, open-link and a leader-to-teacher send. Keyed ids only; audio telemetry goes to the logs.
+CREATE TABLE IF NOT EXISTS niete_fln_events (
+  id          bigserial PRIMARY KEY,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  user_key    text NOT NULL,
+  kind        text NOT NULL CHECK (kind IN ('share', 'link_copy', 'open_link', 'send')),
+  plan_ref    text,
+  clip        text,
+  ms          integer,
+  result      text,
+  ua_class    text
+);
+CREATE INDEX IF NOT EXISTS niete_fln_events_created_idx
+  ON niete_fln_events (created_at);
+ALTER TABLE niete_fln_events ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE niete_fln_events IS
+  'Internal. Append-only FLN sharing events (share, link copy, open link, send). Keyed ids only — no phone, name or message text. Owner: Digital Coach team.';
+COMMENT ON COLUMN niete_fln_events.user_key IS
+  'Internal. Keyed id of the actor. For kind=send this is the SENDER''s keyed id.';
+COMMENT ON COLUMN niete_fln_events.clip IS
+  'Internal. For kind=send the RECIPIENT''s keyed id; otherwise unused.';
 
 -- ─── lesson-plan lifecycle (migration V1.6.4) — every ask's path, stage times, outcome, log id ──
 -- One row per lesson-plan ask in lesson_plan_requests, on every path; each plan row and each row of
@@ -6731,6 +6756,13 @@ DO $$ BEGIN
     CHECK (channel IS NULL OR channel IN ('whatsapp', 'portal')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+-- V1.6.14: the six codes the lifecycle writer writes (tests/lesson-plan-lifecycle/vocabulary.test.js keeps them one list).
+DO $$ BEGIN
+  ALTER TABLE lesson_plan_requests ADD CONSTRAINT lesson_plan_requests_error_code_check
+    CHECK (error_code IS NULL OR error_code IN (
+      'GENERATION_FAILED', 'RENDER_FAILED', 'DELIVERY_FAILED', 'QUEUE_FAILED', 'NO_ASSET', 'NOT_ELIGIBLE')) NOT VALID;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 DO $$ BEGIN
   ALTER TABLE lesson_plans ADD CONSTRAINT lesson_plans_request_id_fkey
     FOREIGN KEY (request_id) REFERENCES lesson_plan_requests(id) ON DELETE SET NULL;
@@ -6751,6 +6783,13 @@ CREATE INDEX IF NOT EXISTS idx_lesson_plans_request_id
   ON lesson_plans (request_id) WHERE request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_lp_requests_source_created
   ON lesson_plan_requests (source, created_at DESC) WHERE source IS NOT NULL;
+-- V1.6.14: the health check reads lifecycle rows by time alone; the two ledger links back ON DELETE SET NULL.
+CREATE INDEX IF NOT EXISTS idx_lp_requests_created
+  ON lesson_plan_requests (created_at DESC) WHERE source IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_niete_lp_downloads_request_id
+  ON niete_lp_downloads (request_id) WHERE request_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_niete_lp612_deliveries_request_id
+  ON niete_lp612_deliveries (request_id) WHERE request_id IS NOT NULL;
 
 COMMENT ON COLUMN lesson_plan_requests.source IS
   'Internal. The path that served the ask (one value per path, listed in the CHECK). NULL on rows written before the lifecycle writer was switched on for that path.';
@@ -6763,13 +6802,13 @@ COMMENT ON COLUMN lesson_plan_requests.grade IS
 COMMENT ON COLUMN lesson_plan_requests.subject IS
   'Internal. The subject the plan is for, when the path knows it.';
 COMMENT ON COLUMN lesson_plan_requests.artifact_ref IS
-  'Internal. The id of what was delivered, in the path''s own catalogue: a curriculum_lp_ast source_lp_uuid (niete_grounded), a niete_lp_assets lesson id (niete_v8_segment), a niete_lp612_segments segment_id (niete_lp612), a pic_lp_sessions id (pic_to_lp_kieai).';
+  'Internal. The id of what she was given, in the path''s own catalogue: niete_grounded = curriculum_lp_ast.source_lp_uuid; pre_gen_chapter = pre_generated_lps.id; niete_v8_segment = a niete_lp_assets lesson id; niete_lp612 = niete_lp612_segments.segment_id; niete_oxbridge = lesson_plan_catalog.id; niete_portal_share = the shared plan''s lesson or segment id, else the share item id; homework_bundle = the selection itself (e.g. grade_3:maths:1,2;grade_3:english:4); pic_to_lp_kieai = a pic_lp_sessions id.';
 COMMENT ON COLUMN lesson_plan_requests.generated_at IS
   'Internal. When the artefact was ready to send (generated, rendered, or found ready in a cache).';
 COMMENT ON COLUMN lesson_plan_requests.delivered_at IS
-  'Internal. When the send was accepted (WhatsApp) or the plan was served (portal). Set together with status = completed.';
+  'Internal. When she got it: WhatsApp accepted the send, or the portal served the plan. NULL on every ask that did not reach her, whatever its status: a plan WhatsApp refused stays completed for the queue, with error_code DELIVERY_FAILED. Delivered means delivered_at IS NOT NULL.';
 COMMENT ON COLUMN lesson_plan_requests.error_code IS
-  'Internal. Short machine code for a failed ask (e.g. GENERATION_FAILED, DELIVERY_FAILED, NO_ASSET); error_message keeps the detail.';
+  'Internal. Why the ask did not end in a delivery; one of six codes (the CHECK). GENERATION_FAILED, RENDER_FAILED, DELIVERY_FAILED and QUEUE_FAILED are failures; NO_ASSET (nothing to send for what she asked) and NOT_ELIGIBLE (held, or no version for her group) are answers, never failures. error_message keeps the detail.';
 COMMENT ON COLUMN lesson_plan_requests.correlation_id IS
   'Internal. The correlationId of the request''s log lines in Axiom; joins this row to its logs.';
 COMMENT ON COLUMN lesson_plans.request_id IS
@@ -6777,7 +6816,7 @@ COMMENT ON COLUMN lesson_plans.request_id IS
 COMMENT ON COLUMN niete_lp_downloads.request_id IS
   'Internal. The lesson_plan_requests row of the ask this grade 1-5 delivery attempt answered. NULL before the lifecycle writer was switched on for niete_v8_segment.';
 COMMENT ON COLUMN niete_lp612_deliveries.request_id IS
-  'Internal. The lesson_plan_requests row of the ask this grade 6-12 delivery answered. NULL before the lifecycle writer was switched on for niete_lp612, and on portal/backfill rows.';
+  'Internal. The lesson_plan_requests row of the ask this grade 6-12 row answered: a WhatsApp delivery or a portal claim. NULL before the lifecycle writer was switched on for niete_lp612, and on backfill rows.';
 
 -- ─── web quiz Challenge runs (bot/database/migrations/web_quiz_challenge.sql) ──
 -- One row per finished self-run Challenge exercise (bigger, read, …) a child played on the web quiz.
@@ -7370,6 +7409,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
   code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
   device_hash    text,                              -- hex(sha256(device_ref))[:32] of the browser a child joined on; NULL once revoked (child_phone_bindings_device.sql)
+  remember_shown_at timestamptz,                     -- when the first home drew "Jugnu will remember you on this phone"; set once (child_phone_bindings_remember_shown.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
@@ -7420,6 +7460,15 @@ ALTER TABLE child_identity       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE child_phone_bindings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
+
+-- The language a child's links open in, one row per child (mirror of bot/database/migrations/child_language.sql)
+CREATE TABLE IF NOT EXISTS child_language (
+  canonical_id   uuid        PRIMARY KEY,           -- the child (as child_identity.canonical_id)
+  language       text        NOT NULL CHECK (language IN ('en','ur')),
+  source         text        NOT NULL CHECK (source IN ('join','chosen')),   -- 'join': the join link's; 'chosen': a grown-up's tap
+  set_at         timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE child_language ENABLE ROW LEVEL SECURITY;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Web quiz standing class link (mirror of bot/database/migrations/web_quiz_class_link.sql)
@@ -7804,5 +7853,131 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- coach_visit_requests (mirror of main's infrastructure/supabase/migrations/V1.6.7__coach_visit_requests.sql
+-- + V1.6.9): a C/D teacher asked their coach to observe; one row per report. Read here by the 30-day
+-- voice-note sweep (coach-voice-note-retention.service.js).
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS coach_visit_requests (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coaching_session_id  UUID NOT NULL UNIQUE REFERENCES coaching_sessions (id),
+  teacher_user_id      UUID NOT NULL REFERENCES users (id),
+  coach_user_id        UUID REFERENCES users (id),
+  school_id            UUID REFERENCES schools (id),
+  ab_group             TEXT NOT NULL CHECK (ab_group IN ('C', 'D')),
+  status               TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_coach', 'visited')),
+  wa_message_id        TEXT,
+  reasons              TEXT[],
+  voice_note_key       TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE coach_visit_requests ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- web_quiz_merge_student (mirror of bot/database/migrations/web_quiz_handset_link.sql): merge a page-made
+-- child into another child, every FK moved in one transaction, service_role only; and the index on the
+-- sittings a browser played, which the handset bind reads.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_quiz_sessions_device_ref ON public.quiz_sessions (device_ref) WHERE device_ref IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.web_quiz_merge_student(p_from uuid, p_to uuid, p_actor text DEFAULT 'web_quiz')
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_from students%ROWTYPE;
+  v_to   students%ROWTYPE;
+  v_fk   record;
+  v_ids  text[];
+  v_moved jsonb := '{}'::jsonb;
+  v_n    int;
+  -- Every FK column to students this function was reviewed for (live sandbox, 7 Oct 2026).
+  v_known text[] := ARRAY[
+    'attendance_records.student_id', 'class_enrollments.student_id', 'exam_submissions.student_id',
+    'quiz_sessions.student_id', 'quiz_sessions.invited_by_student_id', 'quiz_share_codes.invited_by_student_id',
+    'child_test_draws.student_id', 'child_test_sessions.student_id', 'web_quiz_challenge_runs.student_id',
+    'students.merged_into'
+  ];
+BEGIN
+  IF p_from IS NULL OR p_to IS NULL OR p_from = p_to THEN
+    RETURN jsonb_build_object('refused', 'same_or_null');
+  END IF;
+  SELECT * INTO v_from FROM students WHERE id = p_from FOR UPDATE;
+  SELECT * INTO v_to   FROM students WHERE id = p_to   FOR UPDATE;
+  IF v_from.id IS NULL OR v_to.id IS NULL THEN RETURN jsonb_build_object('refused', 'unknown'); END IF;
+  IF v_from.status = 'merged' OR v_to.status = 'merged' THEN RETURN jsonb_build_object('refused', 'already_merged'); END IF;
+  IF v_from.list_id IS NOT NULL THEN RETURN jsonb_build_object('refused', 'listed'); END IF;
+  IF EXISTS (SELECT 1 FROM class_enrollments WHERE student_id = p_from AND is_active) THEN
+    RETURN jsonb_build_object('refused', 'enrolled');
+  END IF;
+  IF EXISTS (SELECT 1 FROM quiz_sessions WHERE student_id = p_from AND status = 'in_progress' AND expires_at > now()) THEN
+    RETURN jsonb_build_object('refused', 'open_sitting');
+  END IF;
+  IF to_regclass('public.web_quiz_challenge_runs') IS NOT NULL AND EXISTS (
+       SELECT 1 FROM web_quiz_challenge_runs WHERE student_id = p_from AND status = 'scoring' AND created_at > now() - interval '1 hour') THEN
+    RETURN jsonb_build_object('refused', 'open_run');
+  END IF;
+
+  -- Fail closed on FK drift: a column this function was not reviewed for stops the merge.
+  FOR v_fk IN
+    SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+    WHERE c.contype = 'f' AND c.confrelid = 'public.students'::regclass
+  LOOP
+    IF NOT (regexp_replace(v_fk.tbl, '^public\.', '') || '.' || v_fk.col) = ANY (v_known) THEN
+      RAISE EXCEPTION 'web_quiz_merge_student: unreviewed FK %.% to students', v_fk.tbl, v_fk.col
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END LOOP;
+
+  -- Move every live FK column, the tombstone's own merged_into excluded (set last, below).
+  FOR v_fk IN
+    SELECT regexp_replace(c.conrelid::regclass::text, '^public\.', '') AS tbl, a.attname AS col
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+    WHERE c.contype = 'f' AND c.confrelid = 'public.students'::regclass
+    ORDER BY 1, 2
+  LOOP
+    EXECUTE format('SELECT array_agg(id::text) FROM %I WHERE %I = $1', v_fk.tbl, v_fk.col) INTO v_ids USING p_from;
+    IF v_ids IS NULL OR array_length(v_ids, 1) IS NULL THEN CONTINUE; END IF;
+    IF v_fk.tbl = 'students' AND v_fk.col = 'merged_into' THEN
+      -- children already merged INTO p_from now point at p_to
+      EXECUTE format('UPDATE %I SET %I = $1 WHERE %I = $2 AND id <> $2', v_fk.tbl, v_fk.col, v_fk.col) USING p_to, p_from;
+    ELSE
+      EXECUTE format('UPDATE %I SET %I = $1 WHERE %I = $2', v_fk.tbl, v_fk.col, v_fk.col) USING p_to, p_from;
+    END IF;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    v_moved := v_moved || jsonb_build_object(v_fk.tbl || '.' || v_fk.col, to_jsonb(v_ids));
+    -- record_history allows the row ops only (INSERT/UPDATE/DELETE): the merge is an UPDATE of the
+    -- listed rows; `old_vals.merge = true` and the actor mark it as a merge move, undone by id.
+    INSERT INTO record_history (table_name, row_id, op, changed_cols, old_vals, new_vals, actor, actor_source, txid, changed_at)
+    VALUES (v_fk.tbl, p_from::text, 'UPDATE', ARRAY[v_fk.col],
+            jsonb_build_object(v_fk.col, p_from, 'ids', to_jsonb(v_ids), 'merge', true),
+            jsonb_build_object(v_fk.col, p_to, 'n', v_n),
+            coalesce(p_actor, 'web_quiz'), 'sql', txid_current(), now());
+  END LOOP;
+
+  -- A child who "invited" themself after the move is nobody's friend.
+  UPDATE quiz_sessions SET invited_by_student_id = NULL WHERE student_id = p_to AND invited_by_student_id = p_to;
+  UPDATE quiz_share_codes c SET invited_by_student_id = NULL
+    WHERE c.invited_by_student_id = p_to
+      AND EXISTS (SELECT 1 FROM quiz_sessions s WHERE s.share_code_id = c.id AND s.student_id = p_to AND s.invited_by_student_id IS NULL)
+      AND NOT EXISTS (SELECT 1 FROM quiz_sessions s WHERE s.share_code_id = c.id AND s.student_id <> p_to);
+
+  -- The tombstone, last (students has its own history trigger).
+  UPDATE students SET status = 'merged', merged_into = p_to, is_active = false, updated_at = now() WHERE id = p_from;
+  RETURN jsonb_build_object('from', p_from, 'to', p_to, 'moved', v_moved);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.web_quiz_merge_student(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.web_quiz_merge_student(uuid, uuid, text) TO service_role;
+COMMENT ON FUNCTION public.web_quiz_merge_student(uuid, uuid, text) IS
+  'web quiz: merge a page-made child into another child — every FK moved in one transaction, ids logged to record_history, tombstone last; service_role only';
 
 NOTIFY pgrst, 'reload schema';

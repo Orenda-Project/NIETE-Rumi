@@ -62,19 +62,25 @@ test('Social Studies, chapters 4 + 6: the re-asked Section D is told Section A\'
     asked.push({ sec, prompt });
     return reply((replies[sec] || []).length > 1 ? replies[sec].shift() : replies[sec][0]);
   });
+  // This recorded paper's held Q6s never print since round 17, so it ends short; the re-ask notes are what this test reads.
   await Gen.generatePatternExam({
     grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
     scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-9b',
-  });
+  }).catch((e) => { if (e.code !== 'PATTERN_SHORT_SLOT') throw e; });
   const d = asked.filter((a) => a.sec === 'D');
-  expect(d).toHaveLength(2);
+  // Round 15: a D item still held after D's re-ask gets one more D-only re-ask before the put-back.
+  expect(d).toHaveLength(3);
   expect(d[0].prompt).not.toContain(NOTE_SST);
   expect(d[1].prompt).toContain(NOTE_SST);
   // Every Q1 question of the first Section A reply is named, with its answer.
   const firstA = JSON.parse(fixture('r9b-sst-ch46-replies').find((r) => r.content.includes('social_studies.A.')).content.replace(/^```json\s*|```\s*$/g, ''));
   const q1 = Object.values(firstA.unseen || {}).flatMap((t) => Object.values(t)).flat().filter((q) => q.slot === 'social_studies.A.Q1');
   expect(q1.length).toBeGreaterThan(0);
-  for (const q of q1) expect(d[1].prompt).toContain(q.question);
+  // Q1 items whose key a C/D stem, or another Q1 stem, names are held (Section A is asked again for them) and never
+  // print, so D is not told them.
+  const named = ['تحریک علی گڑھ کا آغاز کس نے کیا؟', 'پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟', 'پاکستان میں شامل ہونے والا پہلا صوبہ کون سا تھا؟',
+    'قومی اسمبلی کے ارکان کس کا انتخاب کرتے ہیں؟'];
+  for (const q of q1) if (!named.includes(q.question)) expect(d[1].prompt).toContain(q.question);
   // No other section's first call carries a note either.
   for (const a of asked.filter((x, i) => asked.findIndex((y) => y.sec === x.sec) === i)) {
     expect(a.prompt).not.toContain(NOTE_SST);

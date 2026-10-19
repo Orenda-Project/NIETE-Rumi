@@ -102,15 +102,27 @@ export function NewObservationPage() {
 
   useEffect(() => { holdDraft({ audio, plan, photos, cls }); }, [audio, plan, photos, cls]);
 
-  // Opened from a lesson plan: her class (named from her classes) and that plan (named from her recent plans).
+  // Opened from a lesson plan: the plan's class and that plan (named from her recent plans). bd-fgj73x.10: the class
+  // always comes with the plan (operator, 19 Oct) — hers when it is one of her classes (by her subject key, the
+  // catalogue key or the name), else the plan's own grade and subject from the lesson catalogue (or the name the link
+  // carries, from Recent / All lesson plans). It used to be filled in only when the link named one of HER classes.
   const prefilled = useRef(!!kept);
   useEffect(() => {
     if (prefilled.current || (!prefill.pick && prefill.grade == null)) return;
     if (combos.status === 'loading' || combos.status === 'idle' || recentPlans.status === 'loading' || recentPlans.status === 'idle') return;
+    if (cat.status === 'loading' || cat.status === 'idle') return;
     prefilled.current = true;
-    if (prefill.grade != null && prefill.subjectKey) {
-      const hers = mine.find((c) => c.grade === prefill.grade && norm(c.subjectKey) === norm(prefill.subjectKey));
+    if (prefill.grade != null) {
+      const g = prefill.grade;
+      const book = (catalogue?.byGrade[g] ?? []).find((s) => (prefill.lpSubject != null && s.key === prefill.lpSubject)
+        || (prefill.subjectName != null && norm(s.name) === norm(prefill.subjectName)));
+      const name = book?.name ?? prefill.subjectName;
+      const hers = mine.find((c) => c.grade === g && (
+        (prefill.subjectKey != null && norm(c.subjectKey) === norm(prefill.subjectKey))
+        || (prefill.lpSubject != null && norm(c.featureKey) === norm(prefill.lpSubject))
+        || (name != null && norm(c.subject) === norm(name))));
       if (hers) setCls({ grade: hers.grade, subject: hers.subject, subjectKey: hers.subjectKey ?? null });
+      else if (name) setCls({ grade: g, subject: name, subjectKey: null });
     }
     if (prefill.pick) {
       const key = planKeyOf(prefill.pick);
@@ -122,7 +134,7 @@ export function NewObservationPage() {
         chips: known ? planChips(known, C.picker) : [],
       });
     }
-  }, [prefill, combos, recentPlans, mine, C]);
+  }, [prefill, combos, recentPlans, cat, catalogue, mine, C]);
 
   // 2 Recording, on this screen. A lesson already recording (the bar's Return) is shown, never a second one.
   const [phase, setPhase] = useState<RecPhase>(() => (session?.active ? 'recording' : 'idle'));

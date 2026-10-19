@@ -65,18 +65,37 @@ test('Social Studies: the Q7 item asking a Q1 fact is held, Section D is asked a
     if (isD) dCalls += 1;
     return sectionReply(src, prompt, (mine) => (isD && dCalls === 2 && mine.some((q) => q.slot === 'social_studies.D.Q7') ? fresh : []));
   });
-  const out = await Gen.generatePatternExam(ARGS('social_studies'));
-  expect(dCalls).toBe(2);
+  // Since round 17 the three held Q6s never print, so Q6 ends short of four and the paper fails as a
+  // short paper; the laid-out paper rides on the error.
+  const err = await Gen.generatePatternExam(ARGS('social_studies')).catch((e) => e);
+  expect(err.code).toBe('PATTERN_SHORT_SLOT');
+  // Q1 is short as well: two Q1 items are given away by a C/D stem that prints their key on the same
+  // topic (Q1 «… لفظ "قوم" کس رہنما نے …» → سرسید احمد خان beside a Q6 on his two-nation theory; Q1
+  // «… اونٹ پالتے ہیں۔ یہ کون سا طبعی خطہ ہے؟» → صحرائی علاقہ beside Q5 «صحرائی علاقے کے لوگ … اونٹ کیوں
+  // پالتے ہیں؟»), and this mock answers every re-ask with the stored paper, so nothing new takes their place.
+  expect(err.shortfall.map((f) => f.slot)).toEqual(['social_studies.A.Q1', 'social_studies.D.Q6']);
+  const out = err;
+  // Round 15: the re-ask brings new Q7s but the same three held Q6s, so D is asked once more.
+  expect(dCalls).toBe(3);
   // Section C is asked again too: its Q5 «کثیر الثقافتی معاشرے … کیا فائدہ» is Q1's «مختلف ثقافتی گروہوں
   // … کیا فائدہ → رواداری اور بھائی چارہ» with its key as the answer, held since round 12.
+  // Since round 13 D is asked after C, and three Q6 items answered with a Q5 item's points are
+  // held too (the angry social-media post is Q5 and Q6 both).
   expect(logged('[assessment] section re-asked')).toEqual([
+    // One more is held because a C/D stem names its key, a name. A term the chapter teaches that a stem only
+    // names is not held: the stem tells the child nothing the Q1 asks.
+    expect.objectContaining({ section: 'A', shortfall: [{ slot: 'social_studies.A.Q1', missing: 3 }] }),
     expect.objectContaining({ section: 'C', shortfall: [{ slot: 'social_studies.C.Q5', missing: 1 }] }),
-    expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q7', missing: 1 }] }),
+    // Round 15: Q7 «سرسید … 1875ء … کون سا اسکول» is held too; Q6's model answer names the school.
+    expect.objectContaining({ section: 'D', shortfall: [{ slot: 'social_studies.D.Q6', missing: 3 }, { slot: 'social_studies.D.Q7', missing: 2 }] }),
+    expect.objectContaining({ section: 'D', shortfall: [expect.objectContaining({ slot: 'social_studies.D.Q6' })] }),
   ]);
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
-  expect(q7).toHaveLength(8);
+  expect(q7.length).toBeGreaterThanOrEqual(6);
   expect(q7.some((t) => t.includes('دنیا کی دوسری بڑی نمک کی کان'))).toBe(false);
   expect(q7).toContain('پاکستان کا قومی پھول کون سا ہے؟');
+  // Section A is topped up once more before the paper fails, as Urdu's is.
+  expect(logged('[assessment] section topped up again').map((l) => l.section)).toEqual(['A']);
 });
 
 test('English: the Q1(a) MCQs carrying Q4 words are held, Section A is asked again, and its new MCQs take their places', async () => {
@@ -105,7 +124,7 @@ test('English: the Q1(a) MCQs carrying Q4 words are held, Section A is asked aga
   expect(q1a.filter((q) => fresh.some((f) => f.question === q.question))).toHaveLength(3);
 });
 
-test('Social Studies: when the re-asked section writes the same questions again, the paper is still made, with no question twice', async () => {
+test('Social Studies: when the re-asked section writes the same questions again, no question prints twice and nothing held prints', async () => {
   const src = fixture('r9-sst-full2');
   let dCalls = 0;
   mockCreate.mockImplementation(async (req) => {
@@ -120,11 +139,12 @@ test('Social Studies: when the re-asked section writes the same questions again,
     }
     return sectionReply(again, prompt, () => []);
   });
-  const out = await Gen.generatePatternExam(ARGS('social_studies'));
-  expect(dCalls).toBe(2);
+  // Since round 17 nothing held comes back: with nothing new, the paper is short and fails.
+  const out = await Gen.generatePatternExam(ARGS('social_studies')).catch((e) => e);
+  expect(out.code).toBe('PATTERN_SHORT_SLOT');
+  // Round 15: the blind re-ask leaves D's held items held, so D is asked once more.
+  expect(dCalls).toBe(3);
   const q7 = slotItems(out.examJson, 'social_studies.D.Q7').map((q) => q.question);
-  expect(q7).toHaveLength(8);
-  expect(new Set(q7).size).toBe(8);
-  // Nothing new came back, so the one repeat fills its own place again: a paper with a repeat beats no paper.
-  expect(q7.filter((t) => t.includes('دنیا کی دوسری بڑی نمک کی کان'))).toHaveLength(1);
+  expect(new Set(q7).size).toBe(q7.length);
+  expect(q7.filter((t) => t.includes('دنیا کی دوسری بڑی نمک کی کان'))).toHaveLength(0);
 });

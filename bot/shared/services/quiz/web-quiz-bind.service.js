@@ -99,16 +99,45 @@ async function liveChild(canonicalId) {
  * The erased row a re-bind points at: the newest erased row of THIS child on the phone's tombstone; else the
  * newest erased row of any child on it; else null.
  */
-async function priorOnPhone(norm, childId) {
+async function priorOnPhone(norm, childId, { together = false } = {}) {
   const tomb = BindRepo.tombOf(norm);
   if (!tomb) return null;
+  // together (the self-join's fast path): this child's erased row and any child's are read side by side
+  if (together) {
+    const [mine, any] = await Promise.all([erasedOfChild(tomb, childId), BindRepo.findByTomb(tomb)]);
+    return mine || any;
+  }
+  return (await erasedOfChild(tomb, childId)) || BindRepo.findByTomb(tomb);
+}
+
+/** The newest erased row of THIS child on the tombstone, or null (none, or the read failed: then any child's). */
+async function erasedOfChild(tomb, childId) {
   try {
     const { data, error } = await supabase.from('child_phone_bindings').select('id, canonical_id, revoked_at, revoked_by')
       .eq('phone_tomb', tomb).eq('canonical_id', String(childId)).not('revoked_at', 'is', null)
       .order('revoked_at', { ascending: false }).limit(1);
     if (!error && data && data[0]) return data[0];
   } catch (_) { /* any child's */ }
-  return BindRepo.findByTomb(tomb);
+  return null;
+}
+
+/**
+ * The page-side bind's reads for one phone and one child, started together (quiz_join_fast): the child row, its
+ * phones, the phone's children, the phone's bindings and the prior erased row. A child that folds to another canonical
+ * id has its own phones and prior row read again under that id. The caller weighs them in today's order.
+ */
+function readTogether(phone, norm, givenId, now) {
+  const all = Promise.all([
+    liveChild(givenId), BindRepo.activeForChild(givenId, now), BindRepo.childrenForPhone(phone, { together: true }),
+    BindRepo.activeForPhone(norm, now), priorOnPhone(norm, givenId, { together: true }),
+  ]).then(([child, phones, set, mine, prior]) => ({
+    child, set, mine,
+    phonesOf: (id) => (id === givenId ? phones : BindRepo.activeForChild(id, now)),
+    priorOf: (id) => (id === givenId ? prior : priorOnPhone(norm, id, { together: true })),
+  }));
+  // awaited after the walk-persona lookup: a failure is handled there (the binder's catch), never left unhandled
+  all.catch(() => {});
+  return all;
 }
 
 /**
@@ -116,11 +145,23 @@ async function priorOnPhone(norm, childId) {
  * card → an Urdu confirmation, whatever the child's class quiz is in), else the child's (their quizzes', skipping
  * lesson codes), else the user's, else English.
  */
+// One reply's reads of the child, shared by its words (languageFor) and its link (sendSaved): keyed on the child object
+// the caller resolved for this reply, so it lives as long as that reply.
+const replyMemos = new WeakMap();
+function replyMemo(child) {
+  if (!child || typeof child !== 'object') return new Map();
+  if (!replyMemos.has(child)) replyMemos.set(child, new Map());
+  return replyMemos.get(child);
+}
+
 async function languageFor(child, user, asked = null) {
   if (asked === 'ur' || asked === 'en') return asked;
   try {
     const SQ = require('./student-quiz.service');
-    const lang = SQ.childLanguage(await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]));
+    const quizzes = await SQ.quizzesForStudents([{ id: child.id, student_name: child.name }]);
+    // web_quiz_return_lang: the child's own language (a grown-up's choice → class quiz → the join's) before a lesson's
+    // (off: null, today's); kept for this reply's link
+    const lang = (await require('./web-quiz-child-lang').childLang(child.id, { history: quizzes, memo: replyMemo(child) })) || SQ.childLanguage(quizzes);
     if (lang) return lang;
   } catch (_) { /* the user's */ }
   return clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');
@@ -130,7 +171,9 @@ async function languageFor(child, user, asked = null) {
 async function sendSaved(phone, kids, child, language) {
   const WhatsAppService = require('../whatsapp.service');
   const body = resolveUx('jugnuBindSaved', { language, params: { name: firstName(child.name) } });
-  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), 'bind');
+  // web_quiz_return_lang: the child's own language (class quiz → the one they joined in), else the reply's (off: today's link)
+  const own = await require('./web-quiz-child-lang').childLang(child.id, { memo: replyMemo(child) });
+  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), { caller: 'bind', lang: own || language });
   let sent = false;
   if (url) {
     try {
@@ -256,25 +299,30 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
  * tombstone matches), the same forget and the same bind_bound event with its `via`. Nothing is sent on WhatsApp.
  * → null when web_quiz_phone_bind is off; {ok:true, outcome:'bound', bindingId, canonicalId, renewed, rebind} |
  *   {ok:false, outcome:'refused', reason} | {ok:false, outcome:'error', reason?}. Never throws.
- * @param {{phone:string, canonicalId:string, via?:'guest'|'teacher', mode?:'teacher'|'student'|'unknown', now?:Date}} p
+ * `fast` (the self-join's quiz_join_fast): the same answer with the reads started together (`pre`: prefetch()'s).
+ * @param {{phone:string, canonicalId:string, via?:'guest'|'teacher', mode?:'teacher'|'student'|'unknown', now?:Date, fast?:boolean, pre?:Promise}} p
  */
-async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown', now = new Date() } = {}) {
+async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown', now = new Date(), fast = false, pre: given = null } = {}) {
   try {
     if (!(await on())) return null;
     const norm = StudentIdentity.normalisePhone(phone);
     if (!norm || !canonicalId || !['guest', 'teacher'].includes(via)) return { ok: false, outcome: 'error', reason: 'bad_request' };
+    // fast (the self-join, quiz_join_fast): every read below starts now, together; the refusals keep today's order
+    // (`given`: the same reads, started by the caller while its previous write ran — prefetch() below)
+    const pre = fast ? (given || readTogether(phone, norm, String(canonicalId), now)) : null;
     // a sandbox walk-through phone playing a new family (the walk-persona module, absent everywhere else)
     let fresh = false;
     try { const P = require('../first-touch/walk-persona'); fresh = Boolean(P && typeof P.get === 'function' && ((await P.get(norm)) || {}).as === 'fresh'); } catch (_) { fresh = false; }
     if (mode === 'teacher' && !fresh) return refused('teacher_phone', { via });
-    const child = await liveChild(canonicalId);
+    const got = pre ? await pre : null;
+    const child = got ? got.child : await liveChild(canonicalId);
     if (!child) return refused('child_unknown', { via });
-    const phones = await BindRepo.activeForChild(child.id, now);
+    const phones = got ? await got.phonesOf(child.id) : await BindRepo.activeForChild(child.id, now);
     if (phones.length >= MAX_PHONES_PER_CHILD && !phones.some((b) => b.phone_norm === norm)) return refused('max_phones', { via }, child.id);
-    const set = await BindRepo.childrenForPhone(phone);
+    const set = got ? got.set : await BindRepo.childrenForPhone(phone);
     if (!set.some((k) => String(k.id) === child.id) && set.length >= MAX_KIDS_PER_PHONE) return refused('max_kids', { via, kids_n: set.length }, child.id);
 
-    const mine = (await BindRepo.activeForPhone(norm, now)).find((b) => String(b.canonical_id) === child.id);
+    const mine = (got ? got.mine : await BindRepo.activeForPhone(norm, now)).find((b) => String(b.canonical_id) === child.id);
     let binding = null;
     let renewed = false;
     let rebind = false;
@@ -283,7 +331,7 @@ async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown'
       binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now);
       renewed = Boolean(binding);
     } else {
-      const prior = await priorOnPhone(norm, child.id);
+      const prior = got ? await got.priorOf(child.id) : await priorOnPhone(norm, child.id);
       binding = await BindRepo.insert({
         canonicalId: child.id, phoneNorm: norm, via, confirmedAt: now, expiresAt: BindRepo.expiresAtFor(now), rebindOf: prior ? prior.id : null,
       });
@@ -295,7 +343,8 @@ async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown'
       return { ok: false, outcome: 'error', reason };
     }
     await forgetPhone(phone, norm, `bind_${via}`);
-    const kids = await BindRepo.childrenForPhone(phone);
+    // fast: the phone's children after this bind are the set read before it plus this child — no third read
+    const kids = got ? (set.some((k) => String(k.id) === child.id) ? set : [...set, { id: child.id }]) : await BindRepo.childrenForPhone(phone);
     const ev = { via, kids_n: kids.length, renewed, rebind };
     if (rebind && rebindPrior) ev.rebind_prior = rebindPrior;
     await emit('web_quiz.bind_bound', ev, child.id);
@@ -304,6 +353,16 @@ async function bindOnPhone({ phone, canonicalId, via = 'guest', mode = 'unknown'
     logToFile('⚠️ phone binder: page-side bind threw (nothing promised)', { error: err.message });
     return { ok: false, outcome: 'error' };
   }
+}
+
+/**
+ * The page-side bind's reads, started early by a caller that binds next (the self-join starts them while it writes
+ * the child's identity row): pass the result as bindOnPhone's `pre` with `fast`. A promise that never rejects
+ * unhandled; null for a phone that does not normalise (bindOnPhone then answers bad_request as today).
+ */
+function prefetch({ phone, canonicalId, now = new Date() } = {}) {
+  const norm = StudentIdentity.normalisePhone(phone);
+  return norm && canonicalId ? readTogether(phone, norm, String(canonicalId), now) : null;
 }
 
 /**
@@ -364,6 +423,6 @@ async function stopForBoundNonChild({ from, body, user = null, persona = null } 
 }
 
 module.exports = {
-  handleCode, bindOnPhone, handleStop, stopForBoundNonChild, isStop, ukeyOf,
+  handleCode, bindOnPhone, prefetch, handleStop, stopForBoundNonChild, isStop, ukeyOf,
   STOP_WORDS, MAX_PHONES_PER_CHILD, MAX_KIDS_PER_PHONE,
 };

@@ -15,13 +15,21 @@
  * The bot answers 404 {off:true} when the switch is off: the edge then calls next() — today's handling (the SPA
  * catch-all) answers, byte for byte. A malformed token, a bot that cannot be reached and a caller over the rate limit
  * all fall through the same way: the edge draws a page only after the bot answered with the switch on (a Location off
- * this site, a bot 5xx → go.error with its one "Open WhatsApp" tap). The edge never touches the database.
+ * this site, a bot 5xx → go.error with its one "Open WhatsApp" tap). The edge reads no table of its own, except the
+ * switch web_quiz_closed_way_back (lib/closed-way-back-switch.js, default OFF, cached 30 s, fail OFF), and only to draw
+ * its own go.error page: ON →
+ * that page ALWAYS carries ONE tap back to WhatsApp (the signed go.back sentence; wa.me/<bot>?text=quiz, or
+ * whatsapp://send?text=quiz with no number); OFF → today's page.
  */
 const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createBotClient, clientIp } = require('./web-quiz.routes');
+const { carryBotSecurity, edgeSecurityOn } = require('./edge-security-headers');
 const GoPage = require('../../bot/shared/services/first-touch/go.page');
+const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
+const WayBackSwitch = require('../lib/closed-way-back-switch');
+const CutLink = require('./cut-link-page');
 
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const BOT_BASE = '/api/internal/go';
@@ -32,10 +40,12 @@ const PRIVATE = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex
 // screen, the landing.
 const okLocation = (loc) => typeof loc === 'string' && /^\/(quiz\/teacher|quiz\/join|quiz\/go|quiz\/home|h|m)\/[A-Za-z0-9_.%-]+(\?[A-Za-z0-9_=&%.-]*)?$/.test(loc);
 
+// the page's link language (the bot reads it only with web_quiz_go_link_lang on)
+const linkLang = (v) => v === 'en' || v === 'ur';
 const FORM = {
-  who: { d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v) },
-  role: { side: (v) => v === 'child' || v === 'teacher' },
-  bind: { pick: (v) => /^[0-9a-f]{16}$/.test(v), d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v) },
+  who: { d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v), l: linkLang },
+  role: { side: (v) => v === 'child' || v === 'teacher', l: linkLang },
+  bind: { pick: (v) => /^[0-9a-f]{16}$/.test(v), d: (v) => /^[A-Za-z0-9_-]{22}$/.test(v), l: linkLang },
   persona: { as: (v) => v === 'fresh' || v === 'teacher_empty' || v === 'real' },
 };
 function formBody(kind, body) {
@@ -53,8 +63,11 @@ const langOf = (req) => (/^\s*ur\b/i.test(String((req.get && req.get('accept-lan
 /** This deployment's dialable bot number (WHATSAPP_BOT_NUMBER, else REFERRAL_BOT_NUMBER — the share links' source). */
 const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '') || null;
 
-/** The go.error page for an answer the bot gave that this edge cannot pass on, with its one "Open WhatsApp" tap. */
-const errorPage = (req) => GoPage.buildMessagePage({ id: 'go.error', lang: langOf(req), bot: botNumber() });
+/** The go.error page for an answer the bot gave that this edge cannot pass on, with its one tap back to WhatsApp. */
+// With the switch on the page speaks the link's language first (?lang=, then the token's): 'ur' → Urdu only, 'en' → the
+// page with its English lines (the door has no English-only page); else the phone's, as today.
+const linkGoLang = (req) => ({ ur: 'ur', en: 'bi' })[ChatTap.linkLang(req)] || null;
+const errorPage = (req, door = false) => GoPage.buildMessagePage({ id: 'go.error', lang: (door === true && linkGoLang(req)) || langOf(req), bot: botNumber(), door: door === true });
 
 function sendPage(res, built, status = 200) {
   res.set({ ...PRIVATE, 'Content-Security-Policy': built.csp });
@@ -78,7 +91,16 @@ function createQuizGoRouter(opts = {}) {
     callBot = createBotClient({ botUrl, apiKey, fetchImpl });
     configured = Boolean(botUrl && apiKey);
   }
+  // web_quiz_closed_way_back for the edge's own go.error page; `opts.wayBackOn(req)` stands in for the read (tests)
+  const wayBackOn = typeof opts.wayBackOn === 'function'
+    ? opts.wayBackOn
+    : (req) => WayBackSwitch.on(req && req.app && req.app.locals ? req.app.locals.supabase : null);
+  const doorOf = async (req) => { try { return (await wayBackOn(req)) === true; } catch (_) { return false; } };
   const router = express.Router();
+  // quiz_cut_link_page (cut-link-page.js): a link whose token does not parse gets the expired page; OFF = today
+  const cutLinkOn = CutLink.switchOf(opts);
+  // quiz_edge_security_headers: the bot's own security headers on a relayed answer (edge-security-headers.js; OFF = today)
+  const securityOn = typeof opts.securityOn === 'function' ? opts.securityOn : edgeSecurityOn;
 
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 120, standardHeaders: false, legacyHeaders: false, validate: false,
@@ -99,9 +121,15 @@ function createQuizGoRouter(opts = {}) {
 
   router.get('/quiz/go/:token', limiter, async (req, res, next) => {
     const token = String(req.params.token || '');
-    if (!TOKEN_RX.test(token) || !configured) return next();
+    if (!TOKEN_RX.test(token) || !configured) {
+      // a cut-short or junk link, with quiz_cut_link_page on: the expired page a tampered token gets, no bot call
+      if (configured && CutLink.isOn(cutLinkOn)) return sendPage(res, GoPage.buildMessagePage({ id: 'go.stale', lang: 'bi', bot: botNumber() }), 410);
+      return next();
+    }
     const dv = device(req, res);
-    const ask = req.query && req.query.ask === '1' ? '?ask=1' : '';
+    // ?ask=1, and the link's own ?lang=en|ur as ?ll= (the bot reads it only with web_quiz_go_link_lang on)
+    const q = [req.query && req.query.ask === '1' ? 'ask=1' : '', req.query && linkLang(req.query.lang) ? `ll=${req.query.lang}` : ''].filter(Boolean).join('&');
+    const ask = q ? `?${q}` : '';
     let out;
     try {
       out = await callBot('GET', `${BOT_BASE}/land/${token}${ask}`, req, null, { raw: true, device: dv.ref, route: '/api/internal/go/land/:t' });
@@ -111,12 +139,13 @@ function createQuizGoRouter(opts = {}) {
     if (isOff(out)) return next();   // nothing was set on the response: today's handling answers
     if (dv.minted) res.append('Set-Cookie', dv.minted);
     if (out.status >= 300 && out.status < 400) {
-      if (!okLocation(out.location)) return sendPage(res, errorPage(req), 502);
+      if (!okLocation(out.location)) return sendPage(res, errorPage(req, await doorOf(req)), 502);
       res.set(PRIVATE);
       return res.redirect(302, out.location);
     }
-    if (out.status >= 500) return sendPage(res, errorPage(req), 503);
+    if (out.status >= 500) return sendPage(res, errorPage(req, await doorOf(req)), 503);
     res.set(PRIVATE);   // the bot's page carries its own Content-Security-Policy <meta>
+    carryBotSecurity(res, out, securityOn);   // and, with quiz_edge_security_headers on, the bot's header (frame-ancestors)
     return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
   });
 

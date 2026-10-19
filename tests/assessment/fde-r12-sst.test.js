@@ -72,10 +72,17 @@ describe('1. a Q5/Q7 answer that prints a Q1 MCQ whole is held', () => {
     expect(items(lay(REC.full_2, { reasked: false }).examJson, C5).map((x) => x.question)).not.toContain(q.question);
   });
 
-  test('after the one re-ask the held items fill the slot again: no paper comes back short', () => {
+  // Since round 17 a held item never prints, after the re-ask too: a choice slot prints fewer items,
+  // while it still offers a choice (what the child answers plus one), or the slot is short and the
+  // paper fails.
+  test('after the one re-ask a held item never prints: a slot prints fewer, or it is short', () => {
     for (const p of PAPERS) {
       const laid = lay(REC[p], { reasked: true });
-      expect(laid.shortfall).toEqual([]);
+      expect(laid.held.filter((h) => h.printed)).toEqual([]);
+      for (const f of laid.shortfall) {
+        const slot = SST.sections.flatMap((s) => s.slots).find((s) => s.slot === f.slot);
+        expect(items(laid.examJson, f.slot).length).toBeLessThan(Math.min(slot.generate, slot.attempt + 1));
+      }
     }
   });
 
@@ -113,26 +120,39 @@ describe('1. a Q5/Q7 answer that prints a Q1 MCQ whole is held', () => {
 });
 
 describe('2. one question once in every slot', () => {
-  test('chapters_2 A.Q1 ۱ = ۲۰ (options shuffled) is placed once before the re-ask: the slot is short by 1', () => {
-    const q1 = items(REC.chapters_2, A1);
+  // Its C and D stems name the legislature and the judiciary, which holds Q1 «قوانین بنانے کا اختیار … → مقننہ» (the
+  // repeat read here) and «… سزا دینے کا اختیار … → عدلیہ» by the named-key rule; here they call each by its work,
+  // so the repeat rule acts alone.
+  const CH2 = JSON.parse(JSON.stringify(REC.chapters_2));
+  for (const types of Object.values(CH2.unseen)) for (const list of Object.values(types)) {
+    for (const q of list) if (/\.(C|D)\./.test(q.slot || '')) q.question = q.question.split('مقننہ').join('قانون ساز ادارہ').split('عدلیہ').join('عدالتیں');
+  }
+  // A second place is short on chapters_2: Q1 «سرسید احمد خان نے مسلمانوں کی ترقی کے لیے کس چیز پر زور دیا؟
+  // → جدید تعلیم» is given away by Q5 «سرسید احمد خان مسلمانوں کے لیے جدید تعلیم کو کیوں ضروری سمجھتے تھے؟»,
+  // which prints its key on the same topic, so it is held as well.
+  const GIVEN = 'سرسید احمد خان نے مسلمانوں کی ترقی کے لیے کس چیز پر زور دیا؟';
+  test('chapters_2 A.Q1 ۱ = ۲۰ (options shuffled) is placed once before the re-ask: the slot is short by 1 for it', () => {
+    const q1 = items(CH2, A1);
     expect(q1[0].question).toBe(q1[19].question);
-    const laid = lay(REC.chapters_2, { reasked: false });
+    const laid = lay(CH2, { reasked: false });
     const placed = items(laid.examJson, A1).map((q) => q.question);
     expect(placed.filter((s) => s === q1[0].question)).toHaveLength(1);
-    expect(short(laid, A1)).toBe(1);
+    expect(laid.held.filter((h) => h.slot === A1 && h.rule === 'key_in_stem').map((h) => h.q.question)).toEqual([GIVEN]);
+    expect(short(laid, A1)).toBe(2);
   });
 
-  test('after the re-ask a new item takes the place; the repeat only when nothing else can', () => {
-    const exam = JSON.parse(JSON.stringify(REC.chapters_2));
+  test('after the re-ask a new item takes the place; the repeat never (Q1 is compulsory: short)', () => {
+    const exam = JSON.parse(JSON.stringify(CH2));
     const slot = SST.sections.flatMap((s) => s.slots).find((s) => s.slot === A1);
     const fresh = { slot: A1, question: 'عدلیہ کا بنیادی کام کیا ہے؟', options: ['الف) قانون بنانا', 'ب) انصاف فراہم کرنا', 'ج) ٹیکس جمع کرنا', 'د) سڑکیں بنانا'], answer: 'ب) انصاف فراہم کرنا' };
     exam.unseen[slot.category][slot.type].push(fresh);
     const withFresh = items(lay(exam, { reasked: true }).examJson, A1).map((q) => q.question);
     expect(withFresh).toContain(fresh.question);
-    expect(withFresh.filter((s) => s === items(REC.chapters_2, A1)[0].question)).toHaveLength(1);
-    const alone = lay(REC.chapters_2, { reasked: true });
-    expect(items(alone.examJson, A1)).toHaveLength(20);
-    expect(short(alone, A1)).toBe(0);
+    expect(withFresh.filter((s) => s === items(CH2, A1)[0].question)).toHaveLength(1);
+    const alone = lay(CH2, { reasked: true });
+    expect(items(alone.examJson, A1)).toHaveLength(18);
+    expect(items(alone.examJson, A1).map((q) => q.question)).not.toContain(GIVEN);
+    expect(short(alone, A1)).toBe(2);
   });
 
   test('a top-up of Section A names every Q1 item it keeps and asks for spares; a whole re-ask is told nothing', () => {
@@ -197,20 +217,25 @@ describe('2. one question once in every slot', () => {
       const content = (replies[sec] || []).length > 1 ? replies[sec].shift() : replies[sec][0];
       return { choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } };
     });
+    // This recorded paper's Q6s are held and never print since round 17, so it ends short; the
+    // re-ask notes are what this test reads.
     await Gen.generatePatternExam({
       grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027',
       scope: { kind: 'chapters', chapters: [4, 6], pages: '26-33,40-48' }, pageRanges: '26-33,40-48', requestId: 'req-r12',
-    });
+    }).catch((e) => { if (e.code !== 'PATTERN_SHORT_SLOT') throw e; });
     const a = asked.filter((x) => x.sec === 'A');
-    expect(a).toHaveLength(2);
+    // Its Q1 items whose key a C/D stem names are held as well, and this mock serves the stored reply again, so
+    // Section A is topped up once more after the re-ask this test reads.
+    expect(a.length).toBeGreaterThanOrEqual(2);
     expect(a[0].text).not.toContain('already keeps');
     expect(a[1].text).toContain('Q1 already keeps these items');
-    expect(a[1].text).toContain('write 5 new Q1 items');
+    expect(a[1].text).toMatch(/write \d+ new Q1 items/);
     // Section D's re-ask is told Q5's situations.
     const d = asked.filter((x) => x.sec === 'D');
     expect(d.length).toBeGreaterThanOrEqual(2);
-    expect(d[0].text).not.toContain('Q5 of this paper already sets these situations');
-    expect(d[d.length - 1].text).toContain('Q5 of this paper already sets these situations');
+    // Since round 14 D's FIRST ask is told C's first-reply Q5 items too (D is written after C).
+    expect(d[0].text).toContain('Q5 of this paper asks these questions');
+    expect(d[d.length - 1].text).toContain('Q5 of this paper asks these questions');
   });
 });
 
@@ -221,21 +246,21 @@ describe('3. a re-asked Section D is told Q5\'s situations', () => {
   test('chapters_1: D\'s note lists every Q5 stem the first layout placed (the wallet among them)', () => {
     const kept = lay(REC.chapters_1, { reasked: false }).examJson;
     const note = takenNote(SST, D, kept);
-    expect(note).toContain('Q5 of this paper already sets these situations');
+    expect(note).toContain('Q5 of this paper asks these questions');
     const q5 = items(kept, C5);
     expect(q5.length).toBeGreaterThan(0);
     for (const q of q5) expect(note).toContain(q.question.trim());
-    expect(note).toContain('No Q6 or Q7 item you write may reuse a Q5 situation');
+    expect(note).toContain('No Q6 or Q7 item you write may ask anything a child answering these');
   });
 
   test('Section C\'s own note is unchanged: it is not told Q5', () => {
     const kept = lay(REC.chapters_1, { reasked: false }).examJson;
-    expect(takenNote(SST, C, kept)).not.toContain('already sets these situations');
+    expect(takenNote(SST, C, kept)).not.toContain('Q5 of this paper asks these questions');
   });
 
   test('a paper with no Q5 placed gives D today\'s note', () => {
     const kept = lay(REC.chapters_1, { reasked: false }).examJson;
     for (const t of Object.values(kept.unseen)) for (const [k, l] of Object.entries(t)) t[k] = l.filter((q) => q.slot !== C5);
-    expect(takenNote(SST, D, kept)).not.toContain('already sets these situations');
+    expect(takenNote(SST, D, kept)).not.toContain('Q5 of this paper asks these questions');
   });
 });

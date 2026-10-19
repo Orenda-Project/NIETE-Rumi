@@ -98,7 +98,7 @@ function at(path: string, state?: unknown) {
 describe("readPrefill (Start DC observation on a lesson plan)", () => {
   it("reads grade, subject and a grades 1–5 plan", () => {
     expect(readPrefill("?grade=4&subject=science&plan=k5:L3")).toEqual({
-      grade: 4, subjectKey: "science", plan: "k5:L3", pick: { lessonId: "L3" },
+      grade: 4, subjectKey: "science", plan: "k5:L3", pick: { lessonId: "L3" }, lpSubject: null, subjectName: null,
     });
   });
   it("reads a grades 6–12 plan with its language", () => {
@@ -106,7 +106,7 @@ describe("readPrefill (Start DC observation on a lesson plan)", () => {
     expect(readPrefill("?plan=g612:S9").pick).toEqual({ segmentId: "S9", lang: "en" });
   });
   it("ignores what is not a plan key or a grade", () => {
-    expect(readPrefill("?grade=nope&plan=lesson-3")).toEqual({ grade: null, subjectKey: null, plan: null, pick: null });
+    expect(readPrefill("?grade=nope&plan=lesson-3")).toEqual({ grade: null, subjectKey: null, plan: null, pick: null, lpSubject: null, subjectName: null });
   });
 });
 

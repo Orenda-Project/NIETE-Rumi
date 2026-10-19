@@ -13,11 +13,13 @@
  *   firstDoor  = quiz_first_door      && makerPage         the chooser on an unknown phone's quiz request
  *                                                          (a teacher tap must land on the maker, never a dead end)
  *
- * All off → every caller's path is today's.
+ * All off → every caller's path is today's. A failed read is kept 30 s too (settings/switch-cache): the last good
+ * switches this process read, else all off — a settings outage costs the join one read per 30 s, not one per message.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const HubFlags = require('./web-quiz-hub-flags');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const CANON_KEY = 'web_quiz_identity_canon';
 const PHONE_BIND_KEY = 'web_quiz_phone_bind';
@@ -27,8 +29,8 @@ const MAKER_PAGE_KEY = 'quiz_maker_page';
 const FIRST_DOOR_KEY = 'quiz_first_door';
 // ── end first touch ──
 const TTL_MS = 30 * 1000;
+const KEYS = Object.freeze([CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY]);
 const OFF = Object.freeze({ canon: false, phoneBind: false, guestHome: false, makerPage: false, firstDoor: false });
-let cache = null; // { at, canon, phoneBind, guestHome, makerPage, firstDoor }
 
 function isTrue(value) {
   let v = value;
@@ -36,28 +38,49 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-/** → { canon, phoneBind, guestHome, makerPage, firstDoor }; all false on a failed read. Never throws. */
-async function flags(now = Date.now()) {
-  if (cache && now - cache.at < TTL_MS) return cache;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY]);
+const cache = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: () => ({ ...OFF }),
+  read: async (now) => {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    const hub = Boolean((await HubFlags.flags(now)).hub);
-    const canon = hub && isTrue(by[CANON_KEY]);
-    // WQ_TOMB_SALT is a hard parent: without it the store writes nothing and a family's JUGNU- message would meet silence.
-    const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
-    const guestHome = phoneBind && isTrue(by[GUEST_HOME_KEY]);
-    // ── first touch: the door's hard parent is the maker page; neither reads any switch above ──
-    const makerPage = isTrue(by[MAKER_PAGE_KEY]);
-    const firstDoor = makerPage && isTrue(by[FIRST_DOOR_KEY]);
-    // ── end first touch ──
-    cache = { at: now, canon, phoneBind, guestHome, makerPage, firstDoor };
-    return cache;
-  } catch (err) {
-    logToFile('⚠️ child identity: settings lookup failed — identity switches off', { error: err.message });
-    return { ...OFF };
-  }
+    return fromRows(data, now);
+  },
+  log: (err) => logToFile('⚠️ child identity: settings lookup failed — identity switches off', { error: err.message }),
+});
+
+/** → { canon, phoneBind, guestHome, makerPage, firstDoor }; a failed read → the last good switches, else all false, for 30 s. Never throws. */
+async function flags(now = Date.now()) {
+  return cache.get(now);
 }
 
-module.exports = { flags, isTrue, CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY, _resetCache: () => { cache = null; } };
+async function fromRows(data, now) {
+  const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  const hub = Boolean((await HubFlags.flags(now)).hub);
+  const canon = hub && isTrue(by[CANON_KEY]);
+  // WQ_TOMB_SALT is a hard parent: without it the store writes nothing and a family's JUGNU- message would meet silence.
+  const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
+  const guestHome = phoneBind && isTrue(by[GUEST_HOME_KEY]);
+  // ── first touch: the door's hard parent is the maker page; neither reads any switch above ──
+  const makerPage = isTrue(by[MAKER_PAGE_KEY]);
+  const firstDoor = makerPage && isTrue(by[FIRST_DOOR_KEY]);
+  // ── end first touch ──
+  return { at: now, canon, phoneBind, guestHome, makerPage, firstDoor };
+}
+
+/**
+ * Another module's one app_settings read that asked for KEYS and the hub's keys too (the join's, quiz_join_fast)
+ * fills an empty or expired cache (and the hub flags') from its rows, so no second read follows. `asked` is the key
+ * list that read asked for: a list missing one of this group's keys throws (a hand-written list is caught, never
+ * read as off); a key asked for with no row is the normal off. The hub is primed first, even when this cache is live,
+ * so a warm identity over a cold hub still leaves the first home nothing to read.
+ */
+async function prime(rows, now = Date.now(), asked = KEYS.concat(HubFlags.KEYS || [])) {
+  const missing = KEYS.filter((k) => !asked.includes(k));
+  if (missing.length) throw new Error(`identity flags primed by a read that did not ask for ${missing.join(', ')}`);
+  if (typeof HubFlags.prime === 'function') HubFlags.prime(rows, now, asked);
+  if (cache.fresh(now)) return;
+  cache.set(await fromRows(rows, now), now);
+}
+
+module.exports = { flags, prime, KEYS, isTrue, CANON_KEY, PHONE_BIND_KEY, GUEST_HOME_KEY, MAKER_PAGE_KEY, FIRST_DOOR_KEY, _resetCache: () => { cache.reset(); } };

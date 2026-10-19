@@ -15,6 +15,9 @@
   --s1:#6D3FC0;--s2:#1F5FBF;--s3:#A3478F;--s4:#0E7C86;
   --s1-bg:#EEE8FA;--s2-bg:#E4ECFA;--s3-bg:#F6E6F1;--s4-bg:#E0F2F3;
   --tap:48px;
+  /* the one button system's tokens (html.wq-1b, web_quiz_one_button; today's values; the adventure look redefines them) */
+  --gutter:16px;--btn-h:56px;--btn-h2:52px;--btn-h-2l:76px;--btn-icon:48px;--r-btn:18px;--r-card:22px;--row-h:88px;--r-icon:50%;--btn-d:5px;--btn-d2:4px;--btn-fs:20px;--btn-fs2:17px;--btn-fs-ur:19px;--btn-fs-ur-sm:18px;--btn-fs2-ur:18px;--btn-lh-ur:1.9;--press-y:4px;--press-s:.97;--press-dim:.92;
+  --land-st:var(--brand);--land-st-edge:var(--brand-d);--land-st-on:var(--brand-on);--land-gm:var(--brand);--land-gm-edge:var(--brand-d);--land-gm-on:var(--brand-on);--land-vd:var(--brand);--land-vd-edge:var(--brand-d);--land-vd-on:var(--brand-on);
   --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --fu:"WQ Nastaliq",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Nastaliq Urdu",sans-serif;
 }
@@ -83,7 +86,7 @@ html[lang=ur] .wq-jug.wq-big .wq-say{line-height:2.2}
 .wq-say::after{content:"";position:absolute;bottom:-8px;inset-inline-start:18px;border:9px solid transparent;border-top-color:var(--card);border-bottom:0}
 .wq-card{background:var(--card);border-radius:20px;padding:14px;box-shadow:0 3px 0 var(--line)}
 .wq-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:60px;border-radius:18px;border:0;font-weight:900;font-size:20px;cursor:pointer;padding:8px 18px;text-decoration:none;text-align:center}
-html[lang=ur] .wq-btn{font-weight:700;font-size:19px;line-height:1.9}
+html[lang=ur] .wq-btn{font-weight:700;font-size:var(--btn-fs-ur);line-height:1.9}
 .wq-go{background:var(--brand);color:var(--brand-on);box-shadow:0 5px 0 var(--brand-d)}
 .wq-go:active{transform:translateY(3px);box-shadow:0 2px 0 var(--green-d)}
 .wq-navy{background:var(--brand-ink);color:#fff;box-shadow:0 5px 0 var(--brand-ink-d)}
@@ -215,6 +218,12 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-table td{background:var(--card);padding:10px 8px;font-weight:800;font-size:17px}
 .wq-table td:first-child{border-start-start-radius:12px;border-end-start-radius:12px;width:44px;text-align:center;color:var(--muted)}
 .wq-table td:last-child{border-start-end-radius:12px;border-end-end-radius:12px;text-align:end;white-space:nowrap}
+.wq-skel .wq-skrow td i,.wq-skh i{display:block;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--paper-2) 0%,var(--line) 50%,var(--paper-2) 100%);background-size:200% 100%;animation:wq-sk 1.2s linear infinite}
+.wq-skh i{height:22px;width:60%;margin:4px 0 14px}
+.wq-skel .wq-skrow td{height:22px}
+.wq-skel .wq-skrow td:nth-child(2) i{width:70%}
+@keyframes wq-sk{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.wq-skel .wq-skrow td i,.wq-skh i{animation:none}}
 .wq-table tr.wq-you td{background:var(--gold-l,#FFE7A8);color:var(--navy)}
 .wq-table .wq-tag{display:inline-block;margin-inline-start:6px;background:var(--navy);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px}
 .wq-cmp{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-weight:800}
@@ -366,6 +375,11 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1.8;padding:0 8px;margin:2px 0 4px}
 .wq-schips .wq-chip{border:2px solid var(--line);font-size:14px;min-height:40px}
 .wq-schips .wq-chip.wq-on{background:var(--navy);color:#fff;border-color:var(--navy)}
+/* web_quiz_class_doors: the class table's and league's chips are full-size targets, and the league's Play stays in reach
+   at the bottom of the screen however long the list (the Urdu league ran it off the screen). */
+.wq-schips.wq-tall .wq-chip{min-height:48px;min-width:48px;justify-content:center}
+.wq-zero-list.wq-tall summary{min-height:48px;display:flex;align-items:center}
+.wq-stick{position:sticky;bottom:12px;z-index:2}
 .wq-mycard .wq-move{display:block;margin-top:4px;font-size:14px}
 .wq-added{margin-top:6px!important;font-weight:800;color:#1a8f4a}
 .wq-zero-list{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--muted);font-weight:700}
@@ -466,9 +480,13 @@ a.wq-vitem{color:inherit;text-decoration:none}
 .wq-vagain video{width:100%;max-height:82vh;border-radius:12px;background:#000}
 
 /* The Home button (web_quiz_home_button): the bar's end — top right, top left in Urdu (the bar is a flex row
-   under dir=rtl) — a 56 px target; the progress dots move to their own row under the bar. */
-.wq-home{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:56px;min-height:56px;margin-inline-start:8px;padding:6px 8px;border-radius:16px;border:2px solid var(--navy);background:#fff;color:var(--navy);font:inherit;font-weight:800;font-size:13px;line-height:1;box-shadow:0 3px 0 rgba(51,55,72,.2);cursor:pointer;flex:0 0 auto}
-.wq-home>span[aria-hidden]{font-size:22px;line-height:1}
+   under dir=rtl) — a 56 px target; the progress dots move to their own row under the bar. Only on a link or a button:
+   the child home's own <section> also carries .wq-home (wq-home.js), and this look on it made the whole screen one
+   off-centre, tappable panel. */
+a.wq-home,button.wq-home{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:56px;min-height:56px;margin-inline-start:8px;padding:6px 8px;border-radius:16px;border:2px solid var(--navy);background:#fff;color:var(--navy);font:inherit;font-weight:800;font-size:13px;line-height:1;box-shadow:0 3px 0 rgba(51,55,72,.2);cursor:pointer;flex:0 0 auto}
+a.wq-home>span[aria-hidden],button.wq-home>span[aria-hidden]{font-size:22px;line-height:1}
+/* a tap lights only what was tapped (the press-down is each card's own), never the browser's flash over a panel */
+.wq-row,.wq-dspk,.wq-door,.wq-homebtn{-webkit-tap-highlight-color:transparent}
 .wq-homet{white-space:nowrap}
 .wq-dotrow{display:flex;justify-content:center;margin:2px 0 6px}
 /* Back to the previous question: a 48 px pill at the start of the "Question n of N" row. */
@@ -497,11 +515,202 @@ html[lang=ur] .wq-who .wq-kid{font-weight:700;line-height:1.7;font-size:16px}
 .wq-askon .wq-in{gap:4px;padding:10px 14px}
 html[lang=ur] .wq-askon .wq-name,html[lang=ur] .wq-askon .wq-praise{line-height:1.5;margin:0}
 
+/* Jugnu over a loading list's skeleton (html.wq-1b .wq-dskel::after) */
+@keyframes wq-skjug{from{opacity:1;transform:translateY(0)}to{opacity:1;transform:translateY(-12px)}}
+/* ONE button system (app_settings web_quiz_one_button → the bot's `one_button` → wq-tel.js puts `wq-1b` on <html>).
+   Every value is a :root token above, so a look changes tokens only. Three kinds, one skin family:
+     main     .wq-btn (.wq-go / .wq-navy): --btn-h tall, --r-btn round, a --btn-d ledge that presses down;
+     second   .wq-soft and every other secondary (story reader, back pills, the card's Home): card white, a 2 px line
+              border, --btn-h2 tall, a --btn-d2 ledge;
+     icon     every top-bar Home (the doors' house, the quiz's and the library's Home, the challenge's) and the
+              header's sound and sticker buttons: --btn-icon square, the second skin, the same house drawing.
+   Every label is centred in its box (flex, both ways); nothing a child sees sits closer than --gutter to either
+   screen edge, in either direction. Off (no class): none of this applies. */
+html.wq-1b .wq-btn:not([class*="wq-btn--"]){display:flex;align-items:center;justify-content:center;height:var(--btn-h);min-height:0;padding-block:0;border-radius:var(--r-btn);font-size:var(--btn-fs);-webkit-tap-highlight-color:transparent;transition:transform .08s ease,box-shadow .08s ease}
+html.wq-1b[lang=ur] .wq-btn:not([class*="wq-btn--"]){font-size:var(--btn-fs-ur);height:var(--btn-h);min-height:0;padding-block:0}
+/* the height is the token (set as height, so a label's line box never grows it): main 56, second 52 in both
+   languages; a label that truly cannot fit one line takes .wq-2l, the fixed two-line token, never a computed height */
+html.wq-1b .wq-btn.wq-soft:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-soft:not([class*="wq-btn--"]){height:var(--btn-h2)}
+/* the class doors on Home are two-line tiles (an icon over a label): the fixed two-line token, after the second
+   height so it wins */
+html.wq-1b .wq-social .wq-btn.wq-soft.wq-soc,html.wq-1b[lang=ur] .wq-social .wq-btn.wq-soft.wq-soc{height:var(--btn-h-2l);min-height:0}
+/* the Urdu word's line box hangs low (Nastaliq): lift it so the icon and the word sit centred together */
+html.wq-1b[lang=ur] .wq-social .wq-soc span{position:relative;top:-5px}
+html.wq-1b .wq-btn.wq-2l:not([class*="wq-btn--"]),html.wq-1b[lang=ur] .wq-btn.wq-2l:not([class*="wq-btn--"]){height:var(--btn-h-2l)}
+html.wq-1b .wq-go{box-shadow:0 var(--btn-d) 0 var(--edge,var(--brand-d))}
+html.wq-1b .wq-navy{box-shadow:0 var(--btn-d) 0 var(--edge,var(--brand-ink-d))}
+html.wq-1b .wq-go:active,html.wq-1b .wq-navy:active{transform:translateY(3px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--brand-d))}
+html.wq-1b .wq-navy:active{box-shadow:0 2px 0 var(--edge,var(--brand-ink-d))}
+html.wq-1b .wq-soft,html.wq-1b .wqs-sec,html.wq-1b .wqs-again,html.wq-1b .wq-dback,html.wq-1b .wq-prback,
+html.wq-1b .wq-homebtn,html.wq-1b a.wq-home,html.wq-1b button.wq-home,html.wq-1b .wq-snd,html.wq-1b #wq-snd.wq-icon,html.wq-1b .wq-jar{display:flex;align-items:center;justify-content:center;height:var(--btn-h2);min-height:0;margin-inline:0;padding-block:0;border:2px solid var(--line);border-radius:var(--r-btn);background:var(--card);color:var(--navy);font-weight:800;font-size:var(--btn-fs2);line-height:1.2;text-decoration:none;box-shadow:0 var(--btn-d2) 0 var(--edge,var(--line));cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .08s ease,box-shadow .08s ease}
+html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wqs-again:active,html.wq-1b .wq-dback:active,html.wq-1b .wq-prback:active,
+html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wq-snd:active,html.wq-1b #wq-snd.wq-icon:active,html.wq-1b .wq-jar:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--line))}
+/* the Urdu polish's button lines come later in this file (the ur2 block): [lang=ur][lang] lifts the Urdu rules of
+   this block one step so each kind keeps its own size there too */
+html.wq-1b[lang=ur][lang] .wq-soft,html.wq-1b[lang=ur][lang] .wqs-sec,html.wq-1b[lang=ur][lang] .wq-dback,html.wq-1b[lang=ur][lang] .wq-prback{font-family:var(--fu);font-weight:400;font-size:18px;line-height:var(--btn-lh-ur)}
+/* the icon kind: a 48 px circle on every tab, the house drawn the same everywhere (the word stays for screen readers only) */
+html.wq-1b .wq-homebtn,html.wq-1b a.wq-home,html.wq-1b button.wq-home,html.wq-1b .wq-snd,html.wq-1b #wq-snd.wq-icon,html.wq-1b .wq-jar{flex:none;width:var(--btn-icon);min-width:var(--btn-icon);height:var(--btn-icon);min-height:var(--btn-icon);padding:0;gap:0;border-radius:var(--r-icon)}
+/* the row speakers (Games, Videos): a fixed 48 px circle in the middle of the row's height, never stretched to it */
+html.wq-1b button.wq-dspk{flex:none;align-self:center;width:var(--btn-icon);min-width:var(--btn-icon);height:var(--btn-icon);min-height:0;padding:0;border-radius:var(--r-icon)}
+html.wq-1b .wq-homebtn svg{display:none}
+html.wq-1b .wq-jar{color:var(--gold-d,#B37A0C)}
+html.wq-1b .wq-homebtn::before,html.wq-1b a.wq-home::before,html.wq-1b button.wq-home::before,html.wq-1b .wq-btn[data-home]::before,html.wq-1b .wqs-sec[data-home]::before{content:"";flex:none;width:26px;height:26px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z'/%3E%3C/svg%3E") center/contain no-repeat}
+html.wq-1b .wq-btn[data-home]::before,html.wq-1b .wqs-sec[data-home]::before{width:22px;height:22px;margin-inline-end:8px}
+html.wq-1b a.wq-home>span[aria-hidden],html.wq-1b button.wq-home>span[aria-hidden]{display:none}
+html.wq-1b a.wq-home .wq-homet,html.wq-1b button.wq-home .wq-homet{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* the finish card's share: its label in the middle of its box like every button (was a block, text at the top) */
+html.wq-1b .wqfc-share{display:flex;align-items:center;justify-content:center}
+/* the gutter: the home and door screens are the page, not a framed panel (the quiz page's small Home class also sits
+   on their section); the bottom bar's doors and the grown-ups sheet keep --gutter off both edges */
+html.wq-1b section.wq-screen.wq-home{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:14px;min-width:0;min-height:0;margin-inline:0;padding:12px var(--gutter) calc(96px + env(safe-area-inset-bottom,0px));border:0;border-radius:0;background:transparent;color:inherit;font:inherit;line-height:normal;box-shadow:none;cursor:auto;flex:1 1 auto}
+html.wq-1b .wq-screen{padding-inline:var(--gutter)}
+html.wq-1b .wq-doors{padding-inline:var(--gutter)}
+html.wq-1b .wq-gsheet{left:var(--gutter);right:var(--gutter)}
+/* the story reader's own buttons: its big yellow button is the main kind (its ledge is already its own darker yellow),
+   its round top-bar icons are the icon kind, the tap-a-word chip keeps its look with its word in the middle */
+html.wq-1b .wqs-main{display:flex;align-items:center;justify-content:center;min-height:var(--btn-h);border-radius:var(--r-btn);-webkit-tap-highlight-color:transparent}
+html.wq-1b .wqs-ic{width:var(--btn-icon);height:var(--btn-icon);border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--edge,var(--line));-webkit-tap-highlight-color:transparent}
+html.wq-1b .wqs-ic:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--edge,var(--line))}
+/* the reader's own screens are the page: --gutter off both edges (the shelf sits in its door, which keeps it) */
+html.wq-1b .wqs:not(.wqs-shelf){padding-inline:var(--gutter)}
+/* the page arrows are the icon kind too (a --btn-icon circle, on every phone width). In Urdu the drawing turns, not
+   the box; the box's [dir=rtl] rule outweighs a plain :active, so the press is written for Urdu as well */
+html.wq-1b .wqs-arr{width:var(--btn-icon);min-width:var(--btn-icon);height:var(--btn-icon);padding:0;border:2px solid var(--line);border-radius:var(--r-icon);box-shadow:0 var(--btn-d2) 0 var(--line);-webkit-tap-highlight-color:transparent}
+html.wq-1b .wqs-arr .wqs-g{width:30px;height:30px}
+html.wq-1b .wqs[dir=rtl] .wqs-arr{transform:none}
+html.wq-1b .wqs[dir=rtl] .wqs-arr svg{transform:scaleX(-1)}
+html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active{transform:translateY(2px) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 2px 0 var(--line)}
+html.wq-1b .wqs-arr:disabled:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:disabled:active{transform:none;filter:none;box-shadow:0 var(--btn-d2) 0 var(--line)}
+/* the shelf: a cover's title keeps two lines' room (clamped at two) so one- and two-line covers sit level in a row,
+   in English and in the Urdu face; its corners from the three tokens (the book a card, its picture and every button
+   --r-btn, the read tick a circle; the loading cover takes the waiting boxes' card radius, below) */
+html.wq-1b .wqs-book b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.25;height:calc(2em * 1.25)}
+html.wq-1b .wqs-book b[lang=ur]{font-family:var(--fu);font-weight:400;word-spacing:normal;line-height:var(--btn-lh-ur);height:calc(2em * var(--btn-lh-ur))}
+html.wq-1b .wqs-book{border-radius:var(--r-card)}
+html.wq-1b .wqs-tcard{border-radius:var(--r-card)}
+html.wq-1b .wqs-cov{border-radius:var(--r-btn)}
+html.wq-1b .wqs-tcard img{border-radius:var(--r-btn)}
+html.wq-1b .wqs-gl{border-radius:var(--r-btn)}
+html.wq-1b .wqs-chip{border-radius:var(--r-btn)}
+html.wq-1b .wqs-rib{border-start-end-radius:var(--r-btn);border-end-end-radius:var(--r-btn)}
+html.wq-1b .wqs-tcard .wqs-rib{border-radius:var(--r-btn)}
+html.wq-1b .wqs-tick{border-radius:var(--r-icon)}
+/* the reader's own boxes on the same three: the page and the question a card, its buttons and answers --r-btn */
+html.wq-1b .wqs-stage,html.wq-1b .wqs-qc{border-radius:var(--r-card)}
+html.wq-1b .wqs-whole,html.wq-1b .wqs-slow,html.wq-1b .wqs-opt,html.wq-1b .wqs-opt img{border-radius:var(--r-btn)}
+/* three radii per screen, from the tokens: a button (and every small tile or picture inside a box) --r-btn, a card
+   --r-card, an icon or dot a circle (the answer shapes are glyphs, not boxes: they keep their own corners) */
+html.wq-1b .wq-card,html.wq-1b .wq-qcard,html.wq-1b .wq-next{border-radius:var(--r-card)}
+html.wq-1b .wq-door,html.wq-1b .wq-nart,html.wq-1b .wq-tile{border-radius:var(--r-btn)}
+html.wq-1b .wq-soon,html.wq-1b .wqs-skel{border-radius:var(--r-card)}
+html.wq-1b .wq-prstrip{border-radius:var(--r-card)}
+/* the school league: its sector chips and its "still to start" fold row are full-size targets (today 40 px and 18 px); the row stays a list-item, so its ▸ marker (the cue that it opens) stays */
+html.wq-1b .wq-zero-list{border-radius:var(--r-card)}
+html.wq-1b .wq-schips .wq-chip{min-height:var(--tap);min-width:var(--tap);justify-content:center}
+html.wq-1b .wq-zero-list summary{display:list-item;min-height:var(--tap);padding-block:12px;line-height:24px}
+html.wq-1b[lang=ur] .wq-zero-list summary{padding-block:6px;line-height:inherit}
+/* one height per list: every door row is at least --row-h (the teacher's week row keeps its green ring); a long title
+   shows whole on up to two lines (the row grows), and an English title on an Urdu page is cut at its own end */
+html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:auto;min-height:var(--row-h);overflow:hidden}
+html.wq-1b .wq-drow .wq-rtext b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;overflow-wrap:anywhere}
+html.wq-1b[lang=ur] .wq-drow .wq-rtext b:has(>.wq-lat){direction:ltr;text-align:right}
+/* the tap: no page, section or list paints the system's tap box (it inherits down to every child); every link and
+   button on the page darkens a little on its own while pressed instead, so a tap always answers, and only where it landed */
+html.wq-1b body{-webkit-tap-highlight-color:transparent}
+html.wq-1b :is(a,button,[role=button],label,summary):active{filter:brightness(var(--press-dim))}
+html.wq-1b .wqs-word{display:flex;align-items:center;justify-content:center;border-radius:var(--r-btn);-webkit-tap-highlight-color:transparent}
+/* the reader's icons say what they do: a caption under each circle (its own name: the aria-label, or "Slower"'s
+   word), and the slow-down is a tortoise a child reads at a glance; the bars keep room for the captions (the page bar
+   14 px in, so a two-word caption stays inside the gutter), and the circles sit centred on the main button's line */
+html.wq-1b .wqs-top{align-items:flex-start}
+html.wq-1b .wqs-top h2{line-height:var(--btn-icon)}
+html.wq-1b .wqs-ctl{align-items:flex-start;gap:14px;padding-inline:14px}
+html.wq-1b .wqs-top .wqs-ic,html.wq-1b .wqs-ctl .wqs-arr{position:relative;overflow:visible;margin-bottom:var(--cap-h)}
+html.wq-1b .wqs-ctl .wqs-arr,html.wq-1b .wqs-ctl .wqs-slow{margin-top:calc((var(--btn-h) - var(--btn-icon)) / 2)}
+html.wq-1b .wqs-top .wqs-ic::after,html.wq-1b .wqs-ctl .wqs-arr::after{content:attr(aria-label);position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;font-weight:800;line-height:16px;color:var(--ink);pointer-events:none}
+html.wq-1b .wqs-ctl .wqs-slow{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;row-gap:13px;width:var(--btn-icon);height:var(--btn-icon);min-height:0;padding:0;margin-bottom:var(--cap-h);overflow:visible;border:2px solid var(--line);border-radius:var(--r-icon);background:#fff;box-shadow:0 var(--btn-d2) 0 var(--line);font-size:12px;font-weight:800;line-height:16px;white-space:nowrap}
+html.wq-1b .wqs-ctl .wqs-slow[aria-pressed=true]{background:#d6f5e3;border-color:var(--hl)}
+html.wq-1b .wqs-ctl .wqs-slow .wqs-g{display:none}
+html.wq-1b .wqs-ctl .wqs-slow::before{content:"";flex:none;width:34px;height:25px;margin-top:10px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 24'%3E%3Cpath fill-rule='evenodd' d='M5 16C5 10 9 6.5 14.5 6.5S24 10 24 16zm7-6.2h5l1.6 2.8-1.6 2.8h-5l-1.6-2.8zM3.5 16.4h22v2h-22zm-1.2.3L.4 18.2l2.4.4zM24.6 13.2c.6-2.2 2.3-3.4 4-3.2 1.8.2 2.9 1.6 2.8 3.2-.1 1.5-1.3 2.4-2.9 2.4h-3.9zm4.6-.6a.9.9 0 1 0 0-.01zM6.5 18.4h3.6v3.6H6.5zm12 0h3.6v3.6h-3.6z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 24'%3E%3Cpath fill-rule='evenodd' d='M5 16C5 10 9 6.5 14.5 6.5S24 10 24 16zm7-6.2h5l1.6 2.8-1.6 2.8h-5l-1.6-2.8zM3.5 16.4h22v2h-22zm-1.2.3L.4 18.2l2.4.4zM24.6 13.2c.6-2.2 2.3-3.4 4-3.2 1.8.2 2.9 1.6 2.8 3.2-.1 1.5-1.3 2.4-2.9 2.4h-3.9zm4.6-.6a.9.9 0 1 0 0-.01zM6.5 18.4h3.6v3.6H6.5zm12 0h3.6v3.6h-3.6z'/%3E%3C/svg%3E") center/contain no-repeat}
+html.wq-1b .wqs{--cap-h:20px;padding-inline:var(--gutter)}
+html.wq-1b .wqs[lang=ur]{--cap-h:26px}
+html.wq-1b .wqs[lang=ur] .wqs-top .wqs-ic::after,html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-arr::after,html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-slow{font-weight:400;line-height:22px}
+html.wq-1b .wqs[lang=ur] .wqs-ctl .wqs-slow{row-gap:11px}
+/* Urdu button words in the regular Nastaliq, the Urdu polish class or not: bold breaks its joins («پڑھی» read «پڑ ھی») */
+html.wq-1b[lang=ur] .wq-btn,html.wq-1b[lang=ur] .wq-door{font-weight:400}
+/* a list row (Games, Stories, Videos) and the skeleton that stands in for it while the list loads: the button corner */
+html.wq-1b .wq-row,html.wq-1b .wq-skrow{border-radius:var(--r-btn)}
+/* a Jugnu bubble with no words yet is not drawn (an empty white pill reads as broken) */
+html.wq-1b .wq-say:empty{display:none}
+/* a list (or a book page) loading in the page: Jugnu flies over its skeleton 1.5 s in (still, at once, with reduced motion) */
+html.wq-1b .wq-dskel,html.wq-1b .wqs-grid[aria-busy=true],html.wq-1b .wqs-skel.wqs-big{position:relative}
+html.wq-1b .wq-dskel::after,html.wq-1b .wqs-grid[aria-busy=true]::after,html.wq-1b .wqs-skel.wqs-big::after{content:"";position:absolute;left:50%;top:24px;width:88px;height:88px;margin-left:-44px;background:url(/wq/jugnu/idle.webp) center/contain no-repeat;opacity:0;animation:wq-skjug 1.6s ease-in-out 1.5s infinite alternate both;pointer-events:none}
+@media (prefers-reduced-motion:reduce){html.wq-1b .wq-dskel::after,html.wq-1b .wqs-grid[aria-busy=true]::after,html.wq-1b .wqs-skel.wqs-big::after{animation:none;opacity:1}}
+/* the reader shows one "next": when its main button says Next, the › page arrow steps aside (its slot kept) */
+html.wq-1b .wqs-ctl:has(.wqs-main.wqs-next) .wqs-arr[data-tap=next]{visibility:hidden}
+/* the quiz question wraps balanced: a «؟» or a short last word never sits alone on line 2 */
+html.wq-1b .wq-qtext{text-wrap:balance}
+/* the storybook done screen: the finish card stretches to the column, so Next, Share and Home are one width */
+html.wq-1b .wqs-sheet>.wqfc{align-self:stretch}
+/* a question picture sent without its size keeps a 4:3 room while it loads (nothing below it moves when it lands) */
+html.wq-1b .wq-figbox:not([style]){aspect-ratio:4/3;max-height:46vh}
+html.wq-1b .wq-figbox:not([style])>img{width:100%;height:100%;max-height:none;object-fit:contain}
+@media (prefers-reduced-motion:reduce){html.wq-1b .wq-btn:active,html.wq-1b .wq-soft:active,html.wq-1b .wqs-sec:active,html.wq-1b .wq-homebtn:active,html.wq-1b a.wq-home:active,html.wq-1b button.wq-home:active,html.wq-1b .wqs-ic:active,html.wq-1b .wqs-arr:active,html.wq-1b .wqs[dir=rtl] .wqs-arr:active,html.wq-1b .wqs-again:active{transform:none}}
+/* The ONE button component for new markup: `.wq-btn` + exactly one kind. Every kind rule sits under wq-1b: the Videos
+   shelf and the class table already draw .wq-btn--secondary and .wq-btn-t, so with the switch off they stay today's. Each kind sets only --fill (box), --on
+   (label) and --edge (the ledge under it, a darker shade of its own fill, never another colour's), and paints from
+   them: a look (the adventure sheet) changes those, never a rule. The land modifiers (--st Stories, --gm Games,
+   --vd Videos) read --land-* (today's brand fill); a look re-values --land-* only, never --s1..--s4 (the quiz options). */
+html.wq-1b .wq-btn--primary{--fill:var(--brand);--on:var(--brand-on);--edge:var(--brand-d);--sh-btn:0 var(--btn-d) 0 var(--edge);border:0;height:var(--btn-h);min-height:0;border-radius:var(--r-btn);font-size:var(--btn-fs)}
+html.wq-1b .wq-btn--st{--fill:var(--land-st);--on:var(--land-st-on);--edge:var(--land-st-edge)}
+html.wq-1b .wq-btn--gm{--fill:var(--land-gm);--on:var(--land-gm-on);--edge:var(--land-gm-edge)}
+html.wq-1b .wq-btn--vd{--fill:var(--land-vd);--on:var(--land-vd-on);--edge:var(--land-vd-edge)}
+html.wq-1b .wq-btn--secondary{--fill:var(--card);--on:var(--navy);--edge:var(--line);--sh-btn:0 var(--btn-d2) 0 var(--edge);border:2px solid var(--line);height:var(--btn-h2);min-height:0;border-radius:var(--r-btn);font-size:var(--btn-fs2);font-weight:800}
+html.wq-1b .wq-btn--share{--fill:var(--card);--on:var(--navy);--edge:var(--line);--sh-btn:0 var(--btn-d2) 0 var(--edge);border:2px solid var(--line);height:var(--btn-h2);min-height:0;border-radius:var(--r-btn);font-size:var(--btn-fs2);font-weight:800}
+html.wq-1b .wq-btn--icon{--fill:var(--card);--on:var(--navy);--edge:var(--line);--sh-btn:0 var(--btn-d2) 0 var(--edge);flex:none;width:var(--btn-icon);min-width:var(--btn-icon);height:var(--btn-icon);min-height:var(--btn-icon);padding:0;border:2px solid var(--line);border-radius:var(--r-icon)}
+html.wq-1b .wq-btn--speaker{--fill:var(--card);--on:var(--brand-d);--edge:var(--line);--sh-btn:0 var(--btn-d2) 0 var(--edge);flex:none;align-self:center;width:var(--btn-icon);min-width:var(--btn-icon);height:var(--btn-icon);min-height:var(--btn-icon);padding:0;border:2px solid var(--line);border-radius:var(--r-icon)}
+html.wq-1b .wq-btn--home{--fill:var(--card);--on:var(--navy);--edge:var(--line);--sh-btn:0 var(--btn-d2) 0 var(--edge);flex:none;width:auto;min-width:var(--btn-icon);height:var(--btn-icon);min-height:var(--btn-icon);padding:0;gap:0;border:2px solid var(--line);border-radius:var(--r-btn);font-size:var(--btn-fs2);font-weight:800}
+html.wq-1b .wq-btn--hold{--fill:var(--card);--on:var(--navy);--edge:var(--line);--sh-btn:0 var(--btn-d2) 0 var(--edge);flex:none;width:auto;min-height:var(--btn-icon);gap:10px;padding:4px 18px;padding-inline-start:6px;border:2px solid var(--line);border-radius:var(--r-btn);font-size:15px;font-weight:800;-webkit-user-select:none;user-select:none;touch-action:none}
+html.wq-1b .wq-btn--primary,html.wq-1b .wq-btn--secondary,html.wq-1b .wq-btn--share,html.wq-1b .wq-btn--icon,html.wq-1b .wq-btn--speaker,html.wq-1b .wq-btn--home,html.wq-1b .wq-btn--hold{display:flex;align-items:center;justify-content:center;background:var(--fill);color:var(--on);box-shadow:var(--sh-btn);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--dur-tap,.08s) ease,box-shadow var(--dur-tap,.08s) ease}
+html.wq-1b .wq-btn--primary:active,html.wq-1b .wq-btn--secondary:active,html.wq-1b .wq-btn--share:active,html.wq-1b .wq-btn--icon:active,html.wq-1b .wq-btn--speaker:active,html.wq-1b .wq-btn--home:active,html.wq-1b .wq-btn--hold.held{transform:translateY(var(--press-y)) scale(var(--press-s));filter:brightness(var(--press-dim));box-shadow:0 0 0 var(--edge)}
+html.wq-1b .wq-btn--primary:focus-visible,html.wq-1b .wq-btn--secondary:focus-visible,html.wq-1b .wq-btn--share:focus-visible,html.wq-1b .wq-btn--icon:focus-visible,html.wq-1b .wq-btn--speaker:focus-visible,html.wq-1b .wq-btn--home:focus-visible,html.wq-1b .wq-btn--hold:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
+html.wq-1b .wq-btn-t{display:block;line-height:1.2}
+html.wq-1b .wq-btn--home:not(:has(.wq-btn-t)){width:var(--btn-icon);border-radius:var(--r-icon)}
+html.wq-1b .wq-btn--home .wq-btn-t{padding-inline:4px 16px}
+html.wq-1b .wq-btn-i{flex:none;width:22px;height:22px}
+/* the drawn glyphs: one house, one share, one speaker, the same on every screen */
+html.wq-1b .wq-btn--home::before,html.wq-1b .wq-btn--share::before,html.wq-1b .wq-btn--speaker::before{content:"";flex:none;width:26px;height:26px;background:currentColor;-webkit-mask:var(--glyph) center/contain no-repeat;mask:var(--glyph) center/contain no-repeat}
+html.wq-1b .wq-btn--home:has(.wq-btn-t)::before,html.wq-1b .wq-btn--share::before{width:22px;height:22px;margin-inline:14px 6px}
+html.wq-1b .wq-btn--home{--glyph:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z'/%3E%3C/svg%3E")}
+html.wq-1b .wq-btn--share{--glyph:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z'/%3E%3C/svg%3E")}
+html.wq-1b .wq-btn--speaker{--glyph:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.8 5.7a9 9 0 0 1 0 12.6l-1.4-1.4a7 7 0 0 0 0-9.8z'/%3E%3C/svg%3E")}
+html.wq-1b[lang=ur] .wq-btn--primary{font-size:var(--btn-fs-ur)}
+html.wq-1b[lang=ur] .wq-btn--secondary,html.wq-1b[lang=ur] .wq-btn--share,html.wq-1b[lang=ur] .wq-btn--home,html.wq-1b[lang=ur] .wq-btn--hold{font-family:var(--fu);font-weight:400;font-size:var(--btn-fs2-ur);line-height:var(--btn-lh-ur)}
+/* the Urdu face's button line (the ur2 block's .wq-btn: 60 px, 19 px, later in the file) keeps each kind's own size */
+html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--primary{height:var(--btn-h);min-height:0;padding-block:0}
+html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--secondary,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--share{height:var(--btn-h2);min-height:0;font-size:var(--btn-fs2-ur)}
+html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--icon,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--speaker,html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--home{min-height:var(--btn-icon);padding:0}
+html.wq-1b[lang=ur][lang] .wq-btn.wq-btn--hold{min-height:var(--btn-icon);padding-block:4px;font-size:var(--btn-fs2-ur)}
+/* the hold's ring (around the lock) fills over the 2 s; the words stay above it; a short tap's hint sits under it */
+html.wq-1b .wq-btn--hold .wq-gring{position:relative;flex:none;display:flex;align-items:center;justify-content:center;width:40px;height:40px;color:var(--brand-d)}
+html.wq-1b .wq-btn--hold .wq-gring svg:first-child{position:absolute;inset:0;width:40px;height:40px;transform:rotate(-90deg)}
+html.wq-1b .wq-btn--hold .wq-gtrack{fill:none;stroke:var(--tint);stroke-width:4}
+html.wq-1b .wq-btn--hold .wq-garc{fill:none;stroke:var(--brand);stroke-width:4;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
+html.wq-1b .wq-btn--hold.held .wq-garc{opacity:1}
+html.wq-1b .wq-btn--hold.held .wq-garc{stroke-dashoffset:0;transition:stroke-dashoffset 2s linear}
+html.wq-1b .wq-btn--hold .wq-glab{position:relative;z-index:1}
+@media (prefers-reduced-motion:reduce){
+  html.wq-1b .wq-btn--primary:active,html.wq-1b .wq-btn--secondary:active,html.wq-1b .wq-btn--share:active,html.wq-1b .wq-btn--icon:active,html.wq-1b .wq-btn--speaker:active,html.wq-1b .wq-btn--home:active,html.wq-1b .wq-btn--hold.held{transform:none}
+  html.wq-1b .wq-btn--hold.held .wq-garc{transition:stroke-dashoffset 2s steps(4,end)}
+}
+
 /* ===== one Urdu face ===== web_quiz_one_face on → <html class="wq-uf">: the plain look draws with the polished face ("WQ Nastaliq 2",
    declared in the block below), the one face the head preloads, so a page never fetches wq-nastaliq-5 as well; the polished look
    already uses it. Switch off: no class, the cascade untouched. */
 html.wq-uf[lang=ur]{--fu:"WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
+/* the adventure look on an Urdu page: an English question (wq.js latQ) in the Latin face at a Latin line height */
+html.wq-adv[lang=ur] .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
 /* ===== ur2 ===== the Urdu polish (app_settings web_quiz_ur_polish → <html lang="ur" class="wq-ur2">). Every rule below is scoped to
    html.wq-ur2[lang=ur]: switch off = the cascade above, untouched; English pages never match. ===== */
 @font-face{font-family:"WQ Nastaliq 2";src:url(fonts/wq-nastaliq-6.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021}
@@ -531,7 +740,7 @@ html.wq-ur2[lang=ur] .wq-jug.wq-big>.wq-say::after{bottom:auto;top:-8px;inset-in
 html.wq-ur2[lang=ur] .wq-jug.wq-big>.wq-jimg{order:-1}
 html.wq-ur2[lang=ur] #wq-hintbox .wq-say{font-size:17px}
 /* buttons: one line at 2.0 with room above; a long label wraps and the button grows */
-html.wq-ur2[lang=ur] .wq-btn{font-size:19px;line-height:var(--ulh1);padding:10px 18px 6px;min-height:60px}
+html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur);line-height:var(--ulh1);padding:10px 18px 6px;min-height:60px}
 html.wq-ur2[lang=ur] .wq-soft{font-size:17px}
 html.wq-ur2[lang=ur] .wq-ghost{font-size:16px;text-decoration-thickness:2px;text-underline-offset:.3em;text-decoration-skip-ink:all}
 html.wq-ur2[lang=ur] .wq-linkbtn{min-height:44px;font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em}
@@ -615,7 +824,7 @@ html.wq-ur2[lang=ur] .wq-hscore{line-height:1.6}
 html.wq-ur2[lang=ur] .wq-htile{padding:12px 12px 8px;gap:2px;min-height:116px}
 html.wq-ur2[lang=ur] .wq-htile b{font-size:17px;line-height:var(--ulh1);padding-top:.25em}
 html.wq-ur2[lang=ur] .wq-htile small{font-size:14px;line-height:var(--ulh1)}
-html.wq-ur2[lang=ur] .wq-home{line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] a.wq-home,html.wq-ur2[lang=ur] button.wq-home{line-height:var(--ulh1)}
 html.wq-ur2[lang=ur] .wq-homet{font-size:12px;line-height:1.9;padding-top:.2em}
 /* Jugnu's Challenge (its own rules are injected by wq-challenge.js at html[lang=ur] specificity 0,1,1; these are 0,2,1 and win) */
 html.wq-ur2[lang=ur] .wqc-tile{padding:12px 14px 8px;min-height:88px}
@@ -659,7 +868,7 @@ html.wq-ur2[lang=ur] .wq-scorecard .wq-in{padding-bottom:calc(14px + .3em)}
 /* The Home label is the main navigation word: not the smallest Urdu on the page */
 html.wq-ur2[lang=ur] .wq-homet{font-size:15px;line-height:1.9}
 /* the smallest phone: one step down for the two biggest text sizes so a long option stays ≤ 4 lines */
-@media (max-width:339px){html.wq-ur2[lang=ur] .wq-qtext{font-size:20px}html.wq-ur2[lang=ur] .wq-opt{font-size:18px}html.wq-ur2[lang=ur] .wq-btn{font-size:18px}}
+@media (max-width:339px){html.wq-ur2[lang=ur] .wq-qtext{font-size:20px}html.wq-ur2[lang=ur] .wq-opt{font-size:18px}html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur-sm)}}
 /* A label over the hub card, a mixed meta line, the zoom button, maths digits */
 html.wq-ur2[lang=ur] .wq-hcard .wq-hlabel{margin-bottom:4px}
 html.wq-ur2[lang=ur] .wq-vtext small bdi{display:inline-block;max-width:100%;vertical-align:top}
@@ -669,3 +878,11 @@ html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m 
 html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
 html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
+/* the one button system's back in a land head (wq-doors.js frame, the look's see-all): the Home circle with an arrow */
+html.wq-1b .wq-homebtn.wq-backbtn::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat}
+/* the grown-ups hold: the ring and its words sit in the pill's middle (an inset start of 6 px put the group 6 px off centre) */
+html.wq-1b .wq-btn--hold{padding-inline:12px}
+/* an Urdu page's wide word gap is for Nastaliq: a Latin run (an English book's title and its reader, an English label) keeps
+   its own gaps, and Urdu inside it gets the wide gap again */
+html.wq-1b[lang=ur] [lang=en]:not(.wq-input){word-spacing:normal}
+html.wq-1b[lang=ur] [lang=en] [lang=ur]{word-spacing:.2em}

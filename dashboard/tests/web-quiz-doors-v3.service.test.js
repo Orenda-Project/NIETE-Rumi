@@ -88,11 +88,10 @@ describe('every door screen, both languages', () => {
 
   test('a speaker on every row (a clip when the server has one, else the words)', () => {
     const s = screens(load(), 'en');
-    for (const h of [s.storiesMany, s.gamesMany, s.videosSubjects, s.videosChapters]) {
+    for (const h of [s.gamesMany, s.videosSubjects, s.videosChapters]) {
       expect(count(h, /class="wq-row wq-drow"/g)).toBeGreaterThan(0);
       expect(count(h, /data-tap="say"/g)).toBe(count(h, /class="wq-row wq-drow"/g));
     }
-    expect(s.storiesMany).toContain('data-url="https://r2.example.test/say.ogg"');
   });
 
   test('pictures are SVG, never an emoji or a symbol glyph (a symbol glyph is a blank box on Android 9)', () => {
@@ -109,33 +108,149 @@ describe('every door screen, both languages', () => {
   });
 });
 
+describe('page_lang: every quiz link from Home and Games names the child\'s language (an Urdu child never lands on an English lesson door)', () => {
+  const OPEN = { kind: 'quiz', code: 'WRD001', k: 'k9', topic: 'Words That Describe Nouns', subject: 'English', done: false, from: 'last' };
+  const B = (on) => ({ ...HUB, lang: 'ur', home_v3: 1, list_states: 1, ...(on ? { page_lang: true } : {}), last: { code: 'WRD001', k: 'k9', topic: 'Words That Describe Nouns', state: 'open' },
+    doors: { stories: [], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, OPEN, { kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }], videos: null } });
+  test('on: the Games rows and the Next tile carry lang=ur', () => {
+    const W = load();
+    const h = W.WQDOORS.html(B(true), ctxOf('ur'), 'games', { games: [] });
+    for (const c of ['MATH01', 'WRD001', 'SCI001']) expect(h).toMatch(new RegExp('href="/q/' + c + '\\?[^"]*lang=ur"'));
+    expect(W.WQHOME.nextOf(B(true), ctxOf('ur')).href).toMatch(/^\/q\/[A-Z0-9]+\?.*lang=ur$/);
+    expect(W.WQHOME.nextOf({ ...B(true), next: { kind: 'quiz', href: '/q/ABC123?k=x', title: 'T' } }, ctxOf('ur')).href).toBe('/q/ABC123?k=x&lang=ur');
+  });
+  test('off: the links are today\'s', () => {
+    const W = load();
+    expect(W.WQDOORS.html(B(false), ctxOf('ur'), 'games', { games: [] })).not.toContain('lang=ur');
+    expect(W.WQHOME.nextOf(B(false), ctxOf('ur')).href).not.toContain('lang=');
+  });
+});
+
+describe('Games: the new quizzes ("Try these next") a child with no teacher quiz can start', () => {
+  const RECS = [{ vid: VID, title: 'Life cycle of a hen', subject: 'Science', art: '/wq/art/subject-science.webp' }, { vid: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Parts of a flower', subject: 'Science' }];
+  const AGAIN = [{ kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }];
+  test.each([['en', 'Try these next'], ['ur', 'یہ بھی کریں']])('%s: listed above Play again, each opens at the questions; the first takes the primary', (lang, head) => {
+    const W = load();
+    const B = { ...HUB, lang, home_v3: 1, doors: { stories: [], games: AGAIN, videos: null, recs: RECS } };
+    const h = W.WQDOORS.html(B, ctxOf(lang), 'games', { games: [] });
+    expect(h).toContain(head);
+    expect(count(h, /data-tap="vquiz" data-kind="rec"/g)).toBe(2);
+    expect(h).toContain('data-item="' + VID + '"');
+    expect(h.indexOf(head)).toBeLessThan(h.indexOf(lang === 'en' ? 'Play again' : 'دوبارہ کھیلیں'));
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(h).toMatch(/data-primary[^>]*data-tap="vquiz"/);
+    expect(visible(h).match(BANNED)).toBe(null);
+  });
+  test('recs alone: never the empty note; while the rows load they are drawn for real', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [], videos: null, recs: RECS } };
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] })).not.toContain('Read a story with Jugnu!');
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', null)).toContain('Life cycle of a hen');
+  });
+  test('the boot says number games but the door\'s rows came back without them: the numbers row stays (opens the games page)', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [{ kind: 'numbers' }].concat(AGAIN), videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] });
+    expect(h).toContain('Numbers with Jugnu');
+    expect(h).toMatch(/data-primary data-tap="row" data-kind="game"[^>]*href="\/c\//);
+    // a failed read is still the retry, never a made-up row
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [], err: 1 })).not.toContain('Numbers with Jugnu');
+  });
+  test('no recs on the boot: the Games door is today\'s, byte for byte', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: AGAIN, videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] });
+    expect(h).toBe(W.WQDOORS.html({ ...B, doors: { ...B.doors, recs: [] } }, ctxOf('en'), 'games', { games: [] }));
+    expect(h).not.toContain('Try these next');
+  });
+});
+
+describe('Games: Jugnu\'s passages beside the games (the Stories door shows storybooks only)', () => {
+  const READS = { games: [{ kind: 'numbers', stop: 'bigger', name: 'Which is bigger?' }, { kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' }, { kind: 'read', stop: 'read', name: 'Read aloud' }, { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }] };
+  test.each([['en', 'Read along', 'Listen'], ['ur', 'جگنو کے ساتھ ساتھ پڑھیں', 'سنیں']])('%s: under the games — read along and listen open the story room by id, read aloud the games page; one primary', (lang, along, listen) => {
+    const W = load();
+    const B = { ...HUB, lang, home_v3: 1, doors: { stories: [], games: [], videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf(lang), 'games', READS);
+    expect(h).toContain('room=story&amp;pid=en.read.1.k02"');
+    expect(h).toContain('room=story&amp;pid=en.listen.1.k05&amp;ex=listen"');
+    expect(h).toMatch(/href="\/c\/[^"]*#read"/);
+    const v = visible(h);
+    expect(v).toContain(along); expect(v).toContain(listen); expect(v).toContain('The red kite');
+    expect(h.indexOf('Which is bigger?')).toBeLessThan(h.indexOf('pid=en.read.1.k02'));
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(count(h, /data-tap="say"/g)).toBe(count(h, /class="wq-row wq-drow"/g));
+  });
+  test('GOLDEN: no passage rows from the server -> the Games door as today', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: [], videos: null } };
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: READS.games.slice(0, 1) })).not.toContain('A story with Jugnu');
+  });
+});
+
+describe('a video\'s Urdu title (the server sends title_ur only with web_quiz_videos_ur_titles on)', () => {
+  const CH_UR = { grade: '3', subject: 'Science', chapters: [{ name: 'Chapter 1', videos: [{ vid: VID, title: 'Murghi ki zindagi', title_ur: 'مرغی کی زندگی', secs: 143 }] }] };
+  const B = () => ({ ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } });
+  test('an Urdu child sees title_ur on the chapter row and the watch screen; an English child the title', () => {
+    const W = load();
+    const ur = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), 'videos', { subject: 'Science', lib: CH_UR });
+    expect(ur).toContain('مرغی کی زندگی');
+    expect(ur).not.toContain('Murghi ki zindagi');
+    const en = W.WQDOORS.html({ ...B(), lang: 'en' }, ctxOf('en'), 'videos', { subject: 'Science', lib: CH_UR });
+    expect(en).toContain('Murghi ki zindagi');
+    expect(en).not.toContain('مرغی کی زندگی');
+    const urCh = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), 'videos', { subject: 'Science', lib: { ...CH_UR, chapters: [{ ...CH_UR.chapters[0], name: 'Akhlaqi Kahaniyan', name_ur: 'اخلاقی کہانیاں' }] } });
+    expect(urCh).toContain('اخلاقی کہانیاں'); // the chapter heading too (name_ur), never half the screen in Roman letters
+    expect(urCh).not.toContain('Akhlaqi Kahaniyan');
+    const w = W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), `watch/${VID}`, { watch: { vid: VID, url: 'https://r2.example.test/v.mp4', title: 'Murghi ki zindagi', title_ur: 'مرغی کی زندگی' }, next: null });
+    expect(w).toContain('<p class="wq-vtitle"><bdi>مرغی کی زندگی</bdi></p>');
+  });
+  test('GOLDEN: no title_ur (the switch off) -> the Urdu screens print the title as today', () => {
+    const W = load();
+    const noUr = { ...CH_UR, chapters: [{ name: 'Chapter 1', videos: [{ vid: VID, title: 'Murghi ki zindagi', secs: 143 }] }] };
+    expect(W.WQDOORS.html({ ...B(), lang: 'ur' }, ctxOf('ur'), 'videos', { subject: 'Science', lib: noUr })).toContain('Murghi ki zindagi');
+  });
+});
+
+describe('the Stories door is the storybooks\' door (Jugnu\'s passages open from the Games door and the Next tile)', () => {
+  test.each(['en', 'ur'])('%s: no passage or listen row and no /c/ link under the door, before and after the fetch; the shelf slot is the content', (lang) => {
+    const s = screens(load(), lang);
+    for (const name of ['storiesBoot', 'storiesMany', 'storiesOne']) {
+      expect([name, s[name]]).not.toEqual([name, expect.stringMatching(/href="\/c\//)]);
+      expect([name, count(s[name], /class="wq-row wq-drow"/g)]).toEqual([name, 0]);
+    }
+    expect(s.storiesMany).toContain('data-stories-shelf="1" data-host="doors"');
+    expect(s.storiesBoot).toContain('data-stories-shelf="1" data-host="doors"');
+    expect(count(s.storiesMany, /data-primary/g)).toBe(1); // the fallback until the shelf draws its own
+  });
+  test('the shelf off: the door points at Games (never a dead end, never a passage)', () => {
+    const h = screens(load(), 'en').storiesOne; // rows came, the shelf flag is off
+    expect(h).toMatch(/data-primary data-tap="door" data-door="games" href="#games"/);
+    expect(h).not.toMatch(/href="\/c\//);
+  });
+  test('the home\'s own door screen (wq-doors.js not loaded yet): no passage row, no /c/ link', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k02', fresh: true, title: 'The red kite' }, { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }, { kind: 'shelf' }], games: [], videos: null } };
+    const h = W.WQHOME.door(B, ctxOf('en'), 'stories');
+    expect(h).not.toMatch(/href="\/c\//);
+    expect(h).toContain('data-stories-shelf="1"');
+  });
+});
+
 describe('Stories', () => {
-  test('many: this week\'s story is the primary; reads, the storybook shelf slot, listens; met ones marked done', () => {
+  test('many rows from the server: the storybook shelf slot only, under its heading; the passages are not listed', () => {
     const h = screens(load(), 'en').storiesMany;
-    const primary = h.slice(h.indexOf('data-primary') - 200, h.indexOf('data-primary') + 300);
-    expect(primary).toContain('en.read.1.k02');
-    expect(h.indexOf('The red kite')).toBeLessThan(h.indexOf('A cat and a hat'));
-    expect(h.indexOf('A cat and a hat')).toBeLessThan(h.indexOf('data-stories-shelf="1"'));
-    expect(h.indexOf('data-stories-shelf="1"')).toBeLessThan(h.indexOf('The rain song'));
     expect(h).not.toMatch(/ data-shelf=/); // the Jugnu corner's own tile attribute is never the storybook slot
     expect(h).toContain('data-stories-shelf="1" data-host="doors"'); // the reader's own self-mount leaves a host's slot to the host
-    expect(h).toMatch(/class="wq-dli done"[\s\S]*My school bag/);
-    expect(h).toMatch(/data-pos="2"/);
+    expect(visible(h)).toContain('Storybooks');
+    for (const title of ['The red kite', 'A cat and a hat', 'The rain song', 'My school bag']) expect(h).not.toContain(title);
   });
-  test('serve-able: a listen row opens the LISTEN (ex=listen), a read row the read; never the "more stories" dead end', () => {
-    const h = screens(load(), 'en').storiesMany;
-    expect(h).toContain('room=story&amp;pid=en.listen.1.k05&amp;ex=listen');
-    expect(h).toMatch(/pid=en\.read\.1\.k03"/);
-    expect(h).not.toMatch(/room=story"/);
-  });
-  test('one / none: one row is the primary; none points at Games (never a dead end)', () => {
+  test('none: the door points at Games (never a dead end)', () => {
     const s = screens(load(), 'en');
-    expect(count(s.storiesOne, /class="wq-row wq-drow"/g)).toBe(1);
     expect(s.storiesNone).toMatch(/data-primary data-tap="door" data-door="games" href="#games"/);
   });
-  test('before the fetch: the boot\'s own rows (this week\'s story) and the shelf slot', () => {
+  test('before the fetch: the shelf slot from the boot (its passage row is not drawn)', () => {
     const h = screens(load(), 'en').storiesBoot;
-    expect(h).toContain('The red kite');
+    expect(h).not.toContain('The red kite');
     expect(h).toContain('data-stories-shelf="1"');
   });
   test('only storybooks (no rows of its own): one primary that points at Games until the shelf draws its own', () => {
@@ -372,7 +487,7 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
   const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
   // videos/start answers the watch; the library (after the card's Next) answers no subjects
   const answer = (url) => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(/\/lib\//.test(url) ? { grade: '3', subjects: [] } : WATCH) });
-  function watchPage({ card, wqfc, watch = true }) {
+  function watchPage({ card, wqfc, watch = true, extra = {} }) {
     const nextEl = el();
     const t = live({ win: wqfc ? { WQFC: wqfc } : {}, fetchImpl: answer, byId: { 'wqfc-next': nextEl } });
     const holder = { removeChild: jest.fn() };
@@ -381,7 +496,7 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     const vEl = el({ duration: 100, currentTime: 0 }); const play = el(); play.setAttribute('data-primary', '');
     const root = fakeRoot({ '.wq-vid': vEl, '.wq-vplay': play, '.wq-after': after });
     const evs = [];
-    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), doors: { stories: [], games: [], videos: { href: '/lib/x', ...(watch ? { watch: true } : {}) } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, ...(card ? { card_v3: true } : {}), ...extra, doors: { stories: [], games: [], videos: { href: '/lib/x', ...(watch ? { watch: true } : {}) } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]) }, `watch/${VID}`);
     return { ...t, root, after, holder, tile, vEl, play, nextEl, evs };
   }
   test('card_v3 + the card there: WQFC.mount(the tile holder, {kind video, deed video_watched, title, next → this page, auth {hub, kid}}); our own tile goes; its Next does what ours did', async () => {
@@ -412,6 +527,15 @@ describe('a watched video ends on the finish card when the boot says card_v3 (on
     await flush();
     p.vEl.fire('ended');
     expect(mount.mock.calls[0][1].plain).toBe(true);   // HUB's videos door is { watch: true } in this suite
+  });
+  test('the corrected Urdu share words (the hub\'s ur_share): the card is told (urs); anything but true: not', async () => {
+    for (const [extra, urs] of [[{ ur_share: true }, true], [{ ur_share: 'true' }, undefined], [{}, undefined]]) {
+      const mount = jest.fn(() => true);
+      const p = watchPage({ card: true, wqfc: { mount }, extra });
+      await flush();
+      p.vEl.fire('ended');
+      expect(mount.mock.calls[0][1].urs).toBe(urs);
+    }
   });
   test('a class child (a teacher\'s quiz played: the Videos door is not watch-only): the class words (plain false)', async () => {
     const mount = jest.fn(() => true);
@@ -543,6 +667,49 @@ describe('after a watched video: a ranked Next from the server (watch.next) when
     const tapE = evs.find(([n]) => n === 'next_tap')[1];
     expect(tapE).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, ...join, ms_to_tap: tapE.ms_to_tap });
     expect(Number.isInteger(tapE.ms_to_tap) && tapE.ms_to_tap >= 0).toBe(true);
+  });
+  test('a second video started from the first one\'s Next tile: a tap before its own Next tile shows carries no ms_to_tap (never the first video\'s), and after it ends the tap is timed again', async () => {
+    const answers = {
+      [VID]: { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: true,
+        next: { kind: 'video', title: 'Watch next', href: '#watch/' + VID2, source: 'ranked' } } },
+      [VID2]: { watch: { vid: VID2, url: 'https://r2.example.test/v2_web.mp4?sig', title: 'Parts of a flower', lang: 'en', after: true,
+        next: { kind: 'story', title: 'Read a story', href: '#stories', source: 'ranked' } } },
+    };
+    const answer = (u, o) => { const j = answers[JSON.parse(o.body).vid]; return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(j)), json: () => Promise.resolve(j) }); };
+    const t = live({ fetchImpl: answer });
+    // Each draw gives fresh elements, as the page's innerHTML does (no listener carried over from the screen before).
+    let cur;
+    const fresh = () => {
+      const tap = el(); tap.setAttribute('data-tap', 'after'); tap.closest = () => tap;
+      cur = { tap, vEl: el({ duration: 100, currentTime: 0 }), play: el(), after: el({ hidden: true, parentNode: { removeChild() {} }, querySelector: () => el() }) };
+    };
+    fresh();
+    const root = {
+      attrs: {}, setAttribute(k, v) { this.attrs[k] = v; },
+      get innerHTML() { return ''; }, set innerHTML(v) { fresh(); },
+      querySelector: (sel) => ({ '.wq-vid': cur.vEl, '.wq-vplay': cur.play, '.wq-after': cur.after }[sel] || null),
+      querySelectorAll: (sel) => (sel === '[data-tap]' ? [cur.tap] : []),
+    };
+    const evs = [];
+    const click = () => cur.tap.fire('click', { preventDefault() {}, stopPropagation() {}, target: cur.tap });
+    const taps = () => evs.filter(([n]) => n === 'next_tap').map(([, p]) => p);
+    t.W.WQDOORS.mount(root, { ...HUB, home_v3: 1, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev: (n, p) => evs.push([n, p]), go: jest.fn() }, `watch/${VID}`);
+    await flush();
+    cur.vEl.fire('ended'); // video 1's Next tile shows
+    expect(evs.filter(([n]) => n === 'next_shown').length).toBe(1);
+    click(); // video 1's tile: the next lesson starts here
+    expect(Number.isInteger(taps()[0].ms_to_tap)).toBe(true);
+    await flush();
+    expect(posts(t.fetch).map((b) => b.vid)).toEqual([VID, VID2]);
+    click(); // video 2's tile, before video 2 ends: its tile was never shown, so no time to tap
+    expect(taps().length).toBe(2);
+    expect(taps()[1]).toEqual({ ctx: 'after_video', kind: 'story', pos: 0, source: 'ranked' });
+    expect('ms_to_tap' in taps()[1]).toBe(false);
+    cur.vEl.fire('ended'); // video 2's own Next tile shows
+    expect(evs.filter(([n]) => n === 'next_shown').length).toBe(2);
+    click();
+    expect(taps().length).toBe(3);
+    expect(Number.isInteger(taps()[2].ms_to_tap) && taps()[2].ms_to_tap >= 0).toBe(true);
   });
   test('a malformed next (no title, an outside href, javascript:) is ignored: today\'s rule', async () => {
     for (const bad of [{ href: '#stories' }, { title: 'x', href: 'https://evil.example/' }, { title: 'x', href: 'javascript:alert(1)' }, { title: 'x', href: '//evil.example/p' }, 'nope']) {

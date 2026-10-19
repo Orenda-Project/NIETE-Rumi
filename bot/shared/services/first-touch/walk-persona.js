@@ -18,7 +18,7 @@
  * as it was. If the persona ran out first, the next read of this phone (a /quiz) does the same restore once. No table
  * is written by the persona itself.
  *
- *   flagOn()                  the switch, 30 s cache, never on production / staging
+ *   flagOn()                  the switch, 30 s cache (a failed read too: last good, else OFF), never on production / staging
  *   allowed(userId)           flagOn() and the id is on the list (30 s cache)
  *   get(phone)                → { as, since, walk } | null — null whenever the switch is OFF, so every hook is one line
  *   set(phone, as, extra) / clear(phone)
@@ -43,6 +43,7 @@ const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const SWITCH_KEY = 'quiz_test_personas';
 const ASES = Object.freeze(['fresh', 'teacher_empty']);
@@ -59,7 +60,6 @@ const LOCK_TTL_S = 30;
 const redis = () => require('../cache/railway-redis.service');
 const normOf = (phone) => require('../quiz/student-identity.service').normalisePhone(phone);
 
-let flagCache = null; // { at, on }
 let listCache = null; // { at, teachers: Set }
 
 /** Production and staging never walk, whatever the switch says. */
@@ -74,20 +74,22 @@ function isTrue(value) {
   return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
 }
 
-/** The switch. Never throws; a failed read is OFF (not cached). */
-async function flagOn(now = Date.now()) {
-  if (blockedTier()) return false;
-  if (flagCache && now - flagCache.at < CACHE_MS) return flagCache.on;
-  try {
+const flagCache = cachedSwitch({
+  ttlMs: CACHE_MS,
+  off: false,
+  read: async () => {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [SWITCH_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === SWITCH_KEY);
-    flagCache = { at: now, on: Boolean(row) && isTrue(row.value) };
-    return flagCache.on;
-  } catch (err) {
-    logToFile('⚠️ walk-through: switch read failed — off', { error: err && err.message });
-    return false;
-  }
+    return Boolean(row) && isTrue(row.value);
+  },
+  log: (err) => logToFile('⚠️ walk-through: switch read failed — off', { error: err && err.message }),
+});
+
+/** The switch. Never throws; a failed read is the last good answer, else OFF, for 30 s (one read per 30 s in an outage). */
+async function flagOn(now = Date.now()) {
+  if (blockedTier()) return false;
+  return flagCache.get(now);
 }
 
 /** Is this user id one of the fixture rule's test teachers (and the switch on)? Never throws. */
@@ -347,5 +349,5 @@ function mount(router) {
 module.exports = {
   flagOn, allowed, get, set, clear, forHome, row, mount, handle, blockedTier,
   SWITCH_KEY, ASES, TAPS, TTL_S, KEPT_TTL_S, STRINGS: S, _key: keyOf, _keptKey: keptKeyOf,
-  _resetCache: () => { flagCache = null; listCache = null; },
+  _resetCache: () => { flagCache.reset(); listCache = null; },
 };

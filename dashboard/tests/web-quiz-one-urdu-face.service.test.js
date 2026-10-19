@@ -137,9 +137,9 @@ describe('one Urdu face: the stylesheet', () => {
     expect(named.filter((d) => !d.endsWith(';src:'))).toEqual([]);
   });
 
-  it('no new font file: the one face is the polished one already served', () => {
+  it("no new font file for the one face: the polished one already served (-7 is the light face's, web-quiz-face-lite)", () => {
     const files = fs.readdirSync(path.join(__dirname, '..', 'public', 'wq', 'fonts')).filter((f) => f.endsWith('.woff2')).sort();
-    expect(files).toEqual([1, 2, 3, 4, 5, 6].map((i) => `wq-nastaliq-${i}.woff2`));
+    expect(files).toEqual([1, 2, 3, 4, 5, 6, 7].map((i) => `wq-nastaliq-${i}.woff2`));
   });
 });
 

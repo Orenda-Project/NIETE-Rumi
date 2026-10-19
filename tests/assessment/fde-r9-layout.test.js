@@ -25,7 +25,12 @@ const P = Patterns.get('fde_g5_2027').subjects;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 function fixture(name) {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', `${name}.json`), 'utf8'));
+  const j = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', `${name}.json`), 'utf8'));
+  // Its Q1 «سندھ کو الگ صوبہ کب بنایا گیا؟» names the key of Q1 «… پہلا صوبہ …», which holds that item (a Q1 stem
+  // that names another Q1 item's key); these tests read the Q5/Q7 hold against it, so the stem asks the same year
+  // without the name.
+  if (name === 'r9-sst-chapters2') j.unseen.objective.MCQs.find((q) => q.question === 'سندھ کو الگ صوبہ کب بنایا گیا؟').question = 'بمبئی سے الگ ہو کر ایک نیا صوبہ کس سال بنا؟';
+  return j;
 }
 
 function visible(html) {
@@ -153,16 +158,23 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7).toContain('پاکستان کی پہلی خاتون صوبائی گورنر کون تھیں؟');
   });
 
-  test('Q1 is never touched', () => {
+  test('Q1 is never touched by the Q5/Q7 hold', () => {
     const exam = fixture('r9-sst-chapters2');
     // The cross-section hold never touches Q1. One recorded Q1 MCQ keys encroachment removal to the
     // local government; the book's p.29 table says provincial, so the which-government check (a
-    // wrong key, not a repeat) holds it.
+    // wrong key, not a repeat) holds it. Two more are given away by a Q7 stem that prints their key
+    // on the same topic (Q7 «بلوچستان میں مہر گڑھ …», «چودھری رحمت علی نے … پاکستان کا نام تجویز کیا؟»),
+    // so Section A is asked again for them; that hold reads Q1 against C and D, never the reverse.
     const WRONG_TIER = 'ایک شہر کی سڑکوں اور راستوں سے تجاوزات ہٹانے کا کام کون سی حکومت کرتی ہے؟';
-    const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question).filter((q) => q !== WRONG_TIER);
-    expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 1);
+    const GIVEN = ['مہر گڑھ کی قدیم تہذیب کے آثار کس صوبے سے دریافت ہوئے ہیں؟', 'پاکستان کا نام سب سے پہلے کس نے تجویز کیا؟'];
+    const before = slotItems(exam, 'social_studies.A.Q1').map((q) => q.question).filter((q) => q !== WRONG_TIER && !GIVEN.includes(q));
+    expect(before).toHaveLength(slotItems(exam, 'social_studies.A.Q1').length - 3);
     const out = lay(exam, 'social_studies');
-    expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.sort());
+    // Q1 items whose key (a name or a term) a C/D stem names are held by that rule as well, Q1 against C and D again.
+    const named = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && ['key_named_in_stem', 'key_in_own_stem', 'names_q1_key'].includes(h.rule)).map((h) => h.q.question);
+    expect(slotItems(out.examJson, 'social_studies.A.Q1').map((q) => q.question).sort()).toEqual(before.filter((q) => !named.includes(q)).sort());
+    const q1Held = out.held.filter((h) => h.slot === 'social_studies.A.Q1' && h.rule === 'key_in_stem').map((h) => h.q.question);
+    expect(q1Held.sort()).toEqual([...GIVEN].sort());
   });
 
   test('a held Q7 item takes no place: the re-asked item fills it', () => {
@@ -177,7 +189,7 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'قائد اعظم کس شہر میں پیدا ہوئے؟']));
   });
 
-  test('on the first reply every repeat is held; after the re-ask clean items fill first and a repeat comes back only for a place nothing else takes', () => {
+  test('on the first reply every repeat is held; after the re-ask clean items fill and a repeat never comes back', () => {
     // The recorded round-7 paper's Q7 re-asks three Q1 facts word for word.
     const exam = fixture('r7-sst-item-text');
     const REPEATS = ['پاکستان کی سب سے بڑی عدالت کون سی ہے اور کہاں واقع ہے؟', 'پاکستان میں اس وقت کون سا آئین نافذ ہے؟', 'بیگم رعنا لیاقت علی خان نے 1949ء میں کون سا ادارہ قائم کیا؟'];
@@ -194,11 +206,10 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     const after = layAfter(withExtra(exam, 'social_studies.D.Q7', extra), 'social_studies');
     const q7 = slotItems(after.examJson, 'social_studies.D.Q7').map((q) => q.question);
     expect(after.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
-    expect(q7).toHaveLength(8);
     expect(q7).toEqual(expect.arrayContaining(['پاکستان کا قومی پھول کون سا ہے؟', 'پاکستان کا قومی کھیل کون سا ہے؟']));
-    // One place is left after the two clean items: the first repeat in reply order takes it.
-    expect(q7.filter((t) => REPEATS.includes(t))).toEqual([REPEATS[0]]);
-    expect(q7.indexOf(REPEATS[0])).toBe(7);
+    // Since round 17 the place left after the two clean items stays empty: Q7 prints seven of eight.
+    expect(q7.filter((t) => REPEATS.includes(t))).toEqual([]);
+    expect(q7).toHaveLength(7);
   });
 
   test('before the re-ask a model extra does not bring a held item back: the slot stays short, so the section is asked again', () => {
@@ -207,10 +218,10 @@ describe('r9 · Social Studies: a Q5/Q7 item asking a Q1 fact is held', () => {
     expect(out.shortfall).toEqual(expect.arrayContaining([{ slot: 'social_studies.D.Q7', missing: 2 }]));
   });
 
-  test('after a re-ask that brought nothing new, the held items come back and the paper is whole', () => {
+  test('after a re-ask that brought nothing new, the held items stay out: Q7 prints five, short of the six to answer plus one', () => {
     const out = layAfter(fixture('r7-sst-item-text'), 'social_studies');
-    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toBeUndefined();
-    expect(slotItems(out.examJson, 'social_studies.D.Q7')).toHaveLength(8);
+    expect(out.shortfall.find((f) => f.slot === 'social_studies.D.Q7')).toEqual({ slot: 'social_studies.D.Q7', missing: 2 });
+    expect(slotItems(out.examJson, 'social_studies.D.Q7')).toHaveLength(5);
   });
 
   test('one question once per slot: the same stem with the same options is not placed twice', () => {

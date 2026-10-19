@@ -115,10 +115,10 @@ describe("groupByDay — the list, by Pakistan day", () => {
     expect(today.items[0]).toEqual(expect.objectContaining({
       id: "k5:a", grade: 4, subject: "General Science", title: "Parts of a plant", extra: C.chapter(1),
       chip: { text: C.opened, tone: "info" },
-      to: openUrl({ plan: "k5:a", title: "Parts of a plant", grade: 4 }),
+      to: openUrl({ plan: "k5:a", title: "Parts of a plant", grade: 4, subject: "General Science" }),
     }));
     expect(today.items[1]).toEqual(expect.objectContaining({ chip: { text: C.whatsapp, tone: "done" } }));
-    expect(yesterday.items[0].to).toBe(openUrl({ plan: "g612:c", lang: "en", title: "Speed", grade: 9 }));
+    expect(yesterday.items[0].to).toBe(openUrl({ plan: "g612:c", lang: "en", title: "Speed", grade: 9, subject: "Physics" }));
   });
 
   it("a plan the catalogue no longer has keeps a fallback title", () => {

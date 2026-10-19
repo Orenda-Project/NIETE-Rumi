@@ -303,10 +303,10 @@ describe('the notice copy (deck v2.2: jg.keep.notice, jg.keep.notice_ok)', () =>
       expect(trailT()[l].noticeOk).toBe(keys['jg.keep.notice_ok'][l]);
     }
   });
-  test('each notice is at most 200 code points with {name} unfilled (RULING #97 amended); the control at most 12', () => {
+  test('each notice is at most 230 code points with {name} unfilled (the deck cap; the native-signed Urdu is 212); the control at most 12', () => {
     for (const l of ['en', 'ur']) {
       expect(trailT()[l].noticeT).toContain('{name}');
-      expect([...trailT()[l].noticeT].length).toBeLessThanOrEqual(200);
+      expect([...trailT()[l].noticeT].length).toBeLessThanOrEqual(230);
       expect([...trailT()[l].noticeOk].length).toBeLessThanOrEqual(12);
     }
   });
@@ -316,6 +316,12 @@ describe('the notice copy (deck v2.2: jg.keep.notice, jg.keep.notice_ok)', () =>
       expect(trailT()[l].noticeT).not.toMatch(/[?؟]/);
     }
     expect(trailT().ur.noticeT).toContain('\u2066STOP\u2069');
+  });
+  test('the notice carries no assessment word and no "just for fun", and says the recordings stay after STOP', () => {
+    for (const l of ['en', 'ur']) expect(trailT()[l].noticeT).not.toMatch(/checker|examiner|assess|\btests?\b|\bexams?\b|fun|checked|جانچ|امتحان|ٹیسٹ|مزے/i);
+    expect(trailT().en.noticeT).toMatch(/Only the people who make Jugnu can listen/);
+    expect(trailT().en.noticeT).toMatch(/the recordings stay\.$/);
+    expect(trailT().ur.noticeT).toContain('صرف جگنو بنانے والے سن سکتے');
   });
 });
 
@@ -418,6 +424,28 @@ describe('from the new home\'s Next tile (#next / #numbers): the one game it nam
     await card.flush();
     expect(card.screen()).toBe('error');
     expect(text(card.html())).toContain(back);
+  });
+  test('a game opened by its own id from a tile (#missing, the ranked tile\'s link): back on the list, no Next pill of its own', async () => {
+    const menu = TRAIL();
+    const p = v2page({ href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#missing', menu, routes: { 'ch/HUB.TOKEN/missing': ok({ ex: 'missing', draw: { outcome: 'on_its_way' } }), 'ch/HUB.TOKEN\\?': ok(menu) } });
+    await p.flush();
+    expect(stopAsks(p)).toEqual(['missing']);
+    await p.click('wqc-menu');
+    expect(p.screen()).toBe('trail');
+    expect(p.html()).not.toContain('wqc-pnext');
+    expect(text(p.html())).toContain("Jugnu's games");
+  });
+  // the new words ride the child home (web_quiz_home_v3: the menu's card_fold); with it off the button is today's Home
+  test.each([
+    ['en', true, "Back to Jugnu's games"], ['ur', true, 'جگنو کے کھیلوں پر واپس'],
+    ['en', false, 'Home'], ['ur', false, 'واپس جائیں'],
+  ])('%s, home on %s: the button back to the list says «%s»', async (lang, homeOn, back) => {
+    const menu = { ...TRAIL(), lang, ...(homeOn ? { card_fold: true } : {}) };
+    const p = v2page({ lang, href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#next', menu, routes: { 'ch/HUB.TOKEN/missing': ok({ ex: 'missing', draw: { outcome: 'on_its_way' } }), 'ch/HUB.TOKEN\\?': ok(menu) } });
+    await p.flush();
+    expect(p.screen()).toBe('on-its-way');
+    const b = /id="wqc-menu"[^>]*>([^<]*)</.exec(p.html());
+    expect(b && b[1].replace(/&#39;/g, "'")).toBe(back);
   });
   test('#numbers on a menu whose warm-up carries no anchor (no pool): the numbers game (missing) still starts', () => {
     const p = v2page({ href: 'https://portal.test/c/HUB.TOKEN?kid=K1&home=1#numbers', menu: { ...TRAIL(), exercises: EXS.map((e) => ({ ...e, anchor_block: undefined })) } });

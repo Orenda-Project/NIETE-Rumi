@@ -112,9 +112,10 @@ describe('wq-home.js: the doors', () => {
     expect(count(empty, /class="wq-door[ "]/g)).toBe(3);
     expect(count(empty, /data-primary/g)).toBe(1);
     expect(empty).toContain('data-home');
-    const full = H.door(HOME, ctxOf('en'), d);
+    // the Stories door's content is the storybook shelf (the reader fills the slot and draws its primary)
+    const full = H.door(d === 'stories' ? { ...HOME, doors: { ...DOORS_FULL, stories: [...DOORS_FULL.stories, { kind: 'shelf' }] } } : HOME, ctxOf('en'), d);
     expect(full).not.toContain('data-soon');
-    expect(count(full, /data-primary/g)).toBe(1);
+    expect(count(full, /data-primary/g)).toBe(d === 'stories' ? 0 : 1);
   });
   test('Games: the teacher quiz opens the quiz; a done quiz opens Play again; no score shown', () => {
     const html = H.door(HOME, ctxOf('en'), 'games');
@@ -122,15 +123,12 @@ describe('wq-home.js: the doors', () => {
     expect(html).toContain('href="/q/SCI001?again=1&amp;k=k2"');
     expect(visible(html)).not.toMatch(/\d+\s*\/\s*\d+/);
   });
-  test('Stories: a passage opens the story room; the shelf stub is a slot for the stories reader', () => {
+  test('Stories: the shelf stub is a slot for the stories reader; a passage is not a row here (it opens from the Next tile)', () => {
     const html = H.door({ ...HOME, doors: { ...DOORS_FULL, stories: [...DOORS_FULL.stories, { kind: 'shelf' }] } }, ctxOf('en'), 'stories');
-    expect(html).toContain('&amp;room=story&amp;pid=en.read.1.k07');
+    expect(html).not.toContain('room=story');
     expect(html).toContain('data-stories-shelf="1"');
   });
-  test('Stories: a listening story asks the story room for a listen (&ex=listen), a read story does not', () => {
-    const html = H.door(HOME, ctxOf('en'), 'stories');
-    expect(html).toContain('pid=en.listen.1.k02&amp;ex=listen');
-    expect(html).not.toContain('pid=en.read.1.k07&amp;ex=listen');
+  test('the Next tile: a listening story asks the story room for a listen (&ex=listen)', () => {
     const nx = H.nextOf({ ...HOME, doors: { ...DOORS_FULL, stories: [{ kind: 'listen', id: 'en.listen.1.k02', fresh: true }] } }, ctxOf('en'));
     expect(nx.href).toMatch(/&ex=listen$/);
   });
@@ -145,6 +143,18 @@ describe('wq-home.js: the Next tile', () => {
   test('next absent: the teacher\'s quiz first, as today\'s hub card', () => {
     const nx = H.nextOf({ ...HOME, teacher: { code: 'T1', k: 'a', topic: 'Plants' } }, ctxOf('en'));
     expect(nx).toMatchObject({ kind: 'quiz', sub: 'Plants', href: '/q/T1?k=a', src: 'teacher' });
+  });
+  test('next absent, the lantern is "the games list": the tile names its first open step when the server names it, else neutral words, never "a game"', () => {
+    const B = { ...HOME, play: { lantern: { kind: 'trail', stops: 2 } } };
+    const en = H.nextOf(B, ctxOf('en'));
+    expect(en.title).toBe('Come along with Jugnu');
+    expect(en.href).toMatch(/#next$/);
+    expect(H.nextOf(B, ctxOf('ur')).title).toBe('جگنو کے ساتھ چلیں');
+    expect(visible(H.html(B, ctxOf('en')))).not.toMatch(/a game|Play with Jugnu/i);
+    const named = { ...HOME, play: { lantern: { kind: 'trail', stops: 2, first: { id: 'read', label: 'Read aloud', lang: 'en' } } } };
+    expect(H.nextOf(named, ctxOf('en'))).toMatchObject({ title: 'Read aloud', href: expect.stringMatching(/#next$/) });
+    // a label in another language than the page's: the neutral words, never a mixed screen
+    expect(H.nextOf(named, ctxOf('ur')).title).toBe('جگنو کے ساتھ چلیں');
   });
   test('next absent: today\'s lantern decides — the same story and the same destination as the lantern line', () => {
     const B = { ...HOME, play: { lantern: { kind: 'story', title: 'The red kite', pid: 'en.read.1.k07' } } };
@@ -648,6 +658,13 @@ describe('the grown-ups sheet\'s language button is its primary and looks like o
     const g = p.el('grownups'); g.fire('pointerdown'); jest.advanceTimersByTime(2100);
     const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
     expect(sheet.innerHTML).toMatch(/<a class="wq-btn wq-go" data-primary data-tap="lang"/);
+  });
+  test('its link asks the server to keep the language for this child (keep=1; the server ignores it while that is off)', () => {
+    const p = page(); p.mount(HOME);
+    const g = p.el('grownups'); g.fire('pointerdown'); jest.advanceTimersByTime(2100);
+    const sheet = p.sheets.filter((b) => /wq-gsheet/.test(b.className))[0];
+    const href = /data-tap="lang" href="([^"]*)"/.exec(sheet.innerHTML)[1].replace(/&amp;/g, '&');
+    expect(href).toMatch(/^\/h\/[^?]*\?kid=[^&]*(&lang=(en|ur))?&keep=1$/);
   });
 });
 

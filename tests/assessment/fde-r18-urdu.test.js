@@ -108,13 +108,23 @@ const run = (scope, extra = {}) => Gen.generatePatternExam({
 
 beforeEach(() => { mockCreate.mockReset(); mockLog.mockReset(); mockPages.mockReset(); });
 
+// A Q4 ارکان item's accepted answer set to its key, so it splits each word as the key does.
+function agreedSyllables(tree) {
+  for (const q of items(tree, 'urdu.C.Q4')) if (/ارکان/.test(q.question) && q.scheme) q.scheme.accept = [q.answer];
+  return tree;
+}
+
 // ── 1. A place the lessons 1–3 filter empties is asked again once ─────────────────────────────
 
 describe.each([
-  ['r18-urdu-refused-full1', 'gen-local full_1'],
+  ['r18-urdu-refused-full1', 'local full_1'],
   ['r18-urdu-refused-chapters1', 'reader round 2 chapters_1 (lessons 4–5)'],
 ])('%s (%s): C.Q8 quotes an everyday phrase the held lessons also print', (name) => {
   const rec = fixture(name);
+  // full_1's recorded Q4 ارکان item splits its words one way in the key and another in its accepted
+  // answer («خو - ش - بخ - تی» beside «خوش - بخ - تی»), which Section C is now asked again for. These
+  // tests are about Q8, so Q4's accepted answer here is its key.
+  rec.replies.C = JSON.stringify(agreedSyllables(JSON.parse(rec.replies.C)));
   // The C re-ask writes the paragraph in other words.
   const cleanC = () => rec.replies.C.split('کی عادت اپنانی چاہیے').join('کی عادت ڈالنی ہو گی');
 
@@ -174,8 +184,43 @@ describe('a Section A item that quotes the held lessons', () => {
 // ── 2. A reader-caught item never prints ───────────────────────────────────────────────────────
 
 describe('sandbox chapters_2 (lessons 6–7): ۱۱ prints ۲۰\'s answer, and the reader caught it', () => {
-  const rec = fixture('r18-urdu-sandbox-chapters2');
   const SCOPE = { kind: 'chapters', chapters: [6, 7], pages: '50-70' };
+  // The recorded Section A asks two lesson-10 grammar items (۱۰ اسمِ معرفہ, ۱۵ اسمِ صوت), which a
+  // lessons 6–7 paper now holds. Here they are two vocabulary items from lesson 7, as the prompt now
+  // asks (words that are not the paper's Q3/Q5 words), so the reader pass is read on a paper whose
+  // Q1 is otherwise as recorded.
+  const LESSON_7 = [
+    { question: 'لفظ «افق» کے معنی کیا ہیں؟', options: ['الف) آسمان کا کنارہ', 'ب) پہاڑ کی چوٹی', 'ج) گہرا کنواں', 'د) گھنا جنگل'], answer: 'الف) آسمان کا کنارہ' },
+    { question: 'لفظ «ندی» کے معنی کیا ہیں؟', options: ['الف) بڑا سمندر', 'ب) چھوٹا دریا', 'ج) اونچا ٹیلا', 'د) کھلا میدان'], answer: 'ب) چھوٹا دریا' },
+  ];
+  const LESSON_10 = [/^کون سا لفظ اسمِ معرفہ ہے؟/, /^کون سا لفظ اسمِ صوت ہے؟/];
+  // And ۳ «… امینہ نے اس کے لیے کیا رکھا تھا؟ → کاغذ کی فاختہ»: its correct option names the paper doves
+  // another item asks for («… کاغذ سے بنے ہوئے پرندے کون سے تھے؟ → فاختائیں»), so the layout holds it
+  // now. Here it is a third vocabulary item, so Q1 is full as recorded.
+  const DOVE = /امینہ نے اس کے لیے کیا رکھا تھا/;
+  const LESSON_7_MORE = { question: 'لفظ «جھیل» کے معنی کیا ہیں؟', options: ['الف) پانی سے بھرا بڑا گڑھا', 'ب) اونچا پہاڑ', 'ج) ریت کا میدان', 'د) گھنا باغ'], answer: 'الف) پانی سے بھرا بڑا گڑھا' };
+  const recorded = fixture('r18-urdu-sandbox-chapters2');
+  const rec = clone(recorded);
+  const a = JSON.parse(rec.replies.A);
+  const mcqsOf = (x) => (Array.isArray(x) ? x.flatMap(mcqsOf) : x && typeof x === 'object' ? (Array.isArray(x.options) ? [x] : Object.values(x).flatMap(mcqsOf)) : []);
+  LESSON_10.forEach((re, i) => Object.assign(mcqsOf(a).find((q) => re.test(q.question)), LESSON_7[i]));
+  // The reply with ۳ kept for the reader's own test below, its correct option the bare word «فاختہ»
+  // (a one-word option the layout does not read), so the reader is the one that catches it.
+  const recTwin = clone(rec);
+  const aTwin = clone(a);
+  Object.assign(mcqsOf(aTwin).find((q) => DOVE.test(q.question)), { options: ['الف) فاختہ', 'ب) رنگین غبارہ', 'ج) چھوٹی سی کتاب', 'د) پھولوں کا گلدستہ'], answer: 'الف) فاختہ' });
+  recTwin.replies.A = JSON.stringify(aTwin);
+  Object.assign(mcqsOf(a).find((q) => DOVE.test(q.question)), LESSON_7_MORE);
+  rec.replies.A = JSON.stringify(a);
+
+  test('the reply as recorded asks lesson-10 grammar, which a lessons 6–7 paper holds', () => {
+    const asRecorded = JSON.parse(recorded.replies.A);
+    const laid = applyLayout(asRecorded, U, SCOPE, { reasked: false });
+    expect(laid.held.map((h) => h.concept)).toEqual(['naming', 'sound']);
+    expect(q1Stems(laid.examJson).some((s) => LESSON_10.some((re) => re.test(s)))).toBe(false);
+    const swapped = q1Stems(applyLayout(JSON.parse(rec.replies.A), U, SCOPE, { reasked: false }).examJson);
+    expect(swapped).toEqual(expect.arrayContaining(LESSON_7.map((q) => q.question)));
+  });
   const GIVEN = /ندی کا دم کیوں گھٹ رہا ہے/; // ۲۰: keyed «اس میں شہر کا گندا نالہ گرتا ہے»
   const GIVER = /گندا نالہ ندی میں گرتا ہے/; // ۱۱ quotes that sentence
   const labelOf = (prompt, re) => { const l = prompt.split('\n').find((x) => /^Q1\.\d+ /.test(x) && re.test(x)); return l ? l.split(' ')[0] : null; };
@@ -253,10 +298,10 @@ describe('sandbox chapters_2 (lessons 6–7): ۱۱ prints ۲۰\'s answer, and th
   // ۱۳ «… امینہ نے اس کے لیے کیا رکھا تھا؟ → کاغذ کی فاختہ» and ۲ «کاغذ سے بنے ہوئے پرندے … → فاختائیں»:
   // one book fact. The first read held a twin of ۲ and the top-up wrote it again in a new shape.
   test('the top-up is told the kept partner\'s fact and key; the re-check reads each replacement against every kept item', async () => {
-    book(rec);
+    book(recTwin);
     const PARTNER = /کاغذ سے بنے ہوئے پرندے/;
     const TWIN = /امینہ نے اس کے لیے کیا رکھا/;
-    const asked = serve(rec, {
+    const asked = serve(recTwin, {
       a: (n) => (n === 2 ? mcqs(NEW.slice(0, 3)) : null),
       reader: async (prompt, n) => (n === 1
         ? flag(labelOf(prompt, TWIN), labelOf(prompt, PARTNER), 'کاغذ سے بنے ہوئے پرندے', 'same paper-bird fact')

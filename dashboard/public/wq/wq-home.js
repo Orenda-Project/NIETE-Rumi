@@ -17,16 +17,22 @@
       storiesSay: 'Stories you read with Jugnu', gamesSay: 'Games with numbers and sounds', videosSay: 'Videos your teacher chose',
       soon: 'Coming soon', home: 'Home',
       nextQuiz: 'Your teacher\'s quiz', nextCont: 'Finish your quiz', nextStory: 'Read a story with Jugnu', nextListen: 'Listen to a story',
-      nextGame: 'Play a game with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
+      nextGame: 'Come along with Jugnu', nextNumbers: 'Play the numbers game', nextVideo: 'Watch a video', nextAgain: 'Play again',
       nextNone: 'Ask your teacher for a quiz link', nextPick: 'Pick a story', playQuiz: 'Play a quiz',
       weekStory: 'This week\'s story', listen: 'Listen to a story', shelf: 'Storybooks', numbers: 'Numbers with Jugnu',
       fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', newQuiz: 'New', openVideos: 'Open the videos',
       mins: function (m) { return m + ' min'; },
       jar: 'My stickers', jarNew: 'A new sticker', sndOn: 'Sound on', sndOff: 'Sound off',
-      sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
+      sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownTap: 'Hold for grown-ups', grownKeep: 'Keep holding…', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
       who: 'Who is playing?', someoneNew: 'Someone new?',
       remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
+      friendJoined: 'A friend joined Jugnu from your card!', friendStamp: 'Guide',
       cls: function (n) { return 'Class ' + n; }, prSees: 'This is what your class sees', prBack: 'Back', prNote: 'Children open this from their own link',
+      off: 'No internet. Try again when you are online.', offAgain: 'Try again',
+      myClass: 'My class', mySchool: 'My school', social: 'My class and my school',
+      grade: 'Grade', gradeN: function (n) { return 'Grade ' + n; }, inClass: function (n) { return 'In class: Grade ' + n; },
+      gradeSaved: function (n) { return 'Saved. Home now shows Grade ' + n + '.'; }, gradeLater: 'Try again tomorrow.',
+      gradeSavedCls: function (n, c) { return 'Saved. Stories and videos now open at Grade ' + n + '. Class quizzes stay Grade ' + c + '.'; },
     },
     ur: {
       hi: function (n) { return n ? '⁨' + n + '⁩، السلام علیکم!' : 'السلام علیکم!'; },
@@ -34,16 +40,22 @@
       storiesSay: 'جگنو کے ساتھ کہانیاں پڑھیں اور سنیں', gamesSay: 'گنتی اور آوازوں کے کھیل', videosSay: 'ٹیچر کی چنی ہوئی ویڈیوز',
       soon: 'جلد آ رہا ہے', home: 'ہوم',
       nextQuiz: 'ٹیچر کا کوئز', nextCont: 'اپنا کوئز مکمل کریں', nextStory: 'جگنو کے ساتھ کہانی پڑھیں', nextListen: 'کہانی سنیں',
-      nextGame: 'جگنو کے ساتھ کھیلیں', nextNumbers: 'گنتی کا کھیل کھیلیں', nextVideo: 'ویڈیو دیکھیں', nextAgain: 'دوبارہ کھیلیں',
+      nextGame: 'جگنو کے ساتھ چلیں', nextNumbers: 'گنتی کا کھیل کھیلیں', nextVideo: 'ویڈیو دیکھیں', nextAgain: 'دوبارہ کھیلیں',
       nextNone: 'ٹیچر سے کوئز کا لنک لیں', nextPick: 'کہانی چنیں', playQuiz: 'کوئز کھیلیں',
       weekStory: 'اس ہفتے کی کہانی', listen: 'کہانی سنیں', shelf: 'کہانیوں کی کتابیں', numbers: 'جگنو کے ساتھ گنتی',
       fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', newTag: 'نئی', newQuiz: 'نیا', openVideos: 'ویڈیوز کھولیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       jar: 'میرے اسٹیکرز', jarNew: 'نیا اسٹیکر', sndOn: 'آواز چالو', sndOff: 'آواز بند',
-      sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
+      sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownTap: 'بڑوں کے لیے دبائے رکھیں', grownKeep: 'تھوڑی دیر اور دبائے رکھیں…', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
+      friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', friendStamp: 'رہنما',
       cls: function (n) { return 'کلاس ' + urDigits(n); }, prSees: 'آپ کی کلاس کو یہی نظر آتا ہے', prBack: 'واپس', prNote: 'بچے اسے اپنے لنک سے کھولیں گے',
+      off: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', offAgain: 'دوبارہ کوشش کریں',
+      myClass: 'میری کلاس', mySchool: 'میرا اسکول', social: 'میری کلاس اور میرا اسکول',
+      grade: 'جماعت', gradeN: function (n) { return 'جماعت ' + urDigits(n); }, inClass: function (n) { return 'اسکول میں: جماعت ' + urDigits(n); },
+      gradeSaved: function (n) { return 'محفوظ ہو گیا۔ اب ہوم پر جماعت ' + urDigits(n) + ' نظر آئے گی۔'; }, gradeLater: 'کل دوبارہ کوشش کریں۔',
+      gradeSavedCls: function (n, c) { return 'محفوظ ہو گیا۔ اب کہانیاں اور ویڈیوز جماعت ' + urDigits(n) + ' کی کھلیں گی۔ کلاس کے کوئز جماعت ' + urDigits(c) + ' کے رہیں گے۔'; },
     },
   };
   // The door icons (inline, one colour, currentColor): a book, a die, a play button.
@@ -55,6 +67,8 @@
     sndOn: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     sndOff: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     go: '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>',
+    myClass: '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><g fill="currentColor"><circle cx="12" cy="7" r="3.2"/><circle cx="5" cy="9.5" r="2.4"/><circle cx="19" cy="9.5" r="2.4"/><path d="M6.5 20a5.5 5.5 0 0 1 11 0zM1 19a4 4 0 0 1 6-3.4A7 7 0 0 0 5.2 19zM23 19a4 4 0 0 0-6-3.4 7 7 0 0 1 1.8 3.4z"/></g></svg>',
+    mySchool: '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M12 2l9 5v2H3V7zM4 10h3v8H4zM10.5 10h3v8h-3zM17 10h3v8h-3zM2 19h20v3H2z"/></svg>',
     jar: '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M7 2h10v3H7zM6 6h12a2 2 0 0 1 2 2v11a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8a2 2 0 0 1 2-2z"/><path fill="#fff" d="M12 9.5l1.4 2.9 3.1.4-2.3 2.2.6 3.1-2.8-1.5-2.8 1.5.6-3.1-2.3-2.2 3.1-.4z"/></svg>',
   };
   var DOORS = ['stories', 'games', 'videos'];
@@ -70,7 +84,11 @@
   function doorsOf(B) { var d = B.doors || {}; return { stories: d.stories || [], games: d.games || [], videos: d.videos || null }; }
 
   /* ---------------- the one Next thing ---------------- */
-  function nextOf(B, ctx) {
+  // web_quiz_page_lang (the hub's `page_lang: true`): a quiz page the home opens names the child's language, as the
+  // Videos door's links do, so an Urdu child's English lesson door is in Urdu
+  function qLang(B, ctx, h) { return B && B.page_lang === true && /^\/q\//.test(h || '') && !/[?&]lang=/.test(h) ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + langOf(ctx) : h; }
+  function nextOf(B, ctx) { var n = nextOf0(B, ctx); if (n && n.href) n.href = qLang(B, ctx, n.href); return n; }
+  function nextOf0(B, ctx) {
     var t = C(ctx); var l = langOf(ctx); var n = B.next;
     if (n && n.href) {
       return { kind: n.kind, title: (l === 'ur' && n.title_ur) || n.title || t.nextStory, sub: (l === 'ur' && n.sub_ur) || n.sub || '', tag: (l === 'ur' && n.tag_ur) || n.tag || null, href: n.href, art: n.art || null, minutes: n.minutes || null, src: 'next' };
@@ -83,7 +101,9 @@
     // A game tile opens the one game it names (#next: the first not done; #numbers: the warm-up; wq-trail.js), never the list.
     var x = B.play && B.play.lantern;
     if (x && B.challenge && B.challenge.on) {
-      if (x.kind === 'trail') return { kind: 'game', title: t.nextGame, sub: '', href: chHref(B, ctx) + '#next', src: 'lantern', minutes: 2 };
+      // the games list's first open step may be a game, a read or a listen: the tile names it when the server does (in
+      // the page's language), else neutral words that promise none of them
+      if (x.kind === 'trail') return { kind: 'game', title: (x.first && x.first.label && x.first.lang === l) ? x.first.label : t.nextGame, sub: '', href: chHref(B, ctx) + '#next', src: 'lantern', minutes: 2 };
       if (x.kind === 'story' && x.title) return { kind: 'story', title: t.nextStory, sub: x.title, href: chHref(B, ctx) + (x.pid ? '&room=story&pid=' + encodeURIComponent(x.pid) : ''), src: 'lantern', minutes: 2 };
       if (x.kind === 'numbers') return { kind: 'game', title: t.nextNumbers, sub: '', href: chHref(B, ctx) + '#numbers', src: 'lantern', minutes: 1 };
     }
@@ -113,8 +133,10 @@
   function headHtml(B, ctx) {
     var t = C(ctx); var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var hi = B.practice ? t.cls(Number(B.grade) || '') : t.hi(me.first || '');
+    // the look: «السلام علیکم!» never splits over two lines (a narrow phone breaks after the name instead)
+    if (lookOn()) hi = hi.replace('السلام علیکم', 'السلام\u00a0علیکم');
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
-    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="/wq/jugnu/hello.webp" alt="" width="48" height="48">' +
+    return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48">' +
       '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + esc(hi) + '</button>' : esc(hi)) + dotsHtml(B, t) + '</span>' + jar +
       '<button class="wq-snd" type="button" data-tap="sound" aria-pressed="' + (muted() ? 'false' : 'true') + '" aria-label="' + esc(muted() ? t.sndOff : t.sndOn) + '">' + (muted() ? ICON.sndOff : ICON.sndOn) + '</button></header>';
   }
@@ -145,9 +167,10 @@
     var back = B.practice_back ? '<a class="wq-prback" data-tap="prback" href="' + esc(B.practice_back) + '">' + esc(t.prBack) + '</a>' : '<button class="wq-prback" type="button" data-tap="prback">' + esc(t.prBack) + '</button>';
     return '<div class="wq-prstrip" data-practice-strip="1"><span>' + esc(t.prSees) + '</span>' + back + '</div>';
   }
+  function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   function nextHtml(nx, ctx) {
     var t = C(ctx);
-    var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp" alt="" width="96" height="96">';
+    var art = nx.art ? '<img class="wq-nart" src="' + esc(nx.art) + '" alt="" width="96" height="96">' : '<img class="wq-nart" src="' + jv('/wq/jugnu/' + (POSE[nx.kind] || 'hello') + '.webp') + '" alt="" width="96" height="96">';
     var meta = [nx.sub ? '<bdi>' + esc(nx.sub) + '</bdi>' : '', nx.minutes ? '<span class="wq-nmin">' + esc(t.mins(nx.minutes)) + '</span>' : ''].filter(Boolean).join(langOf(ctx) === 'ur' ? '، ' : ' · ');
     var tag = nx.tag ? '<i class="wq-new">' + esc(nx.tag) + '</i>' : '';
     var inner = art + '<span class="wq-ntext">' + tag + '<b>' + esc(nx.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + (nx.href ? '<span class="wq-ngo" aria-hidden="true">' + ICON.go + '</span>' : '');
@@ -161,12 +184,38 @@
       return '<a class="wq-door' + (at === d ? ' at' : '') + '" data-door="' + d + '" data-tap="door" href="#' + d + '">' + ICON[d] + '<span>' + esc(t[d]) + '</span></a>';
     }).join('') + '</nav>';
   }
-  function grownHtml(ctx) {
+  // My class + my school (app_settings web_quiz_class_doors, the hub's class_doors): the quiz page's own class table and
+  // school league for the child's newest class quiz. Only this site's /q/<code>/class|schools paths; nothing without them.
+  var SOCIAL_RX = { myClass: /^\/q\/[A-Za-z0-9]{4,16}\/class(\?[A-Za-z0-9=&._~-]*)?$/, mySchool: /^\/q\/[A-Za-z0-9]{4,16}\/schools(\?[A-Za-z0-9=&._~-]*)?$/ };
+  function socialHtml(B, ctx) {
+    var cd = B.class_doors;
+    if (!cd || B.practice) return '';
     var t = C(ctx);
+    var links = [['myClass', cd['class']], ['mySchool', cd.schools]].filter(function (x) { return typeof x[1] === 'string' && SOCIAL_RX[x[0]].test(x[1]); });
+    if (!links.length) return '';
+    return '<nav class="wq-social" aria-label="' + esc(t.social) + '">' + links.map(function (x) {
+      return '<a class="wq-btn wq-soft wq-soc" data-tap="social" data-social="' + x[0] + '" href="' + esc(withLang(x[1], langOf(ctx))) + '">' + ICON[x[0]] + '<span>' + esc(t[x[0]]) + '</span></a>';
+    }).join('') + '</nav>';
+  }
+  // The one-button look (the bot's `one_button`, web_quiz_one_button): the hold says what it is ("Hold for grown-ups"),
+  // a ring around the lock fills over the 2 s, the words stay above the fill, and a short tap says "Keep holding".
+  var LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>';
+  function lookOn() {
+    try { return document.documentElement.classList.contains('wq-1b'); } catch (e) { return false; }
+  }
+  function grownHtml(ctx, B) {
+    var t = C(ctx);
+    // the hold whenever the page has the look (a boot that said on keeps it when a later answer's cache went stale)
+    if ((B && B.one_button === true) || lookOn()) {
+      return '<footer class="wq-grown"><button class="wq-btn wq-btn--hold" type="button" data-tap="grownups" aria-label="' + esc(t.grownTap) + '">' +
+        '<span class="wq-gring" data-hold-ring aria-hidden="true"><svg viewBox="0 0 36 36" width="36" height="36"><circle class="wq-gtrack" cx="18" cy="18" r="16"/><circle class="wq-garc" cx="18" cy="18" r="16" pathLength="100"/></svg>' + LOCK + '</span>' +
+        '<span class="wq-glab" data-hold-label>' + esc(t.grownTap) + '</span></button>' +
+        '<p class="wq-ghint" data-hold-hint role="status" hidden>' + esc(t.grownKeep) + '</p></footer>';
+    }
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + grownHtml(ctx) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
   }
   /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
    * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
@@ -174,6 +223,31 @@
    * POST /api/wq/bind/undo {from:'join'}: the bot erases that phone's binding (the child stays) and answers the
    * "who are you?" page. Absent `remember`: nothing here, the home is today's. */
   var rem = { until: 0, gone: false, timer: null, busy: false };
+  /* A friend joined from this child's shared card (the boot's `friends_joined: {n}`, web_quiz_share_joined): ONE line
+   * with the "Guide" stamp, once per new count on this phone. The count is today's, so the count seen is kept per child
+   * and per day on this phone (a new day's first friend shows again); a re-render of the same page keeps it. A count
+   * only: never who, never when. Absent: nothing, the home is today's. */
+  var fj = {};
+  function dayKey() {
+    var d = new Date();
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  function friendsHtml(B, ctx) {
+    var n = B.friends_joined && typeof B.friends_joined === 'object' ? Math.floor(Number(B.friends_joined.n)) : 0;
+    if (!(n > 0) || B.practice) return '';
+    var k = 'wq_fj_' + String(B.kid || '') + '_' + dayKey();
+    if (fj[k] !== n) {
+      var seen = 0;
+      try { seen = Number(localStorage.getItem(k)) || 0; } catch (e) { seen = 0; }
+      if (n <= seen) return '';
+      fj[k] = n;
+      try { localStorage.setItem(k, String(n)); } catch (e) { /* shown this page only */ }
+    }
+    var t = C(ctx);
+    return '<p class="wq-friend" data-friends role="status"><span class="wq-fstamp"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#FDE68A" stroke="#F59E0B" stroke-width="2"/><path d="M14 6l2.4 5 5.4.6-4 3.7 1.1 5.3L14 18l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6z" fill="#F59E0B"/></svg>' +
+      esc(t.friendStamp) + '</span><span>' + esc(t.friendJoined) + '</span></p>';
+  }
   var GO_RX = /^(https:\/\/[A-Za-z0-9.-]+(:\d+)?)?\/quiz\/go\/[A-Za-z0-9._~-]{4,600}$/;
   function remOn(B) { return Boolean(B.remember) && !B.practice && !rem.gone && (!rem.until || Date.now() < rem.until); }
   function rememberHtml(B, ctx) {
@@ -222,14 +296,12 @@
   function door(B, ctx, name) {
     var t = C(ctx); var d = doorsOf(B); var rows = '';
     if (name === 'stories') {
-      rows = d.stories.map(function (s) {
-        if (s.kind === 'shelf') return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>';
-        return rowHtml(storyHref(B, ctx, s), s.title || (s.kind === 'listen' ? t.listen : t.weekStory), s.title ? (s.kind === 'listen' ? t.listen : t.weekStory) : '', s.fresh ? t.newTag : '', s.kind);
-      }).join('');
+      // the storybooks' door: the shelf only (a passage opens from the Games door and the Next tile)
+      rows = d.stories.filter(function (s) { return s.kind === 'shelf'; }).map(function () { return '<li class="wq-stories-shelf" data-stories-shelf="1"></li>'; }).join('');
     } else if (name === 'games') {
       rows = d.games.map(function (g) {
         if (g.kind === 'numbers') return rowHtml(chHref(B, ctx), t.numbers, '', '', 'numbers');
-        return rowHtml(quizHref(g.code, g.k, g.done), g.topic || (g.done ? t.playQuiz : t.nextQuiz), g.done ? t.again : t.fromTeacher, '', g.done ? 'again' : 'quiz', g.art);
+        return rowHtml(qLang(B, ctx, quizHref(g.code, g.k, g.done)), g.topic || (g.done ? t.playQuiz : t.nextQuiz), g.done ? t.again : t.fromTeacher, '', g.done ? 'again' : 'quiz', g.art);
       }).join('');
     } else if (name === 'videos' && d.videos) {
       rows = rowHtml(withHome(B, d.videos.href), t.openVideos, '', '', 'videos');
@@ -259,7 +331,9 @@
   var wired = false;
   function mount(root, B, ctx) {
     var name = String((typeof location !== 'undefined' && location.hash) || '').replace(/^#/, '');
+    markFailed = Boolean(B.list_states);
     if (B.practice) ctx = practiceCtx(ctx);
+    if (B.offline_guard === true) offGuard(ctx);
     hashOnce(root, B, ctx);
     // The door screens (wq-doors.js, fetched after the home paints): theirs once loaded; until then the rows below.
     if (window.WQDOORS && window.WQDOORS.owns(name)) return window.WQDOORS.mount(root, B, ctx, name);
@@ -296,13 +370,14 @@
       });
     });
     var g = root.querySelector('[data-tap="grownups"]');
-    if (g) hold(g, function () { grownups(root, B, ctx); });
+    if (g) hold(g, function () { grownups(root, B, ctx); }, B.one_button === true ? root.querySelector('[data-hold-hint]') : null);
     // The stories reader (wq-stories.js, web_quiz_stories: the boot's `stories.on`) fills [data-shelf] and owns #story/<id>.
     var sh = root.querySelector('[data-stories-shelf]');
     if (sh && window.WQSTORIES && typeof window.WQSTORIES.shelf === 'function') { try { window.WQSTORIES.shelf(sh, { token: ctx.token, kid: B.kid, lang: langOf(ctx), ev: ev }); } catch (e) {} }
     else if (B.stories && B.stories.on && !window.WQSTORIES && (sh || /^story\//.test(name))) loadOnce('wq-stories');
     if (name === 'book' && B.head && B.head.jar) book(root, B, ctx);
-    if (!window.WQDOORS) loadOnce('wq-doors', function () { var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
+    // the doors ask for their rows as they load (web_quiz_list_states), so a door tap paints its whole list at once
+    if (!window.WQDOORS) loadOnce('wq-doors', function () { if (window.WQDOORS && typeof window.WQDOORS.warm === 'function') window.WQDOORS.warm(B, ctx); var n = String(location.hash || '').replace(/^#/, ''); if (window.WQDOORS && window.WQDOORS.owns(n)) mount(root, B, ctx); });
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   // An empty hash (the reader's way home) reads as '' — home again; a door or #watch/<video id> draws its screen;
@@ -362,32 +437,107 @@
     prefetched = true;
     var run = function () {
       try {
-        var c = typeof navigator !== 'undefined' && navigator.connection;
-        if (c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))) return;
+        if (slowNet()) return;
         var l = document.createElement('link'); l.rel = 'prefetch'; l.href = url; document.head.appendChild(l);
       } catch (e) {}
     };
     try { if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 1500); } catch (e) {}
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
+  function slowNet() { var c = typeof navigator !== 'undefined' && navigator.connection; return !!(c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))); }
+  // A tap while offline (the hub's offline_guard): every page the home and its doors open goes through ctx.go. Offline:
+  // stay, the offline line + Try again; `online` or Try again opens it once. A slow line HEADs it first (2 s, then opens).
+  // The line check asks a small static file of ours (never the page: a page's address runs its handler on the server).
+  function probeUrl() {
+    try { var l = document.querySelector('link[href*="/wq/wq.css"]'); var h = l && l.getAttribute('href'); if (h) return h; } catch (e) {}
+    return '/wq/manifest.webmanifest';
+  }
+  var held = null, ogCtx = null;
+  function offGuard(ctx) {
+    if (ctx.og) return;
+    var go0 = ctx.go;
+    ctx.og = 1;
+    ctx.go = function (href, what) { offCheck(ctx, function () { if (go0) go0(href, what); else location.assign(href); }); };
+    offLinks(ctx);
+  }
+  function offCheck(ctx, nav) {
+    if (held) { held.nav = nav; return; }
+    if (navigator.onLine === false) return offHold(ctx, nav);
+    if (!slowNet() || typeof fetch !== 'function') return nav();
+    held = { nav: nav };
+    var t = setTimeout(function () { end(1); }, 2000);
+    var end = function (ok) { if (!held || held.box) return; clearTimeout(t); var n = held.nav; held = null; if (ok) n(); else offHold(ctx, n); };
+    fetch(probeUrl(), { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' }).then(function () { end(1); }, function () { end(0); });
+  }
+  // The "Who is playing?" sheet's rows, the jar book's story links and My class / My school are plain links drawn after the home's wiring:
+  // one capture listener (once per page) sends them through the same check; online they open as a plain link does.
+  function offLinks(ctx) {
+    var first = !ogCtx;
+    ogCtx = ctx;
+    if (!first) return;
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      var tap = a ? a.getAttribute('data-tap') || '' : '';
+      if (!a || !(a.id === 'wq-bk-go' || /(^|\s)wq-bk-st(\s|$)/.test(a.className || '') || (/^(pick|join)$/.test(tap) && a.closest('.wq-who')) || (tap === 'social' && a.closest('.wq-social')))) return;
+      var href = a.getAttribute('href') || '';
+      if (!href || href.charAt(0) === '#') return;
+      e.preventDefault();
+      offCheck(ogCtx, function () { location.assign(href); });
+    }, true);
+  }
+  function offHold(ctx, nav) {
+    var t = C(ctx), box = document.createElement('div');
+    box.className = 'wq-off';
+    box.setAttribute('role', 'status');
+    box.setAttribute('style', 'position:fixed;left:16px;right:16px;bottom:16px;z-index:50;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.2);text-align:center');
+    box.innerHTML = '<p dir="auto">' + esc(t.off) + '</p><button class="wq-btn wq-go" type="button">' + esc(t.offAgain) + '</button>';
+    held = { nav: nav, box: box };
+    var fire = function () {
+      if (!held || navigator.onLine === false) return;
+      var n = held.nav;
+      held = null;
+      window.removeEventListener('online', fire);
+      if (box.parentNode) box.parentNode.removeChild(box);
+      n();
+    };
+    box.querySelector('button').addEventListener('click', fire);
+    window.addEventListener('online', fire);
+    document.body.appendChild(box);
+  }
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
   // The grown-ups corner opens only on a ~2 s press-and-hold (IA §2; never a tap, never arithmetic).
-  function hold(el, done) {
-    var timer = null;
+  // With `hint` (the one-button look): a press let go early shows "Keep holding" for 1.5 s, and the open is felt (a short
+  // buzz where the phone has one) and heard (the sound kit's tap, muted with the rest).
+  function hold(el, done, hint) {
+    var timer = null; var hintT = null;
     // One finger fires pointerdown AND touchstart on Android: the second start is ignored, so a tap never leaves a timer.
-    var start = function (e) { if (e && e.preventDefault) e.preventDefault(); if (timer) return; el.classList.add('held'); timer = setTimeout(function () { timer = null; el.classList.remove('held'); done(); }, 2000); };
-    var stop = function () { if (timer) { clearTimeout(timer); timer = null; } el.classList.remove('held'); };
+    var start = function (e) { if (e && e.preventDefault) e.preventDefault(); if (timer) return; if (hint) { hint.hidden = true; clearTimeout(hintT); } el.classList.add('held'); timer = setTimeout(function () { timer = null; el.classList.remove('held'); if (hint) { try { if (navigator.vibrate) navigator.vibrate(30); } catch (x) {} juice('tap'); } done(); }, 2000); };
+    var stop = function () { if (timer) { clearTimeout(timer); timer = null; if (hint) { hint.hidden = false; clearTimeout(hintT); hintT = setTimeout(function () { hint.hidden = true; }, 1500); } } el.classList.remove('held'); };
     ['pointerdown', 'touchstart'].forEach(function (n) { el.addEventListener(n, start); });
     ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (n) { el.addEventListener(n, stop); });
   }
-  // Behind the hold: the language and, when the server names them, the teacher switch and the phone link's STOP.
+  // The sheet's Grade row (the server's `grownups.grade_on`, web_quiz_grade_change): a label and a value button that
+  // opens the Stories grade chips 1-5; `gr` = {now, cls} once the bot answered (until then a skeleton), `pick` = the chips
+  // are open, `said` = the line under them (saved / tomorrow).
+  function gradeRow(t, l, gr, pick, said) {
+    if (!gr) return '<span class="wq-glabel">' + esc(t.grade) + '</span><span class="wq-gskel" aria-hidden="true"></span>';
+    var chips = '';
+    if (pick) [1, 2, 3, 4, 5].forEach(function (n) { chips += '<button class="wqs-chip" data-tap="g" data-arg="' + n + '" aria-pressed="' + (n === gr.now) + '">' + (l === 'ur' ? urDigits(n) : n) + '</button>'; });
+    return '<span class="wq-glabel">' + esc(t.grade) + '</span>' +
+      '<button class="wq-btn wq-btn--secondary" type="button" data-tap="grade" aria-expanded="' + !!pick + '">' + esc(gr.now ? t.gradeN(gr.now) : t.grade) + ' ▾</button>' +
+      (pick ? '<div class="wqs-pick">' + chips + '</div>' : '') +
+      (gr.cls && gr.cls !== gr.now ? '<p class="wq-gcls">' + esc(t.inClass(gr.cls)) + '</p>' : '') +
+      (said ? '<p class="wq-gsaid" role="status">' + esc(said) + '</p>' : '');
+  }
+  // Behind the hold: the language and, when the server names them, the child's grade, the teacher switch and the phone link's STOP.
   function grownups(root, B, ctx) {
     var t = C(ctx); var other = langOf(ctx) === 'ur' ? 'en' : 'ur';
     var g = B.grownups || {};
     var box = document.createElement('div');
     box.className = 'wq-gsheet'; box.setAttribute('role', 'dialog'); box.setAttribute('data-screen', 'grownups');
     box.innerHTML = '<b>' + esc(t.grown) + '</b>' +
-      '<a class="wq-btn wq-go" data-primary data-tap="lang" href="' + esc(withLang('/h/' + encodeURIComponent(ctx.token || '') + '?kid=' + encodeURIComponent(B.kid || ''), other)) + '">' + esc(t.grownLang) + '</a>' +
+      '<a class="wq-btn wq-go" data-primary data-tap="lang" href="' + esc(withLang('/h/' + encodeURIComponent(ctx.token || '') + '?kid=' + encodeURIComponent(B.kid || ''), other) + '&keep=1') + '">' + esc(t.grownLang) + '</a>' +
+      (g.grade_on === true ? '<div class="wq-ggrade" data-grade>' + gradeRow(t, langOf(ctx), null) + '</div>' : '') +
       (g.teacher_href ? '<a class="wq-btn wq-ghost" data-tap="teacher" href="' + esc(g.teacher_href) + '">' + esc(g.teacher_label || '') + '</a>' : '') +
       (g.stop_href ? '<a class="wq-btn wq-ghost" data-tap="stop" href="' + esc(g.stop_href) + '">' + esc(g.stop_label || '') + '</a>' : '') +
       // the phone that made this child's link (the boot's `forget_phone`, the link's whole life): one tap forgets it
@@ -420,10 +570,44 @@
         .then(function (j) { if (!j || !j.ok) throw new Error('forget'); location.reload(); })
         .catch(function () { fg.disabled = false; });
     });
+    // The grade is asked when the sheet opens (GET /api/wq/hub/grade; a skeleton until it answers; no answer: no row).
+    // A chip tap saves it for good (POST); the saved line shows for 2 s, and Close redraws Home.
+    var saved = false;
+    var row = g.grade_on === true ? box.querySelector('[data-grade]') : null;
+    if (row) {
+      var gr = null; var pick = false; var said = ''; var saidT = null; var busy = false;
+      var draw = function () { row.innerHTML = gradeRow(t, langOf(ctx), gr, pick, said); };
+      var say = function (line, ms) { said = line; clearTimeout(saidT); draw(); if (ms) saidT = setTimeout(function () { said = ''; draw(); }, ms); };
+      draw();
+      fetch('/api/wq/hub/grade?hub=' + encodeURIComponent(ctx.token || '') + '&kid=' + encodeURIComponent(B.kid || ''), { headers: { accept: 'application/json' } })
+        .then(function (r) { if (r.status !== 200) throw new Error('grade'); return r.json(); })
+        .then(function (j) { gr = { now: +(j && j.now) || null, cls: +(j && j.cls) || null }; draw(); })
+        .catch(function () { row.innerHTML = ''; row.hidden = true; });
+      row.addEventListener('click', function (e) {
+        var b = e && e.target && e.target.closest ? e.target.closest('[data-tap]') : null;
+        var tap = b && gr ? b.getAttribute('data-tap') : null;
+        if (tap === 'grade') { pick = !pick; said = ''; return draw(); }
+        var n = tap === 'g' ? +b.getAttribute('data-arg') : 0;
+        if (!n || n === gr.now || busy) return;
+        busy = true;
+        fetch('/api/wq/hub/grade', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify({ hub: ctx.token, kid: B.kid, grade: n }) })
+          .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+          .then(function (a) {
+            busy = false;
+            if (a.s === 429) { pick = false; return say(t.gradeLater); }
+            if (!a.j || !a.j.ok) throw new Error('grade');
+            gr.now = n; saved = true; pick = false;
+            // a class child: Stories and Videos open at the new grade, class quizzes stay at the class's
+            say(gr.cls && gr.cls !== n ? t.gradeSavedCls(n, gr.cls) : t.gradeSaved(n), 2000);
+          })
+          .catch(function () { busy = false; });
+      });
+    }
     var c = box.querySelector('[data-tap="close"]');
     if (c) c.addEventListener('click', function () {
       behind.forEach(function (n) { n.removeAttribute('inert'); n.removeAttribute('aria-hidden'); });
       if (box.parentNode) box.parentNode.removeChild(box);
+      if (saved) location.reload();
     });
   }
   // The jar opens Jugnu's Book (wq-book.js); Back returns to the home.
@@ -433,7 +617,9 @@
     loadOnce('wq-book', open, 'wq-bk-js');
   }
   // /wq/<name>.css + .js at hub.js's own ?v=, at most once per page.
+  // `list_states`: a script that failed is marked (data-failed), so a screen that comes after the error can tell
   var asked = {};
+  var markFailed = false;
   function loadOnce(name, onload, id) {
     if (asked[name]) return;
     asked[name] = true;
@@ -442,7 +628,9 @@
       var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
       var q = v ? '?v=' + v[1] : '';
       var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/wq/' + name + '.css' + q; document.head.appendChild(l);
-      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload); document.head.appendChild(s);
+      var s = document.createElement('script'); if (id) s.id = id; s.src = '/wq/' + name + '.js' + q; if (onload) s.addEventListener('load', onload);
+      if (markFailed) s.addEventListener('error', function () { s.setAttribute('data-failed', '1'); });
+      document.head.appendChild(s);
     } catch (e) {}
   }
 

@@ -19,9 +19,19 @@
  *        [--out <csv>]             loaded.csv: one line per book (source_id, book_id, grade, lang, pages, voiced,
  *                                  questions, status, why, at), merged by source_id
  *        [--dry-run]               plan and print; write and store nothing (no env needed)
+ *        [--read-db]               with --dry-run: also read the switch and the current voices from the database (read
+ *                                  only; needs the same env and --expect-ref as a write), so the dry answer is the write's
  *        [--misses <json>]         instead of loading: write the pages children opened without a voice since the
  *                                  file's last `until` ({since, until, pages:[{book_id, source_id, n}]}) and stop;
  *                                  the voice build voices those books' missing pages, then a normal run loads them
+ *
+ * The voice gate: app_settings web_quiz_story_voice_gate is read once per run (JSON true = the method gate, story-load.js);
+ * a dry run without a database plans with today's gates. A read error never writes: the run logs
+ * web_quiz.story_voice_gate_read_failed on stderr, finishes as a dry run with today's gates and exits 3. With it on, each book's line also lists the pages that kept the
+ * voice they had (kept) and why their new take was not stored (misses), and the total line says voice_gate: true.
+ *
+ * An Urdu book whose text has a letter or mark the child pages' Urdu face does not draw: its line lists them (face_holes,
+ * story-face.js), READY unchanged; extend the face and its fixture before children read it.
  *
  * Idempotent: ids are uuid v5 of the catalogue id and files are named by their content hash, so a re-run updates the
  * same rows and stores only new files. A book is 'ready' only when every gate passes (story-load.js), else 'draft'.
@@ -46,7 +56,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
   const say = (s) => io.stderr.write(`${s}\n`);
   const manifestPath = arg(argv, '--manifest');
   const target = arg(argv, '--env');
-  const dryRun = argv.includes('--dry-run');
+  let dryRun = argv.includes('--dry-run');
   const missesPath = arg(argv, '--misses');
   const connect = () => {
     if (db) return db;
@@ -100,9 +110,24 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
   let store = null;
   let upload = null;
   let stored = null;
-  if (!dryRun) {
-    const client = connect();
+  let client = null;
+  if (db || !dryRun || argv.includes('--read-db')) {
+    client = connect();
     if (!client) return 2;
+  }
+  // A switch that cannot be read is neither on nor off: guessing off would retire voices stored under the gate, and
+  // guessing on would hold back takes, so this run writes nothing and says why.
+  let voiceGate = false;
+  let gateReadFailed = false;
+  if (client) {
+    try { voiceGate = await Load.readVoiceGate(client); } catch (e) {
+      gateReadFailed = true; dryRun = true;
+      io.stderr.write(`${JSON.stringify({ event: 'web_quiz.story_voice_gate_read_failed', error: String(e.message || e).slice(0, 200) })}\n`);
+    }
+  }
+  // gate on, dry run: the current voices are read (and only read), so the dry answer is the write's
+  if (dryRun && client && voiceGate) store = { currentVoices: Load.supabaseStore(client).currentVoices };
+  if (!dryRun) {
     store = Load.supabaseStore(client);
     const r2 = require('../../bot/shared/storage/r2');
     const bucket = Store.storyBucket(env) || undefined;
@@ -128,6 +153,7 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
       cleanPages: pagesOfClean(book.source_id),
       cleanDir: cleanRoot ? path.join((cleanOf.get(book.source_id) || {}).serve_root || cleanRoot, (cleanOf.get(book.source_id) || {}).serve_root ? '' : book.source_id) : null,
       extra: { pdf_r2_key: (catalogue.get(book.source_id) || {}).r2_pdf_key || null },
+      voiceGate,
     });
     let out;
     try {
@@ -140,11 +166,14 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
       if (statePath && !dryRun) fs.writeFileSync(statePath, JSON.stringify(state));
     }
     const c = plan.counts;
-    const why = plan.why.length > 4 ? [...plan.why.slice(0, 4), `+${plan.why.length - 4} more`] : plan.why;
-    io.stdout.write(`${JSON.stringify({ source_id: book.source_id, book_id: plan.bookId, g: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, files: plan.files.length, stored: out.uploaded, kept: out.skipped, status: out.status, why })}\n`);
+    const cap = (list) => (list.length > 4 ? [...list.slice(0, 4), `+${list.length - 4} more`] : list);
+    const why = cap(plan.why);
+    const gate = voiceGate ? { kept_voice: out.kept || [], misses: cap(plan.misses.map((m) => `p${String(m.n).padStart(2, '0')}: ${m.why.join(', ')}`)), question_kept: cap((plan.questionMisses || []).map((m) => `q${m.n}: ${m.why.join(', ')}`)) } : {};
+    io.stdout.write(`${JSON.stringify({ source_id: book.source_id, book_id: plan.bookId, g: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, files: plan.files.length, stored: out.uploaded, kept: out.skipped, status: out.status, why, ...gate, ...(plan.face_holes ? { face_holes: plan.face_holes } : {}) })}\n`);
     rows.push({ source_id: book.source_id, book_id: plan.bookId, grade: book.grade, lang: book.lang, pages: c.pages, voiced: `${c.voiced}/${c.textPages}`, questions: c.reviewed, status: dryRun ? `dry:${out.status}` : out.status, why: plan.why.join('; '), at: now().toISOString() });
   }
-  if (outPath && rows.length) {
+  // a run whose switch could not be read leaves loaded.csv as it was
+  if (outPath && rows.length && !gateReadFailed) {
     const head = ['source_id', 'book_id', 'grade', 'lang', 'pages', 'voiced', 'questions', 'status', 'why', 'at'];
     const prior = fs.existsSync(outPath) ? readCsv(outPath) : [];
     const merged = new Map(prior.map((r) => [r.source_id, r]));
@@ -152,7 +181,8 @@ async function main({ argv = process.argv.slice(2), env = process.env, io = proc
     fs.writeFileSync(outPath, `${head.join(',')}\n${[...merged.values()].map((r) => head.map((h) => csvCell(r[h])).join(',')).join('\n')}\n`);
   }
   const ready = rows.filter((r) => r.status === 'ready' || r.status === 'dry:ready').length;
-  io.stdout.write(`${JSON.stringify({ books: rows.length, ready, draft: rows.length - ready, failed, dry_run: dryRun })}\n`);
+  io.stdout.write(`${JSON.stringify({ books: rows.length, ready, draft: rows.length - ready, failed, dry_run: dryRun, ...(voiceGate ? { voice_gate: true } : {}), ...(gateReadFailed ? { voice_gate_read_failed: true } : {}) })}\n`);
+  if (gateReadFailed) return 3;
   return failed ? 1 : 0;
 }
 

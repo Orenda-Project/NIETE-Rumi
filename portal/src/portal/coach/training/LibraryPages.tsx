@@ -20,6 +20,7 @@ import { AudioPlayer } from "../../newui/AudioPlayer";
 import { courseName, providerInitials, providerLabel, sortVendors, statusOf, type Vendor } from "../../newui/training/trainingApi";
 import { COACH_LIBRARY } from "./copy";
 import { coachTrainingPaths as paths } from "./appReady";
+import FlnSendTile from "../../fln/FlnSendTile";
 import {
   useCourseReadings, useLibrary, useLibraryModule, usePreview,
   type LibraryLevel, type LibraryVendor, type PreviewQuestion,
@@ -87,6 +88,7 @@ export function LibraryHome() {
               </ProviderTile>
             );
           })}
+          <FlnSendTile lang={lang} />
         </div>
       </TeacherPage>
     </CoachGate>
