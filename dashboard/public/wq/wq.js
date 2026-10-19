@@ -3069,9 +3069,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function clsNum(c) { return '<bdi>' + esc(LANG === 'ur' ? urDigits(c) : c) + '</bdi>'; }
   // The league's name in the land header (the look): "League table" with the class list as a small line under it, so
   // the header is 2 even lines at 360 and never breaks inside the list ("Classes 2, 3, 4, / 5 league table").
-  function leagueTitle() {
+  // One header on every class table: the small line is the given html (the child's class, "Your class"), else the
+  // quiz's class label, in Urdu words and digits on an Urdu page.
+  function leagueTitle(sub) {
     if (!advOn() || !T.leagueW) return esc(T.leagueT(CLASS_LABEL));
-    return '<span class="wq-lgt">' + esc(T.leagueW) + '</span><small class="wq-lgc" dir="auto">' + esc(CLASS_LABEL) + '</small>';
+    return '<span class="wq-lgt">' + esc(T.leagueW) + '</span><small class="wq-lgc" dir="auto">' + (sub || esc(CLS.label && LANG === 'ur' ? urClassLabel(CLS.label) : CLASS_LABEL)) + '</small>';
   }
   function drawBoard(b, mixed, onlyOn, first) {
     var v = onlyOn ? b.only : b;
@@ -3097,7 +3099,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
-    var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : leagueTitle();
+    var mine = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : '';
+    var title = advOn() && T.leagueW ? leagueTitle(mine) : mine || leagueTitle();
     // the look: the names note has its own row above the rows (never near the sticky button), and Play is the one
     // primary with Share soft; a child with a result (no Play here) keeps Share as the primary
     var look = Boolean(b.class_doors) && advOn();
