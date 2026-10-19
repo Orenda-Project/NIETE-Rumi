@@ -173,7 +173,7 @@ function itemsOf(uses, names) {
         lastUsedAt: new Date(u.at).toISOString(),
         day: u.day,
         via: u.via,
-        open: k5 ? { lane: 'k5', lessonId: u.ref } : { lane: 'g612', segmentId: u.ref, lang: u.lang || 'en' },
+        open: k5 ? { lane: 'k5', lessonId: u.ref } : u.kind === 'fln' ? { lane: 'fln', planId: u.ref } : { lane: 'g612', segmentId: u.ref, lang: u.lang || 'en' },
       };
     });
 }

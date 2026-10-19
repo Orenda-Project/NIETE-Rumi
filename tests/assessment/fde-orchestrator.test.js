@@ -137,6 +137,8 @@ beforeEach(() => {
   mockState.calls = [];
   jest.clearAllMocks();
   exam = patternExam('maths');
+  // clearAllMocks keeps a queue of *Once replies; a reply one test left unused must not reach the next.
+  mockGeneratePatternExam.mockReset();
   mockGeneratePatternExam.mockResolvedValue({
     examJson: exam, questionCount: 48,
     tokenData: { inputTokens: 100, outputTokens: 50, totalTokens: 150, model: 'm' },
@@ -256,6 +258,63 @@ describe('a board-pattern job', () => {
     expect(mockUpload).toHaveBeenCalledTimes(2);
     const sentNames = mockSendDocumentByLink.mock.calls.map((c) => c[2]);
     expect(sentNames).toEqual(['Grade5_Maths_FDE.pdf', 'Grade5_Maths_FDE_MarkingScheme.pdf']);
+  });
+});
+
+describe('a board-pattern paper that comes back short', () => {
+  const short = (slot, n) => Object.assign(new Error(`PATTERN_SHORT_SLOT: ${slot} short`), {
+    code: 'PATTERN_SHORT_SLOT', shortfall: [{ slot, missing: n }], examJson: { unseen: {}, _layout: { slot } }, model: 'm',
+  });
+
+  test('is made once more, fresh, in the same row, and the second paper is the one that is ready', async () => {
+    mockGeneratePatternExam.mockRejectedValueOnce(short('urdu.A.Q1', 1));
+    const out = await Orchestrator.buildPaper(PATTERN_JOB, {});
+    expect(out.status).toBe('ready');
+    expect(mockGeneratePatternExam).toHaveBeenCalledTimes(2);
+    // The second run is asked exactly what the first was: nothing the first held or kept rides along.
+    const strip = ({ onSection, ...rest }) => rest;
+    expect(strip(mockGeneratePatternExam.mock.calls[1][0])).toEqual(strip(mockGeneratePatternExam.mock.calls[0][0]));
+    expect(mockGeneratePatternExam.mock.calls[1][0]).not.toBe(mockGeneratePatternExam.mock.calls[0][0]);
+    expect(papers()).toHaveLength(1);
+    expect(papers()[0]).toMatchObject({ id: out.paperId, status: 'ready' });
+    expect(mockState.calls.some((c) => c.op === 'update' && c.payload && c.payload.status === 'failed')).toBe(false);
+    expect(mockLog).toHaveBeenCalledWith('[assessment] pattern paper retried', expect.objectContaining({
+      requestId: 'req-p', paperId: out.paperId, shortfall: [{ slot: 'urdu.A.Q1', missing: 1 }],
+    }));
+    expect(mockUpload).toHaveBeenCalledTimes(2);
+  });
+
+  test('short twice: the row fails with the second run\'s code and record, and there is no third run', async () => {
+    mockGeneratePatternExam
+      .mockRejectedValueOnce(short('urdu.A.Q1', 1))
+      .mockRejectedValueOnce(short('urdu.B.Q2', 3));
+    const out = await Orchestrator.buildPaper(PATTERN_JOB, {});
+    expect(out).toMatchObject({ status: 'failed', code: 'PATTERN_SHORT_SLOT' });
+    expect(mockGeneratePatternExam).toHaveBeenCalledTimes(2);
+    expect(papers()[0]).toMatchObject({ status: 'failed', error_code: 'PATTERN_SHORT_SLOT' });
+    expect(papers()[0].exam_json).toEqual({ unseen: {}, _layout: { slot: 'urdu.B.Q2' } });
+    expect(mockLog).toHaveBeenCalledWith('[assessment] build failed', expect.objectContaining({
+      code: 'PATTERN_SHORT_SLOT', shortfall: [{ slot: 'urdu.B.Q2', missing: 3 }],
+    }));
+    expect(mockHtmlToPdf).not.toHaveBeenCalled();
+  });
+
+  test('any other code is never retried', async () => {
+    mockGeneratePatternExam.mockRejectedValueOnce(Object.assign(new Error('bad json'), { code: 'BAD_JSON' }));
+    const out = await Orchestrator.buildPaper(PATTERN_JOB, {});
+    expect(out).toMatchObject({ status: 'failed', code: 'BAD_JSON' });
+    expect(mockGeneratePatternExam).toHaveBeenCalledTimes(1);
+    expect(mockLog).not.toHaveBeenCalledWith('[assessment] pattern paper retried', expect.anything());
+  });
+
+  test('a row this run no longer owns (handed back) is not made again here', async () => {
+    mockGeneratePatternExam.mockImplementationOnce(async () => {
+      papers()[0].status = 'queued';
+      throw short('urdu.A.Q1', 1);
+    });
+    const out = await Orchestrator.buildPaper(PATTERN_JOB, {});
+    expect(out).toMatchObject({ status: 'failed', code: 'PATTERN_SHORT_SLOT' });
+    expect(mockGeneratePatternExam).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -96,12 +96,12 @@ describe('motion and sound', () => {
       const m = load({ store });
       expect(m.WQA.muted()).toBe(true);
       m.WQA.cue('correct');
-      expect(m.added).toEqual([]);
+      expect(m.added.filter((n) => !/wq-adv-more/.test(n.attrs.src || ''))).toEqual([]);
     }
     const on = load();
     on.WQA.cue('correct');
     on.WQA.cue('sentence');
-    expect(on.added.map((n) => n.attrs.href || n.attrs.src)).toEqual(['/wq/wq-juice.css?v=0123456789', '/wq/wq-juice.js?v=0123456789']);
+    expect(on.added.map((n) => n.attrs.href || n.attrs.src)).toEqual(['/wq/wq-adv-more.js?v=0123456789', '/wq/wq-juice.css?v=0123456789', '/wq/wq-juice.js?v=0123456789']);
   });
   it('mute writes both keys the pages read', () => {
     const k = load();
@@ -259,7 +259,7 @@ describe('the sheet (wq-adventure.css)', () => {
       const sels = r.split('{')[0].split(',').map((x) => x.trim().replace(/:[a-z-]+(\([^)]*\))?$/, ''));
       if (!sels.some((x) => BUTTONS.test(x) && !/section\.wq-home/.test(x))) continue;
       const props = r.split('{')[1].replace('}', '').split(';').map((d) => d.split(':')[0].trim()).filter(Boolean);
-      const bad = props.filter((d) => !/^(--|background$|background-color$|color$|border-color$)/.test(d));
+      const bad = props.filter((d) => !/^(--|background$|background-color$|color$|border-color$|font-weight$)/.test(d));
       if (bad.length) shaped.push(`${r.split('{')[0].trim()} → ${bad.join(',')}`);
     }
     expect(shaped).toEqual([]);
@@ -299,6 +299,15 @@ describe('the sheet (wq-adventure.css)', () => {
     const variants = rules.filter((r) => /\.(wq-go|wq-navy|wq-soft|wq-btn--[a-z]+)\b[^,]*$/.test(r.split('{')[0].split(',').pop().trim()) && /background|--fill/.test(r));
     expect(variants.length).toBeGreaterThanOrEqual(4);
     for (const r of variants) expect([r.split('{')[0].trim(), /--edge:/.test(r)]).toEqual([r.split('{')[0].trim(), true]);
+  });
+  it('an Urdu button is never bold (bold Nastaliq breaks its joins)', () => {
+    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-btn\{font-weight:400\}/);
+  });
+  it('the finish card\'s Next tile takes the whole row: the sound button rides the card\'s corner', () => {
+    // html.wq-adv.wq-1b: the card injects its own one-button rules (html.wq-1b .wqfc …) later in the page, so a tie loses
+    expect(CSS).toMatch(/html\.wq-adv\.wq-1b \.wqfc\{grid-template-columns:minmax\(0,1fr\)\}/);
+    expect(CSS).toMatch(/html\.wq-adv\.wq-1b \.wqfc>\.wqfc-snd\{position:absolute;[^}]*grid-column:auto\}/);
+    expect(CSS).toMatch(/html\.wq-adv\.wq-1b \.wqfc>\[data-primary\]\{grid-column:1\/-1\}/);
   });
   it('the sheet and the kit each stay inside 8 KB gzipped', () => {
     const zlib = require('zlib');

@@ -35,10 +35,11 @@
 /* a storybook page's read (and the book's end beside the finish card): one strip (Jugnu, the words, the jar and the
    stars, the badge); on a page the picture gives up height while it is there, so the page's Next stays on the first
    screen */
-.wqs .wq-moment--s{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:8px;margin:0 auto;padding:8px 10px;text-align:start}
+.wqs .wq-moment--s{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"jg deed deed" "jg meter meter" "jg stars badge" "jg growth growth";align-items:center;column-gap:8px;margin:0 auto;padding:8px 10px;text-align:start}
 .wqs .wq-moment--s>.wq-moment-sky{display:none}
-.wqs .wq-moment--s>.wq-moment-jg{grid-column:1;grid-row:1/span 3;width:44px;height:44px;margin:0}
-.wqs .wq-moment--s>.wq-moment-deed,.wqs .wq-moment--s>.wq-moment-meter,.wqs .wq-moment--s>.wq-moment-stars,.wqs .wq-moment--s>.wq-moment-growth{grid-column:2;justify-content:flex-start;margin:0}
+.wqs .wq-moment--s>.wq-moment-jg{grid-area:jg;width:44px;height:44px;margin:0}
+.wqs .wq-moment--s>.wq-moment-deed{grid-area:deed}.wqs .wq-moment--s>.wq-moment-meter{grid-area:meter}.wqs .wq-moment--s>.wq-moment-stars{grid-area:stars}.wqs .wq-moment--s>.wq-moment-growth{grid-area:growth}
+.wqs .wq-moment--s>.wq-moment-deed,.wqs .wq-moment--s>.wq-moment-meter,.wqs .wq-moment--s>.wq-moment-stars,.wqs .wq-moment--s>.wq-moment-growth{justify-content:flex-start;margin:0}
 .wqs .wq-moment--s>.wq-moment-growth{font-size:15px;margin-top:8px}
 .wqs .wq-moment--s>.wq-moment-deed{font-size:17px;width:auto}
 .wqs .wq-moment--s>.wq-moment-meter{gap:4px 8px}
@@ -46,12 +47,24 @@
 .wqs .wq-moment--s .wq-moment-light{width:16px;height:16px}
 .wqs .wq-moment--s .wq-moment-num{font-size:14px}
 .wqs .wq-moment--s .wq-moment-star{width:22px;height:22px}
-.wqs .wq-moment--s>.wq-moment-badge{grid-column:3;grid-row:1/span 3;flex-direction:column;gap:0;max-width:60px;padding:0;background:none;font-size:11px;line-height:1.3;text-align:center}
-.wqs .wq-moment--s .wq-moment-badge svg{width:32px;height:32px}
+/* the badge: one line beside the stars, its name readable (15 px, Urdu 17 px) */
+.wqs .wq-moment--s>.wq-moment-badge{grid-area:badge;flex-direction:row;gap:6px;padding:2px 10px 2px 4px;font-size:15px;line-height:1.4;white-space:nowrap}
+.wqs .wq-moment--s .wq-moment-badge svg{width:26px;height:26px;flex:none}
+.wqs .wq-moment--s[lang="ur"]>.wq-moment-badge{padding:0 4px 0 10px;font-size:17px;line-height:1.7}
 .wqs .wq-moment--s[lang="ur"]>.wq-moment-deed{font-size:17px;line-height:1.7}
 .wqs .wq-moment--s[lang="ur"] span{line-height:1.6}
 .wqs:has(.wqs-extra .wq-moment--s){height:100vh;height:100svh;min-height:0}
-.wqs:has(.wqs-extra .wq-moment--s) .wqs-stage{flex:1 1 0;height:auto;max-height:62vh;min-height:160px}
+.wqs:has(.wqs-extra .wq-moment--s) .wqs-stage{flex:1 1 0;height:auto;max-height:62vh;min-height:300px}
+/* while a page's result is there, only the next step under the card: no Whole page, no Slower, no Listen again (the
+   sentence plays from the page's own taps and the word chip); one offer to read again (Read with Jugnu, or "for 3 stars") */
+.wqs:has(.wqs-extra > .wq-moment) .wqs-whole,.wqs:has(.wqs-extra > .wq-moment) .wqs-slow,.wqs:has(.wqs-extra > .wq-moment) .wqs-extra > .wqs-again{display:none}
+.wqs-extra:has(> .wq-moment):has(> [data-tap="echo"]) > [data-tap="rfagain"]{display:none}
+/* the main button already says Next: the › arrow beside it steps aside, its place kept so Next stays centred */
+.wqs:has(.wqs-extra > .wq-moment) .wqs-ctl:has(> .wqs-next) > [data-tap="next"]{visibility:hidden}
+/* the practise line sits beside its word chip when they fit on one row */
+.wqs-extra:has(> .wq-moment){padding-inline:4px}
+.wqs-extra:has(> .wq-moment) > p{width:auto;flex:1 1 auto;font-size:17px}
+.wqs-extra:has(> .wq-moment) > .wqs-sec{min-height:48px;font-size:16px}
 /* "read it again": the jar's own offer, inside the card under it */
 .wq-moment-again{margin:10px 0 0}
 .wq-moment-again .wq-btn{width:100%;margin:0}
@@ -90,4 +103,39 @@
   .wq-moment[lang="ur"] .wq-moment-again .wq-btn{padding:4px 6px;font-size:15px;line-height:1.6}
   .wq-moment[lang="ur"] .wq-moment-deed{font-size:22px;line-height:1.6;margin-bottom:10px}
   .wq-moment[lang="ur"] .wq-moment-num,.wq-moment[lang="ur"] .wq-moment-growth{line-height:1.6}
+}
+/* the page's own card (no Trail): the moment's screen sits in the middle of the phone, never a block at the top with
+   the rest empty */
+.wq-screen.wqc:has(> #wqc-rf) { min-height: calc(100svh - 32px); display: flex; flex-direction: column; justify-content: center; }
+/* the card's sound switch says what it is (an icon alone read as a stray control) */
+#wqfc-snd { width: auto; min-width: 48px; padding: 0 16px; gap: 8px; justify-self: center; font-weight: 700; font-size: 16px; }
+#wqfc-snd::after { content: attr(aria-label); }
+html[lang=ur] #wqfc-snd::after { font-size: 17px; line-height: 2; }
+/* the Next tile in Urdu: the title one size up from the body, the small lines tight, so Share and Home stay on screen */
+html[lang=ur] .wqfc-nt { gap: 0; }
+html[lang=ur] .wqfc-nt b { font-size: 20px; line-height: 1.8; }
+html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; line-height: 1.6; }
+/* the practise card offers one thing at a time: the word chip; then "read it again for 3 stars"; the sentence plays from
+   the chip's later taps (wq-moment.js chip()). Only where the chip is drawn */
+:has(> .wq-moment):has(> .wqs-word) > [data-after-chip], :has(> .wq-moment):has(> .wqs-word) > [data-in-chip] { display: none; }
+.wq-moment-chipped > [data-after-chip] { display: revert; }
+/* :has() takes its argument's weight, so the hiding rule above outranks a plain two-class rule: this one matches its
+   weight and comes later. The practise line steps aside for the offer */
+.wq-moment-chipped:has(> .wq-moment):has(> .wqs-word) > [data-after-chip] { display: revert; }
+.wq-moment-chipped:has(> .wq-moment):has(> .wqs-word) > p { display: none; }
+/* Jugnu's line on the answered card wraps evenly, never one word alone on its last line */
+.wq-screen:has([data-rf]) .wq-say { text-wrap: balance; }
+/* a phone 860 px tall or less: the answered card keeps Next, Share and Home on the first screen — Jugnu a size smaller
+   above it, and the gaps around the sticker line and the sound switch closed up */
+@media (max-height: 860px) {
+  .wq-screen:has([data-rf]) .wq-jug.wq-big .wq-jimg { width: 96px; height: 96px; }
+  .wq-screen:has([data-rf]) .wq-jug.wq-big .wq-say { margin-bottom: 8px; }
+  .wq-screen:has([data-rf]) #wqc-sticker { margin: 4px 0; }
+  .wq-screen:has([data-rf]) .wqfc { gap: 8px; margin: 6px 0; }
+  .wq-screen:has([data-rf]) #wqfc-snd { min-height: 40px; height: 40px; }
+  .wq-screen:has([data-rf]) { row-gap: 8px; }
+  .wq-screen:has([data-rf]) > .wqc-fold:empty { display: none; }
+  .wq-screen:has([data-rf]) > .wq-moment { margin-block: 4px; }
+  .wq-screen:has([data-rf]) .wqfc-next { padding-block: 8px; min-height: 64px; }
+  html[lang=ur] .wq-screen:has([data-rf]) #wqc-sticker { line-height: 1.7; }
 }

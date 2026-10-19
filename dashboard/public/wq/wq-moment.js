@@ -43,7 +43,7 @@
       stars: function (n) { return n + ' of 3 stars'; },
       up: 'Faster than last time!', same: 'Steady, just like last time!', hear: 'Hear Jugnu say it',
       again: 'Read it again to light one more!', again3: 'Read it again for 3 stars!',
-      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu', readAgain: 'Read it again',
+      near: "I can't hear you yet. Come a little closer!", withJ: 'Read with Jugnu', readAgain: 'Read it again', once: "Let's read it once more!", home: 'Home',
       badge: { reader: 'Brave reader', star: 'Star reader', faster: 'Faster reader', try: 'Brave try' }
     },
     ur: {
@@ -55,8 +55,8 @@
       stars: function (n) { return 'ستارے: ۳ میں سے ' + ud(n); },
       up: 'پچھلی بار سے تیز!', same: 'بالکل پچھلی بار کی طرح، شاباش!', hear: 'جگنو سے سنیں',
       again: 'ایک اور روشنی کے لیے پھر سے پڑھیں!', again3: 'تین ستاروں کے لیے پھر سے پڑھیں!',
-      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں', readAgain: 'پھر سے پڑھیں',
-      badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'زبردست کوشش' }
+      near: 'مجھے ابھی آپ کی آواز نہیں آ رہی۔ تھوڑا قریب آئیں!', withJ: 'جگنو کے ساتھ پڑھیں', readAgain: 'پھر سے پڑھیں', once: 'آئیں، ایک بار پھر پڑھیں!', home: 'گھر',
+      badge: { reader: 'ہمت کا تمغہ', star: 'پڑھائی کا ستارہ', faster: 'رفتار کا تمغہ', try: 'ہمت والی کوشش' }
     }
   };
   function ud(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
@@ -131,7 +131,8 @@
     if (o.jg) out += '<img class="wq-moment-jg" src="/wq/jugnu/' + (fb.zero ? 'hello' : lv.stars === 3 ? 'celebrate' : 'correct') + '.webp" width="' + (o.size === 's' ? 56 : 72) + '" height="' + (o.size === 's' ? 56 : 72) + '" alt="" aria-hidden="true">';
     // o.said: the host's own Jugnu line; when it already says "let's read it together", the moment does not say it twice
     if (fb.zero) {
-      if (bare(o.said) !== bare(c.zero)) out += '<p class="wq-moment-deed">' + esc(c.zero) + '</p>';
+      // o.once: no read-along on this card, so the line asks for what its button does ("let's read it once more")
+      if (bare(o.said) !== bare(c.zero)) out += '<p class="wq-moment-deed">' + esc(o.once ? c.once : c.zero) + '</p>';
     } else {
       out += '<p class="wq-moment-deed">' + esc(fb.read ? c[fb.read] : c.words(fb.words)) + '</p>';
       var lights = '';
@@ -186,9 +187,11 @@
     o = o || {};
     var fb = feedback({ words_read: s.words_read, words_total: s.words_total, ms: s.ms });
     var h = html(fb, lang, { grade: o.grade, size: 's', jg: 1, still: o.still });
-    if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
+    // the practise card (o.hear) offers one thing at a time: the word chip first; "read it again for 3 stars" once the
+    // chip was tapped (o.chipped: this read's chip already was); the sentence plays from the chip's later taps (chip())
+    if (o.hear && slice(p, s, o)) h += '<button class="wqs-sec" data-tap="rfhear" data-in-chip data-sound data-trigger="tap">' + esc(C[L(lang)].hear) + '</button>';
     // read it again for 3 stars (a page is too short for lights); never after a 0-word try (that card leads with it)
-    if (!fb.zero && level(fb, o.grade).stars < 3) h += '<button class="wqs-sec" data-tap="rfagain">' + esc(C[L(lang)].again3) + '</button>';
+    if (!fb.zero && level(fb, o.grade).stars < 3) h += '<button class="wqs-sec" data-tap="rfagain"' + (o.hear && !o.chipped ? ' data-after-chip' : '') + '>' + esc(C[L(lang)].again3) + '</button>';
     return { html: h, fb: fb };
   }
   // play that sentence on the reader's own player (never a second one: one voice per book, the one mute), then stop.
@@ -250,10 +253,28 @@
   // the storybook reader's glue (wq-stories-q.js keeps its size budget): q(k, R, m, x) with the reader R, its machine m
   //   'page': this page's read, drawn (x {rd, st, sents}); 'hear': its skipped sentence played; 'withJ': the chip's "Read with Jugnu"; 'line': the read screen's [data-near] line; 'tick': near() for this read
   //   (x {g, v, ms}); 'with': stop the quiet read; 'after': after the result, Jugnu reads the page when that was tapped
+  // the practise card's word chip (the reader's .wqs-word), heard before the reader's own tap: its first tap is the word
+  // (and opens "read it again for 3 stars"); a later tap plays the word's sentence ("Hear Jugnu say it") instead
+  var chipOn = 0, chipRd = null;
+  function chip(e) {
+    var c = e && e.target && e.target.closest ? e.target.closest('.wqs-word') : null, box = c && c.parentNode, hb;
+    if (!box) return;
+    if (!box.classList.contains('wq-moment-chipped')) { box.classList.add('wq-moment-chipped'); if (chipRd) chipRd.chipped = 1; return; }
+    hb = box.querySelector('[data-in-chip]');
+    if (hb) { e.stopPropagation(); e.preventDefault(); hb.click(); }
+  }
+  // a page's result keeps the whole page in view (the reader's own Whole page, which the next page resets): a word
+  // replayed from the chip never zooms the art past the screen's edges
+  function whole(root) {
+    var w = root.querySelector('[data-whole]');
+    if (w && w.getAttribute('aria-pressed') !== 'true' && root._wqs) root._wqs('cam');
+  }
   function q(k, R, m, x) {
     var y;
     // its first draw: the picture has just given up height (wq-moment.css), so the page's word taps are placed again
-    if (k === 'page') { y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', sents: x.sents, still: x.rd.drawn }); if (!x.rd.drawn) R.C.set(fit, 0); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
+    if (k === 'page') {
+      if (x.st === 'practise') { chipRd = x.rd; if (!chipOn && document.addEventListener) { chipOn = 1; document.addEventListener('click', chip, true); } }
+      y = page(x.rd.s, R.P[m.i], R.L, { grade: R.b.grade, hear: x.st === 'practise', chipped: x.rd.chipped, sents: x.sents, still: x.rd.drawn }); if (!x.rd.drawn) R.C.set(fit, 0); R.C.set(function () { if (R.live()) whole(R.root); }, 0); x.rd.drawn = 1; x.rd.fb = y.fb; return y.html; }
     if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear, live: R.live });
     if (k === 'withJ') return say(k, R.L);
     if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';
@@ -264,5 +285,5 @@
 
   // label(lang, key): one of the moment's own words, for a host button that does the moment's action (the folded card)
   function label(lang, k) { return C[L(lang)][k]; }
-  window.WQMoment = { label: label, feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
+  window.WQMoment = { chip: chip, label: label, feedback: feedback, level: level, html: html, mount: mount, sound: sound, page: page, hear: hear, again: again, card: card, near: near, say: say, once: once, fresh: fresh, q: q, BANDS: BANDS };
 })();

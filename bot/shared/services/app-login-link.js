@@ -60,7 +60,7 @@ const COACH_LANDINGS = Object.freeze({
 
 /** A feature a token may carry: a teacher page or a coach page. Anything else cannot be signed or verified. */
 const linkable = (f) => typeof f === 'string'
-  && (Object.prototype.hasOwnProperty.call(LANDINGS, f) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, f));
+  && (Object.prototype.hasOwnProperty.call(LANDINGS, f) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
 
 /** This environment, as its Supabase host (`<ref>.supabase.co`), or null when SUPABASE_URL is missing or not a URL. */
 function environment() {

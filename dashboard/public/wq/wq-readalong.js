@@ -1,8 +1,8 @@
 /**
  * Read-along: Jugnu reads, and a green pill moves from word to word as each word is spoken.
  *
- *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, tap, lines });
- *   p.play(); p.pause(); p.toggle(); p.replay(); p.seekToWord(i); p.playWord(i); p.destroy();
+ *   var p = WQReadAlong.mount(el, data, { mode, leadMs, labels, onWord, onEnd, onState, onWordTap, tap, lines, gaps });
+ *   p.play(); p.pause(); p.toggle(); p.replay(); p.seekToWord(i); p.playWord(i); p.slow(on, gaps); p.destroy();
  *
  * `data` is a timing object {v, id, lang, dir, audio:{url, ms, mime}, words:[{i, t, s_ms, e_ms, box?}], image?:{url, w, h},
  * quality?} (made by scripts/web-quiz/readalong-build.js), or a URL that returns one. Three modes, one clock, ONE pill:
@@ -15,6 +15,9 @@
  * The clock is the audio element: while playing, one requestAnimationFrame loop reads audio.currentTime and moves the
  * pill only when the word changes (≤ 1 frame late, no layout work per frame). The pill leads the sound by `leadMs`.
  * tap 'sentence': a tapped word replays its sentence (a "low" page: the lines it spans; `lines`: the page's own), lit as it plays.
+ * gaps {sentence, comma} [target, least] ms (true: [700,500]/[400,250]), opt-in: the clip waits after a sentence end, a comma
+ * or a line end, the pill on its word, for the target less its own pause, never under the least; play, pause, a seek or destroy drops it.
+ * p.slowed is set once the clip has waited at one (the storybook's slow: 1 in its page-listened event).
  * Never autoplays: the first play() must run inside the child's tap (the in-app browser's audio unlock).
  * Fires window event 'wq:readalong' {type: started|word|finished|paused|resumed|tap_word, i, id}.
  */
@@ -38,6 +41,9 @@
     + '@keyframes wqra-p{50%{transform:scale(1.08)}}'
     + '@media (prefers-reduced-motion:reduce){.wqra-w,.wqra-pill{transition:none}.wqra-btn.wqra-pulse{animation:none}}';
 
+  // a sentence's end (= sentenceOf below) and a comma, either before closing quotes or brackets
+  var END_RX = /[.!?\u06D4\u061F]["'\u201D\u2019)\u00BB]*$/;
+  var COMMA_RX = /[,\u060C;\u061B]["'\u201D\u2019)\u00BB]*$/;
   var METHODS = ['play', 'pause', 'toggle', 'replay', 'seekToWord', 'playWord', 'destroy'];
   var ICON = { play: '▶', pause: '❚❚', replay: '↻' };
   var LABEL = { play: 'Play', pause: 'Pause', replay: 'Again' };
@@ -142,12 +148,16 @@
     var unraf = window.cancelAnimationFrame ? function (h) { window.cancelAnimationFrame(h); } : function (h) { clearTimeout(h); };
     var loop = null;
     var stopAt = null;       // playWord: pause when the clock passes this ms
+    var stopI = -1;          // ...and the slice's last word: the lead never lights the word after it
     var finished = false;
     var started = false;
     var dead = false;
     var spans = [];
     var pill = null;
     var img = null;
+    var gapAt = {};          // word → ms to wait after it
+    var gf = 0;              // gaps count from this ms
+    var hold = null;
 
     function mk(tag, cls, attrs, text) {
       var n = document.createElement(tag);
@@ -202,6 +212,7 @@
     var audio = new Audio();
     audio.preload = 'auto';
     audio.src = d.audio.url;
+    setGaps(opts.gaps);
 
     // image px → shown px: the picture keeps its ratio (width 100%), so one scale for x and y
     function scale() {
@@ -260,6 +271,17 @@
       if (api.current >= 0) paint(api.current, true);
     }
 
+    function setGaps(g) {
+      var ends = {}, last = indexAt(words, 1e9);
+      gapAt = {}; gf = audio.currentTime * 1000 || 0;
+      if (g === true) g = { sentence: [700, 500], comma: [400, 250] };
+      if (g) (opts.lines || (boxed ? boxLines(words) : [])).forEach(function (l) { ends[l[1]] = 1; });
+      // [target, least]: the wait is max(least, target − the clip's own pause (next start − this end)); none where the timings overlap
+      if (g) words.forEach(function (w, k) { var n = k < last && !w.sil ? words[k + 1].s - w.e : -1, v = END_RX.test(w.t) ? g.sentence : COMMA_RX.test(w.t) || ends[k] ? g.comma : 0; if (n >= 0 && v) gapAt[k] = Math.max(v[1], v[0] - n); });
+    }
+    function unhold() { clearTimeout(hold); hold = null; }
+    function resume() { hold = null; if (!dead && api.state === 'playing') play(1); }
+
     function paint(i, force) {
       if (i === api.current && !force) return;
       var was = api.current;
@@ -301,7 +323,12 @@
       if (dead) return;
       var t = (audio.currentTime || 0) * 1000;
       if (stopAt != null && t >= stopAt) { stopAt = null; pause(); return; }
-      paint(indexAt(words, t + lead));
+      var i = indexAt(words, t + lead);
+      if (stopAt != null && stopI >= 0 && i > stopI) i = stopI;
+      // the next gap the clip has not reached (none while one word or sentence plays): the pill never passes it
+      // the clip stops mid-silence after the word (an early end time never clips the word)
+      for (var k in gapAt) if (stopAt == null && gapAt[k] && words[k].e > gf) { var at = Math.max(words[k].e, (words[k].e + words[+k + 1].s) / 2); if (i > k) i = +k; if (t >= at) { paint(+k); audio.pause(); gf = words[k].e; api.slowed = 1; hold = setTimeout(resume, gapAt[k]); return; } break; }
+      paint(i);
       // the end: the audio's own 'ended', or (a stream that never says it) the clock past the stored length
       if (!finished && d.audio.ms > 0 && t >= d.audio.ms) { finish(); return; }
       if (api.state === 'playing') loop = raf(tick);
@@ -311,6 +338,7 @@
       finished = true;
       if (loop) { unraf(loop); loop = null; }
       stopAt = null;
+      unhold();
       // rewound at once, paused: a clip left "ended" makes the browser's next play() jump to 0 after any seek we make
       try { audio.pause(); audio.currentTime = 0; } catch (e) { /* already stopped */ }
       paint(-1);
@@ -319,20 +347,22 @@
       if (onEnd) onEnd();
     }
 
-    function play() {
+    function play(r) {
       if (dead) return;
       if (finished) { finished = false; try { audio.currentTime = 0; } catch (e) { /* not seekable yet */ } }
+      if (!r) { unhold(); gf = audio.currentTime * 1000 || 0; }
       var first = !started;
       started = true;
       var pr;
       try { pr = audio.play(); } catch (e) { pr = null; setState('blocked'); return; }
       setState('playing');
-      emit(first ? 'started' : 'resumed', api.current, d.id);
+      if (!r) emit(first ? 'started' : 'resumed', api.current, d.id);
       if (!loop) loop = raf(tick);
       if (pr && pr.catch) pr.catch(function () { if (!dead && api.state === 'playing') { setState('blocked'); } });
     }
     function pause() {
       if (dead) return;
+      unhold();
       try { audio.pause(); } catch (e) { /* already stopped */ }
       if (loop) { unraf(loop); loop = null; }
       if (api.state === 'playing') { setState('paused'); emit('paused', api.current, d.id); }
@@ -343,6 +373,7 @@
       finished = false;
       play();
       try { audio.currentTime = Math.max(0, ms) / 1000; } catch (e) { /* not seekable yet */ }
+      gf = Math.max(0, ms);
       paint(i);
     }
     function seekToWord(i) {
@@ -359,7 +390,7 @@
             var r = sentenceOf(words, i);
             if (quality === 'low') r = [tapLine(r[0])[0], tapLine(r[1])[1]];
             playFrom(words[r[0]].s - lead, r[0]);
-            stopAt = words[r[1]].e;
+            stopAt = words[r[1]].e; stopI = r[1];
           } else seekToWord(i);
           emit('tap_word', i, d.id);
           if (opts.onWordTap) opts.onWordTap(i);
@@ -385,8 +416,10 @@
     api.playWord = function (i) {
       if (dead || quality === 'low' || !(i >= 0 && i < words.length)) return;
       playFrom(words[i].s, i);
-      stopAt = words[i].e;
+      stopAt = words[i].e; stopI = i;
     };
+    // the storybook's Slower: with gaps (its switch) the voice keeps its own speed and waits between phrases; else the old stretch
+    api.slow = function (on, g) { audio.playbackRate = on && !g ? 0.85 : 1; audio.preservesPitch = true; setGaps(on && g); };
     api.destroy = function () {
       if (dead) return;
       pause();

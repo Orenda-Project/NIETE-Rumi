@@ -35,6 +35,7 @@ export function OpenPlanPage() {
     if (once.current) return;
     once.current = true;
     const q = new URLSearchParams(search);
+    if ((q.get('plan') || '').startsWith('fln:')) { navigate('/portal/fln/p/' + encodeURIComponent((q.get('plan') || '').slice(4)), { replace: true }); return; }
     const m = /^(k5|g612):(.+)$/.exec(q.get('plan') || '');
     const home = () => navigate(teacherPath('lessons'), { replace: true });
     if (!m) { home(); return; }
@@ -43,7 +44,7 @@ export function OpenPlanPage() {
     const g = Number(q.get('grade'));
     const grade = Number.isInteger(g) && g >= 1 && g <= 12 ? g : null;
     const lang = lane === 'g612' ? (q.get('lang') === 'ur' ? 'ur' : 'en') : null;
-    const dc = { grade, subjectKey: null, plan: `${lane}:${ref}`, lang };
+    const dc = { grade, subjectKey: null, plan: `${lane}:${ref}`, lang, subjectName: q.get('subject') || null };
     // Opened from Digital Coaching's attached plan (bd-fgj73x.5): to read it, no Start DC on it.
     const fromDc = q.get('from') === 'dc';
     const toViewer = (source: Parameters<typeof openPlan>[0]) =>

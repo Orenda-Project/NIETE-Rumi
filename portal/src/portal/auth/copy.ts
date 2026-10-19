@@ -74,6 +74,9 @@ export const AUTH_EN = {
   couldntCreate: "Couldn't set up",
   linkExpired: 'Link expired',
   alreadySetUp: 'Already set up',
+  // A short-lived notice for people a server change signed out (auth/SignedOutBanner, which ends it by date). A
+  // sentence on purpose: the operator approved these exact words.
+  signedOut: 'Signed out? Log in with a code on WhatsApp — no password needed.',
 };
 
 export const AUTH_UR: Words<typeof AUTH_EN> = {
@@ -131,6 +134,8 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   couldntCreate: 'سیٹ اپ نہیں ہوا',
   linkExpired: 'لنک ختم ہو گیا',
   alreadySetUp: 'پہلے سے سیٹ اپ',
+  // The verb agrees with «لاگ ان», never with the reader: no gendered second-person form.
+  signedOut: 'لاگ ان ختم ہو گیا؟ واٹس ایپ پر کوڈ سے لاگ ان کریں، پاس ورڈ کی ضرورت نہیں۔',
 };
 
 export const AUTH = bilingual(AUTH_EN, AUTH_UR);
@@ -144,5 +149,6 @@ export const COPY_ENTRY: CopyEntry = {
   same: ['brand', 'logoAlt', 'phoneHint'],
   // The ontology's own words for "it reached her WhatsApp" (واٹس ایپ پر بھیجا گیا is 5 words in Urdu), used word for word.
   // "Register on WhatsApp" is the same phrase shape in Urdu (واٹس ایپ پر رجسٹر کریں, 5 words): bd-x7aprz.3.
-  longOk: ['sentOnWhatsapp', 'registerOnWa'],
+  // The signed-out notice is the one approved sentence on these pages, and it ends by date (auth/SignedOutBanner).
+  longOk: ['sentOnWhatsapp', 'registerOnWa', 'signedOut'],
 };

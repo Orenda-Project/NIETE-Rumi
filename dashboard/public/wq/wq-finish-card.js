@@ -73,7 +73,8 @@
     }
   };
   var W = {
-    // sendPlain: a child with no class (the child home on: the menu's no_class / a watch-only Videos door)
+    // sendPlain: a child with no class (the child home on: the menu's no_class / a watch-only Videos door); in Urdu, the
+    // host's o.urs (web_quiz_ur_share_copy) says SH.friends «دوستوں کو بھیجیں» in its place
     en: { send: 'Share to class group', sendPlain: 'Share', next: 'Next', home: 'Home', sound: 'Sound', mins: function (n) { return n + ' min'; },
       ret: 'Play with Jugnu any day. Tap, then send:', words: 'quiz please', quizDeed: 'You finished the whole quiz!' },
     ur: { send: 'کلاس گروپ میں بھیجیں', sendPlain: 'شیئر کریں', next: 'اگلا', home: 'واپس جائیں', sound: 'آواز', mins: function (n) { return urDigits(n) + ' منٹ'; },
@@ -218,7 +219,7 @@
       (o.sound === false ? '' : '<button class="wqfc-snd" id="wqfc-snd" type="button" data-tap="sound" aria-label="' + esc(W[l].sound) + '" aria-pressed="' + (muted() ? 'true' : 'false') + '">' + (muted() ? SND_OFF : SND_ON) + '</button>') +
       (lead ? tile : '') +
       // a read that certified nothing (read_tried) is not shared: no Share on the try card
-      (o.deed === 'read_tried' ? '' : '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? (o.v4 === true ? SH[l].friends : W[l].sendPlain) : W[l].send) + '</a>') +
+      (o.deed === 'read_tried' ? '' : '<a class="wq-btn ' + (lead ? 'wq-soft' : 'wq-go') + ' wqfc-share" id="wqfc-share"' + (lead ? '' : ' data-primary') + ' data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(text)) + '">' + esc(o.plain === true ? (o.v4 === true || (l === 'ur' && o.urs === true) ? SH[l].friends : W[l].sendPlain) : W[l].send) + '</a>') +
       (lead ? '' : tile) +
       (o.home && /^\/[^/]/.test(o.home) ? '<a class="wq-btn wq-soft wqfc-home" id="wqfc-home" data-home data-tap="home" href="' + esc(o.home) + '">' + esc(W[l].home) + '</a>' : '') +
       '</div>';
@@ -309,7 +310,8 @@
     minted[k] = fetch('/api/wq/card', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' })
       .then(function (r) { return r && r.ok ? r.text() : null; })
       .then(function (t) { try { return t ? JSON.parse(t) : null; } catch (e) { return null; } })
-      .then(function (j) { return j && typeof j.url === 'string' && /^\/(k\/|q\/)/.test(j.url) ? j : null; })
+      // the card's own link: /k/<t>, a class link /q/<code>?k=<t>, or a short link /s/<id> (web_quiz_share_short)
+      .then(function (j) { return j && typeof j.url === 'string' && (/^\/(k\/|q\/)/.test(j.url) || /^\/s\/[0-9a-f]{8}$/.test(j.url)) ? j : null; })
       .catch(function () { return null; });
     return minted[k];
   }
@@ -585,6 +587,7 @@
   function trailEnd(h, o) {
     var d = h.S.data || {};
     var r = o.r || {};
+    if ((h.md() || {}).offline_guard === true) og(h.L);
     // o.fold (the child home on): a practice run (Story Time, a stop played again) gets the card too
     if (!(h.md() || {}).card_v3 || d.round_turn || (d.practice_round && !o.fold) || !d.ct) return false;
     var t = o.t || {};
@@ -605,7 +608,7 @@
     var ttl = d.title && typeof d.title === 'object' ? (h.L === 'ur' && d.title.ur) || d.title.en || '' : '';
     // o.fold (the child home on): the host's one next thing leads (the share soft under it); none = the host's questions
     var on = mount(document.querySelector('#wq .wq-stack'), { kind: kind, deed: deed, lang: h.L, title: typeof ttl === 'string' ? ttl : '', next: o.fold ? o.fold.next : r.next_offer || d.next_offer, lead: !!o.fold,
-      plain: !!o.fold && (h.md() || {}).no_class === true, auth: { ct: d.ct }, ev: h.ev, v4: (h.md() || {}).share_v4 === true || undefined });
+      plain: !!o.fold && (h.md() || {}).no_class === true, auth: { ct: d.ct }, ev: h.ev, v4: (h.md() || {}).share_v4 === true || undefined, urs: (h.md() || {}).ur_share === true || undefined });
     if (!on) return false;
     try {
       var old = document.getElementById('wqfc-next') ? document.getElementById('wqc-next') : null;
@@ -664,6 +667,58 @@
     };
   }
 
+  // A tap while offline (og(): only with the page's offline_guard): the card's and the fold's Next and Home. Offline:
+  // stay, the offline line + Try again; `online` or Try again taps the link again once. A slow line HEADs it first (2 s).
+  var OFF = { en: ['No internet. Try again when you are online.', 'Try again'], ur: ['انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔', 'دوبارہ کوشش کریں'] };
+  var ogL = 'en', ogOn = 0, ogPass = 0, ogHeld = null;
+  // The line check asks a small static file of ours, never the page (a page's address runs its handler on the server).
+  function ogProbe() {
+    try { var l = document.querySelector('link[href*="/wq/wq.css"]'); var h = l && l.getAttribute('href'); if (h) return h; } catch (e) {}
+    return '/wq/manifest.webmanifest';
+  }
+  function og(lang) {
+    ogL = L(lang);
+    if (ogOn) return;
+    ogOn = 1;
+    document.addEventListener('click', function (e) {
+      var a = !ogPass && e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      var href = a && /^(wqfc-next|wqfc-home|wqc-fnext|wqc-fhome|wq-fnext)$/.test(a.id) ? a.getAttribute('href') || '' : '';
+      if (!href || href.charAt(0) === '#') return;
+      var nav = function () { if (document.contains(a)) { ogPass = 1; try { a.click(); } finally { ogPass = 0; } } else location.assign(href); };
+      if (ogHeld) { ogHeld.nav = nav; }
+      else if (navigator.onLine === false) ogHold(nav);
+      else {
+        var c = navigator.connection;
+        if (!(c && (c.saveData || /(^|-)2g$/.test(String(c.effectiveType || '')))) || typeof fetch !== 'function') return;
+        ogHeld = { nav: nav };
+        var t = setTimeout(function () { end(1); }, 2000);
+        var end = function (ok) { if (!ogHeld || ogHeld.box) return; clearTimeout(t); var n = ogHeld.nav; ogHeld = null; if (ok) n(); else ogHold(n); };
+        fetch(ogProbe(), { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' }).then(function () { end(1); }, function () { end(0); });
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+  }
+  function ogHold(nav) {
+    var box = document.createElement('div');
+    box.className = 'wqfc-off';
+    box.setAttribute('role', 'status');
+    box.setAttribute('style', 'position:fixed;left:16px;right:16px;bottom:16px;z-index:50;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.2);text-align:center');
+    box.innerHTML = '<p dir="auto">' + esc(OFF[ogL][0]) + '</p><button class="wq-btn wq-go" type="button">' + esc(OFF[ogL][1]) + '</button>';
+    ogHeld = { nav: nav, box: box };
+    var fire = function () {
+      if (!ogHeld || navigator.onLine === false) return;
+      var n = ogHeld.nav;
+      ogHeld = null;
+      window.removeEventListener('online', fire);
+      if (box.parentNode) box.parentNode.removeChild(box);
+      n();
+    };
+    box.querySelector('button').addEventListener('click', fire);
+    window.addEventListener('online', fire);
+    document.body.appendChild(box);
+  }
+
   // A share whose picture is the screen's own (the class table, the school league: wq.js, share_v4): the same sheet,
   // with that picture, the words and then the link on its own line, the picture as a file where the phone has one.
   function shareArt(o) {
@@ -672,7 +727,7 @@
     openSheet({ kind: o.src === 'schools' ? 'schools' : 'table', lang: o.lang, ev: o.ev }, { img: o.img, save: o.save, text: text, url: url, file: o.file || null });
   }
 
-  window.WQFC = { mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
+  window.WQFC = { og: og, mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,
     deedFor: deedFor, deedText: deedText, numbersFor: numbersFor, unheard: unheard, together: together, triedLine: triedLine, trailEnd: trailEnd,
     html: html, nextHtml: nextHtml, sheetHtml: sheetHtml, SHEET_CSS: SHEET_CSS, DEEDS: DEEDS, W: W, S: S, SH: SH, CSS: CSS, CSS_1B: CSS_1B };
 })();

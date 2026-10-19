@@ -218,7 +218,7 @@ describe("open?plan= — reopen by key", () => {
     await waitFor(() => expect(where().dataset.path).toBe(LESSONS_VIEWER));
     const state = JSON.parse(where().dataset.state as string);
     expect(state.lessonPlan).toEqual(expect.objectContaining({ source: { lane: "k5", lessonId: "L2", assetKind: "lesson" }, title: "Roots and stems" }));
-    expect(state.dc).toEqual({ grade: 4, subjectKey: null, plan: "k5:L2", lang: null });
+    expect(state.dc).toEqual({ grade: 4, subjectKey: null, plan: "k5:L2", lang: null, subjectName: null });
   });
 
   it("grades 6–12: asked for in her language; written → the viewer", async () => {

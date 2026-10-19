@@ -38,7 +38,19 @@ describe('the hub page', () => {
     expect(WaitUx.TAG).toBe(`<style id="wq-wait">${WaitUx.CSS}</style><script>${WaitUx.JS}</script>`);
     expect(WaitUx.CSS.match(/content:"[^"]*"/g)).toEqual(['content:""']);
     expect(WaitUx.JS).not.toMatch(/textContent|innerText|createTextNode/);
-    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2600);
+    // the bar's track (B4) added ~80 bytes: still under 0.1 ms of a 1.6 Mbps line
+    expect(Buffer.byteLength(WaitUx.TAG)).toBeLessThan(2700);
+  });
+  // A bar a child can see (the design review's B4): 4 px, the brand colour at full opacity, running over a lighter track of
+  // the same colour across the whole width, so a 10 % bar still reads as "loading" and not as a stray line.
+  test('the bar is 4 px of the brand colour at full opacity over a visible track', () => {
+    const bar = WaitUx.CSS.match(/\.wq-wbar\{[^}]*\}/)[0];
+    expect(bar).toMatch(/height:4px/);
+    expect(bar).toMatch(/background:#47ba7d[0-9a-f]{2};/);
+    expect(bar).toMatch(/background:color-mix\(in srgb,var\(--brand,#47BA7D\) 2\d%,#0000\)/);
+    const fill = WaitUx.CSS.match(/\.wq-wbar i\{[^}]*\}/)[0];
+    expect(fill).toMatch(/background:var\(--brand,#47BA7D\)/);
+    expect(fill).not.toMatch(/opacity/);
   });
 });
 

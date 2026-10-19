@@ -25,6 +25,13 @@
  *      worse than returning null and letting the caller ask. A failed load is
  *      also not cached, so a transient error self-heals on the next call.
  *
+ *      With the app_settings switch `class_vocabulary_outage_guard` ON (default
+ *      OFF), a failed grade_levels load (an error OR a thrown query) is kept for
+ *      30 s instead (settings/switch-cache): one read and one log line per 30 s
+ *      in an outage, callers that arrive together share one read, and the
+ *      answer is the last vocabulary this process loaded, else null. Nothing
+ *      thrown reaches the caller. OFF, every load is today's.
+ *
  * Band spellings live in code, not in a table: `band` is a CHECK-constrained
  * column, and the 32 legacy spellings are a tokenizer problem (separators,
  * casing, two typos), not reference data worth a third table. Rule 15.
@@ -32,6 +39,7 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 // ---------------------------------------------------------------------------
 // Bands
@@ -85,8 +93,55 @@ function indexByAlias(rows, extra = (r) => [r.code]) {
   return index;
 }
 
+// ---------------------------------------------------------------------------
+// Outage guard (switch class_vocabulary_outage_guard, default OFF)
+// ---------------------------------------------------------------------------
+
+const OUTAGE_GUARD_KEY = 'class_vocabulary_outage_guard';
+const OUTAGE_RETRY_MS = 30 * 1000;
+
+function isTrue(value) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+}
+
+/** The switch: a failed read is the last good answer, else OFF, for 30 s. Never throws. */
+const outageGuard = cachedSwitch({
+  ttlMs: OUTAGE_RETRY_MS,
+  off: false,
+  read: async () => {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [OUTAGE_GUARD_KEY]);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    const row = (data || []).find((r) => r.key === OUTAGE_GUARD_KEY);
+    return Boolean(row) && isTrue(row.value);
+  },
+  log: (err) => logToFile('⚠️ class-vocabulary: outage guard switch read failed — off', { error: err && err.message }),
+});
+
+/** The guarded grade_levels load: a good read fills the 10-min cache; a failed one is kept 30 s. */
+const guardedGrades = cachedSwitch({
+  ttlMs: OUTAGE_RETRY_MS,
+  off: () => cache.grades, // the last vocabulary this process loaded (even past its 10 min), else null
+  read: async () => {
+    const { data, error } = await supabase
+      .from('grade_levels')
+      .select('code, ordinal, band, aliases, sort_order')
+      .eq('is_active', true);
+    if (error || !data) throw new Error((error && error.message) || 'grade_levels returned no rows');
+    cache.grades = { rows: data, byAlias: indexByAlias(data) };
+    cache.gradesAt = Date.now();
+    return cache.grades;
+  },
+  log: (err) => logToFile('⚠️ class-vocabulary: grade_levels load failed — answering from the last loaded vocabulary, else null, for 30 s', {
+    error: err && err.message,
+  }),
+});
+
 async function loadGrades() {
   if (fresh(cache.gradesAt) && cache.grades) return cache.grades;
+
+  if (await outageGuard.get(Date.now())) return guardedGrades.get(Date.now());
 
   const { data, error } = await supabase
     .from('grade_levels')
@@ -220,6 +275,7 @@ function clearCache() {
   cache.gradesAt = 0;
   cache.subjects = null;
   cache.subjectsAt = 0;
+  guardedGrades.reset();
 }
 
 module.exports = {
@@ -229,4 +285,5 @@ module.exports = {
   resolveSubject,
   clearCache,
   BAND_ORDER,
+  OUTAGE_GUARD_KEY,
 };

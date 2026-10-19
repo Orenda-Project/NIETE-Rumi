@@ -316,6 +316,18 @@ describe('the finish card after a watched video: the home says when the card is 
       expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('share_v4');
     }
   });
+  test('the corrected Urdu share words (ur_share JSON true): the home carries it, with the card or without; anything else: not', async () => {
+    for (const field of [{ card_v3: true, ur_share: true }, { ur_share: true }]) {
+      Home._useModules({ card: { field: async () => field } });
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).toHaveProperty('ur_share', true);
+    }
+    for (const field of [{ card_v3: true }, { card_v3: true, ur_share: 'true' }, { ur_share: 1 }, {}]) {
+      Home._useModules({ card: { field: async () => field } });
+      seed(HOME_ON);
+      expect(await Hub.hub(T.signHub([KID]), A)).not.toHaveProperty('ur_share');
+    }
+  });
   test('GOLDEN: web_quiz_home_v3 off -> no key even with the card on', async () => {
     Home._useModules({ card: { field: async () => ({ card_v3: true }) } });
     seed(BASE_ON);

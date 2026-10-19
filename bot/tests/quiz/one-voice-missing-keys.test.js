@@ -111,11 +111,27 @@ test('nothing uploaded yet: every clip is missing, listed by passage and part (n
   expect(r2.uploadBuffer).not.toHaveBeenCalled();
 });
 
+test('Jugnu\'s exercise lines (intro, start, stop, done of every exercise, EN + UR) are checked too, and the batch records them', async () => {
+  const { lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
+  ['en', 'ur'].forEach((lang) => ['bigger', 'missing', 'read', 'listen'].forEach((ex) => ['intro', 'start', 'stop', 'done'].forEach((part) => {
+    expect(lines).toContain(`missing\texercise\t${lang}\t${ex}/${part}`);
+  })));
+  Ch.__reset(); OneVoice.reset(); jest.clearAllMocks();
+  r2.headObject.mockResolvedValue({ exists: false });
+  tts.synthesize.mockImplementation(async ({ text }) => ({ audio: Buffer.from('OggS'), provider: 'elevenlabs', voice: 'v', durationSec: Math.max(0.6, [...String(text)].length / 14) }));
+  const out = [];
+  await MK.main(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { env: ENV, print: (l) => out.push(l), now: NOW, stt: async (_a, _l, t) => t });
+  const keys = r2.uploadBuffer.mock.calls.map(([, k]) => k);
+  expect(keys.some((k) => /\/challenge\/en\/listen\/intro-el-bella-cff2e4-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  expect(keys.some((k) => /\/challenge\/ur\/read\/done-el-sara-k32-[0-9a-f]{8}\.ogg$/.test(k))).toBe(true);
+  expect(out).toContain('recorded\texercise\tur\tbigger/intro');
+});
+
 test('every key present and both shared-line sets exist: ok, 0 missing', async () => {
   r2.headObject.mockResolvedValue({ exists: true });
   const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN]);
   expect(r).toMatchObject({ ok: true, missing: 0, shared: { en: 'el-bella-cff2e4', ur: 'el-sara' } });
-  expect(lines[lines.length - 1]).toMatch(/^SUMMARY present=\d+ total=\d+ missing=0 shared=en:el-bella-cff2e4,ur:el-sara ok=yes$/);
+  expect(lines[lines.length - 1]).toMatch(/^SUMMARY present=\d+ total=\d+ missing=0 shared=en:el-bella-cff2e4,ur:el-sara dropped=0 ok=yes$/);
 });
 
 test('the rate is in the key: clips present at 64 kb/s under a 32 kb/s plan are missing (wrong rate), at 64 they are ok', async () => {
@@ -142,12 +158,50 @@ test('a language the plan leaves out is today\'s: its clips are looked up under 
   const reva = { provider: 'elevenlabs', voice: 'o85TqPN3F4P7dWae2paA', name: 'Reva', model: 'eleven_v4',
     settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1 } };
   const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify({ voices: { ur: reva } })]);
-  expect(lines[0]).toMatch(/ en=today ur=el-reva-cc0c3b$/);
+  expect(lines[0]).toMatch(/ en=today ur=el-reva-cc0c3b challenge=en:today,ur:el-sara quiz_voices=0 dropped=0$/);
   expect(r).toMatchObject({ ok: true, missing: 0, shared: { en: 'today', ur: 'el-reva-cc0c3b' } });
   const asked = r2.headObject.mock.calls.map(([k]) => k);
   expect(asked.filter((k) => k.includes('/en/')).length).toBeGreaterThan(0);
   expect(asked.filter((k) => k.includes('/en/')).every((k) => k.includes(`-${Voice.voiceTag('en')}-`))).toBe(true);
-  expect(asked.filter((k) => k.includes('/ur/')).every((k) => k.includes('-el-reva-cc0c3b-'))).toBe(true);
+  // Jugnu's challenge clips are the storybook voice (Sara), whatever voice the plan gives the quiz lines
+  expect(asked.filter((k) => k.includes('/ur/')).every((k) => k.includes('-el-sara-'))).toBe(true);
+});
+
+/*
+ * Line 1 names both families the flip moves: the quiz lines' voice per language (and its shared lines), and the
+ * challenge's storybook voice per language (its clip keys). A per-quiz map (`quiz_voices`) is counted as the switch
+ * value carries it: an entry the plan drops (not a recorded set's name or "keep") would silently give that quiz its
+ * language's voice, so it is counted and the check is not ok; a mapped set with no shared lines is missing.
+ */
+describe('both families on line 1, and the per-quiz map', () => {
+  const shanaya = Voice.SET_VOICES['el-shanaya-e228e6'];
+  const reva = Voice.SET_VOICES['el-reva-cc0c3b'];
+
+  test('a plan with a clean map: both families and the map\'s size on line 1; ok', async () => {
+    r2.headObject.mockResolvedValue({ exists: true });
+    const plan = { voices: { en: shanaya, ur: reva }, quiz_voices: { 'quiz-a': 'el-anjura-e228e6', 'quiz-b': 'keep' } };
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify(plan)]);
+    expect(lines[0]).toMatch(/ en=el-shanaya-e228e6 ur=el-reva-cc0c3b challenge=en:el-bella-cff2e4,ur:el-sara quiz_voices=2 dropped=0$/);
+    expect(r).toMatchObject({ ok: true, missing: 0, dropped: 0 });
+  });
+
+  test('an entry the plan drops (a bare voice name) is counted, and the check is not ok', async () => {
+    r2.headObject.mockResolvedValue({ exists: true });
+    const plan = { voices: { en: shanaya, ur: reva }, quiz_voices: { 'quiz-a': 'anjura', 'quiz-b': 'keep', 'quiz-c': 'el-anjura-e228e6' } };
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify(plan)]);
+    expect(lines[0]).toMatch(/ quiz_voices=3 dropped=1$/);
+    expect(lines).toContain('dropped\tquiz_voices\tquiz-a');
+    expect(r).toMatchObject({ ok: false, missing: 0, dropped: 1 });
+    expect(lines[lines.length - 1]).toMatch(/ dropped=1 ok=no$/);
+  });
+
+  test('a mapped set with no recorded shared lines is missing, and the check is not ok', async () => {
+    r2.headObject.mockResolvedValue({ exists: true });
+    const plan = { voices: { en: shanaya, ur: reva }, quiz_voices: { 'quiz-a': 'el-nobody-e228e6' } };
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', JSON.stringify(plan)]);
+    expect(lines).toContain('missing\tshared-lines\tquiz\tel-nobody-e228e6');
+    expect(r).toMatchObject({ ok: false, missing: 0 });
+  });
 });
 
 /*
@@ -181,6 +235,34 @@ describe('--record-short', () => {
     expect(stt).toHaveBeenCalled();                                      // the questions of 4+ words were heard
     expect(lines.some((l) => /^SPEND usd=\d+\.\d+ chars=\d+$/.test(l))).toBe(true);
     expect(lines.filter((l) => l.startsWith('recorded\t')).length).toBe(keys.length);
+  });
+
+  test('a plan with a loudness: each take is levelled to it at the plan\'s rate before it is stored; without one, never', async () => {
+    tts.synthesize.mockImplementation(async ({ text }) => ok(text));
+    const level = jest.fn(async () => Buffer.from('OggS-levelled'));
+    const loud = JSON.stringify({ voices: { en: V2_BELLA, ur: SARA }, kbps: 32, loudness_lufs: -21 });
+    const { r } = await rec(['--expect-ref', REF, '--plan', loud, '--record-short', '--max-usd', '5'], { stt: async (_a, _l, t) => t, level });
+    expect(r.recorded).toBeGreaterThan(0);
+    expect(level).toHaveBeenCalledTimes(r.recorded);
+    level.mock.calls.forEach(([audio, lufs, kbps]) => { expect(audio.slice(0, 4).toString()).toBe('OggS'); expect([lufs, kbps]).toEqual([-21, 32]); });
+    expect(r2.uploadBuffer.mock.calls.every(([buf]) => buf.toString() === 'OggS-levelled')).toBe(true);
+    OneVoice.reset(); Ch.__reset(); level.mockClear(); r2.uploadBuffer.mockClear();
+    await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5'], { stt: async (_a, _l, t) => t, level });
+    expect(level).not.toHaveBeenCalled();
+    expect(r2.uploadBuffer.mock.calls.every(([buf]) => buf.toString() === 'OggS')).toBe(true);
+  });
+
+  test('the default hearing (Soniox, diarised) is judged on the words heard, not on its speaker label', async () => {
+    // The provider's transcript of a clean take reads "[00:00] Teacher (EN): <the words>"; the label is not a word.
+    const AudioService = require('../../shared/services/audio.service');
+    tts.synthesize.mockImplementation(async ({ text }) => ({ ...ok(text), audio: Buffer.from(`OggS${text}`) }));
+    AudioService.transcribe.mockImplementation(async (file, _diarize, lang) => ({
+      text: `[00:00] Teacher (${String(lang).toUpperCase()}): ${fs.readFileSync(file).toString().slice(4)}`, tokens: [] }));
+    const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '5']);
+    expect(AudioService.transcribe).toHaveBeenCalled();                  // the questions of 4+ words were heard
+    expect(lines.filter((l) => l.startsWith('gate_failed\t'))).toEqual([]);
+    expect(r.gateFailed).toBe(0);
+    expect(r.recorded).toBeGreaterThan(0);
   });
 
   test('a question heard wrong is recorded once more, then deleted and listed (never kept, never dropped)', async () => {
@@ -219,5 +301,87 @@ describe('--record-short', () => {
     const { r, lines } = await rec(['--expect-ref', REF, '--plan', PLAN, '--record-short', '--max-usd', '0.001'], { stt: echo });
     expect(r.recorded).toBe(1);
     expect(lines[lines.length - 1]).toMatch(/stopped=max_usd/);
+  });
+});
+
+/*
+ * --from-passage: a listening story or Story Time read-along clip that is missing is filled from the passage's checked
+ * read-along take (readalong/<env>/passage/<lang>/<id>/current.json + its audio), with no voice call: only when the timing
+ * file was made from the same words (its text hash) and in the challenge's storybook voice (provider, voice, model).
+ * Anything else is listed (`not_copied`, with why) and stays missing. Short lines are never copied.
+ */
+describe('--from-passage', () => {
+  const Readalong = require('../../shared/services/quiz/web-quiz-readalong');
+  const ID = 'en.listen.2.setA';
+  const dirOf = () => Readalong.folder({ env: Readalong.deployEnv(ENV), kind: 'passage', lang: 'en', id: ID });
+  const timing = (over = {}) => {
+    const text = Bank.getPassage(ID).text;
+    return {
+      v: 1, id: ID, lang: 'en', text_hash: Readalong.textHash(text), audio: { url: 'el-bella-0c4454a9.ogg', ms: 30000 },
+      words: Readalong.printedWords(text).map((t, i) => ({ i, t, s_ms: i * 100, e_ms: i * 100 + 90 })),
+      voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_multilingual_v2' }, qa: { ok: true }, ...over,
+    };
+  };
+  let store;
+  function serve(files) {
+    store = new Set();
+    r2.headObject.mockImplementation(async (k) => ({ exists: store.has(k) }));
+    r2.uploadBuffer.mockImplementation(async (_buf, k) => { store.add(k); return 'ok'; });
+    r2.downloadFromR2.mockImplementation(async (k) => {
+      if (!(k in files)) { const e = new Error('NoSuchKey'); e.name = 'NoSuchKey'; throw e; }
+      return Buffer.from(typeof files[k] === 'string' ? files[k] : JSON.stringify(files[k]));
+    });
+  }
+  // the key under the plan the run pins (its rate is in the key)
+  const storyKey = () => { OneVoice.pin(OneVoice.normalize(JSON.parse(PLAN))); return Ch.clipKey('listen', 'story', 'en', Bank.getPassage(ID).text); };
+
+  test('a missing listening story is filled from its checked passage take, byte for byte, with no voice call', async () => {
+    serve({ [`${dirOf()}/current.json`]: timing(), [`${dirOf()}/el-bella-0c4454a9.ogg`]: 'OggS-checked-take' });
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    const ups = r2.uploadBuffer.mock.calls;
+    expect(ups.length).toBe(1);
+    expect(ups[0][0].toString()).toBe('OggS-checked-take');
+    expect(ups[0][1]).toBe(storyKey());
+    expect(ups[0][1]).toContain('-el-bella-cff2e4-');
+    expect(ups[0][2]).toBe('audio/ogg');
+    expect(lines).toContain(`copied\t${ID}\ten\tlisten/story`);
+    expect(lines.some((l) => l.startsWith(`missing\t${ID}\ten\tlisten/story`))).toBe(false);
+    expect(r.copied).toBe(1);
+    expect(tts.synthesize).not.toHaveBeenCalled();
+    // short lines are never copied: they stay missing
+    expect(lines.some((l) => /^missing\ten\.listen\.2\.setA\ten\tlisten\/q1\b/.test(l))).toBe(true);
+  });
+
+  test.each([
+    ['other words (text hash)', { text_hash: 'sha256:00000000' }, 'text_hash'],
+    ['another voice', { voice: { provider: 'soniox', voice: 'Ishita', model: 'tts-rt-v2' } }, 'voice'],
+    ['the same voice on another model', { voice: { provider: 'elevenlabs', voice: 'Bella', model: 'eleven_v4' } }, 'voice'],
+    ['a timing file that failed its own check', { qa: { ok: false } }, 'qa'],
+  ])('%s: not copied, listed with why, still missing', async (_name, over, why) => {
+    serve({ [`${dirOf()}/current.json`]: timing(over), [`${dirOf()}/el-bella-0c4454a9.ogg`]: 'OggS' });
+    const { r, lines } = await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+    expect(lines).toContain(`not_copied\t${ID}\ten\tlisten/story\t${why}`);
+    expect(lines.some((l) => l.startsWith(`missing\t${ID}\ten\tlisten/story`))).toBe(true);
+    expect(r.ok).toBe(false);
+  });
+
+  test('no passage take in the store: not copied (no_file)', async () => {
+    serve({});
+    const { lines } = await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+    expect(lines).toContain(`not_copied\t${ID}\ten\tlisten/story\tno_file`);
+  });
+
+  test('a story clip already present is never read or replaced; without the flag nothing is read', async () => {
+    serve({ [`${dirOf()}/current.json`]: timing(), [`${dirOf()}/el-bella-0c4454a9.ogg`]: 'OggS' });
+    store.add(storyKey());
+    await run(['--expect-ref', REF, '--plan', PLAN, '--from-passage']);
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
+    expect(r2.downloadFromR2).not.toHaveBeenCalled();
+    store.delete(storyKey()); OneVoice.reset();
+    await run(['--expect-ref', REF, '--plan', PLAN]);
+    expect(r2.downloadFromR2).not.toHaveBeenCalled();
+    expect(r2.uploadBuffer).not.toHaveBeenCalled();
   });
 });

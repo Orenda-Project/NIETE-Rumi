@@ -26,32 +26,36 @@ const Identity = require('./web-quiz-identity');
 const T = require('./web-quiz-token');
 const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
+const { cachedSwitch } = require('../settings/switch-cache');
 
 const FLAG_KEY = 'web_quiz_identity';
 const { WATCH_ROOT_KEY, rootOf } = require('./watch-root');   // the one spelling of the key and one parser
 const TTL_MS = 30 * 1000;
 const STUDENT_COLS = 'id, student_name, student_name_urdu, father_name, roll_number, is_active, status, created_at';
 
-let flag = null;
-let inflight = null;
 const rosters = new Map();
+// web_quiz_hub_roster_warm: the classes the identity lookup used lately (class id -> last use), kept fresh by the hub's
+// keeper (web-quiz-hub-warm.js ticks keepWarm): read again LEAD_MS before their cache runs out, for KEEP_MS after their
+// last use, KEEP_MAX classes at most (the least lately used goes first).
+const KEEP_MS = 5 * 60 * 1000;
+const KEEP_MAX = 100;
+const LEAD_MS = 5 * 1000;
+const kept = new Map();
+const refreshing = new Set();
 
 const firstToken = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 
 /**
  * The quiz page's settings read: `web_quiz_identity` and, in the same query, the watch root's VALUE (the share
  * code the class-less children's own codes hang under; the page must know it to keep their names private). 30 s cache;
- * a failed read is today's identity path, no root, and `unreadable` (not cached; the privacy readers fail closed on it).
+ * callers that start together (the fast page's early reads) share the one read in flight. A failed read is kept 30 s
+ * too (settings/switch-cache): the last good settings this process read, else today's identity path, no root, and
+ * `unreadable` (the privacy readers fail closed on it).
  */
-async function pageSettings(now = Date.now()) {
-  if (flag && now - flag.at < TTL_MS) return flag;
-  // Callers that start together (the fast page's early reads) share the one read in flight.
-  if (!inflight) inflight = readSettings(now).finally(() => { inflight = null; });
-  return inflight;
-}
-
-async function readSettings(now) {
-  try {
+const flag = cachedSwitch({
+  ttlMs: TTL_MS,
+  off: () => ({ mode: null, watchRoot: null, unreadable: true }),
+  read: async (now) => {
     // One voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) rides this read, so the page pays no read for
     // it. A failed read that names it reads the page's own two switches again alone, and one voice is off.
     const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
@@ -65,13 +69,14 @@ async function readSettings(now) {
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
-    flag = { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
+    return { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
       oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null };
-    return flag;
-  } catch (err) {
-    logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message });
-    return { mode: null, watchRoot: null, unreadable: true };
-  }
+  },
+  log: (err) => logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message }),
+});
+
+async function pageSettings(now = Date.now(), opts) {
+  return flag.get(now, opts);
 }
 
 /** 'v2' when app_settings.web_quiz_identity says so; null otherwise (absent, other, or a failed read). */
@@ -93,9 +98,12 @@ function oneVoiceOf(value, now) {
 async function watchRoot(now = Date.now()) {
   return (await pageSettings(now)).watchRoot;
 }
-/** The watch root and whether the read failed: a privacy reader treats `unreadable` as "maybe under the root". */
-async function watchRootState(now = Date.now()) {
-  const s = await pageSettings(now);
+/**
+ * The watch root and whether the read failed: a privacy reader treats `unreadable` as "maybe under the root".
+ * `{ retryFailed: true }`: a cached failed read is read once more (the class table's guard, so a blip never closes it).
+ */
+async function watchRootState(now = Date.now(), { retryFailed = false } = {}) {
+  const s = await pageSettings(now, { retryFailed });
   return { root: s.watchRoot, unreadable: Boolean(s.unreadable) };
 }
 
@@ -139,10 +147,10 @@ function cached(key, now) {
  * Null when the read fails (the caller treats the child as new, never as
  * another child).
  */
-async function loadClassRoster(classId, now = Date.now()) {
+async function loadClassRoster(classId, now = Date.now(), { fresh = false } = {}) {
   if (!classId) return null;
   const key = `class:${classId}`;
-  const hit = cached(key, now);
+  const hit = fresh ? null : cached(key, now);
   if (hit) return hit;
   try {
     const [{ data: enr, error }, { data: lists, error: lErr }] = await Promise.all([
@@ -191,17 +199,21 @@ async function lookupIds(ids) {
   try {
     // child identity store (web_quiz_identity_canon): the same read also carries merged_into, status.
     const canon = Boolean((await require('./web-quiz-identity-flags').flags()).canon);
+    // inside a hub answer with web_quiz_hub_child_memo on, these rows are the answer's shared read (else read here)
+    const ChildRows = require('./web-quiz-hub-child-rows');
+    const stCols = canon ? 'id, list_id, merged_into, status' : 'id, list_id';
     const [{ data: enr }, { data: st }] = await Promise.all([
-      supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true),
-      supabase.from('students').select(canon ? 'id, list_id, merged_into, status' : 'id, list_id').in('id', ids),
+      ChildRows.read('class_enrollments', ids, 'student_id, class_id', () => supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true)),
+      ChildRows.read('students', ids, stCols, () => supabase.from('students').select(stCols).in('id', ids)),
     ]);
     const listIds = [...new Set((st || []).map((s) => s.list_id).filter(Boolean))];
     const { data: lists } = listIds.length
-      ? await supabase.from('student_lists').select('id, class_id').in('id', listIds)
+      ? await ChildRows.read('student_lists', listIds, 'id, class_id', () => supabase.from('student_lists').select('id, class_id').in('id', listIds))
       : { data: [] };
     const classIds = new Set((enr || []).map((e) => e.class_id).filter(Boolean));
     (lists || []).forEach((l) => { if (l.class_id) classIds.add(l.class_id); });
     for (const classId of classIds) {
+      noteClass(classId);
       const kids = (await loadClassRoster(classId)) || [];
       kids.forEach((k) => k.ids.forEach((id) => { if (out.has(id)) out.set(id, k.id); }));
     }
@@ -212,6 +224,33 @@ async function lookupIds(ids) {
     return { out, ok: false };
   }
   return { out, ok: true };
+}
+
+/** web_quiz_hub_roster_warm on: this class's roster is one the lookup uses (kept fresh by the keeper). */
+function noteClass(classId, now = Date.now()) {
+  if (!classId || !require('./web-quiz-hub-flags').nowOf('rosterWarm', now)) return;
+  kept.delete(classId);
+  kept.set(classId, now);
+  if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value);
+}
+
+/**
+ * One keeper pass (web-quiz-hub-warm.js, every tick while the hub is used): each class used in the last KEEP_MS whose
+ * roster is missing or within LEAD_MS of running out is read again now, so the next child of that class finds it fresh.
+ * Switch off: forgets the classes and reads nothing. Never throws (a failed read is logged by loadClassRoster).
+ */
+async function keepWarm(now = Date.now()) {
+  if (!require('./web-quiz-hub-flags').nowOf('rosterWarm', now)) { kept.clear(); return; }
+  const due = [];
+  for (const [classId, at] of kept) {
+    if (now - at > KEEP_MS) { kept.delete(classId); continue; }
+    const hit = rosters.get(`class:${classId}`);
+    if ((!hit || now - hit.at >= TTL_MS - LEAD_MS) && !refreshing.has(classId)) due.push(classId);
+  }
+  await Promise.all(due.map(async (classId) => {
+    refreshing.add(classId);
+    try { await loadClassRoster(classId, now, { fresh: true }); } finally { refreshing.delete(classId); }
+  }));
 }
 
 /**
@@ -236,6 +275,18 @@ async function canonicalStudentIdsShared(studentIds) {
   if (shared.size > 500) for (const [id, h] of shared) if (now - h.at >= SHARE_MS) shared.delete(id);
   ids.forEach((id) => shared.set(id, { at: now, p }));
   return (await p).out;
+}
+
+/**
+ * A child's row just changed (web-quiz-grade-change.js): the hub's shared lookup for that id and every kept class
+ * roster that lists the child are dropped, so the next hub answer (and the keeper, for a class it keeps warm) reads
+ * them afresh.
+ */
+function forgetChild(studentId) {
+  const id = String(studentId || '');
+  if (!id) return;
+  shared.delete(id);
+  for (const [key, hit] of rosters) if ((hit.kids || []).some((k) => (k.ids || []).map(String).includes(id))) rosters.delete(key);
 }
 
 /** canonicalStudentId for one id. */
@@ -357,9 +408,9 @@ async function nonAttempters({ shareCodeId } = {}) {
 module.exports = {
   FLAG_KEY,
   identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
-  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared,
+  canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared, noteClass, keepWarm, forgetChild, _keptClasses: () => [...kept.keys()],
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag = null; inflight = null; rosters.clear(); shared.clear(); },
+  _resetCache: () => { flag.reset(); rosters.clear(); shared.clear(); kept.clear(); },
 };
 module.exports.oneVoicePlan = oneVoicePlan;

@@ -6,7 +6,7 @@
 .wqp-mark svg { width: 100%; height: 100%; fill: currentColor; display: block; }
 .wqp-mark.on { color: #ffc83a; filter: drop-shadow(0 0 6px rgba(255, 200, 58, .9)); }
 .wqp-mark.pop { animation: wqp-pop 420ms cubic-bezier(.34, 1.56, .64, 1); }
-.wqp-rider { position: absolute; width: 40px; height: 40px; z-index: 2; pointer-events: none; }
+.wqp-rider { position: absolute; width: 48px; height: 48px; z-index: 2; pointer-events: none; }
 .wqp-rider img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0 calc(4px + 10px * var(--lv)) rgba(255, 216, 77, .9)); }
 .wqp-rider.hop { animation: wqp-hop 260ms ease-out; }
 @keyframes wqp-pop { 0% { transform: scale(1); } 50% { transform: scale(1.6); } 100% { transform: scale(1); } }
@@ -15,32 +15,40 @@
 /* where it stands: a story page's reader (.lr-vine) keeps the words clear of the vine; the Challenge's reading screen
    floats the vine's own box beside its words, which redraw with every word */
 .lr-vine { position: relative; }
-.lr-vine > .lr-text, .lr-vine > .lr-ov { margin-inline-end: 44px; width: auto; }
+.lr-vine > .lr-text, .lr-vine > .lr-ov { margin-inline-end: 56px; width: auto; }
 .lr-vine > .wqp-vine { inset-block: 8px 96px; }
-.lr-pace-vine { float: inline-end; position: relative; width: 40px; height: min(56vh, 420px); margin-inline-start: 8px; }
+.lr-pace-vine { float: inline-end; position: relative; width: 48px; height: min(56vh, 420px); margin-inline-start: 8px; }
 .lr-pace-vine > .wqp-vine { inset-block: 0; }
 
-/* sky: a bar along the top of the passage; Jugnu rides the tip of the light past 5 stars */
-.wqp-sky { margin: 4px 24px 14px; padding-top: 10px; }
-.wqp-sky .wqp-track { height: 22px; border-radius: 999px; background: linear-gradient(90deg, #1d2a5a, #3b2f73); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .35); }
+/* sky: a bar along the top of the passage, the words' own width; Jugnu rides the tip of the light past 5 stars */
+.wqp-sky { margin: 0 0 14px; padding-top: 12px; }
+.wqp-sky .wqp-track { height: 26px; border-radius: 999px; background: linear-gradient(90deg, #1d2a5a, #3b2f73); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .35); }
 [dir=rtl] .wqp-sky .wqp-track, .wqp-sky[dir=rtl] .wqp-track { background: linear-gradient(270deg, #1d2a5a, #3b2f73); }
 .wqp-sky .wqp-fill { top: 0; bottom: 0; inset-inline-start: 0; width: 0; border-radius: 999px; background: linear-gradient(90deg, #ffe58a, #ffc83a); box-shadow: 0 0 calc(4px + 14px * var(--lv)) rgba(255, 200, 58, .8); }
 [dir=rtl] .wqp-sky .wqp-fill { background: linear-gradient(270deg, #ffe58a, #ffc83a); }
-.wqp-sky .wqp-mark { top: 0; inset-inline-start: calc(var(--at) - 11px); z-index: 1; }
-.wqp-sky .wqp-mark:last-of-type { inset-inline-start: calc(var(--at) - 22px); }
-.wqp-sky .wqp-rider { top: -9px; inset-inline-start: calc(var(--lv) * (100% - 40px)); }
+.wqp-sky .wqp-mark { top: 2px; inset-inline-start: calc(var(--at) - 11px); z-index: 1; }
+.wqp-sky .wqp-mark:last-of-type { inset-inline-start: calc(var(--at) - 26px); }
+.wqp-sky .wqp-rider { top: -11px; inset-inline-start: calc(var(--lv) * (100% - 48px)); }
 
-/* vine: a glowing vine up the side of the passage; Jugnu climbs it past 5 leaves */
-.wqp-vine { position: absolute; inset-block: 8px; inset-inline-end: 0; width: 40px; }
-.wqp-vine .wqp-track { position: absolute; inset-block: 20px 0; left: 13px; width: 14px; border-radius: 999px; background: linear-gradient(0deg, #1f4d2c, #2b3a63); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .35); }
-.wqp-vine .wqp-fill { left: 0; right: 0; bottom: 0; height: 0; border-radius: 999px; background: linear-gradient(0deg, #3a9d4f, #b8e86a 70%, #ffe58a); box-shadow: 0 0 calc(4px + 12px * var(--lv)) rgba(184, 232, 106, .85); }
-.wqp-vine .wqp-mark { bottom: calc(var(--at) - 11px); left: 12px; color: #c9bd99; }
-.wqp-vine .wqp-mark:nth-of-type(2n) { left: -16px; transform: scaleX(-1); }
+/* vine: a glowing vine up the side of the passage; Jugnu climbs it past 5 leaves. Everything stays in the vine's own
+   48 px box (leaves on both sides of the stem, Jugnu over it), so nothing crosses the page's gutter */
+.wqp-vine { position: absolute; inset-block: 8px; inset-inline-end: 0; width: 48px; }
+.wqp-vine .wqp-track { position: absolute; inset: 0; }   /* the whole box: leaves and Jugnu are placed in it */
+.wqp-vine .wqp-track::before { content: ""; position: absolute; inset-block: 24px 0; left: 17px; width: 14px; border-radius: 999px; background: linear-gradient(0deg, #1f4d2c, #2b3a63); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .35); }
+.wqp-vine .wqp-fill { left: 17px; width: 14px; bottom: 0; height: 0; max-height: calc(100% - 24px); border-radius: 999px; background: linear-gradient(0deg, #3a9d4f, #b8e86a 70%, #ffe58a); box-shadow: 0 0 calc(4px + 12px * var(--lv)) rgba(184, 232, 106, .85); }
+.wqp-vine .wqp-mark { bottom: calc(var(--at) - 11px); left: 19px; color: #c9bd99; }   /* 7 px from each side: room for the pop */
+.wqp-vine .wqp-mark:nth-of-type(2n) { left: 7px; transform: scaleX(-1); }
 .wqp-vine .wqp-mark.on { color: #7fd36b; filter: drop-shadow(0 0 6px rgba(184, 232, 106, .95)); }
-.wqp-vine .wqp-mark:last-of-type { bottom: calc(100% - 4px); }
+.wqp-vine .wqp-mark:last-of-type { bottom: calc(100% - 22px); left: 13px; }
 .wqp-vine .wqp-mark:last-of-type.on { color: #ffc83a; }
-.wqp-vine .wqp-rider { left: -13px; bottom: calc(var(--lv) * (100% - 20px) - 20px); }
+.wqp-vine .wqp-rider { left: 0; bottom: calc(var(--lv) * (100% - 72px)); }
 
 .wqp-full .wqp-rider img { animation: wqp-glow 900ms ease-in-out infinite alternate; }
 @keyframes wqp-glow { from { transform: scale(1); } to { transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { .wqp-mark.pop, .wqp-rider.hop, .wqp-full .wqp-rider img { animation: none; } }
+
+/* a story page: the bar stands in Jugnu's own place above the page (wq-stories-q.js [data-pace]), the page's width */
+.wqs-pace { width: 100%; max-width: 560px; margin: 0 auto; }
+.wqs-pace > .wqp-sky { margin-bottom: 8px; }
+.wqs-pace.wq-moment-lean .wqp-rider img { animation: wq-moment-lean 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wqs-pace.wq-moment-lean .wqp-rider img { animation: none; } }
