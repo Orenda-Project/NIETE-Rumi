@@ -240,8 +240,9 @@ describe('every bot module the portal reaches is resolvable by the portal servic
    * so they do not fire at import. Right when the portal only wants PURE RULES from it:
    * capstone contributes MIN_ANSWER_CHARS, POINTS_PER_QUESTION, meetsAnswerFloor and
    * decideCapstonePass, none of which touch I/O. An HTTP hop for a constant would be worse
-   * than the disease, and grading (which does touch the LLM and the DB) is staging-only and
-   * out of scope for a bug fix.
+   * than the disease. Grading does touch the LLM and the DB, so it is DELEGATED: the route asks
+   * the bot's /training/capstone-score over the internal API (bd-te5lae). Left in-process, it
+   * answered 500 on every production capstone submit once capstone was promoted.
    */
   const LAZY = ['bot/shared/services/training/capstone-delivery.service.js'];
 
@@ -273,6 +274,13 @@ describe('every bot module the portal reaches is resolvable by the portal servic
     expect(Capstone.decideCapstonePass({
       answerScores: [5, 5, 5, 5], totalQuestions: 4, totalScore: 20,
     }).is_passed).toBe(true);
+  });
+
+  test('bd-te5lae — the portal does not run capstone MARKING in-process', () => {
+    // Lazy import kept the pure rules reachable, but `scoreAnswer` calls deps(), which loads the
+    // bot's Supabase client and LLM client the portal cannot resolve. Called from the route it
+    // failed every written-exam submit on production. Marking now goes over the internal API.
+    expect(code(PORTAL_ROUTES)).not.toMatch(/Capstone\.scoreAnswer\s*\(/);
   });
 
   test('neither shape leaves an unresolvable package on a portal path', () => {
