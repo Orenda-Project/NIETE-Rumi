@@ -111,3 +111,15 @@ test('the internal-api router mounts it (the one hook line): the same call throu
   expect(res.body).toEqual({ success: true, queued: 1, failed: [] });
   expect(WA.sendTemplate).toHaveBeenCalledTimes(1);
 });
+
+test('plan.lang goes through the one shared clamp: a padded "ur" stays ur, anything else is en', async () => {
+  const srv = await bot();
+  const svc = require('../../bot/shared/services/fln-send.service');
+  const spy = jest.spyOn(svc, 'sendPlanToTeachers');
+  for (const lang of [' ur ', 'fr', undefined]) {
+    const b = body([{ id: T1, key: 'aaaaaaaaaaaaaaaa' }]);
+    b.plan.lang = lang;
+    expect((await post(srv, '/api/internal/fln/send', b)).status).toBe(200);
+  }
+  expect(spy.mock.calls.map(([arg]) => arg.plan.lang)).toEqual(['ur', 'en', 'en']);
+});
