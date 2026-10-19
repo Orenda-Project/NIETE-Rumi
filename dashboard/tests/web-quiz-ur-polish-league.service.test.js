@@ -1,7 +1,8 @@
 /**
  * The school league on a polished Urdu page (app_settings web_quiz_ur_polish → `wq-ur2` on <html>): one digit system.
  * Ranks are Urdu digits, like the counts beside them and the class table's places, and a thousands group is split with
- * the Arabic separator «٬» (U+066C), never a Latin comma inside Urdu digits. Without the polish, and in English, the
+ * the Arabic separator «٬» (U+066C) from five digits up (a four-digit count prints whole, as school books do), never a
+ * Latin comma inside Urdu digits. Without the polish, and in English, the
  * league prints exactly as before. Runs the whole shipped page in the harness's vm; the bot API is the faked boundary.
  */
 const { page, flush } = require('./wq-page-harness');
@@ -13,7 +14,7 @@ const row = (place, name, points, kids, move, extra = {}) => ({ place, name, sec
 const BOARD = {
   week_start: '2026-10-05',
   rows: [
-    row(1, 'School Bravo', 2315, 1087, 1),
+    row(1, 'School Bravo', 23150, 1087, 1),
     row(2, 'School Alpha', 610, 40, -1, { mine: true }),
     row(12, 'School Charlie', 15, 1, 'new'),
   ],
@@ -36,18 +37,18 @@ describe('the school league with the Urdu polish', () => {
     expect(places(p.html())).toEqual(['۱', '۲', '۱۲']);
   });
 
-  test('a thousands group uses the Arabic separator «٬», never a Latin comma inside Urdu digits', async () => {
+  test('a four-digit count prints whole; five digits up split with «٬», never a Latin comma inside Urdu digits', async () => {
     const h = (await open('ur', true)).html();
-    expect(h).toContain('۲٬۳۱۵ پوائنٹس');
-    expect(h).toContain('۱٬۰۸۷ بچوں نے کھیلا');
-    expect(h).toContain('۱٬۳۱۲ اسکول ابھی شروع نہیں ہوئے');
+    expect(h).toContain('۲۳٬۱۵۰ پوائنٹس');
+    expect(h).toContain('۱۰۸۷ بچوں نے کھیلا');
+    expect(h).toContain('۱۳۱۲ اسکول ابھی شروع نہیں ہوئے');
     expect(h).not.toMatch(/[۰-۹],[۰-۹]/);
   });
 
   test('without the polish the Urdu league prints exactly as before', async () => {
     const h = (await open('ur', false)).html();
     expect(places(h)).toEqual(['1', '2', '12']);
-    expect(h).toContain('۲,۳۱۵ پوائنٹس');
+    expect(h).toContain('۲۳,۱۵۰ پوائنٹس');
     expect(h).toContain('۱,۰۸۷ بچوں نے کھیلا');
     expect(h).not.toContain('٬');
   });
@@ -57,7 +58,7 @@ describe('the school league with the Urdu polish', () => {
     const on = (await open('en', true)).html();
     expect(on).toBe(off);
     expect(places(on)).toEqual(['1', '2', '12']);
-    expect(on).toContain('2,315 points');
+    expect(on).toContain('23,150 points');
     expect(on).toContain('1,312 schools still to start');
   });
 });
