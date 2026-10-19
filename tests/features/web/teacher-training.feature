@@ -17,3 +17,17 @@ Feature: Teacher training
     And demo teacher 03000000911 is signed in
     When she opens /portal/training
     Then Training opens
+
+  # TT03 (bd-te5lae, 19 Oct 2026): the written capstone exam submit used to answer 500 on the portal ("Cannot find
+  # module 'dotenv'") and the teacher could never finish a level. Marking now goes to the bot over the internal API
+  # inside a 90 s deadline, under a 120 s route budget. Covers TrainingLevelExam.tsx, trainingApi.ts and the capstone
+  # attempts route in portal.routes.js.
+  @TT03 @draft
+  Scenario: A teacher submits the written capstone exam: it is marked and recorded, and a marking outage records nothing
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in and has unlocked a level with a written capstone exam
+    When they answer every question and submit the exam
+    Then the attempt is marked and recorded once, and the result shows their score
+    When marking is unavailable and they submit the exam again
+    Then the screen says "Not sent" with the server's words that nothing has been recorded
+    And their answers are still in the form

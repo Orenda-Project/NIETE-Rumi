@@ -105,13 +105,15 @@ describe('hub-play fills the v3 slot with the shared buttons', () => {
   test.each([
     ['en', 'Add Jugnu to your home screen', 'Add', 'Not now'],
     ['ur', 'جگنو کو اپنی ہوم اسکرین پر لگائیں', 'لگائیں', 'ابھی نہیں'],
-  ])('%s: the card has the button system\'s primary and soft buttons', (lang, title, add, later) => {
+  ])('%s: the card has the app icon and two soft buttons, Add tinted (Next stop stays the one loud button)', (lang, title, add, later) => {
     const p = playPage({ wqp_hv_day: today });
     p.run(lang);
     expect(p.box.innerHTML).toBe('');
     offer(p);
     expect(p.box.innerHTML).toContain(title);
-    expect(p.box.innerHTML).toMatch(new RegExp(`<button type="button" class="wq-btn wq-go wqp-add" data-inst="add">${add}</button>`));
+    expect(p.box.innerHTML).toMatch(new RegExp(`<button type="button" class="wq-btn wq-soft wq-itint wqp-add" data-inst="add">${add}</button>`));
+    expect(p.box.innerHTML).not.toContain('wq-go');
+    expect(p.box.innerHTML).toMatch(/<div class="wq-ihead"><img class="wq-iicon" src="\/wq\/jugnu\/hello\.webp" alt="" width="48" height="48"><b>/);
     expect(p.box.innerHTML).toMatch(new RegExp(`<button type="button" class="wq-btn wq-soft wqp-later" data-inst="later">${later}</button>`));
     expect(p.evs).toContainEqual(['door_shown', expect.objectContaining({ door: 'install', surface: 'hub' })]);
   });
@@ -120,5 +122,22 @@ describe('hub-play fills the v3 slot with the shared buttons', () => {
     p.run('en');
     offer(p);
     expect(p.box.innerHTML).toBe('');
+  });
+});
+
+describe('the install card\'s look (wq-home.css)', () => {
+  const CSS = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-home.css'), 'utf8');
+  test('Add is tinted, not the loud primary: its own fill, ink label and ledge', () => {
+    const m = CSS.match(/html \.wq-icard \.wq-btn\.wq-itint\{([^}]*)\}/);
+    expect(m).not.toBeNull();
+    expect(m[1]).toMatch(/background:var\(--tint/);
+    expect(m[1]).toMatch(/--edge:/);
+  });
+  test('Add and Not now are one height: both the second kind (--btn-h2), no height of their own', () => {
+    expect(CSS).not.toMatch(/\.wq-icard[^{]*\{([^}]*;)?height:/);
+  });
+  test('the app icon is a small rounded tile next to the title', () => {
+    expect(CSS).toMatch(/\.wq-ihead\{display:flex;align-items:center/);
+    expect(CSS).toMatch(/\.wq-iicon\{[^}]*width:48px;height:48px[^}]*border-radius/);
   });
 });

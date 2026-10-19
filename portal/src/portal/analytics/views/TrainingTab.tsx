@@ -13,6 +13,10 @@ import { toggleRegion, type TabProps } from './shared';
 import { useTrainingLevels } from './useTrainingLevels';
 
 /**
+ * v8 (FDE feedback, 2026-10-19): the numbers are the RDF's training cards — everyone on NIETE's primary / middle-high
+ * programme, any role, any school; Passed = the certificate — with NIETE's short programme names, the RDF's sectors
+ * (plus a No sector card, so the sectors add up) and FDE's schools (plus "No school"). Layout as before.
+ *
  * bd-97x22y.4 — Trainings, the ICT dashboard's page 1 to 1 (PLAN v7 "Trainings"; operator: "fully 1 to 1"). Hers:
  * frontend/src/pages/Trainings.jsx with TrainingLevelCard.jsx, TrainingComparisonChart.jsx, OxbridgeFunnelContent.jsx.
  * Her sections, in her order:
@@ -199,6 +203,7 @@ function FilterBar({ c, data, band, value, onValue }: {
     ]
     : [0, 1, 2, 3].map((o) => ({ value: String(o) as LevelFilter, label: name(o) }));
   const when = pakistanTime(data?.computedAt, c);
+  const population = data ? t.population[band](count(data.overview.teachers, c)) : null;
 
   return (
     <div data-testid="training-filters" className="flex flex-wrap items-end justify-between gap-3 rounded-xl bg-white px-4 py-3" style={{ border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -214,7 +219,10 @@ function FilterBar({ c, data, band, value, onValue }: {
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </label>
-      {when ? <p data-testid="training-as-of" className="text-xs text-gray-500">{t.snapshot(when)}</p> : null}
+      <span className="flex flex-col items-start gap-0.5 sm:items-end">
+        {population ? <p data-testid="training-population" className="text-xs font-medium text-gray-600">{population}</p> : null}
+        {when ? <p data-testid="training-as-of" className="text-xs text-gray-500">{t.snapshot(when)}</p> : null}
+      </span>
     </div>
   );
 }
@@ -243,10 +251,30 @@ function LevelCards({ c, data, filter }: { c: TabProps['c']; data: TrainingLevel
   );
 }
 
+type SectorBlock = Pick<TrainingLevelsResponse['regions'][number], 'teachers' | 'levels' | 'partners'>;
+
+const isPartner = (key: string): key is 'oxbridge' | 'beaconhouse' | 'isaps' =>
+  key === 'oxbridge' || key === 'beaconhouse' || key === 'isaps';
+
 /** What a sector passed, per series: a NIETE level by its order, or a partner. */
-function passedOf(r: TrainingLevelsResponse['regions'][number], key: string): number {
-  if (key === 'oxbridge' || key === 'beaconhouse' || key === 'isaps') return r.partners?.[key].passed ?? 0;
+function passedOf(r: SectorBlock, key: string): number {
+  if (isPartner(key)) return r.partners?.[key].passed ?? 0;
   return r.levels.find((l) => String(l.levelOrder) === key)?.passed ?? 0;
+}
+
+/** Of how many, per series: the sector's programme teachers; a partner's own (I-SAPS: those assigned it). */
+function teachersOf(r: SectorBlock, key: string): number {
+  if (isPartner(key)) return r.partners?.[key].teachers ?? 0;
+  return r.teachers;
+}
+
+/** The six sectors, then No sector (the programme's teachers the RDF gives none), keyed for the chart. */
+const NO_SECTOR_KEY = '__no-sector';
+function chartBlocks(c: TabProps['c'], data: TrainingLevelsResponse): Array<{ key: string; label: string; block: SectorBlock }> {
+  const six = data.regions.map((r) => ({ key: r.region, label: r.region, block: r as SectorBlock }));
+  return data.noSector && data.noSector.teachers > 0
+    ? [...six, { key: NO_SECTOR_KEY, label: c.trainingLevels.noSector.title, block: data.noSector }]
+    : six;
 }
 
 /** The series of her chart and her sector rows, per tab (TrainingComparisonChart.jsx SERIES, TRAINING_LEVEL_META). */
@@ -269,19 +297,22 @@ function seriesOf(c: TabProps['c'], data: TrainingLevelsResponse, midHigh: boole
 }
 
 /**
- * Her sector comparison: % = passed ÷ the sector's teachers (her total_teachers), rounded, over each bar; a series
- * no sector has passed is left out, and with none at all she says so.
+ * Her sector comparison: % = passed ÷ the sector's teachers for that series (a partner's own denominator), rounded,
+ * over each bar; No sector is drawn last, as the RDF draws it. A series no sector has passed is left out, and with
+ * none at all she says so.
  */
 function SectorComparison({ c, data, midHigh, selected }: { c: TabProps['c']; data: TrainingLevelsResponse; midHigh: boolean; selected: string | null }) {
   const t = c.trainingLevels;
   const all = seriesOf(c, data, midHigh, true);
-  const byRegion = new Map(data.regions.map((r) => [r.region, r]));
-  const pctOf = (region: string, key: string) => {
-    const r = byRegion.get(region);
-    if (!r || r.teachers <= 0) return null;
-    return Math.round((passedOf(r, key) / r.teachers) * 100);
+  const blocks = chartBlocks(c, data);
+  const byKey = new Map(blocks.map((b) => [b.key, b]));
+  const pctOf = (group: string, key: string) => {
+    const b = byKey.get(group);
+    const n = b ? teachersOf(b.block, key) : 0;
+    if (!b || n <= 0) return null;
+    return Math.round((passedOf(b.block, key) / n) * 100);
   };
-  const series = all.filter((s) => data.regions.some((r) => (pctOf(r.region, s.key) ?? 0) > 0));
+  const series = all.filter((s) => blocks.some((b) => (pctOf(b.key, s.key) ?? 0) > 0));
   if (series.length === 0) {
     return <p data-testid="chart-trainingLevels-empty" className="py-8 text-center text-sm text-gray-400">{t.chart.none}</p>;
   }
@@ -294,17 +325,17 @@ function SectorComparison({ c, data, midHigh, selected }: { c: TabProps['c']; da
       slanted
       minWidth={520}
       selected={selected}
-      groups={data.regions.map((r) => ({ key: r.region, label: r.region }))}
+      groups={blocks.map((b) => ({ key: b.key, label: b.label }))}
       series={series}
-      cell={(region, key) => {
-        const r = byRegion.get(region)!;
-        const v = pctOf(region, key);
+      cell={(group, key) => {
+        const b = byKey.get(group)!;
+        const v = pctOf(group, key);
         const shown = v === null ? '' : c.percent(String(v));
         const name = series.find((s) => s.key === key)?.label ?? key;
         return {
           value: v ?? 0,
           label: shown,
-          title: `${region} · ${name}: ${t.chart.tip(shown || '—', count(passedOf(r, key), c), count(r.teachers, c))}`,
+          title: `${b.label} · ${name}: ${t.chart.tip(shown || '—', count(passedOf(b.block, key), c), count(teachersOf(b.block, key), c))}`,
         };
       }}
     />
@@ -343,6 +374,25 @@ function SectorCards({ p, data, midHigh }: { p: TabProps; data: TrainingLevelsRe
             </span>
           </SectorCard>
         ))}
+        {data.noSector && data.noSector.teachers > 0 ? (
+          <div data-testid="sector-card-no-sector" className="flex min-w-0 flex-col rounded-2xl border-2 border-dashed border-border bg-white p-3.5 text-start shadow-sm sm:p-4">
+            <span className="mb-2 flex items-center gap-2">
+              <span aria-hidden="true" className="h-4 w-1 shrink-0 rounded-full bg-gray-300" />
+              <span className="truncate text-base font-bold text-foreground">{t.noSector.title}</span>
+            </span>
+            <span data-testid="passed-all" className="text-3xl font-bold leading-none tabular-nums" style={{ color: HER_GREEN }}>{count(data.noSector.passedAll, c)}</span>
+            <span className="mt-1 text-xs text-gray-400">{t.sector.passedAll(count(data.noSector.teachers, c))}</span>
+            <span className="mt-4 flex flex-col gap-1.5">
+              {rows.map((s) => (
+                <span key={s.key} data-testid={`no-sector-level-${s.key}`} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-gray-500">{s.label}</span>
+                  <span className="font-semibold tabular-nums" style={{ color: s.color }}>{t.sector.passed(count(passedOf(data.noSector, s.key), c))}</span>
+                </span>
+              ))}
+            </span>
+            <span data-testid="no-sector-note" className="mt-3 text-xs text-gray-400">{t.noSector.note}</span>
+          </div>
+        ) : null}
       </div>
       {chosen ? (
         <Breakdown c={c} region={chosen} onBack={() => p.onRegion(null)}>
@@ -353,8 +403,9 @@ function SectorCards({ p, data, midHigh }: { p: TabProps; data: TrainingLevelsRe
               {schools.map((s) => (
                 <li key={s.schoolId} data-testid="training-school" className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3">
                   <span className="min-w-0">
-                    <span data-testid="school-name" className="block text-sm font-medium text-gray-800">{s.name}</span>
+                    <span data-testid="school-name" className={`block text-sm font-medium ${s.noSchool ? 'italic text-gray-500' : 'text-gray-800'}`}>{s.noSchool ? t.school.noSchool : s.name}</span>
                     {s.emis ? <span className="block text-xs text-gray-400">{c.schools.emis(s.emis)}</span> : null}
+                    {s.noSchool ? <span className="block text-xs text-gray-400">{t.school.noSchoolHint}</span> : null}
                   </span>
                   <span className="flex shrink-0 gap-5 text-end text-sm">
                     <span>
