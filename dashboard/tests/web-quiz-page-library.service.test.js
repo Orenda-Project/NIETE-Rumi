@@ -183,6 +183,15 @@ describe('the lesson page', () => {
     p.wq.video();
     expect(p.html()).toContain(`href="/api/wq/videos/dl/TEST?st=s1&amp;vid=${V(1)}" download><span>⬇ Download (<bdi dir="ltr">12.4 MB</bdi>)</span></a>`);
   });
+  test('Urdu polish on: the size and its brackets are one left-to-right piece after the word, so the brackets never split', async () => {
+    const p = page({ lang: 'ur', lib: true, htmlClass: ['wq-ur2'], store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [] } },
+      video: { url: 'https://r2.example/v.mp4', bytes: 10500000, vid: V(1) }, api: api() });
+    p.wq.video();
+    const pill = /download><span>⬇ ([^<]*)<bdi dir="ltr">(.*?)<\/bdi><\/span><\/a>/.exec(p.html());
+    expect(pill).not.toBeNull();
+    expect(pill[1]).not.toContain('(');                              // no bracket outside the piece
+    expect(pill[2].replace(/<[^>]+>/g, '')).toBe('(10.5 MB)');        // the whole "(10.5 MB)" inside it
+  });
   test('no video id (library off): no Download button', async () => {
     const p = page({ lang: 'en', lib: true, store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [] } },
       video: { url: 'https://r2.example/v.mp4', bytes: 12400000 }, api: api() });

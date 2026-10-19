@@ -151,7 +151,8 @@
   function dlHtml(o, v, big) {
     if (!o.st || !v || !v.vid) return '';
     var t = tFor(o);
-    var size = v.mb ? ' (' + mb(v.mb) + ')' : '';
+    // the Urdu polish (wq-ur2): the size and its brackets are one left-to-right piece, so an RTL line never splits them
+    var size = !v.mb ? '' : o.lang === 'ur' && ur2() ? ' <bdi dir="ltr">' + esc('(' + v.mb + ' MB)') + '</bdi>' : ' (' + mb(v.mb) + ')';
     return '<a class="' + (big ? 'wq-btn wq-soft wql-dlbig' : 'wql-dl') + '" data-dl="' + esc(v.vid) + '" href="' + esc(dlHref(o, v.vid)) + '" download><span>⬇ ' + esc(t.dl) + size + '</span></a>';
   }
   function helpHtml(o) {
