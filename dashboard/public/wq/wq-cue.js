@@ -1,6 +1,7 @@
 /* The child welcome's last cue (app_settings web_quiz_child_welcome; design/ftue_child/DESIGN.md step 5): the page the
  * welcome's Let's go opened carries ?w=1 (wq-welcome.js), and wq-tel.js loads this file there. ONCE, it points the hand
- * at that page's own first control (the lesson's play, else its primary, else the first answer) with "Your turn. Tap
+ * at that page's own first control (the lesson's play button; on a question its listen button, never an answer, else
+ * nothing at all; else the page's primary) with "Your turn. Tap
  * here!" (the native read's final), for 6 s or until the first tap anywhere. The address forgets w=1 at once, so a
  * reload or a later visit never shows it again. The voice: the welcome's recorded clip welcome-5 (at its folder's ?v=) under the path the
  * welcome named (sessionStorage), with the sound on; else none. Never the phone's own voice. Nothing to point at in
@@ -11,7 +12,6 @@
   window.WQCUE = { COPY: COPY };
   var search = String((typeof location !== 'undefined' && location.search) || '');
   if (!/[?&]w=1(&|$)/.test(search)) return;
-  var PICK = ['.wq-vcover', '[data-primary]', '.wq-opt', '.wq-btn.wq-go'];
   var HAND = '<svg viewBox="0 0 48 48" width="56" height="56" aria-hidden="true"><path fill="#FFE0B2" stroke="#5D4037" stroke-width="2.5" stroke-linejoin="round" d="M19 6a4 4 0 0 1 4 4v14l2-1a4 4 0 0 1 5 2l1 1a4 4 0 0 1 5 2v1a4 4 0 0 1 5 3v7c0 6-5 11-11 11h-4c-4 0-7-2-9-5l-7-11a4 4 0 0 1 6-5l2 2V10a4 4 0 0 1 1-4z"/></svg>';
   var CSS = '.wqc{position:fixed;inset:0;z-index:1002;pointer-events:none;overflow:hidden}' +
     '.wqc-hand{position:absolute;animation:wqc-tap 1.1s ease-in-out infinite}.wqc[dir=rtl] .wqc-hand{transform:scaleX(-1)}' +
@@ -27,28 +27,49 @@
     history.replaceState(history.state, '', location.pathname + (keep.length ? '?' + keep.join('&') : '') + (location.hash || ''));
   } catch (e) {}
   var t0 = Date.now(), el = null, done = false;
-  function target() {
-    for (var i = 0; i < PICK.length; i++) {
-      var e = null;
-      try { e = document.querySelector(PICK[i]); } catch (x) { e = null; }
-      var r = e && e.getBoundingClientRect ? e.getBoundingClientRect() : null;
-      if (r && r.width > 0 && r.height > 0) return r;
-    }
-    return null;
+  function vis(sel) {
+    var e = null;
+    try { e = document.querySelector(sel); } catch (x) { e = null; }
+    var r = e && e.getBoundingClientRect ? e.getBoundingClientRect() : null;
+    return r && r.width > 0 && r.height > 0 ? r : null;
   }
-  // Where the bubble goes (design-qa S5-1): in the free band nearest the pointed control, over nothing a child could tap
-  // (an answer, a button, a link, the lesson's rows), never over the control itself; no free band: over the pointed
-  // control's top only.
-  var OBS = 'button, a[href], [data-primary], .wq-opt, input, select, textarea, video, [role="button"], [data-tap], .wq-how li';
-  function capTop(r, h, vh) {
-    var iv = [[0, 8], [vh - 8, vh], [r.top, r.bottom]];
-    try {
-      Array.prototype.forEach.call(document.querySelectorAll(OBS), function (e) {
+  // What the hand may point at (design-qa S5-2, S5-3; the live walk). Never an answer: on any question (a quiz item, a
+  // game's item, the "is someone helping you today?" self-report) only the question's own listen button, else step 5 is
+  // skipped (no hand, no bubble). The lesson video: its play button, never the scrubber. Any other first screen: its
+  // primary. -> {r, kind} | {skip: true} | null (nothing drawn yet)
+  function target() {
+    var play = vis('.wq-vplay');
+    if (play) return { r: play, kind: 'play' };
+    var asks = vis('.wq-opt') || vis('[data-screen="help-ask"]') || vis('[data-screen$="-play"]') || vis('.wqc-opts');
+    if (asks) {
+      var spk = vis('#wq-spk') || vis('.wq-qcard .wq-spk') || vis('#wqc-hear');
+      return spk ? { r: spk, kind: 'listen' } : { skip: true };
+    }
+    var p = vis('[data-primary]') || vis('.wq-btn.wq-go');
+    return p ? { r: p, kind: 'primary' } : null;
+  }
+  // Where the bubble goes (design-qa S5-1, S5-2, S5-3): in the free band nearest the pointed control, over nothing a
+  // child could tap, never over the video's frame or the question (its card and text), and never over the control; the
+  // lesson's rows are kept clear too when there is room. The video's bubble goes below its frame when it fits. No free
+  // band at all: just under the pointed control.
+  var TAP = ['button', 'a[href]', '[data-primary]', '.wq-opt', 'input', 'select', 'textarea', '[role="button"]', '[data-tap]'];
+  var KEEP = ['.wq-vbox', 'video', '.wq-qcard', '.wq-qtext'];
+  var ROWS = ['.wq-how li'];
+  function spans(sels, vh) {
+    var iv = [];
+    sels.forEach(function (sel) {
+      var list = [];
+      try { list = document.querySelectorAll(sel) || []; } catch (x) { list = []; }
+      Array.prototype.forEach.call(list, function (e) {
         if (e.closest && e.closest('.wqc')) return;
-        var b = e.getBoundingClientRect();
+        var b = e.getBoundingClientRect ? e.getBoundingClientRect() : null;
         if (b && b.width > 0 && b.height > 0 && b.bottom > 0 && b.top < vh) iv.push([b.top, b.bottom]);
       });
-    } catch (x) { /* only the edges and the control */ }
+    });
+    return iv;
+  }
+  function gap(r, h, vh, iv, below) {
+    iv = iv.concat([[0, 8], [vh - 8, vh], [r.top, r.bottom]]);
     iv.sort(function (a, b) { return a[0] - b[0]; });
     var best = null, end = iv[0][1];
     for (var i = 1; i < iv.length; i++) {
@@ -56,11 +77,20 @@
       if (g1 - g0 >= h + 16) {
         var above = g1 <= r.top;
         var d = above ? r.top - g1 : g0 - r.bottom;
-        if (d >= 0 && (!best || d < best.d)) best = { d: d, top: above ? g1 - 8 - h : g0 + 8 };
+        if (d >= 0 && !(below && above) && (!best || d < best.d)) best = { d: d, top: above ? g1 - 8 - h : g0 + 8 };
       }
       end = Math.max(end, iv[i][1]);
     }
-    return best ? best.top : r.top + 8;
+    return best ? best.top : null;
+  }
+  function capTop(t, h, vh) {
+    var core = spans(TAP.concat(KEEP), vh), rows = spans(ROWS, vh);
+    var r = t.r, video = t.kind === 'play', top = null;
+    if (video) top = gap(r, h, vh, core.concat(rows), true);
+    if (top == null) top = gap(r, h, vh, core.concat(rows), false);
+    if (top == null && video) top = gap(r, h, vh, core, true);
+    if (top == null) top = gap(r, h, vh, core, false);
+    return top == null ? Math.min(r.bottom + 8, vh - h - 8) : top;
   }
   function hide() {
     if (!el) return;
@@ -76,8 +106,9 @@
     if (!base || off || !/^\/wq\/[A-Za-z0-9/_.-]+\/$/.test(base) || typeof Audio !== 'function') return;
     try { var a = new Audio(base + 'welcome-5.mp3' + (v && /^[0-9a-f]{6,16}$/.test(v) ? '?v=' + v : '')); var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the line carries it */ }
   }
-  function show(r) {
+  function show(t) {
     done = true;
+    var r = t.r;
     var ur = document.documentElement && document.documentElement.lang === 'ur';
     var vh = window.innerHeight || 640, vw = window.innerWidth || 360;
     var hx = ur ? r.left + r.width * 0.2 : r.left + r.width * 0.6;
@@ -94,7 +125,7 @@
     // the bubble's own height once drawn (one Urdu line is taller than an English one), else the tallest it gets
     var p = el.querySelector ? el.querySelector('.wqc-cap') : null;
     var ph = p && p.getBoundingClientRect ? p.getBoundingClientRect().height : 0;
-    var top = capTop(r, ph > 0 ? ph : 60, vh);
+    var top = capTop(t, ph > 0 ? ph : 60, vh);
     var hs = '<span class="wqc-hand" style="' + hand + '">' + HAND + '</span>';
     el.innerHTML = hs + '<p class="wqc-cap" style="top:' + px(top) + '">' + esc(COPY[ur ? 'ur' : 'en']) + '</p>';
     try { document.addEventListener('pointerdown', hide, true); } catch (e) {}
@@ -105,8 +136,9 @@
   // the page draws its first screen after its own answer comes back: look every 300 ms, for 10 s at most
   (function look() {
     if (done) return;
-    var r = target();
-    if (r) return show(r);
+    var t = target();
+    if (t && t.skip) { done = true; return; } // a question with no listen button: step 5 is skipped, never an answer
+    if (t) return show(t);
     if (Date.now() - t0 < 10000) setTimeout(look, 300);
   })();
 })();
