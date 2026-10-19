@@ -14,6 +14,7 @@ import ReportsFrame from "../reports/ReportsFrame";
 import { ReportCard, reportGroups } from "../reports/ReportRows";
 import { REPORTS } from "../reports/copy";
 import { dayGroups } from "../reports/data";
+import { DisagreementsEntry } from "../disagreements/frame";
 
 /**
  * bd-o15qnr / bd-4404s7.5 — Reports, the teacher's pattern (Blueprint Coach_ReportsB):
@@ -47,6 +48,7 @@ const CoachReports = () => {
 
   return (
     <ReportsFrame title={C.title} crumb={C.observe} backTo="/portal/coach/observe" testId="coach-reports">
+      <DisagreementsEntry />
       <LoadState status={load.status} empty={false} onRetry={retry} />
       {data && (
         <>
