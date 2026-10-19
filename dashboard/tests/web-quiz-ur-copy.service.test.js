@@ -23,7 +23,7 @@ describe('the landing and identity copy under the class', () => {
     // an Urdu child screen prints every number in Urdu digits (still isolated)
     expect(h).toContain('<p class="wq-small">⁦۵⁩ سوال، ⁦۳⁩ منٹ</p>');
     expect(h).not.toContain('تقریباً');
-    expect(h).toContain('کی طرف سے\nجماعت 3</p>');
+    expect(h).toContain('کی طرف سے\nکلاس ۳</p>');   // the stored «جماعت 3» in the class table's word, Urdu digit (urClassLabel)
     expect(h).toContain('<div class="wq-say">السلام علیکم! کوئز کھیلیں؟</div>');
   });
   test('off: the same screen is today\'s, word for word', () => {

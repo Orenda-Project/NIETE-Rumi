@@ -16,7 +16,7 @@ describe('the scorecard header', () => {
     const p = page({ store, brand: niete });
     expect(p.html()).toMatch(/<\/svg><\/span>NIETE · (<span class="wq-lat" lang="en">)?Class 3-B(<\/span>)?<\/header>/);
   });
-  test('the Urdu polish (wq-ur2) on an Urdu page: the class label in Urdu («کلاس ۳-B», «کلاس ۲، ۳»)', () => {
+  test('the Urdu polish (wq-ur2) on an Urdu page: the class label in Urdu («کلاس 3-B», «کلاس ۲، ۳»)', () => {
     const hdr = (o) => ((/<header>[\s\S]*?<\/header>/.exec(page({ store, brand: niete, bootExtra: { ui: { ur2: true } }, ...o }).html()) || [])[0] || '').replace(/<[^>]+>/g, '');
     expect(hdr({})).toMatch(/NIETE · کلاس 3-B/);
     expect(hdr({ cls: { label: 'Classes 2, 3', chips: [] } })).toMatch(/NIETE · کلاس ۲، ۳/);

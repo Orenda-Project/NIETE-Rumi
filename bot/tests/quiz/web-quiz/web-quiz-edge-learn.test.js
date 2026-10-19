@@ -23,7 +23,7 @@ jest.mock('../../../shared/config/supabase', () => {
       // the hub's one batched read (web-quiz-hub-flags.js): recorded as 'hub', its keys kept for the test to check
       in: (_c, ks) => { keys = ks; return q; },
       // web-quiz-fast.js reads its own switch together with the story-board one (also an .in()): that is the fast switch's read
-      then: (res, rej) => { const fastRead = keys.includes('web_quiz_story_board_refuse'); state.reads.push(fastRead ? 'web_quiz_fast' : 'hub'); if (!fastRead) state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
+      then: (res, rej) => { if (!keys) keys = [key]; const fastRead = keys.includes('web_quiz_story_board_refuse'); state.reads.push(fastRead ? 'web_quiz_fast' : 'hub'); if (!fastRead) state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
     };
     return q;
   };
@@ -95,7 +95,7 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const { status, body } = await ask();
     expect(status).toBe(200);
-    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false, busy_retry: false });
+    expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, adv: false, wait_ux: true, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false, busy_retry: false });
   });
 
   test('(e) on with web_quiz_home_inline and web_quiz_early_unlock: home_inline and early_unlock true (a fresh portal\'s first new phone gets the inline Home); off: neither field', async () => {
@@ -110,6 +110,40 @@ describe('GET /api/internal/wq/edge', () => {
     expect(['home_inline' in off, 'early_unlock' in off]).toEqual([false, false]);
   });
 
+  test('(e) on with web_quiz_home_inline and the v3 home: home_v3 1 (a fresh portal\'s first new phone carries the home\'s files); the fallback home, the pack, or neither home_inline nor early_unlock: no home_v3', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_home_inline: true, web_quiz_home_v3: true };
+    require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();
+    await warmPageSwitches();
+    expect((await ask()).body.home_v3).toBe(1);
+    for (const rows of [{ web_quiz_home_inline: true, web_quiz_home_v3: true, web_quiz_home_fallback_v3: true }, { web_quiz_home_inline: true, web_quiz_home_v3: true, web_quiz_pack: true }, { web_quiz_home_v3: true }, { web_quiz_home_inline: true }]) {
+      supabase.__state.rows = { [KEY]: true, ...rows };
+      resetAll();
+      require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();
+      await warmPageSwitches();
+      expect([rows, 'home_v3' in (await ask()).body]).toEqual([rows, false]);
+    }
+  });
+
+  test('(e) on with web_quiz_ur_polish and web_quiz_face_lite: ui says fl too (the light Urdu face reaches the first Urdu page a portal draws); face_lite off: ui as before', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_ur_polish: true, web_quiz_face_lite: true };
+    await warmPageSwitches();
+    expect((await ask()).body.ui).toEqual({ ur2: true, fl: true });
+    supabase.__state.rows = { [KEY]: true, web_quiz_ur_polish: true, web_quiz_face_lite: false };
+    resetAll();
+    await warmPageSwitches();
+    expect((await ask()).body.ui).toEqual({ ur2: true });
+  });
+
+  test('(e) on with web_quiz_adventure_look and web_quiz_one_button: adv true (the streamed head keeps the look); either off: adv false (said, never left out)', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_adventure_look: true, web_quiz_one_button: true };
+    await warmPageSwitches();
+    expect((await ask()).body.adv).toBe(true);
+    supabase.__state.rows = { [KEY]: true, web_quiz_adventure_look: true };
+    resetAll();
+    await warmPageSwitches();
+    expect((await ask()).body.adv).toBe(false);
+  });
+
   test('(e) on with web_quiz_minify: min true (a fresh portal\'s first page names the minified files); off: no min field', async () => {
     supabase.__state.rows = { [KEY]: true, web_quiz_minify: true };
     await warmPageSwitches();
@@ -120,12 +154,12 @@ describe('GET /api/internal/wq/edge', () => {
     expect('min' in (await ask()).body).toBe(false);
   });
 
-  test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops, wait_home and busy_page say false (off is said, never left out)', async () => {
+  test('(e) on with every page switch off: no ui; one_face, adv, wait_ux, wait_share, wait_hops, wait_home and busy_page say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
     const { body } = await ask();
-    expect(Object.keys(body).sort()).toEqual(['brand', 'busy_page', 'busy_retry', 'closed_lang', 'fast', 'learn', 'one_face', 'plain_paint', 'rt', 'wait_home', 'wait_hops', 'wait_share', 'wait_ux']);
-    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, wait_ux: false, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false, busy_retry: false });
+    expect(Object.keys(body).sort()).toEqual(['adv', 'brand', 'busy_page', 'busy_retry', 'closed_lang', 'fast', 'learn', 'one_face', 'plain_paint', 'rt', 'wait_home', 'wait_hops', 'wait_share', 'wait_ux']);
+    expect(body).toMatchObject({ learn: true, fast: false, rt: false, one_face: false, adv: false, wait_ux: false, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false, busy_retry: false });
     expect(typeof body.brand).toBe('string');
   });
 
