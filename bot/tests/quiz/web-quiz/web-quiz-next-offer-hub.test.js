@@ -979,3 +979,36 @@ describe('GET /ch/result/:ct with a FINAL result: off -> byte for byte; on -> pl
     expect(rest).toEqual(finished());
   });
 });
+
+describe('one Home open = one recorded show of the next stop (web_quiz_early_unlock on)', () => {
+  const B = { device: 'BBBBBBBBBBBBBBBBBBBBBB' };
+  const streak = () => {
+    const k = [...redis._store.keys()].find((x) => String(x).startsWith('wq:next:'));
+    const v = k ? redis._store.get(k) : null;
+    const st = typeof v === 'string' ? JSON.parse(v) : v;
+    return st && st.s ? st.s.n : 0;
+  };
+  const shows = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.next_set').length;
+  const on = () => { seed([...NEXT_ON, ON('web_quiz_early_unlock'), ON('web_quiz_events_v3')]); Challenge.__reset(); };
+
+  test('a new phone: the server render (no phone yet) records nothing; the head\'s own call records one; hub.js uses that answer', async () => {
+    withArm('rank');
+    on();
+    const render = await Hub.hub(T.signHub([KID]), {});
+    expect(render.locked).toBe(true);
+    expect([streak(), shows()]).toEqual([0, 0]);
+    const head = await Hub.hub(T.signHub([KID]), B);
+    expect(head.next).toBeTruthy();
+    expect([streak(), shows()]).toEqual([1, 1]);
+  });
+
+  test('a saved phone: the server render as that phone records one, and the page asks nothing more', async () => {
+    withArm('rank');
+    on();
+    await Hub.hub(T.signHub([KID]), A);
+    expect([streak(), shows()]).toEqual([1, 1]);
+    on();
+    await Hub.hub(T.signHub([KID]), A);
+    expect(streak()).toBe(2);
+  });
+});
