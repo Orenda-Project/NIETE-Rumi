@@ -417,7 +417,11 @@ async function recsFor(kidId, history, grade, tight = false, embed = false) {
  * their class root code (the newest teacher-sent code they played; "watch more" codes hang
  * off it). Null when the token or the chip is not genuine.
  */
-async function kidFromHub(token, chip, device) {
+// web_quiz_kid_together (the hub's switch cache only): the child's row (with its class list, in the answer's shared
+// child rows when the route opened them), its sessions (with their codes and quizzes) and its kept language start with
+// the phone check, each keyed on the child alone; `warm` names more of the shared rows to start then (the games door's
+// class_enrollments). A forwarded link still opens nothing: the reads started are dropped. Off: today's order.
+async function kidFromHub(token, chip, device, { warm = [] } = {}) {
   let studentId = kidOf(token, chip);
   let rawIds = studentId ? [studentId] : [];
   // child identity store (web_quiz_identity_canon): the hub shows each child by the id they are known by, so a chip
@@ -430,17 +434,27 @@ async function kidFromHub(token, chip, device) {
     studentId = rawIds.length ? canon.get(rawIds[0]) || rawIds[0] : null;
   }
   if (!studentId) return null;
+  const quiet = (p) => { if (p && typeof p.catch === 'function') p.catch(() => {}); return p; };
+  let early = null;
+  if (Flags.kidTogetherNow()) {
+    const historyP = quiet(require('./student-quiz.service').quizzesForStudents([{ id: studentId }], { embed: true }));
+    if (ChildRows.inside()) warm.forEach((t) => quiet(ChildRows.read(t, [studentId], 'id', () => Promise.resolve({ data: [], error: null }))));
+    early = {
+      ctxP: quiet(kidContext(studentId, null, historyP)),
+      ownP: quiet(require('./web-quiz-return-lang').on().then((on) => (on ? require('./web-quiz-child-lang').ownOf(studentId) : null))),
+    };
+  }
   // A forwarded link opens nothing as the child on another phone.
   const trust = await deviceTrusted(token, device);
   if (!trust.ok || !rawIds.some((id) => trust.ids.includes(id))) return null;
-  const ctx = await kidContext(studentId);
+  const ctx = early ? await early.ctxP : await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
   // lang: the child's language from their own quizzes (null with none), for the video library's language list;
   // web_quiz_return_lang: the hub's own order (a grown-up's choice → class quiz → the link's `l` → the join's → lesson)
   const CLang = require('./web-quiz-child-lang');
   const lang = (await require('./web-quiz-return-lang').on())
-    ? CLang.ladder({ own: await CLang.ownOf(studentId), history: ctx.history, linked: await linkedLang(token) })
+    ? CLang.ladder({ own: early ? await early.ownP : await CLang.ownOf(studentId), history: ctx.history, linked: await linkedLang(token) })
     : require('./student-quiz.service').childLanguage(ctx.history);
   return { studentId, grade: ctx.grade, rootId: root ? root.shareCodeId : null, lang };
 }

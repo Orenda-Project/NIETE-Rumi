@@ -90,6 +90,13 @@ const WAVES3_KEY = 'web_quiz_hub_waves3';
 // web_quiz_hub_embed (JSON true only, and only with fanout on): the hub reads a row with the rows its keys point at in one
 // request (the child's sessions with their codes and quizzes; the teacher's codes and the grade's lessons with their quizzes)
 const EMBED_KEY = 'web_quiz_hub_embed';
+// web_quiz_kid_together (JSON true only, from this cache only): the tap routes that name the hub's child (kidFromHub:
+// the video library, the home's doors) read that child's row, list, sessions and kept language together, in one
+// answer's shared child rows (web-quiz-hub-child-rows.js)
+const KID_TOGETHER_KEY = 'web_quiz_kid_together';
+// web_quiz_link_together (JSON true only, from this cache only): a class link's class (web-quiz-identity.js
+// resolveQuizClass) reads its three steps' first rows at once, still used in their order
+const LINK_TOGETHER_KEY = 'web_quiz_link_together';
 // The live reading meter (web-quiz-live-read-v3.js meter/forHub): its variant and its parent (live reading v3) ride this
 // one read, so the hub learns the meter with no settings read of its own. 'sky' | 'vine' (a JSON true is 'sky'), else null.
 const LIVE_METER_KEY = 'web_quiz_live_meter';
@@ -165,7 +172,9 @@ const SWITCHES = Object.freeze([
   ['rosterWarm',   ROSTER_WARM_KEY,       'json'],
   ['waves2',       WAVES2_KEY,            'json'],
   ['waves3',       WAVES3_KEY,            'json'],
+  ['kidTogether',  KID_TOGETHER_KEY,      'json'],
   ['library',      LIBRARY_KEY,           'loose'],
+  ['linkTogether', LINK_TOGETHER_KEY,     'json'],
   ['liveMeter',    LIVE_METER_KEY,        'meter'],
   ['liveReadV3',   LIVE_READ_V3_KEY,      'loose'],
   ['lookAfter',    LOOK_AFTER_KEY,        'json'],
@@ -359,6 +368,16 @@ function busyPageNow(now = Date.now()) {
   return Boolean(cache && cache.busyPage === true && now - cache.at < TTL_MS);
 }
 
+/** web_quiz_link_together, as busyPageNow: only the batch's warm cache, never a read of its own (cold: off). */
+function linkTogetherNow(now = Date.now()) {
+  return Boolean(cache && cache.linkTogether === true && now - cache.at < TTL_MS);
+}
+
+/** web_quiz_kid_together, as busyPageNow: only the batch's warm cache, never a read of its own (cold: off). */
+function kidTogetherNow(now = Date.now()) {
+  return Boolean(cache && cache.kidTogether === true && now - cache.at < TTL_MS);
+}
+
 /** web_quiz_busy_retry, as busyPageNow: only the batch's warm cache, never a read of its own. */
 function busyRetryNow(now = Date.now()) {
   return Boolean(cache && cache.busyRetry === true && now - cache.at < TTL_MS);
@@ -546,5 +565,9 @@ module.exports = {
   waves3Now,
   EMBED_KEY,
   embedNow,
+  KID_TOGETHER_KEY,
+  kidTogetherNow,
+  LINK_TOGETHER_KEY,
+  linkTogetherNow,
   _resetCache: () => { cache = null; reading = null; langSeen = null; },
 };
