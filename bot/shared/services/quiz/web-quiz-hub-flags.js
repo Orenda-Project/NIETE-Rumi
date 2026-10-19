@@ -87,6 +87,9 @@ const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 const WAVES2_KEY = 'web_quiz_hub_waves2';
 // web_quiz_hub_waves3 (JSON true only, and only with fanout on): the hub's last serial reads start earlier (hub.js)
 const WAVES3_KEY = 'web_quiz_hub_waves3';
+// web_quiz_hub_embed (JSON true only, and only with fanout on): the hub reads a row with the rows its keys point at in one
+// request (the child's sessions with their codes and quizzes; the teacher's codes and the grade's lessons with their quizzes)
+const EMBED_KEY = 'web_quiz_hub_embed';
 // The live reading meter (web-quiz-live-read-v3.js meter/forHub): its variant and its parent (live reading v3) ride this
 // one read, so the hub learns the meter with no settings read of its own. 'sky' | 'vine' (a JSON true is 'sky'), else null.
 const LIVE_METER_KEY = 'web_quiz_live_meter';
@@ -157,6 +160,7 @@ const SWITCHES = Object.freeze([
   ['childMemo',    CHILD_MEMO_KEY,        'json'],
   ['door',         DOOR_KEY,              'loose'],
   ['earlyKid',     EARLY_KID_KEY,         'json'],
+  ['embed',        EMBED_KEY,             'json'],
   ['fanout',       FANOUT_KEY,            'json'],
   ['rosterWarm',   ROSTER_WARM_KEY,       'json'],
   ['waves2',       WAVES2_KEY,            'json'],
@@ -370,6 +374,11 @@ function waves3Now(now = Date.now()) {
   return Boolean(fanoutNow(now) && cache.waves3);
 }
 
+/** web_quiz_hub_embed from the same cache, never read here: on only with fanout on (as waves2Now). */
+function embedNow(now = Date.now()) {
+  return Boolean(fanoutNow(now) && cache.embed);
+}
+
 /** web_quiz_hub_child_memo from the hub's own switch cache, never read here: as fanoutNow. */
 function childMemoNow(now = Date.now()) {
   return Boolean(cache && cache.childMemo && now - cache.at < 2 * TTL_MS);
@@ -535,5 +544,7 @@ module.exports = {
   waves2Now,
   WAVES3_KEY,
   waves3Now,
+  EMBED_KEY,
+  embedNow,
   _resetCache: () => { cache = null; reading = null; langSeen = null; },
 };

@@ -170,16 +170,22 @@ async function kidClasses(studentId, history, tight = false) {
   return ids;
 }
 
-/** Open teacher-sent codes of these teachers from the last 7 days, newest first; class_id when the column exists. */
-async function recentCodes(teachers) {
+/**
+ * Open teacher-sent codes of these teachers from the last 7 days, newest first; class_id when the column exists.
+ * `quizCols` (web_quiz_hub_embed): each code read with its quiz row (`quizzes`, those columns) in the same request; a
+ * failed embedded read is read again without it (then no row has `quizzes`).
+ */
+async function recentCodes(teachers, quizCols = null) {
   const q = (cols) => dbRead('recentCodes:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(cols)
     .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
     .is('parent_share_code_id', null).is('invited_by_student_id', null)
     .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30));
   const base = 'id, code, quiz_id, topic, active, expires_at, created_at, teacher_user_id';
-  const withClass = await q(`${base}, class_id`);
+  const join = quizCols ? `, quizzes(${quizCols})` : '';
+  const withClass = await q(`${base}, class_id${join}`);
   if (!withClass.error) return withClass.data || [];
-  const plain = await q(base);
+  const plain = await q(`${base}${join}`);
+  if (plain.error && join) return recentCodes(teachers, null);
   return plain.data || [];
 }
 
@@ -201,7 +207,9 @@ const urRows = (out, history) => urTopics([out.last, ...(out.again || [])].map((
 // null: the child's newest quiz's, as before.
 // quizOfCode (web_quiz_hub_waves2): told the chosen code's quiz id, so the next thing need not read that code again.
 // quizRows (web_quiz_hub_waves3): given this read's quizzes rows when they carry the next thing's columns (the home's).
-async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang = null, quizOfCode = null, quizRows = null) {
+// embed (web_quiz_hub_embed): the codes come with their quiz rows, and the history's quiz rows are read beside them, so
+// the card has no second read in a row; the same card.
+async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang = null, quizOfCode = null, quizRows = null, embed = false) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return withUrTopic({ code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' }, opened.videoId);
@@ -211,16 +219,39 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang 
   if (!teachers.length) return null;
   const seen = new Set(history.map((e) => e.shareCodeId));
   // Independent reads in parallel: the codes and the child's classes.
-  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, Boolean(quizOfCode))]);
+  const Home = require('./web-quiz-hub-home');
+  const colsOf = (on) => `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id, video_id${on ? `, ${Home.PREVIEW_COLS}` : ''}`;
+  const histIds = [...new Set(history.filter((e) => e.latest && e.quizId).map((e) => e.quizId))];
+  let home = null;
+  let histP = null;
+  let read;
+  if (embed) {
+    home = homeP ? (await homeP.flags).home === true : false;
+    histP = histIds.length ? dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(colsOf(home)).in('id', histIds)) : Promise.resolve({ data: [] });
+    histP.catch(() => {});
+    read = await Promise.all([recentCodes(teachers, colsOf(home)), kidClasses(kidRow.id, history, Boolean(quizOfCode))]);
+  } else read = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history, Boolean(quizOfCode))]);
+  const [rows, myClasses] = read;
+  // embedded: the codes' own quiz rows split off the codes (a read that fell back has none)
+  const joined = embed && rows.length > 0 && rows.every((c) => Object.prototype.hasOwnProperty.call(c, 'quizzes'));
+  const codeQuizzes = joined ? rows.map((c) => c.quizzes).filter((q) => q && q.id) : [];
+  const codes = joined ? rows.map(({ quizzes: _q, ...c }) => c) : rows;
   const listed = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!listed.length) return null;
   // The child home (web_quiz_home_v3): a storybook the teacher only previewed is not "from your teacher" — told apart
   // by three more columns on this same quizzes read (the home's switch is read beside the hub's own reads).
-  const Home = require('./web-quiz-hub-home');
-  const home = homeP ? (await homeP.flags).home === true : false;
-  const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id, video_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
-  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
+  if (home === null) home = homeP ? (await homeP.flags).home === true : false;
+  const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...histIds])];
+  const cols = colsOf(home);
+  let quizzes = null;
+  if (joined) {
+    const hist = await histP.catch(() => ({ error: true }));
+    if (hist && !hist.error && Array.isArray(hist.data)) {
+      const byId = new Map([...codeQuizzes, ...hist.data].map((q) => [q.id, q]));
+      quizzes = quizIds.map((id) => byId.get(id)).filter(Boolean);
+    }
+  }
+  if (!quizzes) ({ data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds)));
   if (quizRows && home && Array.isArray(quizzes)) quizzes.forEach((q) => { if (q && q.id) quizRows.set(q.id, q); });
   const previews = home ? Home.storyPreviews(quizzes) : null;
   const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
@@ -321,19 +352,21 @@ async function posterOf(row) {
 // tight (web_quiz_hub_waves2): the child's finished quizzes and the child's own grade's lessons are read beside the
 // last video's row instead of after it (the grade's lessons are read again only when that video is another grade's), so
 // the chain is 2 round trips, not 4. The same recommendations.
-const readGradeVids = (G) => dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
-  .select('id, grade, subject, clean_chapter, clean_title, r2_url')
+// embed (web_quiz_hub_embed): each lesson read with its quizzes (their video_id), so the playable ones need no second read
+const VID_COLS = 'id, grade, subject, clean_chapter, clean_title, r2_url';
+const readGradeVids = (G, embed = false) => dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
+  .select(embed ? `${VID_COLS}, quizzes(id, video_id, quiz_source, status)` : VID_COLS)
   .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400));
 const readDone = (kidId) => dbRead('recsFor:quiz_sessions:1', (db) => db.from('quiz_sessions').select('quiz_id')
   .eq('student_id', kidId).eq('status', 'completed').limit(300));
 
-async function recsFor(kidId, history, grade, tight = false) {
+async function recsFor(kidId, history, grade, tight = false, embed = false) {
   // web_quiz_videos_ur_titles: each lesson's Urdu-script name, from the library's own cached read; off = not read at all
   const urP = urNames().catch(() => null);
   const lastDone = history.filter((e) => e.latest)
     .sort((a, b) => String(b.latest.completed_at || '').localeCompare(String(a.latest.completed_at || '')))[0] || null;
   const doneP = tight ? readDone(kidId) : null;
-  const ownP = tight && grade ? readGradeVids(grade) : null;
+  const ownP = tight && grade ? readGradeVids(grade, embed) : null;
   if (doneP) doneP.catch(() => {});
   if (ownP) ownP.catch(() => {});
   let last = null;
@@ -350,10 +383,17 @@ async function recsFor(kidId, history, grade, tight = false) {
     }
   }
   if (!G) return [];
-  const { data: vids, error } = await (ownP && G === grade ? ownP : readGradeVids(G));
+  let { data: vids, error } = await (ownP && G === grade ? ownP : readGradeVids(G, embed));
+  // a failed embedded read is read again without it
+  if (embed && error) ({ data: vids, error } = await readGradeVids(G));
   if (error || !vids || !vids.length) return [];
-  const { data: quizzes } = await dbRead('recsFor:quizzes:1', (db) => db.from('quizzes').select('id, video_id')
-    .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready'));
+  const joined = embed && vids.every((r) => Array.isArray(r.quizzes));
+  // embedded: the lessons' own ready video quizzes, split off the lessons (as the read below filters them)
+  const { data: quizzes } = joined
+    ? { data: vids.flatMap((r) => r.quizzes).filter((q) => q && q.quiz_source === 'video' && q.status === 'ready').map((q) => ({ id: q.id, video_id: q.video_id })) }
+    : await dbRead('recsFor:quizzes:1', (db) => db.from('quizzes').select('id, video_id')
+      .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready'));
+  if (joined) vids = vids.map(({ quizzes: _q, ...r }) => r);
   const quizOf = new Map((quizzes || []).map((q) => [q.video_id, q.id]));
   const { data: done } = await (doneP || readDone(kidId));
   const finished = new Set((done || []).map((r) => r.quiz_id));
@@ -407,7 +447,8 @@ async function kidFromHub(token, chip, device) {
 
 // `known`: the child's row and class list the caller has just read (fast first page), so they are not read again.
 // `historyP`: this child's history already started from their id alone (earlyChild); the row's two fields are put in.
-async function kidContext(studentId, known = null, historyP = null) {
+// embed (web_quiz_hub_embed, the hub's fanout branch): the history's sessions read with their codes and quizzes at once.
+async function kidContext(studentId, known = null, historyP = null, embed = false) {
   const { data: row } = known ? { data: known.row } : await ChildRows.read('students', [studentId], 'id, student_name, student_name_urdu, self_reported_class, list_id, is_active', () => dbRead('kidContext:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle()), { single: true });
   if (!row || row.is_active === false) return null;
@@ -415,7 +456,7 @@ async function kidContext(studentId, known = null, historyP = null) {
     ? await ChildRows.read('student_lists', [row.list_id], 'id, user_id, class_name, section', () => dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle()), { single: true })
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
-  const history = historyP ? withRow(await historyP, row) : await StudentQuiz.quizzesForStudents([row]);
+  const history = historyP ? withRow(await historyP, row) : await (embed ? StudentQuiz.quizzesForStudents([row], { embed: true }) : StudentQuiz.quizzesForStudents([row]));
   const grade = gradeNum((list || {}).class_name) || gradeNum(row.self_reported_class)
     || gradeNum((history.find((e) => e.className) || {}).className)
     || (history[0] ? (Videos.gradesFor(history[0].grade)[0] || null) : null);
@@ -534,7 +575,7 @@ function earlyChild(ids, kid, f) {
   const quiet = (p) => { if (p && typeof p.catch === 'function') p.catch(() => {}); return p; };
   return {
     id,
-    historyP: quiet(require('./student-quiz.service').quizzesForStudents([{ id }])),
+    historyP: quiet(f.embed === true ? require('./student-quiz.service').quizzesForStudents([{ id }], { embed: true }) : require('./student-quiz.service').quizzesForStudents([{ id }])),
     challengeP: quiet(f.challenge ? challengeForm(id) : Promise.resolve(null)),
     homeP: require('./web-quiz-hub-home').prefetch(id),
     storiesP: quiet(require('./web-quiz-stories').hubBits({ studentId: id })),
@@ -638,7 +679,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   const bookP = g ? g.bookP : together && chosen ? require('./web-quiz-book').hubBits({ studentId: chosen.id }) : null;
   if (bookP) bookP.catch(() => {});
   // Fast first page (web_quiz_fast): the chosen child's row and list are the ones just read above.
-  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null, g ? g.historyP : null) : null;
+  const ctx = chosen ? await kidContext(chosen.id, require('./web-quiz-fast').on() ? { row: chosen, list: listOf(chosen) } : null, g ? g.historyP : null, together && f.embed === true) : null;
   const history = ctx ? ctx.history : [];
   // web_quiz_return_lang: the one order (web-quiz-child-lang.js ladder) over the child's kept row: a kept choice outranks
   // even a `?lang=` the URL still carries (a join's redirect is reopened for days), the link's `l` sits before the
@@ -755,7 +796,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
     ? answeredSoFar(history.find((e) => e.code === last.code), last.answered).then((n) => { last.answered = n; })
     : Promise.resolve();
   const NO_RECS = {};
-  const recsP = recsFor(chosen.id, history, grade, f.waves2 === true).catch((err) => {
+  const recsP = recsFor(chosen.id, history, grade, f.waves2 === true, f.embed === true).catch((err) => {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
     return NO_RECS;
   });
@@ -767,7 +808,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   const nextEarly = tight ? NextSrc.hubEarly({ token, lang: out.lang, chosenId: chosen.id, grade, chip: out.kid, stopsP: challengeP.then((form) => trailStops(form, true)) }) : null;
   const playP = Promise.all([challengeP, answeredP]).then(([form]) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: f.childHome ? last : undefined, lang: out.lang, challenge: form ? { on: true } : null, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect, together: true }));
   // web_quiz_return_lang: the teacher's twin in the page's own language, as on the one-by-one path (off: today's)
-  const teacherP = require('./web-quiz-return-lang').on().then((rl) => teacherCard(chosen, ctx.list, history, grade, homeP, rl ? out.lang : null, quizOfCode, quizRows));
+  const teacherP = require('./web-quiz-return-lang').on().then((rl) => teacherCard(chosen, ctx.list, history, grade, homeP, rl ? out.lang : null, quizOfCode, quizRows, f.embed === true));
   // tight: the next thing's quiz rows are asked once the teacher card is known (the codes it will name, worked out as
   // `out` gets them below), not after the keep-my-place reads
   if (nextEarly) {
