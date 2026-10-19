@@ -11,6 +11,8 @@
  *   Non-Active  the rest of the band's population;
  *   %           active ÷ population, one decimal (the RDF's: 357 of 3,552 = 10.1%).
  * Sector = the RDF's sector for the teacher; a teacher with no school on FDE's list is "No school" in her sector.
+ * FAIL-CLOSED (lib/analytics-lists): a list that is not loaded (sandbox) is null, never empty — the tab then keeps the
+ * v7 rule for it: schools = active, non-test, in the six sectors; teachers = today's roster with the band's level.
  */
 
 const {
@@ -95,8 +97,8 @@ describe('Active / Non-Active — Primary', () => {
     expect(primary().schools).toEqual([
       { region: 'B.K', schoolId: 's1', emis: '101', name: 'School s1', teachers: 3, active: 3, nonActive: 0, activePct: 100 },
       { region: 'Sihala', schoolId: 's3', emis: '303', name: 'School s3', teachers: 1, active: 0, nonActive: 1, activePct: 0 },
-      { region: 'Urban-I', schoolId: null, emis: null, name: null, teachers: 1, active: 1, nonActive: 0, activePct: 100 },
-      { region: 'Nilore', schoolId: null, emis: null, name: null, teachers: 1, active: 0, nonActive: 1, activePct: 0 },
+      { region: 'Urban-I', schoolId: 'no-school:Urban-I', emis: null, name: null, teachers: 1, active: 1, nonActive: 0, activePct: 100 },
+      { region: 'Nilore', schoolId: 'no-school:Nilore', emis: null, name: null, teachers: 1, active: 0, nonActive: 1, activePct: 0 },
     ]);
   });
 
@@ -109,6 +111,21 @@ describe('Active / Non-Active — Primary', () => {
     f.teachers.push(at('t12', 's0'));
     const out = summarizeLpEngagement(f, { band: 'primary' });
     expect(out.schools.filter((s) => s.region === 'B.K').map((s) => s.name)).toEqual(['AAA School', 'School s1', null]);
+  });
+
+  it('FDE\'s list not loaded (null, never empty): the v7 school rule — active, non-test, in the six sectors', () => {
+    const f = primaryFixture();
+    f.fdeSchoolEmis = null;
+    f.schools = [
+      school('s1', '101', { region: 'B.K', is_active: true, is_probable_test: false }),
+      school('s3', '303', { region: 'Sihala', is_active: false, is_probable_test: false }), // closed: not listed
+      school('s7', '707', { region: 'nilore', is_active: true, is_probable_test: false }), // any spelling of a sector
+    ];
+    const out = summarizeLpEngagement(f, { band: 'primary' });
+    expect(out.schools.map((s) => [s.region, s.schoolId])).toEqual([
+      ['B.K', 's1'], ['Sihala', 'no-school:Sihala'], ['Urban-I', 'no-school:Urban-I'], ['Nilore', 's7'],
+    ]);
+    expect(out.overview.teachers).toBe(6);
   });
 
   it('by subject: teachers Active in that subject ÷ the band population; Overall = the tab\'s overall', () => {
@@ -270,7 +287,8 @@ describe('the reads', () => {
     const supabase = { tag: 'sb' };
     const rows = await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { supabase, loadLists });
     expect(loadLists).toHaveBeenCalledTimes(1);
-    expect(loadLists).toHaveBeenCalledWith(supabase);
+    // the dashboard's pg query resolves the lists in two reads (lib/analytics-lists)
+    expect(loadLists).toHaveBeenCalledWith(supabase, { query: q });
     expect(rows.population).toBe(LISTS.primary);
     expect(rows.fdeSchoolEmis).toBe(LISTS.fdeSchoolEmis);
     expect(rows.schools).toHaveLength(1);
@@ -315,6 +333,45 @@ describe('the reads', () => {
       expect(a.sql).toContain(`${col} >= $2::timestamptz`);
       expect(a.sql).toContain(`${col} < $3::timestamptz`);
     }
+  });
+
+  it('teacher lists not loaded (sandbox: null, never empty): the v7 roster — role teacher, a school, not a test user, the band\'s level, at a counted school, in its sector', async () => {
+    const calls = [];
+    const q = async (sql, params) => {
+      calls.push({ sql, params });
+      if (/FROM schools/.test(sql)) {
+        return { rows: [
+          school('s1', '101', { region: 'B.K', is_active: true, is_probable_test: false }),
+          school('s2', '202', { region: 'Durbeen', is_active: true, is_probable_test: false }),
+        ] };
+      }
+      if (/teacher_level/.test(sql)) {
+        return { rows: [
+          { id: 'p1', school_id: 's1', bands: ['PRIMARY'] },
+          { id: 'p2', school_id: 's1', bands: ['primary', 'HIGH'] },
+          { id: 'h1', school_id: 's1', bands: ['HIGH'] },
+          { id: 'p3', school_id: 's2', bands: ['PRIMARY'] }, // her school is outside the six
+          { id: 'p4', school_id: 's1', bands: null },
+        ] };
+      }
+      return { rows: [lp('p1', '1', 'urdu')] };
+    };
+    const lists = { fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: {}, missing: { schools: true, teachers: true, coaches: true } };
+    const rows = await loadLpEngagementRows(q, { from: '2026-10-04', to: '2026-10-13' }, 'primary', { loadLists: async () => lists });
+    const roster = calls.find((c) => /teacher_level/.test(c.sql));
+    expect(roster.sql).toMatch(/u\.role = 'teacher'/);
+    expect(roster.sql).toMatch(/u\.school_id IS NOT NULL/);
+    expect(roster.sql).toMatch(/u\.is_test_user IS NOT TRUE/);
+    expect([...rows.population]).toEqual([['p1', 'B.K'], ['p2', 'B.K']]);
+    expect(activityCall({ calls }).params[0]).toEqual(['p1', 'p2']);
+    const out = summarizeLpEngagement(rows, { band: 'primary' });
+    expect(out.overview).toEqual({ teachers: 2, active: 1, nonActive: 1, activePct: 50, activeSectors: 1 });
+    expect(out.schools.map((s) => s.schoolId)).toEqual(['s1']);
+
+    // one band missing is enough to fall back (the lists say "teachers missing")
+    const half = { ...LISTS, midHigh: null, missing: { schools: false, teachers: true, coaches: false } };
+    const mh = await loadLpEngagementRows(q, {}, 'midhigh', { loadLists: async () => half });
+    expect([...mh.population]).toEqual([['p2', 'B.K'], ['h1', 'B.K']]);
   });
 
   it('no window: no bounds, only the population', async () => {

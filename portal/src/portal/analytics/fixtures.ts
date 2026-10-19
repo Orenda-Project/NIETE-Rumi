@@ -323,9 +323,9 @@ export function fixtureLpEngagement(opts: { from?: string | null; to?: string | 
     const listed = FIXTURE_SCHOOLS.filter((s) => s.region === region).flatMap((s) => {
       const mine = all.filter((t) => t.schoolId === s.schoolId);
       return mine.length ? [{ region, schoolId: s.schoolId, emis: s.emis, name: s.name, ...lpCounts(mine) }] : [];
-    }).sort((a, b) => a.name.localeCompare(b.name));
+    }).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
     const none = all.filter((t) => t.region === region && t.schoolId === null);
-    return none.length ? [...listed, { region, schoolId: null, emis: null, name: null, ...lpCounts(none) }] : listed;
+    return none.length ? [...listed, { region, schoolId: `no-school:${region}`, emis: null, name: null, ...lpCounts(none) }] : listed;
   });
   return {
     success: true,

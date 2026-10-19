@@ -30,9 +30,16 @@
  *                parse, or whose grade is outside the band, still makes her Active, in no row.
  *   schools      a teacher's school is `users.school_id` when its EMIS is on FDE's programme list
  *                (`fdeSchoolEmis`); otherwise — no school on record, or one off the list — she is on her
- *                sector's "No school" line (schoolId null). A school is listed under the RDF sector of its
- *                teachers.
+ *                sector's "No school" line (schoolId `noSchoolId(sector)`, emis and name null). A school is
+ *                listed under the RDF sector of its teachers.
  *   sectors      Active sectors = sectors with at least one Active teacher.
+ *
+ * FAIL-CLOSED (lib/analytics-lists): a list that is not loaded — sandbox, where no prod list matches a
+ * user — is null, never empty, and the tab keeps the v7 rule for it rather than show zeros:
+ *   schools   every active, non-test school in the six sectors;
+ *   teachers  (when either band's list is missing) today's roster — role teacher, a school, not a test
+ *             user — whose teacher_level holds the band (PRIMARY; MIDDLE or HIGH), at a counted school,
+ *             in that school's sector.
  *
  * Two halves, the schools service's contract style:
  *   loadLpEngagementRows(query, range, band, opts)  the lists, then three set-based reads in parallel.
@@ -40,15 +47,16 @@
  * No teacher identity leaves the server.
  */
 
-const { windowBounds, REGION_BUCKETS, bucketOf } = require('./schools-analytics.service');
+const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER } = require('./schools-analytics.service');
 const { subjectKey, subjectName, gradeOf } = require('./subject-vocabulary.service');
+const { loadAnalyticsLists, noSchoolId } = require('../lib/analytics-lists');
 
 const BANDS = Object.freeze(['primary', 'midhigh']);
 
 /** Which analytics-lists population, which plan keys and which grades belong to each band. */
 const BAND_RULES = Object.freeze({
-  primary: Object.freeze({ list: 'primary', kind: 'k5', grades: [1, 5] }),
-  midhigh: Object.freeze({ list: 'midHigh', kind: 'g612', grades: [6, 12] }),
+  primary: Object.freeze({ list: 'primary', kind: 'k5', grades: [1, 5], levels: ['PRIMARY'] }),
+  midhigh: Object.freeze({ list: 'midHigh', kind: 'g612', grades: [6, 12], levels: ['MIDDLE', 'HIGH'] }),
 });
 
 /**
@@ -125,11 +133,38 @@ function gradeAndSubject(a, band) {
   return { grade: g ? g.grade : null, subject: lpSubjectKey(a.subject) };
 }
 
+/** A counted school when FDE's list is not loaded: the v7 rule — active, not a test, in the six sectors. */
+const v7School = (s) => s.is_active === true && s.is_probable_test !== true && bucketOf(s.region) !== null;
+
+/** A Postgres text[] as the driver hands it back (an array, or '{A,B}' if it was not parsed). */
+function levelList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') return raw.replace(/^\{|\}$/g, '').split(',').map((x) => x.replace(/"/g, ''));
+  return [];
+}
+const inBand = (levels, band) => levelList(levels)
+  .some((l) => typeof l === 'string' && BAND_RULES[band].levels.includes(l.trim().toUpperCase()));
+
+/**
+ * The v7 population, for when the RDF teacher lists are not loaded: roster teachers of the band at a counted
+ * school (v7's school rule), each in her school's sector.
+ * @returns {Map<string, string>}
+ */
+function v7Population(roster, schools, band) {
+  const sectorOf = new Map();
+  for (const s of schools || []) if (s && v7School(s)) sectorOf.set(s.id, bucketOf(s.region));
+  const out = new Map();
+  for (const t of roster || []) {
+    if (t && inBand(t.bands, band) && sectorOf.has(t.school_id)) out.set(t.id, sectorOf.get(t.school_id));
+  }
+  return out;
+}
+
 /**
  * @param {{
- *   population?: Map<string, string>,              the band's RDF population: userId → sector
- *   fdeSchoolEmis?: Set<string>|string[],          FDE's programme list
- *   schools?: Array<{id, name, emis}>,
+ *   population?: Map<string, string>,              the band's population: userId → sector
+ *   fdeSchoolEmis?: Set<string>|string[]|null,     FDE's programme list; null = not loaded (v7 school rule)
+ *   schools?: Array<{id, name, emis, region, is_active, is_probable_test}>,
  *   teachers?: Array<{id, school_id}>,             the population's current school
  *   activity?: Array<{user_id, grade?, subject?, ref?}>  one row per plan use in the window
  * }} rows
@@ -139,11 +174,12 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
   const band = opts.band === 'midhigh' ? 'midhigh' : 'primary';
   const filter = opts.region || null;
   const src = rows || {};
-  const fde = new Set([...(src.fdeSchoolEmis || [])].map(String));
+  const fde = src.fdeSchoolEmis ? new Set([...src.fdeSchoolEmis].map(String)) : null;
+  const listed = (s) => (fde ? s.emis != null && fde.has(String(s.emis)) : v7School(s));
 
   const schoolById = new Map();
   for (const s of src.schools || []) {
-    if (s && s.emis != null && fde.has(String(s.emis))) schoolById.set(s.id, s);
+    if (s && listed(s)) schoolById.set(s.id, s);
   }
   const schoolOf = new Map((src.teachers || []).filter(Boolean).map((t) => [t.id, t.school_id]));
 
@@ -198,13 +234,13 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
     const s = schoolId ? schoolById.get(schoolId) : null;
     return {
       region: bucket,
-      schoolId: s ? s.id : null,
+      schoolId: s ? s.id : noSchoolId(bucket),
       emis: s ? String(s.emis) : null,
       name: s ? s.name : null,
       ...block(acc),
     };
   }).sort((a, b) => (order.get(a.region) - order.get(b.region))
-    || ((a.schoolId === null) - (b.schoolId === null))
+    || ((a.name === null) - (b.name === null))
     || String(a.name || '').localeCompare(String(b.name || '')));
 
   // Subjects (any Active teacher anywhere in the six sectors, by name) and grades (the band's, always).
@@ -251,8 +287,14 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
 
 // Not aliased: tests/setup/raw-sql-schools-columns.test.js reads an alias after `schools` as a column.
 const SCHOOLS_SQL = `
-  SELECT id, name, emis
+  SELECT id, name, emis, region, is_active, is_probable_test
     FROM schools`;
+
+/** Today's roster with its levels — read only when the RDF teacher lists are not loaded. */
+const ROSTER_SQL = `
+  SELECT u.id, u.school_id, u.teacher_level::text[] AS bands
+    FROM users u
+   WHERE ${ROSTER_TEACHER}`;
 
 /** The population's current school, by primary key. */
 const TEACHER_SCHOOLS_SQL = `
@@ -315,34 +357,50 @@ function lpActivitySql(bounds, band, ids) {
   return { sql, params };
 }
 
-/** analytics-lists, required when first used (so this module loads, and is testable, without it). */
-const defaultLoadLists = (supabase) => require('../lib/analytics-lists').loadAnalyticsLists(supabase);
-
 /**
- * The band's RDF population (lib/analytics-lists, cached there), then three reads in parallel: the
- * schools, the population's schools, and its plan use in the window.
+ * The band's RDF population (lib/analytics-lists, cached there; resolved with the dashboard's pg `query`),
+ * then three reads in parallel: the schools, the population's schools, and its plan use in the window. When
+ * the teacher lists are not loaded, the v7 roster is read first and the population built from it.
  *
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range from analyticsRange (validated)
  * @param {'primary'|'midhigh'} band
- * @param {{supabase?: object, loadLists?: (supabase: object) => Promise<object>}} [opts]
+ * @param {{supabase?: object, loadLists?: typeof loadAnalyticsLists}} [opts]
  */
-async function loadLpEngagementRows(query, range = {}, band = 'primary', { supabase, loadLists = defaultLoadLists } = {}) {
+async function loadLpEngagementRows(query, range = {}, band = 'primary', { supabase, loadLists = loadAnalyticsLists } = {}) {
   const b = BANDS.includes(band) ? band : 'primary';
-  const lists = await loadLists(supabase);
-  const population = (lists && lists[BAND_RULES[b].list]) || new Map();
-  const ids = [...population.keys()];
-  const lp = lpActivitySql(windowBounds(range || {}), b, ids);
-  const [schoolRes, teacherRes, lpRes] = await Promise.all([
-    query(SCHOOLS_SQL, []),
-    query(TEACHER_SCHOOLS_SQL, [ids]),
-    query(lp.sql, lp.params),
-  ]);
+  const lists = (await loadLists(supabase, { query })) || {};
+  const rdf = !(lists.missing && lists.missing.teachers) && lists[BAND_RULES[b].list] ? lists[BAND_RULES[b].list] : null;
+  const bounds = windowBounds(range || {});
+
+  if (rdf) {
+    const ids = [...rdf.keys()];
+    const lp = lpActivitySql(bounds, b, ids);
+    const [schoolRes, teacherRes, lpRes] = await Promise.all([
+      query(SCHOOLS_SQL, []),
+      query(TEACHER_SCHOOLS_SQL, [ids]),
+      query(lp.sql, lp.params),
+    ]);
+    return {
+      population: rdf,
+      fdeSchoolEmis: lists.fdeSchoolEmis || null,
+      schools: schoolRes.rows || [],
+      teachers: teacherRes.rows || [],
+      activity: lpRes.rows || [],
+    };
+  }
+
+  const [schoolRes, rosterRes] = await Promise.all([query(SCHOOLS_SQL, []), query(ROSTER_SQL, [])]);
+  const schools = schoolRes.rows || [];
+  const roster = rosterRes.rows || [];
+  const population = v7Population(roster, schools, b);
+  const lp = lpActivitySql(bounds, b, [...population.keys()]);
+  const lpRes = await query(lp.sql, lp.params);
   return {
     population,
-    fdeSchoolEmis: (lists && lists.fdeSchoolEmis) || new Set(),
-    schools: schoolRes.rows || [],
-    teachers: teacherRes.rows || [],
+    fdeSchoolEmis: lists.fdeSchoolEmis || null,
+    schools,
+    teachers: roster,
     activity: lpRes.rows || [],
   };
 }
