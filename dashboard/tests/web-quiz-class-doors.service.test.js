@@ -228,6 +228,18 @@ describe('the class table and the league in the child\'s language (ui_lang), tit
     const table = h.slice(h.indexOf('<table'), h.indexOf('</table>') + 8);
     expect(textOf(table)).not.toMatch(/[0-9]/);
   });
+  test('ui_lang ur: the class average and the child\'s own score are Urdu digits with the Urdu per cent sign', async () => {
+    const you = { place: 1, correct: 1, total: 3 };
+    const p = await boardPage({ ui: 'ur', board: { ...MINE, class_avg_pct: 33, you } });
+    const h = p.html();
+    const cmp = h.slice(h.indexOf('wq-cmp'), h.indexOf('wq-small'));
+    expect(cmp).toContain('<span>۳۳٪</span>');
+    expect(textOf(cmp.replace(/style="[^"]*"/g, ''))).not.toMatch(/[0-9%]/);
+  });
+  test('an English page: the class average stays 33%', async () => {
+    const p = await boardPage({ board: { ...MINE, class_avg_pct: 33 } });
+    expect(p.html()).toContain('<span>33%</span>');
+  });
   test('an English page (no ui_lang): today\'s Latin digits and topic', async () => {
     const p = await boardPage({ board: { ...MINE, twin: { code: 'UR0001', topic: 'پودوں کے حصے' } } });
     const h = p.html();

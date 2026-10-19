@@ -884,3 +884,5 @@ html.wq-1b .wq-btn--hold{padding-inline:12px}
    its own gaps, and Urdu inside it gets the wide gap again */
 html.wq-1b[lang=ur] [lang=en]:not(.wq-input){word-spacing:normal}
 html.wq-1b[lang=ur] [lang=en] [lang=ur]{word-spacing:.2em}
+/* the adventure look on an Urdu page: an English question (wq.js latQ) in the Latin face at a Latin line height */
+html.wq-adv[lang=ur] .wq-qtext.wq-qlat,html.wq-adv.wq-ur2[lang=ur] .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
