@@ -805,3 +805,38 @@ describe("a sector's school table", () => {
     expect(within(screen.getByTestId("school-card-s-11")).getByTestId("cell-lpsOpened")).toHaveTextContent("15 of 26 teachers");
   });
 });
+
+describe("v8 (FDE feedback 2026-10-19): counted against the RDF's lists", () => {
+  const basis = {
+    schools: "fde", teachers: "rdf", coaches: "rdf",
+    asOf: { schools: "2026-10-19", teachers: "2026-10-19", coaches: "2026-09-24" },
+  } as const;
+  beforeEach(() => {
+    h.getSchools.mockImplementation(async (p: Params) => {
+      const r = fixtureResponse(p);
+      return { ...r, basis, overview: { ...r.overview, lpsOpened: 98765, lpsUsed: 98765, teachersUsedLp: 12 } };
+    });
+  });
+
+  it("the Overview's lesson-plan tile is 'Lesson plans used' (lpsUsed, x of N), with no 'logged since' note", async () => {
+    renderPage("?from=2026-08-01&to=2026-10-19");
+    expect(await screen.findByText("Lesson plans used")).toBeInTheDocument();
+    expect(screen.getByText("98,765")).toBeInTheDocument();
+    expect(screen.queryByText("LPs opened")).toBeNull();
+    expect(screen.queryByTestId("lp-opens-note")).toBeNull();
+  });
+
+  it("an answer without the RDF basis (an older server, or a list it could not read) still says LPs opened", async () => {
+    h.getSchools.mockImplementation(async (p: Params) => fixtureResponse(p));
+    renderPage("?from=2026-08-01&to=2026-10-19");
+    expect(await screen.findByText("LPs opened")).toBeInTheDocument();
+    expect(screen.queryByText("Lesson plans used")).toBeNull();
+  });
+
+  it("Information names the lists and their dates once the numbers are in", async () => {
+    renderPage();
+    expect(await screen.findByText("Lesson plans used")).toBeInTheDocument();
+    await userEvent.click(within(sidebar()).getByText("Information"));
+    expect(await screen.findByTestId("lists-as-of")).toHaveTextContent("FDE's school list as of 2026-10-19 · RDF teachers as of 2026-10-19 · RDF coach roster as of 2026-09-24");
+  });
+});

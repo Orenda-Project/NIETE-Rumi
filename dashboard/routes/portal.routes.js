@@ -99,6 +99,7 @@ const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('..
 const SchoolsAnalytics = require('../services/schools-analytics.service');
 const CoachingAnalytics = require('../services/coaching-analytics.service'); // bd-97x22y.1
 const ObservationsAnalytics = require('../services/observations-analytics.service'); // bd-97x22y.5
+const AnalyticsLists = require('../lib/analytics-lists');
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -1748,6 +1749,25 @@ function countOutputs(userIds, [from, to]) {
   );
 }
 
+/**
+ * v8: the three lists (FDE schools, RDF teachers, RDF coaches) every analytics tab counts against —
+ * dashboard/lib/analytics-lists.js, cached 30 minutes. A missing list comes back null and its tab keeps
+ * the v7 rule; `basis` tells the page which rule each number follows, and from which snapshot.
+ */
+function loadLists() {
+  return AnalyticsLists.loadAnalyticsLists(supabase, { query: dbQuery });
+}
+function listsBasis(lists) {
+  return {
+    schools: lists.fdeSchoolEmis ? 'fde' : 'all',
+    teachers: AnalyticsLists.populationSectors(lists) ? 'rdf' : 'roster',
+    coaches: lists.coaches ? 'rdf' : 'leader_schools',
+    asOf: lists.asOf,
+  };
+}
+// The response caches are keyed by the lists' state too, so a list arriving (or going) is seen at once.
+const listsKey = (lists) => `${lists.missing.schools ? 0 : 1}${lists.missing.teachers ? 0 : 1}${lists.missing.coaches ? 0 : 1}|${lists.asOf.schools}|${lists.asOf.teachers}|${lists.asOf.coaches}`;
+
 // Whole answers for ten minutes, keyed from|to|region. The expensive part (each session's
 // score) is also memoised per session inside the service, so a new window or region only
 // reads the scores it has not seen.
@@ -1777,15 +1797,18 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range);
+      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists });
       return {
         success: true,
         range,
-        // LP opens are logged from this day on; the page says so for an earlier window.
+        basis: listsBasis(lists),
+        // LP opens are logged from this day on; the page says so for an earlier window (v7 basis only:
+        // v8's "lesson plans used" reads lesson_plans too, which go back to the start).
         lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
-        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region }),
+        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region, lists }),
       };
     });
     res.json(body);
@@ -1814,13 +1837,15 @@ router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, asy
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await coachingAnalyticsCache.getOrLoad(key, async () => {
       const rows = await CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range);
       return {
         success: true,
         range,
-        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region }),
+        basis: listsBasis(lists),
+        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region, lists }),
       };
     });
     res.json(body);
@@ -1907,13 +1932,15 @@ router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer,
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
       const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range);
       return {
         success: true,
         range,
-        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region }),
+        basis: listsBasis(lists),
+        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region, lists }),
       };
     });
     res.json(body);

@@ -248,7 +248,7 @@ export function ObservationsTab(p: TabProps & { kind: ObservationKind }) {
                   <li key={s.schoolId} data-testid={`obs-school-${s.schoolId}`} className="rounded-xl border border-border bg-white px-3.5 py-3 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <span className="flex min-w-0 flex-col">
-                        <span data-testid="obs-school-name" className="text-sm font-semibold text-foreground">{s.name}</span>
+                        <span data-testid="obs-school-name" className="text-sm font-semibold text-foreground">{s.noSchool ? c.schools.noSchool : s.name}</span>
                         {s.emis ? <span className="text-xs text-muted-foreground">{c.schools.emis(s.emis)}</span> : null}
                       </span>
                       <span data-testid="obs-school-count" className="shrink-0 text-sm font-bold tabular-nums text-foreground">{c.obsV7.obs(count(s.observations, c))}</span>

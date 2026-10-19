@@ -59,12 +59,33 @@
  * Region cards and the overview SUM every count; averages are pooled (sum of scores / n),
  * so a 3-teacher school never weighs the same as a 40-teacher one. A count is never null;
  * an average is null exactly when its n is 0.
+ *
+ * v8 (FDE feedback 2026-10-19, "RDFs are the numbers that the others follow") — with the lists of
+ * dashboard/lib/analytics-lists.js (opts.lists), each list replacing its v7 rule when it is usable:
+ *   school            also on FDE's programme list (analytics_fde_schools): 415 on prod, Sihala 74.
+ *   teachers (N)      the RDF populations, Primary ∪ 6-12 (analytics_rdf_teachers), each in the RDF's
+ *                     sector. A teacher counts on her current school's row when that school is counted
+ *                     AND in her RDF sector; otherwise (no school, a school off the list, a school in
+ *                     another sector) on her sector's "No school" row (noSchool: true, schoolId
+ *                     'no-school:<sector>', no EMIS, no name) — so sectors still sum to the total. A
+ *                     No-school row is no school: it adds to no `schools` count. No test filter: the
+ *                     RDF's populations have none.
+ *   lpsUsed           "Lesson plans used" = the RDF's lp_use (routine-data-flow rdf_niete/lp_use.py
+ *                     with_app_opens): every lesson_plans row sent on WhatsApp, plus — only on a
+ *                     teacher-day (Pakistan day) with NO WhatsApp row — one per distinct plan she
+ *                     opened in the app: a K-5 niete_lp_opens row (plan_kind 'k5') or a lesson_plans
+ *                     row with content.v8.surface = 'app', the two deduped on (teacher, day, plan). The
+ *                     old key lpsOpened carries the same number for a portal still reading it.
+ *   teachersUsedLp    distinct population teachers with one ("x of N"; also as teachersOpenedLp).
+ *   every other count the same definitions, over the population teachers placed as above.
+ * A list that is missing (null) keeps its v7 rule (the loader has logged it).
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
 const { HUMAN_OBSERVATION, FICO_SECTIONS, sectionPct } = require('./steps-grid.service');
 // Imported, never respelled: two spellings of "finished" is how observations went missing once.
 const { TERMINAL } = require('./leader-patch.service');
+const { onFdeList, populationSectors, noSchoolId } = require('../lib/analytics-lists');
 
 /** The six ICT sectors as schools.region stores them — the only regions counted. */
 const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
@@ -175,6 +196,18 @@ function metrics(a) {
 
 const rollup = (acc) => ({ schools: acc.schools, ...metrics(acc) });
 
+/** v8: the same block, with the LP pair under its v8 names as well. */
+const metricsV8 = (a) => ({ ...metrics(a), lpsUsed: a.lpsOpened, teachersUsedLp: a.teachersOpenedLp });
+const rollupV8 = (acc) => ({ schools: acc.schools, ...metricsV8(acc) });
+
+/** The v7 school rule, and (v8) FDE's list on top when it is usable. */
+function countedSchoolBucket(s, lists) {
+  if (!s || s.is_active !== true || s.is_probable_test === true) return null;
+  const bucket = bucketOf(s.region);
+  if (!bucket || !onFdeList(lists, s.emis)) return null;
+  return bucket;
+}
+
 /**
  * @param {{
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test,
@@ -188,14 +221,17 @@ const rollup = (acc) => ({ schools: acc.schools, ...metrics(acc) });
  */
 function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
+  const lists = opts.lists || null;
+  const population = populationSectors(lists);
+  if (population) return summarizeV8(rows, filter, lists, population);
 
   // Included schools only: active, not a probable test school, and in one of the six
-  // sectors. The roster arrives on the school row; an excluded school is never in
-  // bySchool, so its roster and its sessions fall out below.
+  // sectors (v8: and on FDE's list, when that list is usable). The roster arrives on the
+  // school row; an excluded school is never in bySchool, so its roster and its sessions
+  // fall out below.
   const bySchool = new Map();
   for (const s of rows.schools || []) {
-    if (!s || s.is_active !== true || s.is_probable_test === true) continue;
-    const bucket = bucketOf(s.region);
+    const bucket = countedSchoolBucket(s, lists);
     if (!bucket) continue;
     const acc = emptyAcc();
     acc.teachers = count(s.teachers);
@@ -250,6 +286,82 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
   return {
     overview: rollup(overviewAcc),
     regions: REGION_BUCKETS.map((b) => ({ region: b, ...rollup(regionAcc.get(b)) })),
+    schools,
+  };
+}
+
+/**
+ * v8, the teacher lists usable: one row per population teacher (rows.teachers: user_id, school_id,
+ * lps_used, training_modules) placed on her school's row or her RDF sector's No-school row; sessions of
+ * population teachers only, placed the same way. PURE.
+ */
+function summarizeV8(rows, filter, lists, population) {
+  const bySchool = new Map();
+  for (const s of rows.schools || []) {
+    const bucket = countedSchoolBucket(s, lists);
+    if (bucket) bySchool.set(s.id, { school: s, bucket, acc: emptyAcc(), dcTeacherIds: new Set() });
+  }
+  const noSchool = new Map();
+  const place = (schoolId, sector) => {
+    const e = schoolId != null ? bySchool.get(schoolId) : null;
+    if (e && e.bucket === sector) return e;
+    if (!noSchool.has(sector)) noSchool.set(sector, { school: null, bucket: sector, acc: emptyAcc(), dcTeacherIds: new Set() });
+    return noSchool.get(sector);
+  };
+
+  const teacherRow = new Map((rows.teachers || []).filter(Boolean).map((t) => [String(t.user_id), t]));
+  for (const [uid, sector] of population) {
+    const t = teacherRow.get(uid) || {};
+    const e = place(t.school_id, sector);
+    const lps = count(t.lps_used);
+    const modules = count(t.training_modules);
+    e.acc.teachers += 1;
+    e.acc.lpsOpened += lps;
+    if (lps > 0) e.acc.teachersOpenedLp += 1;
+    e.acc.trainingModules += modules;
+    if (modules > 0) e.acc.teachersTrained += 1;
+  }
+
+  for (const s of rows.sessions || []) {
+    if (!s || !population.has(s.user_id)) continue;
+    const e = place(s.school_id, population.get(s.user_id));
+    const pct = typeof s.pct === 'number' && Number.isFinite(s.pct) ? s.pct : null;
+    if (s.observation_type === null || s.observation_type === undefined) {
+      e.acc.dcObservations += 1;
+      e.dcTeacherIds.add(s.user_id);
+      if (pct !== null) { e.acc.ficoSum += pct; e.acc.ficoN += 1; }
+    } else if (s.observation_type === HUMAN_OBSERVATION) {
+      e.acc.humanObservations += 1;
+      if (pct !== null) { e.acc.hitlSum += pct; e.acc.hitlN += 1; }
+    }
+  }
+
+  const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, emptyAcc()]));
+  const overviewAcc = emptyAcc();
+  const schools = [];
+  const add = (e, row) => {
+    e.acc.teachersWithDc = e.dcTeacherIds.size;
+    addInto(regionAcc.get(e.bucket), e.acc);
+    if (filter && e.bucket !== filter) return;
+    addInto(overviewAcc, e.acc);
+    schools.push({ ...row, region: e.bucket, ...metricsV8(e.acc) });
+  };
+  for (const e of bySchool.values()) {
+    e.acc.schools = 1;
+    add(e, { schoolId: e.school.id, emis: e.school.emis == null ? null : String(e.school.emis), name: e.school.name });
+  }
+  for (const e of noSchool.values()) {
+    add(e, { schoolId: noSchoolId(e.bucket), emis: null, name: null, noSchool: true });
+  }
+
+  const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
+  schools.sort((a, b) => (order.get(a.region) - order.get(b.region))
+    || (a.noSchool ? 1 : 0) - (b.noSchool ? 1 : 0)
+    || String(a.name || '').localeCompare(String(b.name || '')));
+
+  return {
+    overview: rollupV8(overviewAcc),
+    regions: REGION_BUCKETS.map((b) => ({ region: b, ...rollupV8(regionAcc.get(b)) })),
     schools,
   };
 }
@@ -364,8 +476,87 @@ function schoolsSql(bounds) {
     ) trn ON trn.school_id = sch.id`;
 }
 
+/**
+ * `col`, a timestamp WITHOUT time zone holding UTC (lesson_plans.created_at), inside the window: the same
+ * UTC instants as windowClause, turned naive before the compare so the column's index still applies.
+ */
+function naiveWindowClause(col, ends) {
+  const [lo, hi] = ends;
+  const parts = [];
+  if (lo) parts.push(`${col} >= ($1::timestamptz AT TIME ZONE 'UTC')`);
+  if (hi) parts.push(`${col} < (${lo ? '$2' : '$1'}::timestamptz AT TIME ZONE 'UTC')`);
+  return parts.length ? parts.join(' AND ') : 'TRUE';
+}
+
+/** The surface a lesson_plans row records (content.v8.surface; 'app' = written for a plan opened in the app). */
+const LP_SURFACE = "(l.content #>> '{v8,surface}')";
+
+/**
+ * v8: one row per population teacher (her id is $N, one uuid[] parameter) — her current school, her
+ * "lesson plans used" and her training modules in the window. The LP count is the RDF's lp_use
+ * (rdf_niete/lp_use.py with_app_opens), written in SQL:
+ *   wa      every lesson_plans row that is not an app-surface row — each one a plan used;
+ *   app     the app side, one row per DISTINCT (teacher, Pakistan day, plan): app-surface lesson_plans rows
+ *           (plan = content.v8.lesson_id, else the row itself) UNION the K-5 opens (plan = plan_ref) —
+ *           UNION is the RDF's `seen` set, so a plan with both a row and an open is one;
+ *   an app plan counts only on a teacher-day with NO wa row (NOT EXISTS), the RDF's `have` set.
+ * Days are Pakistan days: lesson_plans.created_at is naive UTC (+5 h), niete_lp_opens.opened_at a timestamptz.
+ * g612 opens are not lesson-plan rows in the RDF's lp_use, so they are not here either.
+ * Training as v7: grouped per teacher over the window first (completed_at has no index), then joined.
+ */
+function teachersSql(bounds, idsParam) {
+  const ends = [bounds.fromTs, bounds.toTs];
+  return `
+  WITH pop AS MATERIALIZED (
+    SELECT u.id, u.school_id FROM users u WHERE u.id = ANY(${idsParam}::uuid[])
+  ), wa AS MATERIALIZED (
+    SELECT l.user_id, (l.created_at + interval '5 hours')::date AS d
+      FROM lesson_plans l JOIN pop ON pop.id = l.user_id
+     WHERE ${LP_SURFACE} IS DISTINCT FROM 'app'
+       AND ${naiveWindowClause('l.created_at', ends)}
+  ), app AS MATERIALIZED (
+    SELECT l.user_id, (l.created_at + interval '5 hours')::date AS d,
+           COALESCE(l.content #>> '{v8,lesson_id}', 'row:' || l.id::text) AS ref
+      FROM lesson_plans l JOIN pop ON pop.id = l.user_id
+     WHERE ${LP_SURFACE} = 'app'
+       AND ${naiveWindowClause('l.created_at', ends)}
+    UNION
+    SELECT o.user_id, (o.opened_at AT TIME ZONE 'Asia/Karachi')::date AS d, o.plan_ref AS ref
+      FROM niete_lp_opens o JOIN pop ON pop.id = o.user_id
+     WHERE o.plan_kind = 'k5'
+       AND ${windowClause('o.opened_at', ends)}
+  ), lp AS (
+    SELECT x.user_id, sum(x.n)::int AS lps_used FROM (
+      SELECT wa.user_id, count(*) AS n FROM wa GROUP BY wa.user_id
+      UNION ALL
+      SELECT a.user_id, count(*) AS n FROM app a
+       WHERE NOT EXISTS (SELECT 1 FROM wa w WHERE w.user_id = a.user_id AND w.d = a.d)
+       GROUP BY a.user_id
+    ) x GROUP BY x.user_id
+  ), trn AS MATERIALIZED (
+    SELECT tp.user_id, count(DISTINCT tp.module_id)::int AS training_modules
+      FROM teacher_training_progress tp
+     WHERE tp.completed_at IS NOT NULL
+       AND ${windowClause('tp.completed_at', ends)}
+     GROUP BY tp.user_id
+  )
+  SELECT pop.id AS user_id, pop.school_id,
+         COALESCE(lp.lps_used, 0)::int AS lps_used,
+         COALESCE(trn.training_modules, 0)::int AS training_modules
+    FROM pop
+    LEFT JOIN lp ON lp.user_id = pop.id
+    LEFT JOIN trn ON trn.user_id = pop.id`;
+}
+
+// v8: the schools alone (the roster comes per teacher), as the observations route reads them.
+const SCHOOLS_ONLY_SQL = `
+  SELECT id, name, emis, region, is_active, is_probable_test
+    FROM schools`;
+
 function sessionsSql(bounds) {
   // One row per counted session — ids and flags only, no analysis_data (see the header).
+  // A teacher with no school is read too (v8: she counts in her RDF sector's No-school row); v7
+  // drops her session, as before, because it names no counted school.
   return `
   SELECT c.id, c.updated_at, c.user_id, u.school_id,
          (u.is_test_user IS TRUE) AS is_test,
@@ -373,7 +564,6 @@ function sessionsSql(bounds) {
     FROM coaching_sessions c
     JOIN users u ON u.id = c.user_id
    WHERE u.role = 'teacher'
-     AND u.school_id IS NOT NULL
      AND ((c.observation_type IS NULL AND c.status = 'completed')
           OR (c.observation_type = '${HUMAN_OBSERVATION}' AND c.status IN ${TERMINAL}))
      AND ${windowClause('c.created_at', [bounds.fromTs, bounds.toTs])}`;
@@ -487,9 +677,25 @@ async function loadCountedSessions(query, range, { memo = defaultMemo } = {}) {
  * @param {{memo?: ReturnType<typeof createScoreMemo>}} [opts]
  * @returns {Promise<{schools: any[], sessions: any[], scoreReads: number}>}
  */
-async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo } = {}) {
+async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, lists = null } = {}) {
   const bounds = windowBounds(range);
   const instants = present(bounds.fromTs, bounds.toTs);
+  const population = populationSectors(lists);
+  if (population) {
+    // v8: schools, the population's own rows, and the counted sessions — three reads in parallel.
+    const ids = [...population.keys()];
+    const [schoolRes, teacherRes, counted] = await Promise.all([
+      query(SCHOOLS_ONLY_SQL, []),
+      query(teachersSql(bounds, `$${instants.length + 1}`), [...instants, ids]),
+      loadCountedSessions(query, range, { memo }),
+    ]);
+    return {
+      schools: schoolRes.rows || [],
+      teachers: teacherRes.rows || [],
+      sessions: counted.sessions.map(({ sections, ...s }) => s),
+      scoreReads: counted.scoreReads,
+    };
+  }
   const [schoolRes, counted] = await Promise.all([
     query(schoolsSql(bounds), instants),
     loadCountedSessions(query, range, { memo }),
@@ -549,4 +755,6 @@ module.exports = {
   loadCountedSessions,
   // Shared with lp-engagement.service: one spelling of "a rostered teacher".
   ROSTER_TEACHER,
+  // v8: the school rule (v7's + FDE's list), shared with the coaching and observations services.
+  countedSchoolBucket,
 };
