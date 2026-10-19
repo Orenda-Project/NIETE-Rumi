@@ -620,6 +620,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
     quiz: {
       id: ctx.quizId, code: ctx.code,
       topic: pageTopic({ lang: ctx.lang, meta: quizRow && quizRow.meta, fallback: ctx.parent.topic || (quizRow && quizRow.topic) }),
+      // a video lesson's Urdu-script name (web_quiz_videos_ur_titles): an Urdu page shows it (wq.js); off or none: no key
+      ...(await urTopicOf(ctx.parent.video_id || (quizRow && quizRow.video_id))),
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       // The language the quiz's clips are recorded in (the row's, else its questions' script): the page's
       // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
@@ -692,6 +694,12 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // Minified page files (web-quiz-minify.js): named only when on, so a switched-off payload is today's.
   if (require('./web-quiz-minify').on()) out.min = true;
   return out;
+}
+
+async function urTopicOf(vid) {
+  if (!vid) return {};
+  const t = (await require('./web-quiz-videos').urTitleOf(vid)).title_ur;
+  return t ? { topic_ur: t } : {};
 }
 
 async function quizInfo(quizId) {

@@ -470,4 +470,4 @@ async function start(body = {}, hooks = {}) {
   return { code: c.code };
 }
 
-module.exports = { list, start, watchRoot, WATCH_ROOT_KEY, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, restoreMeta, forgetMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
+module.exports = { urTitleOf, list, start, watchRoot, WATCH_ROOT_KEY, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, restoreMeta, forgetMeta, LIST_MAX, VID_RX, _metaCache: metaCache };
