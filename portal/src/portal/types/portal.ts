@@ -1001,14 +1001,15 @@ export interface LpEngagementRegion extends LpEngagementCounts {
 }
 
 /**
- * A school on FDE's list, or the sector's "No school" line: schoolId `no-school:<sector>` (the server's
- * lib/analytics-lists noSchoolId), emis and name null.
+ * A school on FDE's list in the sector, or the sector's "No school" line: noSchool true, schoolId `no-school:<sector>`
+ * (the server's lib/analytics-lists noSchoolId), emis and name null.
  */
 export interface LpEngagementSchool extends LpEngagementCounts {
   region: string;
   schoolId: string;
   emis: string | null;
   name: string | null;
+  noSchool: boolean;
 }
 
 export interface LpEngagementSubjectRow extends LpEngagementCounts {
@@ -1035,6 +1036,8 @@ export interface LpEngagementResponse {
   success: boolean;
   range: { from: string | null; to: string | null };
   band: LpBand;
+  /** Which rule each list follows ('rdf' teachers = the RDF's populations; 'roster' = v7, when they are not loaded). */
+  basis: AnalyticsBasis;
   overview: LpEngagementOverview;
   /** All six sectors, whatever the region filter. */
   regions: LpEngagementRegion[];

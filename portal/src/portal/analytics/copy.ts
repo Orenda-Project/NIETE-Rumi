@@ -212,7 +212,7 @@ const EN = {
           { term: 'Teachers tracked', text: "The daily RDF's teachers for the band, each in the RDF's sector: Primary is teachers whose levels include Primary; Mid / High is teachers whose levels include Middle or High. A teacher who teaches both is in both. Every sector's teachers add up to the total." },
           { term: 'Active and Non-Active', text: "A teacher is Active when she used at least one lesson plan in the period; using more does not count her again. Primary: a lesson plan she got on WhatsApp or opened in the app. Mid / High: a grade 6 to 12 lesson she opened in the app, got on WhatsApp, asked for, or rated. Non-Active: every other teacher tracked. This is the RDF's own rule, so the RDF's day or week gives the RDF's number." },
           { term: 'Overall LP Engagement', text: "Active teachers out of the teachers tracked, as a percentage to one decimal, as the RDF writes it. A sector's and a school's are worked out the same way over their own teachers." },
-          { term: 'Sectors and schools', text: "Schools are those on FDE's programme list. A teacher with no school on record, or at a school that is not on the list, is counted in her sector on the No school line." },
+          { term: 'Sectors and schools', text: "Schools are those on FDE's programme list. A teacher with no school on record, at a school that is not on the list, or at a school in another region, is counted in her region on the No school line." },
           { term: 'By subject and by grade', text: "For each subject (or grade): the teachers who used at least one lesson plan of that subject (or grade) in the period, out of all teachers tracked. A teacher can be Active in several rows, so the rows do not add up to the overall; the Overall row is the tab's Overall LP Engagement. A plan whose grade or subject is not known makes her Active but is in no row." },
           { term: 'Active sectors', text: 'Sectors where at least one teacher tracked is Active, out of the six.' },
         ],
@@ -720,7 +720,8 @@ const EN = {
     /** The line under each card. */
     hints: {
       overall: { primary: 'Primary teachers who used a lesson plan', midhigh: 'Mid / High teachers who used a lesson plan' } as Record<LpBand, string>,
-      tracked: "The daily RDF's teachers",
+      /** Whose teachers: the RDF's, or — when the RDF lists are not loaded — the schools' roster today. */
+      tracked: { rdf: "The daily RDF's teachers", roster: 'Teachers at the schools today' } as Record<'rdf' | 'roster', string>,
       activeSectors: 'Sectors with an active teacher',
       active: 'Used a lesson plan in the period',
       nonActive: 'No lesson plan in the period',

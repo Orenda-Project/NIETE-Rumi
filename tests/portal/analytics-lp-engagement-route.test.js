@@ -96,6 +96,7 @@ const LISTS = {
   midHigh: new Map([['u3', 'Sihala'], ['u5', 'Tarnol']]),
   coaches: [],
   asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-08-04' },
+  missing: { schools: false, teachers: false, coaches: false },
 };
 const TEACHERS = [
   { id: 'u1', school_id: 's1' }, { id: 'u2', school_id: 's1' }, { id: 'u3', school_id: 's2' },
@@ -197,13 +198,15 @@ describe('GET /analytics/lp-engagement — the answer', () => {
     const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER, query: { from: '2026-10-04', to: '2026-10-13' } });
     expect(statusCode).toBe(200);
     expect(Object.keys(payload).sort()).toEqual([
-      'band', 'byGrade', 'bySubject', 'overview', 'range', 'regions', 'schools',
+      'band', 'basis', 'byGrade', 'bySubject', 'overview', 'range', 'regions', 'schools',
       'sectorGrades', 'sectorSubjects', 'success',
     ]);
     expect(payload).toMatchObject({ success: true, band: 'primary', range: { from: '2026-10-04', to: '2026-10-13' } });
     expect(Object.keys(payload.overview).sort()).toEqual(['active', 'activePct', 'activeSectors', 'nonActive', 'teachers']);
     for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['active', 'activePct', 'nonActive', 'region', 'teachers']);
-    for (const s of payload.schools) expect(Object.keys(s).sort()).toEqual(['active', 'activePct', 'emis', 'name', 'nonActive', 'region', 'schoolId', 'teachers']);
+    for (const s of payload.schools) expect(Object.keys(s).sort()).toEqual(['active', 'activePct', 'emis', 'name', 'noSchool', 'nonActive', 'region', 'schoolId', 'teachers']);
+    // which rule each list follows, as on the other analytics answers
+    expect(payload.basis).toMatchObject({ schools: 'fde', teachers: 'rdf' });
     for (const r of payload.bySubject.rows) expect(Object.keys(r).sort()).toEqual(['active', 'activePct', 'name', 'nonActive', 'subject', 'teachers']);
     for (const r of payload.byGrade.rows) expect(Object.keys(r).sort()).toEqual(['active', 'activePct', 'grade', 'nonActive', 'teachers']);
     expect(JSON.stringify(payload)).not.toMatch(/onSchedule|moderate|offSchedule|lpRatio|lpPct/);
@@ -284,6 +287,18 @@ describe('GET /analytics/lp-engagement — the answer', () => {
     expect(statusCode).toBe(200);
     // ROSTER: u1, u2 at s1 (B.K) and u3 at s2 (Sihala) are Primary; s3's region is not one of the six.
     expect(payload.overview).toEqual({ teachers: 3, active: 2, nonActive: 1, activePct: 66.7, activeSectors: 2 });
+    expect(payload.basis).toMatchObject({ schools: 'all', teachers: 'roster' });
+  });
+
+  it('the cache is keyed by the lists too: lists arriving change the answer at once', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    const none = { fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: { schools: null, teachers: null, coaches: null }, missing: { schools: true, teachers: true, coaches: true } };
+    loadAnalyticsLists.mockResolvedValueOnce(none);
+    const before = await call('get', ROUTE, { userId: VIEWER });
+    expect(before.payload.basis.teachers).toBe('roster');
+    const after = await call('get', ROUTE, { userId: VIEWER });
+    expect(after.payload.basis.teachers).toBe('rdf');
+    expect(after.payload.overview.teachers).toBe(4);
   });
 
   it('the lists cannot be read: a 500, and nothing shown', async () => {

@@ -8639,7 +8639,8 @@ router.get('/config', async (req, res) => {
 // ── Schools analytics v8: LP Engagement (Active / Non-Active) ───────────────────
 const LpEngagement = require('../services/lp-engagement.service');
 
-// Its own ten-minute cache, keyed from|to|region|band: the tab's reads never slow the other tabs.
+// Its own ten-minute cache, keyed from|to|region|band and the lists' state: the tab's reads never slow the
+// other tabs, and a list arriving (or going) is seen at once.
 const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
 
 /**
@@ -8650,11 +8651,12 @@ const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 
  * lesson plan in the period by the RDF's rule for the band (Primary: a lesson_plans row or a K-5 app open;
  * Mid/High: a 6-12 app open, WhatsApp delivery, render requested or 6-12 survey); Non-Active = the rest.
  *
- * Answer: { success, range, band,
+ * Answer: { success, range, band, basis (which rule each list follows, as on the other analytics answers),
  *   overview  {teachers, active, nonActive, activePct, activeSectors}
  *   regions   the six sectors, each {region, teachers, active, nonActive, activePct}
- *   schools   per sector, its FDE-list schools and a "No school" line (schoolId/emis/name null):
- *             {region, schoolId, emis, name, teachers, active, nonActive, activePct}
+ *   schools   per sector, its FDE-list schools then its "No school" line (noSchool true,
+ *             schoolId 'no-school:<sector>', emis and name null):
+ *             {region, schoolId, emis, name, noSchool, teachers, active, nonActive, activePct}
  *   bySubject / byGrade  {rows: [{subject, name | grade, teachers, active, nonActive, activePct}], overall}
  *   sectorSubjects / sectorGrades  [{region, values: {<subject|grade>: activePct}}] for the grouped bars }
  * activePct = active ÷ teachers, one decimal; null (never 0) when there is no teacher. The region filter
@@ -8675,13 +8677,15 @@ router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer
       return res.status(400).json({ success: false, error: 'Unknown band.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
     const body = await lpEngagementCache.getOrLoad(key, async () => {
-      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { supabase });
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists });
       return {
         success: true,
         range,
         band: band.band,
+        basis: listsBasis(lists),
         ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region }),
       };
     });
