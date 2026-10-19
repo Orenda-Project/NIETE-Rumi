@@ -76,3 +76,11 @@ describe('switch on, again=1: the lesson page says it is a replay', () => {
     }
   });
 });
+
+describe('the "Done watching" chip is easy to read for a young child', () => {
+  const CSS = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  test('15 px on the video, and the Urdu polish keeps it 15 px (not its 13 px pill rule)', () => {
+    expect(CSS).toMatch(/\.wq-vbox \.wq-vwatched\{[^}]*font-size:15px/);
+    expect(CSS).toMatch(/html\.wq-ur2\[lang=ur\] \.wq-vbox \.wq-vwatched\{[^}]*font-size:15px/);
+  });
+});
