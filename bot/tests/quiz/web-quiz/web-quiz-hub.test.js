@@ -885,6 +885,17 @@ describe('a video lesson\'s quiz carries its Urdu name (app_settings web_quiz_vi
     expect(urOf(snap.out)).toEqual([['NEWQ01', 'Shapes', 'چوتھائی'], ['MATH01', 'Fractions quiz', 'چوتھائی'], ['ENGL01', 'Nouns', undefined]]);
   });
 
+  test('the finish screen\'s snapshot for a class child with the watch door: the recommendations ride along, so its video tile can name a lesson', async () => {
+    db.quiz_sessions.forEach((x) => { x.device_ref = DEV_A; });
+    const Result = require('../../../shared/services/quiz/web-quiz-next-offer-result');
+    const snap = await Result._snapshot({ studentId: KID, device: DEV_A, watch: true });
+    expect(snap).toBeTruthy();
+    expect((snap.out.recs || []).map((r) => r.vid)).toEqual([V(3), V(8), V(4)]);
+    // without the watch door the snapshot reads no recommendations (today's)
+    const off = await Result._snapshot({ studentId: KID, device: DEV_A });
+    expect(off.out).not.toHaveProperty('recs');
+  });
+
   test('the Games door rows carry topic_ur when the hub row has one; none: today\'s row', () => {
     const Home = require('../../../shared/services/quiz/web-quiz-hub-home');
     const out = {
