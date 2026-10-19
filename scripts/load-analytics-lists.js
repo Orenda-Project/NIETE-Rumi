@@ -24,6 +24,15 @@
  *   node scripts/load-analytics-lists.js --env sandbox --schools <fde_snapshot.json> --alloc <alloc_real.json> [--env-file <path>]
  *   … --as-of YYYY-MM-DD  the teachers' snapshot date (default today); --roster-as-of YYYY-MM-DD the coach roster's
  *   … --commit        actually write (dry run by default: counts only)
+ *   … --force         write even when a list SHRANK by more than 20% against the stored row (never an empty one)
+ *
+ * IT REFUSES, BEFORE ANY WRITE (exit 1), dry run included:
+ *   - an EMPTY list: 0 EMIS, no Primary or no 6-12 teacher, no sectorByUser entry, or no coach on the roster —
+ *     a malformed source (a snapshot without by_sector, an allocation file without tphone2sect or coachph2name,
+ *     a users read that came back empty) builds empty lists, and writing them would blank every tab. --force
+ *     does not override this.
+ *   - with --commit, a list whose count DROPPED by more than 20% against the row stored now, unless --force:
+ *     the lists move slowly (a snapshot, a vetted allocation file), so a large drop is a broken input first.
  *   --env is required (sandbox | staging | prod); the SUPABASE_URL it loads must name that environment's project,
  *   checked before a client exists (the create-analytics-user.js pattern).
  */
@@ -179,10 +188,41 @@ function parseArgs(argv) {
     asOf: val('as-of'),
     rosterAsOf: val('roster-as-of'),
     commit: flag('commit'),
+    force: flag('force'),
   };
 }
 
-const total = (o) => Object.values(o).reduce((n, a) => n + a.length, 0);
+const total = (o) => Object.values(o || {}).reduce((n, a) => n + (Array.isArray(a) ? a.length : 0), 0);
+
+/** The size of each list in a set of app_settings values — what the empty and drop checks compare. */
+function listCounts(values = {}) {
+  const t = values.teachers || {};
+  return {
+    'FDE school list (EMIS)': Array.isArray(values.schools && values.schools.emis) ? values.schools.emis.length : 0,
+    'RDF Primary teachers': total(t.primary),
+    'RDF 6-12 teachers': total(t.midHigh),
+    'RDF sectorByUser': total(t.sectorByUser),
+    'RDF coach roster': Array.isArray(values.coaches && values.coaches.coaches) ? values.coaches.coaches.length : 0,
+  };
+}
+
+/** Every list that came out EMPTY — never written, whatever the flags. PURE. */
+function emptyLists(values) {
+  return Object.entries(listCounts(values)).filter(([, n]) => n === 0)
+    .map(([name]) => `${name} is empty (0) — the source is malformed or unreadable`);
+}
+
+/**
+ * Every list that SHRANK by more than `maxDrop` against what is stored now (a list not stored yet, or stored
+ * empty, has nothing to compare with). PURE.
+ * @param {object} values the new values · @param {object} stored the stored values by the same keys
+ */
+function droppedLists(values, stored, maxDrop = 0.2) {
+  const now = listCounts(values);
+  const was = listCounts(stored);
+  return Object.keys(now).filter((k) => was[k] > 0 && now[k] < was[k] * (1 - maxDrop))
+    .map((k) => `${k} dropped from ${was[k]} to ${now[k]} (more than ${Math.round(maxDrop * 100)}%)`);
+}
 const perSector = (o) => SECTORS.map((s) => `${s} ${(o[s] || []).length}`).join(' · ');
 
 // ── I/O ──────────────────────────────────────────────────────────────────────
@@ -195,16 +235,11 @@ async function readUsers(supabase) {
     .order('id', { ascending: true }));
 }
 
-async function run({ supabase, snapshot, alloc, asOf, rosterAsOf, commit, log = console.log }) {
+async function run({ supabase, snapshot, alloc, asOf, rosterAsOf, commit, force = false, log = console.log }) {
   const schools = buildSchoolList(snapshot);
   const users = await readUsers(supabase);
   const teachers = buildTeacherLists(users, alloc);
   const coaches = buildCoachList(users, alloc);
-
-  // Which listed EMIS this database has a school for (a list the DB cannot match is read as missing).
-  const { data: schoolRows, error: sErr } = await supabase.from('schools').select('emis, region').in('emis', schools.emis);
-  if (sErr) throw new Error(`schools read failed: ${sErr.message}`);
-  const matched = new Set((schoolRows || []).map((r) => String(r.emis)));
 
   const day = asOf || new Date().toISOString().slice(0, 10);
   const values = {
@@ -212,6 +247,25 @@ async function run({ supabase, snapshot, alloc, asOf, rosterAsOf, commit, log = 
     teachers: teachersValue(teachers, day),
     coaches: coachesValue(coaches, rosterAsOf || day),
   };
+
+  // An empty list is never written, dry run or not, --force or not.
+  const empty = emptyLists(values);
+  if (empty.length) {
+    throw new Error(`REFUSED (nothing written): ${empty.join('; ')}. Users read: ${users.length}. `
+      + 'Check --schools (needs by_sector) and --alloc (needs tphone2sect, coachph2name, coachph2sector).');
+  }
+
+  // Against what is stored now: a list that shrank by more than 20% is a broken input until shown otherwise.
+  const { data: storedRows, error: stErr } = await supabase.from('app_settings').select('key, value').in('key', Object.values(KEYS));
+  if (stErr) throw new Error(`app_settings read failed: ${stErr.message}`);
+  const byKey = new Map((storedRows || []).map((r) => [r.key, r.value]));
+  const stored = { schools: byKey.get(KEYS.schools), teachers: byKey.get(KEYS.teachers), coaches: byKey.get(KEYS.coaches) };
+  const dropped = droppedLists(values, stored);
+
+  // Which listed EMIS this database has a school for (a list the DB cannot match is read as missing).
+  const { data: schoolRows, error: sErr } = await supabase.from('schools').select('emis, region').in('emis', schools.emis);
+  if (sErr) throw new Error(`schools read failed: ${sErr.message}`);
+  const matched = new Set((schoolRows || []).map((r) => String(r.emis)));
 
   log(`  users read: ${users.length}`);
   log(`  ${KEYS.schools}: ${schools.emis.length} EMIS (${SECTORS.map((s) => `${s} ${schools.bySector[s] || 0}`).join(' · ')}); `
@@ -223,9 +277,13 @@ async function run({ supabase, snapshot, alloc, asOf, rosterAsOf, commit, log = 
   log(`  ${KEYS.coaches}: ${coaches.length} names (${SECTORS.map((s) => `${s} ${coaches.filter((c) => c.sector === s).length}`).join(' · ')}); `
     + `${withUser} matched to a user, ${coaches.reduce((n, c) => n + c.userIds.length, 0)} user ids`);
 
+  for (const d of dropped) log(`  ${force ? 'FORCED' : 'WARNING'}: ${d} against the stored row`);
   if (!commit) {
-    log('\n  DRY RUN — nothing written. Re-run with --commit to write the three app_settings rows.');
-    return { committed: false, values, matchedSchools: matched.size };
+    log(`\n  DRY RUN — nothing written. Re-run with --commit to write the three app_settings rows${dropped.length && !force ? ' (refused unless --force: see the warnings)' : ''}.`);
+    return { committed: false, values, matchedSchools: matched.size, dropped };
+  }
+  if (dropped.length && !force) {
+    throw new Error(`REFUSED (nothing written): ${dropped.join('; ')}. Pass --force if that is right.`);
   }
   const now = new Date().toISOString();
   const rows = Object.keys(KEYS).map((k) => ({ key: KEYS[k], value: values[k], description: DESCRIPTIONS[k], updated_at: now }));
@@ -261,7 +319,7 @@ function main() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) die('SUPABASE_SERVICE_ROLE_KEY is not set in the env file');
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   console.log(`\n  env=${args.env} ref=${ref} commit=${args.commit}`);
-  run({ supabase, snapshot, alloc, asOf: args.asOf, rosterAsOf: args.rosterAsOf, commit: args.commit })
+  run({ supabase, snapshot, alloc, asOf: args.asOf, rosterAsOf: args.rosterAsOf, commit: args.commit, force: args.force })
     .catch((e) => { console.error(`\n  ${e.message}\n`); process.exit(1); });
 }
 
@@ -278,5 +336,8 @@ module.exports = {
   coachesValue,
   assertProjectRef,
   parseArgs,
+  listCounts,
+  emptyLists,
+  droppedLists,
   run,
 };
