@@ -107,8 +107,9 @@ const PROVIDERS: Record<string, { label: string; short: string; initials: string
     initials: 'GB',
     rank: 3,
   },
-  // bd-s42dye: the old platform's trainings, a provider of their own.
-  TALEEMABAD_LEGACY: { label: 'Taleemabad', short: 'Taleemabad', initials: 'T', rank: 4 },
+  // bd-s42dye: the old platform's trainings, a provider of their own. "Archive" tells coaches these are no
+  // longer live (bd-s42dye.7). `short` wins over the server's name in providerShort, so it must say it too.
+  TALEEMABAD_LEGACY: { label: 'Taleemabad Archive', short: 'Taleemabad Archive', initials: 'TA', rank: 4 },
 };
 
 export function providerLabel(
