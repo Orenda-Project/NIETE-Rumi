@@ -1000,10 +1000,13 @@ export interface LpEngagementRegion extends LpEngagementCounts {
   region: string;
 }
 
-/** A school on FDE's list, or — schoolId, emis and name all null — the sector's "No school" line. */
+/**
+ * A school on FDE's list, or the sector's "No school" line: schoolId `no-school:<sector>` (the server's
+ * lib/analytics-lists noSchoolId), emis and name null.
+ */
 export interface LpEngagementSchool extends LpEngagementCounts {
   region: string;
-  schoolId: string | null;
+  schoolId: string;
   emis: string | null;
   name: string | null;
 }

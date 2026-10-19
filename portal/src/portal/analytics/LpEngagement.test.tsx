@@ -179,15 +179,15 @@ describe("LP Engagement — Active / Non-Active", () => {
     const table = await find("lp-schools-table");
     const want = fixtureLpEngagement({ ...MONTH, region: "Urban-I", band: "primary" }).schools;
     expect(want.length).toBeGreaterThan(1);
-    expect(want[want.length - 1].schoolId).toBeNull();
+    expect(want[want.length - 1]).toMatchObject({ schoolId: "no-school:Urban-I", name: null, emis: null });
     expect(within(table).getAllByTestId("school-name").map((n) => n.textContent)).toEqual(want.map((s) => s.name ?? "No school"));
     for (const s of want) {
-      const row = screen.getByTestId(`lp-school-row-${s.schoolId ?? "none"}`);
+      const row = screen.getByTestId(`lp-school-row-${s.schoolId}`);
       expect(within(row).getByTestId("cell-active")).toHaveTextContent(String(s.active));
       expect(within(row).getByTestId("cell-nonActive")).toHaveTextContent(String(s.nonActive));
       expect(within(row).getByTestId("cell-lp")).toHaveTextContent(pct(s.activePct));
     }
-    expect(screen.getByTestId("lp-school-row-none")).toHaveTextContent("No school on FDE's list");
+    expect(screen.getByTestId("lp-school-row-no-school:Urban-I")).toHaveTextContent("No school on FDE's list");
     expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual(["School Name", "Active", "Non-Active", "LP Engagement"]);
     expect(screen.getByTestId("sector-card-Urban-I")).toHaveAttribute("aria-pressed", "true");
     expect(where()).toMatch(/^\/portal\/analytics\/schools\/lp\?.*region=Urban-I/);

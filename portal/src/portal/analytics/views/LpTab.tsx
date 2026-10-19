@@ -295,9 +295,9 @@ function LpSchoolsTable({ c, schools }: { c: AnalyticsWords; schools: LpEngageme
         </thead>
         <tbody>
           {schools.map((s, i) => (
-            <tr key={s.schoolId ?? `none-${s.region}`} data-testid={`lp-school-row-${s.schoolId ?? 'none'}`} className="hover:bg-gray-50" style={{ borderBottom: i < schools.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+            <tr key={s.schoolId} data-testid={`lp-school-row-${s.schoolId}`} className="hover:bg-gray-50" style={{ borderBottom: i < schools.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
               <th scope="row" className="px-3 py-3 text-start font-medium sm:px-4">
-                {s.schoolId === null ? (
+                {s.name === null ? (
                   <>
                     <span data-testid="school-name" className="block text-gray-700">{w.noSchool}</span>
                     <span className="block text-xs font-normal text-gray-400">{w.noSchoolHint}</span>
