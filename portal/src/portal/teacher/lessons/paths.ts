@@ -64,7 +64,11 @@ export function readAt(search: string): LessonsAt | null {
  * `k5:<lesson_id>` or `g612:<segment_id>` with its language, the keys GET /lesson-plans/recent uses
  * and the coaching upload takes ({ lessonId } | { segmentId, lang }).
  */
-export type DcPrefill = { grade: number | null; subjectKey: string | null; plan: string | null; lang: string | null };
+export type DcPrefill = {
+  grade: number | null; subjectKey: string | null; plan: string | null; lang: string | null;
+  /** bd-fgj73x.10 — so DC picks the plan's class even when it is not hers: the catalogue's subject key, or its name. */
+  lpSubject?: string | null; subjectName?: string | null;
+};
 
 export function dcHref(base: string, dc: DcPrefill | null | undefined): string {
   if (!dc) return base;
@@ -73,6 +77,8 @@ export function dcHref(base: string, dc: DcPrefill | null | undefined): string {
   if (dc.subjectKey) q.set('subject', dc.subjectKey);
   if (dc.plan) q.set('plan', dc.plan);
   if (dc.plan && dc.plan.startsWith('g612:') && dc.lang) q.set('lang', dc.lang);
+  if (dc.lpSubject) q.set('lpSubject', dc.lpSubject);
+  if (dc.subjectName) q.set('subjectName', dc.subjectName);
   const s = q.toString();
   return s ? `${base}?${s}` : base;
 }
@@ -82,6 +88,8 @@ export type PlanRef = {
   plan: string; lang?: string | null; title?: string | null; grade?: number | null;
   /** `dc`: opened from Digital Coaching's attached plan, to read it (no Start DC on it). */
   from?: 'dc';
+  /** bd-fgj73x.10 — the plan's subject name (Recent / All lesson plans), carried on to Start DC observation. */
+  subject?: string | null;
 };
 
 export function openUrl(ref: PlanRef): string {
@@ -90,5 +98,6 @@ export function openUrl(ref: PlanRef): string {
   if (ref.title) q.set('title', ref.title);
   if (ref.grade != null) q.set('grade', String(ref.grade));
   if (ref.from) q.set('from', ref.from);
+  if (ref.subject) q.set('subject', ref.subject);
   return `${LESSONS_OPEN}?${q.toString()}`;
 }

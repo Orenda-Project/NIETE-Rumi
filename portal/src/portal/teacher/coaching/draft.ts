@@ -39,7 +39,11 @@ export function clearDraft(): void {
  * `?grade=4&subject=science&plan=k5:<lessonId>` or `plan=g612:<segmentId>&lang=en|ur` — the keys the
  * coaching upload takes as { lessonId } | { segmentId, lang }.
  */
-export type Prefill = { grade: number | null; subjectKey: string | null; plan: string | null; pick: LibraryPick | null };
+export type Prefill = {
+  grade: number | null; subjectKey: string | null; plan: string | null; pick: LibraryPick | null;
+  /** bd-fgj73x.10 — the plan's subject as the lesson catalogue keys it (lessons pages), or by name (Recent / All). */
+  lpSubject: string | null; subjectName: string | null;
+};
 
 export function readPrefill(search: string): Prefill {
   const q = new URLSearchParams(search);
@@ -52,7 +56,9 @@ export function readPrefill(search: string): Prefill {
   const g612 = raw.match(/^g612:(.+)$/);
   if (k5) pick = { lessonId: k5[1] };
   else if (g612) pick = { segmentId: g612[1], lang: q.get('lang') === 'ur' ? 'ur' : 'en' };
-  return { grade, subjectKey, plan: pick ? raw : null, pick };
+  const lpSubject = (q.get('lpSubject') || '').trim() || null;
+  const subjectName = (q.get('subjectName') || '').trim() || null;
+  return { grade, subjectKey, plan: pick ? raw : null, pick, lpSubject, subjectName };
 }
 
 /** A pick's key as GET /lesson-plans/recent spells it, to name it from her recent plans. */
