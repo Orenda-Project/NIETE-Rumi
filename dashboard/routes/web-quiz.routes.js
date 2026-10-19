@@ -756,10 +756,13 @@ function flushWire(req, res, top) {
  * A link-preview fetch's answer: the quiz page's own head (og tags, lang, dir) from the facts the edge
  * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
  */
-function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k }) {
-  const lang = facts.quiz.lang === 'ur' ? 'ur' : 'en';
+// linkLang 'ur' (web_quiz_share_link_lang on, an Urdu card's link to an English lesson): the preview speaks Urdu, like
+// the card picture above it and the door it opens; the picture is the same.
+function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k, linkLang = null }) {
+  const urLink = linkLang === 'ur' && facts.quiz.lang !== 'ur';
+  const lang = facts.quiz.lang === 'ur' || urLink ? 'ur' : 'en';
   const brand = brandOf(facts.brand);
-  const og = ogText(facts, view, brand);
+  const og = ogText(urLink ? { ...facts, quiz: { ...facts.quiz, lang: 'ur' } } : facts, view, brand);
   const image = ogImageFor({ payload: facts, code, view, origin, a, v, k });
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url, assetV, brand, image, ...cardType(image) })}
 </head>
@@ -1436,8 +1439,10 @@ function createWebQuizRouter(opts = {}) {
         if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, ogKeepMs(known)); }
       } catch (_) { /* the full path below */ }
     }
+    // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read)
+    const linkLang = preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur' : null;
     if (known && !(view === 'class' && known.invited)) {
-      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
     }
     // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
     // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
@@ -1485,7 +1490,7 @@ function createWebQuizRouter(opts = {}) {
       // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
       if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: uiLangOf(out.steps ? { ...out.body, st: out.steps } : out.body, view, storedLangOf(req, out.body, view) || req.query.lang), code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
-        return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
+        return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
       }
       const render = () => renderQuizPage({ payload: uiLangOf(out.body, view, storedLangOf(req, out.body, view) || req.query.lang), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k });
       if (!out.steps) return res.status(200).type('html').send(render());
@@ -1744,6 +1749,8 @@ function createWebQuizRouter(opts = {}) {
   // web_quiz_card_fast: the page's facts in Redis (kept there by the bot at mint, shared by every portal copy) before
   // storage; a storage or bot answer fills it. Redis away, slow or junk: storage, as before. Off: Redis is never asked.
   const cardFastOn = quickFlag(opts.cardFastOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_fast' }));
+  // web_quiz_share_link_lang: an Urdu card's link (`?lang=ur`) previews in Urdu (renderPreviewPage). Off: today's preview.
+  const linkLangOn = quickFlag(opts.linkLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang' }));
   const cardCache = opts.cardCache || require('../lib/edge-redis');
   const cardCacheKey = (token) => `wq:card:${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}:${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}`;
   const cachedFacts = async (token) => {
