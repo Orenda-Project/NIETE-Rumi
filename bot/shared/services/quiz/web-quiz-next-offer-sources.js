@@ -337,10 +337,13 @@ function hubEarly({ token, lang, chosenId, grade, chip, stopsP }) {
   return { swP, booksP, waysP };
 }
 
-/** The first recommended lesson's Urdu-script name (web_quiz_videos_ur_titles; a cached map), or null. Never rejects. */
-function recTitleUrOf(out) {
+/**
+ * On an Urdu page, the first recommended lesson's Urdu-script name (web_quiz_videos_ur_titles; a cached map), or null.
+ * An English page reads nothing. Never rejects.
+ */
+function recTitleUrOf(out, lang) {
   const rec = ((out && out.recs) || []).find((r) => r && r.vid);
-  if (!rec) return Promise.resolve(null);
+  if (!rec || lang !== 'ur') return Promise.resolve(null);
   return (async () => {
     if (!(await require('./web-quiz-library-flag').urTitlesOn())) return null;
     const of = await require('./web-quiz-bank').urTitles();
@@ -350,7 +353,7 @@ function recTitleUrOf(out) {
 }
 
 async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }) {
-  const urP = recTitleUrOf(out);
+  const urP = recTitleUrOf(out, lang);
   const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
   if (!p) return {};
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
