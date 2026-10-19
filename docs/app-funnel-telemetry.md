@@ -60,14 +60,16 @@ page shape, kind, dwell and age; user, journey and session come from the portal 
 Replace the dataset and `env` (`niete-logs` / `"production"` for production; this window is one Pakistan day). All three
 were run against `rumi-sandbox`.
 
-**Funnel per starting command** (journeys that reached each step):
+**Funnel per starting command** (journeys that reached each step; a coach's or leader's journeys are their own row, e.g. `lesson_plan@leader`):
 
 ```apl
 ["niete-logs"]
 | where _time >= datetime(2026-10-12T19:00:00Z) and _time < datetime(2026-10-13T19:00:00Z) and env == "production"
 | where event in ("app_funnel.command", "app_funnel.link_sent", "app_link.open", "app_funnel.page_view", "app_funnel.action")
 | where isnotempty(journeyId)
-| extend cmdFeature = tostring(parse_json(data_json).feature), cmdTs = iff(event == "app_funnel.command", _time, datetime(1970-01-01))
+| extend cmdAud = tostring(parse_json(data_json).audience), cmdFeature = tostring(parse_json(data_json).feature)
+| extend cmdFeature = iff(isnotempty(cmdAud) and cmdAud != "teacher", strcat(cmdFeature, "@", cmdAud), cmdFeature)
+| extend cmdTs = iff(event == "app_funnel.command", _time, datetime(1970-01-01))
 | summarize arg_max(cmdTs, cmdFeature), asked = countif(event == "app_funnel.command"), sent = countif(event == "app_funnel.link_sent"), opened = countif(event == "app_link.open" and outcome == "ok"), views = countif(event == "app_funnel.page_view"), pages = dcountif(route, event == "app_funnel.page_view"), acts = countif(event == "app_funnel.action") by journeyId
 | where asked > 0
 | summarize asked = count(), link_sent = countif(sent > 0), opened = countif(opened > 0), landed = countif(views > 0), went_deeper = countif(pages >= 2), acted = countif(acts > 0) by cmdFeature
@@ -80,7 +82,8 @@ were run against `rumi-sandbox`.
 | where _time >= datetime(2026-10-12T19:00:00Z) and _time < datetime(2026-10-13T19:00:00Z) and env == "production"
 | where event in ("app_funnel.command", "app_link.open", "app_funnel.page_view", "app_funnel.page_resume", "app_funnel.action")
 | where isnotempty(journeyId)
-| extend cmdFeature = tostring(parse_json(data_json).feature)
+| extend cmdAud = tostring(parse_json(data_json).audience), cmdFeature = tostring(parse_json(data_json).feature)
+| extend cmdFeature = iff(isnotempty(cmdAud) and cmdAud != "teacher", strcat(cmdFeature, "@", cmdAud), cmdFeature)
 | extend cmdTs = iff(event == "app_funnel.command", _time, datetime(1970-01-01)), pageTs = iff(event in ("app_funnel.page_view", "app_funnel.page_resume"), _time, datetime(1970-01-01))
 | summarize arg_max(cmdTs, cmdFeature), arg_max(pageTs, route), asked = countif(event == "app_funnel.command"), opened = countif(event == "app_link.open" and outcome == "ok"), acts = countif(event == "app_funnel.action") by journeyId
 | where asked > 0 and opened > 0 and acts == 0
