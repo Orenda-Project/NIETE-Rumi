@@ -122,6 +122,9 @@ function meterOf(value) {
 // The light Urdu face (wq-nastaliq-7: the polished face with its outlines on a coarser grid) rides this one read too:
 // the page payload's `ui.fl` (web-quiz-ur-polish.js lite()). Only the stored JSON boolean true is on.
 const FACE_LITE_KEY = 'web_quiz_face_lite';
+// The games door's reads started together (web-quiz-hub-doors.js, the read-aloud budget, the challenge's switches):
+// the hub's switch cache only (nowOf('gamesTogether')), never a read of its own. Only the stored JSON boolean true is on.
+const GAMES_TOGETHER_KEY = 'web_quiz_games_together';
 // Minified page files (web-quiz-minify.js) ride this one read: only the stored JSON boolean true is on.
 const MINIFY_KEY = 'web_quiz_minify';
 // The child home's scripts and styles as one file each (the edge's pack): the hub JSON names it (`pack`).
@@ -162,6 +165,7 @@ const SWITCHES = Object.freeze([
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
+  ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],
   ['gradeChange',  GRADE_CHANGE_KEY,      'json'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
   ['homeInline',   HOME_INLINE_KEY,       'json'],
@@ -538,6 +542,7 @@ module.exports = {
   hubLink,
   KEYS,
   LIBRARY_KEY,
+  GAMES_TOGETHER_KEY,
   LIVE_METER_KEY,
   LIVE_READ_V3_KEY,
   LOOK_AFTER_KEY,
