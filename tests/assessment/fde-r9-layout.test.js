@@ -296,12 +296,15 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // sha256 of JSON.stringify(applyLayout(…)) recorded from the code before this change (sandbox a843a14b0).
   // maths re-recorded for bd-5jmnfj.11: Q4-8 gained `sub_numbering` and the angle options in its prompt_rule (with
   // those two fields restored it hashes to d88bce6f…).
+  // maths and urdu re-recorded for bd-5jmnfj.19: the only change is each section's `levels` carried into
+  // _layout; with it stripped they hash to the values before it (maths: 3c8623bd…, the .11 value above). urdu again when its A/C split moved to R20 / R10 U10
+  // (with the old split restored they hash to the previous values).
   const BEFORE = {
     science: ['science', 'c89b21fc0d5a437e51246e5f213f96f99ebd7eb7fa052e5a166c2623ff91bbe7'],
-    maths: ['maths', '3c8623bd53817d101f910d98d0be363fd87daf0b0e15314369896e1119e1cb9e'],
-    urdu: ['urdu', 'd5ed4cd3602d4b2835292ccc4feaa3365c18f6fbf02b265abb305cc8a1cd5f0c'],
+    maths: ['maths', 'de227f21b454c135e9a7a2237792b7ef7d06abac558dae44c74684bfb55b3a8e'],
+    urdu: ['urdu', '8c2c920fd16d2283b4c5a5ff692989a2d53ebe60811d4ded965d168e8b13b0a6'],
     'r7-science-full1.exam': ['science', '2956ee5a438aa0fe16d14a4e2a4dabcfcb1cea63b813eb234abd75bd0598e7d2'],
-    'urdu-gen-full': ['urdu', 'd3d1b1fbea67508c1be28d8198d5d01ddbc55d1e1d931950682d5e6dc6600c28'],
+    'urdu-gen-full': ['urdu', '2b3b79003825b0c0ec3c3f4590a83e0b2c24aab5e962bccec423b21022f1dbd5'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];
