@@ -47,6 +47,7 @@ beforeEach(() => {
     liveEligible: jest.fn().mockResolvedValue(ok), liveCard: jest.fn().mockResolvedValue(ok),
     liveKey: jest.fn().mockResolvedValue(ok), liveDetect: jest.fn().mockResolvedValue(ok),
     liveEnd: jest.fn().mockResolvedValue(ok), liveTaps: jest.fn().mockResolvedValue(ok),
+    startSession: jest.fn().mockResolvedValue(ok),
   };
   jest.doMock('../../dashboard/services/portal-coaching.client', () => client);
   jest.doMock('../../dashboard/config/supabase', () => ({
@@ -79,4 +80,11 @@ test.each(ROUTES)('%s relays for the SESSION user, not the body', async (name, f
   const out = await invoke(`/coaching-live/${name}`, { body: { ...body, userId: 'someone-else' } });
   expect(out.statusCode).toBe(200);
   expect(client[fn]).toHaveBeenCalledWith({ ...body, userId: 'teacher-1' });
+});
+
+test('coaching-upload/start forwards the live moves record', async () => {
+  const liveMoves = { lessonId: 'L1', stamp: 's1', liveId: 'live-1', moves: [], taps: [], drops: 0, bytesSent: 0 };
+  const out = await invoke('/coaching-upload/start', { body: { key: 'k', liveMoves } });
+  expect(out.statusCode).toBe(200);
+  expect(client.startSession).toHaveBeenCalledWith(expect.objectContaining({ userId: 'teacher-1', key: 'k', liveMoves }));
 });

@@ -64,12 +64,13 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
 }
 
 /**
- * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass}} args
+ * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves}} args
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked in the app
+ *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  */
-function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass }) {
-  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass });
+function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves }) {
+  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves });
 }
 
 /** @param {{userId, coachingSessionId, answer?, audioKey?}} args — audioKey: her spoken answer (bd-eygg2f) */

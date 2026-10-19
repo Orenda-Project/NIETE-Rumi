@@ -115,6 +115,15 @@ export const language = {
   },
 };
 
+
+/** bd-v0toag.31: the live moves record sent with a recording (stored as analysis_data.live_moves). */
+export type LiveMovesTap = { idx: number; choice: 'did' | 'did_not'; at: string; live_state: 'ticked' | 'unticked' };
+export type LiveMovesRecord = {
+  lessonId: string; stamp: string | null; liveId: string;
+  moves: { idx: number; covers: string[]; tickedAtMs: number | null }[];
+  taps: LiveMovesTap[]; drops: number; bytesSent: number;
+};
+
 export const portal = {
   getDashboard: async (): Promise<{
     user: User;
@@ -205,6 +214,8 @@ export const portal = {
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
     /** bd-fmf24g.9: the class she picked in the teacher app (grade 1–12 and her subject). */
     teacherClass?: { grade: number; subject: string; subjectKey?: string };
+    /** bd-v0toag.31: what the live screen saw while she recorded; the bot validates it. */
+    liveMoves?: LiveMovesRecord;
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/coaching-upload/start', args);
     return response.data;

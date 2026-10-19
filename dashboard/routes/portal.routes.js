@@ -7380,17 +7380,18 @@ function teacherClassPick(raw) {
 
 /**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? } — keys returned by /presign, uploaded.
+ *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it and drops a bad one
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked; the bot stores it
  *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
  *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
-    teacherClass: teacherClassPick(teacherClass),
+    teacherClass: teacherClassPick(teacherClass), liveMoves,
   }));
 });
 

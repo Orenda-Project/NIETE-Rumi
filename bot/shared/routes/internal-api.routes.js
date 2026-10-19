@@ -2740,7 +2740,7 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
 
 /**
  * POST /api/internal/coaching/start
- * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? }
+ * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? }
  *   teacherClass (bd-fmf24g.9): { grade 1-12, subject, subjectKey? } — the class she picked; stored on the row
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * Ok   200 { status:'ok', coachingSessionId }   409 in_progress
@@ -2750,6 +2750,7 @@ router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
   (Svc, b) => Svc.startPortalSession({
     userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
     teacherClass: b.teacherClass,
+    liveMoves: b.liveMoves,
   })));
 
 /**

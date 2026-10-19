@@ -44,6 +44,15 @@ describe("sendLesson", () => {
     expect(a.startCoachingUpload.mock.calls[0][0]).not.toHaveProperty("teacherClass");
   });
 
+  it("bd-v0toag.31 — sendLesson passes liveMoves when present", async () => {
+    const liveMoves = { lessonId: "L1", stamp: "s1", liveId: "live-1", moves: [{ idx: 0, covers: [], tickedAtMs: 5000 }], taps: [], drops: 0, bytesSent: 9 };
+    await sendLesson({ audio, plan: null, photos: [], liveMoves }, a as never);
+    expect(a.startCoachingUpload).toHaveBeenCalledWith({ key: "audio/1-Lesson 2 Oct.webm", photoKeys: [], liveMoves });
+    a = api();
+    await sendLesson({ audio, plan: null, photos: [] }, a as never);
+    expect(a.startCoachingUpload.mock.calls[0][0]).not.toHaveProperty("liveMoves");
+  });
+
   it("a library pick is sent as lessonPlan, with nothing uploaded for it", async () => {
     await sendLesson({ audio, plan: { kind: "library", pick: { lessonId: "g4-sst-ch3-seg2" } }, photos: [] }, a as never);
     expect(a.presignCoachingUpload).toHaveBeenCalledTimes(1);

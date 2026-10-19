@@ -4,10 +4,9 @@
  * `status` for portalCoachingRoute's HTTP mapping. `userId` is always the portal session's, never the browser's.
  */
 
+const { validTap, MAX_TAPS } = require('./live-record');
+
 const WINDOW_CHARS = 6000;
-const MAX_TAPS = 200;
-const CHOICES = new Set(['did', 'did_not']);
-const LIVE_STATES = new Set(['ticked', 'unticked']);
 
 // Defaults load lazily so a route test can mock this module without pulling in the bot's clients.
 function withDefaults(deps = {}) {
@@ -62,11 +61,6 @@ async function end({ userId, liveId, drops, bytesSent }, deps) {
   d.cap.release(liveId);
   d.log('live_moves.stream.ended', { userId, liveId, drops, bytesSent });
   return { status: 'ok', ok: true };
-}
-
-function validTap(t) {
-  return Boolean(t) && Number.isInteger(t.idx) && t.idx >= 0 && CHOICES.has(t.choice)
-    && typeof t.at === 'string' && LIVE_STATES.has(t.live_state);
 }
 
 async function taps({ userId, coachingSessionId, taps: incoming }, deps) {
