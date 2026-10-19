@@ -123,8 +123,8 @@ export function groupByDay(items: HistoryItem[], today: string, words: LessonsCo
       ...(it.chapterNumber != null ? { extra: C.chapter(it.chapterNumber) } : {}),
       chip: it.via === 'whatsapp' ? { text: C.whatsapp, tone: 'done' } : { text: C.opened, tone: 'info' },
       to: it.open.lane === 'fln' ? flnPlanPath(it.open.planId) : openUrl(it.open.lane === 'k5'
-        ? { plan: `k5:${it.open.lessonId}`, title: it.title, grade: it.grade }
-        : { plan: `g612:${it.open.segmentId}`, lang: it.open.lang, title: it.title, grade: it.grade }),
+        ? { plan: `k5:${it.open.lessonId}`, title: it.title, grade: it.grade, subject: it.subject }
+        : { plan: `g612:${it.open.segmentId}`, lang: it.open.lang, title: it.title, grade: it.grade, subject: it.subject }),
     });
   }
   return groups;
