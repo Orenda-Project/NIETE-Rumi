@@ -281,3 +281,64 @@ describe('bd-te5lae — capstone marking is asked of the bot, never done in the 
     await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).rejects.toThrow();
   });
 });
+
+describe('bd-te5lae — capstone marking fits a total deadline, and survives one dropped connection', () => {
+  const MARK = { data: { success: true, score: 4, feedback: 'Good.' } };
+
+  it('caps the per-answer timeout at what is left of the deadline', async () => {
+    axiosPost.mockResolvedValueOnce(MARK);
+
+    await client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a', undefined, { deadline: Date.now() + 25_000 });
+
+    const { timeout } = axiosPost.mock.calls[0][2];
+    expect(timeout).toBeGreaterThan(0);
+    expect(timeout).toBeLessThanOrEqual(25_000);
+  });
+
+  it('asks the bot nothing once the deadline has passed (axios reads a timeout of 0 as no timeout)', async () => {
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a', undefined, { deadline: Date.now() - 1 }))
+      .rejects.toThrow(/deadline/i);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ECONNRESET', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })],
+    ['socket hang up', new Error('socket hang up')],
+    ['fetch failed', new TypeError('fetch failed')],
+  ])('retries once after a dropped connection (%s): marking writes nothing on the bot', async (_label, err) => {
+    axiosPost.mockRejectedValueOnce(err).mockResolvedValueOnce(MARK);
+
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).resolves.toEqual({ score: 4, feedback: 'Good.' });
+    expect(axiosPost).toHaveBeenCalledTimes(2);
+  });
+
+  it('a second dropped connection throws: no made-up score', async () => {
+    const reset = () => Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
+    axiosPost.mockRejectedValueOnce(reset()).mockRejectedValueOnce(reset());
+
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).rejects.toThrow();
+    expect(axiosPost).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['an HTTP 500 with a body', Object.assign(new Error('Request failed with status code 500'), { response: { status: 500, data: { success: false } } })],
+    ['an HTTP 400 with a body', Object.assign(new Error('Request failed with status code 400'), { response: { status: 400, data: { success: false } } })],
+    ['a timeout', Object.assign(new Error('timeout of 60000ms exceeded'), { code: 'ECONNABORTED' })],
+  ])('does not retry %s', async (_label, err) => {
+    axiosPost.mockRejectedValueOnce(err).mockResolvedValueOnce(MARK);
+
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).rejects.toThrow();
+    expect(axiosPost).toHaveBeenCalledTimes(1);
+  });
+
+  it('the retry also keeps to the deadline', async () => {
+    axiosPost
+      .mockRejectedValueOnce(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }))
+      .mockResolvedValueOnce(MARK);
+
+    await client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a', undefined, { deadline: Date.now() + 5_000 });
+
+    expect(axiosPost).toHaveBeenCalledTimes(2);
+    expect(axiosPost.mock.calls[1][2].timeout).toBeLessThanOrEqual(5_000);
+  });
+});
