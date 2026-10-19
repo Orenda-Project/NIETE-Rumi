@@ -20,7 +20,7 @@ function page(result, lang = 'en') {
     LANG: lang, CODE: 'AB12CD', N: 5, Q: { topic: 'Plants' }, CLS: { label: '3-B' }, IMG: '/wq/', S: { result, child: { first: 'Danish' } },
     T: { cardPriv: 'p', shareBtn: 'Share', challenge: 'Challenge', classBtn: 'Class', praise: () => 'Well played',
       shareLine: (f, c, t) => `${f} got ${c}/${t}`, sharePlayed: (f) => `${f} played` },
-    esc: (s) => String(s == null ? '' : s), ani: (a) => `[${a}]`, bar: () => '', markHtml: () => '', BR: null, dotJoin: (a, b) => `${a} · ${b}`,
+    esc: (s) => String(s == null ? '' : s), ani: (a) => `[${a}]`, bar: () => '', markHtml: () => '', BR: null, doorLabel: () => '3-B', dotJoin: (a, b) => `${a} · ${b}`,
     stars: (n, t) => `<stars ${n}/${t}>`, render: (h, n) => out.screens.push({ h, n }), wireBar: () => {}, ev: () => {},
     // the page's mark helper (wq.js ic): without the sound kit it draws today's emoji
     IC: {}, ic: (svg, emoji) => emoji,
