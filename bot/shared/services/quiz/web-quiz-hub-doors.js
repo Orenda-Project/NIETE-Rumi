@@ -203,13 +203,18 @@ function safeName(Challenge, id, lang) {
 }
 
 /** One door's rows for the child a hub chip names on this phone. */
-async function door(token, { kid, d, device, lang, now = Date.now() } = {}) {
+async function door(token, opts = {}) {
+  // web_quiz_kid_together: this answer's child rows are read once and shared (web-quiz-hub-child-rows.js)
+  const ChildRows = require('./web-quiz-hub-child-rows');
+  if (require('./web-quiz-hub-flags').kidTogetherNow() && !ChildRows.inside()) return ChildRows.run(() => door(token, opts));
+  const { kid, d, device, lang, now = Date.now() } = opts;
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
   const homeFlags = await require('./web-quiz-home-flags').flags();
   if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
-  const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device));
+  // the games door's grade reads the child's enrolments: started with the child's own reads (web_quiz_kid_together)
+  const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device), d === 'games' ? { warm: ['class_enrollments'] } : undefined);
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
