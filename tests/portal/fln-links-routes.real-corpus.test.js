@@ -78,12 +78,10 @@ d('on the real corpus service', () => {
     expect(r.body.rows.find((x) => x.id === 900003).url).toBe('https://portal.example.test/portal/fln/p/900003');
   });
 
-  it('loaded: grade 8 with no level puts every level\'s screener first', async () => {
+  it('loaded: grade 8 is 400 bad_request (FLN is Grades 1–5, bd-elc1qz)', async () => {
     Corpus.__setForTests(fixture.build());
     const r = await get('/links?grade=8&subject=rh-en');
-    expect(r.status).toBe(200);
-    expect(r.body.rows.length).toBeGreaterThan(1);
-    expect(r.body.rows[0].id).toBe(900002);
+    expect([r.status, r.body, r.cache]).toEqual([400, { error: 'bad_request' }, 'no-store']);
   });
 
   it('loaded: /title answers a served plan and 404s a hidden one', async () => {

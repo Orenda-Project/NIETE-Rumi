@@ -45,7 +45,8 @@ function parseLinksQuery(query) {
   const grade = one(query.grade); const subject = one(query.subject); const level = one(query.level);
   const q = one(query.q); const has = one(query.has); const sort = one(query.sort);
   if ([grade, subject, level, q, has, sort].some((p) => p.bad)) return null;
-  const g = grade.value === undefined ? null : intIn(grade.value, 1, 12);
+  // FLN is Grades 1–5 only (bd-elc1qz).
+  const g = grade.value === undefined ? null : intIn(grade.value, 1, 5);
   if (g === null) return null;
   if (!SUBJECTS.has(subject.value)) return null;
   let lv = null;
@@ -157,7 +158,7 @@ function originOf(req, portalOrigin) {
 
 /**
  * @param {object} [deps]
- * @param {object} [deps.corpus]  the fln-corpus service (ensure, catalogue({grade, subject, level}), plan, isHidden);
+ * @param {object} [deps.corpus]  the fln-corpus service (ensure, catalogue({grade, subject}), plan, isHidden);
  *                                default required on first use
  * @param {object} [deps.access]  fln-access (requireFln, noStore)
  * @param {() => string|null} [deps.portalOrigin]  the portal's public origin; default PORTAL_URL (branding)
@@ -179,22 +180,10 @@ function createFlnLinksRouter({ corpus, access: acc = access, portalOrigin = por
       // The service loads the bundle lazily: a cold process (restart, a second replica) must load it first, and a
       // bundle that cannot load is 503, never an empty 200 (RT #2953).
       if (!(await c.ensure())) return unavailable(res);
-      const cat = async (level) => {
-        const out = await c.catalogue({ grade: p.grade, subject: p.subject, level });
-        if (!out) throw new Error('catalogue unavailable');
-        return out;
-      };
-      if (p.grade >= 6 && !p.level) {
-        // Grades 6–12 with no level: the screener of every level on top, then each level in teaching order.
-        const per = [];
-        for (const lv of [1, 2, 3]) {
-          // eslint-disable-next-line no-await-in-loop
-          per.push(flatten(await cat(lv), linkFor));
-        }
-        rows = dedupe([...per.flatMap((r) => r.filter(isScreener)), ...per.flatMap((r) => r.filter((x) => !isScreener(x)))]);
-      } else {
-        rows = dedupe(flatten(await cat(p.level), linkFor));
-      }
+      // `level` is accepted for old links but never passed on: for Grades 1–5 the grade decides the rows.
+      const out = await c.catalogue({ grade: p.grade, subject: p.subject });
+      if (!out) throw new Error('catalogue unavailable');
+      rows = dedupe(flatten(out, linkFor));
     } catch (_) {
       return unavailable(res);
     }

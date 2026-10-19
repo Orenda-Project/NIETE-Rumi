@@ -20,7 +20,7 @@ Feature: Teacher lesson plans
     When she opens /portal/lesson-plans
     Then /portal/lesson-plans settles on /portal/curriculum
 
-  # FLN Reading Hour + Numeracy (bd-t7zk3t.11, SPEC_v2 §8; m-app owns FLN01/02/05/07, m-links FLN03/04/06).
+  # FLN Reading Hour + Numeracy (bd-t7zk3t.11, SPEC_v2 §8; m-app owns FLN01/02/05/07/08, m-links FLN03/04/06).
   # Behind app_settings `portal_fln_lessons` (missing = OFF). Written by hand AFTER the generated TL scenarios: these
   # are not page-health rows, so gen_page_features.py cannot express them and the web driver has no code for them yet
   # (@draft). Re-running the generator rewrites this file — carry this block over when it does.
@@ -72,6 +72,20 @@ Feature: Teacher lesson plans
     And every other section stays closed
     When they tap the same band again
     Then it closes
+
+  # FLN08 (bd-elc1qz, 19 Oct 2026): FLN is for Grades 1–5 only — the team: "they should only be available up to
+  # Grade 5". Covers portal/src/portal/fln/FlnBandBody.tsx, FlnRoutes.tsx and the catalogue route's 400 above grade 5.
+  @FLN08 @draft @config-gated
+  Scenario: The FLN band offers Grades 1–5 only, and a teacher of an older class lands on Grade 1
+    Given portal_fln_lessons is true
+    And the demo teacher is signed in and teaches only Grade 7
+    When they open /portal/teacher/lessons/new
+    Then the band's grade chips are Grade 1, 2, 3, 4 and 5, and no other grade
+    And Grade 1 is selected and the band's line reads "Foundational reading and maths · Grades 1–5"
+    And every row links to /portal/fln/list/<subject>?grade=1
+    When they open an old link /portal/fln/list/rh-en?grade=8
+    Then the page settles on /portal/fln/list/rh-en?grade=1, the Grade 1 lesson list
+    And GET /api/portal/fln/catalogue?grade=8&subject=rh-en answers 400
 
   # FLN03 (PR-D, m-links): a shared plan link opened signed out → sign-in → back on the plan (next=, replace).
   # Covers portal/src/portal/fln/lib/safeNext.ts, fln/login/FlnLoginBanner.tsx, TeacherGate.tsx:29, PortalLogin.tsx.

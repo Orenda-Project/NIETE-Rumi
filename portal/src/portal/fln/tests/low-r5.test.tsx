@@ -9,7 +9,8 @@ import { resolve } from 'node:path';
  *  1. a count of one is singular ("1 sound" / «۱ آواز»), Urdu digits in <bdi>;
  *  2. the time-bar labels never break mid-word ("Conclusi-on");
  *  3. the Urdu video label says «ایم بی», not a Latin "MB";
- *  5. the screener's "Answer key audio" chip only when the plan has audio;
+ *  5. the screener's "Answer key audio" chip only when the plan has audio (the send rows; the 6–12 level chooser that
+ *     also showed it is gone with bd-elc1qz);
  *  6. a leader whose sending is not switched on reads that, not "this page is for coaches";
  *  7. the plan footer labels the id "ID", never "lesson".
  */
@@ -18,12 +19,11 @@ vi.mock('../../services/api', () => ({ default: { get: vi.fn(async () => ({ data
 
 import { FlnProvider } from '../FlnContext';
 import { LessonList } from '../LessonList';
-import { LevelChooser } from '../LevelChooser';
 import { TimeBar } from '../plan/TimeBar';
 import { MediaVideo } from '../plan/MediaVideo';
 import SendPage from '../send/SendPage';
 import { stubFetch as stubShare, ME_LEADER, ME_TEACHER as ME_TEACHER_SHARE } from '../share/testFetch';
-import { LEVELS, ME_TEACHER, rhEnG1, rhEnG8, rhUrG1, stubFetch } from './listFixtures';
+import { ME_TEACHER, rhEnG1, rhUrG1, stubFetch } from './listFixtures';
 import { renderPlan } from './fixtures/renderPlan';
 import { rhEn, rhUr, screenerEn } from './fixtures/plans';
 import type { FlnCatalogue, FlnMe, FlnMedia, FlnPlan, FlnPlanResponse } from '../types';
@@ -183,28 +183,7 @@ describe('7 — the footer labels the id "ID", not "lesson"', () => {
   });
 });
 
-describe('5 — the same chip on the chooser and the send rows', () => {
-  const chooser = (cat: FlnCatalogue) => {
-    stubFetch({ '/catalogue': { status: 200, body: cat } });
-    return render(
-      <MemoryRouter initialEntries={['/portal/fln/list/rh-en?grade=8']}>
-        <FlnProvider me={ME_TEACHER}>
-          <Routes><Route path="/portal/fln/list/:subject" element={<LevelChooser subject="rh-en" grade={8} />} /></Routes>
-        </FlnProvider>
-      </MemoryRouter>,
-    );
-  };
-  it('chooser: a screener the server says has no audio shows no answer-key chip', async () => {
-    const { container } = chooser({ ...rhEnG8(), levels: LEVELS.map((l) => ({ ...l, screener_audio: false })) });
-    await vi.waitFor(() => { if (!container.querySelector('[data-fln-screener]')) throw new Error('no card'); });
-    expect(container.querySelector('[data-fln-screener]')!.textContent).not.toContain('Answer key audio');
-  });
-  it('chooser: with audio it keeps the chip', async () => {
-    const { container } = chooser({ ...rhEnG8(), levels: LEVELS.map((l) => ({ ...l, screener_audio: true })) });
-    await vi.waitFor(() => { if (!container.querySelector('[data-fln-screener]')) throw new Error('no card'); });
-    expect(container.querySelector('[data-fln-screener]')!.textContent).toContain('Answer key audio · teacher only');
-  });
-
+describe('5 — the screener chip on the send rows', () => {
   const sendRow = (id: number, chips: Record<string, unknown>, label: string | null = null) => ({
     id, title: `Plan ${id}`, lang: 'en', dir: 'ltr', minutes: 30, chips, opened: false, label,
     url: `https://portal.example.test/portal/fln/p/${id}`, level: 1, grades: [1], chapter_title_en: 'Unit 1', chapter_title_ur: null, pos: 1, count: 3,

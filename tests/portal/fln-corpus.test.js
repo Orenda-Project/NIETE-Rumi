@@ -223,10 +223,8 @@ describe('reads', () => {
     expect(cat.strands.map((s) => s.strand)).toEqual(['daily', 'extended']);
   });
 
-  it('G8 without level: level null, no strands, the levels with the screener first-class', () => {
-    const cat = C.catalogue({ grade: 8, subject: 'rh-en' });
-    expect(cat.level).toBe(null);
-    expect(cat.strands).toEqual([]);
+  it('every catalogue carries the three levels with the screener first-class', () => {
+    const cat = C.catalogue({ grade: 1, subject: 'rh-en' });
     expect(cat.levels.map((l) => l.level)).toEqual([1, 2, 3]);
     expect(cat.levels[0]).toMatchObject({
       grades: [1], screener_id: 900002, screener_minutes: 53, count: 5,
@@ -235,12 +233,14 @@ describe('reads', () => {
     expect(cat.levels[1]).toMatchObject({ screener_id: null, count: 40 });
   });
 
-  it('G8 level=3 → the grade-5 rows; level=1 → grade 1 with the screener before the lessons', () => {
-    const l3 = C.catalogue({ grade: 8, subject: 'rh-en', level: 3 });
-    expect(l3.level).toBe(3);
-    expect(l3.strands[0].chapters[0].plans.map((r) => r.id)).toEqual([900009]);
-    const l1 = C.catalogue({ grade: 8, subject: 'rh-en', level: 1 });
-    expect(l1.strands[0].chapters[0].plans.map((r) => r.label)).toEqual(['guide', 'screener']);
+  it('FLN is Grades 1–5 (bd-elc1qz): a grade above 5 is no rows whatever the level, and a level never changes a 1–5 grade\'s rows', () => {
+    for (const q of [{ grade: 8 }, { grade: 8, level: 3 }, { grade: 6, level: 1 }, { grade: 12, level: 2 }]) {
+      const cat = C.catalogue({ ...q, subject: 'rh-en' });
+      expect([q, cat.level, cat.strands]).toEqual([q, null, []]);
+    }
+    expect(C.catalogue({ grade: 1, subject: 'rh-en', level: 3 })).toEqual(C.catalogue({ grade: 1, subject: 'rh-en' }));
+    expect(C.catalogue({ grade: 1, subject: 'rh-en' }).strands[0].chapters[0].plans.map((r) => r.label)).toEqual(['guide', 'screener']);
+    expect(C.catalogue({ grade: 5, subject: 'rh-en' }).strands[0].chapters[0].plans.map((r) => r.id)).toEqual([900009]);
   });
 
   it('opened marks rows from the given set', () => {
@@ -255,7 +255,7 @@ describe('reads', () => {
     r.audio = { sounds: 0, words: 0, narration: false, video: false };
     C.__setForTests(b);
     expect(C.levels('rh-en')[0]).toMatchObject({ screener_id: 900002, screener_audio: false });
-    expect(C.catalogue({ grade: 8, subject: 'rh-en' }).levels[0].screener_audio).toBe(false);
+    expect(C.catalogue({ grade: 1, subject: 'rh-en' }).levels[0].screener_audio).toBe(false);
   });
 
   it('kickerFor(placementRow, lang): subject kicker + level, EN with ·, UR with — and Urdu digits', () => {
@@ -335,12 +335,9 @@ const DEV = process.env.FLN_DEV_CORPUS;
           }
           rows += plans.length;
         } else {
+          // FLN is Grades 1–5 (bd-elc1qz): no rows above grade 5, whatever the level.
           expect(cat.strands).toEqual([]);
-          expect(cat.levels.length).toBeGreaterThan(0);
-          for (const l of cat.levels) {
-            const lv = C.catalogue({ grade, subject, level: l.level });
-            expect(lv.strands.length).toBeGreaterThan(0);
-          }
+          for (const l of cat.levels) expect(C.catalogue({ grade, subject, level: l.level }).strands).toEqual([]);
         }
       }
     }
