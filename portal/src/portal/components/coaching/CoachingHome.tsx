@@ -15,6 +15,7 @@ import type { ActiveCoachingSession } from '../../services/api';
 import type { CoachingSession } from '../../types/portal';
 import { scoreBandFor, bandLabel, type BandKey } from '../../lib/scoreBands';
 import { useToast } from '@/hooks/use-toast';
+import { prefetchLiveEligible } from '../../newui/coaching/liveEligible';
 
 /**
  * bd-5rz1v — the Coaching page, redesigned for teachers who are not confident
@@ -151,6 +152,8 @@ const CoachingHome = () => {
   const [subject, setSubject] = useState<string | null>(null);
   const [shown, setShown] = useState(PAGE);
   const recordingNow = !!useRecordingSession()?.active;
+  // bd-v0toag.31.1 — ask now, off Record's path: Record then knows at once whether to offer the lesson pick.
+  useEffect(() => { void prefetchLiveEligible(); }, []);
 
   useEffect(() => {
     let live = true;
