@@ -1845,6 +1845,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var other = pick.new || pick.roll != null || (pick.chip && !(S.child && S.child.chip === pick.chip));
     if (S.st && !other) body.resume_st = S.st;
     if (CLS_PICK && (pick.roll != null || pick.new)) body.list = CLS_PICK;
+    // A new child who came in through a card's door in its language (?lang=): the bot keeps it on them (web_quiz_share_link_lang).
+    if (pick.new && (params.lang === 'ur' || params.lang === 'en')) body.door_lang = params.lang;
     api('POST', 'session', body).then(function (r) {
       busy = false;
       if (ID && ID.reply(r.status, r.body || {}, pick)) return;
