@@ -44,8 +44,9 @@
     ev('welcome_shown', { form: form, v: w2.v, attempt: w2.attempt || 1, lang: lang });
     go(1);
     room();
+    frame();
     // ...and again once the look has dressed the card (its tag comes a moment after the home paints)
-    [300, 1000, 2500].forEach(function (ms) { setTimeout(function () { if (st) room(); }, ms); });
+    [300, 1000, 2500].forEach(function (ms) { setTimeout(function () { if (st) { room(); if (st.step < 3) frame(); } }, ms); });
     return true;
   }
   // The replay (DESIGN §5; the boot's `welcome.replay`): the greeting's Jugnu shows step 4 alone again, about 5 s; nothing
@@ -146,6 +147,20 @@
     try { window.scrollBy(0, by); } catch (e) {}
     st.scrolled = true;
   }
+  // steps 1–2 (design-qa WF-2, the live walk): the Next stop card and the start of the trail are on screen, under Skip's
+  // row and above the tab bar (a Home with a lot above the card starts with it below the fold); never the card under Skip
+  function frame() {
+    var r = rectOf(st.next);
+    if (!r || !(r.height > 0)) return;
+    var tag = st.next.querySelector ? st.next.querySelector('.wqa-bub') : null, tr = tag ? rectOf(tag) : null;
+    var top = Math.min(r.top, tr && tr.height > 0 ? tr.top : r.top);
+    var lands = st.root.querySelectorAll ? st.root.querySelectorAll('.wqa-stop') : null;
+    var t0 = lands && lands[0] ? rectOf(lands[0]) : null;
+    var want = Math.max(r.bottom, t0 && t0.height > 0 ? Math.min(t0.top + 40, t0.bottom) : r.bottom);
+    var room0 = Math.floor(top - (skipBottom() + 8));
+    var by = room0 < 0 ? room0 : Math.min(Math.ceil(want - (floor() - 8)), room0);
+    if (by) scrollBy(by);
+  }
   // step 3: the lands it lights are on screen, above the tab bar (scrolled only as far as that takes)
   function showLands(lands) {
     var bottom = 0;
@@ -200,6 +215,8 @@
     if (hole && !(hole.width > 0)) hole = null;
     st.hole = hole;
     var hb = hole ? inset(hole, 0) : null;
+    // the opening's ring stays above the tab bar (the card may go on under it; Let's go never does)
+    if (hb && hb.top + hb.height > floor()) hb.height = Math.max(0, Math.floor(floor() - hb.top));
     var dim = hb ? '<div class="wqw-dim wqw-hole" style="top:' + px(hb.top) + ';left:' + px(hb.left) + ';width:' + px(hb.width) + ';height:' + px(hb.height) + '"></div>' : '<div class="wqw-dim"></div>';
     var rb = ring ? inset(ring, 4) : null;
     var stage = '';

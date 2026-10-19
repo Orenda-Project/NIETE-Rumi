@@ -31,7 +31,7 @@ function mkEl(tag, rect) {
   return e;
 }
 // a page: `els` names what the page has drawn, by selector (a function: drawn later); `search` its address
-function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', els = {}, sess = {}, store = {}, tel = true, obstacles = [], vw = 360, vh = 640 } = {}) {
+function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', els = {}, sess = {}, store = {}, tel = true, obstacles = [], qsa = {}, vw = 360, vh = 640 } = {}) {
   const timers = [];
   let clock = 0;
   const body = mkEl('body');
@@ -50,7 +50,7 @@ function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', el
       getElementById: (id) => (id === 'boot' ? { textContent: JSON.stringify({ quiz: { lang } }) } : null),
       querySelector: (sel) => { const v = els[sel]; return typeof v === 'function' ? v(clock) : v || null; },
       // everything a child could tap (and the lesson's rows): what the bubble must leave clear
-      querySelectorAll: (sel) => (/button/.test(sel) ? obstacles : []),
+      querySelectorAll: (sel) => (sel in qsa ? qsa[sel] : sel === 'button' || /button/.test(sel) ? obstacles : []),
       addEventListener: (n, fn) => { (docL[n] = docL[n] || []).push(fn); }, removeEventListener: (n, fn) => { docL[n] = (docL[n] || []).filter((f) => f !== fn); },
     },
     location: { search, pathname, hash: '' },
@@ -96,9 +96,10 @@ describe('wq-tel.js: w=1 asks for wq-cue.js at the page\'s own version; without 
 });
 
 describe('wq-cue.js: the hand once, on the page\'s own first control', () => {
-  test.each(['en', 'ur'])('%s quiz page: the first answer (drawn a moment later), the line, the address cleaned, gone on the first tap', (lang) => {
+  test.each(['en', 'ur'])('%s quiz page: the question\'s speaker (drawn a moment later), never an answer; the line, the address cleaned, gone on the first tap', (lang) => {
     const opt = mkEl('button', R(300, 16, 328, 64));
-    const p = cuePage({ lang, els: { '.wq-opt': (t) => (t >= 600 ? opt : null) } });
+    const spk = mkEl('button', R(150, 280, 48, 48));
+    const p = cuePage({ lang, els: { '.wq-opt': (t) => (t >= 600 ? opt : null), '#wq-spk': (t) => (t >= 600 ? spk : null) } });
     p.load();
     expect(p.replaced).toEqual(['/q/MATH01?k=kk']);
     expect(p.cue()).toBeNull();
@@ -108,20 +109,20 @@ describe('wq-cue.js: the hand once, on the page\'s own first control', () => {
     expect(c.attrs.role).toBe('status');
     expect(c.attrs.dir).toBe(lang === 'ur' ? 'rtl' : 'ltr');
     expect(p.cap()).toBe(TURN[lang]);
-    expect(c._h).toMatch(/class="wqc-hand"[^>]*style="top:\d+px;left:\d+px"/);
+    expect(c._h).toMatch(/class="wqc-hand"[^>]*style="top:174px;left:\d+px"/);
     expect(p.pushed).toContainEqual(expect.objectContaining({ n: 'welcome_step', step: 5 }));
     p.tapAnywhere();
     expect(p.cue()).toBeNull();
     p.run(20000);
     expect(p.cue()).toBeNull();
   });
-  test('the lesson video page: its play (the cover) before its primary; a story: its primary', () => {
-    const cover = mkEl('button', R(120, 16, 328, 184));
+  test('the lesson video page: its ▶ before its primary; a story: its primary', () => {
+    const play = mkEl('span', R(250, 148, 64, 64));
     const go = mkEl('button', R(500, 16, 328, 60));
-    const v = cuePage({ els: { '.wq-vcover': cover, '[data-primary]': go } });
+    const v = cuePage({ els: { '.wq-vplay': play, '[data-primary]': go } });
     v.load();
     v.run(300);
-    expect(v.cue()._h).toMatch(/style="top:2\d\dpx/);
+    expect(v.cue()._h).toMatch(/class="wqc-hand" style="top:282px/);
     const s = cuePage({ pathname: '/c/tok', search: '?kid=a&room=story&pid=p1&w=1', els: { '[data-primary]': go } });
     s.load();
     s.run(300);
@@ -185,37 +186,73 @@ describe('GOLDEN: the four pages a Let\'s go can open render as today, byte for 
   });
 });
 
-describe('S5-1 (design-qa DQ68 v2): the bubble covers nothing a child could tap except the pointed one; the hand stays on it', () => {
-  // the rects measured on the shots (step5_*: the quiz page's question, the lesson video page), CSS px
-  const QUIZ = {
-    en: { target: [229, 295], obs: [[12, 60], [143, 191], [305, 371], [381, 447]] },
-    ur: { target: [279, 345], obs: [[12, 60], [163, 211], [355, 421], [431, 497]] },
-  };
-  const VIDEO = {
-    en: { target: [218, 403], obs: [[12, 60], [415, 455], [463, 503], [511, 551], [563, 623]] },
-    ur: { target: [254, 439], obs: [[12, 60], [451, 513], [521, 583], [591, 653], [665, 725]] },
-  };
-  const CAP_H = 60; // the page measures its bubble; the harness has no layout, so the tallest one (two Urdu lines... one, 60 px)
+describe('S5-1, S5-2, S5-3 (design-qa, the live walk): a neutral target only, and the bubble over nothing it must not cover', () => {
+  // the three first screens a Let's go opens, as the live walk saw them (CSS px): a quiz question (its card with the
+  // text and the speaker, three answers), the Jugnu games' "is someone helping you?" ask (a self-report: Jugnu's line
+  // and two answers, no speaker), and the lesson video page (the frame with ▶, the lesson's rows, Go to the questions)
+  const CAP_H = 60;
+  const VIEWS = [['en', 390, 844], ['ur', 360, 740], ['ur', 360, 640], ['en', 360, 640]];
+  const box = (top, h, left, w) => R(top, left, w, h);
+  function quiz(vw) {
+    const card = box(130, 150, 16, vw - 32);
+    return { card, text: box(150, 110, 32, vw - 120), spk: box(143, 48, vw - 80, 48), opts: [box(296, 66, 16, vw - 32), box(372, 66, 16, vw - 32), box(448, 66, 16, vw - 32)] };
+  }
+  function video(vw) {
+    const frame = box(170, 200, 16, vw - 32);
+    return { frame, play: box(238, 64, vw / 2 - 32, 64), rows: [box(382, 40, 16, vw - 32), box(430, 40, 16, vw - 32), box(478, 40, 16, vw - 32)], go: box(530, 60, 16, vw - 32), say: box(70, 60, 120, vw - 136) };
+  }
   const bubbleOf = (p) => {
     const m = /<p class="wqc-cap" style="([^"]*)"/.exec(p.cue()._h);
     const st = Object.fromEntries(m[1].split(';').filter(Boolean).map((x) => x.split(':')));
     const top = 'top' in st ? parseInt(st.top, 10) : p.ctx.innerHeight - parseInt(st.bottom, 10) - CAP_H;
     return { top, bottom: top + CAP_H };
   };
-  const cases = [];
-  for (const [kind, L] of [['quiz', QUIZ], ['video', VIDEO]]) for (const lang of ['en', 'ur']) for (const vw of [360, 390]) cases.push([kind, lang, vw, L[lang]]);
-  test.each(cases)('%s page, %s, %i px', (kind, lang, vw, L) => {
-    const t = mkEl('button', R(L.target[0], 16, vw - 32, L.target[1] - L.target[0]));
-    const obstacles = L.obs.map(([a, b]) => mkEl('button', R(a, 16, vw - 32, b - a)));
-    const p = cuePage({ lang, vw, els: kind === 'video' ? { '.wq-vcover': t } : { '.wq-opt': t }, obstacles: [t, ...obstacles] });
+  const handOf = (p) => { const m = /class="wqc-hand" style="top:(\d+)px;left:(\d+)px/.exec(p.cue()._h); return { y: +m[1], x: +m[2] }; };
+  const clear = (b, r) => b.bottom <= r.top || b.top >= r.bottom;
+  const inside = (pt, r) => pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom;
+  test.each(VIEWS)('a quiz question, %s %ix%i: the hand on the question\'s speaker, never on an answer; the bubble clear of the question and every answer', (lang, vw, vh) => {
+    const L = quiz(vw);
+    const el = (r) => mkEl('button', r);
+    const opts = L.opts.map(el);
+    const p = cuePage({ lang, vw, vh, els: { '.wq-opt': opts[0], '#wq-spk': el(L.spk), '.wq-qcard': el(L.card) }, qsa: { '.wq-opt': opts, '.wq-qcard': [el(L.card)], '.wq-qtext': [el(L.text)], button: [el(L.spk), ...opts] } });
     p.load();
     p.run(300);
+    expect(inside(handOf(p), L.spk)).toBe(true);
+    for (const o of L.opts) expect(inside(handOf(p), o)).toBe(false);
     const b = bubbleOf(p);
-    for (const [a, z] of L.obs) expect([kind, lang, vw, [a, z], b.bottom <= a || b.top >= z]).toEqual([kind, lang, vw, [a, z], true]);
+    for (const r of [L.card, L.text, ...L.opts]) expect([r.top, clear(b, r)]).toEqual([r.top, true]);
     expect(b.top).toBeGreaterThanOrEqual(8);
-    expect(b.bottom).toBeLessThanOrEqual(640 - 8);
-    // the hand where it was: on the pointed one, half way down
-    expect(p.cue()._h).toMatch(new RegExp('class="wqc-hand" style="top:' + Math.round(L.target[0] + (L.target[1] - L.target[0]) / 2) + 'px;'));
+    expect(b.bottom).toBeLessThanOrEqual(vh - 8);
+  });
+  test.each(VIEWS)('a question with no speaker, %s %ix%i: no hand and no bubble at all (step 5 is skipped)', (lang, vw, vh) => {
+    const L = quiz(vw);
+    const opts = L.opts.map((r) => mkEl('button', r));
+    const p = cuePage({ lang, vw, vh, els: { '.wq-opt': opts[0], '.wq-qcard': mkEl('div', L.card) }, qsa: { '.wq-opt': opts, button: opts } });
+    p.load();
+    for (const t of [300, 1000, 12000]) { p.run(t); expect([t, p.cue()]).toEqual([t, null]); }
+    expect(p.pushed.filter((e) => e.n === 'welcome_step')).toEqual([]);
+    expect(p.replaced).toEqual(['/q/MATH01?k=kk']);
+  });
+  test.each(VIEWS)('the self-report ask ("is someone helping you today?"), %s %ix%i: no hand on either answer, no bubble over its question: step 5 is skipped', (lang, vw, vh) => {
+    const ask = mkEl('section', box(0, vh, 0, vw));
+    const a1 = mkEl('button', box(300, 60, 16, vw - 32));
+    const a2 = mkEl('button', box(372, 60, 16, vw - 32));
+    const p = cuePage({ lang, vw, vh, pathname: '/c/tok', search: '?kid=a&lang=' + lang + '&w=1', els: { '[data-screen="help-ask"]': ask, '.wq-btn.wq-go': a1, '.wq-say': mkEl('div', box(120, 110, 110, vw - 126)) }, qsa: { button: [a1, a2] } });
+    p.load();
+    for (const t of [300, 1000, 12000]) { p.run(t); expect([t, p.cue()]).toEqual([t, null]); }
+    expect(p.pushed.filter((e) => e.n === 'welcome_step')).toEqual([]);
+    expect(p.replaced).toEqual(['/c/tok?kid=a&lang=' + lang]);
+  });
+  test.each(VIEWS)('the lesson video page, %s %ix%i: the hand on ▶ (never the scrubber); the bubble clear of the video frame, the buttons and the rows', (lang, vw, vh) => {
+    const L = video(vw);
+    const el = (r) => mkEl('button', r);
+    const p = cuePage({ lang, vw, vh, els: { '.wq-vplay': el(L.play), '.wq-vcover': el(L.frame), '[data-primary]': el(L.go) }, qsa: { '.wq-vbox': [el(L.frame)], video: [el(L.frame)], '.wq-how li': L.rows.map(el), button: [el(L.frame), el(L.go)], '.wq-say': [el(L.say)] } });
+    p.load();
+    p.run(300);
+    expect(inside(handOf(p), L.play)).toBe(true);
+    const b = bubbleOf(p);
+    for (const r of [L.frame, L.go, ...L.rows]) expect([r.top, clear(b, r)]).toEqual([r.top, true]);
+    expect(b.bottom).toBeLessThanOrEqual(vh - 8);
   });
 });
 
