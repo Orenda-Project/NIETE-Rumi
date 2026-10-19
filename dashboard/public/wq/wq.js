@@ -592,6 +592,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var LANG = B.ui_lang === 'ur' || B.ui_lang === 'en' ? B.ui_lang : Q.lang === 'ur' ? 'ur' : 'en';
   // ...and when that is not the quiz's, Play opens the quiz page itself, in the quiz's own language.
   var UI_SWAP = LANG !== (Q.lang === 'ur' ? 'ur' : 'en');
+  // a video lesson's Urdu-script name (the bot's topic_ur, web_quiz_videos_ur_titles): an Urdu page names the quiz with it
+  if (LANG === 'ur' && typeof Q.topic_ur === 'string' && Q.topic_ur) Q.topic = Q.topic_ur;
+  // ...and so does a "My scores" row of one (the server's topic_ur)
+  function topicOf(x) { return (LANG === 'ur' && x.topic_ur) || x.topic; }
   var CLS = B.cls || {};
   var LIVE = B.live || {};
   // The deployment's brand (boot JSON, from bot/shared/config/web-quiz-brand.js): marks, names, mascot, place.
@@ -663,7 +667,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       chalLine: function (w, s, n, t) { return w + ' here! I got ' + s + '/' + n + ' stars on ' + t + '. Can you beat me? 🏆 Tap the link to play:'; },
       chalPlayed: function (w, t) { return w + ' here! I played ' + t + '. Your turn! Tap the link to play:'; },
       moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
-      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done',
+      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done', playAgain: 'Play again',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
@@ -737,7 +741,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
-      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل',
+      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل', playAgain: 'دوبارہ کھیلیں',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
@@ -1458,6 +1462,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
+  // the class label on an Urdu page with the Urdu polish (wq-ur2), whatever the quiz's language: in Urdu, as the class
+  // table does (urClassLabel). The door's line and the finish card's header.
+  function doorLabel() { return CLS.label && typeof UR2 !== 'undefined' && UR2 && typeof urClassLabel === 'function' ? urClassLabel(CLS.label) : CLS.label; }
+  // the quiz title's dir on the door: an English title on an Urdu page with the look is left to right (WQI.latDir)
+  function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
   // hand-off from the chat to the page is one picture, not two different things. Gone if it cannot load.
   function chPic(chLine) {
@@ -1486,8 +1495,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
-      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       chPic(chLine) +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
@@ -1513,7 +1522,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function teacherLanding() {
     var h = bar('', true) +
       '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
@@ -1621,7 +1630,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
     T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
-    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null
+    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
+    lat: latT, doorLabel: doorLabel
   }) : null;
   function who() {
     if (ID) return ID.who();
@@ -1833,6 +1843,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var other = pick.new || pick.roll != null || (pick.chip && !(S.child && S.child.chip === pick.chip));
     if (S.st && !other) body.resume_st = S.st;
     if (CLS_PICK && (pick.roll != null || pick.new)) body.list = CLS_PICK;
+    // A new child who came in through a card's door in its language (?lang=): the bot keeps it on them (web_quiz_share_link_lang).
+    if (pick.new && (params.lang === 'ur' || params.lang === 'en')) body.door_lang = params.lang;
     api('POST', 'session', body).then(function (r) {
       busy = false;
       if (ID && ID.reply(r.status, r.body || {}, pick)) return;
@@ -1892,16 +1904,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // heading is not "optional"; "Go to the questions" waits in the secondary style until the video ends. Else today's.
     var door = Boolean(B.videos_v3 && params.via === 'videos');
     var vT = door ? T.vT3 : T.vT;
+    // web_quiz_rewatch_done (the answer's rewatch_done): a finished lesson opened again (?again=1) says it is a replay —
+    // "Done watching ✓" on the video and "Play again" into the questions. Else today's.
+    var rw = B.rewatch_done === true && params.again === '1';
     // The look: the Videos land header, and the questions are the one primary from the start (the video stays a choice).
     var adv = advOn();
     var h = (adv ? landBar('videos', esc(T.vT3)) + jug('hello', T.vSay) : bar() + jug('hello', T.vSay) + '<h2>' + esc(vT) + '</h2>') +
       // A cover over the box until the first play: a tap anywhere starts the video (the native button
       // is small), and with no poster the child sees Jugnu and a big play button, not a dark box.
-      '<div class="wq-vbox"><video class="wq-video"' + (adv ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
+      '<div class="wq-vbox">' + (rw ? '<span class="wq-vdone wq-vwatched">' + esc(T.watched) + ' ' + ic(IC.check, '✓') + '</span>' : '') + '<video class="wq-video"' + (adv ? '' : ' controls') + ' playsinline preload="none"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') + ' src="' + esc(v.url + (at ? '#t=' + at : '')) + '"></video>' +
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button"' + (door && !adv ? ' data-primary' : '') + ' aria-label="' + esc(vT) + '">' +
       (v.poster ? '' : '<img src="' + jv(IMG + 'hello.webp') + '" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">' + ic(IC.play, '▶') + '</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x, k) { return '<li><span>' + ic([WQI.SPK, IC.tap, IC.help][k], x[0]) + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
-      (adv ? '<button class="wq-btn wq-go" id="wq-skip" data-primary>' : '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">') + esc(T.skip) + '</button>' + vDownload(v);
+      (adv ? '<button class="wq-btn wq-go" id="wq-skip" data-primary>' : '<button class="wq-btn ' + (door ? 'wq-soft' : 'wq-go') + '" id="wq-skip">') + esc(rw ? T.playAgain : T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
     if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
@@ -2591,7 +2606,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // The name notice is for the share it sits on: always directly above "Share to class group".
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
-      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
       '<img src="' + jv(IMG + 'celebrate.webp') + '" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
@@ -2691,7 +2706,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var tile = foldNext(nx, fc);
     var h = bar(FOLD_BAR) +
-      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
       '<img src="' + jv(IMG + 'celebrate.webp') + '" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
@@ -3057,7 +3072,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rows += '<tr class="wq-you"><td>' + place(you.place) + '</td><td>' + ani(S.child && S.child.animal) + ' ' + esc(me || '') + '<span class="wq-tag">' + esc(T.you) + '</span></td><td>' + rowScore(you.correct, you.total, ur) + '</td></tr>';
     }
     // an English quiz's table shown in Urdu: the lesson's name from its Urdu twin when the teacher has one, else the quiz's
-    var topic = ur && UI_SWAP && b.twin && typeof b.twin.topic === 'string' && b.twin.topic ? b.twin.topic : Q.topic;
+    // (a video lesson's own Urdu name, topic_ur, comes first: Q.topic is it already)
+    var topic = ur && UI_SWAP && !Q.topic_ur && b.twin && typeof b.twin.topic === 'string' && b.twin.topic ? b.twin.topic : Q.topic;
     var yourPct = you && you.total ? Math.round(100 * you.correct / you.total) : null;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
@@ -3202,10 +3218,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var fr = (r.ok && r.body.friends_finished) || [];
       if (!hist.length && !fr.length) return today();
       var h = bar() + '<h2>' + esc(T.histT) + '</h2><ul class="wq-hist">' + hist.slice(0, 10).map(function (x) {
-        return '<li><span>' + esc(x.topic) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
+        return '<li><span>' + esc(topicOf(x)) + '<br><small class="wq-small">' + esc(dayMonth(x.date)) + '</small></span><span>' + rowScore(x.correct, x.total) + '</span></li>';
       }).join('') + '</ul>' +
         (fr.length ? '<p class="wq-sub">' + esc(T.friends) + '</p><ul class="wq-hist">' + fr.slice(0, 6).map(function (x) {
-          return '<li><span>' + dotJoin(x.first, x.topic, T.frOut[x.outcome]) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
+          return '<li><span>' + dotJoin(x.first, topicOf(x), T.frOut[x.outcome]) + '</span><span>' + esc(x.correct) + '/' + esc(x.total) + '</span></li>';
         }).join('') + '</ul>' : '') +
         '<button class="wq-btn wq-go" id="wq-next">' + esc(T.next) + '</button>';
       render(h, 'M13');
@@ -3376,7 +3392,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() +
       jug('hello', one ? T.hello : T.whoSay, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, doorLabel())) + '</p></div>' +
       (one
         ? '<h2>' + TW.knIs(nm(one)) + '</h2><button class="wq-btn wq-go" id="wq-kn-yes">' + ani(one.animal) + esc(TW.knYes) + '</button>'
         : '<h2>' + esc(T.whoT) + '</h2><div class="wq-kids-big">' + list.map(function (k, i) {

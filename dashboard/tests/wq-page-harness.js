@@ -38,7 +38,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {}, htmlClass = [] } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {}, quizExtra = {}, htmlClass = [] } = {}) {
   // tel: the page-session telemetry (wq-tel.js) loaded first, as the edge's template does, with the switch on.
   const tel = Boolean(arguments[0] && arguments[0].tel);
   const els = {};
@@ -60,7 +60,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls, live, video, brand, preview, view, challenge, ...(art ? { art } : {}), ...(tel ? { rt: true } : {}), ...bootExtra,
-      quiz: { code: 'TEST', lang, topic, grade, voice_lang: voiceLang, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
+      quiz: { code: 'TEST', lang, topic, grade, voice_lang: voiceLang, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }], ...quizExtra },
     }),
   };
   const ls = new Map(Object.entries(store).map(([k, v]) => [k, JSON.stringify(v)]));

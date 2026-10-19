@@ -555,7 +555,7 @@ function prepare(token) {
 // book's cover file, the lesson's small picture), only when that picture exists. Never throws.
 const COVER_FILE_RX = /^[a-z0-9-]+\.webp$/;
 const THUMB_WAIT_MS = 1500;
-async function itemOf(item) {
+async function itemOf(item, lang) {
   try {
     if (item && item.type === 'book') {
       const { data } = await supabase.from('story_books').select('id, title, status, cover_file').eq('id', item.id).maybeSingle();
@@ -570,7 +570,10 @@ async function itemOf(item) {
       // the lesson's small picture (the Videos shelf's), drawn or remembered; a slow or missing one: no cover
       const Thumb = require('./web-quiz-video-thumb');
       const pic = await Promise.race([Thumb.thumb(r.id).catch(() => null), new Promise((ok) => setTimeout(ok, THUMB_WAIT_MS, null).unref())]);
-      return { title: String(r.clean_title || '').trim().slice(0, 80), cover: pic ? `/wq/vt/${r.id}.webp?v=${Thumb.VERSION}` : null };
+      // an Urdu card names the lesson in Urdu letters when it has an Urdu name (web_quiz_videos_ur_titles; off: not read)
+      const ur = lang === 'ur' && await require('./web-quiz-library-flag').urTitlesOn() ? await require('./web-quiz-bank').urTitles() : null;
+      const t = (ur && ur.get(r.id) && ur.get(r.id).t) || r.clean_title;
+      return { title: String(t || '').trim().slice(0, 80), cover: pic ? `/wq/vt/${r.id}.webp?v=${Thumb.VERSION}` : null };
     }
   } catch (_) { /* no name: the landing still has its card and its door */ }
   return { title: '' };
@@ -588,7 +591,7 @@ async function landing(token) {
     out.v4 = true;
     out.mark = m ? m[f.lang] : '';
     out.accent = m ? m.c : '#15803D';
-    const it = await itemOf(f.item);
+    const it = await itemOf(f.item, f.lang);
     if (it.title) {
       out.item_title = it.title;
       if (it.cover) out.item_cover = it.cover;

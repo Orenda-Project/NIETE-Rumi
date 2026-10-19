@@ -522,3 +522,28 @@ describe('v2 landing on a challenge link', () => {
   });
 });
 
+
+// A friend who came in through a card's door in its language (/q/<code>?lang=ur, web_quiz_share_link_lang): a NEW
+// child's start names that language (`door_lang`) so the bot keeps it on the child. Anything else: today's body.
+describe('the door\'s language on a new child\'s start', () => {
+  test('?lang=ur → a typed name\'s start carries door_lang "ur"', () => {
+    const p = page({ params: { lang: 'ur' } });
+    p.ctx.startSession({ new: { name: 'Abdul', force: true } }, null, 'Abdul');
+    expect(p.calls[0].body).toMatchObject({ code: 'AB12CD', new: { name: 'Abdul' }, door_lang: 'ur' });
+  });
+  test('?lang=en → "en"', () => {
+    const p = page({ params: { lang: 'en' } });
+    p.ctx.startSession({ new: { name: 'Abdul', force: true } }, null, 'Abdul');
+    expect(p.calls[0].body.door_lang).toBe('en');
+  });
+  test.each([['no ?lang=', {}], ['a made-up ?lang=', { lang: 'fr' }]])('%s → no door_lang', (_l, params) => {
+    const p = page({ params });
+    p.ctx.startSession({ new: { name: 'Abdul', force: true } }, null, 'Abdul');
+    expect(p.calls[0].body).not.toHaveProperty('door_lang');
+  });
+  test('a remembered child (a chip) never carries it', () => {
+    const p = page({ params: { lang: 'ur' } });
+    p.ctx.startSession({ chip: 'c1' }, null);
+    expect(p.calls[0].body).not.toHaveProperty('door_lang');
+  });
+});

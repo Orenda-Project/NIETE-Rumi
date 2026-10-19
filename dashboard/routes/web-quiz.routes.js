@@ -344,6 +344,8 @@ function ogTextOf(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
+  // a video lesson's Urdu-script name (the bot's topic_ur, web_quiz_videos_ur_titles) in an Urdu preview
+  const topic = (ur && q.topic_ur) || q.topic || '';
   const label = cls.label || (ur ? 'جماعت' : 'Class');
   const n = q.n || (q.questions || []).length || 0;
   if (payload && payload.challenge && payload.art && payload.art.invite) {
@@ -352,8 +354,8 @@ function ogTextOf(payload, view, brand) {
     return {
       // Urdu: the imperative, never «آپ … سکتے ہیں» (masculine). A 0/N challenger is never a score to beat.
       title: !(Number(ch.correct) > 0)
-        ? (ur ? `${ch.first} نے آپ کو چیلنج کیا ہے · ${q.topic || ''}` : `${ch.first} challenged you · ${q.topic || ''}`)
-        : (ur ? `${ch.first} کے ${score} سے آگے نکلیں! · ${q.topic || ''}` : `Can you beat ${ch.first}'s ${score}? · ${q.topic || ''}`),
+        ? (ur ? `${ch.first} نے آپ کو چیلنج کیا ہے · ${topic}` : `${ch.first} challenged you · ${topic}`)
+        : (ur ? `${ch.first} کے ${score} سے آگے نکلیں! · ${topic}` : `Can you beat ${ch.first}'s ${score}? · ${topic}`),
       desc: ur ? 'وہی کوئز کھیلیں اور دیکھیں!' : 'Play the same quiz and see!',
     };
   }
@@ -366,19 +368,19 @@ function ogTextOf(payload, view, brand) {
   // A story has no league table: its class view (/q/<code>/class) previews as the story below.
   if (view === 'class' && !(payload && payload.story)) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کی لیگ ٹیبل` : `${q.topic || ''} · ${label} league table`,
+      title: ur ? `${topic} · ${label} کی لیگ ٹیبل` : `${topic} · ${label} league table`,
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }
   // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
   if (payload && payload.story) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${cls.label || 'your class'}`,
+      title: ur ? `${topic} · ${label} کے لیے کہانی` : `${topic} · a story for ${cls.label || 'your class'}`,
       desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
     };
   }
   return {
-    title: ur ? `${q.topic || ''} · ${label} کا کوئز` : `${q.topic || ''} · ${label} quiz`,
+    title: ur ? `${topic} · ${label} کا کوئز` : `${topic} · ${label} quiz`,
     desc: ur ? `${n} سوال · ${brand.mascot.ur} کے ساتھ پڑھیں` : `${n} questions · ${brand.mascot.en} reads it with you`,
   };
 }
@@ -560,7 +562,9 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plai
   const lang = plain ? plain.lang : ul === 'ur' || ul === 'en' ? ul : q.lang === 'ur' ? 'ur' : 'en';
   const dir = plainDir(lang);
   const brand = brandOf(payload && payload.brand);
-  const og = plain ? plainText(brand) : ogText(payload, view, brand);
+  // an English quiz served as an Urdu page with its video lesson's Urdu name (topic_ur): the head's words in Urdu too
+  const urHead = !plain && lang === 'ur' && q.lang !== 'ur' && q.topic_ur;
+  const og = plain ? plainText(brand) : ogText(urHead ? { ...payload, quiz: { ...q, lang: 'ur' } } : payload, view, brand);
   const boot = { ...payload, code, view, brand };
   payload = withLook(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
@@ -904,7 +908,7 @@ ${p.tail}`;
 // whether ?lang= wins), so no words; the language and direction from ?lang= when it has one.
 // web_quiz_home_inline (`inline`: this edge learned it and the phone does not hold the files): the head carries the
 // stylesheets and scripts in place of their tags and preloads (web-quiz-home-inline.js); the tail runs them.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false, waitHome = false, plain = false, linkLang = null, pack = null, inline = false, hasDevice = true }) {
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false, waitHome = false, plain = false, linkLang = null, pack = null, inline = false, hasDevice = true, heldCheck = false }) {
   const headRun = [];
   const advJs = `/wq/wq-adv.js?v=${advVersion()}`;
   const carry = inline ? {
@@ -924,7 +928,7 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
   const home = waitUx && waitHome ? `${WaitUx.homeTag(token, p.lang, assetV)}\n` : '';
   // The home's next files and first reads, started from here (web-quiz-fast-hop.js): the head reads the hash on the phone.
   const inl = carried ? { headRun, carried: carried.hrefs } : null;
-  return { guess: { ...p, assetV, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}` };
+  return { guess: { ...p, assetV, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}${!carried && heldCheck ? INLINE.check() : ''}` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
@@ -1271,6 +1275,8 @@ function createWebQuizRouter(opts = {}) {
     // web_quiz_home_inline / web_quiz_early_unlock: known on before any page (absent: kept as they were)
     if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline);
     if (typeof b.early_unlock === 'boolean') EarlyUnlock.learn({ early_unlock: b.early_unlock, locked: true, kids: [] });
+    // web_quiz_minify: known on before any page, so the first page after a deploy names the m copies (absent: kept as it was)
+    if (b.min === true) lastMin = true;
     lastFast = b.fast === true;
   };
   const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
@@ -1603,7 +1609,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops, waitHome: lastWaitHome, plain: lastPlain, linkLang: req.query.lang, pack: lastPack, inline: INLINE.wants(req, version()), hasDevice: Boolean(deviceCookie(req)) })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops, waitHome: lastWaitHome, plain: lastPlain, linkLang: req.query.lang, pack: lastPack, inline: INLINE.wants(req, version()), hasDevice: Boolean(deviceCookie(req)), heldCheck: INLINE.holds(req, version()) })
       : null;
     if (flush && lastPlain) firstHead('h', plainLang(req.query.lang) ? 'lang' : 'miss');
     const wire = flush ? flushWire(req, res, flush.html) : null;

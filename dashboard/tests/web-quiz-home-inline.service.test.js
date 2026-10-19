@@ -192,7 +192,7 @@ describe('web_quiz_home_inline: the child home\'s first open carries its files',
     for (const [k, u] of carried(early)) if (k === 'js' && fileOf(u) !== 'wq-adv.js') expect([u, early.indexOf(`src="${u}"`) > frame]).toEqual([u, true]);
   });
 
-  test('ON, the phone holds the files at this version (cookie wqhc=<v>): today\'s page, byte for byte but the switch\'s own key', async () => {
+  test('ON, the phone holds the files at this version (cookie wqhc=<v>): today\'s page, byte for byte but the switch\'s own key and the cache check', async () => {
     const off = heldBot([jsonRes(200, HUB()), { hold: true, res: jsonRes(200, HUB()) }]);
     srv = await start(build(off.fetchImpl));
     await get(srv, `/h/${TOKEN}`);
@@ -204,8 +204,32 @@ describe('web_quiz_home_inline: the child home\'s first open carries its files',
     await get(srv, `/h/${TOKEN}`);
     const v = V(today.body);
     const held = await flushedOpen(srv, bot, { cookie: `a=1; wqhc=${v}; b=2` });
-    expect(held.early).toBe(today.early);
-    expect(held.body.replace(',"home_inline":true', '')).toBe(today.body);
+    const CHECK = /<script>\(function\(w,d\)\{w\.addEventListener\("load"[^\n]*<\/script>\n/;
+    expect(held.early).toMatch(CHECK);
+    expect(held.early.replace(CHECK, '')).toBe(today.early);
+    expect(held.body.replace(CHECK, '').replace(',"home_inline":true', '')).toBe(today.body);
+    expect(today.body).not.toMatch(CHECK);
+  });
+
+  test('ON, held: the cookie is kept only while the files really come from this phone\'s cache (after the load, hub.js\'s own entry): a network fetch forgets it, so the next open carries the files again', async () => {
+    const bot = heldBot([jsonRes(200, HUB(ON)), { hold: true, res: jsonRes(200, HUB(ON)) }]);
+    srv = await start(build(bot.fetchImpl));
+    const first = await get(srv, `/h/${TOKEN}`);
+    const v = V(first.body);
+    const held = await flushedOpen(srv, bot, { cookie: `wqhc=${v}` });
+    const js = held.early.match(/<script>(\(function\(w,d\)\{w\.addEventListener\("load"[^\n]*)<\/script>\n/)[1];
+    const run = (entries) => {
+      let onload = null; const doc = { cookie: '' };
+      const w = { addEventListener: (ev, f) => { if (ev === 'load') onload = f; }, performance: { getEntriesByType: () => entries } };
+      // eslint-disable-next-line no-new-func
+      new Function('window', 'document', 'setTimeout', js)(w, doc, (f) => f());
+      onload();
+      return doc.cookie;
+    };
+    const hub = (transferSize) => ({ name: `http://portal.example/wq/hub.js?v=${v}`, transferSize, decodedBodySize: 25000 });
+    expect(run([hub(0)])).toBe(''); // from the cache: the cookie stays
+    expect(run([hub(9100)])).toBe('wqhc=; Max-Age=0; Path=/h; SameSite=Lax'); // fetched: forget it
+    expect(run([])).toBe(''); // nothing to tell by: kept
   });
 
   test('ON, a cookie of another version (a deploy since) or of another shape: the files are carried', async () => {

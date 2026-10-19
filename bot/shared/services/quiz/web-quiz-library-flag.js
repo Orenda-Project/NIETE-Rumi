@@ -14,6 +14,9 @@
  * app_settings `web_quiz_video_shelf` (default off; on only for the JSON true): the child home's Videos door draws each
  * subject as a shelf of picture cards (each lesson's small thumbnail, web-quiz-video-thumb.js) with a Quiz button on
  * every card whose quiz can be played, and the watch screen offers the quiz from the first second. Same one read.
+ *
+ * app_settings `web_quiz_rewatch_done` (default off; on only for the JSON true; the hub reads the same key in its own
+ * read): the library page's lesson list says rewatch_done, and a finished lesson opens as a fresh go (again=1). Same one read.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -22,23 +25,25 @@ const FLAG_KEY = 'web_quiz_library';
 const VIDEOS_V3_KEY = 'web_quiz_videos_v3';
 const UR_TITLES_KEY = 'web_quiz_videos_ur_titles';
 const VIDEO_SHELF_KEY = 'web_quiz_video_shelf';
+const REWATCH_DONE_KEY = 'web_quiz_rewatch_done';
 const FLAG_TTL_MS = 60 * 1000;
 
 let flag = null;
 async function read() {
   if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY, REWATCH_DONE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === FLAG_KEY);
     const v = row && row.value;
     const v3 = (data || []).find((r) => r.key === VIDEOS_V3_KEY);
     const ur = (data || []).find((r) => r.key === UR_TITLES_KEY);
     const sh = (data || []).find((r) => r.key === VIDEO_SHELF_KEY);
-    flag = { at: Date.now(), on: v === true || v === 'true' || Boolean(v && v.enabled === true), v3: Boolean(v3 && v3.value === true), ur: Boolean(ur && ur.value === true), shelf: Boolean(sh && sh.value === true) };
+    const rw = (data || []).find((r) => r.key === REWATCH_DONE_KEY);
+    flag = { at: Date.now(), on: v === true || v === 'true' || Boolean(v && v.enabled === true), v3: Boolean(v3 && v3.value === true), ur: Boolean(ur && ur.value === true), shelf: Boolean(sh && sh.value === true), rewatch: Boolean(rw && rw.value === true) };
   } catch (e) {
     logToFile('⚠️ web-quiz library: settings lookup failed — library off', { error: e.message });
-    flag = { at: Date.now(), on: false, v3: false, ur: false, shelf: false };
+    flag = { at: Date.now(), on: false, v3: false, ur: false, shelf: false, rewatch: false };
   }
   return flag;
 }
@@ -47,5 +52,6 @@ async function libraryOn() { return (await read()).on; }
 async function videosV3On() { return (await read()).v3; }
 async function urTitlesOn() { return (await read()).ur; }
 async function videoShelfOn() { return (await read()).shelf; }
+async function rewatchDoneOn() { return (await read()).rewatch; }
 
-module.exports = { libraryOn, videosV3On, urTitlesOn, videoShelfOn, FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY, _reset: () => { flag = null; } };
+module.exports = { libraryOn, videosV3On, urTitlesOn, videoShelfOn, rewatchDoneOn, FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY, REWATCH_DONE_KEY, _reset: () => { flag = null; } };
