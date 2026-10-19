@@ -806,7 +806,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var m = /^(?:Class(?:es)?|جماعت|کلاس)\s*(.+)$/.exec(String(l));
     return m ? 'کلاس ' + m[1].split(/\s*[,،]\s*/).map(function (c) { return /^\d+$/.test(c) ? urDigits(c) : c; }).join('، ') : l;
   }
-  var CLASS_LABEL = CLS.label ? (UI_SWAP && LANG === 'ur' ? urClassLabel(CLS.label) : CLS.label) : T.yourClass;
+  // in Urdu words and digits for an English quiz on an Urdu page, and on any Urdu page with the polish (the doors' rule)
+  var CLASS_LABEL = CLS.label ? ((UI_SWAP && LANG === 'ur') || UR2 ? urClassLabel(CLS.label) : CLS.label) : T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   var STAR = '<svg class="wq-star{on}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
   var IMG = '/wq/jugnu/';
