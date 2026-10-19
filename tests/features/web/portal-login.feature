@@ -119,3 +119,16 @@ Feature: Portal sign-in
     Then the teacher settles on /portal/fln/p/11156, signed in, without typing a password
     When the link is altered by one character
     Then the "get a new link" page opens and nobody is signed in
+
+  @PL14
+  Scenario: The analytics accounts' own sign-in asks for an account name and a password only, and a refused name stays on it
+    # portal/src/portal/auth/AnalyticsLogin.tsx at /portal/analytics/login: no phone, no Send code, no "Use … instead",
+    # no Forgot password. The server answers a wrong name and a wrong password with one 401 (loginByAccountName), so
+    # the page says "Couldn't log in"; the API client's 401 handler leaves her on this page, never /portal/login.
+    When she opens /portal/analytics/login
+    Then it asks for an account name and a password, with one Log in button
+    And it offers no phone number, no Send code, no "Use … instead" and no Forgot password
+    When she enters the account name no_such_account and any password
+    And she taps Log in
+    Then the page says "Couldn't log in"
+    And she is still on /portal/analytics/login

@@ -9,7 +9,7 @@
  */
 import type { AuthKey } from './copy';
 
-export type AuthError = { field: 'phone' | 'password' | 'confirm' | 'code' | 'form'; key: AuthKey };
+export type AuthError = { field: 'phone' | 'name' | 'password' | 'confirm' | 'code' | 'form'; key: AuthKey };
 
 /**
  * `byName`: she signed in with an account NAME (bd-s6qbts.5). The server answers every way that can be wrong with the
@@ -28,6 +28,18 @@ export function loginFailure(status?: number, byName = false): AuthError {
     case 0: return { field: 'form', key: 'noConnection' };
     default: return { field: 'form', key: 'couldntLogin' };
   }
+}
+
+/**
+ * The analytics accounts' own sign-in page (/portal/analytics/login), which takes an account NAME only. Every way a
+ * name can be refused is one plain "Couldn't log in": the server answers a wrong name and a wrong password with the
+ * same 401 on purpose, and the phone answers (400 a bad number, 403 log in by code, 404 register on WhatsApp — which
+ * only digits typed into the name could draw) belong to the teacher sign-in. Too many tries and no connection keep
+ * their own words, as on the teacher sign-in.
+ */
+export function accountLoginFailure(status?: number): AuthError {
+  if (status === 429 || status === 0) return loginFailure(status);
+  return { field: 'form', key: 'couldntLogin' };
 }
 
 /** Sending a WhatsApp code (sign-in or Forgot password). */
