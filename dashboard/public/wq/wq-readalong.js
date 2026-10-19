@@ -190,7 +190,7 @@
     var btn = null;
     if (d.audio) {
       var ctl = mk('div', 'wqra-ctl', {});
-      btn = mk('button', 'wqra-btn', { type: 'button', 'aria-label': labels.play || LABEL.play, 'data-ic': 'play' }, ICON.play);
+      btn = mk('button', 'wqra-btn', { type: 'button', 'aria-label': labels.play || LABEL.play }, ICON.play);
       ctl.appendChild(btn);
       root.appendChild(ctl);
     }
@@ -314,7 +314,7 @@
       api.state = s;
       var icon = s === 'playing' ? 'pause' : s === 'ended' ? 'replay' : 'play';
       btn.textContent = ICON[icon];
-      btn.setAttribute('data-ic', icon);   // the look (wq.css) draws it
+      btn.setAttribute('data-ic', icon);
       btn.setAttribute('aria-label', labels[icon] || LABEL[icon]);
       btn.className = 'wqra-btn' + (s === 'blocked' ? ' wqra-pulse' : '');
       if (opts.onState) opts.onState(s === 'blocked' ? 'paused' : s);
