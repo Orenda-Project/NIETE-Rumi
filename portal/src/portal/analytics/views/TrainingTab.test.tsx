@@ -145,15 +145,35 @@ describe("Mid / High — her Training Partners", () => {
     expect(screen.queryByTestId("section-training-progress")).toBeNull();
   });
 
-  it("three partner buttons, closed, each with her summary line", async () => {
+  it("four partner buttons (her three, then I-SAPS), closed, each with her summary line", async () => {
     await midHigh();
     const p = mh().overview.partners!;
-    expect(["oxbridge", "niete", "beaconhouse"].map((id) => screen.getByTestId(`partner-${id}`).textContent)).toEqual([
+    expect(["oxbridge", "niete", "beaconhouse", "isaps"].map((id) => screen.getByTestId(`partner-${id}`).textContent)).toEqual([
       `Oxbridge Training${p.oxbridge.passed} passed · ${p.oxbridge.inProgress} in progress`,
       "NIETE TrainingsSkilled Practitioner & Teacher Leader",
       `Beaconhouse Training${p.beaconhouse.passed} passed · ${p.beaconhouse.inProgress} in progress`,
+      `I-SAPS Training${p.isaps.passed} passed · ${p.isaps.inProgress} in progress`,
     ]);
-    for (const id of ["oxbridge", "niete", "beaconhouse"]) expect(screen.getByTestId(`partner-${id}`)).toHaveAttribute("aria-expanded", "false");
+    for (const id of ["oxbridge", "niete", "beaconhouse", "isaps"]) expect(screen.getByTestId(`partner-${id}`)).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("I-SAPS (operator, 2026-10-19): its card (passed = certificate or all 9 module exams), the modules chart, the table ending with Completed all", async () => {
+    await midHigh();
+    await userEvent.setup().click(screen.getByTestId("partner-isaps"));
+    const panel = screen.getByTestId("partner-panel-isaps");
+    const is = mh().overview.partners!.isaps;
+    const card = within(panel).getByTestId("partner-card-isaps");
+    expect(within(card).getByTestId("level-name")).toHaveTextContent("I-SAPS Training");
+    expect(within(card).getByTestId("count-passed")).toHaveTextContent(String(is.passed));
+    expect(within(card).getByTestId("count-inProgress")).toHaveTextContent(String(is.inProgress));
+    expect(within(panel).getByTestId("chart-isaps")).toBeInTheDocument();
+    const rows = within(panel).getAllByTestId("row-isaps");
+    expect(rows).toHaveLength(10);
+    expect(rows[0]).toHaveTextContent(`MODULE#1${is.modules[0].middle}${is.modules[0].high}${is.modules[0].total}`);
+    expect(rows[9]).toHaveTextContent(`Completed all${is.completedAll.middle}${is.completedAll.high}${is.completedAll.total}`);
+    expect(within(panel).getByRole("columnheader", { name: "Module" })).toBeInTheDocument();
+    await userEvent.setup().click(within(card).getByTestId("level-what"));
+    expect(within(card).getByTestId("level-definition")).toHaveTextContent("not part of “passed all levels”");
   });
 
   it("Oxbridge: her card (all 7 sessions = passed), the sessions chart, and the table ending with Completed all", async () => {
@@ -206,22 +226,27 @@ describe("Mid / High — her Training Partners", () => {
     expect(within(panel).getByTestId("level-card-3")).toBeInTheDocument();
     await user.selectOptions(screen.getByTestId("filter-training-level"), "beaconhouse");
     expect(screen.getByTestId("partner-panel-beaconhouse")).toBeInTheDocument();
+    await user.selectOptions(screen.getByTestId("filter-training-level"), "isaps");
+    expect(screen.getByTestId("partner-panel-isaps")).toBeInTheDocument();
+    expect(within(screen.getByTestId("filter-training-level")).getByRole("option", { name: "I-SAPS Training" })).toBeInTheDocument();
   });
 
-  it("her chart and sector rows: (NIETE) Skilled Practitioner, (NIETE) Teacher Leader, Oxbridge, Beaconhouse", async () => {
+  it("her chart and sector rows: (NIETE) Skilled Practitioner, (NIETE) Teacher Leader, Oxbridge, Beaconhouse, then I-SAPS", async () => {
     await midHigh();
     const chart = screen.getByTestId("chart-trainingLevels");
     expect(within(chart).getAllByTestId("legend-item").map((i) => i.textContent)).toEqual([
-      "(NIETE) Skilled Practitioner", "(NIETE) Teacher Leader", "Oxbridge", "Beaconhouse",
+      "(NIETE) Skilled Practitioner", "(NIETE) Teacher Leader", "Oxbridge", "Beaconhouse", "I-SAPS",
     ]);
     const r = mh().regions.find((x) => x.region === "Urban-I")!;
     expect(within(chart).getByTestId("bar-Urban-I-oxbridge").getAttribute("title")).toContain(`(${r.partners!.oxbridge.passed} of ${r.teachers} teachers)`);
+    expect(within(chart).getByTestId("bar-Urban-I-isaps").getAttribute("title")).toContain(`(${r.partners!.isaps.passed} of ${r.teachers} teachers)`);
     const card = screen.getByTestId("sector-card-Urban-I");
     expect(within(card).getAllByTestId(/^sector-level-/).map((x) => x.textContent)).toEqual([
       `(NIETE) Skilled Practitioner${r.levels[0].passed} passed`,
       `(NIETE) Teacher Leader${r.levels[1].passed} passed`,
       `Oxbridge${r.partners!.oxbridge.passed} passed`,
       `Beaconhouse${r.partners!.beaconhouse.passed} passed`,
+      `I-SAPS${r.partners!.isaps.passed} passed`,
     ]);
     expect(card).toHaveTextContent(`of ${r.teachers} teachers have passed all levels`);
     expect(within(card).getByTestId("passed-all")).toHaveTextContent(String(r.passedAll));

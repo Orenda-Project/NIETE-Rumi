@@ -19,7 +19,8 @@ import { useTrainingLevels } from './useTrainingLevels';
  *
  *   the Primary / Mid-High toggle · her filter bar (Training Level; "as of", since the numbers are a snapshot)
  *   Primary   TRAINING LEVEL PROGRESS — a card per NIETE level (Passed / In Progress / Not Started, % passed)
- *   Mid/High  TRAINING PARTNERS — Oxbridge, NIETE (Skilled Practitioner, Teacher Leader), Beaconhouse panels
+ *   Mid/High  TRAINING PARTNERS — Oxbridge, NIETE (Skilled Practitioner, Teacher Leader), Beaconhouse panels; then
+ *             I-SAPS (not one of hers; operator, 2026-10-19), in the chart and the sector rows too
  *   TRAINING COMPLETION — SECTOR COMPARISON — % of the sector's teachers who passed each level / partner
  *   SECTORS — "N of M teachers have passed all levels", passed per level → the sector's schools
  *   About Training Levels
@@ -28,7 +29,10 @@ import { useTrainingLevels } from './useTrainingLevels';
  * tab says so. Her sector filter is the page's region; choosing a sector card is choosing that region (v6).
  * Her colours (trainingLook.ts) and her %, here only (the other tabs keep "scores as %").
  */
-type LevelFilter = 'all' | '0' | '1' | '2' | '3' | 'oxbridge' | 'beaconhouse';
+type LevelFilter = 'all' | '0' | '1' | '2' | '3' | 'oxbridge' | 'beaconhouse' | 'isaps';
+
+/** The partners that are a button of their own (NIETE's two levels share one). */
+const PARTNER_FILTERS: ReadonlySet<string> = new Set(['oxbridge', 'beaconhouse', 'isaps']);
 
 export function TrainingTab(p: TabProps) {
   const { c, region } = p;
@@ -50,7 +54,7 @@ export function TrainingTab(p: TabProps) {
   const chooseFilter = (v: LevelFilter) => {
     setLevelFilter(v);
     // Mid/High: her levels are behind the partner buttons, so the filter opens the panel that holds the choice.
-    if (midHigh && v !== 'all') setPartner(v === 'oxbridge' || v === 'beaconhouse' ? v : 'niete');
+    if (midHigh && v !== 'all') setPartner(PARTNER_FILTERS.has(v) ? (v as PartnerId) : 'niete');
   };
 
   return (
@@ -191,6 +195,7 @@ function FilterBar({ c, data, band, value, onValue }: {
       { value: '2', label: t.partners.nieteFilter(name(2)) },
       { value: '3', label: t.partners.nieteFilter(name(3)) },
       { value: 'beaconhouse', label: t.partners.beaconhouse },
+      { value: 'isaps', label: t.partners.isaps },
     ]
     : [0, 1, 2, 3].map((o) => ({ value: String(o) as LevelFilter, label: name(o) }));
   const when = pakistanTime(data?.computedAt, c);
@@ -240,7 +245,7 @@ function LevelCards({ c, data, filter }: { c: TabProps['c']; data: TrainingLevel
 
 /** What a sector passed, per series: a NIETE level by its order, or a partner. */
 function passedOf(r: TrainingLevelsResponse['regions'][number], key: string): number {
-  if (key === 'oxbridge' || key === 'beaconhouse') return r.partners?.[key].passed ?? 0;
+  if (key === 'oxbridge' || key === 'beaconhouse' || key === 'isaps') return r.partners?.[key].passed ?? 0;
   return r.levels.find((l) => String(l.levelOrder) === key)?.passed ?? 0;
 }
 
@@ -259,6 +264,7 @@ function seriesOf(c: TabProps['c'], data: TrainingLevelsResponse, midHigh: boole
     ...nieteLevels,
     { key: 'oxbridge', label: t.partners.oxbridgeShort, color: forChart ? SERIES_COLOR.oxbridge : ROW_COLOR.oxbridge },
     { key: 'beaconhouse', label: t.partners.beaconhouseShort, color: forChart ? SERIES_COLOR.beaconhouse : ROW_COLOR.beaconhouse },
+    { key: 'isaps', label: t.partners.isapsShort, color: forChart ? SERIES_COLOR.isaps : ROW_COLOR.isaps },
   ];
 }
 
