@@ -3074,7 +3074,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // the header is 2 even lines at 360 and never breaks inside the list ("Classes 2, 3, 4, / 5 league table").
   function leagueTitle() {
     if (!advOn() || !T.leagueW) return esc(T.leagueT(CLASS_LABEL));
-    return '<span class="wq-lgt">' + esc(T.leagueW) + '</span><small class="wq-lgc" dir="auto">' + esc(CLASS_LABEL) + '</small>';
+    // an Urdu label on an Urdu page in Urdu digits, as the rest of the screen («جماعت ۲، ۳»); a lettered class keeps its own
+    var l = LANG === 'ur' && /[\u0600-\u06FF]/.test(CLASS_LABEL) ? String(CLASS_LABEL).replace(/(^|[\s,،])(\d+)(?=$|[\s,،])/g, function (x, a, d) { return a + urDigits(d); }) : CLASS_LABEL;
+    return '<span class="wq-lgt">' + esc(T.leagueW) + '</span><small class="wq-lgc" dir="auto">' + esc(l) + '</small>';
   }
   function drawBoard(b, mixed, onlyOn, first) {
     var v = onlyOn ? b.only : b;

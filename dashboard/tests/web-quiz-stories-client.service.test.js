@@ -1307,7 +1307,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13068);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; served minified)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13148);   // the ruled core budget (12,288 less 8; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; served minified)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
@@ -3810,5 +3810,23 @@ describe('the reader polish setting (web_quiz_stories_polish: the book says pl)'
     const ra = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'), 'utf8');
     expect(ra).toMatch(/\[data-ring\] \.wqra-pill\{[^}]*box-shadow:none[^}]*outline:[^}]*outline-offset:[1-9]/);
     expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\[data-ring\] \.wqs-mk\{[^}]*box-shadow:none[^}]*outline:[^}]*outline-offset:[1-9]/);
+  });
+});
+
+describe('"Listen again" under the look: a drawn replay icon, never the ↻ glyph (the Urdu face draws it like «ج»)', () => {
+  const again = async (adv, lang) => {
+    const e = env({ replies: { book: { status: 200, body: book({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr' }) } } });
+    if (adv) e.doc.documentElement = { classList: { contains: (c) => c === 'wq-adv' } };
+    const root = await openReader(e, { lang });
+    fire(root, 'main'); e.calls.ra[0].o.onEnd();
+    return /<button class="wqs-again" data-tap="again"[^>]*>(.*?)<\/button>/.exec(root.querySelector('[data-extra]').innerHTML)[1];
+  };
+  test.each(['en', 'ur'])('%s: look on, the chip carries the drawn icon and its word', async (lang) => {
+    const h = await again(true, lang);
+    expect(h).toBe('<i class="wqs-re"></i> ' + (lang === 'ur' ? 'دوبارہ سنیں' : 'Listen again'));
+    expect(h).not.toContain('↻');
+  });
+  test('look off: today\'s "↻ Listen again"', async () => {
+    expect(await again(false, 'en')).toBe('↻ Listen again');
   });
 });
