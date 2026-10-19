@@ -694,15 +694,18 @@
   }
   function start(root, B, ctx, v) {
     if (going) return;
+    // web_quiz_rewatch_done (the boot's rewatch_done): a finished lesson's page opens as a fresh go (again=1), the video
+    // first, never its old finish card. Off: today's link.
+    var re = B.rewatch_done === true && v.done ? '&again=1' : '';
     // A class child's lesson page is told it was opened from this door (via=videos): with web_quiz_videos_v3 on it puts the play first.
-    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos'), 'door_video'); }
+    if (v.code && v.k) { going = true; return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(v.code) + '?k=' + encodeURIComponent(v.k) + '&via=videos' + re), 'door_video'); }
     going = true;
     var t = C(ctx);
     if (view.name !== 'watch/' + v.vid) draw(root, B, ctx, 'watch/' + v.vid, null);
     view.name = 'watch/' + v.vid;
     postJson('/api/wq/videos/start', { hub: tok(B, ctx), kid: B.kid || '', vid: v.vid }, function (err, j) {
       going = false;
-      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos'), 'door_video');
+      if (!err && j && j.code) return go(ctx, qLang(B, ctx, '/q/' + encodeURIComponent(j.code) + (j.k ? '?k=' + encodeURIComponent(j.k) + '&' : '?') + 'via=videos' + re), 'door_video');
       if (!err && j && j.watch) {
         var after = nextInList(v.vid);
         var next = rankedNext(j.watch.next, ctx) || (j.watch.after ? { kind: 'quiz', title: t.quizAfter, sub: j.watch.title, href: '#', quiz: true }
