@@ -72,7 +72,7 @@ describe('GET /config — the flag reads run together', () => {
     }
     await done;
 
-    expect(started).toBe(8);
+    expect(started).toBe(9); // sandbox's eight flags, and coach_disagreement_card (bd-tbprit.1)
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
