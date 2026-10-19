@@ -64,12 +64,13 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
 }
 
 /**
- * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass}} args
+ * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves}} args
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked in the app
+ *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  */
-function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass }) {
-  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass });
+function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves }) {
+  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves });
 }
 
 /** @param {{userId, coachingSessionId, answer?, audioKey?}} args — audioKey: her spoken answer (bd-eygg2f) */
@@ -114,9 +115,20 @@ function previewObservationReport({ userId, coachingSessionId }) {
 }
 function sendObservationReport({ userId, coachingSessionId }) { return post('observe/report/send', { userId, coachingSessionId }); }
 
+// ── bd-v0toag.31: live moves while she records. Same rules: `userId` from the SESSION. ──
+function liveEligible({ userId }) { return post('live/eligible', { userId }); }
+function liveCard({ userId, lessonId }) { return post('live/card', { userId, lessonId }); }
+function liveKey({ userId, liveId }) { return post('live/key', { userId, liveId }); }
+function liveDetect({ userId, liveId, lessonId, window, unticked }) {
+  return post('live/detect', { userId, liveId, lessonId, window, unticked });
+}
+function liveEnd({ userId, liveId, drops, bytesSent }) { return post('live/end', { userId, liveId, drops, bytesSent }); }
+function liveTaps({ userId, coachingSessionId, taps }) { return post('live/taps', { userId, coachingSessionId, taps }); }
+
 module.exports = {
   presignUpload, startSession, submitReflection, recentPlans,
   startObservation, observeRecentPlans, listObservations, observationView, getObservationDraft,
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
   previewObservationReport, sendObservationReport,
+  liveEligible, liveCard, liveKey, liveDetect, liveEnd, liveTaps,
 };

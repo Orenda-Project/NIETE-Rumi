@@ -23,6 +23,9 @@ import { LevelBars } from './LevelBars';
 import { LibraryStep, type LibraryStepInfo } from './LibraryStep';
 import { PlanSheet } from './PlanSheet';
 import { useSendFlow, type Audio, type Plan } from './useSendFlow';
+import { PickStage } from './PickStage';
+import { LiveMovesPanel } from './LiveMovesList';
+import { useLiveMoves } from './useLiveMoves';
 
 /**
  * bd-5rz1v.26 — /portal/coaching/new in the new UI: record, then check and send. Picked by
@@ -66,8 +69,11 @@ export default function RecordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const session = useSession();
-  const flow = useSendFlow(session);
+  const liveRecord = useRef<() => ReturnType<typeof live.toRecord>>(() => null);
+  const flow = useSendFlow(session, undefined, { pickBeforeRecord: true, liveMoves: () => liveRecord.current() });
   const { stage, audio, plan, photos } = flow;
+  const live = useLiveMoves({ session, plan, recording: stage === 'recording' });
+  liveRecord.current = live.toRecord;
   const elapsed = useRecordingClock(session);
   const level = useMicLevel(session.stream, stage === 'recording' && !session.paused);
   // Opened from inside the app (not a fresh load): Back while recording goes back, not to Coaching.
@@ -156,6 +162,8 @@ export default function RecordPage() {
           </>
         ) : null}
 
+        {stage === 'pick' ? <PickStage onStart={flow.startAfterPick} /> : null}
+
         {stage === 'recording' ? (
           <>
             <section className="flex flex-col items-center gap-3 rounded-2xl border-[1.5px] border-nu-surface-line bg-nu-surface-card px-4 pb-5 pt-5">
@@ -171,15 +179,17 @@ export default function RecordPage() {
                 <Chip icon={Smartphone}>{COACHING_COPY.keepAppOpen}</Chip>
               </div>
             </section>
-            <List>
-              <Row
-                title={COACHING_COPY.lessonPlans}
-                icon={BookOpen}
-                to="/portal/curriculum"
-                chips={<Chip tone="recording">{COACHING_COPY.continues}</Chip>}
-                testId="record-lesson-plans"
-              />
-            </List>
+            {live.state ? <LiveMovesPanel live={live} /> : (
+              <List>
+                <Row
+                  title={COACHING_COPY.lessonPlans}
+                  icon={BookOpen}
+                  to="/portal/curriculum"
+                  chips={<Chip tone="recording">{COACHING_COPY.continues}</Chip>}
+                  testId="record-lesson-plans"
+                />
+              </List>
+            )}
             <BottomActions>
               <BottomButton icon={Square} onClick={() => setConfirmFinish(true)}>{COACHING_COPY.finish}</BottomButton>
               <BottomButton tone="outline" icon={session.paused ? Mic : Pause} onClick={flow.togglePause}>
@@ -212,6 +222,7 @@ export default function RecordPage() {
               <audio ref={player} src={audioUrl} preload="metadata" onEnded={() => setPlaying(false)} className="hidden" />
             ) : null}
             {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : COACHING_COPY.notAudio}</Problem> : null}
+            <LiveMovesPanel live={live} />
 
             <SectionLabel>{COACHING_COPY.optional}</SectionLabel>
             <List>

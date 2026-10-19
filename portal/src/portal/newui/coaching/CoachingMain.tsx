@@ -10,6 +10,7 @@ import { canRecordHere } from '../../lib/recordingSupport';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
 import { handOffRecording } from '../../lib/lessonHandoff';
 import { useRecordingSession } from '../../lib/recordingSession';
+import { prefetchLiveEligible } from './liveEligible';
 import { COACHING_COPY } from '../copy';
 import { MainHeading } from '../MainHeading';
 import { List, Row, SectionLabel } from '../List';
@@ -83,6 +84,9 @@ export default function CoachingMain() {
     })();
     return () => { live = false; };
   }, [attempt]);
+
+  // bd-v0toag.31: is live moves on for her? Asked here, so Record never waits on it.
+  useEffect(() => { void prefetchLiveEligible(); }, []);
 
   // Can this phone record, and is a recording left on it?
   useEffect(() => {

@@ -7405,17 +7405,18 @@ function teacherClassPick(raw) {
 
 /**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? } — keys returned by /presign, uploaded.
+ *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it and drops a bad one
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked; the bot stores it
  *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
  *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
-    teacherClass: teacherClassPick(teacherClass),
+    teacherClass: teacherClassPick(teacherClass), liveMoves,
   }));
 });
 
@@ -7427,6 +7428,26 @@ router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation,
 router.get('/coaching-upload/recent-plans', requirePortalAuth, requireSelfObservation, (req, res) => (
   relayToBot(res, 'recent-plans', () => PortalCoachingClient.recentPlans({ userId: req.session.portalUserId }))
 ));
+
+/**
+ * POST /api/portal/coaching-live/*  (bd-v0toag.31) — live moves while she records; relays to the bot's live/*.
+ * Only the named fields go through, and the user is always the session's.
+ */
+const LIVE_RELAYS = {
+  eligible: ['liveEligible', []],
+  card: ['liveCard', ['lessonId']],
+  key: ['liveKey', ['liveId']],
+  detect: ['liveDetect', ['liveId', 'lessonId', 'window', 'unticked']],
+  end: ['liveEnd', ['liveId', 'drops', 'bytesSent']],
+  taps: ['liveTaps', ['coachingSessionId', 'taps']],
+};
+for (const [name, [fn, fields]] of Object.entries(LIVE_RELAYS)) {
+  router.post(`/coaching-live/${name}`, requirePortalAuth, requireSelfObservation, (req, res) => {
+    const body = req.body || {};
+    const args = Object.fromEntries(fields.map((f) => [f, body[f]]));
+    return relayToBot(res, `live-${name}`, () => PortalCoachingClient[fn]({ ...args, userId: req.session.portalUserId }));
+  });
+}
 
 /**
  * GET /api/portal/coaching-sessions/active  (bd-5rz1v)

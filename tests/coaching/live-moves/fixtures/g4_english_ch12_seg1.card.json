@@ -1,0 +1,167 @@
+{
+ "card_version": "v10.1",
+ "lesson_key": "g4·English·ch12·seg1",
+ "v9_html": "g4_ch12_English_seg1.v9.html",
+ "lang": "en",
+ "header": {
+  "grade": 4,
+  "subject": "English",
+  "chapter": "Ch.12 Finding Home",
+  "day": 1,
+  "minutes": 40,
+  "title": "Chapter Vocabulary + Verb Impression Challenge (Memory Lane)",
+  "goal": "Children <b>use</b> picture details to learn four verbs and record them."
+ },
+ "bring": "textbook p.138 · chalk · books, pencils",
+ "words": [
+  "gaze",
+  "sneer",
+  "gasp",
+  "scurry"
+ ],
+ "sections": [
+  {
+   "sec": "open",
+   "minutes": 5,
+   "moves": [
+    {
+     "covers": [
+      "m4"
+     ],
+     "do": "Ask three choral questions on verbs and the word bank.",
+     "how": "A verb tells what someone does.",
+     "say": "“Everyone together: run or red?” → “Run.”"
+    },
+    {
+     "covers": [
+      "m1",
+      "m2"
+     ],
+     "do": "Show p.138; class says what they see in each picture.",
+     "how": "Ask: “When did you last gasp at home?” Class: “I see…”.",
+     "say": "“Today: use picture details to understand a verb.”"
+    }
+   ]
+  },
+  {
+   "sec": "explain",
+   "minutes": 8,
+   "moves": [
+    {
+     "covers": [
+      "m3",
+      "m5"
+     ],
+     "do": "Read the green box; model gasp with the picture.",
+     "how": "Class repeats each word. Write GASP and its meaning.",
+     "say": "“Gasp: a quick, sharp breath in shock.”",
+     "think": "I read the meaning, then I look: the red balloon is popping and his hand is near his mouth. Those details show gasp, so I write it."
+    }
+   ]
+  },
+  {
+   "sec": "we",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m6"
+     ],
+     "chip": "I START, YOU FINISH",
+     "do": "Read a meaning; class finds its picture and verb together.",
+     "how": "Gaze, scurry, sneer: which picture shows it?",
+     "say": "“To move hurriedly with short, quick steps. The verb is …” → “scurry!”"
+    },
+    {
+     "covers": [
+      "m7"
+     ],
+     "chip": "ONE NEIGHBOUR TURN",
+     "do": "Act a verb silently; neighbour names it and points to its picture.",
+     "how": "Act gaze, sneer, gasp or scurry, silent. Partner names it, points to the p.138 picture. Teacher checks 5 books.",
+     "say": "“Ayesha and Bilal show first. Safe actions.”",
+     "turn": {
+      "first": "Window side",
+      "a": "(acts one verb, silent) My impression is ___.",
+      "b": "It is gasp. The clue is the hand near the mouth. (points)",
+      "stop": "one clap, eyes on me",
+      "help": "Act it again slowly; they say the verb."
+     }
+    }
+   ]
+  },
+  {
+   "sec": "you",
+   "minutes": 12,
+   "moves": [
+    {
+     "covers": [
+      "m8",
+      "m9"
+     ],
+     "clock": "⏱ 25′ stop explaining",
+     "do": "Write 4 words and meanings; 2. match each meaning, alone.",
+     "how": "1. Word bank: 4 words. 2. Match (a)-(d). Done? Explain two pictures.",
+     "say": "“Read the meaning, then find its picture.”"
+    }
+   ],
+   "answers": [
+    [
+     "1.",
+     "any safe impression; 4 words + meanings written"
+    ],
+    [
+     "2. (a)-(d)",
+     "scurry · sneer · gaze · gasp"
+    ]
+   ],
+   "mistake": "Picks what sounds right. <b>Ask:</b> “Read the meaning, then find the picture detail.”",
+   "stuck": "See, Say, Show, Write: point to a picture, say and act the word. Start with gasp."
+  },
+  {
+   "sec": "check",
+   "minutes": 3,
+   "moves": [
+    {
+     "covers": [
+      "m10"
+     ],
+     "do": "Say two clues; five say the p.138 verb for each.",
+     "how": "(1) look steadily at the moon. (2) hurry to the bus on quick, short steps.",
+     "say": "“Think alone, then say the verb for each clue.”"
+    }
+   ],
+   "correct": "(1) gaze (2) scurry.",
+   "success": "I can match each meaning to its verb.",
+   "ask": "How do you know the moon clue is gaze, not gasp?",
+   "listen": "Gaze is looking steadily; gasp is a quick breath in shock."
+  },
+  {
+   "sec": "hw",
+   "minutes": 0,
+   "moves": [
+    {
+     "covers": [
+      "m11"
+     ],
+     "do": "Check spellings on p.138; add all four to the word bank.",
+     "how": "Write printed meanings, then one sentence with any word.",
+     "say": "“Tell someone what scurry means.”"
+    }
+   ]
+  }
+ ],
+ "pictures": [
+  {
+   "id": "dg1",
+   "after": "you",
+   "kind": "svg",
+   "title": "THE BOARD BY THE END · Four verbs, each with a picture clue",
+   "svg": "<svg viewBox='0 0 340 94' xmlns='http://www.w3.org/2000/svg' font-family='sans-serif' text-anchor='middle'><text x='42' y='16' font-size='15' font-weight='bold'>gaze</text><rect x='14' y='26' width='56' height='50' fill='#fff7e0' stroke='#0B2545' stroke-width='2'/><circle cx='42' cy='46' r='8' fill='#fff' stroke='#0B2545' stroke-width='2'/><circle cx='42' cy='46' r='3' fill='#0B2545'/><line x1='42' y1='30' x2='42' y2='36' stroke='#d98200' stroke-width='2'/><line x1='24' y1='36' x2='29' y2='40' stroke='#d98200' stroke-width='2'/><line x1='60' y1='36' x2='55' y2='40' stroke='#d98200' stroke-width='2'/><text x='42' y='90' font-size='14'>looks long</text><text x='126' y='16' font-size='15' font-weight='bold'>sneer</text><circle cx='126' cy='48' r='20' fill='#fff' stroke='#0B2545' stroke-width='2'/><circle cx='119' cy='42' r='2' fill='#0B2545'/><circle cx='133' cy='42' r='2' fill='#0B2545'/><path d='M114 56 Q126 54 138 50' fill='none' stroke='#c0392b' stroke-width='3'/><text x='126' y='90' font-size='14'>mocking</text><text x='210' y='16' font-size='15' font-weight='bold'>gasp</text><circle cx='210' cy='46' r='16' fill='#fdd' stroke='#c0392b' stroke-width='2'/><line x1='210' y1='22' x2='210' y2='26' stroke='#c0392b' stroke-width='2'/><line x1='190' y1='30' x2='194' y2='34' stroke='#c0392b' stroke-width='2'/><line x1='230' y1='30' x2='226' y2='34' stroke='#c0392b' stroke-width='2'/><ellipse cx='210' cy='72' rx='5' ry='4' fill='#fff' stroke='#0B2545' stroke-width='2'/><text x='210' y='90' font-size='14'>shock</text><text x='296' y='16' font-size='15' font-weight='bold'>scurry</text><rect x='284' y='34' width='22' height='30' fill='#c0392b'/><line x1='256' y1='42' x2='278' y2='42' stroke='#0B2545' stroke-width='2'/><line x1='250' y1='50' x2='278' y2='50' stroke='#0B2545' stroke-width='2'/><line x1='256' y1='58' x2='278' y2='58' stroke='#0B2545' stroke-width='2'/><text x='296' y='90' font-size='14'>quick steps</text></svg>"
+  }
+ ],
+ "names": {
+  "girl": "Ayesha",
+  "boy": "Bilal"
+ }
+}
