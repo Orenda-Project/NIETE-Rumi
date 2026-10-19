@@ -999,6 +999,8 @@ const RULE = {
   urduNoDates: 'Never ask an item whose answer is a year, a date or a day of the month; the page text\'s numerals are not reliable.',
   // FDE's table puts the writing tasks at Apply (bd-5jmnfj.19); the model tagged them Understand.
   urduWritingApply: 'The picture description, paragraph, story and letter or application are Apply: tag each of them Apply.',
+  // Same table puts sentence work at Understand; the model tagged it Apply, 9 marks over (bd-5jmnfj.19).
+  urduSentenceUnderstand: 'The rewrite-the-sentences (Q4) and use-the-words-in-sentences (Q5) items are Understand: tag each of them Understand.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1274,6 +1276,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`This section's ${section.marks} marks split by thinking level as ${own}. Tag this section's items to match it.`);
   }
   if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(7|8|9|10)$/.test(s.slot))) rules.push(RULE.urduWritingApply);
+  if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(4|5)$/.test(s.slot))) rules.push(RULE.urduSentenceUnderstand);
   if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
   if (key === 'maths') {
     const q1b = list.find((s) => s.slot === 'maths.A.Q1b');
