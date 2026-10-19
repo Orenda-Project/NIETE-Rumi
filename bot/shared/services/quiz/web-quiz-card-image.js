@@ -293,16 +293,24 @@ async function mint(body = {}, { device = null } = {}) {
       logToFile('⚠️ web quiz card: the card was not kept for "a friend joined" (the share still works)', { error: err.message });
     }
   }
-  const long = kind === 'quiz' && w.code ? `/q/${w.code}?k=${token}` : `/k/${token}`;
+  const long = longPath({ kind, code: kind === 'quiz' ? w.code : null, lang }, token, v4 && Switch.linkLangCached());
   // short links on (web_quiz_share_short, the same read): /s/<the card's short id>, else the long link
   const url = v4 && Switch.shortCached() ? (await shortUrl(token)) || long : long;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
+  if (v4 && Switch.linkLangCached()) out.link_lang = true;
   if (x) out.data = x;
   // ready (web_quiz_card_ready): the picture and the page are drawn and stored now, while the child is still on the
   // finish screen, so the link's preview never waits for a draw (never awaited; a failure leaves today's way)
   if (v4 && Switch.readyCached()) prepare(token).catch(() => {});
   return out;
+}
+
+// The card's long path: a class quiz's card is its class link with the card, else /k/<token>. With the link's language
+// (web_quiz_share_link_lang) an Urdu card's class link says so (&lang=ur), so the friend's door opens in Urdu.
+function longPath(f, token, linkLang) {
+  if (!(f.kind === 'quiz' && f.code)) return `/k/${token}`;
+  return `/q/${f.code}?k=${token}${linkLang && f.lang === 'ur' ? '&lang=ur' : ''}`;
 }
 
 // ─── short links (web_quiz_share_short) ─────────────────────────────────────
@@ -328,7 +336,8 @@ async function byShort(id) {
   try { token = await require('../cache/railway-redis.service').get(shortKey(id)); } catch (_) { token = null; }
   const f = typeof token === 'string' ? facts(token) : null;
   if (!f) fail(404, 'not_found');
-  return { token, url: f.kind === 'quiz' && f.code ? `/q/${f.code}?k=${token}` : `/k/${token}` };
+  const linkLang = f.kind === 'quiz' && f.code && f.lang === 'ur' && (await shareOn()) && Switch.linkLangCached();
+  return { token, url: longPath(f, token, linkLang) };
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────

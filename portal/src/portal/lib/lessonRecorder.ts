@@ -33,6 +33,8 @@ type Options = {
   now?: () => number;
   id?: string;
   startedAt?: () => string;
+  /** bd-v0toag.31: the live screen's copy of each chunk, called after it is saved; it can never stop the recording. */
+  onChunk?: (blob: Blob, seq: number, elapsedMs: number) => void;
 };
 
 function newId(): string {
@@ -51,6 +53,7 @@ export class LessonRecorder {
   private readonly MR: typeof MediaRecorder;
   private readonly now: () => number;
   private readonly startedAt: () => string;
+  private readonly onChunk?: (blob: Blob, seq: number, elapsedMs: number) => void;
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private seq = 0;
@@ -66,6 +69,7 @@ export class LessonRecorder {
     this.now = opts.now || (() => Date.now());
     this.id = opts.id || newId();
     this.startedAt = opts.startedAt || (() => new Date().toISOString());
+    this.onChunk = opts.onChunk;
   }
 
   async start(): Promise<void> {
@@ -82,7 +86,9 @@ export class LessonRecorder {
       this.chunks.push(e.data);
       const seq = this.seq;
       this.seq += 1;
-      this.store.appendChunk(this.id, seq, e.data, this.elapsedMs()).catch(() => { /* memory copy remains */ });
+      const ms = this.elapsedMs();
+      this.store.appendChunk(this.id, seq, e.data, ms).catch(() => { /* memory copy remains */ });
+      try { this.onChunk?.(e.data, seq, ms); } catch { /* the live path never touches the recording */ }
     };
     this.recorder = recorder;
     this.runningSince = this.now();

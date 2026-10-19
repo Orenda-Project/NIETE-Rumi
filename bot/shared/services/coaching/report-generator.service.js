@@ -359,17 +359,20 @@ class ReportGeneratorService {
 
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
       // path (PDFKit/HTML renderers).
+      let followUps = true;
       if (isHeroImage) {
         try {
-          await this.sendHeroImageReport(
+          const heroSent = await this.sendHeroImageReport(
             from,
             coachingSessionId,
             reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
             reportResult.caption || '',
             session.users.name,
             session.created_at,
-            track.opts('image')
+            { ...track.opts('image'), userId: session.user_id }
           );
+          // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
+          followUps = require('./report-window-send').followUpsAllowed(heroSent);
         } catch (error) {
           await track.record('image', false, error);
           throw error;
@@ -378,15 +381,17 @@ class ReportGeneratorService {
 
         // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
         // undrawn, or A and B: nothing is sent. Never throws.
-        await require('./report-link-send').sendReportLinkIfNew({
-          coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
-        });
+        if (followUps) {
+          await require('./report-link-send').sendReportLinkIfNew({
+            coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
+          });
+        }
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)
-      if (!isRetry) {
+      if (!isRetry && followUps) {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, track);
 
         // v10 coaching test (bd-v0toag.49): "Was this coaching report useful to you?" — groups A
@@ -1529,6 +1534,12 @@ class ReportGeneratorService {
    * @private
    */
   static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, sendOpts = undefined) {
+    // bd-v0toag.106 — outside her 24 h window a free-form image is refused (131047): send the share template.
+    const { sendReportByTemplateIfWindowClosed } = require('./report-window-send');
+    const userId = sendOpts && sendOpts.userId;
+    if (await sendReportByTemplateIfWindowClosed({ phone: phoneNumber, userId, sessionId: coachingSessionId }) === 'template') {
+      return 'template';
+    }
     let tempImagePath = null;
     try {
       // Ensure temp directory exists

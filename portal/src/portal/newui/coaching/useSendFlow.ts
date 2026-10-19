@@ -7,7 +7,8 @@ import { takeHandedOffRecording } from '../../lib/lessonHandoff';
 import { lessonFilename } from '../../lib/recordFlow';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
 import type { RecordingSession } from '../../lib/recordingSession';
-import { portal } from '../../services/api';
+import { portal, type LiveMovesRecord } from '../../services/api';
+import { liveEligibleNow } from './liveEligible';
 import { withDuration } from '../../lib/webmDuration';
 
 /**
@@ -24,12 +25,14 @@ import { withDuration } from '../../lib/webmDuration';
  *              file / photo), up to 3 board photos; problems are CODES the page puts in words
  *   send       every file to R2, then the analysis; a recording made here is deleted from the
  *              phone only once it has arrived. A failure is a SendError kind.
+ *   pick       bd-v0toag.31, RecordPage only: a group D teacher picks the lesson she is about to teach before
+ *              Record, so its moves can follow her live. Not eligible, or no answer in 1.5 s: recording as today.
  */
 
 export const RECORD_PATH = '/portal/coaching/new';
 
 export type Stage =
-  | 'starting' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
+  | 'starting' | 'pick' | 'micBlocked' | 'recording' | 'check' | 'library' | 'sending' | 'failed' | 'busy' | 'sent';
 
 export type Audio = {
   blob: Blob;
@@ -70,7 +73,16 @@ const TODAY_PATHS: SendFlowPaths = { record: RECORD_PATH, hub: '/portal/coaching
  * lesson plan and the photos (teacher/coaching/draft.ts) and the send page only sends them. Today's pages pass none.
  */
 export type SendDraft = { audio: Audio | null; plan: Plan | null; photos: File[] };
-export type SendFlowOptions = { adopt?: () => SendDraft | null };
+export type SendFlowOptions = {
+  adopt?: () => SendDraft | null;
+  /** bd-v0toag.31: ask an eligible teacher for her lesson before Record (RecordPage only). */
+  pickBeforeRecord?: boolean;
+  /** bd-v0toag.31: the live record that goes with the lesson, read at send. */
+  liveMoves?: () => LiveMovesRecord | null;
+};
+
+/** The plan she picked before Record, for her return to this page while still recording. */
+let heldPlan: Plan | null = null;
 
 export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TODAY_PATHS, options: SendFlowOptions = {}) {
   const navigate = useNavigate();
@@ -81,7 +93,7 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
 
   const [audio, setAudio] = useState<Audio | null>(null);
   const [fileProblem, setFileProblem] = useState<FileProblem>(null);
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(() => (options.pickBeforeRecord && session.active ? heldPlan : null));
   const [planProblem, setPlanProblem] = useState<PlanProblem>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photosProblem, setPhotosProblem] = useState<PhotosProblem>(null);
@@ -139,6 +151,11 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
       void sendDraft(held, null);
       return;
     }
+    if (start === 'record' && options.pickBeforeRecord) {
+      heldPlan = null;
+      void liveEligibleNow().then((on) => { if (on) setStage('pick'); else void startRecording(); });
+      return;
+    }
     if (start === 'record') { void startRecording(); return; }
     if (start === 'file') {
       const file = takeHandedOffRecording();
@@ -154,6 +171,13 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
     // Once, on arrival; the handlers are this render's.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Pick stage: the lesson she chose (none on Skip), then Record. */
+  const startAfterPick = (p?: { pick: LibraryPick; title: string; chips: string[] }) => {
+    heldPlan = p ? { kind: 'library', ...p } : null;
+    setPlan(heldPlan);
+    void startRecording();
+  };
 
   const togglePause = () => { if (session.paused) session.resume(); else session.pause(); };
 
@@ -225,7 +249,9 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
         plan: sendingPlan ? (sendingPlan.kind === 'library' ? { kind: 'library', pick: sendingPlan.pick } : { kind: 'file', file: sendingPlan.file }) : null,
         photos: sendingPhotos,
         teacherClass: teacherClass ?? null,
+        liveMoves: options.liveMoves?.() ?? null,
       }, portal, setProgress);
+      heldPlan = null;
       if (sending.recordingId) { try { await deleteRecording(sending.recordingId); } catch { /* gone */ } }
       setSessionId(coachingSessionId);
       setStage('sent');
@@ -247,7 +273,7 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
 
   return {
     stage, setStage, audio, fileProblem, plan, planProblem, photos, photosProblem, progress, failure, sessionId,
-    startRecording, chooseAudio, togglePause, finishRecording, redo, choosePlanFile, pickPlan, addPhotos, removePhoto,
+    startRecording, startAfterPick, chooseAudio, togglePause, finishRecording, redo, choosePlanFile, pickPlan, addPhotos, removePhoto,
     send, dropPlan, toCoaching, clearPlanProblem: () => setPlanProblem(null),
   };
 }

@@ -2712,13 +2712,12 @@ const PORTAL_COACHING_HTTP = {
   queue_failed: 502,
 };
 
-function portalCoachingRoute(name, run) {
+function portalCoachingRoute(name, run, load = () => require('../services/coaching/portal-coaching.service')) {
   return async (req, res) => {
     const body = req.body || {};
     if (!body.userId) return res.status(400).json({ success: false, error: 'userId is required' });
     try {
-      const PortalCoaching = require('../services/coaching/portal-coaching.service');
-      const result = await run(PortalCoaching, body);
+      const result = await run(load(), body);
       const http = PORTAL_COACHING_HTTP[result && result.status] || 500;
       if (http >= 500) {
         logToFile('❌ Portal coaching request failed', { route: name, userId: body.userId, result }, 'error');
@@ -2741,7 +2740,7 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
 
 /**
  * POST /api/internal/coaching/start
- * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? }
+ * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? }
  *   teacherClass (bd-fmf24g.9): { grade 1-12, subject, subjectKey? } — the class she picked; stored on the row
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * Ok   200 { status:'ok', coachingSessionId }   409 in_progress
@@ -2751,7 +2750,24 @@ router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
   (Svc, b) => Svc.startPortalSession({
     userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
     teacherClass: b.teacherClass,
+    liveMoves: b.liveMoves,
   })));
+
+/**
+ * POST /api/internal/coaching/live/*  (bd-v0toag.31) — live moves while a group D teacher records.
+ * eligible {} → {on} · card {lessonId} → {on, card?} · key {liveId} → mintLessonKey's answer, or reason 'off'
+ * detect {liveId, lessonId, window, unticked} → {ticked} · end {liveId, drops, bytesSent} → {ok}
+ * taps {coachingSessionId, taps} → {ok}, or 404 not_owner / 409 graded
+ */
+const loadLiveMoves = () => require('../services/coaching/live-moves/live-moves.service');
+const LIVE_FIELDS = {
+  eligible: [], card: ['lessonId'], key: ['liveId'], detect: ['liveId', 'lessonId', 'window', 'unticked'],
+  end: ['liveId', 'drops', 'bytesSent'], taps: ['coachingSessionId', 'taps'],
+};
+for (const [name, fields] of Object.entries(LIVE_FIELDS)) {
+  router.post(`/coaching/live/${name}`, requireInternalKey, portalCoachingRoute(`live-${name}`,
+    (Svc, b) => Svc[name](Object.fromEntries(['userId', ...fields].map((f) => [f, b[f]]))), loadLiveMoves));
+}
 
 /**
  * POST /api/internal/coaching/recent-plans  (bd-5rz1v)

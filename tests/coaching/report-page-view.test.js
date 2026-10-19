@@ -158,3 +158,27 @@ test('after the coach ping is sent, the card says the coach was told and does no
   // Without the coach link (A, B, switch off) a stray ?coach= changes nothing.
   expect(renderReportPage(v(), ENV, LINKS, undefined, 'sent')).not.toContain('Your coach has been told');
 });
+
+// bd-v0toag.31: the live moves note — she tapped "I did this" and the recording check found it not_done.
+test('page shows note section only when disagreements exist', () => {
+  const NOTE = 'You said you did this; the recording check didn’t hear it.';
+  const live = {
+    lessonId: 'L1', stamp: 's', liveId: 'x', drops: 0, bytesSent: 0,
+    moves: [{ idx: 0, covers: ['m6'], tickedAtMs: null }],
+    taps: [{ idx: 0, choice: 'did', at: 't', live_state: 'unticked' }],
+  };
+  const session = (verdict) => ({
+    ...SESSION,
+    analysis_data: { ...SESSION.analysis_data, live_moves: live, lp_fidelity: { status: 'ok', moves: [{ move_id: 'm6', text: 'Pairs <read> aloud.', verdict }] } },
+  });
+  const view = (verdict, language = 'en') => buildReportView({ session: session(verdict), firstName: 'Sadia', language, trend: TREND });
+  expect(view('not_done').disagreements).toEqual([{ idx: 0, text: 'Pairs <read> aloud.' }]);
+  const html = renderReportPage(view('not_done'), ENV, LINKS);
+  expect(html).toContain('Pairs &lt;read&gt; aloud.');
+  expect(html).toContain(NOTE);
+  expect(html.indexOf(NOTE)).toBeGreaterThan(html.indexOf(COPY.en.tryh));
+  expect(renderReportPage(view('not_done', 'ur'), ENV, LINKS)).toContain(COPY.ur.disagreeNote);
+  expect(renderReportPage(view('partial'), ENV, LINKS)).not.toContain(NOTE);
+  expect(renderReportPage(v(), ENV, LINKS)).not.toContain(NOTE);
+  expect(v().disagreements).toEqual([]);
+});

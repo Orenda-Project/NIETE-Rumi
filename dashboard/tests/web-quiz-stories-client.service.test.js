@@ -717,6 +717,28 @@ describe('the reader', () => {
       whole(bk.pages[0].lines);                                                   // reading: every line of the part
     }
   });
+  test('steady on, listening to a short line under long ones (the operator\'s "made tw…" cut): every line stays whole across the screen, in English and Urdu', async () => {
+    // the stall setting on (web_quiz_stories_steady): the camera fix rides it, so with it off every page is today's
+    const bk = { ...book(), steady: 1 }; bk.pages[0].words = Array.from({ length: 6 }, (_, i) => ({ i, t: 'w' + i, s_ms: i * 300, e_ms: i * 300 + 250 }));
+    bk.pages[0].lines = [{ i0: 0, i1: 1, box: [40, 700, 640, 40] }, { i0: 2, i1: 3, box: [40, 760, 620, 40] }, { i0: 4, i1: 5, box: [40, 820, 300, 40] }];
+    for (const lang of ['en', 'ur']) {
+      const e = env({ replies: { book: { status: 200, body: { ...bk, lang, dir: lang === 'ur' ? 'rtl' : 'ltr' } } } }); const root = await openReader(e, { lang });
+      fire(root, 'main');
+      const ra = e.calls.ra[e.calls.ra.length - 1].o;
+      for (const w of [0, 2, 4]) {
+        ra.onWord(w);
+        const m = /translate\((-?[\d.]+)px,(-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(root.querySelector('[data-cam]').style.transform);
+        const tx = Number(m[1]); const ty = Number(m[2]); const sc = Number(m[3]);
+        bk.pages[0].lines.forEach((l) => {
+          expect(l.box[0] * sc + tx).toBeGreaterThanOrEqual(-0.5);
+          expect((l.box[0] + l.box[2]) * sc + tx).toBeLessThanOrEqual(360.5);
+        });
+        const cur = bk.pages[0].lines[w / 2];                       // the line being read is on screen top to bottom
+        expect(cur.box[1] * sc + ty).toBeGreaterThanOrEqual(-0.5);
+        expect((cur.box[1] + cur.box[3]) * sc + ty).toBeLessThanOrEqual(540.5);
+      }
+    }
+  });
   test('Your turn on a tall column (five lines read at once): the last line is not cut at the bottom of the stage', async () => {
     const bk = book(); bk.pages[0].words = Array.from({ length: 10 }, (_, i) => ({ i, t: 'w' + i, s_ms: i * 300, e_ms: i * 300 + 250 }));
     bk.pages[0].lines = [0, 1, 2, 3, 4].map((k) => ({ i0: k * 2, i1: k * 2 + 1, box: [100, 500 + k * 110, 400, 60] }));
@@ -1285,7 +1307,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12584);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(12720);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
@@ -3615,5 +3637,39 @@ describe('the page at rest: the whole sheet (its art) plus a lens of its words a
     const k = camOf(root);
     const tb = bk.pages[0].text_band.box;
     expect(onScreen(k, tb)).toBe(true);
+  });
+});
+
+describe('the reader polish setting (web_quiz_stories_polish: the book says pl)', () => {
+  const page = (e, h0) => { const html = { lang: h0[0], dir: h0[1] }; e.win.document = { documentElement: html }; return html; };
+  const leave = (e) => { e.win.location.hash = ''; e.S.route(e.ctx()); };
+  test('on: while a book is open <html> carries its language and direction (screen readers, the Urdu face) and the reader says data-ring; leaving gives <html> back', async () => {
+    for (const [lang, dir, h0] of [['ur', 'rtl', ['en', 'ltr']], ['en', 'ltr', ['ur', 'rtl']]]) {
+      const e = env({ replies: { book: { status: 200, body: book({ lang, dir, pl: 1 }) } } });
+      const html = page(e, h0);
+      const root = await openReader(e, { lang: h0[0] });
+      expect([lang, html.lang, html.dir, root.getAttribute('data-ring')]).toEqual([lang, lang, dir, '']);
+      leave(e);
+      expect([lang, html.lang, html.dir, root.getAttribute('data-ring')]).toEqual([lang, h0[0], h0[1], null]);
+    }
+  });
+  test('off (no pl on the book): <html> untouched, no data-ring, and the page byte-identical to a book that says pl', async () => {
+    for (const lang of ['en', 'ur']) {
+      const dir = lang === 'ur' ? 'rtl' : 'ltr';
+      const off = env({ replies: { book: { status: 200, body: book({ lang, dir }) } } });
+      const html = page(off, ['en', 'ltr']);
+      const ro = await openReader(off, { lang: 'en' });
+      expect([html.lang, html.dir, ro.getAttribute('data-ring')]).toEqual(['en', 'ltr', null]);
+      const on = env({ replies: { book: { status: 200, body: book({ lang, dir, pl: 1 }) } } });
+      page(on, ['en', 'ltr']);
+      const rn = await openReader(on, { lang: 'en' });
+      expect(ro.innerHTML).toBe(rn.innerHTML);
+    }
+  });
+  test('the word ring is drawn round the word, never on its letters, only under data-ring', () => {
+    // the player's pill (its own style, keyed on the host's data-ring) and our own mark (lens / sweep) alike
+    const ra = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'), 'utf8');
+    expect(ra).toMatch(/\[data-ring\] \.wqra-pill\{[^}]*box-shadow:none[^}]*outline:[^}]*outline-offset:[1-9]/);
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\[data-ring\] \.wqs-mk\{[^}]*box-shadow:none[^}]*outline:[^}]*outline-offset:[1-9]/);
   });
 });

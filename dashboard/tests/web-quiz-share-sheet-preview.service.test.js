@@ -66,3 +66,33 @@ test('a sheet taller than the screen scrolls from its top: the panel is held dow
   expect(FC.SHEET_CSS).not.toMatch(/\.wqfc-sheet\{[^}]*align-items:flex-end/);
   expect(FC.SHEET_CSS).toMatch(/\.wqfc-sh-in\{[^}]*margin-top:auto/);
 });
+
+// The title's own line (the mint's `link_lang`, app_settings web_quiz_share_link_lang; default OFF): the quoted title is
+// its own line in its own direction, isolated (<bdi>), so an English title in an Urdu sheet reads «Adding … Denominator»
+// whole, its marks at its own two ends, at a Latin line-height. Off: today's one paragraph.
+describe('the title on its own line (iso)', () => {
+  const FC = fc();
+  const TITLE = 'Adding and Subtracting Fractions With the Same Denominator';
+  const urText = () => FC.shareText({ lang: 'ur', deed: 'quiz_done', title: TITLE, url: URL_, v4: true });
+  test('off: today\'s one paragraph, byte for byte', () => {
+    const h = FC.sheetHtml({ lang: 'ur', img: IMG, text: urText(), url: URL_ });
+    expect(h).toMatch(/<div class="wqfc-sh-msg"><p dir="auto">[^<]*«⁨Adding[^<]*⁩»<\/p><\/div>/);
+  });
+  test('on, Urdu sheet: the English title is its own LTR line inside <bdi>, the deed its own auto line', () => {
+    const h = FC.sheetHtml({ lang: 'ur', img: IMG, text: urText(), url: URL_, iso: true });
+    expect(h).toContain(`<p class="wqfc-sh-ttl" dir="ltr">«<bdi>${TITLE}</bdi>»</p>`);
+    expect(h).toMatch(/<div class="wqfc-sh-msg"><p dir="auto">⭐ [^<]+<\/p><p class="wqfc-sh-ttl"/);
+    expect(h.replace(/<[^>]*>/g, ' ')).not.toContain('Qm9va2Nh');
+    expect(FC.SHEET_CSS).toMatch(/\.wqfc-sh-msg p\.wqfc-sh-ttl\[dir="ltr"\]\{[^}]*line-height:1\.3/);
+  });
+  test('on: an Urdu title stays RTL; an English sheet\'s title is LTR with its own marks', () => {
+    const ur = FC.sheetHtml({ lang: 'ur', img: IMG, text: FC.shareText({ lang: 'ur', deed: 'quiz_done', title: 'پودے', url: URL_, v4: true }), url: URL_, iso: true });
+    expect(ur).toContain('<p class="wqfc-sh-ttl" dir="rtl">«<bdi>پودے</bdi>»</p>');
+    const en = FC.sheetHtml({ lang: 'en', img: IMG, text: FC.shareText({ lang: 'en', deed: 'quiz_done', title: 'Plants <3', url: URL_, v4: true }), url: URL_, iso: true });
+    expect(en).toContain('<p class="wqfc-sh-ttl" dir="ltr">“<bdi>Plants &lt;3</bdi>”</p>');
+  });
+  test('on, words with no title: one line each, the link never printed', () => {
+    const h = FC.sheetHtml({ lang: 'ur', img: IMG, text: `${WORDS.ur}\n${URL_}`, url: URL_, iso: true });
+    expect(h).toContain(`<div class="wqfc-sh-msg"><p dir="auto">${WORDS.ur}</p></div>`);
+  });
+});

@@ -278,17 +278,25 @@ function classPick(raw, pickedAt) {
   return { pick: out };
 }
 
+function liveForLesson(raw, pick) {
+  const { record, bad } = require('./live-moves/live-record').liveRecord(raw);
+  if (bad) return { bad };
+  if (record && pick && pick.lessonId && pick.lessonId !== record.lessonId) return { bad: 'different lesson' };
+  return { record };
+}
+
 /**
  * Turn an uploaded recording (and optional lesson plan / photos) into a
  * coaching session and start the pipeline.
  * @param {{userId, key, lessonPlanKey?, lessonPlan?, photoKeys?: string[], teacherClass?: {grade, subject, subjectKey?}}} args
  *   lessonPlanKey — a plan she uploaded; lessonPlan — one she picked (libraryPick).
+ *   liveMoves (bd-v0toag.31) — what the live screen saw; stored as analysis_data.live_moves (see live-record).
  * @returns {{status:'ok', coachingSessionId}
  *         | {status:'in_progress', coachingSessionId}
  *         | {status:'invalid', reason}
  *         | {status:'queue_failed', coachingSessionId}}
  */
-async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [], teacherClass = null }, deps) {
+async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [], teacherClass = null, liveMoves = null }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
 
   // Every key must be this teacher's own, of the right kind — checked before
@@ -353,6 +361,12 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
     d.log('⚠️ Portal coaching: teacher class pick dropped — recording starts without it', { userId, reason: classBad }, 'warn');
   }
 
+  // bd-v0toag.31: what the live screen saw. Invalid, or for another lesson than her pick → dropped with a warn.
+  const live = liveForLesson(liveMoves, pick);
+  if (live.bad) {
+    d.log('⚠️ Portal coaching: live moves record dropped — recording starts without it', { userId, reason: live.bad }, 'warn');
+  }
+
   // The lesson plan, written field for field as lesson-plan-processor writes
   // it — handleLessonPlanUpload for a plan, the "No" tap for none. A written
   // 6-12 lesson is a PDF in R2, so it is that upload too. A linked library
@@ -388,6 +402,7 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
       confirmed_at: startedAt,
       ...lessonPlan,
       ...(classroomPhotos.length ? { classroom_photos: classroomPhotos } : {}),
+      ...(live.record ? { analysis_data: { live_moves: live.record } } : {}),
       conversation_state: {
         current_state: 'TRANSCRIBING',
         questions_answered: 0,
