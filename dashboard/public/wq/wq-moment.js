@@ -275,10 +275,15 @@
   // and the picture (the sheet's side away from all its words) sits whole and flush on them in the room left, or not at
   // all when it would be under 96 px. null: framed as before (the picture already whole in view, no picture side of its
   // own, or at rest words that would not come up by a quarter)
-  function art(a, cam, im, all, bs, d, rtl, rs) {
-    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1;
+  // one (web_quiz_read_sheet, the book's read_sheet): the band and the picture are one sheet. Where the framed lines still
+  // read at the size the page takes across the stage (a line 25.5 px or more), the band is drawn at that size, so the
+  // picture under it is the same page carrying on (no seam, nothing sliced). The picture is drawn at the band's width
+  // and its box ends at it; a stage too short for that draws both narrower together (centred, one width), or leaves the
+  // picture out when the lines would no longer read. -> {.., one: true}
+  function art(a, cam, im, all, bs, d, rtl, rs, one) {
+    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R;
     all.forEach(function (b) { Y0 = Math.min(Y0, b[1]); Y1 = Math.max(Y1, b[1] + b[3]); });
-    bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); });
+    bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
     dn = im.h - Y1 >= Y0; ch = dn ? im.h - Y1 : Y0;
     if (ch < im.h * .2) return null;
     kf = cam(bs, d[0], d[1], im.w, im.h, rtl, 3, 1); k0 = rs ? cam(null, d[0], d[1], im.w, im.h) : kf;
@@ -287,20 +292,41 @@
     if (rs && s < k0.s * 1.25) return null;
     tx = s === kf.s ? kf.tx : (x1 - x0) * s <= d[0] * .92 ? d[0] / 2 - (x0 + x1) / 2 * s : rtl ? d[0] * .96 - x1 * s : d[0] * .04 - x0 * s;
     tx = r(Math.min(0, Math.max(d[0] - im.w * s, tx)));
-    p = Math.round((y1 - y0) * s * .08) + 8;
-    ty = r(dn ? p - y0 * s : d[1] - p - y1 * s);
-    // the printed lines next to the framed ones bound the clip
-    all.forEach(function (b) { var c = b[1] + b[3] / 2; if (c > y1) nt = Math.min(nt, b[1]); if (c < y0) pb = Math.max(pb, b[1] + b[3]); });
-    c0 = Math.max(0, y0 - p / s, Math.min(y0, pb)); c1 = Math.min(im.h, y1 + p / s, Math.max(y1, nt));
-    // the picture: below (above) every printed line, carrying on where the clipped sheet stops
-    cy = dn ? Math.max(Y1, c1) : 0; ch = dn ? im.h - cy : Math.min(Y0, c0);
-    g = dn ? [r(c1 * s + ty), d[1]] : [0, r(c0 * s + ty)];
-    z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch, s);
-    a.style.top = g[0] + 'px'; a.style.height = r(Math.max(0, g[1] - g[0])) + 'px'; a.style.alignItems = dn ? 'flex-start' : 'flex-end';
+    // one sheet: the page across the stage, when its lines read at that size
+    zf = Math.floor(d[0] / im.w * 1000) / 1000;
+    if (one && zf <= s && mh * zf >= 25.5) { s = zf; tx = 0; }
+    function frame() {
+      p = Math.round((y1 - y0) * s * .08) + 8;
+      ty = r(dn ? p - y0 * s : d[1] - p - y1 * s);
+      // the printed lines next to the framed ones bound the clip
+      nt = 1e9; pb = 0;
+      all.forEach(function (b) { var c = b[1] + b[3] / 2; if (c > y1) nt = Math.min(nt, b[1]); if (c < y0) pb = Math.max(pb, b[1] + b[3]); });
+      c0 = Math.max(0, y0 - p / s, Math.min(y0, pb)); c1 = Math.min(im.h, y1 + p / s, Math.max(y1, nt));
+      // the picture: below (above) every printed line, carrying on where the clipped sheet stops
+      cy = dn ? Math.max(Y1, c1) : 0; ch = dn ? im.h - cy : Math.min(Y0, c0);
+      g = dn ? [r(c1 * s + ty), d[1]] : [0, r(c0 * s + ty)];
+    }
+    frame();
+    if (one) {
+      // the picture at the band's width; a stage too short for it: both narrower together, centred, while the lines read
+      z = Math.min(im.w * s, d[0]) / im.w;
+      if (z * ch > g[1] - g[0]) {
+        zf = Math.floor((g[1] - g[0]) / ch * 1000) / 1000;
+        if (zf < s && mh * zf >= 25.5) { s = zf; tx = r((d[0] - im.w * s) / 2); frame(); z = s; } else z = 0;
+      }
+    } else z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch, s);
     a.setAttribute('data-art', z * ch >= 96 ? 'on' : 'off');
+    // one: the box says so, and the stage drops its white card (wq-moment.css)
+    if (one) a.setAttribute('data-one', 'on');
+    // one: the box ends at the picture (no strip under it)
+    if (one && z * ch >= 96) g = dn ? [g[0], r(g[0] + ch * z)] : [r(g[1] - ch * z), g[1]];
+    a.style.top = g[0] + 'px'; a.style.height = r(Math.max(0, g[1] - g[0])) + 'px'; a.style.alignItems = dn ? 'flex-start' : 'flex-end';
     i = a.querySelector('i'); m = i && i.querySelector('img');
     if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; i.style.borderRadius = dn ? '0 0 12px 12px' : '12px 12px 0 0'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
-    return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0)' };
+    if (!one) return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0)' };
+    // one: the band's own outer corners round like the picture's (all four when the picture is left out)
+    R = r(12 / s) + 'px';
+    return { s: s, tx: tx, ty: ty, one: true, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0 round ' + (z * ch < 96 ? R : dn ? R + ' ' + R + ' 0 0' : '0 0 ' + R + ' ' + R) + ')' };
   }
   function q(k, R, m, x) {
     var y;
