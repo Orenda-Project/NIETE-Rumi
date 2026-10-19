@@ -3172,11 +3172,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var n = UR2 ? urDigits(Math.abs(m)) : Math.abs(m);
     return m > 0 ? '<span class="wq-move wq-up" dir="ltr">▲' + n + '</span>' : '<span class="wq-move wq-down" dir="ltr">▼' + n + '</span>';
   }
+  // with the look a sector code stays whole ("G-5" never leaves a lone "5"): a hyphen before a digit does not break
+  function schoolName(n) { return advOn() ? String(n || '').replace(/-(?=\d)/g, '\u2011') : n; }
   function schoolRow(r) {
     return '<li class="wq-srow' + (r.mine ? ' wq-you' : '') + '"' + (r.mine ? ' id="wq-mine"' : '') + '>' +
       // with the Urdu polish the rank is in Urdu digits, like the counts beside it and the class table's places
       '<span class="wq-splace">' + esc(UR2 ? urDigits(r.place) : r.place) + '</span>' +
-      '<span class="wq-sname"><bdi>' + esc(r.name) + '</bdi>' + (r.mine ? '<span class="wq-tag">' + esc(T.yourSchool) + '</span>' : '') +
+      '<span class="wq-sname"><bdi>' + esc(schoolName(r.name)) + '</bdi>' + (r.mine ? '<span class="wq-tag">' + esc(T.yourSchool) + '</span>' : '') +
       '<small>' + esc(T.kidsN(r.kids || 0)) + '</small></span>' +
       '<span class="wq-spts">' + esc(T.pts(r.points || 0)) + schoolMove(r.move) + '</span></li>';
   }
@@ -3216,7 +3218,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var rows = b.rows || [];
     if (SCH.sector && mine && mine.sector) rows = rows.filter(function (x) { return x.sector === mine.sector; });
     var list = rows.map(schoolRow).join('');
-    var nm = mine ? '<bdi>' + esc(mine.name) + '</bdi>' : '';
+    var nm = mine ? '<bdi>' + esc(schoolName(mine.name)) + '</bdi>' : '';
     var top = !mine ? '' : mine.ghost
       ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine"><p>' + T.ghost(nm) + '</p></div>'
       : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' +
