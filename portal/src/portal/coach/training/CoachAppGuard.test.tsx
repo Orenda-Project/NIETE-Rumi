@@ -24,7 +24,7 @@ const PAGES = [
   "/portal/leader/observe/new", "/portal/training", "/portal/training/v2", "/portal/training/provider/X", "/portal/coaching",
   "/portal/coach", "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/visit/:id", "/portal/coach/reports", "/portal/coach/people",
   "/portal/coach/analytics", "/portal/coach/training", "/portal/coach/training/:vendorKey", "/portal/coach/more", "/portal/coach/profile",
-  "/portal/account", "/portal/login", "*",
+  "/portal/account", "/portal/login", "/portal/coach/disagreements", "/portal/coach/disagreements/:id", "*",
 ];
 
 function renderAt(entry: string, user: SharedAuth["user"], flag: boolean | null) {
@@ -67,6 +67,13 @@ describe("a coach on the coach app v2", () => {
       expect(mounted).toHaveLength(1);
     },
   );
+
+  // bd-tbprit.6 — the /cv link and the card's list open the card; its own coach_disagreement_card gate decides the rest.
+  it.each(["/portal/coach/disagreements", "/portal/coach/disagreements/4650f2b9"])("%s opens the disagreement card", (p) => {
+    renderAt(p, coach, true);
+    expect(screen.getByTestId("where")).toHaveTextContent(p);
+    expect(mounted).toHaveLength(1);
+  });
 
   it("while her flag is read, an old page does not mount", () => {
     renderAt("/portal/dashboard", coach, null);
