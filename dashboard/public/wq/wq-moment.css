@@ -84,7 +84,15 @@
 @keyframes wq-moment-hop{0%{transform:translateY(12px) scale(.6);opacity:0}55%{transform:translateY(-8px) scale(1.06);opacity:1}100%{transform:none}}
 .wqs-jg.wq-moment-lean{animation:wq-moment-lean 1.6s ease-in-out infinite}
 @keyframes wq-moment-lean{0%,100%{transform:none}50%{transform:translateY(6px) scale(1.12)}}
-.wqs-near{margin:8px 16px;text-align:center;font-weight:700;color:var(--ink,#1F2937)}
+/* the read screen (the quiet-read line drawn): the screen is the phone's height and the picture gives up what the line
+   needs, so the nudge (two Urdu lines) and Read with Jugnu sit above the done button, never behind it; the line keeps its
+   place while hidden, so nothing moves mid-read */
+.wqs:has(> .wqs-near){height:100vh;height:100svh;min-height:0}
+.wqs:has(> .wqs-near) .wqs-stage{flex:1 1 0;height:auto;max-height:62vh;min-height:200px}
+.wqs-near{flex:none;margin:0 8px;min-height:calc(3em + 52px);text-align:center;font-weight:700;line-height:1.5;color:var(--ink,#1F2937)}
+.wqs[lang=ur] .wqs-near{min-height:calc(4em + 60px);line-height:2}
+.wqs .wqs-near[hidden]{display:block!important;visibility:hidden}
+.wqs-near>span{display:block;text-wrap:balance}
 .wqs-near .wqs-sec{margin-top:8px}
 @media (prefers-reduced-motion:reduce){.wqs-jg.wq-moment-lean{animation:none;transform:scale(1.08)}}
 /* a small phone's first screen keeps the host's button: the stars and the badge share a row (the growth line under
