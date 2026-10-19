@@ -827,6 +827,27 @@ describe('the tile: words, picture, tag, source', () => {
     Object.values(S.JUGNU_ART).forEach((a) => expect(require('fs').existsSync(require('path').join(pub, a))).toBe(true));
   });
 
+  test('a class child (a teacher-sent quiz in the history) with the v3 home: the video tile names the first recommended lesson, its poster, and opens it (#watch, the quiz after kept)', () => {
+    const out = {
+      kid: 'c1', lib: { href: '/lib/tok?kid=c1&l=en', art: '/wq/art/grade-3-1.webp' },
+      recs: [{ vid: '11111111-2222-4333-8444-555555555555', title: 'Water around us', poster: '/p.webp' }],
+    };
+    const history = [{ code: 'TQ0001', teacherSent: true }];
+    const lib = S.candidatesOf({ out, token: 'tok', watch: true, history }).filter((c) => c.kind === 'video');
+    expect(lib).toHaveLength(1);
+    expect(lib[0]).toMatchObject({
+      id: 'library', variant: 'library', needs_root: true, title: 'Watch a video', sub: 'Water around us', sub_ur: 'Water around us', art: '/p.webp',
+      href: '/h/tok?kid=c1&lang=en#watch/11111111-2222-4333-8444-555555555555',
+    });
+    // the v3 home off (no #watch door), or no recommended lesson: today's tile, the library on the grade
+    const off = S.candidatesOf({ out, token: 'tok', watch: false, history }).find((c) => c.id === 'library');
+    expect(off).not.toHaveProperty('sub');
+    expect(off.href).toBe('/lib/tok?kid=c1&l=en');
+    const none = S.candidatesOf({ out: { ...out, recs: [] }, token: 'tok', watch: true, history }).find((c) => c.id === 'library');
+    expect(none).not.toHaveProperty('sub');
+    expect(none.art).toBe('/wq/art/grade-3-1.webp');
+  });
+
   test('on the hub: `source` on next, arm + score_v + source on every alt, art everywhere', async () => {
     withArm('rank');
     seed([...NEXT_ON, ON('web_quiz_library')], pending());

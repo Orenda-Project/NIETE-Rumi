@@ -129,12 +129,16 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     push({ kind: 'quiz', variant: 'again', id: qkOf(e.quizId, a.code), href: L.quiz(a.code, a.k, true), ...words('again'), ...subOf(a.topic || a.subject), minutes: 3,
       ...artOr(a.art || subjectArt(a.subject), 'quiz') });
   });
-  // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade)
+  const rec = (out.recs || []).find((r) => r && r.vid);
+  // a video: the library (a recommended video starts by a POST, so the tile opens the library on the child's grade).
+  // A class child with the v3 home: the same tile names the first recommended lesson (its title and poster) and opens
+  // it at the home's #watch door, whose start POST mints that lesson's quiz for a class child (video, then the quiz).
   if (out.lib && typeof out.lib.href === 'string' && out.lib.href.startsWith('/lib/') && L.lib) {
-    push({ kind: 'video', variant: 'library', id: 'library', href: L.lib, ...words('video'), minutes: 3, ...artOr(out.lib.art, 'video'), needs_root: true });
+    const named = watch && rec && hasRootOf(history) && L.watch;
+    push({ kind: 'video', variant: 'library', id: 'library', href: named ? L.watch(rec.vid) : L.lib, ...words('video'), ...(named ? subOf(rec.title) : {}), minutes: 3,
+      ...artOr(named ? rec.poster || rec.art || out.lib.art : out.lib.art, 'video'), needs_root: true });
   }
   // a child with no class quiz: the v3 home's own player watches the recommended lesson (nothing minted, no root needed)
-  const rec = (out.recs || []).find((r) => r && r.vid);
   if (watch && rec && !hasRootOf(history) && L.watch) {
     push({ kind: 'video', variant: 'recommended', id: rec.vid, href: L.watch(rec.vid), ...words('video'), ...subOf(rec.title), minutes: 3, ...artOr(rec.poster || rec.art, 'video') });
   }
