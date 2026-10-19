@@ -47,6 +47,15 @@
  *                Beaconhouse passed — her get_mid_high_passed_all_by_sector; on Primary, passed Teacher Leader.
  * The Mid/High "teachers" of a school, sector or the overview is that cohort (her total_teachers there).
  *
+ * I-SAPS, A FOURTH MID/HIGH PARTNER (operator, 2026-10-19). Not one of hers: NIETE's own rule, laid out like her
+ * Oxbridge panel, over the same cohort. Found by vendor KEY 'ISAPS' (its display name was changed on 2026-10-13).
+ *   I-SAPS       a module is an active course titled "Module N"; its exam is the active grand quiz with
+ *                source_quiz_id 900 + N (the bot's own mapping, isaps-module-exam.rules / quiz-delivery). A module
+ *                passed = a passed attempt on that exam. Passed = the I-SAPS level certificate, or every module
+ *                exam passed (what the bot certifies on); In Progress = any I-SAPS unit done or exam sat without
+ *                a pass; Not Started = none. Per module the teachers who passed it, middle / high / total, and
+ *                "Completed all" (= passed). NOT part of "passed all" below (operator: shown separately).
+ *
  * Bands — her Primary / Mid-High toggle — come from users.teacher_level (bot/shared/utils/teacher-level.js:
  * the single source; renamed from training_bands): Primary = holds PRIMARY, levels 1-4; Mid/High =
  * holds MIDDLE or HIGH, levels 3-4 (her Mid/High tab shows only Skilled Practitioner and Teacher Leader). A
@@ -65,6 +74,7 @@
  */
 
 const { REGION_BUCKETS, bucketOf } = require('./schools-analytics.service');
+const { PER_MODULE_SOURCE_BASE } = require('../../bot/shared/services/training/isaps-module-exam.rules');
 
 /** The bot's five states → her three buckets. */
 const STATE_GROUP = Object.freeze({
@@ -155,6 +165,7 @@ function emptyPartners(catalogue) {
     passedAll: 0,
     ox: { passed: 0, inProgress: 0, sessions: catalogue.oxbridge.map(split), completedAll: split() },
     bh: { passed: 0, inProgress: 0, levels: catalogue.beaconhouse.map(split) },
+    isaps: { passed: 0, inProgress: 0, modules: catalogue.isaps.map(split), completedAll: split() },
   };
 }
 
@@ -164,11 +175,14 @@ function addPartners(into, from) {
   for (const k of ['passed', 'inProgress']) {
     into.ox[k] += from.ox[k];
     into.bh[k] += from.bh[k];
+    into.isaps[k] += from.isaps[k];
   }
   const addSplit = (a, b) => { a.middle += b.middle; a.high += b.high; a.total += b.total; };
   from.ox.sessions.forEach((x, i) => addSplit(into.ox.sessions[i], x));
   addSplit(into.ox.completedAll, from.ox.completedAll);
   from.bh.levels.forEach((x, i) => addSplit(into.bh.levels[i], x));
+  from.isaps.modules.forEach((x, i) => addSplit(into.isaps.modules[i], x));
+  addSplit(into.isaps.completedAll, from.isaps.completedAll);
 }
 
 /** A partner card: her three states over the cohort. */
@@ -186,12 +200,15 @@ function partnerCard(p, cohort) {
 function partnersBlock(acc, catalogue, detailed) {
   const oxbridge = partnerCard(acc.ox, acc.cohort);
   const beaconhouse = partnerCard(acc.bh, acc.cohort);
+  const isaps = partnerCard(acc.isaps, acc.cohort);
   if (detailed) {
     oxbridge.sessions = catalogue.oxbridge.map((s, i) => ({ name: s.name, ...acc.ox.sessions[i] }));
     oxbridge.completedAll = { ...acc.ox.completedAll };
     beaconhouse.levels = catalogue.beaconhouse.map((l, i) => ({ name: l.name, ...acc.bh.levels[i] }));
+    isaps.modules = catalogue.isaps.map((m, i) => ({ name: m.name, ...acc.isaps.modules[i] }));
+    isaps.completedAll = { ...acc.isaps.completedAll };
   }
-  return { oxbridge, beaconhouse };
+  return { oxbridge, beaconhouse, isaps };
 }
 
 /**
@@ -217,13 +234,13 @@ function block(ladder, acc, partners, catalogue, { withName = false, detailed = 
   };
 }
 
-/** The partner catalogue: Oxbridge's sessions and Beaconhouse's levels, each with its bit in the masks. */
+/** The partner catalogue: Oxbridge's sessions, Beaconhouse's levels, I-SAPS's modules, each with its bit in the masks. */
 function readCatalogue(rows) {
   const of = (partner) => (rows || [])
     .filter((r) => r && r.partner === partner && Number.isInteger(Number(r.bit)))
     .map((r) => ({ bit: Number(r.bit), name: r.name }))
     .sort((a, b) => a.bit - b.bit);
-  return { oxbridge: of('oxbridge'), beaconhouse: of('beaconhouse') };
+  return { oxbridge: of('oxbridge'), beaconhouse: of('beaconhouse'), isaps: of('isaps') };
 }
 
 const hasBit = (mask, bit) => ((Number(mask) || 0) & (2 ** bit)) !== 0;
@@ -251,6 +268,16 @@ function addPartnerRow(acc, r, catalogue) {
   else if (r.bh_active === true) acc.bh.inProgress += n;
   bhLevels.forEach((on, i) => { if (on) into(acc.bh.levels[i]); });
 
+  // I-SAPS: the certificate, or every module exam passed. A certificate stands even if a module's pass is
+  // not on record (an exam retired after it was issued).
+  const isModules = catalogue.isaps.map((m) => hasBit(r.isaps_mask, m.bit));
+  const isPassed = r.isaps_cert === true || (isModules.length > 0 && isModules.every(Boolean));
+  if (isPassed) acc.isaps.passed += n;
+  else if (r.isaps_active === true || isModules.some(Boolean)) acc.isaps.inProgress += n;
+  isModules.forEach((on, i) => { if (on) into(acc.isaps.modules[i]); });
+  if (isPassed) into(acc.isaps.completedAll);
+
+  // I-SAPS is deliberately not in this (operator, 2026-10-19).
   if (r.niete_both === true && oxAll && bhAny) acc.passedAll += n;
 }
 
@@ -258,11 +285,12 @@ function addPartnerRow(acc, r, catalogue) {
  * @param {{
  *   levels?: Array<{id, name, order_index}>,
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test}>,
- *   partners?: Array<{partner: 'oxbridge'|'beaconhouse', bit, name}>,
+ *   partners?: Array<{partner: 'oxbridge'|'beaconhouse'|'isaps', bit, name}>,
  *   states?: Array<{kind?, school_id, primary_band, middle_band, high_band, midhigh_band, level_id, state,
- *                   ox_mask, bh_mask, bh_active, niete_both, teachers}>
+ *                   ox_mask, bh_mask, bh_active, niete_both, isaps_mask, isaps_active, isaps_cert, teachers}>
  * }} rows  states: 'level' rows, one per (school, bands, level, state); 'partner' rows, one per (school, bands,
- *          Oxbridge sessions, Beaconhouse levels, activity, NIETE two passed), Mid/High teachers only
+ *          Oxbridge sessions, Beaconhouse levels, activity, NIETE two passed, I-SAPS modules, activity,
+ *          certificate), Mid/High teachers only
  * @param {{band?: 'primary'|'midhigh'|'all', region?: string|null}} [opts]
  * @returns {{overview: object, regions: object[], schools: object[]}}
  */
@@ -382,9 +410,28 @@ const PARTNER_LEVEL_IDS = (vendor) => `SELECT pl.id FROM (${PARTNER_LEVELS(vendo
 /** Oxbridge's sessions in order: the active modules of its active course(s); bit = position (0-based). */
 const OX_SESSION_ORDER = 'row_number() OVER (ORDER BY c.order_index, m.order_index, m.id) - 1';
 
+/** I-SAPS, keyed as NIETE's vendors are; never by its display name, which has already changed once. */
+const ISAPS_KEY = 'ISAPS';
+
+/** N of an I-SAPS course titled "Module N", the bot's own reading (quiz-delivery: /Module (\d+)/). bit = N - 1. */
+const ISAPS_MODULE_NO = "substring(c.title from 'Module (\\d+)')::int";
+
 /**
- * The partner catalogue, one row per Oxbridge session and per Beaconhouse level, with the bit each has in the
- * states read's masks — written with the same ordering as the states read, so the two always agree.
+ * Each I-SAPS module that can be passed: an active course "Module N" of an active I-SAPS level whose exam, the
+ * active grand quiz 900 + N, exists. `levels` is the SQL for the I-SAPS level ids.
+ */
+const ISAPS_MODULES = (levels) => `
+      SELECT c.id AS course_id, c.title, q.id AS quiz_id, (${ISAPS_MODULE_NO} - 1) AS bit
+        FROM training_courses c
+        JOIN training_grand_quizzes q
+          ON q.level_id = c.level_id AND q.is_active
+         AND q.source_quiz_id = ${PER_MODULE_SOURCE_BASE} + ${ISAPS_MODULE_NO}
+       WHERE c.is_active AND c.title ~ 'Module \\d+'
+         AND c.level_id IN (${levels})`;
+
+/**
+ * The partner catalogue, one row per Oxbridge session, Beaconhouse level and I-SAPS module, with the bit each has
+ * in the states read's masks — written with the same ordering as the states read, so the two always agree.
  */
 const PARTNERS_SQL = `
   SELECT 'oxbridge' AS partner, (${OX_SESSION_ORDER})::int AS bit, m.title AS name
@@ -397,6 +444,9 @@ const PARTNERS_SQL = `
     FROM training_levels l
     JOIN training_vendors v ON v.id = l.vendor_id
    WHERE v.key = '${BEACONHOUSE_KEY}' AND l.is_active
+  UNION ALL
+  SELECT 'isaps' AS partner, im.bit, im.title
+    FROM (${ISAPS_MODULES(PARTNER_LEVEL_IDS(ISAPS_KEY))}) im
    ORDER BY 1, 2`;
 
 /**
@@ -546,9 +596,16 @@ function trainingStatesSql() {
   ),
   bh_levels AS MATERIALIZED (${PARTNER_LEVELS(BEACONHOUSE_KEY)}
   ),
+  isaps_levels AS MATERIALIZED (${PARTNER_LEVELS(ISAPS_KEY)}
+  ),
+  isaps_exams AS MATERIALIZED (
+    -- each I-SAPS module's exam (the active grand quiz 900 + N of course "Module N"), its bit N - 1 (9 on prod)
+    SELECT im.quiz_id, im.bit FROM (${ISAPS_MODULES('SELECT id FROM isaps_levels')}) im
+  ),
   partner_facts AS MATERIALIZED (
-    -- one row per Mid/High teacher: sessions passed (bits), Beaconhouse levels passed (bits), activity, and
-    -- whether NIETE's Skilled Practitioner and Teacher Leader are both passed
+    -- one row per Mid/High teacher: sessions passed (bits), Beaconhouse levels passed (bits), activity, whether
+    -- NIETE's Skilled Practitioner and Teacher Leader are both passed, and I-SAPS modules passed (bits),
+    -- activity and certificate
     SELECT f.user_id,
            (array_agg(f.school_id) FILTER (WHERE f.mine))[1] AS school_id,
            bool_or(f.primary_band) AS primary_band,
@@ -557,57 +614,82 @@ function trainingStatesSql() {
            bit_or(f.ox_mask) AS ox_mask,
            bit_or(f.bh_mask) AS bh_mask,
            bool_or(f.bh_active) AS bh_active,
-           bool_or(f.niete_both) AS niete_both
+           bool_or(f.niete_both) AS niete_both,
+           bit_or(f.isaps_mask) AS isaps_mask,
+           bool_or(f.isaps_active) AS isaps_active,
+           bool_or(f.isaps_cert) AS isaps_cert
       FROM (
         SELECT user_id, school_id, primary_band, middle_band, high_band, true AS mine,
-               0 AS ox_mask, 0 AS bh_mask, false AS bh_active, false AS niete_both
+               0 AS ox_mask, 0 AS bh_mask, false AS bh_active, false AS niete_both,
+               0 AS isaps_mask, false AS isaps_active, false AS isaps_cert
           FROM roster
          WHERE middle_band OR high_band
         UNION ALL
         -- an Oxbridge session passed: a progress row on its module
-        SELECT p.user_id, NULL, NULL, NULL, NULL, false, (1 << s.bit), 0, false, false
+        SELECT p.user_id, NULL, NULL, NULL, NULL, false, (1 << s.bit), 0, false, false, 0, false, false
           FROM teacher_training_progress p
           JOIN ox_sessions s ON s.module_id = p.module_id
         UNION ALL
         -- a Beaconhouse level passed: its certificate
-        SELECT c.user_id, NULL, NULL, NULL, NULL, false, 0, (1 << bl.order_index), true, false
+        SELECT c.user_id, NULL, NULL, NULL, NULL, false, 0, (1 << bl.order_index), true, false, 0, false, false
           FROM training_certificates c
           JOIN bh_levels bl ON bl.id = c.level_id
         UNION ALL
         -- any Beaconhouse attempt is activity; a passed exam (grand or capstone) passes the level
         SELECT a.user_id, NULL, NULL, NULL, NULL, false, 0,
                CASE WHEN a.is_passed IS TRUE AND a.quiz_kind IN ('grand', 'capstone') THEN (1 << bl.order_index) ELSE 0 END,
-               true, false
+               true, false, 0, false, false
           FROM training_assessment_attempts a
           JOIN bh_levels bl ON bl.id = a.level_id
         UNION ALL
         -- a Beaconhouse module passed is activity
-        SELECT p.user_id, NULL, NULL, NULL, NULL, false, 0, 0, true, false
+        SELECT p.user_id, NULL, NULL, NULL, NULL, false, 0, 0, true, false, 0, false, false
           FROM teacher_training_progress p
           JOIN training_modules m ON m.id = p.module_id
           JOIN training_courses c ON c.id = m.course_id
          WHERE c.level_id IN (SELECT id FROM bh_levels)
         UNION ALL
         -- NIETE Skilled Practitioner AND Teacher Leader passed (her sp_tl)
-        SELECT user_id, NULL, NULL, NULL, NULL, false, 0, 0, false, true
+        SELECT user_id, NULL, NULL, NULL, NULL, false, 0, 0, false, true, 0, false, false
           FROM states
          WHERE state = 'certified' AND order_index IN (2, 3)
          GROUP BY user_id
         HAVING count(*) = 2
+        UNION ALL
+        -- any I-SAPS attempt is activity; a passed attempt on a module's active exam passes that module
+        SELECT a.user_id, NULL, NULL, NULL, NULL, false, 0, 0, false, false,
+               CASE WHEN a.is_passed IS TRUE THEN COALESCE(1 << e.bit, 0) ELSE 0 END, true, false
+          FROM training_assessment_attempts a
+          LEFT JOIN isaps_exams e ON e.quiz_id = a.grand_quiz_id
+         WHERE a.level_id IN (SELECT id FROM isaps_levels)
+        UNION ALL
+        -- an I-SAPS unit done is activity
+        SELECT p.user_id, NULL, NULL, NULL, NULL, false, 0, 0, false, false, 0, true, false
+          FROM teacher_training_progress p
+          JOIN training_modules m ON m.id = p.module_id
+          JOIN training_courses c ON c.id = m.course_id
+         WHERE c.level_id IN (SELECT id FROM isaps_levels)
+        UNION ALL
+        -- the I-SAPS level certificate
+        SELECT c.user_id, NULL, NULL, NULL, NULL, false, 0, 0, false, false, 0, true, true
+          FROM training_certificates c
+         WHERE c.level_id IN (SELECT id FROM isaps_levels)
       ) f
      GROUP BY f.user_id
     HAVING bool_or(f.mine)
   )
   SELECT 'level' AS kind, school_id, primary_band, middle_band, high_band, (middle_band OR high_band) AS midhigh_band,
          level_id, state, NULL::int AS ox_mask, NULL::int AS bh_mask, NULL::boolean AS bh_active,
-         NULL::boolean AS niete_both, count(*)::int AS teachers
+         NULL::boolean AS niete_both, NULL::int AS isaps_mask, NULL::boolean AS isaps_active,
+         NULL::boolean AS isaps_cert, count(*)::int AS teachers
     FROM states
    GROUP BY school_id, primary_band, middle_band, high_band, level_id, state
   UNION ALL
   SELECT 'partner', school_id, primary_band, middle_band, high_band, (middle_band OR high_band),
-         NULL, NULL, ox_mask, bh_mask, bh_active, niete_both, count(*)::int
+         NULL, NULL, ox_mask, bh_mask, bh_active, niete_both, isaps_mask, isaps_active, isaps_cert, count(*)::int
     FROM partner_facts
-   GROUP BY school_id, primary_band, middle_band, high_band, ox_mask, bh_mask, bh_active, niete_both`;
+   GROUP BY school_id, primary_band, middle_band, high_band, ox_mask, bh_mask, bh_active, niete_both,
+            isaps_mask, isaps_active, isaps_cert`;
 }
 
 /**

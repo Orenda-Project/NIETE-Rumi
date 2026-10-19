@@ -250,7 +250,10 @@ describe('GET /analytics/training-levels — the answer', () => {
     expect(oxbridge.sessions).toHaveLength(7);
     expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 0, notStarted: 2, teachers: 3 });
     expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 3 });
-    for (const r of payload.regions) expect(Object.keys(r.partners).sort()).toEqual(['beaconhouse', 'oxbridge']);
+    // I-SAPS (operator, 2026-10-19): a fourth panel, laid out like Oxbridge, not part of passed all
+    expect(Object.keys(payload.overview.partners.isaps).sort())
+      .toEqual(['completedAll', 'inProgress', 'modules', 'notStarted', 'passed', 'pctPassed', 'teachers']);
+    for (const r of payload.regions) expect(Object.keys(r.partners).sort()).toEqual(['beaconhouse', 'isaps', 'oxbridge']);
   });
 
   it('six regions only; schools outside them (no region, Durbeen) are in no number', async () => {
