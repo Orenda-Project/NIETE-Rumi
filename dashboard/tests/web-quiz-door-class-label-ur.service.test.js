@@ -20,6 +20,17 @@ describe.each([['today\'s landing', false], ['the identity v2 door', true]])('%s
   test('Urdu polish on, an Urdu quiz on an Urdu page: the class reads in Urdu too', () => {
     expect(sub(door({ lang: 'ur', bootExtra: { ui: { ur2: true } } }, v2))).toMatch(/کلاس.۵/);
   });
+  test('Urdu polish on, an Urdu quiz whose stored label is «جماعت 5»: one name, «کلاس ۵», with an Urdu digit', () => {
+    const line = sub(door({ lang: 'ur', label: 'جماعت 5', bootExtra: { ui: { ur2: true } } }, v2));
+    expect(line).toMatch(/کلاس.۵/);
+    expect(line).not.toMatch(/جماعت|5/);
+  });
+  test('Urdu polish on: a teacher stored as "Teacher <name>" reads «<name> ٹیچر», as an Urdu quiz\'s does', () => {
+    const p = (teacher) => sub(page({ lang: 'ur', quizExtra: { lang: 'en' }, bootExtra: { ui_lang: 'ur', ui: { ur2: true } },
+      ...(v2 ? { cls: { ...V2('Class 5'), teacher }, ident: true } : { cls: { label: 'Class 5', teacher, chips: [] } }) }).html());
+    expect(p('Teacher Amna Testwala')).toContain('Amna Testwala ٹیچر کی طرف سے');
+    expect(p('Amna Testwala ٹیچر')).toContain('Amna Testwala ٹیچر کی طرف سے');
+  });
   test('Urdu polish off: the label as stored (today)', () => {
     expect(sub(door(swap(false), v2))).toMatch(/Class.5/);
   });

@@ -800,8 +800,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // ui_lang ur on an English quiz's class table or league (web_quiz_class_doors): the class label in the page's own Urdu
   // word and digits ("Classes 2, 3" -> "کلاس ۲، ۳"); a lettered class ("3-B") keeps the teacher's letters.
   function urClassLabel(l) {
-    var m = /^Class(?:es)?\s+(.+)$/.exec(String(l));
-    return m ? 'کلاس ' + m[1].split(/\s*,\s*/).map(function (c) { return /^\d+$/.test(c) ? urDigits(c) : c; }).join('، ') : l;
+    // "Class 5" / "Classes 2, 3" and an Urdu quiz's stored «جماعت 5»: one name for a class on every screen, «کلاس ۵»
+    // (the class table's), Urdu digits
+    var m = /^(?:Class(?:es)?|جماعت|کلاس)\s*(.+)$/.exec(String(l));
+    return m ? 'کلاس ' + m[1].split(/\s*[,،]\s*/).map(function (c) { return /^\d+$/.test(c) ? urDigits(c) : c; }).join('، ') : l;
   }
   var CLASS_LABEL = CLS.label ? (UI_SWAP && LANG === 'ur' ? urClassLabel(CLS.label) : CLS.label) : T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
@@ -1465,6 +1467,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // the class label on an Urdu page with the Urdu polish (wq-ur2), whatever the quiz's language: in Urdu, as the class
   // table does (urClassLabel). The door's line and the finish card's header.
   function doorLabel() { return CLS.label && typeof UR2 !== 'undefined' && UR2 && typeof urClassLabel === 'function' ? urClassLabel(CLS.label) : CLS.label; }
+  // ...and the teacher the same way: "Teacher <name>" (an English quiz's) reads «<name> ٹیچر», as an Urdu quiz's does
+  function doorTeacher() { var t = CLS.teacher; return t && typeof UR2 !== 'undefined' && UR2 ? String(t).replace(/^Teacher\s+(.+)$/, '$1 ٹیچر') : t; }
   // the quiz title's dir on the door: an English title on an Urdu page with the look is left to right (WQI.latDir)
   function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
@@ -1496,7 +1500,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, doorLabel())) + '</p>' +
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       chPic(chLine) +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
@@ -1522,7 +1526,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function teacherLanding() {
     var h = bar('', true) +
       '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, doorLabel())) + '</p>' +
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
@@ -1631,7 +1635,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
-    lat: latT, doorLabel: doorLabel
+    lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher
   }) : null;
   function who() {
     if (ID) return ID.who();
@@ -3392,7 +3396,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() +
       jug('hello', one ? T.hello : T.whoSay, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(CLS.teacher, doorLabel())) + '</p></div>' +
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p></div>' +
       (one
         ? '<h2>' + TW.knIs(nm(one)) + '</h2><button class="wq-btn wq-go" id="wq-kn-yes">' + ani(one.animal) + esc(TW.knYes) + '</button>'
         : '<h2>' + esc(T.whoT) + '</h2><div class="wq-kids-big">' + list.map(function (k, i) {
