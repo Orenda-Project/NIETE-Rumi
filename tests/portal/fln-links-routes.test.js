@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 (PR-D) — the leader routes of Reading Hour + Numeracy (contracts/api.md v2):
+ * The leader routes of Reading Hour + Numeracy (contracts/api.md v2):
  *   GET /api/portal/fln/links      the link builder's rows (leaders with the share switch only)
  *   GET /api/portal/fln/title/:id  the signed-out banner's title (no sign-in; title, lang, dir only)
  *

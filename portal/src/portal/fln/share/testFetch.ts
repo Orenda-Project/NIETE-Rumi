@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — test helper: a `fetch` stub keyed by path fragment. Each route answers {status, body} or a function
+ * Test helper: a `fetch` stub keyed by path fragment. Each route answers {status, body} or a function
  * of the request. Every call is recorded with its init so a test can assert `cache: 'no-store'`.
  */
 import { vi } from 'vitest';

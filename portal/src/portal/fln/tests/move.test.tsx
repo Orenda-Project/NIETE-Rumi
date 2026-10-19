@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, fireEvent, render, act } from '@testing-library/react';
 
 /**
- * bd-t7zk3t.11 — a numbered move: the markdown subset ONLY (bold, italic, line breaks, `1. ` lines), everything else
+ * A numbered move: the markdown subset ONLY (bold, italic, line breaks, `1. ` lines), everything else
  * as escaped TEXT (never innerHTML); every audio occurrence its own pill; the label chain from the player's clips.ts;
  * images in reserved boxes with one silent retry from `orig`; videos never preloaded; pdf as a ≥48 px link.
  */

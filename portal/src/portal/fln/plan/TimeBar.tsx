@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the time bar (DESIGN v2 §2 S4.3, the v10 pattern): one coloured segment per section sized by its
+ * The time bar (DESIGN v2 §2 S4.3, the v10 pattern): one coloured segment per section sized by its
  * minutes, the minutes inside («۵ منٹ» on an Urdu page — never a ′ mark), the section names under it.
  */
 import { flnStrings, type FlnLang } from '../strings';

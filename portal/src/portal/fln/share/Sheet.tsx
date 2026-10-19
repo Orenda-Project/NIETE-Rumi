@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the bottom sheet both Share sheets use: a dimmed page, a white panel from the bottom, a title, a
+ * The bottom sheet both Share sheets use: a dimmed page, a white panel from the bottom, a title, a
  * ≥48 px Close; Escape and a tap on the dimmed page close it. Scoped under .fln-root with the chrome's lang/dir.
  */
 import { useEffect, useId, useRef, type ReactNode } from 'react';

@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.12 — the WhatsApp text "Share link" opens (contracts/deep-link.md v2):
+ * The WhatsApp text "Share link" opens (contracts/deep-link.md v2):
  *
  *   📘 <subject> · Level <n>         ← the leader's chrome language; the LEVEL, never a grade
  *   <the plan's title>               ← the plan's own language, never translated
@@ -8,6 +8,7 @@
  * Urdu chrome: «📘 ریڈنگ آور — اردو — سطح ۱» («—» separators, Urdu digits). At most 300 code points: the title is cut
  * with «…», the URL never is. Plain text — WhatsApp renders no HTML, so nothing here is escaped or isolated.
  */
+import { WHATSAPP_URL_PICKER } from '@/lib/whatsapp';
 import { fillText, shareStrings, type ShareLang, type ShareSubject } from './strings.share';
 
 export const MAX_CODE_POINTS = 300;
@@ -49,5 +50,5 @@ export function shareMessage({ uiLang, subject, level, title, url }: ShareMessag
 
 /** The wa.me link that opens WhatsApp's contact picker with `message` typed in. */
 export function waUrl(message: string): string {
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  return `${WHATSAPP_URL_PICKER}?text=${encodeURIComponent(message)}`;
 }

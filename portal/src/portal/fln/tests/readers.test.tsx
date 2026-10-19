@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 /**
- * bd-t7zk3t.12 — the teacher app's readers of "plans she used" keep working when one of them is a
+ * The teacher app's readers of "plans she used" keep working when one of them is a
  * Reading Hour / Numeracy (FLN) plan (`kind: 'fln'`, `open: { lane: 'fln', planId }` from
  * lp-activity / lp-history). Before this, every non-k5 row was treated as grades 6-12: the Home list
  * asked /lp612/request for a segment that does not exist, "All lesson plans" linked `g612:undefined`,

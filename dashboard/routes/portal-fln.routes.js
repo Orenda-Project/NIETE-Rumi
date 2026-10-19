@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — Reading Hour + Numeracy (FLN) in the teacher app: the server routes (SPEC v2 §3, §5;
+ * Reading Hour + Numeracy (FLN) in the teacher app: the server routes (SPEC v2 §3, §5;
  * contracts/api.md v2). Mounted at /api/portal by ONE line in dashboard/index.js.
  *
  *   GET  /fln/me           {lessons, share, role, ui_lang}         auth only
@@ -37,7 +37,6 @@
  *      in the k5 catalogue, and an `fln` open row is invisible to its k5-filtered reads (fln-ab-isolation.test.js).
  */
 const express = require('express');
-const crypto = require('crypto');
 const { flnAccess, requireFln, requirePortalAuth, noStore } = require('../lib/fln-access');
 const Corpus = require('../services/fln-corpus.service');
 const LpActivity = require('../services/lp-activity.service');
@@ -53,7 +52,7 @@ const ID_RX = /^\d{1,9}$/;
 const SUBJECTS = new Set(['rh-en', 'rh-ur', 'num']);
 const MAX_EVENTS = 50;
 const INSERTED_KINDS = new Set(['share', 'link_copy', 'open_link']);
-// COS schema ruling: audio events are logged as structured events, not stored (`send` is server-written only, m-links).
+// Audio events are logged as structured events, not stored (`send` is server-written only, m-links).
 const LOGGED_KINDS = Object.freeze({ audio_play: 'fln.audio.play', audio_error: 'fln.audio.error' });
 const PREVIEW_PATH = /^\/portal\/fln\/p\/(\d{1,9})\/?$/;
 // Anchored as in web-quiz-preview.js: WhatsApp's link FETCHER sends a bare "WhatsApp/2.x A"; its in-app BROWSER sends
@@ -61,16 +60,17 @@ const PREVIEW_PATH = /^\/portal\/fln\/p\/(\d{1,9})\/?$/;
 const PREVIEW_UA = /^(?:WhatsApp\/\d[\d.]*(?:\s+[AIN])?\s*$|facebookexternalhit\/|Facebot\b|meta-externalagent\/|TelegramBot\b|Twitterbot\/|Slackbot|LinkedInBot\/|Discordbot\/)/;
 
 /**
- * A teacher's keyed reference: hex(HMAC-SHA256(WEB_QUIZ_KID_KEY, 't|' + users.id))[0:16] — byte-identical to
- * bot/shared/services/quiz/web-quiz-kid.js `tk` (fln-routes.test.js asserts it). Computed here rather than required:
- * that module loads the bot's pino logger at require time, which this service does not install, and `tk` is absent
- * from it on main. Null without a key of at least 32 bytes (then nothing is stored; never an unkeyed hash).
+ * A teacher's keyed reference: bot/shared/services/quiz/web-quiz-kid.js `tk`, the one helper that computes it. That
+ * module requires the bot logger only when it writes a line, and this service does not install the bot's pino: with
+ * no WEB_QUIZ_KID_KEY, `tk` notes the missing key through that logger, the require throws here, and the answer is
+ * null, as for a short key (then nothing is stored and /fln/events says why; never an unkeyed hash).
  */
 function userKeyOf(userId) {
-  const k = process.env.WEB_QUIZ_KID_KEY;
-  const id = userId == null ? '' : String(userId).trim();
-  if (!id || typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-  return crypto.createHmac('sha256', k).update(`t|${id}`).digest('hex').slice(0, 16);
+  try {
+    return require('../../bot/shared/services/quiz/web-quiz-kid').tk(userId);
+  } catch (_) {
+    return null;
+  }
 }
 
 /** iab-android | iab-ios | chrome | safari | other — from the User-Agent, nothing else kept. */

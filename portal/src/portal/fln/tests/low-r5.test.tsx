@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * bd-t7zk3t.18 — the R5 LOW batch (qa-teacher + red-team r5), each through the real component:
+ * The R5 LOW batch (teacher QA + the red team), each through the real component:
  *  1. a count of one is singular ("1 sound" / «۱ آواز»), Urdu digits in <bdi>;
  *  2. the time-bar labels never break mid-word ("Conclusi-on");
  *  3. the Urdu video label says «ایم بی», not a Latin "MB";

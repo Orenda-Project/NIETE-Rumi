@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — isolate every Latin/ASCII-digit run inside right-to-left text in its own <bdi>, so "SLO", "5",
+ * Isolate every Latin/ASCII-digit run inside right-to-left text in its own <bdi>, so "SLO", "5",
  * "24/48" or "Level 1" keep their order in an Urdu line (DESIGN v2 §1 rules; the red team's rt_bidi_check counts any
  * such run outside <bdi>/dir=ltr as a FAIL). Left-to-right text is returned untouched. Text only: nothing here
  * interprets markup.

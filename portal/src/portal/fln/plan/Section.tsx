@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — a section as a disclosure band, CLOSED by default (OPERATOR DECISION, DESIGN v2 ruling 1).
+ * A section as a disclosure band, CLOSED by default (DESIGN v2 decision 1).
  *
  * Closed: a 7 px stripe in the section colour on the inline-start side, the section's name, its minutes, the first
  * move on ONE line with an ellipsis, and ▾. The whole band header is one `<button aria-expanded aria-controls>` (≥64 px).

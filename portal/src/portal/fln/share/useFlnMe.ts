@@ -1,6 +1,6 @@
 /**
- * bd-t7zk3t.12 — what this session may see, asked of the server on EVERY mount (never cached in the client: a coach
- * and a teacher can share one phone, and the Share bar must follow whoever is signed in now — DESIGN v2 ruling 8).
+ * What this session may see, asked of the server on EVERY mount (never cached in the client: a coach
+ * and a teacher can share one phone, and the Share bar must follow whoever is signed in now — DESIGN v2 decision 8).
  * `null` while asking; `false` for "no" (share off, 401, 404, an error, the network).
  */
 import { useEffect, useState } from 'react';

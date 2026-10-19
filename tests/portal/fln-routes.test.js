@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.11 — dashboard/routes/portal-fln.routes.js over real Express + HTTP (SPEC v2 §3, §5, §7).
+ * Dashboard/routes/portal-fln.routes.js over real Express + HTTP (SPEC v2 §3, §5, §7).
  * Mocked: supabase (app_settings + users), the pg pool (dashboard/config/database), global fetch. Everything else —
  * fln-access, feature-flags, leader-role, lp-activity, the corpus service, app-funnel's actionLogger — is real.
  */
@@ -300,7 +300,7 @@ describe('POST /fln/events', () => {
     expect(params).not.toContain(TEACHER);
   });
 
-  it('audio_play / audio_error are LOGGED as structured events (COS ruling), never inserted', async () => {
+  it('audio_play / audio_error are LOGGED as structured events, never inserted', async () => {
     const srv = await app();
     const r = await call(srv, 'POST', '/api/portal/fln/events', {
       ua: UA_IAB,

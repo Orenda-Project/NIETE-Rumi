@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — tiny stand-ins for the audio lane's SoundPill / SoundGrid (their files are contract stubs that render
+ * Tiny stand-ins for the audio lane's SoundPill / SoundGrid (their files are contract stubs that render
  * null) and a fake player with spies. The REAL `itemClips` / `sectionClipIds` / `gridClips` (the label chain) are kept.
  *
  *   vi.mock('../player', async (orig) => (await import('./fixtures/playerMock')).withStandIns(await orig()));

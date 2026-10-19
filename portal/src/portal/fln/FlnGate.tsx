@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — the signed-in gate for /portal/fln/* (SPEC v2 §3: there is no generic one; leaders pass, no
+ * The signed-in gate for /portal/fln/* (SPEC v2 §3: there is no generic one; leaders pass, no
  * TeacherGate). On EVERY mount it asks GET /api/portal/fln/me with plain fetch (never cached: a shared school phone
  * changes hands, and the Share bar reads `share` from it):
  *

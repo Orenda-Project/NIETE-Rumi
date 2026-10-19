@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-t7zk3t.12 (PR-D) — the leader routes of Reading Hour + Numeracy (FLN), contracts/api.md v2.
+ * The leader routes of Reading Hour + Numeracy (FLN), contracts/api.md v2.
  * Mounted from m-app's `portal-fln.routes.js` (itself at /api/portal) by ONE line the m-links manager adds after
  * PR-C lands: `router.use(require('./portal-fln-links.routes'));`. `GET /fln/me` is m-app's (PR-C), not here.
  *

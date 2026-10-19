@@ -1,5 +1,5 @@
 /**
- * bd-t7zk3t.11 — render the plan page the way the router does (`/portal/fln/p/:id`), with `fetch` (the network
+ * Render the plan page the way the router does (`/portal/fln/p/:id`), with `fetch` (the network
  * boundary) answering the plan request. A probe route shows where Back / "Go to the lesson list" navigated.
  */
 import { render } from '@testing-library/react';

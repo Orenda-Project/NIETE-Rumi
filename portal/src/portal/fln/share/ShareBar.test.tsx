@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { WHATSAPP_URL_PICKER } from '@/lib/whatsapp';
 import ShareBar from './ShareBar';
 import { stubFetch, callsTo, ME_LEADER, ME_LEADER_UR, ME_TEACHER, PLAN_DATA } from './testFetch';
 
 /**
- * bd-t7zk3t.12 — the leaders' Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L2a/L2b). Props {plan, placement, me}:
+ * The leaders' Share bar on a plan page (DESIGN v2 §2 S4.7, §4 L2a/L2b). Props {plan, placement, me}:
  * the plan page fetches /me on every mount and passes it in; the bar renders ONLY when me.share is true, and never asks
  * /me itself. Two ≥48 px buttons in a ≤56 px bar.
  */
@@ -64,8 +65,9 @@ describe('ShareBar — for a leader', () => {
     const link = `${window.location.origin}/portal/fln/p/11156`;
     expect(sheet.querySelector('[data-testid="fln-share-url"]')?.textContent).toBe(link);
     const wa = screen.getByRole('link', { name: 'Send on WhatsApp' }) as HTMLAnchorElement;
-    const text = decodeURIComponent(wa.href.slice('https://wa.me/?text='.length));
-    expect(wa.href.startsWith('https://wa.me/?text=')).toBe(true);
+    const pre = `${WHATSAPP_URL_PICKER}?text=`;
+    const text = decodeURIComponent(wa.href.slice(pre.length));
+    expect(wa.href.startsWith(pre)).toBe(true);
     expect(text.split('\n')).toEqual(['📘 Reading Hour · English · Level 1', PLAN_DATA.plan.title, `${link}?src=wa`]);
     expect(text).not.toMatch(/grade/i);
 

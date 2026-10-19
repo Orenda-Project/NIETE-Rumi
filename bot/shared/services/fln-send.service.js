@@ -48,7 +48,7 @@ function defaultDeps() {
     signToken: (userId, target) => AppLink.signAppLink(userId, target),
     portalOrigin: () => String(portalUrl() || '').replace(/\/+$/, ''),
     hasOpenWindow: (phone) => require('./quiz/quiz-delivery.service')._hasOpenMessageWindow(phone),
-    // Called as METHODS: WhatsAppService statics use `this` (remark-delivery.deps.js, bd-2711).
+    // Called as METHODS: WhatsAppService statics use `this` (the remark-delivery.deps.js pattern).
     sendCtaUrl: (phone, msg) => WhatsAppService.sendCtaUrl(phone, msg),
     sendTemplate: (phone, name, lang, components) => WhatsAppService.sendTemplate(phone, name, lang, components),
     recordEvent: async (row) => {

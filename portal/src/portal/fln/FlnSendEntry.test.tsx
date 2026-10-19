@@ -6,7 +6,7 @@ import FlnSendTile from './FlnSendTile';
 import { stubFetch, callsTo, ME_LEADER, ME_TEACHER } from './share/testFetch';
 
 /**
- * bd-t7zk3t.12 — the two builder entry points (SPEC v2 §3 "Entry points for leaders"): a card on the leader home and
+ * The two builder entry points (SPEC v2 §3 "Entry points for leaders"): a card on the leader home and
  * a tile in the coach Training Library. Both render NOTHING unless /me says share:true, so the pages they sit on are
  * unchanged for everyone else (and when FLN is off).
  */

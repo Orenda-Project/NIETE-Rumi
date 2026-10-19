@@ -6,10 +6,10 @@
  *   teacherKey(id) = hex(HMAC-SHA256(K, 'fln-teacher|' + users.id))[0:16]        a teacher in a leader's picker
  *   userKey(id)    = hex(HMAC-SHA256(WEB_QUIZ_KID_KEY, 't|' + users.id))[0:16]   a user on a log line / event row
  *
- * userKey is byte-for-byte m-app's userKeyOf (dashboard/routes/portal-fln.routes.js) and web-quiz-kid `tk`, so a
+ * userKey IS web-quiz-kid `tk` (the one helper for the teacher reference; the portal's userKeyOf calls it too), so a
  * `send` row's clip (the recipient's userKey) joins that recipient's own `open_link` row. Null without a
- * WEB_QUIZ_KID_KEY of at least 32 bytes — never an unkeyed hash. (Computed here, not required from web-quiz-kid:
- * `tk` is on sandbox only, and that module loads the bot logger at require time.)
+ * WEB_QUIZ_KID_KEY of at least 32 bytes — never an unkeyed hash. Required when called, so the portal, which loads
+ * this module for teacherKey, never loads web-quiz-kid through it.
  *
  * teacherKey's K is derived from INTERNAL_API_KEY (the bot and the portal both hold it) and this environment's
  * Supabase host, under its OWN label — the app-login-link.js pattern — so a picker key from one environment means
@@ -47,12 +47,7 @@ function mac(domain, userId) {
 }
 
 const teacherKey = (userId) => mac('fln-teacher', userId);
-function userKey(userId) {
-  const k = process.env.WEB_QUIZ_KID_KEY;
-  const id = userId == null ? '' : String(userId).trim();
-  if (!id || typeof k !== 'string' || Buffer.byteLength(k, 'utf8') < 32) return null;
-  return crypto.createHmac('sha256', k).update(`t|${id}`).digest('hex').slice(0, 16);
-}
+const userKey = (userId) => require('./quiz/web-quiz-kid').tk(userId);
 const KEY_RX = /^[0-9a-f]{16}$/;
 
 module.exports = { teacherKey, userKey, KEY_RX };

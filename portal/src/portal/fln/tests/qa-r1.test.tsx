@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 /**
- * bd-t7zk3t.11 — qa-render r1 defects (outputs/lanes/m-app/workers/qa-render_REPORT.md), each through the real page:
+ * Qa-render r1 defects (outputs/lanes/m-app/workers/qa-render_REPORT.md), each through the real page:
  *  D4  a group whose steps carry their OWN numbers ("1. There are a total of 6 tasks.") gets no badges, so the
  *      teacher never reads "2  1. There are…" (screener 10221).
  *  D5  a trailing "+" belongs to its Latin run ("A-Z+") in Urdu text, so it does not jump to the other end.

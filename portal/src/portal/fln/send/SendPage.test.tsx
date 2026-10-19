@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { WHATSAPP_URL_PICKER } from '@/lib/whatsapp';
 import SendPage from './SendPage';
 import { stubFetch, callsTo, ME_LEADER, ME_LEADER_UR, ME_TEACHER } from '../share/testFetch';
 
 /**
- * bd-t7zk3t.12 — the "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade → subject → level
+ * The "Send a lesson plan" builder at /portal/fln/send (DESIGN v2 §4 L3): grade → subject → level
  * (pre-selected for 1–5, NONE for 6–12 with the screener on top) → search + filters → rows with Send to teacher and
  * Share link. State lives in the URL so Back works. 404 → "not available"; no rows → the §7 empty line.
  */
@@ -115,7 +116,7 @@ describe('SendPage — the builder', () => {
     expect(row.textContent).toContain('36 min');
     expect(within(row).getByText('حروف').getAttribute('dir')).toBe('rtl');
     const wa = within(row).getByRole('link', { name: 'WhatsApp' }) as HTMLAnchorElement;
-    const text = decodeURIComponent(wa.href.slice('https://wa.me/?text='.length));
+    const text = decodeURIComponent(wa.href.slice(`${WHATSAPP_URL_PICKER}?text=`.length));
     expect(text.split('\n')).toEqual(['📘 Reading Hour · Urdu · Level 1', 'حروف', 'https://portal.example.test/portal/fln/p/101?src=wa']);
     for (const b of within(row).getAllByRole('button')) expect(b.className).toContain('min-h-[48px]');
   });
