@@ -38,9 +38,11 @@ function liveBySlot(examJson, L) {
  * @param {object} [opts]
  * @param {object} [opts.tos]  target % per level, e.g. { Remember: 10, Understand: 50, Apply: 40 }
  * @param {number} [opts.tolerance]  allowed miss in percentage points (default 5)
+ * @param {object} [opts.sectionLevels]  section id → target marks per level (bd-5jmnfj.19); a
+ *   section more than `tolerance` marks off its own split is a SECTION_LEVEL problem
  * @returns {{ ok, total, expected, sections, levels, problems }}
  */
-function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE } = {}) {
+function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE, sectionLevels = null } = {}) {
   const L = examJson && examJson._layout;
   if (!L || !Array.isArray(L.sections)) {
     const err = new Error('NO_LAYOUT: the blueprint check reads board-pattern papers only');
@@ -53,6 +55,7 @@ function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE } = {}) {
 
   const sections = L.sections.map((sec) => {
     let marks = 0;
+    const own = Object.fromEntries(LEVELS.map((band) => [band, { marks: 0 }]));
     for (const slot of sec.slots) {
       const list = live.get(slot.slot);
       if (list.length < slot.attempt) {
@@ -64,13 +67,22 @@ function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE } = {}) {
       let untagged = 0;
       list.forEach((q) => {
         const band = canonicalBlooms(q.blooms);
-        if (band) levels[band].marks += each;
-        else untagged += 1;
+        if (band) { levels[band].marks += each; own[band].marks += each; } else untagged += 1;
       });
       if (untagged) problems.push({ code: 'UNTAGGED', slot: slot.slot, count: untagged });
     }
     if (marks !== sec.marks) problems.push({ code: 'SECTION', section: sec.id, marks, expected: sec.marks });
-    return { id: sec.id, marks, expected: sec.marks };
+    const target = sectionLevels && sectionLevels[sec.id];
+    if (target) {
+      for (const band of LEVELS) {
+        if (typeof target[band] !== 'number') continue;
+        own[band].target = target[band];
+        if (Math.abs(own[band].marks - target[band]) > tolerance + 1e-9) {
+          problems.push({ code: 'SECTION_LEVEL', section: sec.id, level: band, marks: own[band].marks, target: target[band] });
+        }
+      }
+    }
+    return { id: sec.id, marks, expected: sec.marks, levels: own };
   });
 
   const total = sections.reduce((sum, s) => sum + s.marks, 0);
@@ -100,14 +112,24 @@ function levelDistance(bp) {
   }, 0);
 }
 
-/** The note a second run is given: the first paper's split by marks, and the target. */
+/**
+ * The note a second run is given: the first paper's split by marks, and the target. With section
+ * targets (bd-5jmnfj.19) each section gets its own note, keyed by id, naming where it stood too.
+ */
 function levelNote(bp) {
   const split = (pick) => LEVELS.map((band) => `${band} ${pick(bp.levels[band])}%`).join(', ');
-  return [
+  const paper = [
     `The paper written for this request came out at ${split((l) => Math.round(l.pct))} of the marks.`,
     `The board's split is ${split((l) => l.target)}. Write this section so the paper meets that split:`,
     'change which questions you ask, not just their tags. Tag every item with the level it truly tests.',
   ].join(' ');
+  const targeted = bp.sections.filter((s) => s.levels && LEVELS.every((band) => typeof s.levels[band].target === 'number'));
+  if (!targeted.length) return paper;
+  const marks = (s, pick) => LEVELS.map((band) => `${band} ${pick(s.levels[band])}`).join(', ');
+  return Object.fromEntries(targeted.map((s) => [s.id, [
+    paper,
+    `This section came out at ${marks(s, (l) => Math.round(l.marks))} marks; FDE's split for it is ${marks(s, (l) => l.target)}.`,
+  ].join(' ')]));
 }
 
 module.exports = { checkBlueprint, missesSplit, levelDistance, levelNote, TOLERANCE };
