@@ -183,7 +183,7 @@ test('the page styles (look only): the light screens sit in the middle with a bi
   const p = page({ routes: routes(), adv: true });
   const css = p.made.map((e) => e.textContent || '').join('\n');
   expect(css).toMatch(/html\.wq-adv \.wqc-mid\{[^}]*min-height:100dvh/);
-  expect(css).toMatch(/html\.wq-adv \.wqc-mid \.wq-jug\.wq-big \.wq-say\{[^}]*font-size:var\(--fs-5/);
+  expect(css).toMatch(/html\.wq-adv \.wqc-mid \.wq-jug\.wq-big \.wq-say[,{][^}]*font-size:var\(--fs-5/);
   expect(css).toMatch(/html\.wq-adv \.wqc-pill\.wqc-pnext\{[^}]*font-size:var\(--fs-3/);
   expect(css).toMatch(/prefers-reduced-motion:reduce\)\{[^}]*\.wqc-lhero/);
 });
