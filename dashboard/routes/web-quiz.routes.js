@@ -835,6 +835,25 @@ function listenTag(payload) {
   return payload && payload.listen === true ? `<script src="/wq/wq-readalong-listen.js?v=${listenVersion()}" defer></script>\n` : '';
 }
 
+// The home's own tags (one string, so the head's preloads name the tail's addresses: web-quiz-home-preload.js), for a
+// payload already through withLook. With the pack (web_quiz_pack, web-quiz-pack.js) the home's files are ONE stylesheet
+// and ONE script, wq-tel inside.
+function homeFileTags(payload, assetV, asPack) {
+  const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
+  return asPack ? `${PACK.tags(payload, assetV)}${payload.home_fb ? homeTags(payload, assetV) : ''}${paceTag(payload)}`
+    : `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}${paceTag(payload)}`;
+}
+
+// What a hub answer (it has `kids`; through withLook) teaches the next early head: the files to preload
+// (web_quiz_home_preload), the scripts to carry (web_quiz_home_inline), the page's shape (web_quiz_early_unlock; a
+// locked answer teaches it too). The server render's answer, and the page's own /api/wq/hub answer: a new phone's
+// server render is locked, and its child arrives on that call (the unlock), so the edge learns from that child too.
+function learnHome(payload, assetV) {
+  HomePre.learn(payload, Pack.on(payload) ? (payload.home_fb ? homeTags(payload, assetV) : '') : homeFileTags(payload, assetV, false), assetV);
+  INLINE.learn(payload, homeFileTags(payload, assetV, false), assetV);
+  EarlyUnlock.learn(payload);
+}
+
 // The hub page in parts (the head, the install manifest's href or null, the Jugnu frame, the boot JSON + scripts):
 // renderHubPage joins them; the fast first page sends the head and the frame before the bot answers.
 function hubPageParts({ payload, token, origin, assetV, headPack, plain = null, carry = null, first = '' }) {
@@ -846,23 +865,15 @@ function hubPageParts({ payload, token, origin, assetV, headPack, plain = null, 
   payload = withLook(payload);
   // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
   const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
-  // The home's own tags (one string, so the head's preloads name the tail's addresses: web-quiz-home-preload.js). A bot
-  // answer (it has `kids`) teaches the next early head what to preload (web_quiz_home_preload); the early head's guess
-  // (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
-  // With the pack (web_quiz_pack, web-quiz-pack.js) the home's files are ONE stylesheet and ONE script, wq-tel inside.
+  // The home's own tags (homeFileTags). A bot answer (it has `kids`) teaches the next early head (learnHome); the early
+  // head's guess (no `kids`) carries what was learned. Off: learn() keeps nothing and head() is ''.
   // A flushed page's tail asks in the form its head already preloaded (`headPack`: true = the pack, false = the files by
   // name), so right after a flip the first open's preloads are exactly what its tail asks for; the flip shows from the
   // next open, as `fast` and `home_pre` do. What the edge learns is the bot's answer itself.
   const packed = typeof headPack === 'boolean' ? headPack : Pack.on(payload);
-  const fileTags = (asPack) => (asPack ? `${PACK.tags(payload, assetV)}${payload.home_fb ? homeTags(payload, assetV) : ''}${paceTag(payload)}`
-    : `${bindTags(payload, assetV)}${homeTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}${listenTag(payload)}${paceTag(payload)}`);
-  const tags = fileTags(packed);
+  const tags = homeFileTags(payload, assetV, packed);
   const answer = Boolean(payload && Array.isArray(payload.kids));
-  if (answer) HomePre.learn(payload, Pack.on(payload) ? (payload.home_fb ? homeTags(payload, assetV) : '') : fileTags(false), assetV);
-  // web_quiz_home_inline: the scripts this answer's tail names, for the next head that carries them (web-quiz-home-inline.js)
-  if (answer) INLINE.learn(payload, fileTags(false), assetV);
-  // web_quiz_early_unlock: a locked answer teaches it too (web-quiz-early-unlock.js)
-  if (answer) EarlyUnlock.learn(payload);
+  if (answer) learnHome(payload, assetV);
   return {
     lang, dir: plainDir(lang), ur2: ur2On(payload && payload.ui, lang), fl: flOn(payload && payload.ui, lang), adv: advOn(payload && payload.ui), title, bootsay,
     head: `${head({ lang, dir: plainDir(lang), title, desc: title, origin, url: origin, assetV, brand, ui: payload && payload.ui, carry, first })}${answer || carry ? '' : HomePre.head(assetV)}`,
@@ -1257,6 +1268,9 @@ function createWebQuizRouter(opts = {}) {
     if (typeof b.closed_lang === 'boolean') lastClosedLang = b.closed_lang;
     if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
     if (typeof b.wait_home === 'boolean') lastWaitHome = b.wait_home;
+    // web_quiz_home_inline / web_quiz_early_unlock: known on before any page (absent: kept as they were)
+    if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline);
+    if (typeof b.early_unlock === 'boolean') EarlyUnlock.learn({ early_unlock: b.early_unlock, locked: true, kids: [] });
     lastFast = b.fast === true;
   };
   const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
@@ -1421,6 +1435,8 @@ function createWebQuizRouter(opts = {}) {
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         // the hub answer a first open draws from (unlock, pick) names the look's files' version when it says adv: true
         if (r.path === '/api/wq/hub/:token') edgeKey(out.body);
+        // a child's answer (the unlock on a new phone) teaches the next early head, as a server render's does (learnHome)
+        if (r.path === '/api/wq/hub/:token' && out.status === 200 && out.body && Array.isArray(out.body.kids) && out.body.kid && !out.body.locked) learnHome(withLook(out.body), version());
         const body = r.path === '/api/wq/hub/:token' && advOnOf(out.body) ? { ...out.body, adv_v: advVersion() } : out.body;
         return res.status(out.status).json(body == null ? {} : body);
       } catch (err) {
