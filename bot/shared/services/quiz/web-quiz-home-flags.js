@@ -13,6 +13,8 @@
  * library's own answers); read in the same query, so the hub asks app_settings nothing more.
  * `list` = `web_quiz_list_states`: every child list shows loading / empty / failed as three states (the boot's
  * `list_states`, the doors' `err`); read in the same query too.
+ * `welcome` = `web_quiz_child_welcome`: a child's first open of the home, "Jugnu says hello" (web-quiz-child-welcome.js);
+ * only with the home on; read in the same query too.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -23,8 +25,9 @@ const COLUMN_KEY = 'web_quiz_remember_column';
 const SHOWN_KEY = 'web_quiz_remember_shown_row';
 const SHELF_KEY = 'web_quiz_video_shelf';
 const LIST_KEY = 'web_quiz_list_states';
+const WELCOME_KEY = 'web_quiz_child_welcome';
 /** The extras that ride the home's one settings read; the read made again after a failure never names them. */
-const RIDERS = Object.freeze([COLUMN_KEY, SHOWN_KEY, SHELF_KEY, LIST_KEY]);
+const RIDERS = Object.freeze([COLUMN_KEY, SHOWN_KEY, SHELF_KEY, LIST_KEY, WELCOME_KEY]);
 const TTL_MS = 30 * 1000;
 let cache = null;
 
@@ -51,12 +54,12 @@ async function flags(now = Date.now()) {
       logToFile('⚠️ web quiz home: settings lookup failed — reading the home switches alone, the riders off', { error: err.message });
       by = { ...(await read([KEY, STORIES_KEY])), ...Object.fromEntries(RIDERS.map((k) => [k, false])) };
     }
-    cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]), column: isTrue(by[COLUMN_KEY]), shown: isTrue(by[SHOWN_KEY]), shelf: isTrue(by[SHELF_KEY]), list: isTrue(by[LIST_KEY]) };
+    cache = { at: now, home: isTrue(by[KEY]), stories: isTrue(by[STORIES_KEY]), column: isTrue(by[COLUMN_KEY]), shown: isTrue(by[SHOWN_KEY]), shelf: isTrue(by[SHELF_KEY]), list: isTrue(by[LIST_KEY]), welcome: isTrue(by[WELCOME_KEY]) };
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz home: settings lookup failed — off', { error: err.message });
-    return { home: false, stories: false, column: false, shown: false, shelf: false, list: false };
+    return { home: false, stories: false, column: false, shown: false, shelf: false, list: false, welcome: false };
   }
 }
 
-module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHOWN_KEY, SHELF_KEY, LIST_KEY, RIDERS, _resetCache: () => { cache = null; } };
+module.exports = { flags, KEY, STORIES_KEY, COLUMN_KEY, SHOWN_KEY, SHELF_KEY, LIST_KEY, WELCOME_KEY, RIDERS, _resetCache: () => { cache = null; } };

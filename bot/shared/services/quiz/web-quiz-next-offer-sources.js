@@ -361,14 +361,17 @@ function recTitleUrOf(out, lang) {
   return videoTitleUrOf(rec && rec.vid, lang);
 }
 
-async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }) {
+async function hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live, hold = null }) {
   const urP = recTitleUrOf(out, lang);
   const p = await (prep || hubPrep({ out, token, history, lang, chosenId, grade, stopsOf: () => collect.trail || [] }));
   if (!p) return {};
   const { quizIds, storyCodes, unsentCodes, known, covers } = p.rows;
   // the verdicts were read for the Trail's stops; the corner offers only the ones still waiting this month
   const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay: p.onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers, subjectArt, extra: p.books, watch: p.sw.watch, recTitleUr: await urP });
-  const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live });
+  // hold: the child welcome is up over this home (web-quiz-child-welcome.js): its Next stop is not an untapped show
+  const hw = hold ? ((await hold) || {}).welcome : null;
+  const held = Boolean(hw && !hw.replay); // the replay's step 4 is the child's own tap: counted as today
+  const next = await NO.nextFor({ ctx: 'home', studentId: chosenId, candidates, hasRoot: hasRootOf(history), lang, live, ...(held ? { hold: true } : {}) });
   return next ? { next } : {};
 }
 
@@ -377,10 +380,10 @@ async function hubNext({ out, token, history, collect, lang, chosenId, grade, su
  * `{}` when off, on any failure, or past the deadline (1.2 s, the settings read inside it): the hub JSON is fetched
  * after paint, and a slow read here must never hold it.
  */
-async function hubField({ out, token, history, collect = {}, lang, chosenId, grade, subjectArt, prep = null } = {}) {
+async function hubField({ out, token, history, collect = {}, lang, chosenId, grade, subjectArt, prep = null, hold = null } = {}) {
   try {
     if (!out || !chosenId) return {};
-    return (await withDeadline((live) => hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live }), HUB_DEADLINE_MS)) || {};
+    return (await withDeadline((live) => hubNext({ out, token, history, collect, lang, chosenId, grade, subjectArt, prep, live, hold }), HUB_DEADLINE_MS)) || {};
   } catch (err) {
     logToFile('⚠️ web quiz next offer: hub field unavailable', { error: err.message });
     return {};

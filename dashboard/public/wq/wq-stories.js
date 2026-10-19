@@ -298,7 +298,7 @@
   function reader(id, ctx, root) {
     var C = clockOf(ctx), tch = ctx.role === 'teacher', R = { id: id, root: root, ctx: ctx, C: C, tch: tch, pl: null, lr: null, poll: null, au: null };
     var b, L = lg(ctx.lang), t = T[L], P, m, Q, view = '', pg = -1, t0 = -1, acc = 0, sent = {}, ask = {};
-    var sp, sm = '', LN = { l: [], of: [] }, zl = -1, li = -1, wu = 0;
+    var sp, sm = '', LN = { l: [], of: [] }, zl = -1, li = -1, wu = 0, lc, ro, ros;
     var paint = R.paint = function (h) { root.innerHTML = h; };
     R.live = function () { return cur === R; };
     function back() { kill(); if (!tch) W.location.hash = '#stories'; else if (ctx.onBack) ctx.onBack(); else if (W.history) W.history.back(); }
@@ -396,7 +396,7 @@
     }
     function pageScreen() {
       var p = P[m.i], im = p.image, i = m.i, ve = function () { m.err(); if (view === 'page' && m.i === i) { drop(); pageScreen(); } };
-      paint(scr('story-page', L, top(L, ic(t, 'back', t.back, '‹'), b.title, !!p.audio) + stage(p, (p.audio && p.boxes_ok ? '' : img(im.url, im.w, im.h)) + (p.audio ? '<div data-ra></div>' : '')) +
+      paint(scr('story-page', L, top(L, ic(t, 'back', t.back, '‹'), b.title, !!p.audio) + stage(p, (p.audio && p.boxes_ok ? '' : img(im.url, im.w, im.h)) + (p.audio ? '<div data-ra></div>' : ''), rtl()) +
         '<div class="wqs-extra" data-extra>' + extra() + '</div><div class="wqs-lrl" data-lrl></div><div class="wqs-ctl">' +
         '<button class="wqs-arr" data-tap="prev"' + (i ? '' : ' disabled') + ' aria-label="' + esc(t.prevP) + '">' + IC.prev + '</button>' +
         '<button class="wqs-main" data-main data-primary data-tap="main"' + (p.audio ? ' data-sound data-trigger="tap"' : '') + '>' + esc(t[m.label()]) + '</button>' +
@@ -436,9 +436,9 @@
       return [vw, (s && s.clientHeight) || (W.innerHeight ? W.innerHeight * 0.62 : vw * sp.image.h / sp.image.w)];
     }
     function rtl() { return b.dir === 'rtl'; }
-    function stage(p, inner) {
+    function stage(p, inner, art) {
       var ws = p.words || [], tb = p.text_band, im = p.image, d;
-      sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = '';
+      sp = p; LN = lines(p); zl = -1; li = -1; wu = 0; sm = ''; lc = 0;
       if (ws.length && !p.is_picture) {
         d = dims();
         sm = (p.boxes_ok || p.lines && !(tb && tb.box)) && LN.l.some(function (x) { return x.bs.length; }) && LN.l.every(function (x) { return !x.bs.length || cam(x.bs, d[0], d[1], im.w, im.h, rtl(), 3).ok && (!b.tx || x.bs.every(function (y) { return y[2] * 5 > y[3]; })); }) ? 'z' : tb && tb.box ? 'l' : 's';
@@ -446,27 +446,39 @@
       var bx = sm === 'l' && tb.box, wh = sm === 'z' || sm === 'l';
       return '<div class="wqs-stage' + (wh ? ' wqs-st2' : '') + '" data-stage>' + (b.steady ? '<div class="wqs-ph" data-ph><p>' + esc(p.text) + '</p><i>' + esc(t.opening) + '</i></div>' : '') + '<div class="wqs-cam" data-cam style="width:' + im.w + 'px;height:' + im.h + 'px">' + inner +
         (bx ? img(tb.url, tb.w, tb.h, 'wqs-lens', ' style="left:' + bx[0] + 'px;top:' + bx[1] + 'px;width:' + bx[2] + 'px;height:' + bx[3] + 'px"') : '') +
-        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div>' + (wh && b.tx ? '<div class="wqs-tx" data-tx>' + img(im.url, im.w, im.h) + '</div>' : '') + '</div>' +
+        (own() ? '<i class="wqs-mk" data-mk></i>' : '') + '</div>' + (art !== !1 && sm === 'z' && b.read_fb ? '<div class="wqs-art" data-art hidden><i>' + img(im.url, im.w, im.h) + '</i></div>' : '') + (wh && b.tx ? '<div class="wqs-tx" data-tx>' + img(im.url, im.w, im.h) + '</div>' : '') + '</div>' +
         (wh ? '<button class="wqs-whole" data-whole data-tap="cam" aria-pressed="false">' + esc(t.whole) + '</button>' : '');
     }
     function own() { return sm && (sm !== 'z' || !sp.boxes_ok); }
     R.stage = stage;
     R.mode = function () { return sm; };
     R.lines = function () { return LN; };
-    function camTo(bs, fit) {
-      var c = root.querySelector('[data-cam]'), x = root.querySelector('[data-tx]'), d, k;
+    function al() { return [].concat.apply([], LN.l.map(function (l) { return l.bs; })); }
+    // the reading moment's picture box (stage(.., art); wq-moment.js art): framed words never leave a sliver of the picture
+    function camTo(bs, fit, rs) {
+      var c = root.querySelector('[data-cam]'), x = root.querySelector('[data-tx]'), a = root.querySelector('[data-art]'), M = W.WQMoment, d, k, f, ph;
       if (!c || !sp) return;
       if (x && bs) x.className = 'wqs-tx';
-      d = dims();
-      k = cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
+      d = dims(); lc = [bs, fit, rs];
+      f = a && bs && !wu && M && M.art && M.art(a, cam, sp.image, al(), bs, d, rtl(), rs);
+      k = f || cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
+      if (a) { c.style.clipPath = f ? f.clip : ''; a.hidden = !f; }
+      // clipped: the opening words under the sheet go once its picture is in (they never show past its lines); the stage
+      // resized (the meter came in): framed again
+      if (f && (ph = root.querySelector('[data-ph]'))) { k = a.querySelector('img'); if (!k || k.complete && k.naturalWidth) ph.style.display = 'none'; else k.addEventListener('load', function () { ph.style.display = 'none'; }); }
+      if (a && W.ResizeObserver && (x = root.querySelector('[data-stage]')) !== ros) { if (ro) ro.disconnect(); ros = x; ro = new W.ResizeObserver(function () { R.af(); }); ro.observe(x); }
+      return f;
     }
     // at rest the whole sheet (its art) and, when the print is small, a lens of the words at a readable size on their side
     function rest() {
-      camTo(null);
-      var x = root.querySelector('[data-tx]'), d = dims(), y = 0, bs, k;
+      var x = root.querySelector('[data-tx]'), d, y = 0, bs, k;
+      // an Urdu page with that box: the words at rest at Your turn's size
+      if (sm === 'z' && !wu && root.querySelector('[data-art]') && camTo(al(), 1, 1)) { lc = 0; if (x) x.className = 'wqs-tx'; return; }
+      camTo(null); lc = 0;
+      d = dims();
       if (!x) return;
-      bs = sm === 'z' ? [].concat.apply([], LN.l.map(function (l) { return l.bs; })) : [sp.text_band.box];
+      bs = sm === 'z' ? al() : [sp.text_band.box];
       k = cam(bs, d[0], d[1] * .4, sp.image.w, sp.image.h, rtl(), 6, 1);
       bs.forEach(function (b) { y += (b[1] + b[3] / 2) / bs.length; });
       x.className = 'wqs-tx' + (wu || k.s < cam(0, d[0], d[1], sp.image.w, sp.image.h).s * 1.3 ? '' : ' on') + (y > sp.image.h / 2 ? ' lo' : '');
@@ -485,6 +497,8 @@
       if (sm && sm !== 's' && n !== zl) { zl = n; camTo(sm === 'z' ? lineFrame(n) : [sp.text_band.box], 1); }
     }
     R.camTo = camTo; R.camLine = camLine;
+    // the moment's file came late: this view framed again
+    R.af = function () { if (cur === R) lc ? camTo.apply(null, lc) : rest(); };
     function word(i) {
       if (i >= 0) camLine(i);
       var e = root.querySelector('[data-mk]'), r = i >= 0 && own() && mark(sp, i, sm === 'l' && sp.text_band.box, rtl());
@@ -570,7 +584,7 @@
   function boot() { try { return JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return {}; } }
   function found() { var B = W.WQSTORIES_CTX ? null : boot(); return W.WQSTORIES_CTX || (B.token ? { token: B.token, kid: B.kid, lang: B.lang } : null); }
 
-  W.WQSTORIES = { shelf: shelf, open: open, route: route, _machine: machine, _bad: bad, _cam: cam, _lines: lines, _mark: mark,
+  W.WQSTORIES = { _af: function () { if (cur && cur.af) cur.af(); }, shelf: shelf, open: open, route: route, _machine: machine, _bad: bad, _cam: cam, _lines: lines, _mark: mark,
     _k: { T: T, JG: JG, IC: IC, esc: esc, enc: enc, dg: dg, scr: scr, img: img, ic: ic, top: top, post: post, req: req, juice: juice, muted: muted, evt: evt, load: load } };
 
   try {
