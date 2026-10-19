@@ -167,6 +167,9 @@
     var hasNums = boot.some(function (g) { return g.kind === 'numbers'; });
     var all = failed || wait ? [] : data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
     var nums = all.filter(function (g) { return g.kind === 'numbers'; });
+    // the boot says this child has number games but the door's rows came back without them: the games page's own entry
+    // stays (a failed read is the retry above, never a made-up row)
+    if (!nums.length && hasNums && !failed && !wait) nums = [{ kind: 'numbers', stop: '' }];
     // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
     // story room by id, read aloud on the games page
     var reads = all.filter(function (g) { return (g.kind === 'read' && g.stop && g.name) || ((g.kind === 'passage' || g.kind === 'listen') && g.id); });

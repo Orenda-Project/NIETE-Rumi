@@ -129,6 +129,15 @@ describe('Games: the new quizzes ("Try these next") a child with no teacher quiz
     expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] })).not.toContain('Read a story with Jugnu!');
     expect(W.WQDOORS.html(B, ctxOf('en'), 'games', null)).toContain('Life cycle of a hen');
   });
+  test('the boot says number games but the door\'s rows came back without them: the numbers row stays (opens the games page)', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [{ kind: 'numbers' }].concat(AGAIN), videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] });
+    expect(h).toContain('Numbers with Jugnu');
+    expect(h).toMatch(/data-primary data-tap="row" data-kind="game"[^>]*href="\/c\//);
+    // a failed read is still the retry, never a made-up row
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [], err: 1 })).not.toContain('Numbers with Jugnu');
+  });
   test('no recs on the boot: the Games door is today\'s, byte for byte', () => {
     const W = load();
     const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: AGAIN, videos: null } };
