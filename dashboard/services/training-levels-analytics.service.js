@@ -35,10 +35,14 @@
  * Middle / high come from users.teacher_level (a member with neither counts in the total only).
  *
  * SECTORS AND SCHOOLS (PLAN v8 shared contract, dashboard/lib/analytics-lists.js). A member's sector is her RDF
- * allocation sector: the lists' primary Map, then its midHigh Map (both are the allocation file's tphone2sect,
+ * allocation sector (populationSectors: the primary Map, then midHigh — both the allocation file's tphone2sect,
  * resolved to users.id). A member the allocation does not place is in the noSector block — never dropped, so the six
  * sectors plus noSector add up to the whole, as the RDF's "no sector" bar does. A member's school row is her school
- * when its EMIS is on FDE's programme list (fdeSchoolEmis), else a "No school" row in her sector.
+ * when it is on FDE's programme list (onFdeList), else her sector's "No school" row (noSchoolId(sector), noSchool:
+ * true — the id every analytics tab uses).
+ * FAIL-CLOSED, as the lists ask: a list that is not usable is null, never empty, and the v7 rule stands for it —
+ * no teacher lists: the sector is her school's when that school counts (active, not a probable test, in the six);
+ * no school list: every counted school is a row. The population and every count never depend on the lists.
  *
  * WHY A SNAPSHOT. The read touches every member's whole training history (~680k progress rows on prod) and the answer
  * moves slowly, so it is computed at most every 30 minutes per process and kept in memory: the first request computes,
@@ -48,6 +52,7 @@
  */
 
 const { REGION_BUCKETS, bucketOf } = require('./schools-analytics.service');
+const { onFdeList, populationSectors, noSchoolId } = require('../lib/analytics-lists');
 const { PER_MODULE_SOURCE_BASE } = require('../../bot/shared/services/training/isaps-module-exam.rules');
 
 /** The RDF's two certificate cards, by programme key (render.py CERT_PROGRAMMES). */
@@ -114,6 +119,12 @@ function emptyAcc(ladder, catalogue, withPartners) {
     levels: new Map(ladder.map((l) => [l.key, { passed: 0, inProgress: 0, notStarted: 0 }])),
     partners: withPartners ? emptyPartners(catalogue) : null,
   };
+}
+
+/** The school's sector when v7 counts it (active, not a probable test, in the six), else null. */
+function countedBucket(s) {
+  if (!s || s.is_active !== true || s.is_probable_test === true) return null;
+  return bucketOf(s.region);
 }
 
 /** Did this member pass all levels on this tab (see the header)? */
@@ -220,7 +231,7 @@ function block(ladder, acc, catalogue, { withName = false, detailed = false } = 
  *   members?: Array<{user_id, school_id, primary_cohort, mh_cohort, middle_band, high_band, cert_levels, active_levels,
  *                    ox_mask, ox_cert, ox_active, bh_mask, bh_active, isaps_assigned, isaps_cert, isaps_mask,
  *                    isaps_active}>,
- *   lists?: {fdeSchoolEmis: Set<string>, primary: Map<string,string>, midHigh: Map<string,string>}|null
+ *   lists?: {fdeSchoolEmis: Set<string>|null, primary: Map|null, midHigh: Map|null, missing: object}|null
  * }} rows  one members row per programme member (the RDF population), and loadAnalyticsLists' answer
  * @param {{band?: 'primary'|'midhigh'|'all', region?: string|null}} [opts]
  * @returns {{overview: object, regions: object[], noSector: object, schools: object[]}}
@@ -232,17 +243,21 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
   const filter = opts.region || null;
   const src = rows || {};
   const catalogue = readCatalogue(src.partners);
-  const lists = src.lists || {};
-  const primaryMap = lists.primary instanceof Map ? lists.primary : new Map();
-  const midHighMap = lists.midHigh instanceof Map ? lists.midHigh : new Map();
-  const fde = lists.fdeSchoolEmis instanceof Set ? lists.fdeSchoolEmis : new Set();
-  const sectorOf = (uid) => bucketOf(primaryMap.get(uid)) || bucketOf(midHighMap.get(uid)) || null;
+  const lists = src.lists || null;
+  const rdfSectors = populationSectors(lists);
+  const schoolListUsable = !!(lists && lists.fdeSchoolEmis instanceof Set && !(lists.missing && lists.missing.schools));
+  const schoolsById = new Map((src.schools || []).map((s) => [s.id, s]));
+  // FAIL-CLOSED: without the teacher lists, v7's sector — her school's, when it counts.
+  const sectorOf = rdfSectors
+    ? (m) => bucketOf(rdfSectors.get(m.user_id)) || null
+    : (m) => countedBucket(schoolsById.get(m.school_id));
+  // FAIL-CLOSED: without the school list, v7's schools — every counted one.
+  const listed = (s) => (schoolListUsable ? onFdeList(lists, s.emis) : countedBucket(s) !== null);
 
   const ladder = (src.levels || [])
     .map((l) => ({ id: Number(l.id), key: String(l.id), name: l.name, order: Number(l.order_index) }))
     .filter((l) => band.orders.includes(l.order))
     .sort((a, b) => a.order - b.order);
-  const schoolsById = new Map((src.schools || []).map((s) => [s.id, s]));
 
   const acc = () => emptyAcc(ladder, catalogue, withPartners);
   const overview = acc();
@@ -252,15 +267,15 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
 
   for (const m of src.members || []) {
     if (!m || !band.has(m)) continue;
-    const sector = sectorOf(m.user_id);
+    const sector = sectorOf(m);
     addMember(sector ? regionAcc.get(sector) : noSector, m, ladder, catalogue, bandKey);
     if (filter && sector !== filter) continue;
     addMember(overview, m, ladder, catalogue, bandKey);
     if (!sector) continue;
     const s = schoolsById.get(m.school_id);
-    const listed = s && s.emis != null && fde.has(String(s.emis)) ? s : null;
-    const key = `${sector}|${listed ? listed.id : ''}`;
-    if (!schoolRows.has(key)) schoolRows.set(key, { sector, school: listed, acc: emptyAcc(ladder, catalogue, false) });
+    const school = s && listed(s) ? s : null;
+    const key = `${sector}|${school ? school.id : ''}`;
+    if (!schoolRows.has(key)) schoolRows.set(key, { sector, school, acc: emptyAcc(ladder, catalogue, false) });
     addMember(schoolRows.get(key).acc, m, ladder, catalogue, bandKey);
   }
 
@@ -273,9 +288,10 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
       const b = block(ladder, e.acc, catalogue);
       // A school row: passed all levels of its members, and per level passed of them (kept small for a phone).
       return {
-        schoolId: e.school ? e.school.id : null,
+        schoolId: e.school ? e.school.id : noSchoolId(e.sector),
         emis: e.school && e.school.emis != null ? String(e.school.emis) : null,
         name: e.school ? e.school.name : null,
+        noSchool: !e.school,
         region: e.sector,
         teachers: b.teachers,
         passedAll: b.passedAll,
