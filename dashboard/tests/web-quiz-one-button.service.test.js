@@ -118,10 +118,12 @@ describe('wq.css: the one button component', () => {
   test('the answer shapes keep their own corners (a colour-blind cue, a glyph, not a box): no wq-1b rule rounds .wq-shp', () => {
     expect(CSS).not.toMatch(/html\.wq-1b[^{}]*\.wq-shp[^{}]*\{[^}]*border-radius/);
   });
-  test('one height per list: every Games / Stories / Videos row (the teacher\'s week row too) is --row-h, its title one line', () => {
+  test('every Games / Stories / Videos row (the teacher\'s week row too) is at least --row-h; a long title shows whole on up to two lines, an English title on an Urdu page cut at its end', () => {
     expect(CSS).toContain('--row-h:88px');
-    expect(CSS).toContain('html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:var(--row-h);min-height:0;overflow:hidden}');
-    expect(CSS).toContain('html.wq-1b .wq-drow .wq-rtext b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}');
+    expect(CSS).toContain('html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:auto;min-height:var(--row-h);overflow:hidden}');
+    expect(CSS).toContain('html.wq-1b .wq-drow .wq-rtext b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;overflow-wrap:anywhere}');
+    expect(CSS).toContain('html.wq-1b[lang=ur] .wq-drow .wq-rtext b:has(>.wq-lat){direction:ltr;text-align:right}');
+    expect(CSS).not.toContain('text-overflow:ellipsis;overflow-wrap:normal}');
     expect(CSS).not.toMatch(/html\.wq-1b \.wq-week \.wq-drow\{[^}]*border-color:transparent/);
   });
   test('lint: no rule under .wq-adv sets border-radius, height or min-height on a .wq-btn (the look is tokens only)', () => {

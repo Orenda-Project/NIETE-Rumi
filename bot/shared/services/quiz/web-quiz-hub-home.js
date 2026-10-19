@@ -90,7 +90,11 @@ function doorsOf({ out = {}, stories = false, hasRoot = false, videoShelf = fals
   again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
   // Every child with a library: one with no class quiz yet WATCHES (videos/start's watch-only answer, same switch).
   const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }), ...(videoShelf ? { shelf: true } : {}) } : null;
-  return { stories: story, games, videos };
+  // The hub's "Try these next" (out.recs: the grade's video quizzes not yet played) is the Games door's way to a NEW
+  // quiz for a child with no teacher quiz; ids and words only, the page starts one through videos/start. None: no key.
+  const recs = (out.recs || []).filter((r) => r && r.vid).slice(0, 3)
+    .map((r) => ({ vid: r.vid, title: r.title || '', subject: r.subject || '', ...(r.art ? { art: r.art } : {}) }));
+  return { stories: story, games, videos, ...(recs.length ? { recs } : {}) };
 }
 
 // The child's final Jugnu runs this PKT week (one small read; null on any error).

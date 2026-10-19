@@ -84,7 +84,11 @@
   function doorsOf(B) { var d = B.doors || {}; return { stories: d.stories || [], games: d.games || [], videos: d.videos || null }; }
 
   /* ---------------- the one Next thing ---------------- */
-  function nextOf(B, ctx) {
+  // web_quiz_page_lang (the hub's `page_lang: true`): a quiz page the home opens names the child's language, as the
+  // Videos door's links do, so an Urdu child's English lesson door is in Urdu
+  function qLang(B, ctx, h) { return B && B.page_lang === true && /^\/q\//.test(h || '') && !/[?&]lang=/.test(h) ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + langOf(ctx) : h; }
+  function nextOf(B, ctx) { var n = nextOf0(B, ctx); if (n && n.href) n.href = qLang(B, ctx, n.href); return n; }
+  function nextOf0(B, ctx) {
     var t = C(ctx); var l = langOf(ctx); var n = B.next;
     if (n && n.href) {
       return { kind: n.kind, title: (l === 'ur' && n.title_ur) || n.title || t.nextStory, sub: (l === 'ur' && n.sub_ur) || n.sub || '', tag: (l === 'ur' && n.tag_ur) || n.tag || null, href: n.href, art: n.art || null, minutes: n.minutes || null, src: 'next' };
@@ -297,7 +301,7 @@
     } else if (name === 'games') {
       rows = d.games.map(function (g) {
         if (g.kind === 'numbers') return rowHtml(chHref(B, ctx), t.numbers, '', '', 'numbers');
-        return rowHtml(quizHref(g.code, g.k, g.done), g.topic || (g.done ? t.playQuiz : t.nextQuiz), g.done ? t.again : t.fromTeacher, '', g.done ? 'again' : 'quiz', g.art);
+        return rowHtml(qLang(B, ctx, quizHref(g.code, g.k, g.done)), g.topic || (g.done ? t.playQuiz : t.nextQuiz), g.done ? t.again : t.fromTeacher, '', g.done ? 'again' : 'quiz', g.art);
       }).join('');
     } else if (name === 'videos' && d.videos) {
       rows = rowHtml(withHome(B, d.videos.href), t.openVideos, '', '', 'videos');
