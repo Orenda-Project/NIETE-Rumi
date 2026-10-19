@@ -44,6 +44,8 @@ const ALWAYS_OPEN: readonly RegExp[] = [
   /^\/portal\/privacy$/,
   /^\/portal\/delete-account$/,
   /^\/portal\/fln(\/|$)/,
+  // bd-tbprit.6 — the disagreement card and its list; the page turns away anyone without coach_disagreement_card.
+  /^\/portal\/coach\/disagreements(\/[^/]+)?$/,
 ];
 
 const trimmed = (p: string) => p.replace(/\/+$/, "") || "/";
