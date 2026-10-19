@@ -704,8 +704,13 @@ export interface CoachingProgress {
  */
 export interface SchoolsAnalyticsCounts {
   teachers: number;
+  /** v7: LPs opened. v8 (basis.teachers 'rdf'): lesson plans used — the same number as lpsUsed. */
   lpsOpened: number;
   teachersOpenedLp: number;
+  /** v8 — "Lesson plans used": the RDF's lp_use (lesson_plans rows + app opens, deduped as the RDF does). */
+  lpsUsed?: number;
+  /** v8 — teachers with at least one lesson plan used ("x of N"). */
+  teachersUsedLp?: number;
   /** bd-9vkl9x — training modules completed in the window, each counted once per teacher. */
   trainingModules: number;
   /** bd-9vkl9x — teachers who completed at least one module in the window. */
@@ -732,8 +737,24 @@ export interface SchoolsAnalyticsRegion extends SchoolsAnalyticsCounts {
 export interface SchoolsAnalyticsSchool extends SchoolsAnalyticsCounts {
   schoolId: string;
   emis: string | null;
-  name: string;
+  /** null on a v8 "No school" row. */
+  name: string | null;
   region: string;
+  /** v8 — the sector's teachers with no school on FDE's list in that sector (schoolId 'no-school:<sector>'). */
+  noSchool?: boolean;
+}
+
+/**
+ * v8 — which rule each list follows (the server falls back to v7 for a list it cannot read) and the snapshot dates.
+ *   schools  'fde' = FDE's programme list · 'all' = every active school in the six regions (v7)
+ *   teachers 'rdf' = the RDF's Primary + 6-12 populations · 'roster' = teachers at a school today (v7)
+ *   coaches  'rdf' = the RDF coach roster · 'leader_schools' = coaches with a school on record (v7)
+ */
+export interface AnalyticsBasis {
+  schools: 'fde' | 'all';
+  teachers: 'rdf' | 'roster';
+  coaches: 'rdf' | 'leader_schools';
+  asOf: { schools: string | null; teachers: string | null; coaches: string | null };
 }
 
 export interface SchoolsAnalyticsResponse {
@@ -742,6 +763,8 @@ export interface SchoolsAnalyticsResponse {
   range: { from: string | null; to: string | null };
   /** LP opens are recorded from this day (YYYY-MM-DD) only; a window starting earlier undercounts them. */
   lpOpensLoggedSince: string;
+  /** v8 — absent from an older server. */
+  basis?: AnalyticsBasis;
   overview: SchoolsAnalyticsOverview;
   regions: SchoolsAnalyticsRegion[];
   schools: SchoolsAnalyticsSchool[];
@@ -783,16 +806,17 @@ export interface CoachingAnalyticsResponse {
 /* ── bd-97x22y.4 — GET /api/portal/analytics/training-levels (PLAN v7 "Trainings") ──────────────────────────────── */
 
 /**
- * Her Primary / Mid-High toggle: the teacher's training band (users.teacher_level). Primary shows levels 1-4 (order
- * 0-3), Mid/High levels 3-4 (order 2-3) — her two tabs. A teacher in both bands counts in both.
+ * The Primary / Mid-High toggle: NIETE's two training programmes, as the RDF counts them (v8): Primary = everyone on
+ * niete_primary (levels 1-4, order 0-3), Mid/High = everyone on niete_middle_high (levels 3-4, order 2-3, and the
+ * partner programmes) — any role, any school. A teacher on both programmes counts in both.
  */
 export type TrainingBand = 'primary' | 'midhigh';
 
 /**
- * One NIETE training level for a school, a region or the selection, all time. The state is the bot's own level rule,
- * in her three states: passed = certified; inProgress = in progress or ready for the exam; notStarted = not started or
- * locked. teachers = the band's teachers whose programme shows the level (= passed + inProgress + notStarted);
- * pctPassed = passed ÷ teachers × 100, one decimal, null when teachers is 0.
+ * One NIETE training level for a school, a region or the selection, all time. passed = holds the level's certificate
+ * (the RDF's count); inProgress = no certificate, but the bot's level rule has it under way; notStarted = the rest.
+ * teachers = the programme's teachers there (= passed + inProgress + notStarted); pctPassed = passed ÷ teachers × 100,
+ * one decimal, null when teachers is 0.
  */
 export interface TrainingLevelCounts {
   levelId: number;
@@ -812,9 +836,9 @@ export interface TrainingLevelsBlock {
 }
 
 /**
- * Her Mid/High partner cards, over the Mid/High cohort (every teacher holding Middle or High): Oxbridge passed = all
- * sessions passed, in progress = at least one; Beaconhouse passed = at least one subject (level) passed, in progress
- * = activity without a pass. teachers = the cohort; pctPassed = passed ÷ teachers × 100, one decimal.
+ * A Mid/High programme card: passed = holds its certificate (Beaconhouse: in any subject); inProgress = activity
+ * without it. teachers = the middle/high programme's teachers (I-SAPS: those of them assigned it); pctPassed = passed
+ * ÷ teachers × 100, one decimal.
  */
 export interface TrainingPartnerCard {
   passed: number;
@@ -834,12 +858,15 @@ export interface TrainingBandSplit {
 export interface TrainingPartners {
   oxbridge: TrainingPartnerCard;
   beaconhouse: TrainingPartnerCard;
+  /** The Teacher Development Programme (I-SAPS): over the teachers assigned it; passed = its certificate. */
+  isaps: TrainingPartnerCard;
 }
 
-/** The overview's panels: her Oxbridge session funnel and her Beaconhouse per-subject table. */
+/** The overview's panels: her Oxbridge session funnel, her Beaconhouse per-subject table, and the I-SAPS module funnel. */
 export interface TrainingPartnersDetail {
   oxbridge: TrainingPartnerCard & { sessions: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
   beaconhouse: TrainingPartnerCard & { levels: Array<TrainingBandSplit & { name: string }> };
+  isaps: TrainingPartnerCard & { modules: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
 }
 
 export interface TrainingLevelsRegion extends TrainingLevelsBlock {
@@ -849,10 +876,12 @@ export interface TrainingLevelsRegion extends TrainingLevelsBlock {
   partners?: TrainingPartners;
 }
 
+/** A school on FDE's list, or (noSchool, id 'no-school:<sector>', no name) the sector's teachers at no school on it. */
 export interface TrainingLevelsSchool extends TrainingLevelsBlock {
   schoolId: string;
   emis: string | null;
-  name: string;
+  name: string | null;
+  noSchool?: boolean;
   region: string;
   levels: Array<Pick<TrainingLevelCounts, 'levelOrder' | 'passed' | 'teachers' | 'pctPassed'>>;
 }
@@ -864,11 +893,14 @@ export interface TrainingLevelsResponse {
   computedAt: string;
   /**
    * On Mid/High, teachers = the Mid/High cohort and passedAll = hers: NIETE Skilled Practitioner + Teacher Leader +
-   * Oxbridge + Beaconhouse all passed; partners carry her panels. On Primary, passedAll = passed Teacher Leader.
+   * Oxbridge + Beaconhouse all passed (I-SAPS is not in it); partners carry the panels. On Primary, passedAll = passed
+   * Teacher Leader.
    */
   overview: TrainingLevelsBlock & { levels: Array<TrainingLevelCounts & { name: string }>; partners?: TrainingPartnersDetail };
-  /** The six regions, whatever the filter. */
+  /** The six regions (the RDF's sectors), whatever the filter. */
   regions: TrainingLevelsRegion[];
+  /** The programme's teachers the RDF gives no sector: with the six, they add up to the unfiltered overview. */
+  noSector: TrainingLevelsBlock & { levels: TrainingLevelCounts[]; partners?: TrainingPartners };
   /** The chosen region's schools (all regions' when none is chosen); a school with none of the band's teachers is left out. */
   schools: TrainingLevelsSchool[];
 }
@@ -909,8 +941,11 @@ export interface ObservationsRegion extends ObservationsCounts {
 export interface ObservationsSchool extends ObservationsCounts {
   schoolId: string;
   emis: string | null;
-  name: string;
+  /** null on a v8 "No school" row. */
+  name: string | null;
   region: string;
+  /** v8 — observations of the sector's teachers with no school on FDE's list in that sector. */
+  noSchool?: boolean;
 }
 
 /** One kind of observation (Digital Coach or Human): the whole selection, the six regions (whatever the filter), the schools. */
@@ -923,6 +958,8 @@ export interface ObservationsKind {
 export interface ObservationsAnalyticsResponse {
   success: boolean;
   range: { from: string | null; to: string | null };
+  /** v8 — absent from an older server. */
+  basis?: AnalyticsBasis;
   dc: ObservationsKind;
   human: ObservationsKind;
 }
@@ -936,70 +973,61 @@ export interface CoachingAnalyticsRegion {
   coachNames: string[];
 }
 
-/* ── bd-97x22y.3 — GET /api/portal/analytics/lp-engagement (schools analytics v7) ─────────────────────────────────── */
+/* ── GET /api/portal/analytics/lp-engagement (schools analytics v8: Active / Non-Active) ─────────────────────────── */
 
 /**
- * The LP Engagement tab, the ICT dashboard's formula 1 to 1 (PLAN v7): per teacher × Sunday-week × grade × subject,
- * lp_ratio = min(distinct LPs ÷ 5, 1) (LPs = plans opened + lesson plans generated); a teacher's ratio is the mean of
- * her rows; a school / sector / overall ratio = Σ teacher ratios ÷ the band's rostered teachers (none = 0). On-Schedule
- * ≥ 60%, Moderate ≥ 40%, Off-Schedule below. `lpPct` and the shares are the integers her page shows; `lpRatio` is the
- * 0–1 ratio (4 places). A level with no band teacher has `lpPct` null — shown "—", never 0.
+ * The LP Engagement tab on the RDF's numbers (FDE feedback, 2026-10-19): the band's RDF teacher population, each
+ * teacher in her RDF sector; Active = used at least one lesson plan in the period by the RDF's rule for the band;
+ * Non-Active = the rest. `activePct` = active ÷ teachers, one decimal; null (shown "—", never 0) when there is no
+ * teacher.
  */
 export type LpBand = 'primary' | 'midhigh';
-export type LpStatus = 'on' | 'moderate' | 'off';
+/** The tab's two teacher groups — also the count fields that hold them. */
+export type LpGroup = 'active' | 'nonActive';
 
 export interface LpEngagementCounts {
   teachers: number;
-  lpRatio: number | null;
-  lpPct: number | null;
-  onSchedule: number;
-  moderate: number;
-  offSchedule: number;
-}
-
-/** Each band's share of the teachers, rounded (her "(16%)"); null when there are no teachers. */
-export interface LpEngagementShares {
-  onPct: number | null;
-  moderatePct: number | null;
-  offPct: number | null;
+  active: number;
+  nonActive: number;
+  activePct: number | null;
 }
 
 export interface LpEngagementOverview extends LpEngagementCounts {
-  /** Sectors where a band teacher has LP data in the window. */
+  /** Sectors with at least one Active teacher. */
   activeSectors: number;
 }
 
-export interface LpEngagementRegion extends LpEngagementCounts, LpEngagementShares {
+export interface LpEngagementRegion extends LpEngagementCounts {
   region: string;
 }
 
-export interface LpEngagementSchool {
+/**
+ * A school on FDE's list in the sector, or the sector's "No school" line: noSchool true, schoolId `no-school:<sector>`
+ * (the server's lib/analytics-lists noSchoolId), emis and name null.
+ */
+export interface LpEngagementSchool extends LpEngagementCounts {
+  region: string;
   schoolId: string;
   emis: string | null;
-  name: string;
-  region: string;
-  teachers: number;
-  lpRatio: number | null;
-  lpPct: number | null;
-  status: LpStatus | null;
+  name: string | null;
+  noSchool: boolean;
 }
 
-export type LpEngagementRow = LpEngagementCounts & LpEngagementShares;
-export interface LpEngagementSubjectRow extends LpEngagementRow {
+export interface LpEngagementSubjectRow extends LpEngagementCounts {
   subject: string;
   name: string;
 }
-export interface LpEngagementGradeRow extends LpEngagementRow {
+export interface LpEngagementGradeRow extends LpEngagementCounts {
   grade: number;
 }
 
-/** Her subject / grade table: one row each, and her "Overall" row (null when the table is empty). */
+/** A subject / grade table: one row each, and the Overall row — the tab's overall (null when the table is empty). */
 export interface LpEngagementTable<R> {
   rows: R[];
-  overall: LpEngagementRow | null;
+  overall: LpEngagementCounts | null;
 }
 
-/** One sector's LP % in every subject (or grade): the grouped bars. */
+/** One sector's Active % in every subject (or grade): the grouped bars. */
 export interface LpEngagementSectorValues {
   region: string;
   values: Record<string, number | null>;
@@ -1009,11 +1037,12 @@ export interface LpEngagementResponse {
   success: boolean;
   range: { from: string | null; to: string | null };
   band: LpBand;
-  lpOpensLoggedSince: string;
+  /** Which rule each list follows ('rdf' teachers = the RDF's populations; 'roster' = v7, when they are not loaded). */
+  basis: AnalyticsBasis;
   overview: LpEngagementOverview;
   /** All six sectors, whatever the region filter. */
   regions: LpEngagementRegion[];
-  /** Schools with a band teacher, in the chosen region (all when none is chosen). */
+  /** Per sector: its schools, then its "No school" line, in the chosen region (all when none is chosen). */
   schools: LpEngagementSchool[];
   bySubject: LpEngagementTable<LpEngagementSubjectRow>;
   byGrade: LpEngagementTable<LpEngagementGradeRow>;

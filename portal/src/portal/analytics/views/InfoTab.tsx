@@ -1,13 +1,19 @@
 import type { AnalyticsWords } from '../copy';
+import type { AnalyticsBasis } from '../../types/portal';
 import { Section } from '../Section';
 
 /**
  * bd-97x22y.2 — Information (PLAN v6 §2): "How these numbers are worked out", grouped as the tabs are, in her card
  * style (a numbered card per number). Static words; it shows even when the numbers did not load.
  */
-export function InfoTab({ c }: { c: AnalyticsWords }) {
+export function InfoTab({ c, asOf = null }: { c: AnalyticsWords; asOf?: AnalyticsBasis['asOf'] | null }) {
   return (
     <div data-testid="how-counted" aria-label={c.how.title} className="flex flex-col gap-7">
+      {asOf && (asOf.schools || asOf.teachers || asOf.coaches) ? (
+        <p data-testid="lists-as-of" className="text-sm text-muted-foreground">
+          {c.how.listsAsOf(asOf.schools ?? '—', asOf.teachers ?? '—', asOf.coaches ?? '—')}
+        </p>
+      ) : null}
       {c.how.groups.map((g, gi) => (
         <Section key={g.title} id={`info-${gi}`} eyebrow={g.title}>
           <ol className="grid gap-3 lg:grid-cols-2">

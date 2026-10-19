@@ -99,6 +99,7 @@ const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('..
 const SchoolsAnalytics = require('../services/schools-analytics.service');
 const CoachingAnalytics = require('../services/coaching-analytics.service'); // bd-97x22y.1
 const ObservationsAnalytics = require('../services/observations-analytics.service'); // bd-97x22y.5
+const AnalyticsLists = require('../lib/analytics-lists');
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -1744,6 +1745,25 @@ function countOutputs(userIds, [from, to]) {
   );
 }
 
+/**
+ * v8: the three lists (FDE schools, RDF teachers, RDF coaches) every analytics tab counts against —
+ * dashboard/lib/analytics-lists.js, cached 30 minutes. A missing list comes back null and its tab keeps
+ * the v7 rule; `basis` tells the page which rule each number follows, and from which snapshot.
+ */
+function loadLists() {
+  return AnalyticsLists.loadAnalyticsLists(supabase, { query: dbQuery });
+}
+function listsBasis(lists) {
+  return {
+    schools: lists.fdeSchoolEmis ? 'fde' : 'all',
+    teachers: AnalyticsLists.populationSectors(lists) ? 'rdf' : 'roster',
+    coaches: lists.coaches ? 'rdf' : 'leader_schools',
+    asOf: lists.asOf,
+  };
+}
+// The response caches are keyed by the lists' state too, so a list arriving (or going) is seen at once.
+const listsKey = (lists) => `${lists.missing.schools ? 0 : 1}${lists.missing.teachers ? 0 : 1}${lists.missing.coaches ? 0 : 1}|${lists.asOf.schools}|${lists.asOf.teachers}|${lists.asOf.coaches}`;
+
 // Whole answers for ten minutes, keyed from|to|region. The expensive part (each session's
 // score) is also memoised per session inside the service, so a new window or region only
 // reads the scores it has not seen.
@@ -1773,15 +1793,18 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
-      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range);
+      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists });
       return {
         success: true,
         range,
-        // LP opens are logged from this day on; the page says so for an earlier window.
+        basis: listsBasis(lists),
+        // LP opens are logged from this day on; the page says so for an earlier window (v7 basis only:
+        // v8's "lesson plans used" reads lesson_plans too, which go back to the start).
         lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
-        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region }),
+        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region, lists }),
       };
     });
     res.json(body);
@@ -1810,13 +1833,15 @@ router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, asy
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await coachingAnalyticsCache.getOrLoad(key, async () => {
       const rows = await CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range);
       return {
         success: true,
         range,
-        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region }),
+        basis: listsBasis(lists),
+        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region, lists }),
       };
     });
     res.json(body);
@@ -1831,31 +1856,35 @@ router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, asy
 // summarised from it per request (cheap, pure).
 const TrainingLevels = require('../services/training-levels-analytics.service');
 
+// The lists (FDE's schools, the RDF sectors) are read with the rows, so one snapshot holds both.
 const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
-  load: () => TrainingLevels.loadTrainingLevelRows(dbQuery),
+  load: () => TrainingLevels.loadTrainingLevelRows(
+    dbQuery,
+    () => require('../lib/analytics-lists').loadAnalyticsLists(supabase, { query: dbQuery }),
+  ),
   maxAgeMs: 30 * 60 * 1000,
 });
 
 /**
  * GET /api/portal/analytics/training-levels?region=<sector|all>&band=<primary|midhigh|all>
  *
- * The schools-analytics v7 Trainings tab (bd-97x22y.4, PLAN v7 "Trainings"): the ICT dashboard's training
- * level progress 1 to 1, on NIETE's own level rule. All time, as hers (no window; from/to are ignored).
- * band: primary (default; levels 1-4 over teachers whose teacher_level holds PRIMARY) or midhigh (levels 3-4
- * over MIDDLE or HIGH teachers); all = every teacher, band or none. Anything else is a 400, like an unknown
- * region. Same gate and six regions as /analytics/schools.
+ * The schools-analytics Trainings tab, v8: the RDF's training numbers. Population = live users holding an ACTIVE
+ * assignment on the programme (band primary: niete_primary, NIETE levels 1-4; midhigh: niete_middle_high, levels 3-4
+ * and the partner cards), any role, any school; all = either. Passed = a certificate for the level; In Progress = none
+ * but the bot's level rule has it under way; Not Started = the rest. All time (from/to are ignored). Same gate and six
+ * regions as /analytics/schools; anything else is a 400.
  *
  * Answer:
  *   { success, band, computedAt,                                   computedAt: when the snapshot's read began
- *     overview: { teachers, passedAll, levels: [L] },
- *     regions:  [{ region, teachers, passedAll, levels: [L without name] }],
- *     schools:  [{ schoolId, emis, name, region, teachers, passedAll, levels: [{ levelOrder, passed, teachers, pctPassed }] }] }
+ *     overview: { teachers, passedAll, levels: [L], partners? },
+ *     regions:  [{ region, teachers, passedAll, levels: [L without name], partners? }],   the six RDF sectors
+ *     noSector: { teachers, passedAll, levels, partners? },        members the RDF allocation does not place
+ *     schools:  [{ schoolId, emis|null, name|null, noSchool, region, teachers, passedAll,
+ *                  levels: [{ levelOrder, passed, teachers, pctPassed }] }] }   FDE's schools; noSchool = the sector's
+ *                                                                               "No school" row, id 'no-school:<sector>'
  *   L = { levelId, levelOrder (0-3), name, passed, inProgress, notStarted, teachers, pctPassed }
- * passed = certified; inProgress = in_progress + ready_for_quiz; notStarted = not_started + locked; teachers =
- * the band's teachers whose programme shows the level; pctPassed = passed / teachers × 100, one decimal, null
- * when teachers is 0. passedAll = passed Teacher Leader, of its teachers. Regions are always the six; the
- * overview and the schools follow ?region= (a school with none of the band's teachers is left out). No teacher
- * appears. Definitions: services/training-levels-analytics.service.js.
+ * Sector = the RDF allocation sector (lib/analytics-lists). The overview and the schools follow ?region=; the six
+ * regions and noSector do not. No teacher appears. Definitions: services/training-levels-analytics.service.js.
  */
 router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
   try {
@@ -1903,13 +1932,15 @@ router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer,
       return res.status(400).json({ success: false, error: 'Unknown region.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
     const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
       const rows = await ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range);
       return {
         success: true,
         range,
-        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region }),
+        basis: listsBasis(lists),
+        ...ObservationsAnalytics.summarizeObservationsAnalytics(rows, { region: region.region, lists }),
       };
     });
     res.json(body);
@@ -8646,32 +8677,32 @@ router.get('/config', async (req, res) => {
   }
 });
 
-// ── Schools analytics v7: LP Engagement ─────────────────────────────────────────
+// ── Schools analytics v8: LP Engagement (Active / Non-Active) ───────────────────
 const LpEngagement = require('../services/lp-engagement.service');
 
-// Its own ten-minute cache, keyed from|to|region|band: the tab's reads never slow the other tabs.
+// Its own ten-minute cache, keyed from|to|region|band and the lists' state: the tab's reads never slow the
+// other tabs, and a list arriving (or going) is seen at once.
 const lpEngagementCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
 
 /**
  * GET /api/portal/analytics/lp-engagement?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>&band=primary|midhigh
  *
- * The LP Engagement tab, the ICT dashboard's formula 1 to 1 (PLAN v7): per teacher × Sunday-week ×
- * grade × subject, lp_ratio = min(distinct LPs / 5, 1); a teacher's ratio is the mean of her rows;
- * overall / sector / school = Σ teacher ratios ÷ rostered teachers of the band; On-Schedule ≥ 60%,
- * Moderate ≥ 40%, Off-Schedule below. LPs = plans opened + lesson plans generated. Primary = K-5
- * plans over Primary-band teachers; midhigh = 6-12 plans over Middle/High-band teachers.
+ * The LP Engagement tab as Active / Non-Active teachers, on the RDF's numbers (PLAN v8): the band's RDF
+ * teacher population (lib/analytics-lists), each teacher in her RDF sector; Active = used at least one
+ * lesson plan in the period by the RDF's rule for the band (Primary: a lesson_plans row or a K-5 app open;
+ * Mid/High: a 6-12 app open, WhatsApp delivery, render requested or 6-12 survey); Non-Active = the rest.
  *
- * Answer: { success, range, band, lpOpensLoggedSince,
- *   overview  {teachers, lpRatio, lpPct, activeSectors, onSchedule, moderate, offSchedule}
- *   regions   the six sectors, each {region, teachers, lpRatio, lpPct, onSchedule, moderate,
- *             offSchedule, onPct, moderatePct, offPct}
- *   schools   counted schools with a band teacher, {schoolId, emis, name, region, teachers, lpRatio,
- *             lpPct, status: on|moderate|off}
- *   bySubject / byGrade  {rows: [{subject, name | grade, …the region numbers}], overall}
- *   sectorSubjects / sectorGrades  [{region, values: {<subject|grade>: lpPct}}] for the grouped bars }
- * lpPct and the shares are her displayed integers; lpRatio is the 0–1 ratio to 4 places. A level with
- * no band teacher has lpPct null, never a 0. The region filter scopes overview, schools, bySubject and
- * byGrade; regions and the sector matrices always carry all six. No teacher identity.
+ * Answer: { success, range, band, basis (which rule each list follows, as on the other analytics answers),
+ *   overview  {teachers, active, nonActive, activePct, activeSectors}
+ *   regions   the six sectors, each {region, teachers, active, nonActive, activePct}
+ *   schools   per sector, its FDE-list schools then its "No school" line (noSchool true,
+ *             schoolId 'no-school:<sector>', emis and name null):
+ *             {region, schoolId, emis, name, noSchool, teachers, active, nonActive, activePct}
+ *   bySubject / byGrade  {rows: [{subject, name | grade, teachers, active, nonActive, activePct}], overall}
+ *   sectorSubjects / sectorGrades  [{region, values: {<subject|grade>: activePct}}] for the grouped bars }
+ * activePct = active ÷ teachers, one decimal; null (never 0) when there is no teacher. The region filter
+ * scopes overview, schools, bySubject and byGrade; regions and the sector matrices always carry all six.
+ * No teacher identity.
  *
  * Same gate, window and regions as /analytics/schools (the cache sits behind the gate); an unknown
  * region or band is a 400. Definitions: services/lp-engagement.service.js.
@@ -8687,15 +8718,15 @@ router.get('/analytics/lp-engagement', requirePortalAuth, requireAnalyticsViewer
       return res.status(400).json({ success: false, error: 'Unknown band.' });
     }
     const range = analyticsRange(req.query);
-    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}`;
+    const lists = await loadLists();
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}|${band.band}|${listsKey(lists)}`;
     const body = await lpEngagementCache.getOrLoad(key, async () => {
-      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band);
+      const rows = await LpEngagement.loadLpEngagementRows(dbQuery, range, band.band, { lists });
       return {
         success: true,
         range,
         band: band.band,
-        // LP opens are logged from this day on; the page says so for an earlier window.
-        lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
+        basis: listsBasis(lists),
         ...LpEngagement.summarizeLpEngagement(rows, { band: band.band, region: region.region }),
       };
     });
