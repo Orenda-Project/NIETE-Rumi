@@ -1474,6 +1474,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
+  // the quiz title's dir on the door: an English title on an Urdu page with the look is left to right (WQI.latDir)
+  function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
   // hand-off from the chat to the page is one picture, not two different things. Gone if it cannot load.
   function chPic(chLine) {
@@ -1502,7 +1504,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
-      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
+      '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       chPic(chLine) +
@@ -1637,7 +1639,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
     T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
-    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null
+    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
+    lat: latT
   }) : null;
   function who() {
     if (ID) return ID.who();
