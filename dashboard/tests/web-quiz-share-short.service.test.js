@@ -74,6 +74,19 @@ describe('/s/<id>', () => {
     expect(r.status).toBe(302);
     expect(r.headers.location).toBe(`/q/AB12CD?k=${TOK}`);
   });
+  test('an Urdu class quiz\'s card: the redirect carries the card\'s language, so the friend\'s door is Urdu', async () => {
+    short(() => jsonRes(200, { token: TOK, url: `/q/AB12CD?k=${TOK}`, lang: 'ur' }));
+    const r = await req(srv, `/s/${ID}`);
+    expect(r.status).toBe(302);
+    expect(r.headers.location).toBe(`/q/AB12CD?k=${TOK}&lang=ur`);
+  });
+  test('any other language word from the bot: the redirect is today\'s', async () => {
+    for (const [id, lang] of [['1a2b3c01', 'en'], ['1a2b3c02', 'fr'], ['1a2b3c03', 5], ['1a2b3c04', '']]) {
+      short(() => jsonRes(200, { token: TOK, url: `/q/AB12CD?k=${TOK}`, lang }));
+      const r = await req(srv, `/s/${id}`);
+      expect(r.headers.location).toBe(`/q/AB12CD?k=${TOK}`);
+    }
+  });
   test('an unknown or expired id: the join door with the bot\'s words, one green button, never a 404', async () => {
     short(() => jsonRes(404, { error: 'not_found', ret: RET }));
     const r = await req(srv, `/s/${ID}`);

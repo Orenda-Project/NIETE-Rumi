@@ -328,7 +328,8 @@ async function byShort(id) {
   try { token = await require('../cache/railway-redis.service').get(shortKey(id)); } catch (_) { token = null; }
   const f = typeof token === 'string' ? facts(token) : null;
   if (!f) fail(404, 'not_found');
-  return { token, url: f.kind === 'quiz' && f.code ? `/q/${f.code}?k=${token}` : `/k/${token}` };
+  // an Urdu card names its language, so the edge opens the friend's door in Urdu (an English card's answer is today's)
+  return { token, url: f.kind === 'quiz' && f.code ? `/q/${f.code}?k=${token}` : `/k/${token}`, ...(f.lang === 'ur' ? { lang: 'ur' } : {}) };
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────

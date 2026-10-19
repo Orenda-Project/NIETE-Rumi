@@ -1882,14 +1882,15 @@ function createWebQuizRouter(opts = {}) {
         const out = await callBot('GET', `/api/internal/wq/card/s/${id}`, req, null, { route: '/api/internal/wq/card/s/:id' });
         const b = out && out.body;
         if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+$/.test(b.url))) {
-          hit = { token: b.token, url: b.url };
+          hit = { token: b.token, url: b.url, lang: b.lang === 'ur' ? 'ur' : null };
           shortIds.set(id, hit, CARD_KEEP_MS);
         } else return door(out.status === 404 && b ? b.ret : null);
       } catch (_) {
         return door(null);
       }
     }
-    if (hit.url.startsWith('/q/')) return res.redirect(302, hit.url);
+    // an Urdu card's class link opens in Urdu (the bot names the card's language; anything else: today's link)
+    if (hit.url.startsWith('/q/')) return res.redirect(302, hit.lang === 'ur' ? `${hit.url}&lang=ur` : hit.url);
     return cardLanding(req, res, hit.token);
   });
 

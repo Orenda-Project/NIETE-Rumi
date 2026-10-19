@@ -96,6 +96,12 @@ describe('on', () => {
     expect(body.url).toBe(`/s/${idOf(body.token)}`);
     expect((await resolve(idOf(body.token))).body).toEqual({ token: body.token, url: `/q/CLS001?k=${body.token}` });
   });
+  test('an Urdu card: the short id also names its language, so the friend\'s door opens in Urdu', async () => {
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect((await resolve(idOf(body.token))).body).toEqual({ token: body.token, url: `/q/CLS001?k=${body.token}`, lang: 'ur' });
+    const read = await mint({ ...READ, ct: ct(), lang: 'ur' });
+    expect((await resolve(idOf(read.body.token))).body).toEqual({ token: read.body.token, url: `/k/${read.body.token}`, lang: 'ur' });
+  });
   test('an unknown, expired or malformed id: 404 with the join door\'s words, never a token', async () => {
     for (const id of ['0badc0de', 'ZZZZZZZZ', '0badc0de0']) {
       const r = await resolve(id);
