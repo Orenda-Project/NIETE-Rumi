@@ -31,7 +31,7 @@ function mkEl(tag, rect) {
   return e;
 }
 // a page: `els` names what the page has drawn, by selector (a function: drawn later); `search` its address
-function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', els = {}, sess = {}, store = {}, tel = true } = {}) {
+function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', els = {}, sess = {}, store = {}, tel = true, obstacles = [], vw = 360, vh = 640 } = {}) {
   const timers = [];
   let clock = 0;
   const body = mkEl('body');
@@ -49,7 +49,8 @@ function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', el
       createElement: (tag) => mkEl(tag),
       getElementById: (id) => (id === 'boot' ? { textContent: JSON.stringify({ quiz: { lang } }) } : null),
       querySelector: (sel) => { const v = els[sel]; return typeof v === 'function' ? v(clock) : v || null; },
-      querySelectorAll: () => [],
+      // everything a child could tap (and the lesson's rows): what the bubble must leave clear
+      querySelectorAll: (sel) => (/button/.test(sel) ? obstacles : []),
       addEventListener: (n, fn) => { (docL[n] = docL[n] || []).push(fn); }, removeEventListener: (n, fn) => { docL[n] = (docL[n] || []).filter((f) => f !== fn); },
     },
     location: { search, pathname, hash: '' },
@@ -59,7 +60,7 @@ function cuePage({ lang = 'en', search = '?k=kk&w=1', pathname = '/q/MATH01', el
     sessionStorage: { getItem: (k) => (k in sess ? sess[k] : null), setItem: (k, v) => { sess[k] = String(v); }, removeItem: (k) => { delete sess[k]; } },
     setTimeout: (fn, ms) => { timers.push({ fn, at: clock + (ms || 0) }); return timers.length; }, clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].fn = null; },
     setInterval: () => 0, clearInterval() {}, addEventListener() {}, removeEventListener() {},
-    innerWidth: 360, innerHeight: 640, matchMedia: () => ({ matches: false }),
+    innerWidth: vw, innerHeight: vh, matchMedia: () => ({ matches: false }),
     Audio: function Audio(src) { const a = { src, play() { return Promise.resolve(); } }; audios.push(a); return a; },
     Date: { now: () => clock }, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, decodeURIComponent, RegExp, Error, URLSearchParams,
   };
@@ -181,5 +182,39 @@ describe('GOLDEN: the four pages a Let\'s go can open render as today, byte for 
     };
     if (process.env.GOLDEN_PRINT) console.log(JSON.stringify(got));
     expect(got).toEqual(GOLD);
+  });
+});
+
+describe('S5-1 (design-qa DQ68 v2): the bubble covers nothing a child could tap except the pointed one; the hand stays on it', () => {
+  // the rects measured on the shots (step5_*: the quiz page's question, the lesson video page), CSS px
+  const QUIZ = {
+    en: { target: [229, 295], obs: [[12, 60], [143, 191], [305, 371], [381, 447]] },
+    ur: { target: [279, 345], obs: [[12, 60], [163, 211], [355, 421], [431, 497]] },
+  };
+  const VIDEO = {
+    en: { target: [218, 403], obs: [[12, 60], [415, 455], [463, 503], [511, 551], [563, 623]] },
+    ur: { target: [254, 439], obs: [[12, 60], [451, 513], [521, 583], [591, 653], [665, 725]] },
+  };
+  const CAP_H = 60; // the page measures its bubble; the harness has no layout, so the tallest one (two Urdu lines... one, 60 px)
+  const bubbleOf = (p) => {
+    const m = /<p class="wqc-cap" style="([^"]*)"/.exec(p.cue()._h);
+    const st = Object.fromEntries(m[1].split(';').filter(Boolean).map((x) => x.split(':')));
+    const top = 'top' in st ? parseInt(st.top, 10) : p.ctx.innerHeight - parseInt(st.bottom, 10) - CAP_H;
+    return { top, bottom: top + CAP_H };
+  };
+  const cases = [];
+  for (const [kind, L] of [['quiz', QUIZ], ['video', VIDEO]]) for (const lang of ['en', 'ur']) for (const vw of [360, 390]) cases.push([kind, lang, vw, L[lang]]);
+  test.each(cases)('%s page, %s, %i px', (kind, lang, vw, L) => {
+    const t = mkEl('button', R(L.target[0], 16, vw - 32, L.target[1] - L.target[0]));
+    const obstacles = L.obs.map(([a, b]) => mkEl('button', R(a, 16, vw - 32, b - a)));
+    const p = cuePage({ lang, vw, els: kind === 'video' ? { '.wq-vcover': t } : { '.wq-opt': t }, obstacles: [t, ...obstacles] });
+    p.load();
+    p.run(300);
+    const b = bubbleOf(p);
+    for (const [a, z] of L.obs) expect([kind, lang, vw, [a, z], b.bottom <= a || b.top >= z]).toEqual([kind, lang, vw, [a, z], true]);
+    expect(b.top).toBeGreaterThanOrEqual(8);
+    expect(b.bottom).toBeLessThanOrEqual(640 - 8);
+    // the hand where it was: on the pointed one, half way down
+    expect(p.cue()._h).toMatch(new RegExp('class="wqc-hand" style="top:' + Math.round(L.target[0] + (L.target[1] - L.target[0]) / 2) + 'px;'));
   });
 });
