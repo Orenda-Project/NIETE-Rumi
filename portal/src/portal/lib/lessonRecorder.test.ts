@@ -154,4 +154,54 @@ describe("LessonRecorder", () => {
     expect(store.deleteRecording).toHaveBeenCalledWith("rec-1");
     expect(track.stop).toHaveBeenCalled();
   });
+  // bd-v0toag.31 — the live screen hears the same chunks; the recording never depends on it.
+  function makeWith(onChunk: (blob: Blob, seq: number, elapsedMs: number) => void) {
+    const store = fakeStore();
+    const { stream } = fakeStream();
+    const rec = new LessonRecorder({
+      stream, type: { mimeType: "audio/webm;codecs=opus", ext: ".webm" }, store, now, id: "rec-1",
+      MediaRecorder: FakeMediaRecorder as unknown as typeof MediaRecorder, onChunk,
+    });
+    return { rec, store };
+  }
+
+  it("onChunk receives each chunk with seq", async () => {
+    const seen: Array<[string, number, number]> = [];
+    const { rec } = makeWith((blob, seq, ms) => { void readText(blob).then((t) => seen.push([t, seq, ms])); });
+    await rec.start();
+    const mr = FakeMediaRecorder.instances[0];
+    clock += 5_000; mr.emit("a");
+    clock += 5_000; mr.emit("b");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(seen).toEqual([["a", 0, 5_000], ["b", 1, 10_000]]);
+  });
+
+  it("a throwing onChunk does not stop appendChunk or later chunks", async () => {
+    const onChunk = vi.fn(() => { throw new Error("live socket gone"); });
+    const { rec, store } = makeWith(onChunk);
+    await rec.start();
+    const mr = FakeMediaRecorder.instances[0];
+    clock += 5_000; mr.emit("a");
+    clock += 5_000; mr.emit("b");
+    expect(store.appendChunk).toHaveBeenCalledTimes(2);
+    expect(onChunk).toHaveBeenCalledTimes(2);
+    const out = await rec.stop();
+    expect(await readText(out.blob)).toBe("ablast|duration=10000");
+  });
+
+  it("stored blob identical with and without onChunk", async () => {
+    const run = async (withListener: boolean) => {
+      FakeMediaRecorder.instances = [];
+      clock = 1_000_000;
+      const { rec, store } = withListener ? makeWith(() => {}) : make();
+      await rec.start();
+      const mr = FakeMediaRecorder.instances[0];
+      clock += 5_000; mr.emit("a");
+      clock += 5_000; mr.emit("b");
+      const out = await rec.stop();
+      const stored = await Promise.all(store.appendChunk.mock.calls.map((c) => readText(c[2] as Blob)));
+      return { stored, calls: store.appendChunk.mock.calls.map((c) => [c[0], c[1], c[3]]), blob: await readText(out.blob) };
+    };
+    expect(await run(true)).toEqual(await run(false));
+  });
 });
