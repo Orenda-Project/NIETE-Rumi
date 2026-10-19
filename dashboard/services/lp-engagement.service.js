@@ -29,9 +29,9 @@
  *                are parsed from the plan key (K-5 catalogue id, 6-12 segment id); a plan whose key does not
  *                parse, or whose grade is outside the band, still makes her Active, in no row.
  *   schools      a teacher's school is `users.school_id` when its EMIS is on FDE's programme list
- *                (`fdeSchoolEmis`); otherwise — no school on record, or one off the list — she is on her
- *                sector's "No school" line (schoolId `noSchoolId(sector)`, emis and name null). A school is
- *                listed under the RDF sector of its teachers.
+ *                (`fdeSchoolEmis`) and it is in her RDF sector; otherwise — no school on record, one off the
+ *                list, or one in another sector — she is on her sector's "No school" line (noSchool true,
+ *                schoolId `noSchoolId(sector)`, emis and name null), as on the other analytics tabs.
  *   sectors      Active sectors = sectors with at least one Active teacher.
  *
  * FAIL-CLOSED (lib/analytics-lists): a list that is not loaded — sandbox, where no prod list matches a
@@ -42,14 +42,15 @@
  *             in that school's sector.
  *
  * Two halves, the schools service's contract style:
- *   loadLpEngagementRows(query, range, band, opts)  the lists, then three set-based reads in parallel.
+ *   loadLpEngagementRows(query, range, band, opts)  three set-based reads in parallel, over the lists the
+ *                                                   route loaded (lib/analytics-lists).
  *   summarizeLpEngagement(rows, opts)               PURE: rows in, response shape out.
  * No teacher identity leaves the server.
  */
 
 const { windowBounds, REGION_BUCKETS, bucketOf, ROSTER_TEACHER } = require('./schools-analytics.service');
 const { subjectKey, subjectName, gradeOf } = require('./subject-vocabulary.service');
-const { loadAnalyticsLists, noSchoolId } = require('../lib/analytics-lists');
+const { noSchoolId } = require('../lib/analytics-lists');
 
 const BANDS = Object.freeze(['primary', 'midhigh']);
 
@@ -189,9 +190,11 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
     const bucket = bucketOf(sector);
     if (!bucket) continue;
     const sid = schoolOf.get(id);
+    const at = schoolById.get(sid);
     teachers.set(id, {
       bucket,
-      schoolId: schoolById.has(sid) ? sid : null,
+      // Her school's row only when the school is counted AND in her sector; else the sector's No school line.
+      schoolId: at && bucketOf(at.region) === bucket ? sid : null,
       active: false,
       subjects: new Set(),
       grades: new Set(),
@@ -237,10 +240,11 @@ function summarizeLpEngagement(rows = {}, opts = {}) {
       schoolId: s ? s.id : noSchoolId(bucket),
       emis: s ? String(s.emis) : null,
       name: s ? s.name : null,
+      noSchool: !s,
       ...block(acc),
     };
   }).sort((a, b) => (order.get(a.region) - order.get(b.region))
-    || ((a.name === null) - (b.name === null))
+    || (a.noSchool - b.noSchool)
     || String(a.name || '').localeCompare(String(b.name || '')));
 
   // Subjects (any Active teacher anywhere in the six sectors, by name) and grades (the band's, always).
@@ -358,18 +362,18 @@ function lpActivitySql(bounds, band, ids) {
 }
 
 /**
- * The band's RDF population (lib/analytics-lists, cached there; resolved with the dashboard's pg `query`),
- * then three reads in parallel: the schools, the population's schools, and its plan use in the window. When
- * the teacher lists are not loaded, the v7 roster is read first and the population built from it.
+ * Over the lists the route loaded (lib/analytics-lists loadAnalyticsLists): the band's RDF population, then
+ * three reads in parallel — the schools, the population's schools, and its plan use in the window. When the
+ * teacher lists are not loaded, the v7 roster is read first and the population built from it.
  *
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range from analyticsRange (validated)
  * @param {'primary'|'midhigh'} band
- * @param {{supabase?: object, loadLists?: typeof loadAnalyticsLists}} [opts]
+ * @param {{lists?: object}} [opts]
  */
-async function loadLpEngagementRows(query, range = {}, band = 'primary', { supabase, loadLists = loadAnalyticsLists } = {}) {
+async function loadLpEngagementRows(query, range = {}, band = 'primary', { lists = {} } = {}) {
   const b = BANDS.includes(band) ? band : 'primary';
-  const lists = (await loadLists(supabase, { query })) || {};
+  lists = lists || {};
   const rdf = !(lists.missing && lists.missing.teachers) && lists[BAND_RULES[b].list] ? lists[BAND_RULES[b].list] : null;
   const bounds = windowBounds(range || {});
 

@@ -126,6 +126,16 @@ describe("LP Engagement — Active / Non-Active", () => {
     expect(want.active + want.nonActive).toBe(want.teachers);
   });
 
+  it("teachers tracked says whose: the RDF's, or the schools' roster when the RDF lists are not loaded", async () => {
+    h.getLpEngagement.mockImplementation(async (p: Params) => {
+      const r = fixtureLpEngagement(p);
+      return { ...r, basis: { ...r.basis, teachers: "roster" as const } };
+    });
+    renderPage();
+    expect(await find("tile-lpTracked")).toHaveTextContent("Teachers at the schools today");
+    expect(screen.getByTestId("tile-lpTracked").textContent).not.toMatch(/RDF/);
+  });
+
   it("teacher status: two cards, Active and Non-Active, each x of N with its share", async () => {
     renderPage();
     const want = fixtureLpEngagement({ ...MONTH, band: "primary" }).overview;
@@ -179,7 +189,7 @@ describe("LP Engagement — Active / Non-Active", () => {
     const table = await find("lp-schools-table");
     const want = fixtureLpEngagement({ ...MONTH, region: "Urban-I", band: "primary" }).schools;
     expect(want.length).toBeGreaterThan(1);
-    expect(want[want.length - 1]).toMatchObject({ schoolId: "no-school:Urban-I", name: null, emis: null });
+    expect(want[want.length - 1]).toMatchObject({ schoolId: "no-school:Urban-I", name: null, emis: null, noSchool: true });
     expect(within(table).getAllByTestId("school-name").map((n) => n.textContent)).toEqual(want.map((s) => s.name ?? "No school"));
     for (const s of want) {
       const row = screen.getByTestId(`lp-school-row-${s.schoolId}`);
