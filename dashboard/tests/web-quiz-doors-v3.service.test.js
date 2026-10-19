@@ -108,6 +108,24 @@ describe('every door screen, both languages', () => {
   });
 });
 
+describe('page_lang: every quiz link from Home and Games names the child\'s language (an Urdu child never lands on an English lesson door)', () => {
+  const OPEN = { kind: 'quiz', code: 'WRD001', k: 'k9', topic: 'Words That Describe Nouns', subject: 'English', done: false, from: 'last' };
+  const B = (on) => ({ ...HUB, lang: 'ur', home_v3: 1, list_states: 1, ...(on ? { page_lang: true } : {}), last: { code: 'WRD001', k: 'k9', topic: 'Words That Describe Nouns', state: 'open' },
+    doors: { stories: [], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, OPEN, { kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }], videos: null } });
+  test('on: the Games rows and the Next tile carry lang=ur', () => {
+    const W = load();
+    const h = W.WQDOORS.html(B(true), ctxOf('ur'), 'games', { games: [] });
+    for (const c of ['MATH01', 'WRD001', 'SCI001']) expect(h).toMatch(new RegExp('href="/q/' + c + '\\?[^"]*lang=ur"'));
+    expect(W.WQHOME.nextOf(B(true), ctxOf('ur')).href).toMatch(/^\/q\/[A-Z0-9]+\?.*lang=ur$/);
+    expect(W.WQHOME.nextOf({ ...B(true), next: { kind: 'quiz', href: '/q/ABC123?k=x', title: 'T' } }, ctxOf('ur')).href).toBe('/q/ABC123?k=x&lang=ur');
+  });
+  test('off: the links are today\'s', () => {
+    const W = load();
+    expect(W.WQDOORS.html(B(false), ctxOf('ur'), 'games', { games: [] })).not.toContain('lang=ur');
+    expect(W.WQHOME.nextOf(B(false), ctxOf('ur')).href).not.toContain('lang=');
+  });
+});
+
 describe('Games: the new quizzes ("Try these next") a child with no teacher quiz can start', () => {
   const RECS = [{ vid: VID, title: 'Life cycle of a hen', subject: 'Science', art: '/wq/art/subject-science.webp' }, { vid: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Parts of a flower', subject: 'Science' }];
   const AGAIN = [{ kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }];
