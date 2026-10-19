@@ -23,7 +23,7 @@
       fromTeacher: 'From your teacher', again: 'Play again', newTag: 'New', newQuiz: 'New', openVideos: 'Open the videos',
       mins: function (m) { return m + ' min'; },
       jar: 'My stickers', jarNew: 'A new sticker', sndOn: 'Sound on', sndOff: 'Sound off',
-      sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownTap: 'Hold for grown-ups', grownKeep: 'Keep holding…', grownLang: 'اردو', grownClose: 'Close', week: 'Days you played this week',
+      sep: ', ', grown: 'Grown-ups', grownHold: 'Press and hold', grownTap: 'Hold for grown-ups', grownKeep: 'Keep holding…', grownLang: 'اردو', grownClose: 'Close', helloAgain: 'Show Jugnu\'s hello again', week: 'Days you played this week',
       who: 'Who is playing?', someoneNew: 'Someone new?',
       remember: 'Jugnu will remember you on this phone.', remUndo: 'Undo', forget: 'Forget this phone',
       friendJoined: 'A friend joined Jugnu from your card!', friendStamp: 'Guide',
@@ -46,7 +46,7 @@
       fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', newTag: 'نئی', newQuiz: 'نیا', openVideos: 'ویڈیوز کھولیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       jar: 'میرے اسٹیکرز', jarNew: 'نیا اسٹیکر', sndOn: 'آواز چالو', sndOff: 'آواز بند',
-      sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownTap: 'بڑوں کے لیے دبائے رکھیں', grownKeep: 'تھوڑی دیر اور دبائے رکھیں…', grownLang: 'English', grownClose: 'بند کریں', week: 'اس ہفتے آپ نے کب کب کھیلا',
+      sep: '، ', grown: 'بڑوں کے لیے', grownHold: 'دبائے رکھیں', grownTap: 'بڑوں کے لیے دبائے رکھیں', grownKeep: 'تھوڑی دیر اور دبائے رکھیں…', grownLang: 'English', grownClose: 'بند کریں', helloAgain: 'جگنو کا سلام دوبارہ دکھائیں', week: 'اس ہفتے آپ نے کب کب کھیلا',
       who: 'کس کی باری ہے؟', someoneNew: 'کوئی اور؟',
       remember: 'جگنو آپ کو اس فون پر یاد رکھے گا۔', remUndo: 'یاد نہ رکھیں', forget: 'اس فون پر یاد نہ رکھیں',
       friendJoined: 'آپ کے کارڈ سے ایک دوست نے جگنو شروع کیا!', friendStamp: 'رہنما',
@@ -229,8 +229,8 @@
   }
   /* The child's first open, "Jugnu says hello" (web_quiz_child_welcome, the boot's `welcome`): wq-welcome.js, asked for
    * after the home paints and shown over it (WQW.start). Absent `welcome`: nothing is asked for, the home is today's. */
-  function welcomeIn(root, B, ctx) {
-    var run = function () { if (window.WQW && root.getAttribute('data-m') === 'H3') window.WQW.start(root, B, ctx, { muted: muted }); };
+  function welcomeIn(root, B, ctx, again) {
+    var run = function () { if (window.WQW && root.getAttribute('data-m') === 'H3') window.WQW[again ? 'replay' : 'start'](root, B, ctx, { muted: muted }); };
     if (window.WQW) return run();
     loadOnce('wq-welcome', run);
   }
@@ -384,7 +384,7 @@
         var href = el.getAttribute('href') || '';
         // The coach's preview opens nothing that needs a child: one line says where the class opens it.
         if (B.practice && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
-        if (tap === 'next' && B.welcome) welcomeTap(B, ctx);
+        if (tap === 'next' && B.welcome && !B.welcome.replay) welcomeTap(B, ctx);
         if (tap === 'next') { ev('next_tap', rankOf(B, msToTap({ ctx: 'home', pos: 0, kind: el.getAttribute('data-kind') }, shownAt))); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
@@ -393,10 +393,14 @@
         else if (tap === 'prback' && !B.practice_back) { try { history.back(); } catch (x) {} }
         else if (tap === 'jar') { e.preventDefault(); book(root, B, ctx); }
         // Tap Jugnu, hear the giggle (the sound kit's sprite; nothing without it).
-        else if (tap === 'jugnu') { try { if (window.WQJ) { if (window.WQJ.giggle) window.WQJ.giggle(); if (window.WQJ.pop) window.WQJ.pop(el); } } catch (x) {} }
+        else if (tap === 'jugnu') {
+          try { if (window.WQJ) { if (window.WQJ.giggle) window.WQJ.giggle(); if (window.WQJ.pop) window.WQJ.pop(el); } } catch (x) {}
+          // a child who has had the welcome: Jugnu shows the Next stop's step again (DESIGN §5)
+          if (B.welcome && B.welcome.replay && !B.practice) welcomeIn(root, B, ctx, true);
+        }
       });
     });
-    if (B.welcome && !B.practice && DOORS.indexOf(name) < 0) welcomeIn(root, B, ctx);
+    if (B.welcome && !B.welcome.replay && !B.practice && DOORS.indexOf(name) < 0) welcomeIn(root, B, ctx);
     var g = root.querySelector('[data-tap="grownups"]');
     if (g) hold(g, function () { grownups(root, B, ctx); }, B.one_button === true ? root.querySelector('[data-hold-hint]') : null);
     if (root.querySelector('#wqp-inst')) {
@@ -574,6 +578,8 @@
       (g.stop_href ? '<a class="wq-btn wq-ghost" data-tap="stop" href="' + esc(g.stop_href) + '">' + esc(g.stop_label || '') + '</a>' : '') +
       // the phone that made this child's link (the boot's `forget_phone`, the link's whole life): one tap forgets it
       (B.forget_phone && !B.practice ? '<button class="wq-btn wq-ghost" type="button" data-tap="forget">' + esc(t.forget) + '</button>' : '') +
+      // web_quiz_child_welcome (the boot's `welcome`): a grown-up can have Jugnu say hello to this child again
+      (B.welcome && !B.practice ? '<button class="wq-btn wq-ghost" type="button" data-tap="hello">' + esc(t.helloAgain) + '</button>' : '') +
       '<button class="wq-btn wq-ghost" type="button" data-tap="close">' + esc(t.grownClose) + '</button>';
     // Keep my place lives here on the v3 home (the card and, back from WhatsApp, its "Saved ✓ … Undo"): the sheet stays
     // in the page until Close, so the Undo lands in it. A phone already kept is told how a grown-up removes it (STOP).
@@ -592,6 +598,14 @@
     Array.prototype.forEach.call(root.children || [], function (n) {
       if (n === box || !n.setAttribute) return;
       n.setAttribute('inert', ''); n.setAttribute('aria-hidden', 'true'); behind.push(n);
+    });
+    var hl = box.querySelector('[data-tap="hello"]');
+    if (hl) hl.addEventListener('click', function () {
+      if (hl.disabled) return;
+      hl.disabled = true;
+      fetch('/api/wq/welcome', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify({ hub: ctx.token, kid: B.kid, outcome: 'reset' }) })
+        .then(function (r) { if (!r || !r.ok) throw new Error('reset'); try { localStorage.removeItem('wq.welcome.' + B.kid); } catch (x) {} location.reload(); })
+        .catch(function () { hl.disabled = false; });
     });
     var fg = box.querySelector('[data-tap="forget"]');
     if (fg) fg.addEventListener('click', function () {

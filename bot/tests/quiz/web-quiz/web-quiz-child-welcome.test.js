@@ -130,11 +130,11 @@ describe('switch on with the home on', () => {
     expect(out.kid).toBeNull();
     expect('welcome' in out).toBe(false);
   });
-  test('done or skipped: never again; per child, so a brother on the same phone still gets his own', async () => {
+  test('done or skipped: never again (only its replay on demand); per child, so a brother on the same phone still gets his own', async () => {
     for (const outcome of ['done', 'skipped']) {
       redis._store.clear();
       expect((await record(outcome)).ok).toBe(true);
-      expect('welcome' in (await hubOf(KID))).toBe(false);
+      expect((await hubOf(KID)).welcome).toEqual({ v: Welcome.V, replay: 1 });
       expect((await hubOf(SIB)).welcome).toEqual({ v: Welcome.V, attempt: 1 });
     }
   });
@@ -142,7 +142,14 @@ describe('switch on with the home on', () => {
     await record('shown');
     expect((await hubOf()).welcome).toEqual({ v: Welcome.V, attempt: 2 });
     await record('shown');
-    expect('welcome' in (await hubOf())).toBe(false);
+    expect((await hubOf()).welcome).toEqual({ v: Welcome.V, replay: 1 });
+  });
+  test('a grown-up\'s "Show Jugnu\'s hello again" (reset) re-arms it for that child only', async () => {
+    await record('done');
+    await record('done', SIB);
+    expect((await record('reset')).ok).toBe(true);
+    expect((await hubOf(KID)).welcome).toEqual({ v: Welcome.V, attempt: 1 });
+    expect((await hubOf(SIB)).welcome).toEqual({ v: Welcome.V, replay: 1 });
   });
   test('no Redis: no welcome (it cannot be kept once per child), and the hub still answers', async () => {
     redis._up = false;
@@ -173,6 +180,18 @@ describe('the Next stop under the welcome is not an untapped show', () => {
     expect(JSON.stringify(redis._store.get(k).s)).toBe(after1);
     await NO.nextFor({ ctx: 'home', studentId: KID, candidates: cand });
     expect(redis._store.get(k).s.n).toBe(JSON.parse(after1).n + 1);
+  });
+  test('the hub holds it only while the welcome itself is up, never for its replay', async () => {
+    const Src = require('../../../shared/services/quiz/web-quiz-next-offer-sources');
+    const spy = jest.spyOn(NO, 'nextFor').mockResolvedValue(null);
+    const out = { kid: 'c1', teacher: { code: 'NEWQ01', k: 'k1', topic: 'Shapes', subject: 'maths' }, again: [] };
+    const prep = Promise.resolve({ rows: { quizIds: new Map(), storyCodes: new Set(), unsentCodes: new Set(), known: null, covers: new Map() }, onItsWay: [], books: [], sw: { watch: false } });
+    for (const [w, held] of [[{ welcome: { v: 1, attempt: 1 } }, true], [{ welcome: { v: 1, replay: 1 } }, false], [{}, false]]) {
+      spy.mockClear();
+      await Src.hubField({ out, token: 't', history: [], lang: 'en', chosenId: KID, grade: '3', subjectArt: () => null, prep, hold: Promise.resolve(w) });
+      expect([w, Boolean(spy.mock.calls[0] && spy.mock.calls[0][0].hold)]).toEqual([w, held]);
+    }
+    spy.mockRestore();
   });
 });
 
