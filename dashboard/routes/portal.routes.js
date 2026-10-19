@@ -55,6 +55,8 @@ const { resolveRange, RangeInputError } = require('../lib/pk-range');
 // bd-2469 — the portal's single source of training decisions. Asks the bot;
 // holds no rules of its own. See dashboard/services/training-rules.service.js.
 const TrainingRules = require('../services/training-rules.service');
+// bd-te5lae — the capstone submit's marking deadline, kept beside the route budget it must fit.
+const { CAPSTONE_MARKING_DEADLINE_MS } = require('../middleware/timeout');
 // bd-2673 — the multi-answer predicate, from the bot's marking module.
 //
 // Required directly rather than over HTTP, unlike the decisions above, and that
@@ -4470,14 +4472,25 @@ router.get('/training/level/:id/capstone/questions', requirePortalAuth, async (r
  * bd-2673 — submit a written capstone from the portal.
  *
  * Every rule here belongs to the bot: eligibility (checkExamGateByLevel), the
- * per-answer rubric (scoreAnswer — the same LLM prompt WhatsApp grades with),
+ * per-answer rubric (scoreAnswer — the same LLM prompt WhatsApp grades with,
+ * asked of the bot over the internal API: bd-te5lae),
  * and the pass decision including bd-2478's refusal to score a short answer set
  * (decideCapstonePass). This route sequences them and writes rows.
  *
  * The length floor is enforced HERE as well as in the textarea, because a
  * client-side counter is advice and this is the rule.
+ *
+ * bd-te5lae — TIME. Marking is one LLM call per answer, so this route has its own
+ * budget in dashboard/middleware/timeout.js (120 s, not the 30 s default), and marking
+ * a total deadline inside it (CAPSTONE_MARKING_DEADLINE_MS from the start of the
+ * request). If the middleware has answered anyway, or the connection is gone, nothing
+ * is written, and no response is written twice: under express 4 a throw from the
+ * outer catch is an unhandled rejection, which ends the portal process.
  */
 router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (req, res) => {
+  const markingDeadline = Date.now() + CAPSTONE_MARKING_DEADLINE_MS;
+  // Never a second write onto a response the timeout middleware already sent.
+  const reply = (status, body) => (res.headersSent ? undefined : res.status(status).json(body));
   try {
     const userId = req.session.portalUserId;
     const levelId = parseInt(req.params.id, 10);
@@ -4565,10 +4578,37 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     // these are LLM calls and a written paper is ~8 of them, so a burst risks a
     // provider rate-limit mid-paper — which would look to the teacher like a
     // partial failure of work they cannot resubmit.
+    //
+    // bd-te5lae — over the internal API, never in-process: Capstone.scoreAnswer's
+    // deps() needs dotenv and pino, which this service cannot resolve, and calling
+    // it here answered 500 on every submit. Nothing is written yet, so a marking
+    // failure (or running out of time) tells the teacher plainly that nothing was
+    // recorded.
     const scored = [];
-    for (const p of pending) {
-      const { score, feedback } = await Capstone.scoreAnswer(p.question, p.answerText);
-      scored.push({ ...p, score, feedback });
+    try {
+      for (const p of pending) {
+        const { score, feedback } = await TrainingRules.scoreCapstoneAnswer(
+          p.question, p.answerText, undefined, { deadline: markingDeadline },
+        );
+        scored.push({ ...p, score, feedback });
+      }
+    } catch (markErr) {
+      const reason = Date.now() >= markingDeadline ? 'deadline' : 'marking_error';
+      console.error('capstone submit — the bot could not mark it', { levelId, reason, error: markErr?.message });
+      telemetry.logEvent('training_capstone_mark_failed', {
+        user_uuid: userId,
+        level_row_id: levelId,
+        answers_total: pending.length,
+        answers_marked: scored.length,
+        reason,
+        error_code: markErr?.code || null,
+        http_status: markErr?.response?.status || null,
+        surface: 'portal',
+      });
+      return reply(503, {
+        success: false,
+        error: 'We could not mark this exam right now. Nothing has been recorded — please try again.',
+      });
     }
 
     const totalScore = qList.length * Capstone.POINTS_PER_QUESTION;
@@ -4580,10 +4620,34 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     if (!verdict.ok) {
       // bd-2478 — cannot score fairly, so nothing is recorded as a result.
       console.error('capstone submit — refusing to score', { levelId, reason: verdict.reason });
-      return res.status(503).json({
+      telemetry.logEvent('training_capstone_mark_failed', {
+        user_uuid: userId,
+        level_row_id: levelId,
+        answers_total: pending.length,
+        answers_marked: scored.length,
+        reason: 'unscorable',
+        verdict_reason: verdict.reason || null,
+        surface: 'portal',
+      });
+      return reply(503, {
         success: false,
         error: 'We could not score this exam fairly. Nothing has been recorded — please try again.',
       });
+    }
+
+    // bd-te5lae — the timeout middleware has answered, or the teacher's connection is
+    // gone: nobody will see this result, so record nothing rather than a silent attempt.
+    if (res.headersSent || (req.socket && req.socket.destroyed)) {
+      console.error('capstone submit — the teacher is no longer waiting; nothing recorded', { levelId });
+      telemetry.logEvent('training_capstone_not_recorded', {
+        user_uuid: userId,
+        level_row_id: levelId,
+        answers_total: pending.length,
+        reason: 'client_gone',
+        headers_sent: res.headersSent === true,
+        surface: 'portal',
+      });
+      return undefined;
     }
 
     const completedAt = new Date().toISOString();
@@ -4649,20 +4713,19 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
       } : null;
     }
 
-    try {
-      const { logEvent } = require('../../bot/shared/utils/structured-logger');
-      logEvent('training_capstone_completed', {
-        user_uuid: userId,
-        level_row_id: levelId,
-        attempt_uuid: attempt.id,
-        raw_score: verdict.score,
-        total_score: totalScore,
-        is_passed: verdict.is_passed,
-        surface: 'portal',
-      });
-    } catch (_) { /* observability must never fail a submit */ }
+    // bd-te5lae — the portal's own sink. The bot's structured-logger needs pino, which
+    // this service cannot load, so this event never fired from here.
+    telemetry.logEvent('training_capstone_completed', {
+      user_uuid: userId,
+      level_row_id: levelId,
+      attempt_uuid: attempt.id,
+      raw_score: verdict.score,
+      total_score: totalScore,
+      is_passed: verdict.is_passed,
+      surface: 'portal',
+    });
 
-    return res.json({
+    return reply(200, {
       success: true,
       attempt: {
         id: attempt.id,
@@ -4685,7 +4748,7 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
     });
   } catch (error) {
     console.error('training/level/:id/capstone/attempts error:', error);
-    return res.status(500).json({ success: false, error: 'Failed to submit the written exam' });
+    return reply(500, { success: false, error: 'Failed to submit the written exam' });
   }
 });
 

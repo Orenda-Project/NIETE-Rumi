@@ -113,6 +113,11 @@ function installTrainingDelegation(getSupabaseFrom) {
       markPaper: async (questions, answers) =>
         require('../../bot/shared/services/training/paper-marking.service')
           .markPaper({ questions, answers }),
+      // bd-te5lae — capstone marking goes over the internal API too. The real grader,
+      // with the LLM mocked above.
+      scoreCapstoneAnswer: (question, answerText, maxPoints) =>
+        require('../../bot/shared/services/training/capstone-delivery.service')
+          .scoreAnswer(question, answerText, maxPoints),
       servePaper: async (questions, opts) => {
         const Serving = require('../../bot/shared/services/training/quiz-serving.service');
         const config = Serving.normalizeServingConfig((opts && opts.vendor) || null);

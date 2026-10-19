@@ -68,7 +68,7 @@ function config() {
  *         that are GATES must catch and deny; callers that are READS may let
  *         it propagate.
  */
-async function ask(path, body) {
+async function ask(path, body, opts = {}) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
     // Never silently degrade to "allowed" because a variable is missing.
@@ -77,7 +77,7 @@ async function ask(path, body) {
 
   const res = await axios.post(`${baseUrl}/api/internal/training/${path}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    timeout: TIMEOUT_MS,
+    timeout: opts.timeout || TIMEOUT_MS,
   });
 
   const data = res && res.data;
@@ -197,6 +197,64 @@ async function getExamVerdict(levelId, score, totalQuestions) {
     pass_pct: data.pass_pct,
     achieved_pct: data.achieved_pct,
   };
+}
+
+/** One capstone answer is one LLM call; 10 s is a lookup's budget, not a marker's. */
+const MARKING_TIMEOUT_MS = 60_000;
+
+/**
+ * Mark ONE written capstone answer with the bot's grader. bd-te5lae.
+ *
+ * The portal called capstone-delivery's scoreAnswer in-process. Its deps() loads the
+ * bot's Supabase and LLM clients, which need dotenv and pino, and the portal service
+ * cannot resolve either: every portal capstone submit answered 500 on production.
+ *
+ * THROWS on failure, like getExamVerdict: this is not a gate, and a teacher must never
+ * be given a made-up score. The route turns a throw into "nothing recorded, try again".
+ *
+ * opts.deadline (epoch ms) is the whole paper's marking deadline. Each call's timeout is
+ * capped at what is left of it, and once it has passed nothing more is asked: the submit
+ * route must answer inside its own budget (dashboard/middleware/timeout.js). axios reads a
+ * timeout of 0 as "no timeout", so a spent deadline throws instead of being passed on.
+ *
+ * A dropped connection (no HTTP answer at all) is retried once inside the deadline.
+ * Marking writes nothing on the bot, so asking again is safe. An HTTP failure is the bot's
+ * answer and a timeout means the grader is slow: neither is retried.
+ */
+async function scoreCapstoneAnswer(question, answerText, maxPoints, opts = {}) {
+  const body = { question, answerText };
+  if (maxPoints !== undefined) body.maxPoints = maxPoints;
+  const deadline = Number.isFinite(opts.deadline) ? opts.deadline : null;
+  const mark = () => ask('capstone-score', body, { timeout: markingTimeout(deadline) });
+
+  let data;
+  try {
+    data = await mark();
+  } catch (err) {
+    if (!isDroppedConnection(err)) throw err;
+    data = await mark();
+  }
+  if (!Number.isFinite(data.score)) {
+    throw new Error('training rules API returned no score for capstone-score');
+  }
+  return { score: data.score, feedback: data.feedback };
+}
+
+/** One call's timeout: the marker's own budget, capped by the paper's deadline. */
+function markingTimeout(deadline) {
+  if (deadline === null) return MARKING_TIMEOUT_MS;
+  const left = deadline - Date.now();
+  if (left <= 0) {
+    throw Object.assign(new Error('capstone marking deadline passed'), { code: 'MARKING_DEADLINE' });
+  }
+  return Math.min(MARKING_TIMEOUT_MS, left);
+}
+
+/** No HTTP answer came back: the connection was reset or dropped under the request. */
+function isDroppedConnection(err) {
+  if (!err || err.response) return false;
+  const message = String(err.message || '');
+  return err.code === 'ECONNRESET' || /socket hang up/i.test(message) || /fetch failed/i.test(message);
 }
 
 /**
@@ -380,6 +438,7 @@ module.exports = {
   markPaper,
   servePaper,
   getExamVerdict,
+  scoreCapstoneAnswer,
   checkLevelUnlocked,
   checkModuleUnlocked,
   checkExamGate,
