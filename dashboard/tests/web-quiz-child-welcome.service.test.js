@@ -470,3 +470,26 @@ describe('the replay (DESIGN §5): Jugnu in the greeting replays step 4 only, fo
     expect(p.step()).toBe('1');
   });
 });
+
+describe('the recorded lines (#3146) carry their folder\'s version (/wq is cached for a year)', () => {
+  const REC = { v: 1, attempt: 1, voice: '/wq/voice/welcome/sx-reyna-68567f-ur/', voice_v: 'edb3c4ac' };
+  test('each line plays its clip with ?v=, after the first tap only', () => {
+    const p = page(boot('ur', { welcome: REC }));
+    expect(p.audios).toEqual([]);
+    p.tap('jugnu');
+    p.run(3000);
+    p.run(4000);
+    expect(p.audios.map((a) => a.src)).toEqual(['2', '3', '4'].map((k) => `/wq/voice/welcome/sx-reyna-68567f-ur/welcome-${k}.mp3?v=edb3c4ac`));
+  });
+  test('the version rides to step 5\'s page with the path; a version that is not a short hex is dropped', () => {
+    const p = page(boot('ur', { welcome: REC }));
+    p.tap('jugnu');
+    p.run(7000);
+    p.next.fire('click', {});
+    expect(p.sess['wq.welcome.voice']).toBe('/wq/voice/welcome/sx-reyna-68567f-ur/');
+    expect(p.sess['wq.welcome.voice_v']).toBe('edb3c4ac');
+    const q = page(boot('en', { welcome: { ...REC, voice_v: '"><x' } }));
+    q.tap('jugnu');
+    expect(q.audios.map((a) => a.src)).toEqual(['/wq/voice/welcome/sx-reyna-68567f-ur/welcome-2.mp3']);
+  });
+});
