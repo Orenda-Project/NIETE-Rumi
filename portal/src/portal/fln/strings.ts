@@ -28,7 +28,7 @@ interface FlnStrings {
   subject: Record<FlnSubjectKey, string>;
   /** Kicker line 1, upper-cased in EN by CSS, never by the string. */
   subjectKicker: Record<FlnSubjectKey, string>;
-  band: { title: string; sub: string; subSenior: string; loading: string; error: string; retry: string; gradeLabel: string };
+  band: { title: string; sub: string; loading: string; error: string; retry: string; gradeLabel: string };
   bandRow: (count: number, level: number) => string;
   grade: (g: number) => string;
   level: (n: number) => string;
@@ -42,7 +42,6 @@ interface FlnStrings {
   opened: string;
   strand: Record<Strand, string>;
   chapter: (n: number) => string;
-  chooser: { title: string; line: string; screener: string; startHere: string; groupMap: Record<1 | 2 | 3, string> };
   minutes: (n: number) => string;
   chip: {
     sounds: (n: number) => string;
@@ -92,8 +91,7 @@ const EN: FlnStrings = {
   subjectKicker: { 'rh-en': 'Reading Hour · English', 'rh-ur': 'Reading Hour · Urdu', num: 'Numeracy' },
   band: {
     title: 'Reading Hour & Numeracy',
-    sub: 'Foundational reading and maths · for every grade',
-    subSenior: 'By level · start with the screener',
+    sub: 'Foundational reading and maths · Grades 1–5',
     loading: 'Loading…',
     error: "Reading Hour plans aren't available right now",
     retry: 'Try again',
@@ -128,13 +126,6 @@ const EN: FlnStrings = {
   opened: 'Opened',
   strand: { daily: 'Daily lessons', extended: 'Weekly · Extended Hour' },
   chapter: (n) => `Chapter ${n}`,
-  chooser: {
-    title: 'Which level?',
-    line: 'Struggling readers exist in every grade. Run the screener first to place each student.',
-    screener: 'Screener',
-    startHere: 'Start here',
-    groupMap: { 1: 'Beginner → Level 1', 2: 'Intermediate → Level 2', 3: 'Advanced → Level 3' },
-  },
   minutes: (n) => `${n} min`,
   chip: {
     sounds: (n) => (n === 1 ? '1 sound' : `${n} sounds`),
@@ -193,8 +184,7 @@ const UR: FlnStrings = {
   subjectKicker: { 'rh-en': 'ریڈنگ آور — انگریزی', 'rh-ur': 'ریڈنگ آور — اردو', num: 'بنیادی حساب' },
   band: {
     title: 'ریڈنگ آور اور بنیادی حساب',
-    sub: 'بنیادی پڑھائی اور حساب — ہر جماعت کے لیے',
-    subSenior: 'سطح کے مطابق — اسکرینر سے شروع کریں',
+    sub: 'بنیادی پڑھائی اور حساب — جماعت ۱ تا ۵',
     loading: 'لوڈ ہو رہا ہے…',
     error: 'ریڈنگ آور کے اسباق ابھی دستیاب نہیں — دوبارہ کوشش کریں',
     retry: 'دوبارہ کوشش کریں',
@@ -217,13 +207,6 @@ const UR: FlnStrings = {
   opened: 'کھولا گیا',
   strand: { daily: 'روزانہ اسباق', extended: 'ہفتہ وار — توسیعی گھنٹہ' },
   chapter: (n) => `باب ${num(n, 'ur')}`,
-  chooser: {
-    title: 'کون سی سطح؟',
-    line: 'پڑھنے میں پیچھے رہ جانے والے بچے ہر جماعت میں ہوتے ہیں۔ ہر بچے کی سطح جاننے کے لیے پہلے اسکرینر کریں۔',
-    screener: 'اسکرینر',
-    startHere: 'یہاں سے شروع کریں',
-    groupMap: { 1: 'ابتدائی گروپ ← سطح ۱', 2: 'درمیانی گروپ ← سطح ۲', 3: 'اعلیٰ گروپ ← سطح ۳' },
-  },
   minutes: (n) => `${num(n, 'ur')} منٹ`,
   chip: {
     sounds: (n) => (n === 1 ? '۱ آواز' : `${num(n, 'ur')} آوازیں`),

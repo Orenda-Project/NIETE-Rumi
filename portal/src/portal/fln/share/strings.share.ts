@@ -77,7 +77,6 @@ export interface ShareStrings {
   filtersLabel: string;
   pickGrade: string;
   pickSubject: string;
-  pickLevel: string;
   screenerFirst: string;
   noMatch: string;
   clearFilters: string;
@@ -157,7 +156,6 @@ const EN: ShareStrings = {
   filtersLabel: 'Filters',
   pickGrade: 'Choose a grade',
   pickSubject: 'Choose a subject',
-  pickLevel: 'Choose a level, or start with the screener',
   screenerFirst: 'Start with the screener',
   noMatch: 'No lessons match. Clear the filters.',
   clearFilters: 'Clear the filters',
@@ -234,7 +232,6 @@ const UR: ShareStrings = {
   filtersLabel: 'فلٹر',
   pickGrade: 'جماعت منتخب کریں',
   pickSubject: 'مضمون منتخب کریں',
-  pickLevel: 'سطح منتخب کریں، یا اسکرینر سے شروع کریں',
   screenerFirst: 'اسکرینر سے شروع کریں',
   noMatch: 'کوئی سبق نہیں ملا — فلٹر ہٹا دیں',
   clearFilters: 'فلٹر ہٹا دیں',

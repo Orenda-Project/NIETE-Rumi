@@ -161,7 +161,7 @@ describe('structure (red team): every route is no-store first, authenticated, an
 describe('GET /fln/catalogue', () => {
   it('400 for a bad grade / subject / level, no-store', async () => {
     const srv = await app();
-    for (const q of ['grade=0&subject=rh-en', 'grade=13&subject=rh-en', 'grade=x&subject=rh-en', 'grade=1&subject=art', 'grade=1', 'grade=8&subject=rh-en&level=4', 'grade=8&subject=rh-en&level=a']) {
+    for (const q of ['grade=0&subject=rh-en', 'grade=13&subject=rh-en', 'grade=x&subject=rh-en', 'grade=1&subject=art', 'grade=1', 'grade=1&subject=rh-en&level=4', 'grade=1&subject=rh-en&level=a']) {
       const r = await call(srv, 'GET', `/api/portal/fln/catalogue?${q}`);
       expect([q, r.status]).toEqual([q, 400]);
       expect(r.json).toEqual({ error: 'bad_request' });
@@ -200,14 +200,24 @@ describe('GET /fln/catalogue', () => {
     expect(r.json.strands[0].chapters.flatMap((c) => c.plans).every((x) => x.opened === false)).toBe(true);
   });
 
-  it('G8 without level → levels, no strands; level=3 → the grade-5 rows', async () => {
+  it('FLN is Grades 1–5 (bd-elc1qz): grade 6–12 is 400 bad_request, with or without a level, and the corpus is not read', async () => {
     const srv = await app();
-    const a = await call(srv, 'GET', '/api/portal/fln/catalogue?grade=8&subject=rh-en');
-    expect(a.json).toMatchObject({ grade: 8, level: null, strands: [] });
-    expect(a.json.levels[0]).toMatchObject({ level: 1, screener_id: 900002 });
-    const b = await call(srv, 'GET', '/api/portal/fln/catalogue?grade=8&subject=rh-en&level=3');
-    expect(b.json.level).toBe(3);
-    expect(b.json.strands[0].chapters[0].plans.map((x) => x.id)).toEqual([900009]);
+    const spy = jest.spyOn(corpus(), 'catalogue');
+    for (const q of ['grade=6&subject=rh-en', 'grade=8&subject=rh-en', 'grade=12&subject=num', 'grade=8&subject=rh-en&level=3', 'grade=7&subject=rh-ur&level=1']) {
+      const r = await call(srv, 'GET', `/api/portal/fln/catalogue?${q}`);
+      expect([q, r.status, r.json]).toEqual([q, 400, { error: 'bad_request' }]);
+      expect(r.headers['cache-control']).toBe('no-store');
+    }
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('grade 5 with level=3 (the list\'s "Other levels" chip) → 200, the grade-5 rows', async () => {
+    const srv = await app();
+    const r = await call(srv, 'GET', '/api/portal/fln/catalogue?grade=5&subject=rh-en&level=3');
+    expect(r.status).toBe(200);
+    expect(r.json.level).toBe(3);
+    expect(r.json.strands[0].chapters[0].plans.map((x) => x.id)).toEqual([900009]);
   });
 });
 
