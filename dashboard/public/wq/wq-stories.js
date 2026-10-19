@@ -460,7 +460,7 @@
       if (!c || !sp) return;
       if (x && bs) x.className = 'wqs-tx';
       d = dims(); lc = [bs, fit, rs];
-      f = a && bs && !wu && M && M.art && M.art(a, cam, sp.image, al(), bs, d, rtl(), rs);
+      f = a && bs && !wu && M && M.art && M.art(a, cam, sp.image, al(), bs, d, rtl(), rs, b.read_sheet);
       k = f || cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
       if (a) { c.style.clipPath = f ? f.clip : ''; a.hidden = !f; }
