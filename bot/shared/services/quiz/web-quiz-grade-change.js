@@ -189,4 +189,5 @@ async function set({ token, kid, device, grade } = {}) {
   return { ok: true, grade };
 }
 
-module.exports = { on, carry, get, set, browseGrade, KEY, GRADES, DAY_MAX };
+// guardedChild: the child welcome's write (web-quiz-child-welcome.js) asks the same two guards
+module.exports = { on, carry, get, set, browseGrade, guardedChild, KEY, GRADES, DAY_MAX };

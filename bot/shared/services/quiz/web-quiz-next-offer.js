@@ -275,7 +275,8 @@ function offerId() { return crypto.randomBytes(8).toString('base64url').slice(0,
  * The `next` object for a child in a context, or null (switch off, no child, nothing offerable, any failure: the
  * caller adds no key). `candidates` from the builders below; `hasRoot` = the child has a class quiz (videos need one).
  */
-async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null, live = null } = {}) {
+// hold: this show is not counted (the child welcome is over it): the "shown, not tapped" streak stays where it was
+async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en', now = Date.now(), key: ownKey = null, live = null, hold = false } = {}) {
   // live: the caller's deadline token; once it is false (the field has been given up) nothing is written or logged —
   // a tile no child was shown never spends a month open, a streak step or a next_set line
   const alive = () => !live || live.on !== false;
@@ -304,7 +305,7 @@ async function nextFor({ ctx, studentId, candidates, hasRoot = false, lang = 'en
     if (!alive()) return null;
     await saveState(sk, {
       m: month, o: opens,
-      s: st.s && st.s.id === next.id ? { id: next.id, n: (Number(st.s.n) || 0) + 1 } : { id: next.id, n: 1 },
+      s: hold ? st.s || null : st.s && st.s.id === next.id ? { id: next.id, n: (Number(st.s.n) || 0) + 1 } : { id: next.id, n: 1 },
       rd: r.meta.rule === 'resume' ? day : st.rd || null,
       of: Object.fromEntries(keep.map((k) => [k, offers[k]])),
     });
