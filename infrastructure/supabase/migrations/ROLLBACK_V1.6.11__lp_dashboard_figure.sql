@@ -1,6 +1,26 @@
 -- ROLLBACK V1.6.11 — mv_dashboard_stats_by_country back to its definition before V1.6.11 (verbatim, from the live
 -- sandbox DB, 2026-10-16): the lesson-plan figure counts every lesson_plan_requests row again, over the per-user
--- join. mv_view_refresh_status, the unique indexes and the grants are recreated as they were. Idempotent.
+-- join. mv_view_refresh_status and the unique indexes are recreated as they were; the owner and grants are this
+-- database's own, read before the DROP and put back exactly (see V1.6.11: the NIETE databases grant these views
+-- differently). lock_timeout 5s, as in V1.6.11. Idempotent.
+
+DO $$ BEGIN
+  -- Never queue behind the portal's refresh with the view's readers queued behind us: fail fast and be re-run.
+  PERFORM set_config('lock_timeout', '5s', true);
+END $$;
+
+-- This database's owner and grants on the two views, before the DROP (put back at the end of the file).
+CREATE TEMP TABLE v1611_views ON COMMIT DROP AS
+  SELECT c.relname::text AS relname, c.relowner
+    FROM pg_class c
+   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'm'
+     AND c.relname IN ('mv_dashboard_stats_by_country', 'mv_view_refresh_status');
+CREATE TEMP TABLE v1611_grants ON COMMIT DROP AS
+  SELECT c.relname::text AS relname, a.grantee, a.privilege_type, a.is_grantable
+    FROM pg_class c, aclexplode(c.relacl) a
+   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'm'
+     AND c.relname IN ('mv_dashboard_stats_by_country', 'mv_view_refresh_status')
+     AND a.grantee <> c.relowner;
 
 DROP MATERIALIZED VIEW IF EXISTS public.mv_view_refresh_status;
 DROP MATERIALIZED VIEW IF EXISTS public.mv_dashboard_stats_by_country;
@@ -91,5 +111,34 @@ UNION ALL
 WITH DATA;
 CREATE UNIQUE INDEX idx_mv_view_refresh_status_pk ON public.mv_view_refresh_status USING btree (view_name);
 
-GRANT ALL ON public.mv_dashboard_stats_by_country, public.mv_view_refresh_status TO service_role;
-GRANT SELECT ON public.mv_dashboard_stats_by_country, public.mv_view_refresh_status TO anon, authenticated;
+-- The owner and grants each view had before the DROP, exactly; what default privileges added is taken back first.
+DO $$
+DECLARE
+  v text;
+  before_owner oid;
+  g record;
+  who text;
+BEGIN
+  FOREACH v IN ARRAY ARRAY['mv_dashboard_stats_by_country', 'mv_view_refresh_status'] LOOP
+    SELECT relowner INTO before_owner FROM v1611_views WHERE relname = v;
+    IF NOT FOUND THEN
+      -- The view did not exist before this file: the grants it has always been created with.
+      EXECUTE format('GRANT ALL ON public.%I TO service_role', v);
+      EXECUTE format('GRANT SELECT ON public.%I TO anon, authenticated', v);
+      CONTINUE;
+    END IF;
+    IF (SELECT relowner FROM pg_class WHERE oid = format('public.%I', v)::regclass) <> before_owner THEN
+      EXECUTE format('ALTER MATERIALIZED VIEW public.%I OWNER TO %I', v, pg_get_userbyid(before_owner));
+    END IF;
+    FOR g IN SELECT DISTINCT a.grantee FROM pg_class c, aclexplode(c.relacl) a
+              WHERE c.oid = format('public.%I', v)::regclass AND a.grantee <> c.relowner LOOP
+      who := CASE WHEN g.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(g.grantee)) END;
+      EXECUTE format('REVOKE ALL ON public.%I FROM %s', v, who);
+    END LOOP;
+    FOR g IN SELECT grantee, privilege_type, is_grantable FROM v1611_grants WHERE relname = v LOOP
+      who := CASE WHEN g.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(g.grantee)) END;
+      EXECUTE format('GRANT %s ON public.%I TO %s%s', g.privilege_type, v, who,
+                     CASE WHEN g.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END);
+    END LOOP;
+  END LOOP;
+END $$;

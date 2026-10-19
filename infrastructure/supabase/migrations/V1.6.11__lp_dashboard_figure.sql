@@ -13,10 +13,27 @@
 -- delivered (delivered_at IS NOT NULL), the "delivered" every lesson-plan figure uses.
 --
 -- Everything else is as it was, taken from the live definition: the other two parts of the view, its columns,
--- order and types, its unique index, its grants, and mv_view_refresh_status (which reads it), dropped and
--- recreated verbatim. Created WITH DATA: the portal's REFRESH ... CONCURRENTLY needs it populated and indexed.
--- Needs V1.6.4 (lesson_plan_requests.source, delivered_at) and refuses without it, changing nothing — the runner
--- sends the file as one statement, so any error undoes all of it. Idempotent. Rollback: ROLLBACK_V1.6.11__lp_dashboard_figure.sql.
+-- order and types, its unique index, and mv_view_refresh_status (which reads it), dropped and recreated
+-- verbatim. Created WITH DATA: the portal's REFRESH ... CONCURRENTLY needs it populated and indexed.
+--
+-- GRANTS AND OWNER are each database's own, because the NIETE databases differ: production grants both views to
+-- service_role, portal_app_user (the portal's role for partner scopes) and analyst, and never to anon or
+-- authenticated; sandbox and staging grant them to anon and authenticated. Both views' owner and every grant are
+-- read before the DROP and put back exactly after the CREATE, taking back whatever the schema's default privileges
+-- added. Only where the views did not exist does it grant what they were created with (service_role all, anon and
+-- authenticated read). The first text of this file granted sandbox's set everywhere; sandbox and staging ran
+-- that text; it was changed before production, where it would have opened both views to anon and authenticated.
+--
+-- LOCKS. The DROP waits for the portal's REFRESH ... CONCURRENTLY (production: about 5 s, at most 18 s, every
+-- 5 minutes) with every reader of the view queued behind it, so lock_timeout is 5s: behind a refresh it fails
+-- fast and is re-run. Needs V1.6.4 (lesson_plan_requests.source, delivered_at) and refuses without it, changing
+-- nothing; the runner sends the file as one statement, so any error undoes all of it. Idempotent.
+-- Rollback: ROLLBACK_V1.6.11__lp_dashboard_figure.sql.
+
+DO $$ BEGIN
+  -- Never queue behind a refresh with the view's readers queued behind us: fail fast and be re-run.
+  PERFORM set_config('lock_timeout', '5s', true);
+END $$;
 
 DO $$
 BEGIN
@@ -26,6 +43,19 @@ BEGIN
     RAISE EXCEPTION 'V1.6.11 needs V1.6.4 (lesson_plan_requests.source and delivered_at): apply V1.6.4 first';
   END IF;
 END $$;
+
+-- This database's owner and grants on the two views, before the DROP (put back at the end of the file).
+CREATE TEMP TABLE v1611_views ON COMMIT DROP AS
+  SELECT c.relname::text AS relname, c.relowner
+    FROM pg_class c
+   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'm'
+     AND c.relname IN ('mv_dashboard_stats_by_country', 'mv_view_refresh_status');
+CREATE TEMP TABLE v1611_grants ON COMMIT DROP AS
+  SELECT c.relname::text AS relname, a.grantee, a.privilege_type, a.is_grantable
+    FROM pg_class c, aclexplode(c.relacl) a
+   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'm'
+     AND c.relname IN ('mv_dashboard_stats_by_country', 'mv_view_refresh_status')
+     AND a.grantee <> c.relowner;
 
 DROP MATERIALIZED VIEW IF EXISTS public.mv_view_refresh_status;
 DROP MATERIALIZED VIEW IF EXISTS public.mv_dashboard_stats_by_country;
@@ -125,8 +155,37 @@ UNION ALL
 WITH DATA;
 CREATE UNIQUE INDEX idx_mv_view_refresh_status_pk ON public.mv_view_refresh_status USING btree (view_name);
 
-GRANT ALL ON public.mv_dashboard_stats_by_country, public.mv_view_refresh_status TO service_role;
-GRANT SELECT ON public.mv_dashboard_stats_by_country, public.mv_view_refresh_status TO anon, authenticated;
+-- The owner and grants each view had before the DROP, exactly; what default privileges added is taken back first.
+DO $$
+DECLARE
+  v text;
+  before_owner oid;
+  g record;
+  who text;
+BEGIN
+  FOREACH v IN ARRAY ARRAY['mv_dashboard_stats_by_country', 'mv_view_refresh_status'] LOOP
+    SELECT relowner INTO before_owner FROM v1611_views WHERE relname = v;
+    IF NOT FOUND THEN
+      -- The view did not exist before this file: the grants it has always been created with.
+      EXECUTE format('GRANT ALL ON public.%I TO service_role', v);
+      EXECUTE format('GRANT SELECT ON public.%I TO anon, authenticated', v);
+      CONTINUE;
+    END IF;
+    IF (SELECT relowner FROM pg_class WHERE oid = format('public.%I', v)::regclass) <> before_owner THEN
+      EXECUTE format('ALTER MATERIALIZED VIEW public.%I OWNER TO %I', v, pg_get_userbyid(before_owner));
+    END IF;
+    FOR g IN SELECT DISTINCT a.grantee FROM pg_class c, aclexplode(c.relacl) a
+              WHERE c.oid = format('public.%I', v)::regclass AND a.grantee <> c.relowner LOOP
+      who := CASE WHEN g.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(g.grantee)) END;
+      EXECUTE format('REVOKE ALL ON public.%I FROM %s', v, who);
+    END LOOP;
+    FOR g IN SELECT grantee, privilege_type, is_grantable FROM v1611_grants WHERE relname = v LOOP
+      who := CASE WHEN g.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(g.grantee)) END;
+      EXECUTE format('GRANT %s ON public.%I TO %s%s', g.privilege_type, v, who,
+                     CASE WHEN g.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END);
+    END LOOP;
+  END LOOP;
+END $$;
 
 COMMENT ON MATERIALIZED VIEW public.mv_dashboard_stats_by_country IS
   'Country stats for the NIETE portal, refreshed concurrently every 5 minutes. total_lesson_plans = '
