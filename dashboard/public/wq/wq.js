@@ -1467,7 +1467,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!UR2 || !topic) return dotJoin(topic, fin);
     return '<bdi' + (/[\u0600-\u06FF]/.test(topic) ? '' : ' dir="ltr"') + '>' + esc(topic) + '</bdi>، ' + esc(fin);
   }
-  function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
+  // with the Urdu polish a «·» beside an Urdu digit reads as «۰» (1 → 10), so Urdu pages join with «،»
+  function sep() { return typeof UR2 !== 'undefined' && UR2 ? '، ' : ' · '; }
+  function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(sep()); }
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
@@ -2836,7 +2838,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var b = c.practice && c.best;
     if (!b || !(b.total > 0) || !(total > 0) || c.correct * b.total <= b.correct * total) return '';
     function sc(x, y) { return '<bdi dir="ltr">' + esc(scoreN(x)) + '/' + esc(scoreN(y)) + '</bdi>'; }
-    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + ' · ' + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ' + ic(IC.star, '⭐') + '</div>';
+    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + sep() + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ' + ic(IC.star, '⭐') + '</div>';
   }
 
   // A friend's challenge: who won, with both scores (each score isolated so it reads left to right in Urdu).
@@ -2844,7 +2846,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!vs || !T.vs[vs.outcome]) return '';
     function sc(a, b) { return '<bdi dir="ltr">' + esc(scoreN(a)) + '/' + esc(scoreN(b)) + '</bdi>'; }
     return '<div class="wq-banner wq-vs"><b>' + esc(T.vs[vs.outcome]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
-      ' · ' + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
+      sep() + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
   }
 
   /* ---------------- M15 watch another video -> its quiz ---------------- */
@@ -2857,7 +2859,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">' + ic(IC.play, '▶') + ' ' + esc(T.moreBtn) + '</button>' : ''; }
   function vItem(v, i) {
     // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
-    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(' · ');
+    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(sep());
     var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
       : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || ic(IC.play, '▶')) + '</span>';
     return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
@@ -3179,7 +3181,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine"><p>' + T.ghost(nm) + '</p></div>'
       : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' +
         (typeof mine.move === 'number' && mine.move ? '<p class="wq-move ' + (mine.move > 0 ? 'wq-up' : 'wq-down') + '">' + esc(T.sinceY(mine.move)) + '</p>' : '') +
-        '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + ' · ' + esc(T.kidsN(mine.kids || 0)) + '</p>' +
+        '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + sep() + esc(T.kidsN(mine.kids || 0)) + '</p>' +
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
       ? '<div class="wq-chips wq-schips' + (cd ? ' wq-tall' : '') + '"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
