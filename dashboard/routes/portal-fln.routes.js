@@ -4,7 +4,7 @@
  * contracts/api.md v2). Mounted at /api/portal by ONE line in dashboard/index.js.
  *
  *   GET  /fln/me           {lessons, share, role, ui_lang}         auth only
- *   GET  /fln/catalogue    the lesson list / level chooser         requireFln.lessons
+ *   GET  /fln/catalogue    the lesson list (Grades 1–5)            requireFln.lessons
  *   GET  /fln/plan/:id     {plan, placement}; logs ONE open        requireFln.lessons
  *                          (mirror media presigned on the portal bucket: services/fln-media-sign.js)
  *   POST /fln/events       share / link_copy / open_link rows; audio_play / audio_error as log events
@@ -148,10 +148,12 @@ function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivi
     const subject = String(q.subject || '');
     const hasLevel = q.level !== undefined && q.level !== '';
     const level = hasLevel && /^[123]$/.test(String(q.level)) ? Number(q.level) : null;
-    if (!(grade >= 1 && grade <= 12) || !SUBJECTS.has(subject) || (hasLevel && level == null)) return badRequest(res);
+    // FLN is Grades 1–5 only (bd-elc1qz); a grade 1–5 catalogue is that grade's own rows, so `level` is validated
+    // (the list's "Other levels" chip sends it) but never changes the answer.
+    if (!(grade >= 1 && grade <= 5) || !SUBJECTS.has(subject) || (hasLevel && level == null)) return badRequest(res);
     if (!(await corpus.ensure())) return unavailable(res);
     const opened = await openedRefs(query, req.session.portalUserId);
-    const out = corpus.catalogue({ grade, subject, level: grade <= 5 ? null : level, opened });
+    const out = corpus.catalogue({ grade, subject, level: null, opened });
     if (!out) return unavailable(res);
     return res.json(out);
   });

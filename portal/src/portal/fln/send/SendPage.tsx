@@ -1,9 +1,9 @@
 /**
  * "Send a lesson plan", the leaders' link builder at /portal/fln/send (DESIGN v2 §4 L3, §7).
  *
- *   grade chips 1–12 → subject chips (3) → level chips (pre-selected for 1–5: G1→1, G2–3→2, G4–5→3; NONE for 6–12,
- *   where the server puts the screener rows on top) → search + filter chips (Screener · Has sounds · Story audio ·
- *   Additional practice) → rows ("n/N", the title in its own language and direction, chips, minutes), each with
+ *   grade chips 1–5 (FLN is Grades 1–5 only, bd-elc1qz; an old ?grade=6..12 reads as no grade) → subject chips (3) →
+ *   level chips (pre-selected: G1→1, G2–3→2, G4–5→3) → search + filter chips (Screener · Has sounds · Story audio)
+ *   → rows ("n/N", the title in its own language and direction, chips, minutes), each with
  *   **Send to teacher** (the teacher sheet) and **Share link** (Copy + WhatsApp).
  *
  * The rows are GET /api/portal/fln/links — the catalogue the teacher sees, so a hidden plan can never be linked. All
@@ -26,10 +26,11 @@ import { levelForGrade, num, SHARE_DIR, shareStrings, type HasChip, type ShareLa
 import { langOf, useFlnMe } from '../share/useFlnMe';
 import '../share/share.css';
 
-const GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const GRADES = [1, 2, 3, 4, 5];
 const SUBJECTS: ShareSubject[] = ['rh-en', 'rh-ur', 'num'];
 const LEVELS = [1, 2, 3];
-const FILTERS: HasChip[] = ['screener', 'sounds', 'narration', 'additional'];
+// No 'additional': the 2023-24 Additional practice plans leave the corpus (bd-e5ieg0), so that filter would always be empty.
+const FILTERS: HasChip[] = ['screener', 'sounds', 'narration'];
 
 const CHIP = 'flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full border-2 px-4 text-[17px] font-semibold leading-tight';
 const CHIP_ON = 'border-[#333748] bg-[#333748] text-white';
@@ -244,7 +245,6 @@ export default function SendPage() {
                     </Chip>
                   ))}
                 </Group>
-                {!st.level && st.grade >= 6 ? <p className="text-[15px] text-[#5b6475]">{S.pickLevel}</p> : null}
                 <label className="relative block">
                   <span className="sr-only">{S.searchLessons}</span>
                   <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#6b7280]" aria-hidden="true" />

@@ -1,18 +1,18 @@
 /**
  * The "Reading Hour & Numeracy" band on the New-lesson page (DESIGN v2 §0, §1, §2 S2, §7;
- * mockups picker_g1_en / picker_g1_ur / picker_g8_en).
+ * mockups picker_g1_en / picker_g1_ur).
  *
  * The subject picker above it is a tray (teacher/ui/ClassPicker.tsx differs between main and sandbox, so nothing
- * hooks inside it); the band renders UNDER it with its own grade chips (1–12, ≥48 px, a radiogroup), defaulting to
- * the teacher's grade from her classes (the same `gs:lessons` load as NewLessonPage): exactly one grade → it,
- * several → the lowest, none → grade 1.
+ * hooks inside it); the band renders UNDER it with its own grade chips (1–5, ≥48 px, a radiogroup — FLN is for
+ * Grades 1–5 only, bd-elc1qz), defaulting to the teacher's grade from their classes (the same `gs:lessons` load as
+ * NewLessonPage): the lowest of their Grades 1–5, none → grade 1 (a teacher of 6–12 alone sees Grade 1).
  *
  *   /fln/me off or 404     → null (the page is byte-identical to today)
  *   catalogue 404          → null
  *   loading                → three skeleton rows (reserved height)
  *   503 / 5xx / network    → one calm line + Try again
- *   ok                     → three rows ≥56 px: name + "<count> lessons · Level n" (grade 1–5, count from the
- *                            grade's own rows, as the list counts them) or "By level · start with the screener" (6–12, never minutes)
+ *   ok                     → three rows ≥56 px: name + "<count> lessons · Level n" (count from the grade's own
+ *                            rows, as the list counts them)
  *
  * The band lives in the teacher app, so its language is the app's (`useLang()`), not /me's.
  */
@@ -27,15 +27,15 @@ import { loadGradeSubjects } from '../lib/gradeSubjects';
 import { dataOf, useLoad } from '../newui/lessons/shared';
 import './fln.css';
 
-const GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const GRADES = [1, 2, 3, 4, 5];
 const ICON: Record<FlnSubjectKey, string> = { 'rh-en': 'Aa', 'rh-ur': 'ا ب', num: '123' };
 
 type MeState = 'pending' | 'on' | 'off';
 type CatsState = { k: 'loading' } | { k: 'off' } | { k: 'error' } | { k: 'ok'; cats: FlnCatalogue[] };
 
-/** Her grade: exactly one → it; several → the lowest; none → 1. */
+/** Their grade: the lowest of their Grades 1–5; none (or only 6–12) → 1. */
 export function defaultGrade(grades: Array<number | null | undefined>): number {
-  const g = [...new Set(grades.filter((x): x is number => typeof x === 'number' && x >= 1 && x <= 12))].sort((a, b) => a - b);
+  const g = [...new Set(grades.filter((x): x is number => typeof x === 'number' && x >= 1 && x <= 5))].sort((a, b) => a - b);
   return g.length ? g[0] : 1;
 }
 
@@ -81,8 +81,7 @@ export function FlnBandBody() {
   if (me !== 'on' || cats.k === 'off') return null;
 
   const sub = (c: FlnCatalogue): string => {
-    if (grade == null || grade >= 6) return s.band.subSenior;
-    const level = c.level ?? levelForGrade(grade) ?? 1;
+    const level = c.level ?? (grade == null ? null : levelForGrade(grade)) ?? 1;
     // The grade's own rows (as the list counts them), never the level's representative grade (QT-counts).
     return s.bandRow(rowsCount(c, level), level);
   };
