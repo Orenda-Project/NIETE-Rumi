@@ -47,7 +47,7 @@ function mkEl(tag, rect) {
   e.classList = { add: (c) => e.cls.add(c), remove: (c) => e.cls.delete(c), contains: (c) => e.cls.has(c), toggle: (c, on) => (on === undefined ? (e.cls.has(c) ? e.cls.delete(c) : e.cls.add(c)) : on ? e.cls.add(c) : e.cls.delete(c)) };
   return e;
 }
-function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true, nextTop = 300, tagTop = null, landLeft = 20 } = {}) {
+function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true, nextTop = 300, tagTop = null, landLeft = 20, nextHref = '/q/MATH01?k=kk', sess = {} } = {}) {
   const timers = [];
   let clock = 1000000;
   const evs = [];
@@ -61,12 +61,15 @@ function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true,
   next.querySelector = (sel) => (sel === '.wqa-bub' ? tag : null);
   next.attrs.class = 'wq-next';
   next.attrs['data-tap'] = 'next';
-  next.attrs.href = '/q/MATH01?k=kk';
+  next.attrs.href = nextHref;
+  // the greeting's Jugnu (wq-home.js headHtml: data-tap="jugnu")
+  const jug = mkEl('img');
+  jug.attrs['data-tap'] = 'jugnu';
   const head = mkEl('header', { top: 0, left: 0, right: 390, bottom: 64, width: 390, height: 64 });
   const lands = ['stories', 'games', 'videos'].map((d, i) => { const x = landLeft + i * 133; const l = mkEl('a', { top: 440, left: x, right: x + 120, bottom: 520, width: 120, height: 80 }); l.attrs['data-door'] = d; return l; });
   const root = mkEl('main');
   root.querySelector = (sel) => (sel === '.wq-next' || sel === '[data-tap="next"]' ? (/class="wq-next"/.test(root._h) ? next : null) : sel === '.wq-hhead' ? head : null);
-  root.querySelectorAll = (sel) => (sel === '[data-tap]' ? (/class="wq-next"/.test(root._h) ? [next] : []) : /wqa-stop|wq-door/.test(sel) ? lands : []);
+  root.querySelectorAll = (sel) => (sel === '[data-tap]' ? (/class="wq-next"/.test(root._h) ? [next, jug] : []) : /wqa-stop|wq-door/.test(sel) ? lands : []);
   const ctx = {
     document: {
       documentElement: { lang: B.lang, dir: B.lang === 'ur' ? 'rtl' : 'ltr', classList: { contains: () => false, toggle() {} } },
@@ -79,7 +82,7 @@ function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true,
     location: { hash: '', search: '', pathname: `/h/${TOKEN}`, assign() {}, reload() {} },
     history: { replaceState() {}, pushState() {} },
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
-    sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    sessionStorage: { getItem: (k) => (k in sess ? sess[k] : null), setItem: (k, v) => { sess[k] = String(v); }, removeItem: (k) => { delete sess[k]; } },
     setTimeout: (fn, ms) => { timers.push({ fn, at: clock + (ms || 0) }); return timers.length; }, clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].fn = null; }, setInterval: () => 0, clearInterval() {},
     addEventListener() {}, removeEventListener() {},
     matchMedia: () => ({ matches: false, addEventListener() {} }),
@@ -112,7 +115,7 @@ function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true,
   };
   const overlay = () => body.children.find((c) => c.attrs.class === 'wqw') || null;
   const tap = (what) => overlay().fire('click', { target: { getAttribute: (k) => (k === 'data-ww' ? what : null) } });
-  return { ctx, root, next, tag, lands, body, evs, posts, asked, audios, store, run, overlay, tap, hctx, html: () => root._h, step: () => overlay() && overlay().attrs['data-step'], cap: () => { const m = /<p class="wqw-cap"[^>]*>([\s\S]*?)<\/p>/.exec((overlay() || {})._h || ''); return m ? m[1] : null; } };
+  return { ctx, root, next, jug, sess, tag, lands, body, evs, posts, asked, audios, store, run, overlay, tap, hctx, html: () => root._h, step: () => overlay() && overlay().attrs['data-step'], cap: () => { const m = /<p class="wqw-cap"[^>]*>([\s\S]*?)<\/p>/.exec((overlay() || {})._h || ''); return m ? m[1] : null; } };
 }
 const COPY = {
   en: { hi: 'Hi! I&#39;m Jugnu. I light the way!', hiShort: 'Hi! I&#39;m Jugnu.', lands: 'Stories, games and videos are all here!', stop: 'Your next stop is ready. Tap &quot;Let&#39;s go!&quot;', nudge: 'Ready? Tap &quot;Let&#39;s go!&quot;', skip: 'Skip' },
@@ -402,5 +405,68 @@ describe('FT-1 / FT-2 (design-qa DQ68): Skip\'s own row, and the rings inside th
     const hole = styleOf(p.overlay()._h, 'wqw-dim wqw-hole');
     expect(parseInt(hole.left, 10)).toBeGreaterThanOrEqual(16);
     expect(parseInt(hole.left, 10) + parseInt(hole.width, 10)).toBeLessThanOrEqual(390 - 16);
+  });
+});
+
+describe('step 5\'s hint: the page the welcome\'s Let\'s go opens is told (w=1), and nothing else is', () => {
+  test.each([['/q/MATH01?k=kk', '/q/MATH01?k=kk&w=1'], ['/c/tok?kid=a&lang=ur&room=story&pid=p1', '/c/tok?kid=a&lang=ur&room=story&pid=p1&w=1'], ['/h/tok?kid=a&lang=en#watch/v1', '/h/tok?kid=a&lang=en&w=1#watch/v1'], ['/s/b1/1', '/s/b1/1?w=1'], ['#videos', '#videos']])('Let\'s go on %s opens %s', (href, want) => {
+    const p = page(boot('en', { welcome: W1 }), { nextHref: href });
+    p.tap('jugnu');
+    p.run(7000);
+    p.next.fire('click', {});
+    expect(p.next.attrs.href).toBe(want);
+  });
+  test('Skip and the idle end add nothing; the recorded voice path (when named) rides to that page', () => {
+    for (const how of ['skip', 'idle']) {
+      const p = page(boot('en', { welcome: W1 }));
+      p.tap('jugnu');
+      if (how === 'skip') p.tap('skip'); else p.run(40000);
+      expect(p.next.attrs.href).toBe('/q/MATH01?k=kk');
+    }
+    const v = page(boot('ur', { welcome: { v: 1, attempt: 1, voice: '/wq/voice/one/ur/' } }));
+    v.tap('jugnu');
+    v.run(7000);
+    v.next.fire('click', {});
+    expect(v.sess['wq.welcome.voice']).toBe('/wq/voice/one/ur/');
+    const n = page(boot('ur', { welcome: W1 }));
+    n.tap('jugnu');
+    n.run(7000);
+    n.next.fire('click', {});
+    expect(n.sess['wq.welcome.voice']).toBeUndefined();
+  });
+});
+
+describe('the replay (DESIGN §5): Jugnu in the greeting replays step 4 only, for a child who has had the welcome', () => {
+  const R = { v: 1, replay: 1 };
+  test.each(['en', 'ur'])('%s: nothing until the greeting\'s Jugnu is tapped; then the Next stop\'s step, about 5 s; nothing written', (lang) => {
+    const p = page(boot(lang, { welcome: R }));
+    expect(p.asked.filter((u) => /wq-welcome/.test(u))).toEqual([]);
+    expect(p.overlay()).toBeNull();
+    p.jug.fire('click', {});
+    expect(p.overlay()).toBeTruthy();
+    expect(p.step()).toBe('4');
+    expect(p.cap()).toBe(COPY[lang].stop);
+    p.run(5000);
+    expect(p.overlay()).toBeNull();
+    expect(p.posts).toEqual([]);
+    expect(p.store[seenKey]).toBeUndefined();
+    expect(p.evs.filter((e) => /^welcome_/.test(e.n))).toEqual([]);
+  });
+  test('its Let\'s go is the plain Next path (no hint), Skip ends it, and a second tap replays it again', () => {
+    const p = page(boot('en', { welcome: R }));
+    p.jug.fire('click', {});
+    p.tap('skip');
+    expect(p.overlay()).toBeNull();
+    p.jug.fire('click', {});
+    expect(p.overlay()).toBeTruthy();
+    p.next.fire('click', {});
+    expect(p.overlay()).toBeNull();
+    expect(p.next.attrs.href).toBe('/q/MATH01?k=kk');
+    expect(p.posts).toEqual([]);
+  });
+  test('a first-run welcome is never a replay: the greeting\'s Jugnu during it does nothing more', () => {
+    const p = page(boot('en', { welcome: W1 }));
+    p.jug.fire('click', {});
+    expect(p.step()).toBe('1');
   });
 });

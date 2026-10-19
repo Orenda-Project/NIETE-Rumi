@@ -229,8 +229,9 @@ function assetVersion() {
   // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
   try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, 'hub-play.js'))); } catch (_) { /* absent in some tests */ }
   // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
-  // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too.
-  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js']) {
+  // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too; and it
+  // loads wq-cue.js (the child welcome's last cue) at this ?v=.
+  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js', 'wq-cue.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The child home (wq-home.*, the home tags), its door screens (wq-doors.*, loaded by wq-home.js) and the child welcome
