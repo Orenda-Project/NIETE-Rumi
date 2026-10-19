@@ -70,8 +70,10 @@ async function chipChild(token, chip) {
 /** The child's own row: a merged record's merged_into target (one hop, as the roster folds it), or null. */
 async function ownRow(studentId) {
   const cols = 'id, self_reported_class, is_active, merged_into, status';
+  // inside an answer's shared child rows (web_quiz_kid_together, web_quiz_hub_child_memo): the row read once; else read here
   const one = async (id) => {
-    const { data, error } = await supabase.from('students').select(cols).eq('id', id).maybeSingle();
+    const { data, error } = await require('./web-quiz-hub-child-rows').read('students', [id], cols,
+      () => supabase.from('students').select(cols).eq('id', id).maybeSingle(), { single: true });
     if (error) throw new Error(error.message || 'students read failed');
     return data || null;
   };

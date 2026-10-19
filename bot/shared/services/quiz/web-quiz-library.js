@@ -214,7 +214,11 @@ async function lib(code, { st, g, s, l, fetchImpl } = {}) {
  * The library from the kid's hub. The hub module (web-quiz-hub.js, M4a) names the child from its
  * token on THIS phone: kidFromHub(token, chip, device) -> {studentId, grade, rootId, lang} | null.
  */
-async function libHub(token, { kid, g, s, l, device, fetchImpl } = {}) {
+async function libHub(token, opts = {}) {
+  // web_quiz_kid_together: this answer's child rows are read once and shared (web-quiz-hub-child-rows.js)
+  const ChildRows = require('./web-quiz-hub-child-rows');
+  if (require('./web-quiz-hub-flags').kidTogetherNow() && !ChildRows.inside()) return ChildRows.run(() => libHub(token, opts));
+  const { kid, g, s, l, device, fetchImpl } = opts;
   const WebQuiz = await guard();
   const v3 = await videosV3On();
   // The hub module is M4a's and optional here: loaded by path so a deployment without it answers
