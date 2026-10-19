@@ -16,7 +16,8 @@
   'use strict';
   if (!W || W.WQA) return;
   var D = W.document;
-  var ME = (D.currentScript && D.currentScript.src) || '';
+  // run from the page's own text (web_quiz_home_inline) the script has no src: its address rides data-src
+  var ME = (D.currentScript && (D.currentScript.src || D.currentScript.getAttribute('data-src'))) || '';
   var V = (/[?&]v=([0-9a-f]+)/.exec(ME) || [])[1] || '0';
   // the second part (wq-adv-more.js: finish cards, trail pictures), asked for now so it is here before a finish
   if (D.documentElement.classList.contains('wq-adv') && D.head) { var mo = D.createElement('script'); mo.src = '/wq/wq-adv-more.js?v=' + V; D.head.appendChild(mo); }
