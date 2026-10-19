@@ -230,6 +230,8 @@ const MATHS = {
       label_en: 'SECTION - A',
       marks_en: 'Total Marks: {t:40}',
       marks: 40,
+      // FDE's split for this section (ToS p.5-6 mapped onto the paper design p.12; bd-5jmnfj.19).
+      levels: { Remember: 10, Understand: 30, Apply: 0 },
       answer_on: 'question_paper',
       note_en: null,
       slots: [
@@ -267,6 +269,7 @@ const MATHS = {
       label_en: 'Section-B',
       marks_en: '({t:40} marks)',
       marks: 40,
+      levels: { Remember: 0, Understand: 20, Apply: 20 }, // FDE ToS (bd-5jmnfj.19)
       answer_on: 'answer_sheet',
       note_en: null,
       slots: [
@@ -297,6 +300,7 @@ const MATHS = {
       label_en: 'Section-C',
       marks_en: '({t:20} marks)',
       marks: 20,
+      levels: { Remember: 0, Understand: 0, Apply: 20 }, // FDE ToS (bd-5jmnfj.19)
       answer_on: 'answer_sheet',
       note_en: 'Note: Q3 is compulsory. Attempt any {w:three} from the remaining questions. All questions carry 5 marks each. ({n:4} × 5 = {t:20})',
       note_slot: 'maths.C.Q4-8',
@@ -797,6 +801,8 @@ const URDU = {
       marks_ur: '(کل نمبر {t:20})', // transcribed (FDE p.54)
       label_en: 'Section A (objective)',
       marks: 20,
+      // FDE's split for this section (ToS PDF p.50-53; how R15/U5 divides between A and C is ours; bd-5jmnfj.19).
+      levels: { Remember: 15, Understand: 5, Apply: 0 },
       answer_on: 'question_paper',
       note_ur: null,
       slots: [
@@ -822,6 +828,7 @@ const URDU = {
       marks_ur: '(کل نمبر {t:20})', // transcribed (FDE p.56)
       label_en: 'Section B (subjective)',
       marks: 20,
+      levels: { Remember: 0, Understand: 20, Apply: 0 }, // FDE ToS (bd-5jmnfj.19)
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [
@@ -853,6 +860,8 @@ const URDU = {
       marks_ur: '(کل نمبر {t:60})', // transcribed (FDE p.57)
       label_en: 'Section C (subjective)',
       marks: 60,
+      // FDE ToS; the writing tasks Q7-Q10 are Apply (bd-5jmnfj.19).
+      levels: { Remember: 15, Understand: 5, Apply: 40 },
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [

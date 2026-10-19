@@ -141,6 +141,15 @@ describe('Games: the new quizzes ("Try these next") a child with no teacher quiz
     expect(h).toMatch(/data-primary[^>]*data-tap="vquiz"/);
     expect(visible(h).match(BANNED)).toBe(null);
   });
+  test('a lesson with an Urdu name (title_ur): the Urdu Games door shows it; the English door keeps the title', () => {
+    const W = load();
+    const recs = [{ ...RECS[0], title_ur: 'مرغی کی زندگی' }, RECS[1]];
+    const at = (lang) => W.WQDOORS.html({ ...HUB, lang, home_v3: 1, doors: { stories: [], games: [], videos: null, recs } }, ctxOf(lang), 'games', { games: [] });
+    expect(at('ur')).toContain('مرغی کی زندگی');
+    expect(at('ur')).toContain('Parts of a flower');
+    expect(at('en')).toContain('Life cycle of a hen');
+    expect(at('en')).not.toContain('مرغی کی زندگی');
+  });
   test('recs alone: never the empty note; while the rows load they are drawn for real', () => {
     const W = load();
     const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [], videos: null, recs: RECS } };
