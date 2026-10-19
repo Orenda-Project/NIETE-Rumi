@@ -801,7 +801,7 @@ const UX_STRINGS = {
     en: 'Send Reading Hour and Numeracy lesson plans to your teachers.',
     ur: 'ریڈنگ آور اور بنیادی حساب کے لیسن پلان اپنے اساتذہ کو بھیجیں۔',
   },
-  appLinkButtonLeaderLessonPlan: { en: 'Open lesson plans', ur: 'لیسن پلان کھولیں' },
+  appLinkButtonLeaderLessonPlan: { en: 'Send a plan', ur: 'پلان بھیجیں' },
 
   // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
   // The screens after the first one are served by the endpoint in the language she picked on

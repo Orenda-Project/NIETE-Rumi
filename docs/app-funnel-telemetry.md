@@ -28,7 +28,7 @@ top-level columns.
 
 | Event | From | Fields |
 |---|---|---|
-| `app_funnel.command` | bot | `journeyId`, `userId`, `feature` (menu, lesson_plan, assessment_generator, teacher_training, attendance, classes; observe/menu for coaches), `door` (command, bare_command, chip, intent, menu_command, keyword, ...), `verdict` (`link` or `whatsapp`), `why` (when `whatsapp`: not_a_teacher, not_registered, no_account, not_on_teacher_app, account_unreadable), `audience` (teacher or coach) |
+| `app_funnel.command` | bot | `journeyId`, `userId`, `feature` (menu, lesson_plan, assessment_generator, teacher_training, attendance, classes; observe/menu for coaches), `door` (command, bare_command, chip, intent, menu_command, keyword, ...), `verdict` (`link` or `whatsapp`), `why` (when `whatsapp`: not_a_teacher, not_registered, no_account, not_on_teacher_app, account_unreadable), `audience` (teacher, coach or leader; `funnel.py` reports a coach's or leader's journeys as their own funnel, e.g. `lesson_plan@leader`) |
 | `app_funnel.link_sent` | bot | `journeyId`, `userId`, `feature`, `door`, `via` (`cta_url` button or `text` when Meta refused the button) |
 | `app_funnel.link_failed` | bot | same, plus `reason` (send_refused, send_threw, no_portal_or_key); she is on the WhatsApp flow instead |
 | `app_link.open` | portal | `journeyId`, `userId`, `feature`, `outcome` (ok, invalid, unknown_user, error), `v2` |
@@ -37,7 +37,7 @@ top-level columns.
 | `app_funnel.page_resume` | portal | she came back to the page (visible again / restored from the back-forward cache) |
 | `app_funnel.action` | portal | `journeyId`, `userId`, `appSessionId`, `action`, `feature`, `lane` (lesson plans), `status` |
 
-Actions logged: `lesson_plan.opened` (lane k5 or g612), `lesson_plan.requested`, `paper.requested`, `paper.edited`,
+Actions logged: `lesson_plan.opened` (lane k5, g612 or fln), `lesson_plan.requested`, `fln.sent` (a leader sent an FLN plan, lane fln_send), `paper.requested`, `paper.edited`,
 `attendance.saved`, `attendance.register_sent`, `training.module_opened`, `training.quiz_started`,
 `training.quiz_finished`, `training.module_completed`, `training.certificate_issued`, `class.created`,
 `class.students_added`, `coaching.recording_submitted`, `coaching.reflection_saved`, `share.whatsapp`,
