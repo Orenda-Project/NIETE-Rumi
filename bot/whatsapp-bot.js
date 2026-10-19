@@ -2568,6 +2568,10 @@ async function handleDocumentMessage(message, from, user) {
             if (observeHandled) return;
           }
 
+          // bd-dw44j6: a recording sent as a FILE obeys app_redirect_ai_coaching exactly as a
+          // voice note does (voice-message.handler) — the switch on means the app, not this chat.
+          if (await buttonRedirectsToApp('ai_coaching', user, from, 'classroom_audio')) return;
+
           // Route to classroom coaching flow
           await CoachingService.initiateCoachingSession(
             user.id,
