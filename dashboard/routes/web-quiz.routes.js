@@ -815,8 +815,12 @@ function homeTags(payload, assetV) {
 // The read-along preview (#listen/<pid>): its script, before hub.js, only when the bot's hub JSON says `listen: true`
 // (web_quiz_readalong on, the hub's own phone). Its own version (the preview and the player it loads), so the hub's
 // version and page stay today's while the switch is off.
+// 'm' while the router links the minified files (web_quiz_minify), as the adventure kit: the player it loads rides it too.
 let listenV = null;
 function listenVersion() {
+  return `${listenHash()}${advSfx()}`;
+}
+function listenHash() {
   if (listenV) return listenV;
   const h = crypto.createHash('sha256');
   for (const f of ['wq-readalong-listen.js', 'wq-readalong.js']) {
@@ -826,8 +830,12 @@ function listenVersion() {
 }
 // The live reading meter (wq-pace.js / .css): only when the bot names its variant (`pace`, web_quiz_live_meter under
 // live reading v3). Its own version, so the hub's and the Challenge's versions and pages stay today's while it is off.
+// 'm' while the router links the minified files (web_quiz_minify), as the adventure kit.
 let paceV = null;
 function paceVersion() {
+  return `${paceHash()}${advSfx()}`;
+}
+function paceHash() {
   if (paceV) return paceV;
   const h = crypto.createHash('sha256');
   for (const f of ['wq-pace.js', 'wq-pace.css']) {

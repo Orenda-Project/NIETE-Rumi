@@ -282,3 +282,57 @@ describe('web_quiz_minify: the adventure look\'s own files (wq-adventure.css, wq
     expect(rx.exec('d7e696eec1m')[0]).toBe('d7e696eec1m');
   });
 });
+
+describe('web_quiz_minify: the reading meter\'s and the read-along preview\'s own files (wq-pace.css, wq-pace.js, wq-readalong-listen.js) ride it too', () => {
+  let srv;
+  beforeEach(() => { HomeInline._resetAll(); HomePre._reset(); EarlyUnlock._reset(); });
+  afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
+  const OWN = ['wq-pace.css', 'wq-pace.js', 'wq-readalong-listen.js'];
+  const ownAt = (html) => {
+    const out = {};
+    for (const m of html.matchAll(/\/wq\/(wq-pace\.css|wq-pace\.js|wq-readalong-listen\.js)\?v=([0-9A-Za-z]+)/g)) (out[m[1]] = out[m[1]] || new Set()).add(m[2]);
+    return Object.fromEntries(Object.entries(out).map(([f, s]) => [f, [...s]]));
+  };
+  const KIDS = { listen: true, pace: 'sky' };
+
+  for (const lang of ['en', 'ur']) {
+    for (const cookie of [null, 'wqhc']) {
+      test(`${lang}, ${cookie ? 'a phone with the cookie' : 'a new phone'}: on, the page names each once, at an m version, served minified; off, raw`, async () => {
+        const bot = heldBot([jsonRes(200, HUB({ lang, ...KIDS, ...MIN })), jsonRes(200, HUB({ lang, ...KIDS, ...MIN })), { hold: true, res: jsonRes(200, HUB({ lang, ...KIDS, ...MIN })) }]);
+        srv = await start(build(bot.fetchImpl));
+        await get(srv, `/h/${TOKEN}`);
+        const t = await get(srv, `/h/${TOKEN}`);
+        const v = /\/wq\/hub\.js\?v=([0-9A-Za-z]+)/.exec(t.body)[1];
+        const { body } = await flushedOpen(srv, bot, cookie ? { cookie: `wq_dv=AAAAAAAAAAAAAAAAAAAAAA; wqhc=${v}` } : {});
+        const at = ownAt(body);
+        expect(Object.keys(at).sort()).toEqual([...OWN].sort());
+        for (const [f, vs] of Object.entries(at)) expect([f, vs.length, /m$/.test(vs[0])]).toEqual([f, 1, true]);
+        for (const f of OWN) {
+          const r = await get(srv, `/wq/${f}?v=${at[f][0]}`);
+          expect([f, r.status]).toEqual([f, 200]);
+          expect([f, r.body.length < fs.readFileSync(path.join(WQ, f), 'utf8').length]).toEqual([f, true]);
+        }
+        // a copy the page carries (a new phone's tail) is the minified text
+        for (const [href, text] of Object.entries(carriedJs(body))) {
+          const f = /\/wq\/([^?]+)\?/.exec(href)[1];
+          if (OWN.includes(f)) expect([f, text.length < fs.readFileSync(path.join(WQ, f), 'utf8').length]).toEqual([f, true]);
+        }
+        await new Promise((ok) => srv.close(ok)); srv = null;
+        HomeInline._resetAll(); HomePre._reset(); EarlyUnlock._reset();
+        const off = heldBot([jsonRes(200, HUB({ lang, ...KIDS })), { hold: true, res: jsonRes(200, HUB({ lang, ...KIDS })) }]);
+        srv = await start(build(off.fetchImpl));
+        await get(srv, `/h/${TOKEN}`);
+        const plain = await flushedOpen(srv, off);
+        const raw = ownAt(plain.body);
+        expect(Object.keys(raw).sort()).toEqual([...OWN].sort());
+        for (const [f, vs] of Object.entries(raw)) expect([f, vs.length, /^[0-9a-f]{10}$/.test(vs[0])]).toEqual([f, 1, true]);
+      });
+    }
+  }
+
+  test('wq-readalong-listen.js asks for the player at its own version, the m one included', () => {
+    const src = fs.readFileSync(path.join(WQ, 'wq-readalong-listen.js'), 'utf8');
+    expect(src).toMatch(/\/\[\?&\]v=\(\[A-Za-z0-9\]\+\)\//);
+    expect(/[?&]v=([A-Za-z0-9]+)/.exec('/wq/wq-readalong-listen.js?v=d7e696eec1m')[1]).toBe('d7e696eec1m');
+  });
+});
