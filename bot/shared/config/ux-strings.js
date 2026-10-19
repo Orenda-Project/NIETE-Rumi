@@ -196,6 +196,31 @@ const UX_STRINGS = {
     en: 'To do this I need to know your school. Pick it in this short form — it takes about a minute.',
     ur: 'اس کے لیے مجھے آپ کا اسکول معلوم ہونا ضروری ہے۔ اس مختصر فارم میں اپنا اسکول چنیں — اس میں تقریباً ایک منٹ لگے گا۔',
   },
+  // A greeting-only FIRST message ("hi", "aoa", «السلام علیکم»): this invite is the whole reply,
+  // so it greets once, names what the bot does today (the ice-breaker chips and /menu: lesson
+  // plans from her own textbook, feedback on a recorded lesson, teacher training) and asks her to
+  // set up. Rumi's own first person (feminine in Urdu); the teacher is addressed only with the
+  // polite imperative, never a gendered second-person verb.
+  registrationInviteWelcomeHeader: {
+    en: 'Welcome to NIETE',
+    ur: 'خوش آمدید!',
+  },
+  registrationInviteWelcomeBody: {
+    en: 'Assalam-o-Alaikum! I\'m the NIETE Teaching Assistant. I make lesson plans from your own textbook, give feedback on a recording of your lesson, and run your teacher training.\n'
+      + 'First, set up your account: your name, your school and the classes you teach. It takes about a minute.',
+    ur: 'السلام علیکم! میں NIETE ٹیچنگ اسسٹنٹ ہوں۔ میں آپ کی اپنی درسی کتاب سے سبق کے منصوبے بناتی ہوں، آپ کے سبق کی ریکارڈنگ پر رائے دیتی ہوں، اور آپ کی ٹیچر ٹریننگ کرواتی ہوں۔\n'
+      + 'پہلے اپنا اکاؤنٹ بنائیں: آپ کا نام، آپ کا اسکول اور آپ کی جماعتیں۔ اس میں تقریباً ایک منٹ لگے گا۔',
+  },
+  // AFTER a reply — her request was just answered (first reply, after a feature): no second
+  // greeting. One line on why it is worth her minute.
+  registrationInviteFollowupHeader: {
+    en: 'One more thing',
+    ur: 'ایک اور بات',
+  },
+  registrationInviteFollowupBody: {
+    en: 'Set up your account in about a minute: your name, your school and the classes you teach. Then I can match lessons to your school and classes.',
+    ur: 'تقریباً ایک منٹ میں اپنا اکاؤنٹ بنائیں: آپ کا نام، آپ کا اسکول اور آپ کی جماعتیں۔ پھر میں سبق آپ کے اسکول اور جماعتوں کے مطابق بنا سکوں گی۔',
+  },
   registrationInviteButton: {
     en: 'Get started',
     ur: 'شروع کریں',

@@ -23,6 +23,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 jest.mock('../../bot/shared/services/registration-invite.service', () => ({
   sendRegistrationInvite: jest.fn().mockResolvedValue(true),
   offerRegistrationOnce: jest.fn().mockResolvedValue(true),
+  offerRegistrationOnceDetailed: jest.fn().mockResolvedValue('sent'),
 }));
 jest.mock('../../bot/shared/services/openai.service', () => ({}));
 jest.mock('../../bot/shared/services/content.service', () => ({}));
@@ -145,6 +146,7 @@ const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
 const Invite = require('../../bot/shared/services/registration-invite.service');
 const FeatureRegistrationService = require('../../bot/shared/services/feature-registration.service');
 const MenuService = require('../../bot/shared/services/menu.service');
+const HelperAgentService = require('../../bot/shared/services/helper-agent.service');
 const { handlePortalCommand } = require('../../bot/shared/handlers/portal-command.handler');
 const { openClassManagerFlow } = require('../../bot/shared/services/classes/class-entry.service');
 const { handleRosterCommand } = require('../../bot/shared/handlers/roster-command');
@@ -306,3 +308,57 @@ describe('after her first reply, a new adult is offered the form once', () => {
     expect(MenuService.sendMenu).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('a greeting-only first message gets ONE message: the welcome invite (sandbox, 2026-10-19)', () => {
+  const greetingDoor = () => Invite.offerRegistrationOnceDetailed.mock.calls.filter((c) => c[0] && c[0].reason === 'first_greeting');
+
+  test.each(['hi', 'Assalam o alaikum', 'السلام علیکم', 'aoa sir 👋'])('%j from a brand-new adult → the welcome invite, and no AI reply', async (body) => {
+    await handleTextMessage(MESSAGE, FROM, body, newAdult());
+    expect(greetingDoor()).toHaveLength(1);
+    expect(greetingDoor()[0][0]).toEqual(expect.objectContaining({ phone: FROM, user: expect.objectContaining({ id: 'user-new-1' }) }));
+    expect(HelperAgentService.detectCapabilityInquiry).not.toHaveBeenCalled(); // the general reply never ran
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    expect(Invite.offerRegistrationOnce).not.toHaveBeenCalled(); // and no second invite after it
+  });
+
+  test('a real request with a greeting in front is answered as usual, then the (non-greeting) follow-up offer', async () => {
+    HelperAgentService.detectCapabilityInquiry.mockResolvedValueOnce({ detected: true, guidanceMessage: 'GUIDE' });
+    await handleTextMessage(MESSAGE, FROM, 'aoa lesson plan chahiye', newAdult());
+    expect(greetingDoor()).toHaveLength(0);
+    expect(WhatsAppService.sendMessage.mock.calls.map((c) => c[1])).toContain('GUIDE');
+    expect(Invite.offerRegistrationOnce).toHaveBeenCalledWith(expect.objectContaining({ reason: 'first_reply' }));
+  });
+
+  test.each([
+    ['a complete account', () => registered({ role: 'teacher' })],
+    ['an adult already offered the form', () => newAdult({ registration_started_at: '2026-10-19T08:00:00Z' })],
+    ["a child's quiz phone", () => newAdult({ persona: 'student' })],
+    ['an admin-set coach', () => registered({ school_id: null, role: 'coach' })],
+  ])('"hi" from %s does not take the greeting door', async (_l, make) => {
+    HelperAgentService.detectCapabilityInquiry.mockResolvedValueOnce({ detected: true, guidanceMessage: 'GUIDE' });
+    await handleTextMessage(MESSAGE, FROM, 'hi', make());
+    expect(greetingDoor()).toHaveLength(0);
+  });
+
+  test('"hi" during an account-lookup outage does not take the greeting door', async () => {
+    getOrCreateUser.mockRejectedValueOnce(Object.assign(new Error('522'), { code: '522' }));
+    HelperAgentService.detectCapabilityInquiry.mockResolvedValueOnce({ detected: true, guidanceMessage: 'GUIDE' });
+    await handleTextMessage(MESSAGE, FROM, 'hi', null);
+    expect(greetingDoor()).toHaveLength(0);
+  });
+
+  test('a parallel turn already claimed the offer: she is answered as usual, and not invited twice', async () => {
+    Invite.offerRegistrationOnceDetailed.mockResolvedValueOnce('claim_lost');
+    HelperAgentService.detectCapabilityInquiry.mockResolvedValueOnce({ detected: true, guidanceMessage: 'GUIDE' });
+    await handleTextMessage(MESSAGE, FROM, 'hi', newAdult());
+    expect(WhatsAppService.sendMessage.mock.calls.map((c) => c[1])).toContain('GUIDE');
+  });
+
+  test('the invite was refused: she got the retry line, so no AI reply on top', async () => {
+    Invite.offerRegistrationOnceDetailed.mockResolvedValueOnce('failed');
+    await handleTextMessage(MESSAGE, FROM, 'hi', newAdult());
+    expect(HelperAgentService.detectCapabilityInquiry).not.toHaveBeenCalled();
+    expect(Invite.offerRegistrationOnce).not.toHaveBeenCalled();
+  });
+});
+

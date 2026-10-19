@@ -112,8 +112,9 @@ describe('sendRegistrationInvite', () => {
 
   test('Urdu copy for an Urdu teacher; anything off-offer falls to English', async () => {
     const { svc, wa } = load();
-    await svc.sendRegistrationInvite({ user: NEW_USER, phone: 'p', language: 'ur', reason: 'first_reply' });
-    await svc.sendRegistrationInvite({ user: NEW_USER, phone: 'p', language: 'sw', reason: 'first_reply' });
+    // An explicit ask, so the copy depends only on her language (the unprompted doors have their own).
+    await svc.sendRegistrationInvite({ user: NEW_USER, phone: 'p', language: 'ur', reason: 'register_command' });
+    await svc.sendRegistrationInvite({ user: NEW_USER, phone: 'p', language: 'sw', reason: 'register_command' });
     expect(wa.sendFlow.mock.calls[0][1].header).toBe(svc.inviteCopy({ variant: 'new', language: 'ur' }).header);
     expect(wa.sendFlow.mock.calls[0][1].header).not.toBe(svc.inviteCopy({ variant: 'new', language: 'en' }).header);
     expect(wa.sendFlow.mock.calls[1][1].header).toBe(svc.inviteCopy({ variant: 'new', language: 'en' }).header);
@@ -122,7 +123,8 @@ describe('sendRegistrationInvite', () => {
   test('reads the account when the caller only has an id (the workers)', async () => {
     const db = makeDb({ row: NAMED_USER });
     const { svc, wa } = load({ db });
-    await svc.sendRegistrationInvite({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'after_first_feature' });
+    // An explicit ask, where the copy depends on the account it reads ("update" for a named one).
+    await svc.sendRegistrationInvite({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'register_intent' });
     expect(db.calls.selects.length).toBeGreaterThan(0);
     expect(wa.sendFlow.mock.calls[0][1].header).toBe('Update your details');
   });
@@ -227,5 +229,75 @@ describe('invite copy fits WhatsApp, in both languages', () => {
   test('the Urdu retry line isolates /register so it is not painted "register/"', () => {
     const line = svc.fallbackText({ kind: 'retry', language: 'ur' });
     expect(line).toContain('⁦/register⁩');
+  });
+});
+
+describe('which copy each door gets — never a second greeting after a reply', () => {
+  const GREETS = /welcome|assalam|salam|hello|خوش آمدید|السلام/i;
+
+  test('a greeting-only first message: ONE invite that welcomes, says what NIETE does, and asks her to set up', async () => {
+    const { svc, wa } = load();
+    await svc.sendRegistrationInvite({ user: NEW_USER, phone: 'p', language: 'en', reason: 'first_greeting' });
+    const sent = wa.sendFlow.mock.calls[0][1];
+    expect(sent.header).toBe(svc.inviteCopy({ variant: 'welcome', language: 'en' }).header);
+    expect(sent.body).toMatch(/lesson plan/i);
+    expect(sent.body).toMatch(/record/i);
+    expect(sent.body).toMatch(/training/i);
+  });
+
+  test.each(['first_reply', 'after_first_feature', 'name_question'])(
+    'after a reply (%s) the invite does not greet', async (reason) => {
+      const { svc, wa } = load();
+      await svc.sendRegistrationInvite({ user: NEW_USER, phone: 'p', language: 'en', reason });
+      const sent = wa.sendFlow.mock.calls[0][1];
+      expect(sent.header).toBe(svc.inviteCopy({ variant: 'followup', language: 'en' }).header);
+    },
+  );
+
+  test('a partly-known teacher offered it after a reply also gets the follow-up copy, not "update your details"', async () => {
+    const { svc, wa } = load();
+    await svc.sendRegistrationInvite({ user: { ...NAMED_USER, role: 'teacher' }, phone: 'p', language: 'en', reason: 'first_reply' });
+    expect(wa.sendFlow.mock.calls[0][1].header).toBe(svc.inviteCopy({ variant: 'followup', language: 'en' }).header);
+  });
+
+  test.each(['en', 'ur'])('the follow-up copy carries no greeting (%s)', (language) => {
+    const { svc } = load();
+    const c = svc.inviteCopy({ variant: 'followup', language });
+    expect(`${c.header}\n${c.body}`).not.toMatch(GREETS);
+  });
+
+  test('the welcome copy and the follow-up copy are different messages', () => {
+    const { svc } = load();
+    expect(svc.inviteCopy({ variant: 'welcome', language: 'ur' }).body)
+      .not.toBe(svc.inviteCopy({ variant: 'followup', language: 'ur' }).body);
+  });
+});
+
+describe('offerRegistrationOnceDetailed — the greeting door needs to know WHY nothing was sent', () => {
+  test('sent', async () => {
+    const { svc } = load({ db: makeDb({ row: NEW_USER, claimRows: [{ id: 'u1' }] }) });
+    expect(await svc.offerRegistrationOnceDetailed({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_greeting' })).toBe('sent');
+  });
+  test('not needed (a complete account)', async () => {
+    const { svc } = load({ db: makeDb({ row: COMPLETE_USER }) });
+    expect(await svc.offerRegistrationOnceDetailed({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_greeting' })).toBe('not_needed');
+  });
+  test('already offered', async () => {
+    const { svc } = load({ db: makeDb({ row: { ...NEW_USER, registration_started_at: '2026-10-19T08:00:00Z' } }) });
+    expect(await svc.offerRegistrationOnceDetailed({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_greeting' })).toBe('already_offered');
+  });
+  test('a parallel turn claimed it first', async () => {
+    const { svc, wa } = load({ db: makeDb({ row: NEW_USER, claimRows: [] }) });
+    expect(await svc.offerRegistrationOnceDetailed({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_greeting' })).toBe('claim_lost');
+    expect(wa.sendFlow).not.toHaveBeenCalled();
+  });
+  test('the send was refused (she already got the retry line)', async () => {
+    const { svc, wa } = load({ db: makeDb({ row: NEW_USER, claimRows: [{ id: 'u1' }] }), sendFlowResult: false });
+    expect(await svc.offerRegistrationOnceDetailed({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_greeting' })).toBe('failed');
+    expect(wa.sendMessage).toHaveBeenCalledTimes(1);
+  });
+  test('offerRegistrationOnce stays the boolean of it', async () => {
+    const { svc } = load({ db: makeDb({ row: NEW_USER, claimRows: [] }) });
+    expect(await svc.offerRegistrationOnce({ user: { id: 'u1' }, phone: 'p', language: 'en', reason: 'first_reply' })).toBe(false);
   });
 });

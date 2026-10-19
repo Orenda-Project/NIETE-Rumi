@@ -230,7 +230,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     And I am a fresh test number that has never messaged the bot
     When I send "Assalam o alaikum, can you help me plan a lesson?"
     Then the bot answers my message first
-    And after the answer the bot sends the registration Flow
+    And after the answer the bot sends a "One more thing" registration Flow that does not greet me again
     When I send another message without registering
     Then the bot answers it and does not send the registration Flow again
     # text-message.handler.js handleTextMessage → offerRegistrationAfterReply →
@@ -308,4 +308,25 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # needsSchoolForFeature: any adult without users.school_id, registered or not, completed or
     # not — except an admin-set coach/AEO, whose schools are allocated. The form's INIT pre-fills
     # what is on file, so she only picks the school.
+
+  # ═══════════ ADDED 2026-10-19 · one greeting, not two (code-grounded, not yet driven live) ═══════════
+  # Sandbox, 2026-10-19: a brand-new person who said "hi" got the general AI reply AND the invite —
+  # two greetings. utils/greeting.js isGreetingOnly; the greeting door in text-message.handler.js.
+
+  @e2e @wip @draft @flow @P1 @destructive @R22
+  Scenario Outline: A greeting-only first message gets one message — the welcome invite
+    Given the NIETE bot chat is open
+    And I am a fresh test number that has never been offered the registration form
+    When I send "<greeting>"
+    Then the bot sends exactly one message: a "Welcome to NIETE" registration Flow that names lesson plans, feedback on a recorded lesson and teacher training
+    And it does not also send a general chat reply
+    When I send "<greeting>" again
+    Then the bot answers it as usual and does not send the registration Flow again
+    Examples:
+      | greeting          |
+      | hi                |
+      | Assalam o alaikum |
+      | السلام علیکم      |
+    # "aoa lesson plan chahiye" is NOT greeting-only: it is answered, then R16's follow-up invite.
+    # @destructive: stamps users.registration_started_at (reset it to test again on one number).
 
