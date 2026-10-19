@@ -54,10 +54,22 @@
     var v = vis('video');
     if (v) {
       var cx = v.left + v.width / 2, cy = v.top + v.height / 2;
-      return { r: { top: cy - 32, bottom: cy + 32, left: cx - 32, right: cx + 32, width: 64, height: 64 }, kind: 'play' };
+      return { r: { top: cy - 32, bottom: cy + 32, left: cx - 32, right: cx + 32, width: 64, height: 64 }, kind: 'play', handOnly: jugSays(one('video')) };
     }
     var p = vis('[data-primary]') || vis('.wq-btn.wq-go');
-    return p ? { r: p, kind: 'primary' } : null;
+    if (!p) return null;
+    return { r: p, kind: 'primary', handOnly: jugSays(one('[data-primary]') || one('.wq-btn.wq-go')) };
+  }
+  function one(sel) {
+    try { return document.querySelector(sel); } catch (x) { return null; }
+  }
+  // The target is Jugnu himself (his picture, or his live loop's video) and he already says the screen's one line (the
+  // quiz's "whose turn is it?": «اپنا نام دبائیں۔»): the hand alone, never a second bubble over his (design-qa S5-6)
+  function jugSays(el) {
+    var jg = el && el.closest ? el.closest('.wq-jug') || el.closest('.wq-jimg') : null;
+    var said = jg && jg.querySelector ? jg.querySelector('.wq-say') : null;
+    var sr = said && said.getBoundingClientRect ? said.getBoundingClientRect() : null;
+    return Boolean(sr && sr.width > 0 && sr.height > 0);
   }
   // Where the bubble goes (design-qa S5-1 to S5-4): right next to its own target, directly above or below it within
   // 8–24 px, so "Tap here" reads as that control and never as another: it is never nearer to another button than to its
@@ -68,8 +80,13 @@
   var TEXT = ['.wq-qtext'];
   var HOLD = ['.wq-vbox', 'video', '.wq-qcard'];
   var ROWS = ['.wq-how li'];
-  // a heading or Jugnu's line next to the target (design-qa S5-5): covered fully or not at all, never cut through
-  var HEAD = ['h1', 'h2', 'h3', '.wq-say'];
+  // any text block next to the target (a heading, a title, a caption, a chip; design-qa S5-5, S5-7): covered fully or not
+  // at all, never cut through, and cleared rather than covered when both are within reach
+  var BLOCK = ['h1', 'h2', 'h3', 'h4', 'p', 'label', 'figcaption', '.wq-vtitle'];
+  // a speech bubble or an instruction line (Jugnu's line, a page's sub-line, a banner, a hint): never under the bubble;
+  // a chip (the «دیکھ لیا ✓» on the video, a NEW tag, a minutes pill): kept 4 px clear (design-qa S5-6)
+  var SAY = ['.wq-say', '.wqc-say', '.wq-sub', '.wq-banner', '.wqc-banner', '.wq-hint'];
+  var CHIP = ['.wq-vwatched', '.wq-vdone', '.wq-new', '.wq-tag', '.wq-chip', '.wq-vmin'];
   function rects(sels, vh) {
     var out = [];
     sels.forEach(function (sel) {
@@ -89,7 +106,7 @@
   function dist(a, b) { return Math.max(0, b.top - a.bottom, a.top - b.bottom, b.left - a.right, a.left - b.right); }
   function capTop(t, h, vh) {
     var r = t.r, vw = window.innerWidth || 360;
-    var taps = rects(TAP, vh), text = rects(TEXT, vh), hold = rects(HOLD, vh), rows = rects(ROWS, vh), heads = rects(HEAD, vh);
+    var taps = rects(TAP, vh), text = rects(TEXT, vh).concat(rects(SAY, vh)), hold = rects(HOLD, vh), rows = rects(ROWS, vh), chips = rects(CHIP, vh), blocks = rects(BLOCK, vh).concat(chips);
     var own = taps.filter(function (o) { return holds(o, r); });       // the target's own control (the video's cover)
     var others = taps.filter(function (o) { return !holds(o, r) && !same(o, r); });
     hold = hold.concat(own);
@@ -100,9 +117,10 @@
         var b = { top: top, bottom: top + h, left: 16, right: vw - 16 };
         var d = dist(b, r);
         // never nearer to another button than to its target, never over another button or answer, never the question text
-        if (others.some(function (o) { return over(b, o) > 0 || dist(b, o) <= d + 2; }) /* clearly nearer, after rounding */ || text.some(function (o) { return over(b, o) > 0; })) return;
+        if (others.some(function (o) { return over(b, o) > 0 || dist(b, o) <= d + 2; }) /* clearly nearer, after rounding */ || text.some(function (o) { return over(b, o) > 0; }) || chips.some(function (o) { return dist(b, o) < 4; }) ||
+          blocks.some(function (o) { var v = over(b, o); return v > 0 && v < o.bottom - o.top; })) return;
         var cost = hold.reduce(function (n, o) { return n + over(b, o); }, 0) + rows.reduce(function (n, o) { return n + 1000 * (over(b, o) > 0 ? 1 : 0); }, 0) +
-          heads.reduce(function (n, o) { var v = over(b, o); return n + (v > 0 && v < o.bottom - o.top ? 5000 : 0); }, 0) + g / 100;
+          blocks.reduce(function (n, o) { return n + (over(b, o) > 0 ? 500 : 0); }, 0) + g / 100;
         if (!best || cost < best.cost) best = { cost: cost, top: top };
       });
     });
@@ -141,7 +159,7 @@
     // the bubble's own height once drawn (one Urdu line is taller than an English one), else the tallest it gets
     var p = el.querySelector ? el.querySelector('.wqc-cap') : null;
     var ph = p && p.getBoundingClientRect ? p.getBoundingClientRect().height : 0;
-    var top = capTop(t, ph > 0 ? ph : 60, vh);
+    var top = t.handOnly ? null : capTop(t, ph > 0 ? ph : 60, vh);
     // nowhere next to its target without standing nearer to another control: the hand alone
     if (top == null) { el.innerHTML = '<span class="wqc-hand" style="' + hand + '">' + HAND + '</span>'; }
     var hs = '<span class="wqc-hand" style="' + hand + '">' + HAND + '</span>';
