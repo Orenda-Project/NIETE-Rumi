@@ -6,6 +6,10 @@
  *     fdeSchoolEmis: Set<string> | null,                 FDE's programme list (EMIS), primary OR middle/high list
  *     primary:  Map<userId, sector> | null,              the RDF Primary population, sector per the RDF
  *     midHigh:  Map<userId, sector> | null,              the RDF Grades 6-12 population, sector per the RDF
+ *     sectorByUser: Map<userId, sector> | null,          EVERY user on the RDF allocation file, any role (principals
+ *                                                        too), with its RDF sector — the RDF's uid2sect — for a
+ *                                                        number counted over people outside the two populations
+ *                                                        (training certificates). null when not stored yet.
  *     coaches:  Array<{name, sector, userIds}> | null,   the RDF coach roster
  *     asOf:     { schools, teachers, coaches },          snapshot dates (YYYY-MM-DD) or null, for the Information tab
  *     missing:  { schools, teachers, coaches },          true when that list is not usable (see FAIL-CLOSED)
@@ -14,7 +18,8 @@
  * WHERE THE LISTS COME FROM. Three app_settings rows, written by scripts/load-analytics-lists.js (dry run by
  * default, project ref asserted). No phone is stored: the script resolves phones to users.id when it runs.
  *   analytics_fde_schools   {asOf, source, emis: [ '401', … ]}                       (415 on prod, 2026-10-19)
- *   analytics_rdf_teachers  {asOf, source, primary: {<sector>: [userId, …]}, midHigh: {<sector>: [userId, …]}}
+ *   analytics_rdf_teachers  {asOf, source, primary: {<sector>: [userId, …]}, midHigh: {<sector>: [userId, …]},
+ *                            sectorByUser: {<sector>: [userId, …]}}
  *   analytics_rdf_coaches   {asOf, source, coaches: [{name, sector, userIds: [userId, …]}]}
  *
  * RESOLVED AGAINST LIVE ROWS, each time the cache refreshes:
@@ -23,6 +28,7 @@
  *     (the RDF's own test: render.py primary_scope — no test or deleted filter there);
  *   - a 6-12 id only while that user exists, is role 'teacher', is not deleted, and teacher_level holds MIDDLE
  *     or HIGH (the RDF's: rdf_niete612/metrics.py cohort);
+ *   - a sectorByUser id while that user exists (any role; the RDF's uid2sect has no other test);
  *   - a coach keeps her roster entry (name and sector are the roster's); her userIds are cut to live users.
  *
  * FAIL-CLOSED. A list whose row is missing, malformed, or resolves to NOTHING (sandbox: no prod phone ever
@@ -85,7 +91,7 @@ function bandMap(v) {
 function parseTeachers(raw) {
   const v = asJson(raw);
   if (!isObj(v)) return null;
-  return { primary: bandMap(v.primary), midHigh: bandMap(v.midHigh), asOf: ymd(v.asOf) };
+  return { primary: bandMap(v.primary), midHigh: bandMap(v.midHigh), sectorByUser: bandMap(v.sectorByUser), asOf: ymd(v.asOf) };
 }
 
 /** analytics_rdf_coaches → {coaches: [{name, sector, userIds}], asOf} | null */
@@ -124,6 +130,7 @@ function resolveLists(stored, live) {
   const tea = parseTeachers(stored.teachers);
   let primary = null;
   let midHigh = null;
+  let sectorByUser = null;
   if (tea) {
     asOf.teachers = tea.asOf;
     const keep = (m, ok) => {
@@ -136,6 +143,8 @@ function resolveLists(stored, live) {
     };
     primary = keep(tea.primary, (u) => levelsOf(u).includes('PRIMARY'));
     midHigh = keep(tea.midHigh, (u) => !u.deleted_at && levelsOf(u).some((l) => l === 'MIDDLE' || l === 'HIGH'));
+    const all = new Map([...tea.sectorByUser].filter(([id]) => live.users.has(id)));
+    sectorByUser = all.size ? all : null;
   }
   if (!primary || !midHigh) missing.teachers = true;
 
@@ -147,14 +156,14 @@ function resolveLists(stored, live) {
   }
   if (!coaches) missing.coaches = true;
 
-  return { fdeSchoolEmis, primary, midHigh, coaches, asOf, missing };
+  return { fdeSchoolEmis, primary, midHigh, sectorByUser, coaches, asOf, missing };
 }
 
 /** Every id a stored value names (teachers' two bands and the coaches'), for the live read. */
 function idsToResolve(stored) {
   const ids = new Set();
   const tea = parseTeachers(stored.teachers);
-  if (tea) for (const m of [tea.primary, tea.midHigh]) for (const id of m.keys()) ids.add(id);
+  if (tea) for (const m of [tea.primary, tea.midHigh, tea.sectorByUser]) for (const id of m.keys()) ids.add(id);
   const coa = parseCoaches(stored.coaches);
   if (coa) for (const c of coa.coaches) for (const id of c.userIds) ids.add(id);
   return [...ids];
