@@ -23,7 +23,7 @@ jest.mock('../../../shared/config/supabase', () => {
       // the hub's one batched read (web-quiz-hub-flags.js): recorded as 'hub', its keys kept for the test to check
       in: (_c, ks) => { keys = ks; return q; },
       // web-quiz-fast.js reads its own switch together with the story-board one (also an .in()): that is the fast switch's read
-      then: (res, rej) => { const fastRead = keys.includes('web_quiz_story_board_refuse'); state.reads.push(fastRead ? 'web_quiz_fast' : 'hub'); if (!fastRead) state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
+      then: (res, rej) => { if (!keys) keys = [key]; const fastRead = keys.includes('web_quiz_story_board_refuse'); state.reads.push(fastRead ? 'web_quiz_fast' : 'hub'); if (!fastRead) state.hubKeys = keys; return Promise.resolve({ data: keys.filter((k) => k in state.rows).map((k) => ({ key: k, value: state.rows[k] })), error: null }).then(res, rej); },
     };
     return q;
   };
@@ -108,6 +108,20 @@ describe('GET /api/internal/wq/edge', () => {
     await warmPageSwitches();
     const off = (await ask()).body;
     expect(['home_inline' in off, 'early_unlock' in off]).toEqual([false, false]);
+  });
+
+  test('(e) on with web_quiz_home_inline and the v3 home: home_v3 1 (a fresh portal\'s first new phone carries the home\'s files); the fallback home, the pack, or neither home_inline nor early_unlock: no home_v3', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_home_inline: true, web_quiz_home_v3: true };
+    require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();
+    await warmPageSwitches();
+    expect((await ask()).body.home_v3).toBe(1);
+    for (const rows of [{ web_quiz_home_inline: true, web_quiz_home_v3: true, web_quiz_home_fallback_v3: true }, { web_quiz_home_inline: true, web_quiz_home_v3: true, web_quiz_pack: true }, { web_quiz_home_v3: true }, { web_quiz_home_inline: true }]) {
+      supabase.__state.rows = { [KEY]: true, ...rows };
+      resetAll();
+      require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();
+      await warmPageSwitches();
+      expect([rows, 'home_v3' in (await ask()).body]).toEqual([rows, false]);
+    }
   });
 
   test('(e) on with web_quiz_ur_polish and web_quiz_face_lite: ui says fl too (the light Urdu face reaches the first Urdu page a portal draws); face_lite off: ui as before', async () => {

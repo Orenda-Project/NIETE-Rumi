@@ -48,6 +48,24 @@ function learn(payload) {
   shape = out;
 }
 
+/**
+ * The portal's learner (edge learn) says the v3 home is on (`home_v3`) before this process saw any child: the page's
+ * shape from what it says (the home, the look), so the first new phone after a process start gets the home's files
+ * in its locked render's tail too. A child's answer, once seen, is the shape (learn() above).
+ */
+function guess(b) {
+  if (!last || shape || !b || !isOn(b.home_v3)) return;
+  const out = { home_v3: b.home_v3 };
+  if (b.adv === true) out.adv = true;
+  if (b.one_face === true) out.one_face = true;
+  if (b.ui && typeof b.ui === 'object') {
+    const ui = {};
+    for (const k of UI) if (b.ui[k] === true) ui[k] = true;
+    if (Object.keys(ui).length) out.ui = ui;
+  }
+  shape = out;
+}
+
 /** A locked answer drawn for a phone whose head asked early: the same answer in the last child's shape (still locked). */
 function shaped(locked) {
   if (!last || !shape || !locked || locked.locked !== true) return locked;
@@ -80,4 +98,4 @@ function head(token, { hasDevice }) {
   return `<script>${SCRIPT.replace('__T__', js(String(token)))}</script>\n`;
 }
 
-module.exports = { learn, head, shaped, _reset: () => { last = false; shape = null; }, _last: () => last, _shape: () => shape };
+module.exports = { learn, guess, head, shaped, _reset: () => { last = false; shape = null; }, _last: () => last, _shape: () => shape };
