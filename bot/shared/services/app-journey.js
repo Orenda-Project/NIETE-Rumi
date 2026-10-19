@@ -52,6 +52,7 @@ function normaliseRoute(raw) {
 /** Longest prefix first. Both the teacher app (v2) and today's pages count for the feature they serve. */
 const FEATURE_PREFIXES = [
   ['/portal/teacher/lessons', 'lesson_plan'], ['/portal/curriculum', 'lesson_plan'],
+  ['/portal/fln', 'lesson_plan'], // bd-zcgpkx — FLN plans and Send a lesson plan are lesson plans
   ['/portal/teacher/assessment', 'assessment_generator'], ['/portal/assessment', 'assessment_generator'],
   ['/portal/teacher/training', 'teacher_training'], ['/portal/training', 'teacher_training'],
   ['/portal/teacher/attendance', 'attendance'], ['/portal/attendance', 'attendance'],
