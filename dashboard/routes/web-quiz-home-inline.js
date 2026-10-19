@@ -22,6 +22,11 @@
  * one keeps them; an answer without it turns it off, and the next head is today's. The tail follows its own head.
  * Not with the fallback home (`home_fb`: hub.js asks for wq-home.js itself) nor the pack (the head carries the files).
  *
+ * Every saved-phone open (web_quiz_home_inline_every, said as `home_every: true` with `home_inline`): the cookie no
+ * longer turns the carried files off, so every open's head carries them (a cookie-only open or an evicted cache waits for
+ * no file); the page stays per child (the head carries files only, the child arrives with the answer) and no cache check
+ * rides it. An answer with `home_inline` but without `home_every` turns it off; the next held page is today's.
+ *
  * Off (no `home_inline`, or anything but JSON true): head() and tail() are never called, the page is today's.
  */
 const COOKIE = 'wqhc';
@@ -66,6 +71,7 @@ const inStyle = (s) => s.replace(/<\/(style)/gi, '<\\/$1')
  */
 function create({ source }) {
   let last = null; // the script addresses the last child's tail named (HOME_JS only), or null: the switch off
+  let every = false; // home_every: a phone holding the files gets them carried too
   const text = (href) => {
     const m = HREF_RX.exec(href);
     if (!m) return null;
@@ -83,7 +89,8 @@ function create({ source }) {
 
   /** A hub answer's tail (at version `v`) named these tags: remember the scripts the next head carries. */
   function learn(payload, tags, v) {
-    if (!payload || payload.home_inline !== true) { last = null; return; }
+    if (!payload || payload.home_inline !== true) { last = null; every = false; return; }
+    every = payload.home_every === true;
     // a locked answer (a new phone) keeps what a child's answer taught; with nothing taught yet (a fresh process), the
     // switch is known on: the head carries the page's own files (wq.css, the look's, wq-tel, hub.js)
     if (payload.locked || !payload.kid) { if (last === null && payload.pack !== true) last = []; return; }
@@ -99,9 +106,9 @@ function create({ source }) {
   }
 
   /** The head carries: true once an answer with the switch was seen and this phone does not hold the files. */
-  const wants = (req, v) => last !== null && !held(req, v);
+  const wants = (req, v) => last !== null && (every || !held(req, v));
   /** The switch is on and this phone says it holds the files (its cookie at this version): the head carries the check. */
-  const holds = (req, v) => last !== null && held(req, v);
+  const holds = (req, v) => last !== null && !every && held(req, v);
 
   /**
    * The head's pieces: headCss(href) in place of a stylesheet tag; headJs(v) the scripts in place of their preloads
@@ -152,13 +159,15 @@ function create({ source }) {
   /**
    * The switch as the edge's learner says it before any page (true: on, nothing taught yet; false: off). `home`: the
    * learner says the v3 home is on (`home_v3`), so with nothing taught yet the head carries the home's script too.
+   * `all`: it says `home_every` (every saved-phone open carries the files).
    */
-  function know(on, home = false) {
+  function know(on, home = false, all = false) {
+    every = Boolean(on) && all === true;
     if (!on) last = null;
     else if (last === null || (home && !last.length)) last = home ? [`/wq/wq-home.js${AT_PAGE}`] : [];
   }
 
-  const carrier = { learn, know, wants, holds, check: () => CHECK, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; } };
+  const carrier = { learn, know, wants, holds, check: () => CHECK, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; every = false; } };
   made.push(carrier);
   return carrier;
 }
