@@ -13,7 +13,7 @@
  * only the FICO / HITL score values use it (the page test checks every % on every tab). No bands, no thresholds.
  */
 import type { SchoolsTab } from './tabs';
-import type { LpBand, LpStatus } from '../types/portal';
+import type { LpBand, LpGroup } from '../types/portal';
 
 export type SortKey =
   | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'trainingModules' | 'dcObservations'
@@ -96,6 +96,8 @@ const EN = {
     teachers: 'Total teachers',
     lpsOpened: 'LPs opened',
     teachersOpenedLp: 'Teachers who opened',
+    /** v8 — the Overview's lesson-plan tile (the RDF's rule). */
+    lpsUsed: 'Lesson plans used',
     regionsActive: 'Regions with activity',
     trainingModulesShort: 'Training modules',
     trainingModules: 'Modules completed',
@@ -167,6 +169,8 @@ const EN = {
     /** The small line under a column's name. */
     columnHints: { lpsOpened: 'x of N teachers', trainingModules: 'x of N teachers', dcObservations: 'x of N teachers', avgFico: '(n scored)', avgHitl: '(n scored)' } as Partial<Record<SortKey, string>>,
     emis: (code: string) => `EMIS ${code}`,
+    /** v8 — a sector's row for its teachers with no school on FDE's list there. */
+    noSchool: 'No school',
     search: 'Search schools',
     searchHint: 'School name or EMIS code',
     count: (shown: string, total: string) => `${shown} of ${total} schools`,
@@ -185,24 +189,32 @@ const EN = {
   /** The Information tab: what each number counts, grouped as the tabs are (PLAN v6 §2). */
   how: {
     title: 'How these numbers are worked out',
+    /** v8 — the dates of the three lists the numbers are counted against. */
+    listsAsOf: (schools: string, teachers: string, coaches: string) =>
+      `Lists used: FDE's school list as of ${schools} · RDF teachers as of ${teachers} · RDF coach roster as of ${coaches}.`,
     groups: [
       {
         title: 'Schools and teachers',
         items: [
-          { term: 'Schools', text: 'Active NIETE schools in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Test schools are left out. A school with no region on record, or with a region outside these six, is not shown and not counted in any number.' },
-          { term: 'Teachers', text: "Teachers registered at the school today; test accounts are left out. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
+          { term: 'Schools', text: "The schools on FDE's programme list (its primary list or its middle and high list) in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Any other school is not shown and not counted in any number." },
+          { term: 'Teachers', text: "The teachers the Routine Data Flow (RDF) reports count, so both show the same numbers: Primary teachers and Grades 6-12 teachers, each in the region the RDF gives her. A teacher who teaches both is counted once. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
+          { term: 'No school', text: "A region's teachers who have no school on FDE's list in that region: no school on record, a school that is not on the list, or a school in another region. They count in the region's totals, on a \"No school\" line of its school list." },
         ],
       },
       {
         title: 'LP Engagement',
         items: [
+          { term: 'Lesson plans used', text: "The lesson plans the school's teachers used in the period, counted as the RDF counts them: every lesson plan sent on WhatsApp, and, on a day a teacher had none on WhatsApp, each different plan she opened in the app. On the Overview, x of N is how many of the N teachers used at least one." },
           { term: 'LPs opened', text: "Different lesson plans the school's teachers opened in the period: opening the same plan again counts once per teacher. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened." },
           { term: 'Teachers who opened', text: 'How many of the N teachers opened at least one lesson plan in the period ("x of N").' },
           { term: 'Regions with activity', text: 'Regions where at least one lesson plan was opened in the period, out of the six.' },
-          { term: 'LP engagement', text: "For each teacher, each week (Sunday to Saturday), each grade and each subject: the different lesson plans she opened plus the lesson plans she generated, out of 5 (5 or more counts as the full week). A teacher's LP engagement is the average over her weeks, grades and subjects with a lesson plan. A school's, a region's or the overall LP engagement adds up its teachers' and divides by all its teachers, so a teacher with no lesson plan counts 0. The subject and grade tables do the same with only that subject's or grade's lesson plans." },
-          { term: 'On-Schedule, Moderate, Off-Schedule', text: "A teacher is On-Schedule at 60 percent or more, Moderate at 40 to 59 percent, and Off-Schedule below 40 percent; a teacher with no lesson plan in the period is Off-Schedule. A school's status reads its LP engagement the same way. In the tables, Overall adds up the teachers in each band across the rows, and its LP engagement is the average of the rows." },
-          { term: 'Primary and Mid / High', text: 'Teachers by the levels they teach (their training levels). Primary counts their grade 1 to 5 lesson plans; Mid / High counts grade 6 to 12 lesson plans. A teacher who teaches both is counted in both.' },
-          { term: 'Active sectors', text: 'Regions where at least one of these teachers has a lesson plan in the period.' },
+          // v8 (FDE feedback, 2026-10-19): the LP Engagement tab is Active / Non-Active, on the daily RDF's numbers.
+          { term: 'Teachers tracked', text: "The daily RDF's teachers for the band, each in the RDF's sector: Primary is teachers whose levels include Primary; Mid / High is teachers whose levels include Middle or High. A teacher who teaches both is in both. Every sector's teachers add up to the total." },
+          { term: 'Active and Non-Active', text: "A teacher is Active when she used at least one lesson plan in the period; using more does not count her again. Primary: a lesson plan she got on WhatsApp or opened in the app. Mid / High: a grade 6 to 12 lesson she opened in the app, got on WhatsApp, asked for, or rated. Non-Active: every other teacher tracked. This is the RDF's own rule, so the RDF's day or week gives the RDF's number." },
+          { term: 'Overall LP Engagement', text: "Active teachers out of the teachers tracked, as a percentage to one decimal, as the RDF writes it. A sector's and a school's are worked out the same way over their own teachers." },
+          { term: 'Sectors and schools', text: "Schools are those on FDE's programme list. A teacher with no school on record, at a school that is not on the list, or at a school in another region, is counted in her region on the No school line." },
+          { term: 'By subject and by grade', text: "For each subject (or grade): the teachers who used at least one lesson plan of that subject (or grade) in the period, out of all teachers tracked. A teacher can be Active in several rows, so the rows do not add up to the overall; the Overall row is the tab's Overall LP Engagement. A plan whose grade or subject is not known makes her Active but is in no row." },
+          { term: 'Active sectors', text: 'Sectors where at least one teacher tracked is Active, out of the six.' },
         ],
       },
       {
@@ -210,10 +222,12 @@ const EN = {
         items: [
           { term: 'Modules completed', text: "Training modules the school's teachers finished in the period, each module counted once per teacher." },
           { term: 'Teachers trained', text: 'How many of the N teachers finished at least one module in the period ("x of N").' },
-          // bd-97x22y.4 (PLAN v7) — the Trainings tab's level progress.
-          { term: 'Passed, In Progress, Not Started', text: "Each NIETE level (Aspiring Teacher, Emerging Practitioner, Skilled Practitioner, Teacher Leader) for every teacher whose training programme includes it. Passed: holds the level's certificate or passed its exam. In Progress: has finished at least one of its modules. Not Started: none yet, or the level before is not passed yet. The percentage is how many passed. All time: the period does not change it; the tab says when the numbers were read." },
-          { term: 'Primary and Mid / High', text: 'Primary is teachers whose grades include Primary: all four levels. Mid / High is teachers whose grades include Middle or High: Skilled Practitioner and Teacher Leader, with Oxbridge (Passed: all 7 sessions passed), Beaconhouse (Passed: at least one subject passed) and I-SAPS (Passed: the I-SAPS certificate, all 9 module exams passed). A teacher who teaches both is in both.' },
-          { term: 'Passed all levels', text: 'Primary: passed Teacher Leader. Mid / High: passed Skilled Practitioner, Teacher Leader, Oxbridge and Beaconhouse. I-SAPS is shown on its own and is not part of it.' },
+          // The Trainings tab (v8): the RDF's training numbers.
+          { term: 'Teachers on the Trainings tab', text: "The same people the RDF's training cards count: everyone on NIETE's primary training programme (Primary) or its middle and high programme (Mid / High), whatever their role and whether or not they have a school. A teacher on both programmes is in both." },
+          { term: 'Passed, In Progress, Not Started', text: "Each level of NIETE's ladder (Aspiring Teacher, Emerging Practitioner, Skilled Practitioner, Teacher Leader). Passed: holds the level's certificate. In Progress: no certificate yet, but has started the level (finished a module, or is ready for or has sat its exam). Not Started: nothing yet, or the level before is not passed yet. The percentage is how many of the programme's teachers passed. All time: the period does not change it; the tab says when the numbers were read." },
+          { term: 'Mid / High programmes', text: 'Skilled Practitioner and Teacher Leader, then three programmes, each Passed with its certificate: Game-Based Teaching (GBTLA, by Oxbridge), AI-Powered Subject Pedagogy (by Beaconhouse; a certificate in any subject) and the Teacher Development Programme (by I-SAPS; counted over the teachers it is assigned to).' },
+          { term: 'Sectors', text: 'A teacher is in the sector the RDF gives her. Teachers it gives no sector are shown together under No sector, so the sectors add up to the total. In a sector, a teacher at a school that is not on FDE\'s list is under No school.' },
+          { term: 'Passed all levels', text: 'Primary: holds the Teacher Leader certificate. Mid / High: holds the Skilled Practitioner, Teacher Leader, Game-Based Teaching and AI-Powered Subject Pedagogy certificates. The Teacher Development Programme is shown on its own and is not part of it.' },
         ],
       },
       {
@@ -234,11 +248,11 @@ const EN = {
       {
         title: 'Coaching',
         items: [
-          { term: 'Total coaches', text: 'Coaches (test accounts left out) with at least one school in the region on record. A coach whose schools are in two regions counts in both region cards and once in the total. It is who is assigned today, so the period does not change it.' },
-          { term: 'Coach visits', text: 'Scheduled coach visits marked done, on a day in the period, at an active school in the six regions.' },
+          { term: 'Total coaches', text: "The coaches on the RDF's ICT coach roster, each in the region the roster gives her. A coach with two phone numbers counts once. The period does not change it." },
+          { term: 'Coach visits', text: "Scheduled coach visits marked done, on a day in the period, at a school on FDE's list." },
           { term: 'Schools visited', text: 'Schools with at least one coach visit in the period ("x of N" schools).' },
           { term: 'Schools in a region', text: "A region card's schools: every school counted in that region, visited or not." },
-          { term: 'Coaches by sector', text: "The names of each region's coaches, A to Z. A coach whose schools are in two regions is listed in both. Coaches are NIETE staff; no teacher is named." },
+          { term: 'Coaches by sector', text: "The names of each region's coaches on the RDF roster, A to Z. Coaches are NIETE staff; no teacher is named." },
         ],
       },
       {
@@ -353,7 +367,14 @@ const EN = {
       view: 'View Details',
       hide: 'Hide schools',
     },
-    school: { passed: 'Passed', teachers: 'Teachers', none: 'No schools found.' },
+    school: { passed: 'Passed', teachers: 'Teachers', none: 'No schools found.', noSchool: 'No school', noSchoolHint: "Not at a school on FDE's list" },
+    /** Members the RDF allocation gives no sector: shown, never dropped, so the sectors add up to the total. */
+    noSector: { title: 'No sector', note: 'On the programme, but not on the RDF allocation file, so the RDF gives them no sector' },
+    /** The population line in the filter bar. */
+    population: {
+      primary: (n: string) => `${n} teachers on NIETE's primary programme (any role, any school), as the RDF counts them`,
+      midhigh: (n: string) => `${n} teachers on NIETE's middle and high programme (any role, any school), as the RDF counts them`,
+    },
     about: {
       title: 'About Training Levels',
       items: [
@@ -363,22 +384,24 @@ const EN = {
         { term: 'Teacher Leader (Level 3):', text: 'Develops school-wide leadership and peer mentoring capabilities.' },
       ] as ReadonlyArray<{ term: string; text: string }>,
       /** How the three states and the % are worked out on NIETE's data. */
-      counted: 'Passed: holds the level\'s certificate or passed its exam. In Progress: has finished at least one of its modules, not yet the exam. Not Started: no module finished yet, or the level below is not passed yet. Each level counts the teachers whose training programme includes it, and the % is how many of them passed. "Passed all levels" means passed Teacher Leader.',
+      counted: 'Teachers: everyone on NIETE\'s primary training programme, whatever their role and school, as the RDF counts them. Passed: holds the level\'s certificate. In Progress: no certificate yet, but has started the level (a module finished, or ready for or past its exam). Not Started: nothing yet, or the level below is not passed yet. The % is how many of the programme\'s teachers passed. "Passed all levels" means holds the Teacher Leader certificate.',
       /** Mid / High: her partner rules on NIETE's records. */
-      countedMidHigh: 'Mid / High teachers are those whose grades include Middle or High. Oxbridge: Passed = all 7 sessions passed, In Progress = at least one. Beaconhouse: Passed = at least one subject passed, In Progress = started without a pass. I-SAPS: Passed = holds the I-SAPS certificate (all 9 module exams passed), In Progress = has done a unit or sat a module exam without passing. "Passed all levels" on Mid / High means NIETE Skilled Practitioner, NIETE Teacher Leader, Oxbridge and Beaconhouse all passed; I-SAPS is not part of it.',
+      countedMidHigh: 'Mid / High teachers: everyone on NIETE\'s middle and high programme, whatever their role and school. Game-Based Teaching (GBTLA) and AI-Powered Subject Pedagogy: Passed = holds the certificate (in any subject, for AI-Powered Subject Pedagogy), In Progress = started without it. Teacher Development Programme: counted over the teachers assigned it; Passed = holds its certificate, In Progress = has done a unit or sat a module exam without it. "Passed all levels" on Mid / High means the NIETE Skilled Practitioner, NIETE Teacher Leader, Game-Based Teaching and AI-Powered Subject Pedagogy certificates; the Teacher Development Programme is not part of it.',
     },
-    /** Her Mid / High "Training Partners": Oxbridge, NIETE, Beaconhouse (Trainings.jsx, TrainingLevelCard.jsx); then I-SAPS. */
+    /**
+     * The Mid / High programmes under NIETE's own short names (operator, 2026-10-19: "NIETE's names, short"); the full
+     * NIETE name and the partner who delivers it sit under "What is this?".
+     */
     partners: {
-      title: 'Training Partners',
-      oxbridge: 'Oxbridge Training',
+      title: 'Training Programmes',
+      oxbridge: 'Game-Based Teaching (GBTLA)',
       niete: 'NIETE Trainings',
-      beaconhouse: 'Beaconhouse Training',
-      /** Not one of hers (operator, 2026-10-19): a fourth partner, named after the partner as hers are. */
-      isaps: 'I-SAPS Training',
-      /** Short names in the chart, the sector cards and the filter. */
-      oxbridgeShort: 'Oxbridge',
-      beaconhouseShort: 'Beaconhouse',
-      isapsShort: 'I-SAPS',
+      beaconhouse: 'AI-Powered Subject Pedagogy',
+      isaps: 'Teacher Development Programme',
+      /** The names in the chart, the sector cards and the filter. */
+      oxbridgeShort: 'Game-Based Teaching (GBTLA)',
+      beaconhouseShort: 'AI-Powered Subject Pedagogy',
+      isapsShort: 'Teacher Development Programme',
       nieteFilter: (name: string) => `NIETE — ${name}`,
       summary: (passed: string, inProgress: string) => `${passed} passed · ${inProgress} in progress`,
       nieteSummary: 'Skilled Practitioner & Teacher Leader',
@@ -395,7 +418,8 @@ const EN = {
       uniqueNote: 'a teacher may appear in multiple levels above',
       courses: 'Courses',
       oxbridgeDefinition: {
-        short: 'Oxbridge Trainings focus on Game-Based Teaching, Learning, and Assessment (GBTLA) — a learner-centred approach that integrates curriculum-aligned games into teaching to promote active engagement, collaboration, critical thinking, and continuous formative assessment.',
+        title: 'NIETE: Smart Schools Project: Game-Based Teaching, Learning and Assessment (GBTLA), 6-10 · delivered by Oxbridge',
+        short: 'Game-Based Teaching, Learning, and Assessment (GBTLA) is a learner-centred approach that integrates curriculum-aligned games into teaching to promote active engagement, collaboration, critical thinking, and continuous formative assessment. Passed: holds the GBTLA certificate.',
         coverage: [
           ['Session 1', "Foundation – Purpose and Overview of GBTLA: Introduction to the principles, philosophy, and rationale of GBTLA. Participants explore how game-based learning supports curriculum delivery, student engagement, and assessment while understanding the teacher's role as a facilitator of learning."],
           ['Session 2', "Implementation – Structure and Teacher's Role: Focuses on the planning and implementation cycle of GBTLA, including lesson design, alignment with learning outcomes, classroom organisation, and effective facilitation using available classroom resources."],
@@ -407,10 +431,12 @@ const EN = {
         ] as ReadonlyArray<readonly [string, string]>,
       },
       isapsDefinition: {
-        short: 'I-SAPS Level 1 (Novice) is a nine-module programme for Middle and High teachers. Each module is a set of units followed by a module exam: multiple-choice questions and one written answer. A teacher who passes all nine module exams receives the I-SAPS certificate. It is shown on its own and is not part of “passed all levels”.',
+        title: 'NIETE: Teacher Development Programme, 9-12 · delivered by I-SAPS',
+        short: 'Level 1 (Novice) is nine modules for Middle and High teachers. Each module is a set of units followed by a module exam: multiple-choice questions and one written answer. Passed: holds the programme\'s certificate. It is counted over the teachers assigned it, shown on its own, and is not part of “passed all levels”.',
       },
       beaconhouseDefinition: {
-        short: "Beaconhouse Trainings build teachers' professional knowledge and practical classroom skills to deliver engaging, inclusive, and effective instruction. The programme covers evidence-based teaching methodologies, AI-enhanced instruction, inquiry-based learning, problem-solving, and learner-centred practices across four core subjects.",
+        title: 'NIETE: AI-Powered Subject Pedagogy, 6-10 · delivered by Beaconhouse',
+        short: "AI-Powered Subject Pedagogy builds teachers' professional knowledge and practical classroom skills to deliver engaging, inclusive, and effective instruction. The programme covers evidence-based teaching methodologies, AI-enhanced instruction, inquiry-based learning, problem-solving, and learner-centred practices across four core subjects. Passed: holds the certificate in at least one subject.",
         courses: [
         {
           name: 'English',
@@ -675,10 +701,10 @@ const EN = {
   },
 
   /**
-   * bd-97x22y.3 — the LP Engagement tab (schools analytics v7), her words and her order (LPEngagement.jsx): the
-   * Primary / Mid-High toggle, ENGAGEMENT OVERVIEW, TEACHER STATUS, SECTORS (ring cards → school breakdown), the
-   * subject and grade tables, and the sector-wise grouped bars. v7 shows her percentages (operator, 2026-10-14:
-   * "fully 1 to 1"); they are written with `percent` above.
+   * The LP Engagement tab: her sections in her order (LPEngagement.jsx) — the Primary / Mid-High toggle, ENGAGEMENT
+   * OVERVIEW, TEACHER STATUS, SECTORS (ring cards → school breakdown), the subject and grade tables and the sector-wise
+   * grouped bars — with Active / Non-Active teachers in place of her three schedule bands (FDE feedback, 2026-10-19).
+   * Percentages are written with `percent` above.
    */
   lpEngagement: {
     bandLabel: 'Teachers',
@@ -694,7 +720,7 @@ const EN = {
       bySubject: 'LP Engagement by Subject',
       byGrade: (grades: string) => `LP Engagement by Grade — ${grades}`,
       chart: 'Sector-wise Performance in Subjects & Grades',
-      chartHint: 'LP Engagement % per sector',
+      chartHint: 'Active teachers, % per sector',
     },
     grades: { primary: 'Grades 1–5', midhigh: 'Grades 6–12' } as Record<LpBand, string>,
     /** Her KPI cards (set in capitals by the card). */
@@ -702,36 +728,36 @@ const EN = {
       overall: 'Overall LP Engagement',
       tracked: 'Total Teachers Tracked',
       activeSectors: 'Active Sectors',
-      onSchedule: 'On-Schedule Teachers',
-      moderate: 'Moderate Teachers',
-      offSchedule: 'Off-Schedule Teachers',
+      active: 'Active Teachers',
+      nonActive: 'Non-Active Teachers',
     },
-    /** Her line under each card. */
+    /** The line under each card. */
     hints: {
-      overall: { primary: 'Primary teachers', midhigh: 'Mid / High teachers' } as Record<LpBand, string>,
-      tracked: 'Across all LP status categories',
-      activeSectors: 'Sectors with LP data',
-      onSchedule: 'LP ratio ≥ 60%',
-      moderate: 'LP ratio 40–59%',
-      offSchedule: 'LP ratio < 40%',
+      overall: { primary: 'Primary teachers who used a lesson plan', midhigh: 'Mid / High teachers who used a lesson plan' } as Record<LpBand, string>,
+      /** Whose teachers: the RDF's, or — when the RDF lists are not loaded — the schools' roster today. */
+      tracked: { rdf: "The daily RDF's teachers", roster: 'Teachers at the schools today' } as Record<'rdf' | 'roster', string>,
+      activeSectors: 'Sectors with an active teacher',
+      active: 'Used a lesson plan in the period',
+      nonActive: 'No lesson plan in the period',
     },
-    status: { on: 'On-Schedule', moderate: 'Moderate', off: 'Off-Schedule' } as Record<LpStatus, string>,
+    groups: { active: 'Active', nonActive: 'Non-Active' } as Record<LpGroup, string>,
     /** In the middle of a sector's ring, under its %, on two lines. */
-    ring: ['LP', 'Engage'] as [string, string],
+    ring: ['Active', 'teachers'] as [string, string],
     totalTeachers: 'Total Teachers',
     columns: {
       subject: 'Subject',
       grade: 'Grade',
       school: 'School Name',
       lp: 'LP Engagement',
-      status: 'Status',
       lpShort: 'LP Engage',
-      bands: { on: ['On-Schedule', '(≥60%)'], moderate: ['Moderate', '(40-59%)'], off: ['Off-Schedule', '(<40%)'] } as Record<LpStatus, [string, string]>,
     },
     overall: 'Overall',
     grade: (g: string) => `Grade ${g}`,
     viewBy: 'View By',
     viewByOptions: { subjects: 'Subjects', grades: 'Grades' } as Record<'subjects' | 'grades', string>,
+    /** A sector's teachers with no school on FDE's list, as one line of its school breakdown. */
+    noSchool: 'No school',
+    noSchoolHint: "No school on FDE's list",
     noSchools: 'No schools found for this sector.',
     loading: 'Loading LP engagement',
     error: "The LP engagement numbers didn't load. Check your connection and try again.",

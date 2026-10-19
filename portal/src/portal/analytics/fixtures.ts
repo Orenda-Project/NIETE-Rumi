@@ -10,7 +10,7 @@ import type {
   SchoolsAnalyticsCounts, SchoolsAnalyticsResponse, SchoolsAnalyticsSchool,
   ObservationsAnalyticsResponse, ObservationsCounts, ObservationsKind, ObservationsSchool,
 } from '../types/portal';
-import type { LpBand, LpEngagementResponse, LpStatus } from '../types/portal';
+import type { LpBand, LpEngagementResponse } from '../types/portal';
 
 // The six ICT regions, the only ones the server counts (bd-s6qbts.4): a school outside them is in no row and no total.
 export const REGION_ORDER = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'] as const;
@@ -244,16 +244,16 @@ export function fixtureObservations(opts: { from?: string | null; to?: string | 
   return { success: true, range: { from: opts.from ?? null, to: opts.to ?? null }, dc: kindOf('dc'), human: kindOf('human') };
 }
 
-/* ── bd-97x22y.3 — a GET /api/portal/analytics/lp-engagement answer (schools analytics v7), FICTIONAL ──────────────── */
+/* ── a GET /api/portal/analytics/lp-engagement answer (schools analytics v8: Active / Non-Active), FICTIONAL ─────── */
 
 /**
- * Built from made-up teachers at the schools above, each with a few LP rows (week × grade × subject, 1–5 LPs), and
- * summed with her formula exactly as the server does (services/lp-engagement.service.js), so no number on the page
- * can disagree with another: a teacher's ratio is the mean of min(LPs, 5) ÷ 5 over her rows; every level divides the
- * sum by all its band teachers; On ≥ 0.60, Moderate ≥ 0.40.
+ * Built from made-up teachers at the schools above (and a few with no school in each sector), each with the lesson
+ * plans she used in the window (grade × subject; none = Non-Active), and summed exactly as the server does
+ * (services/lp-engagement.service.js), so no number on the page can disagree with another: Active = used at least one
+ * plan; every level is Active ÷ its teachers, one decimal; a subject / grade row counts teachers with a plan of it.
  */
-type LpFixtureRow = { grade: number; subject: string; units: number };
-type LpFixtureTeacher = { schoolId: string; region: string; rows: LpFixtureRow[] };
+type LpFixturePlan = { grade: number; subject: string };
+type LpFixtureTeacher = { schoolId: string | null; region: string; plans: LpFixturePlan[] };
 
 const LP_SUBJECTS: Record<LpBand, Array<[key: string, name: string]>> = {
   primary: [['english', 'English'], ['urdu', 'Urdu'], ['maths', 'Mathematics'], ['science', 'General Science'],
@@ -280,59 +280,34 @@ function lpTeachers(band: LpBand): LpFixtureTeacher[] {
   const rand = seeded(band === 'primary' ? 7 : 11);
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
   const out: LpFixtureTeacher[] = [];
+  const teacher = (schoolId: string | null, region: string) => {
+    const plans: LpFixturePlan[] = [];
+    const active = rand() < (band === 'primary' ? 0.55 : 0.35);
+    const k = active ? 1 + Math.floor(rand() * 4) : 0;
+    for (let j = 0; j < k; j += 1) plans.push({ grade: pick(LP_GRADES[band]), subject: pick(LP_SUBJECTS[band])[0] });
+    out.push({ schoolId, region, plans });
+  };
   for (const s of FIXTURE_SCHOOLS) {
     const primarySchool = /\(I-/.test(s.name);
     const share = band === 'primary' ? (primarySchool ? 0.8 : 0.15) : (/\(I-V\)/.test(s.name) ? 0 : 0.7);
     const n = Math.round(s.teachers * share);
-    for (let i = 0; i < n; i += 1) {
-      const rows: LpFixtureRow[] = [];
-      const active = rand() < (band === 'primary' ? 0.55 : 0.35);
-      const k = active ? 1 + Math.floor(rand() * 4) : 0;
-      for (let j = 0; j < k; j += 1) {
-        rows.push({ grade: pick(LP_GRADES[band]), subject: pick(LP_SUBJECTS[band])[0], units: 1 + Math.floor(rand() * rand() * 5) });
-      }
-      out.push({ schoolId: s.schoolId, region: s.region, rows });
-    }
+    for (let i = 0; i < n; i += 1) teacher(s.schoolId, s.region);
   }
+  // Teachers on the RDF's list with no school on FDE's list: each sector's "No school" line (none in Tarnol).
+  REGION_ORDER.forEach((region, i) => {
+    for (let k = 0; k < (region === 'Tarnol' ? 0 : 2 + i); k += 1) teacher(null, region);
+  });
   return out;
 }
 
-type LpStat = { units: number; rows: number };
-const lpStat = (rows: LpFixtureRow[]): LpStat => ({ units: rows.reduce((t, r) => t + Math.min(r.units, 5), 0), rows: rows.length });
-const lpRatioOf = (s: LpStat) => (s.rows ? s.units / (5 * s.rows) : 0);
-const lpBandOf = (s: LpStat): LpStatus => (s.rows && s.units >= 3 * s.rows ? 'on' : s.rows && s.units >= 2 * s.rows ? 'moderate' : 'off');
-const pct = (r: number | null) => (r === null ? null : Math.round(r * 100 + 1e-9));
-const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+const lpActivePct = (active: number, n: number) => (n ? Math.round((active / n) * 1000 + 1e-9) / 10 : null);
 
-function lpCounts(stats: LpStat[]) {
-  const n = stats.length;
-  const ratio = n ? stats.reduce((t, s) => t + lpRatioOf(s), 0) / n : null;
-  const by = (b: LpStatus) => stats.filter((s) => lpBandOf(s) === b).length;
-  const on = by('on');
-  const moderate = by('moderate');
-  const off = by('off');
-  const share = (x: number) => (n ? Math.round((x / n) * 100 + 1e-9) : null);
-  return {
-    teachers: n, lpRatio: ratio === null ? null : round4(ratio), lpPct: pct(ratio), onSchedule: on, moderate, offSchedule: off,
-    onPct: share(on), moderatePct: share(moderate), offPct: share(off), ratio,
-  };
+/** Teachers, Active (a plan matching `keep`), Non-Active and the %, over some teachers. */
+function lpCounts(list: LpFixtureTeacher[], keep: (p: LpFixturePlan) => boolean = () => true) {
+  const teachers = list.length;
+  const active = list.filter((t) => t.plans.some(keep)).length;
+  return { teachers, active, nonActive: teachers - active, activePct: lpActivePct(active, teachers) };
 }
-
-function lpOverall(rows: Array<ReturnType<typeof lpCounts>>) {
-  if (!rows.length) return null;
-  const sum = (k: 'teachers' | 'onSchedule' | 'moderate' | 'offSchedule') => rows.reduce((t, r) => t + r[k], 0);
-  const teachers = sum('teachers');
-  const ratios = rows.map((r) => r.ratio).filter((r): r is number => r !== null);
-  const ratio = ratios.length ? ratios.reduce((t, r) => t + r, 0) / rows.length : null;
-  const share = (x: number) => (teachers ? Math.round((x / teachers) * 100 + 1e-9) : null);
-  return {
-    teachers, lpRatio: ratio === null ? null : round4(ratio), lpPct: pct(ratio),
-    onSchedule: sum('onSchedule'), moderate: sum('moderate'), offSchedule: sum('offSchedule'),
-    onPct: share(sum('onSchedule')), moderatePct: share(sum('moderate')), offPct: share(sum('offSchedule')),
-  };
-}
-
-const strip = <T extends { ratio: unknown }>({ ratio: _r, ...rest }: T) => rest;
 
 /** The LP answer for one window, region filter ('all' or a region name) and band, shaped as the server sends it. */
 export function fixtureLpEngagement(opts: { from?: string | null; to?: string | null; region?: string | null; band?: LpBand } = {}): LpEngagementResponse {
@@ -340,39 +315,39 @@ export function fixtureLpEngagement(opts: { from?: string | null; to?: string | 
   const wanted = opts.region && opts.region.toLowerCase() !== 'all' ? opts.region.toLowerCase() : null;
   const all = lpTeachers(band);
   const scoped = all.filter((t) => !wanted || t.region.toLowerCase() === wanted);
-  const stats = (list: LpFixtureTeacher[], keep: (r: LpFixtureRow) => boolean = () => true) => list.map((t) => lpStat(t.rows.filter(keep)));
-  const used = new Set(all.flatMap((t) => t.rows.map((r) => r.subject)));
-  const subjects = LP_SUBJECTS[band].filter(([k]) => used.has(k)).sort((a, b) => a[1].localeCompare(b[1]));
-  const subjectRows = subjects.map(([key, name]) => ({ subject: key, name, ...lpCounts(stats(scoped, (r) => r.subject === key)) }));
-  const gradeRows = LP_GRADES[band].map((g) => ({ grade: g, ...lpCounts(stats(scoped, (r) => r.grade === g)) }));
-  const overview = lpCounts(stats(scoped));
-  const schools = FIXTURE_SCHOOLS.filter((s) => !wanted || s.region.toLowerCase() === wanted).flatMap((s) => {
-    const mine = all.filter((t) => t.schoolId === s.schoolId);
-    if (!mine.length) return [];
-    const c = lpCounts(stats(mine));
-    const status: LpStatus | null = c.lpPct === null ? null : c.lpPct >= 60 ? 'on' : c.lpPct >= 40 ? 'moderate' : 'off';
-    return [{ schoolId: s.schoolId, emis: s.emis, name: s.name, region: s.region, teachers: c.teachers, lpRatio: c.lpRatio, lpPct: c.lpPct, status }];
-  });
   const inRegion = (region: string) => all.filter((t) => t.region === region);
+  const used = new Set(all.flatMap((t) => t.plans.map((p) => p.subject)));
+  const subjects = LP_SUBJECTS[band].filter(([k]) => used.has(k)).sort((a, b) => a[1].localeCompare(b[1]));
+  const overall = lpCounts(scoped);
+  const schools = REGION_ORDER.filter((r) => !wanted || r.toLowerCase() === wanted).flatMap((region) => {
+    const listed = FIXTURE_SCHOOLS.filter((s) => s.region === region).flatMap((s) => {
+      const mine = all.filter((t) => t.schoolId === s.schoolId);
+      return mine.length ? [{ region, schoolId: s.schoolId, emis: s.emis, name: s.name, noSchool: false, ...lpCounts(mine) }] : [];
+    }).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+    const none = all.filter((t) => t.region === region && t.schoolId === null);
+    return none.length ? [...listed, { region, schoolId: `no-school:${region}`, emis: null, name: null, noSchool: true, ...lpCounts(none) }] : listed;
+  });
   return {
     success: true,
     range: { from: opts.from ?? null, to: opts.to ?? null },
     band,
-    lpOpensLoggedSince: '2026-10-04',
+    basis: { schools: 'fde', teachers: 'rdf', coaches: 'rdf', asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-08-04' } },
     overview: {
-      teachers: overview.teachers, lpRatio: overview.lpRatio, lpPct: overview.lpPct,
-      activeSectors: REGION_ORDER.filter((r) => (!wanted || r.toLowerCase() === wanted) && inRegion(r).some((t) => t.rows.length)).length,
-      onSchedule: overview.onSchedule, moderate: overview.moderate, offSchedule: overview.offSchedule,
+      ...overall,
+      activeSectors: REGION_ORDER.filter((r) => (!wanted || r.toLowerCase() === wanted) && lpCounts(inRegion(r)).active > 0).length,
     },
-    regions: REGION_ORDER.map((region) => ({ region, ...strip(lpCounts(stats(inRegion(region)))) })),
+    regions: REGION_ORDER.map((region) => ({ region, ...lpCounts(inRegion(region)) })),
     schools,
-    bySubject: { rows: subjectRows.map(strip), overall: lpOverall(subjectRows) },
-    byGrade: { rows: gradeRows.map(strip), overall: lpOverall(gradeRows) },
+    bySubject: {
+      rows: subjects.map(([key, name]) => ({ subject: key, name, ...lpCounts(scoped, (p) => p.subject === key) })),
+      overall: subjects.length ? overall : null,
+    },
+    byGrade: { rows: LP_GRADES[band].map((g) => ({ grade: g, ...lpCounts(scoped, (p) => p.grade === g) })), overall },
     sectorSubjects: REGION_ORDER.map((region) => ({
-      region, values: Object.fromEntries(subjects.map(([k]) => [k, lpCounts(stats(inRegion(region), (r) => r.subject === k)).lpPct])),
+      region, values: Object.fromEntries(subjects.map(([k]) => [k, lpCounts(inRegion(region), (p) => p.subject === k).activePct])),
     })),
     sectorGrades: REGION_ORDER.map((region) => ({
-      region, values: Object.fromEntries(LP_GRADES[band].map((g) => [String(g), lpCounts(stats(inRegion(region), (r) => r.grade === g)).lpPct])),
+      region, values: Object.fromEntries(LP_GRADES[band].map((g) => [String(g), lpCounts(inRegion(region), (p) => p.grade === g).activePct])),
     })),
   };
 }

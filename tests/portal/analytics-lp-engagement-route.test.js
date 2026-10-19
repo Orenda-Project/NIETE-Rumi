@@ -1,10 +1,11 @@
 /**
- * GET /api/portal/analytics/lp-engagement (schools analytics v7) — the LP Engagement tab, her
- * formula 1 to 1 (services/lp-engagement.service.js has the definitions).
+ * GET /api/portal/analytics/lp-engagement (schools analytics v8) — the LP Engagement tab as Active / Non-Active
+ * (services/lp-engagement.service.js has the definitions): the band's RDF teacher population from
+ * lib/analytics-lists, Active = used at least one lesson plan in the period by the RDF's rule for the band.
  *
  * Same gate, window and region rules as /analytics/schools: requirePortalAuth →
  * requireAnalyticsViewer (the portal_analytics_only list: not on it 403, unreadable 500);
- * analyticsRange; the six ICT regions only, anything else a 400; plus ?band=primary|midhigh (her
+ * analyticsRange; the six ICT regions only, anything else a 400; plus ?band=primary|midhigh (the
  * Primary / Mid-High toggle; blank is Primary, anything else a 400). A ten-minute response cache
  * keyed from|to|region|band that sits behind the gate, its own so this tab never slows the others.
  */
@@ -85,25 +86,35 @@ const W1 = '2026-10-04';
 const SCHOOLS = [
   { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false },
   { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false },
-  // Outside the six regions / inactive: in no number.
-  { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false },
-  { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false },
-  { id: 's6', name: 'Closed School', emis: '606', region: 'Tarnol', is_active: false, is_probable_test: false },
+  // Not on FDE's list: its teachers are their sector's "No school" line.
+  { id: 's3', name: 'NIETE Support', emis: '1122', region: null, is_active: true, is_probable_test: false },
 ];
+// The RDF populations, as analytics-lists hands them over (userId → the RDF's sector).
+const LISTS = {
+  fdeSchoolEmis: new Set(['101', '202']),
+  primary: new Map([['u1', 'B.K'], ['u2', 'B.K'], ['u3', 'Sihala'], ['u4', 'Urban-I']]),
+  midHigh: new Map([['u3', 'Sihala'], ['u5', 'Tarnol']]),
+  coaches: [],
+  asOf: { schools: '2026-10-19', teachers: '2026-08-04', coaches: '2026-08-04' },
+  missing: { schools: false, teachers: false, coaches: false },
+};
 const TEACHERS = [
-  { id: 'u1', school_id: 's1', bands: ['PRIMARY'] },
-  { id: 'u2', school_id: 's1', bands: ['PRIMARY'] },
-  { id: 'u3', school_id: 's2', bands: ['PRIMARY', 'HIGH'] },
-  { id: 'u4', school_id: 's3', bands: ['PRIMARY'] },
-  { id: 'u5', school_id: 's4', bands: ['MIDDLE'] },
+  { id: 'u1', school_id: 's1' }, { id: 'u2', school_id: 's1' }, { id: 'u3', school_id: 's2' },
+  { id: 'u4', school_id: null }, { id: 'u5', school_id: 's3' },
+];
+// Today's roster with levels: the v7 rule the tab keeps when the lists are not loaded (sandbox).
+const ROSTER = [
+  { id: 'u1', school_id: 's1', bands: ['PRIMARY'] }, { id: 'u2', school_id: 's1', bands: ['PRIMARY'] },
+  { id: 'u3', school_id: 's2', bands: ['PRIMARY', 'HIGH'] }, { id: 'u5', school_id: 's3', bands: ['MIDDLE'] },
 ];
 let activity;
+let loadAnalyticsLists;
 
 function poolRows(sql) {
-  if (/information_schema\.columns/.test(sql)) return [{ column_name: 'teacher_level' }];
-  if (/niete_lp_opens/.test(sql)) return activity;
+  if (/lesson_plans|niete_lp612/.test(sql)) return activity.filter((a) => (/lesson_plans/.test(sql) ? a.k5 : !a.k5));
   if (/FROM schools\b/.test(sql)) return SCHOOLS;
-  if (/FROM users u/.test(sql)) return TEACHERS;
+  if (/teacher_level/.test(sql)) return ROSTER;
+  if (/FROM users\b/.test(sql)) return TEACHERS;
   return [];
 }
 
@@ -112,15 +123,14 @@ beforeEach(() => {
   tableStates = {};
   queries = [];
   activity = [
-    // u1: three Urdu plans in a week → 0.6 → On; u3: one → 0.2 → Off; u2 nothing → Off.
-    { user_id: 'u1', week: W1, source: 'open', plan_kind: 'k5', plan_ref: 'grade_2_urdu_ch1_seg1' },
-    { user_id: 'u1', week: W1, source: 'open', plan_kind: 'k5', plan_ref: 'grade_2_urdu_ch1_seg2' },
-    { user_id: 'u1', week: W1, source: 'generated', grade: '2', subject: 'urdu', n: 1 },
-    { user_id: 'u3', week: W1, source: 'open', plan_kind: 'k5', plan_ref: 'grade_4_math_ch1_seg1' },
-    { user_id: 'u3', week: W1, source: 'open', plan_kind: 'g612', plan_ref: 'grade_9_physics.c01.p008-009' },
-    { user_id: 'u3', week: W1, source: 'open', plan_kind: 'g612', plan_ref: 'grade_9_physics.c01.p010-012' },
-    { user_id: 'u4', week: W1, source: 'generated', grade: '1', subject: 'english', n: 5 },
+    // Primary: u1 a WhatsApp plan, u3 an app open; u2 and u4 nothing.
+    { user_id: 'u1', grade: '2', subject: 'urdu', ref: null, k5: true },
+    { user_id: 'u3', grade: null, subject: null, ref: 'grade_4_math_ch1_seg1', k5: true },
+    // Mid / High: u5 a 6-12 delivery; u3 nothing on Mid / High.
+    { user_id: 'u5', grade: null, subject: null, ref: 'grade_9_physics.c01.p008-009', k5: false },
   ];
+  loadAnalyticsLists = jest.fn(async () => LISTS);
+  jest.doMock('../../dashboard/lib/analytics-lists', () => ({ ...jest.requireActual('../../dashboard/lib/analytics-lists'), loadAnalyticsLists }));
   jest.doMock('../../dashboard/config/supabase', () => ({
     from: jest.fn((tbl) => makeChain(tbl)),
     rpc: jest.fn().mockResolvedValue({ error: null }),
@@ -183,44 +193,49 @@ describe('GET /analytics/lp-engagement — the gate', () => {
 });
 
 describe('GET /analytics/lp-engagement — the answer', () => {
-  it('answers a listed viewer with the contract keys', async () => {
+  it('answers a listed viewer with the contract keys: Active / Non-Active, no schedule bands', async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER, query: { from: '2026-10-04', to: '2026-10-13' } });
     expect(statusCode).toBe(200);
     expect(Object.keys(payload).sort()).toEqual([
-      'band', 'byGrade', 'bySubject', 'lpOpensLoggedSince', 'overview', 'range', 'regions', 'schools',
+      'band', 'basis', 'byGrade', 'bySubject', 'overview', 'range', 'regions', 'schools',
       'sectorGrades', 'sectorSubjects', 'success',
     ]);
-    expect(payload).toMatchObject({ success: true, band: 'primary', lpOpensLoggedSince: '2026-10-04', range: { from: '2026-10-04', to: '2026-10-13' } });
-    expect(Object.keys(payload.overview).sort()).toEqual(['activeSectors', 'lpPct', 'lpRatio', 'moderate', 'offSchedule', 'onSchedule', 'teachers']);
-    for (const r of payload.regions) {
-      expect(Object.keys(r).sort()).toEqual(['lpPct', 'lpRatio', 'moderate', 'moderatePct', 'offPct', 'offSchedule', 'onPct', 'onSchedule', 'region', 'teachers']);
-    }
-    for (const s of payload.schools) expect(Object.keys(s).sort()).toEqual(['emis', 'lpPct', 'lpRatio', 'name', 'region', 'schoolId', 'status', 'teachers']);
-    for (const r of payload.bySubject.rows) expect(Object.keys(r)).toEqual(expect.arrayContaining(['subject', 'name', 'lpPct', 'onPct', 'moderatePct', 'offPct']));
-    for (const r of payload.byGrade.rows) expect(Object.keys(r)).toEqual(expect.arrayContaining(['grade', 'lpPct', 'onPct', 'moderatePct', 'offPct']));
+    expect(payload).toMatchObject({ success: true, band: 'primary', range: { from: '2026-10-04', to: '2026-10-13' } });
+    expect(Object.keys(payload.overview).sort()).toEqual(['active', 'activePct', 'activeSectors', 'nonActive', 'teachers']);
+    for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['active', 'activePct', 'nonActive', 'region', 'teachers']);
+    for (const s of payload.schools) expect(Object.keys(s).sort()).toEqual(['active', 'activePct', 'emis', 'name', 'noSchool', 'nonActive', 'region', 'schoolId', 'teachers']);
+    // which rule each list follows, as on the other analytics answers
+    expect(payload.basis).toMatchObject({ schools: 'fde', teachers: 'rdf' });
+    for (const r of payload.bySubject.rows) expect(Object.keys(r).sort()).toEqual(['active', 'activePct', 'name', 'nonActive', 'subject', 'teachers']);
+    for (const r of payload.byGrade.rows) expect(Object.keys(r).sort()).toEqual(['active', 'activePct', 'grade', 'nonActive', 'teachers']);
+    expect(JSON.stringify(payload)).not.toMatch(/onSchedule|moderate|offSchedule|lpRatio|lpPct/);
   });
 
-  it('Primary: her numbers over the six regions; schools outside them in no number', async () => {
+  it('Primary: the RDF Primary population from analytics-lists, Active = used a lesson plan', async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER });
+    expect(loadAnalyticsLists).toHaveBeenCalledWith(require('../../dashboard/config/supabase'), { query: expect.any(Function) });
     expect(payload.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
-    // u1 0.6, u2 0, u3 0.2 over 3 Primary teachers (u4's school has no region)
-    expect(payload.overview).toEqual({ teachers: 3, lpRatio: 0.2667, lpPct: 27, activeSectors: 2, onSchedule: 1, moderate: 0, offSchedule: 2 });
-    expect(payload.schools.map((s) => [s.name, s.lpPct, s.status])).toEqual([['IMSG B.K 1', 30, 'off'], ['IMCG Sihala', 20, 'off']]);
-    expect(JSON.stringify(payload)).not.toMatch(/unassigned|Durbeen|No Region School|Closed School/i);
+    // u1 and u3 used a plan; u2 and u4 did not — 2 of 4.
+    expect(payload.overview).toEqual({ teachers: 4, active: 2, nonActive: 2, activePct: 50, activeSectors: 2 });
+    expect(payload.schools.map((s) => [s.region, s.name, s.active, s.nonActive])).toEqual([
+      ['B.K', 'IMSG B.K 1', 1, 1], ['Sihala', 'IMCG Sihala', 1, 0], ['Urban-I', null, 0, 1],
+    ]);
+    expect(payload.schools[2].schoolId).toBe('no-school:Urban-I');
   });
 
-  it('band=midhigh: Mid/High teachers over 6-12 plans', async () => {
+  it('band=midhigh: the RDF Mid / High population over 6-12 traces', async () => {
     tableStates.app_settings = flag([VIEWER]);
     const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER, query: { band: 'midhigh' } });
     expect(statusCode).toBe(200);
     expect(payload.band).toBe('midhigh');
-    // u3 (HIGH, Sihala): two Physics plans → 0.4 → Moderate; u5's school is outside the six.
-    expect(payload.overview).toEqual({ teachers: 1, lpRatio: 0.4, lpPct: 40, activeSectors: 1, onSchedule: 0, moderate: 1, offSchedule: 0 });
+    // u5 (Tarnol, at a school off FDE's list) has a 6-12 delivery; u3 has no 6-12 trace.
+    expect(payload.overview).toEqual({ teachers: 2, active: 1, nonActive: 1, activePct: 50, activeSectors: 1 });
     expect(payload.byGrade.rows.map((r) => r.grade)).toEqual([6, 7, 8, 9, 10, 11, 12]);
-    const lp = queries.find((q) => /niete_lp_opens/.test(q.sql));
-    expect(lp.params).toEqual(['g612', 6, 12]);
+    expect(payload.schools.map((s) => [s.region, s.name])).toEqual([['Sihala', 'IMCG Sihala'], ['Tarnol', null]]);
+    const a = queries.find((q) => /niete_lp612/.test(q.sql));
+    expect(a.params[0].sort()).toEqual(['u3', 'u5']);
   });
 
   it('a region filter scopes the overview and the schools; the six cards stay', async () => {
@@ -247,18 +262,51 @@ describe('GET /analytics/lp-engagement — the answer', () => {
       expect(payload).toEqual({ success: false, error: 'Unknown band.' });
     }
     expect(queries).toHaveLength(0);
+    expect(loadAnalyticsLists).not.toHaveBeenCalled();
   });
 
   it('the window reaches SQL as the Pakistan days\' UTC instants; a junk date is dropped', async () => {
     tableStates.app_settings = flag([VIEWER]);
     await call('get', ROUTE, { userId: VIEWER, query: { from: '2026-10-04', to: '2026-10-13' } });
-    const lp = queries.find((q) => /niete_lp_opens/.test(q.sql));
-    expect(lp.params).toEqual(['2026-10-03T19:00:00.000Z', '2026-10-13T19:00:00.000Z', 'k5', 1, 5]);
+    const a = queries.find((q) => /lesson_plans/.test(q.sql));
+    expect(a.params.slice(1)).toEqual(['2026-10-03T19:00:00.000Z', '2026-10-13T19:00:00.000Z']);
 
     queries.length = 0;
     const { payload } = await call('get', ROUTE, { userId: VIEWER, query: { from: "2026-10-01'; drop", to: 'yesterday' } });
     expect(payload.range).toEqual({ from: null, to: null });
     for (const q of queries) expect(JSON.stringify(q.params || [])).not.toContain('drop');
+  });
+
+  it('the lists are not loaded (sandbox): the v7 roster and schools, never zeros', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    loadAnalyticsLists.mockResolvedValue({
+      fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: {},
+      missing: { schools: true, teachers: true, coaches: true },
+    });
+    const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER });
+    expect(statusCode).toBe(200);
+    // ROSTER: u1, u2 at s1 (B.K) and u3 at s2 (Sihala) are Primary; s3's region is not one of the six.
+    expect(payload.overview).toEqual({ teachers: 3, active: 2, nonActive: 1, activePct: 66.7, activeSectors: 2 });
+    expect(payload.basis).toMatchObject({ schools: 'all', teachers: 'roster' });
+  });
+
+  it('the cache is keyed by the lists too: lists arriving change the answer at once', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    const none = { fdeSchoolEmis: null, primary: null, midHigh: null, coaches: null, asOf: { schools: null, teachers: null, coaches: null }, missing: { schools: true, teachers: true, coaches: true } };
+    loadAnalyticsLists.mockResolvedValueOnce(none);
+    const before = await call('get', ROUTE, { userId: VIEWER });
+    expect(before.payload.basis.teachers).toBe('roster');
+    const after = await call('get', ROUTE, { userId: VIEWER });
+    expect(after.payload.basis.teachers).toBe('rdf');
+    expect(after.payload.overview.teachers).toBe(4);
+  });
+
+  it('the lists cannot be read: a 500, and nothing shown', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    loadAnalyticsLists.mockRejectedValueOnce(new Error('app_settings unreadable'));
+    const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER });
+    expect(statusCode).toBe(500);
+    expect(payload).toEqual({ success: false, error: 'Failed to load LP engagement.' });
   });
 
   it('carries no teacher identity', async () => {
@@ -305,6 +353,6 @@ describe('GET /analytics/lp-engagement — the cache', () => {
     const n = queries.length;
     const { payload } = await call('get', ROUTE, { userId: VIEWER });
     expect(queries.length).toBeGreaterThan(n);
-    expect(payload.overview).toHaveProperty('lpPct');
+    expect(payload.overview).toHaveProperty('activePct');
   });
 });

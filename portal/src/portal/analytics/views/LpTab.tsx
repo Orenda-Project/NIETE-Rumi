@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { analytics } from '../../services/api';
 import type {
-  LpBand, LpEngagementResponse, LpEngagementRow, LpEngagementSchool, LpStatus,
+  LpBand, LpEngagementCounts, LpEngagementResponse, LpEngagementSchool, LpGroup,
 } from '../../types/portal';
 import { BandToggle, useBandParam } from '../BandToggle';
 import type { AnalyticsWords } from '../copy';
@@ -11,33 +11,38 @@ import { GroupedBarChart, RingGauge } from '../LpCharts';
 import { Section } from '../Section';
 import { Breakdown, SectorCard, SectorGrid } from '../SectorCards';
 import { regionParam, useSchoolsView } from '../view';
-import { BAND_COLOR, gradeColor, HER_GREEN, KPI_LOOK, subjectColor, TABLE_COLOR, type KpiLook } from './lpLook';
-import { lpNoteChip, schoolsIn, toggleRegion, type TabProps } from './shared';
+import { GROUP_COLOR, gradeColor, HER_GREEN, KPI_LOOK, subjectColor, TABLE_COLOR, type KpiLook } from './lpLook';
+import { chip, ofTeachers, toggleRegion, type TabProps } from './shared';
 
 /**
- * bd-97x22y.3 — LP Engagement, the ICT dashboard's tab 1 to 1 (PLAN v7 "LP Engagement"; operator: "fully 1 to 1").
- * Hers: frontend/src/pages/LPEngagement.jsx. Her sections, in her order:
+ * The LP Engagement tab, in the ICT dashboard's sections and order (her LPEngagement.jsx), with ACTIVE / NON-ACTIVE
+ * teachers in place of her On-Schedule / Moderate / Off-Schedule (FDE feedback, 2026-10-19: "Active Teachers: Teachers
+ * who are using lesson plans. Non-Active Teachers: Teachers who are not using lesson plans."), on the daily RDF's
+ * teachers and rule, for Primary and Mid / High alike:
  *
  *   the Primary / Mid-High toggle
- *   ENGAGEMENT OVERVIEW   Overall LP Engagement %, Total Teachers Tracked, Active Sectors (her KPI cards)
- *   TEACHER STATUS        On-Schedule (≥60%), Moderate (40–59%), Off-Schedule (<40%) teachers
- *   SECTORS — CLICK TO VIEW SCHOOL BREAKDOWN   a ring card per sector → its schools (LP %, status)
- *   LP Engagement by Subject · LP Engagement by Grade   her band shares and LP %, with her Overall row
- *   Sector-wise Performance in Subjects & Grades       her grouped bars, View By Subjects / Grades
+ *   ENGAGEMENT OVERVIEW   Overall LP Engagement (Active %), Total Teachers Tracked, Active Sectors
+ *   TEACHER STATUS        Active, Non-Active — each "x of N"
+ *   SECTORS — CLICK TO VIEW SCHOOL BREAKDOWN   a ring card per sector (Active %) → its schools and its "No school" line
+ *   LP Engagement by Subject · LP Engagement by Grade   Active, Non-Active and Active % per row, the tab's Overall row
+ *   Sector-wise Performance in Subjects & Grades       each sector's Active % per subject / grade
  *
  * Its numbers are its own read (GET /analytics/lp-engagement, the page's window and region plus the band), so the
- * tab's cost never slows the others; her formula is the server's (services/lp-engagement.service.js) and the page draws
- * the integers it sends. Her sector filter is the page's region; choosing a sector card is choosing that region (v6).
- * Her colours (lpLook.ts) and her %, here only — as the Trainings tab does.
+ * tab's cost never slows the others; the rule is the server's (services/lp-engagement.service.js) and the page draws
+ * what it sends. Her sector filter is the page's region; choosing a sector card is choosing that region.
  */
 type Status = 'loading' | 'ready' | 'error' | 'forbidden';
 const statusOf = (err: unknown): Status => ((err as { response?: { status?: number } })?.response?.status === 403 ? 'forbidden' : 'error');
 
-const BANDS: readonly LpStatus[] = ['on', 'moderate', 'off'];
-const COUNT_OF: Record<LpStatus, 'onSchedule' | 'moderate' | 'offSchedule'> = { on: 'onSchedule', moderate: 'moderate', off: 'offSchedule' };
-const SHARE_OF: Record<LpStatus, 'onPct' | 'moderatePct' | 'offPct'> = { on: 'onPct', moderate: 'moderatePct', off: 'offPct' };
+const GROUPS: readonly LpGroup[] = ['active', 'nonActive'];
 
 const pctOr = (c: AnalyticsWords, v: number | null | undefined) => (typeof v === 'number' ? c.percent(String(v)) : NO_VALUE);
+
+/** A group's share of the teachers, one decimal (Active is the server's %; Non-Active is what is left of 100). */
+const shareOf = (r: LpEngagementCounts, g: LpGroup): number | null => {
+  if (r.activePct === null) return null;
+  return g === 'active' ? r.activePct : Math.round((100 - r.activePct) * 10) / 10;
+};
 
 /** Her card frame (her tables and chart): white, a light grey line, a soft shadow. */
 const CARD_STYLE = { border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
@@ -63,7 +68,7 @@ function useLpEngagement(region: string | null, band: LpBand) {
 }
 
 export function LpTab(p: TabProps) {
-  const { c, region, lpOpensNote } = p;
+  const { c, region } = p;
   const w = c.lpEngagement;
   const { band, setBand } = useBandParam();
   const lp = useLpEngagement(region, band);
@@ -98,13 +103,13 @@ export function LpTab(p: TabProps) {
       ) : null}
 
       {lp.data && (lp.status === 'ready' || lp.status === 'loading') ? (
-        <LpBody p={p} data={lp.data} busy={lp.status === 'loading'} note={lpOpensNote} />
+        <LpBody p={p} data={lp.data} busy={lp.status === 'loading'} />
       ) : null}
     </div>
   );
 }
 
-function LpBody({ p, data, busy, note }: { p: TabProps; data: LpEngagementResponse; busy: boolean; note: string | null }) {
+function LpBody({ p, data, busy }: { p: TabProps; data: LpEngagementResponse; busy: boolean }) {
   const { c, region } = p;
   const w = c.lpEngagement;
   const o = data.overview;
@@ -113,16 +118,19 @@ function LpBody({ p, data, busy, note }: { p: TabProps; data: LpEngagementRespon
     <div data-testid="lp-tab" aria-busy={busy} className="flex flex-col gap-6 transition-opacity" style={{ opacity: busy ? 0.6 : 1 }}>
       <Section id="lp-overview" eyebrow={w.sections.overview}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <KpiCard k="lpOverall" look={KPI_LOOK.overall} label={w.tiles.overall} value={o.lpPct === null ? null : c.percent(String(o.lpPct))} hint={w.hints.overall[shown]} extra={lpNoteChip(note)} />
-          <KpiCard k="lpTracked" look={KPI_LOOK.tracked} label={w.tiles.tracked} value={count(o.teachers, c)} hint={w.hints.tracked} />
+          <KpiCard k="lpOverall" look={KPI_LOOK.overall} label={w.tiles.overall} value={o.activePct === null ? null : c.percent(String(o.activePct))} hint={w.hints.overall[shown]} />
+          <KpiCard k="lpTracked" look={KPI_LOOK.tracked} label={w.tiles.tracked} value={count(o.teachers, c)} hint={w.hints.tracked[data.basis?.teachers ?? 'rdf']} />
           <KpiCard k="lpActiveSectors" look={KPI_LOOK.activeSectors} label={w.tiles.activeSectors} value={count(o.activeSectors, c)} hint={w.hints.activeSectors} />
         </div>
       </Section>
 
       <Section id="lp-status" eyebrow={w.sections.status}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {BANDS.map((b) => (
-            <KpiCard key={b} k={`lp-${b}`} look={KPI_LOOK[b]} label={w.tiles[COUNT_OF[b]]} value={count(o[COUNT_OF[b]], c)} hint={w.hints[COUNT_OF[b]]} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {GROUPS.map((g) => (
+            <KpiCard
+              key={g} k={`lp-${g}`} look={KPI_LOOK[g]} label={w.tiles[g]} value={count(o[g], c)} hint={w.hints[g]}
+              extra={<>{ofTeachers(c, o.teachers)}{shareOf(o, g) === null ? null : chip(pctOr(c, shareOf(o, g)))}</>}
+            />
           ))}
         </div>
       </Section>
@@ -131,15 +139,15 @@ function LpBody({ p, data, busy, note }: { p: TabProps; data: LpEngagementRespon
         <SectorGrid wide>
           {data.regions.map((r) => (
             <SectorCard key={r.region} region={r.region} selected={region === r.region} onSelect={() => toggleRegion(p, r.region)} action={c.sectorCards.view} hide={c.sectorCards.hide}>
-              <RingGauge pct={r.lpPct} caption={w.ring} color={HER_GREEN} c={c} />
+              <RingGauge pct={r.activePct} caption={w.ring} color={HER_GREEN} c={c} />
               <span className="mt-3 flex flex-col gap-1.5">
-                {BANDS.map((b) => (
-                  <span key={b} data-testid={`band-line-${b}`} className="flex items-baseline justify-between gap-2 text-xs">
-                    <span className="text-gray-500">{w.status[b]}</span>
-                    <span className="font-semibold tabular-nums" style={{ color: BAND_COLOR[b] }}>
-                      {count(r[COUNT_OF[b]], c)}
+                {GROUPS.map((g) => (
+                  <span key={g} data-testid={`group-line-${g}`} className="flex items-baseline justify-between gap-2 text-xs">
+                    <span className="text-gray-500">{w.groups[g]}</span>
+                    <span className="font-semibold tabular-nums" style={{ color: GROUP_COLOR[g] }}>
+                      {count(r[g], c)}
                       {/* Her share in brackets, only beside a count that is not 0. */}
-                      {r[COUNT_OF[b]] > 0 && r[SHARE_OF[b]] !== null ? <span className="ms-1 font-normal text-gray-400">({pctOr(c, r[SHARE_OF[b]])})</span> : null}
+                      {r[g] > 0 && shareOf(r, g) !== null ? <span className="ms-1 font-normal text-gray-400">({pctOr(c, shareOf(r, g))})</span> : null}
                     </span>
                   </span>
                 ))}
@@ -153,7 +161,7 @@ function LpBody({ p, data, busy, note }: { p: TabProps; data: LpEngagementRespon
         </SectorGrid>
         {region ? (
           <Breakdown c={c} region={region} onBack={() => p.onRegion(null)}>
-            <LpSchoolsTable c={c} schools={schoolsIn(data.schools, region)} />
+            <LpSchoolsTable c={c} schools={data.schools.filter((s) => s.region.toLowerCase() === region.toLowerCase())} />
           </Breakdown>
         ) : null}
       </Section>
@@ -209,38 +217,38 @@ function KpiCard({ k, look, label, value, hint, extra }: {
   );
 }
 
-/** Her subject / grade table (LPBySubjectTable / LPByGradeTable): band shares as %, the LP %, her Overall row. */
+/** Her subject / grade table (LPBySubjectTable / LPByGradeTable): Active and Non-Active teachers, the Active %, the Overall row. */
 function LpTable({ c, testId, title, first, rows, overall }: {
   c: AnalyticsWords;
   testId: string;
   title: string;
   first: string;
-  rows: Array<{ key: string; head: ReactNode; row: LpEngagementRow }>;
-  overall: LpEngagementRow | null;
+  rows: Array<{ key: string; head: ReactNode; row: LpEngagementCounts }>;
+  overall: LpEngagementCounts | null;
 }) {
   const w = c.lpEngagement;
-  const cells = (r: LpEngagementRow, strong = false) => (
+  const cells = (r: LpEngagementCounts, strong = false) => (
     <>
-      {BANDS.map((b) => (
-        <td key={b} data-testid={`cell-${b}`} className={`px-1.5 py-2.5 text-end tabular-nums sm:px-3 ${strong ? 'font-bold' : 'font-semibold'}`} style={{ color: TABLE_COLOR[b] }}>
-          {pctOr(c, r[SHARE_OF[b]])}
+      {GROUPS.map((g) => (
+        <td key={g} data-testid={`cell-${g}`} className={`px-1.5 py-2.5 text-end tabular-nums sm:px-3 ${strong ? 'font-bold' : 'font-semibold'}`} style={{ color: TABLE_COLOR[g] }}>
+          {count(r[g], c)}
         </td>
       ))}
-      <td data-testid="cell-lp" className="py-2.5 pe-3 ps-1.5 text-end font-bold tabular-nums sm:px-4" style={{ color: HER_GREEN }}>{pctOr(c, r.lpPct)}</td>
+      <td data-testid="cell-lp" className="py-2.5 pe-3 ps-1.5 text-end font-bold tabular-nums sm:px-4" style={{ color: HER_GREEN }}>{pctOr(c, r.activePct)}</td>
     </>
   );
   return (
     <section data-testid={`${testId}-card`} aria-labelledby={`${testId}-title`} className="min-w-0 overflow-hidden rounded-xl bg-white" style={CARD_STYLE}>
       <h3 id={`${testId}-title`} data-testid="card-title" className="px-4 py-3 text-sm font-bold text-gray-800" style={{ borderBottom: '1px solid #f3f4f6' }}>{title}</h3>
-      {/* A phone too narrow for her five columns scrolls the table inside its card; the page itself never scrolls. */}
+      {/* A phone too narrow for the columns scrolls the table inside its card; the page itself never scrolls. */}
       <div className="overflow-x-auto">
       <table data-testid={testId} className="w-full text-[13px] sm:text-sm">
         <thead>
           <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #E5E7EB' }}>
             <th scope="col" className="py-2.5 pe-1.5 ps-3 text-start text-xs font-semibold text-gray-500 sm:px-4">{first}</th>
-            {BANDS.map((b) => (
-              <th key={b} scope="col" className="px-1.5 py-2.5 text-end text-xs font-semibold leading-tight sm:px-3" style={{ color: TABLE_COLOR[b] }}>
-                {w.columns.bands[b][0]}<br />{w.columns.bands[b][1]}
+            {GROUPS.map((g) => (
+              <th key={g} scope="col" className="px-1.5 py-2.5 text-end text-xs font-semibold leading-tight sm:px-3" style={{ color: TABLE_COLOR[g] }}>
+                {w.groups[g]}
               </th>
             ))}
             <th scope="col" className="py-2.5 pe-3 ps-1.5 text-end text-xs font-semibold sm:px-4" style={{ color: HER_GREEN }}>{w.columns.lpShort}</th>
@@ -266,35 +274,45 @@ function LpTable({ c, testId, title, first, rows, overall }: {
   );
 }
 
-/** Her sector breakdown (SectorBreakdownTable): each school with its LP % and her status pill. */
+/**
+ * Her sector breakdown (SectorBreakdownTable): each school on FDE's list with its Active and Non-Active teachers and
+ * its Active %, then the sector's "No school" line (teachers with no school on that list).
+ */
 function LpSchoolsTable({ c, schools }: { c: AnalyticsWords; schools: LpEngagementSchool[] }) {
   const w = c.lpEngagement;
   if (!schools.length) return <p data-testid="lp-schools-empty" className="py-3 text-sm text-gray-500">{w.noSchools}</p>;
   return (
-    <div className="overflow-hidden rounded-xl bg-white" style={CARD_STYLE}>
+    <div className="overflow-x-auto rounded-xl bg-white" style={CARD_STYLE}>
       <table data-testid="lp-schools-table" className="w-full text-sm">
         <thead>
           <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #E5E7EB' }}>
             <th scope="col" className="px-3 py-3 text-start font-semibold text-gray-600 sm:px-4">{w.columns.school}</th>
-            <th scope="col" className="px-3 py-3 text-end font-semibold text-gray-600 sm:px-4">{w.columns.lp}</th>
-            <th scope="col" className="px-3 py-3 text-end font-semibold sm:px-4" style={{ color: HER_GREEN }}>{w.columns.status}</th>
+            {GROUPS.map((g) => (
+              <th key={g} scope="col" className="px-2 py-3 text-end font-semibold sm:px-4" style={{ color: TABLE_COLOR[g] }}>{w.groups[g]}</th>
+            ))}
+            <th scope="col" className="px-3 py-3 text-end font-semibold sm:px-4" style={{ color: HER_GREEN }}>{w.columns.lp}</th>
           </tr>
         </thead>
         <tbody>
           {schools.map((s, i) => (
             <tr key={s.schoolId} data-testid={`lp-school-row-${s.schoolId}`} className="hover:bg-gray-50" style={{ borderBottom: i < schools.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
               <th scope="row" className="px-3 py-3 text-start font-medium sm:px-4">
-                <span data-testid="school-name" className="block" style={{ color: HER_GREEN }}>{s.name}</span>
-                {s.emis ? <span className="block text-xs font-normal text-gray-400">{c.schools.emis(s.emis)}</span> : null}
+                {s.noSchool ? (
+                  <>
+                    <span data-testid="school-name" className="block text-gray-700">{w.noSchool}</span>
+                    <span className="block text-xs font-normal text-gray-400">{w.noSchoolHint}</span>
+                  </>
+                ) : (
+                  <>
+                    <span data-testid="school-name" className="block" style={{ color: HER_GREEN }}>{s.name}</span>
+                    {s.emis ? <span className="block text-xs font-normal text-gray-400">{c.schools.emis(s.emis)}</span> : null}
+                  </>
+                )}
               </th>
-              <td data-testid="cell-lp" className="px-3 py-3 text-end text-lg font-bold tabular-nums sm:px-4" style={{ color: HER_GREEN }}>{pctOr(c, s.lpPct)}</td>
-              <td data-testid="cell-status" className="px-3 py-3 text-end sm:px-4">
-                {s.status ? (
-                  <span className="inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ backgroundColor: `${BAND_COLOR[s.status]}18`, color: BAND_COLOR[s.status] }}>
-                    {w.status[s.status]}
-                  </span>
-                ) : NO_VALUE}
-              </td>
+              {GROUPS.map((g) => (
+                <td key={g} data-testid={`cell-${g}`} className="px-2 py-3 text-end font-semibold tabular-nums sm:px-4" style={{ color: TABLE_COLOR[g] }}>{count(s[g], c)}</td>
+              ))}
+              <td data-testid="cell-lp" className="px-3 py-3 text-end text-lg font-bold tabular-nums sm:px-4" style={{ color: HER_GREEN }}>{pctOr(c, s.activePct)}</td>
             </tr>
           ))}
         </tbody>

@@ -5,12 +5,12 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { fixtureCoaching, fixtureLpEngagement, fixtureResponse, REGION_ORDER } from "./fixtures";
 
 /**
- * bd-97x22y.3 — the LP Engagement tab, the ICT dashboard's 1 to 1 (PLAN v7; her LPEngagement.jsx): her Primary /
- * Mid-High toggle at the top of the tab, ENGAGEMENT OVERVIEW, TEACHER STATUS, SECTORS (ring cards → school breakdown),
- * the subject and grade tables with her Overall row, and the sector-wise grouped bars (View By Subjects / Grades). Her
- * percentages and colours are shown (v7 supersedes v6's "counts only" for this tab). Numbers come from GET
- * /analytics/lp-engagement — the fixture is summed with her formula, so every expectation below reads it rather than
- * repeating a number.
+ * The LP Engagement tab in the ICT dashboard's sections (her LPEngagement.jsx) with ACTIVE / NON-ACTIVE teachers in
+ * place of her On-Schedule / Moderate / Off-Schedule (FDE feedback, 2026-10-19), Primary and Mid / High alike: the band
+ * toggle, ENGAGEMENT OVERVIEW, TEACHER STATUS (Active, Non-Active, "x of N"), SECTORS (Active % rings → schools and a
+ * "No school" line), the subject and grade tables (Active, Non-Active, Active %, the tab's Overall row) and the
+ * sector-wise grouped bars (Active %). Numbers come from GET /analytics/lp-engagement — the fixture is summed as the
+ * server sums, so every expectation below reads it rather than repeating a number.
  */
 const h = vi.hoisted(() => ({
   getSchools: vi.fn(),
@@ -83,7 +83,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe("LP Engagement — her tab, 1 to 1", () => {
+describe("LP Engagement — Active / Non-Active", () => {
   it("her sections, in her order", async () => {
     renderPage();
     await find("chart-lp-subjects");
@@ -110,72 +110,95 @@ describe("LP Engagement — her tab, 1 to 1", () => {
     expect(primary.compareDocumentPosition(await find("tile-lpOverall")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("engagement overview: overall LP engagement %, teachers tracked, active sectors — with her lines under them", async () => {
+  it("engagement overview: overall LP engagement (the Active %), teachers tracked, active sectors", async () => {
     renderPage();
     const want = fixtureLpEngagement({ ...MONTH, band: "primary" }).overview;
     const overall = await find("tile-lpOverall");
     expect(testIds("tile-").slice(0, 3)).toEqual(["lpOverall", "lpTracked", "lpActiveSectors"]);
-    expect(within(overall).getByTestId("kpi-value")).toHaveTextContent(pct(want.lpPct));
+    expect(within(overall).getByTestId("kpi-value")).toHaveTextContent(pct(want.activePct));
     expect(overall).toHaveTextContent("Overall LP Engagement");
-    expect(overall).toHaveTextContent("Primary teachers");
+    expect(overall).toHaveTextContent("Primary teachers who used a lesson plan");
     expect(within(screen.getByTestId("tile-lpTracked")).getByTestId("kpi-value")).toHaveTextContent(want.teachers.toLocaleString("en-US"));
-    expect(screen.getByTestId("tile-lpTracked")).toHaveTextContent("Across all LP status categories");
+    expect(screen.getByTestId("tile-lpTracked")).toHaveTextContent("The daily RDF's teachers");
     expect(within(screen.getByTestId("tile-lpActiveSectors")).getByTestId("kpi-value")).toHaveTextContent(String(want.activeSectors));
-    expect(screen.getByTestId("tile-lpActiveSectors")).toHaveTextContent("Sectors with LP data");
-    // On + Moderate + Off is every teacher tracked (hers).
-    expect(want.onSchedule + want.moderate + want.offSchedule).toBe(want.teachers);
+    expect(screen.getByTestId("tile-lpActiveSectors")).toHaveTextContent("Sectors with an active teacher");
+    // Active + Non-Active is every teacher tracked.
+    expect(want.active + want.nonActive).toBe(want.teachers);
   });
 
-  it("teacher status: On-Schedule, Moderate, Off-Schedule counts with her thresholds", async () => {
+  it("teachers tracked says whose: the RDF's, or the schools' roster when the RDF lists are not loaded", async () => {
+    h.getLpEngagement.mockImplementation(async (p: Params) => {
+      const r = fixtureLpEngagement(p);
+      return { ...r, basis: { ...r.basis, teachers: "roster" as const } };
+    });
+    renderPage();
+    expect(await find("tile-lpTracked")).toHaveTextContent("Teachers at the schools today");
+    expect(screen.getByTestId("tile-lpTracked").textContent).not.toMatch(/RDF/);
+  });
+
+  it("teacher status: two cards, Active and Non-Active, each x of N with its share", async () => {
     renderPage();
     const want = fixtureLpEngagement({ ...MONTH, band: "primary" }).overview;
-    await find("tile-lp-on");
-    for (const [k, n, label, hint] of [
-      ["on", want.onSchedule, "On-Schedule Teachers", "LP ratio ≥ 60%"],
-      ["moderate", want.moderate, "Moderate Teachers", "LP ratio 40–59%"],
-      ["off", want.offSchedule, "Off-Schedule Teachers", "LP ratio < 40%"],
+    await find("tile-lp-active");
+    expect(testIds("tile-lp-")).toEqual(["active", "nonActive"]);
+    const n = want.teachers.toLocaleString("en-US");
+    for (const [k, x, label, hint, share] of [
+      ["active", want.active, "Active Teachers", "Used a lesson plan in the period", want.activePct!],
+      ["nonActive", want.nonActive, "Non-Active Teachers", "No lesson plan in the period", Math.round((100 - want.activePct!) * 10) / 10],
     ] as const) {
       const tile = screen.getByTestId(`tile-lp-${k}`);
-      expect(within(tile).getByTestId("kpi-value")).toHaveTextContent(n.toLocaleString("en-US"));
+      expect(within(tile).getByTestId("kpi-value")).toHaveTextContent(x.toLocaleString("en-US"));
       expect(tile).toHaveTextContent(label);
       expect(tile).toHaveTextContent(hint);
+      expect(tile).toHaveTextContent(`of ${n} teachers`);
+      expect(tile).toHaveTextContent(`${share}%`);
     }
   });
 
-  it("the LP-opens note sits on the overall tile when the window starts before opens were logged", async () => {
+  it("no On-Schedule, Moderate or Off-Schedule anywhere on the tab, Primary or Mid / High", async () => {
     renderPage();
-    expect(within(await find("tile-lpOverall")).getByTestId("lp-opens-note")).toHaveTextContent("logged since 4 Oct");
+    await find("chart-lp-subjects");
+    expect(screen.getByTestId("lp-tab").textContent).not.toMatch(/Schedule|Moderate|LP ratio/);
+    await userEvent.setup().click(screen.getByTestId("band-midhigh"));
+    await waitFor(() => expect(screen.getByTestId("tile-lpOverall")).toHaveTextContent("Mid / High teachers"));
+    expect(screen.getByTestId("lp-tab").textContent).not.toMatch(/Schedule|Moderate|LP ratio/);
+    expect(screen.queryByTestId("lp-opens-note")).toBeNull();
   });
 
-  it("six ring cards in sector order: the sector's %, its On / Moderate / Off with shares, its teachers", async () => {
+  it("six ring cards in sector order: the sector's Active %, its Active / Non-Active with shares, its teachers", async () => {
     renderPage();
     await screen.findAllByTestId("ring-value", {}, { timeout: WAIT });
     expect(testIds("sector-card-")).toEqual(SIX);
     const want = fixtureLpEngagement({ ...MONTH, band: "primary" }).regions;
     for (const r of want) {
       const card = screen.getByTestId(`sector-card-${r.region}`);
-      expect(within(card).getByTestId("ring-value")).toHaveTextContent(pct(r.lpPct));
+      expect(within(card).getByTestId("ring-value")).toHaveTextContent(pct(r.activePct));
       expect(within(card).getByTestId("sector-teachers")).toHaveTextContent(String(r.teachers));
-      expect(within(card).getByTestId("band-line-on")).toHaveTextContent(`On-Schedule${r.onSchedule}${r.onSchedule > 0 ? `(${r.onPct}%)` : ""}`);
-      expect(within(card).getByTestId("band-line-off")).toHaveTextContent(`Off-Schedule${r.offSchedule}${r.offSchedule > 0 ? `(${r.offPct}%)` : ""}`);
+      const off = r.activePct === null ? null : Math.round((100 - r.activePct) * 10) / 10;
+      expect(within(card).getByTestId("group-line-active")).toHaveTextContent(`Active${r.active}${r.active > 0 ? `(${r.activePct}%)` : ""}`);
+      expect(within(card).getByTestId("group-line-nonActive")).toHaveTextContent(`Non-Active${r.nonActive}${r.nonActive > 0 ? `(${off}%)` : ""}`);
+      expect(r.active + r.nonActive).toBe(r.teachers);
     }
   });
 
-  it("a sector card opens its schools in place — LP % and her status — and Back returns to all regions", async () => {
+  it("a sector card opens its schools in place — Active, Non-Active, Active % — then its No school line; Back returns", async () => {
     renderPage();
     const user = userEvent.setup();
     await user.click(await find("sector-card-Urban-I"));
     await waitFor(() => expect(h.getLpEngagement).toHaveBeenLastCalledWith({ ...MONTH, region: "Urban-I", band: "primary" }));
     const table = await find("lp-schools-table");
     const want = fixtureLpEngagement({ ...MONTH, region: "Urban-I", band: "primary" }).schools;
-    expect(want.length).toBeGreaterThan(0);
-    expect(within(table).getAllByTestId("school-name").map((n) => n.textContent)).toEqual(want.map((s) => s.name));
+    expect(want.length).toBeGreaterThan(1);
+    expect(want[want.length - 1]).toMatchObject({ schoolId: "no-school:Urban-I", name: null, emis: null, noSchool: true });
+    expect(within(table).getAllByTestId("school-name").map((n) => n.textContent)).toEqual(want.map((s) => s.name ?? "No school"));
     for (const s of want) {
       const row = screen.getByTestId(`lp-school-row-${s.schoolId}`);
-      expect(within(row).getByTestId("cell-lp")).toHaveTextContent(pct(s.lpPct));
-      expect(within(row).getByTestId("cell-status")).toHaveTextContent({ on: "On-Schedule", moderate: "Moderate", off: "Off-Schedule" }[s.status!]);
+      expect(within(row).getByTestId("cell-active")).toHaveTextContent(String(s.active));
+      expect(within(row).getByTestId("cell-nonActive")).toHaveTextContent(String(s.nonActive));
+      expect(within(row).getByTestId("cell-lp")).toHaveTextContent(pct(s.activePct));
     }
-    expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual(["School Name", "LP Engagement", "Status"]);
+    expect(screen.getByTestId("lp-school-row-no-school:Urban-I")).toHaveTextContent("No school on FDE's list");
+    expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual(["School Name", "Active", "Non-Active", "LP Engagement"]);
     expect(screen.getByTestId("sector-card-Urban-I")).toHaveAttribute("aria-pressed", "true");
     expect(where()).toMatch(/^\/portal\/analytics\/schools\/lp\?.*region=Urban-I/);
 
@@ -184,25 +207,25 @@ describe("LP Engagement — her tab, 1 to 1", () => {
     expect(where()).not.toMatch(/region=/);
   });
 
-  it("LP engagement by subject: her band shares and LP %, then her Overall row", async () => {
+  it("LP engagement by subject: Active and Non-Active teachers and the Active % per subject, then the tab's Overall", async () => {
     renderPage();
     const table = await find("lp-subjects-table");
-    const want = fixtureLpEngagement({ ...MONTH, band: "primary" }).bySubject;
-    expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
-      "Subject", "On-Schedule(≥60%)", "Moderate(40-59%)", "Off-Schedule(<40%)", "LP Engage",
-    ]);
+    const lp = fixtureLpEngagement({ ...MONTH, band: "primary" });
+    const want = lp.bySubject;
+    expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual(["Subject", "Active", "Non-Active", "LP Engage"]);
     for (const r of want.rows) {
       const row = screen.getByTestId(`lp-subjects-table-row-${r.subject}`);
       expect(row).toHaveTextContent(r.name);
-      expect(within(row).getByTestId("cell-on")).toHaveTextContent(pct(r.onPct));
-      expect(within(row).getByTestId("cell-moderate")).toHaveTextContent(pct(r.moderatePct));
-      expect(within(row).getByTestId("cell-off")).toHaveTextContent(pct(r.offPct));
-      expect(within(row).getByTestId("cell-lp")).toHaveTextContent(pct(r.lpPct));
+      expect(within(row).getByTestId("cell-active")).toHaveTextContent(String(r.active));
+      expect(within(row).getByTestId("cell-nonActive")).toHaveTextContent(r.nonActive.toLocaleString("en-US"));
+      expect(within(row).getByTestId("cell-lp")).toHaveTextContent(pct(r.activePct));
+      // Every row is out of the whole band.
+      expect(r.teachers).toBe(lp.overview.teachers);
     }
     const overall = screen.getByTestId("lp-subjects-table-overall");
     expect(overall).toHaveTextContent("Overall");
-    expect(within(overall).getByTestId("cell-lp")).toHaveTextContent(pct(want.overall!.lpPct));
-    expect(within(overall).getByTestId("cell-off")).toHaveTextContent(pct(want.overall!.offPct));
+    expect(within(overall).getByTestId("cell-lp")).toHaveTextContent(pct(lp.overview.activePct));
+    expect(within(overall).getByTestId("cell-active")).toHaveTextContent(lp.overview.active.toLocaleString("en-US"));
   });
 
   it("LP engagement by grade: Grades 1–5, every grade a row", async () => {
@@ -211,8 +234,11 @@ describe("LP Engagement — her tab, 1 to 1", () => {
     expect(within(table).getAllByRole("rowheader").map((th) => th.textContent)).toEqual(["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Overall"]);
     const want = fixtureLpEngagement({ ...MONTH, band: "primary" }).byGrade;
     for (const r of want.rows) {
-      expect(within(screen.getByTestId(`lp-grades-table-row-${r.grade}`)).getByTestId("cell-lp")).toHaveTextContent(pct(r.lpPct));
+      const row = screen.getByTestId(`lp-grades-table-row-${r.grade}`);
+      expect(within(row).getByTestId("cell-lp")).toHaveTextContent(pct(r.activePct));
+      expect(within(row).getByTestId("cell-active")).toHaveTextContent(String(r.active));
     }
+    expect(within(screen.getByTestId("lp-grades-table-overall")).getByTestId("cell-lp")).toHaveTextContent(pct(want.overall!.activePct));
   });
 
   it("Mid / High: asks for that band, shows Grades 6–12, keeps it in the address", async () => {
@@ -229,7 +255,8 @@ describe("LP Engagement — her tab, 1 to 1", () => {
       "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Overall",
     ]);
     const want = fixtureLpEngagement({ ...MONTH, band: "midhigh" }).overview;
-    expect(screen.getByTestId("tile-lpOverall")).toHaveTextContent(pct(want.lpPct));
+    expect(screen.getByTestId("tile-lpOverall")).toHaveTextContent(pct(want.activePct));
+    expect(screen.getByTestId("tile-lp-active")).toHaveTextContent(`of ${want.teachers.toLocaleString("en-US")} teachers`);
   });
 
   it("a link with ?band=midhigh opens on Mid / High", async () => {
@@ -239,7 +266,7 @@ describe("LP Engagement — her tab, 1 to 1", () => {
     expect(screen.getByTestId("band-midhigh")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("the sector-wise chart: a group per sector, a bar per subject, her legend; View by Grades swaps to grades", async () => {
+  it("the sector-wise chart: a group per sector, a bar per subject at its Active %, her legend; View by Grades swaps", async () => {
     renderPage();
     const chart = await find("chart-lp-subjects");
     expect(testIds("group-", chart)).toEqual(SIX);
@@ -269,7 +296,7 @@ describe("LP Engagement — her tab, 1 to 1", () => {
     h.getLpEngagement.mockImplementation(async (p: Params) => {
       const r = fixtureLpEngagement(p);
       return { ...r, regions: r.regions.map((g) => (g.region === "Tarnol"
-        ? { ...g, teachers: 0, lpRatio: null, lpPct: null, onSchedule: 0, moderate: 0, offSchedule: 0, onPct: null, moderatePct: null, offPct: null }
+        ? { ...g, teachers: 0, active: 0, nonActive: 0, activePct: null }
         : g)) };
     });
     renderPage();
