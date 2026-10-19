@@ -838,12 +838,15 @@ export interface TrainingBandSplit {
 export interface TrainingPartners {
   oxbridge: TrainingPartnerCard;
   beaconhouse: TrainingPartnerCard;
+  /** Not one of hers: NIETE's I-SAPS (passed = its certificate or all module exams passed). */
+  isaps: TrainingPartnerCard;
 }
 
-/** The overview's panels: her Oxbridge session funnel and her Beaconhouse per-subject table. */
+/** The overview's panels: her Oxbridge session funnel, her Beaconhouse per-subject table, and the I-SAPS module funnel. */
 export interface TrainingPartnersDetail {
   oxbridge: TrainingPartnerCard & { sessions: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
   beaconhouse: TrainingPartnerCard & { levels: Array<TrainingBandSplit & { name: string }> };
+  isaps: TrainingPartnerCard & { modules: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
 }
 
 export interface TrainingLevelsRegion extends TrainingLevelsBlock {
@@ -868,7 +871,8 @@ export interface TrainingLevelsResponse {
   computedAt: string;
   /**
    * On Mid/High, teachers = the Mid/High cohort and passedAll = hers: NIETE Skilled Practitioner + Teacher Leader +
-   * Oxbridge + Beaconhouse all passed; partners carry her panels. On Primary, passedAll = passed Teacher Leader.
+   * Oxbridge + Beaconhouse all passed (I-SAPS is not in it); partners carry the panels. On Primary, passedAll = passed
+   * Teacher Leader.
    */
   overview: TrainingLevelsBlock & { levels: Array<TrainingLevelCounts & { name: string }>; partners?: TrainingPartnersDetail };
   /** The six regions, whatever the filter. */

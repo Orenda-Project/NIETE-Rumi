@@ -1,4 +1,4 @@
-import { BarChart3, GraduationCap, Star, Users, type LucideIcon } from 'lucide-react';
+import { BarChart3, BookOpen, GraduationCap, Star, Users, type LucideIcon } from 'lucide-react';
 
 /**
  * bd-97x22y.4 — her Trainings colours, 1 to 1 (operator, 2026-10-14: "fully 1 to 1"): one table, read by every part
@@ -23,6 +23,8 @@ export const LEVEL_LOOK: Record<number, Look> = {
 
 export const OXBRIDGE_LOOK: Look = { color: '#0891B2', light: '#E0F2FE', Icon: GraduationCap };
 export const BEACONHOUSE_LOOK: Look = { color: '#818CF8', light: '#EEF2FF', Icon: Star };
+/** I-SAPS is not one of hers: a colour none of her levels or partners use. */
+export const ISAPS_LOOK: Look = { color: '#DB2777', light: '#FDF2F8', Icon: BookOpen };
 
 /** Her green: section labels, the sector cards' big number, the chart's frame, "View Details". */
 export const HER_GREEN = '#47ba7c';
@@ -41,6 +43,7 @@ export const SERIES_COLOR: Record<string, string> = {
   3: '#8b5cf6',
   oxbridge: '#0891B2',
   beaconhouse: '#818CF8',
+  isaps: '#DB2777',
 };
 
 /** Her sector-card rows (TRAINING_LEVEL_META): the level colours, then the partners'. */
@@ -51,6 +54,7 @@ export const ROW_COLOR: Record<string, string> = {
   3: '#8B5CF6',
   oxbridge: '#0891B2',
   beaconhouse: '#818CF8',
+  isaps: '#DB2777',
 };
 
 export const MIDDLE_COLOR = '#0891B2';
