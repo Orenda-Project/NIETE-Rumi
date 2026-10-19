@@ -1,12 +1,12 @@
 /**
  * Where sign-in may send the user back to (`/portal/login?next=…`, contracts/deep-link.md v2).
  *
- * Only a same-origin PATH under `/portal/fln/` or `/portal/teacher/` is kept; everything else is `null`, and the caller
+ * Only a same-origin PATH under `/portal/fln/`, `/portal/teacher/` or `/portal/coach/disagreements/` (bd-tbprit.4) is kept; everything else is `null`, and the caller
  * goes to the user's home as before. Refused: other origins (`//host`, `/\host`, `\\host`), any scheme (`https:`,
  * `javascript:`, `data:`), control and line-separator characters, a backslash anywhere, `..` segments, and the same
  * tricks percent-encoded once or twice (`%2F%2F`, `%5C`, `%252F`). A malformed escape is refused, not repaired.
  */
-const ALLOW = /^\/portal\/(fln|teacher)\//;
+const ALLOW = /^\/portal\/(fln|teacher|coach\/disagreements)\//;
 const MAX_LEN = 2048;
 // C0 controls, DEL, C1 controls, and the Unicode line/paragraph separators.
 // eslint-disable-next-line no-control-regex

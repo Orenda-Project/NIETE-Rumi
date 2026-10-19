@@ -72,7 +72,7 @@ describe('GET /config — the flag reads run together', () => {
     }
     await done;
 
-    expect(started).toBe(7); // the seven flags staging has (sandbox's child test is not here)
+    expect(started).toBe(8); // the seven flags staging has, and coach_disagreement_card (bd-tbprit.1)
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
