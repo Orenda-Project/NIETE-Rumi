@@ -803,8 +803,8 @@ const URDU = {
       marks_ur: '(کل نمبر {t:20})', // transcribed (FDE p.54)
       label_en: 'Section A (objective)',
       marks: 20,
-      // FDE's split for this section (ToS PDF p.50-53; how R15/U5 divides between A and C is ours; bd-5jmnfj.19).
-      levels: { Remember: 15, Understand: 5, Apply: 0 },
+      // FDE's split for this section (ToS PDF p.50-53; how R30 divides between A and C is ours; bd-5jmnfj.19).
+      levels: { Remember: 20, Understand: 0, Apply: 0 },
       answer_on: 'question_paper',
       note_ur: null,
       slots: [
@@ -862,8 +862,8 @@ const URDU = {
       marks_ur: '(کل نمبر {t:60})', // transcribed (FDE p.57)
       label_en: 'Section C (subjective)',
       marks: 60,
-      // FDE ToS; the writing tasks Q7-Q10 are Apply (bd-5jmnfj.19).
-      levels: { Remember: 15, Understand: 5, Apply: 40 },
+      // FDE ToS; the writing tasks Q7-Q10 are Apply, Q4-Q5 Understand, Q3 and Q6 Remember (bd-5jmnfj.19).
+      levels: { Remember: 10, Understand: 10, Apply: 40 },
       answer_on: 'answer_sheet',
       note_ur: null,
       slots: [

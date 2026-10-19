@@ -35,7 +35,7 @@ function laid(name) {
 describe('the pattern carries FDE\'s split per section', () => {
   it.each([
     ['maths', { A: [10, 30, 0], B: [0, 20, 20], C: [0, 0, 20] }],
-    ['urdu', { A: [15, 5, 0], B: [0, 20, 0], C: [15, 5, 40] }],
+    ['urdu', { A: [20, 0, 0], B: [0, 20, 0], C: [10, 10, 40] }],
   ])('%s', (subject, want) => {
     const S = P[subject];
     for (const sec of S.sections) {
@@ -58,7 +58,7 @@ describe('a section is asked for its own split', () => {
   });
   it('Urdu Section C names its writing tasks as Apply', () => {
     const text = prompt('urdu', 'C');
-    expect(text).toContain('This section\'s 60 marks split by thinking level as Remember 15, Understand 5, Apply 40');
+    expect(text).toContain('This section\'s 60 marks split by thinking level as Remember 10, Understand 10, Apply 40');
     expect(text).toMatch(/picture description, paragraph, story and letter or application are Apply/);
   });
   it('a subject with no per-section split keeps the whole-paper line alone', () => {
@@ -117,5 +117,17 @@ describe('Urdu Q4 and Q5 are Understand', () => {
   });
   it('no other section is told', () => {
     expect(prompt('urdu', 'A')).not.toMatch(/\(Q4\)/);
+  });
+});
+
+describe('Urdu Section C split fits its questions', () => {
+  // With Q4+Q5 (10 marks) Understand, only Q3 and Q6 (5 each) are left for Remember: C cannot reach R15/U5.
+  it('C is R10 U10 A40 and A carries the rest of Remember', () => {
+    expect(sectionLevels('urdu').C).toEqual({ Remember: 10, Understand: 10, Apply: 40 });
+    expect(sectionLevels('urdu').A).toEqual({ Remember: 20, Understand: 0, Apply: 0 });
+  });
+  it('the sections still add up to the ToS', () => {
+    const sum = Object.fromEntries(LEVELS.map((b) => [b, P.urdu.sections.reduce((n, s) => n + s.levels[b], 0)]));
+    expect(sum).toEqual(P.urdu.tos);
   });
 });
