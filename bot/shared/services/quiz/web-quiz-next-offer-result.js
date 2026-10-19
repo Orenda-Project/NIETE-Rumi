@@ -84,13 +84,14 @@ async function childCandidates({ studentId, device, lang: asked = null, watch = 
   const snap = await snapshot({ studentId, device, lang: asked, watch, live });
   if (!snap) return null;
   const { canonical, token, out, history, collect, grade, lang } = snap;
-  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay] = await Promise.all([
+  const [{ quizIds, storyCodes, unsentCodes, known, covers }, books, onItsWay, recTitleUr] = await Promise.all([
     quizIdsOf([out.teacher && out.teacher.code, out.last && out.last.code, ...(out.again || []).map((a) => a.code)], { history }),
     storybooks({ studentId: canonical, lang, grade, token, chip: out.kid }),
     onItsWayOf(canonical, studentId, collect.trail, lang, grade),
+    S.recTitleUrOf(out, lang),
   ]);
   const candidates = candidatesOf({ out, token, history, collect: { ...collect, onItsWay }, lang, quizIds, storyCodes, unsentCodes, known, covers,
-    subjectArt: require('./web-quiz-hub')._parts.subjectArtOf, extra: books, watch });
+    subjectArt: require('./web-quiz-hub')._parts.subjectArtOf, extra: books, watch, recTitleUr });
   return { canonical, candidates, hasRoot: hasRootOf(history), lang };
 }
 
@@ -204,7 +205,9 @@ async function finishInner(body = {}, out = {}, { device = null } = {}, live = n
     // the quiz's own "next in this chapter" (a video quiz with a code) is one candidate among the rest
     // (its id is the video's: a share code never rides beside a kid)
     if (out.next && out.next.code && out.next.title && out.next.vid) {
-      extra.push({ kind: 'video', variant: 'chapter', id: `chapter.${out.next.vid}`, href: `/q/${encodeURIComponent(out.next.code)}`, ...words('video'), ...subOf(out.next.title), minutes: 3, ...artOr(out.next.poster || out.next.art, 'video') });
+      // its Urdu-script name for an Urdu card (no language asked: the child's own may be Urdu; the names are cached)
+      const ur = await S.videoTitleUrOf(out.next.vid, lang === 'en' ? 'en' : 'ur');
+      extra.push({ kind: 'video', variant: 'chapter', id: `chapter.${out.next.vid}`, href: `/q/${encodeURIComponent(out.next.code)}`, ...words('video'), ...subOf(out.next.title, ur), minutes: 3, ...artOr(out.next.poster || out.next.art, 'video') });
     }
     if (out.challenge_code) {
       const base = String(process.env.PORTAL_URL || '').replace(/\/+$/, '');
