@@ -1474,6 +1474,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || ic(IC.star, '⭐')) + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
   // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
+  // the table's topic line: with the Urdu polish, never a «·» beside Urdu digits (it reads as «۰»), and a Latin title in
+  // its own left-to-right piece; else today's "topic · n finished"
+  function topicLine(topic, fin) {
+    if (!UR2 || !topic) return dotJoin(topic, fin);
+    return '<bdi' + (/[\u0600-\u06FF]/.test(topic) ? '' : ' dir="ltr"') + '>' + esc(topic) + '</bdi>، ' + esc(fin);
+  }
   function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
   function link(path) { return location.origin + path; }
 
@@ -3107,7 +3113,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var look = Boolean(b.class_doors) && advOn();
     var playOne = look && !S.result;
     var note = '<p class="wq-small' + (look ? ' wq-tnote' : '') + '">' + esc(T.firstOnly) + '</p>';
-    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(topic, T.finN(v.finishers_n || 0)) + '</p>' +
+    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + topicLine(topic, T.finN(v.finishers_n || 0)) + '</p>' +
       (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') + (look ? note : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
