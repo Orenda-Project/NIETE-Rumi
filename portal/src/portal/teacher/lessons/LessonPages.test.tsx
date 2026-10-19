@@ -149,7 +149,8 @@ describe("lessons", () => {
     expect(state.lessonPlan).toEqual(expect.objectContaining({
       source: { lane: "k5", lessonId: "g4m2", assetKind: "lesson" }, title: "Place value",
     }));
-    expect(state.dc).toEqual({ grade: 4, subjectKey: "maths", plan: "k5:g4m2", lang: null });
+    // bd-fgj73x.10: and the catalogue subject, so DC picks the class even when it is not hers
+    expect(state.dc).toEqual({ grade: 4, subjectKey: "maths", plan: "k5:g4m2", lang: null, lpSubject: "math" });
   });
 
   it("a grades 6–12 plan being written goes to Preparing", async () => {
@@ -181,7 +182,7 @@ describe("preparing", () => {
     await waitFor(() => expect(where().dataset.path).toBe(LESSONS_VIEWER), { timeout: 5000 });
     const state = JSON.parse(where().dataset.state as string);
     expect(state.lessonPlan.source).toEqual({ lane: "g612", renderId: "R9" });
-    expect(state.dc).toEqual({ grade: 9, subjectKey: "physics", plan: "g612:phy9.c02.p010", lang: "en" });
+    expect(state.dc).toEqual({ grade: 9, subjectKey: "physics", plan: "g612:phy9.c02.p010", lang: "en", lpSubject: "Physics" });
   }, 8000);
 
   it("failed: says so, with Try again and Other lessons", async () => {
