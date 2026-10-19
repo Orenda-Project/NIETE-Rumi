@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
+import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
@@ -30,8 +31,10 @@ api.interceptors.response.use(
     // Session expired - redirect to login
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname;
-      // Don't redirect if already on login/setup pages
+      // Don't redirect if already on login/setup pages (the analytics accounts' own sign-in is one: its signed-out
+      // session read and a refused name both answer 401, and neither may send her to the teacher sign-in).
       if (!currentPath.includes('/portal/login') && 
+          !currentPath.includes(ANALYTICS_LOGIN) &&
           !currentPath.includes('/portal/setup') &&
           !currentPath.includes('/portal/reset-password')) {
         window.location.href = '/portal/login';
