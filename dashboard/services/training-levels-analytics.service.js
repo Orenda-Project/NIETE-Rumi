@@ -35,8 +35,9 @@
  * Middle / high come from users.teacher_level (a member with neither counts in the total only).
  *
  * SECTORS AND SCHOOLS (PLAN v8 shared contract, dashboard/lib/analytics-lists.js). A member's sector is her RDF
- * allocation sector (populationSectors: the primary Map, then midHigh — both the allocation file's tphone2sect,
- * resolved to users.id). A member the allocation does not place is in the noSector block — never dropped, so the six
+ * allocation sector: the lists' sectorByUser — every user on the allocation file, any role, the RDF's own uid2sect,
+ * which is what its certificate card groups by (principals included) — or, when that is not stored, populationSectors
+ * (the two teacher Maps). A member the allocation does not place is in the noSector block — never dropped, so the six
  * sectors plus noSector add up to the whole, as the RDF's "no sector" bar does. A member's school row is her school
  * when it is on FDE's programme list (onFdeList), else her sector's "No school" row (noSchoolId(sector), noSchool:
  * true — the id every analytics tab uses).
@@ -244,7 +245,8 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
   const src = rows || {};
   const catalogue = readCatalogue(src.partners);
   const lists = src.lists || null;
-  const rdfSectors = populationSectors(lists);
+  // The RDF's uid2sect (any role) when stored; else the two teacher populations' sectors; else (null) v7's.
+  const rdfSectors = lists && lists.sectorByUser instanceof Map ? lists.sectorByUser : populationSectors(lists);
   const schoolListUsable = !!(lists && lists.fdeSchoolEmis instanceof Set && !(lists.missing && lists.missing.schools));
   const schoolsById = new Map((src.schools || []).map((s) => [s.id, s]));
   // FAIL-CLOSED: without the teacher lists, v7's sector — her school's, when it counts.

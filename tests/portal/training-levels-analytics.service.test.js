@@ -184,6 +184,36 @@ describe('Primary — the RDF primary-programme population, certificates passed,
     expect(none.levels.map((l) => [l.levelOrder, l.passed, l.teachers])).toEqual([[0, 1, 1], [1, 1, 1], [2, 0, 1], [3, 0, 1]]);
   });
 
+  it("sectorByUser (every allocation-file user, any role) places a principal outside both teacher Maps in her RDF sector", () => {
+    const rows = baseRows();
+    // p5 is a principal: in neither teacher Map, on the allocation file in Nilore
+    rows.lists = lists({ sectorByUser: new Map([['p1', 'B.K'], ['p2', 'B.K'], ['p3', 'B.K'], ['p4', 'Sihala'], ['p5', 'Nilore']]) });
+    const out = summarizeTrainingLevels(rows, { band: 'primary' });
+    expect(out.regions.find((r) => r.region === 'Nilore')).toMatchObject({ teachers: 1 });
+    expect(lvl(out.regions.find((r) => r.region === 'Nilore'), 0).passed).toBe(1);
+    expect(out.noSector.teachers).toBe(1);
+    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toContainEqual(['Nilore', 's1', 1]);
+  });
+
+  it('sectorByUser wins over the teacher Maps (it is the RDF\'s uid2sect); null falls back to them', () => {
+    const rows = baseRows();
+    rows.members = [mem('b1', { ...P, cert_levels: ids(1) })];
+    rows.lists = lists({ sectorByUser: new Map([['b1', 'Urban-II']]) });
+    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Urban-II').teachers).toBe(1);
+    rows.lists = lists({ sectorByUser: null });
+    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
+  });
+
+  it('sectorByUser stands even when a teacher Map is missing; with neither, v7\'s school sector', () => {
+    const rows = baseRows();
+    rows.lists = lists({ primary: null, midHigh: null, missing: { schools: false, teachers: true, coaches: false },
+      sectorByUser: new Map([['p5', 'Tarnol']]) });
+    const out = summarizeTrainingLevels(rows, { band: 'primary' });
+    expect(out.regions.find((r) => r.region === 'Tarnol').teachers).toBe(1);
+    // the rest are not on the allocation file: the RDF's "no sector"
+    expect(out.noSector.teachers).toBe(5);
+  });
+
   it('the sector comes from the primary Map first, then midHigh', () => {
     const rows = baseRows();
     rows.members = [mem('b1', { ...P, mh_cohort: true, cert_levels: ids(1) })];

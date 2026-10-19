@@ -369,7 +369,7 @@ const EN = {
     },
     school: { passed: 'Passed', teachers: 'Teachers', none: 'No schools found.', noSchool: 'No school', noSchoolHint: "Not at a school on FDE's list" },
     /** Members the RDF allocation gives no sector: shown, never dropped, so the sectors add up to the total. */
-    noSector: { title: 'No sector', note: 'On the programme, but the RDF gives them no sector (no school, principals and others)' },
+    noSector: { title: 'No sector', note: 'On the programme, but not on the RDF allocation file, so the RDF gives them no sector' },
     /** The population line in the filter bar. */
     population: {
       primary: (n: string) => `${n} teachers on NIETE's primary programme (any role, any school), as the RDF counts them`,
