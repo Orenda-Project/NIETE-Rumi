@@ -1,0 +1,16 @@
+{
+ "lang": "en",
+ "voice": {
+  "provider": "soniox",
+  "voice": "Reyna",
+  "name": "Reyna"
+ },
+ "lines": {
+  "2": "Hi! I'm Jugnu. I light the way!",
+  "3": "Stories, games and videos are all here!",
+  "4": "Your next stop is ready. Tap \"Let's go!\"",
+  "5": "Your turn. Tap here!",
+  "2s": "Hi! I'm Jugnu.",
+  "4n": "Ready? Tap \"Let's go!\""
+ }
+}
