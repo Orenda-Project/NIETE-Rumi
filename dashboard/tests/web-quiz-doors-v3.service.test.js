@@ -108,6 +108,36 @@ describe('every door screen, both languages', () => {
   });
 });
 
+describe('Games: the new quizzes ("Try these next") a child with no teacher quiz can start', () => {
+  const RECS = [{ vid: VID, title: 'Life cycle of a hen', subject: 'Science', art: '/wq/art/subject-science.webp' }, { vid: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Parts of a flower', subject: 'Science' }];
+  const AGAIN = [{ kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }];
+  test.each([['en', 'Try these next'], ['ur', 'یہ بھی کریں']])('%s: listed above Play again, each opens at the questions; the first takes the primary', (lang, head) => {
+    const W = load();
+    const B = { ...HUB, lang, home_v3: 1, doors: { stories: [], games: AGAIN, videos: null, recs: RECS } };
+    const h = W.WQDOORS.html(B, ctxOf(lang), 'games', { games: [] });
+    expect(h).toContain(head);
+    expect(count(h, /data-tap="vquiz" data-kind="rec"/g)).toBe(2);
+    expect(h).toContain('data-item="' + VID + '"');
+    expect(h.indexOf(head)).toBeLessThan(h.indexOf(lang === 'en' ? 'Play again' : 'دوبارہ کھیلیں'));
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(h).toMatch(/data-primary[^>]*data-tap="vquiz"/);
+    expect(visible(h).match(BANNED)).toBe(null);
+  });
+  test('recs alone: never the empty note; while the rows load they are drawn for real', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [], videos: null, recs: RECS } };
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] })).not.toContain('Read a story with Jugnu!');
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', null)).toContain('Life cycle of a hen');
+  });
+  test('no recs on the boot: the Games door is today\'s, byte for byte', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: AGAIN, videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] });
+    expect(h).toBe(W.WQDOORS.html({ ...B, doors: { ...B.doors, recs: [] } }, ctxOf('en'), 'games', { games: [] }));
+    expect(h).not.toContain('Try these next');
+  });
+});
+
 describe('Games: Jugnu\'s passages beside the games (the Stories door shows storybooks only)', () => {
   const READS = { games: [{ kind: 'numbers', stop: 'bigger', name: 'Which is bigger?' }, { kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' }, { kind: 'read', stop: 'read', name: 'Read aloud' }, { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }] };
   test.each([['en', 'Read along', 'Listen'], ['ur', 'جگنو کے ساتھ ساتھ پڑھیں', 'سنیں']])('%s: under the games — read along and listen open the story room by id, read aloud the games page; one primary', (lang, along, listen) => {
