@@ -109,6 +109,7 @@ html.wq-adv .wq-hhead .wq-snd{color:var(--land-vd)}
 /* 4 · Home: header → the Next stop tile → the trail of three lands → my class → hold for grown-ups */
 html.wq-adv section.wq-home{min-height:calc(100dvh - 120px);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:var(--sp-4);margin:0;min-width:0;border:0;border-radius:0;background:transparent;color:var(--ink);font-size:inherit;font-weight:inherit;cursor:auto;-webkit-tap-highlight-color:transparent}
 html.wq-adv .wq-hhead{gap:var(--sp-3)}
+html.wq-adv[lang=ur] .wq-hhead{gap:var(--sp-2)}
 html.wq-adv .wq-hjug{width:52px;height:52px;border-radius:50%;background:var(--land-vd-bg);border:3px solid var(--card);box-shadow:0 2px 0 var(--line)}
 html.wq-adv .wq-hhi{color:var(--ink)}
 html.wq-adv .wq-hhead .wq-dot{flex:none;width:11px;height:11px;border-radius:50%}
