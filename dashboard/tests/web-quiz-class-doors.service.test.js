@@ -693,6 +693,22 @@ describe('the Urdu class table and league: an Urdu class label, Play always in r
     await flush(); await flush();
     return p;
   };
+  test('the Urdu polish: no rendered Urdu text puts a «·» beside an Urdu digit (it reads as «۰»), on the class table and the school league', async () => {
+    const DOT_DIGIT = /[۰-۹]\s*·|·\s*[۰-۹]/;
+    const text = (h) => h.replace(/<[^>]+>/g, '');
+    for (const view of ['class', 'schools']) {
+      const p = page({ lang: 'ur', store: {}, view, topic: 'Parts of a plant', cls: { label: 'Classes 2, 3', teacher: 'Ms Testwala', chips: [] }, bootExtra: { class_doors: true, ui: { ur2: true } }, api: { '/board/TEST': { ...COLD, finishers_n: 145 }, '/schools/TEST': LEAGUE } });
+      await flush(); await flush();
+      expect(text(p.html())).not.toMatch(DOT_DIGIT);
+    }
+  });
+  test('the Urdu polish: the topic line never puts «·» beside Urdu digits, and an English title is its own left-to-right piece', async () => {
+    const sub = async (ur2) => { const p = page({ lang: 'en', store: {}, view: 'class', topic: 'Parts of a plant', cls: { label: 'Class 3', teacher: 'Ms Testwala', chips: [] }, bootExtra: { class_doors: true, ui_lang: 'ur', ...(ur2 ? { ui: { ur2: true } } : {}) }, htmlClass: ur2 ? ['wq-ur2'] : [], api: { '/board/TEST': { ...COLD, finishers_n: 145 } } }); await flush(); await flush(); return (/<p class="wq-sub">([\s\S]*?)<\/p>/.exec(p.html()) || [])[1] || ''; };
+    const on = await sub(true);
+    expect(on).not.toContain('·');
+    expect(on).toMatch(/<bdi dir="ltr">(<[^>]+>)?Parts of a plant(<\/[^>]+>)?<\/bdi>، ۱۴۵ نے مکمل کیا/);
+    expect(await sub(false)).toContain(' · ');   // polish off: today's line
+  });
   test('an English quiz\'s table in Urdu: the class label in Urdu words and digits; a lettered class keeps its letters', async () => {
     expect((await classPage('Classes 2, 3, 4, 5')).html()).toContain('کلاس ۲، ۳، ۴، ۵ کی لیگ ٹیبل');
     expect((await classPage('Class 3')).html()).toContain('کلاس ۳ کی لیگ ٹیبل');
