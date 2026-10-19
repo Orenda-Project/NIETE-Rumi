@@ -47,7 +47,7 @@ function mkEl(tag, rect) {
   e.classList = { add: (c) => e.cls.add(c), remove: (c) => e.cls.delete(c), contains: (c) => e.cls.has(c), toggle: (c, on) => (on === undefined ? (e.cls.has(c) ? e.cls.delete(c) : e.cls.add(c)) : on ? e.cls.add(c) : e.cls.delete(c)) };
   return e;
 }
-function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true } = {}) {
+function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true, nextTop = 300, tagTop = null, landLeft = 20 } = {}) {
   const timers = [];
   let clock = 1000000;
   const evs = [];
@@ -55,12 +55,15 @@ function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true 
   const asked = [];
   const audios = [];
   const body = mkEl('body');
-  const next = mkEl('a', { top: 300, left: 16, right: 374, bottom: 420, width: 358, height: 120 });
+  const next = mkEl('a', { top: nextTop, left: 16, right: 374, bottom: nextTop + 120, width: 358, height: 120 });
+  // the look's "Next stop!" tag above the card (wq-adv.js), when a test names where it sits
+  const tag = tagTop == null ? null : mkEl('span', { top: tagTop, left: 200, right: 330, bottom: tagTop + 28, width: 130, height: 28 });
+  next.querySelector = (sel) => (sel === '.wqa-bub' ? tag : null);
   next.attrs.class = 'wq-next';
   next.attrs['data-tap'] = 'next';
   next.attrs.href = '/q/MATH01?k=kk';
   const head = mkEl('header', { top: 0, left: 0, right: 390, bottom: 64, width: 390, height: 64 });
-  const lands = ['stories', 'games', 'videos'].map((d, i) => { const l = mkEl('a', { top: 440, left: 20 + i * 120, right: 120 + i * 120, bottom: 520, width: 100, height: 80 }); l.attrs['data-door'] = d; return l; });
+  const lands = ['stories', 'games', 'videos'].map((d, i) => { const x = landLeft + i * 133; const l = mkEl('a', { top: 440, left: x, right: x + 120, bottom: 520, width: 120, height: 80 }); l.attrs['data-door'] = d; return l; });
   const root = mkEl('main');
   root.querySelector = (sel) => (sel === '.wq-next' || sel === '[data-tap="next"]' ? (/class="wq-next"/.test(root._h) ? next : null) : sel === '.wq-hhead' ? head : null);
   root.querySelectorAll = (sel) => (sel === '[data-tap]' ? (/class="wq-next"/.test(root._h) ? [next] : []) : /wqa-stop|wq-door/.test(sel) ? lands : []);
@@ -85,6 +88,8 @@ function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true 
     Date: { now: () => clock }, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent, decodeURIComponent, RegExp, Error,
   };
   if (muted) store.wq_snd = '0';
+  ctx.innerWidth = 390;
+  ctx.innerHeight = 844;
   ctx.window = ctx;
   vm.createContext(ctx);
   if (welcome === 'before' && WSRC) vm.runInContext(WSRC, ctx);
@@ -107,7 +112,7 @@ function page(B, { store = {}, welcome = 'later', muted = false, voiceOk = true 
   };
   const overlay = () => body.children.find((c) => c.attrs.class === 'wqw') || null;
   const tap = (what) => overlay().fire('click', { target: { getAttribute: (k) => (k === 'data-ww' ? what : null) } });
-  return { ctx, root, next, lands, body, evs, posts, asked, audios, store, run, overlay, tap, hctx, html: () => root._h, step: () => overlay() && overlay().attrs['data-step'], cap: () => { const m = /<p class="wqw-cap"[^>]*>([\s\S]*?)<\/p>/.exec((overlay() || {})._h || ''); return m ? m[1] : null; } };
+  return { ctx, root, next, tag, lands, body, evs, posts, asked, audios, store, run, overlay, tap, hctx, html: () => root._h, step: () => overlay() && overlay().attrs['data-step'], cap: () => { const m = /<p class="wqw-cap"[^>]*>([\s\S]*?)<\/p>/.exec((overlay() || {})._h || ''); return m ? m[1] : null; } };
 }
 const COPY = {
   en: { hi: 'Hi! I&#39;m Jugnu. I light the way!', hiShort: 'Hi! I&#39;m Jugnu.', lands: 'Stories, games and videos are all here!', stop: 'Your next stop is ready. Tap &quot;Let&#39;s go!&quot;', nudge: 'Ready? Tap &quot;Let&#39;s go!&quot;', skip: 'Skip' },
@@ -369,5 +374,33 @@ describe('POST /api/wq/welcome (the portal route)', () => {
     calls = [];
     expect((await call(srv, { hub: 'nope', kid: KID, outcome: 'done' })).status).toBe(401);
     expect(calls).toEqual([]);
+  });
+});
+
+describe('FT-1 / FT-2 (design-qa DQ68): Skip\'s own row, and the rings inside the 16 px gutters', () => {
+  const styleOf = (h, cls) => { const m = new RegExp('class="' + cls + '"[^>]*style="([^"]*)"').exec(h); return m ? Object.fromEntries(m[1].split(';').filter(Boolean).map((x) => x.split(':'))) : null; };
+  test.each(['en', 'ur'])('%s: the Next stop and its tag move down while the welcome is up, ≥ 8 px under Skip; back as they were at the end', (lang) => {
+    // Skip's row: the header's bottom (64) + 8 = 72, 48 tall, so the card and its tag start at 72 + 48 + 8 = 128 at the earliest
+    const p = page(boot(lang, { welcome: W1 }), { nextTop: 110, tagTop: 90 });
+    expect(p.next.style.marginTop).toBe('38px');
+    p.tap('jugnu');
+    p.tap('skip');
+    expect(p.next.style.marginTop).toBe('');
+    const q = page(boot(lang, { welcome: W1 }), { nextTop: 140 });
+    expect(q.next.style.marginTop).toBeUndefined();
+  });
+  test('the land ring and the Next stop\'s opening keep ≥ 16 px from both screen edges', () => {
+    const p = page(boot('en', { welcome: W1 }), { landLeft: 4 });
+    p.tap('jugnu');
+    p.run(3000);
+    const r1 = styleOf(p.overlay()._h, 'wqw-ring');
+    expect(parseInt(r1.left, 10)).toBeGreaterThanOrEqual(16);
+    p.run(2000);
+    const r3 = styleOf(p.overlay()._h, 'wqw-ring');
+    expect(parseInt(r3.left, 10) + parseInt(r3.width, 10)).toBeLessThanOrEqual(390 - 16);
+    p.run(2000);
+    const hole = styleOf(p.overlay()._h, 'wqw-dim wqw-hole');
+    expect(parseInt(hole.left, 10)).toBeGreaterThanOrEqual(16);
+    expect(parseInt(hole.left, 10) + parseInt(hole.width, 10)).toBeLessThanOrEqual(390 - 16);
   });
 });

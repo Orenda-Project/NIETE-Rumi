@@ -68,6 +68,9 @@
     if ((w.attempt || 1) >= 2) keep(B.kid, w.v, 'done');
     ev('welcome_shown', { form: form, v: w.v, attempt: w.attempt || 1, lang: lang });
     go(1);
+    room();
+    // ...and again once the look has dressed the card (its tag comes a moment after the home paints)
+    [300, 1000, 2500].forEach(function (ms) { setTimeout(function () { if (st) room(); }, ms); });
     return true;
   }
   function later(fn, ms) { var id = setTimeout(function () { if (st) fn(); }, ms); st.timers.push(id); }
@@ -76,6 +79,43 @@
   function inside(r, x, y) { return typeof x === 'number' && typeof y === 'number' && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }
   function px(n) { return Math.round(Number(n) || 0) + 'px'; }
   function vh() { return (typeof window !== 'undefined' && window.innerHeight) || 640; }
+  function vw() { return (typeof window !== 'undefined' && window.innerWidth) || 360; }
+  // A rect drawn on the scrim (a ring, the opening) kept inside the page's 16 px gutters (design-qa FT-2).
+  function inset(r, pad) {
+    var l = Math.max(16, r.left - pad), rt = Math.min(vw() - 16, r.right - 0 + pad);
+    return { top: r.top - pad, left: l, width: Math.max(0, rt - l), height: r.height + 2 * pad };
+  }
+  // Skip's own row (design-qa C2 / FT-1): the Next stop and the look's tag over it move down while the welcome is up,
+  // so they start ≥ 8 px under Skip; the card's own margin comes back at the end.
+  var SKIP_H = 48;
+  function room() {
+    var r = rectOf(st.next);
+    if (!r) return;
+    var tag = st.next.querySelector ? st.next.querySelector('.wqa-bub') : null;
+    var tr = tag ? rectOf(tag) : null;
+    var top = Math.min(r.top, tr && tr.height > 0 ? tr.top : r.top);
+    var need = Math.ceil(skipBottom() + 8 - top);
+    if (!(need > 0)) return;
+    var cur = 0;
+    try { cur = parseFloat(window.getComputedStyle(st.next).marginTop) || 0; } catch (e) { cur = 0; }
+    st.pushed = true;
+    st.next.style.marginTop = (cur + need) + 'px';
+  }
+  // Skip's drawn bottom (its Urdu line can make it a little taller than 48), else where its row puts it
+  function skipBottom() {
+    var r = st.el && st.el.querySelector ? rectOf(st.el.querySelector('.wqw-skip')) : null;
+    return r && r.height > 0 ? r.bottom : topRow() + SKIP_H;
+  }
+  // step 4 on a short screen: the page scrolls just enough for the whole card, never under Skip's row
+  function reveal() {
+    var r = rectOf(st.next);
+    if (!r || !(r.bottom > vh() - 8)) return;
+    var tag = st.next.querySelector ? st.next.querySelector('.wqa-bub') : null;
+    var tr = tag ? rectOf(tag) : null;
+    var top = Math.min(r.top, tr && tr.height > 0 ? tr.top : r.top);
+    var by = Math.min(r.bottom - vh() + 16, top - (skipBottom() + 8));
+    if (by > 0) { try { window.scrollBy(0, by); } catch (e) {} }
+  }
   function topRow() {
     var h = rectOf(st.root.querySelector('.wq-hhead'));
     return Math.round((h && h.bottom ? h.bottom : 0) + 8);
@@ -90,10 +130,14 @@
   // when there is no room; the hand points at the card's own Let's go.
   function draw(cap, extra, ring) {
     var s = st.step;
+    // the look's tag can arrive after the welcome (wq-adv.js dresses the card late): Skip's row is kept on every draw
+    if (st.el && st.el.innerHTML) room();
     var hole = s >= 4 ? rectOf(st.next) : null;
     if (hole && !(hole.width > 0)) hole = null;
     st.hole = hole;
-    var dim = hole ? '<div class="wqw-dim wqw-hole" style="top:' + px(hole.top - 6) + ';left:' + px(hole.left - 6) + ';width:' + px(hole.width + 12) + ';height:' + px(hole.height + 12) + '"></div>' : '<div class="wqw-dim"></div>';
+    var hb = hole ? inset(hole, 0) : null;
+    var dim = hb ? '<div class="wqw-dim wqw-hole" style="top:' + px(hb.top) + ';left:' + px(hb.left) + ';width:' + px(hb.width) + ';height:' + px(hb.height) + '"></div>' : '<div class="wqw-dim"></div>';
+    var rb = ring ? inset(ring, 4) : null;
     var stage = '';
     if (hole) stage = hole.bottom + 190 < vh() ? ' style="top:' + px(hole.bottom + 14) + '"' : ' style="top:auto;bottom:' + px(vh() - hole.top + 14) + '"';
     var hand = '';
@@ -104,7 +148,7 @@
       hand = ' style="top:' + px(g.top + g.height * 0.45) + ';left:' + px(x) + ';inset-inline-start:auto"';
     }
     st.el.setAttribute('data-step', String(s));
-    st.el.innerHTML = dim + (ring ? '<span class="wqw-ring" style="top:' + px(ring.top - 4) + ';left:' + px(ring.left - 4) + ';width:' + px(ring.width + 8) + ';height:' + px(ring.height + 8) + '"></span>' : '') +
+    st.el.innerHTML = dim + (rb ? '<span class="wqw-ring" style="top:' + px(rb.top) + ';left:' + px(rb.left) + ';width:' + px(rb.width) + ';height:' + px(rb.height) + '"></span>' : '') +
       '<div class="wqw-top" style="top:' + topRow() + 'px"><button type="button" class="wqw-skip" data-ww="skip" aria-label="' + esc(st.t.skip) + '">' + SKIP + '<span>' + esc(st.t.skip) + '</span></button></div>' +
       '<div class="wqw-stage' + (hole ? ' wqw-at-next' : '') + '"' + stage + '>' +
       '<button type="button" class="wqw-jug' + (s === 1 ? ' wqw-call' : '') + '" data-ww="jugnu" aria-label="' + esc(st.t.hiShort) + '"><img src="/wq/jugnu/hello.webp" alt="" width="72" height="72"></button>' +
@@ -143,7 +187,7 @@
     }
     if (n === 4) {
       st.next.classList.add('wqw-up');
-      try { if (st.next.scrollIntoView) st.next.scrollIntoView({ block: 'center' }); } catch (e) {}
+      reveal();
       draw(t.stop);
       voice('4');
       later(function () { draw(t.nudge, ' wqw-big'); voice('4n'); }, 8000);
@@ -163,6 +207,7 @@
     clear();
     s.next.removeEventListener('click', letsGo, true);
     s.next.classList.remove('wqw-up');
+    if (s.pushed) s.next.style.marginTop = '';
     if (s.el.parentNode) s.el.parentNode.removeChild(s.el);
     var outcome = via === 'skip' ? 'skipped' : 'done';
     keep(s.B.kid, s.w.v, outcome);
