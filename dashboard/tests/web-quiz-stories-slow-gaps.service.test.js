@@ -613,6 +613,19 @@ describe('the first tap on Slower is heard (switch on)', () => {
     return n;
   }
 
+  test.each(['en', 'ur'])('%s: the tortoise\'s start shows on the main button at once: the pause kind (wqs-to-pause) while it holds, then wqs-pause', async (lang) => {
+    const r = reader({ lang, gapsKey: true });
+    const root = await r.open();
+    const mb = root.querySelector('[data-main]');
+    expect(mb.className).toMatch(/\bwqs-listen\b/);
+    fire(root, 'slow');                                                  // before the first Listen the tap IS that Listen
+    expect(pl(r).paused).toBe(false);
+    expect(mainText(root)).toBe(PAUSE[lang]);
+    expect(mb.className).toMatch(/\bwqs-(to-)?pause\b/);
+    r.w.run(700);
+    expect(root.querySelector('[data-main]').className).toBe('wqs-main wqs-pause');
+  });
+
   test.each(['en', 'ur'])('%s (1): paused mid-page, Slower ON says the current sentence again from its first word, with the pauses; one stored toggle', async (lang) => {
     const r = reader({ lang, gapsKey: true });
     const root = await r.open();
