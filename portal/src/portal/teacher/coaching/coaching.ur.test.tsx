@@ -160,7 +160,9 @@ describe("Digital Coaching in Urdu — the hub", () => {
     expect(screen.getByText(U.photosHint.replace(/\s+/g, " "))).toBeTruthy();
     expect(screen.getByText(U.noFaces)).toBeTruthy();
     expect(screen.getByText(U.upToPhotos(10))).toBeTruthy();
-    expect(screen.getByRole("button", { name: U.addPhoto })).toBeTruthy();
+    // bd-rt8wky: the teacher's photos are Take photo and From gallery (the coach's grid keeps Add photo).
+    expect(screen.getByRole("button", { name: U.takePhoto })).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.fromGallery })).toBeTruthy();
     expect(englishLeft(["Submit", "Listen", "Change file", "Up to 10 photos", "Add photo", "Photos", "Optional"])).toEqual([]);
   });
 

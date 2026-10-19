@@ -97,13 +97,22 @@ function usePreviews(files: File[]): (string | null)[] {
 
 export type PhotosProblem = 'too_many' | 'not_a_photo' | null;
 
+const ADD_TILE = cn('flex aspect-square min-h-[56px] flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#c7cad6] bg-white text-center text-[14px] font-semibold text-[#33374a]', FOCUS);
+
 /**
  * One grid of photos, each removable, and Add photo while there is room: at most `max` (the coach's three by default;
  * the teacher's Digital Coaching passes ten, DC_MAX_PHOTOS).
+ *
+ * bd-rt8wky — `camera` (the teacher's Digital Coaching): Add photo becomes two tiles, Take photo (the phone camera,
+ * one photo a tap; in the Android app Capacitor hands it to the camera app) and From gallery (one or several), and a
+ * count under the grid. The coach's grid passes no `camera` and is unchanged.
  */
-export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS }: { photos: File[]; onChange: (next: File[]) => void; testId: string; max?: number }) {
+export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS, camera = false }: {
+  photos: File[]; onChange: (next: File[]) => void; testId: string; max?: number; camera?: boolean;
+}) {
   const C = useCopy(COACHING);
   const input = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<PhotosProblem>(null);
   const previews = usePreviews(photos);
 
@@ -136,17 +145,36 @@ export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS }: { phot
             </button>
           </div>
         ))}
-        {photos.length < max ? (
-          <button
-            type="button"
-            onClick={() => input.current?.click()}
-            className={cn('flex aspect-square min-h-[56px] flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#c7cad6] bg-white text-[14px] font-semibold text-[#33374a]', FOCUS)}
-          >
+        {photos.length < max && camera ? (
+          <>
+            <button type="button" onClick={() => cameraInput.current?.click()} className={ADD_TILE}>
+              <Camera className="h-[26px] w-[26px]" aria-hidden="true" />
+              {C.takePhoto}
+            </button>
+            <button type="button" onClick={() => input.current?.click()} className={ADD_TILE}>
+              <ImageIcon className="h-[26px] w-[26px]" aria-hidden="true" />
+              {C.fromGallery}
+            </button>
+          </>
+        ) : photos.length < max ? (
+          <button type="button" onClick={() => input.current?.click()} className={ADD_TILE}>
             <Camera className="h-[26px] w-[26px]" aria-hidden="true" />
             {C.addPhoto}
           </button>
         ) : null}
       </div>
+      {camera && photos.length ? <p className="mx-1 text-[14px] text-[#6b7280]">{C.photoCount(photos.length, max)}</p> : null}
+      {camera ? (
+        <input
+          ref={cameraInput}
+          hidden
+          type="file"
+          capture="environment"
+          data-testid={`${testId}-camera`}
+          accept={`${acceptFor('photo')},image/jpeg,image/png`}
+          onChange={(e) => { add(e.target.files); e.target.value = ''; }}
+        />
+      ) : null}
       <input
         ref={input}
         hidden
