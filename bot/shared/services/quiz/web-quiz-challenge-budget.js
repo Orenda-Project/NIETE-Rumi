@@ -54,11 +54,14 @@ async function dailyCap(now = Date.now()) {
 async function readsToday(now = Date.now()) {
   const day = pkDay(now);
   if (!(count && count.day === day && now - count.at < CACHE_MS)) {
+    // web_quiz_games_together (the hub's switch cache): the other readings' count starts beside the table's
+    const alsoP = alsoCount && require('./web-quiz-hub-flags').nowOf('gamesTogether') ? Promise.resolve().then(() => alsoCount(pkMidnightIso(day))) : null;
+    if (alsoP) alsoP.catch(() => {});
     const { count: n, error } = await supabase.from('web_quiz_challenge_runs').select('id', { count: 'exact', head: true })
       .eq('exercise', 'read').in('status', ['scoring', 'scored', 'failed']).gte('created_at', pkMidnightIso(day));
     if (error) throw new Error(error.message || 'count failed');
     let more = 0;
-    if (alsoCount) { try { more = Number(await alsoCount(pkMidnightIso(day))) || 0; } catch (_) { more = 0; } }
+    if (alsoCount) { try { more = Number(await (alsoP || alsoCount(pkMidnightIso(day)))) || 0; } catch (_) { more = 0; } }
     count = { day, at: now, n: (Number(n) || 0) + more };
     started = 0;
   }
@@ -67,10 +70,13 @@ async function readsToday(now = Date.now()) {
 
 /** May a read-aloud start now? Never throws. */
 async function readOpen(now = Date.now()) {
+  // web_quiz_games_together (the hub's switch cache): the cap and today's count start together
+  const nP = require('./web-quiz-hub-flags').nowOf('gamesTogether') ? readsToday(now) : null;
+  if (nP) nP.catch(() => {});
   const cap = await dailyCap(now);
   let n;
   try {
-    n = await readsToday(now);
+    n = await (nP || readsToday(now));
   } catch (e) {
     logToFile('⚠️ web quiz challenge: daily read count failed — allowed', { error: String(e.message || e).slice(0, 120) });
     return true;

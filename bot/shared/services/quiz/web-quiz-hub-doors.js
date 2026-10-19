@@ -210,11 +210,15 @@ async function door(token, opts = {}) {
   const { kid, d, device, lang, now = Date.now() } = opts;
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
+  // web_quiz_games_together (the hub's switch cache): the child's reads start beside the door's switches
+  const whoOf = () => require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device), d === 'games' ? { warm: ['class_enrollments'] } : undefined);
+  const whoP = (d === 'stories' || d === 'games') && require('./web-quiz-hub-flags').nowOf('gamesTogether') ? whoOf() : null;
+  if (whoP) whoP.catch(() => {});
   const homeFlags = await require('./web-quiz-home-flags').flags();
   if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   // the games door's grade reads the child's enrolments: started with the child's own reads (web_quiz_kid_together)
-  const who = await require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device), d === 'games' ? { warm: ['class_enrollments'] } : undefined);
+  const who = await (whoP || whoOf());
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
