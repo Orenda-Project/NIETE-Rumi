@@ -56,7 +56,7 @@ const JUGNU_ART = {
 };
 const artOr = (own, kind) => ({ art: (typeof own === 'string' && own) || JUGNU_ART[kind] });
 
-const subOf = (s) => (s ? { sub: String(s), sub_ur: String(s) } : {});
+const subOf = (s, ur) => (s ? { sub: String(s), sub_ur: String(ur || s) } : {});
 
 function qkOf(quizId, code) {
   const kid = quizId ? K.qk(quizId) : null;
@@ -110,14 +110,14 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
     const story = storyCodes.has(t.code);
     const kind = story ? 'storybook' : 'quiz';
     push({ kind, variant: story ? 'teacher' : 'new', id: story ? `sb.${qkOf(quizIds.get(t.code), t.code)}` : qkOf(quizIds.get(t.code), t.code), href: L.quiz(t.code, t.k),
-      ...words('quiz'), ...subOf(t.topic || t.subject), minutes: 3, ...artOr(story ? covers.get(t.code) : (t.art || subjectArt(t.subject)), kind), ...TAG[kind],
+      ...words('quiz'), ...subOf(t.topic || t.subject, t.topic_ur), minutes: 3, ...artOr(story ? covers.get(t.code) : (t.art || subjectArt(t.subject)), kind), ...TAG[kind],
       rule: 'teacher_quiz', sent_at: t.sent_at || null });
   }
   if (out.last && out.last.code && out.last.state === 'open') {
     const e = entryOf(out.last.code) || {};
     // pinned only while never finished (a replay left open on a finished quiz is not "your teacher's quiz" any more)
     const fresh = e.teacherSent && !e.latest && Number.isFinite(Date.parse(e.sentAt)) && nowMs - Date.parse(e.sentAt) <= PIN_DAYS * DAY_MS;
-    push({ kind: 'quiz', variant: 'new', id: qkOf(e.quizId, out.last.code), href: L.quiz(out.last.code, out.last.k), ...words('quizOpen'), ...subOf(out.last.topic || out.last.subject),
+    push({ kind: 'quiz', variant: 'new', id: qkOf(e.quizId, out.last.code), href: L.quiz(out.last.code, out.last.k), ...words('quizOpen'), ...subOf(out.last.topic || out.last.subject, out.last.topic_ur),
       minutes: 3, ...artOr(out.last.art || subjectArt(out.last.subject), 'quiz'), ...(fresh ? { rule: 'teacher_quiz', sent_at: e.sentAt } : {}) });
   }
   // play again: the last finished quiz, then the hub's list (newest first)
@@ -126,7 +126,7 @@ function candidatesOf({ out = {}, token, history = [], collect = {}, lang = 'en'
   (out.again || []).forEach((a) => again.push(a));
   again.slice(0, 2).forEach((a) => {
     const e = entryOf(a.code) || {};
-    push({ kind: 'quiz', variant: 'again', id: qkOf(e.quizId, a.code), href: L.quiz(a.code, a.k, true), ...words('again'), ...subOf(a.topic || a.subject), minutes: 3,
+    push({ kind: 'quiz', variant: 'again', id: qkOf(e.quizId, a.code), href: L.quiz(a.code, a.k, true), ...words('again'), ...subOf(a.topic || a.subject, a.topic_ur), minutes: 3,
       ...artOr(a.art || subjectArt(a.subject), 'quiz') });
   });
   const rec = (out.recs || []).find((r) => r && r.vid);

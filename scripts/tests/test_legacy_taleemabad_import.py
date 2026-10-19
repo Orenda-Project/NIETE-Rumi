@@ -147,7 +147,7 @@ class VendorRow(unittest.TestCase):
 
     def test_identity_is_new_and_rules_are_copied(self):
         v = m.vendor_row(self.BASE)
-        self.assertEqual((v["key"], v["name"]), ("TALEEMABAD_LEGACY", "Taleemabad Archive"))
+        self.assertEqual((v["key"], v["name"]), ("TALEEMABAD_LEGACY", "NIETE Archive"))
         self.assertIs(v["has_grand_quiz"], False)
         self.assertIs(v["has_diagnostic"], False)
         self.assertEqual(v["passing_pct"], 80)

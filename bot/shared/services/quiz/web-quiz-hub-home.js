@@ -74,6 +74,8 @@ function subjectArt(subject) {
   }
 }
 const withArt = (row) => { const art = row.art || subjectArt(row.subject); return art ? { ...row, art } : row; };
+// a video lesson's Urdu-script name (web_quiz_videos_ur_titles), only when the hub row has one
+const urOf = (r) => (r && r.topic_ur ? { topic_ur: r.topic_ur } : {});
 
 /** The three doors (pure). `out` = the hub payload built so far; `stories` = web_quiz_stories on; `hasRoot` = a class quiz played. */
 function doorsOf({ out = {}, stories = false, hasRoot = false, videoShelf = false } = {}) {
@@ -83,11 +85,11 @@ function doorsOf({ out = {}, stories = false, hasRoot = false, videoShelf = fals
     .map((t) => ({ kind: t.id === 'listen' ? 'listen' : 'passage', id: t.pid, fresh: t.nx === 'new', ...(t.title ? { title: t.title } : {}) }));
   if (stories) story.push({ kind: 'shelf' });
   const games = [];
-  if (out.teacher && out.teacher.code) games.push(withArt({ kind: 'quiz', code: out.teacher.code, k: out.teacher.k, topic: out.teacher.topic || '', subject: out.teacher.subject || '', done: false, from: 'teacher' }));
-  if (out.last && out.last.code && out.last.state === 'open') games.push(withArt({ kind: 'quiz', code: out.last.code, k: out.last.k, topic: out.last.topic || '', subject: out.last.subject || '', done: false, from: 'last' }));
+  if (out.teacher && out.teacher.code) games.push(withArt({ kind: 'quiz', code: out.teacher.code, k: out.teacher.k, topic: out.teacher.topic || '', ...urOf(out.teacher), subject: out.teacher.subject || '', done: false, from: 'teacher' }));
+  if (out.last && out.last.code && out.last.state === 'open') games.push(withArt({ kind: 'quiz', code: out.last.code, k: out.last.k, topic: out.last.topic || '', ...urOf(out.last), subject: out.last.subject || '', done: false, from: 'last' }));
   if (out.challenge && out.challenge.on) games.push({ kind: 'numbers' });
-  const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, subject: out.last.subject }] : [];
-  again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
+  const again = out.last && out.last.state === 'done' && out.last.again ? [{ code: out.last.code, k: out.last.k, topic: out.last.topic, ...urOf(out.last), subject: out.last.subject }] : [];
+  again.concat(out.again || []).forEach((a) => { if (a && a.code) games.push(withArt({ kind: 'quiz', code: a.code, k: a.k, topic: a.topic || '', ...urOf(a), subject: a.subject || '', done: true, ...(a.art ? { art: a.art } : {}) })); });
   // Every child with a library: one with no class quiz yet WATCHES (videos/start's watch-only answer, same switch).
   const videos = out.lib && out.lib.href ? { href: out.lib.href, ...(out.lib.art ? { art: out.lib.art } : {}), ...(hasRoot ? {} : { watch: true }), ...(videoShelf ? { shelf: true } : {}) } : null;
   // The hub's "Try these next" (out.recs: the grade's video quizzes not yet played) is the Games door's way to a NEW

@@ -12,14 +12,14 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToImage: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-hub-device', () => ({ deviceTrusted: jest.fn() }));
-jest.mock('../../../shared/services/quiz/web-quiz-bank', () => ({ bank: jest.fn() }));
+jest.mock('../../../shared/services/quiz/web-quiz-bank', () => ({ bank: jest.fn(), urTitles: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-video-thumb', () => ({ thumb: jest.fn(), VERSION: '1' }));
 
 const crypto = require('crypto');
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
-const { bank } = require('../../../shared/services/quiz/web-quiz-bank');
+const { bank, urTitles } = require('../../../shared/services/quiz/web-quiz-bank');
 const { thumb } = require('../../../shared/services/quiz/web-quiz-video-thumb');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 const { deviceTrusted } = require('../../../shared/services/quiz/web-quiz-hub-device');
@@ -239,3 +239,32 @@ describe('a phone the hub does not know (a forwarded link, or opened elsewhere)'
   });
 });
 
+
+describe('an Urdu card\'s landing names a video lesson in Urdu letters (app_settings web_quiz_videos_ur_titles)', () => {
+  const LibFlag = require('../../../shared/services/quiz/web-quiz-library-flag');
+  const withUr = (on) => {
+    const fake = makeFake({ ...seed({ share: true }), app_settings: [...seed({ share: true }).app_settings, ...(on ? [{ key: 'web_quiz_videos_ur_titles', value: true }] : [])] });
+    Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+    Card._reset();
+    LibFlag._reset();
+    urTitles.mockResolvedValue(new Map([[VID, { t: 'پودے کے حصے', c: null }]]));
+  };
+  test('on: the Urdu landing\'s item_title is the lesson\'s Urdu name; the English landing keeps its title', async () => {
+    withUr(true);
+    const ur = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
+    expect((await landing(ur.body.token)).item_title).toBe('پودے کے حصے');
+    const en = await mint({ kind: 'video', deed: 'video_watched', lang: 'en', item: { type: 'video', id: VID } });
+    expect((await landing(en.body.token)).item_title).toBe('Parts of a plant');
+  });
+  test('on, a lesson with no Urdu name: today\'s title; off: today\'s title and the names are never read', async () => {
+    withUr(true);
+    urTitles.mockResolvedValue(new Map());
+    const a = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
+    expect((await landing(a.body.token)).item_title).toBe('Parts of a plant');
+    withUr(false);
+    urTitles.mockClear();
+    const b = await mint({ kind: 'video', deed: 'video_watched', lang: 'ur', item: { type: 'video', id: VID } });
+    expect((await landing(b.body.token)).item_title).toBe('Parts of a plant');
+    expect(urTitles).not.toHaveBeenCalled();
+  });
+});
