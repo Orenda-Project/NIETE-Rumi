@@ -135,7 +135,7 @@ async function journey(query, userId, sessionId) {
 // moment she sent the audio, analysing ones included; stopped ones left out. Only the JSON paths the
 // list shows are read — never the whole analysis_data (up to ~30 KB a row; class R).
 const HISTORY_SQL = `/* teacher-coaching:history */
-  SELECT id, created_at, status, audio_duration_seconds,
+  SELECT id, created_at, status, failed_step, audio_duration_seconds,
          analysis_data->'scores' AS scores,
          analysis_data->>'topic' AS topic,
          analysis_data->>'subject' AS subject,
@@ -143,7 +143,9 @@ const HISTORY_SQL = `/* teacher-coaching:history */
     FROM coaching_sessions
    WHERE user_id = $1
      AND observation_type IS NULL
-     AND status NOT IN ${STOPPED}
+     AND (status NOT IN ${STOPPED}
+          -- bd-aqotzx: closed because it did not sound like a class and she did not answer: kept, marked stopped.
+          OR (status = 'cancelled' AND failed_step = 'not_a_class_no_answer'))
      AND status NOT IN ${NOT_STARTED}
      AND ${pkInstantWindow('created_at', '$2', '$3')}
    ORDER BY created_at DESC
@@ -154,7 +156,10 @@ async function readHistory(query, userId, from, to) {
   return (rows || []).map((r) => {
     const grade = r.grade != null && r.grade !== '' ? Number(r.grade) : null;
     const seconds = Number(r.audio_duration_seconds);
+    // bd-aqotzx — the two not-a-class states the list shows; absent on every other lesson.
+    const state = r.status === 'awaiting_class_confirm' ? 'needs_answer' : r.status === 'cancelled' ? 'stopped' : undefined;
     return {
+      ...(state ? { state } : {}),
       id: r.id,
       date: pkDayOf(r.created_at),
       topic: r.topic || null,
@@ -198,15 +203,17 @@ async function dcHistory(query, userId, { range, previous } = {}) {
   const items = await readHistory(query, userId, range.from || null, range.to || null);
   const before = previous || LpHistory.previousRange(range);
   const prevItems = before ? await readHistory(query, userId, before.from, before.to) : null;
-  const now = kpisOf(items);
-  const then = prevItems ? kpisOf(prevItems) : null;
+  // A stopped row is in her list (it opens the note saying why) but is not a lesson she sent: not counted.
+  const counted = items.filter((i) => i.state !== 'stopped');
+  const now = kpisOf(counted);
+  const then = prevItems ? kpisOf(prevItems.filter((i) => i.state !== 'stopped')) : null;
   const pair = (k) => ({ value: now[k], previous: then ? then[k] : null });
   return {
     previous: before || null,
     kpis: { sessions: pair('sessions'), minutes: pair('minutes'), reports: pair('reports') },
-    trend: trendOf(items, range),
+    trend: trendOf(counted, range),
     items,
-    total: items.length,
+    total: counted.length,
     truncated: items.length >= HISTORY_LIMIT,
   };
 }

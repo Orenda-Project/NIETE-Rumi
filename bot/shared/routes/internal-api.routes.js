@@ -2772,6 +2772,20 @@ router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('ref
     userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer, audioKey: b.audioKey,
   })));
 
+/**
+ * POST /api/internal/coaching/class-check  (bd-aqotzx)
+ * Body { userId, coachingSessionId, answer: 'yes' | 'no' }
+ * Ok   200 { status:'ok', next: 'analysis' | 'record_again' }   404 not_found   409 not_ready   400 invalid
+ *
+ * Her answer when the recording did not sound like a class: yes queues the analysis, no closes it.
+ */
+// portal-class-check is required here, not through portal-coaching.service: it reads that service, so the
+// service requiring it back would be a cycle.
+router.post('/coaching/class-check', requireInternalKey, portalCoachingRoute('class-check',
+  (_Svc, b) => require('../services/coaching/portal-class-check').answerClassCheck({
+    userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer,
+  })));
+
 // bd-s1oo0.7 — the coach app's child test (portal → bot). Its own file; the
 // router checks the internal key itself.
 router.use('/child-test', require('./child-test-app.routes').router);

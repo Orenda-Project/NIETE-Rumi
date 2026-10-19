@@ -38,8 +38,9 @@ export function CoachingHomePage() {
   const [history] = useLoad(() => loadDcHistory({ range: 'all' }), 'dc:history');
 
   const items = useMemo(() => dataOf(history)?.items ?? [], [history]);
-  const analysing = useMemo(() => items.filter((it) => !it.reportReady && it.percentage == null), [items]);
-  const done = useMemo(() => items.filter((it) => it.reportReady || it.percentage != null).slice(0, RECENT_COUNT), [items]);
+  // bd-aqotzx — a lesson closed because it did not sound like a class sits with the finished ones (marked Stopped).
+  const analysing = useMemo(() => items.filter((it) => !it.reportReady && it.percentage == null && it.state !== 'stopped'), [items]);
+  const done = useMemo(() => items.filter((it) => it.reportReady || it.percentage != null || it.state === 'stopped').slice(0, RECENT_COUNT), [items]);
   const making = useMemo(() => lessonGroups(analysing, undefined, C, days).flatMap((g) => g.items), [analysing, C, days]);
   const groups = useMemo(() => lessonGroups(done, undefined, C, days), [done, C, days]);
   const total = dataOf(history)?.total;

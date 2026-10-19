@@ -137,6 +137,16 @@ export const COACHING_V2_COPY = {
   couldNotSend: 'Could not send',
   download: 'Download',
   stopped: 'Could not analyse',
+  /* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class being taught. */
+  classNeedsAnswer: 'Needs your answer',
+  classQuestion: 'Is this the recording of your class?',
+  classWhy: "Your recording doesn't sound like a class being taught.",
+  classYes: 'Yes, my class',
+  classNo: 'No, record again',
+  classDeadline: "No answer in 24 hours? This recording will be closed and won't count.",
+  classNoAnswerNote: "Not carried forward: this recording didn't sound like a class being taught and we didn't get your answer within 24 hours, so no report was made.",
+  classRecordAgainNote: 'Not carried forward: you chose to record this class again, so no report was made.',
+  stoppedChip: 'Stopped',
   notFound: 'DC observation not found',
   loading: 'Loading',
   retry: 'Try again',
@@ -269,6 +279,15 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   couldNotSend: 'بھیجا نہیں جا سکا',
   download: 'ڈاؤن لوڈ',
   stopped: 'تجزیہ نہیں ہو سکا',
+  classNeedsAnswer: 'آپ کا جواب چاہیے',
+  classQuestion: 'کیا یہ آپ کی کلاس کی ریکارڈنگ ہے؟',
+  classWhy: 'آپ کی ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگتی۔',
+  classYes: 'جی، میری کلاس',
+  classNo: 'نہیں، دوبارہ ریکارڈ',
+  classDeadline: '24 گھنٹے میں جواب نہ دیا تو یہ ریکارڈنگ بند ہو جائے گی اور شمار نہیں ہوگی۔',
+  classNoAnswerNote: 'آگے نہیں بڑھایا گیا: یہ ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگی اور 24 گھنٹے میں آپ کا جواب نہیں ملا، اس لیے رپورٹ نہیں بنی۔',
+  classRecordAgainNote: 'آگے نہیں بڑھایا گیا: آپ نے یہ کلاس دوبارہ ریکارڈ کرنے کا انتخاب کیا، اس لیے رپورٹ نہیں بنی۔',
+  stoppedChip: 'روک دیا گیا',
   notFound: 'ڈیجیٹل کوچنگ مشاہدہ نہیں ملا',
   loading: 'لوڈ ہو رہا ہے',
   retry: 'دوبارہ کوشش کریں',
@@ -323,5 +342,7 @@ export const COPY_ENTRY: CopyEntry = {
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
   longOk: ['startObservation', 'summaryCount', 'noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked',
     // bd-fgj73x.7: the operator asked for a short line that says why a recording under 15 minutes cannot be sent.
-    'tooShort'],
+    'tooShort',
+    // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
+    'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote'],
 };
