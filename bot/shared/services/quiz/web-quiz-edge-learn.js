@@ -6,7 +6,7 @@
  * Each portal process remembers a few switches it learns from a quiz or hub payload (`fast`, `brand`, `rt`, `ui`,
  * `one_face`, `wait_ux`); after a deploy it knows none of them until its first page. GET /api/internal/wq/edge answers:
  *   off → { learn: false } and nothing else (the portal then stops asking: one ask per process);
- *   on  → { learn: true, fast, brand, rt[, ui], one_face, wait_ux, wait_share }: exactly those payload fields, read through the same
+ *   on  → { learn: true, fast, brand, rt[, ui], one_face, wait_ux, wait_share[, home_inline, early_unlock] }: exactly those payload fields, read through the same
  *         cached switches the payloads use (no child, teacher or class data, no ids). `one_face` and `wait_ux` are always
  *         there as true or false, so the portal can tell "off" from a bot that does not say (absent: it keeps what it had).
  *         `wait_ux` and `wait_share` (wait_ux and web_quiz_hub_fanout both on) come from the same batched read as this
@@ -61,7 +61,10 @@ async function answer() {
   // plain_paint (a guessed first paint says no words) is on only with the fast page; closed_lang (the closed pages in the
   // child's language): both from this same batched read, as the payloads say them (web-quiz-plain-paint.js, -closed-lang.js).
   // wait_home: the kept Home in the early frame, on with wait_ux AND web_quiz_wait_home (as carry()), same read.
-  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, busy_retry: f.busyPage === true && f.busyRetry === true, ...warm };
+  return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, busy_retry: f.busyPage === true && f.busyRetry === true, ...warm,
+    // the Home's first open in one response and the early unlock (same read): named only when on, so a fresh portal's
+    // first new phone gets them too (absent: the portal keeps what it had)
+    ...(f.homeInline === true ? { home_inline: true } : {}), ...(f.earlyUnlock === true ? { early_unlock: true } : {}) };
 }
 
 /** The hub answer (or its promise) with `edge_learn: true` added while on; the same answer, untouched, while off. */

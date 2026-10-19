@@ -98,6 +98,18 @@ describe('GET /api/internal/wq/edge', () => {
     expect(body).toEqual({ learn: true, fast: true, brand: 'rumi', rt: true, ui: { ur2: true }, one_face: true, wait_ux: true, wait_share: false, wait_hops: false, wait_home: false, plain_paint: false, closed_lang: false, busy_page: false, busy_retry: false });
   });
 
+  test('(e) on with web_quiz_home_inline and web_quiz_early_unlock: home_inline and early_unlock true (a fresh portal\'s first new phone gets the inline Home); off: neither field', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_home_inline: true, web_quiz_early_unlock: true };
+    await warmPageSwitches();
+    const on = (await ask()).body;
+    expect([on.home_inline, on.early_unlock]).toEqual([true, true]);
+    supabase.__state.rows = { [KEY]: true, web_quiz_home_inline: false };
+    resetAll();
+    await warmPageSwitches();
+    const off = (await ask()).body;
+    expect(['home_inline' in off, 'early_unlock' in off]).toEqual([false, false]);
+  });
+
   test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops, wait_home and busy_page say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();

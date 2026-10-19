@@ -74,7 +74,9 @@ function create({ source }) {
   /** A hub answer's tail named these tags: remember the scripts the next head carries. */
   function learn(payload, tags) {
     if (!payload || payload.home_inline !== true) { last = null; return; }
-    if (payload.locked || !payload.kid) return;
+    // a locked answer (a new phone) keeps what a child's answer taught; with nothing taught yet (a fresh process), the
+    // switch is known on: the head carries the page's own files (wq.css, the look's, wq-tel, hub.js)
+    if (payload.locked || !payload.kid) { if (last === null && payload.pack !== true) last = []; return; }
     if (!on(payload)) { last = null; return; }
     const out = [];
     let m;
@@ -132,7 +134,13 @@ function create({ source }) {
     return end < 0 ? `${out}${go}` : `${out.slice(0, end)}${go}${out.slice(end)}`;
   }
 
-  const carrier = { learn, wants, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; } };
+  /** The switch as the edge's learner says it before any page (true: on, nothing taught yet; false: off). */
+  function know(on) {
+    if (!on) last = null;
+    else if (last === null) last = [];
+  }
+
+  const carrier = { learn, know, wants, headCss, headJs, script, style, tail, _last: () => last, _reset: () => { last = null; } };
   made.push(carrier);
   return carrier;
 }
