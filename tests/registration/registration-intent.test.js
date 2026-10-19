@@ -46,6 +46,11 @@ describe('isRegistrationIntent — the live requests open the Flow', () => {
     'مجھے رجسٹر کرنا ہے',
     'رجسٹر کریں',
     '⁦/register⁩',
+    // A greeting in front of the request is still the request (2026-10-19).
+    'aoa register me',
+    'Salam sir, i need to register',
+    'Hi, register',
+    'السلام علیکم مجھے رجسٹر کرنا ہے',
   ])('%j → opens the Flow', (body) => {
     expect(isRegistrationIntent(body)).toBe(true);
   });

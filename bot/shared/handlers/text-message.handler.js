@@ -38,6 +38,7 @@ const { STUDENT_VIDEOS_FLOW_ID } = require('../utils/constants');
 const { logToFile, logError } = require('../utils/logger');
 const { isRegistered, needsRegistrationForm, needsSchoolForFeature } = require('../utils/registration-status');
 const { isRegistrationIntent } = require('../utils/registration-intent');
+const { isGreetingOnly } = require('../utils/greeting');
 const RegistrationInvite = require('../services/registration-invite.service');
 const { matchDetail: matchLessonPlanIntent } = require('../utils/lp-intent');
 const { openLpBrowseFlow } = require('../services/lp-browse-entry.service'); // bd-hgwfo: the one door to the catalogue
@@ -2100,6 +2101,32 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       }
     } catch (error) {
       logToFile('Error checking recovery prompt response', { error: error.message });
+    }
+  }
+
+  // ============================================================
+  // GREETING-ONLY FIRST CONTACT — one message, not two
+  // ============================================================
+  // Sandbox, 2026-10-19: a brand-new person who said "hi" got the general AI reply ("Aoa, I can
+  // make your lesson plan…") and then the registration invite ("Welcome to NIETE") — two
+  // greetings. When the whole message is a greeting and she still needs the form and has never
+  // been offered it, the invite IS the reply: it welcomes her, says what the bot does, and asks
+  // her to set up (the "welcome" copy). Here, after every state intercept above (a teacher in the
+  // middle of something is answered by that), before the command doors and the AI.
+  //
+  // The once-only claim is the same atomic one as the after-reply offer. A parallel turn that
+  // claimed it first, or a fresh read that finds her complete, means she is answered as usual.
+  // A refused send already got her the retry line, so nothing more is said.
+  if (user?.id && !userLookupFailed && !turn.invited && !user.registration_started_at
+    && needsRegistrationForm(user) && isGreetingOnly(messageBody)) {
+    turn.invited = true; // whatever happens below, the after-reply offer must not send a second invite
+    const outcome = await RegistrationInvite.offerRegistrationOnceDetailed({
+      user, phone: from, language: responseLanguage, reason: 'first_greeting',
+    });
+    logToFile('👋 greeting-only first contact', { userId: user.id, outcome });
+    if (outcome === 'sent' || outcome === 'failed') {
+      typingController.stop();
+      return;
     }
   }
 
