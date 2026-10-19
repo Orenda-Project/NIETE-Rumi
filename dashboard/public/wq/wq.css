@@ -242,6 +242,8 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-video{width:100%;border-radius:16px;background:#000;aspect-ratio:16/9;display:block}
 .wq-vbox{position:relative;border-radius:16px;overflow:hidden}
 .wq-vcover{position:absolute;inset:0;width:100%;border:0;margin:0;padding:0;border-radius:16px;background:var(--green-l);display:grid;place-items:center;cursor:pointer}
+/* a finished lesson opened again (web_quiz_rewatch_done): the "Done watching" chip over the video, never in the way of a tap */
+.wq-vbox .wq-vwatched{position:absolute;z-index:2;inset-block-start:10px;inset-inline-start:10px;pointer-events:none}
 .wq-vcover.wq-vposter{background:transparent}
 .wq-vcover[hidden]{display:none}
 .wq-vjug{position:absolute;inset-inline-start:10px;bottom:6px;width:84px;height:84px;object-fit:contain}
