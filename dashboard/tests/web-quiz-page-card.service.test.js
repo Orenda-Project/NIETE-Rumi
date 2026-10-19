@@ -18,8 +18,8 @@ describe('the scorecard header', () => {
   });
   test('the Urdu polish (wq-ur2) on an Urdu page: the class label in Urdu («کلاس 3-B», «کلاس ۲، ۳»)', () => {
     const hdr = (o) => ((/<header>[\s\S]*?<\/header>/.exec(page({ store, brand: niete, bootExtra: { ui: { ur2: true } }, ...o }).html()) || [])[0] || '').replace(/<[^>]+>/g, '');
-    expect(hdr({})).toMatch(/NIETE · کلاس 3-B/);
-    expect(hdr({ cls: { label: 'Classes 2, 3', chips: [] } })).toMatch(/NIETE · کلاس ۲، ۳/);
+    expect(hdr({})).toMatch(/NIETE، کلاس 3-B/);   // the polish joins with «،» (a «·» beside an Urdu digit reads as «۰»)
+    expect(hdr({ cls: { label: 'Classes 2, 3', chips: [] } })).toMatch(/NIETE، کلاس ۲، ۳/);
     expect(hdr({ lang: 'en' })).toMatch(/NIETE · Class 3-B/);   // an English page: as stored
   });
   test('another brand names itself, and NIETE is nowhere on the card', () => {

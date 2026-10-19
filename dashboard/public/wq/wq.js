@@ -776,7 +776,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       trickySay: 'آئیں، اسے مل کر ٹھیک کریں۔',
       prac: 'یہ نام پہلے کھیل چکا ہے۔ یہ باری مشق ہے۔ پہلا اسکور ہی گنا جائے گا۔',
       cardPriv: 'کارڈ پر صرف آپ کا نام ہے۔', hubDoor: 'میرے کوئز اور ویڈیوز',
-      firstOnly: 'صرف پہلے نام۔ برابر اسکور = برابر نمبر۔', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ آپ پہلے بنیں!',
+      firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ آپ پہلے بنیں!',
       rest: 'اب آرام کریں۔ کل پھر ملیں گے!', todayMore: 'شاباش! ایک اور ویڈیو دیکھیں؟',
       contSay: function (n) { return n + '، واپس آ گئے! جواب محفوظ ہیں۔'; },
       cont: function (i, n) { return 'جاری رکھیں: ⁦' + urDigits(n) + '⁩ میں سے سوال ⁦' + urDigits(i) + '⁩'; },
@@ -1461,7 +1461,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || ic(IC.star, '⭐')) + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
   // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
-  function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(' · '); }
+  // the table's topic line: with the Urdu polish, never a «·» beside Urdu digits (it reads as «۰»), and a Latin title in
+  // its own left-to-right piece; else today's "topic · n finished"
+  function topicLine(topic, fin) {
+    if (!UR2 || !topic) return dotJoin(topic, fin);
+    return '<bdi' + (/[\u0600-\u06FF]/.test(topic) ? '' : ' dir="ltr"') + '>' + esc(topic) + '</bdi>، ' + esc(fin);
+  }
+  // with the Urdu polish a «·» beside an Urdu digit reads as «۰» (1 → 10), so Urdu pages join with «،»
+  function sep() { return typeof UR2 !== 'undefined' && UR2 ? '، ' : ' · '; }
+  function dotJoin() { return Array.prototype.filter.call(arguments, function (x) { return x != null && String(x) !== ''; }).map(esc).join(sep()); }
   function link(path) { return location.origin + path; }
 
   /* ---------------- M3 landing ---------------- */
@@ -2830,7 +2838,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var b = c.practice && c.best;
     if (!b || !(b.total > 0) || !(total > 0) || c.correct * b.total <= b.correct * total) return '';
     function sc(x, y) { return '<bdi dir="ltr">' + esc(scoreN(x)) + '/' + esc(scoreN(y)) + '</bdi>'; }
-    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + ' · ' + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ' + ic(IC.star, '⭐') + '</div>';
+    return '<div class="wq-banner wq-best">' + esc(TW.newBest) + ' ' + sc(c.correct, total) + sep() + esc(TW.wasBest) + ' ' + sc(b.correct, b.total) + ' ' + ic(IC.star, '⭐') + '</div>';
   }
 
   // A friend's challenge: who won, with both scores (each score isolated so it reads left to right in Urdu).
@@ -2838,7 +2846,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!vs || !T.vs[vs.outcome]) return '';
     function sc(a, b) { return '<bdi dir="ltr">' + esc(scoreN(a)) + '/' + esc(scoreN(b)) + '</bdi>'; }
     return '<div class="wq-banner wq-vs"><b>' + esc(T.vs[vs.outcome]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
-      ' · ' + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
+      sep() + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
   }
 
   /* ---------------- M15 watch another video -> its quiz ---------------- */
@@ -2851,7 +2859,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">' + ic(IC.play, '▶') + ' ' + esc(T.moreBtn) + '</button>' : ''; }
   function vItem(v, i) {
     // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
-    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(' · ');
+    var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(sep());
     var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy">'
       : '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[v.subject] || ic(IC.play, '▶')) + '</span>';
     return '<li><button class="wq-vitem" data-vid="' + esc(v.vid) + '">' + pic +
@@ -3083,7 +3091,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // class_doors: the child's own class when every row is of it, "Your class" when the table holds more than one.
     // The class number is isolated (<bdi>, as the league's sector) and in the page's digits, like the other counts.
     var title = b.class_doors && b.my_class ? (b.one_class ? T.myClassT(clsNum(b.my_class)) : esc(T.yourClass)) : esc(T.leagueT(CLASS_LABEL));
-    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + dotJoin(topic, T.finN(v.finishers_n || 0)) + '</p>' +
+    var h = (advOn() ? landBar('games', title) : bar() + '<h2>' + title + '</h2>') + (first ? moveLine(b, v.you) : '') + '<p class="wq-sub">' + topicLine(topic, T.finN(v.finishers_n || 0)) + '</p>' +
       (mixed ? '<div class="wq-chips wq-schips wq-tall"><button class="wq-chip' + (onlyOn ? '' : ' wq-on') + '" id="wq-call">' + esc(T.allSchools) + '</button><button class="wq-chip' + (onlyOn ? ' wq-on' : '') + '" id="wq-conly">' + T.onlyClass(clsNum(b.my_class)) + '</button></div>' : '') +
       (rows ? '<table class="wq-table"' + lsMarks('table', 'done') + '><tbody>' + rows + '</tbody></table>' : '<div class="wq-card"' + lsMarks('table', 'done', true) + '>' + esc(T.noRows) + '</div>') +
       (v.more_n ? '<p class="wq-sub wq-center">' + esc(T.moreN(v.more_n)) + '</p>' : '') +
@@ -3173,7 +3181,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine"><p>' + T.ghost(nm) + '</p></div>'
       : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' +
         (typeof mine.move === 'number' && mine.move ? '<p class="wq-move ' + (mine.move > 0 ? 'wq-up' : 'wq-down') + '">' + esc(T.sinceY(mine.move)) + '</p>' : '') +
-        '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + ' · ' + esc(T.kidsN(mine.kids || 0)) + '</p>' +
+        '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + sep() + esc(T.kidsN(mine.kids || 0)) + '</p>' +
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
       ? '<div class="wq-chips wq-schips' + (cd ? ' wq-tall' : '') + '"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
