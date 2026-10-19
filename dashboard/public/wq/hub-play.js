@@ -235,9 +235,14 @@
     if (!box) return;
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
     if (!deferred || firstView || snoozed()) { box.innerHTML = ''; return; }
-    box.innerHTML = '<div class="wqp-inst"><b>' + esc(L.installTitle) + '</b><div>' +
-      '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
-      '<button type="button" class="wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>';
+    // the v3 home's slot (wq-home.js, data-look="v3"): the shared buttons (one primary, one ghost); the old hub's as it was
+    box.innerHTML = box.getAttribute && box.getAttribute('data-look') === 'v3'
+      ? '<div class="wqp-inst3"><b>' + esc(L.installTitle) + '</b><div>' +
+        '<button type="button" class="wq-btn wq-go" data-inst="add">' + esc(L.installBtn) + '</button>' +
+        '<button type="button" class="wq-btn wq-ghost" data-inst="later">' + esc(L.installLater) + '</button></div></div>'
+      : '<div class="wqp-inst"><b>' + esc(L.installTitle) + '</b><div>' +
+        '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
+        '<button type="button" class="wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>';
     if (!shown.install && door(IB, 'install')) {
       shown.install = true;
       IEV('door_shown', { door: 'install', surface: 'hub', slot: installSlot(IROOT.innerHTML || '') });
@@ -286,5 +291,9 @@
   window.WQPLAY = {
     top: function (B, HT, parts) { var h = top(B, HT, parts); install(B, parts.ev, parts.ROOT); return h; },
     wire: wire,
+    // the v3 home's slot (wq-home.js): the same card, rules and events
+    install: install,
   };
+  // the v3 home painted before this script arrived: its slot is waiting
+  if (window.WQINST) install(window.WQINST.B, window.WQINST.ev, window.WQINST.root);
 })();

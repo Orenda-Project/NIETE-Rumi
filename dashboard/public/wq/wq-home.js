@@ -221,8 +221,11 @@
     }
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
+  // The install card's slot (web_quiz_install_prompt, the hub's play.install): right after the Next stop, so the look's
+  // trail (wq-adv.js, put right after the Next stop) comes first; above My class. hub-play.js fills it (WQPLAY.install).
+  function instHtml(B) { return B.play && B.play.install && !B.practice ? '<div id="wqp-inst" data-look="v3"></div>' : ''; }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + instHtml(B) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
   }
   /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
    * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
@@ -349,6 +352,11 @@
     root.setAttribute('data-m', DOORS.indexOf(name) >= 0 ? 'H3-' + name : 'H3');
     if (B.remember) remember(root, B, ctx);
     var ev = ctx.ev || function () {};
+    // the install card's slot: hub-play.js fills it now, or when it arrives (it looks for WQINST)
+    if (DOORS.indexOf(name) < 0 && instHtml(B)) {
+      window.WQINST = { B: B, ev: ev, root: root };
+      if (window.WQPLAY && window.WQPLAY.install) window.WQPLAY.install(B, ev, root);
+    }
     var nx = DOORS.indexOf(name) < 0 ? nextOf(B, ctx) : null;
     var shownAt = null;
     // Every home render is a home_view (the funnel's denominator); the tile it shows is a next_shown beside it.
