@@ -17,6 +17,9 @@ describe.each([['today\'s landing', false], ['the identity v2 door', true]])('%s
     expect(line).toMatch(/کلاس.۵/);
     expect(line).not.toContain('Class');
   });
+  test('Urdu polish on, an Urdu quiz on an Urdu page: the class reads in Urdu too', () => {
+    expect(sub(door({ lang: 'ur', bootExtra: { ui: { ur2: true } } }, v2))).toMatch(/کلاس.۵/);
+  });
   test('Urdu polish off: the label as stored (today)', () => {
     expect(sub(door(swap(false), v2))).toMatch(/Class.5/);
   });
