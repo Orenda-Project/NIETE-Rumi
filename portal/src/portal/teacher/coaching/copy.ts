@@ -54,6 +54,10 @@ export const COACHING_V2_COPY = {
     '(3) A photo of teaching aids, e.g. drawings, charts or cards',
   noFaces: 'No faces',
   addPhoto: 'Add photo',
+  /* bd-rt8wky — the teacher's photos: the phone camera, or the gallery (one or several), up to ten in all. */
+  takePhoto: 'Take photo',
+  fromGallery: 'From gallery',
+  photoCount: (n: number, max: number) => `${n} of ${max} photos`,
   removePhoto: (n: number) => `Remove photo ${n}`,
   /** The photo cap said aloud: ten here, three for the coach (one grid, parts.tsx PhotoGrid). */
   upToPhotos: (n: number) => `Up to ${n} photos`,
@@ -207,6 +211,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
     '(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر',
   noFaces: 'چہرے نہ دکھائیں',
   addPhoto: 'تصویر شامل کریں',
+  takePhoto: 'تصویر لیں',
+  fromGallery: 'گیلری سے',
+  photoCount: (n: number, max: number) => `${max} میں سے ${n} تصاویر`,
   removePhoto: (n: number) => `تصویر ${n} ہٹائیں`,
   upToPhotos: (n: number) => `${n} تصاویر تک`,
   atLeastMinutes: `${MIN_MINUTES} منٹ یا زیادہ`,
