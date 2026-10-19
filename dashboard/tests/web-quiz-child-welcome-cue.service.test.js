@@ -329,3 +329,108 @@ describe('S5-3 on every video surface, and S5-5 (design-qa, the live walk)', () 
     expect(dist(b, play)).toBeLessThanOrEqual(24);
   });
 });
+
+describe('S5-6 (design-qa, the live walk): never a second bubble over a speech line or an instruction; clear of chips', () => {
+  const CAP_H = 60;
+  const bubbleOf = (p) => {
+    const m = /<p class="wqc-cap" style="([^"]*)"/.exec(p.cue()._h);
+    if (!m) return null;
+    const st = Object.fromEntries(m[1].split(';').filter(Boolean).map((x) => x.split(':')));
+    return { top: parseInt(st.top, 10), bottom: parseInt(st.top, 10) + CAP_H, left: 16, right: p.ctx.innerWidth - 16 };
+  };
+  const handOf = (p) => { const m = /class="wqc-hand" style="top:(\d+)px;left:(\d+)px/.exec(p.cue()._h); return { y: +m[1], x: +m[2] }; };
+  const inside = (pt, r) => pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom;
+  const dist = (a, b) => Math.max(0, b.top - a.bottom, a.top - b.bottom, b.left - a.right, a.left - b.right);
+  test.each([['en', 390, 844], ['ur', 360, 740]])('the quiz\'s who-is-playing screen, %s %ix%i: the hand on Jugnu, no bubble; Jugnu\'s own line stays in full view', (lang, vw, vh) => {
+    // «آج کس کی باری ہے؟»: Jugnu (the target) with his line «اپنا نام دبائیں۔» beside him, the children's names below
+    const say = mkEl('div', R(120, 120, vw - 136, 70));
+    const jugBox = mkEl('div', R(110, 16, vw - 32, 100));
+    const img = mkEl('span', R(116, 16, 92, 92));
+    jugBox.querySelector = (sel) => (sel === '.wq-say' ? say : null);
+    img.closest = (sel) => (/wq-jug/.test(sel) ? jugBox : null);
+    const kid = mkEl('button', R(300, 16, vw - 32, 64));
+    const p = cuePage({ lang, vw, vh, els: { '[data-primary]': img }, qsa: { '.wq-say': [say], button: [kid] } });
+    p.load();
+    p.run(300);
+    expect(p.cue()).toBeTruthy();
+    expect(inside(handOf(p), R(116, 16, 92, 92))).toBe(true);
+    expect(bubbleOf(p)).toBeNull();
+  });
+  test.each([['en', 390, 844], ['ur', 360, 740]])('the same screen as the page draws it, %s %ix%i: Jugnu\'s live loop (a video in his picture), no primary button: the hand on him, no bubble', (lang, vw, vh) => {
+    // the who-is-playing screen with a child on the phone has no primary: the cue lands on Jugnu's own loop video
+    const say = mkEl('div', R(93, 16, vw - 182, 98));
+    const jugBox = mkEl('div', R(72, 16, vw - 32, 140));
+    const vid = mkEl('video', R(72, vw - 156, 140, 140));
+    jugBox.querySelector = (sel) => (sel === '.wq-say' ? say : null);
+    vid.closest = (sel) => (sel === '.wq-jug' ? jugBox : null);
+    const kid = mkEl('button', R(330, 16, vw - 32, 64));
+    const p = cuePage({ lang, vw, vh, els: { video: vid }, qsa: { '.wq-say': [say], button: [kid] } });
+    p.load();
+    p.run(300);
+    expect(p.cue()).toBeTruthy();
+    expect(inside(handOf(p), vid.rect)).toBe(true);
+    expect(bubbleOf(p)).toBeNull();
+  });
+  test.each([['en', 390, 844], ['ur', 360, 740], ['ur', 360, 640]])('any target: the bubble never lies on a speech line or an instruction, %s %ix%i', (lang, vw, vh) => {
+    // a primary with Jugnu's line right above it and an instruction line right below it
+    const go = mkEl('button', R(300, 16, vw - 32, 60));
+    const say = mkEl('div', R(220, 120, vw - 136, 64));
+    const sub = mkEl('p', R(372, 16, vw - 32, 40));
+    const p = cuePage({ lang, vw, vh, els: { '[data-primary]': go }, qsa: { '.wq-say': [say], '.wq-sub': [sub], button: [go] } });
+    p.load();
+    p.run(300);
+    const b = bubbleOf(p);
+    if (b) for (const r of [say.rect, sub.rect]) expect([r.top, b.bottom <= r.top || b.top >= r.bottom]).toEqual([r.top, true]);
+  });
+  // S5-7: the Videos tab's player (#watch) with the lesson's title right under it: the bubble covers a text block
+  // (a heading, a title, a chip, a line) fully or not at all, and clears it rather than covers it when both are in reach
+  const cut = (b, r) => { const o = Math.max(0, Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top)); return o > 0 && o < r.bottom - r.top; };
+  const watchPage = (lang, vw, vh, titleAt, titleH) => {
+    // as the page draws it: the tab's heading «ویڈیوز» and Home over the player, the title under it
+    const head = R(24, 92, vw - 124, 61);
+    const home = R(30, 16, 48, 48);
+    const frame = R(113, 16, vw - 32, Math.round((vw - 32) * 9 / 16));
+    const play = R(frame.top + frame.height / 2 - 42, vw / 2 - 42, 84, 84);
+    const title = mkEl('p', R(titleAt(frame, play), 16, vw - 32, titleH)); // «ہم آواز الفاظ»
+    const p = cuePage({ lang, vw, vh, pathname: '/h/tok', search: '?kid=a&w=1', hash: '#watch/aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      els: { '.wq-vplay': mkEl('button', play), '[data-primary]': mkEl('button', play), '.wq-vbox': mkEl('div', frame) },
+      qsa: { h2: [mkEl('h2', head)], '.wq-vbox': [mkEl('div', frame)], '.wq-vtitle': [title], button: [mkEl('button', play)], 'a[href]': [mkEl('a', home)] } });
+    p.load();
+    p.run(300);
+    return { p, play, title: title.rect };
+  };
+  test.each([['ur', 360, 740], ['ur', 360, 640], ['en', 390, 844]])('S5-7, #watch %s %ix%i: the lesson title under the player is never half covered; the bubble still within 24 px of ▶', (lang, vw, vh) => {
+    const { p, play, title } = watchPage(lang, vw, vh, (f) => f.bottom + 26, 34);
+    const b = bubbleOf(p);
+    expect(inside(handOf(p), play)).toBe(true);
+    expect(b).toBeTruthy();
+    expect([title.top, cut(b, title)]).toEqual([title.top, false]);
+    expect(dist(b, play)).toBeLessThanOrEqual(24);
+  });
+  test.each([['ur', 360, 740], ['en', 390, 844]])('S5-7, %s %ix%i: clearing a text block wins over covering it when both are within 24 px', (lang, vw, vh) => {
+    // a primary with another button right over it (so the bubble goes below) and a thin caption 10 px under it: the
+    // bubble 8 px down would swallow the caption whole, 20 px down clears it
+    const go = mkEl('button', R(300, 16, vw - 32, 60));
+    const back = mkEl('button', R(250, 16, vw - 32, 44));
+    const caption = mkEl('p', R(370, 16, vw - 32, 8));
+    const p = cuePage({ lang, vw, vh, els: { '[data-primary]': go }, qsa: { p: [caption], button: [go, back] } });
+    p.load();
+    p.run(300);
+    const b = bubbleOf(p);
+    expect(b).toBeTruthy();
+    expect(Math.max(0, Math.min(b.bottom, caption.rect.bottom) - Math.max(b.top, caption.rect.top))).toBe(0);
+    expect(dist(b, go.rect)).toBeLessThanOrEqual(24);
+  });
+  test.each([['ur', 360, 740], ['ur', 360, 640], ['en', 390, 844]])('the lesson door\'s «دیکھ لیا ✓» chip, %s %ix%i: the bubble keeps clear of it (≥ 4 px), still within 24 px of ▶', (lang, vw, vh) => {
+    const frame = R(200, 16, vw - 32, 200);
+    const play = R(230, vw / 2 - 38, 76, 76);
+    const chip = mkEl('span', R(208, vw - 160, 140, 34));
+    const p = cuePage({ lang, vw, vh, els: { '.wq-vplay': mkEl('span', play), '.wq-vcover': mkEl('button', frame) }, qsa: { '.wq-vwatched': [chip], '.wq-vbox': [mkEl('div', frame)], button: [mkEl('button', frame)] } });
+    p.load();
+    p.run(300);
+    const b = bubbleOf(p);
+    expect(b).toBeTruthy();
+    expect(dist(b, chip.rect)).toBeGreaterThanOrEqual(4);
+    expect(dist(b, play)).toBeLessThanOrEqual(24);
+  });
+});
