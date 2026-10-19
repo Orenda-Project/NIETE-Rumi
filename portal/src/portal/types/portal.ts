@@ -968,70 +968,57 @@ export interface CoachingAnalyticsRegion {
   coachNames: string[];
 }
 
-/* ── bd-97x22y.3 — GET /api/portal/analytics/lp-engagement (schools analytics v7) ─────────────────────────────────── */
+/* ── GET /api/portal/analytics/lp-engagement (schools analytics v8: Active / Non-Active) ─────────────────────────── */
 
 /**
- * The LP Engagement tab, the ICT dashboard's formula 1 to 1 (PLAN v7): per teacher × Sunday-week × grade × subject,
- * lp_ratio = min(distinct LPs ÷ 5, 1) (LPs = plans opened + lesson plans generated); a teacher's ratio is the mean of
- * her rows; a school / sector / overall ratio = Σ teacher ratios ÷ the band's rostered teachers (none = 0). On-Schedule
- * ≥ 60%, Moderate ≥ 40%, Off-Schedule below. `lpPct` and the shares are the integers her page shows; `lpRatio` is the
- * 0–1 ratio (4 places). A level with no band teacher has `lpPct` null — shown "—", never 0.
+ * The LP Engagement tab on the RDF's numbers (FDE feedback, 2026-10-19): the band's RDF teacher population, each
+ * teacher in her RDF sector; Active = used at least one lesson plan in the period by the RDF's rule for the band;
+ * Non-Active = the rest. `activePct` = active ÷ teachers, one decimal; null (shown "—", never 0) when there is no
+ * teacher.
  */
 export type LpBand = 'primary' | 'midhigh';
-export type LpStatus = 'on' | 'moderate' | 'off';
+/** The tab's two teacher groups — also the count fields that hold them. */
+export type LpGroup = 'active' | 'nonActive';
 
 export interface LpEngagementCounts {
   teachers: number;
-  lpRatio: number | null;
-  lpPct: number | null;
-  onSchedule: number;
-  moderate: number;
-  offSchedule: number;
-}
-
-/** Each band's share of the teachers, rounded (her "(16%)"); null when there are no teachers. */
-export interface LpEngagementShares {
-  onPct: number | null;
-  moderatePct: number | null;
-  offPct: number | null;
+  active: number;
+  nonActive: number;
+  activePct: number | null;
 }
 
 export interface LpEngagementOverview extends LpEngagementCounts {
-  /** Sectors where a band teacher has LP data in the window. */
+  /** Sectors with at least one Active teacher. */
   activeSectors: number;
 }
 
-export interface LpEngagementRegion extends LpEngagementCounts, LpEngagementShares {
+export interface LpEngagementRegion extends LpEngagementCounts {
   region: string;
 }
 
-export interface LpEngagementSchool {
-  schoolId: string;
+/** A school on FDE's list, or — schoolId, emis and name all null — the sector's "No school" line. */
+export interface LpEngagementSchool extends LpEngagementCounts {
+  region: string;
+  schoolId: string | null;
   emis: string | null;
-  name: string;
-  region: string;
-  teachers: number;
-  lpRatio: number | null;
-  lpPct: number | null;
-  status: LpStatus | null;
+  name: string | null;
 }
 
-export type LpEngagementRow = LpEngagementCounts & LpEngagementShares;
-export interface LpEngagementSubjectRow extends LpEngagementRow {
+export interface LpEngagementSubjectRow extends LpEngagementCounts {
   subject: string;
   name: string;
 }
-export interface LpEngagementGradeRow extends LpEngagementRow {
+export interface LpEngagementGradeRow extends LpEngagementCounts {
   grade: number;
 }
 
-/** Her subject / grade table: one row each, and her "Overall" row (null when the table is empty). */
+/** A subject / grade table: one row each, and the Overall row — the tab's overall (null when the table is empty). */
 export interface LpEngagementTable<R> {
   rows: R[];
-  overall: LpEngagementRow | null;
+  overall: LpEngagementCounts | null;
 }
 
-/** One sector's LP % in every subject (or grade): the grouped bars. */
+/** One sector's Active % in every subject (or grade): the grouped bars. */
 export interface LpEngagementSectorValues {
   region: string;
   values: Record<string, number | null>;
@@ -1041,11 +1028,10 @@ export interface LpEngagementResponse {
   success: boolean;
   range: { from: string | null; to: string | null };
   band: LpBand;
-  lpOpensLoggedSince: string;
   overview: LpEngagementOverview;
   /** All six sectors, whatever the region filter. */
   regions: LpEngagementRegion[];
-  /** Schools with a band teacher, in the chosen region (all when none is chosen). */
+  /** Per sector: its schools, then its "No school" line, in the chosen region (all when none is chosen). */
   schools: LpEngagementSchool[];
   bySubject: LpEngagementTable<LpEngagementSubjectRow>;
   byGrade: LpEngagementTable<LpEngagementGradeRow>;
