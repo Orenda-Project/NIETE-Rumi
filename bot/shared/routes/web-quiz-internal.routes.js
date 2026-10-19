@@ -392,7 +392,7 @@ router.post('/hub/:token', handle((req) => GradeChange.carry(PageLang.carry(Edge
 // child or another phone; 404 switch off; 429 the day's 6th.
 router.get('/hub/:token/grade', handle((req) => GradeChange.get({ token: req.params.token, kid: q1(req.query.kid), device: req.get('x-wq-device') || undefined })));
 router.post('/hub/:token/grade', handle((req) => GradeChange.set({ token: req.params.token, kid: (req.body || {}).kid, device: req.get('x-wq-device') || undefined, grade: (req.body || {}).grade })));
-// The child welcome's one write (web_quiz_child_welcome; off -> 404): POST {kid, outcome: shown|done|skipped} for the
+// The child welcome's one write (web_quiz_child_welcome; off -> 404): POST {kid, outcome: shown|done|skipped|reset} for the
 // child a hub chip names on a phone the hub trusts (x-wq-device) -> {ok}; 400 bad outcome; 403 not this link's child.
 router.post('/hub/:token/welcome', handle((req) => require('../services/quiz/web-quiz-child-welcome').record({ token: req.params.token, kid: (req.body || {}).kid, device: req.get('x-wq-device') || undefined, outcome: (req.body || {}).outcome })));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
