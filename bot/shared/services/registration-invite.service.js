@@ -30,7 +30,7 @@ const { logToFile, logError } = require('../utils/logger');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { isRegistered, needsRegistrationForm } = require('../utils/registration-status');
 
-const VARIANTS = Object.freeze(['new', 'update', 'school']);
+const VARIANTS = Object.freeze(['new', 'update', 'school', 'welcome', 'followup']);
 
 const IDENTITY_COLUMNS = 'id, name, role, school_id, registration_completed, registration_state, registration_started_at';
 
@@ -40,7 +40,20 @@ const COPY_KEYS = {
   new: { headerKey: 'registrationInviteNewHeader', bodyKey: 'registrationInviteNewBody', buttonKey: 'registrationInviteButton' },
   update: { headerKey: 'registrationInviteUpdateHeader', bodyKey: 'registrationInviteUpdateBody', buttonKey: 'registrationInviteUpdateButton' },
   school: { headerKey: 'registrationInviteSchoolHeader', bodyKey: 'registrationInviteSchoolBody', buttonKey: 'registrationInviteButton' },
+  welcome: { headerKey: 'registrationInviteWelcomeHeader', bodyKey: 'registrationInviteWelcomeBody', buttonKey: 'registrationInviteButton' },
+  followup: { headerKey: 'registrationInviteFollowupHeader', bodyKey: 'registrationInviteFollowupBody', buttonKey: 'registrationInviteButton' },
 };
+
+// Which copy each door sends. The rule behind it (sandbox, 2026-10-19 — a new person who said
+// "hi" got two greetings): an invite GREETS only when it is the whole reply of the turn. After a
+// reply — her request answered, a lesson plan delivered — it never says "welcome" again.
+const VARIANT_BY_REASON = Object.freeze({
+  first_greeting: 'welcome',        // a greeting-only first message: this invite is the reply
+  first_reply: 'followup',          // after the answer to her first message
+  after_first_feature: 'followup',  // after a lesson plan / video / reading result
+  name_question: 'followup',        // the legacy after-feature trigger
+  school_feature: 'school',         // a school door: says why the form came
+});
 
 /** The registration Flow's token. Every sender builds it here. */
 function registrationFlowToken(userId, now = Date.now()) {
@@ -82,8 +95,10 @@ async function readAccount(user) {
 
 function variantFor(account, reason) {
   // A school door asks for the school whoever she is — a registered teacher with no school
-  // included: "update your details" would not say why the form came.
-  if (reason === 'school_feature') return 'school';
+  // included: "update your details" would not say why the form came. The unprompted doors use
+  // their own copy too. Only the explicit asks (/register, "Register me", /portal) are told
+  // "welcome" or "update your details" — and there the invite is the only reply of the turn.
+  if (VARIANT_BY_REASON[reason]) return VARIANT_BY_REASON[reason];
   return isRegistered(account) ? 'update' : 'new';
 }
 
@@ -165,20 +180,23 @@ async function sendRegistrationInvite({ user, phone, language, reason = 'unspeci
 }
 
 /**
- * Offer the form once, unprompted — after her first reply, or after a feature is delivered.
- * Only to an account that still needs it (needsRegistrationForm); never twice; never two doors
- * at once.
+ * Offer the form once, unprompted — after her first reply, after a feature is delivered, or as
+ * the reply to a greeting-only first message. Only to an account that still needs it
+ * (needsRegistrationForm); never twice; never two doors at once.
  *
- * @returns {Promise<boolean>} true when this call sent it
+ * @returns {Promise<'sent'|'not_needed'|'already_offered'|'claim_lost'|'failed'>}
+ *   failed = the claim was taken and the send refused: she already got the retry line, and the
+ *   claim is released so a later message can offer it again.
  */
-async function offerRegistrationOnce({ user, phone, language, reason = 'unspecified' } = {}) {
-  if (!user || !user.id || !process.env.REGISTRATION_FLOW_ID) return false;
+async function offerRegistrationOnceDetailed({ user, phone, language, reason = 'unspecified' } = {}) {
+  if (!user || !user.id || !process.env.REGISTRATION_FLOW_ID) return 'not_needed';
 
   const account = await readAccount(user);
-  if (!account) return false; // cannot tell — do not risk offering a registered teacher the form
+  if (!account) return 'not_needed'; // cannot tell — do not risk offering a complete account the form
   // Not "registered" (a name is enough for that): the account must still NEED the form — a name
   // with no school or role, or nothing at all (utils/registration-status.js needsRegistrationForm).
-  if (!needsRegistrationForm(account) || account.registration_started_at) return false;
+  if (!needsRegistrationForm(account)) return 'not_needed';
+  if (account.registration_started_at) return 'already_offered';
 
   // Claim the offer. Only the call that flips NULL → now sends it.
   const claimedAt = new Date().toISOString();
@@ -191,14 +209,14 @@ async function offerRegistrationOnce({ user, phone, language, reason = 'unspecif
       .select('id');
     if (error) {
       logToFile('⚠️ registration offer: claim refused (not offered)', { userId: user.id, error: error.message }, 'warn');
-      return false;
+      return 'claim_lost';
     }
     claimed = Array.isArray(data) && data.length > 0;
   } catch (err) {
     logToFile('⚠️ registration offer: claim failed (non-fatal, not offered)', { userId: user.id, error: err.message }, 'warn');
-    return false;
+    return 'claim_lost';
   }
-  if (!claimed) return false;
+  if (!claimed) return 'claim_lost';
 
   const sent = await sendRegistrationInvite({
     user: { ...account, registration_started_at: claimedAt }, phone, language, reason,
@@ -208,13 +226,20 @@ async function offerRegistrationOnce({ user, phone, language, reason = 'unspecif
     try {
       await supabase.from('users').update({ registration_started_at: null }).eq('id', user.id);
     } catch (_) { /* best effort */ }
+    return 'failed';
   }
-  return sent;
+  return 'sent';
+}
+
+/** The boolean of it, for the doors that only need to know whether this call sent the form. */
+async function offerRegistrationOnce(args = {}) {
+  return (await offerRegistrationOnceDetailed(args)) === 'sent';
 }
 
 module.exports = {
   sendRegistrationInvite,
   offerRegistrationOnce,
+  offerRegistrationOnceDetailed,
   registrationFlowToken,
   inviteCopy,
   fallbackText,

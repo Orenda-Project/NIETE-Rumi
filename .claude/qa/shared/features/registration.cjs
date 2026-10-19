@@ -260,6 +260,11 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { reason: 'needs a REGISTERED account with users.school_id NULL — api.db has no action that sets one; covered by tests/registration/front-door-invite.test.js (/classes, /roster, completed-without-school, coach)' }, 0);
   }
 
+  if (want('R22')) {
+    rec('R22', 'A greeting-only first message gets one message — the welcome invite', 'DEFERRED',
+        { reason: 'needs an account never offered the form (users.registration_started_at NULL) — api.db cannot clear the stamp; the greeting door, the one-message rule and the once-only claim are covered by tests/registration/front-door-invite.test.js, greeting-only.test.js and registration-invite.service.test.js' }, 0);
+  }
+
   if (want('R10')) {
     // R10 needs an unregistered account again — left to the DB step, reported as deferred
     // R10 — abandon a fresh Flow and prove nothing was recorded

@@ -41,6 +41,11 @@ const ASKING_WORDS = new Set([
   'dain', 'hai', 'he', 'h', 'hy', 'k', 'ke', 'ky', 'kay', 'ki', 'ka', 'lye', 'liye', 'lie', 'liay',
   'liyay', 'chahta', 'chahti', 'chahiye', 'chahye', 'chahie', 'kaise', 'kese', 'kaisay', 'kesy',
   'hona', 'hun', 'hoon', 'ho', 'gaya', 'gya', 'nahi', 'nai', 'abhi', 'mujh',
+  // A greeting or a form of address in front of the request is still the request (2026-10-19:
+  // "aoa register me", "Salam sir, i need to register", «السلام علیکم مجھے رجسٹر کرنا ہے»).
+  'hey', 'helo', 'hlo', 'salam', 'salaam', 'slam', 'aoa', 'assalam', 'asalam', 'o', 'alaikum',
+  'alaykum', 'alikum', 'aleikum', 'assalamualaikum', 'ji', 'jee', 'السلام', 'اسلام', 'سلام', 'علیکم',
+  'سر', 'جی',
   // Urdu script
   'مجھے', 'میں', 'میرا', 'میری', 'اپنا', 'اپنی', 'کرنا', 'کرنی', 'کریں', 'کرو', 'کر', 'کروانا', 'کروائیں',
   'ہے', 'ہوں', 'ہو', 'چاہتی', 'چاہتا', 'چاہیے', 'کیسے', 'کے', 'کی', 'کا', 'لیے', 'لئے', 'دیں', 'براہ',

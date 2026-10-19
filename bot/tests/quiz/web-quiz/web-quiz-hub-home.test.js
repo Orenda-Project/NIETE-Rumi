@@ -435,6 +435,10 @@ describe('pure parts', () => {
     const d = Home.doorsOf({ out: { recs } });
     expect(d.recs).toEqual([1, 2, 3].map((n) => ({ vid: `v${n}`, title: `Lesson ${n}`, subject: 'Maths', art: '/wq/art/subject-maths.webp' })));
     expect(Home.doorsOf({ out: { recs: [] } })).not.toHaveProperty('recs');
+    // a lesson's Urdu name (web_quiz_videos_ur_titles) rides along; none -> no key
+    const ur = Home.doorsOf({ out: { recs: [{ ...recs[0], title_ur: 'سبق ۱' }, recs[1]] } }).recs;
+    expect(ur[0]).toEqual({ vid: 'v1', title: 'Lesson 1', title_ur: 'سبق ۱', subject: 'Maths', art: '/wq/art/subject-maths.webp' });
+    expect(ur[1]).not.toHaveProperty('title_ur');
   });
 
   test('headOf: counts days, not finishes; ignores last week', () => {

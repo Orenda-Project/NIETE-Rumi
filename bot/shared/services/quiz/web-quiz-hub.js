@@ -314,6 +314,8 @@ const readDone = (kidId) => dbRead('recsFor:quiz_sessions:1', (db) => db.from('q
   .eq('student_id', kidId).eq('status', 'completed').limit(300));
 
 async function recsFor(kidId, history, grade, tight = false) {
+  // web_quiz_videos_ur_titles: each lesson's Urdu-script name, from the library's own cached read; off = not read at all
+  const urP = require('./web-quiz-library-flag').urTitlesOn().then((on) => (on ? require('./web-quiz-bank').urTitles() : null)).catch(() => null);
   const lastDone = history.filter((e) => e.latest)
     .sort((a, b) => String(b.latest.completed_at || '').localeCompare(String(a.latest.completed_at || '')))[0] || null;
   const doneP = tight ? readDone(kidId) : null;
@@ -343,9 +345,11 @@ async function recsFor(kidId, history, grade, tight = false) {
   const finished = new Set((done || []).map((r) => r.quiz_id));
   const playable = vids.filter((r) => quizOf.has(r.id) && !finished.has(quizOf.get(r.id)));
   const chosen = last ? recOrder(playable, last) : firstOfEach(playable);
-  const metas = await Promise.all(chosen.map(posterOf));
+  const [metas, ur] = await Promise.all([Promise.all(chosen.map(posterOf)), urP]);
   return chosen.map((r, i) => {
     const out = { vid: r.id, title: r.clean_title || '', chapter: r.clean_chapter || '', subject: r.subject, grade: String(r.grade) };
+    const urName = ur && ur.get(r.id) && ur.get(r.id).t;
+    if (urName) out.title_ur = urName;
     if (metas[i].poster) out.poster = metas[i].poster;
     const art = subjectArtOf(r.subject);
     if (art) out.art = art;

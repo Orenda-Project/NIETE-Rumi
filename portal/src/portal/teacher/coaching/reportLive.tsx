@@ -1,11 +1,14 @@
-import { Mic, Send, Square, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Check, Mic, RotateCcw, Send, Square, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AudioPlayer } from '../../newui/AudioPlayer';
 import { VoiceNote } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { useCopy } from '../i18n';
-import { COACHING } from './copy';
-import { SectionHeading } from './parts';
+import { COACHING, type CoachingCopy } from './copy';
+import { portal } from '../../services/api';
+import type { CoachingProgress } from '../../types/portal';
+import { Action, SectionHeading } from './parts';
 import type { DcReport } from './useDcReport';
 
 /**
@@ -14,6 +17,9 @@ import type { DcReport } from './useDcReport';
  *
  *   <Reflection>      the question (the Digital Coach's voice note, its words only when it could not be voiced) and her
  *                     answer box: a mic where Send is while the box is empty; then what the coach said back.
+ *   <ClassCheck>      bd-aqotzx (ICT IAB row 16): the recording did not sound like a class — "Is this the recording of
+ *                     your class?" with Yes, my class (it carries on) and No, record again (it is closed).
+ *   stoppedLine()     why a stopped observation stopped, in her language.
  */
 
 /** The one question and her answer, then what the coach said back (until the report is ready). */
@@ -128,4 +134,52 @@ export function Reflection({ r }: { r: DcReport }) {
 function clock(ms: number): string {
   const sec = Math.floor(ms / 1000);
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
+/** bd-aqotzx — the recording did not sound like a class being taught: her yes or no, in her language. */
+export function ClassCheck({ sessionId, onYes, onNo }: { sessionId: string; onYes: () => void; onNo: () => void }) {
+  const C = useCopy(COACHING);
+  const [busy, setBusy] = useState<'yes' | 'no' | null>(null);
+  const [failed, setFailed] = useState(false);
+  const answer = async (choice: 'yes' | 'no') => {
+    setBusy(choice);
+    setFailed(false);
+    try {
+      await portal.answerClassCheck(sessionId, choice);
+      if (choice === 'yes') onYes(); else onNo();
+    } catch (err) {
+      // Already answered (a second tap, another tab) or closed by the 24-hour sweep: show what it is now.
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) { onYes(); return; }
+      setFailed(true);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <>
+      <section aria-live="polite" data-testid="class-check" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
+        <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#fef0c7] text-[#b54708]">
+          <Mic className="h-8 w-8" aria-hidden="true" />
+        </span>
+        <span className="inline-flex items-center rounded-full bg-[#fef0c7] px-2.5 py-0.5 text-[12px] font-semibold text-[#b54708]">{C.classNeedsAnswer}</span>
+        <h2 className="m-0 text-[19px] font-semibold leading-snug text-[#33374a]">{C.classQuestion}</h2>
+        <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{C.classWhy}</p>
+      </section>
+      <div className="flex flex-col gap-2.5">
+        <Action icon={Check} disabled={busy !== null} onClick={() => { void answer('yes'); }}>{C.classYes}</Action>
+        <Action tone="outline" icon={RotateCcw} disabled={busy !== null} onClick={() => { void answer('no'); }}>{C.classNo}</Action>
+      </div>
+      {failed ? <p role="alert" className="mx-1 text-center text-[14px] font-semibold text-[#c8331f]">{C.couldNotSend}</p> : null}
+      <p className="mx-1 m-0 text-center text-[13px] leading-[1.5] text-[#6b7280]">{C.classDeadline}</p>
+    </>
+  );
+}
+
+/** bd-aqotzx — why a stopped observation stopped: the not-a-class notes, too short, or the general line. */
+export function stoppedLine(progress: CoachingProgress | null, C: CoachingCopy): string {
+  if (progress?.stopReason === 'not_a_class_no_answer') return C.classNoAnswerNote;
+  if (progress?.stopReason === 'not_a_class') return C.classRecordAgainNote;
+  if (progress?.shortRecording) return C.tooShort;
+  return C.stopped;
 }
