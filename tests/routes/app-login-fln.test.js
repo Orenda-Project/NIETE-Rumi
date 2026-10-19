@@ -106,3 +106,22 @@ describe('existing landings unchanged', () => {
     }
   });
 });
+
+/**
+ * bd-zcgpkx — a leader's "lesson plan" opens the app on Send a lesson plan (the FLN builder). The token's target is
+ * the fixed string `fln:send`; like a plan target it lands whether or not the user is on the teacher app.
+ */
+test('sign fln:send → GET /go/<token> → 303 /portal/fln/send, signed in, no-store, even off the teacher app', async () => {
+  const token = link().signAppLink(USER, 'fln:send');
+  expect(typeof token).toBe('string');
+  expect(link().verifyAppLink(token)).toEqual(expect.objectContaining({ u: USER, f: 'fln:send' }));
+  const res = await get(await app({ v2: false }), `/go/${token}`);
+  expect(res.status).toBe(303);
+  expect(res.headers.location).toBe('/portal/fln/send');
+  expect(res.headers['cache-control']).toMatch(/no-store/);
+  expect(sessions[0]).toEqual(expect.objectContaining({ portalUserId: USER, isPortalAuth: true }));
+});
+
+test.each([['fln:sendx'], ['fln:send/x'], ['fln:send?x=1'], ['fln:SEND'], [' fln:send']])('%p cannot be signed', (f) => {
+  expect(link().signAppLink(USER, f)).toBeNull();
+});

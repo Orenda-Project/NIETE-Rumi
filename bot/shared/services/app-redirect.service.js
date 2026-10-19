@@ -39,6 +39,12 @@
  *      Library (/portal/coach/training) and only for the doors that mean "open training" (COACH_LINK_DOORS) — typed
  *      /training, the chip, the menu row and openTrainingFlow — never /certificates or an exam/capstone button. Old
  *      code never reads the key, so a rollback reads it as OFF.
+ *   2d. LEADER LESSON PLANS (bd-zcgpkx): a leader's lesson-plan request opens Send a lesson plan (the FLN builder,
+ *      target `fln:send`) under its OWN switch, `leader_app_lesson_plan`: true (every leader) or a JSON list of
+ *      users.id; no row, any other value, or a failed read is OFF. Only when users.role is in the leader family
+ *      (observe-gate LEADER_ROLES) and FLN share is on for them (portal_fln_share: true or a list holding them) —
+ *      the builder refuses anyone else. The operator, 19 Oct: "Send leaders straight into the app, the same as
+ *      teachers", accepting that leaders lose the WhatsApp picker. Old code never reads the key: a rollback is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -62,6 +68,7 @@ const { portalUrl } = require('../config/branding');
 const { isTeachersValue, isTeacherRole, isCoachRole } = require('./teacher-audience');
 const { isRegistered } = require('../utils/registration-status');
 const { newJourneyId } = require('./app-journey');
+const { LEADER_ROLES } = require('./observe/observe-gate');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -92,6 +99,7 @@ const APP_LINK_COPY = Object.freeze({
   coach_menu: ['appLinkBodyCoachHome', 'appLinkButtonCoachHome'], // bd-fmf24g.52
   coach_observe: ['appLinkBodyCoachObserve', 'appLinkButtonCoachObserve'], // bd-fmf24g.52
   coach_training: ['appLinkBodyCoachTraining', 'appLinkButtonCoachTraining'], // bd-s42dye.3
+  'fln:send': ['appLinkBodyLeaderLessonPlan', 'appLinkButtonLeaderLessonPlan'], // bd-zcgpkx
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
   ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
@@ -148,6 +156,12 @@ const COACH_APP_KEY = 'portal_coach_v2';
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
+/** bd-zcgpkx — request → the FLN target a leader's link lands on (fln-go-target.js), behind LEADER_LP_KEY. */
+const LEADER_LINKS = Object.freeze({ lesson_plan: 'fln:send' });
+const LEADER_LP_KEY = 'leader_app_lesson_plan';
+/** The builder's own gate (dashboard/lib/fln-access.js FLN_SHARE_KEY): a leader without it would land on a refusal. */
+const FLN_SHARE_KEY = 'portal_fln_share';
+
 const NOTICE_FEATURE = 'app_redirect_notice';
 const QUIET_MS = 60 * 60 * 1000;
 
@@ -194,7 +208,8 @@ async function settingValues(now) {
     const { data, error } = await supabase
       .from('app_settings')
       .select('key,value')
-      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY]);
+      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
+        LEADER_LP_KEY, FLN_SHARE_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -311,6 +326,38 @@ async function coachLink(feature, userId, now, reason) {
   return COACH_LINKS[feature];
 }
 
+/** Is this users.role in the leader family? Trim + lowercase, as the portal's isLeaderRole does. */
+function isLeaderRole(role) {
+  return typeof role === 'string' && LEADER_ROLES.includes(role.trim().toLowerCase());
+}
+
+/**
+ * bd-zcgpkx — the leader link: the FLN target to land on (LEADER_LINKS), or null for the next path. Asked only when
+ * the switch covers them, so nobody pays a users read while it is off. Someone who is not a leader is not this link's
+ * audience and goes on, unlogged, to the teacher link; a leader without FLN share, or an unreadable account, keeps
+ * today's flow.
+ */
+async function leaderLink(feature, userId, now) {
+  if (!Object.prototype.hasOwnProperty.call(LEADER_LINKS, feature)) return null;
+  const values = await settingValues(now);
+  const flag = values.get(LEADER_LP_KEY);
+  if (!isOn(flag) && !listHas(flag, userId)) return null;
+  let a;
+  try {
+    a = await loadAccount(userId);
+  } catch (err) {
+    logToFile('⚠️ Leader app link: the account could not be read — the WhatsApp flow runs', { userId, feature, error: err?.message }, 'warn');
+    return null;
+  }
+  if (!a || !isLeaderRole(a.role)) return null;
+  const share = values.get(FLN_SHARE_KEY);
+  if (!(isOn(share) || listHas(share, userId))) {
+    logToFile('↩️ Leader app link: not for this user — the WhatsApp flow runs', { userId, feature, why: 'fln_share_off' });
+    return null;
+  }
+  return LEADER_LINKS[feature];
+}
+
 async function lastNotice(userId) {
   try {
     const { data, error } = await supabase
@@ -381,7 +428,8 @@ async function sendAppLink(feature, { userId, from, language, reason, journey })
   const token = base ? signAppLink(userId, feature, journey && journey.journeyId) : null;
   // The funnel names the request she made (menu, observe…), not the page the token lands on (coach_menu…).
   const fx = { journeyId: journey && journey.journeyId, userId, feature: (journey && journey.feature) || feature, door: reason };
-  if (journey && journey.audience === 'coach') fx.audience = 'coach'; // bd-s42dye.3 — the coach's funnel rows say so
+  // bd-s42dye.3 / bd-zcgpkx — a coach's or a leader's funnel rows say so; a teacher's carry no audience, as before.
+  if (journey && (journey.audience === 'coach' || journey.audience === 'leader')) fx.audience = journey.audience;
   if (!token) {
     logToFile('⚠️ App link: no portal url or signing key on this deployment — the flow runs', { userId, feature }, 'warn');
     funnelEvent('app_funnel.link_failed', { ...fx, reason: 'no_portal_or_key' });
@@ -421,6 +469,11 @@ async function decideRedirect(feature, { userId, from, language, reason = 'unspe
     if (coach) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
       return sendAppLink(coach, { userId, from, language, reason, journey });
+    }
+    const leader = await leaderLink(feature, userId, now);
+    if (leader) {
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
+      return sendAppLink(leader, { userId, from, language, reason, journey });
     }
     const note = {};
     const verdict = await linkVerdict(feature, userId, now, note);
