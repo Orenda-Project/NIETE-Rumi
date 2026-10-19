@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import { isLinkSession, LINK_EXPIRED_PAGE } from '../lib/linkSession';
+import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
@@ -38,8 +39,10 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
       const currentPath = window.location.pathname;
-      // Don't redirect if already on login/setup pages
+      // Don't redirect if already on login/setup pages (the analytics accounts' own sign-in is one: its signed-out
+      // session read and a refused name both answer 401, and neither may send her to the teacher sign-in).
       if (!currentPath.includes('/portal/login') && 
+          !currentPath.includes(ANALYTICS_LOGIN) &&
           !currentPath.includes('/portal/setup') &&
           !currentPath.includes('/portal/reset-password')) {
         window.location.href = '/portal/login';
