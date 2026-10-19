@@ -927,7 +927,7 @@ const RULE = {
   urduGrammarUsedUpFull: 'Grammar is used up: the grammar concepts this paper\'s Q1 asks, an antonym and a synonym included, are each asked once already. Write every new Q1 item as vocabulary, word-meaning or comprehension from lessons 4–10; never another antonym, synonym or other grammar item.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
-  scienceQ3: 'Q3(a): two of the three long questions are Remember (state, name, define with the book\'s wording); one is Understand. Q3(b): the short questions are reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\') so that the paper carries Apply marks.',
+  scienceQ3: 'Q3(a): of the ten short questions, three Remember (state, name, define with the book\'s wording), four Understand (explain, compare, give an example) and three Apply, written as reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\'). Q3(b): of the five long questions, three Remember and two Apply (use the idea in a new situation from the book); none Understand.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
   noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section.',
   // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
