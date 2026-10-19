@@ -859,3 +859,43 @@ describe('the watch screen\'s clean start (web_quiz_video_clean_start)', () => {
     expect(p.after).toBeNull();
   });
 });
+
+// web_quiz_video_clean_start on #watch: with no native controls before the first play, the whole video box (the poster)
+// starts the video on a tap, like the lesson page's cover; once it plays the player's own controls take the taps. Off,
+// the box has no tap of its own (the player's controls are there from the start).
+describe('the watch screen\'s clean start: the whole poster is the play tap', () => {
+  const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
+  const answer = () => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(WATCH)), json: () => Promise.resolve(WATCH) });
+  async function box(extra) {
+    const t = live({ fetchImpl: answer });
+    const vEl = el({ duration: 100, currentTime: 0, paused: true });
+    vEl.play = jest.fn(() => { vEl.paused = false; vEl.fire('play'); return Promise.resolve(); });
+    const play = el(); const vbox = el();
+    const after = el({ hidden: true, parentNode: { removeChild() {} } });
+    t.W.WQDOORS.mount(fakeRoot({ '.wq-vid': vEl, '.wq-vplay': play, '.wq-after': after, '.wq-vbox': vbox }), { ...HUB, home_v3: 1, ...extra, doors: { stories: [], games: [], videos: { href: '/lib/x', watch: true } } }, { token: TOKEN, lang: 'en', ev() {} }, `watch/${VID}`);
+    await flush();
+    return { vEl, vbox, play };
+  }
+  const tap = (x, target) => x.fire('click', { target: target || x, preventDefault() {}, stopPropagation() {} });
+  test('on: a tap anywhere on the poster plays the video, once; the player then has its controls', async () => {
+    const p = await box({ video_clean: true });
+    tap(p.vbox);
+    expect(p.vEl.play).toHaveBeenCalledTimes(1);
+    expect(p.vEl.getAttribute('controls')).toBe('');
+    p.vEl.paused = true; // paused from the player's own controls: the box never takes that tap again
+    tap(p.vbox);
+    expect(p.vEl.play).toHaveBeenCalledTimes(1);
+  });
+  test('on: a tap on the big ▶ plays once (the box does not play it a second time)', async () => {
+    const p = await box({ video_clean: true });
+    tap(p.play);
+    tap(p.vbox, p.play); // the same tap reaching the box
+    expect(p.vEl.play).toHaveBeenCalledTimes(1);
+  });
+  test('off: the box has no tap of its own', async () => {
+    const p = await box({});
+    tap(p.vbox);
+    expect(p.vEl.play).not.toHaveBeenCalled();
+    expect(p.vbox.listeners.click || []).toEqual([]);
+  });
+});

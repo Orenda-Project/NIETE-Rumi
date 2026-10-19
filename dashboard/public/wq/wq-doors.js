@@ -841,6 +841,13 @@
       ev('next_shown', nextLine(view.next));
     };
     if (playBtn) playBtn.addEventListener('click', function () { try { var p = vEl.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} });
+    // web_quiz_video_clean_start: no native controls before the first play, so the whole box (the poster) is the play
+    // tap, like the lesson page's cover; once it has played the player's own controls take the taps
+    var box = B.video_clean === true ? root.querySelector('.wq-vbox') : null;
+    if (box) box.addEventListener('click', function (e) {
+      if (opened || !vEl.paused || (e && playBtn && (e.target === playBtn || (playBtn.contains && playBtn.contains(e.target))))) return;
+      try { var p = vEl.play(); if (p && p.catch) p.catch(function () {}); } catch (x) {}
+    });
     vEl.addEventListener('play', function () {
       if (playBtn) playBtn.hidden = true;
       if (B.video_clean === true) vEl.setAttribute('controls', '');
