@@ -56,18 +56,32 @@ async function quizzesForHandset(phone) {
  * kid hub names its children by id, not by phone. `teacherSent` is a code the teacher
  * sent (no parent code, no inviter): not a "watch more" code and not a friend's challenge.
  */
-async function quizzesForStudents(known) {
+const SESSION_COLS = 'id, quiz_id, share_code_id, student_id, status, correct_answers, total_questions_answered, '
+  + 'mastery_percentage, completed_at, created_at, student_class';
+const CODE_COLS = 'id, code, active, expires_at, topic, language, parent_share_code_id, invited_by_student_id, created_at, teacher_user_id';
+const QUIZ_COLS = 'id, topic, subject, language, grade, video_id';
+
+// `embed` (the hub, web_quiz_hub_embed): each session read with its code and quiz rows (their foreign keys), one request
+// instead of two in a row; the same list. A failed embedded read is read again as without it.
+async function quizzesForStudents(known, { embed = false } = {}) {
   if (!known || !known.length) return [];
   const byStudent = new Map(known.map((s) => [s.id, s]));
 
-  const { data: sessions, error } = await supabase
+  const readSessions = (cols) => supabase
     .from('quiz_sessions')
-    .select('id, quiz_id, share_code_id, student_id, status, correct_answers, total_questions_answered, '
-            + 'mastery_percentage, completed_at, created_at, student_class')
+    .select(cols)
     .in('student_id', known.map((s) => s.id))
     .not('share_code_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(400);
+  let joined = embed ? await readSessions(`${SESSION_COLS}, quiz_share_codes(${CODE_COLS}), quizzes(${QUIZ_COLS})`) : null;
+  if (joined && (joined.error || !Array.isArray(joined.data))) joined = null;
+  // the joined rows split back: the sessions as the plain read gives them, their codes and quizzes on the side
+  const uniq = (rows) => [...new Map(rows.filter((r) => r && r.id).map((r) => [r.id, r])).values()];
+  const side = joined ? { codes: uniq(joined.data.map((s) => s.quiz_share_codes)), quizzes: uniq(joined.data.map((s) => s.quizzes)) } : null;
+  const { data: sessions, error } = joined
+    ? { data: joined.data.map(({ quiz_share_codes: _c, quizzes: _q, ...s }) => s), error: null }
+    : await readSessions(SESSION_COLS);
   if (error) {
     logToFile('⚠️ student-quiz: sessions read failed', { error: error.message });
     return [];
@@ -93,11 +107,11 @@ async function quizzesForStudents(known) {
   const list = [...groups.values()].slice(0, MAX_QUIZZES);
   if (!list.length) return [];
 
-  const [{ data: codes }, { data: quizzes }] = await Promise.all([
+  const [{ data: codes }, { data: quizzes }] = side ? [{ data: side.codes }, { data: side.quizzes }] : await Promise.all([
     supabase.from('quiz_share_codes')
-      .select('id, code, active, expires_at, topic, language, parent_share_code_id, invited_by_student_id, created_at, teacher_user_id')
+      .select(CODE_COLS)
       .in('id', list.map((g) => g.shareCodeId)),
-    supabase.from('quizzes').select('id, topic, subject, language, grade, video_id')
+    supabase.from('quizzes').select(QUIZ_COLS)
       .in('id', list.map((g) => g.quizId)),
   ]);
   const codeById = new Map((codes || []).map((c) => [c.id, c]));

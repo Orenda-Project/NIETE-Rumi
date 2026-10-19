@@ -46,11 +46,22 @@ function run(fn) {
   return als.run({ at: Date.now(), rows: new Map() }, fn);
 }
 
-function readMany(table, ids) {
+function readMany(table, ids, lists = false) {
   return dbRead(`childRows:${table}:1`, (db) => {
-    const q = db.from(table).select(COLS[table]).in(BY[table], ids);
+    const q = db.from(table).select(lists ? `${COLS.students}, student_lists(${COLS.student_lists})` : COLS[table]).in(BY[table], ids);
     return table === 'class_enrollments' ? q.eq('is_active', true) : q;
   });
+}
+// web_quiz_hub_embed (the hub's own switch cache, never read here): a child's row read with its class list
+// (students.list_id) in the same request; the list is kept for this answer's own ask for it, so it needs no read.
+const embedOn = () => { try { return require('./web-quiz-hub-flags').embedNow(); } catch (_) { return false; } };
+function keepLists(s, rows) {
+  if (!rows.some((r) => r && Object.prototype.hasOwnProperty.call(r, 'student_lists'))) return rows;
+  rows.forEach((r) => {
+    const l = r && r.student_lists;
+    if (l && l.id && !s.rows.has(`student_lists:${l.id}`)) s.rows.set(`student_lists:${l.id}`, Promise.resolve([l]));
+  });
+  return rows.map(({ student_lists: _l, ...r }) => r);
 }
 
 const pick = (row, cols) => Object.fromEntries(cols.map((c) => [c, row[c] === undefined ? null : row[c]]).filter(([c]) => c in row));
@@ -62,8 +73,10 @@ async function shared(table, ids, cols) {
   const key = (id) => `${table}:${id}`;
   const missing = [...new Set(ids.map(String))].filter((id) => !s.rows.has(key(id)));
   if (missing.length) {
-    const p = Promise.resolve().then(() => readMany(table, missing))
-      .then((res) => (res && !res.error ? res.data || [] : null), () => null);
+    const lists = table === 'students' && embedOn();
+    // a failed read with the lists is read again without them
+    const p = Promise.resolve().then(() => (lists ? readMany(table, missing, true).then((res) => (res && !res.error ? res : readMany(table, missing)), () => readMany(table, missing)) : readMany(table, missing)))
+      .then((res) => (res && !res.error ? keepLists(s, res.data || []) : null), () => null);
     missing.forEach((id) => s.rows.set(key(id), p.then((all) => (all ? all.filter((r) => String(r[BY[table]]) === id) : null))));
   }
   const parts = await Promise.all(ids.map((id) => s.rows.get(key(String(id)))));

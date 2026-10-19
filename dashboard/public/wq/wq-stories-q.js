@@ -134,7 +134,7 @@
       if (!sum) { ck = S._chunks(p, S._lines(p)); ci = 0; stopAll = 0; sum = { words_total: 0, words_read: 0, skipped: 0, ms: 0, absorbed: 0, marks: [] }; }
       c = ck[ci];
       st = R.stage(p, (p.boxes_ok ? '' : img(p.image.url, p.image.w, p.image.h)) + lh);   // the live reader draws the picture itself on a boxed page
-      // the live meter on (wq-pace.js): Jugnu rides its bar here, in his own place above the page, never inside the zoomed picture
+      // the live meter on (wq-pace.js): Jugnu rides its bar here, above the page, never inside the zoomed picture
       paint(scr('story-read', L, top(L, ic(t, 'close', t.close, '✕')) + (W.WQPace && W.WQPace.variant ? '<div class="wqs-pace" data-pace></div>' : img(JG + 'hello.webp', 72, 72, 'wqs-jg wqs-g0', ' data-jg')) +
         (R.mode() === 'z' || R.mode() === 'l' ? st : lh) + Mq('line') + '<button class="wqs-main wqs-done" data-primary data-tap="main">' + (LR.doneHtml && LR.COPY && LR.COPY[L] ? LR.doneHtml(LR.COPY[L]) : esc(t.done) + ' ' + IC.tick) + '</button>'));
       var z = R.mode() === 'z';
@@ -318,7 +318,7 @@
       if (mb !== R.mb) { R.mb = mb; late(m.i); }   // a page drawn
       R.ml = lab;
       if (!on || o == null || o === lab) return;
-      R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk';
+      R.lk = C.now(); mb.className = 'wqs-main wqs-' + o + ' wqs-lk wqs-to-' + lab;
       C.set(function () { if (R.ml === lab && / wqs-lk/.test(mb.className)) mb.className = 'wqs-main wqs-' + lab; }, 600);
     };
     // window events while this book is open: all go when the book is left (R.kill), at the latest when one fires after
