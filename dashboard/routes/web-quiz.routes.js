@@ -1881,7 +1881,7 @@ function createWebQuizRouter(opts = {}) {
       try {
         const out = await callBot('GET', `/api/internal/wq/card/s/${id}`, req, null, { route: '/api/internal/wq/card/s/:id' });
         const b = out && out.body;
-        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+$/.test(b.url))) {
+        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+(&lang=ur)?$/.test(b.url))) {
           hit = { token: b.token, url: b.url };
           shortIds.set(id, hit, CARD_KEEP_MS);
         } else return door(out.status === 404 && b ? b.ret : null);
