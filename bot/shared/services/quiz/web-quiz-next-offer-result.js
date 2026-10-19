@@ -64,8 +64,9 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   await parts.urRows(out, history); // web_quiz_videos_ur_titles: the lessons' Urdu names, as the hub's own rows
   if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${lang}` };
-  // the recommended lesson, only where the tile can use it: a class-less child with the v3 home's watch-only player
-  if (watch && !hasRootOf(history)) {
+  // the recommended lesson, wherever the tile can use it: with the v3 home's watch door, a class-less child's
+  // recommended tile and a class child's named video tile (it opens the lesson, its quiz after)
+  if (watch) {
     try { out.recs = await parts.recsFor(canonical, history, grade); } catch (_) { out.recs = []; }
   }
   const form = f.challenge ? await parts.challengeForm(canonical) : null;
