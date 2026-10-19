@@ -770,10 +770,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   mark('play');
   // Stories (started with the challenge's reads), the v3 home's doors + header and the ranked next thing are independent
   // fields (none reads another): read side by side, so neither Stories nor the slot adds a serial wave. Each is {} while off.
+  // web_quiz_child_welcome (with the home on): the child's "Jugnu says hello"; the next thing shown under it is not an untapped show
+  const welcomeP = require('./web-quiz-child-welcome').field({ chosenId: chosen.id, lang: out.lang });
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade }),
-    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade, welcome: welcomeP }),
+    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep, hold: welcomeP }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
   mark('home');
@@ -863,10 +865,12 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   }, chosen.id));
   Object.assign(out, await bookP);
   mark('play');
+  // web_quiz_child_welcome (with the home on): the child's "Jugnu says hello"; the next thing shown under it is not an untapped show
+  const welcomeP = require('./web-quiz-child-welcome').field({ chosenId: chosen.id, lang: out.lang });
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade, rows: rememberP }),
-    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade, rows: rememberP, welcome: welcomeP }),
+    require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep, hold: welcomeP }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
   mark('home');
@@ -902,7 +906,7 @@ async function hub(token, opts = {}) {
   if (opts.st) opts.st.mark('tail');
   // the light Urdu face (web_quiz_face_lite) from the read just awaited: ui.fl, else the ui as it was
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}), ...(f.rewatchDone ? { rewatch_done: true } : {}) };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}), ...(f.rewatchDone ? { rewatch_done: true } : {}), ...(f.videoClean ? { video_clean: true } : {}) };
 }
 
 async function hubTogether(token, opts) {
@@ -920,7 +924,7 @@ async function hubTogether(token, opts) {
   // the light Urdu face (web_quiz_face_lite), as the serial path: from the switch read just awaited, ui.fl, else the ui
   // the same later hub field as hub() above: reads started together must not drop the pack
   const look = require('./web-quiz-ur-polish').lite(ui);
-  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}), ...(f.rewatchDone ? { rewatch_done: true } : {}) };
+  return { ...out, rt, ...(look ? { ui: look } : {}), ...(fast ? { fast: true } : {}), ...(min ? { min: true } : {}), ...(listen ? { listen: true } : {}), ...pace, ...(f.pack ? { pack: true } : {}), ...(f.homeInline ? { home_inline: true } : {}), ...(f.earlyUnlock ? { early_unlock: true } : {}), ...(f.rewatchDone ? { rewatch_done: true } : {}), ...(f.videoClean ? { video_clean: true } : {}) };
 }
 
 module.exports = {

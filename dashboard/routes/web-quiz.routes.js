@@ -229,12 +229,14 @@ function assetVersion() {
   // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
   try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, 'hub-play.js'))); } catch (_) { /* absent in some tests */ }
   // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
-  // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too.
-  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js']) {
+  // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too; and it
+  // loads wq-cue.js (the child welcome's last cue) at this ?v=.
+  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js', 'wq-cue.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
-  // The child home (wq-home.*, the home tags) and its door screens (wq-doors.*, loaded by wq-home.js) ride this ?v= too.
-  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css']) {
+  // The child home (wq-home.*, the home tags), its door screens (wq-doors.*, loaded by wq-home.js) and the child welcome
+  // (wq-welcome.*, loaded by wq-home.js) ride this ?v= too.
+  for (const f of ['wq-home.js', 'wq-home.css', 'wq-doors.js', 'wq-doors.css', 'wq-welcome.js', 'wq-welcome.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The stories reader (loaded by the home and the hub at this ?v=) and its lazy files (Your turn; the questions and done, at the reader's ?v=, this
@@ -1426,6 +1428,19 @@ function createWebQuizRouter(opts = {}) {
     const kid = typeof req.query.kid === 'string' ? req.query.kid.slice(0, 64) : '';
     try {
       const out = await callBot('GET', `/api/internal/wq/hub/${encodeURIComponent(hub)}/grade?kid=${encodeURIComponent(kid)}`, req, null, { route: '/api/internal/wq/hub/:token/grade' });
+      if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
+      return res.status(out.status).json(out.body == null ? {} : out.body);
+    } catch (err) {
+      return res.status(502).json({ error: 'bot_unreachable' });
+    }
+  });
+  // The child welcome's one write (the bot's web_quiz_child_welcome; it answers 404 while that is off), with this phone's
+  // device: POST {hub, kid, outcome} -> the bot's POST /hub/:token/welcome {kid, outcome}.
+  router.post('/api/wq/welcome', noStore, configured, jsonBody, limiters.session, async (req, res) => {
+    const b = req.body || {};
+    if (typeof b.hub !== 'string' || !HUB_TOKEN_RX.test(b.hub)) return res.status(401).json({ error: 'bad_token' });
+    try {
+      const out = await callBot('POST', `/api/internal/wq/hub/${encodeURIComponent(b.hub)}/welcome`, req, { kid: typeof b.kid === 'string' ? b.kid.slice(0, 64) : '', outcome: b.outcome }, { route: '/api/internal/wq/hub/:token/welcome' });
       if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
       return res.status(out.status).json(out.body == null ? {} : out.body);
     } catch (err) {

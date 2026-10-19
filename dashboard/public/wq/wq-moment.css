@@ -147,3 +147,14 @@ html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; lin
   .wq-screen:has([data-rf]) .wqfc-next { padding-block: 8px; min-height: 64px; }
   html[lang=ur] .wq-screen:has([data-rf]) #wqc-sticker { line-height: 1.7; }
 }
+/* framed words never leave a cut sliver of the picture (wq-moment.js art): the sheet is clipped to its lines and the
+   picture sits whole in the room left, or not at all */
+.wqs-art{position:absolute;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.wqs-art i{display:block;overflow:hidden;border-radius:12px}
+.wqs-art[data-art=off] i{display:none}
+.wqs-art img{display:block;max-width:none;height:auto}
+/* Your turn with the picture box: the stage takes the room down to the primary, so the picture can grow into it; the
+   nudge's room is kept only while the nudge shows (the page is framed again when it comes) */
+.wqs[data-screen=story-read]:has([data-art]){height:100vh;height:100svh;min-height:0}
+.wqs[data-screen=story-read]:has([data-art]) .wqs-stage{flex:1 1 0;height:auto;max-height:none;min-height:200px}
+.wqs[data-screen=story-read]:has([data-art]) .wqs-near[hidden]{display:none!important}

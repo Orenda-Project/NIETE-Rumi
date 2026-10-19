@@ -331,3 +331,31 @@ describe('POST /api/wq/hub/grade', () => {
     expect((await call(srv, 'POST', '/api/wq/hub/grade', { hub: TOKEN, kid: KID, grade: 4 }, { cookie: dv })).status).toBe(502);
   });
 });
+
+describe('the grown-ups row "Show Jugnu\'s hello again" (web_quiz_child_welcome: the boot\'s `welcome`)', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  const WORDS = { en: 'Show Jugnu&#39;s hello again', ur: 'جگنو کا سلام دوبارہ دکھائیں' };
+  test.each(['en', 'ur'])('%s: there once the child has a welcome (any state), before Close; a tap re-arms it for this child and opens the home again', async (lang) => {
+    const p = page();
+    const sheet = p.open({ ...HOME, lang, welcome: { v: 1, replay: 1 } }, lang);
+    expect(sheet.innerHTML).toContain('<button class="wq-btn wq-ghost" type="button" data-tap="hello">' + WORDS[lang] + '</button><button class="wq-btn wq-ghost" type="button" data-tap="close">');
+    sheet.querySelector('[data-tap="hello"]').fire('click');
+    await flush();
+    const post = p.calls.filter((c) => c[0] === '/api/wq/welcome');
+    expect(post).toHaveLength(1);
+    expect(JSON.parse(post[0][1].body)).toEqual({ hub: TOKEN, kid: KID, outcome: 'reset' });
+    expect(p.loc.reloads).toBe(1);
+  });
+  test('no `welcome` (the switch off): no row (the sheet is the golden above)', () => {
+    const p = page();
+    expect(p.open(HOME).innerHTML).not.toContain('data-tap="hello"');
+  });
+  test('the server says no: nothing reloads, the row stays', async () => {
+    const p = page({ fetchImpl: (url, init, answer) => (url === '/api/wq/welcome' ? Promise.resolve({ status: 404, ok: false, json: () => Promise.resolve({ error: 'not_found' }) }) : answer(url, init)) });
+    const sheet = p.open({ ...HOME, welcome: { v: 1, replay: 1 } });
+    sheet.querySelector('[data-tap="hello"]').fire('click');
+    await flush();
+    expect(p.loc.reloads).toBe(0);
+  });
+});

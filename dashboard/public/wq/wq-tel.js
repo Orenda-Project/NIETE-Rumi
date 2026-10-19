@@ -86,6 +86,14 @@
       document.head.appendChild(s);
     } catch (e) {}
   }
+  // The child welcome's last cue (web_quiz_child_welcome; DESIGN ftue_child step 5): a page the welcome's Let's go opened
+  // (?w=1) asks for wq-cue.js at this script's own version. No w=1: nothing at all.
+  try {
+    if (/[?&]w=1(&|$)/.test(String(location.search || ''))) {
+      var me = document.currentScript, mv = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.src || '');
+      var cs = document.createElement('script'); cs.src = '/wq/wq-cue.js' + (mv ? '?v=' + mv[1] : ''); cs.defer = true; document.head.appendChild(cs);
+    }
+  } catch (e) {}
   var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds, oneButton: oneButton };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }

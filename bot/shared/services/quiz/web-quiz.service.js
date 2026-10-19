@@ -657,8 +657,11 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;
   // web_quiz_rewatch_done (the same hub switch read as `nav`): a finished lesson opened again (?again=1) says it is a
-  // replay (wq.js); named only when on.
-  if ((await require('./web-quiz-hub-flags').flags().catch(() => ({}))).rewatchDone === true) out.rewatch_done = true;
+  // replay (wq.js); named only when on. web_quiz_video_clean_start (the same read): the lesson video shows one play
+  // button at 0:00, the player's own controls only once it plays (wq.js); named only when on.
+  const hubFlags = await require('./web-quiz-hub-flags').flags().catch(() => ({}));
+  if (hubFlags.rewatchDone === true) out.rewatch_done = true;
+  if (hubFlags.videoClean === true) out.video_clean = true;
   // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
   out.art = {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),

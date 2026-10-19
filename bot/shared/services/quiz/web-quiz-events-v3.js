@@ -113,11 +113,18 @@ const BY_NAME = Object.freeze({
   // its timing: every /known answer, and an answer that came after the child touched the page (dropped)
   link_known_answer: { lang: RULES.lang },
   link_known_late: { lang: RULES.lang },
+  // the child welcome, "Jugnu says hello" (web_quiz_child_welcome; DESIGN ftue_child §7)
+  welcome_shown: { form: /^(full|short)$/, lang: RULES.lang },
+  welcome_step: { lang: RULES.lang },
+  welcome_skip: { lang: RULES.lang },
+  welcome_done: { via: /^(letsgo|idle)$/, lang: RULES.lang },
 });
 // Small whole numbers a name keeps ([min, max]) and its true/false keys (booleans only, never a string).
 const INTS = Object.freeze({
   who_open: { kids: [0, 20], jn: [0, 1] }, known_ask: { kids: [0, 4] },
   link_known_answer: { ms: [0, 600000], kids: [0, 4], shown: [0, 4], asked: [0, 4] }, link_known_late: { ms: [0, 600000] },
+  welcome_shown: { v: [1, 99], attempt: [1, 2] }, welcome_step: { step: [1, 5], ms_since_shown: [0, 3600000] },
+  welcome_skip: { at_step: [1, 5] }, welcome_done: { ms_since_shown: [0, 3600000] },
 });
 const BOOLS = Object.freeze({ card_shown: ['share_ok', 'tried'] });
 const POS_MAX = { door_row_tap: 99 };
