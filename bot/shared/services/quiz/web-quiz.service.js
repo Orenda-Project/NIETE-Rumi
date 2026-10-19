@@ -956,6 +956,18 @@ async function countJoin(shareCodeId) {
   }
 }
 
+/** A friend's door language kept on the new child (web_quiz_share_link_lang, on top of the one share). Never rejects. */
+async function keepDoorLang(studentId, lang) {
+  try {
+    if (lang !== 'en' && lang !== 'ur') return false;
+    const Switch = require('./web-quiz-card-switch');
+    if (!((await Switch.shareOn()) && Switch.linkLangCached())) return false;
+    return await require('./child-language.repo').doorKept(studentId, lang);
+  } catch (_) {
+    return false;
+  }
+}
+
 /** E3, timed: one web_quiz.session_timing line per call (path, steps, total). */
 // opts.device: the phone's own wq_dv (x-wq-device), for the reads that name a child this phone holds — never the body.
 function startSession(body = {}, opts = {}) {
@@ -1120,6 +1132,9 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     takerName = student.student_name;
     takerClass = student.self_reported_class || null;
   }
+  // web_quiz_share_link_lang: a new child who came in through a card's door in its language (the link's ?lang=, the
+  // page's `door_lang`) keeps it, so their Home and every later link open in it. Off, or no door language: nothing.
+  const doorP = body.new && student ? keepDoorLang(student.id, body.door_lang) : null;
   // Fast start: the earlier-finish lookup (completed rows only; the new row is in progress) runs beside the insert.
   const priorP = fast && student ? Fast.early(priorFinish(ctx.shareCodeId, student.id)) : null;
   const prior = student && !fast ? await priorFinish(ctx.shareCodeId, student.id) : null;
@@ -1144,6 +1159,7 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     fail(502, 'db_unavailable');
   }
   mark('insert');
+  if (doorP) await doorP;
   if (fast) return startedFast({ body, ctx, session, student, userId, deviceRef, resolved, priorP });
 
   await countJoin(ctx.shareCodeId);
