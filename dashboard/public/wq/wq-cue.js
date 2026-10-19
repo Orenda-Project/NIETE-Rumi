@@ -38,12 +38,23 @@
   // skipped (no hand, no bubble). The lesson video: its play button, never the scrubber. Any other first screen: its
   // primary. -> {r, kind} | {skip: true} | null (nothing drawn yet)
   function target() {
+    // a screen still loading (the Videos tab's player frame before its video is in): nothing yet, never its placeholder
+    if (vis('[aria-busy="true"]') || vis('.wq-vskel')) return null;
+    // every video surface (the lesson page, the Videos tab's #watch, a story's): its own ▶
     var play = vis('.wq-vplay');
     if (play) return { r: play, kind: 'play' };
+    // the Videos tab's player (#watch/<lesson>) draws over the home a moment later: only its ▶, never the home under it
+    if (/^#watch\//.test(String(location.hash || ''))) return null;
     var asks = vis('.wq-opt') || vis('[data-screen="help-ask"]') || vis('[data-screen$="-play"]') || vis('.wqc-opts');
     if (asks) {
       var spk = vis('#wq-spk') || vis('.wq-qcard .wq-spk') || vis('#wqc-hear');
       return spk ? { r: spk, kind: 'listen' } : { skip: true };
+    }
+    // a native player alone (no ▶ of the page's own): the centre of its frame, where the browser draws its play
+    var v = vis('video');
+    if (v) {
+      var cx = v.left + v.width / 2, cy = v.top + v.height / 2;
+      return { r: { top: cy - 32, bottom: cy + 32, left: cx - 32, right: cx + 32, width: 64, height: 64 }, kind: 'play' };
     }
     var p = vis('[data-primary]') || vis('.wq-btn.wq-go');
     return p ? { r: p, kind: 'primary' } : null;
@@ -57,6 +68,8 @@
   var TEXT = ['.wq-qtext'];
   var HOLD = ['.wq-vbox', 'video', '.wq-qcard'];
   var ROWS = ['.wq-how li'];
+  // a heading or Jugnu's line next to the target (design-qa S5-5): covered fully or not at all, never cut through
+  var HEAD = ['h1', 'h2', 'h3', '.wq-say'];
   function rects(sels, vh) {
     var out = [];
     sels.forEach(function (sel) {
@@ -76,19 +89,20 @@
   function dist(a, b) { return Math.max(0, b.top - a.bottom, a.top - b.bottom, b.left - a.right, a.left - b.right); }
   function capTop(t, h, vh) {
     var r = t.r, vw = window.innerWidth || 360;
-    var taps = rects(TAP, vh), text = rects(TEXT, vh), hold = rects(HOLD, vh), rows = rects(ROWS, vh);
+    var taps = rects(TAP, vh), text = rects(TEXT, vh), hold = rects(HOLD, vh), rows = rects(ROWS, vh), heads = rects(HEAD, vh);
     var own = taps.filter(function (o) { return holds(o, r); });       // the target's own control (the video's cover)
     var others = taps.filter(function (o) { return !holds(o, r) && !same(o, r); });
     hold = hold.concat(own);
     var best = null;
     [8, 12, 16, 20, 24].forEach(function (g) {
-      [r.top - g - h, r.bottom + g].forEach(function (top) {
+      [Math.ceil(r.top - g - h), Math.floor(r.bottom + g)].forEach(function (top) { // whole px, never past 24
         if (top < 8 || top + h > vh - 8) return;
         var b = { top: top, bottom: top + h, left: 16, right: vw - 16 };
         var d = dist(b, r);
         // never nearer to another button than to its target, never over another button or answer, never the question text
-        if (others.some(function (o) { return over(b, o) > 0 || dist(b, o) <= d; }) || text.some(function (o) { return over(b, o) > 0; })) return;
-        var cost = hold.reduce(function (n, o) { return n + over(b, o); }, 0) + rows.reduce(function (n, o) { return n + 1000 * (over(b, o) > 0 ? 1 : 0); }, 0) + g / 100;
+        if (others.some(function (o) { return over(b, o) > 0 || dist(b, o) <= d + 2; }) /* clearly nearer, after rounding */ || text.some(function (o) { return over(b, o) > 0; })) return;
+        var cost = hold.reduce(function (n, o) { return n + over(b, o); }, 0) + rows.reduce(function (n, o) { return n + 1000 * (over(b, o) > 0 ? 1 : 0); }, 0) +
+          heads.reduce(function (n, o) { var v = over(b, o); return n + (v > 0 && v < o.bottom - o.top ? 5000 : 0); }, 0) + g / 100;
         if (!best || cost < best.cost) best = { cost: cost, top: top };
       });
     });
