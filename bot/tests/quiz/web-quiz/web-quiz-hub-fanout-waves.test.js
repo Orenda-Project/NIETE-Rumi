@@ -164,16 +164,27 @@ function tables({ fast, loose = false, home = false, stories = false, fanout = f
 // ── the boundary: every read takes READ_MS and gets its wave ─────────────────────────────────────────
 let reads = [];
 let doneMax = 0;
+// the tables a read brings inside its own request (an embedded select, web_quiz_hub_embed): read too, when that table
+// gave the read a row (an embedded list that is null, a child with no class list, read nothing from it)
+let embedded = [];
 function seed(opts) {
   const fake = makeFake(tables(opts));
   const from = (t) => {
     const b = fake.from(t);
+    const select = b.select;
+    let inner = [];
+    b.select = (cols, o) => { inner = [...String(cols || '').matchAll(/(\w+)\(/g)].map((m) => m[1]); return select(cols, o); };
     const then = b.then;
     b.then = (res, rej) => {
       const rec = { t, wave: doneMax + 1 };
       reads.push(rec);
       return new Promise((r) => setTimeout(r, READ_MS))
         .then(() => { doneMax = Math.max(doneMax, rec.wave); return then.call(b, (x) => x); })
+        .then((r) => {
+          const rows = r && r.data ? [].concat(r.data) : [];
+          inner.forEach((name) => { if (rows.some((x) => x && x[name] != null && !(Array.isArray(x[name]) && !x[name].length))) embedded.push(name); });
+          return r;
+        })
         .then(res, rej);
     };
     return b;
@@ -196,6 +207,7 @@ function boot(opts) {
 async function measure(token, opts) {
   await settle();
   reads = [];
+  embedded = [];
   doneMax = 0;
   const { logEvent } = require('../../../shared/utils/structured-logger');
   logEvent.mockClear();
@@ -206,7 +218,7 @@ async function measure(token, opts) {
   const open = logEvent.mock.calls.filter(([name]) => name === 'web_quiz.hub_open').map(([, f]) => f);
   await settle();
   // the tables read by this request, the reads it starts after its answer (a read-ahead) included
-  const tablesRead = [...new Set(reads.map((r) => r.t))].sort();
+  const tablesRead = [...new Set([...reads.map((r) => r.t), ...embedded])].sort();
   return { out, open: JSON.stringify(open), waves, perTable, tablesRead };
 }
 
