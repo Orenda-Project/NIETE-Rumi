@@ -177,13 +177,13 @@
       if (g.kind === 'read') return row({ href: gameHref(B, ctx, g), title: g.name, kind: 'passage', item: g.stop, pos: i, say: g.say }, ctx);
       return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
     };
-    var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
+    var quizRow = function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, g.done)), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var numsH = !wait ? '' : hasNums ? '<h3 class="wq-dsec"><bdi' + lat(t.numbers) + '>' + esc(t.numbers) + '</bdi></h3>' + skel(2, !open.length, 'in') : skel(3, !open.length);
     var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.story, reads.map(readRow).join('')) +
       section(t.recT, recs.map(function (r, i) { return row({ title: r.title || t.vquiz, sub: r.subject ? t.subj(r.subject) : '', kind: 'rec', pos: i, item: r.vid, art: r.art, tap: 'vquiz' }, ctx); }).join('')) +
-      section(t.lastQ, last.map(function (g, i) { return row({ href: quizHref(g.code, g.k, false), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
+      section(t.lastQ, last.map(function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, false)), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (failed) return errNote(t) + h;
     if (wait) return open.length ? primaryFirst(h) : h;
