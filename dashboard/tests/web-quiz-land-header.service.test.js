@@ -72,9 +72,10 @@ describe('the class table and the league with the look', () => {
       expect(p.hist.assigned).toContain('/h/eyJrIjoiaCJ9.AbCd-_x?from=home');
     });
   }
-  test('a long table keeps its primary on the screen: "Share the class table" is sticky with the look', async () => {
+  test('a long table keeps its primary on the screen: Play (the one primary) is sticky with the look, Share soft', async () => {
     const p = await boardPage({ hub: '/h/abc' });
-    expect(p.html()).toContain('<button class="wq-btn wq-go wq-stick" id="wq-share-t" data-primary>');
+    expect(p.html()).toContain('<button class="wq-btn wq-go wq-stick" id="wq-play" data-primary>');
+    expect(p.html()).toContain('<button class="wq-btn wq-soft" id="wq-share-t">');
   });
   test('the school league wears the same header', async () => {
     const p = await boardPage({ view: 'schools', hub: '/h/abc' });
