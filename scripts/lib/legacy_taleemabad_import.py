@@ -1,6 +1,6 @@
 """
 Decision logic for scripts/import-legacy-taleemabad.py (bd-s42dye.4): bring the 66 conducted legacy
-TALEEMABAD courses of fde_production back as a separate provider, "Taleemabad"
+TALEEMABAD courses of fde_production back as a separate provider, "Taleemabad Archive"
 (vendor key TALEEMABAD_LEGACY), for the coach Training Library.
 
 Pure: no I/O. The runner reads fde_production and the target, calls build_plan(), and applies the
@@ -16,7 +16,7 @@ Decisions (operator, 2026-10-17; plan D6/D7 in bd-s42dye-coach-training-library/
 from __future__ import annotations
 
 VENDOR_KEY = "TALEEMABAD_LEGACY"
-VENDOR_NAME = "Taleemabad"
+VENDOR_NAME = "Taleemabad Archive"  # bd-s42dye.7: reads as not-live to coaches
 BASE_VENDOR_KEY = "TALEEMABAD"
 # training_vendors.cert_code_prefix is NOT NULL; the value is never used because no certificate is issued.
 CERT_PREFIX = "TLB"
