@@ -47,7 +47,7 @@ function page({ lang = 'en', routes = {}, adv = false } = {}) {
   }
   const audios = []; const made = [];
   class Audio { constructor(u) { this.url = u; this.l = {}; this.currentTime = 0; audios.push(this); } addEventListener(n, fn) { (this.l[n] = this.l[n] || []).push(fn); } play() { played.push(this.url); return Promise.resolve(); } pause() {} fire(n) { (this.l[n] || []).forEach((fn) => fn({})); } end() { (this.l.ended || []).forEach((fn) => fn({})); } }
-  const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid: null, menu: { ...MENU, lang }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
+  const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid: null, menu: { ...MENU, lang, ...(adv ? { adv: true } : {}) }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
   const window = { MediaRecorder, scrollTo() {}, addEventListener() {} };
   const ctx = {
     window, navigator: { userAgent: 'Android WhatsApp', mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } }, fetch, Audio, console, MediaRecorder,
