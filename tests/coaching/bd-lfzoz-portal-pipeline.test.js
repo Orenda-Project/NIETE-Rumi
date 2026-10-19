@@ -155,8 +155,11 @@ describe('4. transcription → the photo/LP gate', () => {
     .replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
 
   test('a portal row leaves through afterTranscription BEFORE the WhatsApp photo prompt is built', () => {
-    const portalAt = src.search(/if \(isPortalSession\(session\)\) \{\s*await PortalCoaching\.afterTranscription\(session, coachingSessionId, from\);/);
-    const promptAt = src.indexOf('buildPhotoPrompt(coachingSessionId, userLanguage)');
+    // bd-aqotzx: the not-a-class check sits between the branch and afterTranscription (and returns when it pauses).
+    const portalAt = src.search(/if \(isPortalSession\(session\)\) \{[\s\S]{0,600}?pauseIfNotAClass\([\s\S]{0,900}?await PortalCoaching\.afterTranscription\(session, coachingSessionId, from\);/);
+    // The prompt builder became buildPhotoPromptWithLead(…, priorReminder) in the Meta bill cut (NC4):
+    // the prior-commitment reminder opens the offer. Same call site, same order.
+    const promptAt = src.search(/buildPhotoPrompt(?:WithLead)?\(coachingSessionId, userLanguage/);
     expect(portalAt).toBeGreaterThan(-1);
     expect(promptAt).toBeGreaterThan(portalAt);
     // and it returns, so the prompt is never reached for a portal row

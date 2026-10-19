@@ -7334,6 +7334,8 @@ const PORTAL_COACHING_STAGE = {
   awaiting_photo: 'analysing', awaiting_classroom_photo: 'analysing', awaiting_lesson_plan: 'analysing',
   analyzing: 'analysing', analysis_started: 'analysing', analysis_complete: 'analysing',
   conducting_conversation: 'reflection',
+  // bd-aqotzx — the recording did not sound like a class: waiting for her yes/no.
+  awaiting_class_confirm: 'confirm_class',
   generating_report: 'report',
   completed: 'done',
   failed: 'stopped', cancelled: 'stopped', abandoned: 'stopped',
@@ -7480,7 +7482,20 @@ router.get('/coaching-sessions/active', requirePortalAuth, requireSelfObservatio
       .limit(50);
     if (error) throw error;
 
-    const sessions = (rows || []).map((row) => {
+    // bd-aqotzx — a recording closed because it did not sound like a class and she did not answer in 24 hours
+    // stays in her list as Stopped (it opens the note saying why), for the same three days.
+    const { data: stoppedRows, error: stoppedError } = await supabase
+      .from('coaching_sessions')
+      .select('id, status, failed_step, audio_url, conversation_state, created_at, topic:analysis_data->>topic, subject:analysis_data->>subject')
+      .eq('user_id', req.session.portalUserId)
+      .or(TeacherObservation.NOT_AN_OBSERVATION_OR)
+      .eq('status', 'cancelled')
+      .eq('failed_step', 'not_a_class_no_answer')
+      .gte('created_at', since)
+      .limit(20);
+    if (stoppedError) throw stoppedError;
+
+    const sessions = [...(rows || []), ...(stoppedRows || [])].map((row) => {
       const portal = isPortalSession(row);
       const waiting = ((row.conversation_state && row.conversation_state.questions) || [])
         .some((q) => q && q.question && !q.answer);
@@ -7490,11 +7505,12 @@ router.get('/coaching-sessions/active', requirePortalAuth, requireSelfObservatio
         status: row.status,
         stage: PORTAL_COACHING_STAGE[row.status] || 'analysing',
         source: portal ? 'portal' : 'whatsapp',
-        needsAnswer: portal && row.status === 'conducting_conversation' && waiting,
+        needsAnswer: portal && ((row.status === 'conducting_conversation' && waiting) || row.status === 'awaiting_class_confirm'),
         topic: row.topic || null,
         subject: row.subject || null,
+        stopReason: row.status === 'cancelled' ? (row.failed_step || null) : null,
       };
-    });
+    }).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
     return res.json({ success: true, sessions });
   } catch (error) {
     console.error('Coaching active sessions error:', error);
@@ -7514,7 +7530,7 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
   try {
     const { data: row, error } = await supabase
       .from('coaching_sessions')
-      .select('id, user_id, status, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at, '
+      .select('id, user_id, status, failed_step, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at, '
         + 'observation_type, delivery_status:analysis_data->teacher_delivery->>status')
       .eq('id', req.params.id)
       .eq('user_id', req.session.portalUserId)
@@ -7555,12 +7571,26 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
       shortRecording: Number.isFinite(seconds) && seconds > 0 ? seconds < SHORT_RECORDING_SECONDS : null,
       hasLessonPlan: !!row.has_lesson_plan,
       photoCount: Array.isArray(row.classroom_photos) ? row.classroom_photos.length : 0,
+      // bd-aqotzx — why a stopped session stopped ('not_a_class', 'not_a_class_no_answer', 'too_short', …).
+      stopReason: stage === 'stopped' ? (row.failed_step || null) : null,
       createdAt: row.created_at,
     });
   } catch (error) {
     console.error('Coaching progress error:', error);
     return res.status(500).json({ success: false, error: 'Failed to load progress' });
   }
+});
+
+/**
+ * POST /api/portal/coaching-session/:id/class-check  (bd-aqotzx)
+ * Body { answer: 'yes' | 'no' } → { next: 'analysis' | 'record_again' }
+ * Her answer when the recording did not sound like a class being taught.
+ */
+router.post('/coaching-session/:id/class-check', requirePortalAuth, requireSelfObservation, (req, res) => {
+  const { answer } = req.body || {};
+  return relayToBot(res, 'class-check', () => PortalCoachingClient.answerClassCheck({
+    userId: req.session.portalUserId, coachingSessionId: req.params.id, answer,
+  }));
 });
 
 /**
