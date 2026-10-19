@@ -148,7 +148,12 @@ class AnalysisProcessorService {
       // resolver is a second thing to forget.
       // bd-5rz1v.6.9 — not for a coach's PORTAL observation (see the same guard
       // on Step 1/5 in transcription-processor).
-      if (!require('./portal-coaching.service').isPortalObservation(session)) {
+      // bd-s7c31y — nor for a teacher's own PORTAL recording: the portal shows it too.
+      const portalStep2 = require('./portal-coaching.service');
+      if (portalStep2.isPortalTeacherSession(session)) {
+        logToFile('🔕 Step 2/5 not sent — a portal recording (the portal shows its progress)', { coachingSessionId });
+      }
+      if (!portalStep2.isPortalObservation(session) && !portalStep2.isPortalTeacherSession(session)) {
         await this.sendProgressUpdate(from, 2, await _resolveSessionLanguage(coachingSessionId));
       }
 
