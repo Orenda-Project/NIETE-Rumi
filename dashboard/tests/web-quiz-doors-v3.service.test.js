@@ -108,6 +108,63 @@ describe('every door screen, both languages', () => {
   });
 });
 
+describe('page_lang: every quiz link from Home and Games names the child\'s language (an Urdu child never lands on an English lesson door)', () => {
+  const OPEN = { kind: 'quiz', code: 'WRD001', k: 'k9', topic: 'Words That Describe Nouns', subject: 'English', done: false, from: 'last' };
+  const B = (on) => ({ ...HUB, lang: 'ur', home_v3: 1, list_states: 1, ...(on ? { page_lang: true } : {}), last: { code: 'WRD001', k: 'k9', topic: 'Words That Describe Nouns', state: 'open' },
+    doors: { stories: [], games: [{ kind: 'quiz', code: 'MATH01', k: 'kk', topic: 'Fractions', subject: 'Maths', done: false, from: 'teacher' }, OPEN, { kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }], videos: null } });
+  test('on: the Games rows and the Next tile carry lang=ur', () => {
+    const W = load();
+    const h = W.WQDOORS.html(B(true), ctxOf('ur'), 'games', { games: [] });
+    for (const c of ['MATH01', 'WRD001', 'SCI001']) expect(h).toMatch(new RegExp('href="/q/' + c + '\\?[^"]*lang=ur"'));
+    expect(W.WQHOME.nextOf(B(true), ctxOf('ur')).href).toMatch(/^\/q\/[A-Z0-9]+\?.*lang=ur$/);
+    expect(W.WQHOME.nextOf({ ...B(true), next: { kind: 'quiz', href: '/q/ABC123?k=x', title: 'T' } }, ctxOf('ur')).href).toBe('/q/ABC123?k=x&lang=ur');
+  });
+  test('off: the links are today\'s', () => {
+    const W = load();
+    expect(W.WQDOORS.html(B(false), ctxOf('ur'), 'games', { games: [] })).not.toContain('lang=ur');
+    expect(W.WQHOME.nextOf(B(false), ctxOf('ur')).href).not.toContain('lang=');
+  });
+});
+
+describe('Games: the new quizzes ("Try these next") a child with no teacher quiz can start', () => {
+  const RECS = [{ vid: VID, title: 'Life cycle of a hen', subject: 'Science', art: '/wq/art/subject-science.webp' }, { vid: 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Parts of a flower', subject: 'Science' }];
+  const AGAIN = [{ kind: 'quiz', code: 'SCI001', k: 'k2', topic: 'Plants', subject: 'Science', done: true }];
+  test.each([['en', 'Try these next'], ['ur', 'یہ بھی کریں']])('%s: listed above Play again, each opens at the questions; the first takes the primary', (lang, head) => {
+    const W = load();
+    const B = { ...HUB, lang, home_v3: 1, doors: { stories: [], games: AGAIN, videos: null, recs: RECS } };
+    const h = W.WQDOORS.html(B, ctxOf(lang), 'games', { games: [] });
+    expect(h).toContain(head);
+    expect(count(h, /data-tap="vquiz" data-kind="rec"/g)).toBe(2);
+    expect(h).toContain('data-item="' + VID + '"');
+    expect(h.indexOf(head)).toBeLessThan(h.indexOf(lang === 'en' ? 'Play again' : 'دوبارہ کھیلیں'));
+    expect(count(h, /data-primary/g)).toBe(1);
+    expect(h).toMatch(/data-primary[^>]*data-tap="vquiz"/);
+    expect(visible(h).match(BANNED)).toBe(null);
+  });
+  test('recs alone: never the empty note; while the rows load they are drawn for real', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [], videos: null, recs: RECS } };
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] })).not.toContain('Read a story with Jugnu!');
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', null)).toContain('Life cycle of a hen');
+  });
+  test('the boot says number games but the door\'s rows came back without them: the numbers row stays (opens the games page)', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, list_states: 1, doors: { stories: [], games: [{ kind: 'numbers' }].concat(AGAIN), videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] });
+    expect(h).toContain('Numbers with Jugnu');
+    expect(h).toMatch(/data-primary data-tap="row" data-kind="game"[^>]*href="\/c\//);
+    // a failed read is still the retry, never a made-up row
+    expect(W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [], err: 1 })).not.toContain('Numbers with Jugnu');
+  });
+  test('no recs on the boot: the Games door is today\'s, byte for byte', () => {
+    const W = load();
+    const B = { ...HUB, lang: 'en', home_v3: 1, doors: { stories: [], games: AGAIN, videos: null } };
+    const h = W.WQDOORS.html(B, ctxOf('en'), 'games', { games: [] });
+    expect(h).toBe(W.WQDOORS.html({ ...B, doors: { ...B.doors, recs: [] } }, ctxOf('en'), 'games', { games: [] }));
+    expect(h).not.toContain('Try these next');
+  });
+});
+
 describe('Games: Jugnu\'s passages beside the games (the Stories door shows storybooks only)', () => {
   const READS = { games: [{ kind: 'numbers', stop: 'bigger', name: 'Which is bigger?' }, { kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' }, { kind: 'read', stop: 'read', name: 'Read aloud' }, { kind: 'listen', id: 'en.listen.1.k05', title: 'The rain song' }] };
   test.each([['en', 'Read along', 'Listen'], ['ur', 'جگنو کے ساتھ ساتھ پڑھیں', 'سنیں']])('%s: under the games — read along and listen open the story room by id, read aloud the games page; one primary', (lang, along, listen) => {

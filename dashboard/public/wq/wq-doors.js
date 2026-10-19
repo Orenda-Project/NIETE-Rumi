@@ -23,7 +23,7 @@
     en: {
       weekStory: 'This week\'s story', toRead: 'Stories to read', toListen: 'Stories to listen to', books: 'Storybooks',
       listen: 'Listen to a story', story: 'A story with Jugnu', readAlong: 'Read along', listenW: 'Listen', newTag: 'New', doneTag: 'Done',
-      numbers: 'Number games', fromTeacher: 'From your teacher', lastQ: 'Your last quiz', again: 'Play again', quiz: 'Your teacher\'s quiz',
+      numbers: 'Number games', fromTeacher: 'From your teacher', lastQ: 'Your last quiz', recT: 'Try these next', again: 'Play again', quiz: 'Your teacher\'s quiz',
       warm: 'Number warm-up', missing: 'Missing number', bigger: 'Which is bigger?', g1: 'Numbers with Jugnu',
       pick: 'Pick a subject', back: 'Back', opening: 'Opening the video…', none: 'No videos here yet.',
       oops: 'This did not load.', shelfOops: 'The stories could not open yet.', retry: 'Try again', watchNext: 'Watch next', quizAfter: 'Play the quiz',
@@ -39,7 +39,7 @@
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
       listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', readAlong: 'جگنو کے ساتھ ساتھ پڑھیں', listenW: 'سنیں', newTag: 'نئی', doneTag: 'مکمل',
-      numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', lastQ: 'آپ کا پچھلا کوئز', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
+      numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', lastQ: 'آپ کا پچھلا کوئز', recT: 'یہ بھی کریں', again: 'دوبارہ کھیلیں', quiz: 'ٹیچر کا کوئز',
       warm: 'گنتی کا کھیل', missing: 'کون سا عدد غائب ہے؟', bigger: 'کون سا عدد بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
       pick: 'ایک مضمون چنیں', back: 'واپس', opening: 'ویڈیو کھل رہی ہے…', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
       oops: 'اوہو! یہ نہیں کھل سکا۔', shelfOops: 'کہانیاں ابھی نہیں کھل سکیں۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
@@ -80,7 +80,7 @@
   // A Story Time passage opens in the room by its id; a LISTEN passage must say so (wq-trail.js storyRoom: ex=listen).
   function storyHref(B, ctx, s) { return chHref(B, ctx) + '&room=story&pid=' + encodeURIComponent(s.id) + (s.kind === 'listen' ? '&ex=listen' : ''); }
   function gameHref(B, ctx, g) { return chHref(B, ctx) + '#' + encodeURIComponent(g.stop || ''); }
-  function bootDoors(B) { var d = B.doors || {}; return { stories: d.stories || [], games: d.games || [], videos: d.videos || null }; }
+  function bootDoors(B) { var d = B.doors || {}; return { stories: d.stories || [], games: d.games || [], videos: d.videos || null, recs: d.recs || [] }; }
   // A title with no Arabic-script letter (an English lesson title on an Urdu page) keeps the Latin face, left to right.
   function lat(text) { return /[\u0600-\u06FF]/.test(String(text || '')) ? '' : ' class="wq-lat" dir="ltr"'; }
   function minsOf(secs) { var m = Math.round((Number(secs) || 0) / 60); return m >= 1 ? m : null; }
@@ -162,9 +162,14 @@
     var last = ls ? open.filter(function (g) { return g.from === 'last'; }) : [];
     if (ls) open = open.filter(function (g) { return g.from !== 'last'; });
     var done = quizzes.filter(function (g) { return g.done; });
+    // the hub's "Try these next" (the boot's `doors.recs`): new video quizzes, each opens straight at the questions
+    var recs = bootDoors(B).recs;
     var hasNums = boot.some(function (g) { return g.kind === 'numbers'; });
     var all = failed || wait ? [] : data && data.games ? data.games : (boot.some(function (g) { return g.kind === 'numbers'; }) ? [{ kind: 'numbers', stop: '' }] : []);
     var nums = all.filter(function (g) { return g.kind === 'numbers'; });
+    // the boot says this child has number games but the door's rows came back without them: the games page's own entry
+    // stays (a failed read is the retry above, never a made-up row)
+    if (!nums.length && hasNums && !failed && !wait) nums = [{ kind: 'numbers', stop: '' }];
     // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
     // story room by id, read aloud on the games page
     var reads = all.filter(function (g) { return (g.kind === 'read' && g.stop && g.name) || ((g.kind === 'passage' || g.kind === 'listen') && g.id); });
@@ -172,16 +177,17 @@
       if (g.kind === 'read') return row({ href: gameHref(B, ctx, g), title: g.name, kind: 'passage', item: g.stop, pos: i, say: g.say }, ctx);
       return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
     };
-    var quizRow = function (g, i) { return row({ href: quizHref(g.code, g.k, g.done), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
+    var quizRow = function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, g.done)), title: g.topic || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var numsH = !wait ? '' : hasNums ? '<h3 class="wq-dsec"><bdi' + lat(t.numbers) + '>' + esc(t.numbers) + '</bdi></h3>' + skel(2, !open.length, 'in') : skel(3, !open.length);
     var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.story, reads.map(readRow).join('')) +
-      section(t.lastQ, last.map(function (g, i) { return row({ href: quizHref(g.code, g.k, false), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
+      section(t.recT, recs.map(function (r, i) { return row({ title: r.title || t.vquiz, sub: r.subject ? t.subj(r.subject) : '', kind: 'rec', pos: i, item: r.vid, art: r.art, tap: 'vquiz' }, ctx); }).join('')) +
+      section(t.lastQ, last.map(function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, false)), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (failed) return errNote(t) + h;
     if (wait) return open.length ? primaryFirst(h) : h;
-    if (!open.length && !reads.length && !nums.length && !done.length && !last.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
+    if (!open.length && !reads.length && !nums.length && !done.length && !last.length && !recs.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
     return primaryFirst(h);
   }
 
