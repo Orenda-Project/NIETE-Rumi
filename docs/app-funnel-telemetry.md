@@ -28,7 +28,7 @@ top-level columns.
 
 | Event | From | Fields |
 |---|---|---|
-| `app_funnel.command` | bot | `journeyId`, `userId`, `feature` (menu, lesson_plan, assessment_generator, teacher_training, attendance, classes; observe/menu for coaches), `door` (command, bare_command, chip, intent, menu_command, keyword, ...), `verdict` (`link` or `whatsapp`), `why` (when `whatsapp`: not_a_teacher, not_registered, no_account, not_on_teacher_app, account_unreadable), `audience` (teacher or coach) |
+| `app_funnel.command` | bot | `journeyId`, `userId`, `feature` (menu, lesson_plan, assessment_generator, teacher_training, attendance, classes; observe/menu for coaches), `door` (command, bare_command, chip, intent, menu_command, keyword, ...), `verdict` (`link` or `whatsapp`), `why` (when `whatsapp`: not_a_teacher, not_registered, no_account, not_on_teacher_app, account_unreadable), `audience` (teacher, coach or leader; `funnel.py` reports a coach's or leader's journeys as their own funnel, e.g. `lesson_plan@leader`) |
 | `app_funnel.link_sent` | bot | `journeyId`, `userId`, `feature`, `door`, `via` (`cta_url` button or `text` when Meta refused the button) |
 | `app_funnel.link_failed` | bot | same, plus `reason` (send_refused, send_threw, no_portal_or_key); she is on the WhatsApp flow instead |
 | `app_link.open` | portal | `journeyId`, `userId`, `feature`, `outcome` (ok, invalid, unknown_user, error), `v2` |
@@ -37,7 +37,7 @@ top-level columns.
 | `app_funnel.page_resume` | portal | she came back to the page (visible again / restored from the back-forward cache) |
 | `app_funnel.action` | portal | `journeyId`, `userId`, `appSessionId`, `action`, `feature`, `lane` (lesson plans), `status` |
 
-Actions logged: `lesson_plan.opened` (lane k5 or g612), `lesson_plan.requested`, `paper.requested`, `paper.edited`,
+Actions logged: `lesson_plan.opened` (lane k5, g612 or fln), `lesson_plan.requested`, `fln.sent` (a leader sent an FLN plan, lane fln_send), `paper.requested`, `paper.edited`,
 `attendance.saved`, `attendance.register_sent`, `training.module_opened`, `training.quiz_started`,
 `training.quiz_finished`, `training.module_completed`, `training.certificate_issued`, `class.created`,
 `class.students_added`, `coaching.recording_submitted`, `coaching.reflection_saved`, `share.whatsapp`,
@@ -60,14 +60,16 @@ page shape, kind, dwell and age; user, journey and session come from the portal 
 Replace the dataset and `env` (`niete-logs` / `"production"` for production; this window is one Pakistan day). All three
 were run against `rumi-sandbox`.
 
-**Funnel per starting command** (journeys that reached each step):
+**Funnel per starting command** (journeys that reached each step; a coach's or leader's journeys are their own row, e.g. `lesson_plan@leader`):
 
 ```apl
 ["niete-logs"]
 | where _time >= datetime(2026-10-12T19:00:00Z) and _time < datetime(2026-10-13T19:00:00Z) and env == "production"
 | where event in ("app_funnel.command", "app_funnel.link_sent", "app_link.open", "app_funnel.page_view", "app_funnel.action")
 | where isnotempty(journeyId)
-| extend cmdFeature = tostring(parse_json(data_json).feature), cmdTs = iff(event == "app_funnel.command", _time, datetime(1970-01-01))
+| extend cmdAud = tostring(parse_json(data_json).audience), cmdFeature = tostring(parse_json(data_json).feature)
+| extend cmdFeature = iff(isnotempty(cmdAud) and cmdAud != "teacher", strcat(cmdFeature, "@", cmdAud), cmdFeature)
+| extend cmdTs = iff(event == "app_funnel.command", _time, datetime(1970-01-01))
 | summarize arg_max(cmdTs, cmdFeature), asked = countif(event == "app_funnel.command"), sent = countif(event == "app_funnel.link_sent"), opened = countif(event == "app_link.open" and outcome == "ok"), views = countif(event == "app_funnel.page_view"), pages = dcountif(route, event == "app_funnel.page_view"), acts = countif(event == "app_funnel.action") by journeyId
 | where asked > 0
 | summarize asked = count(), link_sent = countif(sent > 0), opened = countif(opened > 0), landed = countif(views > 0), went_deeper = countif(pages >= 2), acted = countif(acts > 0) by cmdFeature
@@ -80,7 +82,8 @@ were run against `rumi-sandbox`.
 | where _time >= datetime(2026-10-12T19:00:00Z) and _time < datetime(2026-10-13T19:00:00Z) and env == "production"
 | where event in ("app_funnel.command", "app_link.open", "app_funnel.page_view", "app_funnel.page_resume", "app_funnel.action")
 | where isnotempty(journeyId)
-| extend cmdFeature = tostring(parse_json(data_json).feature)
+| extend cmdAud = tostring(parse_json(data_json).audience), cmdFeature = tostring(parse_json(data_json).feature)
+| extend cmdFeature = iff(isnotempty(cmdAud) and cmdAud != "teacher", strcat(cmdFeature, "@", cmdAud), cmdFeature)
 | extend cmdTs = iff(event == "app_funnel.command", _time, datetime(1970-01-01)), pageTs = iff(event in ("app_funnel.page_view", "app_funnel.page_resume"), _time, datetime(1970-01-01))
 | summarize arg_max(cmdTs, cmdFeature), arg_max(pageTs, route), asked = countif(event == "app_funnel.command"), opened = countif(event == "app_link.open" and outcome == "ok"), acts = countif(event == "app_funnel.action") by journeyId
 | where asked > 0 and opened > 0 and acts == 0

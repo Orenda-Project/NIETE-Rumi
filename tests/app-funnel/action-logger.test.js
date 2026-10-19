@@ -49,6 +49,8 @@ const CASES = [
   ['GET', '/api/portal/lp612/file/8c1f0e3a-1111-4222-8333-944455556666', 'lesson_plan.opened', 'lesson_plan', { lane: 'g612' }],
   ['GET', '/api/portal/lp612/status/8c1f0e3a-1111-4222-8333-944455556666?open=1', 'lesson_plan.opened', 'lesson_plan', { lane: 'g612' }],
   ['POST', '/api/portal/lp612/request', 'lesson_plan.requested', 'lesson_plan', { lane: 'g612' }],
+  // bd-zcgpkx — a leader sending an FLN plan to teachers is what a leader's lesson-plan journey is for.
+  ['POST', '/api/portal/fln/send', 'fln.sent', 'lesson_plan', { lane: 'fln_send' }],
   ['POST', '/api/portal/assessment/generate', 'paper.requested', 'assessment_generator', {}],
   ['POST', '/api/portal/assessment/edit/paper-77/save', 'paper.edited', 'assessment_generator', {}],
   ['POST', '/api/portal/teacher/attendance/classes/list-9/mark', 'attendance.saved', 'attendance', {}],

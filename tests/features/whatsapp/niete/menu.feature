@@ -342,3 +342,16 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     And I tap the "Lesson Plans" row
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And no lesson-plan menu opens
+
+  # ADDED 2026-10-19 (bd-zcgpkx): with leader_app_lesson_plan on, a leader's "Lesson Plans" row (and its number) opens
+  # Send a lesson plan in the app, like "lesson plan" typed. "coaches" covers coaches only; a principal keeps the
+  # WhatsApp lesson-plan menu until the switch is true. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js.
+  @e2e @menu @config-gated @P1
+  Scenario: A coach tapping the Lesson Plans row gets one button that opens Send a lesson plan
+    Given the NIETE bot chat is open on a coach account
+    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
+    When I send "/menu"
+    And I open the "See what I do" list
+    And I tap the "Lesson Plans" row
+    Then I get one message with a "Send a plan" button that opens Send a lesson plan, signed in
+    And no lesson-plan menu opens
