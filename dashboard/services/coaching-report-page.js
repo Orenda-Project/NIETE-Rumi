@@ -40,6 +40,7 @@ const COPY = {
     notFoundBody: 'Open the report from your WhatsApp message again.',
     errorTitle: 'Something went wrong',
     errorBody: 'Please try again in a few minutes.',
+    disagreeNote: 'You said you did this; the recording check didn’t hear it.',
   },
   ur: {
     title: 'آپ کی کوچنگ رپورٹ',
@@ -65,6 +66,8 @@ const COPY = {
     notFoundBody: 'رپورٹ اپنے واٹس ایپ پیغام سے دوبارہ کھولیں۔',
     errorTitle: 'کچھ غلط ہو گیا',
     errorBody: 'براہ کرم چند منٹ بعد دوبارہ کوشش کریں۔',
+    // bd-v0toag.31: draft, for Amena to check.
+    disagreeNote: 'آپ نے کہا کہ آپ نے یہ کیا؛ ریکارڈنگ کی جانچ میں یہ سنائی نہیں دیا۔',
   },
 };
 
@@ -125,6 +128,9 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
   const wells = Array.isArray(v.wells) ? v.wells : [];
   if (wells.length) parts.push(`<section><h2>${esc(c.well)}</h2><ul>${wells.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></section>`);
   parts.push(trySection(v.thing, c, botDigits(env)));
+  // bd-v0toag.31: moves she said she did that the recording check did not hear — a note, never a verdict.
+  const dis = Array.isArray(v.disagreements) ? v.disagreements : [];
+  if (dis.length) parts.push(`<section><ul>${dis.map((d) => `<li><b>${esc(d.text)}</b> ${esc(c.disagreeNote)}</li>`).join('')}</ul></section>`);
   if (links.detail) parts.push(`<a class="more" href="${esc(links.detail)}">${esc(c.more)}</a>`);
   if (v.report) {
     const inner = /\.png(\?|$)/i.test(v.report)

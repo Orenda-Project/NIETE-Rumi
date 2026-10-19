@@ -9,6 +9,7 @@
 const { practiceWhy } = require('../../bot/shared/services/coaching/practice-why');
 // The card's header, steps and what she did well are shared with the slim WhatsApp image (bd-v0toag.57).
 const { stepOf, cardHeader, wells, pktDate } = require('../../bot/shared/services/coaching/report-card');
+const { disagreementsFor } = require('../../bot/shared/services/coaching/live-moves/disagreements');
 
 // fico-framework.js DOMAINS, in its order; the Urdu name in brackets as on the template.
 const SECTIONS = [
@@ -70,7 +71,7 @@ function journey(trend) {
   return { points, first: points[0], best: Math.max(...points), now: points[points.length - 1] };
 }
 
-/** input = { session, firstName, language, trend: [{created_at, pct}] oldest first, quizMessage } */
+/** input = { session, firstName, language, trend: [{created_at, pct}] oldest first, quizMessage, card? (bd-v0toag.31) } */
 function buildReportView(input = {}) {
   const l = input.language === 'ur' ? 'ur' : 'en';
   const s = input.session || {};
@@ -85,6 +86,7 @@ function buildReportView(input = {}) {
     quizMessage: text(input.quizMessage) ? input.quizMessage : null,
     voice: https(s.voice_debrief_url),
     report: https(s.report_pdf_url),
+    disagreements: disagreementsFor(a.live_moves, a.lp_fidelity, input.card),
   };
 }
 
