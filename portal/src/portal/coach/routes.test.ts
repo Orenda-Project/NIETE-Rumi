@@ -42,6 +42,13 @@ describe("coach v2 routes", () => {
     expect(app).toContain('import("./portal/coach/analytics/CoachAnalytics")');
   });
 
+  it("Disagreements (bd-tbprit.3): the list and one teacher's card, each its own chunk", () => {
+    expect(app).toContain('<Route path="/portal/coach/disagreements" element={<CoachDisagreements />} />');
+    expect(app).toContain('<Route path="/portal/coach/disagreements/:id" element={<CoachDisagreement />} />');
+    expect(app).toContain('import("./portal/coach/disagreements/DisagreementsPage")');
+    expect(app).toContain('import("./portal/coach/disagreements/DisagreementCard")');
+  });
+
   it("every v2 page gates itself through CoachPage", () => {
     const ui = readFileSync(resolve(__dirname, "ui.tsx"), "utf8");
     expect(ui).toMatch(/<CoachGate>\s*<PortalLayout[ >]/);

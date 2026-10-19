@@ -1,0 +1,79 @@
+import api from "../../services/api";
+import { readConfigShared } from "../../lib/useNewUi";
+
+/**
+ * bd-tbprit.3 — the coach's disagreements (dashboard/routes/coach-disagreements.routes.js): the C/D teachers who
+ * answered "Not accurate" to their coaching report. The API shapes are the server's; nothing is reshaped here.
+ *
+ * The clip is streamed by the server for the request's own coach (the session cookie rides along); the page only
+ * points the kit player at it. There is no download link.
+ */
+
+export type ReasonCode = "score" | "missed" | "wont_work" | "unclear";
+export type Tag = "waiting48h" | "second";
+
+export type Row = {
+  id: string; teacher: string | null; school: string | null; reasons: ReasonCode[]; status: string; done: boolean;
+  createdAt: string; visitedAt: string | null; sessionDate: string | null; pct: number | null; hasNote: boolean; tags: Tag[];
+};
+export type List = { success: boolean; todo: Row[]; done: Row[] };
+
+export type Item = { id: string; name: string; score: number | null; evidence: string | null; at: number | null; applicable: boolean };
+export type Thing = { text: string; why: string | null; step: string | null };
+export type Move = {
+  id: string; text: string; phase: string | null; mustHappen: boolean; verdict: string | null; evidence: string | null;
+  translation: string | null; why: string | null; at: number | null;
+};
+export type Evidence =
+  | { code: "score"; items: Item[] }
+  | { code: "missed"; noPlan: boolean; moves: Move[]; items: Item[] }
+  | { code: "wont_work" | "unclear"; thing: Thing | null };
+export type Indicator = { key: string; score: number | null; max: number | null; counted: boolean; items: Item[] };
+export type Section = {
+  key: string; name: string; score: number | null; max: number | null; pct: number | null; colour: string; notAssessed: boolean; why: string | null;
+};
+export type View = {
+  language: string;
+  header: { name: string | null; meta: string | null; date: string | null; pct: number | null; marks: number | null; max: number | null };
+  wells: string[];
+  thing: Thing | null;
+  sections: Section[];
+  journey: { points: number[]; first: number; best: number; now: number } | null;
+  quizMessage: string | null;
+  voice: unknown;
+  report: unknown;
+};
+export type Card = {
+  id: string; teacher: string | null; school: string | null; language: string; status: string; done: boolean;
+  reasons: ReasonCode[]; createdAt: string; noteUrl: string | null; view: View; evidence: Evidence[];
+  indicators: Indicator[]; moves: Move[] | null;
+};
+
+const path = (id: string) => `/coach/disagreements/${encodeURIComponent(id)}`;
+
+export const disagreements = {
+  async list(): Promise<List> {
+    return (await api.get("/coach/disagreements")).data;
+  },
+  async card(id: string): Promise<Card> {
+    return (await api.get(path(id))).data.card;
+  },
+  /** One-way: true once the server has it. A failed save is false, never thrown. */
+  async visited(id: string): Promise<boolean> {
+    try {
+      const { data } = await api.post(`${path(id)}/visited`);
+      return data?.success === true;
+    } catch {
+      return false;
+    }
+  },
+  /** The disputed moment, cut on the server; `at` is the grader's second (the server adds the lead-in). */
+  clipUrl(id: string, at: number): string {
+    return `${api.defaults.baseURL ?? ""}${path(id)}/clip?at=${Math.max(0, Math.floor(at))}`;
+  },
+};
+
+/** coach_disagreement_card for THIS coach. Fail-closed: only a real true is on. */
+export function readDisagreementsOn(): Promise<boolean> {
+  return readConfigShared().then((cfg) => cfg?.features?.coachDisagreements === true).catch(() => false);
+}

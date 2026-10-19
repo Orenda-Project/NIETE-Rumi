@@ -13,6 +13,8 @@ describe('safeNext — allowed', () => {
     ['/portal/fln/send', '/portal/fln/send'],
     ['/portal/teacher/lessons/open?plan=fln:11156', '/portal/teacher/lessons/open?plan=fln:11156'],
     ['/portal/teacher/home#top', '/portal/teacher/home#top'],
+    // bd-tbprit.4 — the coach's disagreement card, from the WhatsApp /cv link.
+    ['/portal/coach/disagreements/7e0c1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b', '/portal/coach/disagreements/7e0c1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b'],
   ])('%s → %s', (raw, out) => {
     expect(safeNext(raw)).toBe(out);
   });
@@ -27,6 +29,10 @@ describe('safeNext — refused', () => {
     'portal/fln/p/1',
     '/portal/dashboard',
     '/portal/leader/teachers',
+    '/portal/coach/home',
+    '/portal/coach/disagreements',
+    '/portal/coach/disagreements/../home',
+    '/portal/coach/disagreementsx/1',
     '/portal/login?next=/portal/fln/p/1',
     '/portal/flnx/p/1',
     '/portal/fln',

@@ -78,6 +78,8 @@ const CoachObserve = page(() => import("./portal/coach/pages/CoachObserve"));
 const CoachObservePick = page(() => import("./portal/coach/pages/CoachObservePick"));
 const CoachVisit = page(() => import("./portal/coach/pages/CoachVisit"));
 const CoachReports = page(() => import("./portal/coach/pages/CoachReports"));
+const CoachDisagreements = page(() => import("./portal/coach/disagreements/DisagreementsPage"));
+const CoachDisagreement = page(() => import("./portal/coach/disagreements/DisagreementCard"));
 const CoachPeople = page(() => import("./portal/coach/pages/CoachPeople"));
 const CoachAnalytics = page(() => import("./portal/coach/analytics/CoachAnalytics").then((m) => ({ default: m.CoachAnalytics })));
 const CoachTeacherAnalytics = page(() => import("./portal/coach/analytics/CoachAnalytics").then((m) => ({ default: m.CoachTeacherAnalytics })));
@@ -277,6 +279,8 @@ const App = () => {
             <Route path="/portal/coach/visit/:id/sending" element={<CoachSending />} />
             <Route path="/portal/coach/reports" element={<CoachReports />} />
             <Route path="/portal/coach/reports/all" element={<CoachReportsAll />} />
+            <Route path="/portal/coach/disagreements" element={<CoachDisagreements />} />
+            <Route path="/portal/coach/disagreements/:id" element={<CoachDisagreement />} />
             <Route path="/portal/coach/people" element={<CoachPeople />} />
             {/* bd-fmf24g.27 — the coach's Analytics, and one of her teachers */}
             <Route path="/portal/coach/analytics" element={<CoachAnalytics />} />
