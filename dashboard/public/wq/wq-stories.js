@@ -285,7 +285,7 @@
     load('wq-stories-q.js', 0, function () { var w = qw; qw = null; w.forEach(function (f) { f(!!W.WQSTORIES._q); }); });
   }
   // the player (and lr3's live reader) come with the book
-  var got = {}, RA_V = '12562cd227';   // the player's content hash (a test pins it)
+  var got = {}, RA_V = 'a90722b23f';   // the player's content hash (a test pins it)
   function need(f, g, css, cb) {
     if (W[g] || got[f] === 1) return cb();
     if (got[f]) return got[f].push(cb);
@@ -470,10 +470,17 @@
       x.className = 'wqs-tx' + (wu || k.s < cam(0, d[0], d[1], sp.image.w, sp.image.h).s * 1.3 ? '' : ' on') + (y > sp.image.h / 2 ? ' lo' : '');
       if (x.firstChild) x.firstChild.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
     }
+    // steady: the voice's line framed across the page's widest line, so no line's ends are cut
+    function lineFrame(n) {
+      var bs = LN.l[n].bs, a = 1e9, z = -1e9;
+      if (!b.steady || !bs.length) return bs;
+      LN.l.forEach(function (l) { l.bs.forEach(function (x) { a = Math.min(a, x[0]); z = Math.max(z, x[0] + x[2]); }); });
+      return bs.concat([[a, bs[0][1], z - a, bs[0][3]]]);
+    }
     function camLine(i) {
       li = i;
       var n = sm === 'z' ? LN.of[i] || 0 : 0;
-      if (sm && sm !== 's' && n !== zl) { zl = n; camTo(sm === 'z' ? LN.l[n].bs : [sp.text_band.box], 1); }
+      if (sm && sm !== 's' && n !== zl) { zl = n; camTo(sm === 'z' ? lineFrame(n) : [sp.text_band.box], 1); }
     }
     R.camTo = camTo; R.camLine = camLine;
     function word(i) {

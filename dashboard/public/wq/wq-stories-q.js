@@ -336,8 +336,10 @@
     // the mic is given back when the book is left (Back, Home, another book: kill -> R.un) and when the tab closes
     // (pagehide: with the setting on, the listener above); no listener of its own stays on the window
     else if (W.addEventListener) onW('pagehide', free);
-    var un0 = R.un;
-    R.un = function () { free(); un0(); };
+    // pl: <html> in the book's language
+    var de = b.pl && W.document.documentElement, l0 = de && de.lang, d0 = de && de.dir, un0 = R.un;
+    if (de) { de.lang = L; de.dir = b.dir; root.setAttribute('data-ring', ''); }
+    R.un = function () { free(); un0(); if (de) { de.lang = l0; de.dir = d0; root.removeAttribute('data-ring'); } };
     if (m.st === 'listening') watch();
     R.ml = m.label(); R.mb = root.querySelector('[data-main]'); here(); ph(); late(m.i);
 
