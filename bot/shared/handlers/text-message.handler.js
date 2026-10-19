@@ -2123,7 +2123,10 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     const outcome = await RegistrationInvite.offerRegistrationOnceDetailed({
       user, phone: from, language: responseLanguage, reason: 'first_greeting',
     });
-    logToFile('👋 greeting-only first contact', { userId: user.id, outcome });
+    // A teacher's keyed reference on the log line, never her raw id (tests/setup/log-raw-ids).
+    let tkRef = null;
+    try { tkRef = require('../services/quiz/web-quiz-kid').tk(user.id); } catch (_) { /* no key → no reference */ }
+    logToFile('👋 greeting-only first contact', { tk: tkRef, outcome });
     if (outcome === 'sent' || outcome === 'failed') {
       typingController.stop();
       return;
