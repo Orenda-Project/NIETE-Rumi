@@ -200,7 +200,8 @@ const urRows = (out, history) => urTopics([out.last, ...(out.again || [])].map((
 // pageLang: the language the child's page resolved (web_quiz_return_lang on: the twin in that language is picked first);
 // null: the child's newest quiz's, as before.
 // quizOfCode (web_quiz_hub_waves2): told the chosen code's quiz id, so the next thing need not read that code again.
-async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang = null, quizOfCode = null) {
+// quizRows (web_quiz_hub_waves3): given this read's quizzes rows when they carry the next thing's columns (the home's).
+async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang = null, quizOfCode = null, quizRows = null) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return withUrTopic({ code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' }, opened.videoId);
@@ -220,6 +221,7 @@ async function teacherCard(kidRow, list, history, grade, homeP = null, pageLang 
   const quizIds = [...new Set([...listed.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
   const cols = `id, topic, subject, grade, language, lesson_plan_id, coaching_session_id, video_id${home ? `, ${Home.PREVIEW_COLS}` : ''}`;
   const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select(cols).in('id', quizIds));
+  if (quizRows && home && Array.isArray(quizzes)) quizzes.forEach((q) => { if (q && q.id) quizRows.set(q.id, q); });
   const previews = home ? Home.storyPreviews(quizzes) : null;
   const open = previews && previews.size ? listed.filter((c) => !previews.has(c.quiz_id)) : listed;
   if (!open.length) return null;
@@ -592,6 +594,12 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   // used only when every id it gives is one of them (the usual case), else read again for its ids, as off.
   const early = together ? earlyRows(mine, readRows, readLists) : null;
   const guess = early && Flags.earlyKidNow() ? earlyChild(mine, kid, f) : null;
+  // web_quiz_hub_waves3: the child's kept language is read with the link's child's own reads (not after the class list),
+  // and the live links this phone made (the home's "remember" rows) as soon as the home's switch is known
+  const w3 = together && f.waves3 === true;
+  const ownEarly = w3 && guess && !(keep && asked) ? require('./child-language.repo').stored(guess.id) : null;
+  if (ownEarly) ownEarly.catch(() => {});
+  const rememberP = w3 ? require('./web-quiz-hub-home').rememberRows(device) : null;
   // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
   if ((idFlags || await require('./web-quiz-identity-flags').flags()).canon) {
     const canon = await require('./web-quiz-identity-roster').canonicalStudentIdsShared(mine);
@@ -625,7 +633,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   const ownP = !chosen ? Promise.resolve(null)
     : keep && asked && kidChip(chosen.id) === String(kid || '')
       ? CL.choose(chosen.id, asked).then((kept) => (kept ? { language: asked, source: 'chosen' } : CL.stored(chosen.id)))
-      : CL.stored(chosen.id);
+      : ownEarly && String(chosen.id) === String(guess.id) ? ownEarly : CL.stored(chosen.id);
   // Jugnu's Book needs the child alone: started here too when the reads go together (awaited in today's place).
   const bookP = g ? g.bookP : together && chosen ? require('./web-quiz-book').hubBits({ studentId: chosen.id }) : null;
   if (bookP) bookP.catch(() => {});
@@ -652,7 +660,7 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
   const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
   // ...and the page's event batches carry the hub token and the picked chip (hub.js, wq-tel.js setIds). Off: no key.
   if (f.hub && f.eventsV2) out.ev2 = true;
-  if (together) return payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark });
+  if (together) return payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark, rememberP });
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
   await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
   // a child whose place is saved on a family phone with no code (joined on their own, or confirmed on the /quiz landing):
@@ -725,8 +733,10 @@ async function hubPayload(token, { kid, device, src, lang: wanted, keep = false,
  * starts once the teacher, last quiz, recommendations and library are on `out`, as today.
  * Step timings: the parts that run side by side are one step, timed as `teacher` (then `play` for the Book, `home`).
  */
-async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark }) {
+async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, device, src, ctx, history, homeP, storiesP, challengeP, bookP, openEv, mark, rememberP = null }) {
   const tight = f.waves2 === true; // web_quiz_hub_waves2: the longest chains below start earlier (the same answer)
+  // web_quiz_hub_waves3: the teacher card's quizzes rows, kept for the next thing's own quiz rows (the same columns)
+  const quizRows = f.waves3 === true ? new Map() : null;
   const Join = require('./web-quiz-student-join');
   const boundP = tight && chosen ? Join.boundRowsOf(chosen.id) : null;
   const extrasP = (async () => {
@@ -757,7 +767,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   const nextEarly = tight ? NextSrc.hubEarly({ token, lang: out.lang, chosenId: chosen.id, grade, chip: out.kid, stopsP: challengeP.then((form) => trailStops(form, true)) }) : null;
   const playP = Promise.all([challengeP, answeredP]).then(([form]) => require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: f.childHome ? last : undefined, lang: out.lang, challenge: form ? { on: true } : null, grade, stopsOf: () => trailStops(form), steps: () => require('./web-quiz-challenge'), collect, together: true }));
   // web_quiz_return_lang: the teacher's twin in the page's own language, as on the one-by-one path (off: today's)
-  const teacherP = require('./web-quiz-return-lang').on().then((rl) => teacherCard(chosen, ctx.list, history, grade, homeP, rl ? out.lang : null, quizOfCode));
+  const teacherP = require('./web-quiz-return-lang').on().then((rl) => teacherCard(chosen, ctx.list, history, grade, homeP, rl ? out.lang : null, quizOfCode, quizRows));
   // tight: the next thing's quiz rows are asked once the teacher card is known (the codes it will name, worked out as
   // `out` gets them below), not after the keep-my-place reads
   if (nextEarly) {
@@ -768,7 +778,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
       let again = againOf(history, chosen.id, t && t.code);
       if (f.childHome && lastOut && tc && tc.code === lastOut.code) tc = null;
       if (f.childHome && lastOut) again = again.filter((a) => a.code !== lastOut.code);
-      return NextSrc.quizIdsOf([tc && tc.code, lastOut && lastOut.code, ...again.map((a) => a.code)], { history, quizOfCode });
+      return NextSrc.quizIdsOf([tc && tc.code, lastOut && lastOut.code, ...again.map((a) => a.code)], { history, quizOfCode, quizRows });
     }));
     nextEarly.rowsP.catch(() => {});
   }
@@ -800,7 +810,7 @@ async function payloadTogether({ out, f, token, chosen, kidsRows, trust, lang, d
   mark('play');
   const [storyBits, homeBits, nextField] = await Promise.all([
     storiesP,
-    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade }),
+    require('./web-quiz-hub-home').homeField({ out, chosenId: chosen.id, history, pre: homeP, device, src, grade, rows: rememberP }),
     require('./web-quiz-next-offer-sources').hubField({ out, token, history, collect, lang: out.lang, chosenId: chosen.id, grade, subjectArt: subjectArtOf, prep: nextPrep }),
   ]);
   Object.assign(out, storyBits, homeBits, nextField);
