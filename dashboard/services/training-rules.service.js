@@ -211,15 +211,50 @@ const MARKING_TIMEOUT_MS = 60_000;
  *
  * THROWS on failure, like getExamVerdict: this is not a gate, and a teacher must never
  * be given a made-up score. The route turns a throw into "nothing recorded, try again".
+ *
+ * opts.deadline (epoch ms) is the whole paper's marking deadline. Each call's timeout is
+ * capped at what is left of it, and once it has passed nothing more is asked: the submit
+ * route must answer inside its own budget (dashboard/middleware/timeout.js). axios reads a
+ * timeout of 0 as "no timeout", so a spent deadline throws instead of being passed on.
+ *
+ * A dropped connection (no HTTP answer at all) is retried once inside the deadline.
+ * Marking writes nothing on the bot, so asking again is safe. An HTTP failure is the bot's
+ * answer and a timeout means the grader is slow: neither is retried.
  */
-async function scoreCapstoneAnswer(question, answerText, maxPoints) {
+async function scoreCapstoneAnswer(question, answerText, maxPoints, opts = {}) {
   const body = { question, answerText };
   if (maxPoints !== undefined) body.maxPoints = maxPoints;
-  const data = await ask('capstone-score', body, { timeout: MARKING_TIMEOUT_MS });
+  const deadline = Number.isFinite(opts.deadline) ? opts.deadline : null;
+  const mark = () => ask('capstone-score', body, { timeout: markingTimeout(deadline) });
+
+  let data;
+  try {
+    data = await mark();
+  } catch (err) {
+    if (!isDroppedConnection(err)) throw err;
+    data = await mark();
+  }
   if (!Number.isFinite(data.score)) {
     throw new Error('training rules API returned no score for capstone-score');
   }
   return { score: data.score, feedback: data.feedback };
+}
+
+/** One call's timeout: the marker's own budget, capped by the paper's deadline. */
+function markingTimeout(deadline) {
+  if (deadline === null) return MARKING_TIMEOUT_MS;
+  const left = deadline - Date.now();
+  if (left <= 0) {
+    throw Object.assign(new Error('capstone marking deadline passed'), { code: 'MARKING_DEADLINE' });
+  }
+  return Math.min(MARKING_TIMEOUT_MS, left);
+}
+
+/** No HTTP answer came back: the connection was reset or dropped under the request. */
+function isDroppedConnection(err) {
+  if (!err || err.response) return false;
+  const message = String(err.message || '');
+  return err.code === 'ECONNRESET' || /socket hang up/i.test(message) || /fetch failed/i.test(message);
 }
 
 /**
