@@ -87,6 +87,9 @@ const PLAIN_PAINT_KEY = 'web_quiz_plain_paint';
 // The closed and not-open pages in the child's language (web-quiz-closed-lang.js) ride this read on the hub, so a
 // child's home adds no settings read for it.
 const CLOSED_LANG_KEY = 'web_quiz_closed_lang';
+// A class link's picture facts start beside the page's own reads (web-quiz-class-pic.js, with the fast page): the hub's
+// switch cache only (nowOf('classPicEarly')), never a read of its own. Only the stored JSON boolean true is on.
+const CLASS_PIC_EARLY_KEY = 'web_quiz_class_pic_early';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -159,6 +162,7 @@ const SWITCHES = Object.freeze([
   ['rungs',        RUNGS_KEY,             'loose'],
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
+  ['classPicEarly', CLASS_PIC_EARLY_KEY,  'json'],
   ['closedLang',   CLOSED_LANG_KEY,       'json'],
   ['prefetch',     PREFETCH_KEY,          'json'],
   ['earlyUnlock',  EARLY_UNLOCK_KEY,      'json'],
@@ -542,6 +546,7 @@ module.exports = {
   HUB_KEY,
   hubLink,
   KEYS,
+  CLASS_PIC_EARLY_KEY,
   LIBRARY_KEY,
   LIVE_METER_KEY,
   LIVE_READ_V3_KEY,
