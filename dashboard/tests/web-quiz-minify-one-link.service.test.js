@@ -19,6 +19,7 @@ const express = require('express');
 const { createWebQuizRouter, assetVersion } = require('../routes/web-quiz.routes');
 const HomeInline = require('../routes/web-quiz-home-inline');
 const HomePre = require('../routes/web-quiz-home-preload');
+const EarlyUnlock = require('../routes/web-quiz-early-unlock');
 
 const BOT = 'http://bot.test';
 const KEY = 'test-internal-key';
@@ -130,7 +131,7 @@ const carriedJs = (html) => {
 
 describe('web_quiz_minify with the early home head: each file once, at one address', () => {
   let srv;
-  beforeEach(() => { HomeInline._resetAll(); HomePre._reset(); });
+  beforeEach(() => { HomeInline._resetAll(); HomePre._reset(); EarlyUnlock._reset(); });
   afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
   for (const lang of ['en', 'ur']) {
@@ -188,6 +189,21 @@ describe('web_quiz_minify with the early home head: each file once, at one addre
     const next = await flushedOpen(srv, bot);
     expect(next.body).toContain(`/wq/hub.js?v=${HEX}m`);
     expect(versions(next.body)).toEqual(allAt(next.body, `${HEX}m`));
+  });
+
+  test('with the early unlock (a new phone\'s locked page drawn in the last child\'s shape): the flip seen on a locked answer; that page names every file once, at the m version', async () => {
+    const EU = { early_unlock: true };
+    const bot = heldBot([
+      jsonRes(200, HUB(EU)),
+      jsonRes(200, LOCKED({ ...EU, ...MIN })),
+      { hold: true, res: jsonRes(200, LOCKED({ ...EU, ...MIN })) },
+    ]);
+    srv = await start(build(bot.fetchImpl));
+    await get(srv, `/h/${TOKEN}`);
+    await get(srv, `/h/${TOKEN}`);
+    const { body } = await flushedOpen(srv, bot);
+    expect(body).toContain('/wq/wq-home.css');
+    expect(versions(body)).toEqual(allAt(body, `${HEX}m`));
   });
 
   test('the switch goes off again: the next new phone\'s page names every file once, raw', async () => {
