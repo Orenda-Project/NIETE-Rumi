@@ -52,9 +52,9 @@ function readMany(table, ids, lists = false) {
     return table === 'class_enrollments' ? q.eq('is_active', true) : q;
   });
 }
-// web_quiz_hub_embed (the hub's own switch cache, never read here): a child's row read with its class list
-// (students.list_id) in the same request; the list is kept for this answer's own ask for it, so it needs no read.
-const embedOn = () => { try { return require('./web-quiz-hub-flags').embedNow(); } catch (_) { return false; } };
+// web_quiz_hub_embed or web_quiz_kid_together (the hub's own switch cache, never read here): a child's row read with its
+// class list (students.list_id) in the same request; the list is kept for this answer's own ask for it, so it needs no read.
+const embedOn = () => { try { const F = require('./web-quiz-hub-flags'); return F.embedNow() || F.kidTogetherNow(); } catch (_) { return false; } };
 function keepLists(s, rows) {
   if (!rows.some((r) => r && Object.prototype.hasOwnProperty.call(r, 'student_lists'))) return rows;
   rows.forEach((r) => {

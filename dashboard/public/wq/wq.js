@@ -792,6 +792,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑا سا رہ گیا! پھر کھیلیں؟' },
       ghost: function (s) { return s + ' سے ابھی کسی نے نہیں کھیلا۔ آپ پہلے بنیں!'; },
       noSchools: 'ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا بنے!',
+      // the league's counts: Urdu digits, thousands split with «٬» (urCount)
+      pts: function (n) { return urCount(n) + ' پوائنٹس'; }, kidsN: function (n) { return urCount(n) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
+      zeroN: function (n) { return urCount(n) + ' اسکول ابھی شروع نہیں ہوئے'; },
       // the WhatsApp share prose: Western digits, isolated, the approved sentence shape kept
       chalLine: function (w, s, n, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز میں ⁦' + n + '⁩ میں سے ⁦' + s + '⁩ ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
       chalPlayed: function (w, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
@@ -1461,6 +1464,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function ani(a) { return '<span class="wq-ani">' + (ANIMALS[a] || ic(IC.star, '⭐')) + '</span>'; }
   function fmtN(n) { return Number(n || 0).toLocaleString('en'); }
+  // with the Urdu polish a count's thousands split with the Arabic «٬» (U+066C), never a Latin comma inside Urdu digits
+  function urCount(n) { return urDigits(fmtN(n)).replace(/,/g, '\u066C'); }
   // Joins the non-empty parts with a middle dot, so a missing class label or topic never leaves "NIETE ·".
   // the table's topic line: with the Urdu polish, never a «·» beside Urdu digits (it reads as «۰»), and a Latin title in
   // its own left-to-right piece; else today's "topic · n finished"
@@ -3151,7 +3156,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function schoolRow(r) {
     return '<li class="wq-srow' + (r.mine ? ' wq-you' : '') + '"' + (r.mine ? ' id="wq-mine"' : '') + '>' +
-      '<span class="wq-splace">' + esc(r.place) + '</span>' +
+      // with the Urdu polish the rank is in Urdu digits, like the counts beside it and the class table's places
+      '<span class="wq-splace">' + esc(UR2 ? urDigits(r.place) : r.place) + '</span>' +
       '<span class="wq-sname"><bdi>' + esc(r.name) + '</bdi>' + (r.mine ? '<span class="wq-tag">' + esc(T.yourSchool) + '</span>' : '') +
       '<small>' + esc(T.kidsN(r.kids || 0)) + '</small></span>' +
       '<span class="wq-spts">' + esc(T.pts(r.points || 0)) + schoolMove(r.move) + '</span></li>';
