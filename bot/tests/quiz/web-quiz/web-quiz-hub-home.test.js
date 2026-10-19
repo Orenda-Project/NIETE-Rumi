@@ -418,6 +418,13 @@ describe('pure parts', () => {
     expect(d).toEqual({ stories: d.stories, games: [], videos: null });
   });
 
+  test('doorsOf: the hub\'s "Try these next" quizzes ride on the doors (up to 3, ids and words only); none -> no key', () => {
+    const recs = [1, 2, 3, 4].map((n) => ({ vid: `v${n}`, title: `Lesson ${n}`, chapter: 'Ch 1', subject: 'Maths', grade: '3', poster: 'https://p.example.test/x.jpg', art: '/wq/art/subject-maths.webp', secs: 120 }));
+    const d = Home.doorsOf({ out: { recs } });
+    expect(d.recs).toEqual([1, 2, 3].map((n) => ({ vid: `v${n}`, title: `Lesson ${n}`, subject: 'Maths', art: '/wq/art/subject-maths.webp' })));
+    expect(Home.doorsOf({ out: { recs: [] } })).not.toHaveProperty('recs');
+  });
+
   test('headOf: counts days, not finishes; ignores last week', () => {
     const now = Date.parse('2026-10-16T12:00:00Z'); // a Friday in PKT
     const h = Home.headOf(['2026-10-16T08:00:00Z', '2026-10-16T09:00:00Z', '2026-10-13T08:00:00Z', '2026-10-10T08:00:00Z'], now);
