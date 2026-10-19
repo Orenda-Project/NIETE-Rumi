@@ -609,10 +609,11 @@ html.wq-1b .wq-zero-list{border-radius:var(--r-card)}
 html.wq-1b .wq-schips .wq-chip{min-height:var(--tap);min-width:var(--tap);justify-content:center}
 html.wq-1b .wq-zero-list summary{display:list-item;min-height:var(--tap);padding-block:12px;line-height:24px}
 html.wq-1b[lang=ur] .wq-zero-list summary{padding-block:6px;line-height:inherit}
-/* one height per list: every door row (the teacher's week row keeps its green ring, at the same height); a long title
-   stays on one line */
-html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:var(--row-h);min-height:0;overflow:hidden}
-html.wq-1b .wq-drow .wq-rtext b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+/* one height per list: every door row is at least --row-h (the teacher's week row keeps its green ring); a long title
+   shows whole on up to two lines (the row grows), and an English title on an Urdu page is cut at its own end */
+html.wq-1b .wq-dli .wq-drow,html.wq-1b .wq-week .wq-drow{height:auto;min-height:var(--row-h);overflow:hidden}
+html.wq-1b .wq-drow .wq-rtext b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;overflow-wrap:anywhere}
+html.wq-1b[lang=ur] .wq-drow .wq-rtext b:has(>.wq-lat){direction:ltr;text-align:right}
 /* the tap: no page, section or list paints the system's tap box (it inherits down to every child); every link and
    button on the page darkens a little on its own while pressed instead, so a tap always answers, and only where it landed */
 html.wq-1b body{-webkit-tap-highlight-color:transparent}
