@@ -255,3 +255,29 @@ describe('bd-2480 — the client holds no rules of its own', () => {
     expect(code).not.toMatch(/\/\s*total|\*\s*100/);
   });
 });
+
+describe('bd-te5lae — capstone marking is asked of the bot, never done in the portal', () => {
+  it('posts the question and the answer to capstone-score, with a timeout sized for marking', async () => {
+    axiosPost.mockResolvedValueOnce({ data: { success: true, score: 4, feedback: 'Good.' } });
+
+    const out = await client.scoreCapstoneAnswer({ id: 900, question_text: 'Q1' }, 'my answer');
+
+    const [url, body, config] = axiosPost.mock.calls[0];
+    expect(url).toBe(`${BOT}/api/internal/training/capstone-score`);
+    expect(body).toEqual({ question: { id: 900, question_text: 'Q1' }, answerText: 'my answer' });
+    expect(config.headers['x-api-key']).toBe(KEY);
+    expect(config.timeout).toBeGreaterThanOrEqual(60_000);
+    expect(out).toEqual({ score: 4, feedback: 'Good.' });
+  });
+
+  it('throws when the bot cannot mark — a teacher never gets a made-up score', async () => {
+    axiosPost.mockRejectedValueOnce(new Error('timeout of 60000ms exceeded'));
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).rejects.toThrow();
+
+    axiosPost.mockResolvedValueOnce({ data: { success: false } });
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).rejects.toThrow();
+
+    axiosPost.mockResolvedValueOnce({ data: { success: true, feedback: 'no score field' } });
+    await expect(client.scoreCapstoneAnswer({ question_text: 'Q' }, 'a')).rejects.toThrow();
+  });
+});

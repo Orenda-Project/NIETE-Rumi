@@ -68,7 +68,7 @@ function config() {
  *         that are GATES must catch and deny; callers that are READS may let
  *         it propagate.
  */
-async function ask(path, body) {
+async function ask(path, body, opts = {}) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
     // Never silently degrade to "allowed" because a variable is missing.
@@ -77,7 +77,7 @@ async function ask(path, body) {
 
   const res = await axios.post(`${baseUrl}/api/internal/training/${path}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    timeout: TIMEOUT_MS,
+    timeout: opts.timeout || TIMEOUT_MS,
   });
 
   const data = res && res.data;
@@ -197,6 +197,29 @@ async function getExamVerdict(levelId, score, totalQuestions) {
     pass_pct: data.pass_pct,
     achieved_pct: data.achieved_pct,
   };
+}
+
+/** One capstone answer is one LLM call; 10 s is a lookup's budget, not a marker's. */
+const MARKING_TIMEOUT_MS = 60_000;
+
+/**
+ * Mark ONE written capstone answer with the bot's grader. bd-te5lae.
+ *
+ * The portal called capstone-delivery's scoreAnswer in-process. Its deps() loads the
+ * bot's Supabase and LLM clients, which need dotenv and pino, and the portal service
+ * cannot resolve either: every portal capstone submit answered 500 on production.
+ *
+ * THROWS on failure, like getExamVerdict: this is not a gate, and a teacher must never
+ * be given a made-up score. The route turns a throw into "nothing recorded, try again".
+ */
+async function scoreCapstoneAnswer(question, answerText, maxPoints) {
+  const body = { question, answerText };
+  if (maxPoints !== undefined) body.maxPoints = maxPoints;
+  const data = await ask('capstone-score', body, { timeout: MARKING_TIMEOUT_MS });
+  if (!Number.isFinite(data.score)) {
+    throw new Error('training rules API returned no score for capstone-score');
+  }
+  return { score: data.score, feedback: data.feedback };
 }
 
 /**
@@ -380,6 +403,7 @@ module.exports = {
   markPaper,
   servePaper,
   getExamVerdict,
+  scoreCapstoneAnswer,
   checkLevelUnlocked,
   checkModuleUnlocked,
   checkExamGate,

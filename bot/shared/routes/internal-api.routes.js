@@ -301,6 +301,36 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
 });
 
 /**
+ * POST /api/internal/training/capstone-score
+ * Body { question: { question_text, rubric? }, answerText, maxPoints? } -> { success, score, feedback }
+ *
+ * bd-te5lae — marks ONE written capstone answer with the bot's own grader, the same
+ * scoreAnswer WhatsApp uses. The portal called scoreAnswer in-process, and its deps()
+ * loads the bot's Supabase and LLM clients, which need dotenv and pino: the portal
+ * service cannot resolve either, so every portal capstone submit answered 500.
+ */
+router.post('/training/capstone-score', requireInternalKey, async (req, res) => {
+  const { question, answerText, maxPoints } = req.body || {};
+  const text = question && typeof question.question_text === 'string' ? question.question_text.trim() : '';
+  if (!text) return res.status(400).json({ success: false, error: 'question.question_text is required' });
+  if (typeof answerText !== 'string' || !answerText.trim()) {
+    return res.status(400).json({ success: false, error: 'answerText is required' });
+  }
+
+  try {
+    const Capstone = require('../services/training/capstone-delivery.service');
+    const { score, feedback } = await Capstone.scoreAnswer(question, answerText, maxPoints);
+    return res.json({ success: true, score, feedback });
+  } catch (error) {
+    // Fail CLOSED: no score at all, never a made-up one.
+    // Answer the failure first: a logger fault must never turn it into a 200.
+    res.status(500).json({ success: false, error: 'Marking failed' });
+    logError('Internal training API failed', { route: 'capstone-score', error: error?.message });
+    return undefined;
+  }
+});
+
+/**
  * POST /api/internal/training/certify-level
  * Body { userId, levelId, attemptId?, programId?, moduleId? }
  *   -> { success, issued, certificate_code?, level_name?, teacher_name?, pdf_r2_key? }
