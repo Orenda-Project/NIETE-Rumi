@@ -182,7 +182,7 @@
     var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.story, reads.map(readRow).join('')) +
-      section(t.recT, recs.map(function (r, i) { return row({ title: r.title || t.vquiz, sub: r.subject ? t.subj(r.subject) : '', kind: 'rec', pos: i, item: r.vid, art: r.art, tap: 'vquiz' }, ctx); }).join('')) +
+      section(t.recT, recs.map(function (r, i) { return row({ title: (langOf(ctx) === 'ur' && r.title_ur) || r.title || t.vquiz, sub: r.subject ? t.subj(r.subject) : '', kind: 'rec', pos: i, item: r.vid, art: r.art, tap: 'vquiz' }, ctx); }).join('')) +
       section(t.lastQ, last.map(function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, false)), title: g.topic || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (failed) return errNote(t) + h;
