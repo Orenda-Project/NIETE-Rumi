@@ -1011,6 +1011,8 @@ const RULE = {
   urduWritingApply: 'The picture description, paragraph, story and letter or application are Apply: tag each of them Apply.',
   // Same table puts sentence work at Understand; the model tagged it Apply, 9 marks over (bd-5jmnfj.19).
   urduSentenceUnderstand: 'The rewrite-the-sentences (Q4) and use-the-words-in-sentences (Q5) items are Understand: tag each of them Understand.',
+  // FDE's model paper sets the writing at Apply 40, so the poem is recall; the model flipped between runs (bd-5jmnfj.19).
+  urduPoemRemember: 'The poem question (Q6), the meaning of the verses or the Naat\'s central idea, is Remember: tag it Remember.',
 };
 
 // Maths Q1(b): this many of its one-step items are word problems. One above the floor of 3:
@@ -1321,6 +1323,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   }
   if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(7|8|9|10)$/.test(s.slot))) rules.push(RULE.urduWritingApply);
   if (key === 'urdu' && list.some((s) => /^urdu\.C\.Q(4|5)$/.test(s.slot))) rules.push(RULE.urduSentenceUnderstand);
+  if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduPoemRemember);
   if (key === 'maths') rules.push(RULE.mathsTosFloor, RULE.unitsNumerals);
   if (key === 'maths') {
     const q1b = list.find((s) => s.slot === 'maths.A.Q1b');
