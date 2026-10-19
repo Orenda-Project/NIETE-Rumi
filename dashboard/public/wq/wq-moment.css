@@ -153,3 +153,6 @@ html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; lin
 .wqs-art i{display:block;overflow:hidden;border-radius:12px}
 .wqs-art[data-art=off] i{display:none}
 .wqs-art img{display:block;max-width:none;height:auto}
+/* Your turn with the picture box: the stage takes the room down to the primary, so the picture can grow into it */
+.wqs[data-screen=story-read]:has([data-art]){height:100vh;height:100svh;min-height:0}
+.wqs[data-screen=story-read]:has([data-art]) .wqs-stage{flex:1 1 0;height:auto;max-height:none;min-height:200px}

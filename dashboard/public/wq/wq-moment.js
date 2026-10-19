@@ -271,30 +271,36 @@
   }
   // art(box, cam, image, all lines, framed lines, stage [w, h], rtl, at rest): the words framed big (Your turn; an Urdu
   // page at rest) never leave a cut sliver of the picture. The lines keep the reader's own zoom (at rest: within half the
-  // stage) on the far side from the picture; the host clips the sheet to them, and the picture (the sheet's side
-  // away from its words) sits whole in the room left, or not at all when that room is too small. null: framed as before
-  // (the picture already whole in view, no picture side of its own, or at rest words that would not come up by a quarter)
+  // stage) on the far side from the picture; the host clips the sheet to them, never into a printed line not being read,
+  // and the picture (the sheet's side away from all its words) sits whole and flush on them in the room left, or not at
+  // all when it would be under 96 px. null: framed as before (the picture already whole in view, no picture side of its
+  // own, or at rest words that would not come up by a quarter)
   function art(a, cam, im, all, bs, d, rtl, rs) {
-    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m;
+    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1;
     all.forEach(function (b) { Y0 = Math.min(Y0, b[1]); Y1 = Math.max(Y1, b[1] + b[3]); });
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); });
-    dn = im.h - Y1 >= Y0; cy = dn ? Y1 : 0; ch = dn ? im.h - Y1 : Y0;
+    dn = im.h - Y1 >= Y0; ch = dn ? im.h - Y1 : Y0;
     if (ch < im.h * .2) return null;
     kf = cam(bs, d[0], d[1], im.w, im.h, rtl, 3, 1); k0 = rs ? cam(null, d[0], d[1], im.w, im.h) : kf;
-    if (!rs && -k0.ty / k0.s <= cy + 1 && (d[1] - k0.ty) / k0.s >= cy + ch - 1 && im.w * k0.s <= d[0] + 1) return null;
+    if (!rs && -k0.ty / k0.s <= (dn ? Y1 : 0) + 1 && (d[1] - k0.ty) / k0.s >= (dn ? im.h : Y0) - 1 && im.w * k0.s <= d[0] + 1) return null;
     s = rs ? Math.round(Math.min(kf.s, d[1] * .5 / ((y1 - y0) * 1.16)) * 1000) / 1000 : kf.s;
     if (rs && s < k0.s * 1.25) return null;
     tx = s === kf.s ? kf.tx : (x1 - x0) * s <= d[0] * .92 ? d[0] / 2 - (x0 + x1) / 2 * s : rtl ? d[0] * .96 - x1 * s : d[0] * .04 - x0 * s;
     tx = r(Math.min(0, Math.max(d[0] - im.w * s, tx)));
     p = Math.round((y1 - y0) * s * .08) + 8;
     ty = r(dn ? p - y0 * s : d[1] - p - y1 * s);
-    g = dn ? [r(y1 * s + ty + p), d[1]] : [0, r(y0 * s + ty - p)];
-    z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch);
-    a.style.top = g[0] + 'px'; a.style.height = r(Math.max(0, g[1] - g[0])) + 'px';
-    a.setAttribute('data-art', z * ch >= 72 ? 'on' : 'off');
+    // the printed lines next to the framed ones bound the clip
+    all.forEach(function (b) { var c = b[1] + b[3] / 2; if (c > y1) nt = Math.min(nt, b[1]); if (c < y0) pb = Math.max(pb, b[1] + b[3]); });
+    c0 = Math.max(0, y0 - p / s, Math.min(y0, pb)); c1 = Math.min(im.h, y1 + p / s, Math.max(y1, nt));
+    // the picture: below (above) every printed line, carrying on where the clipped sheet stops
+    cy = dn ? Math.max(Y1, c1) : 0; ch = dn ? im.h - cy : Math.min(Y0, c0);
+    g = dn ? [r(c1 * s + ty), d[1]] : [0, r(c0 * s + ty)];
+    z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch, s);
+    a.style.top = g[0] + 'px'; a.style.height = r(Math.max(0, g[1] - g[0])) + 'px'; a.style.alignItems = dn ? 'flex-start' : 'flex-end';
+    a.setAttribute('data-art', z * ch >= 96 ? 'on' : 'off');
     i = a.querySelector('i'); m = i && i.querySelector('img');
-    if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
-    return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(Math.max(0, y0 - p / s)) + 'px 0 ' + r(Math.max(0, im.h - y1 - p / s)) + 'px 0)' };
+    if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; i.style.borderRadius = dn ? '0 0 12px 12px' : '12px 12px 0 0'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
+    return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0)' };
   }
   function q(k, R, m, x) {
     var y;

@@ -296,7 +296,7 @@
   function reader(id, ctx, root) {
     var C = clockOf(ctx), tch = ctx.role === 'teacher', R = { id: id, root: root, ctx: ctx, C: C, tch: tch, pl: null, lr: null, poll: null, au: null };
     var b, L = lg(ctx.lang), t = T[L], P, m, Q, view = '', pg = -1, t0 = -1, acc = 0, sent = {}, ask = {};
-    var sp, sm = '', LN = { l: [], of: [] }, zl = -1, li = -1, wu = 0, lc;
+    var sp, sm = '', LN = { l: [], of: [] }, zl = -1, li = -1, wu = 0, lc, ro, ros;
     var paint = R.paint = function (h) { root.innerHTML = h; };
     R.live = function () { return cur === R; };
     function back() { kill(); if (!tch) W.location.hash = '#stories'; else if (ctx.onBack) ctx.onBack(); else if (W.history) W.history.back(); }
@@ -462,6 +462,9 @@
       k = f || cam(wu ? null : bs, d[0], d[1], sp.image.w, sp.image.h, rtl(), sm === 'l' ? 6 : 3, fit);
       c.style.transform = 'translate(' + k.tx + 'px,' + k.ty + 'px) scale(' + k.s + ')';
       if (a) { c.style.clipPath = f ? f.clip : ''; a.hidden = !f; }
+      // clipped: the opening words under the sheet never show past its lines; the stage resized (the meter came in): framed again
+      if (f && (x = root.querySelector('[data-ph]'))) x.style.display = 'none';
+      if (a && W.ResizeObserver && (x = root.querySelector('[data-stage]')) !== ros) { if (ro) ro.disconnect(); ros = x; ro = new W.ResizeObserver(function () { R.af(); }); ro.observe(x); }
       return f;
     }
     // at rest the whole sheet (its art) and, when the print is small, a lens of the words at a readable size on their side
