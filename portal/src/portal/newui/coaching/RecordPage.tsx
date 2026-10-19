@@ -23,6 +23,8 @@ import { LevelBars } from './LevelBars';
 import { LibraryStep, type LibraryStepInfo } from './LibraryStep';
 import { PlanSheet } from './PlanSheet';
 import { useSendFlow, type Audio, type Plan } from './useSendFlow';
+import { PickStage } from './PickStage';
+import { useLiveMoves } from './useLiveMoves';
 
 /**
  * bd-5rz1v.26 — /portal/coaching/new in the new UI: record, then check and send. Picked by
@@ -66,8 +68,11 @@ export default function RecordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const session = useSession();
-  const flow = useSendFlow(session);
+  const liveRecord = useRef<() => ReturnType<typeof live.toRecord>>(() => null);
+  const flow = useSendFlow(session, undefined, { pickBeforeRecord: true, liveMoves: () => liveRecord.current() });
   const { stage, audio, plan, photos } = flow;
+  const live = useLiveMoves({ session, plan, recording: stage === 'recording' });
+  liveRecord.current = live.toRecord;
   const elapsed = useRecordingClock(session);
   const level = useMicLevel(session.stream, stage === 'recording' && !session.paused);
   // Opened from inside the app (not a fresh load): Back while recording goes back, not to Coaching.
@@ -155,6 +160,8 @@ export default function RecordPage() {
             </BottomActions>
           </>
         ) : null}
+
+        {stage === 'pick' ? <PickStage onStart={flow.startAfterPick} /> : null}
 
         {stage === 'recording' ? (
           <>
