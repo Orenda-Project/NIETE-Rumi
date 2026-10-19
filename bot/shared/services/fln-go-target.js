@@ -13,16 +13,24 @@
 /** `fln:` + 1..9 digits (the plan id), nothing else. Anchored, so no path or query can ride along. */
 const FLN_TARGET = /^fln:(\d{1,9})$/;
 
+/**
+ * bd-zcgpkx — a leader's "lesson plan" opens Send a lesson plan (the builder). One fixed string, compared whole,
+ * so nothing can ride along on it either.
+ */
+const FLN_SEND = 'fln:send';
+const FLN_SEND_PATH = '/portal/fln/send';
+
 /** True when `f` is an FLN landing target. */
 function isFlnTarget(f) {
-  return typeof f === 'string' && FLN_TARGET.test(f);
+  return typeof f === 'string' && (f === FLN_SEND || FLN_TARGET.test(f));
 }
 
-/** The plan page for an FLN target, or null for anything else. */
+/** The plan page (or, for `fln:send`, the builder) for an FLN target, or null for anything else. */
 function flnPathFor(f) {
   if (typeof f !== 'string') return null;
+  if (f === FLN_SEND) return FLN_SEND_PATH;
   const m = FLN_TARGET.exec(f);
   return m ? `/portal/fln/p/${m[1]}?src=send` : null;
 }
 
-module.exports = { FLN_TARGET, isFlnTarget, flnPathFor };
+module.exports = { FLN_TARGET, FLN_SEND, isFlnTarget, flnPathFor };
