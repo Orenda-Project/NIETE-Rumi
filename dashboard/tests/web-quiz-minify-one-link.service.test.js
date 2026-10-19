@@ -90,7 +90,7 @@ async function flushedOpen(srv, bot, opts = {}) {
   let answered = false; let answeredAtFirstChunk = null; let early = '';
   const answer = () => { if (!answered) { answered = true; bot.release(); } };
   const fallback = setTimeout(answer, 400);
-  const res = await get(srv, `/h/${TOKEN}`, {
+  const res = await get(srv, opts.path || `/h/${TOKEN}`, {
     ...opts,
     onChunk: (c) => { if (!answered) early += c; },
     onFirstChunk: () => { answeredAtFirstChunk = answered; setTimeout(answer, 100); },
@@ -135,6 +135,23 @@ describe('web_quiz_minify with the early home head: each file once, at one addre
   afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 
   for (const lang of ['en', 'ur']) {
+    test(`${lang}: a fresh process (after a deploy) whose learner says min: the FIRST page, before any hub answer, names every file at the m version`, async () => {
+      const edge = { learn: true, fast: true, brand: 'niete', rt: false, ui: lang === 'ur' ? { ur2: true, adv: true } : { adv: true }, one_face: false, wait_ux: false, home_inline: true, ...MIN };
+      const bot = heldBot([{ hold: true, res: jsonRes(200, LOCKED({ lang, ...MIN })) }]);
+      const fetchImpl = (url, init) => (String(url).endsWith('/api/internal/wq/edge') ? Promise.resolve(jsonRes(200, edge)) : bot.fetchImpl(url, init));
+      const app = express();
+      app.set('trust proxy', 1);
+      const timers = { set: () => ({ unref() {} }), clear() {}, after: () => ({ unref() {} }), cancel() {} };
+      const router = createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, edgeLearn: { timers } });
+      app.use(router);
+      app.minReady = router.minifyReady;
+      srv = await start(app);
+      await new Promise((r) => setTimeout(r, 20)); // the learner's one ask
+      const { early, body } = await flushedOpen(srv, bot, { path: `/h/${TOKEN}${lang === 'ur' ? '?lang=ur' : ''}` });
+      expect(early).toContain(`/wq/hub.js?v=${HEX}m`);
+      expect(versions(body)).toEqual(allAt(body, `${HEX}m`));
+    });
+
     test(`${lang}: the switch goes on, seen first on a new phone's locked answer; the next new phone's page names every file once, at the m version, and carries only the minified copies`, async () => {
       const bot = heldBot([
         jsonRes(200, HUB({ lang })), // before the flip: teaches the raw addresses
