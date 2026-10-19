@@ -42,7 +42,6 @@ const { isLp612Enabled, isLp612RouteAll } = require('../config/lp612-flags'); //
 // Language cache for ASR routing based on user preference
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
 const { redirectIfFlagged } = require('../services/app-redirect.service');
-const { groupFor: v10GroupFor } = require('../services/coaching/ab-v10-arms');
 
 /**
  * Speak `text` to the teacher as a voice note. If no voice can be made, or the
@@ -873,15 +872,8 @@ async function handleVoiceMessage(message, from, user = null) {
         // Stop typing indicator
         typingController.stop();
 
-        // bd-onxyu — a classroom recording IS a coaching request.
-        // v10 coaching test (bd-v0toag.56): recordings decide the test, so one from a school in the
-        // test is always analysed, never sent to the app. Outside the test (switch off, not drawn,
-        // lookup error) nothing changes.
-        const v10 = user?.id ? await v10GroupFor(user.id).catch(() => null) : null;
-        if (v10) {
-          logToFile('v10 test: classroom recording analysed, app redirect skipped', { userId: user.id, group: v10.group });
-        }
-        if (user?.id && !v10 && await redirectIfFlagged('ai_coaching', {
+        // bd-onxyu — a classroom recording IS a coaching request. v10 test schools included (bd-uwpohl).
+        if (user?.id && await redirectIfFlagged('ai_coaching', {
           userId: user.id, from, language: await getUserLanguage(user.id), reason: 'classroom_audio',
         })) return;
 
