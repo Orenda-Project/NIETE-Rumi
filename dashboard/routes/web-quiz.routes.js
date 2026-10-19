@@ -350,6 +350,8 @@ function ogTextOf(payload, view, brand) {
   const q = (payload && payload.quiz) || {};
   const cls = (payload && payload.cls) || {};
   const ur = q.lang === 'ur';
+  // a video lesson's Urdu-script name (the bot's topic_ur, web_quiz_videos_ur_titles) in an Urdu preview
+  const topic = (ur && q.topic_ur) || q.topic || '';
   const label = cls.label || (ur ? 'جماعت' : 'Class');
   const n = q.n || (q.questions || []).length || 0;
   if (payload && payload.challenge && payload.art && payload.art.invite) {
@@ -358,8 +360,8 @@ function ogTextOf(payload, view, brand) {
     return {
       // Urdu: the imperative, never «آپ … سکتے ہیں» (masculine). A 0/N challenger is never a score to beat.
       title: !(Number(ch.correct) > 0)
-        ? (ur ? `${ch.first} نے آپ کو چیلنج کیا ہے · ${q.topic || ''}` : `${ch.first} challenged you · ${q.topic || ''}`)
-        : (ur ? `${ch.first} کے ${score} سے آگے نکلیں! · ${q.topic || ''}` : `Can you beat ${ch.first}'s ${score}? · ${q.topic || ''}`),
+        ? (ur ? `${ch.first} نے آپ کو چیلنج کیا ہے · ${topic}` : `${ch.first} challenged you · ${topic}`)
+        : (ur ? `${ch.first} کے ${score} سے آگے نکلیں! · ${topic}` : `Can you beat ${ch.first}'s ${score}? · ${topic}`),
       desc: ur ? 'وہی کوئز کھیلیں اور دیکھیں!' : 'Play the same quiz and see!',
     };
   }
@@ -372,19 +374,19 @@ function ogTextOf(payload, view, brand) {
   // A story has no league table: its class view (/q/<code>/class) previews as the story below.
   if (view === 'class' && !(payload && payload.story)) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کی لیگ ٹیبل` : `${q.topic || ''} · ${label} league table`,
+      title: ur ? `${topic} · ${label} کی لیگ ٹیبل` : `${topic} · ${label} league table`,
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }
   // A storybook the teacher sent (boot `story`, web_quiz_stories_teacher): a story to listen to and read, never "0 questions".
   if (payload && payload.story) {
     return {
-      title: ur ? `${q.topic || ''} · ${label} کے لیے کہانی` : `${q.topic || ''} · a story for ${cls.label || 'your class'}`,
+      title: ur ? `${topic} · ${label} کے لیے کہانی` : `${topic} · a story for ${cls.label || 'your class'}`,
       desc: ur ? `${brand.mascot.ur} کے ساتھ سنیں اور پڑھیں` : `Listen and read along with ${brand.mascot.en}`,
     };
   }
   return {
-    title: ur ? `${q.topic || ''} · ${label} کا کوئز` : `${q.topic || ''} · ${label} quiz`,
+    title: ur ? `${topic} · ${label} کا کوئز` : `${topic} · ${label} quiz`,
     desc: ur ? `${n} سوال · ${brand.mascot.ur} کے ساتھ پڑھیں` : `${n} questions · ${brand.mascot.en} reads it with you`,
   };
 }
@@ -566,7 +568,9 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plai
   const lang = plain ? plain.lang : ul === 'ur' || ul === 'en' ? ul : q.lang === 'ur' ? 'ur' : 'en';
   const dir = plainDir(lang);
   const brand = brandOf(payload && payload.brand);
-  const og = plain ? plainText(brand) : ogText(payload, view, brand);
+  // an English quiz served as an Urdu page with its video lesson's Urdu name (topic_ur): the head's words in Urdu too
+  const urHead = !plain && lang === 'ur' && q.lang !== 'ur' && q.topic_ur;
+  const og = plain ? plainText(brand) : ogText(urHead ? { ...payload, quiz: { ...q, lang: 'ur' } } : payload, view, brand);
   const boot = { ...payload, code, view, brand };
   payload = withLook(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });

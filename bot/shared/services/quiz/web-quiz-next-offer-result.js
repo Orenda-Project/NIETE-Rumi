@@ -62,6 +62,7 @@ async function snapshot({ studentId, device, lang: asked = null, watch = false, 
   out.last = parts.lastOf(history, canonical);
   if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
   if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
+  await parts.urRows(out, history); // web_quiz_videos_ur_titles: the lessons' Urdu names, as the hub's own rows
   if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${lang}` };
   // the recommended lesson, only where the tile can use it: a class-less child with the v3 home's watch-only player
   if (watch && !hasRootOf(history)) {
