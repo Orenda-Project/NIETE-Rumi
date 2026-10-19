@@ -90,7 +90,7 @@ describe('1. the point-set hold is a list: Q6 ← Q5, Q7 ← Q5 / Q6, Q6 ← Q6'
   const CH1 = paper('chapters_1');
   const CH2 = paper('chapters_2');
 
-  test('the fixtures are the pairs the local review named', () => {
+  test('the fixtures are the pairs gen-local named', () => {
     expect(items(CH1, D7)[7].answer).toContain('برقی توانائی');
     expect(items(CH1, C5)[8].scheme.points.map((p) => p.text).join(' ')).toContain('برقی توانائی');
     expect(items(CH2, D7)[6].answer).toContain('سلام');

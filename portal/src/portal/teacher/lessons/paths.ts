@@ -92,6 +92,19 @@ export type PlanRef = {
   subject?: string | null;
 };
 
+/**
+ * bd-fgj73x.10 — a plan link already built by openUrl, with the plan's subject name added (openUrl's `subject`). The
+ * Recent and All lesson plans rows add it this way, after the row is built, so their `to:` lines stay exactly as on
+ * `main` (the FLN link): a change beside those lines would conflict on every promotion.
+ */
+export function withSubject(url: string | undefined, subject: string | null | undefined): string | undefined {
+  if (!url || !subject) return url;
+  const [path, query = ''] = url.split('?');
+  const q = new URLSearchParams(query);
+  q.set('subject', subject);
+  return `${path}?${q.toString()}`;
+}
+
 export function openUrl(ref: PlanRef): string {
   const q = new URLSearchParams({ plan: ref.plan });
   if (ref.lang && ref.plan.startsWith('g612:')) q.set('lang', ref.lang);
