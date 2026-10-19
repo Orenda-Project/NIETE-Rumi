@@ -213,7 +213,12 @@ class ReportGeneratorService {
         session.conversation_state?.questions_answered || 0;
 
       // Send progress update (only on first attempt)
-      if (!isRetry) {
+      // bd-s7c31y: her own portal recording — the portal shows the progress, so no Step 4/5.
+      const portalTeacher = require('./portal-coaching.service').isPortalTeacherSession(session);
+      if (portalTeacher) {
+        logToFile('🔕 Step 4/5 not sent — a portal recording (the portal shows its progress)', { coachingSessionId });
+      }
+      if (!isRetry && !portalTeacher) {
         await WhatsAppService.sendMessage(from, getCoachingMessage('step4_generatingReport', _languageFromSession(session)));
       }
 
@@ -1642,7 +1647,10 @@ class ReportGeneratorService {
   static async generateAndSendVoiceDebrief(session, phoneNumber, coachingSessionId, enhancedAnalysis, track = null) {
     try {
       const lang = _languageFromSession(session);
-      await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step5_voiceDebrief', lang));
+      // bd-s7c31y: no Step 5/5 for her own portal recording — the voice note itself still goes.
+      if (!require('./portal-coaching.service').isPortalTeacherSession(session)) {
+        await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step5_voiceDebrief', lang));
+      }
 
       const outputLanguage = await CoachingHelpersService.determineOutputLanguage(
         session.user_id,

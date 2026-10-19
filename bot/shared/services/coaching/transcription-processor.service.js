@@ -125,7 +125,12 @@ class TranscriptionProcessorService {
       // bd-5rz1v.6.9 — not for a coach's PORTAL observation: the portal shows its
       // progress, and this teacher-worded step would land on the COACH's
       // WhatsApp with no later step ever following it there.
-      if (!require('./portal-coaching.service').isPortalObservation(session)) {
+      // bd-s7c31y — nor for a teacher's own PORTAL recording: the portal shows it too.
+      const portalStep1 = require('./portal-coaching.service');
+      if (portalStep1.isPortalTeacherSession(session)) {
+        logToFile('🔕 Step 1/5 not sent — a portal recording (the portal shows its progress)', { coachingSessionId });
+      }
+      if (!portalStep1.isPortalObservation(session) && !portalStep1.isPortalTeacherSession(session)) {
         await this.sendProgressUpdate(
           from,
           1,

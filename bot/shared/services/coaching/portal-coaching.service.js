@@ -137,6 +137,15 @@ function isPortalObservation(row) {
 }
 
 /**
+ * bd-s7c31y — a TEACHER's own recording made in the portal. The portal shows its
+ * progress, so its "Step N/5" messages stay off her WhatsApp; the report, the voice
+ * note and the buttons still go there. An observation is never one of these.
+ */
+function isPortalTeacherSession(row) {
+  return !!row && !row.observation_type && isPortalSession(row);
+}
+
+/**
  * The WhatsApp handlers route any message from a teacher with a session at
  * conducting_conversation into that session as her reflective answer. A portal
  * session's question was never shown on WhatsApp, so it must not capture her
@@ -583,6 +592,7 @@ module.exports = {
   PRESIGN_TTL_SECONDS,
   isPortalSession,
   isPortalObservation,
+  isPortalTeacherSession,
   isWhatsAppReflectiveSession,
   isOwnPortalKey,
   buildUploadKey,
