@@ -42,11 +42,20 @@
  * is one person in many places), so they are counted as distinct sets at each level. Counts
  * are never null. Coaches are staff, and from v7 their NAMES are shown (her Coaching tab, 1 to 1),
  * in regions[].coachNames only; no coach id and no teacher identity leaves the server.
+ *
+ * v8 (FDE feedback 2026-10-19: "use the RDF coach roster") — with opts.lists (dashboard/lib/analytics-lists):
+ *   school          also on FDE's programme list (when that list is usable): schools, visits and schools
+ *                   visited all follow it.
+ *   coaches         the RDF's declared ICT coach roster (analytics_rdf_coaches, from the RDF's alloc_real.json
+ *                   coachph2name / coachph2sector): one entry per roster NAME, in the roster's sector — its
+ *                   count, its names (coachNames) and its sectors, whatever leader_schools says. The overview
+ *                   counts the entries in scope. Visits are unchanged (any role-coach visit at a counted school).
+ *   The roster missing (null) keeps the v7 coaches above.
  */
 
 const {
   REGION_BUCKETS,
-  bucketOf,
+  countedSchoolBucket,
 } = require('./schools-analytics.service');
 
 const count = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -55,11 +64,11 @@ const count = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const nameOf = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '');
 const byName = (a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }) || (a < b ? -1 : a > b ? 1 : 0);
 
-/** The school's sector when it is counted (active, not a probable test, in the six), else null. */
-function countedBucket(s) {
-  if (!s || s.is_active !== true || s.is_probable_test === true) return null;
-  return bucketOf(s.region);
-}
+/**
+ * The school's sector when it is counted (active, not a probable test, in the six — and, v8, on FDE's
+ * list when that list is usable), else null.
+ */
+const countedBucket = (s, lists) => countedSchoolBucket(s, lists);
 
 // ── the pure summariser ──────────────────────────────────────────────────────
 
@@ -74,13 +83,15 @@ function countedBucket(s) {
 function summarizeCoachingAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
   const src = rows || {};
+  const lists = opts.lists || null;
+  const roster = lists && Array.isArray(lists.coaches) ? lists.coaches : null;
 
   const bucketBySchool = new Map();
   const regionAcc = new Map(REGION_BUCKETS.map((b) => [b, { coaches: new Map(), coachVisits: 0, schoolsVisited: 0, schools: 0 }]));
   const schools = [];
 
   for (const s of src.schools || []) {
-    const bucket = countedBucket(s);
+    const bucket = countedBucket(s, lists);
     if (!bucket) continue;
     bucketBySchool.set(s.id, bucket);
     const visits = count(s.coach_visits);
@@ -99,8 +110,17 @@ function summarizeCoachingAnalytics(rows = {}, opts = {}) {
   }
 
   // A coach is counted where her counted schools are; a pair naming any other school is out.
+  // v8: the roster instead — one entry per name, in its declared sector.
   const overviewCoaches = new Set();
-  for (const p of src.coachSchools || []) {
+  if (roster) {
+    roster.forEach((c, i) => {
+      const acc = regionAcc.get(c.sector);
+      if (!acc) return;
+      acc.coaches.set(`roster:${i}`, nameOf(c.name));
+      if (!filter || c.sector === filter) overviewCoaches.add(`roster:${i}`);
+    });
+  }
+  for (const p of roster ? [] : src.coachSchools || []) {
     if (!p || p.coach_id == null) continue;
     const bucket = bucketBySchool.get(p.school_id);
     if (!bucket) continue;

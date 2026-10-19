@@ -131,7 +131,7 @@ const SchoolsAnalytics = () => {
   );
 
   // Definitions only: they need no numbers, so they never wait for them.
-  if (tab === 'info') return frame(<InfoTab c={c} />);
+  if (tab === 'info') return frame(<InfoTab c={c} asOf={data?.basis?.asOf ?? null} />);
 
   if (status === 'forbidden') {
     return frame(

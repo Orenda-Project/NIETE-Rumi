@@ -42,13 +42,20 @@
  * The /analytics/schools averages (avgFico / avgHitl) stay pooled, unchanged.
  * No cycles (NIETE has none) and no TEACH / FLN counts (no source): omitted, not sent as 0.
  * No teacher identity leaves the server.
+ *
+ * v8 (FDE feedback 2026-10-19) — with opts.lists (dashboard/lib/analytics-lists), each list replacing its v7
+ * rule when usable: a school counts only on FDE's programme list; a session counts only for a teacher of the
+ * RDF populations (Primary ∪ 6-12, no test filter — the RDF's), on her school's row when that school is counted
+ * and in her RDF sector, else on her RDF sector's "No school" row (noSchool: true, schoolId 'no-school:<sector>',
+ * no EMIS or name; it adds to no `schools` count), so sectors still sum to the total.
  */
 
 const {
   REGION_BUCKETS,
-  bucketOf,
+  countedSchoolBucket,
   loadCountedSessions,
 } = require('./schools-analytics.service');
+const { populationSectors, noSchoolId } = require('../lib/analytics-lists');
 const { HUMAN_OBSERVATION, FICO_SECTIONS } = require('./steps-grid.service');
 
 const KINDS = Object.freeze({
@@ -123,28 +130,44 @@ function summarizeObservationsAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
   const src = rows || {};
 
-  // Counted schools only: active, not a probable test, in one of the six sectors.
+  const lists = opts.lists || null;
+  const population = populationSectors(lists);
+
+  // Counted schools only: active, not a probable test, in one of the six sectors (v8: on FDE's list).
   const bySchool = new Map();
   for (const s of src.schools || []) {
-    if (!s || s.is_active !== true || s.is_probable_test === true) continue;
-    const bucket = bucketOf(s.region);
+    const bucket = countedSchoolBucket(s, lists);
     if (!bucket) continue;
     bySchool.set(s.id, { school: s, bucket, acc: { dc: emptyAcc(), human: emptyAcc() } });
   }
+  const noSchool = new Map();
 
-  // A test teacher's session is out, and so is one at a school that is not counted.
+  // v7: a test teacher's session is out, and so is one at a school that is not counted.
+  // v8: a session counts for a population teacher only, on her school or her sector's No-school row.
   for (const s of src.sessions || []) {
-    if (!s || s.is_test === true) continue;
-    const entry = bySchool.get(s.school_id);
-    if (!entry) continue;
+    let entry;
+    if (population) {
+      if (!s || !population.has(s.user_id)) continue;
+      const sector = population.get(s.user_id);
+      entry = s.school_id != null ? bySchool.get(s.school_id) : null;
+      if (!entry || entry.bucket !== sector) {
+        if (!noSchool.has(sector)) noSchool.set(sector, { school: null, bucket: sector, noSchool: true, acc: { dc: emptyAcc(), human: emptyAcc() } });
+        entry = noSchool.get(sector);
+      }
+    } else {
+      if (!s || s.is_test === true) continue;
+      entry = bySchool.get(s.school_id);
+      if (!entry) continue;
+    }
     for (const [kind, is] of Object.entries(KINDS)) {
       if (is(s)) addSession(entry.acc[kind], s);
     }
   }
 
   const order = new Map(REGION_BUCKETS.map((b, i) => [b, i]));
-  const entries = [...bySchool.values()].sort((a, b) => (order.get(a.bucket) - order.get(b.bucket))
-    || String(a.school.name || '').localeCompare(String(b.school.name || '')));
+  const entries = [...bySchool.values(), ...noSchool.values()].sort((a, b) => (order.get(a.bucket) - order.get(b.bucket))
+    || (a.noSchool ? 1 : 0) - (b.noSchool ? 1 : 0)
+    || String((a.school && a.school.name) || '').localeCompare(String((b.school && b.school.name) || '')));
 
   const out = {};
   for (const kind of Object.keys(KINDS)) {
@@ -153,14 +176,18 @@ function summarizeObservationsAnalytics(rows = {}, opts = {}) {
     const schools = [];
     for (const e of entries) {
       const acc = e.acc[kind];
+      // A No-school row shows only where it has an observation of this kind; it is never a school.
+      if (e.noSchool && acc.observations === 0) continue;
       const r = regionAcc.get(e.bucket);
-      r.schools += 1;
+      if (!e.noSchool) r.schools += 1;
       mergeInto(r.acc, acc);
-      r.schoolAccs.push(acc);
+      if (!e.noSchool) r.schoolAccs.push(acc);
       if (filter && e.bucket !== filter) continue;
-      overview.schools += 1;
+      if (!e.noSchool) overview.schools += 1;
       mergeInto(overview.acc, acc);
-      schools.push({
+      schools.push(e.noSchool ? {
+        schoolId: noSchoolId(e.bucket), emis: null, name: null, noSchool: true, region: e.bucket, ...metrics(acc),
+      } : {
         schoolId: e.school.id,
         emis: e.school.emis == null ? null : String(e.school.emis),
         name: e.school.name,

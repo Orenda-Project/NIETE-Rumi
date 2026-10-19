@@ -175,7 +175,9 @@ describe('GET /analytics/coaching — the answer', () => {
     tableStates.app_settings = flag([VIEWER]);
     const { statusCode, payload } = await call('get', ROUTE, { userId: VIEWER, query: { from: '2026-10-01', to: '2026-10-13' } });
     expect(statusCode).toBe(200);
-    expect(Object.keys(payload).sort()).toEqual(['overview', 'range', 'regions', 'schools', 'success']);
+    expect(Object.keys(payload).sort()).toEqual(['basis', 'overview', 'range', 'regions', 'schools', 'success']);
+    // v8: `basis` says which rule each list follows; no app_settings list here → every one is the v7 rule.
+    expect(payload.basis).toEqual({ schools: 'all', teachers: 'roster', coaches: 'leader_schools', asOf: { schools: null, teachers: null, coaches: null } });
     expect(payload.success).toBe(true);
     expect(payload.range).toEqual({ from: '2026-10-01', to: '2026-10-13' });
     expect(Object.keys(payload.overview).sort()).toEqual(['coachVisits', 'coaches', 'schoolsVisited']);
