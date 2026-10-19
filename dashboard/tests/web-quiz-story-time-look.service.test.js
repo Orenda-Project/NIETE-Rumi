@@ -104,4 +104,11 @@ describe('the look\'s Story Time rules (the page\'s own style block)', () => {
     expect(SRC).toMatch(/html\.wq-adv \.wqc-land \.wqc-ohear:has\(\+\.wqc-opt\.wqc-reading\)\{[^}]*border-color:var\(--land-edge\)[^}]*animation:wqc-pulse[^}]*\}/);
     expect(SRC).toMatch(/@media \(prefers-reduced-motion:reduce\)\{html\.wq-adv \.wqc-land \.wqc-ohear:has\(\+\.wqc-opt\.wqc-reading\)\{animation:none\}\}/);
   });
+  test('the English intro stacks like the Urdu one: Jugnu above, a full-width bubble at the big size, its tail pointing up', () => {
+    const EN = 'html.wq-adv:not([lang=ur]) .wqc-land .wq-jug.wq-big';
+    expect(SRC).toContain(`'${EN}{flex-direction:column;align-items:center;flex-wrap:nowrap;gap:var(--sp-3,12px)}'`);
+    expect(SRC).toContain(`'${EN} .wq-jimg{width:112px;height:112px}'`);
+    expect(SRC).toContain(`'${EN} .wq-say{flex:0 0 auto;align-self:stretch;margin:0;max-width:100%;text-align:center;font-size:var(--fs-5,24px);line-height:1.3;padding:var(--sp-3,12px) var(--sp-5,24px)}'`);
+    expect(SRC).toContain(`'${EN} .wq-say::after{bottom:auto;top:-9px;inset-inline-start:calc(50% - 9px);border:9px solid transparent;border-bottom-color:var(--card);border-top:0}'`);
+  });
 });
