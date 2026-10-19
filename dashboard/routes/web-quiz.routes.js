@@ -910,7 +910,7 @@ ${p.tail}`;
 // whether ?lang= wins), so no words; the language and direction from ?lang= when it has one.
 // web_quiz_home_inline (`inline`: this edge learned it and the phone does not hold the files): the head carries the
 // stylesheets and scripts in place of their tags and preloads (web-quiz-home-inline.js); the tail runs them.
-function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false, waitHome = false, plain = false, linkLang = null, pack = null, inline = false, hasDevice = true }) {
+function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx = false, waitShare = false, waitHops = false, waitHome = false, plain = false, linkLang = null, pack = null, inline = false, hasDevice = true, heldCheck = false }) {
   const headRun = [];
   const advJs = `/wq/wq-adv.js?v=${advVersion()}`;
   const carry = inline ? {
@@ -930,7 +930,7 @@ function renderHubFlushTop({ lang, token, origin, assetV, brandKey, ui, waitUx =
   const home = waitUx && waitHome ? `${WaitUx.homeTag(token, p.lang, assetV)}\n` : '';
   // The home's next files and first reads, started from here (web-quiz-fast-hop.js): the head reads the hash on the phone.
   const inl = carried ? { headRun, carried: carried.hrefs } : null;
-  return { guess: { ...p, assetV, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}` };
+  return { guess: { ...p, assetV, headPack: Boolean(pack) && !carried, inline: inl, ...(first ? { early: true } : {}) }, html: `${p.head}\n${preload}${preload ? '\n' : ''}${Hop.head(assetV)}</head>\n<body>\n${p.frame}\n${home}${carried ? carried.html : ''}${!carried && heldCheck ? INLINE.check() : ''}` };
 }
 
 function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
@@ -1609,7 +1609,7 @@ function createWebQuizRouter(opts = {}) {
     // Fast first page: the head and the Jugnu frame now, the hub when the bot answers.
     // (never on a link-preview fetch: a crawler gets today's page)
     const flush = lastFast && req.query.nf !== '1' && !Preview.isPreviewFetch(req)
-      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops, waitHome: lastWaitHome, plain: lastPlain, linkLang: req.query.lang, pack: lastPack, inline: INLINE.wants(req, version()), hasDevice: Boolean(deviceCookie(req)) })
+      ? renderHubFlushTop({ lang: req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang, token, origin, assetV: version(), brandKey: lastBrand, ui: lastUi, waitUx: lastWaitUx, waitShare: lastWaitShare, waitHops: lastWaitHops, waitHome: lastWaitHome, plain: lastPlain, linkLang: req.query.lang, pack: lastPack, inline: INLINE.wants(req, version()), hasDevice: Boolean(deviceCookie(req)), heldCheck: INLINE.holds(req, version()) })
       : null;
     if (flush && lastPlain) firstHead('h', plainLang(req.query.lang) ? 'lang' : 'miss');
     const wire = flush ? flushWire(req, res, flush.html) : null;
