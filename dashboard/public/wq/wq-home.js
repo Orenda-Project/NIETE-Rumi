@@ -227,6 +227,22 @@
   function html(B, ctx) {
     return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + instHtml(B) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
   }
+  /* The child's first open, "Jugnu says hello" (web_quiz_child_welcome, the boot's `welcome`): wq-welcome.js, asked for
+   * after the home paints and shown over it (WQW.start). Absent `welcome`: nothing is asked for, the home is today's. */
+  function welcomeIn(root, B, ctx) {
+    var run = function () { if (window.WQW && root.getAttribute('data-m') === 'H3') window.WQW.start(root, B, ctx, { muted: muted }); };
+    if (window.WQW) return run();
+    loadOnce('wq-welcome', run);
+  }
+  // a Next tap before the welcome is up (the fast home can be tapped first): done, on this phone and on the server, so
+  // the welcome never comes late over the page the child already chose
+  function welcomeTap(B, ctx) {
+    if (window.WQW && window.WQW.up()) return;
+    var k = 'wq.welcome.' + B.kid;
+    try { var x = JSON.parse(localStorage.getItem(k) || 'null'); if (x && x.v === B.welcome.v && x.s) return; } catch (e) {}
+    try { localStorage.setItem(k, JSON.stringify({ s: 'done', v: B.welcome.v })); } catch (e) {}
+    try { fetch('/api/wq/welcome', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ hub: ctx.token, kid: B.kid, outcome: 'done' }), keepalive: true, credentials: 'same-origin' }).catch(function () {}); } catch (e) {}
+  }
   /* The first home after a child joins on their own (the boot's `remember`, which the bot sends once, to the phone that
    * joined): ONE line under the greeting, "Jugnu will remember you on this phone.", with ONE small Undo, for `s` (20)
    * seconds from its first paint; then it fades and this page never draws it again. Undo asks the existing
@@ -368,6 +384,7 @@
         var href = el.getAttribute('href') || '';
         // The coach's preview opens nothing that needs a child: one line says where the class opens it.
         if (B.practice && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
+        if (tap === 'next' && B.welcome) welcomeTap(B, ctx);
         if (tap === 'next') { ev('next_tap', rankOf(B, msToTap({ ctx: 'home', pos: 0, kind: el.getAttribute('data-kind') }, shownAt))); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }
         else if (tap === 'row') { e.preventDefault(); go(ctx, el.getAttribute('href'), 'door_' + el.getAttribute('data-kind')); }
@@ -379,6 +396,7 @@
         else if (tap === 'jugnu') { try { if (window.WQJ) { if (window.WQJ.giggle) window.WQJ.giggle(); if (window.WQJ.pop) window.WQJ.pop(el); } } catch (x) {} }
       });
     });
+    if (B.welcome && !B.practice && DOORS.indexOf(name) < 0) welcomeIn(root, B, ctx);
     var g = root.querySelector('[data-tap="grownups"]');
     if (g) hold(g, function () { grownups(root, B, ctx); }, B.one_button === true ? root.querySelector('[data-hold-hint]') : null);
     if (root.querySelector('#wqp-inst')) {
