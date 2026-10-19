@@ -2798,8 +2798,12 @@ router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('ref
  *
  * Her answer when the recording did not sound like a class: yes queues the analysis, no closes it.
  */
+// portal-class-check is required here, not through portal-coaching.service: it reads that service, so the
+// service requiring it back would be a cycle.
 router.post('/coaching/class-check', requireInternalKey, portalCoachingRoute('class-check',
-  (Svc, b) => Svc.answerClassCheck({ userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer })));
+  (_Svc, b) => require('../services/coaching/portal-class-check').answerClassCheck({
+    userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer,
+  })));
 
 /* ------------------------------------------------------------------------- *
  * bd-5rz1v.6 — a COACH's /observe observation, run from the portal.
