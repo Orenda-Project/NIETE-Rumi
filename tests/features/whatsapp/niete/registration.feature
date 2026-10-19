@@ -48,8 +48,15 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     Given the NIETE bot chat is open
     And I am a fresh (unregistered) test teacher
     When I complete the registration Flow (name, language, role, school, grades, subjects)
-    Then the bot replies with "Thank you for registering, <name>!"
+    And I tap "Finish" once
+    Then the Flow closes at once — no screen is left open and "Finish" never needs a second tap
+    And the bot replies with "Thank you for registering, <name>!"
     And the reply carries an "Open portal" button that opens the portal through the signed /go link
+    # The endpoint closes the Flow: its TEACHING reply is SUCCESS + extension_message_response.params
+    # (registration-endpoint.js handleTeachingSubmit), which WhatsApp turns into the nfm_reply that
+    # sends the welcome. Production 2026-10-19 (Flow v5): that reply carried no
+    # extension_message_response, the client never moved off TEACHING, four Finish taps did nothing
+    # and no welcome arrived — fixed in v5.1 (bd-x7aprz.9).
     # flow-response.handler.js sendRegistrationWelcome: ONE cta_url message to <portal>/go/<token>
     # (app-login-link.js, 24 h, her users.id). No portal URL or signing key → the same welcome, no
     # button. The 7-day /portal/setup/<token> link is no longer sent.

@@ -198,16 +198,20 @@ async function handleRegistrationInit(userId) {
   const user = await readUser(userId);
   const chosen = user && user.language_locked ? user.preferred_language : null;
 
-  // ONE first screen serves both published versions: v5 binds full_name + language, v4 (still
-  // live on staging/prod until each is republished) binds full_name + country. Meta ignores data
-  // a screen does not declare — production v4 has been receiving `languages` it never declared.
+  // The v5 first screen, exactly as it is declared: v4 is no longer published on any environment
+  // (staging and production took v5 on 2026-10-16 / 2026-10-19), so its countries and
+  // init_country are not sent — every key a reply carries is one the screen declares
+  // (tests/registration/bd-x7aprz9-finish-closes-flow.test.js).
+  return { screen: 'PERSONAL_INFO', data: v5PersonalInfoData(user, chosen) };
+}
+
+/** PERSONAL_INFO as v5 declares it: the language question, pre-selected, and her name if we have it. */
+function v5PersonalInfoData(user, chosenLanguage) {
+  const { languages, init_language } = personalInfoData(chosenLanguage);
   return {
-    screen: 'PERSONAL_INFO',
-    data: {
-      ...personalInfoData(chosen),
-      init_full_name: (user && typeof user.name === 'string' && user.name.trim()) || '',
-      init_country: 'PK',
-    }
+    languages,
+    init_language,
+    init_full_name: (user && typeof user.name === 'string' && user.name.trim()) || '',
   };
 }
 
@@ -574,10 +578,24 @@ async function handleRegistrationBack(userId, screen, flowToken) {
     };
   }
 
+  // v5 screens step back to the screen before them, with that screen's declared data.
+  // (The v5 Flow sets no refresh_on_back, so the client normally goes back on its own; this is
+  // the answer if a BACK ever reaches the endpoint.)
+  if (screen === 'ROLE_SCHOOL' || screen === 'SCHOOL_PICK' || screen === 'TEACHING') {
+    const stored = await getRegData(flowToken);
+    const user = await readUser(userId);
+    const language = await screenLanguage(stored, user);
+    if (screen === 'ROLE_SCHOOL') {
+      return { screen: 'PERSONAL_INFO', data: v5PersonalInfoData(user, language) };
+    }
+    if (screen === 'SCHOOL_PICK') return roleSchoolResponse(userId, user, language);
+    return schoolPickResponse(userId, user, language, stored.school_query || '');
+  }
+
   // Default: go to PERSONAL_INFO
   return {
     screen: 'PERSONAL_INFO',
-    data: personalInfoData()
+    data: v5PersonalInfoData(null, null)
   };
 }
 
@@ -751,11 +769,13 @@ async function handleRoleSchoolSubmit(userId, screenData, flowToken) {
   else if (screenData.role) logToFile('📝 registration: role not written', { userId, submitted: String(screenData.role).slice(0, 20), existing: user && user.role });
 
   const query = String(screenData.school_query || '').trim().slice(0, 80);
+  await storeRegData(flowToken, { ...stored, role: role || stored.role || null, school_query: query });
+  return schoolPickResponse(userId, user, language, query);
+}
+
+async function schoolPickResponse(userId, user, language, query) {
   const results = await searchSchools(query, { limit: SCHOOL_RESULTS });
   logToFile('🔎 registration: school search', { userId, query, results: results.length });
-
-  await storeRegData(flowToken, { ...stored, role: role || stored.role || null, school_query: query });
-
   const { none_option: noneOption, ...copy } = screenCopy('SCHOOL_PICK', language, { query, count: results.length });
   const schools = [...results.map(schoolOption), ...noneOption];
   const mine = user && user.school_id && results.some((s) => String(s.id) === String(user.school_id));
@@ -831,13 +851,20 @@ async function handleTeachingSubmit(userId, screenData, flowToken) {
     screen: 'SUCCESS',
     data: {
       ...screenCopy('SUCCESS', language, { name: fullName }),
-      // Flat, as every working completion in this repo is (roster-flow-v1 notes): the chat ack
-      // finds these on the nfm_reply and needs nothing else.
-      registration_action: 'complete',
-      flow_token: String(flowToken || ''),
-      full_name: fullName,
-      language,
-      school_linked: schoolLinked ? 'yes' : 'no',
+      // THIS is what closes the Flow (bd-x7aprz.9). An endpoint reply naming SUCCESS that carries
+      // extension_message_response makes WhatsApp close the Flow at once and send these params as
+      // the nfm_reply — the contract v4 completed on (whatsapp-flows rules 11 + 14). Without it the
+      // client is asked to RENDER the SUCCESS screen; production's v5 reply did that and the client
+      // never rendered it (2026-10-19, four Finish taps, no nfm_reply). Every param is a string.
+      extension_message_response: {
+        params: {
+          registration_action: 'complete',
+          flow_token: String(flowToken || ''),
+          full_name: String(fullName || ''),
+          language: String(language || ''),
+          school_linked: schoolLinked ? 'yes' : 'no',
+        },
+      },
     },
   };
   logToFile('📤 TEACHING → SUCCESS (v5)', { userId, grades: grades.length, subjects: subjects.length, schoolLinked });

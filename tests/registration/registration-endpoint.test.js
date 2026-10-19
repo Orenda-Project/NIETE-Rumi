@@ -43,16 +43,17 @@ describe('Registration Endpoint', () => {
   // INIT
   // -----------------------------------------------------------------------
   describe('handleRegistrationInit', () => {
-    it('returns PERSONAL_INFO screen with countries dropdown', async () => {
+    it('returns the v5 PERSONAL_INFO screen: the language question, no country (bd-x7aprz.9)', async () => {
+      // v4's country dropdown is no longer published anywhere; the v5 first screen declares
+      // languages + init_language + init_full_name and nothing else.
       const result = await handleRegistrationInit('user-123');
 
       expect(result.screen).toBe('PERSONAL_INFO');
-      expect(result.data.countries).toBeDefined();
-      expect(Array.isArray(result.data.countries)).toBe(true);
-      expect(result.data.countries.length).toBeGreaterThan(0);
-      // Each country should have {id, title}
-      expect(result.data.countries[0]).toHaveProperty('id');
-      expect(result.data.countries[0]).toHaveProperty('title');
+      expect(result.data.countries).toBeUndefined();
+      expect(Array.isArray(result.data.languages)).toBe(true);
+      expect(result.data.languages.length).toBeGreaterThan(0);
+      expect(result.data.languages[0]).toHaveProperty('id');
+      expect(result.data.languages[0]).toHaveProperty('title');
     });
 
     it('does not return regions on INIT (regions are on separate screen)', async () => {

@@ -36,6 +36,9 @@ const ORPHAN_JSON_ALLOWLIST = new Set([
   // points at. Kept for the same reason: the endpoint still serves those screens to any
   // environment whose published Flow has not been replaced yet.
   'registration-flow-v3.json',
+  // registration-flow-v5.json is SUPERSEDED by registration-flow-v5.1.json (bd-x7aprz.9: v5's final
+  // reply never closed the Flow). Kept as the record of what was published 2026-10-16/19.
+  'registration-flow-v5.json',
 ]);
 
 // *_FLOW_ID env vars the bot reads but for which NO Flow JSON ships yet, so they
