@@ -521,6 +521,11 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   } : null;
   const got = (key, start) => (pre ? pre[key] : start());
   if (pre) pre.boot = Fast.early(pre.idn.then((idn) => (idn ? identityBoot(ctx, idn) : null)));
+  // web_quiz_class_pic_early: the class picture's facts start now, with the code row resolved above and the class the
+  // identity works out (a resolution that failed or was not made: the facts resolve it themselves, as today)
+  const picP = pre && require('./web-quiz-hub-flags').nowOf('classPicEarly')
+    ? require('./web-quiz-class-pic').early(ctx, { classP: pre.idn.then((idn) => (idn && !idn.invited && idn.resolved !== NONE_CLASS ? idn.resolved : null), () => null) })
+    : null;
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
     quizRowP || dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
@@ -669,7 +674,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   };
   // The teacher's own class link previews as its class (web-quiz-class-pic.js; quiz_teacher_home, and the story send's
   // switch for a story): named only when on, so a switched-off payload is today's.
-  const teach = await require('./web-quiz-class-pic').field(ctx, { story });
+  const teach = await require('./web-quiz-class-pic').field(ctx, { story, ...(picP ? { factsP: picP } : {}) });
   if (teach) Object.assign(out.art, teach);
   // Whether the page sends its page-session events (wq-tel.js).
   out.rt = await got('rt', () => Tel.flag());
