@@ -45,7 +45,9 @@ describe('an English question on an Urdu page (the look on)', () => {
     expect(on).not.toContain('wq-qlat');
   });
   test('the look sets it in the Latin face at a Latin line height, beating the Urdu question rules', () => {
-    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-qtext\.wq-qlat,html\.wq-adv\.wq-ur2\[lang=ur\] \.wq-qtext\.wq-qlat\{[^}]*font-family:var\(--f\)[^}]*line-height:1\.3/);
+    // the plain page's rule sits above the Urdu polish block; the polish page's twin sits inside it, scoped like its neighbours
+    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-qtext\.wq-qlat\{[^}]*font-family:var\(--f\)[^}]*line-height:1\.3/);
+    expect(CSS).toMatch(/html\.wq-ur2\[lang=ur\]\.wq-adv \.wq-qtext\.wq-qlat\{[^}]*font-family:var\(--f\)[^}]*line-height:1\.3/);
   });
 });
 

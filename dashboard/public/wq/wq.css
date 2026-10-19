@@ -709,6 +709,16 @@ html.wq-1b .wq-btn--hold .wq-glab{position:relative;z-index:1}
    already uses it. Switch off: no class, the cascade untouched. */
 html.wq-uf[lang=ur]{--fu:"WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
+/* the one button system's back in a land head (wq-doors.js frame, the look's see-all): the Home circle with an arrow */
+html.wq-1b .wq-homebtn.wq-backbtn::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat}
+/* the grown-ups hold: the ring and its words sit in the pill's middle (an inset start of 6 px put the group 6 px off centre) */
+html.wq-1b .wq-btn--hold{padding-inline:12px}
+/* an Urdu page's wide word gap is for Nastaliq: a Latin run (an English book's title and its reader, an English label) keeps
+   its own gaps, and Urdu inside it gets the wide gap again */
+html.wq-1b[lang=ur] [lang=en]:not(.wq-input){word-spacing:normal}
+html.wq-1b[lang=ur] [lang=en] [lang=ur]{word-spacing:.2em}
+/* the adventure look on an Urdu page: an English question (wq.js latQ) in the Latin face at a Latin line height */
+html.wq-adv[lang=ur] .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
 /* ===== ur2 ===== the Urdu polish (app_settings web_quiz_ur_polish → <html lang="ur" class="wq-ur2">). Every rule below is scoped to
    html.wq-ur2[lang=ur]: switch off = the cascade above, untouched; English pages never match. ===== */
 @font-face{font-family:"WQ Nastaliq 2";src:url(fonts/wq-nastaliq-6.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021}
@@ -876,13 +886,5 @@ html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m 
 html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
 html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
-/* the one button system's back in a land head (wq-doors.js frame, the look's see-all): the Home circle with an arrow */
-html.wq-1b .wq-homebtn.wq-backbtn::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 5l-7 7 7 7v-4.5h11v-5H10z'/%3E%3C/svg%3E") center/contain no-repeat}
-/* the grown-ups hold: the ring and its words sit in the pill's middle (an inset start of 6 px put the group 6 px off centre) */
-html.wq-1b .wq-btn--hold{padding-inline:12px}
-/* an Urdu page's wide word gap is for Nastaliq: a Latin run (an English book's title and its reader, an English label) keeps
-   its own gaps, and Urdu inside it gets the wide gap again */
-html.wq-1b[lang=ur] [lang=en]:not(.wq-input){word-spacing:normal}
-html.wq-1b[lang=ur] [lang=en] [lang=ur]{word-spacing:.2em}
-/* the adventure look on an Urdu page: an English question (wq.js latQ) in the Latin face at a Latin line height */
-html.wq-adv[lang=ur] .wq-qtext.wq-qlat,html.wq-adv.wq-ur2[lang=ur] .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
+/* the adventure look's English question, over the polish's own .wq-qtext rule */
+html.wq-ur2[lang=ur].wq-adv .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
