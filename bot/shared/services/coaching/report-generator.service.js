@@ -448,6 +448,7 @@ class ReportGeneratorService {
       const captionLang = _languageFromSession(session);
       const extraLines = this._heroCaptionLines(session, { isAutoCompleted, isRetry, language: captionLang });
       let voiceStepAnnounced = false;
+      let followUps = true;
       if (isHeroImage) {
         const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
         for (const line of overflow) {
@@ -459,8 +460,11 @@ class ReportGeneratorService {
           reportResult.png,
           caption,
           session.users.name,
-          session.created_at
+          session.created_at,
+          { userId: session.user_id }
         );
+        // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
+        followUps = require('./report-window-send').followUpsAllowed(heroSent);
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
         if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       } else {
@@ -472,7 +476,7 @@ class ReportGeneratorService {
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)
-      if (!isRetry) {
+      if (!isRetry && followUps) {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, { stepAnnounced: voiceStepAnnounced });
       }
 
@@ -492,7 +496,7 @@ class ReportGeneratorService {
       // a prompt that did not go out gives the claim back.
       try {
         const { claimPiece, releasePiece } = require('./report-piece-once');
-        if (await claimPiece(coachingSessionId, 'survey')) {
+        if (followUps && await claimPiece(coachingSessionId, 'survey')) {
           const CoachingFeedbackService = require('./coaching-feedback.service');
           let surveySent = false;
           try {
@@ -1617,12 +1621,17 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
-  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null) {
+  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, { userId } = {}) {
     // Meta bill cut NC5 (N1-13): once per session. Returns false (no throw) when
     // this run is a duplicate; a failed send gives the claim back below so the
     // retry can still deliver the report.
     const { claimPiece, releasePiece } = require('./report-piece-once');
     if (!(await claimPiece(coachingSessionId, 'hero_report'))) return false;
+    // bd-v0toag.106 — outside her 24 h window a free-form image is refused (131047): send the share template.
+    const { sendReportByTemplateIfWindowClosed } = require('./report-window-send');
+    if (await sendReportByTemplateIfWindowClosed({ phone: phoneNumber, userId, sessionId: coachingSessionId }) === 'template') {
+      return 'template';
+    }
     let tempImagePath = null;
     try {
       // Ensure temp directory exists
