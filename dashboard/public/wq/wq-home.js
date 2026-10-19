@@ -137,8 +137,9 @@
     if (lookOn()) hi = hi.replace('السلام علیکم', 'السلام\u00a0علیکم');
     var hiH = esc(hi);
     // the look, in Urdu: one right-to-left greeting «السلام علیکم، <name>!», the name isolated so a Latin name keeps the comma in place
-    // (one inline run: the header is a flex column, so a bare <bdi> would be a line of its own)
-    if (lookOn() && !B.practice && me.first && langOf(ctx) === 'ur') hiH = '<span>' + esc('السلام\u00a0علیکم، ') + '<bdi>' + esc(me.first) + '</bdi>!</span>';
+    // (one inline run: the header is a flex column, so a bare <bdi> would be a line of its own; a long name and its "!"
+    // move to the second line as one piece, .wq-hn)
+    if (lookOn() && !B.practice && me.first && langOf(ctx) === 'ur') hiH = '<span>' + esc('السلام\u00a0علیکم، ') + '<span class="wq-hn"><bdi>' + esc(me.first) + '</bdi>!</span></span>';
     var jar = B.head && B.head.jar ? '<a class="wq-jar" href="#book" data-tap="jar" aria-label="' + esc(t.jar) + '">' + ICON.jar + (B.head.jar.fresh ? '<b class="wq-jarnew" aria-label="' + esc(t.jarNew) + '"></b>' : '') + '</a>' : '';
     return '<header class="wq-hhead"><img class="wq-hjug" data-tap="jugnu" data-sound="giggle" data-trigger="tap" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48">' +
       '<span class="wq-hhi">' + (whoOn(B) ? '<button class="wq-hname" type="button" data-tap="who">' + hiH + '</button>' : hiH) + dotsHtml(B, t) + '</span>' + jar +

@@ -17,11 +17,11 @@ describe('the Urdu Home greeting with the look', () => {
   test.each(['Zara', 'Noor Testwala', 'زارا'])('«السلام علیکم، <bdi>%s</bdi>!»: the greeting first, the name isolated', (first) => {
     const W = F.load({ globals: LOOK });
     const hi = hello(W.WQHOME.html(boot('ur', first), { token: F.TOKEN, lang: 'ur' }));
-    expect(hi).toBe('<span>السلام\u00a0علیکم، <bdi>' + first + '</bdi>!</span>');
+    expect(hi).toBe('<span>السلام\u00a0علیکم، <span class="wq-hn"><bdi>' + first + '</bdi>!</span></span>');
   });
   test('a name with markup in it is escaped inside the <bdi>', () => {
     const W = F.load({ globals: LOOK });
-    expect(hello(W.WQHOME.html(boot('ur', 'A<b>'), { token: F.TOKEN, lang: 'ur' }))).toBe('<span>السلام\u00a0علیکم، <bdi>A&lt;b&gt;</bdi>!</span>');
+    expect(hello(W.WQHOME.html(boot('ur', 'A<b>'), { token: F.TOKEN, lang: 'ur' }))).toBe('<span>السلام\u00a0علیکم، <span class="wq-hn"><bdi>A&lt;b&gt;</bdi>!</span></span>');
   });
   test('without the look, and in English: today\'s words', () => {
     expect(hello(F.load().WQHOME.html(boot('ur', 'Zara'), { token: F.TOKEN, lang: 'ur' }))).toBe('\u2068Zara\u2069، السلام علیکم!');
@@ -59,5 +59,9 @@ describe('the Urdu header has room for «السلام علیکم، Zara!» on on
     expect(css).toContain('html.wq-adv .wq-hhead{gap:var(--sp-3)}');
     expect(css).toContain('html.wq-adv[lang=ur] .wq-hhead{gap:var(--sp-2)}');
     expect(css.indexOf('html.wq-adv[lang=ur] .wq-hhead{gap')).toBeGreaterThan(css.indexOf('html.wq-adv .wq-hhead{gap'));
+  });
+  test('a long name moves to the second line whole, with its "!": one box (.wq-hn), never wider than the line', () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq-home.css'), 'utf8');
+    expect(css).toContain('html.wq-1b[lang=ur] .wq-hn{display:inline-block;max-width:100%}');
   });
 });

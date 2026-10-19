@@ -47,6 +47,7 @@ html.wq-1b[dir=rtl] .wq-ngo{transform:none}
 .wq-new{position:absolute;top:8px;inset-inline-end:10px;padding:1px 8px;border-radius:999px;background:var(--brand);color:#fff;font-style:normal;font-size:12px;font-weight:900}
 .wq-soon{padding:22px;border-radius:16px;background:var(--tint);color:var(--muted);text-align:center;font-weight:800}
 html[lang=ur] .wq-hhi,html[lang=ur] .wq-ntext b,html[lang=ur] .wq-door,html[lang=ur] .wq-row b,html[lang=ur] .wq-dtop h2{font-family:var(--fu);font-weight:400;line-height:1.9}
+html.wq-1b[lang=ur] .wq-hn{display:inline-block;max-width:100%}
 html[lang=ur] .wq-gstop,html[lang=ur] .wq-prstrip,html[lang=ur] .wq-ntext small,html[lang=ur] .wq-row small,html[lang=ur] .wq-dsay,html[lang=ur] .wq-soon,html[lang=ur] .wq-gbtn,html[lang=ur] .wq-new{font-family:var(--fu);font-weight:400;line-height:1.9;font-size:18px}
 html[lang=ur] .wq-door{font-size:17px}
 @media (prefers-reduced-motion:reduce){.wq-gbtn.held .wq-gfill{transition:none}.wq-next:active{transform:none}}
