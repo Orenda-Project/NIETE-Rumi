@@ -120,6 +120,28 @@ const scenarios = [
     await page.click('button[type="submit"]');
     return { landed: await landsOn(page, '/portal/dashboard') };
   } },
+  { id: 'PL14', title: "The analytics accounts' own sign-in asks for an account name and a password only, and a refused name stays on it", run: async (page, ctx) => {
+    await page.goto(ctx.baseUrl + '/portal/analytics/login', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 })
+      .catch(() => { throw new Error('no account name field on /portal/analytics/login (landed on ' + new URL(page.url()).pathname + ')'); });
+    expect(await page.locator('#password').count() === 1, 'no password field');
+    expect(await page.locator('#phoneNumber').count() === 0, 'the page has a phone field');
+    for (const gone of [/^send code$/i, /use password instead/i, /use a code instead/i, /use a name instead/i, /use phone number/i, /forgot password/i]) {
+      expect(await page.getByRole('button', { name: gone }).count() === 0, 'the page offers ' + gone);
+    }
+    expect(await page.locator('button[type="submit"]').count() === 1, 'not exactly one Log in button');
+    await page.fill('#accountName', 'no_such_account');
+    await page.fill('#password', 'not-a-password');
+    await page.click('button[type="submit"]');
+    const alert = page.getByRole('alert');
+    await alert.waitFor({ state: 'visible', timeout: 15000 }).catch(() => { throw new Error('no message after a refused name'); });
+    const msg = (await alert.innerText()).trim();
+    expect(msg === "Couldn't log in", 'message was "' + msg + '"');
+    await page.waitForTimeout(1500);   // a 401 handler that redirected would have moved her by now
+    const path = new URL(page.url()).pathname;
+    expect(path === '/portal/analytics/login', 'left the analytics sign-in for ' + path);
+    return { message: msg, path };
+  } },
 ];
 
 module.exports = { feature: 'portal-login', spec: 'tests/features/web/portal-login.feature', scenarios };

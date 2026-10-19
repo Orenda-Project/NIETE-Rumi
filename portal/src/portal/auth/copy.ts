@@ -1,6 +1,7 @@
 /**
  * bd-fmf24g.64 — the words of the four auth pages (login, forgot password, enter code, first-time setup), in English
- * and Urdu. Labels only (1-4 words, never a sentence): the operator-approved list from the v36_login-refresh design.
+ * and Urdu; and of the analytics accounts' own sign-in page (/portal/analytics/login), which reuses them. Labels only
+ * (1-4 words, never a sentence): the operator-approved list from the v36_login-refresh design.
  *
  * The Urdu is MACHINE-DRAFTED (some from the bot's own Urdu: لاگ اِن, فون نمبر) and waits for a native check, like the
  * rest of the v2 Urdu; registering COPY_ENTRY below (teacher/copyRegistry.ts) is what puts it in that queue and under
@@ -77,6 +78,10 @@ export const AUTH_EN = {
   // A short-lived notice for people a server change signed out (auth/SignedOutBanner, which ends it by date). A
   // sentence on purpose: the operator approved these exact words.
   signedOut: 'Signed out? Log in with a code on WhatsApp — no password needed.',
+  // The analytics accounts' own sign-in page (/portal/analytics/login): its title is the name of the page it opens
+  // (analytics/copy.ts frame.page), and one line under it says how to sign in. The verb is the page's "Log in".
+  analyticsTitle: 'Schools analytics',
+  analyticsSub: 'Log in with your account name',
 };
 
 export const AUTH_UR: Words<typeof AUTH_EN> = {
@@ -136,6 +141,9 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   alreadySetUp: 'پہلے سے سیٹ اپ',
   // The verb agrees with «لاگ ان», never with the reader: no gendered second-person form.
   signedOut: 'لاگ ان ختم ہو گیا؟ واٹس ایپ پر کوڈ سے لاگ ان کریں، پاس ورڈ کی ضرورت نہیں۔',
+  // «تجزیہ» is the ontology's Urdu for Analytics; the line under it reuses «اکاؤنٹ کا نام» and the button's «لاگ اِن».
+  analyticsTitle: 'اسکولوں کا تجزیہ',
+  analyticsSub: 'اپنے اکاؤنٹ کے نام سے لاگ اِن کریں',
 };
 
 export const AUTH = bilingual(AUTH_EN, AUTH_UR);
@@ -143,12 +151,13 @@ export type AuthWords = typeof AUTH_EN;
 export type AuthKey = keyof AuthWords;
 
 export const COPY_ENTRY: CopyEntry = {
-  screen: 'Login, forgot password, enter code and setup',
+  screen: 'Login, forgot password, enter code, setup and the analytics sign-in',
   module: AUTH as Bilingual<unknown>,
   // The brand, the mark's name and the number's shape read the same in both languages.
   same: ['brand', 'logoAlt', 'phoneHint'],
   // The ontology's own words for "it reached her WhatsApp" (واٹس ایپ پر بھیجا گیا is 5 words in Urdu), used word for word.
   // "Register on WhatsApp" is the same phrase shape in Urdu (واٹس ایپ پر رجسٹر کریں, 5 words): bd-x7aprz.3.
   // The signed-out notice is the one approved sentence on these pages, and it ends by date (auth/SignedOutBanner).
-  longOk: ['sentOnWhatsapp', 'registerOnWa', 'signedOut'],
+  // The analytics sign-in's subtitle is the one line the operator asked for under its title (6 words; 7 in Urdu).
+  longOk: ['sentOnWhatsapp', 'registerOnWa', 'signedOut', 'analyticsSub'],
 };
