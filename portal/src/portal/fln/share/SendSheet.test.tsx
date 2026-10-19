@@ -156,7 +156,14 @@ describe('SendSheet', () => {
     const footer = within(dialog).getByTestId('fln-send-footer');
     expect(dialog.lastElementChild).toBe(footer);
     expect(footer.className).toMatch(/\bsticky\b/);
-    expect(footer.className).toMatch(/\bbottom-0\b/);
+    // The panel pads its bottom by max(16px, safe-area); the footer cancels that padding so it meets the sheet's edge
+    // instead of floating above it with rows showing underneath.
+    const cls = footer.className.split(/\s+/);
+    const inset = 'max(16px,env(safe-area-inset-bottom))';
+    expect(cls).toContain(`bottom-[calc(-1*${inset})]`);
+    expect(cls).toContain(`-mb-[${inset}]`);
+    expect(cls).toContain(`pb-[${inset}]`);
+    expect(cls).not.toContain('bottom-0');
     const send = within(footer).getByRole('button', { name: 'Send' }) as HTMLButtonElement;
     expect(send.disabled).toBe(false);
     expect(within(footer).getByRole('status')).toBeTruthy();

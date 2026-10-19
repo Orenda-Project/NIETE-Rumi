@@ -68,10 +68,11 @@ export default function SendSheet({ plan, lang, onClose, onShareLink }: {
       ) : (
         <>
           <TeacherPicker lang={lang} selected={selected} onChange={setSelected} onState={setPicker} />
-          {/* Sticky inside the panel's scroll box, edge to edge, so Send stays in view however long the list is. */}
+          {/* Sticky inside the panel's scroll box, edge to edge, so Send stays in view however long the list is.
+              The negative bottom and margin cancel the panel's bottom padding so the footer meets the sheet's edge. */}
           <div
             data-testid="fln-send-footer"
-            className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-4 border-t border-[#e5e7eb] bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3"
+            className="sticky bottom-[calc(-1*max(16px,env(safe-area-inset-bottom)))] z-10 -mx-4 -mb-[max(16px,env(safe-area-inset-bottom))] flex flex-col gap-4 border-t border-[#e5e7eb] bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3"
           >
             <div role="status" aria-live="polite" className="flex flex-col gap-1 text-[16px] font-semibold">
               {out.kind === 'done' && out.sent > 0 ? (
