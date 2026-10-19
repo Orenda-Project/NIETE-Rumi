@@ -12,6 +12,8 @@ import type { Look } from './trainingLook';
  * Her % is Math.round(passed ÷ (passed + in progress + not started) × 100), 0 when there is nobody.
  */
 export interface LevelDefinition {
+  /** The programme's full NIETE name (and who delivers it), shown first. */
+  title?: string;
   short: string;
   full?: string;
   coverage?: ReadonlyArray<readonly [string, string]>;
@@ -102,6 +104,7 @@ function Definition({ c, look, definition }: { c: AnalyticsWords; look: Look; de
   const t = c.trainingLevels;
   return (
     <div data-testid="level-definition" className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      {definition.title ? <p data-testid="definition-title" className="text-xs font-semibold leading-relaxed text-gray-700">{definition.title}</p> : null}
       <p className="text-xs leading-relaxed text-gray-600">{definition.short}</p>
       {definition.full ? <p className="text-xs italic leading-relaxed text-gray-500">{definition.full}</p> : null}
       {definition.coverage && definition.coverage.length ? (
