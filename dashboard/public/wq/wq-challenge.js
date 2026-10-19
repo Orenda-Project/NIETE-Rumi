@@ -26,6 +26,8 @@
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
   function jv(u) { return window.wqjv ? window.wqjv(u) : u; } // a Jugnu picture with its version (the page's wqjv, web_quiz_brotli on), else as is
   var JUG = '/wq/jugnu/';
+  // Listen's speaker under the adventure look (drawn in currentColor: the land's edge)
+  var SPK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
 
   var T = {
     en: {
@@ -81,6 +83,7 @@
       qaStart: 'Answer questions about the story',
       qaShort: 'Answer questions',
       listenGo: 'Listen',
+      listenReplay: 'Replay',
       listenWrong: "The story won't play right now. Try another challenge.",
       qaRight: 'Yes!',
       qaWas: function (a) { return 'The answer was: ' + a; },
@@ -138,6 +141,7 @@
       qaStart: 'کہانی کے بارے میں سوال',
       qaShort: 'سوالوں کے جواب دیں',
       listenGo: 'سنیں',
+      listenReplay: 'دوبارہ سنیں',
       listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
       qaWas: function (a) { return 'جواب تھا: ' + a; },
@@ -229,6 +233,47 @@
         '.wqc-key{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;font-weight:700;color:var(--muted);margin:6px 0 0}',
         '.wqc-key i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-inline-end:5px}',
         '.wqc-ear{font-size:96px;text-align:center;margin:48px 0 0;animation:wqc-pulse 1.4s ease-in-out infinite}',
+        // the adventure look (html.wq-adv): the light screens (show(): .wqc-mid) sit in the middle with a bigger bubble,
+        // the trail's Next is a full-size tag, and Listen's play is Jugnu listening, a ring that fills and Replay
+        'html.wq-adv .wqc-mid{min-height:100dvh;box-sizing:border-box}',
+        'html.wq-adv .wqc-mid>:not(.wq-hometop):not(.wqc-banner):not(.wqc-sticky):first-child,html.wq-adv .wqc-mid>.wq-hometop+*,html.wq-adv .wqc-mid>.wqc-banner+*{margin-top:auto}',
+        'html.wq-adv .wqc-mid>:not(.wqc-sticky):last-child,html.wq-adv .wqc-mid>:not(.wqc-sticky):nth-last-child(2):has(+.wqc-sticky){margin-bottom:auto}',
+        'html.wq-adv .wqc-mid .wq-jug.wq-big{flex-direction:column;align-items:center;flex-wrap:nowrap;gap:var(--sp-3,12px)}',
+        'html.wq-adv .wqc-mid .wq-jug.wq-big .wq-say{flex:0 0 auto;margin:0;max-width:100%;text-align:center;font-size:var(--fs-5,24px);line-height:1.3;padding:var(--sp-3,12px) var(--sp-5,24px)}',
+        'html.wq-adv .wqc-mid .wq-jug.wq-big .wq-say::after{bottom:auto;top:-9px;inset-inline-start:calc(50% - 9px);border:9px solid transparent;border-bottom-color:var(--card);border-top:0}',
+        'html.wq-adv .wqc-mid .wqc-hear{align-self:center}',
+        'html.wq-adv[lang=ur] .wqc-mid .wq-jug.wq-big .wq-say{line-height:var(--lh,2);padding-inline:var(--sp-5,24px)}',
+        'html.wq-adv .wqc-mid .wqc-hear{font-size:var(--fs-3,17px);min-height:48px}',
+        'html.wq-adv .wqc-pill{font-size:var(--fs-2,15px);padding:var(--sp-1,4px) var(--sp-3,12px)}',
+        'html.wq-adv .wqc-pill.wqc-pnext{font-size:var(--fs-3,17px);font-weight:800;padding:var(--sp-1,4px) var(--sp-4,16px);background:var(--land);color:var(--land-on);box-shadow:0 3px 0 var(--land-edge)}',
+        'html.wq-adv[lang=ur] .wqc-pill{font-weight:700;line-height:1.8}',
+        'html.wq-adv .wqc-lst{display:flex;flex-direction:column;align-items:center;gap:var(--sp-4,16px);text-align:center}',
+        'html.wq-adv .wqc-lhero{position:relative;width:150px;height:150px}',
+        'html.wq-adv .wqc-lhero>img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 10px rgba(51,55,72,.22));animation:wqc-bob var(--dur-bob,1.6s) ease-in-out infinite alternate}',
+        'html.wq-adv .wqc-lhero>i{position:absolute;top:34px;inset-inline-end:-6px;width:34px;height:34px;border:4px solid transparent;border-inline-end-color:var(--land);border-radius:50%;opacity:0}',
+        'html.wq-adv .wqc-lhero>i+i{inset-inline-end:-20px;top:24px;width:54px;height:54px}',
+        'html.wq-adv .wqc-lhero.wqc-on>i{animation:wqc-wave 1.2s ease-out infinite}',
+        'html.wq-adv .wqc-lhero.wqc-on>i+i{animation-delay:.4s}',
+        'html.wq-adv .wqc-lst .wq-say{flex:0 0 auto;margin:0;max-width:100%;font-size:var(--fs-5,24px);line-height:1.3;padding:var(--sp-3,12px) var(--sp-5,24px)}',
+        'html.wq-adv[lang=ur] .wqc-lst .wq-say{line-height:var(--lh,2)}',
+        'html.wq-adv .wqc-lst .wq-say::after{bottom:auto;top:-9px;inset-inline-start:calc(50% - 9px);border:9px solid transparent;border-bottom-color:var(--card);border-top:0}',
+        'html.wq-adv .wqc-ltitle{margin:0;padding:var(--sp-2,8px) var(--sp-4,16px);border-radius:var(--r-chip);background:var(--land-bg);color:var(--land-edge);font-weight:800;font-size:var(--fs-3,17px)}',
+        'html.wq-adv[lang=ur] .wqc-ltitle{font-weight:400;line-height:var(--lh,2)}',
+        'html.wq-adv .wqc-lring{position:relative;width:168px;height:168px;display:grid;place-items:center}',
+        'html.wq-adv .wqc-lring>svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}',
+        'html.wq-adv .wqc-lring circle{fill:none;stroke-width:12}',
+        'html.wq-adv .wqc-lring .wqc-ltrack{stroke:var(--land-bg)}',
+        'html.wq-adv .wqc-lring .wqc-lfill{stroke:var(--land);stroke-linecap:round;transition:stroke-dashoffset .3s linear}',
+        'html[dir=rtl].wq-adv .wqc-lring>svg{transform:rotate(-90deg) scaleY(-1)}',
+        'html.wq-adv .wqc-lspk{width:104px;height:104px;border-radius:50%;display:grid;place-items:center;background:var(--card);color:var(--land-edge);box-shadow:var(--sh-card)}',
+        'html.wq-adv .wqc-lspk svg{width:52px;height:52px}',
+        'html.wq-adv .wqc-on~.wqc-lring .wqc-lspk,html.wq-adv .wqc-lring.wqc-on .wqc-lspk{animation:wqc-throb .9s ease-in-out infinite}',
+        'html.wq-adv .wqc-lof{margin:0;font-size:var(--fs-4,20px);font-weight:800;color:var(--land-edge)}',
+        'html.wq-adv[lang=ur] .wqc-lof{font-weight:400;line-height:var(--lh,2)}',
+        '@keyframes wqc-bob{to{transform:translateY(-10px)}}',
+        '@keyframes wqc-wave{0%{opacity:.9;transform:scale(.7)}100%{opacity:0;transform:scale(1.25)}}',
+        '@keyframes wqc-throb{50%{transform:scale(1.08);box-shadow:0 0 0 10px var(--land-bg),var(--sh-card)}}',
+        '@media (prefers-reduced-motion:reduce){html.wq-adv .wqc-lhero>img,html.wq-adv .wqc-lhero.wqc-on>i,html.wq-adv .wqc-lring .wqc-lspk{animation:none!important}html.wq-adv .wqc-lhero.wqc-on>i{opacity:.8}}',
                 '.wqc-opts{display:grid;gap:12px}',
         '.wqc-opt{min-height:64px;border-radius:18px;border:3px solid transparent;background:var(--card);box-shadow:0 4px 0 var(--line);font-size:20px;font-weight:800;color:var(--navy);cursor:pointer;font-family:inherit;padding:10px 14px;text-align:start}',
         'html[lang=ur] .wqc-opt{font-weight:700;line-height:1.9}',
@@ -430,6 +475,10 @@
   }
   // the adventure look (the menu's adv with <html class="wq-adv">, web_quiz_adventure_look) on a Story Time run: the
   // Games land header, the round Home and the banner's words on the land's colour, in place of the strip and the Home row
+  // the adventure look on any screen of this page (the edge's <html class="wq-adv">, web_quiz_adventure_look)
+  function advLook() { try { return document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
+  // the light screens (a line and one or two buttons): under the look they sit in the middle of the phone, not the top
+  var MID = { intro: 1, 'help-ask': 1, 'listen-play': 1, error: 1 };
   function storyLand() {
     try { return menuData.adv === true && document.documentElement.classList.contains('wq-adv') && !!TR && TR.isStory() && !!boot.token; } catch (e) { return false; }
   }
@@ -446,7 +495,8 @@
     // class round: the same warm line under every item, whatever the answer (only a round turn's payload carries it)
     var roundSay = S.data && S.data.round_say && /-play$/.test(name) ? '<p class="wqc-roundsay" id="wqc-roundsay">' + esc(S.data.round_say) + '</p>' : '';
     var land = name !== 'menu' && name !== 'trail' && storyLand();
-    root.innerHTML = '<section class="wq-screen wqc' + (land ? ' wqc-land' : '') + '" data-screen="' + name + '"' + (land ? ' data-land="games">' + landTop() : '>' + homeTop() + banner) + html + roundSay + '</section>';
+    var mid = !land && MID[name] === 1 && advLook();
+    root.innerHTML = '<section class="wq-screen wqc' + (land ? ' wqc-land' : '') + (mid ? ' wqc-mid' : '') + '" data-screen="' + name + '"' + (land ? ' data-land="games">' + landTop() : '>' + homeTop() + banner) + html + roundSay + '</section>';
     try { window.scrollTo(0, 0); } catch (e) {}
   }
 
@@ -601,8 +651,9 @@
     start: function () {
       var d = S.data;
       if (player) { try { player.pause(); } catch (e) {} player = null; }
-      show('listen-play', jug('thinking', d.clips.start.text, true) + '<p class="wqc-ear" aria-hidden="true">🔊</p>');
       var left = Math.max(1, d.read_times || 2);
+      var adv = advLook() && listen.adv(d, left);
+      if (!adv) show('listen-play', jug('thinking', d.clips.start.text, true) + '<p class="wqc-ear" aria-hidden="true">🔊</p>');
       var a = null;
       var over = false;
       var cap = null;
@@ -624,9 +675,11 @@
       try {
         a = new Audio(d.story_clip && d.story_clip.url);
         player = a;
+        if (adv) listen.wire(a, left);
         a.addEventListener('ended', function () {
           left -= 1;
           if (left <= 0) { finish(true); return; }
+          if (adv) listen.count(Math.max(1, d.read_times || 2) - left + 1);
           setTimeout(function () { try { a.currentTime = 0; var p2 = a.play(); if (p2 && p2.catch) p2.catch(function () { finish(true); }); } catch (e) { finish(true); } }, listen.WAIT_MS);
         });
         a.addEventListener('error', function () { finish(false); });
@@ -635,6 +688,76 @@
         // a WebView that never reports the end still reaches the questions
         cap = setTimeout(function () { finish(true); }, listen.CAP_MS);
       } catch (e) { finish(false); }
+    },
+    // ── under the look: Jugnu listening (bobbing, sound waves while it plays), the story's title when it has one, a
+    // ring that fills with this play, "1 of 2", the speaker pulsing with the sound, and one Replay (this play again
+    // from the top; never counted as a play) ──
+    R: 54,
+    n: 2,
+    adv: function (d, n) {
+      listen.n = n;
+      var c = (2 * Math.PI * listen.R).toFixed(2);
+      var ti = d.title && typeof d.title === 'object' ? (d.title[L] || d.title.en || '') : '';
+      show('listen-play', '<div class="wqc-lst">'
+        + '<div class="wqc-lhero" id="wqc-lhero"><img src="' + jv(JUG + 'thinking.webp') + '" alt="" width="150" height="150"><i aria-hidden="true"></i><i aria-hidden="true"></i></div>'
+        + '<div class="wq-say" id="wqc-say">' + esc(d.clips.start.text) + '</div>'
+        + (ti ? '<p class="wqc-ltitle" dir="auto">' + esc(ti) + '</p>' : '')
+        + '<div class="wqc-lring" id="wqc-lring" aria-hidden="true"><svg viewBox="0 0 120 120"><circle class="wqc-ltrack" cx="60" cy="60" r="' + listen.R + '"/>'
+        + '<circle class="wqc-lfill" id="wqc-lbar" cx="60" cy="60" r="' + listen.R + '" stroke-dasharray="' + c + '" stroke-dashoffset="' + c + '"/></svg>'
+        + '<span class="wqc-lspk">' + SPK_SVG + '</span></div>'
+        + '<p class="wqc-lof" id="wqc-lof" aria-live="polite">' + esc(listen.of(1)) + '</p></div>'
+        + '<div class="wqc-sticky"><button class="wq-btn wq-soft wqc-replay" id="wqc-replay" type="button">↻ ' + esc(t.listenReplay) + '</button></div>');
+      return true;
+    },
+    // "1 of 2": Urdu digits in Urdu (prose, no keypad on this screen)
+    of: function (k) {
+      if (L !== 'ur') return t.of(k, listen.n);
+      var u = function (x) { return String(x).replace(/[0-9]/g, function (g) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+g); }); };
+      return u(listen.n) + ' میں سے ' + u(k);
+    },
+    count: function (k) {
+      var o = q('wqc-lof');
+      if (o) o.textContent = listen.of(Math.min(k, listen.n));
+      listen.ring(0);
+    },
+    ring: function (f) {
+      var b = q('wqc-lbar');
+      if (b && b.style) b.style.strokeDashoffset = String(2 * Math.PI * listen.R * (1 - Math.max(0, Math.min(1, f))));
+    },
+    live: function (onNow) {
+      ['wqc-lhero', 'wqc-lring'].forEach(function (id) {
+        var el = q(id);
+        if (!el) return;
+        var c = String(el.className || '').replace(/\s*wqc-on\b/g, '');
+        el.className = onNow ? c + ' wqc-on' : c;
+      });
+    },
+    // the play's length: the clip's own, else (an Opus stream can say Infinity) a quiet second element that seeks to
+    // the end once to learn it (no play), else the first play's measured end
+    wire: function (a) {
+      var len = 0;
+      var dur = function () { return a.duration > 0 && isFinite(a.duration) ? a.duration : len; };
+      a.addEventListener('loadedmetadata', function () {
+        if (a.duration > 0 && isFinite(a.duration)) return;
+        try {
+          var pr = new Audio();
+          var got = function () { if (!len && pr.duration > 0 && isFinite(pr.duration)) { len = pr.duration; try { pr.removeAttribute('src'); pr.load(); } catch (e) { /* let it go */ } } };
+          pr.preload = 'metadata';
+          pr.muted = true;
+          pr.addEventListener('loadedmetadata', function () { if (isFinite(pr.duration)) got(); else { try { pr.currentTime = 1e101; } catch (e) { /* no seek */ } } });
+          pr.addEventListener('durationchange', got);
+          pr.src = a.src || (S.data && S.data.story_clip && S.data.story_clip.url) || '';
+        } catch (e) { /* the ring waits for the first end */ }
+      });
+      a.addEventListener('timeupdate', function () { var d = dur(); if (d > 0) listen.ring(a.currentTime / d); });
+      a.addEventListener('playing', function () { listen.live(true); });
+      a.addEventListener('pause', function () { listen.live(false); });
+      a.addEventListener('ended', function () { if (!len && a.currentTime > 0 && isFinite(a.currentTime)) len = a.currentTime; listen.ring(1); listen.live(false); });
+      on('wqc-replay', function () {
+        ev('listen', { replay: 1 });
+        try { a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* the play goes on */ }
+        listen.ring(0);
+      });
     },
   };
 
