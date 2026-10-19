@@ -476,7 +476,8 @@
   // the adventure look (the menu's adv with <html class="wq-adv">, web_quiz_adventure_look) on a Story Time run: the
   // Games land header, the round Home and the banner's words on the land's colour, in place of the strip and the Home row
   // the adventure look on any screen of this page (the edge's <html class="wq-adv">, web_quiz_adventure_look)
-  function advLook() { try { return document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
+  // the look is on only when the menu says so (the switch) AND the page wears it, as storyLand reads it
+  function advLook() { try { return !!menuData && menuData.adv === true && document.documentElement.classList.contains('wq-adv'); } catch (e) { return false; } }
   // the light screens (a line and one or two buttons): under the look they sit in the middle of the phone, not the top
   var MID = { intro: 1, 'help-ask': 1, 'listen-play': 1, error: 1 };
   function storyLand() {
