@@ -34,6 +34,8 @@
     // a tight box on the word: colour at once, the box slides 100 ms (JUICE §2); no glow, nothing drawn outside the box
     + '.wqra-pill{position:absolute;left:0;top:0;border-radius:8px;background:rgba(187,247,208,.3);'
     + 'box-shadow:inset 0 0 0 3px #15803D;opacity:0;pointer-events:none;transition:transform .1s ease,width .1s ease,height .1s ease}'
+    // a host that asks for it (data-ring: the storybook reader's polish setting) gets the ring round the word, off its letters
+    + '[data-ring] .wqra-pill{box-shadow:none;outline:3px solid #15803D;outline-offset:4px}'
     + '.wqra-hit{position:absolute;background:transparent;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}'
     + '.wqra-ctl{display:flex;justify-content:center;margin-top:10px}'
     + '.wqra-btn{width:64px;height:64px;border-radius:50%;border:0;background:#15803D;color:#fff;font-size:26px;line-height:64px;padding:0;cursor:pointer}'
