@@ -991,10 +991,25 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "lesson plan"
-    Then I get one message saying "Send Reading Hour and Numeracy lesson plans to your teachers." with an "Open lesson plans" button
+    Then I get one message saying "Send Reading Hour and Numeracy lesson plans to your teachers." with a "Send a plan" button
     And no lesson-plan menu opens
-    When I tap "Open lesson plans"
+    When I tap "Send a plan"
     Then the app opens on Send a lesson plan, signed in, without typing a password
+
+  @e2e @config-gated @P2
+  Scenario: A coach who names a topic keeps the WhatsApp lesson-plan path, switch on or off
+    Given the NIETE bot chat is open on a coach account
+    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
+    When I send "make me a lesson plan on photosynthesis for grade 7"
+    Then the bot answers on WhatsApp as before, not with the Send a plan button
+    # Only the plain doors (bare_command, chip, menu, menu_choice): the builder holds Reading Hour and Numeracy only.
+
+  @e2e @config-gated @P2
+  Scenario: With the leader switch on "coaches", a principal keeps the WhatsApp lesson-plan menu
+    Given the NIETE bot chat is open on a principal account
+    And lesson plans for leaders open in the app for coaches only (leader_app_lesson_plan is "coaches")
+    When I send "lesson plan"
+    Then the lesson-plan menu opens on WhatsApp, as before
 
   @e2e @config-gated @P2
   Scenario: With the leader switch off, a coach keeps the WhatsApp lesson-plan menu

@@ -193,6 +193,8 @@ const ACTIONS = [
   ['GET', /^\/lp612\/status\/[^/]+$/, 'lesson_plan.opened', 'lesson_plan', { lane: 'g612' }, isOpenHint],
   ['GET', /^\/fln\/plan\/\d+$/, 'lesson_plan.opened', 'lesson_plan', { lane: 'fln' }],
   ['POST', /^\/lp612\/request$/, 'lesson_plan.requested', 'lesson_plan', { lane: 'g612' }],
+  // bd-zcgpkx — a leader sent an FLN plan to their teachers: what a leader's lesson-plan journey is for.
+  ['POST', /^\/fln\/send$/, 'fln.sent', 'lesson_plan', { lane: 'fln_send' }],
   // The assessment generator: a paper asked for (it is written in the background), and one she edited.
   ['POST', /^\/assessment\/generate$/, 'paper.requested', 'assessment_generator', {}],
   ['POST', /^\/assessment\/edit\/[^/]+\/save$/, 'paper.edited', 'assessment_generator', {}],

@@ -23,7 +23,8 @@
  *      feature's page — no Play Store notice, no quiet hour. Anyone a "teachers"
  *      switch does not cover (a principal, a coach, a number that never
  *      registered, a child's handset, an account that cannot be read) keeps
- *      today's WhatsApp flow. "teachers" on a feature with no page is OFF.
+ *      today's WhatsApp flow — except a leader's lesson-plan request, which 2d
+ *      may send to the app. "teachers" on a feature with no page is OFF.
  *   2b. THE COACH APP LINK (bd-fmf24g.52), for /menu and /observe only (COACH_LINKS): a coach gets ONE message with a
  *      button that opens the COACH app signed in — /menu on coach Home, /observe on the coach app's Observe page —
  *      when ALL hold: users.role is coach; they are on the coach app (portal_coach_v2, the portal's rule: true or a
@@ -40,11 +41,15 @@
  *      /training, the chip, the menu row and openTrainingFlow — never /certificates or an exam/capstone button. Old
  *      code never reads the key, so a rollback reads it as OFF.
  *   2d. LEADER LESSON PLANS (bd-zcgpkx): a leader's lesson-plan request opens Send a lesson plan (the FLN builder,
- *      target `fln:send`) under its OWN switch, `leader_app_lesson_plan`: true (every leader) or a JSON list of
- *      users.id; no row, any other value, or a failed read is OFF. Only when users.role is in the leader family
- *      (observe-gate LEADER_ROLES) and FLN share is on for them (portal_fln_share: true or a list holding them) —
- *      the builder refuses anyone else. The operator, 19 Oct: "Send leaders straight into the app, the same as
- *      teachers", accepting that leaders lose the WhatsApp picker. Old code never reads the key: a rollback is OFF.
+ *      target `fln:send`) under its OWN switch, `leader_app_lesson_plan`: true (every leader), "coaches" (users.role
+ *      coach only — in ICT a principal also teaches, and the WhatsApp catalogue holds their own class's plans), or a
+ *      JSON list of users.id; no row, any other value, or a failed read is OFF. Only when users.role is in the leader
+ *      family (observe-gate LEADER_ROLES), FLN share is on for them (portal_fln_share: true or a list holding them —
+ *      the builder refuses anyone else), and they are not an analytics-only account (portal_analytics_only; the
+ *      portal sends those to analytics). Only from the plain "open lesson plans" doors (LEADER_LINK_DOORS): a leader
+ *      who names a topic keeps today's path, since the builder has only Reading Hour and Numeracy. The operator,
+ *      19 Oct: "Send leaders straight into the app, the same as teachers". Old code never reads the key: a rollback
+ *      is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -159,6 +164,10 @@ const TEACHER_APP_KEY = 'portal_teacher_v2';
 /** bd-zcgpkx — request → the FLN target a leader's link lands on (fln-go-target.js), behind LEADER_LP_KEY. */
 const LEADER_LINKS = Object.freeze({ lesson_plan: 'fln:send' });
 const LEADER_LP_KEY = 'leader_app_lesson_plan';
+/** The doors that mean "open lesson plans": typed "lesson plan", the chip, the menu row and its number. Not a topic. */
+const LEADER_LINK_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_choice']);
+/** dashboard/lib/feature-flags.js PORTAL_ANALYTICS_ONLY_KEY: a JSON list of users.id the portal routes to analytics. */
+const ANALYTICS_ONLY_KEY = 'portal_analytics_only';
 /** The builder's own gate (dashboard/lib/fln-access.js FLN_SHARE_KEY): a leader without it would land on a refusal. */
 const FLN_SHARE_KEY = 'portal_fln_share';
 
@@ -209,7 +218,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, FLN_SHARE_KEY]);
+        LEADER_LP_KEY, FLN_SHARE_KEY, ANALYTICS_ONLY_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -261,7 +270,7 @@ async function onTeacherApp(appValue, userId, account) {
  * Her users row is read only when the answer depends on it, so general_chat (every open message) never reads it.
  * `note.why` is filled with the reason when the answer is 'whatsapp' (the funnel's command row says why).
  */
-async function linkVerdict(feature, userId, now, note = {}) {
+async function linkVerdict(feature, userId, now, note = {}, sharedAccount = null) {
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
   if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return null;
@@ -271,7 +280,7 @@ async function linkVerdict(feature, userId, now, note = {}) {
   if (!pilot && !isTeachersValue(flag)) return null;
 
   let read = null;
-  const account = () => { if (!read) read = loadAccount(userId); return read; };
+  const account = sharedAccount || (() => { if (!read) read = loadAccount(userId); return read; });
   const app = values.get(TEACHER_APP_KEY);
   try {
     if (pilot) return (await onTeacherApp(app, userId, account)) ? 'link' : null;
@@ -332,27 +341,33 @@ function isLeaderRole(role) {
 }
 
 /**
- * bd-zcgpkx — the leader link: the FLN target to land on (LEADER_LINKS), or null for the next path. Asked only when
- * the switch covers them, so nobody pays a users read while it is off. Someone who is not a leader is not this link's
- * audience and goes on, unlogged, to the teacher link; a leader without FLN share, or an unreadable account, keeps
- * today's flow.
+ * bd-zcgpkx — the leader link: the FLN target to land on (LEADER_LINKS), or null for the next path. Asked only from
+ * LEADER_LINK_DOORS and only when the switch covers them, so nobody pays a users read while it is off. `account` is
+ * the caller's memoised users read, shared with the teacher link. Someone who is not a leader (or, on "coaches", not a
+ * coach) is not this link's audience and goes on, unlogged, to the teacher link; a leader without FLN share, an
+ * analytics-only account, or an unreadable account keeps today's flow.
  */
-async function leaderLink(feature, userId, now) {
+async function leaderLink(feature, userId, now, reason, account) {
   if (!Object.prototype.hasOwnProperty.call(LEADER_LINKS, feature)) return null;
+  if (!LEADER_LINK_DOORS.includes(reason)) return null;
   const values = await settingValues(now);
   const flag = values.get(LEADER_LP_KEY);
-  if (!isOn(flag) && !listHas(flag, userId)) return null;
+  const coachesOnly = isCoachesValue(flag);
+  if (!isOn(flag) && !coachesOnly && !listHas(flag, userId)) return null;
   let a;
   try {
-    a = await loadAccount(userId);
+    a = await account();
   } catch (err) {
     logToFile('⚠️ Leader app link: the account could not be read — the WhatsApp flow runs', { userId, feature, error: err?.message }, 'warn');
     return null;
   }
-  if (!a || !isLeaderRole(a.role)) return null;
+  if (!a || !isLeaderRole(a.role) || (coachesOnly && !isCoachRole(a.role))) return null;
+  let why = null;
   const share = values.get(FLN_SHARE_KEY);
-  if (!(isOn(share) || listHas(share, userId))) {
-    logToFile('↩️ Leader app link: not for this user — the WhatsApp flow runs', { userId, feature, why: 'fln_share_off' });
+  if (!(isOn(share) || listHas(share, userId))) why = 'fln_share_off';
+  else if (listHas(values.get(ANALYTICS_ONLY_KEY), userId)) why = 'analytics_only';
+  if (why) {
+    logToFile('↩️ Leader app link: not for this user — the WhatsApp flow runs', { userId, feature, why });
     return null;
   }
   return LEADER_LINKS[feature];
@@ -470,13 +485,16 @@ async function decideRedirect(feature, { userId, from, language, reason = 'unspe
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
       return sendAppLink(coach, { userId, from, language, reason, journey });
     }
-    const leader = await leaderLink(feature, userId, now);
+    // One users read for both questions (bd-zcgpkx): the leader link and the teacher link share it.
+    let read = null;
+    const account = () => { if (!read) read = loadAccount(userId); return read; };
+    const leader = await leaderLink(feature, userId, now, reason, account);
     if (leader) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
       return sendAppLink(leader, { userId, from, language, reason, journey });
     }
     const note = {};
-    const verdict = await linkVerdict(feature, userId, now, note);
+    const verdict = await linkVerdict(feature, userId, now, note, account);
     if (verdict === 'link') {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link' });
       return sendAppLink(feature, { userId, from, language, reason, journey });

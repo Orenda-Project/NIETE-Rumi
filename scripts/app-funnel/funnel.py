@@ -96,6 +96,11 @@ def build(raw_rows):
             orphans += 1
             continue
         feature = cmd.get('feature') or 'unknown'
+        # bd-zcgpkx: a coach's or a leader's journey is its own funnel (`lesson_plan@leader`), never mixed into the
+        # teachers' — it lands on a different page and acts differently. A teacher's (no audience) keeps the bare name.
+        audience = cmd.get('audience')
+        if audience and audience != 'teacher':
+            feature = f'{feature}@{audience}'
         f = by_feature.setdefault(feature, {
             'counts': Counter(), 'kept': Counter(), 'failed': Counter(), 'doors': Counter(), 'actions': Counter(),
             'open_outcomes': Counter(), 'last': Counter(), 'dwell': defaultdict(list), 'sent_not_opened': 0,
@@ -243,7 +248,7 @@ def main(argv=None):
         return 1
     if a.journey:
         for r in (flat(x) for x in rows):
-            keep = {k: r[k] for k in ('_time', 'event', 'feature', 'door', 'verdict', 'why', 'via', 'reason', 'outcome', 'route', 'prevRoute', 'dwellMs', 'how', 'action', 'browser', 'entry') if k in r}
+            keep = {k: r[k] for k in ('_time', 'event', 'feature', 'audience', 'door', 'verdict', 'why', 'via', 'reason', 'outcome', 'route', 'prevRoute', 'dwellMs', 'how', 'action', 'browser', 'entry') if k in r}
             print(json.dumps(keep, ensure_ascii=False))
         return 0
     if len(rows) >= ROW_LIMIT:

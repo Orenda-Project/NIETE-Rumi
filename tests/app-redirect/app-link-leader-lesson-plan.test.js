@@ -36,6 +36,7 @@ function mockFrom(table) {
     },
     maybeSingle: () => {
       if (table === 'users') {
+        mockState.userReads += 1;
         if (mockState.usersError) return Promise.resolve({ data: null, error: { message: 'boom' } });
         return Promise.resolve({ data: mockState.users[filters.id] || null, error: null });
       }
@@ -62,7 +63,7 @@ beforeEach(() => {
   // Production today: the teacher link is on for every teacher, FLN share is on for everyone.
   mockState = {
     settings: [{ key: 'app_redirect_lesson_plan', value: 'teachers' }, { key: 'portal_fln_share', value: true }],
-    users: { [ME]: row('coach') }, usersError: false, settingsError: false, upserts: 0,
+    users: { [ME]: row('coach') }, usersError: false, settingsError: false, upserts: 0, userReads: 0,
   };
   process.env = { ...ENV, INTERNAL_API_KEY: 'test-internal-key', PORTAL_URL: PORTAL, SUPABASE_URL: SUPA };
   svc = require('../../bot/shared/services/app-redirect.service');
@@ -100,10 +101,31 @@ describe('a leader asks for lesson plans with the switch on', () => {
       expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('fln:send');
     });
 
-  test.each(['command', 'chip', 'menu', 'intent', 'bare_command'])('door %p reaches it, as every door does for a teacher', async (reason) => {
+  // The plain "open lesson plans" doors only. A leader who names a topic keeps today's path: the builder has only
+  // Reading Hour and Numeracy, so "photosynthesis, grade 7" would land on a page without it (red team, PR #3069).
+  test.each(['bare_command', 'chip', 'menu', 'menu_choice'])('plain door %p reaches it', async (reason) => {
     set('leader_app_lesson_plan', true);
     expect(await ask({ reason })).toBe(true);
     expect(mockCta).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['lesson_plan_intent', 'voice_lesson_plan_intent', 'voice_intent', 'cutover_inflight_gamma', 'command'])(
+    'door %p (a named topic, or not an open-the-plans door) keeps today\'s path', async (reason) => {
+      set('leader_app_lesson_plan', true);
+      expect(await ask({ reason })).toBe(false);
+      expect(mockCta).not.toHaveBeenCalled();
+    });
+
+  test('"coaches" covers coaches only: a coach gets the link, a principal keeps the WhatsApp menu', async () => {
+    set('leader_app_lesson_plan', 'coaches');
+    expect(await ask()).toBe(true);
+    expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('fln:send');
+
+    mockCta.mockClear();
+    svc._resetForTests();
+    mockState.users[ME] = row('principal');
+    expect(await ask()).toBe(false);
+    expect(mockCta).not.toHaveBeenCalled();
   });
 
   test('the funnel rows say audience: leader, the request lesson_plan, verdict link — and never the token', async () => {
@@ -120,14 +142,15 @@ describe('a leader asks for lesson plans with the switch on', () => {
 
 describe('the words', () => {
   const codePoints = (s) => [...String(s)].length;
-  test.each(['en', 'ur'])('%s: its own line and button, the button within 20 code points, nothing about signing in', async (language) => {
+  const SIGNED_IN = /sign(ed)?[\s-]*in|لاگ\s*اِ?ن|پہلے سے/i; // as tests/app-redirect/app-link-copy.test.js
+  test.each(['en', 'ur'])('%s: its own line and button, the button within 15 code points (the repo\'s headroom under 20), nothing about signing in', async (language) => {
     set('leader_app_lesson_plan', true);
     await ask({ language });
     const { body, buttonText } = mockCta.mock.calls[0][1];
     expect(body).toBeTruthy();
     expect(buttonText).toBeTruthy();
-    expect(codePoints(buttonText)).toBeLessThanOrEqual(20);
-    expect(`${body} ${buttonText}`).not.toMatch(/sign(ed)?[\s-]*in|لاگ\s*اِ?ن/i);
+    expect(codePoints(buttonText)).toBeLessThanOrEqual(15);
+    expect(`${body} ${buttonText}`).not.toMatch(SIGNED_IN);
     // Not the teacher's line: a leader is sent to plans for their teachers, not "your lesson plans".
     expect(body).not.toBe(language === 'en' ? 'Open your lesson plans.' : 'اپنے لیسن پلان کھولیں۔');
   });
@@ -153,6 +176,22 @@ describe('everyone the switch does not cover keeps today\'s path', () => {
     expect(await ask()).toBe(false);
     expect(mockCta).not.toHaveBeenCalled();
     expect(logger.logToFile).toHaveBeenCalledWith(expect.stringMatching(/Leader app link: not for this user/), expect.objectContaining({ why: 'fln_share_off' }));
+  });
+
+  test('an analytics-only leader keeps today\'s path (the portal sends them to analytics, not the builder)', async () => {
+    set('leader_app_lesson_plan', true);
+    set('portal_analytics_only', [ME]);
+    expect(await ask()).toBe(false);
+    expect(mockCta).not.toHaveBeenCalled();
+    expect(logger.logToFile).toHaveBeenCalledWith(expect.stringMatching(/Leader app link: not for this user/), expect.objectContaining({ why: 'analytics_only' }));
+  });
+
+  test('a teacher\'s ask with the leader switch on reads the users row once, not twice', async () => {
+    set('leader_app_lesson_plan', true);
+    set('portal_teacher_v2', 'teachers');
+    mockState.users[ME] = row('teacher');
+    expect(await ask()).toBe(true);
+    expect(mockState.userReads).toBe(1);
   });
 
   test('a failed switch read: today\'s Flow, never silence', async () => {
