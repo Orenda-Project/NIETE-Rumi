@@ -64,7 +64,9 @@ async function answer() {
   return { learn: true, fast, brand, rt: rt === true, ...(ui ? { ui } : {}), one_face: oneFace === true, wait_ux: waitUx, wait_share: waitUx && f.fanout === true, wait_hops: waitUx && f.hops === true, wait_home: waitUx && f.home === true, plain_paint: fast === true && f.plainPaint === true, closed_lang: f.closedLang === true, busy_page: f.busyPage === true, busy_retry: f.busyPage === true && f.busyRetry === true, ...warm,
     // the Home's first open in one response and the early unlock (same read): named only when on, so a fresh portal's
     // first new phone gets them too (absent: the portal keeps what it had)
-    ...(f.homeInline === true ? { home_inline: true } : {}), ...(f.earlyUnlock === true ? { early_unlock: true } : {}) };
+    ...(f.homeInline === true ? { home_inline: true } : {}), ...(f.earlyUnlock === true ? { early_unlock: true } : {}),
+    // the minified files (web_quiz_minify, same read): named only when on, so a fresh portal's first page names the m copies
+    ...(f.minify === true ? { min: true } : {}) };
 }
 
 /** The hub answer (or its promise) with `edge_learn: true` added while on; the same answer, untouched, while off. */

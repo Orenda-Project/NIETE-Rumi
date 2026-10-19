@@ -1281,6 +1281,8 @@ function createWebQuizRouter(opts = {}) {
     // web_quiz_home_inline / web_quiz_early_unlock: known on before any page (absent: kept as they were)
     if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline);
     if (typeof b.early_unlock === 'boolean') EarlyUnlock.learn({ early_unlock: b.early_unlock, locked: true, kids: [] });
+    // web_quiz_minify: known on before any page, so the first page after a deploy names the m copies (absent: kept as it was)
+    if (b.min === true) lastMin = true;
     lastFast = b.fast === true;
   };
   const edge = (opts.edgeLearn != null ? opts.edgeLearn : !opts.fetchImpl && !process.env.JEST_WORKER_ID) && botUrl && apiKey
