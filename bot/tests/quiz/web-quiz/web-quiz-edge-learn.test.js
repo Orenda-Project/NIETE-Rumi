@@ -110,6 +110,16 @@ describe('GET /api/internal/wq/edge', () => {
     expect(['home_inline' in off, 'early_unlock' in off]).toEqual([false, false]);
   });
 
+  test('(e) on with web_quiz_minify: min true (a fresh portal\'s first page names the minified files); off: no min field', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_minify: true };
+    await warmPageSwitches();
+    expect((await ask()).body.min).toBe(true);
+    supabase.__state.rows = { [KEY]: true, web_quiz_minify: false };
+    resetAll();
+    await warmPageSwitches();
+    expect('min' in (await ask()).body).toBe(false);
+  });
+
   test('(e) on with every page switch off: no ui; one_face, wait_ux, wait_share, wait_hops, wait_home and busy_page say false (off is said, never left out)', async () => {
     supabase.__state.rows = { [KEY]: true };
     await warmPageSwitches();
