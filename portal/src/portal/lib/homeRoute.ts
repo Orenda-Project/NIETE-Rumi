@@ -11,6 +11,13 @@ import { SCHOOLS_PATH, isSchoolsTab } from '../analytics/tabs';
  */
 export const ANALYTICS_HOME = SCHOOLS_PATH;
 
+/**
+ * The analytics accounts' own sign-in page: an account name and a password, nothing of the teacher sign-in. A
+ * signed-out page like /portal/login (below, and the API client's 401 handler), and not under the analytics page, so
+ * nobody signed in is turned away from it by the guard: the page itself sends a signed-in visitor to their home.
+ */
+export const ANALYTICS_LOGIN = '/portal/analytics/login';
+
 export interface HomeUserLike extends RoleUserLike {
   analyticsOnly?: boolean | null;
 }
@@ -26,15 +33,17 @@ export function homeFor(user?: HomeUserLike | null): string {
 }
 
 /**
- * Pages an analytics-only account may still open: the signed-out pages. Sign-in and the setup link (how the account
- * is first opened), password reset, the privacy policy, and Google Play's account-deletion page. Each one works for
- * a signed-out visitor and shows nothing of a teacher's or a leader's portal.
+ * Pages an analytics-only account may still open: the signed-out pages. Sign-in (the teacher one and its own,
+ * ANALYTICS_LOGIN) and the setup link (how the account is first opened), password reset, the privacy policy, and
+ * Google Play's account-deletion page. Each one works for a signed-out visitor and shows nothing of a teacher's or a
+ * leader's portal.
  *
  * NOT /portal/account: the page itself is neutral, but it stands in the teacher/leader frame (their menu), so for
  * this account it would be a door back into pages it cannot use. Log out is on the analytics page itself.
  */
 const OPEN_TO_ANALYTICS_ONLY = [
   /^\/portal\/login\/?$/,
+  /^\/portal\/analytics\/login\/?$/,
   /^\/portal\/setup\//,
   /^\/portal\/reset-password(\/|$)/,
   /^\/portal\/privacy\/?$/,
