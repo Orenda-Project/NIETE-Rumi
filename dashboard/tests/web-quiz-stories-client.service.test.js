@@ -3639,3 +3639,37 @@ describe('the page at rest: the whole sheet (its art) plus a lens of its words a
     expect(onScreen(k, tb)).toBe(true);
   });
 });
+
+describe('the reader polish setting (web_quiz_stories_polish: the book says pl)', () => {
+  const page = (e, h0) => { const html = { lang: h0[0], dir: h0[1] }; e.win.document = { documentElement: html }; return html; };
+  const leave = (e) => { e.win.location.hash = ''; e.S.route(e.ctx()); };
+  test('on: while a book is open <html> carries its language and direction (screen readers, the Urdu face) and the reader says data-ring; leaving gives <html> back', async () => {
+    for (const [lang, dir, h0] of [['ur', 'rtl', ['en', 'ltr']], ['en', 'ltr', ['ur', 'rtl']]]) {
+      const e = env({ replies: { book: { status: 200, body: book({ lang, dir, pl: 1 }) } } });
+      const html = page(e, h0);
+      const root = await openReader(e, { lang: h0[0] });
+      expect([lang, html.lang, html.dir, root.getAttribute('data-ring')]).toEqual([lang, lang, dir, '']);
+      leave(e);
+      expect([lang, html.lang, html.dir, root.getAttribute('data-ring')]).toEqual([lang, h0[0], h0[1], null]);
+    }
+  });
+  test('off (no pl on the book): <html> untouched, no data-ring, and the page byte-identical to a book that says pl', async () => {
+    for (const lang of ['en', 'ur']) {
+      const dir = lang === 'ur' ? 'rtl' : 'ltr';
+      const off = env({ replies: { book: { status: 200, body: book({ lang, dir }) } } });
+      const html = page(off, ['en', 'ltr']);
+      const ro = await openReader(off, { lang: 'en' });
+      expect([html.lang, html.dir, ro.getAttribute('data-ring')]).toEqual(['en', 'ltr', null]);
+      const on = env({ replies: { book: { status: 200, body: book({ lang, dir, pl: 1 }) } } });
+      page(on, ['en', 'ltr']);
+      const rn = await openReader(on, { lang: 'en' });
+      expect(ro.innerHTML).toBe(rn.innerHTML);
+    }
+  });
+  test('the word ring is drawn round the word, never on its letters, only under data-ring', () => {
+    // the player's pill (its own style, keyed on the host's data-ring) and our own mark (lens / sweep) alike
+    const ra = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-readalong.js'), 'utf8');
+    expect(ra).toMatch(/\[data-ring\] \.wqra-pill\{[^}]*box-shadow:none[^}]*outline:[^}]*outline-offset:[1-9]/);
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\[data-ring\] \.wqs-mk\{[^}]*box-shadow:none[^}]*outline:[^}]*outline-offset:[1-9]/);
+  });
+});
