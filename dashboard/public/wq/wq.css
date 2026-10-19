@@ -724,6 +724,8 @@ html.wq-1b .wq-2nd .wq-chip{white-space:nowrap}
 html.wq-adv[lang=ur] .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
 /* the adventure look on an Urdu page: an English line in Jugnu's bubble (wq.js latDir: the lead, the why) in the Latin face and line height */
 html.wq-adv[lang=ur] .wq-fb [dir=ltr]{font-family:var(--f);line-height:1.4;text-align:left}
+/* ...and an English answer option: the Latin face at a Latin line height, the same for short and long labels */
+html.wq-adv[lang=ur] .wq-opt .wq-lab[dir=ltr]{font-family:var(--f);line-height:1.35}
 /* the adventure look on an Urdu quiz door: an English quiz title (wq.js latDir) in the Latin face, left to right */
 html.wq-adv[lang=ur] .wq-card h1[dir=ltr]{font-family:var(--f);font-weight:800;line-height:1.25;text-align:left}
 /* ===== ur2 ===== the Urdu polish (app_settings web_quiz_ur_polish → <html lang="ur" class="wq-ur2">). Every rule below is scoped to
