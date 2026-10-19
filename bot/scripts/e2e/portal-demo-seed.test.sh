@@ -34,12 +34,13 @@ bash "$LDB" demo-seed "$(dirname "$tmp")/nowhere" >/dev/null 2>&1; t "exit code"
 
 echo "AC1 people"
 bash "$LDB" demo-seed "$tmp" >"$tmp/seed.out" 2>&1; t "demo-seed exit" "$?" "0"
-t "schools"   "$(q $db "select count(*) from schools where emis like 'DEMO-%'")" "3"
-t "teachers"  "$(q $db "select count(*) from users where $D and role='teacher'")" "9"
+# 3 demo schools + the league's ghost school (DEMO-004, one teacher, no classes: web-quiz-child-page WQ066)
+t "schools"   "$(q $db "select count(*) from schools where emis like 'DEMO-%'")" "4"
+t "teachers"  "$(q $db "select count(*) from users where $D and role='teacher'")" "10"
 t "coach"     "$(q $db "select count(*) from users where $D and role='coach'")" "1"
 t "principal" "$(q $db "select count(*) from users where $D and role='principal'")" "1"
 t "all can log in" "$(q $db "select count(*) from users where $D and portal_activated and portal_password_hash like '\$2%'")" "11"
-t "teachers have a school" "$(q $db "select count(*) from users where $D and role='teacher' and school_id is not null")" "9"
+t "teachers have a school" "$(q $db "select count(*) from users where $D and role='teacher' and school_id is not null")" "10"
 t "coach covers 3 schools" "$(q $db "select count(*) from leader_schools ls join users u on u.id=ls.leader_user_id where u.$D")" "3"
 
 echo "AC2 activity"
@@ -51,6 +52,7 @@ t "scored sessions" "$(per_teacher "select 1 from coaching_sessions c where c.us
 t "training"       "$(per_teacher "select 1 from teacher_training_assignments a join teacher_training_progress p on p.user_id=a.user_id where a.user_id=u.id and a.is_active")" "9"
 t "upcoming visits" "$(q $db "select (count(*)>=3)::text from observation_schedules s join users u on u.id=s.leader_user_id where u.$D and s.status='upcoming'")" "true"
 t "observation stages" "$(q $db "select count(distinct c.status||'/'||coalesce(c.debrief_status,'')) from coaching_sessions c join users u on u.id=c.observer_user_id where u.$D and c.observation_type='leader_observation'")" "3"
+t "demo quiz share code" "$(q $db "select c.code||'/'||c.active||'/'||(select count(*) from quiz_questions qq where qq.quiz_id=c.quiz_id)||'/'||(select count(*) from quiz_share_codes c2 where c2.quiz_id=c.quiz_id and not c2.active) from quiz_share_codes c join users u on u.id=c.teacher_user_id where u.$D and c.code='AB12CD'")" "AB12CD/true/5/1"
 t "portal flags" "$(q $db "select count(*) from app_settings where key in ('portal_coach_v2','portal_teacher_v2')")" "2"
 
 echo "AC3 idempotent"
