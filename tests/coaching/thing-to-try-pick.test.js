@@ -82,28 +82,28 @@ describe('checkThing', () => {
   test('did: a same-practice move was done (or substituted)', () => {
     for (const verdict of ['executed', 'substituted_equivalent', 'substituted_better']) {
       const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', verdict), row('m2', 'guided', 'Partners read.', 'not_done')]);
-      expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'did', matched: 2, moveIds: ['m1', 'm2'] });
+      expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'did', matched: 2, moveIds: ['m1', 'm2'], matchedBy: 'tag' });
     }
   });
 
   test('partly: the best same-practice move was partial', () => {
     const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'partial'), row('m2', 'guided', 'Partners read.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2, moveIds: ['m1', 'm2'] });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2, moveIds: ['m1', 'm2'], matchedBy: 'tag' });
   });
 
   test('not_done: every same-practice move was missed', () => {
     const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m1'] });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m1'], matchedBy: 'tag' });
   });
 
   test('no_matching_move: this plan had no move with that practice', () => {
     const lp = graded([row('m1', 'exit', 'Exit ticket.', 'executed')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [] });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [], matchedBy: null });
   });
 
   test('not_adjudicable moves are left out', () => {
     const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_adjudicable')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [] });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [], matchedBy: null });
   });
 
   test('optional moves count too: she may try it anywhere in the lesson', () => {
@@ -112,8 +112,36 @@ describe('checkThing', () => {
   });
 
   test('not_graded when this recording has no grading', () => {
-    expect(P.checkThing(PRIOR, { status: 'lp_absent' })).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [] });
-    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [] });
+    expect(P.checkThing(PRIOR, { status: 'lp_absent' })).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [], matchedBy: null });
+    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [], matchedBy: null });
+  });
+
+  // bd-v0toag.100.5: the tag reads the move's wording first, so the same pair activity is C9 or C11
+  // ("swap", "each other") and the same class question C1 or C4 ("choral", "by name") on wording alone.
+  test('no same-tag move: a pair/peer move counts for pair work, and the reverse', () => {
+    const lp = graded([row('m8', 'peer_review', 'Pupils swap notebooks with a partner.', 'not_done')]);
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m8'], matchedBy: 'family' });
+    const peer = { ...PRIOR, tag: 'C11' };
+    const lp2 = graded([row('m2', 'grouping', 'Divide the class into three groups.', 'executed')]);
+    expect(P.checkThing(peer, lp2)).toEqual({ outcome: 'did', matched: 1, moveIds: ['m2'], matchedBy: 'family' });
+  });
+
+  test('no same-tag move: a whole-class question counts for questioning, and the reverse', () => {
+    const ask = { ...PRIOR, tag: 'C1' };
+    const lp = graded([row('m2', 'hook', 'Tell the story, then the class answers chorally.', 'executed')]);
+    expect(P.checkThing(ask, lp)).toEqual({ outcome: 'did', matched: 1, moveIds: ['m2'], matchedBy: 'family' });
+    const all = { ...PRIOR, tag: 'C4' };
+    expect(P.checkThing(all, graded([row('m1', 'hook', 'Ask: what do you see?', 'partial')])).outcome).toBe('partly');
+  });
+
+  test('a same-tag move wins over the family', () => {
+    const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_done'), row('m2', 'peer_review', 'Swap and check.', 'executed')]);
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m1'], matchedBy: 'tag' });
+  });
+
+  test('practices with no near equivalent still find no match', () => {
+    const lp = graded([row('m1', 'hook', 'Ask: what do you see?', 'executed')]);
+    expect(P.checkThing({ ...PRIOR, tag: 'C6' }, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [], matchedBy: null });
   });
 
   test('null when there is no prior thing or it has no tag', () => {
@@ -173,7 +201,7 @@ describe('withThingToTry', () => {
     expect(logEvent).toHaveBeenCalledWith('coaching.thing_to_try.checked', {
       userId: 'u1', sessionId: 's2', priorSessionId: 's1', group: 'C',
       moveId: 'm5', setOnLessonId: 'grade_2_maths_ch4_seg2', lessonId: 'grade_2_maths_ch4_seg3',
-      tag: 'C3', outcome: 'not_done', matched: 1, moveIds: ['m5'],
+      tag: 'C3', outcome: 'not_done', matched: 1, moveIds: ['m5'], matchedBy: 'tag',
     });
   });
 

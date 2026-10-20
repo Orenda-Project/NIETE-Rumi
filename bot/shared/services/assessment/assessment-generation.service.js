@@ -734,6 +734,7 @@ const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
 const Reader = require('./fde-reader');
+const StemCheck = require('./fde-stem-check');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -2384,6 +2385,36 @@ async function _topUpGrammarUsedUp({ examJson, laid, P, key, layoutScope, now, p
  * runs are billed. A second run that fails leaves the first paper. Only when the caller asks
  * (`splitRetry`): the orchestrator does; a direct call writes one paper, as it always has.
  */
+// One read of the finished English-medium paper; a failed read keeps the paper as it was.
+async function _stemCheck({ examJson, P, model, ownModel, job, usages, requestId, pattern }) {
+  const refused = _reviewItemList();
+  const ask = async (prompt) => {
+    const response = await getClient().chat.completions.create({
+      model,
+      job,
+      ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      max_tokens: READER_MAX_TOKENS,
+      reasoning: READER_REASONING,
+    }, { timeout: READER_TIMEOUT_MS });
+    usages.push(response?.usage || {});
+    const content = response?.choices?.[0]?.message?.content;
+    return content && typeof content === 'object' ? content : extractJsonFromResponse(content || '');
+  };
+  try {
+    const out = await StemCheck.runStemCheck({ examJson, P, ask, refuses: (t) => refused.some((re) => re.test(t)) });
+    out.examJson._layout.stem_check = { flags: out.record };
+    logToFile('[assessment] stem check', { requestId, pattern, flags: out.record });
+    return out.examJson;
+  } catch (err) {
+    examJson._layout.stem_check = { failed: err.message };
+    logToFile('[assessment] stem check', { requestId, pattern, failed: err.message });
+    return examJson;
+  }
+}
+
 async function generatePatternExam({ splitRetry = false, ...args }) {
   const first = await _writePatternPaper(args);
   const bp = first.examJson._layout.blueprint;
@@ -2410,7 +2441,7 @@ async function generatePatternExam({ splitRetry = false, ...args }) {
   };
 }
 
-async function _writePatternPaper({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false, levelNote: splitNote = null }) {
+async function _writePatternPaper({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false, stemCheck = false, levelNote: splitNote = null }) {
   const startedAt = Date.now();
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
@@ -2668,6 +2699,10 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const emptyParts = _emptyQuestionParts(examJson);
   if (emptyParts.length) {
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: emptyParts, examJson, model });
+  }
+  // The stem check (bd-5jmnfj.22): one read of the whole paper for a question that does not make sense.
+  if (stemCheck && StemCheck.STEM_CHECK_SUBJECTS.includes(key)) {
+    examJson = await _stemCheck({ examJson, P, model, ownModel, job, usages: extraUsages, requestId, pattern });
   }
 
   const scheme = normaliseScheme(examJson);
