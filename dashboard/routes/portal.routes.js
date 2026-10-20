@@ -89,6 +89,8 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
+  PORTAL_TEACHER_HOME_CARD_KEY,
+  PORTAL_TEACHER_HOME_ORDER_KEY,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -8835,6 +8837,8 @@ router.get('/config', async (req, res) => {
       coachDisagreements,
       childTest,
       childTestSa,
+      teacherHomeCard,
+      teacherHomeOrderRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8855,6 +8859,9 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_KEY, userId),
       // the coach's Learning assessment (the child takes the battery alone), per user.
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
+      // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8870,6 +8877,8 @@ router.get('/config', async (req, res) => {
         teacherV2,
         coachDisagreements,
         childTestSa,
+        teacherHomeCard,
+        teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
       },
     });
   } catch (error) {
@@ -8889,6 +8898,8 @@ router.get('/config', async (req, res) => {
         teacherV2: false,
         coachDisagreements: false,
         childTestSa: false,
+        teacherHomeCard: false,
+        teacherHomeOrder: false,
       },
     });
   }
