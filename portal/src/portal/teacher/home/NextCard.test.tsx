@@ -102,6 +102,15 @@ describe("NextCard (Urdu)", () => {
     }
   });
 
+  it("the two buttons follow the reading direction (primary on the right) and centre their words", () => {
+    const { card } = draw(COACH);
+    const [primary] = buttons(card);
+    expect(primary.parentElement?.getAttribute("dir")).toBe("rtl");
+    // index.css forces `[dir=rtl] .grid` back to LTR; the row uses [display:grid] (as the tile grid does) to mirror
+    expect(primary.parentElement?.className).not.toMatch(/(^|\s)grid(\s|$)/);
+    for (const b of buttons(card)) expect(b.className).toMatch(/\bjustify-center\b/);
+  });
+
   it("observation: '<day> کا مشاہدہ', the day isolated, Latin digits", () => {
     draw(OBS);
     expect(screen.getByTestId("home-next-title").textContent).toBe("⁨12 اکتوبر⁩ کا مشاہدہ");
