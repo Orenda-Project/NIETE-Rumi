@@ -21,6 +21,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 const Identity = require('./web-quiz-identity');
 const T = require('./web-quiz-token');
@@ -59,7 +60,7 @@ const flag = cachedSwitch({
     // One voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) rides this read, so the page pays no read for
     // it. A failed read that names it reads the page's own two switches again alone, and one voice is off.
     const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
-    let { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice']);
+    let { data, error } = await Snap.rows([FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice'], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice']));
     const withOne = !error;
     if (!withOne) {
       logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });

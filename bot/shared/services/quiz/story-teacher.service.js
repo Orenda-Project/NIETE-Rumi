@@ -23,6 +23,7 @@
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
@@ -46,7 +47,7 @@ async function flagOn() {
   if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag.on;
   try {
     const keys = [FLAG_KEY, ...NEEDS];
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [...keys, CSP_KEY]);
+    const { data, error } = await Snap.rows([...keys, CSP_KEY], () => supabase.from('app_settings').select('key, value').in('key', [...keys, CSP_KEY]));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = new Map((data || []).map((r) => [r.key, r.value]));
     flag = { at: Date.now(), on: keys.every((k) => by.get(k) === true), csp: by.get(CSP_KEY) === true };

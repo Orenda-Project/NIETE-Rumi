@@ -10,6 +10,7 @@
  *   ref(item) / byRef(ref)      pure / one read: the ref the join words carry (`jb1a2b3c4d` a book, `jv…` a video) and back
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const KEY = 'web_quiz_card_v3';
@@ -49,7 +50,7 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < (cache.down ? DOWN_TTL_MS : TTL_MS)) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY]);
+    const { data, error } = await Snap.rows([KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY], () => supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY]));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
     cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), data: isTrue(val(DATA_KEY)), short: isTrue(val(SHORT_KEY)), cardA: isTrue(val(CARD_A_KEY)), ready: isTrue(val(READY_KEY)), fast: isTrue(val(FAST_KEY)), urShare: isTrue(val(UR_SHARE_KEY)), linkLang: isTrue(val(LINK_LANG_KEY)) };
