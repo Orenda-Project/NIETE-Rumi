@@ -786,7 +786,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         response_format: { type: 'json_object' },
         // No temperature: GPT-5 mini only supports the default (1)
         // bd-gzfdu9: only a caller that names an effort sends one; every other request is unchanged.
-        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+        // OpenRouter's unified shape, as fidelity-analyzer.js sends it; llm-client's adaptForTarget reads it as a hint.
+        ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
       });
       const choice = response.choices && response.choices[0];
       if (choice && choice.finish_reason === 'length') {
