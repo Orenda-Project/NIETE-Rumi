@@ -591,6 +591,7 @@ export default function LeaderAssess() {
           <div data-testid="summary-done"><dt className="text-sm text-slate-500">{copy.summaryDone}</dt><dd className="break-words">{names(doneKids.map((c) => nameOf(c, lang)))}</dd></div>
           <div data-testid="summary-absent"><dt className="text-sm text-slate-500">{copy.summaryAbsent}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'absent').map((o) => o.name))}</dd></div>
           <div data-testid="summary-refused"><dt className="text-sm text-slate-500">{copy.summaryRefused}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'refused').map((o) => o.name))}</dd></div>
+          <div data-testid="summary-unfinished"><dt className="text-sm text-slate-500">{copy.summaryUnfinished}</dt><dd className="break-words">{names(children.filter((c) => Boolean(sessionOf(c)) && !isDone(c) && !elsewhere(c)).map((c) => nameOf(c, lang)))}</dd></div>
           <div data-testid="summary-other"><dt className="text-sm text-slate-500">{copy.onOtherPhone}</dt><dd className="break-words">{names(children.filter(elsewhere).map((c) => nameOf(c, lang)))}</dd></div>
         </dl>
         <p className="text-slate-800">{copy.totalTime(mmss(started === null ? 0 : Date.now() - started))}</p>

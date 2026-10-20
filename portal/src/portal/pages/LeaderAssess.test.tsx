@@ -219,6 +219,11 @@ describe("LeaderAssess", () => {
     expect(screen.getByTestId("assess-stopped")).toHaveTextContent("Tap Continue");
     expect(stored().finished.d1).toBeUndefined();
     expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
+    fireEvent.click(screen.getByTestId("assess-end-visit"));
+    const line = within(await screen.findByTestId("assess-summary")).getByTestId("summary-unfinished");
+    expect(line).toHaveTextContent("Started, not finished");
+    expect(line).toHaveTextContent("Ayan Testwala");
+    expect(within(screen.getByTestId("assess-summary")).getByTestId("summary-done")).not.toHaveTextContent("Ayan");
   });
 
   it("the coach can end early with the corner hold", async () => {
