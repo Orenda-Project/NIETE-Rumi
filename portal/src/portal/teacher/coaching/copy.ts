@@ -105,6 +105,8 @@ export const COACHING_V2_COPY = {
   send: 'Send',
   tooLarge: 'File too large',
   notAudio: 'Not a recording',
+  /* bd-i0u6n2 — Digital Coaching is audio only: a video in the recording slot says so. */
+  notVideo: 'This is a video. Upload an audio recording.',
   /* after */
   sending: 'Sending',
   sent: 'Sent',
@@ -256,6 +258,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   send: 'بھیجیں',
   tooLarge: 'فائل بہت بڑی ہے',
   notAudio: 'یہ ریکارڈنگ نہیں',
+  notVideo: 'یہ ویڈیو ہے۔ آڈیو ریکارڈنگ اپ لوڈ کریں۔',
   sending: 'بھیجا جا رہا ہے',
   sent: 'بھیجا گیا',
   openLesson: 'ڈیجیٹل کوچنگ مشاہدہ کھولیں',
@@ -351,5 +354,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-fgj73x.7: the operator asked for a short line that says why a recording under 15 minutes cannot be sent.
     'tooShort',
     // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
-    'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote'],
+    'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote',
+    // bd-i0u6n2: why a video cannot go in the recording slot, and what to send instead.
+    'notVideo'],
 };

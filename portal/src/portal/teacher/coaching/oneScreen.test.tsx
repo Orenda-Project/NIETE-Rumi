@@ -47,7 +47,7 @@ import * as paths from "./paths";
 import { COACHING_ALL, COACHING_HOME } from "./paths";
 import { clearDraft } from "./draft";
 import { SendError } from "../../lib/coachingSend";
-import { DC_MIN_SECONDS, readAudioDuration } from "../../lib/coachingUpload";
+import { DC_MIN_SECONDS, mediaProbe, readAudioDuration } from "../../lib/coachingUpload";
 import { COACHING_V2_COPY as C } from "./copy";
 
 const COACHING_NEW = (paths as Record<string, unknown>).COACHING_NEW as string;
@@ -359,6 +359,28 @@ describe("recordings must be at least 15 minutes (operator, 16 Oct: a few second
     fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
     expect(await screen.findByRole("button", { name: C.submit })).toBeTruthy();
     expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});
+
+describe("the recording slot is audio only (bd-i0u6n2)", () => {
+  it("a video is refused on its own line, not as Not a recording", async () => {
+    vi.spyOn(mediaProbe, "hasVideo").mockResolvedValue(true);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [new File(["v"], "IMG_0042.MOV", { type: "video/quicktime" })] } });
+    expect(await screen.findByText(C.notVideo)).toBeTruthy();
+    expect(screen.queryByText(C.notAudio)).toBeNull();
+    expect(screen.queryByRole("button", { name: C.submit })?.hasAttribute("disabled") ?? true).toBe(true);
+  });
+
+  it("a recording whose name has no ending, marked audio by the phone, is taken and sent under a name the server takes", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [new File(["a"], "1000043567", { type: "audio/mpeg" })] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    await waitFor(() => expect(sendLesson).toHaveBeenCalled());
+    expect((sendLesson.mock.calls[0][0] as { audio: { filename: string } }).audio.filename).toBe("1000043567.mp3");
+    expect(screen.queryByText(C.notAudio)).toBeNull();
   });
 });
 
