@@ -71,4 +71,18 @@ describe("home api", () => {
     expect(() => tapHome("class")).not.toThrow();
     await new Promise((r) => setTimeout(r, 0));
   });
+
+  it("tapHome settles when the post does, and resolves (never rejects) when it fails", async () => {
+    let done!: (v: unknown) => void;
+    vi.mocked(api.post).mockReturnValueOnce(new Promise((r) => { done = r; }) as never);
+    let settled = false;
+    const p = tapHome("class").then(() => { settled = true; });
+    await Promise.resolve(); await Promise.resolve();
+    expect(settled).toBe(false);
+    done({ status: 204 });
+    await p;
+    expect(settled).toBe(true);
+    vi.mocked(api.post).mockRejectedValueOnce(new Error("down"));
+    await expect(tapHome("lesson")).resolves.toBeUndefined();
+  });
 });
