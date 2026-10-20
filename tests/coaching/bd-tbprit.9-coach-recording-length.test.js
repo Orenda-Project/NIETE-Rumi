@@ -20,7 +20,7 @@ function fakeSupabase(tables) {
       const filters = [];
       const run = () => (tables[table] || []).filter((r) => filters.every(([op, k, v]) => (op === 'eq' ? r[k] === v : op === 'in' ? v.includes(r[k]) : true)));
       const chain = {
-        select: () => chain, order: () => chain, limit: () => chain, gte: () => chain, is: () => chain,
+        select: () => chain, order: () => chain, limit: () => chain, gte: () => chain, lte: () => chain, is: () => chain,
         eq(k, v) { filters.push(['eq', k, v]); return chain; },
         in(k, v) { filters.push(['in', k, v]); return chain; },
         maybeSingle: () => Promise.resolve({ data: run()[0] || null, error: null }),

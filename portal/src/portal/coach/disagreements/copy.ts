@@ -23,7 +23,6 @@ const EN = {
   crumb: "Reports",
   entry: "Teachers who disagreed",
   dash: "—",
-  arrow: " → ",
   todo: "To do",
   done: "Done",
   noneWaiting: "No one is waiting",
@@ -77,7 +76,6 @@ const EN = {
   listen: "Listen",
   clipLabel: "The lesson at this moment",
   whereToLook: "Where to look",
-  trend: "Her scores",
   fullReport: "Full DC report",
   sectionName: {
     lesson_plan_fidelity: "Lesson Plan Fidelity",
@@ -128,7 +126,6 @@ const UR: Words<typeof EN> = {
   crumb: "رپورٹس",
   entry: "اساتذہ جنہوں نے اختلاف کیا",
   dash: "—",
-  arrow: " → ",
   todo: "کرنا ہے",
   done: "مکمل",
   noneWaiting: "کوئی انتظار میں نہیں",
@@ -179,7 +176,6 @@ const UR: Words<typeof EN> = {
   listen: "سنیں",
   clipLabel: "اس لمحے کا سبق",
   whereToLook: "کہاں دیکھیں",
-  trend: "ان کے اسکور",
   fullReport: "مکمل DC رپورٹ",
   sectionName: {
     lesson_plan_fidelity: "سبق کے منصوبے پر عمل",

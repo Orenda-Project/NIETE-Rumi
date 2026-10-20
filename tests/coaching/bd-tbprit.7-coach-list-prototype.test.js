@@ -116,6 +116,7 @@ function fakeSupabase(tables) {
       eq(k, v) { q.filters.push(['eq', k, v]); return chain; },
       in(k, v) { q.filters.push(['in', k, v]); return chain; },
       gte(k, v) { q.filters.push(['gte', k, v]); return chain; },
+      lte() { return chain; },
       is(k, v) { q.filters.push(['is', k, v]); return chain; },
       order() { return chain; },
       limit() { return chain; },

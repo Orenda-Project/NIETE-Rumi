@@ -48,6 +48,11 @@ function card(extra: Record<string, unknown> = {}) {
       { key: "student_engagement", score: 18, max: 28, counted: true, items: [item("D1", "Active Participation Rate", 1, 190), item("D2", "Wait time", 3, 60)] },
     ],
     moves: null,
+    pattern: {
+      points: [{ pct: 52, date: "2026-09-29T05:00:00Z" }, { pct: 58, date: "2026-10-06T05:00:00Z" }, { pct: 61, date: "2026-10-13T05:00:00Z" }],
+      avg: 57, best: { pct: 61, date: "2026-10-13T05:00:00Z" }, now: 61, count: 3, perWeek: 1, level: "steady", ictAvg: 1.52,
+      firstDate: "2026-09-29T05:00:00Z", lastDate: "2026-10-13T05:00:00Z", missed: null, earlier: 0,
+    },
     ...extra,
   };
 }
@@ -143,14 +148,24 @@ describe("DisagreementCard", () => {
     expect(within(where).getByRole("button", { name: "▶ Listen · 2:55 – 3:55" })).toBeInTheDocument();
   });
 
-  it("her trend and the full DC report", async () => {
+  it("bd-tbprit.10 — Rifat's \"Is this a pattern?\" in place of the bare trend, then the full DC report", async () => {
     renderCard();
-    expect(await screen.findByTestId("trend")).toHaveTextContent("52 → 58 → 61");
+    const pattern = await screen.findByTestId("pattern");
+    expect(pattern).toHaveTextContent("3. Is this a pattern?");
+    expect(pattern).toHaveTextContent("57% · 61%");
+    expect(screen.queryByTestId("trend")).toBeNull();
     const report = screen.getByTestId("full-report");
     fireEvent.click(within(report).getByRole("button", { name: /Full DC report/ }));
     expect(report).toHaveTextContent("AI score 61%");
     expect(report).toHaveTextContent("Called students by name");
     expect(report).toHaveTextContent("Student Engagement");
+  });
+
+  it("bd-tbprit.10 — a server without the pattern shows no section, never a made-up one", async () => {
+    D.card.mockResolvedValue(card({ pattern: null }));
+    renderCard();
+    await screen.findByTestId("full-report");
+    expect(screen.queryByTestId("pattern")).toBeNull();
   });
 
   it("bd-tbprit.12 — the card ends with Rifat's Mark as done; a done card carries ✓ Done and Move back to To do", async () => {
