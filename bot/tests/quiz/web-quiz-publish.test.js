@@ -675,6 +675,85 @@ describe("question 1's clips reach the quiz before the rest are recorded", () =>
   });
 });
 
+// A quiz recorded on its first open takes about a minute; only question 1 was written early, so every later question
+// a child reached before the whole quiz was done had no clip (with one voice: no sound at all). With
+// app_settings web_quiz_audio_each_question on, each question is written the moment its own clips are all done.
+describe('each question reaches the quiz as soon as its own clips are done (web_quiz_audio_each_question)', () => {
+  const Q3 = 'aaaaaaaa-0000-4000-8000-000000000003';
+  const threeRows = () => {
+    const rows = quizRows();
+    rows.questions.push({ id: Q3, quiz_id: QUIZ_ID, sort_order: 3, question_text: 'Where do roots grow?',
+      option_a: 'Underground', option_b: 'In the sky', option_c: null, option_d: null,
+      correct_option: 'A', option_feedback: null, explanation: 'Roots grow in the soil.' });
+    return rows;
+  };
+  const withSetting = (db, value) => {
+    const from = db.from;
+    db.from = (table) => {
+      if (table !== 'app_settings') return from(table);
+      const api = { select: () => api, eq: () => api, in: () => api,
+        maybeSingle: () => Promise.resolve({ data: value === undefined ? null : { key: 'web_quiz_audio_each_question', value }, error: null }),
+        then: (res, rej) => Promise.resolve({ data: value === undefined ? [] : [{ key: 'web_quiz_audio_each_question', value }], error: null }).then(res, rej) };
+      return api;
+    };
+    return db;
+  };
+  const holdQ3 = () => {
+    const held = [];
+    axios.post.mockImplementation((...args) => {
+      if (/roots grow|Underground|In the sky/i.test(JSON.stringify(args))) return new Promise((resolve) => held.push(() => resolve({ data: OGG })));
+      return Promise.resolve({ data: OGG });
+    });
+    return held;
+  };
+  const until = async (ok, ms = 8000) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await new Promise((r) => setTimeout(r, 20)); };
+  beforeEach(() => {
+    require('../../shared/services/quiz/web-quiz-audio-each-flag')._resetCache();
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+  });
+
+  test('switch on: while question 3 is still recording, the quiz already has questions 1 and 2, whole', async () => {
+    const held = holdQ3();
+    const rows = threeRows();
+    const db = withSetting(fakeDb(rows), true);
+    const run = publishQuizAudio(QUIZ_ID, { db });
+    await until(() => held.length > 0);
+    await until(() => db.updates.some((u) => u.table === 'quizzes' && ((u.patch.meta.web || {}).audio || {})[SECOND_QID]), 8000);
+    const early = db.updates.filter((u) => u.table === 'quizzes');
+    const last = early[early.length - 1].patch.meta.web;
+    expect(last.audio[SECOND_QID]).toBeTruthy();
+    expect(last.audio[SECOND_QID].q).toBeTruthy();
+    expect(last.audio[SECOND_QID].opts.slice(0, 2).every(Boolean)).toBe(true);
+    expect(last.audio[Q3]).toBeUndefined();          // a question is written only whole
+    expect(last.audio_v).toBeUndefined();            // not stamped complete yet
+    held.forEach((go) => go());
+    const out = await run;
+    expect(out.ok).toBe(true);
+    expect(rows.quiz.meta.web.audio[Q3].q).toBeTruthy();
+    expect(rows.quiz.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
+  });
+
+  afterAll(() => require('../../shared/services/quiz/web-quiz-audio-each-flag')._resetCache());
+
+  test('switch off: today exactly (question 1 early, the rest at the end)', async () => {
+    const held = holdQ3();
+    const rows = threeRows();
+    const db = withSetting(fakeDb(rows), undefined);
+    const run = publishQuizAudio(QUIZ_ID, { db });
+    await until(() => held.length > 0);
+    await until(() => db.updates.some((u) => u.table === 'quizzes'), 5000);
+    await new Promise((r) => setTimeout(r, 400));
+    const early = db.updates.filter((u) => u.table === 'quizzes');
+    expect(early).toHaveLength(1);
+    held.forEach((go) => go());
+    await run;
+    expect(db.updates.filter((u) => u.table === 'quizzes')).toHaveLength(2);
+  });
+});
+
 // A maths option written wholly in square brackets ("[ 4 × { 18 − 8 } ]") went to the voice as a bracketed
 // stage direction, which the voice's text step removes: nothing was left to say, the clip failed, the quiz
 // was never stamped complete and that option was read by the phone (or not at all). The publish path says
