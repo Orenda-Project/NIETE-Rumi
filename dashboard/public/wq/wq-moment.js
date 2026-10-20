@@ -284,8 +284,11 @@
   // Where it would be left out, the words keep their size and the picture is its own card (rounded all round, centred,
   // 8 px under the band) in the room left, when that is 96 px or more; the stage says the picture's side inset
   // (--wqs-pi), so Jugnu's hint bubble is never wider than the picture it sits on
-  function art(a, cam, im, all, bs, d, rtl, rs, one) {
-    var own = 0, Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R, s0, t0, lo, hi, k, wl, ps;
+  // one 3 (web_quiz_read_sheet_trim, the book's read_sheet 3): that own card holds the drawing only (ink()), never the
+  // blank paper above or below it, and the drawing takes the room the paper had; again: the host's re-frame, run once
+  // when a picture still loading has come in
+  function art(a, cam, im, all, bs, d, rtl, rs, one, again) {
+    var own = 0, ik, Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R, s0, t0, lo, hi, k, wl, ps;
     all.forEach(function (b) { Y0 = Math.min(Y0, b[1]); Y1 = Math.max(Y1, b[1] + b[3]); });
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
     // one: a stage held at the sheet (its cap, below) is framed in the room the sheet was drawn in, so the cap holds still
@@ -328,7 +331,12 @@
           s = Math.floor(lo * 1000) / 1000; tx = r((d[0] - im.w * s) / 2); frame(); z = s;
         } else {
           s = s0; tx = t0; frame(); z = 0;
-          if (one === 2) { z = Math.min((g[1] - g[0] - 8) / ch, d[0] / im.w, s); if (z * ch >= 96) own = 1; else z = 0; }
+          if (one >= 2) {
+            z = Math.min((g[1] - g[0] - 8) / ch, d[0] / im.w, s); if (z * ch >= 96) own = 1; else z = 0;
+            if (own && one === 3 && (ik = ink(a, im, cy, cy + ch, again)) && Math.min((g[1] - g[0] - 8) / (ik[1] - ik[0]), d[0] / im.w, s) * (ik[1] - ik[0]) >= 96) {
+              cy = ik[0]; ch = ik[1] - ik[0]; z = Math.min((g[1] - g[0] - 8) / ch, d[0] / im.w, s);
+            }
+          }
         }
       }
     } else z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch, s);
@@ -354,11 +362,39 @@
       i = dn && (wl || own || z * ch < 96) && k < d[1] - .5;
       ps.style.setProperty('--wqs-cap', i ? k + 'px' : 'none'); ps.style.setProperty('--wqs-min', i ? Math.min(200, k) + 'px' : '200px');
       ps.wqsRoom = i ? [d[0], d[1], k] : null;
-      if (one === 2) ps.style.setProperty('--wqs-pi', z * ch >= 96 ? r(Math.max(0, (d[0] - im.w * z) / 2)) + 'px' : '0px');
+      if (one >= 2) ps.style.setProperty('--wqs-pi', z * ch >= 96 ? r(Math.max(0, (d[0] - im.w * z) / 2)) + 'px' : '0px');
     }
     // one: the band's own outer corners round like the picture's (all four when the picture is left out)
     R = r(12 / s) + 'px';
     return { s: s, tx: tx, ty: ty, one: true, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0 round ' + (z * ch < 96 || own ? R : dn ? R + ' ' + R + ' 0 0' : '0 0 ' + R + ' ' + R) + ')' };
+  }
+  // the drawing's rows in the picture's part [y0, y1] (image px), with a thin margin: a small canvas, read once per picture
+  // part and kept on the box. The box's own picture, or the stage's copy of it (the same file, drawn already) while the
+  // box's is still loading. null when there is nothing to read (no canvas, neither loaded: framed again on its load, a
+  // tainted canvas) or no ink: the card is then read_sheet 2's
+  function ink(a, im, y0, y1, again) {
+    var i = a.querySelector && a.querySelector('i'), m = i && i.querySelector && i.querySelector('img'), key, v = null, w = 120, h, c, x, px, t = -1, b = -1, n, o, rr, j, u, pad = 16, ok = function (e) { return e && e.complete && e.naturalWidth; };
+    if (!m) return null;
+    key = Math.round(y0) + ':' + Math.round(y1) + ':' + m.src;
+    if (a.wqsInk && a.wqsInk[0] === key) return a.wqsInk[1];
+    if (!ok(m)) {
+      o = a.parentNode && a.parentNode.querySelectorAll ? a.parentNode.querySelectorAll('img') : [];
+      for (j = 0; j < o.length && !ok(m); j++) if (o[j].src === m.src && ok(o[j])) m = o[j];
+      if (!ok(m)) { if (!m.wqsInkWait && m.addEventListener) { m.wqsInkWait = 1; m.addEventListener('load', again || fit); } return null; }
+    }
+    try {
+      u = m.naturalWidth / im.w; h = Math.max(1, Math.min(200, Math.round((y1 - y0) * w / im.w)));
+      c = document.createElement('canvas'); c.width = w; c.height = h; x = c.getContext('2d');
+      x.drawImage(m, 0, y0 * u, m.naturalWidth, (y1 - y0) * u, 0, 0, w, h);
+      px = x.getImageData(0, 0, w, h).data;
+      for (rr = 0; rr < h; rr++) {
+        for (n = 0, j = 0; j < w; j++) { o = (rr * w + j) * 4; if (px[o + 3] > 40 && px[o] + px[o + 1] + px[o + 2] < 645) n++; }
+        if (n >= 2) { if (t < 0) t = rr; b = rr; }
+      }
+      if (t >= 0) v = [Math.max(y0, y0 + t * (y1 - y0) / h - pad), Math.min(y1, y0 + (b + 1) * (y1 - y0) / h + pad)];
+    } catch (e) { v = null; }
+    a.wqsInk = [key, v];
+    return v;
   }
   function q(k, R, m, x) {
     var y;
