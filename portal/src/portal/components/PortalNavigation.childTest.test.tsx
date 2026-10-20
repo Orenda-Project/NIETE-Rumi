@@ -38,3 +38,25 @@ describe("PortalNavigation — Child test", () => {
     expect(screen.queryByRole("link", { name: /child test/i })).toBeNull();
   });
 });
+
+describe("PortalNavigation — Learning assessment", () => {
+  function renderSa(user: any, childTestSa: boolean) {
+    (useAuth as any).mockReturnValue({ user, logout: vi.fn() });
+    (portal.getConfig as any).mockResolvedValue({ features: { childTestSa } });
+    render(<MemoryRouter><PortalNavigation /></MemoryRouter>);
+  }
+
+  it("a coach with the flag on gets a Learning assessment link", async () => {
+    renderSa({ firstName: "A", role: "coach" }, true);
+    await waitFor(() => {
+      const links = screen.getAllByRole("link", { name: /learning assessment/i });
+      expect(links.some((l) => l.getAttribute("href") === "/portal/leader/assess")).toBe(true);
+    });
+  });
+
+  it("no link with the flag off", async () => {
+    renderSa({ firstName: "A", role: "coach" }, false);
+    await waitFor(() => expect(portal.getConfig).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /learning assessment/i })).toBeNull();
+  });
+});
