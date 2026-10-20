@@ -131,7 +131,7 @@ async function createRunRow(a) {
     status: 'served',
     admin_mode: 'self_run',
     started_at: new Date().toISOString(),
-    meta: { mode: 'game', part: a.part, form: a.form, n: a.n, day: a.day, events: {}, results: {}, audio: {}, last_seq: null },
+    meta: { mode: 'game', part: a.part, form: a.form, n: a.n, day: a.day, exposure_n: a.exposureN == null ? null : a.exposureN, events: {}, results: {}, audio: {}, last_seq: null },
   };
   const { error } = await db().from(RUNS).insert(row);
   if (!error || error.code === '23505') return { ok: true, mode: 'runs', id: a.id };
@@ -205,6 +205,27 @@ async function readRunRuns({ sessionId }) {
     tasksDone: Object.keys(res).filter((k) => res[k] && Object.keys(res[k]).some((f) => f !== 'task_id' && f !== 'mode')),
     lastSeq: m.last_seq == null ? null : m.last_seq,
   };
+}
+
+/**
+ * How often this child met this part this PKT month (panel: the coach's instrument played at home): the runs of the part
+ * and form whose day is in `day`'s month, and whether a Big flight was finished then. Game runs live in the runs table
+ * (a child-test game run carries the same meta). A failed read answers { ok:false } and the caller decides.
+ */
+async function exposure({ studentId, form, part, day }) {
+  try {
+    const month = String(day || '').slice(0, 7);
+    const { data, error } = await db().from(RUNS).select('id, meta').eq('student_id', studentId).eq('exercise', 'battery');
+    if (error) return fail('exposure', error, {});
+    const mine = (data || []).map((r) => r.meta || {}).filter((m) => String(m.day || '').slice(0, 7) === month);
+    return {
+      ok: true,
+      n: mine.filter((m) => m.part === part && m.form === form).length,
+      flightDone: mine.some((m) => m.part === 'tower' && m.finished_at),
+    };
+  } catch (err) {
+    return fail('exposure', err, {});
+  }
 }
 
 // ── child-test tables ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -305,6 +326,7 @@ const byMode = (ct, runs) => async (a) => {
 
 module.exports = {
   createRun,
+  exposure,
   saveBatch: byMode(saveBatchChildTest, saveBatchRuns),
   registerAudio: byMode(registerAudioChildTest, registerAudioRuns),
   readRun: byMode(readRunChildTest, readRunRuns),

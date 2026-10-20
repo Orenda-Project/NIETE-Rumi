@@ -214,6 +214,35 @@ describe('session', () => {
   });
 });
 
+describe('exposure (panel: the coach instrument played at home)', () => {
+  test('each run carries exposure_n: this child\'s runs of that part and form this PKT month, this one counted', async () => {
+    await newSession();
+    await newSession({ n: 2 });
+    await newSession({ part: 'maths' });
+    const rows = mockDb.tables.web_quiz_challenge_runs;
+    expect(rows.map((r) => [r.meta.part, r.meta.exposure_n])).toEqual([['urdu', 1], ['urdu', 2], ['maths', 1]]);
+  });
+
+  test('the Big flight once per PKT month: a finished flight refuses a new one (409), an unfinished one may be run again', async () => {
+    const a = await newSession({ part: 'tower' });
+    const again = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23', n: 2 });
+    expect(again.status).toBe(200);
+    mockDb.tables.web_quiz_challenge_runs.find((r) => r.id === a.session_id).meta.finished_at = new Date().toISOString();
+    const third = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23', n: 3 });
+    expect(third.status).toBe(409);
+    expect(await third.json()).toEqual({ error: 'flight_done' });
+    const island = await post('/session', { t: 'tok.sig', kid: KID, part: 'urdu', form: 'game.G23', n: 3 });
+    expect(island.status).toBe(200);
+  });
+
+  test('another child, or the same child last month: not counted', async () => {
+    mockDb.tables.web_quiz_challenge_runs.push({ id: 'old-1', student_id: 'stu-1', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day: '2026-09-30', finished_at: '2026-09-30T10:00:00Z' } });
+    mockDb.tables.web_quiz_challenge_runs.push({ id: 'oth-1', student_id: 'stu-2', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day: '2099-01-01', finished_at: 'x' } });
+    const r = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
+    expect(r.status).toBe(200);
+  });
+});
+
 describe('batch', () => {
   const batchOf = (s, extra = {}) => ({
     st: s.st, session_id: s.session_id, seq_from: 1, seq_to: 3,
