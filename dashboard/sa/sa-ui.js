@@ -660,7 +660,9 @@
       ], [nextBtn(v)]);
     }
 
-    function wordsOf(t) { return (t.items || []).filter(function (w) { return w && w.label != null; }); }
+    // The passage's words: each item's label, or its target (the runtime batteries carry target only).
+    function wordText(w) { return w.label != null ? w.label : w.target; }
+    function wordsOf(t) { return (t.items || []).filter(function (w) { return w && wordText(w) != null; }); }
     function passageEl(t, onWord) {
       var dir = dirOf(t), tl = taskLang(t);
       var words = wordsOf(t);
@@ -670,8 +672,8 @@
           var ln = w.line != null ? w.line : 1;
           if (ln !== curLine) { cur = h('span', { class: 'sae-pline' }); rows.push(cur); curLine = ln; }
           cur.appendChild(onWord
-            ? h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i), onclick: function () { if (!busy) onWord(i); } }, [String(w.label)])
-            : h('span', { class: 'sae-word sa-word', 'data-i': String(i) }, [String(w.label)]));
+            ? h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i), onclick: function () { if (!busy) onWord(i); } }, [String(wordText(w))])
+            : h('span', { class: 'sae-word sa-word', 'data-i': String(i) }, [String(wordText(w))]));
           cur.appendChild(document.createTextNode(' '));
         });
         return h('div', { class: 'sae-passage sa-passage' + (onWord ? ' is-pick' : ''), dir: dir, lang: tl }, rows);
