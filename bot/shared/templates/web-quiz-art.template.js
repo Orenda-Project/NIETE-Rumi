@@ -291,8 +291,8 @@ const PP_ROWS_RTL = { sq: 4, og: 2 };
  * child's name a box that shortens (an ellipsis) beside a "(me)" label that never does, and the English picture the same
  * one centred stack with 24 px between as the Urdu one (no empty band above the pill). The English challenge headline:
  * balanced lines, one size step down when it would need more than 2 (counted at 85% of 2 lines, for where the words
- * fall; never under 0.7). The Urdu challenge: its sub line
- * (the quiz title alone) a step smaller when that keeps it on its line.
+ * fall; never under 0.7), and on the square one centred stack with 24 px between. The challenge in both languages: its
+ * sub line (the quiz title alone) a step smaller when that keeps it on its line.
  */
 function polishCss(k, d, sq, S, W, RTL, INK, C, sub) {
   let out = `
@@ -315,7 +315,9 @@ ${sq ? `.crow{width:${Math.round(W * 0.6)}px;gap:12px}` : ''}.crow li{font-size:
     if (emWidth(line) * head > 2 * width * 0.85) head = Math.max(Math.round(base * 0.7), Math.floor((2 * width * 0.85) / emWidth(line)));
     out += `.head{font-size:${head}px;text-wrap:balance}`;
   }
-  if (k === 'invite' && RTL && sub && sub.px) out += `.sub{font-size:${sub.px}px;white-space:nowrap}`;
+  // the English square: one centred stack with 24 px between, as the Urdu one (Jugnu gives up height first)
+  if (k === 'invite' && !RTL && sq) out += '.main{gap:24px}.main{flex:0 0 auto}.art{gap:24px;justify-content:center}.cta{margin:0}.side{flex:0 1 190px;min-height:96px}.jug{width:auto;height:100%;aspect-ratio:1/1}';
+  if (k === 'invite' && sub && sub.px) out += `.sub{font-size:${sub.px}px;white-space:nowrap}`;
   return out;
 }
 
@@ -370,11 +372,11 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const NFANI = Math.ceil(1.3 * nameBase);
   const NFPX = Math.floor(((sz === 'sq' ? W - 144 : 702) - (INK ? nameBase : 0) - NFANI) / (Math.max(1, Array.from(first).length) * (isArabicScript(first) ? 0.42 : 0.61)));
   const sq = sz === 'sq';
-  // The polish's Urdu challenge: when the headline already names the child (decided from its own words), the sub line is
-  // the quiz title alone, its spaces held so it stays on one line; a title too long for the line is set smaller down to
-  // 0.75 of the sub line's size, and past that keeps its spaces (it may break, never runs off the picture).
+  // The polish's challenge (both languages): when the headline already names the child (decided from its own words), the
+  // sub line is the quiz title alone, its spaces held so it stays on one line; a title too long for the line is set smaller
+  // down to 0.75 of the sub line's size, and past that keeps its spaces (it may break, never runs off the picture).
   let ppSub = null;
-  if (PP && k === 'invite' && RTL) {
+  if (PP && k === 'invite') {
     const name = String((d && d.first) || '');
     const zero = !(Number(d && d.correct) > 0);
     const said = zero ? C.dared(name) : C.beat(name, `${d.correct}/${d.total}`);
