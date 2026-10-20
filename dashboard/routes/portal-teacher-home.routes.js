@@ -38,7 +38,7 @@ const BOT_PORTAL_HOME_PATH = '/api/internal/thportal/portal-home';
 const BOT_TIMEOUT_MS = 8000;
 
 const CARD_KINDS = ['class', 'coach_report', 'lesson', 'observation', 'first_plan'];
-const TAP_KINDS = [...CARD_KINDS, 'chip_coach', 'chip_obs'];
+const TAP_KINDS = [...CARD_KINDS, 'chip_coach', 'chip_obs', 'lp_quiz']; // lp_quiz: "Quiz this lesson" on the plan page
 /** The scores slice of analysis_data, never the whole column (~30 KB a row), and the card's title words. */
 const SESSION_SLICE = 'id, created_at, scores:analysis_data->scores, topic:analysis_data->>topic, subject:analysis_data->>subject';
 
