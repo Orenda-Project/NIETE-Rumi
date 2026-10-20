@@ -61,11 +61,20 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
           expect([f, t.id, t.replay_at_s, t.item_timeout_s]).toEqual([f, t.id, 5, 10]);
         } else {
           expect([f, t.id, t.next_at_s]).toEqual([f, t.id, 15]);
-          const cap = /^ma\.word_problems/.test(t.id) ? 60 : null;
-          expect([f, t.id, t.item_timeout_s]).toEqual([f, t.id, cap]);
+          // Word problems: a 60 s answer cap, its own field (lead-egra-2 182025 note 3), never the move-on field.
+          const wp = /^ma\.word_problems/.test(t.id);
+          expect([f, t.id, t.soft_cap_s, t.item_timeout_s]).toEqual([f, t.id, wp ? 60 : undefined, wp ? undefined : null]);
         }
       }
     }
+  });
+
+  test('lead-egra-2 182025 notes: the picture cards carry their source; word tiles name the rule they are built by', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../../../dashboard/sa/img/vocab/SOURCE.txt'), 'utf8');
+    expect(src).toMatch(/SELECT/);
+    expect(src).toMatch(/p\.113/);
+    expect(src).toMatch(/non-commercial research use/);
+    for (const id of ['ur.words', 'en.nonwords']) expect(bank.tasks[`coach.G3.A/${id}`].tap.distractor_rule).toBe('same_list_same_length_first_letter');
   });
 
   test('E15: the spelling task is en.spelling (keyboard), letter-level partial credit, the TK2009 rubric kept', () => {
