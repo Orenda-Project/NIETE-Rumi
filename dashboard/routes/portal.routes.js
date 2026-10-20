@@ -3148,9 +3148,10 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
  */
 router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
   try {
-    const grade = parseInt(req.query.grade, 10);
+    const digits = (v) => (/^\d+$/.test(String(v ?? '')) ? parseInt(v, 10) : NaN);
+    const grade = digits(req.query.grade);
     const subject = String(req.query.subject || '').trim();
-    const chapterNumber = parseInt(req.query.chapter, 10);
+    const chapterNumber = digits(req.query.chapter);
     if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
       return res.status(400).json({ success: false, error: 'grade + subject + chapter required' });
     }

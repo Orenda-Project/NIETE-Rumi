@@ -44,6 +44,16 @@ describe('GET /assessment/topics', () => {
     expect(payload).toEqual({ success: true, topics: [] });
   });
 
+  test('grade and chapter must be plain digits: 3abc, 1.5, -1 and blanks are 400s', async () => {
+    for (const query of [{ ...Q, chapter: '3abc' }, { ...Q, grade: '1x' }, { ...Q, chapter: '1.5' }, { ...Q, grade: '-1' }, { ...Q, chapter: ' 3' }]) {
+      // eslint-disable-next-line no-await-in-loop
+      const { statusCode, payload } = await invoke('get', '/assessment/topics', { query });
+      expect(statusCode).toBe(400);
+      expect(payload).toEqual({ success: false, error: 'grade + subject + chapter required' });
+    }
+    expect(edges.axios.post).not.toHaveBeenCalled();
+  });
+
   test('grade, subject and chapter are required', async () => {
     for (const query of [{ subject: 'maths', chapter: '3' }, { grade: '1', chapter: '3' }, { grade: '1', subject: 'maths' }]) {
       // eslint-disable-next-line no-await-in-loop
