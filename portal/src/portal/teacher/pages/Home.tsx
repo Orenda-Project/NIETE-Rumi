@@ -83,6 +83,8 @@ export default function Home() {
         {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
         {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
         {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
+        {/* The evening reminder (portal_push_remind): below the one next step; nothing drawn while off. */}
+        <RemindCard />
         <FeatureMotionProvider>
         <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
           {drawn}
