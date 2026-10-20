@@ -474,6 +474,7 @@ class ReportGeneratorService {
       const extraLines = this._heroCaptionLines(session, { isAutoCompleted, isRetry, language: captionLang });
       let voiceStepAnnounced = false;
       let followUps = true;
+      let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
       if (isHeroImage) {
         const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
         for (const line of overflow) {
@@ -503,13 +504,7 @@ class ReportGeneratorService {
           await require('./report-link-send').sendReportLinkIfNew({
             coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
           });
-          // bd-gzfdu9: the recommended clip, one message after the report that arrived. Nothing unless
-          // VIDEO_RECO_ENABLED and the session's row is 'shown'. A failure never touches the report.
-          if (heroSent !== false) {
-            await require('./video-reco/send').sendAfterReport({
-              coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
-            }).catch(() => null);
-          }
+          videoClipAfter = heroSent !== false;
         }
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
         if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
@@ -694,6 +689,14 @@ class ReportGeneratorService {
           error: cardError.message,
         });
         // Don't fail the session — card is optional.
+      }
+
+      // bd-gzfdu9: the recommended clip, the LAST follow-up (lead 18:48Z: the engine's wait overlaps the voice
+      // note, survey and commit prompt). Nothing unless VIDEO_RECO_ENABLED and the row is 'shown'; never throws.
+      if (videoClipAfter) {
+        await require('./video-reco/send').sendAfterReport({
+          coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
+        }).catch(() => null);
       }
 
       // Mark session as completed
