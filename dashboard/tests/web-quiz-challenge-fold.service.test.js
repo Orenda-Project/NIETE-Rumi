@@ -56,3 +56,20 @@ describe('the invite picture under the fold is a way in too', () => {
     expect(p.els['.wq-chpic'].listeners.click).toBeUndefined();
   });
 });
+
+// With the class's children listed (no Play), the tap brings the names into view and rings them once,
+// so the child sees which button to tap next; the ring comes off again so a second tap rings again.
+describe('the invite picture over the kids list marks the names', () => {
+  test.each([['wq.js landing', {}], ['identity v2 landing', { ident: true, cls: v2 }]])('%s, on: scroll, then a ring on the name', (_n, extra) => {
+    const p = page({ lang: 'ur', art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true }, ...extra });
+    const kid = p.root.querySelector('.wq-kid');
+    kid.scrollIntoView = jest.fn();
+    const add = jest.fn(), remove = jest.fn();
+    kid.classList = { add, remove, toggle() {}, contains() { return false; } };
+    p.els['.wq-chpic'].fire('click', {});
+    expect(kid.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(add).toHaveBeenCalledWith('wq-kid-ring');
+    p.runTimers();
+    expect(remove).toHaveBeenCalledWith('wq-kid-ring');
+  });
+});
