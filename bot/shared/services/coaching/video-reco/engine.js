@@ -257,7 +257,7 @@ async function compute(a, d, state) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
-      startS: seg.segment.start_s, endS: seg.segment.end_s, language, teacherName: people.teacher,
+      startS: seg.segment.start_s, endS: seg.segment.end_s, language, teacherName: people.teacher, module: seg.module, subject,
     });
   }
   if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });

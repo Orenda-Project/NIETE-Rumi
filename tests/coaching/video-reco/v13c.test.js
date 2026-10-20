@@ -188,7 +188,7 @@ describe('(b) the card-sentence fallback', () => {
 
 describe('select.cardFallback (pure): which validation rules it follows', () => {
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const base = { segId: '10-s1', shortlist: list, sentence: 'Ask two why questions', startS: 30, endS: 120, language: 'en' };
+  const base = { segId: '10-s1', shortlist: list, sentence: 'Ask two why questions', startS: 30, endS: 120, language: 'en', module: { subjects: ['general'] }, subject: null };
   test.each(['validation:roman', 'validation:quote', 'validation:urdu', 'validation:length', 'validation:scorer', 'validation:id',
     'validation:name', 'validation:placeholder', 'validation:moment_at'])('%s → a fallback', (none) => {
     expect(S.cardFallback({ ...base, none })).toEqual({
@@ -208,5 +208,48 @@ describe('select.cardFallback (pure): which validation rules it follows', () => 
   test('a coach / school / phone placeholder left in the sentence → null (never shown to the teacher)', () => {
     expect(S.cardFallback({ ...base, none: 'validation:quote', sentence: 'Call [NUMBER] tomorrow' })).toBeNull();
     expect(S.cardFallback({ ...base, none: 'validation:quote', sentence: 'Ask [COACH] for help' })).toBeNull();
+  });
+});
+
+describe('[v1.3c-2] the fallback carries its own subject gate (ped-review 20:45Z ⛔4, lead-review 20:48Z / 20:51Z)', () => {
+  // m108 / m39 as in contracts/catalog.json: literacy modules whose not_for names maths and science.
+  const M108 = { module_id: 108, subjects: ['english', 'literacy'], not_for: 'Teachers of maths or science, or of older classes' };
+  const M39 = { module_id: 39, subjects: ['urdu', 'english', 'literacy'], not_for: 'Maths or science teachers, and teachers wanting to see a real classroom' };
+  const GENERAL = { module_id: 10, subjects: ['general'], not_for: '' };
+  const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
+  const base = { none: 'validation:roman', segId: '10-s1', shortlist: list, sentence: 'Ask two why questions', startS: 30, endS: 120, language: 'en' };
+  test('literacy-module clip (m108) + science lesson → the none stands', () => {
+    expect(S.cardFallback({ ...base, module: M108, subject: 'science' })).toBeNull();
+  });
+  test('m39 (urdu/english/literacy, not_for "Maths or science teachers") + science lesson → the none stands', () => {
+    expect(S.cardFallback({ ...base, module: M39, subject: 'science' })).toBeNull();
+  });
+  test('literacy-module clip + unknown lesson subject → the none stands (only a general module may fire)', () => {
+    expect(S.cardFallback({ ...base, module: M108, subject: null })).toBeNull();
+  });
+  test('general module + unknown lesson subject → the fallback fires', () => {
+    expect(S.cardFallback({ ...base, module: GENERAL, subject: null })).toEqual({
+      reason_en: FALLBACK_EN('Ask two why questions', 90), reason_ur: FALLBACK_UR('Ask two why questions', 90),
+    });
+  });
+  test('a literacy module on an Urdu lesson still fires (suitsSubject holds, not_for silent)', () => {
+    expect(S.cardFallback({ ...base, module: M39, subject: 'urdu' })).not.toBeNull();
+  });
+  test('engine: a literacy-module chapter on a lesson with no subject_resolution → the validation none stands', async () => {
+    const a = args();
+    a.analysis.subject_resolution = null;
+    const d = deps([ROMAN, ROMAN]);
+    const lit = JSON.parse(JSON.stringify(FIXTURE));
+    lit.modules.find((m) => m.module_id === 10).subjects = ['english', 'literacy'];
+    d.catalog = require('../../../bot/shared/services/coaching/video-reco/catalog').fromData(lit);
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(d.completeJson).toHaveBeenCalledTimes(2);
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman', seg_id: null });
+  });
+  test('engine: a general-module chapter on a lesson with no subject_resolution → the fallback fires', async () => {
+    const a = args();
+    a.analysis.subject_resolution = null;
+    const row = await E.recommendForReport({ ...a, deps: deps([ROMAN, ROMAN]) });
+    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', moment_source: 'card' });
   });
 });
