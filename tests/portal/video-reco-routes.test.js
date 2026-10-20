@@ -87,6 +87,37 @@ describe('GET /v/:token', () => {
     expect(res.headers['set-cookie'].join(';')).toMatch(/vr_d=[0-9a-f]{32}; Max-Age=\d+; Path=\/v; .*HttpOnly.*SameSite=Lax/i);
   });
 
+  // qa-e2e FAIL 20261020T200126: the catalogue's urls name bucket digital-coach-audio, sandbox's R2_BUCKET_NAME is
+  // rumi-sandbox (same keys copied across), so the presigner could not find a key and the player got no video.
+  test('a url in another bucket is presigned in R2_BUCKET_NAME at the same key', async () => {
+    process.env.R2_BUCKET_NAME = 'rumi-sandbox';
+    const srv = await app();
+    const res = await req(srv, 'GET', `/v/${token()}`, { headers: { 'user-agent': IAB } });
+    expect(res.status).toBe(200);
+    expect(presigned).toEqual(['https://acc.r2.cloudflarestorage.com/rumi-sandbox/v/63.mp4']);
+  });
+
+  test('a url already in R2_BUCKET_NAME (prod), or no bucket configured, is presigned byte-identical', async () => {
+    for (const bucket of ['digital-coach-audio', undefined]) {
+      presigned = [];
+      if (bucket) process.env.R2_BUCKET_NAME = bucket; else delete process.env.R2_BUCKET_NAME;
+      const srv = await app();
+      const res = await req(srv, 'GET', `/v/${token()}`, { headers: { 'user-agent': IAB } });
+      expect(res.status).toBe(200);
+      expect(presigned).toEqual([CLIP.module.video_url]);
+    }
+  });
+
+  test('only an R2 path-style url\'s first segment is rewritten; other hosts pass through unchanged', async () => {
+    process.env.R2_BUCKET_NAME = 'rumi-sandbox';
+    const urls = ['https://pub-abc.r2.dev/digital-coach-audio/v/63.mp4', 'https://cdn.example.pk/digital-coach-audio/v/63.mp4'];
+    for (const video_url of urls) {
+      const srv = await app({ clip: { ...CLIP, module: { ...CLIP.module, video_url } } });
+      await req(srv, 'GET', `/v/${token()}`, { headers: { 'user-agent': IAB } });
+    }
+    expect(presigned).toEqual(urls);
+  });
+
   test('the same device cookie gives the same device id; another browser a different one', async () => {
     const srv = await app();
     await req(srv, 'GET', `/v/${token()}`, { headers: { 'user-agent': IAB, cookie: 'vr_d=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } });
