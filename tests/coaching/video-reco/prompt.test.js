@@ -13,8 +13,8 @@ const session = { diarization_data: { segments: segs }, transcript_text: '' };
 const target = { indicator: 'C1', source: 'step', row: { id: 'C1', name: 'Quality Questioning', score: 1, timestamp: '[03:10]' } };
 const cands = [{ seg_id: '10-s1', indicator: 'C1' }, { seg_id: '11-s1', indicator: 'C1' }];
 
-test('PROMPT_VERSION is vr-4 (v1.3b: the scorer words out)', () => {
-  expect(P.PROMPT_VERSION).toBe('vr-4');
+test('PROMPT_VERSION is vr-5 (vr-4 wording plus the v1.3c-3 cross-language rule)', () => {
+  expect(P.PROMPT_VERSION).toBe('vr-5');
 });
 
 test('excerpts: the 12 diarized segments around the target timestamp, [mm:ss] Label: text, ≤ 220 chars each', () => {
