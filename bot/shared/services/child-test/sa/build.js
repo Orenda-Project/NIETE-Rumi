@@ -170,7 +170,7 @@ function gridTask({ lang, kind, spec, extraPractice }) {
   const example = practice.find((p) => p.role === 'example');
   return {
     task, lang, kind: 'grid', legacy_block: task, family: 'egra', subtask: SUBTASK[kind], title: spec.title, modes: ['tap'],
-    tap: { options_n: n, distractor_rule: kind === 'letters' ? 'same_list' : 'same_list_shares_letter', input: 'options',
+    tap: { options_n: n, distractor_rule: kind === 'letters' ? 'same_list_one_name' : 'same_list_same_length_first_letter', input: 'options',
       items, time_limit_s: spec.timed_s, ...TIMED_TAP, stop: chanceStop(stopOf(spec.stop), kind) },
     record: { grid: spec.items, per_row: spec.per_row, direction: spec.direction, time_limit_s: spec.timed_s, stop: stopOf(spec.stop) },
     practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
@@ -757,8 +757,10 @@ function runtimeTask(t, lang) {
   const practice = (t.practice || []).map((p) => runtimeItem(p, lang));
   if (t.tap) {
     const tap = t.tap;
-    return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, item_timeout_s: tap.item_timeout_s,
-      replay_at_s: tap.replay_at_s, ...(tap.next_at_s ? { next_at_s: tap.next_at_s } : {}), ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop), ...(tap.say_on ? { say_on: tap.say_on } : {}),
+    return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, ...(tap.soft_cap_s ? {} : { item_timeout_s: tap.item_timeout_s }),
+      replay_at_s: tap.replay_at_s, ...(tap.next_at_s ? { next_at_s: tap.next_at_s } : {}),
+      // The word-problem answer cap is its own field, never the move-on one (lead-egra-2 182025).
+      ...(tap.soft_cap_s ? { soft_cap_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop), ...(tap.say_on ? { say_on: tap.say_on } : {}),
       options_n: tap.options_n, distractor_rule: tap.distractor_rule, items: tap.items.map((it) => runtimeItem(it, lang)), practice,
       ...(tap.passage ? { passage: tap.passage, tap_on: 'passage' } : {}), ...(tap.option_images ? { option_images: tap.option_images } : {}),
       ...(t.rubric ? { rubric: t.rubric } : {}),
