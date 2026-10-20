@@ -42,7 +42,6 @@ export const COACHING_V2_COPY = {
   /** The empty lesson plan row: a noun, as every prompt (niete-portal: never "Select ..."). */
   selectPlan: 'Lesson plan',
   viewPlan: 'View lesson plan',
-  planPhoto: 'Plan photo',
   planFallback: 'Lesson plan',
   change: 'Change',
   photos: 'Photos',
@@ -201,7 +200,6 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   optional: 'اختیاری',
   selectPlan: 'لیسن پلان',
   viewPlan: 'لیسن پلان دیکھیں',
-  planPhoto: 'پلان کی تصویر',
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
   photos: 'تصاویر',
@@ -356,5 +354,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
     'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote',
     // bd-i0u6n2: why a video cannot go in the recording slot, and what to send instead.
-    'notVideo'],
+    'notVideo',
+    // bd-rt8wky/bd-hsgah5: the photo count is five words in Urdu («10 میں سے 4 تصاویر»).
+    'photoCount'],
 };

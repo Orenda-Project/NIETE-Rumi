@@ -38,7 +38,8 @@ export function PlanPicker({ plan, disabled, onOpen, onView, readOnly = false }:
 }) {
   const C = useCopy(COACHING);
   if (plan) {
-    const label = plan.kind === 'library' ? plan.title : C.planPhoto;
+    // bd-hsgah5: an uploaded plan may be a PDF, a Word file or a photo — it is the lesson plan, its name under it.
+    const label = plan.kind === 'library' ? plan.title : C.lessonPlan;
     const subtitle = plan.kind === 'library' ? plan.chips.join(' · ') : plan.file.name;
     const row = (
       <ListRow
