@@ -17,6 +17,7 @@
  * The server writes `door_shown{door:'link_home', surface:'hub', w:'s'}` when it routes the child.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { read: dbRead } = require('./web-quiz-db-deadline');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -40,7 +41,7 @@ async function isOn(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) own = cache.on;
   else {
     try {
-      const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [LINK_HOME_KEY]);
+      const { data, error } = await Snap.rows([LINK_HOME_KEY], () => supabase.from('app_settings').select('key, value').in('key', [LINK_HOME_KEY]));
       if (error) throw new Error(error.message || 'app_settings read failed');
       const row = (data || []).find((r) => r.key === LINK_HOME_KEY);
       cache = { at: now, on: Boolean(row) && isTrue(row.value) };

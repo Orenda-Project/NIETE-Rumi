@@ -15,6 +15,7 @@
  * class and league are the existing /api/wq/board/:code and /api/wq/schools/:code.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
 const WatchRoot = require('./watch-root');
@@ -27,7 +28,7 @@ let cache = null;
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY);
+    const { data, error } = await Snap.rows([KEY], () => supabase.from('app_settings').select('key, value').eq('key', KEY));
     if (error) throw new Error(error.message || 'app_settings read failed');
     cache = { at: now, on: (data || []).some((r) => r && r.key === KEY && r.value === true) };
     return cache.on;
