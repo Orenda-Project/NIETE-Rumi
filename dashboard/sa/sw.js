@@ -32,6 +32,13 @@ function cacheable(url, res) {
   return type.indexOf('text/html') < 0;
 }
 
+/** One engine file into the install cache, only when it is one (a cold portal may answer its own page once). */
+function installOne(cache, url, fetchFn) {
+  return Promise.resolve().then(function () { return fetchFn(url, { cache: 'no-cache' }); })
+    .then(function (res) { return cacheable(url, res) ? cache.put(url, res) : null; })
+    .catch(function () { return null; });
+}
+
 /** Which way a request is answered: 'core' | 'static' | null (not ours). */
 function strategyFor(url, method, origin) {
   if (method !== 'GET') return null;
@@ -46,12 +53,12 @@ function strategyFor(url, method, origin) {
 }
 
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, cacheable: cacheable, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
 } else {
   self.addEventListener('install', function (e) {
     e.waitUntil(caches.open(CORE).then(function (c) {
       // One by one: a file the game lane has not shipped yet must not stop the worker installing.
-      return Promise.all(CORE_FILES.map(function (f) { return c.add('/sa/' + f).catch(function () { return null; }); }));
+      return Promise.all(CORE_FILES.map(function (f) { return installOne(c, new URL('/sa/' + f, self.location.href).href, fetch); }));
     }).then(function () { return self.skipWaiting(); }));
   });
 

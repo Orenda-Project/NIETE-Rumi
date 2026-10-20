@@ -69,3 +69,19 @@ test('switch on: the battery files are served from the content folder by name on
   const off = await serve(false);
   try { expect((await fetch(`${off.base}/sa/batteries/sa.coach.G3.A.ur.json`)).status).toBe(299); } finally { off.srv.close(); }
 });
+
+test('a cold portal: the first /sa request waits for the switch\'s first read instead of falling through once', async () => {
+  let val = false;
+  let reading = null;
+  const on = () => { if (!reading) reading = new Promise((r) => setTimeout(() => { val = true; r(); }, 30)); return val; };
+  on.ready = () => reading || Promise.resolve();
+  const app = express();
+  app.use(createSaEngineRouter({ on }));
+  app.use((req, res) => res.status(299).send('after'));
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  try {
+    const res = await fetch(`http://127.0.0.1:${srv.address().port}/sa/sa-core.js`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/javascript/);
+  } finally { srv.close(); }
+});

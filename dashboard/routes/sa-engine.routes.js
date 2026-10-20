@@ -21,6 +21,14 @@ const BATTERY_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)\.j
 /** createSaEngineRouter({ on }) → router. on() is the switch (default: app_settings sa_engine). */
 function createSaEngineRouter({ on = createBrotliFlag({ key: KEY }) } = {}) {
   const router = express.Router();
+  // The switch's reader never waits, so on a cold portal its first answer is OFF and that one request would fall
+  // through to the portal's page. Until the first read has landed, an /sa request waits for it (once per process).
+  let warm = false;
+  router.use('/sa', (req, res, next) => {
+    if (warm || typeof on.ready !== 'function') return next();
+    on();
+    return Promise.resolve(on.ready()).then(() => { warm = true; next(); }, () => { warm = true; next(); });
+  });
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',

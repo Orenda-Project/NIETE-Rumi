@@ -62,3 +62,14 @@ test('the worker keeps only what it asked for: a clip must be audio, a battery J
   expect(cacheable('https://p.test/sa/sa-core.js', r(200, 'text/html'))).toBe(false);
   expect(cacheable('https://p.test/sa/play.html', r(200, 'text/html'))).toBe(true);
 });
+
+test('the worker\'s install keeps an engine file only when it is one (a cold portal\'s page is not kept)', async () => {
+  const { installOne } = require('../sa/sw');
+  const put = [];
+  const cache = { put: async (k, r) => { put.push([k, r.type]); } };
+  const resp = (type) => ({ ok: true, status: 200, type, headers: { get: () => type }, clone() { return this; } });
+  await installOne(cache, 'https://p.test/sa/sa-core.js', async () => resp('application/javascript'));
+  await installOne(cache, 'https://p.test/sa/sa-ui.js', async () => resp('text/html; charset=UTF-8'));
+  await installOne(cache, 'https://p.test/sa/skin-game.js', async () => { throw new Error('offline'); });
+  expect(put).toEqual([['https://p.test/sa/sa-core.js', 'application/javascript']]);
+});
