@@ -7,7 +7,7 @@
  */
 const { redactNames } = require('./redact-names');
 
-const PROMPT_VERSION = 'vr-3';
+const PROMPT_VERSION = 'vr-4';
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -88,7 +88,7 @@ function build({ target, rationale, tryText, subject, excerpts: ex, candidates, 
   let evidenceLine = '';
   if (t.source === 'card_text') {
     indicatorLine = 'Indicator: not named — the step is the sentence below';
-    if (uptakeQuote) evidenceLine = `\nEvidence the scorer quoted: "${uptakeQuote}"`;
+    if (uptakeQuote) evidenceLine = `\nThe report's own moment: "${uptakeQuote}"`;
   } else {
     if (t.indicator) {
       const rung = row.score !== undefined && row.score !== null ? row.score : '?';
@@ -97,10 +97,10 @@ function build({ target, rationale, tryText, subject, excerpts: ex, candidates, 
       indicatorLine = `Indicator: plan step: ${t.phase || ''} — ${(t.moves || []).join(', ')} (a step of the lesson plan, not scored)`;
     }
     if (scorerQuote) {
-      evidenceLine = `\nEvidence the scorer quoted: "${scorerQuote}" (around ${row.timestamp || 'unknown'}) — the report's own moment. Cite it unless a transcript line below fits the clip better.`;
+      evidenceLine = `\nThe report's own moment: "${scorerQuote}" (around ${row.timestamp || 'unknown'}). Cite it unless a transcript line below fits the clip better.`;
     }
   }
-  const moments = (ex || []).length ? ex.join('\n') : "(no transcript lines for this lesson: cite the scorer's quote above)";
+  const moments = (ex || []).length ? ex.join('\n') : "(no transcript lines for this lesson: cite the report's moment above)";
   return `You are the Digital Coach's video picker for a government-school teacher in Pakistan. After a lesson, the coaching report tells the teacher ONE thing to try next class. Your job: choose the ONE short training-video clip (from the candidates below) that would most help THIS teacher do THAT thing, or say that none fits. Return JSON only.
 
 THE TEACHER'S ONE NEXT STEP
@@ -116,7 +116,7 @@ ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 
 RULES
 1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
-2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the scorer's evidence or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].
+2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].
 3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
@@ -125,4 +125,27 @@ Return exactly this JSON:
 {"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
 }
 
-module.exports = { build, excerpts, redact, PROMPT_VERSION, stampMs };
+// One sentence per validate() <why> (select.js), for the single retry's appendix (v1.3b). Never names a scorer.
+const RETRY_RULES = Object.freeze({
+  shape: 'The answer was not the JSON object asked for.',
+  candidate: 'The seg_id was not one of the CANDIDATES.',
+  quote: "The quote was not copied word for word from the report's moment or the TRANSCRIPT MOMENTS.",
+  moment_at: 'The moment "at" was not a real mm:ss time from those lines.',
+  placeholder: 'The quote was mostly [a student] placeholders; choose a line with the teacher\'s or a child\'s own words.',
+  scorer: 'The reason talked about the report or the analysis instead of the lesson moment itself.',
+  id: 'The reason contained a clip id, number or code.',
+  name: "The quote or the reason contained a person's name; write [a student] in its place.",
+  length: 'reason_en was not two sentences under 300 characters.',
+  urdu: 'reason_ur was not written in Urdu script.',
+  roman: 'reason_ur contained Roman Urdu or English words; write it in Urdu script.',
+  step: "The clip does not show the step's teaching move; choose one that does.",
+});
+
+/** The two lines added to the same prompt for the one retry: which rule the first answer broke, then answer again. */
+function retryAppendix(none) {
+  const why = String(none || '').replace(/^validation:/, '');
+  const rule = RETRY_RULES[why] || 'The answer broke one of the rules above.';
+  return `\n\nYOUR FIRST ANSWER WAS REJECTED (validation:${why}): ${rule}\nAnswer again in the same JSON shape, keeping every rule above; if no clip fits, return seg_id null.`;
+}
+
+module.exports = { build, excerpts, redact, retryAppendix, PROMPT_VERSION, stampMs };

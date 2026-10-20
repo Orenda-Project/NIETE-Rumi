@@ -6,6 +6,7 @@
  *
  *   node bot/scripts/video-reco/build-catalog.js <catalog.json | cards dir> <keywords.json> <thumbs dir>
  *        [--crosswalk indicator_crosswalk.json] [--meta catalog.meta.json] [--modules modules.json] [--out file] [--thumbs-out dir]
+ *        [--vetoes ped/vetoes.json]...   (repeatable: the panel's binding vetoes, module or chapter entries)
  *
  * A cards dir (one <module_id>.json per module, DB fields absent) is merged with --modules (the DB rows).
  * Only the fields the engine reads are kept: no transcripts, no provenance. Thumbnails over 25 KB are
@@ -24,7 +25,7 @@ const MODULE_FIELDS = ['module_id', 'level_id', 'cpd_level', 'level_name', 'cour
   'fico', 'symptoms', 'not_for', 'topic', 'quality', 'recommendable', 'recommendable_reason', 'media_ok'];
 // fico_main37: the prod scheme's ids per chapter (native match before the crosswalk); language: a chapter's own spoken
 // language (module 60 splices Urdu and English). continues_to is dropped (SPEC v1.2.1: one chapter = one playable unit).
-const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'phase'];
+const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'recommendable_reason', 'phase'];
 
 function pick(obj, fields) {
   const out = {};
@@ -65,7 +66,27 @@ function aliasesFrom(crosswalk) {
   return out;
 }
 
-function build({ modules, keywords, crosswalk, meta = null, sourceSha, now = new Date() }) {
+/**
+ * ped/vetoes.json: {module_id, seg_id, reason} vetoes one chapter; {module_id, recommendable:false, recommendable_reason}
+ * vetoes the module. A veto that names nothing in the catalogue throws: a typo must not leave a vetoed clip live.
+ */
+function applyVetoes(out, vetoes) {
+  for (const v of vetoes || []) {
+    const m = out.find((x) => x.module_id === Number(v && v.module_id));
+    if (v && v.seg_id) {
+      const s = m && m.segments.find((x) => x.seg_id === String(v.seg_id));
+      if (!s) throw new Error(`veto names chapter ${v.seg_id}, which is not in the catalogue`);
+      s.recommendable = false;
+      s.recommendable_reason = `panel_veto: ${v.reason || v.recommendable_reason || 'ped-panel'}`;
+    } else {
+      if (!m) throw new Error(`veto names module ${v && v.module_id}, which is not in the catalogue`);
+      m.recommendable = false;
+      m.recommendable_reason = v.recommendable_reason || `panel_veto: ${v.reason || 'ped-panel'}`;
+    }
+  }
+}
+
+function build({ modules, keywords, crosswalk, meta = null, vetoes = [], sourceSha, now = new Date() }) {
   const kw = keywordIndex(keywords);
   const stamp = now.toISOString().replace(/[-:]/g, '').slice(0, 13);
   const out = (modules || []).map((src) => {
@@ -78,6 +99,7 @@ function build({ modules, keywords, crosswalk, meta = null, sourceSha, now = new
     }));
     return m;
   }).sort((a, b) => a.module_id - b.module_id);
+  applyVetoes(out, vetoes);
   return {
     version: `catalog-v1-${stamp}-${String(sourceSha || '').slice(0, 8)}`,
     built_at: now.toISOString(),
@@ -157,10 +179,15 @@ async function main(argv) {
   const cw = opt('crosswalk');
   const crosswalk = cw && fs.existsSync(cw) ? JSON.parse(fs.readFileSync(cw, 'utf8')) : null;
   const srcBytes = fs.statSync(input).isDirectory() ? JSON.stringify(modules) : fs.readFileSync(input);
-  const sourceSha = crypto.createHash('sha256').update(srcBytes).digest('hex');
+  const vetoFiles = argv.map((a, i) => (argv[i - 1] === '--vetoes' ? a : null)).filter(Boolean);
+  const vetoes = vetoFiles.flatMap((f) => JSON.parse(fs.readFileSync(f, 'utf8')));
+  // The vetoes are part of the source: a rebuild with a new veto gets a new version.
+  const sha = crypto.createHash('sha256').update(srcBytes);
+  if (vetoes.length) sha.update(JSON.stringify(vetoes));
+  const sourceSha = sha.digest('hex');
   const mf = opt('meta');
   const meta = mf && fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')) : null;
-  const data = build({ modules, keywords, crosswalk, meta, sourceSha });
+  const data = build({ modules, keywords, crosswalk, meta, vetoes, sourceSha });
 
   fs.mkdirSync(thumbsOut, { recursive: true });
   for (const m of data.modules) {
@@ -171,7 +198,7 @@ async function main(argv) {
   if (errs.length) throw new Error(`catalogue invalid:\n  ${errs.join('\n  ')}`);
   fs.writeFileSync(out, `${JSON.stringify(data, null, 1)}\n`);
   const segs = data.modules.reduce((n, m) => n + m.segments.length, 0);
-  console.log(`wrote ${out}: ${data.version}, ${data.modules.length} modules, ${segs} segments, holes=${data.holes.join(',') || '-'}, crosswalk=${crosswalk ? 'yes' : 'identity'}`);
+  console.log(`wrote ${out}: ${data.version}, ${data.modules.length} modules, ${segs} segments, holes=${data.holes.join(',') || '-'}, crosswalk=${crosswalk ? 'yes' : 'identity'}, vetoes=${vetoes.length}`);
 }
 
 if (require.main === module) {

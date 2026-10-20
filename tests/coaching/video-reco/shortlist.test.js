@@ -29,11 +29,14 @@ test('only step-indicator chapters: alsoWeak is gone', () => {
   expect(ids(S.build(cat, tgt('C1'), ctx(), 'explain again picture', L()))).not.toContain('11-s2');
 });
 
-test('BM25 + bonuses order the list, stable, best first', () => {
+test('BM25 + bonuses order the list, stable, best first (inside each level group: near first, v1.3b ⛔11)', () => {
   const r = S.build(cat, tgt('C1'), ctx(), 'why how open question yes no', L());
   expect(ids(r)[0]).toBe('10-s1');
   expect(ids(S.build(cat, tgt('C1'), ctx(), 'why how open question yes no', L()))).toEqual(ids(r));
-  for (let i = 1; i < r.candidates.length; i++) expect(r.candidates[i - 1].score).toBeGreaterThanOrEqual(r.candidates[i].score);
+  for (const g of ['near', 'far']) {
+    const s = r.candidates.filter((c) => c.level_match === g).map((c) => c.score);
+    for (let i = 1; i < s.length; i++) expect(s[i - 1]).toBeGreaterThanOrEqual(s[i]);
+  }
 });
 
 describe('⛔3 language (H1): preferred ∪ transcript ∪ mixed, chapter language first', () => {

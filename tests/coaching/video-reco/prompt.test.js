@@ -13,8 +13,8 @@ const session = { diarization_data: { segments: segs }, transcript_text: '' };
 const target = { indicator: 'C1', source: 'step', row: { id: 'C1', name: 'Quality Questioning', score: 1, timestamp: '[03:10]' } };
 const cands = [{ seg_id: '10-s1', indicator: 'C1' }, { seg_id: '11-s1', indicator: 'C1' }];
 
-test('PROMPT_VERSION is vr-3 (SPEC §3.5 [v1.3]: rule 2 gains the length hint)', () => {
-  expect(P.PROMPT_VERSION).toBe('vr-3');
+test('PROMPT_VERSION is vr-4 (v1.3b: the scorer words out)', () => {
+  expect(P.PROMPT_VERSION).toBe('vr-4');
 });
 
 test('excerpts: the 12 diarized segments around the target timestamp, [mm:ss] Label: text, ≤ 220 chars each', () => {
@@ -47,7 +47,7 @@ test('build (indicator path): the vr-2 text, the score of the scheme\'s max, the
   expect(prompt).toContain("You are the Digital Coach's video picker for a government-school teacher in Pakistan.");
   expect(prompt).toContain('Indicator: C1 — Quality Questioning (scored 1 of 2 in this lesson)');
   expect(prompt).toContain('Try this tomorrow: Ask two why questions');
-  expect(prompt).toContain('Evidence the scorer quoted: "Is this red? Yes or no" (around [03:10]) — the report\'s own moment. Cite it unless a transcript line below fits the clip better.');
+  expect(prompt).toContain('The report\'s own moment: "Is this red? Yes or no" (around [03:10]). Cite it unless a transcript line below fits the clip better.');
   expect(prompt).toContain(ex[0]);
   expect(prompt).toContain('10-s1 · Ask why and how · 90s · ur · The teacher turns yes/no questions into why and how questions. · needs:  · C1');
   expect(prompt).toContain('1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.');
@@ -68,12 +68,12 @@ test('build (card_text path): the indicator is not named, the card is the step, 
   const p1 = P.build({ target: t, tryText: 'Give the fast finishers a harder sum', excerpts: ['[00:01] Teacher: ok'], candidates: cands, catalog: cat, uptakeQuote: 'finished early' });
   expect(p1).toContain('Indicator: not named — the step is the sentence below');
   expect(p1).toContain('Try this tomorrow: Give the fast finishers a harder sum');
-  expect(p1).toContain('Evidence the scorer quoted: "finished early"');
+  expect(p1).toContain('The report\'s own moment: "finished early"');
   const p2 = P.build({ target: t, tryText: 'x', excerpts: ['[00:01] Teacher: ok'], candidates: cands, catalog: cat });
-  expect(p2).not.toContain('Evidence the scorer quoted');
+  expect(p2).not.toContain('The report\'s own moment');
 });
 
-test('build: no transcript lines but a scorer quote → the prompt says to cite the scorer', () => {
+test("build: no transcript lines but a scorer quote → the prompt says to cite the report's moment", () => {
   const prompt = P.build({ target, excerpts: [], candidates: cands, catalog: cat, scorerQuote: 'Yes or no' });
-  expect(prompt).toContain('(no transcript lines for this lesson: cite the scorer\'s quote above)');
+  expect(prompt).toContain('(no transcript lines for this lesson: cite the report\'s moment above)');
 });

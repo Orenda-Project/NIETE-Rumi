@@ -20,6 +20,7 @@ const prompt = require('./prompt');
 const select = require('./select');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
+const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
 const BAND_GRADES = Object.freeze({ PRIMARY: [1, 5], MIDDLE: [6, 8], HIGH: [9, 12] });
 
 class Timeout extends Error {
@@ -33,6 +34,12 @@ async function gradeOf(analysis, userId, store) {
   if (Number.isFinite(n)) return { lo: n, hi: n };
   const spans = (await store.trainingBands(userId)).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
   return spans.length ? { lo: Math.min(...spans.map((x) => x[0])), hi: Math.max(...spans.map((x) => x[1])) } : null;
+}
+
+function sumUsage(a, b) {
+  const out = { ...(a || {}) };
+  for (const [k, n] of Object.entries(b || {})) out[k] = typeof n === 'number' && typeof out[k] === 'number' ? out[k] + n : n;
+  return out;
 }
 
 function inapplicableRows(analysis) {
@@ -108,7 +115,9 @@ async function compute(a, d, state) {
   // A teacher with no stored language reads the copy in the lesson's language (⛔3, red-team 19:50Z): never a 'preferred'.
   const pref = session.users && session.users.preferred_language;
   const hasPref = typeof pref === 'string' && pref.trim() !== '';
-  const transcriptLanguage = session.transcript_language ? clampLanguage(session.transcript_language) : null;
+  // A lesson language outside {en, ur} (a 'hindi' transcript) is unknown, never clamped to en (red-team 19:55Z).
+  const rawTranscript = typeof session.transcript_language === 'string' ? session.transcript_language.trim().toLowerCase() : '';
+  const transcriptLanguage = ['en', 'ur'].includes(rawTranscript) ? rawTranscript : null;
   const language = hasPref ? clampLanguage(pref) : (transcriptLanguage || 'ur');
   const [history, ladder] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id)]);
   const completed = new Set(ladder.completedModules || []);
@@ -160,7 +169,10 @@ async function compute(a, d, state) {
   state.base = base;
 
   // An unknown indicator is no longer a none here: the shortlist's step-text route takes it (SPEC v1.3 R3).
-  if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') return finish({ ...base, status: 'none', none_reason: t.none });
+  if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') {
+    // v1.3b NO_MOVE: no route ran, so the row says so (route null, an empty list).
+    return finish({ ...base, status: 'none', none_reason: t.none, ...(t.none === 'hole:no_move' ? { candidates: [] } : {}) });
+  }
 
   const lesson = {
     subject,
@@ -180,11 +192,14 @@ async function compute(a, d, state) {
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
-  base.step_text_query = list.stepTextQuery || null;
+  const people = { teacher: session.users && session.users.name };
+  // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
+  // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
+  const st = stepTextOf(t, analysis, card);
+  base.step_text_query = list.stepTextQuery ? shortlist.stepQuery({ ...st, action: prompt.redact(st.action, people) }) || null : null;
   if (list.route === 'step_text') base.alias_kind = list.textReason;
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
 
-  const people = { teacher: session.users && session.users.name };
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
   const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }, people);
@@ -209,14 +224,34 @@ async function compute(a, d, state) {
     uptakeQuote,
     topRung: t.topRung || (t.scheme === 'fico_main_37' ? 4 : 2),
   });
-  const res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
-  const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage };
-  if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
-  const v = select.validate(res.pick, list, ex, {
+  const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
-  });
-  if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, confidence: v.confidence });
+  };
+  const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
+  let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
+  let v = check(res);
+  let attempts = 1;
+  let firstNone = null;
+  // v1.3b: ONE more call when the answer broke a validation rule and the budget allows; the appendix names the rule.
+  const left = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
+  if (!v.ok && /^validation:/.test(v.none) && left >= RETRY_MIN_LEFT_MS) {
+    attempts = 2;
+    firstNone = v.none;
+    try {
+      const again = await select.pick({
+        prompt: text + prompt.retryAppendix(v.none), deps: d, timeoutMs: Math.min(a.llmTimeoutMs || select.LLM_TIMEOUT_MS, left - 1000),
+      });
+      res = { ...again, usage: sumUsage(res.usage, again.usage) };
+      v = check(again);
+    } catch (e) { /* the first answer's none stands */ }
+  }
+  // r-ab EVENTS_SCHEMA §3b (V1.7.2): the language facts the STOP_lang_null guardrail reads, on every row with a call.
+  const withLlm = {
+    ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
+    report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
+  };
+  if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
 
   const p = res.pick;
   const hit = catalog.segment(p.seg_id);
@@ -240,6 +275,7 @@ async function compute(a, d, state) {
     start_s: hit.segment.start_s,
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
+    chapter_language: hit.segment.language || hit.module.language || null,
     reason_en: String(p.reason_en).trim(),
     reason_ur: String(p.reason_ur).trim(),
     moment_at: p.moment && p.moment.at ? String(p.moment.at) : null,

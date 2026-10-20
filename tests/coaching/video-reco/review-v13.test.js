@@ -40,7 +40,7 @@ describe('deviation 2 + validator (c): prompt rule 2 verbatim from SPEC §3.4, "
   test('rule 2 carries the "explains the move" clause and the length hint', () => {
     expect(text).toContain('then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
   });
-  test('PROMPT_VERSION is vr-3', () => expect(P.PROMPT_VERSION).toBe('vr-3'));
+  test('PROMPT_VERSION is vr-4 (v1.3b)', () => expect(P.PROMPT_VERSION).toBe('vr-4'));
 });
 
 describe('deviation 5 (D3b): the tie-break needs moves[0] = target AND evidence_s inside (indicator path: evidence_s only)', () => {
@@ -141,7 +141,7 @@ describe('engine: ladderComplete over recommendable modules (deviation 4) and th
     const row = await run({ nextStep: { target: { indicator: 'C1' } }, card: { action: 'Ask why' },
       rowOverride: { id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Teacher gives frequent praise but lacks follow-up', evidence_summary: 'Praise without follow-up', timestamp: '[00:30]' } });
     expect(row._prompt).toContain('TRANSCRIPT MOMENTS');
-    expect(row._prompt).not.toContain('Evidence the scorer quoted');
+    expect(row._prompt).not.toContain('The report\'s own moment');
     expect(row._prompt).not.toContain('Praise without follow-up');
   });
   test('every recommendable module completed (a not-recommendable one not) → ladder_completed', async () => {
@@ -197,9 +197,9 @@ describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
   test('the evidence line shows only the Quote: part, and is omitted without one', () => {
     const cat = C.fromData(FIX);
     const withQuote = P.build({ target: tgt('C1'), candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'], scorerQuote: T.scorerQuoteOnly({ evidence: 'Closed. Quote: "Is this a triangle"' }) });
-    expect(withQuote).toContain('Evidence the scorer quoted: "Is this a triangle"');
+    expect(withQuote).toContain('The report\'s own moment: "Is this a triangle"');
     const noQuote = P.build({ target: tgt('C1'), candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'], scorerQuote: T.scorerQuoteOnly({ evidence: 'Teacher gives frequent praise but lacks', evidence_summary: 'Praise only' }) });
-    expect(noQuote).not.toContain('Evidence the scorer quoted');
+    expect(noQuote).not.toContain('The report\'s own moment');
   });
   test('rule 2 ends with the no-scorer and no-N/A sentences', () => {
     const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: x'] });
