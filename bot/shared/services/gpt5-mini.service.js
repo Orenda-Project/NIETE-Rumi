@@ -2,7 +2,8 @@ const { getClient } = require('./llm-client');
 const { modelFor } = require('../config/model-registry');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
-const { logToFile, logWarn } = require('../utils/logger');
+const { logToFile, logWarn, logError } = require('../utils/logger');
+const { logEvent } = require('../utils/structured-logger');
 const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const supabase = require('../config/supabase');
 const {
@@ -428,6 +429,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         max_completion_tokens: 16000
       };
       let response;
+      let sentMessages = messages; // what the reply below answers (the photo-less messages after a fallback)
       try {
         response = await this.openai.chat.completions.create(scoringRequest);
       } catch (callError) {
@@ -448,9 +450,10 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
           ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, metadata.photoAnalysis || null)
           : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured);
         // A fresh request: the rejected one is left exactly as it was sent.
+        sentMessages = [messages[0], { role: 'user', content: textPrompt }];
         response = await this.openai.chat.completions.create({
           ...scoringRequest,
-          messages: [messages[0], { role: 'user', content: textPrompt }],
+          messages: sentMessages,
         });
       }
 
@@ -479,6 +482,46 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
           finishReason: response.choices[0].finish_reason
         });
         throw new Error(`JSON parsing failed: ${parseError.message}. Response may be truncated.`);
+      }
+
+      // A reply can end normally yet carry only some of the framework's sections (ICT DC row 151,
+      // 20 Oct: 1,506 tokens, Section B only — scored 10/148). Retry once; whatever is still
+      // missing is marked not assessed so it leaves the total instead of reading as 0.
+      // What the sections event (below) records about a first reply the retry replaced.
+      let firstMissing = [];
+      let firstReply = null;
+      let stillMissing = [];
+      if (useFrameworkModule) {
+        const missing = this._missingFrameworkSections(result, framework);
+        if (missing.length) {
+          firstMissing = missing;
+          firstReply = this._replyShape(response, rawContent);
+          logWarn('⚠️ Analysis came back without every framework section — retrying once', {
+            missing,
+            ...firstReply,
+          });
+          try {
+            const again = await this.openai.chat.completions.create({ ...scoringRequest, messages: sentMessages });
+            const retried = this._safeJsonParse(again.choices[0].message.content);
+            if (this._missingFrameworkSections(retried, framework).length < missing.length) {
+              result = retried;
+              response = again;
+            }
+          } catch (retryError) {
+            logWarn('⚠️ Retry of the incomplete analysis failed — keeping the first reply', { error: retryError.message });
+          }
+          stillMissing = this._missingFrameworkSections(result, framework);
+          for (const key of stillMissing) {
+            result.domains[key] = { assessed: false, not_assessed_reason: 'analysis_incomplete', indicators: [] };
+          }
+          if (stillMissing.length) {
+            logError('❌ Analysis still incomplete after one retry — those sections are not assessed', {
+              coachingSessionId: metadata.coachingSessionId || null,
+              missing: stillMissing,
+              ...this._replyShape(response, response.choices[0].message.content),
+            });
+          }
+        }
       }
 
       // Compute actual marks from competency scores (framework module if one is active, else inline OECD)
@@ -544,6 +587,25 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         estimatedCost: this._calculateCost(response.usage),
         totalMarks: analysisWithMarks.scores?.overall_marks
       });
+
+      // One event per analysis, the shape only (never the reply or lesson words): how many of the
+      // framework's sections came back, whether a retry ran, and why the reply ended. Query in Axiom
+      // (niete-logs): event == 'coaching.analysis.sections'.
+      if (useFrameworkModule && typeof framework.getScoringConstants === 'function') {
+        const expected = Object.keys(framework.getScoringConstants().domains || {}).length;
+        logEvent('coaching.analysis.sections', {
+          coachingSessionId: metadata.coachingSessionId || null,
+          result: stillMissing.length ? 'incomplete' : (firstMissing.length ? 'recovered' : 'complete'),
+          retried: firstMissing.length > 0,
+          sectionsExpected: expected,
+          sectionsReturned: expected - stillMissing.length,
+          missing: stillMissing,
+          ...(firstMissing.length ? { firstMissing, firstReply } : {}),
+          ...this._replyShape(response, response.choices[0].message.content),
+          model: scoringRequest.model,
+          transcriptChars: transcript.length,
+        });
+      }
 
       return {
         analysis: analysisWithMarks,
@@ -739,6 +801,39 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       logToFile(`❌ ${label} failed`, { error: error.message, stack: error.stack });
       throw error;
     }
+  }
+
+  /**
+   * How a model reply ended, by size only — never its words. reasoning_tokens is what a reasoning
+   * model spent thinking inside max_completion_tokens; a short visible reply beside a large reasoning
+   * count is the signature to look for.
+   * @private
+   */
+  static _replyShape(response, content) {
+    const usage = (response && response.usage) || {};
+    const choice = (response && response.choices && response.choices[0]) || {};
+    return {
+      finishReason: choice.finish_reason || null,
+      inputTokens: usage.prompt_tokens ?? null,
+      outputTokens: usage.completion_tokens ?? null,
+      reasoningTokens: (usage.completion_tokens_details && usage.completion_tokens_details.reasoning_tokens) ?? null,
+      responseChars: typeof content === 'string' ? content.length : null,
+    };
+  }
+
+  /**
+   * The framework sections a reply left out — only when it carries SOME of them. A reply with none
+   * (or no `domains`) is a different shape and is left to the framework, as before.
+   * @private
+   */
+  static _missingFrameworkSections(result, framework) {
+    const declared = framework && typeof framework.getScoringConstants === 'function'
+      && framework.getScoringConstants().domains;
+    const domains = result && result.domains;
+    if (!declared || !domains || typeof domains !== 'object') return [];
+    const keys = Object.keys(declared);
+    const missing = keys.filter((k) => !domains[k]);
+    return missing.length && missing.length < keys.length ? missing : [];
   }
 
   /**
