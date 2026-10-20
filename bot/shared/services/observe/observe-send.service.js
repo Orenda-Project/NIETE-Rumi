@@ -1279,6 +1279,10 @@ async function processTeacherReport(sessionId, payload = {}) {
       sent_at: nowIso,
       ...(phase === 'teacher_tap' ? { tapped_at: nowIso } : {}),
     });
+    // bd-gzfdu9: the recommended clip for the report the teacher now has (never the coach preview). Row|null, never rejects.
+    const videoReco = require('../coaching/video-reco/engine').recommendForReport({
+      session, analysis: session.analysis_data, card: session.prioritized_action, coachingSessionId: sessionId, observationType: 'leader_observation',
+    });
     // bd-9rrd5: report sent — if the debrief is done too, the observation is
     // COMPLETE. Without this flip HITL sessions never left
     // observer_review_complete and every "completed" count read coaches as 0.
