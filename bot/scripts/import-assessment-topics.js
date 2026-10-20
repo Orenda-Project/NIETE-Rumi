@@ -3,7 +3,7 @@
 /**
  * Load teacher topics (grouped from the G1-5 curriculum matrix) into `assessment_topics`.
  *
- *   node bot/scripts/import-assessment-topics.js <dir> --matrix-version <v> [--dry-run] [--review out.csv]
+ *   node bot/scripts/import-assessment-topics.js <dir> --matrix-version <v> [--dry-run] [--allow-page-errors] [--review out.csv]
  *
  * <dir> holds the matrix tabs exported as CSV: English.csv, Urdu.csv, Maths.csv, Science.csv (the bot has
  * no Sheets client). Tabs that are missing are skipped and named; reconcile() is scoped to the
@@ -14,6 +14,9 @@
  *  - --dry-run writes nothing. Without SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY it treats the table as empty;
  *    with them it reads the stored rows so the counts show the real diff.
  *  - --review writes one CSV row per topic for a human look (not a release gate).
+ *  - with a DB client, every topic's pages are checked against its chapter's page range in `textbook_toc` before
+ *    any write (page-check.js). A topic wholly outside its chapter stops a load unless --allow-page-errors;
+ *    --dry-run only reports it. Spills and chapters with no range are logged, never blocking.
  *
  * The DB client is injectable (run(argv, {client})) so tests never touch a live database.
  */
@@ -22,13 +25,14 @@ const path = require('path');
 const { parseMatrixTab } = require('../shared/services/assessment/topics/matrix-rows');
 const { groupAll } = require('../shared/services/assessment/topics/group');
 const { reconcile, toRow, fromRow } = require('../shared/services/assessment/topics/reconcile');
+const { checkPages } = require('../shared/services/assessment/topics/page-check');
 
 const TABLE = 'assessment_topics';
 const CHUNK = 250;
 const PAGE = 1000;
 const TABS = [['English', 'english'], ['Urdu', 'urdu'], ['Maths', 'maths'], ['Science', 'science']];
 const REVIEW_HEADER = ['grade', 'subject', 'chapter', 'heading', 'name', 'days', 'pages', 'slo_codes'];
-const USAGE = 'usage: import-assessment-topics.js <dir> --matrix-version <v> [--dry-run] [--review out.csv]';
+const USAGE = 'usage: import-assessment-topics.js <dir> --matrix-version <v> [--dry-run] [--allow-page-errors] [--review out.csv]';
 
 /** RFC 4180 CSV -> 2-D array of strings. Quoted cells may hold commas, "" and newlines. */
 function parseCsv(text) {
@@ -75,7 +79,7 @@ function parseArgs(argv) {
   if (!dir) throw new Error(USAGE);
   const matrixVersion = valueOf('--matrix-version');
   if (!matrixVersion || matrixVersion.startsWith('--')) throw new Error(`--matrix-version is required\n${USAGE}`);
-  return { dir, matrixVersion, dryRun: argv.includes('--dry-run'), review: valueOf('--review') };
+  return { dir, matrixVersion, dryRun: argv.includes('--dry-run'), allowPageErrors: argv.includes('--allow-page-errors'), review: valueOf('--review') };
 }
 
 function loadTopics(dir, log) {
@@ -110,6 +114,38 @@ async function readExisting(client, subjects, pageSize) {
   }
 }
 
+/** textbook_toc rows (ict) for the imported subjects: each chapter's page_start..page_end. */
+async function readToc(client, subjects, pageSize) {
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await client.from('textbook_toc').select('grade,subject,chapter_number,page_start,page_end')
+      .eq('curriculum', 'ict').in('subject', subjects).order('id').range(from, from + pageSize - 1);
+    if (error) throw new Error(`textbook_toc read failed: ${error.message}`);
+    rows.push(...data);
+    if (data.length < pageSize) return rows;
+  }
+}
+
+const findingLine = (kind, f) =>
+  `  ${kind}: ${f.topicId} G${f.grade} ${f.subject} ch${f.chapterNumber} pages [${f.pages}] book ${f.pageStart}-${f.pageEnd} stray [${f.stray}]`;
+
+/** Check topic pages against the book; log findings; throw on `outside` unless dry-run or allowed. */
+async function pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSize, log }) {
+  if (!db) {
+    log('page check skipped: no DB client to read textbook_toc');
+    return { outside: 0, spill: 0, noRange: 0 };
+  }
+  const found = checkPages(topics, await readToc(db, subjects, pageSize));
+  found.outside.forEach((f) => log(findingLine('outside', f)));
+  found.spill.forEach((f) => log(findingLine('spill', f)));
+  if (found.noRange.length) log(`  no range: ${found.noRange.join(', ')}`);
+  log(`page check: ${found.outside.length} outside, ${found.spill.length} spill, ${found.noRange.length} no range`);
+  if (found.outside.length && !dryRun && !allowPageErrors) {
+    throw new Error(`${found.outside.length} topic(s) sit wholly outside their chapter's book pages; fix the matrix or pass --allow-page-errors (nothing written)`);
+  }
+  return { outside: found.outside.length, spill: found.spill.length, noRange: found.noRange.length };
+}
+
 async function write(client, upsert, retire, matrixVersion, now) {
   const rows = upsert.map((t) => toRow(t, matrixVersion, now));
   for (let i = 0; i < rows.length; i += CHUNK) {
@@ -131,12 +167,13 @@ function countByPair(topics) {
   return counts;
 }
 
-/** Testable entry point. Returns {counts, upsert, retire} (numbers). */
+/** Testable entry point. Returns {counts, upsert, retire, pageCheck} (numbers). */
 async function run(argv, { client, log = console.log, env = process.env, now = new Date().toISOString(), pageSize = PAGE } = {}) {
-  const { dir, matrixVersion, dryRun, review } = parseArgs(argv);
+  const { dir, matrixVersion, dryRun, allowPageErrors, review } = parseArgs(argv);
   const { subjects, topics } = loadTopics(dir, log);
   const db = resolveClient(client, env, dryRun);
   const existing = await readExisting(db, subjects, pageSize);
+  const pages = await pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSize, log });
   const diff = reconcile(existing, topics);
   const counts = countByPair(topics);
 
@@ -149,7 +186,7 @@ async function run(argv, { client, log = console.log, env = process.env, now = n
   log(`  ${dryRun ? 'would upsert' : 'upserted'}  ${diff.upsert.length}`);
   log(`  ${dryRun ? 'would retire' : 'retired'}  ${diff.retire.length}`);
   if (review) log(`  review     ${review}`);
-  return { counts, upsert: diff.upsert.length, retire: diff.retire.length };
+  return { counts, upsert: diff.upsert.length, retire: diff.retire.length, pageCheck: pages };
 }
 
 module.exports = { run, parseCsv, toCsv };
