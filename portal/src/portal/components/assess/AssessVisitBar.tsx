@@ -34,7 +34,7 @@ export default function AssessVisitBar({ copy, done, total, startedAt, sync }: P
         <ul className="mt-1 flex flex-wrap gap-1 text-xs">
           {sync.map((s) => (
             <li key={s.drawId} data-state={s.state} className={`rounded-full px-2 py-0.5 ${s.state === 'sent' ? 'bg-emerald-100 text-emerald-800' : s.state === 'sending' || s.state === 'other' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-900'}`}>
-              {s.name} · {s.state === 'sent' ? copy.sent : s.state === 'sending' ? copy.sending : s.state === 'other' ? copy.onOtherPhone : copy.onPhone}
+              {s.name} · {s.state === 'sent' ? copy.sent : s.state === 'sending' ? copy.sending : s.state === 'other' ? copy.onOtherPhoneChip : copy.onPhone}
             </li>
           ))}
         </ul>

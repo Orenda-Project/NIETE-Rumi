@@ -204,6 +204,20 @@ describe("LeaderAssess", () => {
     expect(stored().finished.d1).toBe(s);
   });
 
+  it("an engine frame that can no longer be read is not Done: back to the list, the row stays open, a note says it stopped", async () => {
+    await openList();
+    await startChild();
+    const frame = screen.getByTestId("assess-engine-frame");
+    Object.defineProperty(frame, "contentWindow", { configurable: true, get: () => ({ get location() { throw new Error("cross-origin"); } }) });
+    fireEvent.load(frame);
+    fireEvent.load(frame);
+    const row = await screen.findByTestId("assess-child-d1");
+    expect(row).not.toHaveTextContent("Done");
+    expect(screen.getByTestId("assess-stopped")).toHaveTextContent("stopped before the end");
+    expect(stored().finished.d1).toBeUndefined();
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
+  });
+
   it("the coach can end early with the corner hold", async () => {
     await openList();
     await startChild();
@@ -440,6 +454,17 @@ describe("LeaderAssess", () => {
       await screen.findByText("Ayan Testwala");
       expect(stored().preflight.mic).toMatchObject({ mic_ok: false });
     });
+    it("a mic result left from an earlier visit is cleared when the card opens; Ready with no check stamps mic_ok false", async () => {
+      window.localStorage.setItem("sa:mic_ok", JSON.stringify({ mic_ok: true, mic_rms: 0.9, at: 1 }));
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      await screen.findByTestId("assess-preflight");
+      expect(window.localStorage.getItem("sa:mic_ok")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Ready" }));
+      await screen.findByText("Ayan Testwala");
+      expect(JSON.parse(window.localStorage.getItem("sa:mic_ok") as string)).toMatchObject({ mic_ok: false, mic_rms: 0 });
+      expect(stored().preflight.mic).toMatchObject({ mic_ok: false });
+    });
   });
 
   describe("open on another phone", () => {
@@ -501,7 +526,7 @@ describe("LeaderAssess", () => {
       const row = await screen.findByTestId("assess-child-d1");
       expect(row).toHaveTextContent("On another phone");
       expect(stored().elsewhere.d1).toBe("server-1");
-      expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("Ayan · On another phone");
+      expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("Ayan · on another phone");
       expect(within(row).getByTestId("assess-other-d1")).not.toBeDisabled();
       api.getStatus.mockResolvedValue({ session: { id: "server-1", status: "completed", grade: 3, form: "sa.coach.G3.A.en" }, block: "B1", lastSeq: 9, tasksDone: ["t1"], audio: [] });
       await act(async () => { window.dispatchEvent(new Event("online")); });
@@ -509,5 +534,75 @@ describe("LeaderAssess", () => {
       expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("1/5");
       expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("Ayan · sent");
     });
+  });
+
+  describe("from the screenshot walk", () => {
+    it("the toast sits above the tab bar, lets taps through, and goes after 2.5 s", async () => {
+      await openList();
+      const s = await startChild();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      saDone(s);
+      const toast = await screen.findByRole("status");
+      expect(toast.className).toContain("pointer-events-none");
+      expect(toast.className).not.toMatch(/(^|\s)bottom-4(\s|$)/);
+      expect(toast.className).toMatch(/bottom-(16|20|\[calc)/);
+      act(() => { vi.advanceTimersByTime(2600); });
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("Ready, Start / Open on another phone and Done stand in a sticky action bar", async () => {
+      api.markOutcome.mockResolvedValue({ sessionId: "server-1" });
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const pre = await screen.findByTestId("assess-actions");
+      expect(pre.className).toContain("sticky");
+      expect(within(pre).getByTestId("assess-preflight-ready")).toBeInTheDocument();
+      fireEvent.click(within(pre).getByTestId("assess-preflight-ready"));
+      await screen.findByText("Ayan Testwala");
+      fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" }));
+      const hand = await screen.findByTestId("assess-actions");
+      expect(within(hand).getByRole("button", { name: "Start" })).toBeInTheDocument();
+      expect(within(hand).getByTestId("assess-other-d1")).toBeInTheDocument();
+      fireEvent.click(within(hand).getByTestId("assess-other-d1"));
+      await screen.findByTestId("assess-link-url");
+      expect(within(screen.getByTestId("assess-actions")).getByRole("button", { name: "Done" })).toBeInTheDocument();
+    });
+
+    it("Urdu: the page root is right-to-left, and button pairs are flex rows (they mirror; .grid is forced LTR)", async () => {
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      renderPage();
+      await chooseSchool();
+      await screen.findByText("ایان ٹیسٹ والا");
+      expect(screen.getByTestId("assess-root")).toHaveAttribute("dir", "rtl");
+      const pair = within(screen.getByTestId("assess-child-d2")).getByRole("button", { name: "غیر حاضر" }).parentElement as HTMLElement;
+      expect(pair.className).not.toMatch(/(^|\s)grid(\s|$)/);
+      expect(pair.className).toContain("flex");
+    });
+
+    it("English: the page root is left-to-right", async () => {
+      renderPage();
+      await screen.findByTestId("assess-school-s2");
+      expect(screen.getByTestId("assess-root")).toHaveAttribute("dir", "ltr");
+    });
+
+    it.each([["en", "On another phone", "Ayan Testwala"], ["ur", "دوسرے فون پر", "ایان ٹیسٹ والا"]])(
+      "%s: the summary names the children sent to another phone", async (lang, label, name) => {
+        window.localStorage.setItem("niete-assess-lang", lang);
+        api.markOutcome.mockResolvedValue({ sessionId: "server-1" });
+        renderPage();
+        await chooseSchool();
+        await screen.findByText(name);
+        const present = within(screen.getByTestId("assess-child-d1")).getAllByRole("button")[0];
+        fireEvent.click(present);
+        fireEvent.click(await screen.findByTestId("assess-other-d1"));
+        await screen.findByTestId("assess-link-url");
+        fireEvent.click(within(screen.getByTestId("assess-actions")).getAllByRole("button").at(-1) as HTMLElement);
+        await screen.findByTestId("assess-child-d1");
+        fireEvent.click(screen.getByTestId("assess-end-visit"));
+        const line = within(await screen.findByTestId("assess-summary")).getByTestId("summary-other");
+        expect(line).toHaveTextContent(label);
+        expect(line).toHaveTextContent(name);
+      },
+    );
   });
 });

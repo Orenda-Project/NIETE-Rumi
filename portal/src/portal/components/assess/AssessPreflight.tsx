@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Headphones, Mic, PlaneTakeoff, Timer, Volume2 } from 'lucide-react';
 import type { AssessCopy } from '../../lib/assess/copy';
-import type { MicCheck } from '../../lib/assess/visitStore';
+import { clearMic, type MicCheck } from '../../lib/assess/visitStore';
 import { pickRecordingType } from '../../lib/recordingSupport';
+import AssessActions from './AssessActions';
 
 /**
  * The pre-flight card, once per visit before the list: airplane mode, a beep for
@@ -57,9 +58,12 @@ export default function AssessPreflight({ copy, onMic, onReady }: Props) {
   const peak = useRef(0);
   const cleanup = useRef<() => void>(() => {});
 
-  useEffect(() => () => cleanup.current(), []);
+  const probed = useRef(false);
+
+  useEffect(() => { clearMic(); return () => cleanup.current(); }, []);
 
   const finish = (ok: boolean) => {
+    probed.current = true;
     onMic({ mic_ok: ok, mic_rms: Math.round(peak.current * 100) / 100, at: Date.now() });
   };
 
@@ -173,17 +177,19 @@ export default function AssessPreflight({ copy, onMic, onReady }: Props) {
         {mic === 'asking' && (
           <div className="space-y-2">
             <p className="text-slate-800">{copy.micListen}</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={heard} className="min-h-[48px] rounded-xl bg-emerald-600 font-medium text-white">{copy.micHeard}</button>
-              <button type="button" onClick={check} className="min-h-[48px] rounded-xl border border-slate-300 bg-white">{copy.tryAgain}</button>
+            <div className="flex gap-2">
+              <button type="button" onClick={heard} className="min-h-[48px] flex-1 rounded-xl bg-emerald-600 font-medium text-white">{copy.micHeard}</button>
+              <button type="button" onClick={check} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white">{copy.tryAgain}</button>
             </div>
           </div>
         )}
         {mic === 'ok' && <p data-testid="assess-mic-ok" className="flex items-center gap-2 font-medium text-emerald-800"><Mic className="h-4 w-4" aria-hidden /> {copy.micOk}</p>}
         {mic === 'denied' && <p data-testid="assess-mic-denied" role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{copy.micDenied}</p>}
       </div>
-      <button type="button" data-testid="assess-preflight-ready" onClick={() => { cleanup.current(); onReady(); }}
-        className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white">{copy.ready}</button>
+      <AssessActions>
+        <button type="button" data-testid="assess-preflight-ready" onClick={() => { cleanup.current(); if (!probed.current) finish(false); onReady(); }}
+          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white">{copy.ready}</button>
+      </AssessActions>
     </div>
   );
 }
