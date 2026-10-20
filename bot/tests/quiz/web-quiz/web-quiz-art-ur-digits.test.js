@@ -79,6 +79,19 @@ describe('the template', () => {
     // the switch off: today's dots
     expect(html('school', 'ur', null)).toContain('پوائنٹس · <span class="num">15</span>');
   });
+  test('native read: no dot in the school title, ۶۴ فیصد for a percent, no "+" against پوائنٹس', () => {
+    expect(html('school', 'ur', { ud: true })).toContain('اسکول پوائنٹس، اس ہفتے');
+    for (const size of ['og', 'sq']) expect(html('class', 'ur', { ud: true }, size)).toContain('کلاس کی اوسط <span class="num">۶۴</span> فیصد');
+    const noRows = renderArt({ kind: 'class', size: 'og', brand: 'niete', lang: 'ur', d: { ...D.class, rows: [] }, ui: { ud: true } }, { fonts: false, pictures: false });
+    expect(noRows).toContain('<span class="num">۶۴</span> فیصد');
+    expect(noRows).not.toMatch(/[۰-۹]%/);
+    expect(html('card', 'ur', { ud: true })).toContain('<span class="num">۱۸</span> پوائنٹس');
+    expect(html('card', 'ur', { ud: true, ur2: true })).toContain('<span class="num">۱۸</span> پوائنٹس');
+    // the switch off: today's
+    expect(html('school', 'ur', null)).toContain('اسکول پوائنٹس · اس ہفتے');
+    expect(html('class', 'ur', null)).toContain('<span class="num">64%</span>');
+    expect(html('card', 'ur', null)).toContain('<span class="num">+18</span>');
+  });
   test('the school points keep their grouping: 1,234 → ۱,۲۳۴', () => {
     expect(html('school', 'ur', { ud: true })).toContain('۱,۲۳۴');
   });
