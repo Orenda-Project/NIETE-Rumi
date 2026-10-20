@@ -272,6 +272,8 @@
     function finish(reason) {
       var t = task();
       var used = st.started == null ? 0 : Math.round(now() - st.started);
+      // The clock as it really ran (a throttled tab, a late time-up): never capped, unlike time_used_ms.
+      var elapsed = used;
       var lim = limitMs(t);
       if (lim != null && used > lim) used = lim;
       var phone = t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard';
@@ -283,7 +285,7 @@
         stop_reason: reason, scored_on: phone ? 'phone' : 'later', resumed: st.resumed, per_minute: null,
         options_n: t.mode === 'tap' && t.items[0] && t.items[0].options ? t.items[0].options.length : null,
         taps_per_s: warm ? warm.taps_per_s : null,
-        elapsed_ms: used,
+        elapsed_ms: elapsed,
         answers: st.answers.slice(),
       };
       if (t.mode === 'record') {
