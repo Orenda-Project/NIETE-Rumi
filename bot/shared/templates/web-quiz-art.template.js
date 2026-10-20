@@ -46,6 +46,8 @@ const COPY = {
     dared: (n) => `${n} challenged you!`,
     scored: (n, s, t) => `${n} scored ${s} on ${t}`,
     tapPlay: 'Tap the link to play',
+    // the pill under web_quiz_share_ur_stack (English keeps its words)
+    openPlay: 'Tap the link to play',
     // the friend's door, where the picture sits under the real Play button (the friend is already on the link)
     yourTurn: 'Your turn!',
     played: 'played',
@@ -70,6 +72,8 @@ const COPY = {
     dared: (n) => `${n} نے آپ کو چیلنج کیا ہے!`,
     scored: (n, s, t) => `${n} نے ${t} میں ${s} لیے`,
     tapPlay: 'لنک پر ٹیپ کریں اور کھیلیں',
+    // the pill under web_quiz_share_ur_stack: the share words' own «کھولیں», no «ٹیپ»
+    openPlay: 'لنک کھولیں اور کھیلیں',
     yourTurn: 'آپ کی باری!',
     played: 'بچوں نے کھیلا',
     playedOf: (n, of) => `${of} میں سے ${n} بچوں نے کھیلا`,
@@ -117,6 +121,8 @@ function own(text) {
   const t = String(text == null ? '' : text);
   return `<bdi dir="${scriptOf(t) === 'ur' ? 'rtl' : 'ltr'}">${esc(t)}</bdi>`;
 }
+/** A name or a title written in the Urdu (Arabic) script: its own sizes and line height, whatever the picture's language. */
+const isArabicScript = (text) => scriptOf(text) === 'ur';
 function animal(key, pics) {
   const a = pics ? assets().animals[ANIMAL_KEYS.includes(key) ? key : 'star'] : '';
   return a ? `<img class="ani" src="data:image/svg+xml;base64,${a}" alt="">` : '<span class="ani"></span>';
@@ -148,7 +154,19 @@ function around(rows, n) {
   return rows.slice(from, from + n);
 }
 
-function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false) {
+// The class table's rows under the one stack (web_quiz_share_ur_stack): the top rows, at most `cap`, and the child's own
+// row always; when rows were left out before it, a «…» row marks the gap.
+function topWithMe(rows, cap) {
+  const i = rows.findIndex((r) => r.me);
+  if (rows.length <= cap || i < cap) return rows.slice(0, cap);
+  return [...rows.slice(0, cap - 1), { gap: true }, rows[i]];
+}
+// How many rows the class table's square holds under the one stack, from the drawn heights: 1080 less its padding (112),
+// the brand (70), the title line (67), the count (130), the average (104), the pill (62), five 24 px gaps and a «…» row
+// with its gap (47), in rows of 62 px with 10 px between: 5. The wide picture keeps its 3.
+const CLASS_ROWS_SQ = Math.floor((1080 - 112 - 70 - 67 - 130 - 104 - 62 - 5 * 24 - 47 + 10) / (62 + 10));
+
+function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false, us = false) {
   const N = ud ? numUr : num;
   // In Nastaliq the middle dot is the Urdu zero: «۱۵ · بچے» reads ۱۵۰. Beside Urdu digits the Urdu comma separates.
   const SEP = ud ? '<span class="dot">، </span>' : DOT;
@@ -187,10 +205,10 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       // The wide picture has no room for a separate line: the average joins the top line there.
       main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(PCT(d.avgPct || 0))}` : ''}</p>`
         + `<h1 class="head">${d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`}</h1>`
-        + (d.rows && d.rows.length ? `<ol class="crow">${around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3).map((r) => `<li class="${r.me ? 'me' : ''}">`
+        + (d.rows && d.rows.length ? `<ol class="crow">${(us ? topWithMe(d.rows, size === 'sq' ? CLASS_ROWS_SQ : 3) : around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3)).map((r) => (r.gap ? '<li class="gap" aria-hidden="true">…</li>' : `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
           + `<span class="who">${r.me ? `${own(r.first)} <small>(${esc(C.me)})</small>` : ''}</span>`
-          + `<span class="sc">${N(`${r.correct}/${r.total}`)}</span></li>`).join('')}</ol>` : '')
+          + `<span class="sc">${N(`${r.correct}/${r.total}`)}</span></li>`)).join('')}</ol>` : '')
         + (d.rows && d.rows.length
           ? (size === 'sq' ? `<p class="sub">${C.avgLine(PCT(d.avgPct || 0))}</p>` : '')
           : `<div class="tiles"><div class="tile"><small>${esc(C.avg)}</small>${PCT(d.avgPct || 0)}</div><div class="tile"><small>${esc(C.top)}</small>${N(top)}</div></div>`),
@@ -205,6 +223,50 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${N(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
   }).join('');
   return { pic: '', main: `<p class="kick">${esc(ud ? C.school.replace(' · ', '، ') : C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
+}
+
+// How wide a line of Urdu headline is, in ems: a Nastaliq letter ~0.46em (measured 0.44 on the long-name challenge), a
+// Latin letter or digit ~0.61em (Lexend), a space ~0.3em. Only for choosing the size: the browser breaks the lines.
+function emWidth(s) {
+  return Array.from(String(s == null ? '' : s)).reduce((n, ch) => n + (/\s/.test(ch) ? 0.3 : (/[A-Za-z0-9]/.test(ch) ? 0.61 : 0.46)), 0);
+}
+
+/**
+ * The one stack's CSS (web_quiz_share_ur_stack), after every other rule so it wins. The square: the brand, Jugnu, the
+ * words and the pill are one centred column with 24 px gaps, and Jugnu's picture (190 px, never under 96) is what gives
+ * up height when the words need it, so no line runs over another or off the picture. The wide picture keeps its two
+ * columns; its words column gets the same 24 px gaps, starting 8 px higher, its sub line at 1.7. The card's score is
+ * one Lexend line (its Urdu digits from Nastaliq made the line 118 px for a 92 px number). The challenge headline: its size (63 px square, 40 wide) unless
+ * it would need more than 2 lines, then one step down (0.86); a name whose longest word is wider than the whole line is
+ * sized to fit it, since a name is never cut. The pill: the English pill's height (its 1.2 lines and 14 px above and below) and
+ * 28 px sides, the Nastaliq 2 px larger, on one line. The class table: the same column in both sizes (the wide one is a
+ * column too), its rows 1.45 high with their place and score in Lexend (Urdu digits from Nastaliq made each row 74 px for
+ * 54 px of text), a «…» row where rows were left out, and on the wide one its two-line title at 1.6.
+ */
+function stackCss(k, d, C, sq, S, W, col) {
+  const width = sq ? W - 144 : 702;
+  let head = Math.round((sq ? 58 : 40) * S);
+  if (k === 'invite') {
+    const zero = !(Number(d.correct) > 0);
+    const name = String(d.first || '');
+    const line = zero ? C.dared(name) : C.beat(name, `${d.correct}/${d.total}`);
+    if (emWidth(line) * head > 2 * width) head = Math.round(head * 0.86);
+    // a word can only break at its spaces: the name's longest word must fit the line on its own
+    const word = Math.max(0, ...name.split(/\s+/).map(emWidth));
+    if (word * head > width) head = Math.floor(width / word);
+  }
+  const pillFs = Math.round(26 * S);
+  const pillH = Math.round(pillFs * 1.2 + 28);
+  return `
+/* One stack (web_quiz_share_ur_stack): every line in the column with 24 px between, the English pill's size. */
+.main{gap:24px}${col ? '.main{flex:0 0 auto}.art{gap:24px;justify-content:center}' : '.main{padding-top:52px}'}${sq ? '.side{flex:0 1 190px;min-height:96px}.jug{width:auto;height:100%;aspect-ratio:1/1}' : ''}
+.kick{line-height:1.9}.sub{line-height:${sq ? 1.9 : 1.7};text-wrap:balance}${k === 'card' ? `
+.big{line-height:1;font-family:'Lexend','NastaliqUrdu',sans-serif}` : ''}${k === 'invite' ? `
+.head{font-size:${head}px;line-height:1.8;text-wrap:balance}` : ''}${k === 'class' ? `
+.head{line-height:1.8}.crow{gap:${sq ? 10 : 4}px}.crow li{line-height:1.45}.crow .rk,.crow .sc{font-family:'Lexend','NastaliqUrdu',sans-serif}${sq ? '' : '.kick{line-height:1.6}'}
+.crow li.gap{background:none;justify-content:center;line-height:1;padding:0;font-family:'Lexend',sans-serif;opacity:.8}` : ''}
+.cta{margin:0}
+.cta{height:${pillH}px;line-height:${pillH}px;padding:0 28px;font-size:${pillFs + 2}px;white-space:nowrap}`;
 }
 
 /**
@@ -223,7 +285,15 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const UR2 = RTL && Boolean(ui && ui.ur2 === true);
   // The one share (app_settings web_quiz_share_v4, carried as `ui.ink`): Urdu text keeps all its ink. Off, every line below is today's.
   const INK = RTL && Boolean(ui && ui.ink === true);
-  const C = COPY[L];
+  // One stack (app_settings web_quiz_share_ur_stack, carried as `ui.us`): an Urdu card or challenge picture lays its
+  // headline, sub line, stars and pill out as one column with 24 px between them (nothing over anything), its headline in
+  // balanced lines a size step down when it would need 3, and the English pill's height and padding with «کھولیں» in it.
+  // The Urdu class table (with rows) too: title, count, rows (the top ones and always the child's own), average, pill.
+  // Off (or English, or the class tiles and the school picture), every line below is today's.
+  const US = RTL && (k === 'card' || k === 'invite' || (k === 'class' && Boolean(d && d.rows && d.rows.length))) && Boolean(ui && ui.us === true);
+  // Its challenge sub line names the quiz in «» («… نے «تفہیم - مکالمے کو سمجھنا» میں ۴/۷ لیے»): a title that ends in a verb
+  // reads as a name, not as part of the sentence. The title keeps its own isolated run inside the marks.
+  const C = US ? { ...COPY[L], tapPlay: COPY[L].openPlay, scored: (n, sc, tp) => COPY[L].scored(n, sc, `«${tp}»`) } : COPY[L];
   // The wide picture (1200×630) has no height to spare: under the polish its stack is budgeted — no kicker on the card and
   // the invite, the name 56/1.7, the topic 44 (36 when long), the invite's scored line 32, every line at 1.9 — so the
   // CTA pill, the last child, is never the one that falls off. The square has the height and keeps the larger sizes.
@@ -243,8 +313,8 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const first = String((d && d.first) || '');
   const nameBase = RTL && sz !== 'sq' ? 56 : Math.round(68 * (sz === 'sq' ? 1.08 : 1));
   const NFANI = Math.ceil(1.3 * nameBase);
-  const NFPX = Math.floor(((sz === 'sq' ? W - 144 : 702) - (INK ? nameBase : 0) - NFANI) / (Math.max(1, Array.from(first).length) * (scriptOf(first) === 'ur' ? 0.42 : 0.61)));
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD);
+  const NFPX = Math.floor(((sz === 'sq' ? W - 144 : 702) - (INK ? nameBase : 0) - NFANI) / (Math.max(1, Array.from(first).length) * (isArabicScript(first) ? 0.42 : 0.61)));
+  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US);
   const sq = sz === 'sq';
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
@@ -257,6 +327,7 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
 @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}`;
   const S = sq ? 1.08 : 1;   // the square is read at a smaller on-screen size: type a step up
+  const usCss = US ? stackCss(k, d || {}, C, sq, S, W, col) : '';
   const css = `${fonts}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:${t['brand-ink']}}
@@ -305,7 +376,7 @@ bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 ${col && !sq ? '.sn small{display:none}.pt{flex-direction:row;align-items:baseline;gap:10px}' : ''}
 ${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1.7 : 1.55}}.big{font-size:92px}.head{line-height:${UR2 ? 1.9 : 1.7}}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
 .ani{width:1em;height:1em;display:inline-block;vertical-align:-.12em;margin-inline-end:.25em;object-fit:contain}
-${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bdi{display:inline-block;max-width:calc(100% - ${NFANI}px);font-size:max(34px,min(1em,${NFPX}px));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom${scriptOf(first) === 'ur' ? ';line-height:1.9' : ''}}
+${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bdi{display:inline-block;max-width:calc(100% - ${NFANI}px);font-size:max(34px,min(1em,${NFPX}px));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom${isArabicScript(first) ? ';line-height:1.9' : ''}}
 ` : ''}.pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:${UR2 ? '28px' : '999px'};padding:${RTL ? (UR2 ? '2px 24px' : '0 22px') : '8px 22px'};font-size:${Math.round((UR2 && !OG2 ? 28 : 24) * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700${UR2 ? ';text-align:start' : ''}}${UR2 ? `
 .pts .sch{display:block;font-family:'Lexend','NastaliqUrdu',sans-serif;font-size:${Math.round((OG2 ? 21 : 26) * S)}px;line-height:1.35;opacity:.9}` : ''}
 .crow{list-style:none;display:flex;flex-direction:column;gap:${sq ? 10 : 6}px;width:${sq ? '86%' : '100%'};text-align:start}
@@ -316,7 +387,7 @@ ${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bd
 /* Room for the ink (the one share): a clipped Urdu name keeps the stroke a ک or گ throws past its line, and a pill's word
    keeps its tall letters inside the pill. The padding is given back as margin, so nothing else moves. */
 .name,.crow .who,.sn{padding:.5em .5em;margin:-.5em -.5em}
-.pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}`;
+.pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}${usCss}`;
   const top = `<div class="top"><span class="mark" aria-hidden="true">${B.mark.svg}</span><span class="brand">${esc(B.label[L])}</span></div>`;
   const side = parts.pic ? `<div class="side">${parts.pic}</div>` : '';
   // the school's rule line has its digits in the copy itself

@@ -686,6 +686,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (out.challenge && require('./web-quiz-hub-flags').nowOf('challengeFold')) out.challenge_fold = true;
   // web_quiz_end_fit (the hub's switch cache, no read): the end screen's stars stay one row, its headline balanced (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('endFit')) out.end_fit = true;
+  // web_quiz_share_name_bidi (the hub's switch cache, no read): the English share words isolate the child's name (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('nameBidi')) out.name_bidi = true;
   // web_quiz_end_short (the hub's switch cache, no read; only beside end_fit): the end screen fits a short phone (wq.js)
   if (out.end_fit && require('./web-quiz-hub-flags').nowOf('endShort')) out.end_short = true;
   // web_quiz_end_once (the hub's switch cache, no read): Jugnu's end-screen line never repeats the card's heading (wq.js)
@@ -956,7 +958,12 @@ async function challengeOf(ctx) {
   const [best] = oneAttemptPerChild(rows || [], { rule: 'first_completed' });
   if (!best) return null;
   const nameOf = await shownNames(ctx.lang, [best.student_id]);
-  return { first: nameOf(best.student_id, best.student_name), correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
+  const shown = nameOf(best.student_id, best.student_name);
+  // web_quiz_share_name_bidi (the hub's switch cache, no read): on an Urdu page a name that would show in Latin letters
+  // becomes the first name the child played under, as on the English page; a name in Urdu script is kept. The friend's
+  // door, the result line and the challenge picture all take the name from here. Off: today's name.
+  const first = ctx.lang === 'ur' && require('./web-quiz-hub-flags').nowOf('nameBidi') && !ARABIC_SCRIPT.test(shown) ? firstName(best.student_name) : shown;
+  return { first, correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
 }
 
 // ─── E3 the session ─────────────────────────────────────────────────────────
