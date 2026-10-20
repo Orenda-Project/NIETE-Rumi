@@ -21,6 +21,10 @@ const COMMON = {
   after: L('Good effort! Let us go on to the next part.', 'شاباش! اب اگلے حصے کی طرف چلتے ہیں۔', 'v3:script.after'),
   practice_intro: L('First, let us practise.', 'پہلے مشق کرتے ہیں۔', 'egra_tk2016:Annex H (practice items)'),
   test_intro: L('Now it is your turn. Jugnu will not say if an answer is right until the end.', 'اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔', 'egra_tk2016:no feedback on scored items'),
+  practice_right: L('Yes! Well done.', 'شاباش! بالکل ٹھیک۔', 'v3:script.practice_1_correct'),
+  practice_wrong: L('Not quite. Listen again.', 'ابھی نہیں۔ دوبارہ سنیں۔', 'v3:script.practice_1_wrong'),
+  replay: L('Listen again.', 'دوبارہ سنیں۔', 'egra_tk2016:3-second rule (replay at 5 s)'),
+  hand_back: L('Well done! Please give the phone back to your teacher.', 'شاباش! اب فون واپس اپنے استاد کو دے دیں۔', 'adapted:handback'),
 };
 
 // Battery-level lines (welcome, the audio check, the end).
@@ -89,7 +93,7 @@ const TASKS = {
     intro_record: L('Here is a short story. Read it out loud, quickly but carefully. Start at the first word. If you come to a word you do not know, go on to the next word. When you finish, there are some questions about the story.',
       'یہ ایک مختصر کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ پہلے لفظ سے شروع کریں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ کہانی پڑھنے کے بعد اس کے بارے میں کچھ سوال ہوں گے۔',
       'v3:sets.A.reading.<lang>.story.script.intro'),
-    intro_tap: L('When Jugnu says stop, tap the last word you read.', 'جب جگنو کہے رک جائیں، تو وہ آخری لفظ دبائیں جو آپ نے پڑھا۔',
+    last_word: L('When Jugnu says stop, tap the last word you read.', 'جب جگنو کہے رک جائیں، تو وہ آخری لفظ دبائیں جو آپ نے پڑھا۔',
       'egra_tk2016:p.197 (the enumerator brackets the last word read)'),
   },
   story_comp: {

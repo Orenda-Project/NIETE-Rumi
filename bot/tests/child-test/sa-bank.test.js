@@ -1,10 +1,11 @@
 'use strict';
 
 /**
- * The self-administered (SA) battery bank: item-bank.sa.v1.json is generated from the v3/v4 banks by
- * shared/services/child-test/sa/build.js and never edited by hand. These checks hold the sourcing rule (every
- * scored item and every tap choice comes from an official bank), the battery shape the SA engine validates, and the
- * child-facing copy rules (en + ur on every line, Urdu letters not Arabic look-alikes, no slashed gender forms).
+ * The self-administered (SA) battery bank (CONTRACT §2): item-bank.sa.v1.json and sa/<form>.json are generated from
+ * item-bank.v3.json by shared/services/child-test/sa/build.js and never edited by hand. These checks hold the sourcing
+ * rule (every scored item and every tap option comes from the official bank), the modes and stop rules of DESIGN §2,
+ * the forms of DESIGN §3/§4, and the child-facing copy rules (en + ur on every line, Urdu letters not Arabic
+ * look-alikes, no gendered verb aimed at the child).
  */
 
 const path = require('path');
@@ -13,30 +14,25 @@ const fs = require('fs');
 const DATA = path.join(__dirname, '../../shared/data/child-test');
 const { buildSaBank, splitSaBank } = require('../../shared/services/child-test/sa/build');
 const v3 = require('../../shared/data/child-test/item-bank.v3.json');
-const v4 = require('../../shared/data/child-test/item-bank.v4.json');
 
 const read = (rel) => JSON.parse(fs.readFileSync(path.join(DATA, rel), 'utf8'));
-const index = read('item-bank.sa.v1.json');
-const batteries = index.batteries.map((row) => read(row.file));
-const tasks = batteries.flatMap((b) => b.tasks.map((t) => [b, t]));
+const bank = read('item-bank.sa.v1.json');
+const tasks = Object.entries(bank.tasks);
 
-const KINDS = ['grid', 'choice', 'passage', 'listen_choice', 'record_only'];
-const MODES = ['tap', 'record', 'both'];
 const ARABIC_LOOKALIKES = /[يكهى]/u;
-const SLASHED_GENDER = /(گا\/گی|گے\/گی|تا\/تی|تے\/تی|ا\/ی )/u;
+const GENDERED_TO_CHILD = /(گا\/گی|گے\/گی|تا\/تی|تے\/تی|سکتے ہیں|سکتی ہیں)/u;
 
-/** Resolve "v3:sets.A.reading.ur.letters.items[3]" (or v4:…) to the value it names. */
+/** Resolve "v3:sets.A.reading.ur.letters.items[3]" to the value it names. */
 function resolveSrc(ref) {
-  const m = /^(v3|v4):(.+)$/.exec(ref);
+  const m = /^v3:(.+)$/.exec(ref);
   if (!m) return undefined;
-  const root = m[1] === 'v3' ? v3 : v4;
-  return m[2].split(/\.(?![^[]*\])/).reduce((o, part) => {
+  return m[1].split('.').reduce((o, part) => {
     if (o === undefined) return undefined;
     const pm = /^([^[]+)((?:\[\d+\])*)$/.exec(part);
     let cur = o[pm[1]];
     for (const ix of (pm[2].match(/\d+/g) || [])) cur = cur === undefined ? undefined : cur[Number(ix)];
     return cur;
-  }, root);
+  }, v3);
 }
 
 function strings(x, out = [], key = '') {
@@ -46,85 +42,101 @@ function strings(x, out = [], key = '') {
   return out;
 }
 
-describe('SA battery bank (item-bank.sa.v1.json)', () => {
-  test('is exactly what the builder makes from the v3/v4 banks (no hand edits)', () => {
-    const files = JSON.parse(JSON.stringify(splitSaBank(buildSaBank({ v3, v4 }))));
-    expect(Object.keys(files).sort()).toEqual(['item-bank.sa.v1.json', ...index.batteries.map((b) => b.file)].sort());
+const scoredItems = (t) => [...((t.tap && t.tap.items) || []), ...((t.record && t.record.questions) || []),
+  ...((t.record && t.record.passage && t.record.passage.words) || [])];
+
+describe('SA battery bank (CONTRACT §2)', () => {
+  test('the committed files are exactly what the builder makes (no hand edits)', () => {
+    const files = JSON.parse(JSON.stringify(splitSaBank(buildSaBank({ v3 }))));
     for (const [rel, want] of Object.entries(files)) expect([rel, read(rel)]).toEqual([rel, want]);
+    expect(fs.readdirSync(path.join(DATA, 'sa')).sort()).toEqual(Object.keys(files).filter((f) => f.startsWith('sa/')).map((f) => f.slice(3)).sort());
   });
 
-  test('has the coach forms (Grade 3 and 5, the term set) and the game forms (Grades 1-5 by Challenge band)', () => {
-    const forms = new Set(batteries.map((b) => b.form));
-    for (const f of ['coach.G3.A', 'coach.G5.A', 'game.G1', 'game.G23', 'game.G45']) expect(forms).toContain(f);
-    for (const b of batteries) expect(['ur', 'en']).toContain(b.lang);
-    expect(batteries.filter((b) => b.surface === 'game').flatMap((b) => b.grades).sort()).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
-  });
-
-  test('every battery covers English, Urdu and maths, and its task ids are unique', () => {
-    for (const b of batteries) {
-      const ids = b.tasks.map((t) => t.id);
-      expect(new Set(ids).size).toBe(ids.length);
-      for (const fam of ['ur.', 'en.', 'ma.']) expect(ids.some((id) => id.startsWith(fam))).toBe(true);
+  test('forms: coach G3/G5 with the five blocks and the full order; game G1-G5 by band with islands and the tower', () => {
+    expect(Object.keys(bank.forms).sort()).toEqual(['coach.G3.A', 'coach.G5.A', 'game.G1', 'game.G23', 'game.G45']);
+    const gameGrades = Object.values(bank.forms).filter((f) => f.surface === 'game').flatMap((f) => f.grades).sort();
+    expect(gameGrades).toEqual([1, 2, 3, 4, 5]);
+    for (const [id, f] of Object.entries(bank.forms)) {
+      for (const t of f.order) expect(bank.tasks[`${id}/${t}`]).toBeDefined();
+      if (f.surface === 'coach') {
+        expect(Object.keys(f.blocks)).toEqual(['B1', 'B2', 'B3', 'B4', 'B5']);
+        expect(Object.values(f.blocks).flat().sort()).toEqual([...f.full].sort());
+      } else {
+        expect(Object.keys(f.islands).sort()).toEqual(['english', 'maths', 'urdu']);
+        expect(Object.values(f.islands).flat().sort()).toEqual([...f.tower].sort());
+      }
     }
   });
 
-  test.each(tasks.map(([b, t]) => [`${b.battery_id} ${t.id}`, t]))('%s has the engine shape', (_, t) => {
-    expect(KINDS).toContain(t.kind);
-    expect(MODES).toContain(t.mode);
-    expect(['egra', 'egma']).toContain(t.family);
-    expect(t.timed_s === null || t.timed_s === 60).toBe(true);
-    expect(t.stop && typeof t.stop).toBe('object');
-    expect(t.scoring && typeof t.scoring.unit).toBe('string');
-    expect(t.instruction.text.en && t.instruction.text.ur).toBeTruthy();
-    expect(Array.isArray(t.practice)).toBe(true);
+  test.each(tasks)('%s carries the CONTRACT §2 fields', (_, t) => {
+    for (const k of ['task', 'lang', 'kind', 'legacy_block', 'title', 'modes', 'tap', 'record', 'practice', 'script', 'source', 'deviation']) {
+      expect(t).toHaveProperty(k);
+    }
+    expect(t.legacy_block).toMatch(/^(ur|en|ma)\.(listening|letters|nonwords|words|story|number_id|discrimination|missing|add1|sub1|add2|sub2|word_problems)$/);
+    for (const m of t.modes) expect(t[m]).toBeTruthy();
     if (!t.practice.length) expect(t.practice_note).toBeTruthy();
-    expect(t.source && t.source.items).toBeTruthy();
-    expect(t.items.length).toBeGreaterThan(0);
+    for (const k of ['intro', 'begin', 'replay', 'time_up', 'early_stop', 'after', 'hand_back', 'practice_right', 'practice_wrong']) {
+      expect(t.script[k].en && t.script[k].ur && t.script[k].audio.en && t.script[k].audio.ur).toBeTruthy();
+    }
+    expect(t.source.items && t.source.sa_adaptation).toBeTruthy();
   });
 
-  test('every scored item cites its bank path, and that path holds the item', () => {
+  test('every scored item cites its v3 path, and that path holds it', () => {
     for (const [, t] of tasks) {
-      for (const it of t.items) {
-        expect(it.src).toMatch(/^(v3|v4):/);
+      for (const it of scoredItems(t)) {
         const at = resolveSrc(it.src);
-        expect(at).toBeDefined();
-        const want = typeof at === 'object' && at !== null ? (at.answer ?? at.n ?? at.item) : at;
-        if (it.answer !== undefined && t.kind !== 'listen_choice' && t.id.indexOf('comp') < 0) expect(String(want)).toBe(String(it.answer));
-      }
-    }
-  });
-
-  test('tap choices hold the answer once, are distinct, and come from the same official pool', () => {
-    for (const [, t] of tasks) {
-      for (const it of [...t.items, ...t.practice]) {
-        if (!it.choices) continue;
-        expect(it.choices.filter((c) => String(c) === String(it.answer))).toHaveLength(1);
-        expect(new Set(it.choices.map(String)).size).toBe(it.choices.length);
-        expect(it.choices.length).toBeGreaterThanOrEqual(2);
-        if (t.distractor_pool) for (const c of it.choices) expect(t.distractor_pool.map(String)).toContain(String(c));
-      }
-    }
-  });
-
-  test('stop rules are the EGRA/EGMA ones', () => {
-    for (const [, t] of tasks) {
-      if (t.kind === 'grid' && t.family === 'egra') expect(t.stop.first_line_n).toBeGreaterThan(0);
-      if (t.kind === 'passage') expect(t.stop.first_line_min_correct).toBe(1);
-      if (t.timed_s) expect(t.stop.time_up).toBe(true);
-    }
-  });
-
-  test('child-facing copy: Urdu letters, no slashed gender forms, both languages on every line', () => {
-    for (const b of batteries) {
-      for (const [key, s] of strings(b)) {
-        if (/\.ur$/.test(key)) {
-          expect([key, ARABIC_LOOKALIKES.test(s)]).toEqual([key, false]);
-          expect([key, SLASHED_GENDER.test(s)]).toEqual([key, false]);
+        expect([it.src, at === undefined]).toEqual([it.src, false]);
+        if (t.tap && t.tap.items.includes(it)) {
+          const want = at !== null && typeof at === 'object' ? at.answer : at;
+          expect([it.id, String(it.target)]).toEqual([it.id, String(want)]);
         }
       }
-      for (const t of b.tasks) {
-        for (const line of Object.values(t.script || {})) expect(line.en && line.ur).toBeTruthy();
+    }
+  });
+
+  test('tap options: letters 5, others 4 (the pair for comparison); the target once; list tasks draw only from their own list', () => {
+    for (const [, t] of tasks) {
+      if (!t.tap || t.tap.input !== 'options') continue;
+      const list = t.record && t.record.grid ? t.record.grid.map(String) : null;
+      for (const it of [...t.tap.items, ...t.practice]) {
+        expect(it.options).toHaveLength(t.tap.options_n);
+        expect(it.options.filter((o) => String(o) === String(it.target))).toHaveLength(1);
+        expect(new Set(it.options.map(String)).size).toBe(it.options.length);
+        if (list && !String(it.id).includes('.p')) for (const o of it.options) expect(list).toContain(String(o));
+      }
+      expect(t.tap.options_n).toBe(t.task.endsWith('letters') ? 5 : t.task === 'ma.discrimination' ? 2 : 4);
+    }
+  });
+
+  test('modes and stop rules are DESIGN §2\'s', () => {
+    for (const [, t] of tasks) {
+      const kind = t.task.split('.')[1];
+      if (['letters', 'nonwords', 'words'].includes(kind)) {
+        expect(t.modes).toEqual(['tap']);
+        expect(t.tap.stop).toEqual({ type: 'first_row', n: kind === 'letters' ? 10 : 5 });
+        expect([t.tap.time_limit_s, t.tap.item_timeout_s, t.tap.replay_at_s]).toEqual([60, 10, 5]);
+      }
+      if (kind === 'story') {
+        expect(t.modes).toEqual(['record']);
+        expect(t.record.last_word_tap).toBe(true);
+        expect(t.record.stop.type).toBe('first_line');
+        expect(t.record.stop.n).toBe(t.record.passage.words.filter((w) => w.line === 1).length);
+      }
+      if (['story_comp', 'listening'].includes(kind)) expect(t.modes).toEqual(['record']);
+      if (kind === 'story_comp') expect(t.depends_on.task).toBe(`${t.lang}.story`);
+      if (['add1', 'sub1', 'add2', 'sub2', 'word_problems'].includes(kind)) expect(t.tap.input).toBe('keypad');
+      if (['discrimination', 'missing', 'add2', 'sub2', 'word_problems'].includes(kind)) expect(t.tap.stop).toEqual({ type: 'consecutive_errors', n: 4 });
+      if (['add2', 'sub2'].includes(kind)) expect(t.depends_on).toEqual({ task: `ma.${kind.slice(0, 3)}1`, skip_if_zero: true });
+    }
+  });
+
+  test('child-facing copy: both languages on every line, Urdu letters, nothing gendered aimed at the child', () => {
+    for (const [key, s] of strings(bank)) {
+      if (/\.ur$/.test(key) || /\.say\.text$/.test(key)) {
+        expect([key, ARABIC_LOOKALIKES.test(s)]).toEqual([key, false]);
+        expect([key, GENDERED_TO_CHILD.test(s)]).toEqual([key, false]);
       }
     }
+    for (const line of Object.values(bank.lines)) expect(line.en && line.ur).toBeTruthy();
   });
 });
