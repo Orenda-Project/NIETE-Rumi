@@ -3225,6 +3225,35 @@ router.get('/assessment/paper/:paper_id/download', requirePortalAuth, async (req
 });
 
 /**
+ * GET /api/portal/assessment/paper/:paper_id/file?artifact=paper|answer_key
+ * → the paper (or its answer key) PDF itself, streamed from storage.
+ *
+ * What the teacher app's viewer on Paper ready reads: the same lookup as /download above (the bot mints
+ * the link for the signed-in teacher's own paper), but the bytes come through this origin, as the lesson
+ * plan file routes do, so the viewer never depends on the bucket's CORS. 404 `{ available: false }` is
+ * "not hers, not made yet, or no key"; a failed lookup is a 502 the viewer falls back from.
+ */
+router.get('/assessment/paper/:paper_id/file', requirePortalAuth, async (req, res) => {
+  const paperId = String(req.params.paper_id || '').trim();
+  const artifact = req.query.artifact === 'answer_key' ? 'answer_key' : 'paper';
+  if (!paperId) {
+    return res.status(400).json({ success: false, error: 'paper_id required' });
+  }
+  let hit;
+  try {
+    hit = await Assessment.download(paperId, req.session.portalUserId, artifact);
+  } catch (error) {
+    console.error('❌ Portal assessment/paper/file lookup failed', { error: error?.message });
+    return res.status(502).json({ success: false, error: 'Could not open this paper' });
+  }
+  if (!hit || !hit.url) {
+    return res.status(404).json({ success: true, available: false });
+  }
+  await relayLessonPlanPdf(hit.url, res);
+  return undefined;
+});
+
+/**
  * GET /api/portal/assessment/papers?page=1&grade=4&subject=science
  * → { success, papers, total, page, pageSize }
  *
