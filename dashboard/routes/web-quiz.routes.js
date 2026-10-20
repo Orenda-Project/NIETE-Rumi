@@ -1796,6 +1796,8 @@ function createWebQuizRouter(opts = {}) {
     const tv = teach && typeof req.query.v === 'string' && TEACH_V_RX.test(req.query.v) ? req.query.v : '';
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const sq = !teach && req.query.f === 'sq';
+    // w=door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); any other kind ignores it
+    const door = kind === 'invite' && req.query.w === 'door';
     // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
     // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
     const t0 = Date.now();
@@ -1804,12 +1806,12 @@ function createWebQuizRouter(opts = {}) {
     });
     const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}${teach ? ', immutable' : ''}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
-    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}`;
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}${door ? '|door' : ''}`;
     const kept = artKept.get(keyArt);
     if (kept) { seen('edge'); return send(kept); }
     try {
       // the class link's picture is drawn only under its own code: the bot is told which one was asked
-      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? '?f=sq' : '');
+      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? `?f=sq${door ? '&w=door' : ''}` : (door ? '?w=door' : ''));
       const out = await callBot('GET', `/api/internal/wq/art/${id}${q}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
