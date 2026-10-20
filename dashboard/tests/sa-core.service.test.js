@@ -384,6 +384,14 @@ describe('car 4a: the session gates and the run-time guards', () => {
   });
 });
 
+test('the mercy timings come from the battery, 12 s / 20 s only as the fallback', () => {
+  const b = normalize({ tasks: [
+    { id: 's1', mode: 'record', passage: { text: 'a' }, mercy_after_s: 10, silence_stop_s: 18 },
+    { id: 's2', mode: 'record', passage: { text: 'a' }, record: { mercy_after_s: 14 } },
+    { id: 's3', mode: 'record', passage: { text: 'a' } }] });
+  expect(b.tasks.map((t) => [t.mercy_after_s, t.silence_stop_s])).toEqual([[10, 18], [14, 20], [12, 20]]);
+});
+
 test('an item\'s shown text is its label (the sum the child sees)', () => {
   const b = normalize({ tasks: [{ id: 'ma.add1', mode: 'keypad', items: [{ id: 'k', answer: 4, shown: '1 + 3 =' }, { id: 'k2', answer: 5, label: '2 + 3 =', shown: 'x' }] }] });
   expect(b.tasks[0].items.map((i) => i.label)).toEqual(['1 + 3 =', '2 + 3 =']);
