@@ -187,6 +187,11 @@ const JOBS = {
   // bd-aqotzx: "does this portal recording sound like a class being taught?" — one small call after transcription,
   // through completeJson's `job` option. gpt-4.1-mini is the model the 4,760-session dry run measured.
   'coaching.classCheck': { env: null, default: 'gpt-4.1-mini', site: 'shared/services/coaching/portal-class-check.js' },
+  // bd-gzfdu9: the training-video picker (one call per coaching report, behind VIDEO_RECO_ENABLED), through
+  // completeJson's `job` option under its own name, so it can be moved or priced apart from the other consumers.
+  'coaching.videoReco': {
+    env: 'VIDEO_RECO_MODEL', default: 'gpt-5-mini-2025-08-07', site: 'shared/services/coaching/video-reco/select.js',
+  },
   'coaching.fidelityFallback': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.enhance': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.reflectiveQuestion': { env: null, default: 'gpt-4o', site: 'shared/services/gpt5-mini.service.js' },
@@ -385,6 +390,7 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.observeDebrief': 'whole',    // gpt5-mini.service.js completeJson: _safeJsonParse(content)
   'observe2.moments': 'whole',           // gpt5-mini.service.js completeJson: _safeJsonParse(content)
   'coaching.classCheck': 'whole',        // gpt5-mini.service.js completeJson: _safeJsonParse(content)
+  'coaching.videoReco': 'whole',         // gpt5-mini.service.js completeJson: _safeJsonParse(content) (bd-gzfdu9)
   'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _generateReflectiveQuestionV12: _safeJsonParse(content)
   'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
