@@ -317,6 +317,29 @@ describe('batch', () => {
     expect(Math.max(...updates.map((c) => c.filterChars))).toBeLessThanOrEqual(64);
   });
 
+  test('a same-day replay never overwrites the first play: later plays go under replays (5 kept), finished_at stays the first', async () => {
+    const s = await newSession();
+    const end = (seq) => ({ seq, type: 'battery_end' });
+    const first = { task_id: 'ma.add1', attempted: 20, correct: 12, stop_reason: 'time_up' };
+    await post('/batch', { st: s.st, session_id: s.session_id, seq_from: 1, seq_to: 1, events: [end(1)], results: [first] });
+    const at = mockDb.tables.web_quiz_challenge_runs[0].meta.finished_at;
+    // the same play's result sent again (a retry, an audio flag stamped later): not a replay
+    await post('/batch', { st: s.st, session_id: s.session_id, seq_from: 1, seq_to: 1, events: [], results: [{ ...first, audio: 'not_kept', audio_reason: 'audio_off' }] });
+    let meta = mockDb.tables.web_quiz_challenge_runs[0].meta;
+    expect(meta.results['ma.add1']).toMatchObject({ correct: 12, audio: 'not_kept' });
+    expect(meta.replays).toBeUndefined();
+    // six replays of the same island later that day
+    for (let n = 0; n < 6; n += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await post('/batch', { st: s.st, session_id: s.session_id, seq_from: 1, seq_to: 1, events: [end(1)], results: [{ task_id: 'ma.add1', attempted: 20, correct: 15 + n, stop_reason: 'time_up' }] });
+    }
+    meta = mockDb.tables.web_quiz_challenge_runs[0].meta;
+    expect(meta.results['ma.add1']).toMatchObject({ correct: 12, mode: 'game' }); // the first play is the measure
+    expect(meta.replays['ma.add1'].map((r) => r.correct)).toEqual([16, 17, 18, 19, 20]); // the last 5
+    expect(meta.replays_dropped).toBe(1);
+    expect(meta.finished_at).toBe(at);
+  });
+
   test('battery_end completes the run', async () => {
     const s = await newSession();
     await post('/batch', batchOf(s, { seq_from: 4, seq_to: 4, events: [{ seq: 4, type: 'battery_end' }], results: [] }));
