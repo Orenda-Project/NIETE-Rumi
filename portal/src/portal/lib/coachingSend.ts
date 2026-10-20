@@ -13,6 +13,7 @@
  */
 
 import { portal, type LiveMovesRecord } from "../services/api";
+import { failureOf, reportSendFailure, type SendFailure } from "./dcUploadReport";
 
 export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" };
 
@@ -62,6 +63,8 @@ export async function sendLesson(
   { audio, plan, photos, teacherClass, liveMoves }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
+  /** bd-1d6g8o: where a failure is reported (the logs); never changes the outcome. */
+  report: (f: SendFailure) => void = reportSendFailure,
 ): Promise<{ coachingSessionId: string }> {
   const items: Item[] = [
     { blob: audio.blob, filename: audio.filename, kind: "audio" },
@@ -70,22 +73,33 @@ export async function sendLesson(
   ];
   const total = items.reduce((n, it) => n + it.blob.size, 0) || 1;
   let done = 0;
-  const report = (bytes: number) => onProgress?.(Math.min(100, Math.round((bytes / total) * 100)));
+  const progress = (bytes: number) => onProgress?.(Math.min(100, Math.round((bytes / total) * 100)));
 
+  const startedAt = Date.now();
+  const tell = (f: Omit<SendFailure, "items" | "elapsedMs">) => {
+    try { report({ ...f, items: items.length, elapsedMs: Date.now() - startedAt }); } catch { /* never decides */ }
+  };
   const keys: { kind: Item["kind"]; key: string }[] = [];
+  let at = 0;
+  let stage: "presign" | "upload" = "presign";
   try {
     for (const it of items) {
+      at += 1;
+      stage = "presign";
       // eslint-disable-next-line no-await-in-loop
       const { key, uploadUrl, contentType } = await api.presignCoachingUpload({
         filename: it.filename, sizeBytes: it.blob.size, kind: it.kind,
       });
+      stage = "upload";
       // eslint-disable-next-line no-await-in-loop
-      await api.uploadToR2(uploadUrl, it.blob, contentType, (loaded) => report(done + loaded));
+      await api.uploadToR2(uploadUrl, it.blob, contentType, (loaded) => progress(done + loaded));
       done += it.blob.size;
-      report(done);
+      progress(done);
       keys.push({ kind: it.kind, key });
     }
   } catch (err) {
+    const it = items[at - 1];
+    tell({ stage, kind: it ? it.kind : null, item: at, ...failureOf(err), sizeBytes: it ? it.blob.size : 0, type: it ? it.blob.type || "" : "" });
     const status = httpStatus(err);
     if (status === 400) throw new SendError("refused", undefined, String(body(err).reason || "refused"));
     throw new SendError("network");
@@ -104,6 +118,7 @@ export async function sendLesson(
   try {
     return await api.startCoachingUpload(start);
   } catch (err) {
+    tell({ stage: "start", kind: null, item: 0, ...failureOf(err), sizeBytes: 0, type: "" });
     const status = httpStatus(err);
     const b = body(err);
     if (status === 409 && b.status === "in_progress") {
