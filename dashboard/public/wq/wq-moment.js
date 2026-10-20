@@ -281,7 +281,7 @@
   // and its box ends at it; a stage too short for that draws both narrower together (centred, one width), or leaves the
   // picture out when the lines would no longer read. -> {.., one: true}
   function art(a, cam, im, all, bs, d, rtl, rs, one) {
-    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R;
+    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R, s0, t0, lo, hi, k, wl, ps;
     all.forEach(function (b) { Y0 = Math.min(Y0, b[1]); Y1 = Math.max(Y1, b[1] + b[3]); });
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
     dn = im.h - Y1 >= Y0; ch = dn ? im.h - Y1 : Y0;
@@ -308,11 +308,18 @@
     }
     frame();
     if (one) {
-      // the picture at the band's width; a stage too short for it: both narrower together, centred, while the lines read
-      z = Math.min(im.w * s, d[0]) / im.w;
+      // the picture at the band's width
+      z = Math.min(im.w * s, d[0]) / im.w; wl = 1;
       if (z * ch > g[1] - g[0]) {
-        zf = Math.floor((g[1] - g[0]) / ch * 1000) / 1000;
-        if (zf < s && mh * zf >= 25.5) { s = zf; tx = r((d[0] - im.w * s) / 2); frame(); z = s; } else z = 0;
+        // a stage too short for it (Jugnu's hint showing): the largest size, at or under the band's, at which the band
+        // and the picture fit together (one width, one scale, centred) while a line is still 18 px or more; else the
+        // picture goes
+        s0 = s; t0 = tx; lo = 18 / mh; hi = Math.min(s, zf); wl = 0;
+        s = lo; frame();
+        if (lo <= hi && ch * s <= g[1] - g[0]) {
+          for (k = 0; k < 14; k++) { s = (lo + hi) / 2; frame(); if (ch * s <= g[1] - g[0]) lo = s; else hi = s; }
+          s = Math.floor(lo * 1000) / 1000; tx = r((d[0] - im.w * s) / 2); frame(); z = s;
+        } else { s = s0; tx = t0; frame(); z = 0; }
       }
     } else z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch, s);
     a.setAttribute('data-art', z * ch >= 96 ? 'on' : 'off');
@@ -324,6 +331,14 @@
     i = a.querySelector('i'); m = i && i.querySelector('img');
     if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; i.style.borderRadius = dn ? '0 0 12px 12px' : '12px 12px 0 0'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
     if (!one) return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0)' };
+    // one: the stage ends at a sheet that stops short of it (the page as wide as it goes), so nothing empty shows above
+    // the row under it; a sheet shrunk to fit takes the stage as it is, so the stage grows back when the hint goes
+    ps = a.parentNode && a.parentNode.style;
+    if (ps && ps.setProperty) ps.setProperty('--wqs-cap', wl && dn && z * ch >= 96 && g[1] < d[1] - .5 ? Math.ceil(g[1]) + 'px' : 'none');
+    if (z * ch >= 96) {
+      // the band runs on 2 px under the picture's edge (the same page there), so no hairline shows at the join
+      if (dn) c1 = Math.min(im.h, c1 + 2 / s); else c0 = Math.max(0, c0 - 2 / s);
+    } else if (dn) c1 = Math.min(c1, y1 + 2 / s); else c0 = Math.max(c0, y0 - 2 / s);   // no picture: tight to the lines, never into the art
     // one: the band's own outer corners round like the picture's (all four when the picture is left out)
     R = r(12 / s) + 'px';
     return { s: s, tx: tx, ty: ty, one: true, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0 round ' + (z * ch < 96 ? R : dn ? R + ' ' + R + ' 0 0' : '0 0 ' + R + ' ' + R) + ')' };
