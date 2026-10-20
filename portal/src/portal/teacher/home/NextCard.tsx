@@ -84,13 +84,15 @@ export function NextCard({ card, quizHome, onGo, className }: NextCardProps) {
       {words.sub ? (
         <p dir={dir} data-testid="home-next-sub" className="mt-1 truncate text-[13px] text-[#4b5563]">{words.sub}</p>
       ) : null}
-      <div className={cn('mt-3 grid gap-3', words.secondary ? 'grid-cols-2' : 'grid-cols-1')}>
+      {/* dir on the row too, so in Urdu the primary sits on the right, where the line starts; [display:grid], not .grid,
+          which index.css turns back to LTR under [dir=rtl] (the tile grid does the same) */}
+      <div dir={dir} className={cn('mt-3 [display:grid] gap-3', words.secondary ? 'grid-cols-2' : 'grid-cols-1')}>
         <button
           type="button"
           dir={dir}
           data-primary=""
           onClick={() => onGo(kind, words.primary.href)}
-          className={cn('min-h-[48px] rounded-2xl bg-[#333748] px-3 text-[16px] font-semibold text-white', FOCUS)}
+          className={cn('flex min-h-[48px] items-center justify-center rounded-2xl bg-[#333748] px-3 text-center text-[16px] font-semibold leading-tight text-white', FOCUS)}
         >
           {words.primary.label}
         </button>
@@ -99,7 +101,7 @@ export function NextCard({ card, quizHome, onGo, className }: NextCardProps) {
             type="button"
             dir={dir}
             onClick={() => onGo(kind, (words.secondary as Action).href)}
-            className={cn('min-h-[48px] rounded-2xl border border-[#d1d5db] bg-white px-3 text-[16px] font-semibold text-[#111827]', FOCUS)}
+            className={cn('flex min-h-[48px] items-center justify-center rounded-2xl border border-[#d1d5db] bg-white px-3 text-center text-[16px] font-semibold leading-tight text-[#111827]', FOCUS)}
           >
             {words.secondary.label}
           </button>
