@@ -88,6 +88,42 @@ describe('Maths Ch2 — a "Topic N:" section name wins over "I can…"', () => {
   });
 });
 
+describe('every "Topic N" label form in the real Maths matrix names its topic (verbatim sections)', () => {
+  const [d16] = chapter(2).filter((r) => r.day === 16);
+  const named = (section) => groupBySlo([{ ...d16, section }])[0].name;
+
+  test.each([
+    ['G1 colon + dash', 'Topic 1: Numbers to 99 — Adventure Begins + Leap and Learn', 'Numbers to 99'],
+    ['G4 colon + slash', 'Topic 1: Exploring 5-Digit Numbers / Leap and Learn', 'Exploring 5-Digit Numbers'],
+    ['G3 no colon + hyphen', 'Topic 1 Numbers up to 9999 - Leap and Learn', 'Numbers up to 9999'],
+    ['G1 parenthesised', 'Topic 4 (ordinal position) — Adventure Begins + Leap and Learn', 'Ordinal position'],
+  ])('%s', (_, section, name) => {
+    expect(named(section)).toBe(name);
+  });
+
+  test.each([
+    ['G2 nameless "Topic 1 —"', 'Topic 1 — Leap and Learn + Practice'],
+    ['G4 "Topic 3 hook" is not a label', 'Discovery Playground / Skill Sharpener / Topic 3 hook'],
+  ])('%s gives no name; the SLO statement names the topic', (_, section) => {
+    expect(named(section)).toBe('Count objects and numbers to and across');
+  });
+
+  test('a nameless "Topic N —" still marks the chapter as split into book topics', () => {
+    const row = (day, codes, section) => ({ ...d16, day, sloCodes: codes, sloDescriptions: codes.map((c) => `I can ${c}.`), section });
+    const topics = groupBySlo([row(1, ['A'], 'Topic 1 — Leap and Learn + Practice'), row(2, ['A', 'B'], 'Practice')]);
+    expect(topics.map(code)).toEqual(['A,B']);
+  });
+
+  test('G3 "Topic 2 Length Word Problems - …" makes its code a word-problem code', () => {
+    const row = (day, skillType, codes, section) => ({ ...d16, day, skillType, pages: [day], sloCodes: codes,
+      sloDescriptions: codes.map((c) => `I can ${c}.`), section });
+    const topics = groupMaths([row(71, 'pictorial', ['LE-01'], 'Topic 1 Measuring Length - Leap and Learn'),
+      row(73, 'pictorial', ['LE-02'], 'Topic 2 Length Word Problems - Leap and Learn'),
+      row(75, 'word_problem', ['LE-01', 'LE-02'], 'Connect and Create')]);
+    expect(topics.map((t) => [t.name, t.days])).toEqual([['Measuring Length', [71]], ['Word problems', [73, 75]]]);
+  });
+});
+
 describe('Word problems are their own topic', () => {
   const base = chapter(1).filter((r) => r.lpType === 'content');
   const wp = (day, codes) => ({ ...base[0], day, skillType: 'word_problem', pages: [day + 30], sloCodes: codes,
