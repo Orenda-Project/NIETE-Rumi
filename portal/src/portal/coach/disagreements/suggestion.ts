@@ -1,5 +1,6 @@
 import type { Card, Mode, Suggestion } from "./api";
 import type { COACHING } from "./coachingCopy";
+import { WHATSAPP_URL_PICKER } from "@/lib/whatsapp";
 
 /**
  * bd-tbprit.11 — how Rifat's box picks its suggestion ("How the suggestion is chosen"). Her answer to "What did you
@@ -50,4 +51,4 @@ export const message = (found: number, name: string, ai?: string | null): string
   (ai || MSG[found] || MSG[0]).replaceAll("{name}", name).trimStart();
 
 export const waLink = (phone: string | null | undefined, text: string): string | null =>
-  phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : null;
+  phone ? `${WHATSAPP_URL_PICKER}${phone}?text=${encodeURIComponent(text)}` : null;
