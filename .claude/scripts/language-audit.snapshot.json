@@ -1,0 +1,1115 @@
+{
+  "niete:config/branding.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:config/capabilities.config.js": {
+    "ternaries": 0,
+    "inlineMaps": 21,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:config/coaching-messages.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 1,
+    "catalog": 0
+  },
+  "niete:config/voice-language-rules.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:config/web-quiz-brand.js": {
+    "ternaries": 0,
+    "inlineMaps": 8,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:constants/feature-videos.js": {
+    "ternaries": 0,
+    "inlineMaps": 10,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:handlers/image-message.handler.js": {
+    "ternaries": 0,
+    "inlineMaps": 2,
+    "englishFloors": 4,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:handlers/lesson-plan-v2.handler.js": {
+    "ternaries": 4,
+    "inlineMaps": 0,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:handlers/observe-command.handler.js": {
+    "ternaries": 0,
+    "inlineMaps": 10,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:handlers/text-message.handler.js": {
+    "ternaries": 1,
+    "inlineMaps": 8,
+    "englishFloors": 12,
+    "sentinels": 0,
+    "catalog": 7
+  },
+  "niete:handlers/voice-message.handler.js": {
+    "ternaries": 2,
+    "inlineMaps": 5,
+    "englishFloors": 7,
+    "sentinels": 0,
+    "catalog": 2
+  },
+  "niete:routes/internal-api.routes.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:routes/pic-lp-endpoint.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:routes/quiz-flow-endpoint.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:routes/student-quiz-flow-endpoint.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 29
+  },
+  "niete:routes/student-videos-endpoint.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:routes/transcript-quiz-flow-endpoint.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 72
+  },
+  "niete:routes/web-quiz-internal.routes.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/assessment/assessment-generation.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/assessment/assessment-paper-fde.renderer.js": {
+    "ternaries": 36,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/assessment/assessment-paper-view.service.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/assessment/composition-criteria.js": {
+    "ternaries": 0,
+    "inlineMaps": 8,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/assessment/patterns/fde-g5-2027.js": {
+    "ternaries": 0,
+    "inlineMaps": 7,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/assessment/patterns/index.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/audio.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/audio-hash-cache.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/classroom-photo/add-another.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 3
+  },
+  "niete:services/coaching/classroom-photo/capture.service.js": {
+    "ternaries": 6,
+    "inlineMaps": 0,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 4
+  },
+  "niete:services/coaching/coaching-card/card-image.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/coaching-card/card-template.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/coaching-card/commitment-card.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/coaching-session.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/coaching/lesson-plan-processor.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 2
+  },
+  "niete:services/coaching/lp-coaching/lp-list-selection.handler.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 2
+  },
+  "niete:services/coaching/lp-coaching/lp-step.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 2
+  },
+  "niete:services/coaching/practice-why.js": {
+    "ternaries": 1,
+    "inlineMaps": 7,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/reflective-conversation.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/report-generator.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/report-v2/hero-report.template.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/report-v2/narrative.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/coaching/report-v2/score-adapter.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/coaching/report-v2/score-adapters/fico-adapter.js": {
+    "ternaries": 2,
+    "inlineMaps": 3,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/coaching/transcription-processor.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 3,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/context.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/conversation-resume.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 4,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 6
+  },
+  "niete:services/curriculum-lp-ast.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/elevenlabs.service.js": {
+    "ternaries": 2,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/exam-checker/annotation.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/exam-checker/feedback.service.js": {
+    "ternaries": 7,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/exam-checker/grading.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/feature-keyword-detector.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 7,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/feature-linker.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 5,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/feature-registration.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 3,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/go.page.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/go.routes.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/go.targets.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/maker.fallback.strings.js": {
+    "ternaries": 0,
+    "inlineMaps": 12,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/maker.page.js": {
+    "ternaries": 4,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/maker.strings.js": {
+    "ternaries": 0,
+    "inlineMaps": 40,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/first-touch/one-door.service.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/first-touch/one-door.strings.js": {
+    "ternaries": 1,
+    "inlineMaps": 29,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/teacher-home.page.js": {
+    "ternaries": 6,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/teacher-home.strings.js": {
+    "ternaries": 0,
+    "inlineMaps": 43,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/first-touch/walk-persona.js": {
+    "ternaries": 2,
+    "inlineMaps": 4,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/fln-send.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/gpt5-mini.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/helper-agent.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 8,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/language-detector.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/lesson-plan-lifecycle.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/lp-feedback.service.js": {
+    "ternaries": 9,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/lp-v8-delivery.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 3,
+    "sentinels": 0,
+    "catalog": 3
+  },
+  "niete:services/menu.service.js": {
+    "ternaries": 3,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 8
+  },
+  "niete:services/observe/assignment/leader-source.js": {
+    "ternaries": 0,
+    "inlineMaps": 8,
+    "englishFloors": 4,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-brief-card.js": {
+    "ternaries": 0,
+    "inlineMaps": 27,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-debrief-guide.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-resume.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:services/observe/observe-school-admin.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-strings.js": {
+    "ternaries": 0,
+    "inlineMaps": 3,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-support-moves.js": {
+    "ternaries": 0,
+    "inlineMaps": 12,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-teacher-admin.service.js": {
+    "ternaries": 5,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/observe/observe-teacher-report.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/openai.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 3,
+    "sentinels": 0,
+    "catalog": 2
+  },
+  "niete:services/oxbridge-lp.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/pic-to-lp/completion-handler.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/pic-to-lp/page-collector.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/pic-to-lp/pic-lp-wait-message.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/portal-invite.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 3,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/child-flow-token.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/quiz-delivery.service.js": {
+    "ternaries": 6,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/quiz-follow-up.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/quiz-intent-router.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 3,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/quiz-orchestrator.service.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/story-teacher-report.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 3
+  },
+  "niete:services/quiz/story-teacher.service.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 8
+  },
+  "niete:services/quiz/student-quiz.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 16
+  },
+  "niete:services/quiz/transcript-quiz-child-reasons.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/transcript-quiz-contract.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/transcript-quiz-language.js": {
+    "ternaries": 3,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 7
+  },
+  "niete:services/quiz/transcript-quiz-rewrite.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/transcript-quiz-validator.js": {
+    "ternaries": 4,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/video-quiz-report.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 4,
+    "sentinels": 0,
+    "catalog": 6
+  },
+  "niete:services/quiz/video-quiz-share.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 5
+  },
+  "niete:services/quiz/web-quiz-art.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-bind-page.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-bind-way-back.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 2
+  },
+  "niete:services/quiz/web-quiz-bind.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 3,
+    "sentinels": 0,
+    "catalog": 3
+  },
+  "niete:services/quiz/web-quiz-card-data.js": {
+    "ternaries": 2,
+    "inlineMaps": 7,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-card-image.js": {
+    "ternaries": 1,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-challenge-draw.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-challenge.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 4
+  },
+  "niete:services/quiz/web-quiz-child-welcome.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-closed-lang.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-handset.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-home-remember.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-hub-home.js": {
+    "ternaries": 0,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-items.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 2,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-library.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-live-read-v3.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-next-offer-result.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-passage-title.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-readalong-timing.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-readalong.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-return-lang.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-stories.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-student-join.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-token.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz-voice.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/quiz/web-quiz.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading-assessment.service.js": {
+    "ternaries": 17,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 5
+  },
+  "niete:services/reading/analysis.service.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/benchmark.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/comprehension.service.js": {
+    "ternaries": 3,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/fluency.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/passage-generation.service.js": {
+    "ternaries": 8,
+    "inlineMaps": 5,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/pronunciation.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/report.service.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/reading/voice-feedback.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/remark/remark-delivery.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/remark/remark-narrative.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/remark/remark-rubric.js": {
+    "ternaries": 0,
+    "inlineMaps": 29,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/student-ingress.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 1,
+    "sentinels": 0,
+    "catalog": 4
+  },
+  "niete:services/student-video-feedback.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 0,
+    "englishFloors": 3,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/training/training-entry.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 2,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/video/video-assembly.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/video/video-orchestrator.service.js": {
+    "ternaries": 1,
+    "inlineMaps": 6,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/video/video-script.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:services/vision.service.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/class-round.page.js": {
+    "ternaries": 3,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/niete-brand.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/reading-report.template.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/teacher-class-week.card.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/teacher-jugnu.page.js": {
+    "ternaries": 2,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/teacher-report.page.js": {
+    "ternaries": 0,
+    "inlineMaps": 17,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:templates/teacher-stories.page.js": {
+    "ternaries": 4,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 1
+  },
+  "niete:templates/web-quiz-art.template.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:utils/alphabet-grid-generator.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:utils/output-language-check.js": {
+    "ternaries": 2,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:utils/text-format.js": {
+    "ternaries": 1,
+    "inlineMaps": 0,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  },
+  "niete:utils/word-grid-generator.js": {
+    "ternaries": 0,
+    "inlineMaps": 1,
+    "englishFloors": 0,
+    "sentinels": 0,
+    "catalog": 0
+  }
+}
