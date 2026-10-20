@@ -12,7 +12,9 @@ import { deleteRecording } from '../../lib/recordingStore';
 import { isInAppBrowser } from '@/lib/runtime';
 import { getRecentPlans, planChips, pickOf } from '../../newui/coaching/coachingApi';
 import { LevelBars } from '../../newui/coaching/LevelBars';
+import { LiveMovesPanel } from '../../newui/coaching/LiveMovesList';
 import { PlanSheet } from '../../newui/coaching/PlanSheet';
+import { useLiveMoves } from '../../newui/coaching/useLiveMoves';
 import type { Audio } from '../../newui/coaching/useSendFlow';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
@@ -149,6 +151,8 @@ export function NewObservationPage() {
     void micPermissionDenied().then((d) => { if (live) setBrowserBlocked(d); });
     return () => { live = false; };
   }, [phase, micTries]);
+  // bd-v0toag.31.4 — group D: the moves for the plan she chose, while she records here (the server says who gets them).
+  const live = useLiveMoves({ session, plan, recording: phase === 'recording' });
   // Finished somewhere else (Logout's "Stop & log out"): nothing is recording here any more.
   useEffect(() => { if (phase === 'recording' && session && !session.active) setPhase('idle'); }, [phase, session, session?.active]);
 
@@ -164,10 +168,13 @@ export function NewObservationPage() {
     const out = await session.finish();
     setPhase('idle');
     if (!out) return;
-    setAudio({
+    const rec: Audio = {
       blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs,
       recordingId: out.id, source: 'recorded', size: out.blob.size, startedAt: null,
-    });
+    };
+    // Her ticks and taps are held with this recording (a trip to the library keeps them) and go with Submit.
+    holdDraft({ audio: rec, plan, photos, cls, live: live.toRecord() });
+    setAudio(rec);
   };
   const pickAudio = async (file: File | undefined) => {
     setAudioProblem(null);
@@ -210,6 +217,7 @@ export function NewObservationPage() {
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
         photos,
         teacherClass: { grade: cls.grade, subject: cls.subject, ...(cls.subjectKey ? { subjectKey: cls.subjectKey } : {}) },
+        liveMoves: peekDraft()?.live ?? null,
       }, portal, (pct) => setSending({ pct }));
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       clearDraft();
@@ -338,6 +346,7 @@ export function NewObservationPage() {
               <span role="timer" data-testid="dc-record-clock" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{clockText(elapsed)}</span>
               <LevelBars live={!session?.paused} level={level} />
               <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+              {live.state ? <div className="w-full"><LiveMovesPanel live={live} /></div> : null}
             </section>
           ) : null}
           {cls && !audio && phase === 'starting' ? (
