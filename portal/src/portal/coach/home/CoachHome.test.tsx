@@ -7,7 +7,6 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) =
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf Atif", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
 vi.mock("../../services/api", () => ({ coach: { getHome: vi.fn() } }));
-vi.mock("../disagreements/nextVisit", () => ({ NextVisit: () => <div data-testid="next-visit" /> }));
 import { coach } from "../../services/api";
 import CoachHome from "../pages/CoachHome";
 
@@ -61,14 +60,6 @@ describe("CoachHome (kit)", () => {
     renderHome();
     await screen.findByTestId("feature-tiles");
     expect(screen.queryByTestId("reports-waiting")).toBeNull();
-  });
-
-  it("bd-tbprit.16: For your next visit sits between today's visits and the feature tiles", async () => {
-    renderHome();
-    const tiles = await screen.findByTestId("feature-tiles");
-    const next = screen.getByTestId("next-visit");
-    expect(screen.getByTestId("todays-visits").compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(next.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("today's visits: a count, TimeStamps, the current one expanded with Take observation", async () => {

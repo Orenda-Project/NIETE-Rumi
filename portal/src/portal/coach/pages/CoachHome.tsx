@@ -10,7 +10,6 @@ import { COACH_PROFILE } from "../profile/copy";
 import CoachGate from "../CoachGate";
 import { COACH_HOME } from "../home/copy";
 import { CurrentVisit, visitItem } from "../home/VisitCards";
-import { NextVisit } from "../disagreements/nextVisit";
 import { Failed, Loading, SectionLabel, useLoad } from "../ui";
 
 /**
@@ -62,9 +61,6 @@ const CoachHome = () => {
             </div>
           );
         })()}
-
-        {/* bd-tbprit.16 — the disagreements she added to her next visit; nothing unless the flag is on and one is marked. */}
-        <NextVisit />
 
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className="mt-2 [display:grid] grid-cols-2 gap-3">
