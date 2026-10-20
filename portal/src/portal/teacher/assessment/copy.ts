@@ -191,6 +191,9 @@ export const ASSESSMENT_V2_COPY = {
   download: 'Download',
   answerKey: 'Answer key',
   key: 'Answer key',
+  /* Paper ready shows the paper in the viewer (bd-7tgiyc): Answer key swaps it for the key, this swaps it back */
+  backToPaper: 'Back to paper',
+  downloadPdf: 'Download PDF',
   makeAnother: 'Make another',
   open: 'Open',
   notFoundTitle: 'Paper not found',
@@ -490,6 +493,9 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   download: 'ڈاؤن لوڈ',
   answerKey: 'جوابی کلید',
   key: 'جوابی کلید',
+  // Paper ready's viewer: machine-drafted, needs fluent-Urdu review.
+  backToPaper: 'پرچے پر واپس',
+  downloadPdf: 'PDF ڈاؤن لوڈ کریں',
   makeAnother: 'ایک اور بنائیں',
   open: 'کھولیں',
   notFoundTitle: 'پرچہ نہیں ملا',
