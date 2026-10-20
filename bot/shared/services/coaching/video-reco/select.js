@@ -7,6 +7,7 @@
 const { modelFor, JOBS } = require('../../../config/model-registry');
 const { resolveUx, clampLanguage } = require('../../../config/ux-strings');
 const { redactNames } = require('./redact-names');
+const { fallbackSubjectOk } = require('./shortlist');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -187,11 +188,12 @@ const UNSHOWABLE = /\[(TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/;
  * "Try this tomorrow" sentence. No LLM call. → {reason_en, reason_ur} | null (the none stands).
  * @param {object} a {none, segId, shortlist, sentence, startS, endS, language, teacherName}
  */
-function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName } = {}) {
+function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject } = {}) {
   try {
     const m = /^validation:(.+)$/.exec(String(none || ''));
     if (!m || !FALLBACK_RULES.has(m[1])) return null;
     if (!((shortlist && shortlist.candidates) || []).some((c) => c.seg_id === String(segId))) return null;
+    if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
     const s = String(postRedact(String(sentence || ''), teacherName) || '').replace(LEADING_ADDRESS, '').trim();
     if (!s || UNSHOWABLE.test(s)) return null;
     const n = Math.round(Number(endS) - Number(startS));

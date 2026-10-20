@@ -60,6 +60,21 @@ function suitsSubject(module, subject) {
   return subs.map((x) => subjectId(x) || x).some((x) => ok.has(x));
 }
 
+function notFor(module, subject) {
+  return !!subject && !!module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject);
+}
+
+/**
+ * [v1.3c-2] The card-sentence fallback has no LLM judgement, so its own subject gate: a `general` module, or a known
+ * lesson subject the module suits and its not_for does not name. An unknown subject allows only `general`.
+ */
+function fallbackSubjectOk(module, rawSubject) {
+  if (!module) return false;
+  if ((module.subjects || []).some((x) => String(x).toLowerCase() === 'general')) return true;
+  const subject = subjectId(rawSubject);
+  return !!subject && suitsSubject(module, subject) && !notFor(module, subject);
+}
+
 function gradeOk(band, grade) {
   const b = String(band || 'all').toLowerCase();
   const narrow = NARROW_BANDS[b];
@@ -143,7 +158,7 @@ function eligible(catalog, lesson) {
     if (!module || module.media_ok === false) continue;
     if (((module.quality && module.quality.flags) || []).some((f) => BAD_MEDIA.has(f))) continue;
     if (!suitsSubject(module, subject)) continue;
-    if (subject && module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject)) continue;
+    if (notFor(module, subject)) continue;
     if (!gradeOk(module.grade_band, l.grade)) continue;
     for (const seg of module.segments || []) {
       if (!recommendable(module, seg) || isIntro(module, seg)) continue;
@@ -349,4 +364,4 @@ function build(catalog, target, ctx, signal, lesson, step) {
   }
 }
 
-module.exports = { build, textRoute, recommendable, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };
+module.exports = { build, textRoute, recommendable, fallbackSubjectOk, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };
