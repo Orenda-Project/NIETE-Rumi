@@ -32,7 +32,7 @@
       towerSay: function (n) { return 'The Big flight: all ' + n + ' stones, one after another.'; },
       timed: 'On a ⏱ stone, Jugnu\'s light lasts one minute. Do as many as you can.',
       crossed: function (s) { return s + ': crossed!'; }, towerDone: 'Big flight: done!',
-      finished: 'Finished', notYet: 'Not yet',
+      finished: 'Finished', notYet: 'Not yet', nextTime: 'Next time',
       star1: 'You finished every stone', star2: 'You did the practice', star3: 'You kept going to the end',
       notReady: 'This is still getting ready. Come back soon.', mute: 'Sound off', unmute: 'Sound on',
       saved: 'Saved on this phone',
@@ -48,7 +48,7 @@
       towerSay: function (n) { return 'بڑی اڑان: سارے ' + ud(n) + ' پتھر، ایک کے بعد ایک۔'; },
       timed: '⏱ والے پتھر پر جگنو کی روشنی ایک منٹ چلتی ہے۔ جتنا ہو سکے، کریں۔',
       crossed: function (s) { return s + ' پار!'; }, towerDone: 'بڑی اڑان پوری!',
-      finished: 'پورا کیا', notYet: 'ابھی نہیں',
+      finished: 'پورا کیا', notYet: 'ابھی نہیں', nextTime: 'اگلی بار',
       star1: 'آپ نے ہر پتھر پورا کیا', star2: 'آپ نے مشق کی', star3: 'آپ نے آخر تک کوشش جاری رکھی',
       notReady: 'یہ ابھی تیار ہو رہا ہے۔ تھوڑی دیر بعد دوبارہ آئیں۔', mute: 'آواز بند', unmute: 'آواز چالو',
       saved: 'اس فون پر محفوظ',
@@ -224,26 +224,29 @@
   // back from the child's page: the part's results and events as the engine kept them on this phone
   function back(k, sid) {
     var tasks = tasksOf(k);
-    var seen = { practice: false, ended: {}, resumed: false };
+    var seen = { practice: false, ended: {}, skipped: {}, resumed: false };
     var store = W.SAE && W.SAE.store && typeof W.SAE.store.open === 'function' ? W.SAE.store.open() : Promise.reject(new Error('no store'));
     return Promise.resolve(store).then(function (st) {
       return Promise.all([st.results(sid), st.events(sid)]);
     }).then(function (v) {
-      (v[0] || []).forEach(function (r) { seen.ended[r.task_id] = true; if (r.resumed) seen.resumed = true; });
+      (v[0] || []).forEach(function (r) {
+        seen.ended[r.task_id] = true; if (r.resumed) seen.resumed = true;
+        if (/^skipped|^mic_unavailable/.test(r.stop_reason || '')) seen.skipped[r.task_id] = true;
+      });
       (v[1] || []).forEach(function (e) { if (e && (e.type === 'practice_answer' || e.type === 'practice_feedback')) seen.practice = true; });
       return Object.keys(seen.ended).length > 0;
     }).catch(function () { return false; }).then(function (any) {
       if (!any) { map(); return; }
-      done(k, tasks, { practice: seen.practice, ended: seen.ended, early: seen.resumed });
+      done(k, tasks, { practice: seen.practice, ended: seen.ended, skipped: seen.skipped, early: seen.resumed });
     });
   }
 
-  // ---- the result card: what was finished, effort stars; never a score ----
+  // ---- the result card: what was finished, effort stars; never a score. A stone the engine skipped reads "next time" ----
   function done(k, tasks, seen) {
     prog.done[k] = true; save(prog);
     var all = tasks.every(function (t) { return seen.ended[t.id]; });
     var stars = [all, seen.practice, !seen.early];
-    var rows = tasks.map(function (t) { return '<div><span>' + esc(title(t)) + '</span><em>' + (seen.ended[t.id] ? '✓ ' + esc(T.finished) : esc(T.notYet)) + '</em></div>'; }).join('');
+    var rows = tasks.map(function (t) { return '<div><span>' + esc(title(t)) + '</span><em>' + (seen.skipped && seen.skipped[t.id] ? esc(T.nextTime) : seen.ended[t.id] ? '✓ ' + esc(T.finished) : esc(T.notYet)) + '</em></div>'; }).join('');
     var why = [T.star1, T.star2, T.star3].map(function (s, i) { return stars[i] ? '★ ' + esc(s) : ''; }).filter(Boolean).join('<br>');
     var nx = nextIsland();
     show(top('', null) + '<div class="sg-card" id="sg-card"><img src="/wq/jugnu/celebrate.webp" alt="" width="110" class="sg-bob"><h2>' + esc(k === 'tower' ? T.towerDone : T.crossed(T[k])) + '</h2>' +
