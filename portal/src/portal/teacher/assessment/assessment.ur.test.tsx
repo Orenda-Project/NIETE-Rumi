@@ -43,7 +43,7 @@ import { clearPicksForTest, setPicks } from './store';
 import { dayLabel, groupPapersByDay, newPicks, paperLabel } from './model';
 import { failureLabel } from './failure';
 import { AssessmentHub } from './AssessmentHub';
-import { CheckStep, TypesStep } from './NewPaperSteps';
+import { CheckStep, QuestionsStep } from './NewPaperSteps';
 import { PaperPage } from './PaperPage';
 import { RequestPage } from './RequestPage';
 import { EditPaperPage, EditQuestionPage } from './EditPages';
@@ -133,28 +133,26 @@ describe('Assessment in Urdu', () => {
     }
   });
 
-  it('a New paper step: Question types — its title, Next, the choices, the groups and the stepper', async () => {
-    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [1], count: 3, typeMode: 'pick' });
-    at(newPaperPath('types'), newPaperPath('types'), <TypesStep />);
-    expect(h1()).toBe(U.steps.types);
-    expect(screen.getByRole('progressbar').getAttribute('aria-label')).toBe(U.step(4, 6));
-    expect(screen.getByRole('button', { name: new RegExp(U.next) })).toBeTruthy();
-    expect(screen.getByText(U.autoMix)).toBeTruthy();
-    expect(screen.getByText(U.chooseTypes)).toBeTruthy();
+  it('a New paper step: Questions — its line, the seen and unseen groups, Add a type, total marks and the reasons', async () => {
+    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [1], typesSeeded: true, seen: 5, typeCounts: { MCQs: 4 } });
+    at(newPaperPath('questions'), newPaperPath('questions'), <QuestionsStep />);
+    expect(h1()).toBe(U.steps.questions);
+    expect(screen.getByRole('progressbar').getAttribute('aria-label')).toBe(U.step(3, 4));
+    expect(screen.getByRole('heading', { name: U.askCount })).toBeTruthy();
+    for (const w of [U.seenQuestions, U.unseenQuestions, U.asInBook, U.addType, U.wholePaper, U.optional]) {
+      expect(screen.getAllByText(w).length).toBeGreaterThan(0);
+    }
+    // the type's name is data; its number box is named in Urdu
+    const mcq = screen.getByRole('textbox', { name: U.typeCount('MCQs') }) as HTMLInputElement;
+    expect(mcq.value).toBe('4');
+    expect(screen.getByTestId('questions-total').textContent).toBe(U.join(U.questionsCount(9), U.seenShort(5), U.unseenShort(4)));
+    // marks under the question count: the reason above the off Next, in Urdu
+    fireEvent.change(screen.getByRole('textbox', { name: U.totalMarks }), { target: { value: '3' } });
+    expect(screen.getByTestId('button-reason').textContent).toBe(U.why.marksLow(9));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(U.addType) }));
     expect(await screen.findByText(U.objective)).toBeTruthy();
     expect(screen.getByText(U.written)).toBeTruthy();
-    expect(screen.getByText(U.howManyEach)).toBeTruthy();
-    // nothing picked: the reason is on the card and above the off Next, in Urdu
-    expect(screen.getAllByText(U.why.typesNone).length).toBe(2);
-    // each type has a number box in front, 0 written in it (the type's name is data)
-    const mcq = screen.getByRole('textbox', { name: U.typeCount('MCQs') }) as HTMLInputElement;
-    expect(mcq.value).toBe('0');
-    // too many: the total and the message, live, in Urdu
-    fireEvent.change(mcq, { target: { value: '5' } });
-    expect(screen.getByText(U.why.totalOf(5, 3))).toBeTruthy();
-    expect(screen.getAllByText(U.why.over(2)).length).toBeGreaterThan(0);
-    expect(screen.getByTestId('button-reason').textContent).toContain(U.why.over(2));
-    for (const en of ['Question types', 'Next', 'Auto mix', 'Choose types', 'Objective', 'Written', 'How many each', 'too many']) {
+    for (const en of ['Questions', 'Seen questions', 'Unseen questions', 'As in the book', 'Add a type', 'Total marks', 'Objective', 'Written']) {
       expect(screen.queryByText(en)).toBeNull();
     }
   });
@@ -162,17 +160,20 @@ describe('Assessment in Urdu', () => {
   it('Check and make: every row, Edit, the dock — and a page range keeps its order', async () => {
     setPicks({
       ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', coverBy: 'pages', ranges: [[4, 14]],
-      source: 'both', count: 15, seen: 5,
+      typesSeeded: true, seen: 5, typeCounts: { MCQs: 10 },
     });
     at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
     expect(h1()).toBe(U.steps.check);
     expect(screen.getByRole('button', { name: new RegExp(U.makePaper) })).toBeTruthy();
-    for (const w of [U.steps.class, U.pages, U.steps.questions, U.steps.types, U.totalMarks, U.answerLines, U.file, U.pdfWithKey, U.fixed, U.noLimit, U.on]) {
+    for (const w of [U.steps.class, U.pages, U.steps.questions, U.totalMarks, U.answerLines, U.noLimit]) {
       expect(screen.getAllByText(w).length).toBeGreaterThan(0);
     }
-    expect(screen.getAllByRole('link', { name: U.edit })).toHaveLength(6);
+    expect(screen.queryByText(U.file)).toBeNull();
+    expect(screen.getByRole('switch', { name: new RegExp(U.answerLines) }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getAllByRole('link', { name: U.edit })).toHaveLength(4);
     expect(screen.getByText(U.gradeSubject(4, 'Science'))).toBeTruthy();
-    expect(pageText()).toContain(plain(U.join(U.questionsCount(15), U.bookShort(5), U.newShort(10))));
+    expect(screen.getByText(U.questionsCount(15))).toBeTruthy();
+    expect(screen.getByText(U.join(U.seenShort(5), U.unseenShort(10)))).toBeTruthy();
     // "4 – 14" inside Urdu would show as "14 – 4": the range is isolated (LRI … PDI).
     expect(screen.getByText(U.pageRange(4, 14)).textContent).toContain('⁦4 – 14⁩');
     for (const en of ['Check and make', 'Make paper', 'Total marks', 'Answer lines', 'Edit', 'Fixed', 'No limit']) {
@@ -243,6 +244,6 @@ describe('Assessment in Urdu', () => {
     expect(dayLabel('2026-10-05', '2026-10-08', U.days)).toBe(U.days.date(1, 5, 9));
     const [g] = groupPapersByDay([{ ready_at: '2026-10-08T05:00:00Z' }], '2026-10-08', U.days);
     expect(g.day).toBe(U.days.today);
-    expect(paperLabel({ ...newPicks(15), grade: 4, subjectName: 'Science' }, U)).toBe(U.join(U.grade(4), 'Science', U.questionsCount(15)));
+    expect(paperLabel({ ...newPicks(15), grade: 4, subjectName: 'Science', typeCounts: { MCQs: 10 } }, U)).toBe(U.join(U.grade(4), 'Science', U.questionsCount(15)));
   });
 });
