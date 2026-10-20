@@ -73,6 +73,17 @@
     return e;
   }
 
+  /** A script, resolved when it ran or when it is missing (a skin not shipped yet never stops the test). */
+  function load(doc, src) {
+    return new Promise(function (ok) {
+      var s = doc.createElement('script');
+      s.src = src;
+      s.onload = function () { ok(true); };
+      s.onerror = function () { ok(false); };
+      doc.head.appendChild(s);
+    });
+  }
+
   function fail(mount, words) {
     mount.textContent = '';
     mount.appendChild(el('p', 'sa-fail', words));
@@ -89,21 +100,27 @@
     doc.documentElement.lang = p.lang;
     doc.documentElement.dir = p.lang === 'ur' ? 'rtl' : 'ltr';
     if (!p.session_id || !p.form) { fail(mount, p.lang === 'ur' ? 'یہ لنک درست نہیں۔' : 'This link is not right.'); return; }
+    // Game mode: the game lane's sink and skin, loaded (or found missing) before the engine starts, so the skin sees
+    // the first event and the sink exists for the first sync.
+    var extras = [];
     if (p.skin === 'game') {
       var css = el('link'); css.rel = 'stylesheet'; css.href = '/sa/skin-game.css'; doc.head.appendChild(css);
-      var js = el('script'); js.src = '/sa/skin-game.js'; js.defer = true; doc.head.appendChild(js);
+      extras.push('/sa/skin-game.js');
     }
+    if (p.mode === 'game') extras.push('/sa/sink-game.js');
     var url = '/sa/batteries/' + p.form + '.json';
-    root.fetch(url, { cache: 'no-cache' }).then(function (r) {
+    Promise.all(extras.map(function (src) { return load(doc, src); })).then(function () {
+      return root.fetch(url, { cache: 'no-cache' });
+    }).then(function (r) {
       if (!r.ok) throw new Error('battery ' + r.status);
       return r.json();
     }).then(function (full) {
       var battery = pick(full, p.block);
       var sink = p.mode === 'proctored'
         ? (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null)
-        : (SAE.sinks && SAE.sinks.game ? SAE.sinks.game({ session_id: p.session_id }) : null);
+        : ((root.SAE.sinks && root.SAE.sinks.game) ? root.SAE.sinks.game({ session_id: p.session_id }) : null);
       var offline = SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false });
-      return SAE.start({
+      return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
         child: p.first_name ? { first_name: p.first_name } : null, back: p.back,
       }).then(function (engine) {
