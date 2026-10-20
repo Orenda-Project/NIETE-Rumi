@@ -73,6 +73,13 @@ test('a quiet room hum is not a voice; the threshold follows the room (2x its fl
   expect(fired).toEqual([{ kind: 'mercy', silence_s: 12 }]);
 });
 
+test('a child who starts reading at once (voice from 0 s, never a quiet second) is a voice, not the room', async () => {
+  const { fired, run, iv } = await rig((t) => 0.25 + 0.05 * Math.sin(t / 37));
+  run(25000);
+  expect(fired).toEqual([]);
+  expect(iv.fns.size).toBe(0);
+});
+
 test('stop() ends the watch; the module-level SAE.rec.onSilence uses the last recorder', async () => {
   const { r, fired, run, iv } = await rig(() => 0);
   run(5000);
@@ -102,5 +109,6 @@ test('the probe peak caps the threshold: a child as loud as half the probe count
   expect(rec.thresholdFor(0.001, ls)).toBeCloseTo(0.02);
   expect(rec.thresholdFor(0.001, null)).toBeCloseTo(0.02);
   const game = { getItem: (k) => (k === 'sa:mic_rms' ? '0.3' : null) };
-  expect(rec.thresholdFor(0.1, game)).toBeCloseTo(0.15);
+  expect(rec.thresholdFor(0.1, game)).toBeCloseTo(0.06); // never above the ceiling: speech is never the room
+  expect(rec.thresholdFor(0.01, game)).toBeCloseTo(0.02);
 });
