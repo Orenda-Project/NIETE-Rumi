@@ -52,6 +52,7 @@ const en = {
   wholeBattery: "Whole battery",
   aboutMinutes: (n: number) => `about ${n} minutes`,
   savedNext: "Saved. Next child.",
+  stopped: (name: string) => `${name}'s test stopped before the end. Tap Present to open it again.`,
   childrenDone: (n: number, total: number) => `Children done ${n}/${total}`,
   timeUsed: (used: string, limit: string) => `Time ${used} / ${limit}`,
   onPhone: "on phone",
@@ -89,6 +90,7 @@ const en = {
   linkHour: "Link works for 1 hour",
   linkDone: "Done",
   onOtherPhone: "On another phone",
+  onOtherPhoneChip: "on another phone",
 };
 
 type Copy = typeof en;
@@ -135,6 +137,7 @@ const ur: Copy = {
   wholeBattery: "مکمل جائزہ",
   aboutMinutes: (n: number) => `تقریباً ⁦${n}⁩ منٹ`,
   savedNext: "محفوظ ہو گیا۔ اب اگلا بچہ۔",
+  stopped: (name: string) => `⁨${name}⁩ کا ٹیسٹ مکمل ہونے سے پہلے رک گیا۔ دوبارہ کھولنے کے لیے «حاضر» دبائیں۔`,
   childrenDone: (n: number, total: number) => `مکمل بچے ⁦${n}/${total}⁩`,
   timeUsed: (used: string, limit: string) => `وقت ⁦${used} / ${limit}⁩`,
   onPhone: "فون میں",
@@ -172,6 +175,7 @@ const ur: Copy = {
   linkHour: "لنک ایک گھنٹے تک چلے گا",
   linkDone: "ہو گیا",
   onOtherPhone: "دوسرے فون پر",
+  onOtherPhoneChip: "دوسرے فون پر",
 };
 
 export const COPY: Record<Lang, Copy> = { en, ur };
