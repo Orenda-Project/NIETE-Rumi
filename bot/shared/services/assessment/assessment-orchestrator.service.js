@@ -52,7 +52,8 @@ const ENV = globalThis.process.env;
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const { resolveUx } = require('../../config/ux-strings');
 const Delivery = require('./assessment-delivery');
-const { isAssessmentVersionsEnabled, fdeReaderPassSubjects, isFlagEnabled } = require('../../config/feature-flags');
+const { isAssessmentVersionsEnabled, fdeReaderPassSubjects, fdeStemCheckSubjects, isFlagEnabled } = require('../../config/feature-flags');
+const { STEM_CHECK_SUBJECTS } = require('./fde-stem-check');
 const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
 
@@ -253,10 +254,13 @@ async function _buildPatternPaper({ job, user, paperId }) {
   // A paper off FDE's split by thinking level is written once more and the nearer kept, while the
   // `assessment_fde_split_retry` setting is on (bd-5jmnfj.18): it can double a paper's cost and time.
   const splitRetry = await isFlagEnabled('assessment_fde_split_retry');
+  // The stem check (bd-5jmnfj.22), for an English-medium subject the setting names: one more read per paper.
+  const stemCheck = STEM_CHECK_SUBJECTS.includes(readKey) && (await fdeStemCheckSubjects()).includes(readKey);
   const generate = () => Generation.generatePatternExam({
     grade, subject, pattern, scope, pageRanges, chapterNumber, requestId,
     ...(readerPass ? { readerPass: true } : {}),
     ...(splitRetry ? { splitRetry: true } : {}),
+    ...(stemCheck ? { stemCheck: true } : {}),
     // A write per section, so the row reads as a live run. Only while it IS this run's: a paper a
     // stopping worker handed back (`queued`) is never flipped back to `generating`, or the next
     // delivery would skip it and ack its only message.
