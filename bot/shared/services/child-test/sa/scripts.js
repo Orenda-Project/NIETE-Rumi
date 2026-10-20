@@ -110,6 +110,22 @@ const TASKS = {
       'جگنو ایک لفظ بولے گا، پھر اس لفظ والا ایک جملہ، پھر وہی لفظ دوبارہ۔ حروف والے بٹن دبا کر وہ لفظ لکھیں۔ دوبارہ سننے کے لیے جگنو کو دبائیں۔',
       'egra_tk2009:p41 dictation "I will read you a short sentence ... write what you hear" (Tangerine SA typed-spelling adaptation)'),
   },
+  'ur.vocabulary': {
+    intro_tap: L('Here are some pictures. Jugnu will say what is happening in one picture. Tap that picture.',
+      'یہ کچھ تصویریں ہیں۔ جگنو بتائے گا کہ ایک تصویر میں کیا ہو رہا ہے۔ وہ تصویر دبائیں۔',
+      'select2024:p122 vocabulary "these are some pictures; tell me what is happening" (receptive tap adaptation)'),
+    example: L('For example, in this picture: {x}.', 'جیسے، اس تصویر میں: {x}۔', 'select2024:p122 (example "پرندہ اڑ رہا ہے")'),
+    right: L('Well done! {x}.', 'شاباش! {x}۔', 'select2024:p122 (practice, correct)'),
+    wrong: L('Look again: {x}.', 'دوبارہ دیکھیں: {x}۔', 'select2024:p122 (practice, incorrect)'),
+  },
+  'en.print_orientation': {
+    intro_tap: L('Look at this story. Do not read it now. Listen to each question and tap your answer on the page.',
+      'اس کہانی کو دیکھیں۔ ابھی اسے نہ پڑھیں۔ ہر سوال سنیں اور صفحے پر اپنا جواب دبائیں۔', 'egra_tk2016:Annex H p.187 orientation to print (tap adaptation)'),
+  },
+  'ur.print_orientation': {
+    intro_tap: L('Look at this story. Do not read it now. Listen to each question and tap your answer on the page.',
+      'اس کہانی کو دیکھیں۔ ابھی اسے نہ پڑھیں۔ ہر سوال سنیں اور صفحے پر اپنا جواب دبائیں۔', 'prpkp2020:p81 orientation to print (tap adaptation)'),
+  },
   nonwords: {
     intro_record: L('Here are some made-up words. They are not real words. Read as many as you can, out loud. Do not spell them, read each whole word. Start at the first word and go along each row. If you do not know a word, go on to the next one.',
       'یہ کچھ بنائے ہوئے الفاظ ہیں، یہ اصلی الفاظ نہیں ہیں۔ جتنے ہو سکیں، اونچی آواز میں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔ پہلے لفظ سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔',

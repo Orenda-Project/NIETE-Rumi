@@ -34,7 +34,7 @@ describe('SA extra subtasks (DESIGN §2b)', () => {
     const c = bank.forms['coach.G3.A'];
     expect(c.full.slice(-EXTRA.length)).toEqual(EXTRA);
     expect(c.blocks.B4).toEqual(['ma.number_id', 'ma.discrimination', 'ma.missing', 'ma.patterns', 'ma.patterns_hi']);
-    expect(c.blocks.B3).toEqual(['ur.initial_sound', 'en.initial_sound', 'ur.listening', 'en.listening']);
+    expect(c.blocks.B3).toEqual(['ur.vocabulary', 'ur.initial_sound', 'en.initial_sound', 'ur.listening', 'en.listening']);
     const g = bank.forms['game.G45'];
     expect(g.islands.maths.slice(-7)).toEqual([...EXTRA, 'ma.number_id_upper']);
     expect(g.tower).toHaveLength(20);

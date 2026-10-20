@@ -61,10 +61,10 @@ describe('SA battery bank (CONTRACT §2)', () => {
       for (const t of f.order) expect(bank.tasks[`${id}/${t}`]).toBeDefined();
       if (f.surface === 'coach') {
         expect(Object.keys(f.blocks)).toEqual(['B1', 'B2', 'B3', 'B4', 'B5']);
-        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and only patterns (B4) and initial sound (B3) join a block.
+        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and only patterns (B4), initial sound and vocabulary (B3) and orientation to print (B1/B2, before the story) join a block.
         const inBlocks = Object.values(f.blocks).flat();
         expect(new Set(inBlocks).size).toBe(inBlocks.length);
-        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns|initial_sound$/.test(t)).sort());
+        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns|initial_sound$|vocabulary$|print_orientation$/.test(t)).sort());
       } else {
         expect(Object.keys(f.islands).sort()).toEqual(['english', 'maths', 'urdu']);
         // The islands run every task of the form, the second passage and story in place of Set A's (sa-reading-2).

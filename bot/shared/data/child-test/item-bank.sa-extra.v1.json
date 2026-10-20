@@ -1735,6 +1735,149 @@
      "src": "prpkp2020:p82 (form page 3)"
     }
    ],
+   "vocabulary": {
+    "subtask": "vocabulary",
+    "timed_s": null,
+    "kind": "actions (expressive in SELECT)",
+    "items": [
+     {
+      "n": 1,
+      "say": "بچے کرکٹ کھیل رہے ہیں",
+      "accept": [
+       "بچے کرکٹ کھیل رہے ہیں",
+       "بچے کھیل رہے ہیں"
+      ],
+      "picture": "children playing cricket: a boy in green batting at wickets, a boy bowling a red ball, a third boy fielding",
+      "image": "ur.vocabulary.01.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 2,
+      "say": "لڑکا کتاب پڑھ رہا ہے",
+      "accept": [
+       "لڑکا کتاب پڑھ رہا ہے",
+       "بچہ کتاب پڑھ رہا ہے"
+      ],
+      "picture": "a boy seated at a table reading an open red book",
+      "image": "ur.vocabulary.02.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 3,
+      "say": "لڑکی پھل کھا رہی ہے",
+      "accept": [
+       "لڑکی پھل کھا رہی ہے",
+       "لڑکی آم کھا رہی ہے"
+      ],
+      "picture": "a girl in a blue school uniform eating a yellow mango, a plate of mangoes beside her",
+      "image": "ur.vocabulary.03.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 4,
+      "say": "جہاز اڑ رہا ہے",
+      "accept": [
+       "جہاز اڑ رہا ہے"
+      ],
+      "picture": "a green aeroplane (crescent emblem on tail) flying in the sky",
+      "image": "ur.vocabulary.04.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 5,
+      "say": "بچے پودا لگا رہے ہیں",
+      "accept": [
+       "بچے پودا لگا رہے ہیں"
+      ],
+      "picture": "a girl and a boy kneeling, planting a sapling in the soil",
+      "image": "ur.vocabulary.05.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 6,
+      "say": "لڑکی سائیکل چلا رہی ہے",
+      "accept": [
+       "لڑکی سائیکل چلا رہی ہے"
+      ],
+      "picture": "a girl in pink shalwar kameez riding a bicycle",
+      "image": "ur.vocabulary.06.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 7,
+      "say": "کشتی تیر رہی ہے",
+      "accept": [
+       "کشتی تیر رہی ہے",
+       "کشتی پانی میں ہے"
+      ],
+      "picture": "a wooden rowing boat with an oar floating on water near a shore",
+      "image": "ur.vocabulary.07.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 8,
+      "say": "کسان کھیت میں ہل چلا رہا ہے",
+      "accept": [
+       "کسان کھیت میں ہل چلا رہا ہے",
+       "کسان ٹریکٹر چلا رہا ہے"
+      ],
+      "picture": "a farmer in a cap driving a red tractor pulling a plough/harrow through a field",
+      "image": "ur.vocabulary.08.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 9,
+      "say": "ٹیچر پڑھا رہے ہیں",
+      "accept": [
+       "ٹیچر پڑھا رہے ہیں",
+       "بچے پڑھ رہے ہیں"
+      ],
+      "picture": "a bearded male teacher pointing at a blackboard with Urdu letters (ا ب پ ت ٹ ث ج چ ح خ) in front of seated pupils",
+      "image": "ur.vocabulary.09.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "n": 10,
+      "say": "بچہ جھنڈا لہرا رہا ہے",
+      "accept": [
+       "بچہ جھنڈا لہرا رہا ہے",
+       "بچہ خوشی سے جھنڈا لہرا رہا ہے"
+      ],
+      "picture": "a smiling boy holding and waving the green-and-white Pakistan flag",
+      "image": "ur.vocabulary.10.webp",
+      "src": "select2024:p123 (printed p.103)"
+     }
+    ],
+    "practice": [
+     {
+      "say": "پرندہ اڑ رہا ہے",
+      "role": "example",
+      "picture": "a brown-and-white bird (dove) in flight",
+      "image": "ur.vocabulary.ex1.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "say": "سورج نکل رہا ہے",
+      "role": "practice",
+      "picture": "a yellow sun rising between brown hills with rays",
+      "image": "ur.vocabulary.ex2.webp",
+      "src": "select2024:p123 (printed p.103)"
+     },
+     {
+      "say": "ریل گاڑی آ رہی ہے",
+      "role": "practice",
+      "picture": "a green steam locomotive with smoke coming along rail tracks toward viewer",
+      "image": "ur.vocabulary.ex3.webp",
+      "src": "select2024:p123 (printed p.103)"
+     }
+    ],
+    "pictures_src": "select2024:p133 (printed p.113), cropped per card",
+    "stop": {
+     "type": "first_row",
+     "n": 5,
+     "src": "select2024:p122"
+    }
+   },
    "words_practice": [
     {
      "item": "کرسی",
