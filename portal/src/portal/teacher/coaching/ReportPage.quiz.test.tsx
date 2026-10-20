@@ -57,7 +57,7 @@ const DETAIL = {
   prioritizedAction: { action: "Ask the back rows first.", commitment: null },
   analysisData: { overall_score: { points: 30, max_points: 52, percentage: 58 } },
   observation: null,
-  // bd-z3cadk: a report the bot wrote its narrative for (every new one); one without shows the WhatsApp image instead.
+  // a report the bot wrote its narrative for (every new one); one without shows the WhatsApp image instead.
   reportNarrative: { headline: "A lesson the whole class joined", identity: "", moments: [], strength: null, horizon: null, domainWhys: {}, language: "en", journeyNote: null },
 };
 
