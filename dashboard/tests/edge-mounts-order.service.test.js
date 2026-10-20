@@ -13,6 +13,7 @@ const KEY = 'test-internal-key';
 const TOK = 'eyJrIjoibSJ9eyJrIjoibSJ9.AAAAAAAAAAAAAAAAAAAAAA';   // fits every router's token shape
 const PAGES = {
   'first-touch': `/m/${TOK}`,
+  'push-remind': '/remind/AB12CD',
   'quiz-go': `/quiz/go/${TOK}`,
   'quiz-join': `/quiz/join/${TOK}`,
   'quiz-teacher': `/quiz/teacher/${TOK}`,

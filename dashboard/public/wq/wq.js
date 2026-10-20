@@ -2473,8 +2473,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
         // The home on (finish's card_fold): the card is the one way on from here; the videos live on the home. The class
         // table stays with web_quiz_class_doors (finish's class_doors).
-        (foldOn(res) ? (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' : '') : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn());
+        (foldOn(res) ? (classDoors(res) ? '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' : '') : (friendRun() ? '' : '<button class="wq-btn ' + (window.WQJ ? 'wq-soft' : 'wq-navy') + '" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn()) +
+        (res.push_remind === true && !friendRun() ? '<div id="wq-remind"></div>' : ''); // "remind me tomorrow" (web_quiz_push_remind), below every door
       render(h, 'M9');
+      // its script only after the screen has painted: the result never waits on it (wq-remind.js)
+      if (res.push_remind === true && !friendRun()) (window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : setTimeout)(function () { setTimeout(function () { try { var own = document.querySelector('script[src*="/wq/wq.js"]'), v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || ''), el = document.createElement('script'); el.src = '/wq/wq-remind.js' + (v ? '?v=' + v[1] : ''); el.onload = function () { var slot = ROOT.querySelector('#wq-remind'); if (slot && window.WQREMIND) WQREMIND.mount(slot, { code: CODE, lang: LANG, chips: ((ID && ID.kids) || []).length, host: location.host }); }; document.body.appendChild(el); } catch (e) {} }, 0); });
       if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
       if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
