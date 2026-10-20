@@ -200,7 +200,8 @@ test('the passage: read, then tap the last word; time up also asks for it; the q
   expect(r.view().phase).toBe('last_word');
   r.lastWord(12); // a word on line 2
   const story = r.results()[0];
-  expect(story).toMatchObject({ stop_reason: STOP.TIME_UP, last_word_index: 12, last_word_line: 2, words_attempted: 13, scored_on: 'later', correct: null, time_used_ms: 60000 });
+  expect(story).toMatchObject({ stop_reason: STOP.TIME_UP, last_word_index: 12, last_word_line: 2, scored_on: 'later', correct: null, time_used_ms: 60000 });
+  expect(story).not.toHaveProperty('words_attempted'); // the tap is a gate and a cross-check, never a score (RULING #10a)
   r.next(); r.instructionDone(); r.begin();
   const asked = [];
   while (r.view().phase === 'running') { asked.push(r.view().item.needs_line); r.answer('spoken'); }

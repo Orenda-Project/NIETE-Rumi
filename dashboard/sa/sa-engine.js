@@ -124,7 +124,7 @@
             runner.log('handover_out');
             writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
               fire('unlock', null);
-              done(root, opts, sessionId, runner);
+              done(deps.win || root, opts, sessionId, runner);
             });
           },
           onHandover: function () { runner.log('handover_in'); },

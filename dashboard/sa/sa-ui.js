@@ -728,12 +728,7 @@
       if (/^\/(?!\/)/.test(u)) return u;
       try { var x = new URL(u, location.href); return x.origin === location.origin ? x.href : null; } catch (e) { return null; }
     }
-    function goBack() {
-      try { if (opts.onHandback) opts.onHandback(); } catch (e) { /* page */ }
-      try { if (opts.onUnlock) opts.onUnlock(); } catch (e) { /* page */ }
-      var u = safeBack(opts.back);
-      if (u) location.assign(u);
-    }
+    function goBack() { handback(opts, function (u) { location.assign(u); }, safeBack); }
     function holdZone(onDone) {
       var z = h('button', { class: 'sae-hold sa-hold', type: 'button', 'aria-label': C.hold }, [h('span', { class: 'sae-hold-ring', 'aria-hidden': 'true' })]);
       var t = null;
@@ -980,5 +975,20 @@
     };
   }
 
-  return { mount: mount, COPY: COPY };
+  /**
+   * The coach's press-and-hold on the hand-back screen. With the engine's onUnlock the screen never navigates: the
+   * engine writes the last events, flushes the sync and only then goes to back (or posts sa:done), once. Without it
+   * (the standalone demo page) the screen goes to back itself.
+   */
+  function handback(opts, assign, safe) {
+    try { if (opts.onHandback) opts.onHandback(); } catch (e) { /* page */ }
+    if (opts.onUnlock) {
+      try { opts.onUnlock(); } catch (e) { /* page */ }
+      return;
+    }
+    var u = safe(opts.back);
+    if (u) assign(u);
+  }
+
+  return { mount: mount, handback: handback, COPY: COPY };
 }));

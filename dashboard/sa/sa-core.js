@@ -249,7 +249,6 @@
         r.last_word_index = st.last_item_index;
         var w = st.last_item_index != null ? t.items[st.last_item_index] : null;
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
-        r.words_attempted = st.last_item_index != null ? st.last_item_index + 1 : null;
       }
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
       if (phone && lim != null) {
