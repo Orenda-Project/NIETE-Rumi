@@ -32,7 +32,12 @@ test('switch on: the engine files are served with their types; nothing outside t
     expect(js.status).toBe(200);
     expect(js.headers.get('content-type')).toMatch(/javascript/);
     expect(await js.text()).toContain('createRunner');
-    expect((await fetch(`${base}/sa/nope.js`)).status).toBe(299);
+    // A missing engine file or clip is a 404 here, never the portal's page (a cached HTML "clip" fooled the offline
+    // copy and the voice gate).
+    const miss = await fetch(`${base}/sa/nope.js`);
+    expect(miss.status).toBe(404);
+    expect(miss.headers.get('content-type') || '').not.toMatch(/html/);
+    expect((await fetch(`${base}/sa/v1/en/0123456789ab.mp3`)).status).toBe(404);
     expect((await fetch(`${base}/sa/..%2Froutes%2Fsa-engine.routes.js`)).status).not.toBe(200);
     expect((await fetch(`${base}/other`)).status).toBe(299);
   } finally { srv.close(); }
@@ -58,8 +63,8 @@ test('switch on: the battery files are served from the content folder by name on
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/json/);
     expect((await res.json()).battery_id).toBe('sa.coach.G3.A.ur');
-    expect((await fetch(`${base}/sa/batteries/item-bank.v3.json`)).status).toBe(299);
-    expect((await fetch(`${base}/sa/batteries/..%2F..%2Fitem-bank.v3.json`)).status).toBe(299);
+    expect((await fetch(`${base}/sa/batteries/item-bank.v3.json`)).status).toBe(404);
+    expect((await fetch(`${base}/sa/batteries/..%2F..%2Fitem-bank.v3.json`)).status).not.toBe(200);
   } finally { srv.close(); }
   const off = await serve(false);
   try { expect((await fetch(`${off.base}/sa/batteries/sa.coach.G3.A.ur.json`)).status).toBe(299); } finally { off.srv.close(); }

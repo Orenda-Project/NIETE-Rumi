@@ -49,3 +49,16 @@ test('the worker keeps every local file play.html loads, and only files that exi
   for (const f of local) expect(CORE_FILES).toContain(f);
   for (const f of CORE_FILES) expect(fs.existsSync(path.join(__dirname, '../sa', f))).toBe(true);
 });
+
+test('the worker keeps only what it asked for: a clip must be audio, a battery JSON; never an HTML page', () => {
+  const { cacheable } = require('../sa/sw');
+  const r = (status, type) => ({ ok: status >= 200 && status < 300, status, headers: { get: () => type } });
+  expect(cacheable('https://p.test/sa/v1/en/a.mp3', r(200, 'audio/mpeg'))).toBe(true);
+  expect(cacheable('https://p.test/sa/v1/en/a.mp3', r(200, 'text/html; charset=UTF-8'))).toBe(false);
+  expect(cacheable('https://p.test/sa/v1/en/a.mp3', r(404, 'audio/mpeg'))).toBe(false);
+  expect(cacheable('https://p.test/sa/batteries/sa.coach.G3.A.en.json', r(200, 'application/json'))).toBe(true);
+  expect(cacheable('https://p.test/sa/batteries/sa.coach.G3.A.en.json', r(200, 'text/html'))).toBe(false);
+  expect(cacheable('https://p.test/sa/sa-core.js', r(200, 'application/javascript'))).toBe(true);
+  expect(cacheable('https://p.test/sa/sa-core.js', r(200, 'text/html'))).toBe(false);
+  expect(cacheable('https://p.test/sa/play.html', r(200, 'text/html'))).toBe(true);
+});
