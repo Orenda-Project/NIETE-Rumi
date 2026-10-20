@@ -386,7 +386,10 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     const language = quizLanguage(quiz, questions);
     // The plan as it applies to this quiz (web-quiz-one-voice-flag.js forQuiz): null records it as today.
     const one = OneVoice.forQuiz(oneVoice === undefined ? await OneVoice.plan({ db: client }) : planOf(oneVoice), quizId, language);
-    const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
+    // web_quiz_audio_cap_one: the cap counts one-voice recordings (meta.web_one) too.
+    const countOne = await require('./web-quiz-audio-cap-one-flag').on({ db: client });
+    const slotDay = countOne ? (((quiz.meta || {})[one ? 'web_one' : 'web'] || {}).audio_day || null) : null;
+    const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError, ...(countOne ? { countOne, slotDay } : {}) });
     if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
     const voice = Voice.quizVoice(language, { oneVoice: one });
     // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
