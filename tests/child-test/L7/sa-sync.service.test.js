@@ -61,7 +61,7 @@ function makeDeps(over = {}) {
       putResults: jest.fn(async () => ({ ok: true })),
       setAudio: jest.fn(async () => ({ ok: true })),
       markSynced: jest.fn(async (id, { block } = {}) => ({ ok: true, device: { block } })),
-      summary: jest.fn(async () => ({ ok: true, block: null, lastSeq: 41, tasksDone: ['ur.letters'], audio: ['ur.letters'] })),
+      summary: jest.fn(async () => ({ ok: true, block: null, lastSeq: 41, tasksDone: ['ur.letters', 'ur.story'], audio: ['ur.letters'], audioWaiting: ['ur.story'] })),
     },
     r2: {
       getPresignedUploadUrl: jest.fn(async (key) => `https://r2.example/${key}?sig=1`),
@@ -242,7 +242,7 @@ describe('saStatus', () => {
       status: 'ok',
       session: { id: SESSION, status: 'in_progress', grade: 3, form: 'B' },
       block: null,
-      lastSeq: 41, tasksDone: ['ur.letters'], audio: ['ur.letters'],
+      lastSeq: 41, tasksDone: ['ur.letters', 'ur.story'], audio: ['ur.letters'], audioWaiting: ['ur.story'],
     });
   });
 });

@@ -9,7 +9,7 @@ import { mmss, VISIT_LIMIT_MS } from '../../lib/assess/visitStore';
  * which children are on another phone.
  */
 
-export type SyncItem = { drawId: string; name: string; state: 'phone' | 'sending' | 'sent' | 'other' };
+export type SyncItem = { drawId: string; name: string; state: 'phone' | 'sending' | 'audio' | 'sent' | 'other' };
 
 type Props = { copy: AssessCopy; done: number; total: number; startedAt: number | null; sync: SyncItem[] };
 
@@ -33,8 +33,8 @@ export default function AssessVisitBar({ copy, done, total, startedAt, sync }: P
       {sync.length > 0 && (
         <ul className="mt-1 flex flex-wrap gap-1 text-xs">
           {sync.map((s) => (
-            <li key={s.drawId} data-state={s.state} className={`rounded-full px-2 py-0.5 ${s.state === 'sent' ? 'bg-emerald-100 text-emerald-800' : s.state === 'sending' || s.state === 'other' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-900'}`}>
-              {s.name} · {s.state === 'sent' ? copy.sent : s.state === 'sending' ? copy.sending : s.state === 'other' ? copy.onOtherPhoneChip : copy.onPhone}
+            <li key={s.drawId} data-state={s.state} className={`rounded-full px-2 py-0.5 ${s.state === 'sent' ? 'bg-emerald-100 text-emerald-800' : s.state === 'sending' || s.state === 'audio' || s.state === 'other' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-900'}`}>
+              {s.name} · {s.state === 'sent' ? copy.sent : s.state === 'sending' ? copy.sending : s.state === 'audio' ? copy.audioWaiting : s.state === 'other' ? copy.onOtherPhoneChip : copy.onPhone}
             </li>
           ))}
         </ul>
