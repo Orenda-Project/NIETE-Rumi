@@ -12,6 +12,7 @@
  * this read (the one already running, or the cache), so the quiz finish reads no setting more for it.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const KEY = 'web_quiz_fast';
@@ -30,7 +31,7 @@ function refresh(db = supabase) {
   if (!reading) {
     reading = (async () => {
       try {
-        const { data, error } = await db.from('app_settings').select('key, value').in('key', [KEY, STORY_BOARD_KEY]);
+        const { data, error } = await (db === supabase ? Snap.rows([KEY, STORY_BOARD_KEY], () => db.from('app_settings').select('key, value').in('key', [KEY, STORY_BOARD_KEY])) : db.from('app_settings').select('key, value').in('key', [KEY, STORY_BOARD_KEY]));
         if (error) throw new Error(error.message || 'app_settings read failed');
         const by = (k) => (data || []).find((r) => r.key === k);
         const fast = by(KEY);

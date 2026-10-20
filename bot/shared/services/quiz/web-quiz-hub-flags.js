@@ -8,6 +8,7 @@
  * (which reads student-quiz.service): no require cycle.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
 const OneHop = require('./web-quiz-one-hop');
@@ -238,7 +239,7 @@ function prime(rows, now = Date.now(), asked = KEYS) {
 }
 
 async function readRows(keys) {
-  const { data, error } = await supabase.from('app_settings').select('key, value').in('key', keys);
+  const { data, error } = await Snap.rows(keys, () => supabase.from('app_settings').select('key, value').in('key', keys));
   if (error) throw new Error(error.message || 'app_settings read failed');
   return data || [];
 }

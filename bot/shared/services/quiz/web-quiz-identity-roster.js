@@ -21,6 +21,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 // A quiz line with no recorded clip, while one voice is on, read by the phone's own voice (default off, JSON true only)
 const GAP_PHONE_KEY = 'web_quiz_voice_gap_phone';
 const { logToFile } = require('../../utils/logger');
@@ -63,7 +64,7 @@ const flag = cachedSwitch({
     const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
     // A line with no clip read by the phone's voice while one voice is on (`web_quiz_voice_gap_phone`, JSON true only)
     // rides it too; with one voice off (or that read failed) it is off.
-    let { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY]);
+    let { data, error } = await Snap.rows([FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY]));
     const withOne = !error;
     if (!withOne) {
       logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });

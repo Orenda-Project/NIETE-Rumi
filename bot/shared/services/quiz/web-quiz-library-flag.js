@@ -19,6 +19,7 @@
  * read): the library page's lesson list says rewatch_done, and a finished lesson opens as a fresh go (again=1). Same one read.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const FLAG_KEY = 'web_quiz_library';
@@ -32,7 +33,7 @@ let flag = null;
 async function read() {
   if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY, REWATCH_DONE_KEY]);
+    const { data, error } = await Snap.rows([FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY, REWATCH_DONE_KEY], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, VIDEOS_V3_KEY, UR_TITLES_KEY, VIDEO_SHELF_KEY, REWATCH_DONE_KEY]));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === FLAG_KEY);
     const v = row && row.value;
