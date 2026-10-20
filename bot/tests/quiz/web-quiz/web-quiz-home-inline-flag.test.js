@@ -213,3 +213,45 @@ describe('web_quiz_home_inline on the hub JSON', () => {
     try { expect((await Flags.flags()).homeInline).toBe(false); } finally { supabase.from = from; }
   });
 });
+
+describe('web_quiz_home_inline_every on the hub JSON (the inline Home on every saved-phone open)', () => {
+  const B = { device: 'BBBBBBBBBBBBBBBBBBBBBB' };
+  const EVERY = 'web_quiz_home_inline_every';
+  const again = () => { Hub._resetCache(); Flags._resetCache(); redis._store.clear(); };
+  beforeEach(() => Flags._resetCache());
+
+  test('with web_quiz_home_inline on: `home_every: true` (a locked answer too), and otherwise the home_inline payload key for key', async () => {
+    db.app_settings.push({ key: KEY, value: true });
+    const inline = stable(await Hub.hub(T.signHub([KID]), A));
+    again();
+    db.app_settings.push({ key: EVERY, value: true });
+    const tok = T.signHub([KID]);
+    const on = stable(await Hub.hub(tok, A));
+    expect(inline).not.toHaveProperty('home_every');
+    expect(on.home_every).toBe(true);
+    expect((await Hub.hub(tok, B)).home_every).toBe(true);
+    delete on.home_every;
+    expect(on).toEqual(inline);
+  });
+
+  test('without web_quiz_home_inline, or not the JSON true (the string "true", 1, null): no `home_every` key', async () => {
+    for (const rows of [[{ key: EVERY, value: true }], [{ key: KEY, value: true }, { key: EVERY, value: 'true' }], [{ key: KEY, value: true }, { key: EVERY, value: 1 }], [{ key: KEY, value: true }, { key: EVERY, value: null }]]) {
+      again();
+      seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, ...rows] });
+      const out = stable(await Hub.hub(T.signHub([KID]), A));
+      expect([rows, 'home_every' in out]).toEqual([rows, false]);
+    }
+  });
+
+  test('the key rides the hub\'s one batched settings read: the same app_settings reads ON as OFF', async () => {
+    db.app_settings.push({ key: KEY, value: true });
+    let n = counting();
+    await Hub.hub(T.signHub([KID]), A);
+    const offReads = n.app_settings || 0;
+    again();
+    db.app_settings.push({ key: EVERY, value: true });
+    n = counting();
+    expect((await Hub.hub(T.signHub([KID]), A)).home_every).toBe(true);
+    expect(n.app_settings || 0).toBe(offReads);
+  });
+});

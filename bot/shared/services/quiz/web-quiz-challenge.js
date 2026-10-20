@@ -166,6 +166,7 @@ function clipsRecordedOn(now = Date.now()) {
 }
 
 const settingCache = new Map();  // key → { v, at } for the record switches
+const settingReads = new Map();  // key → the read in flight (web_quiz_games_together: one read of a switch at a time)
 const SETTING_TTL_MS = 30 * 1000;
 
 function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); LiveReadV3()._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipRefused.clear(); storyVoice = false; clipsRecorded = 0; clipsDay = null; Draw().__reset(); TrailPage._reset(); }
@@ -178,6 +179,15 @@ async function settingOn(key, { strict = false } = {}) {
   const ck = strict ? `${key}\u0000strict` : key;
   const c = settingCache.get(ck);
   if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
+  if (settingReads.has(ck)) return settingReads.get(ck);
+  if (require('./web-quiz-hub-flags').nowOf('gamesTogether')) {
+    const p = settingRead(key, ck, strict).finally(() => settingReads.delete(ck));
+    settingReads.set(ck, p);
+    return p;
+  }
+  return settingRead(key, ck, strict);
+}
+async function settingRead(key, ck, strict) {
   let v = false;
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
@@ -2435,7 +2445,14 @@ const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsR
 
 // Live reading v3: a story page's speech keys spend the same daily read budget (read from the cached switches: with
 // real-time or v3 off nothing is counted and nothing more is read)
-Budget.countAlso(async (sinceIso) => ((await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0));
+// (web_quiz_games_together, the hub's switch cache: the two switches read together)
+Budget.countAlso(async (sinceIso) => {
+  if (require('./web-quiz-hub-flags').nowOf('gamesTogether')) {
+    const [live, v3] = await Promise.all([liveOn(), settingOn(LiveReadV3().FLAG_KEY)]);
+    return live && v3 ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0;
+  }
+  return (await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0;
+});
 
 module.exports = {
   _previousRun: previousRun,
