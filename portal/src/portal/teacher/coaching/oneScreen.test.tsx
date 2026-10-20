@@ -207,7 +207,7 @@ describe("the one screen", () => {
     expect((sendLesson.mock.calls[0][0] as { teacherClass: unknown }).teacherClass)
       .toEqual(expect.objectContaining({ grade: 4, subject: "General Science" }));
     const progress = await screen.findByRole("region", { name: C.progress });
-    expect(within(progress).getByText(C.analysing)).toBeTruthy();
+    expect(within(progress).getByText(C.stepAnalysis)).toBeTruthy();
     // no "Back to Digital Coaching" (operator, 16 Oct): the header's Back is the way out
     expect(screen.queryByRole("link", { name: /Back to Digital Coaching/ })).toBeNull();
     expect(screen.getByRole("note")).toBeTruthy();
@@ -259,7 +259,7 @@ describe("Lesson plan before the recording (operator, 16 Oct)", () => {
     at(COACHING_NEW);
     await pickClass();
     const plan = await screen.findByRole("heading", { name: new RegExp(C.lessonPlan) });
-    const rec = screen.getByRole("heading", { name: new RegExp(C.recording) });
+    const rec = screen.getByRole("heading", { name: new RegExp(C.stepRecording) });
     expect(!!(plan.compareDocumentPosition(rec) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     // her recent plans are in the Lesson plan tray, not on the screen (operator, 16 Oct); one tap there, no recording yet
     await expect(screen.findByRole("button", { name: "How plants make food" }, { timeout: 600 })).rejects.toThrow();
@@ -334,7 +334,7 @@ describe("recordings must be at least 15 minutes (operator, 16 Oct: a few second
   it("Recording says the minimum before she records or uploads", async () => {
     at(COACHING_NEW);
     await pickClass();
-    const step = await screen.findByRole("heading", { name: new RegExp(C.recording) });
+    const step = await screen.findByRole("heading", { name: new RegExp(C.stepRecording) });
     expect(step.textContent).toContain(C.atLeastMinutes);
     expect(C.atLeastMinutes).toMatch(/15/);
     expect(DC_MIN_SECONDS).toBe(900);

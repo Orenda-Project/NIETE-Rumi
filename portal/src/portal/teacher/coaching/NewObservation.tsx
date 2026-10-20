@@ -336,7 +336,7 @@ export function NewObservationPage() {
             </>
           ) : null}
 
-          <FlowStep n={3} state={s3} chips={[C.atLeastMinutes]}>{C.recording}</FlowStep>
+          <FlowStep n={3} state={s3} chips={[C.atLeastMinutes]}>{C.stepRecording}</FlowStep>
           {cls && !audio && phase === 'recording' ? (
             <section aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
               <span className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold', session?.paused ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#fee4e2] text-[#c8331f]')}>
