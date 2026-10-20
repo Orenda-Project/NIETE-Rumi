@@ -1072,6 +1072,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // The shared lines then come from the set recorded in the plan's voice (boot voice_sets: { <lang>: { path, v } },
   // public/wq/voice/one/<path>/); a language with no set has no shared-line audio (the line is shown).
   var ONE_VOICE = Boolean(B.one_voice);
+  // web_quiz_voice_gap_phone (the answer's voice_gap_phone): with one voice on, a part with no recorded clip (or one that
+  // cannot play here) is read by the phone's own voice, as before one voice, instead of left silent
+  var GAP_PHONE = Boolean(B.voice_gap_phone);
   var VOICE_SETS = (ONE_VOICE && B.voice_sets) || {};
   function voiceUrl(lang, file) {
     if (!ONE_VOICE) return '/wq/voice/' + lang + '/' + file + '.mp3?v=' + VOICE_V;
@@ -1183,7 +1186,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function speakTts(text, end) {
     try {
-      if (ONE_VOICE) { try { ROOT.classList.add('wq-novoice'); } catch (e) {} setTimeout(end, 4000); return; }
+      // one voice: the words shown big, never the phone's voice; with GAP_PHONE the phone reads the line where it has a
+      // voice for the language (a phone with none keeps the big words)
+      if (ONE_VOICE && (!GAP_PHONE || !hasVoice())) { try { ROOT.classList.add('wq-novoice'); } catch (e) {} setTimeout(end, 4000); return; }
       if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { setTimeout(end, 4000); return; }
       // The phone's own voice is a different voice from the quiz's: the speaker button says so (a small phone mark, wq.css).
       try { ROOT.classList.add('wq-phonevoice'); } catch (e) {}
