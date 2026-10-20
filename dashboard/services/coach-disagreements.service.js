@@ -3,9 +3,11 @@
  * bd-tbprit.1 — a coach's disagreements in the portal: the C/D teachers who answered "Not accurate" to their
  * coaching report and pinged her (v10 coaching test; coach-visit-request.js writes the rows).
  *
- *   listFor  her coach_visit_requests as To do (not visited yet) and Done (visited). To do: most tags first,
- *            then longest waiting. Only two tags while the test runs: waiting48h and second (the teacher's
- *            second disagreement or later). Amena, 19 Oct: no "Recording less" tag until after the 7 Dec read.
+ *   listFor  her coach_visit_requests as To do (not visited yet) and Done (visited), as Rifat's prototype has the
+ *            list (bd-tbprit.7, 20 Oct — supersedes the 19 Oct two-tag list): school + EMIS, opened (the blue
+ *            dot until she opens the card) and three tags with their numbers — recordingLess (her last 2 weeks'
+ *            recordings a week are half or less of the 4 weeks before), waiting (sent > 48 h ago, in days) and
+ *            repeat (her 2nd, 3rd … disagreement). To do: most tags first, then longest waiting.
  *   cardFor  one request, for its own coach only (null otherwise): the report view, the grader's evidence for
  *            each reason, every indicator with its AI score, and the plan steps when the plan was checked.
  *
@@ -18,7 +20,8 @@ const { evidenceFor, indicatorsOf, movesOf } = require('./coach-disagreement-evi
 const OPEN = ['pending', 'sent', 'failed'];
 const LIST_LIMIT = 200;
 const WAIT_MS = 48 * 3600 * 1000;
-const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, school_id, status, reasons, voice_note_key, created_at, updated_at';
+const DAY_MS = 24 * 3600 * 1000;
+const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, school_id, ab_group, status, reasons, voice_note_key, opened_at, created_at, updated_at';
 
 const ms = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? t : 0; };
 const pctOf = (scores) => {
@@ -26,22 +29,51 @@ const pctOf = (scores) => {
   return p == null || p === '' || !Number.isFinite(Number(p)) ? null : Math.round(Number(p));
 };
 
-/** rows: her requests; look: { teachers, schools, sessions } Maps; now: a Date. Pure. */
-function shapeList(rows, look, now) {
-  const firstOf = new Map();
+/** Recordings a week: the 4 weeks before the last 2 (`before`) and the last 2 (`now`). dates: ISO strings. Pure. */
+function recordingRate(dates, now) {
+  const t = now.getTime();
+  let before = 0;
+  let recent = 0;
+  for (const d of dates) {
+    const age = t - ms(d);
+    if (age >= 0 && age < 14 * DAY_MS) recent += 1;
+    else if (age >= 14 * DAY_MS && age < 42 * DAY_MS) before += 1;
+  }
+  return { before: before / 4, now: recent / 2 };
+}
+
+/** Which of her disagreements each row is (1 = her first), oldest first per teacher. */
+function nthOf(rows) {
+  const seen = new Map();
+  const out = new Map();
   [...rows].sort((a, b) => ms(a.created_at) - ms(b.created_at)).forEach((r) => {
-    if (!firstOf.has(r.teacher_user_id)) firstOf.set(r.teacher_user_id, r.id);
+    const n = (seen.get(r.teacher_user_id) || 0) + 1;
+    seen.set(r.teacher_user_id, n);
+    out.set(r.id, n);
   });
+  return out;
+}
+
+/** rows: her requests; look: { teachers, schools, emis, sessions, rates } Maps; now: a Date. Pure. */
+function shapeList(rows, look, now) {
+  const nth = nthOf(rows);
   const shaped = rows.map((r) => {
     const done = r.status === 'visited';
     const session = look.sessions.get(r.coaching_session_id) || {};
     const tags = [];
-    if (!done && now.getTime() - ms(r.created_at) > WAIT_MS) tags.push('waiting48h');
-    if (!done && firstOf.get(r.teacher_user_id) !== r.id) tags.push('second');
+    if (!done) {
+      const rate = (look.rates && look.rates.get(r.teacher_user_id)) || null;
+      if (rate && rate.before > 0 && rate.now <= rate.before / 2) tags.push({ kind: 'recordingLess', before: rate.before, now: rate.now });
+      const waited = now.getTime() - ms(r.created_at);
+      if (waited > WAIT_MS) tags.push({ kind: 'waiting', days: Math.floor(waited / DAY_MS) });
+      if (nth.get(r.id) > 1) tags.push({ kind: 'repeat', nth: nth.get(r.id) });
+    }
     return {
       id: r.id,
       teacher: look.teachers.get(r.teacher_user_id) || null,
       school: look.schools.get(r.school_id) || null,
+      emis: (look.emis && look.emis.get(r.school_id)) || null,
+      opened: !!r.opened_at,
       reasons: cleanReasons(r.reasons || []),
       status: r.status,
       done,
@@ -69,14 +101,21 @@ async function listFor(supabase, coachId, opts = {}) {
   if (res.error) throw new Error(res.error.message || 'coach_visit_requests read failed');
   const rows = rowsOf(res);
   if (!rows.length) return { todo: [], done: [] };
-  const [users, schools, sessions] = await Promise.all([
-    supabase.from('users').select('id, name').in('id', uniq(rows.map((r) => r.teacher_user_id))),
-    supabase.from('leader_schools').select('school_id, school_name').eq('leader_user_id', coachId).in('school_id', uniq(rows.map((r) => r.school_id))),
+  const teacherIds = uniq(rows.map((r) => r.teacher_user_id));
+  const [users, schools, sessions, recent] = await Promise.all([
+    supabase.from('users').select('id, name').in('id', teacherIds),
+    supabase.from('leader_schools').select('school_id, school_name, emis').eq('leader_user_id', coachId).in('school_id', uniq(rows.map((r) => r.school_id))),
     supabase.from('coaching_sessions').select('id, created_at, scores:analysis_data->scores').in('id', uniq(rows.map((r) => r.coaching_session_id))),
+    supabase.from('coaching_sessions').select('user_id, created_at').in('user_id', teacherIds)
+      .gte('created_at', new Date(now.getTime() - 42 * DAY_MS).toISOString()),
   ]);
+  const datesOf = new Map();
+  rowsOf(recent).forEach((s) => datesOf.set(s.user_id, [...(datesOf.get(s.user_id) || []), s.created_at]));
   const look = {
     teachers: new Map(rowsOf(users).map((u) => [u.id, fullNameOf(u) || u.name || null])),
     schools: new Map(rowsOf(schools).map((s) => [s.school_id, s.school_name || null])),
+    emis: new Map(rowsOf(schools).map((s) => [s.school_id, s.emis || null])),
+    rates: new Map(teacherIds.map((id) => [id, recordingRate(datesOf.get(id) || [], now)])),
     sessions: new Map(rowsOf(sessions).map((s) => [s.id, {
       createdAt: s.created_at || null,
       pct: pctOf(s.scores || (s.analysis_data && s.analysis_data.scores)),
@@ -89,11 +128,12 @@ async function listFor(supabase, coachId, opts = {}) {
 async function cardFor(supabase, coachId, requestId, deps = {}) {
   const { data: row } = await supabase.from('coach_visit_requests').select(ROW_SELECT).eq('id', requestId).maybeSingle();
   if (!row || !coachId || row.coach_user_id !== coachId) return null;
-  const [teacher, coach, school, data] = await Promise.all([
+  const [teacher, coach, school, data, hers] = await Promise.all([
     supabase.from('users').select('name').eq('id', row.teacher_user_id).maybeSingle(),
     supabase.from('users').select('preferred_language').eq('id', coachId).maybeSingle(),
-    row.school_id ? supabase.from('leader_schools').select('school_name').eq('school_id', row.school_id) : null,
+    row.school_id ? supabase.from('leader_schools').select('school_name, emis').eq('school_id', row.school_id) : null,
     deps.loadReport(supabase, row.coaching_session_id, row.teacher_user_id),
+    supabase.from('coach_visit_requests').select('id, created_at').eq('teacher_user_id', row.teacher_user_id),
   ]);
   if (!data || !data.session) return null;
   const { buildReportView } = require('./coaching-report-view');
@@ -109,6 +149,9 @@ async function cardFor(supabase, coachId, requestId, deps = {}) {
     id: row.id,
     teacher: fullNameOf((teacher && teacher.data) || {}) || null,
     school: s.school_name || null,
+    emis: s.emis || null,
+    group: row.ab_group || null,
+    nth: rowsOf(hers).filter((r) => ms(r.created_at) <= ms(row.created_at)).length || 1,
     language: coach && coach.data && coach.data.preferred_language === 'ur' ? 'ur' : 'en',
     status: row.status,
     done,
@@ -122,6 +165,14 @@ async function cardFor(supabase, coachId, requestId, deps = {}) {
   };
 }
 
+/** bd-tbprit.7 — the blue dot goes once she opens her own card: opened_at is stamped the first time, never again. */
+async function markOpened(supabase, coachId, requestId, now = new Date()) {
+  if (!coachId || !requestId) return;
+  const { error } = await supabase.from('coach_visit_requests').update({ opened_at: now.toISOString() })
+    .eq('id', requestId).eq('coach_user_id', coachId).is('opened_at', null);
+  if (error) throw new Error(error.message);
+}
+
 /** bd-tbprit.2 — the recording behind the clip, for the request's own coach only; presigned for five minutes. */
 async function recordingFor(supabase, coachId, requestId, presign) {
   const { data: row } = await supabase.from('coach_visit_requests').select('coach_user_id, coaching_session_id').eq('id', requestId).maybeSingle();
@@ -131,4 +182,4 @@ async function recordingFor(supabase, coachId, requestId, presign) {
   return (await presign(session.audio_url, 300)) || null;
 }
 
-module.exports = { shapeList, listFor, cardFor, recordingFor };
+module.exports = { shapeList, recordingRate, listFor, cardFor, markOpened, recordingFor };

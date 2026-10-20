@@ -7751,4 +7751,10 @@ END $$;
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- coach_visit_requests.opened_at (mirror of V1.6.16): when the coach first opened the card, NULL = not yet
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE coach_visit_requests ADD COLUMN IF NOT EXISTS opened_at timestamptz;
+
+
 NOTIFY pgrst, 'reload schema';
