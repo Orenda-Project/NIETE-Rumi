@@ -122,6 +122,10 @@ function animal(key, pics) {
   return a ? `<img class="ani" src="data:image/svg+xml;base64,${a}" alt="">` : '<span class="ani"></span>';
 }
 const num = (s) => `<span class="num">${esc(s)}</span>`;
+// An Urdu picture under web_quiz_share_ur_digits: the page's numerals (۴/۷), never 4/7. Only the digits change.
+// a thousands comma between digits becomes the Arabic thousands sign «٬» (۱٬۲۳۴, never 1,۲۳۴)
+const urDigits = (s) => String(s == null ? '' : s).replace(/(\d),(?=\d)/g, '$1\u066C').replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
+const numUr = (s) => num(urDigits(s));
 const DOT = '<span class="dot"> · </span>';
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
@@ -144,17 +148,23 @@ function around(rows, n) {
   return rows.slice(from, from + n);
 }
 
-function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false) {
+function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false) {
+  const N = ud ? numUr : num;
+  // In Nastaliq the middle dot is the Urdu zero: «۱۵ · بچے» reads ۱۵۰. Beside Urdu digits the Urdu comma separates.
+  const SEP = ud ? '<span class="dot">، </span>' : DOT;
+  // native read: «۶۴ فیصد» (a % beside Urdu digits lands on the wrong side), and no "+" against «پوائنٹس»
+  const PCT = (p) => (ud ? `${N(p)} فیصد` : N(`${p}%`));
+  const PLUS = (n) => N(ud ? n : `+${n}`);
   const pic = (name) => (pics && assets()[name] ? `<img class="jug" src="data:image/webp;base64,${assets()[name]}" alt="">` : '<div class="jug"></div>');
   if (kind === 'card') {
     return {
       pic: pic('celebrate'),
-      main: `${og2 ? '' : `<p class="kick">${esc(C.my)}${d.cls ? `${DOT}${own(d.cls)}` : ''}</p>`}`
+      main: `${og2 ? '' : `<p class="kick">${esc(C.my)}${d.cls ? `${SEP}${own(d.cls)}` : ''}</p>`}`
         + `<h1 class="name">${d.animal ? animal(d.animal, pics) : ''}${own(d.first)}</h1>`
-        + `<p class="big">${num(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
+        + `<p class="big">${N(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
         // under the Urdu polish the school sits on its own line under the points: a Latin school name never breaks an Urdu sentence
-        + (d.school && d.added ? `<p class="pts">${ur2 ? `${num(`+${d.added}`)} ${esc(C.pts)}<span class="sch">${own(d.school)}</span>` : C.added(num(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
+        + (d.school && d.added ? `<p class="pts">${ur2 ? `${PLUS(d.added)} ${esc(C.pts)}<span class="sch">${own(d.school)}</span>` : C.added(PLUS(d.added), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
       cta: d.school ? '' : C.playSame,
     };
   }
@@ -165,8 +175,8 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false) {
     return {
       pic: pic('hello'),
       main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
-        + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), num(score))}</h1>`
-        + (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), num(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`),
+        + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), N(score))}</h1>`
+        + (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), N(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`),
       cta: door ? C.yourTurn : C.tapPlay,
     };
   }
@@ -175,26 +185,26 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false) {
     return {
       pic: d.rows && d.rows.length ? '' : pic('celebrate'),
       // The wide picture has no room for a separate line: the average joins the top line there.
-      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : DOT}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : DOT}${C.avgLine(num(`${d.avgPct || 0}%`))}` : ''}</p>`
-        + `<h1 class="head">${d.of ? C.playedOf(num(d.played || 0), num(d.of)) : `${num(d.played || 0)} ${esc(C.played)}`}</h1>`
+      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(PCT(d.avgPct || 0))}` : ''}</p>`
+        + `<h1 class="head">${d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3).map((r) => `<li class="${r.me ? 'me' : ''}">`
-          + `<span class="rk">${num(r.place)}</span>${animal(r.animal, pics)}`
+          + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
           + `<span class="who">${r.me ? `${own(r.first)} <small>(${esc(C.me)})</small>` : ''}</span>`
-          + `<span class="sc">${num(`${r.correct}/${r.total}`)}</span></li>`).join('')}</ol>` : '')
+          + `<span class="sc">${N(`${r.correct}/${r.total}`)}</span></li>`).join('')}</ol>` : '')
         + (d.rows && d.rows.length
-          ? (size === 'sq' ? `<p class="sub">${C.avgLine(num(`${d.avgPct || 0}%`))}</p>` : '')
-          : `<div class="tiles"><div class="tile"><small>${esc(C.avg)}</small>${num(`${d.avgPct || 0}%`)}</div><div class="tile"><small>${esc(C.top)}</small>${num(top)}</div></div>`),
+          ? (size === 'sq' ? `<p class="sub">${C.avgLine(PCT(d.avgPct || 0))}</p>` : '')
+          : `<div class="tiles"><div class="tile"><small>${esc(C.avg)}</small>${PCT(d.avgPct || 0)}</div><div class="tile"><small>${esc(C.top)}</small>${N(top)}</div></div>`),
       cta: C.notYet,
     };
   }
   // school: the viewer's school and its neighbours (the caller crops to ±3; each box shows ±2).
   const rows = around(d.rows || [], 5).map((r) => {
     const mv = r.move > 0 ? '<span class="mv up"></span>' : (r.move < 0 ? '<span class="mv down"></span>' : '<span class="mv"></span>');
-    return `<li class="row${r.you ? ' you' : ''}"><span class="rk">${num(r.rank)}</span>${mv}`
+    return `<li class="row${r.you ? ' you' : ''}"><span class="rk">${N(r.rank)}</span>${mv}`
       + `<span class="sn">${own(r.name)}${r.sector ? `<small>${own(r.sector)}</small>` : ''}</span>`
-      + `<span class="pt">${num(fmt(r.points))}<small>${esc(C.pts)} · ${num(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
+      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${N(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
   }).join('');
-  return { pic: '', main: `<p class="kick">${esc(C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
+  return { pic: '', main: `<p class="kick">${esc(ud ? C.school.replace(' · ', '، ') : C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
 }
 
 /**
@@ -222,7 +232,9 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const B = WebQuizBrand.publicBrand(Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brand) ? brand : WebQuizBrand.DEFAULT_BRAND);
   const t = B.tokens;
   const a = opt.fonts === false ? {} : assets();
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true);
+  // Urdu digits (app_settings web_quiz_share_ur_digits, carried as `ui.ud`): off (or English), every number below is today's.
+  const UD = RTL && Boolean(ui && ui.ud === true);
+  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD);
   const sq = sz === 'sq';
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
@@ -255,7 +267,7 @@ body{width:${W}px;height:${H}px;overflow:hidden;font-family:${body1};color:#fff}
 .head{font-size:${Math.round((RTL && !sq ? 40 : 58) * S)}px;line-height:${RTL ? 2.0 : 1.12};font-weight:800}
 .big{font-size:${Math.round((sq ? 100 : 104) * S)}px;line-height:1;font-weight:800}
 .sub{font-size:${Math.round((UR2 ? (OG2 ? (k === 'invite' ? 32 : (topicLen > 22 ? 36 : 44)) : 44) : 32) * S)}px;line-height:${RTL ? (OG2 ? 1.9 : lh) : 1.3};opacity:.92;max-width:100%}
-.num{font-family:'Lexend',sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
+.num{font-family:${UD ? "'Lexend','NastaliqUrdu'" : "'Lexend'"},sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
 bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
 bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 .stars{display:flex;gap:${sq ? 10 : 8}px;flex-wrap:wrap;direction:${RTL ? 'rtl' : 'ltr'}}
@@ -296,7 +308,8 @@ ${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1
 .pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}`;
   const top = `<div class="top"><span class="mark" aria-hidden="true">${B.mark.svg}</span><span class="brand">${esc(B.label[L])}</span></div>`;
   const side = parts.pic ? `<div class="side">${parts.pic}</div>` : '';
-  const cta = parts.cta ? `<div class="cta">${esc(parts.cta)}</div>` : '';
+  // the school's rule line has its digits in the copy itself
+  const cta = parts.cta ? `<div class="cta">${esc(UD ? urDigits(parts.cta) : parts.cta)}</div>` : '';
   const inner = col
     ? `${top}${side}<div class="main">${parts.main}</div>${cta}`
     : `${top}<div class="main">${parts.main}${cta}</div>${side}`;

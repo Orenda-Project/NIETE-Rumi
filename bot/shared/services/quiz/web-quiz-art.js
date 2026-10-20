@@ -275,7 +275,10 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false } = {}
   ]);
   const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };
   // the one share on: an Urdu picture with room for its ink (its own key); an English one is unchanged
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, ink && f.lang === 'ur' ? { ...(ui || {}), ink: true } : ui, door);
+  // Urdu digits (web_quiz_share_ur_digits, read in the same switch read as the share): an Urdu picture says ۴/۷ as its page does
+  const ud = f.lang === 'ur' && require('./web-quiz-card-switch').urDigitsCached();
+  const u = ink && f.lang === 'ur' ? { ...(ui || {}), ink: true } : ui;
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, ud ? { ...(u || {}), ud: true } : u, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });
