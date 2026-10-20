@@ -2,7 +2,7 @@ const { getClient } = require('./llm-client');
 const { modelFor } = require('../config/model-registry');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
-const { logToFile, logWarn } = require('../utils/logger');
+const { logToFile, logWarn, logError } = require('../utils/logger');
 const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const supabase = require('../config/supabase');
 const {
@@ -428,6 +428,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         max_completion_tokens: 16000
       };
       let response;
+      let sentMessages = messages; // what the reply below answers (the photo-less messages after a fallback)
       try {
         response = await this.openai.chat.completions.create(scoringRequest);
       } catch (callError) {
@@ -448,9 +449,10 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
           ? framework.buildAnalysisPrompt(transcript, metadata, lessonPlanStructured, metadata.photoAnalysis || null)
           : this._buildAnalysisPrompt(transcript, metadata, lessonPlanStructured);
         // A fresh request: the rejected one is left exactly as it was sent.
+        sentMessages = [messages[0], { role: 'user', content: textPrompt }];
         response = await this.openai.chat.completions.create({
           ...scoringRequest,
-          messages: [messages[0], { role: 'user', content: textPrompt }],
+          messages: sentMessages,
         });
       }
 
@@ -479,6 +481,41 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
           finishReason: response.choices[0].finish_reason
         });
         throw new Error(`JSON parsing failed: ${parseError.message}. Response may be truncated.`);
+      }
+
+      // A reply can end normally yet carry only some of the framework's sections (ICT DC row 151,
+      // 20 Oct: 1,506 tokens, Section B only — scored 10/148). Retry once; whatever is still
+      // missing is marked not assessed so it leaves the total instead of reading as 0.
+      if (useFrameworkModule) {
+        const missing = this._missingFrameworkSections(result, framework);
+        if (missing.length) {
+          logWarn('⚠️ Analysis came back without every framework section — retrying once', {
+            missing,
+            outputTokens: response.usage && response.usage.completion_tokens,
+            finishReason: response.choices[0].finish_reason,
+          });
+          try {
+            const again = await this.openai.chat.completions.create({ ...scoringRequest, messages: sentMessages });
+            const retried = this._safeJsonParse(again.choices[0].message.content);
+            if (this._missingFrameworkSections(retried, framework).length < missing.length) {
+              result = retried;
+              response = again;
+            }
+          } catch (retryError) {
+            logWarn('⚠️ Retry of the incomplete analysis failed — keeping the first reply', { error: retryError.message });
+          }
+          const stillMissing = this._missingFrameworkSections(result, framework);
+          for (const key of stillMissing) {
+            result.domains[key] = { assessed: false, not_assessed_reason: 'analysis_incomplete', indicators: [] };
+          }
+          if (stillMissing.length) {
+            logError('❌ Analysis still incomplete after one retry — those sections are not assessed', {
+              missing: stillMissing,
+              outputTokens: response.usage && response.usage.completion_tokens,
+              finishReason: response.choices[0].finish_reason,
+            });
+          }
+        }
       }
 
       // Compute actual marks from competency scores (framework module if one is active, else inline OECD)
@@ -736,6 +773,21 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       logToFile(`❌ ${label} failed`, { error: error.message, stack: error.stack });
       throw error;
     }
+  }
+
+  /**
+   * The framework sections a reply left out — only when it carries SOME of them. A reply with none
+   * (or no `domains`) is a different shape and is left to the framework, as before.
+   * @private
+   */
+  static _missingFrameworkSections(result, framework) {
+    const declared = framework && typeof framework.getScoringConstants === 'function'
+      && framework.getScoringConstants().domains;
+    const domains = result && result.domains;
+    if (!declared || !domains || typeof domains !== 'object') return [];
+    const keys = Object.keys(declared);
+    const missing = keys.filter((k) => !domains[k]);
+    return missing.length && missing.length < keys.length ? missing : [];
   }
 
   /**
