@@ -61,6 +61,7 @@ const Voice = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 const Store = require('./web-quiz-audio-store');
 const Claim = require('./web-quiz-audio-claim');
+const AskPlan = require('./web-quiz-audio-ask-plan');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
 const { resolveUx } = require('../../config/ux-strings');
@@ -597,6 +598,9 @@ const REQUEST_AGAIN_MS = 10 * 60 * 1000;
  * (ensureQuizAudio), so a child is never left without them. Never throws.
  */
 async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false } = {}) {
+  // web_quiz_audio_ask_plan: the minted link and the old link's redirect name no plan; they ask under the live plan
+  // for this quiz, as the page does, so the page's request is the same job and the queue drops it.
+  if (!oneVoice && quizId && await AskPlan.on({ db })) oneVoice = (await livePlanFor(quizId, db)) || false;
   const web = webOf(meta, { oneVoice });
   if (!quizId || isCurrent(web, { oneVoice })) return { skipped: 'current' };
   // A one-voice request is not the same request: a quiz asked for just before the switch went on (or under
@@ -614,6 +618,19 @@ async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = f
   } catch (error) {
     logError('web_quiz.publish_audio.queue_failed', { event: 'web_quiz.publish_audio.queue_failed', quizId, error: String(error.message || error).slice(0, 200) });
     return ensureQuizAudio(quizId, { meta, db, ...(oneVoice ? { oneVoice } : {}), ...(publish ? { publish } : {}) });
+  }
+}
+
+/** The one-voice plan as it applies to this quiz (its language), or null: the plan the page asks under. */
+async function livePlanFor(quizId, db) {
+  try {
+    const client = db || require('../../config/supabase');
+    const plan = await OneVoice.plan({ db: client });
+    if (!plan) return null;
+    const { data } = await client.from('quizzes').select('language').eq('id', quizId).maybeSingle();
+    return OneVoice.forQuiz(plan, quizId, data && data.language);
+  } catch (_) {
+    return null;
   }
 }
 
