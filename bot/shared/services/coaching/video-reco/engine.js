@@ -20,6 +20,7 @@ const prompt = require('./prompt');
 const select = require('./select');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
+const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
 const BAND_GRADES = Object.freeze({ PRIMARY: [1, 5], MIDDLE: [6, 8], HIGH: [9, 12] });
 
 class Timeout extends Error {
@@ -33,6 +34,12 @@ async function gradeOf(analysis, userId, store) {
   if (Number.isFinite(n)) return { lo: n, hi: n };
   const spans = (await store.trainingBands(userId)).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
   return spans.length ? { lo: Math.min(...spans.map((x) => x[0])), hi: Math.max(...spans.map((x) => x[1])) } : null;
+}
+
+function sumUsage(a, b) {
+  const out = { ...(a || {}) };
+  for (const [k, n] of Object.entries(b || {})) out[k] = typeof n === 'number' && typeof out[k] === 'number' ? out[k] + n : n;
+  return out;
 }
 
 function inapplicableRows(analysis) {
@@ -209,14 +216,30 @@ async function compute(a, d, state) {
     uptakeQuote,
     topRung: t.topRung || (t.scheme === 'fico_main_37' ? 4 : 2),
   });
-  const res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
-  const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage };
-  if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
-  const v = select.validate(res.pick, list, ex, {
+  const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
-  });
-  if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, confidence: v.confidence });
+  };
+  const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
+  let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
+  let v = check(res);
+  let attempts = 1;
+  let firstNone = null;
+  // v1.3b: ONE more call when the answer broke a validation rule and the budget allows; the appendix names the rule.
+  const left = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
+  if (!v.ok && /^validation:/.test(v.none) && left >= RETRY_MIN_LEFT_MS) {
+    attempts = 2;
+    firstNone = v.none;
+    try {
+      const again = await select.pick({
+        prompt: text + prompt.retryAppendix(v.none), deps: d, timeoutMs: Math.min(a.llmTimeoutMs || select.LLM_TIMEOUT_MS, left - 1000),
+      });
+      res = { ...again, usage: sumUsage(res.usage, again.usage) };
+      v = check(again);
+    } catch (e) { /* the first answer's none stands */ }
+  }
+  const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone };
+  if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
 
   const p = res.pick;
   const hit = catalog.segment(p.seg_id);
