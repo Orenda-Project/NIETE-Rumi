@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Headphones, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
-import AssessDrain from '../components/assess/AssessDrain';
+import AssessDrain, { type Drained } from '../components/assess/AssessDrain';
 import AssessEngineSlot, { type FinishReason } from '../components/assess/AssessEngineSlot';
 import AssessOtherPhone from '../components/assess/AssessOtherPhone';
 import AssessPreflight from '../components/assess/AssessPreflight';
@@ -244,15 +244,17 @@ export default function LeaderAssess() {
   const [drainAt, setDrainAt] = useState<number | null>(null);
   const lastDrain = useRef(0);
   const drainNeeded = useRef(false);
-  const maybeDrain = () => {
+  const maybeDrain = (now_ = false) => {
     if (!drainNeeded.current || drainAt !== null || step.kind === 'engine') return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const now = Date.now();
-    if (now - lastDrain.current < DRAIN_EVERY_MS) return;
+    if (!now_ && now - lastDrain.current < DRAIN_EVERY_MS) return;
     lastDrain.current = now;
     setDrainAt(now);
   };
-  const drainDone = () => {
+  const [pendingBy, setPendingBy] = useState<Record<string, number>>({});
+  const drainDone = (sessions: Drained) => {
+    if (sessions.length) setPendingBy((p) => ({ ...p, ...Object.fromEntries(sessions.map((x) => [x.s, x.pending])) }));
     setDrainAt(null);
     if (pollKey) void poll(pollKey.split(','));
   };
@@ -283,8 +285,11 @@ export default function LeaderAssess() {
 
   const sessionOf = (c: SaChild) => memory?.sessions[c.drawId];
   const serverIdOf = (c: SaChild) => sessionOf(c)?.serverId || c.sessionId || null;
+  // a child the coach ended early is not done; the summary lists them as started and not finished
+  const isStopped = (c: SaChild) => Boolean(memory?.stopped?.[c.drawId]);
   const isDone = (c: SaChild) => {
     const id = sessionOf(c)?.id;
+    if (isStopped(c)) return false;
     return c.sessionStatus === 'completed' || Boolean(memory?.finished[c.drawId]) || (id !== undefined && remote[id] === 'sent');
   };
 
@@ -394,6 +399,11 @@ export default function LeaderAssess() {
       return;
     }
     setStopped(null);
+    if (reason === 'coach_end') {
+      remember((m) => ({ ...m, stopped: { ...(m.stopped ?? {}), [child.drawId]: sessionId } }));
+      setStep({ kind: 'list', school: step.school });
+      return;
+    }
     remember((m) => ({ ...m, finished: { ...m.finished, [child.drawId]: sessionId } }));
     setStep({ kind: 'list', school: step.school });
     setToast(true);
@@ -411,14 +421,16 @@ export default function LeaderAssess() {
     if (id && remote[id] === 'audio') return 'audio';
     if (c.sessionStatus === 'completed' || (id && remote[id] === 'sent')) return 'sent';
     if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
+    if (id && (pendingBy[id] ?? 0) > 0) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';
   };
   // an absent or refused row the server keeps on the list is not one of the children to test
   const isMarkedOut = (c: SaChild) => c.status === 'absent' || c.status === 'absent_final' || c.status === 'refused';
   const elsewhere = (c: SaChild) => !isDone(c) && Boolean(memory?.elsewhere[c.drawId]);
-  drainNeeded.current = doneKids.some((c) => Boolean(sessionOf(c)) && syncOf(c) !== 'sent');
+  const leftKids = [...doneKids, ...children.filter(isStopped)];
+  drainNeeded.current = leftKids.some((c) => Boolean(sessionOf(c)) && syncOf(c) !== 'sent');
   const sync: SyncItem[] = [
-    ...doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) })),
+    ...leftKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) })),
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
   ];
   const bar = (
@@ -519,8 +531,9 @@ export default function LeaderAssess() {
               {children.map((c, i) => {
                 const done = isDone(c);
                 const local = sessionOf(c);
-                const open = !done && (c.sessionId || local?.sent) ? true : false;
-                const waiting = !done && !open && (c.status === 'listed' || c.status === 'pending');
+                const halted = isStopped(c);
+                const open = !done && !halted && (c.sessionId || local?.sent) ? true : false;
+                const waiting = !done && !open && !halted && (c.status === 'listed' || c.status === 'pending');
                 const marked = c.status === 'absent' || c.status === 'absent_final' ? copy.summaryAbsent : c.status === 'refused' ? copy.summaryRefused : null;
                 return (
                   <li key={c.drawId} data-testid={`assess-child-${c.drawId}`} className="rounded-2xl border border-slate-200 bg-white p-3">
@@ -529,9 +542,10 @@ export default function LeaderAssess() {
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold text-slate-900 break-words">{nameOf(c, lang)}</span>
                         <span className="block text-sm text-slate-600 break-words">{placeOf(c, lang)}</span>
-                        {(local || done || open || (!waiting && marked)) && (
+                        {(local || done || open || halted || (!waiting && marked)) && (
                           <span className="mt-1 flex flex-wrap gap-1">
                             {done && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{copy.done}</span>}
+                            {halted && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{copy.stoppedBadge}</span>}
                             {open && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{elsewhere(c) ? copy.onOtherPhone : copy.started}</span>}
                             {!done && !open && !waiting && marked && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{marked}</span>}
                             {local && <span data-testid={`assess-block-${c.drawId}`} className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800">{copy.blocks[local.block]}</span>}
@@ -572,7 +586,7 @@ export default function LeaderAssess() {
                 </ul>
               </div>
             )}
-            <button type="button" data-testid="assess-end-visit" onClick={() => setStep({ kind: 'summary', school: step.school })}
+            <button type="button" data-testid="assess-end-visit" onClick={() => { setStep({ kind: 'summary', school: step.school }); maybeDrain(true); }}
               className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium">{copy.endVisit}</button>
           </div>
         );
@@ -608,7 +622,7 @@ export default function LeaderAssess() {
     const outcomes = Object.values(memory?.outcomes ?? {});
     const names = (xs: string[]) => (xs.length ? xs.join(' · ') : copy.none);
     const started = memory?.startedAt ?? null;
-    const notSent = doneKids.filter((c) => syncOf(c) !== 'sent').length;
+    const notSent = leftKids.filter((c) => syncOf(c) !== 'sent').length;
     content = (
       <div data-testid="assess-summary" className="space-y-4">
         <h2 className="text-lg font-semibold text-slate-900">{copy.summaryTitle} · {step.school.name}</h2>
@@ -622,7 +636,7 @@ export default function LeaderAssess() {
         <p className="text-slate-800">{copy.totalTime(mmss(started === null ? 0 : Date.now() - started))}</p>
         <p className="text-slate-800">{copy.notSentYet(notSent)}</p>
         <button type="button" onClick={() => setStep({ kind: 'schools' })}
-          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white">{copy.finish}</button>
+          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white">{notSent > 0 ? copy.sendLater : copy.finish}</button>
       </div>
     );
   }

@@ -18,6 +18,8 @@ export type VisitMemory = {
   list: SaList | null;
   /** drawId → sessionId, for children the coach finished on this phone. */
   finished: Record<string, string>;
+  /** drawId → sessionId, for children the coach ended early (not done; their rows still go). */
+  stopped?: Record<string, string>;
   /** drawId → what was marked, with the name the coach saw (for the summary). */
   outcomes: Record<string, { outcome: SaOutcome; name: string }>;
   /** drawId → the session id minted on this phone, the child's block, whether Present was sent or queued, and the server's id once known. */
@@ -57,7 +59,7 @@ export type QueuedOutcome = {
   at: number;
 };
 
-const EMPTY: VisitMemory = { startedAt: null, list: null, finished: {}, outcomes: {}, sessions: {}, queue: [], refused: [], preflight: null, elsewhere: {} };
+const EMPTY: VisitMemory = { startedAt: null, list: null, finished: {}, stopped: {}, outcomes: {}, sessions: {}, queue: [], refused: [], preflight: null, elsewhere: {} };
 const PREFIX = 'assess:';
 
 /** Today's date in Pakistan, YYYY-MM-DD. */
@@ -78,6 +80,7 @@ export function readVisit(key: string): VisitMemory {
       startedAt: typeof v.startedAt === 'number' ? v.startedAt : null,
       list: v.list ?? null,
       finished: v.finished && typeof v.finished === 'object' ? v.finished : {},
+      stopped: v.stopped && typeof v.stopped === 'object' ? v.stopped : {},
       outcomes: v.outcomes && typeof v.outcomes === 'object' ? v.outcomes : {},
       sessions: v.sessions && typeof v.sessions === 'object'
         ? Object.fromEntries(Object.entries(v.sessions).filter(([, x]) => x && typeof x.id === 'string' && isBlock(x.block)))
