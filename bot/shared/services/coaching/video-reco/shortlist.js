@@ -14,7 +14,7 @@
  * (⛔12), subject incl. content modules (⛔4), grade (⛔5), language (⛔3: preferred ∪ transcript ∪ mixed, the
  * chapter's own language first), history (⛔6: a chapter never twice). Level (⛔11) is a preference, never a
  * filter: +0.5 within one rung of a known level; unknown level keeps level 4 out while anything else exists.
- * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | no_target.
+ * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | unscored_step | no_target.
  */
 
 const MAX_CANDIDATES = 12;
@@ -25,6 +25,8 @@ const TEXT_FLOOR = 2.0;
 // 37-scheme indicators that name a subject or a resource, not a teaching move: the card's sentence is the step.
 const LABEL_37 = new Set(['F5', 'F6', 'F7', 'F8', 'B7', 'B8', 'C10']);
 // ⛔4 on the 37 LABEL path (lead-review 19:37Z): a subject-pedagogy label's TAG route runs only on its own subject.
+// target.pick nones that the step-text route can still serve from the card's sentence.
+const TEXT_ROUTE_NONES = new Set(['unknown_indicator', 'unscored_step']);
 const LABEL_SUBJECTS = Object.freeze({ F5: ['maths'], F6: ['science'], F7: ['urdu', 'english', 'literacy'] });
 const CONTENT_TARGETS = new Set(['F1', 'F2', 'F3']);
 const SUBJECT_ONLY_ROWS = new Set(['F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10']);
@@ -220,6 +222,7 @@ function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text'
 /** Why the step-text route runs for this target (null: a move indicator — tag route only). Before the tag pool. */
 function textReasonOf(target, catalog, lesson) {
   if (target.source === 'card_text') return 'card_text';
+  if (target.none === 'unscored_step') return 'unscored';
   if (target.none === 'unknown_indicator') return target.aliasKind === 'subject_blocked' ? 'subject_blocked' : 'unknown';
   if (target.scheme === 'fico_main_37' && LABEL_37.has(target.storedIndicator)) {
     const only = LABEL_SUBJECTS[target.storedIndicator];
@@ -311,7 +314,7 @@ function build(catalog, target, ctx, signal, lesson, step) {
   });
   try {
     if (!catalog || !Array.isArray(catalog.modules) || !target) return empty('hole');
-    if (target.none && target.none !== 'unknown_indicator') return empty(target.none);
+    if (target.none && !TEXT_ROUTE_NONES.has(target.none)) return empty(target.none);
     const t = {
       source: target.source || null,
       indicator: target.indicator || null,
@@ -322,7 +325,7 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const lv = levelOf(ctx);
     const levelMatch = lv.mode === 'known' ? null : lv.mode;
     const early = textReasonOf(target, catalog, lesson);
-    const textOnly = early === 'card_text' || early === 'unknown' || early === 'subject_blocked';
+    const textOnly = ['card_text', 'unknown', 'subject_blocked', 'unscored'].includes(early);
     const tag = textOnly ? { candidates: [], noneReason: null, repeatModule: false } : tagRoute(catalog, t, ctx, signal, lesson);
     const textReason = early || (tag.candidates.length ? null : 'empty');
     const s = step || (target.source === 'card_text' ? { action: target.cardText } : null);
@@ -332,7 +335,8 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const candidates = [...tag.candidates, ...text];
     const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
     if (!candidates.length) {
-      const why = textReason === 'card_text' ? 'no_target' : textOnly ? 'unknown_indicator' : (tag.noneReason || 'hole');
+      const why = textReason === 'card_text' ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
+        : textOnly ? 'unknown_indicator' : (tag.noneReason || 'hole');
       return empty(why, { ...common, route: textReason ? routeName : 'tag' });
     }
     return { candidates, noneReason: null, ...common, route: tag.candidates.length ? 'tag' : routeName };

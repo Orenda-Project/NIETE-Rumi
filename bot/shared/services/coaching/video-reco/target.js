@@ -40,7 +40,9 @@ function rowsOf(analysis) {
   for (const d of Object.values(domains)) {
     const inds = d && Array.isArray(d.indicators) ? d.indicators : [];
     const max = Number(d && d.domain_max);
-    const top = Number.isFinite(max) && max > 0 && inds.length ? max / inds.length : null;
+    // The rung ceiling = domain_max over the SCORED rows: not-applicable rows carry no points (red-team 19:40Z).
+    const n = inds.filter((r) => r && scored(r)).length;
+    const top = Number.isFinite(max) && max > 0 && n ? max / n : null;
     for (const r of inds) if (r && r.id) out.push({ r, top });
   }
   return out;
@@ -117,11 +119,14 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
     const top = (hit && hit.top) || (is37 ? 4 : 2);
     const stepAtTop = !!(hit && scored(hit.r) && Number(hit.r.score) >= top);
     const common = { storedIndicator: raw, scheme, source, row: hit ? hit.r : null, stepAtTop, topRung: top };
+    const alias = ((catalog && catalog.aliases) || {})[raw];
+    // A step the scorer marked not applicable (or left unscored) never takes a tag route: the card's sentence does
+    // (the shortlist's step-text route), else none:'unscored_step' (red-team 19:40Z, lead-review 19:41Z).
+    if (hit && !scored(hit.r)) return none('unscored_step', { ...common, aliasKind: 'unscored', name: (alias && alias.name) || null });
 
     if (!is37) {
       return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw };
     }
-    const alias = ((catalog && catalog.aliases) || {})[raw];
     if (nativeAvailable(catalog, raw)) {
       return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw, native37: true, aliasKind: 'native37', name: (alias && alias.name) || null };
     }

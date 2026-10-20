@@ -63,8 +63,29 @@ function dice(a, b) {
 }
 
 const MOMENT_AT = /^\d{1,2}:\d{2}$/;
-// Teacher-facing copy never names the hidden scorer nor prints a placeholder (ped-review 19:35Z, lead-review 19:37Z).
-const BANNED_COPY = /scorer|سکورر|N\/A|not applicable/i;
+// Teacher-facing copy never names the hidden scorer, a score or a placeholder (lead-review 19:37Z, 19:40Z, 19:41Z).
+// Latin words match whole ("demonstrated" is not "rated"); سکور also covers سکورر and اسکورر.
+const BANNED_COPY = /\bscor(?:e|es|ed|er|ers|ing)\b|\brated\b|\bN\/A\b|\bnot applicable\b|سکور/i;
+const CLIP_ID = /\b\d{1,3}-s\d+\b/;
+const PLACEHOLDERS = /\[(?:a student|child|teacher)\]/gi;
+const QUOTED = /"[^"]*"|“[^”]*”|«[^»]*»/g;
+const LATIN_WORD = /^[A-Za-z][A-Za-z'’-]*[.,;:!?]*$/;
+
+/** Words left in a quote once the name placeholders are removed (a quote of placeholders tells the teacher nothing). */
+function realWords(quote) {
+  return String(quote || '').replace(LINE_PREFIX, '').replace(PLACEHOLDERS, ' ').split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+/** The longest run of consecutive Latin-letter words in Urdu copy, outside quoted text (Roman Urdu, lead-review 19:40Z). */
+function latinRun(text) {
+  let run = 0;
+  let best = 0;
+  for (const w of String(text || '').replace(QUOTED, ' ').split(/\s+/).filter(Boolean)) {
+    run = LATIN_WORD.test(w) ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return best;
+}
 // A leading excerpt-line prefix the model copied with the quote: "[04:17] Teacher:" (§3.5 [v1.3] b).
 const LINE_PREFIX = /^\s*\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*[^:\n]{0,40}:\s*/;
 
@@ -94,7 +115,7 @@ function namesIn(text, name) {
 
 /** Arabic-script share of the letters, after removing quoted text and [a student] (§3.5 [v1.3] a: English terms are the prompt's rule 3). */
 function arabicShare(text) {
-  const rest = String(text || '').replace(/"[^"]*"|“[^”]*”|«[^»]*»/g, ' ').replace(/\[a student\]/gi, ' ');
+  const rest = String(text || '').replace(QUOTED, ' ').replace(/\[a student\]/gi, ' ');
   const letters = rest.match(/\p{L}/gu) || [];
   if (!letters.length) return 0;
   return letters.filter((c) => ARABIC.test(c)).length / letters.length;
@@ -102,40 +123,46 @@ function arabicShare(text) {
 
 /**
  * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote, textRoute}
- * @returns {{ok:boolean, none:null|'llm_none'|'validation', confidence:number, momentSource:'transcript'|'scorer'|null}}
+ * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
+ *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
+ *   scorer | id | name | length | urdu | roman | step | error
  */
 function validate(p, shortlist, excerpts, opts) {
   const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false } = opts || {};
-  const bad = (none = 'validation') => ({ ok: false, none, confidence: 0, momentSource: null });
+  const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
-    if (!p || typeof p !== 'object') return bad();
+    if (!p || typeof p !== 'object') return bad('shape');
     const c = Number(p.confidence);
     const confidence = Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0;
-    if (p.seg_id === null || p.seg_id === undefined || p.seg_id === '') return { ...bad('llm_none'), confidence };
+    if (p.seg_id === null || p.seg_id === undefined || p.seg_id === '') return { ok: false, none: 'llm_none', confidence, momentSource: null };
     const cand = ((shortlist && shortlist.candidates) || []).find((x) => x.seg_id === String(p.seg_id));
-    if (!cand) return bad();
+    if (!cand) return bad('candidate');
     const quote = p.moment && p.moment.quote;
     let momentSource = null;
     if (quote && quoteFound(quote, excerpts)) momentSource = 'transcript';
     else if (quote && scorerQuote && quoteFound(quote, [scorerQuote])) momentSource = 'scorer';
-    if (!momentSource) return bad();
-    if (!MOMENT_AT.test(String(p.moment.at || '').trim())) return bad(); // vr-3: never "unknown", "N/A" or "[00:30]"
-    if ([p.reason_en, p.reason_ur].some((x) => BANNED_COPY.test(String(x || '')))) return bad();
-    if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad();
-    const en = [...String(p.reason_en || '').trim()].length;
-    if (en < 20 || en > 400) return bad();
-    if (arabicShare(p.reason_ur) < 0.6) return bad();
+    if (!momentSource) return bad('quote');
+    if (!MOMENT_AT.test(String(p.moment.at || '').trim())) return bad('moment_at'); // never "unknown", "N/A" or "[00:30]"
+    if (realWords(quote) < 3) return bad('placeholder');
+    const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
+    if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
+    if (reasons.some((x) => CLIP_ID.test(x))) return bad('id');
+    if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad('name');
+    const en = [...reasons[0].trim()].length;
+    if (en < 20 || en > 400) return bad('length');
+    if (arabicShare(p.reason_ur) < 0.6) return bad('urdu');
+    if (latinRun(p.reason_ur) > 2) return bad('roman');
     // Indicator path: every candidate is for the step; a pick outside the step's chapters is refused (SPEC v1.2 §3.5).
-    // When the step-text route ran (label / hole / unknown / empty target, v1.3 R4) any listed candidate is valid.
+    // When the step-text route ran (label / hole / unknown / unscored / empty target, v1.3 R4) any listed candidate is valid.
     if ((source === 'step' || source === 'card') && stepIndicator && !textRoute) {
       const hit = catalog && catalog.segment(cand.seg_id);
       const ids = hit ? [...(hit.segment.fico || []).map((f) => f.indicator), ...(hit.segment.fico_main37 || [])] : [];
       const step = indicators && indicators.length ? indicators : [stepIndicator];
-      if (!step.includes(cand.indicator) && !step.some((id) => ids.includes(id))) return bad();
+      if (!step.includes(cand.indicator) && !step.some((id) => ids.includes(id))) return bad('step');
     }
     return { ok: true, none: null, confidence, momentSource };
   } catch (e) {
-    return bad();
+    return bad('error');
   }
 }
 
