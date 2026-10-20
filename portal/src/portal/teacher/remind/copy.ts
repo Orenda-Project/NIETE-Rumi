@@ -12,7 +12,7 @@ export const REMIND_COPY = {
   body: 'Get one reminder at 6 pm with your plan for tomorrow. Works in Chrome on this phone.',
   turnOn: 'Turn on',
   turnOff: 'Turn off',
-  test: 'Send a test now',
+  test: 'Send one now',
 } as const;
 
 export const REMIND_COPY_UR = {
@@ -20,7 +20,7 @@ export const REMIND_COPY_UR = {
   body: 'کل کے منصوبے کی ایک یاد دہانی شام چھ بجے پائیں۔ اس فون پر کروم میں چلتی ہے۔',
   turnOn: 'آن کریں',
   turnOff: 'بند کریں',
-  test: 'ابھی ایک ٹیسٹ بھیجیں',
+  test: 'ابھی ایک یاد دہانی بھیجیں',
 };
 
 export const REMIND = bilingual(REMIND_COPY, REMIND_COPY_UR);

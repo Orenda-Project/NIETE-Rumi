@@ -15,7 +15,7 @@ import { CARD, FOCUS, OUTLINE_WIDE, PRIMARY_WIDE } from '../ui/styles';
  *
  * Turn on (the tap is the only caller of requestPermission): permission → /sw.js at scope / (the edge serves it on
  * every host) → ready → pushManager.subscribe with the VAPID key (GET /api/wqpush/key) → POST /api/portal/push/subscribe
- * {sub, lang}. Turn off: POST unsubscribe, then sub.unsubscribe(). "Send a test now" only with state.test, once on.
+ * {sub, lang}. Turn off: POST unsubscribe, then sub.unsubscribe(). "Send one now" only with state.test, once on.
  * The server adds who she is from her session; nothing here names her.
  */
 export const IAB_RX = /\bWA4A\/|WhatsApp|FBAN|FBAV|Instagram|; wv\)/;

@@ -5,7 +5,7 @@ import i18n from "i18next";
 /**
  * The teacher Home's "Evening reminder" card (switch portal_push_remind): drawn only on a plain browser that can
  * push (not the NIETE app, not an in-app browser, PushManager present) AND when the server says {portal:true}.
- * "Send a test now" only with state.test. Turn on: permission in the tap → /sw.js → subscribe → POST subscribe.
+ * "Send one now" only with state.test. Turn on: permission in the tap → /sw.js → subscribe → POST subscribe.
  * Mocked at the network and browser boundaries only.
  */
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
@@ -113,7 +113,7 @@ describe("RemindCard: when it is drawn", () => {
     expect(b.container.innerHTML).toBe("");
   });
 
-  it("a phone already subscribed shows Turn off; 'Send a test now' only with state.test", async () => {
+  it("a phone already subscribed shows Turn off; 'Send one now' only with state.test", async () => {
     browser("granted", true);
     const a = render(<RemindCard />);
     await flush();
@@ -171,7 +171,7 @@ describe("RemindCard: turning it on and off", () => {
     expect(screen.getByRole("button", { name: REMIND_COPY.turnOn })).toBeTruthy();
   });
 
-  it("Send a test now posts the subscription's endpoint", async () => {
+  it("Send one now posts the subscription's endpoint", async () => {
     http.get.mockResolvedValue({ data: { portal: true, test: true } });
     const b = browser();
     render(<RemindCard />);
