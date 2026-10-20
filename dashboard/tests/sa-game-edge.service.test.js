@@ -54,8 +54,8 @@ test('on, a child: the shell with the boot; Urdu is rtl', async () => {
   const html = await r.text();
   expect(html).toContain('<html lang="ur" dir="rtl">');
   expect(html).toContain('"form":"game.G23"');
-  expect(html).toContain('"bank":"/sa-game/b/game.G23/ur"');
-  expect(html).toContain('"/sa/sa-engine.js"');
+  expect(html).toContain('"bank":["/sa/batteries/sa.game.G23.ur.json","/sa-game/b/game.G23/ur"]');
+  expect(html).toContain('"engine":["/sa/sa-store.js"]');
   expect(html).toMatch(/\/sa-game\/a\/game\.js\?v=[0-9a-f]{10}/);
   expect(s.calls[0].url).toContain('&lang=ur');
   expect(s.calls[0].init.headers['x-api-key']).toBe('k');
