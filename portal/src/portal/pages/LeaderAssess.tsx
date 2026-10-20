@@ -98,7 +98,7 @@ export default function LeaderAssess() {
   const [busy, setBusy] = useState(false);
   const [vkey, setVkey] = useState<string | null>(null);
   const [memory, setMemory] = useState<VisitMemory | null>(null);
-  const [remote, setRemote] = useState<Record<string, 'sending' | 'sent'>>({});
+  const [remote, setRemote] = useState<Record<string, 'sending' | 'audio' | 'sent'>>({});
   const [toast, setToast] = useState(false);
   const [stopped, setStopped] = useState<string | null>(null);
   const vkeyRef = useRef<string | null>(null);
@@ -230,7 +230,8 @@ export default function LeaderAssess() {
       try {
         const st = await childTestSa.getStatus(id);
         if (!live.current || !st?.session) continue;
-        const state = st.session.status === 'completed' ? 'sent' : 'sending';
+        // answers in but a recording still on the phone: not sent yet, and the poll goes on
+        const state = st.session.status !== 'completed' ? 'sending' : (st.audioWaiting?.length ? 'audio' : 'sent');
         setRemote((r) => (r[id] === state ? r : { ...r, [id]: state }));
         if (st.session.id && vkeyRef.current) keepServerId(vkeyRef.current, id, st.session.id);
       } catch { /* not there yet, or offline */ }
@@ -387,6 +388,7 @@ export default function LeaderAssess() {
   const doneKids = children.filter(isDone);
   const syncOf = (c: SaChild): SyncItem['state'] => {
     const id = sessionOf(c)?.id;
+    if (id && remote[id] === 'audio') return 'audio';
     if (c.sessionStatus === 'completed' || (id && remote[id] === 'sent')) return 'sent';
     if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';
