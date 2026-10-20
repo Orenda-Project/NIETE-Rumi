@@ -137,18 +137,23 @@
    * Send what earlier children left on this phone. Each session's sync lives in its own page, so a child whose
    * network came back after the hand-back would never send. drain() lists every coach (proctored) session in the
    * phone's store with something unsent, and runs the same sync for each, one after another, through the coach sink.
-   *   o: { store, sync (SAE.sync), sink() → a sink, exclude (the session this page runs), online, timers }
-   * → Promise<[{ s, state, pending_events, pending_audio }]>. Game runs need their run token: not drained here.
+   *   o: { store, sync (SAE.sync), mode ('proctored' default | 'game'), sink(id) → a sink or null, exclude (the session
+   *        this page runs), online, timers }
+   * → Promise<[{ s, state, pending_events, pending_audio }]>. A game session goes through its own kept run token (the
+   * game sink for that id); none kept → state 'no_sink', left on the phone.
    */
   function drain(o) {
     return o.store.sessions().then(function (rows) {
-      var ids = rows.filter(function (r) { return r && r.session_id && r.session_id !== o.exclude && r.mode !== 'game'; })
+      var mode = o.mode === 'game' ? 'game' : 'proctored';
+      var ids = rows.filter(function (r) { return r && r.session_id && r.session_id !== o.exclude && (r.mode === 'game') === (mode === 'game'); })
         .map(function (r) { return r.session_id; });
       var out = [];
       return ids.reduce(function (chain, id) {
         return chain.then(function () { return o.store.pending(id); }).then(function (p) {
           if (!p.events.length && !p.results.length && !p.chunks.some(function (c) { return c.final; })) return null;
-          var sy = o.sync.create({ store: o.store, sink: o.sink(), session_id: id, online: o.online, timers: o.timers });
+          var sink = o.sink(id);
+          if (!sink) { out.push({ s: id, state: 'no_sink', pending_events: p.events.length + p.results.length, pending_audio: p.chunks.filter(function (c) { return c.final; }).length }); return null; }
+          var sy = o.sync.create({ store: o.store, sink: sink, session_id: id, online: o.online, timers: o.timers });
           return sy.flush().then(function (st) {
             if (sy.stop) sy.stop();
             out.push({ s: id, state: st.state, pending_events: st.pending_events, pending_audio: st.pending_audio });
@@ -229,6 +234,14 @@
             }, 3000);
           }
           engine.on('unlock', release);
+        } else if (p.mode === 'game' && SAE.sync && SAE.sinks && SAE.sinks.game) {
+          // The next island sends what an earlier island left (its network came back after it closed), each session
+          // through the run token the game kept for it.
+          setTimeout(function () {
+            drain({ store: engine.store, sync: SAE.sync, mode: 'game', exclude: engine.session_id,
+              sink: function (id) { try { return root.SAE.sinks.game({ session_id: id }); } catch (_) { return null; } } })
+              .then(function (d) { if (d.length) engine.runner.log('drained', { value: d }); }, function () {});
+          }, 3000);
         }
         offline.then(function (o) {
           engine.runner.log('device_ready', { value: {

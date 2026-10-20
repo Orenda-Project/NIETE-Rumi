@@ -138,3 +138,26 @@ describe('drain: a finished child whose network came back after the hand-back st
     expect(params('?s=abcdef12&form=sa.coach.G3.A.en', '').drain).toBe(false);
   });
 });
+
+describe('game-mode drain: the next island sends what an earlier island left, each through its own kept token', () => {
+  const storeMod = require('../sa/sa-store');
+  const syncMod = require('../sa/sa-sync');
+  const { drain } = require('../sa/sa-page');
+  const timers = { set: () => 0, clear() {} };
+
+  test('pending game sessions with a kept token are flushed through their own sink; no token → left on the phone', async () => {
+    const s = await storeMod.open({ idb: null });
+    for (const id of ['island-maths', 'island-urdu', 'island-old', 'coach-1']) {
+      await s.putSession({ session_id: id, mode: id === 'coach-1' ? 'proctored' : 'game', battery_id: 'b' });
+      for (let seq = 1; seq <= 2; seq++) await s.appendEvent({ session_id: id, seq, type: 'tap' });
+    }
+    const kept = { 'island-maths': 'st-maths' }; // island-old's token is gone (another day, cleared storage)
+    const sent = [];
+    const sinkFor = (id) => (kept[id] ? { putBatch: async (b) => { sent.push([kept[id], b.session_id, b.seq_to]); return { ok: true, acked_to: b.seq_to }; },
+      presignAudio: async () => ({ skip: true }), registerAudio: async () => ({}) } : null);
+    const out = await drain({ store: s, sync: syncMod, mode: 'game', sink: sinkFor, exclude: 'island-urdu', online: () => true, timers });
+    expect(sent).toEqual([['st-maths', 'island-maths', 2]]);
+    expect(out).toEqual([{ s: 'island-maths', state: 'synced', pending_events: 0, pending_audio: 0 }, { s: 'island-old', state: 'no_sink', pending_events: 2, pending_audio: 0 }]);
+    expect((await s.pending('coach-1')).events).toHaveLength(2); // a coach session is not the game's to send
+  });
+});
