@@ -1507,9 +1507,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var id = chLine && B.art && B.art.invite;
     return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id)) + '" alt="' + esc(chLine) + '">' : '';
   }
-  function wireChPic() {
+  // fold (web_quiz_challenge_fold): the picture sits right under the way in and carries a drawn "tap the link to play",
+  // so a tap on it is a tap on Play (or the remembered child's button); with the class's children listed, it shows them
+  function wireChPic(fold) {
     var im = ROOT.querySelector && ROOT.querySelector('.wq-chpic');
     if (im && im.addEventListener) im.addEventListener('error', function () { if (im.parentNode) im.parentNode.removeChild(im); });
+    if (fold && im && im.addEventListener) {
+      im.style.cursor = 'pointer';
+      im.addEventListener('click', function () {
+        var b = ROOT.querySelector('#wq-play') || ROOT.querySelector('#wq-play-as');
+        if (b && b.click) return b.click();
+        var k = ROOT.querySelector('.wq-kid');
+        if (k && k.scrollIntoView) k.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
   }
 
   // A storybook the teacher sent (wq-story-link.js, loaded only then): the landing names a story.
@@ -1528,7 +1539,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // web_quiz_challenge_fold (the answer's challenge_fold): the way in comes right after the challenge line, and the
     // invite picture follows it, so a small phone shows Play on the first screen
     var pic = chPic(chLine), fold = Boolean(B.challenge_fold && pic);
-    if (ID && !B.preview) { if (fold) ID.landing(chLine, pic, true); else ID.landing(chLine, pic); wireChPic(); return; }
+    if (ID && !B.preview) { if (fold) ID.landing(chLine, pic, true); else ID.landing(chLine, pic); wireChPic(fold); return; }
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
@@ -1547,7 +1558,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (LIVE.now >= 5 && !ch ? '<p class="wq-proof">' + ic(IC.live, '🟢 ') + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
-    wireChPic();
+    wireChPic(fold);
     on('#wq-play', who);
     on('#wq-notme', who);
     on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });

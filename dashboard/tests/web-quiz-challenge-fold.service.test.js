@@ -30,3 +30,29 @@ describe.each([['wq.js landing', {}], ['identity v2 landing', { ident: true, cls
     expect(on).toBe(off);
   });
 });
+
+// The invite picture carries a drawn "tap the link to play" pill; under the fold it sits right below the real way in,
+// so a tap on it is a tap on Play (or the remembered child's button), never a dead picture. Off: the picture does nothing.
+describe('the invite picture under the fold is a way in too', () => {
+  const tapPic = (p) => p.els['.wq-chpic'].fire('click', {});
+  test.each([['en'], ['ur']])('on (%s): a tap on the picture taps Play', (lang) => {
+    const p = page({ lang, art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true } });
+    const click = jest.fn();
+    p.els['#wq-play'].click = click;
+    p.els['#wq-play-as'].click = jest.fn();
+    tapPic(p);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(p.els['#wq-play-as'].click).not.toHaveBeenCalled();
+  });
+  test('identity v2 landing, on: the same', () => {
+    const p = page({ lang: 'en', art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true }, ident: true, cls: v2 });
+    const click = jest.fn();
+    p.els['#wq-play'].click = click;
+    tapPic(p);
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+  test('off: the picture has no tap of its own', () => {
+    const p = page({ lang: 'en', art: { invite: INVITE }, challenge: CH });
+    expect(p.els['.wq-chpic'].listeners.click).toBeUndefined();
+  });
+});
