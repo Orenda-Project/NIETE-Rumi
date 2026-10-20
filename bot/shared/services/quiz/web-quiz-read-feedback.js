@@ -27,6 +27,10 @@ const SHEET_KEY = 'web_quiz_read_sheet';
 // whose picture would be left out draws it as its own card in the room left, and the hint is never wider than the
 // picture (wq-moment.js art one 2). The same settings read.
 const FIT_KEY = 'web_quiz_read_sheet_fit';
+// web_quiz_read_sheet_trim (default off, JSON true only; only with FIT_KEY on): the book says read_sheet: 3, so the picture
+// drawn as its own card is trimmed to its drawing, with no blank paper above or below it (wq-moment.js art one 3). The
+// same settings read.
+const TRIM_KEY = 'web_quiz_read_sheet_trim';
 const TTL_MS = 30 * 1000;
 // wcpm = correct / (60 - time_left) * 60, so correct + time_left give the speed back; previous is the last run's speed;
 // the lights, the growth and a level each name the speed's band
@@ -40,21 +44,21 @@ let cache = null;
 async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHEET_KEY, FIT_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, SHEET_KEY, FIT_KEY, TRIM_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = (k) => ((data || []).find((r) => r.key === k) || {}).value;
     const on = by(KEY) === true;
-    cache = { at: now, on, sheet: on && by(SHEET_KEY) === true, fit: by(FIT_KEY) === true };
+    cache = { at: now, on, sheet: on && by(SHEET_KEY) === true, fit: by(FIT_KEY) === true, trim: by(TRIM_KEY) === true };
   } catch (err) {
     logToFile('⚠️ web quiz read feedback: settings lookup failed — off', { error: err.message });
-    cache = { at: now, on: false, sheet: false, fit: false };
+    cache = { at: now, on: false, sheet: false, fit: false, trim: false };
   }
   return cache.on;
 }
 // the one-sheet picture (SHEET_KEY): true only with the reading moment on too; the same cached read
 async function sheetOn(now = Date.now()) { return (await on(now)) && cache.sheet === true; }
-// the book's read_sheet: 2 with the fit on, 1 with the one sheet alone, 0 off
-async function sheetLevel(now = Date.now()) { return (await sheetOn(now)) ? (cache.fit === true ? 2 : 1) : 0; }
+// the book's read_sheet: 3 with the fit and the trim on, 2 with the fit on, 1 with the one sheet alone, 0 off
+async function sheetLevel(now = Date.now()) { return (await sheetOn(now)) ? (cache.fit === true ? (cache.trim === true ? 3 : 2) : 1) : 0; }
 async function menuField() {
   try { return (await on()) ? { read_feedback: true } : {}; } catch (_) { return {}; }
 }
@@ -101,4 +105,4 @@ async function storyReading(studentId, rows) {
   return { words_read: words, words_total: total, ms, wcpm, prev_wcpm: prev };
 }
 
-module.exports = { storyReading, MIN_MS, on, sheetOn, sheetLevel, SHEET_KEY, FIT_KEY, menuField, band, withBand, OWNER_ONLY, KEY, STAR_AT, MIN_WORDS, _reset: () => { cache = null; } };
+module.exports = { storyReading, MIN_MS, on, sheetOn, sheetLevel, SHEET_KEY, FIT_KEY, TRIM_KEY, menuField, band, withBand, OWNER_ONLY, KEY, STAR_AT, MIN_WORDS, _reset: () => { cache = null; } };
