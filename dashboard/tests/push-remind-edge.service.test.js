@@ -371,6 +371,17 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(p.slot.innerHTML).toMatch(/font-size:18px/);
     await p.tap('stop');
     expect(h1.textContent).toBe('یاد دہانی بند ہے');
+    // the title says it: no status line repeating it on the landing
+    expect(p.slot.innerHTML).not.toContain(T.stopped);
+    expect(p.slot.innerHTML).toContain('data-act="play"');
+  });
+
+  test('a ghost button has ONE underline: on its word, never the Urdu style\'s rule under the box too', async () => {
+    const p = page();
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
+    await flush();
+    const ghost = /<button type="button" class="wq-btn wq-ghost"[^>]*>/.exec(p.slot.innerHTML)[0];
+    expect(ghost).toMatch(/style="text-decoration:none;border-bottom:0"/);
   });
 
   test('results screen (mount): the card keeps its own title, and no page title is touched', async () => {
@@ -380,9 +391,9 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T.ur.remindTitle);
   });
 
-  test('Stop: unsubscribes at the bot (by page) and in the browser', async () => {
+  test('Stop: unsubscribes at the bot (by page) and in the browser; the results card says reminders are off', async () => {
     const p = page();
-    p.ctx.WQREMIND.landing(p.slot, { code: 'AB12CD', lang: 'en' });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'en', chips: 1 });
     await flush();
     await p.tap('yes');
     await p.tap('stop');

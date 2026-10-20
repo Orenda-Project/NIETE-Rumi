@@ -179,7 +179,7 @@
     }
     // a ghost's underline sits under the word only (not across the full-width box)
     function lbl(cls, label) { return cls.indexOf('wq-ghost') >= 0 ? '<span style="text-decoration:underline;text-underline-offset:4px">' + esc(label) + '</span>' : esc(label); }
-    function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none"' : '') + '>' + lbl(cls, label) + '</button>'; }
+    function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none;border-bottom:0"' : '') + '>' + lbl(cls, label) + '</button>'; }
     function link(cls, act, href, label) { return '<a class="wq-btn ' + cls + '" data-act="' + act + '" href="' + esc(href) + '">' + esc(label) + '</a>'; }
     function draw(inner) {
       if (!inner) { slot.innerHTML = ''; return; }
@@ -208,7 +208,8 @@
           + btn('wq-ghost', 'stop', c.remindStop));
       },
       denied: function () { draw(line(c.remindDenied)); },
-      stopped: function () { pageTitle(c.offTitle); draw(line(c.stopped) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
+      // on the landing the title already says it; the results card (no page title) keeps the line
+      stopped: function () { pageTitle(c.offTitle); draw((landing ? '' : line(c.stopped)) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
       // WhatsApp's browser: one line and ONE door to Chrome; the ⋮ hint and Copy link only after "How?" (a child's screen)
       iab: function (more) {
         draw(line(c.iabBody) + (code && host ? link('wq-soft', 'escape', intentHref(), c.iabChrome) : '')
