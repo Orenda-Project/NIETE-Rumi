@@ -4,8 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 /**
  * bd-fmf24g.6 — what a teacher with portal_teacher_v2 can do on the v2 Assessment pages, over today's routes
- * (services/api `portal.*`, mocked here): Make paper sends every option the WhatsApp Flow offers; the Types
- * step holds Next until her counts add up; the paper page offers Download, Answer key only when the paper
+ * (services/api `portal.*`, mocked here): Make paper sends every option the WhatsApp Flow offers (the Questions
+ * screen has its own file, questionsFlow.test.tsx); the paper page offers Download, Answer key only when the paper
  * has one, Edit and Versions only when editing is on — and never WhatsApp; the hub shows a paper being
  * made, and Coming soon when the generator is off.
  */
@@ -36,7 +36,7 @@ import { forgetPapers } from './paperCache';
 import { clearPicksForTest, setPicks } from './store';
 import { newPicks } from './model';
 import { AssessmentHub } from './AssessmentHub';
-import { CheckStep, ClassStep, CoverStep, TypesStep } from './NewPaperSteps';
+import { CheckStep, ClassStep, CoverStep } from './NewPaperSteps';
 import { PaperPage } from './PaperPage';
 import { RequestPage } from './RequestPage';
 import { ASSESSMENT_V2_BASE, newPaperPath, paperPath, requestPath } from './paths';
@@ -77,10 +77,10 @@ beforeEach(() => {
 });
 
 describe('Check and make', () => {
-  it('sends every choice — Mix with a book count, her per-type counts, a marks budget — and opens the request', async () => {
+  it('sends every choice — seen and unseen with her per-type counts, a marks budget — and opens the request', async () => {
     setPicks({
       ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [2, 1],
-      source: 'both', count: 15, seen: 5, typeMode: 'pick', typeCounts: { MCQs: 6, 'Brief Answers': 4 }, marks: 40,
+      typesSeeded: true, seen: 5, typeCounts: { MCQs: 6, 'Brief Answers': 4 }, marks: 40,
     });
     portal.generateAssessment.mockResolvedValue({ success: true, requestId: 'req-9' });
     at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
@@ -95,32 +95,11 @@ describe('Check and make', () => {
   });
 
   it('a request the server refuses stays on the page and says why', async () => {
-    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [1] });
+    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [1], typesSeeded: true, typeCounts: { MCQs: 10 } });
     portal.generateAssessment.mockRejectedValue({ response: { data: { error: 'Leave room for new questions.' } } });
     at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Leave room for new questions.');
-  });
-});
-
-describe('Question types', () => {
-  it('holds Next, and says why, until her counts add up to the new questions', async () => {
-    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [1], count: 3, typeMode: 'pick' });
-    at(newPaperPath('types'), newPaperPath('types'), <TypesStep />);
-    const next = () => screen.getByRole('button', { name: new RegExp(C.next) }) as HTMLButtonElement;
-    const box = async (name: string) => (await screen.findByRole('textbox', { name: C.typeCount(name) })) as HTMLInputElement;
-    expect((await box('MCQs')).value).toBe('0');
-    expect(next().disabled).toBe(true);
-    expect(screen.getByTestId('button-reason').textContent).toBe(C.why.typesNone);
-    fireEvent.change(await box('MCQs'), { target: { value: '1' } });
-    fireEvent.change(await box('Brief Answers'), { target: { value: '1' } });
-    expect(next().disabled).toBe(true);
-    expect(screen.getByTestId('button-reason').textContent).toBe(C.join(C.why.totalOf(2, 3), C.why.under(1)));
-    fireEvent.change(await box('MCQs'), { target: { value: '4' } });
-    expect(screen.getByTestId('button-reason').textContent).toBe(C.join(C.why.totalOf(5, 3), C.why.over(2)));
-    fireEvent.change(await box('MCQs'), { target: { value: '2' } });
-    await waitFor(() => expect(screen.getByRole('link', { name: new RegExp(C.next) })).toBeTruthy());
-    expect(screen.queryByTestId('button-reason')).toBeNull();
   });
 });
 

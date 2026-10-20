@@ -90,6 +90,22 @@ export const ASSESSMENT_V2_COPY = {
   toPage: 'To page',
   typeCount: (name: string) => `Number of ${name}`,
   /**
+   * Questions, one screen (the operator's words, 20 Oct): the one line that says what is asked, its seen and
+   * unseen parts, the type list Add a type opens, and the short forms the total and Check and make use.
+   */
+  askCount: 'Please select the number of questions',
+  seenQuestions: 'Seen questions',
+  unseenQuestions: 'Unseen questions',
+  asInBook: 'As in the book',
+  addType: 'Add a type',
+  wholePaper: 'Whole paper',
+  typesCap: (n: number, max: number) => `${n} of ${max} types`,
+  fewerOf: (name: string) => `Fewer ${name}`,
+  moreOf: (name: string) => `More ${name}`,
+  removeType: (name: string) => `Remove ${name}`,
+  seenShort: (n: number) => `${n} seen`,
+  unseenShort: (n: number) => `${n} unseen`,
+  /**
    * Why a button is off, beside it, in plain words (bd-fmf24g.34): a reason up to a short line, not a label, so
    * this group is exempt from the 4-word rule (COPY_ENTRY.longOk). The limits are the server's, never invented.
    */
@@ -113,6 +129,9 @@ export const ASSESSMENT_V2_COPY = {
     wait: 'Please wait',
     scopeOrFde: 'Select chapters or the FDE board pattern',
     generating: 'A paper for this class is being made',
+    none: 'Add at least 1 question',
+    typesMax: (max: number) => `Up to ${max} types`,
+    marksLow: (n: number) => `At least ${n} marks for ${n} questions`,
   },
   addPages: 'Add pages',
   removePages: 'Remove pages',
@@ -378,6 +397,20 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   fromPage: 'پہلا صفحہ',
   toPage: 'آخری صفحہ',
   typeCount: (name: string) => `${name} کی تعداد`,
+  // Questions, one screen: machine-drafted, needs fluent-Urdu review. Seen / unseen keep the vocabulary's Urdu words
+  // (کتاب سے / نئے سوال), one Urdu word per concept, while the English labels say Seen / Unseen.
+  askCount: 'براہ کرم سوالات کی تعداد چنیں',
+  seenQuestions: 'کتاب کے سوال',
+  unseenQuestions: 'نئے سوال',
+  asInBook: 'جیسے کتاب میں ہیں',
+  addType: 'قسم شامل کریں',
+  wholePaper: 'پورا پرچہ',
+  typesCap: (n: number, max: number) => `${n}/${max} اقسام`,
+  fewerOf: (name: string) => `${name} کم کریں`,
+  moreOf: (name: string) => `${name} زیادہ کریں`,
+  removeType: (name: string) => `${name} ہٹائیں`,
+  seenShort: (n: number) => `کتاب کے ${n}`,
+  unseenShort: (n: number) => `نئے ${n}`,
   why: {
     class: 'جماعت اور مضمون چنیں',
     chapters: 'کم از کم ایک باب چنیں',
@@ -398,6 +431,9 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
     wait: 'براہ کرم انتظار کریں',
     scopeOrFde: 'ابواب چنیں یا FDE بورڈ pattern',
     generating: 'اس کلاس کا پرچہ تیار ہو رہا ہے',
+    none: 'کم از کم ایک سوال شامل کریں',
+    typesMax: (max: number) => `زیادہ سے زیادہ ${max} اقسام`,
+    marksLow: (n: number) => `${n} سوالوں کے لیے کم از کم ${n} نمبر`,
   },
   addPages: 'صفحات شامل کریں',
   removePages: 'صفحات ہٹائیں',
@@ -606,5 +642,7 @@ export const COPY_ENTRY: CopyEntry = {
   // FDE: the hint and note lines beside a button or under a row are one short line each (copy deck §A `longOk`).
   longOk: ['why', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
     'chaptersOff', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
-    'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade'],
+    'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade',
+    // Questions: the one line that says what is asked, in the operator's own words (20 Oct), not a label.
+    'askCount'],
 };
