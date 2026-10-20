@@ -6,6 +6,7 @@ import i18n from "i18next";
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
+vi.mock("../../teacher/useLanguageSwitch", () => ({ useLanguageSwitch: () => ({ target: "ur", status: "idle", toggle: vi.fn() }) }));
 vi.mock("./api", async (orig) => ({
   ...(await orig<typeof import("./api")>()),
   disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
