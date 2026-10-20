@@ -21,6 +21,8 @@
  */
 
 const supabase = require('../../config/supabase');
+// A quiz line with no recorded clip, while one voice is on, read by the phone's own voice (default off, JSON true only)
+const GAP_PHONE_KEY = 'web_quiz_voice_gap_phone';
 const { logToFile } = require('../../utils/logger');
 const Identity = require('./web-quiz-identity');
 const T = require('./web-quiz-token');
@@ -59,7 +61,9 @@ const flag = cachedSwitch({
     // One voice per quiz (`web_quiz_one_voice`, web-quiz-one-voice-flag.js) rides this read, so the page pays no read for
     // it. A failed read that names it reads the page's own two switches again alone, and one voice is off.
     const two = () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY]);
-    let { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice']);
+    // A line with no clip read by the phone's voice while one voice is on (`web_quiz_voice_gap_phone`, JSON true only)
+    // rides it too; with one voice off (or that read failed) it is off.
+    let { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY]);
     const withOne = !error;
     if (!withOne) {
       logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });
@@ -70,7 +74,7 @@ const flag = cachedSwitch({
     let v = by.has(FLAG_KEY) ? by.get(FLAG_KEY) : null;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
     return { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
-      oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null };
+      oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null, voiceGapPhone: withOne && by.get(GAP_PHONE_KEY) === true };
   },
   log: (err) => logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message }),
 });
@@ -87,6 +91,11 @@ async function identityMode(now = Date.now()) {
 /** The one-voice plan this read carried (web-quiz-one-voice-flag.js), or null: off, or a failed read. */
 async function oneVoicePlan(now = Date.now()) {
   return (await pageSettings(now)).oneVoice || null;
+}
+
+/** True only when `web_quiz_voice_gap_phone` is the JSON true in this read (a failed read: false). */
+async function voiceGapPhone(now = Date.now()) {
+  return (await pageSettings(now)).voiceGapPhone === true;
 }
 
 /** The plan a one-voice row names, kept as that module's reading so its other readers ask no read of their own. */
@@ -414,3 +423,5 @@ module.exports = {
   _resetCache: () => { flag.reset(); rosters.clear(); shared.clear(); kept.clear(); },
 };
 module.exports.oneVoicePlan = oneVoicePlan;
+module.exports.voiceGapPhone = voiceGapPhone;
+module.exports.GAP_PHONE_KEY = GAP_PHONE_KEY;
