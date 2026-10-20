@@ -108,3 +108,30 @@ describe('validate', () => {
     expect(B.validate(good(), { thumbsDir: dir }).join('\n')).toMatch(/3\.jpg.*25 KB/);
   });
 });
+
+describe('ped/vetoes.json (lead-review 19:49Z ruling 2: the panel veto is binding)', () => {
+  const kw = { '3-s2': ['clap', 'cue'] };
+  test('a segment entry sets that chapter recommendable:false with its reason; the module stays recommendable', () => {
+    const vetoes = [{ module_id: 3, seg_id: '3-s2', reason: 'not_a_move: the card asks for a goal on the board' }];
+    const data = B.build({ modules: source(), keywords: kw, crosswalk, vetoes, sourceSha: 'abc' });
+    const s = data.modules[0].segments[1];
+    expect(s.recommendable).toBe(false);
+    expect(s.recommendable_reason).toMatch(/^panel_veto: not_a_move/);
+    expect(data.modules[0].recommendable).toBe(true);
+    expect(B.validate(data)).toEqual([]);
+  });
+  test('a module entry sets the module recommendable:false with its reason', () => {
+    const vetoes = [{ module_id: 3, recommendable: false, recommendable_reason: 'panel_veto: not_a_move (ped-panel)' }];
+    const data = B.build({ modules: source(), keywords: kw, crosswalk, vetoes, sourceSha: 'abc' });
+    expect(data.modules[0]).toMatchObject({ recommendable: false, recommendable_reason: 'panel_veto: not_a_move (ped-panel)' });
+  });
+  test('a veto naming a chapter the catalogue does not have is an error, never a silent no-op', () => {
+    expect(() => B.build({ modules: source(), keywords: kw, crosswalk, vetoes: [{ module_id: 3, seg_id: '3-s9', reason: 'x' }], sourceSha: 'abc' }))
+      .toThrow(/3-s9/);
+  });
+  test('no vetoes → the same file as before', () => {
+    const now = new Date('2026-10-20T19:30:00Z');
+    expect(B.build({ modules: source(), keywords: kw, crosswalk, vetoes: [], sourceSha: 'abc', now }))
+      .toEqual(B.build({ modules: source(), keywords: kw, crosswalk, sourceSha: 'abc', now }));
+  });
+});

@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261020T1924-ed73b0ab",
- "built_at": "2026-10-20T19:24:40.014Z",
+ "version": "catalog-v1-20261020T1959-6f716783",
+ "built_at": "2026-10-20T19:59:07.231Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -4466,7 +4466,7 @@
       "D2"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "explain",
      "keywords": [
       "explanation",
@@ -4575,7 +4575,8 @@
       "وغیرہ",
       "رکھا",
       "ڈایاگرام"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_a_move: a lesson-plan voice-over (board diagram, bundling sticks, experiment) picked only by B8/F5 label scores; ⛔2 on 5 of 5 judged picks (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
     },
     {
      "seg_id": "11-s3",
@@ -29044,6 +29045,7 @@
      ],
      "language": "en",
      "recommendable": false,
+     "recommendable_reason": "panel_veto: spliced_foreign_recording: English parent/teacher webinar from a different event, adult audience; not a standalone classroom move for a teacher who tapped \"Patterns\" (ped-panel ruling 18:4xZ, replaces the 18:30Z module veto)",
      "phase": "opening",
      "keywords": [
       "hard",
@@ -29178,6 +29180,7 @@
      ],
      "language": "en",
      "recommendable": false,
+     "recommendable_reason": "panel_veto: spliced_foreign_recording: English parent/teacher webinar from a different event, adult audience; not a standalone classroom move for a teacher who tapped \"Patterns\" (ped-panel ruling 18:4xZ, replaces the 18:30Z module veto)",
      "phase": "guided",
      "keywords": [
       "strategies",
@@ -29441,6 +29444,7 @@
      ],
      "language": "en",
      "recommendable": false,
+     "recommendable_reason": "panel_veto: spliced_foreign_recording: English parent/teacher webinar from a different event, adult audience; not a standalone classroom move for a teacher who tapped \"Patterns\" (ped-panel ruling 18:4xZ, replaces the 18:30Z module veto)",
      "phase": "guided",
      "keywords": [
       "generalise",
@@ -29550,6 +29554,7 @@
      ],
      "language": "en",
      "recommendable": false,
+     "recommendable_reason": "panel_veto: spliced_foreign_recording: English parent/teacher webinar from a different event, adult audience; not a standalone classroom move for a teacher who tapped \"Patterns\" (ped-panel ruling 18:4xZ, replaces the 18:30Z module veto)",
      "phase": null,
      "keywords": [
       "session",
@@ -29663,6 +29668,7 @@
      ],
      "language": "en",
      "recommendable": false,
+     "recommendable_reason": "panel_veto: spliced_foreign_recording: English parent/teacher webinar from a different event, adult audience; not a standalone classroom move for a teacher who tapped \"Patterns\" (ped-panel ruling 18:4xZ, replaces the 18:30Z module veto)",
      "phase": null,
      "keywords": [
       "parents",
@@ -48208,7 +48214,7 @@
       "B7"
      ],
      "language": "mixed",
-     "recommendable": true,
+     "recommendable": false,
      "phase": null,
      "keywords": [
       "lesson",
@@ -48312,7 +48318,8 @@
       "ریڈنگ",
       "denominators",
       "انکوائری"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_a_move: a three-lesson objectives sequence picked on a B7 score alone; nothing a teacher copies tomorrow (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
     },
     {
      "seg_id": "99-s3",
@@ -48354,7 +48361,7 @@
       "C12"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": null,
      "keywords": [
       "different",
@@ -48450,7 +48457,8 @@
       "لاسٹ",
       "کنیکٹ",
       "guided"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_a_move: a five-strategy planning list picked on a B7 score artefact (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
     },
     {
      "seg_id": "99-s4",
@@ -66350,7 +66358,7 @@
       "B10"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "independent",
      "keywords": [
       "five",
@@ -66452,7 +66460,8 @@
       "کوئسچن",
       "ریسرچ",
       "کمیونٹی"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: teacher_cant_act: a five-step project (days of research) sent to single-period lessons on F6 n/a cards (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
     },
     {
      "seg_id": "133-s4",
@@ -76081,6 +76090,7 @@
      ],
      "language": "ur",
      "recommendable": true,
+     "recommendable_reason": "opened: ped-panel 18:28Z + lead-converge 18:29Z: the module's one classroom chapter",
      "phase": null,
      "keywords": [
       "good",
@@ -76487,6 +76497,7 @@
      ],
      "language": "ur",
      "recommendable": true,
+     "recommendable_reason": "opened: ped-panel 18:28Z + lead-converge 18:29Z: the module's one classroom chapter",
      "phase": null,
      "keywords": [
       "modelling",
@@ -78852,6 +78863,7 @@
      ],
      "language": "ur",
      "recommendable": true,
+     "recommendable_reason": "opened: ped-panel 18:28Z + lead-converge 18:29Z: the module's one classroom chapter",
      "phase": null,
      "keywords": [
       "grade",
@@ -79162,6 +79174,7 @@
      ],
      "language": "ur",
      "recommendable": true,
+     "recommendable_reason": "opened: ped-panel 18:28Z + lead-converge 18:29Z: the module's one classroom chapter",
      "phase": null,
      "keywords": [
       "demonstrate",
