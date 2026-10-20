@@ -7,6 +7,7 @@
  *   row: the matrix gives no per-part pages or SLOs); parts with one skill stay one topic.
  * - pre_reading days fold into the next topic; with nothing after them they stand alone.
  * - A "Connect and Create" day folds into the nearest earlier topic of the same skill.
+ * - A leading lesson-section label ("Diving Deeper: …") is dropped from the name when text remains.
  */
 const { headingFor, skillFromLabel } = require('./headings');
 const { shortName, slugify } = require('./short-name');
@@ -17,6 +18,14 @@ const LABEL_DASH = /\s[—–]\s/;
 const CONNECT_AND_CREATE = /connect and create|تخلیق کریں/i;
 const BARE_LABEL_WORDS = 2;
 const PRE_READING = 'pre_reading';
+const LEADING_LABEL = /^[^:]+:\s+/;
+
+/** "Diving Deeper: story snapshot (Diving Deeper)" -> "Story snapshot"; falls back to the whole text. */
+function topicName(text, section) {
+  const rest = text.replace(LEADING_LABEL, '');
+  const name = shortName(rest.charAt(0).toUpperCase() + rest.slice(1), section);
+  return name || shortName(text, section);
+}
 
 /** One part of a topic cell: its skill, its raw text (for the id) and its name text. */
 function parsePart(subject, row, text) {
@@ -42,7 +51,7 @@ function startTopic(subject, unit, pending) {
   const first = pending.length ? pending[0] : unit;
   return {
     skill: unit.skill,
-    name: shortName(unit.body, unit.row.section),
+    name: topicName(unit.body, unit.row.section),
     slug: `${unit.skill}-${slugify(first.text)}`,
     rows: [...pending.map((p) => p.row), unit.row],
   };

@@ -86,9 +86,9 @@ describe('G4 Ch1 — no labels: one topic per SLO', () => {
     expect(topics.flatMap((t) => t.days)).not.toContain(12);
   });
 
-  test('names come from the single-SLO "I can…" statement, else the first day', () => {
+  test('names come from each code\'s own "I can…" statement', () => {
     expect(topics[1].name).toBe('Investigate how plants use water');
-    expect(topics[3].name).toBe('Flowering & Non-Flowering Plants');
+    expect(topics[3].name).toBe('Explore the role of flowers in making');
     for (const t of topics) expect(Array.from(t.name).length).toBeLessThanOrEqual(40);
   });
 });
@@ -118,5 +118,13 @@ describe('label and cell-name edge cases', () => {
   test('the day name drops only the last stage tag and anything after "→"', () => {
     const out = groupScience([day(1, 'Topic 1 · X', 'Plants (green) and more (concept) → next')]);
     expect(out[0].name).toBe('Plants (green) and more');
+  });
+});
+
+describe('a topic with no SLO codes', () => {
+  test('its id falls back to the topic name, never ending in "-"', () => {
+    const [base] = content(4, 2);
+    const [t] = groupChapter('science', [{ ...base, sloCodes: [], sloDescriptions: [], section: 'Topic 1 · X', topic: 'Topic 1: Plants - grow' }]);
+    expect(t.topicId).toBe('4-science-2-plants');
   });
 });

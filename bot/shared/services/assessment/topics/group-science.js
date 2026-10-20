@@ -62,7 +62,8 @@ function groupScience(rows) {
   if (!rows.some((r) => topicNumber(r) !== null)) return groupBySlo(rows, dayName);
   return byLabel(rows).map((group) => {
     const facts = collect(group.rows);
-    return { name: nameOf(group), heading: null, headingOrder: null, slug: slugify(facts.sloCodes[0]), ...facts };
+    const name = nameOf(group);
+    return { name, heading: null, headingOrder: null, slug: slugify(facts.sloCodes[0]) || slugify(name), ...facts };
   });
 }
 

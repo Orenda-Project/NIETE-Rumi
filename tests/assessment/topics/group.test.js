@@ -89,3 +89,15 @@ describe('groupAll', () => {
     expect(groupAll('english', english).map((t) => t.chapterNumber)).toEqual([1, 1, 1, 1, 1, 2]);
   });
 });
+
+describe('names within a chapter', () => {
+  test('two topics whose names collide are told apart', () => {
+    const maths = parseMatrixTab(sample.maths, 'maths');
+    const row = { ...maths.find((r) => r.lpType === 'content'), sloCodes: ['M-01-TM-01', 'M-01-TM-02'],
+      sloDescriptions: ["I can read and write time in hours (o'clock) from analogue clock.",
+        "I can read and write time in hours (o'clock) from digital clock."] };
+    expect(groupChapter('maths', [row]).map((t) => t.name)).toEqual([
+      'Read and write: analogue clock', 'Read and write: digital clock',
+    ]);
+  });
+});
