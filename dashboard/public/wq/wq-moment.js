@@ -280,8 +280,12 @@
   // picture under it is the same page carrying on (no seam, nothing sliced). The picture is drawn at the band's width
   // and its box ends at it; a stage too short for that draws both narrower together (centred, one width), or leaves the
   // picture out when the lines would no longer read. -> {.., one: true}
+  // one 2 (web_quiz_read_sheet_fit, the book's read_sheet 2): never words with empty room where the picture would fit.
+  // Where it would be left out, the words keep their size and the picture is its own card (rounded all round, centred,
+  // 8 px under the band) in the room left, when that is 96 px or more; the stage says the picture's side inset
+  // (--wqs-pi), so Jugnu's hint bubble is never wider than the picture it sits on
   function art(a, cam, im, all, bs, d, rtl, rs, one) {
-    var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R, s0, t0, lo, hi, k, wl, ps;
+    var own = 0, Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R, s0, t0, lo, hi, k, wl, ps;
     all.forEach(function (b) { Y0 = Math.min(Y0, b[1]); Y1 = Math.max(Y1, b[1] + b[3]); });
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
     // one: a stage held at the sheet (its cap, below) is framed in the room the sheet was drawn in, so the cap holds still
@@ -322,21 +326,24 @@
         if (lo <= hi && ch * s <= g[1] - g[0]) {
           for (k = 0; k < 14; k++) { s = (lo + hi) / 2; frame(); if (ch * s <= g[1] - g[0]) lo = s; else hi = s; }
           s = Math.floor(lo * 1000) / 1000; tx = r((d[0] - im.w * s) / 2); frame(); z = s;
-        } else { s = s0; tx = t0; frame(); z = 0; }
+        } else {
+          s = s0; tx = t0; frame(); z = 0;
+          if (one === 2) { z = Math.min((g[1] - g[0] - 8) / ch, d[0] / im.w, s); if (z * ch >= 96) own = 1; else z = 0; }
+        }
       }
     } else z = Math.min((d[0] - 24) / im.w, (g[1] - g[0] - 12) / ch, s);
     a.setAttribute('data-art', z * ch >= 96 ? 'on' : 'off');
     // one: the box says so, and the stage drops its white card (wq-moment.css)
     if (one) a.setAttribute('data-one', 'on');
     // one: the box ends at the picture (no strip under it)
-    if (one && z * ch >= 96) g = dn ? [g[0], r(g[0] + ch * z)] : [r(g[1] - ch * z), g[1]];
+    if (one && z * ch >= 96) g = own ? (dn ? [r(g[0] + 8), r(g[0] + 8 + ch * z)] : [r(g[1] - 8 - ch * z), r(g[1] - 8)]) : dn ? [g[0], r(g[0] + ch * z)] : [r(g[1] - ch * z), g[1]];
     a.style.top = g[0] + 'px'; a.style.height = r(Math.max(0, g[1] - g[0])) + 'px'; a.style.alignItems = dn ? 'flex-start' : 'flex-end';
     i = a.querySelector('i'); m = i && i.querySelector('img');
-    if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; i.style.borderRadius = dn ? '0 0 12px 12px' : '12px 12px 0 0'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
+    if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; i.style.borderRadius = own ? '12px' : dn ? '0 0 12px 12px' : '12px 12px 0 0'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
     if (!one) return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0)' };
     // one: the stage ends at a sheet that stops short of it (the page as wide as it goes), so nothing empty shows above
     // the row under it; a sheet shrunk to fit takes the stage as it is
-    if (z * ch >= 96) {
+    if (z * ch >= 96 && !own) {
       // the band runs on 2 px under the picture's edge (the same page there), so no hairline shows at the join
       if (dn) c1 = Math.min(im.h, c1 + 2 / s); else c0 = Math.max(0, c0 - 2 / s);
     } else if (dn) c1 = Math.min(c1, y1 + 2 / s); else c0 = Math.max(c0, y0 - 2 / s);   // no picture: tight to the lines, never into the art
@@ -344,13 +351,14 @@
     // sits over its foot, wq-moment.css, so the cap holds still)
     k = Math.ceil(z * ch >= 96 ? g[1] : c1 * s + ty);
     if (ps && ps.style && ps.style.setProperty) {
-      i = dn && (wl || z * ch < 96) && k < d[1] - .5;
+      i = dn && (wl || own || z * ch < 96) && k < d[1] - .5;
       ps.style.setProperty('--wqs-cap', i ? k + 'px' : 'none'); ps.style.setProperty('--wqs-min', i ? Math.min(200, k) + 'px' : '200px');
       ps.wqsRoom = i ? [d[0], d[1], k] : null;
+      if (one === 2) ps.style.setProperty('--wqs-pi', z * ch >= 96 ? r(Math.max(0, (d[0] - im.w * z) / 2)) + 'px' : '0px');
     }
     // one: the band's own outer corners round like the picture's (all four when the picture is left out)
     R = r(12 / s) + 'px';
-    return { s: s, tx: tx, ty: ty, one: true, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0 round ' + (z * ch < 96 ? R : dn ? R + ' ' + R + ' 0 0' : '0 0 ' + R + ' ' + R) + ')' };
+    return { s: s, tx: tx, ty: ty, one: true, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0 round ' + (z * ch < 96 || own ? R : dn ? R + ' ' + R + ' 0 0' : '0 0 ' + R + ' ' + R) + ')' };
   }
   function q(k, R, m, x) {
     var y;
