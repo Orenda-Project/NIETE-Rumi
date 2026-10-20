@@ -98,7 +98,7 @@ export function dcSteps(stage: CoachingStage, answered: boolean, C: CoachingCopy
       : stage === 'reflection' ? (answered ? 2 : 1)
         : 0;
   const defs: Array<[string, string | undefined]> = [
-    [C.analysing, undefined],
+    [C.stepAnalysis, undefined],
     [C.stepReflection, C.subReflection],
     [C.stepReport, C.subReport],
   ];
