@@ -254,3 +254,24 @@ test('the warm-up: taps per second, carried on every result', () => {
   r.instructionDone(); r.begin(); r.coachEnd();
   expect(r.results()[0].taps_per_s).toBe(2.5);
 });
+
+test('keyboard (spelling): typed words, case and spaces aside; the typed text is kept', () => {
+  const b = { battery_id: 'sp', tasks: [{ id: 'en.spelling', subtask: 'spelling', mode: 'both', items: [{ id: 'w1', answer: 'shop' }, { id: 'w2', answer: 'rice' }] }] };
+  const { r } = make(b);
+  r.start(); r.instructionDone(); r.begin();
+  expect(r.view().task.mode).toBe('keyboard');
+  expect(r.view().task.next_at_s).toBe(15);
+  expect(r.answer(' Shop ')).toBe(true);
+  expect(r.answer('ris')).toBe(false);
+  expect(r.results()[0]).toMatchObject({ mode: 'keyboard', correct: 1, scored_on: 'phone', answers: [{ value: ' Shop ', ok: true }, { value: 'ris', ok: false }] });
+});
+
+test('a spoken question: the answer window starts when Jugnu has finished asking', () => {
+  const { r, now } = make(real(['ur.story', 'ur.story_comp']));
+  r.start(); r.instructionDone(); r.begin(); r.done(); r.lastWord(40); r.next(); r.instructionDone(); r.begin();
+  now.go(8000); r.promptDone();
+  now.go(9000); r.tick();
+  expect(r.view().item_index).toBe(0);
+  now.go(1000); r.tick();
+  expect(r.view().item_index).toBe(1);
+});

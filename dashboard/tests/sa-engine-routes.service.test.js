@@ -50,3 +50,17 @@ test('the switch reads app_settings sa_engine by the house rule (JSON true only)
   const { KEY } = require('../routes/sa-engine.routes');
   expect(KEY).toBe('sa_engine');
 });
+
+test('switch on: the battery files are served from the content folder by name only', async () => {
+  const { srv, base } = await serve(true);
+  try {
+    const res = await fetch(`${base}/sa/batteries/sa.coach.G3.A.ur.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/json/);
+    expect((await res.json()).battery_id).toBe('sa.coach.G3.A.ur');
+    expect((await fetch(`${base}/sa/batteries/item-bank.v3.json`)).status).toBe(299);
+    expect((await fetch(`${base}/sa/batteries/..%2F..%2Fitem-bank.v3.json`)).status).toBe(299);
+  } finally { srv.close(); }
+  const off = await serve(false);
+  try { expect((await fetch(`${off.base}/sa/batteries/sa.coach.G3.A.ur.json`)).status).toBe(299); } finally { off.srv.close(); }
+});
