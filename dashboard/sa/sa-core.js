@@ -204,6 +204,8 @@
     function ev(type, extra) {
       var e = { session_id: opts.session_id || null, seq: ++seq, t_ms: Math.round(now() - t0), at: wall(), type: type };
       if (extra) for (var k in extra) if (has(extra, k) && extra[k] !== undefined) e[k] = extra[k];
+      // The engine logs record_start when the recorder really opens: the task then has a recording to wait for.
+      if (type === 'record_start' && st && st.task_id && (!e.task_id || e.task_id === st.task_id)) st.recorded = true;
       emit(e);
       return e;
     }
@@ -297,6 +299,9 @@
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
       }
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
+      // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
+      // the server waits for audio only where a recording exists.
+      if (t.mode === 'record' || t.mode === 'oral') r.recorded = !!st.recorded;
       if (phone && lim != null) {
         // EGRA's per-minute rate: correct × 60 / seconds used (a child who finished early is not penalised).
         r.per_minute = used > 0 ? Math.round((st.correct * 60000 / used) * 10) / 10 : 0;
