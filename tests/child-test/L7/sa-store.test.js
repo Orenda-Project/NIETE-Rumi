@@ -161,6 +161,8 @@ describe('markSynced and summary', () => {
       { task_id: 'en.listening', mode: 'oral', stop_reason: 'complete', attempted: 0 },
       { task_id: 'ur.listening', mode: 'oral', stop_reason: 'complete', attempted: 2 },
       { task_id: 'en.story', mode: 'record', stop_reason: 'early_stop_silence' },
+      { task_id: 'en.story_comp', mode: 'oral', stop_reason: 'coach_end', attempted: 0 },
+      { task_id: 'ur.story2', mode: 'record', stop_reason: 'coach_end', recorded: false },
     ], 'ur');
     expect((await Store.summary('s1')).audioWaiting).toEqual(['ur.listening', 'en.story']);
   });
