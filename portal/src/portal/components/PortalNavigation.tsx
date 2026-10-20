@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
 import { useChildTest } from '../lib/useChildTest';
+import { useChildTestSa } from '../lib/useChildTestSa';
 import { useLogoutGuard } from '../lib/recordingSession';
 import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
@@ -28,6 +29,8 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   const { logout, user } = useAuth();
   // bd-5rz1v.10 — Logout would end a lesson still recording, so it asks first then.
   const guardedLogout = useLogoutGuard(logout);
+  const childTestOn = useChildTest() === true;
+  const assessOn = useChildTestSa() === true;
   // bd-5rz1v.12 — the new UI's indigo menu bar, only while portal_new_ui is on
   // for her. Off, loading or unreadable: the markup below, unchanged.
   const newUiOn = useNewUi(user?.phoneNumber || null) === true;
@@ -78,6 +81,9 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // them. A route with no nav entry is a route nobody finds (see Training).
   if (childTestOn) {
     leaderNav.push({ title: 'Child test', path: '/portal/leader/child-test', icon: ClipboardCheck });
+  }
+  if (assessOn) {
+    leaderNav.push({ title: 'Learning assessment', path: '/portal/leader/assess', icon: ClipboardCheck });
   }
   const isPrincipal = resolveRole(user) === 'principal';
   if (isPrincipal) {
