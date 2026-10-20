@@ -576,7 +576,9 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    // web_quiz_clip_stable_sign (rides the identity read above: no read of its own): one link per clip for the hour
+    const stable = await IdRoster.clipStableSign();
+    try { audio = (await helpers.presignAudio(audioMeta, stable ? { expiresIn: MEDIA_TTL_S, stable } : { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
