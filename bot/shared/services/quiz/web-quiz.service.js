@@ -686,6 +686,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (out.challenge && require('./web-quiz-hub-flags').nowOf('challengeFold')) out.challenge_fold = true;
   // web_quiz_end_fit (the hub's switch cache, no read): the end screen's stars stay one row, its headline balanced (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('endFit')) out.end_fit = true;
+  // web_quiz_share_name_bidi (the hub's switch cache, no read): the English share words isolate the child's name (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('nameBidi')) out.name_bidi = true;
   // web_quiz_end_short (the hub's switch cache, no read; only beside end_fit): the end screen fits a short phone (wq.js)
   if (out.end_fit && require('./web-quiz-hub-flags').nowOf('endShort')) out.end_short = true;
   // web_quiz_end_once (the hub's switch cache, no read): Jugnu's end-screen line never repeats the card's heading (wq.js)
@@ -950,9 +952,6 @@ function challengeOutcome(mine, theirs) {
 
 /** The friend who sent a challenge link: their first counted score on the class code. */
 async function challengeOf(ctx) {
-  // web_quiz_share_name_bidi (the card switches' one read, 30 s cache), asked beside the score and only on an Urdu page
-  const Card = require('./web-quiz-card-switch');
-  const bidiP = ctx.lang === 'ur' ? Card.on().then(() => Card.nameBidiCached()).catch(() => false) : null;
   const { data: rows } = await dbRead('challengeOf:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('id, student_id, student_name, status, correct_answers, total_questions_answered, completed_at, created_at')
     .eq('share_code_id', ctx.shareCodeId).eq('student_id', ctx.invitedByStudentId).eq('status', 'completed'));
@@ -960,10 +959,10 @@ async function challengeOf(ctx) {
   if (!best) return null;
   const nameOf = await shownNames(ctx.lang, [best.student_id]);
   const shown = nameOf(best.student_id, best.student_name);
-  // On: an Urdu page keeps the list's Urdu spelling, and a name it would show in Latin letters (the list's Urdu column
-  // held «Testwala» for «Beena Testwala») is the first name the child played under, the name the English page shows.
-  // The friend's door, the result line and the challenge picture all take the name from here. Off: today's name.
-  const first = bidiP && (await bidiP) && !ARABIC_SCRIPT.test(shown) ? firstName(best.student_name) : shown;
+  // web_quiz_share_name_bidi (the hub's switch cache, no read): on an Urdu page a name that would show in Latin letters
+  // becomes the first name the child played under, as on the English page; a name in Urdu script is kept. The friend's
+  // door, the result line and the challenge picture all take the name from here. Off: today's name.
+  const first = ctx.lang === 'ur' && require('./web-quiz-hub-flags').nowOf('nameBidi') && !ARABIC_SCRIPT.test(shown) ? firstName(best.student_name) : shown;
   return { first, correct: best.correct_answers || 0, total: best.total_questions_answered || 0 };
 }
 
