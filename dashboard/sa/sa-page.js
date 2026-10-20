@@ -44,6 +44,7 @@
       back: /^\/(?!\/)[^\s\\]*$/.test(back) ? back : null,
       skin: q.get('skin') === 'game' ? 'game' : null,
       embed: q.get('embed') === '1',
+      drain: q.get('drain') === '1',
       // A linked phone's token (the coach's QR/link): the sink uses the token routes, no cookie.
       token: /^[A-Za-z0-9._~-]{16,700}$/.test(q.get('t') || '') ? q.get('t') : null,
       first_name: name || null,
@@ -132,6 +133,45 @@
     };
   }
 
+  /**
+   * Send what earlier children left on this phone. Each session's sync lives in its own page, so a child whose
+   * network came back after the hand-back would never send. drain() lists every coach (proctored) session in the
+   * phone's store with something unsent, and runs the same sync for each, one after another, through the coach sink.
+   *   o: { store, sync (SAE.sync), sink() → a sink, exclude (the session this page runs), online, timers }
+   * → Promise<[{ s, state, pending_events, pending_audio }]>. Game runs need their run token: not drained here.
+   */
+  function drain(o) {
+    return o.store.sessions().then(function (rows) {
+      var ids = rows.filter(function (r) { return r && r.session_id && r.session_id !== o.exclude && r.mode !== 'game'; })
+        .map(function (r) { return r.session_id; });
+      var out = [];
+      return ids.reduce(function (chain, id) {
+        return chain.then(function () { return o.store.pending(id); }).then(function (p) {
+          if (!p.events.length && !p.results.length && !p.chunks.some(function (c) { return c.final; })) return null;
+          var sy = o.sync.create({ store: o.store, sink: o.sink(), session_id: id, online: o.online, timers: o.timers });
+          return sy.flush().then(function (st) {
+            if (sy.stop) sy.stop();
+            out.push({ s: id, state: st.state, pending_events: st.pending_events, pending_audio: st.pending_audio });
+          });
+        });
+      }, Promise.resolve()).then(function () { return out; });
+    });
+  }
+
+  /** The drain page (/sa/play.html?drain=1&embed=1): no screen, no session; drain, then tell the coach page once. */
+  function bootDrain(SAE, p) {
+    var store = SAE.store;
+    var sink = function () { return SAE.sinks.coach(); };
+    return store.open().then(function (st) {
+      return drain({ store: st, sync: SAE.sync, sink: sink });
+    }).then(function (sessions) { return sessions; }, function () { return []; }).then(function (sessions) {
+      if (p.embed && root.parent && root.parent !== root) {
+        root.parent.postMessage({ type: 'sa:drained', sessions: sessions }, root.location.origin);
+      }
+      return sessions;
+    });
+  }
+
   function fail(mount, words) {
     mount.textContent = '';
     mount.appendChild(el('p', 'sa-fail', words));
@@ -147,6 +187,7 @@
     var mount = doc.getElementById('sae-root') || doc.body;
     doc.documentElement.lang = p.lang;
     doc.documentElement.dir = p.lang === 'ur' ? 'rtl' : 'ltr';
+    if (p.drain && SAE.store && SAE.sync && SAE.sinks && SAE.sinks.coach) { bootDrain(SAE, p); return; }
     if (!p.session_id || !p.form) { fail(mount, p.lang === 'ur' ? 'یہ لنک درست نہیں۔' : 'This link is not right.'); return; }
     // Game mode: the game lane's sink and skin, loaded (or found missing) before the engine starts, so the skin sees
     // the first event and the sink exists for the first sync.
@@ -180,6 +221,13 @@
         root.__sae = engine;
         if (p.mode === 'proctored') {
           var release = lockDown(root, engine, { embed: p.embed });
+          // Belt and braces: an earlier child's rows on this phone go too, after this child's own start.
+          if (!p.token && SAE.sync && SAE.sinks && SAE.sinks.coach) {
+            setTimeout(function () {
+              drain({ store: engine.store, sync: SAE.sync, sink: function () { return SAE.sinks.coach(); }, exclude: engine.session_id })
+                .then(function (d) { if (d.length) engine.runner.log('drained', { value: d }); }, function () {});
+            }, 3000);
+          }
           engine.on('unlock', release);
         }
         offline.then(function (o) {
@@ -202,5 +250,5 @@
     });
   }
 
-  return { params: params, pick: pick, lockDown: lockDown, boot: boot };
+  return { params: params, pick: pick, lockDown: lockDown, drain: drain, boot: boot };
 }));
