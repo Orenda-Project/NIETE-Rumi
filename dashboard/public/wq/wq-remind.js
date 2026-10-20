@@ -3,7 +3,7 @@
  *   WQREMIND.mount(slot, ctx)    the results screen's secondary card, below the primary next step (wq.js lazy-loads this
  *                                file after the primary has painted). Never a test button here.
  *   WQREMIND.landing(root, ctx)  the /remind/:code page (edge-rendered; this file boots it from #wq-remind-boot). After
- *                                Done: the Play door to /q/<code>, and "Send a test now" only when ctx.test.
+ *                                Done: the Play door to /q/<code>, and "Send one now" only when ctx.test (sandbox QA).
  *   ctx = {code, lang, chips, chip?, test?, host?}
  *
  * First GET /api/wqpush/key: a 404 means the switch is off, so any of our workers (/sw.js) is unregistered and nothing
