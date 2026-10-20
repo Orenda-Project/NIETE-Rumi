@@ -91,6 +91,9 @@ const CLOSED_LANG_KEY = 'web_quiz_closed_lang';
 // A class link's picture facts start beside the page's own reads (web-quiz-class-pic.js, with the fast page): the hub's
 // switch cache only (nowOf('classPicEarly')), never a read of its own. Only the stored JSON boolean true is on.
 const CLASS_PIC_EARLY_KEY = 'web_quiz_class_pic_early';
+// web_quiz_class_rows_together (JSON true only, from this cache only: nowOf('classRows')): a class link's class
+// (web-quiz-identity.js resolveQuizClass) reads its row and its list together, and its children start once its id is known
+const CLASS_ROWS_KEY = 'web_quiz_class_rows_together';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -167,6 +170,7 @@ const SWITCHES = Object.freeze([
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
   ['classPicEarly', CLASS_PIC_EARLY_KEY,  'json'],
+  ['classRows',    CLASS_ROWS_KEY,        'json'],
   ['closedLang',   CLOSED_LANG_KEY,       'json'],
   ['prefetch',     PREFETCH_KEY,          'json'],
   ['earlyUnlock',  EARLY_UNLOCK_KEY,      'json'],
@@ -589,6 +593,7 @@ module.exports = {
   KID_TOGETHER_KEY,
   kidTogetherNow,
   LINK_TOGETHER_KEY,
+  CLASS_ROWS_KEY,
   linkTogetherNow,
   _resetCache: () => { cache = null; reading = null; langSeen = null; },
 };
