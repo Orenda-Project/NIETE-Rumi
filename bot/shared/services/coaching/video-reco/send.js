@@ -21,6 +21,7 @@ const { videoLinkUrl } = require('./link-token');
 const copy = require('./copy');
 
 const PART = 'video';
+const WAIT_CAP_MS = 60000; // the engine's own timeout (SPEC v1.2.1 §3.2): a promise that never settles never holds the job
 const NOTHING = Object.freeze({ sent: false, via: null });
 const THUMBS = path.join(__dirname, '..', '..', '..', '..', 'assets');
 
@@ -135,12 +136,15 @@ async function sendVideoRecommendation({ row, phone, language, track, imageStrip
  * engine runs without being awaited); when the caller has none, the session's stored row is read. Nothing
  * unless the flag is on and the row is 'shown'. Never throws.
  */
-async function sendAfterReport({ coachingSessionId, phone, language, track, row: given, imageStrip = false, deps = {} } = {}) {
+async function sendAfterReport({ coachingSessionId, phone, language, track, row: given, imageStrip = false, capMs = WAIT_CAP_MS, deps = {} } = {}) {
   try {
     const on = typeof deps.enabled === 'function' ? deps.enabled() : enabledByDefault();
     if (!on || !coachingSessionId) return NOTHING;
     const store = deps.store || require('./store');
-    const row = given !== undefined ? await given : await store.readForSession(coachingSessionId);
+    let timer;
+    const pending = given !== undefined ? Promise.resolve(given) : store.readForSession(coachingSessionId);
+    const row = await Promise.race([pending, new Promise((r) => { timer = setTimeout(() => r(null), capMs); })]);
+    clearTimeout(timer);
     if (!row || row.status !== 'shown') return NOTHING;
     return await sendVideoRecommendation({ row, phone, language, track, imageStrip, deps: { ...deps, store } });
   } catch (err) {
@@ -149,4 +153,4 @@ async function sendAfterReport({ coachingSessionId, phone, language, track, row:
   }
 }
 
-module.exports = { sendVideoRecommendation, sendAfterReport, PART };
+module.exports = { sendVideoRecommendation, sendAfterReport, PART, WAIT_CAP_MS };

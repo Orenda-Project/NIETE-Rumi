@@ -129,6 +129,10 @@ describe('flag on (wiring)', () => {
 
   test('a recommendation that never finishes does not delay or block the report', async () => {
     process.env.VIDEO_RECO_ENABLED = 'true';
+    // bd-gzfdu9 (eng-surfaces, on integration): the strip waits ≤ 20 s by design (SPEC §4.9) and the sender ≤ 60 s;
+    // both are capped and tested in send.test.js / report-image-strip.test.js. Here hook A alone is under test.
+    jest.doMock('../../../bot/shared/services/coaching/video-reco/strip', () => ({ stripFor: async () => null }));
+    jest.doMock('../../../bot/shared/services/coaching/video-reco/send', () => ({ sendAfterReport: async () => ({ sent: false, via: null }) }));
     load({ recommendForReport: jest.fn(() => new Promise(() => {})) });
     await RG.generateReport('sess-1', { from: '10000000000' });
     expect(RG.generatePDFReport).toHaveBeenCalledTimes(1);
