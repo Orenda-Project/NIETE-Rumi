@@ -177,6 +177,12 @@ const UX_STRINGS = {
     en: '{n} min · tap ▶ Watch in the next message',
     ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
   },
+  // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
+  // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. {n} is seconds.
+  videoRecoCardFallbackReason: {
+    en: 'Your report asks you to try: "{sentence}". This {n}-second clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "{sentence}"۔ یہ {n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔',
+  },
 
   // ─── the registration Flow invite (services/registration-invite.service.js) ──
   // One message, three cases: a new person, a registered teacher fixing her details, and an
