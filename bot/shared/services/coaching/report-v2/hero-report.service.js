@@ -61,41 +61,9 @@ function heroTopic(narrative, analysis) {
   return (analysis && analysis.topic) || '';
 }
 
-const UPTAKE_LINE_KEY = {
-  achieved: 'uptakeLineAchieved',
-  partial: 'uptakeLinePartial',
-  not_seen: 'uptakeLineNotSeen',
-  not_applicable: 'uptakeLineNotApplicable',
-  unknown: 'uptakeLineUnknown',
-};
-
-/** "specific feedback moves 2, next step feedback 0" — the tally in words, never a score. */
-function tallyInWords(count) {
-  if (!count || typeof count !== 'object') return '';
-  return Object.entries(count)
-    .filter(([, v]) => v !== null && v !== undefined && v !== '')
-    .map(([k, v]) => `${String(k).replace(/_/g, ' ')} ${v}`)
-    .join(', ');
-}
-
-/**
- * The hero's "Last time we asked" block, from the loop state the report
- * generator computed ({ prior, status, state }) and this lesson's tally.
- * Null when there is nothing to show (no loop, no prior, or no verdict).
- * The line is catalog copy in the report language; the ask is verbatim in
- * whatever language it was written. Never a percentage.
- */
-function buildUptakeVm(loop, uptake, lang) {
-  if (!loop || !loop.prior || !loop.prior.target || !loop.status || loop.status === 'no_prior') return null;
-  const status = UPTAKE_LINE_KEY[loop.status] ? loop.status : 'unknown';
-  const target = loop.prior.target.name || loop.prior.target.indicator;
-  const count = tallyInWords(uptake && uptake.count) || '—';
-  let line = resolveUx(UPTAKE_LINE_KEY[status], { language: lang, params: { count, target } });
-  if (loop.state && loop.state.hand_over) {
-    line += ' ' + resolveUx('uptakeLineHandOver', { language: lang, params: { count, target } });
-  }
-  return { asked: String(loop.prior.action || ''), status, line };
-}
+// bd-z3cadk: the "Last time we asked" wording lives in uptake-line.js, so the portal's report page can build the
+// same block from what was stored without loading this renderer.
+const { buildUptakeVm, tallyInWords } = require('./uptake-line');
 
 /**
  * Say why the subject-specific Section F row is absent.

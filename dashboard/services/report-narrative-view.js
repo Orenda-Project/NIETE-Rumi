@@ -43,6 +43,8 @@ function narrativeView(analysisData) {
     headline, identity, moments, strength, horizon, domainWhys,
     // bd-foyqpc — the WhatsApp report heads itself with this topic (written in her language) before the analysis one.
     topic: text(n.topic) || null,
+    // bd-z3cadk — the note under the progress graph on her WhatsApp report.
+    journeyNote: text(n.journey_note) || null,
     language: typeof n._language === 'string' ? n._language : null,
   };
 }

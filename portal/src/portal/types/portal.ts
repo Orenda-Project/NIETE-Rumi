@@ -198,6 +198,8 @@ export interface ReportNarrative {
   language: string | null;
   /** bd-foyqpc — the lesson's topic as her WhatsApp report names it (her language); null on older sessions. */
   topic?: string | null;
+  /** bd-z3cadk — the note under the progress graph on her WhatsApp report. */
+  journeyNote?: string | null;
 }
 
 export interface SessionDetail extends CoachingSession {
@@ -219,6 +221,12 @@ export interface SessionDetail extends CoachingSession {
   photoUrls?: string[];
   breakdown?: ScoreBreakdown | null;
   reportNarrative?: ReportNarrative | null;
+  /** bd-z3cadk — the same recording was sent before; the earlier report was reused. */
+  duplicate?: boolean;
+  /** bd-z3cadk — the date of the report shown (the original's, for a repeat). */
+  reportDate?: string | null;
+  /** bd-z3cadk — the WhatsApp report's "Last time we asked" block, in the report's language. */
+  lastAsked?: { text: string; status: string; statusLabel: string; line: string } | null;
   reflection?: ReflectionEntry[];
   prioritizedAction?: PrioritizedAction | null;
   analysisData: AnalysisData;
@@ -696,6 +704,8 @@ export interface CoachingProgress {
   photoCount?: number;
   /** bd-aqotzx — why a stopped session stopped: 'not_a_class' | 'not_a_class_no_answer' | 'too_short' | … */
   stopReason?: string | null;
+  /** bd-z3cadk — the same recording was sent before; the earlier report was reused. */
+  duplicate?: boolean;
   createdAt?: string;
 }
 
