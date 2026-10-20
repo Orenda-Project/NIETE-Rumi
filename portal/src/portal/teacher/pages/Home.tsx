@@ -10,6 +10,7 @@ import { teacherPath } from "../routes";
 import type { TeacherFeature } from "../paths";
 import { ReadyForYou } from "../notices/ReadyForYou";
 import { noticeTracker } from "../notices/tracker";
+import { RemindCard } from "../notices/RemindCard";
 import { LanguageTabs } from "../LanguageTabs";
 import { NextCard, FULL_KINDS } from "../home/NextCard";
 import { SlimCard, SLIM_KINDS } from "../home/SlimCard";
@@ -82,6 +83,8 @@ export default function Home() {
         {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
         {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
         {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
+        {/* The evening reminder (portal_push_remind): below the one next step; nothing drawn while off. */}
+        <RemindCard />
         <FeatureMotionProvider>
         <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
           {drawn}
@@ -111,6 +114,8 @@ export default function Home() {
           "Ready for you" above them (a heading on grey) the band simply ends, so no text lands on the navy. */}
       {/* bd-fmf24g.15 — the finished papers and plans she has not opened (nothing drawn when there are none). */}
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
+      {/* The evening reminder (portal_push_remind): web push on a plain browser only; nothing drawn while off. */}
+      <RemindCard />
       <FeatureMotionProvider>
       <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
         {tiles.map(({ key, art, label }) => (
