@@ -4,7 +4,7 @@
  * existing report", most of whom get it as a WhatsApp image).
  *
  * stripFor(): at the hero render, wait for the engine's pick for at most 20 s (the LLM's own timeout); a 'shown' row
- * becomes { thumbPath, title, durationS, levelLabel } for the templates, anything else (off, shadow, none, slower
+ * becomes { thumbPath, title, durationS } for the templates, anything else (off, shadow, none, slower
  * than the cap, an error) is null and the image renders exactly as today. The flag is read at call time; `row` is
  * the engine's promise when the caller has it, else the session's stored row (merge-order safety, as send.js).
  *
@@ -50,7 +50,6 @@ async function stripFor({ coachingSessionId, language, row: given, capMs = CAP_M
       thumbPath: path.join(ASSETS, mod.thumb || `video-thumbs/${row.module_id}.jpg`),
       title: copy.localized(seg, 'title', l) || mod.title || '',
       durationS: end > start ? end - start : Number(mod.duration_s) || 60,
-      levelLabel: copy.levelLabel(mod.cpd_level, l),
     };
   } catch (err) {
     logToFile('[video-reco] image strip skipped (non-fatal)', { coachingSessionId, error: err.message }, 'warn');

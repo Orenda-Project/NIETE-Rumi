@@ -177,8 +177,6 @@ const UX_STRINGS = {
     en: '{n} min · tap ▶ Watch in the next message',
     ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
   },
-  videoRecoLevel: { en: 'Level {cpd}', ur: 'لیول {cpd}' },
-  videoRecoLevelAspiring: { en: 'Aspiring', ur: 'ابتدائی' },
 
   // ─── the registration Flow invite (services/registration-invite.service.js) ──
   // One message, three cases: a new person, a registered teacher fixing her details, and an

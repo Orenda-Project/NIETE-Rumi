@@ -72,11 +72,11 @@ test('shown row: one cta_url with the video card header, the link, the button; t
   expect(deps.releasePiece).not.toHaveBeenCalled();
 });
 
-test('the card gets the clip title in the teacher\'s language, its length, the level chip and the module thumbnail', async () => {
+test('the card gets the clip title in the teacher\'s language, its length and the module thumbnail (no level)', async () => {
   await send.sendVideoRecommendation({ row: ROW, phone: PHONE, language: 'ur', deps });
   const vm = deps.renderCard.mock.calls[0][0];
   expect(vm).toMatchObject({ title: 'کیوں والے سوال', durationS: 134, language: 'ur' });
-  expect(vm.levelLabel.replace(/[‎‏⁦-⁩]/g, '')).toBe('لیول ۱');
+  expect(vm.levelLabel).toBeUndefined();
   expect(vm.thumbPath).toMatch(/bot\/assets\/video-thumbs\/63\.jpg$/);
   const body = wa.sendCtaUrl.mock.calls[0][1].body;
   expect(body).toContain('⁦wait time⁩');

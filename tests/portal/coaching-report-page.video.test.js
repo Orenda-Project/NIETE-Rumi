@@ -20,7 +20,7 @@ const links = { card: '/cr/T', detail: '/cr/T/detail', useful: '/cr/T/useful' };
 const golden = (l) => fs.readFileSync(path.join(__dirname, 'fixtures', `cr-page-golden.${l}.html`), 'utf8');
 
 const VIDEO = {
-  title: 'Asking why-questions <i>', levelLabel: 'Level 1', durationS: 134, clipLanguage: 'ur',
+  title: 'Asking why-questions <i>', durationS: 134, clipLanguage: 'ur',
   reason: 'At 12:40 you asked "What is a noun?" and moved on.', thumbUrl: '/v/thumb/63.jpg', href: '/v/TOKEN',
 };
 
@@ -58,11 +58,11 @@ describe('the page', () => {
     expect(sec).toContain('2 min · Urdu');
     expect(sec).toContain('At 12:40 you asked &quot;What is a noun?&quot;');
     expect(sec).toMatch(/<a class="btn wide" href="\/v\/TOKEN">Watch \(2 min\)<\/a>/);
-    expect(sec).toContain('Level 1');
+    expect(sec).not.toMatch(/Level|Aspiring|class="chip"/);
   });
 
   test('Urdu: Urdu words and digits', () => {
-    const html = page.renderReportPage(view.buildReportView({ ...input('ur'), video: { ...VIDEO, title: 'کیوں والے سوال', levelLabel: 'لیول ۱' } }), env, links);
+    const html = page.renderReportPage(view.buildReportView({ ...input('ur'), video: { ...VIDEO, title: 'کیوں والے سوال' } }), env, links);
     const sec = html.slice(html.indexOf('<section class="video">'));
     expect(sec).toContain('🎬 اگلا یہ دیکھیں');
     expect(sec).toContain('دیکھیں (۲ منٹ)');
