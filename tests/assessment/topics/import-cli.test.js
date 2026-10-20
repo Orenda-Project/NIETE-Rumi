@@ -12,31 +12,33 @@ const sample = require('./fixtures/matrix-sample.json');
 const NOW = '2026-10-20T00:00:00.000Z';
 const topicsOf = (subject) => groupAll(subject, parseMatrixTab(sample[subject], subject));
 
-function fakeClient(rows = []) {
+function fakeClient(rows = [], tocRows = []) {
   const calls = { select: [], upsert: [], update: [] };
   return {
     calls,
     from(table) {
-      return {
-        select(cols) {
+      const source = table === 'textbook_toc' ? tocRows : rows;
+      const query = (filters) => ({
+        eq(col, val) { return query([...filters, (r) => r[col] === val]); },
+        in(col, vals) {
+          const all = [...filters, (r) => vals.includes(r[col])];
           return {
-            in(col, vals) {
+            // range() is only reachable through order(): paging an unordered select can skip or repeat rows.
+            order(orderBy) {
               return {
-                // range() is only reachable through order(): paging an unordered select can skip or repeat rows.
-                order(orderBy) {
-                  return {
-                    range(a, b) {
-                      calls.select.push({ table, cols, col, vals, orderBy, a, b });
-                      const hit = rows.filter((r) => vals.includes(r[col]))
-                        .sort((x, y) => (x[orderBy] < y[orderBy] ? -1 : x[orderBy] > y[orderBy] ? 1 : 0));
-                      return Promise.resolve({ data: hit.slice(a, b + 1), error: null });
-                    },
-                  };
+                range(a, b) {
+                  calls.select.push({ table, col, vals, orderBy, a, b });
+                  const hit = source.filter((r) => all.every((f) => f(r)))
+                    .sort((x, y) => (x[orderBy] < y[orderBy] ? -1 : x[orderBy] > y[orderBy] ? 1 : 0));
+                  return Promise.resolve({ data: hit.slice(a, b + 1), error: null });
                 },
               };
             },
           };
         },
+      });
+      return {
+        select() { return query([]); },
         upsert(chunk, opts) { calls.upsert.push({ table, chunk, opts }); return Promise.resolve({ error: null }); },
         update(patch) {
           return { in(col, ids) { calls.update.push({ table, patch, col, ids }); return Promise.resolve({ error: null }); } };
@@ -105,7 +107,7 @@ describe('--dry-run', () => {
     fs.rmSync(path.join(dir, 'Maths.csv'));
     const client = fakeClient(stored);
     const report = await run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }));
-    expect(client.calls.select[0]).toMatchObject({ table: 'assessment_topics', col: 'subject', vals: ['english'], orderBy: 'topic_id' });
+    expect(client.calls.select.find((c) => c.table === 'assessment_topics')).toMatchObject({ table: 'assessment_topics', col: 'subject', vals: ['english'], orderBy: 'topic_id' });
     expect(report).toMatchObject({ upsert: 0, retire: 1 });
     expect(client.calls.upsert).toEqual([]);
   });
@@ -151,7 +153,7 @@ describe('load (no --dry-run)', () => {
     const big = Array.from({ length: 300 }, (_, i) => ({ topic_id: `x${i}`, subject: 'english', grade: 9, is_current: true }));
     const client = fakeClient(big);
     await run([dir, '--matrix-version', 'v2'], opts({ client, pageSize: 100 }));
-    expect(client.calls.select.length).toBe(4); // 100, 100, 100, then an empty page
+    expect(client.calls.select.filter((c) => c.table === 'assessment_topics').length).toBe(4); // 100, 100, 100, then an empty page
     const retired = client.calls.update.map((u) => u.ids.length);
     expect(retired).toEqual([]); // grade 9 is outside the imported (grade, subject) pairs
   });
@@ -170,7 +172,7 @@ describe('load (no --dry-run)', () => {
   test('a DB error stops the load', async () => {
     const client = fakeClient();
     client.from = () => ({
-      select: () => ({ in: () => ({ order: () => ({ range: () => Promise.resolve({ data: [], error: null }) }) }) }),
+      select: () => ({ eq() { return this; }, in: () => ({ order: () => ({ range: () => Promise.resolve({ data: [], error: null }) }) }) }),
       upsert: () => Promise.resolve({ error: { message: 'boom' } }),
     });
     await expect(run([dir, '--matrix-version', 'v1'], opts({ client }))).rejects.toThrow(/upsert failed: boom/);
@@ -178,7 +180,7 @@ describe('load (no --dry-run)', () => {
 
   test('a read error stops the run', async () => {
     const client = fakeClient();
-    client.from = () => ({ select: () => ({ in: () => ({ order: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'nope' } }) }) }) }) });
+    client.from = () => ({ select: () => ({ eq() { return this; }, in: () => ({ order: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'nope' } }) }) }) }) });
     await expect(run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }))).rejects.toThrow(/read failed: nope/);
   });
 });
@@ -198,5 +200,106 @@ describe('arguments', () => {
     const report = await run([dir, '--matrix-version', 'v1', '--dry-run'], opts());
     expect(Object.keys(report.counts)).toEqual(['1 english']);
     expect(lines.join('\n')).toMatch(/skipped.*Urdu\.csv.*Maths\.csv.*Science\.csv/);
+  });
+});
+
+describe('page check against textbook_toc', () => {
+  const sampleTopic = () => topicsOf('english').find((t) => t.pages && t.pages.length);
+  const tocFor = (t, start, end) => ({
+    id: 1, curriculum: 'ict', grade: t.grade, subject: t.subject, chapter_number: t.chapterNumber, page_start: start, page_end: end,
+  });
+  const farAway = (t) => tocFor(t, Math.max(...t.pages) + 100, Math.max(...t.pages) + 110);
+  const spanning = (t) => tocFor(t, Math.min(...t.pages), Math.max(...t.pages));
+  const spilling = (t) => tocFor(t, Math.max(...t.pages), Math.max(...t.pages) + 5);
+
+  test('reads textbook_toc (ict, imported subjects, ordered by id) before any write', async () => {
+    const client = fakeClient([], []);
+    await run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }));
+    const toc = client.calls.select.find((c) => c.table === 'textbook_toc');
+    expect(toc).toMatchObject({ col: 'subject', vals: ['english', 'maths'], orderBy: 'id', a: 0 });
+  });
+
+  test('toc is paged like the existing read', async () => {
+    const t = sampleTopic();
+    const rows = Array.from({ length: 5 }, (_, i) => ({ ...spanning(t), id: i + 1, chapter_number: 900 + i }));
+    const client = fakeClient([], rows);
+    await run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client, pageSize: 2 }));
+    expect(client.calls.select.filter((c) => c.table === 'textbook_toc').map((c) => c.a)).toEqual([0, 2, 4]);
+  });
+
+  test('a topic wholly outside blocks a load: nothing written, message names the count and the flag', async () => {
+    const t = sampleTopic();
+    const client = fakeClient([], [farAway(t)]);
+    await expect(run([dir, '--matrix-version', 'v1'], opts({ client })))
+      .rejects.toThrow(/\d+ topic.*outside.*(fix the matrix|--allow-page-errors)/s);
+    expect(client.calls.upsert).toEqual([]);
+    expect(client.calls.update).toEqual([]);
+  });
+
+  test('--allow-page-errors lets the load through and the run reports the counts', async () => {
+    const t = sampleTopic();
+    const client = fakeClient([], [farAway(t)]);
+    const report = await run([dir, '--matrix-version', 'v1', '--allow-page-errors'], opts({ client }));
+    expect(client.calls.upsert.length).toBeGreaterThan(0);
+    expect(report.pageCheck.outside).toBeGreaterThan(0);
+    expect(report.pageCheck).toEqual(expect.objectContaining({ spill: expect.any(Number), noRange: expect.any(Number) }));
+  });
+
+  test('--dry-run logs the findings and continues', async () => {
+    const t = sampleTopic();
+    const client = fakeClient([], [farAway(t)]);
+    const report = await run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }));
+    const text = lines.join('\n');
+    expect(text).toContain(`outside: ${t.topicId}`);
+    expect(text).toMatch(/page check: \d+ outside, \d+ spill, \d+ no range/);
+    expect(report.pageCheck.outside).toBeGreaterThan(0);
+  });
+
+  test('spill and no-range never block a load, and are logged', async () => {
+    // english ch1 runs 2..11 in the fixture; a 2..9 book range makes its writing topic [4,5,6,10,11] spill.
+    const spill = tocFor({ grade: 1, subject: 'english', chapterNumber: 1 }, 2, 9);
+    const client = fakeClient([], [spill]);
+    const report = await run([dir, '--matrix-version', 'v1'], opts({ client }));
+    expect(client.calls.upsert.length).toBeGreaterThan(0);
+    expect(report.pageCheck).toMatchObject({ outside: 0, spill: 1 });
+    expect(report.pageCheck.noRange).toBeGreaterThan(0);
+    const text = lines.join('\n');
+    expect(text).toMatch(/spill: 1-english-1-writing\S+ G1 english ch1 pages \[4,5,6,10,11\] book 2-9 stray \[10,11\]/);
+    expect(text).toMatch(/no range: .*G1 maths ch1/);
+  });
+
+  test('a clean chapter produces zero findings', async () => {
+    const all = [...topicsOf('english'), ...topicsOf('maths')].filter((t) => t.pages && t.pages.length);
+    const rows = all.map((t, i) => ({ ...spanning(t), id: i + 1 }));
+    // widen each range to the union of its chapter's topics
+    for (const r of rows) {
+      const same = all.filter((t) => t.grade === r.grade && t.subject === r.subject && t.chapterNumber === r.chapter_number);
+      r.page_start = Math.min(...same.flatMap((t) => t.pages));
+      r.page_end = Math.max(...same.flatMap((t) => t.pages));
+    }
+    const client = fakeClient([], rows);
+    const report = await run([dir, '--matrix-version', 'v1'], opts({ client }));
+    expect(report.pageCheck.outside).toBe(0);
+    expect(report.pageCheck.spill).toBe(0);
+  });
+
+  test('no client (dry-run without env): the check is skipped and says so', async () => {
+    const report = await run([dir, '--matrix-version', 'v1', '--dry-run'], opts());
+    expect(lines.join('\n')).toMatch(/page check skipped/);
+    expect(report.pageCheck).toEqual({ outside: 0, spill: 0, noRange: 0 });
+  });
+
+  test('a textbook_toc read error stops the run', async () => {
+    const client = fakeClient();
+    const real = client.from;
+    client.from = (table) => (table === 'textbook_toc'
+      ? { select: () => ({ eq() { return this; }, in: () => ({ order: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'toc down' } }) }) }) }) }
+      : real(table));
+    await expect(run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }))).rejects.toThrow(/textbook_toc read failed: toc down/);
+  });
+
+  test('--allow-page-errors is not mistaken for the directory', async () => {
+    const report = await run(['--allow-page-errors', dir, '--matrix-version', 'v1', '--dry-run'], opts());
+    expect(report.upsert).toBeGreaterThan(0);
   });
 });
