@@ -103,6 +103,9 @@ const CHALLENGE_FOLD_KEY = 'web_quiz_challenge_fold';
 // web_quiz_challenge_line_keep (JSON true only, from this cache only: nowOf('challengeLineKeep')): the quiz page answer says
 // `challenge_line_keep`, so each number in the challenge line and the challenge share text keeps the word after it (wq.js keepNum)
 const CHALLENGE_LINE_KEEP_KEY = 'web_quiz_challenge_line_keep';
+// web_quiz_challenge_line_sent (JSON true only, from this cache only: nowOf('challengeLineSent')): the quiz page answer says
+// `challenge_line_sent`, so the friend's challenge line is drawn one span per sentence and breaks only between them (wq.js)
+const CHALLENGE_LINE_SENT_KEY = 'web_quiz_challenge_line_sent';
 // web_quiz_end_fit (JSON true only, from this cache only: nowOf('endFit')): the quiz page answer says `end_fit`, so the end
 // screen draws its stars in one row sized from their count and its score headline balanced (wq.js results)
 const END_FIT_KEY = 'web_quiz_end_fit';
@@ -191,6 +194,7 @@ const SWITCHES = Object.freeze([
   ['challengeEarly', CHALLENGE_EARLY_KEY, 'json'],
   ['challengeFold', CHALLENGE_FOLD_KEY,   'json'],
   ['challengeLineKeep', CHALLENGE_LINE_KEEP_KEY, 'json'],
+  ['challengeLineSent', CHALLENGE_LINE_SENT_KEY, 'json'],
   ['rungs',        RUNGS_KEY,             'loose'],
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
