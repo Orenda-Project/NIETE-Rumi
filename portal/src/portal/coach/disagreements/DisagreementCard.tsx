@@ -11,11 +11,14 @@ import { disagreements, type Card } from "./api";
 import { DISAGREE } from "./copy";
 import { DisagreementsFrame, Gated } from "./frame";
 import { ClipProvider, FullReport, ReasonBlock, WhereToLook } from "./cardParts";
+import { Banner, CardHead, ReasonPills } from "./cardTop";
 
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order:
  *
- *   A  what she disagrees with — each reason with the grader's own evidence; her voice note; what the report told her
+ *      the top (bd-tbprit.8, Rifat's prototype) — the dark head, the pink banner
+ *   A  what she disagrees with — her reasons as pills, her voice note, each reason with the grader's own evidence,
+ *      what the report told her (Strength / One thing to try)
  *   B  where to look — the four sections, closed, every indicator with its AI score and a Listen per timed item
  *      her trend, then the full DC report
  *      "I have visited" — one-way (the tracker's visited_7d reads it); a done card has no button
@@ -51,16 +54,19 @@ function Loaded({ card }: { card: Card }) {
   const { wells, thing, journey } = card.view;
   return (
     <ClipProvider id={card.id}>
-      <div className="flex flex-col gap-3">
+      <CardHead card={card} />
+      <Banner card={card} />
+      <div className="flex flex-col gap-3 rounded-[18px] border border-[#e1e4ea] bg-white p-4">
         <h2 className={H2}>{C.disagreesWith}</h2>
-        {card.evidence.map((e) => <ReasonBlock key={e.code} e={e} />)}
+        <ReasonPills reasons={card.reasons} />
         {card.noteUrl ? (
           <div className="flex flex-col gap-1.5">
             <p className={ROW_SUB}>{C.herNote}</p>
             <AudioPlayer src={card.noteUrl} label={C.herNote} testId="disagreement-note" />
           </div>
         ) : null}
-        <div className="flex flex-col gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+        {card.evidence.map((e) => <ReasonBlock key={e.code} e={e} />)}
+        <div className="flex flex-col gap-1.5 border-t border-[#e1e4ea] pt-3">
           <p className={ROW_SUB}>{C.reportSaid}</p>
           <p className="text-[14px] font-semibold">{C.didWell}</p>
           {wells.length ? <ul className="list-disc ps-5">{wells.map((w) => <li key={w} dir="auto">{w}</li>)}</ul> : <p>{C.dash}</p>}
@@ -91,6 +97,8 @@ function Body() {
   return (
     <DisagreementsFrame
       title={card ? card.teacher ?? C.dash : C.title}
+      sub={C.cardSub}
+      mark="N"
       backTo="/portal/coach/disagreements"
       testId="coach-disagreement"
     >

@@ -2,8 +2,8 @@
  * bd-tbprit.3 — every word the coach's disagreement screens show (the list and one teacher's card).
  *
  * Bilingual: DISAGREE = { en, ur }, read with useCopy(DISAGREE); `ur` is typed to en's exact SHAPE. The four
- * list's words are Rifat's prototype, Urdu included (bd-tbprit.7). The four
- * reasons' Urdu is the teacher's own button copy (dashboard/services/coach-ping-reasons.js); the rest is
+ * list's words are Rifat's prototype, Urdu included (bd-tbprit.7); so is the card's top (bd-tbprit.8). The four
+ * reasons are in the teacher's own voice, as Rifat words them; their Urdu is the teacher's own button copy (dashboard/services/coach-ping-reasons.js); the rest is
  * MACHINE-DRAFTED and awaits a native check. Scores always say "AI score" — never HITL (niete-portal rule).
  *
  * DATA is not copy: names, schools, indicator names and the grader's quotes come from the API as they are.
@@ -47,23 +47,32 @@ const EN = {
   allDone: "All done. No teacher is waiting.",
   noneMarkedDone: "No card marked done yet.",
   reason: {
-    score: "Score doesn't seem right",
-    missed: "Report missed what I did",
-    wont_work: "Won't work in class",
-    unclear: "Didn't understand what to do",
+    score: "My score doesn't seem right",
+    missed: "I did this, but the report missed it",
+    wont_work: "This won't work in my class",
+    unclear: "I didn't understand what to do",
   },
+
+  /* the card's top, as Rifat's prototype words it (bd-tbprit.8) */
+  cardSub: "Disagrees with report · review",
+  group: (g: string) => `Group ${g}`,
+  disagrees: (name: string) => `⚑ ${name} doesn't agree with this report`,
+  reasonCount: (n: number) => (n === 1 ? "1 reason" : `${n} reasons`),
+  plusNote: " + voice note",
+  sentAt: (when: string) => `sent ${when}`,
+  nthTime: (n: number) => (n <= 1 ? "first time" : `${ordinal(n)} time`),
   aiPct: (n: number) => `AI score ${n}%`,
   aiOf: (n: number, max: number) => `AI score ${n}/${max}`,
   hasNote: "Voice note",
 
   /* the card */
-  disagreesWith: "What she disagrees with",
-  herNote: "Her voice note",
+  disagreesWith: "A. What she disagrees with",
+  herNote: "🎙 Her message to you, in her own voice",
   planNotChecked: "Plan not checked",
   planSteps: "Plan steps",
-  reportSaid: "The report told her",
-  didWell: "Did well",
-  thingToTry: "Thing to try",
+  reportSaid: "What the report told her",
+  didWell: "Strength",
+  thingToTry: "One thing to try",
   listen: "Listen",
   clipLabel: "The lesson at this moment",
   whereToLook: "Where to look",
@@ -113,17 +122,25 @@ const UR: Words<typeof EN> = {
     wont_work: "یہ کام میری کلاس میں ممکن نہیں",
     unclear: "سمجھ نہیں آیا کہ کرنا کیا ہے",
   },
+
+  cardSub: "رپورٹ سے اختلاف · جائزہ",
+  group: (g: string) => `گروپ ${g}`,
+  disagrees: (name: string) => `⚑ ${name} اس رپورٹ سے متفق نہیں`,
+  reasonCount: (n: number) => (n === 1 ? "1 وجہ" : `${n} وجوہات`),
+  plusNote: " + وائس نوٹ",
+  sentAt: (when: string) => `بھیجا ${when}`,
+  nthTime: (n: number) => (n <= 1 ? "پہلی بار" : `${URDU_NTH[n] ?? `${n}ویں`} بار`),
   aiPct: (n: number) => `AI اسکور ${n}%`,
   aiOf: (n: number, max: number) => `AI اسکور ${n}/${max}`,
   hasNote: "وائس نوٹ",
 
-  disagreesWith: "وہ کس بات سے متفق نہیں",
-  herNote: "ان کا وائس نوٹ",
+  disagreesWith: "A. وہ کس بات سے متفق نہیں",
+  herNote: "🎙 آپ کے لیے ان کا پیغام، ان کی اپنی آواز میں",
   planNotChecked: "پلان چیک نہیں ہوا",
   planSteps: "پلان کے مراحل",
-  reportSaid: "رپورٹ نے انہیں کہا",
-  didWell: "اچھا کیا",
-  thingToTry: "آزمانے کی بات",
+  reportSaid: "رپورٹ نے انہیں کیا کہا",
+  didWell: "خوبی",
+  thingToTry: "آزمانے کی ایک بات",
   listen: "سنیں",
   clipLabel: "اس لمحے کا سبق",
   whereToLook: "کہاں دیکھیں",
