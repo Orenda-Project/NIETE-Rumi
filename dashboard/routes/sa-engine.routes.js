@@ -11,6 +11,7 @@
 const path = require('path');
 const express = require('express');
 const { createBrotliFlag } = require('./web-quiz-brotli-flag');
+const { steady } = require('./sa-switch');
 
 const KEY = 'sa_engine';
 const DIR = path.join(__dirname, '..', 'sa');
@@ -19,16 +20,12 @@ const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'chi
 const BATTERY_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)\.json$/;
 
 /** createSaEngineRouter({ on }) → router. on() is the switch (default: app_settings sa_engine). */
-function createSaEngineRouter({ on = createBrotliFlag({ key: KEY }) } = {}) {
+function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), holdMs, now } = {}) {
   const router = express.Router();
-  // The switch's reader never waits, so on a cold portal its first answer is OFF and that one request would fall
-  // through to the portal's page. Until the first read has landed, an /sa request waits for it (once per process).
-  let warm = false;
-  router.use('/sa', (req, res, next) => {
-    if (warm || typeof on.ready !== 'function') return next();
-    on();
-    return Promise.resolve(on.ready()).then(() => { warm = true; next(); }, () => { warm = true; next(); });
-  });
+  // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
+  // ON never flaps a request to the portal's page.
+  const on = steady(reader, { ...(holdMs != null ? { holdMs } : {}), ...(now ? { now } : {}) });
+  router.use('/sa', on.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
