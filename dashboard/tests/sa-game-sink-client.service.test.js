@@ -111,3 +111,9 @@ test('the play page asks with the session id only: the run token the map kept fo
   await s.putBatch({ seq_from: 1, seq_to: 2, events: [], results: [] });
   expect(calls[0].body.st).toBe('kept.tok');
 });
+
+test('presign: the server\'s skip (audio not kept) reaches the sync as skip, never as a missing URL', async () => {
+  const { f } = fakeFetch([{ status: 200, body: { skip: true, reason: 'audio_off' } }]);
+  const s = Sink.create({ st: 'x', session_id: 's', fetchImpl: f });
+  expect(await s.presignAudio({ task_id: 'ur.story', mime: 'audio/webm', bytes: 10 })).toEqual({ skip: true, reason: 'audio_off' });
+});
