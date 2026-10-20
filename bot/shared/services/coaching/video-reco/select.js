@@ -87,11 +87,12 @@ function arabicShare(text) {
 }
 
 /**
- * @returns {{ok:boolean, none:null|'llm_none'|'validation', differs:boolean, confidence:number}}
+ * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote}
+ * @returns {{ok:boolean, none:null|'llm_none'|'validation', confidence:number, momentSource:'transcript'|'scorer'|null}}
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, forcedDiffer = false, catalog = null, teacherName = null } = opts || {};
-  const bad = (none = 'validation') => ({ ok: false, none, differs: false, confidence: 0 });
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '' } = opts || {};
+  const bad = (none = 'validation') => ({ ok: false, none, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad();
     const c = Number(p.confidence);
@@ -99,17 +100,23 @@ function validate(p, shortlist, excerpts, opts) {
     if (p.seg_id === null || p.seg_id === undefined || p.seg_id === '') return { ...bad('llm_none'), confidence };
     const cand = ((shortlist && shortlist.candidates) || []).find((x) => x.seg_id === String(p.seg_id));
     if (!cand) return bad();
-    if (!p.moment || !quoteFound(p.moment.quote, excerpts)) return bad();
+    const quote = p.moment && p.moment.quote;
+    let momentSource = null;
+    if (quote && quoteFound(quote, excerpts)) momentSource = 'transcript';
+    else if (quote && scorerQuote && quoteFound(quote, [scorerQuote])) momentSource = 'scorer';
+    if (!momentSource) return bad();
     if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad();
     const en = [...String(p.reason_en || '').trim()].length;
     if (en < 20 || en > 400) return bad();
     if (arabicShare(p.reason_ur) < 0.6) return bad();
-    const hit = catalog && catalog.segment(cand.seg_id);
-    const segIds = hit ? (hit.segment.fico || []).map((f) => f.indicator) : [cand.indicator];
-    const differs = stepIndicator ? !segIds.includes(stepIndicator) : false;
-    if (p.differs_from_step === true && !differs) return bad();
-    if (differs && !forcedDiffer && confidence < 0.8) return bad();
-    return { ok: true, none: null, differs, confidence };
+    // Indicator path: every candidate is for the step; a pick outside the step's chapters is refused (SPEC v1.2 §3.5).
+    if ((source === 'step' || source === 'card') && stepIndicator) {
+      const hit = catalog && catalog.segment(cand.seg_id);
+      const ids = hit ? [...(hit.segment.fico || []).map((f) => f.indicator), ...(hit.segment.fico_main37 || [])] : [];
+      const step = indicators && indicators.length ? indicators : [stepIndicator];
+      if (!step.includes(cand.indicator) && !step.some((id) => ids.includes(id))) return bad();
+    }
+    return { ok: true, none: null, confidence, momentSource };
   } catch (e) {
     return bad();
   }

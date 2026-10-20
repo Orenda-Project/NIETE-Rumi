@@ -21,6 +21,7 @@ function fromData(data) {
     version: typeof d.version === 'string' ? d.version : null,
     framework: d.framework || null,
     aliases: d.indicator_aliases && typeof d.indicator_aliases === 'object' ? d.indicator_aliases : {},
+    holes: Array.isArray(d.holes) ? d.holes : [], // v4 ids with no strength-2 chapter (catalog.meta.json, m-catalog + ped-panel)
     modules,
     segment(segId) {
       return (segId !== null && segId !== undefined && bySeg.get(String(segId))) || null;
