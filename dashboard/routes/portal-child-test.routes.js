@@ -26,6 +26,10 @@
  *   POST /sa/session/:id/presign      { taskId, itemId?, mime, bytes } → R2 PUT url for one recording
  *   POST /sa/session/:id/register     { taskId, itemId?, key } → the recording is kept
  *   GET  /sa/session/:id/status       what the server holds, for the visit bar
+ *   POST /sa/session/:id/link         a signed link so another phone can run this child's battery
+ *   another phone, with NO portal session — the token names the session and its coach:
+ *   POST /sa/link/:token/session/:id/(batch|presign|register), GET …/status
+ *        the bot names the token's coach first; that coach's portal_child_test_sa decides (404 when off)
  * Behind its own switch, `portal_child_test_sa` (same shape), instead of `portal_child_test`.
  *
  * GATES, in order: a portal session (401), the leader family (403), and the
@@ -113,5 +117,49 @@ router.post('/sa/session/:id/batch', ...saGates, relay('sa/batch', onSession(['s
 router.post('/sa/session/:id/presign', ...saGates, relay('sa/presign', onSession(['taskId', 'itemId', 'mime', 'bytes'])));
 router.post('/sa/session/:id/register', ...saGates, relay('sa/register', onSession(['taskId', 'itemId', 'key'])));
 router.get('/sa/session/:id/status', ...saGates, relay('sa/status', onSession([])));
+router.post('/sa/session/:id/link', ...saGates, relay('sa/link-mint', onSession([])));
+
+const LINK_FIELDS = {
+  batch: ['seqFrom', 'seqTo', 'events', 'results', 'lang', 'device'],
+  presign: ['taskId', 'itemId', 'mime', 'bytes'],
+  register: ['taskId', 'itemId', 'key'],
+  status: [],
+};
+
+function linkArgs(req, op) {
+  return { token: req.params.token, op, sessionId: req.params.id };
+}
+
+async function requireLinkedCoach(req, res, next) {
+  if (!LINK_FIELDS[req.params.op]) return res.status(404).json({ success: false, error: 'Not found' });
+  try {
+    const { httpStatus, body } = await Client.call('sa/via-link', linkArgs(req, 'whois'));
+    if (httpStatus >= 500) throw new Error(`bot answered ${httpStatus}`);
+    const coach = httpStatus === 200 && body && body.coachUserId;
+    if (!coach || !(await isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, coach))) {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+    return next();
+  } catch (error) {
+    console.error('Portal child-test sa/link failed:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not reach Rumi. Please try again.' });
+  }
+}
+
+async function linkRelay(req, res) {
+  const { op } = req.params;
+  const body = { ...linkArgs(req, op), ...pick(req.method === 'GET' ? req.query : req.body, LINK_FIELDS[op]) };
+  try {
+    const { httpStatus, body: answer } = await Client.call('sa/via-link', body);
+    if (httpStatus >= 500) throw new Error(`bot answered ${httpStatus}`);
+    return res.status(httpStatus).json(answer);
+  } catch (error) {
+    console.error('Portal child-test sa/link failed:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not reach Rumi. Please try again.' });
+  }
+}
+
+router.post('/sa/link/:token/session/:id/:op', requireLinkedCoach, linkRelay);
+router.get('/sa/link/:token/session/:id/:op', requireLinkedCoach, linkRelay);
 
 module.exports = router;

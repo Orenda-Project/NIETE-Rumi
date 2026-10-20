@@ -18,7 +18,7 @@ const SESSIONS = 'child_test_sessions';
 const BLOCKS = 'child_test_blocks';
 const PARKED = 'final:sa_score_later';
 const PHONE_SCORER = 'sa-tap-v1';
-const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms'];
+const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms'];
 
 function fail(where, error, extra) {
   logError(`child_test.sa_store.${where}`, { ...extra, error: error && error.message });
