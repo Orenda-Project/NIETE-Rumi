@@ -159,3 +159,31 @@ describe('web_quiz_read_sheet: the book says read_sheet: 1', () => {
     for (const rf of [undefined, false]) expect([rf, 'read_sheet' in (await bookWith(rf, true)).out]).toEqual([rf, false]);
   });
 });
+
+// app_settings web_quiz_read_sheet_fit (default off, JSON true only; only with the one sheet on): the book says
+// `read_sheet: 2`, so a page whose picture would be left out draws it as its own card in the room left, and Jugnu's hint
+// is never wider than the picture (wq-moment.js art one 2). The same settings read. Off: read_sheet: 1, as today.
+describe('web_quiz_read_sheet_fit: the book says read_sheet: 2', () => {
+  const reads = () => { let n = 0; const from = supabase.from; supabase.from = (t) => { if (t === 'app_settings') n += 1; return from(t); }; return () => n; };
+  const bookWith = async (rf, sheet, fit) => {
+    seed({ rf }); Stories._reset(); RF._reset();
+    if (sheet !== undefined) fake.db.app_settings.push({ key: 'web_quiz_read_sheet', value: sheet });
+    if (fit !== undefined) fake.db.app_settings.push({ key: 'web_quiz_read_sheet_fit', value: fit });
+    const n = reads();
+    return { out: clone(await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' })), n: n() };
+  };
+  test('on (JSON true) with the one sheet on: read_sheet: 2, otherwise the same book, with the same settings reads', async () => {
+    const off = await bookWith(true, true, undefined);
+    const on = await bookWith(true, true, true);
+    expect(off.out.read_sheet).toBe(1);
+    expect(on.out.read_sheet).toBe(2);
+    on.out.read_sheet = 1;
+    expect(on.out).toEqual(off.out);
+    expect(on.n).toBe(off.n);
+  });
+  test('off (false, the string "true", 1, an object): read_sheet: 1; the one sheet or the reading moment off: no key', async () => {
+    for (const v of [false, 'true', 1, { on: true }]) expect([v, (await bookWith(true, true, v)).out.read_sheet]).toEqual([v, 1]);
+    for (const s of [undefined, false]) expect([s, 'read_sheet' in (await bookWith(true, s, true)).out]).toEqual([s, false]);
+    expect('read_sheet' in (await bookWith(false, true, true)).out).toBe(false);
+  });
+});

@@ -451,7 +451,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...(f.polish ? { pl: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1, ...((await require('./web-quiz-read-feedback').sheetOn()) ? { read_sheet: 1 } : {}) } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...(f.polish ? { pl: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1, ...((await require('./web-quiz-read-feedback').sheetOn()) ? { read_sheet: await require('./web-quiz-read-feedback').sheetLevel() } : {}) } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
     // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
     ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {
