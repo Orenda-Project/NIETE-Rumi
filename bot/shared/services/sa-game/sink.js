@@ -162,7 +162,7 @@ function createSink(deps = {}) {
     const bytes = Number(a.bytes);
     if (!Number.isInteger(bytes) || bytes <= 0) return no(400, 'bad_size');
     if (bytes > MAX_AUDIO) return no(413, 'too_large');
-    // not kept in game mode (RULING ⚠️10 c): the engine drops the blob and marks the result audio:'not_kept'
+    // not kept in game mode: the engine drops the blob and marks the result audio:'not_kept'
     if (!(await d.keepAudio(a))) return ok({ skip: true, reason: 'audio_off' });
     const key = keyOf(p.sid, a.task_id, itemId, ext);
     const url = await r2().getPresignedUploadUrl(key, type, PRESIGN_TTL_S);
