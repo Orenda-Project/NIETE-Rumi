@@ -9,7 +9,8 @@
  * The mercy rule's ear (RULING #10b): recorder.onSilence({ after_s, total_s }, cb) reads the mic's level ten times a
  * second from the begin line on; no voice by after_s → cb({kind:'mercy'}) once, still none at total_s →
  * cb({kind:'early_stop_silence', silence_s}). The first voice ends the watch. A voice is the level above
- * max(FLOOR, 2 × the room's quietest second), capped at half the probe's peak (the coach's or the game's mic check).
+ * 2 × the room's quietest tick, within [FLOOR, CEIL] and capped at half the probe's peak (the coach's or the game's mic
+ * check): a child who reads from the first second on is never taken for the room.
  *
  * UMD: window.SAE.rec in the browser, module.exports under Node.
  */
@@ -28,6 +29,7 @@
   var SLICE_MS = 1000;
   var TICK_MS = 100;
   var FLOOR = 0.02;
+  var CEIL = 0.06;
   var VOICE_TICKS = 3;
   var last = null;
 
@@ -51,9 +53,9 @@
     return null;
   }
 
-  /** The level above which the room is a voice: 2× its floor, never under FLOOR, never over half the probe's peak. */
+  /** The level above which the room is a voice: 2× its floor, within [FLOOR, CEIL], never over half the probe's peak. */
   function thresholdFor(floor, ls) {
-    var t = Math.max(FLOOR, 2 * (floor || 0));
+    var t = Math.max(FLOOR, Math.min(CEIL, 2 * (floor || 0)));
     var peak = probePeak(ls);
     return peak ? Math.max(FLOOR, Math.min(t, peak / 2)) : t;
   }
@@ -102,7 +104,6 @@
       var totalMs = (opts && opts.total_s || 20) * 1000;
       var buf = new Uint8Array(an.fftSize || 2048);
       var t0 = now();
-      var sec = { start: t0, sum: 0, n: 0 };
       var floor = null;
       var loud = 0;
       var mercy = false;
@@ -112,14 +113,9 @@
         var t = now();
         an.getByteTimeDomainData(buf);
         var r = rmsOf(buf);
-        sec.sum += r; sec.n++;
-        if (t - sec.start >= 1000) {
-          var mean = sec.sum / sec.n;
-          floor = floor == null ? mean : Math.min(floor, mean);
-          sec = { start: t, sum: 0, n: 0 };
-        }
-        // The room's floor is known after its first second; a voice is three loud ticks in a row after that.
-        loud = floor != null && r > thresholdFor(floor, ls) ? loud + 1 : 0;
+        floor = floor == null ? r : Math.min(floor, r);
+        // The room's floor is judged after its first second; a voice is three loud ticks in a row after that.
+        loud = t - t0 >= 1000 && r > thresholdFor(floor, ls) ? loud + 1 : 0;
         if (loud >= VOICE_TICKS) { end(); return; }
         var el = t - t0;
         var s = Math.round(el / 100) / 10;
@@ -189,5 +185,5 @@
   /** SAE.rec.onSilence: the same, on the recorder made last (the engine makes one per battery). */
   function onSilenceLast(opts, cb) { return last ? last.onSilence(opts, cb) : function () {}; }
 
-  return { CANDIDATES: CANDIDATES, pickType: pickType, create: create, onSilence: onSilenceLast, rmsOf: rmsOf, thresholdFor: thresholdFor, FLOOR: FLOOR };
+  return { CANDIDATES: CANDIDATES, pickType: pickType, create: create, onSilence: onSilenceLast, rmsOf: rmsOf, thresholdFor: thresholdFor, FLOOR: FLOOR, CEIL: CEIL };
 }));
