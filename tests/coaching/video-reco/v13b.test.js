@@ -39,6 +39,12 @@ describe('V1.7.2: attempts + first_none_reason, additive', () => {
     expect(up()).not.toMatch(/\bDROP\b|\bRENAME\b|ALTER COLUMN/i);
     expect(up()).toMatch(/CHECK \(attempts IS NULL OR attempts IN \(1, 2\)\)/i);
   });
+  test('r-ab EVENTS_SCHEMA §3b: report_language_null, lesson_language, chapter_language (additive)', () => {
+    expect(up()).toMatch(/ADD COLUMN IF NOT EXISTS report_language_null\s+BOOLEAN/i);
+    expect(up()).toMatch(/ADD COLUMN IF NOT EXISTS lesson_language\s+TEXT/i);
+    expect(up()).toMatch(/ADD COLUMN IF NOT EXISTS chapter_language\s+TEXT/i);
+    expect(down()).toMatch(/DROP COLUMN IF EXISTS chapter_language/i);
+  });
   test('the rollback drops exactly those two columns', () => {
     expect(down()).toMatch(/DROP COLUMN IF EXISTS attempts/i);
     expect(down()).toMatch(/DROP COLUMN IF EXISTS first_none_reason/i);
