@@ -62,6 +62,9 @@ function dice(a, b) {
   return na + nb ? (2 * both) / (na + nb) : 0;
 }
 
+const MOMENT_AT = /^\d{1,2}:\d{2}$/;
+// Teacher-facing copy never names the hidden scorer nor prints a placeholder (ped-review 19:35Z, lead-review 19:37Z).
+const BANNED_COPY = /scorer|سکورر|N\/A|not applicable/i;
 // A leading excerpt-line prefix the model copied with the quote: "[04:17] Teacher:" (§3.5 [v1.3] b).
 const LINE_PREFIX = /^\s*\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*[^:\n]{0,40}:\s*/;
 
@@ -116,6 +119,8 @@ function validate(p, shortlist, excerpts, opts) {
     if (quote && quoteFound(quote, excerpts)) momentSource = 'transcript';
     else if (quote && scorerQuote && quoteFound(quote, [scorerQuote])) momentSource = 'scorer';
     if (!momentSource) return bad();
+    if (!MOMENT_AT.test(String(p.moment.at || '').trim())) return bad(); // vr-3: never "unknown", "N/A" or "[00:30]"
+    if ([p.reason_en, p.reason_ur].some((x) => BANNED_COPY.test(String(x || '')))) return bad();
     if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad();
     const en = [...String(p.reason_en || '').trim()].length;
     if (en < 20 || en > 400) return bad();
