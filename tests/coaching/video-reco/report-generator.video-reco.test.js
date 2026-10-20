@@ -76,6 +76,8 @@ function load(engineStub) {
   jest.spyOn(RG, 'sendHeroImageReport').mockResolvedValue(true);
   jest.spyOn(RG, 'generateAndSendVoiceDebrief').mockResolvedValue(true);
   completeJson = jest.spyOn(require('../../../bot/shared/services/gpt5-mini.service'), 'completeJson');
+  // The pipeline's own feature-link suggestion is a probability roll: pin it, or the two runs differ for that reason alone.
+  jest.spyOn(Math, 'random').mockReturnValue(0.999);
   return RG;
 }
 const ISO = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g; // wall-clock stamps differ run to run
