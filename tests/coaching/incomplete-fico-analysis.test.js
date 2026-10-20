@@ -18,6 +18,11 @@ jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logWarn: jest.fn(), logError: jest.fn() }));
 jest.mock('jsonrepair', () => ({ jsonrepair: (s) => s }), { virtual: true });
 jest.mock('dotenv', () => ({ config: () => ({}) }), { virtual: true });
+const mockEvents = [];
+jest.mock('../../bot/shared/utils/structured-logger', () => ({
+  logEvent: (name, data) => mockEvents.push({ name, ...data }),
+  getCurrentCorrelationId: () => null,
+}));
 
 const GPT5MiniService = require('../../bot/shared/services/gpt5-mini.service');
 const fico = require('../../bot/shared/services/coaching/frameworks/fico-framework');
@@ -34,7 +39,7 @@ const FULL = {
 const ONLY_B = { executive_summary: 'ok', domains: { lesson_plan_fidelity: section('B1', 1) } };
 const reply = (obj) => ({
   choices: [{ message: { content: JSON.stringify(obj) }, finish_reason: 'stop' }],
-  usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+  usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150, completion_tokens_details: { reasoning_tokens: 30 } },
 });
 
 function stub(replies) {
@@ -97,6 +102,49 @@ describe('an incomplete FICO analysis is retried once and never scored 0 for mis
       expect(hlp.why).toBe(resolveUx('reportSectionNotAnalysed', { language: lang }));
       expect(hlp.why).not.toMatch(/lesson plan|لیسن پلان/i);
     }
+  });
+
+  describe('every analysis logs its shape — coaching.analysis.sections', () => {
+    const META = { language: 'en', coachingSessionId: 'sess-123' };
+    const last = () => mockEvents.filter((e) => e.name === 'coaching.analysis.sections').pop();
+    beforeEach(() => { mockEvents.length = 0; });
+
+    test('a complete analysis: result complete, every section, no retry, stop reason and tokens', async () => {
+      stub([FULL]);
+      await GPT5MiniService.analyzePedagogy('transcript', { ...META }, null, fico);
+      expect(last()).toMatchObject({
+        coachingSessionId: 'sess-123', result: 'complete', retried: false,
+        sectionsExpected: SECTIONS.length, sectionsReturned: SECTIONS.length, missing: [],
+        finishReason: 'stop', inputTokens: 100, outputTokens: 50, reasoningTokens: 30,
+      });
+      expect(last().responseChars).toBeGreaterThan(0);
+      expect(typeof last().transcriptChars).toBe('number');
+    });
+
+    test('recovered by the retry: result recovered, and which sections the first reply lacked', async () => {
+      stub([ONLY_B, FULL]);
+      await GPT5MiniService.analyzePedagogy('transcript', { ...META }, null, fico);
+      expect(last()).toMatchObject({
+        result: 'recovered', retried: true, sectionsReturned: SECTIONS.length, missing: [],
+        firstMissing: SECTIONS.filter((k) => k !== 'lesson_plan_fidelity'),
+        firstReply: { finishReason: 'stop', outputTokens: 50, reasoningTokens: 30 },
+      });
+    });
+
+    test('still incomplete: result incomplete with the missing sections', async () => {
+      stub([ONLY_B, ONLY_B]);
+      await GPT5MiniService.analyzePedagogy('transcript', { ...META }, null, fico);
+      expect(last()).toMatchObject({
+        result: 'incomplete', retried: true, sectionsReturned: 1,
+        missing: SECTIONS.filter((k) => k !== 'lesson_plan_fidelity'),
+      });
+    });
+
+    test('the event records the shape only — never the reply or transcript text', async () => {
+      stub([FULL]);
+      await GPT5MiniService.analyzePedagogy('SECRET LESSON WORDS', { ...META }, null, fico);
+      expect(JSON.stringify(last())).not.toMatch(/SECRET LESSON WORDS|executive_summary/);
+    });
   });
 
   test('the new reason exists in both offered languages and the Urdu is Urdu', () => {

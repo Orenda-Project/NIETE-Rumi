@@ -3,6 +3,7 @@ const { modelFor } = require('../config/model-registry');
 const { jsonrepair } = require('jsonrepair');
 const { OPENAI_API_KEY } = require('../utils/constants');
 const { logToFile, logWarn, logError } = require('../utils/logger');
+const { logEvent } = require('../utils/structured-logger');
 const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const supabase = require('../config/supabase');
 const {
@@ -486,13 +487,18 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       // A reply can end normally yet carry only some of the framework's sections (ICT DC row 151,
       // 20 Oct: 1,506 tokens, Section B only — scored 10/148). Retry once; whatever is still
       // missing is marked not assessed so it leaves the total instead of reading as 0.
+      // What the sections event (below) records about a first reply the retry replaced.
+      let firstMissing = [];
+      let firstReply = null;
+      let stillMissing = [];
       if (useFrameworkModule) {
         const missing = this._missingFrameworkSections(result, framework);
         if (missing.length) {
+          firstMissing = missing;
+          firstReply = this._replyShape(response, rawContent);
           logWarn('⚠️ Analysis came back without every framework section — retrying once', {
             missing,
-            outputTokens: response.usage && response.usage.completion_tokens,
-            finishReason: response.choices[0].finish_reason,
+            ...firstReply,
           });
           try {
             const again = await this.openai.chat.completions.create({ ...scoringRequest, messages: sentMessages });
@@ -504,15 +510,15 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
           } catch (retryError) {
             logWarn('⚠️ Retry of the incomplete analysis failed — keeping the first reply', { error: retryError.message });
           }
-          const stillMissing = this._missingFrameworkSections(result, framework);
+          stillMissing = this._missingFrameworkSections(result, framework);
           for (const key of stillMissing) {
             result.domains[key] = { assessed: false, not_assessed_reason: 'analysis_incomplete', indicators: [] };
           }
           if (stillMissing.length) {
             logError('❌ Analysis still incomplete after one retry — those sections are not assessed', {
+              coachingSessionId: metadata.coachingSessionId || null,
               missing: stillMissing,
-              outputTokens: response.usage && response.usage.completion_tokens,
-              finishReason: response.choices[0].finish_reason,
+              ...this._replyShape(response, response.choices[0].message.content),
             });
           }
         }
@@ -581,6 +587,25 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         estimatedCost: this._calculateCost(response.usage),
         totalMarks: analysisWithMarks.scores?.overall_marks
       });
+
+      // One event per analysis, the shape only (never the reply or lesson words): how many of the
+      // framework's sections came back, whether a retry ran, and why the reply ended. Query in Axiom
+      // (niete-logs): event == 'coaching.analysis.sections'.
+      if (useFrameworkModule && typeof framework.getScoringConstants === 'function') {
+        const expected = Object.keys(framework.getScoringConstants().domains || {}).length;
+        logEvent('coaching.analysis.sections', {
+          coachingSessionId: metadata.coachingSessionId || null,
+          result: stillMissing.length ? 'incomplete' : (firstMissing.length ? 'recovered' : 'complete'),
+          retried: firstMissing.length > 0,
+          sectionsExpected: expected,
+          sectionsReturned: expected - stillMissing.length,
+          missing: stillMissing,
+          ...(firstMissing.length ? { firstMissing, firstReply } : {}),
+          ...this._replyShape(response, response.choices[0].message.content),
+          model: scoringRequest.model,
+          transcriptChars: transcript.length,
+        });
+      }
 
       return {
         analysis: analysisWithMarks,
@@ -773,6 +798,24 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       logToFile(`❌ ${label} failed`, { error: error.message, stack: error.stack });
       throw error;
     }
+  }
+
+  /**
+   * How a model reply ended, by size only — never its words. reasoning_tokens is what a reasoning
+   * model spent thinking inside max_completion_tokens; a short visible reply beside a large reasoning
+   * count is the signature to look for.
+   * @private
+   */
+  static _replyShape(response, content) {
+    const usage = (response && response.usage) || {};
+    const choice = (response && response.choices && response.choices[0]) || {};
+    return {
+      finishReason: choice.finish_reason || null,
+      inputTokens: usage.prompt_tokens ?? null,
+      outputTokens: usage.completion_tokens ?? null,
+      reasoningTokens: (usage.completion_tokens_details && usage.completion_tokens_details.reasoning_tokens) ?? null,
+      responseChars: typeof content === 'string' ? content.length : null,
+    };
   }
 
   /**
