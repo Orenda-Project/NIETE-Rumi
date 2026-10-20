@@ -55,6 +55,17 @@ export type Card = {
   indicators: Indicator[]; moves: Move[] | null;
   /** bd-tbprit.9 — how long the recording is; null when the session does not say. */
   durationSec: number | null;
+  /** bd-tbprit.10 — Rifat's "Is this a pattern?" (dashboard/services/coach-disagreement-pattern.js). */
+  pattern: Pattern | null;
+};
+/** Her last lessons up to this one, oldest first. A null is "the server does not have it", never zero. */
+export type Pattern = {
+  points: { pct: number; date: string }[]; avg: number | null; best: { pct: number; date: string } | null; now: number | null;
+  count: number; perWeek: number | null; level: "active" | "steady" | "atRisk" | null; ictAvg: number;
+  firstDate: string | null; lastDate: string | null;
+  /** The step most missed in this lesson, counted over her last 5 plan-checked lessons; null = plan not checked. */
+  missed: { step: string | null; n: number; of: number } | null;
+  earlier: number;
 };
 
 const path = (id: string) => `/coach/disagreements/${encodeURIComponent(id)}`;

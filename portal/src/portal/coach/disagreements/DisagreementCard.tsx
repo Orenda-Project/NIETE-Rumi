@@ -11,6 +11,7 @@ import { ClipProvider, FullReport, ReasonBlock } from "./cardParts";
 import { WhereToLook } from "./whereToLook";
 import { Banner, CardHead, ReasonPills } from "./cardTop";
 import { DoneBadge, DoneBar } from "./doneBar";
+import { PatternSection } from "./patternSection";
 
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order:
@@ -19,17 +20,17 @@ import { DoneBadge, DoneBar } from "./doneBar";
  *   A  what she disagrees with — her reasons as pills, her voice note, each reason with the grader's own evidence,
  *      what the report told her (Strength / One thing to try)
  *   B  where to look (bd-tbprit.9) — one Listen for the problem part, the plan's moves, the other three sections
- *      her trend, then the full DC report
+ *      3. is this a pattern? (bd-tbprit.10) — her last lessons as Rifat's line and four facts, then the full DC report
  *      the footer (bd-tbprit.12) — "✓ Mark as done", or on a done card the ✓ Done badge and "Move back to To do"
  *
- * No coaching suggestion, no message/call, no "Recording less": not before the 7 Dec read.
+ * The coaching suggestion and message/call (bd-tbprit.11) are not built yet.
  */
 
 const H2 = "text-[17px] font-bold text-[#1d2025]";
 
 function Loaded({ card }: { card: Card }) {
   const C = useCopy(DISAGREE);
-  const { wells, thing, journey } = card.view;
+  const { wells, thing } = card.view;
   return (
     <ClipProvider id={card.id}>
       <CardHead card={card} />
@@ -56,10 +57,7 @@ function Loaded({ card }: { card: Card }) {
 
       <WhereToLook card={card} />
 
-      <div data-testid="trend" className="flex flex-col gap-1">
-        <h2 className={H2}>{C.trend}</h2>
-        <p className="text-[16px]">{journey?.points.length ? journey.points.join(C.arrow) : C.dash}</p>
-      </div>
+      {card.pattern ? <PatternSection p={card.pattern} /> : null}
 
       <FullReport card={card} />
 
