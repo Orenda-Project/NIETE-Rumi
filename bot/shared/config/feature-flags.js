@@ -80,6 +80,8 @@ const ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY = 'assessment_fde_pattern_subjects';
  * Read by the orchestrator per paper; the engine reads only the subjects it was built for.
  */
 const ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY = 'assessment_fde_reader_pass_subjects';
+// The subjects the FDE stem check runs for (bd-5jmnfj.22), a JSON list like the reader pass's.
+const ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY = 'assessment_fde_stem_check_subjects';
 
 async function isFlagEnabled(key) {
   try {
@@ -153,6 +155,26 @@ async function fdeReaderPassSubjects() {
     return [];
   }
 }
+/** The subject keys the stem check runs for; the same rules as the reader pass's list. */
+async function fdeStemCheckSubjects() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY)
+      .maybeSingle();
+    if (error || !data) return [];
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { return []; }
+    }
+    if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) return [];
+    return value.map((v) => v.trim().toLowerCase()).filter(Boolean);
+  } catch (err) {
+    logToFile('Feature-flag lookup failed — treating as off', { key: ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY, error: err?.message });
+    return [];
+  }
+}
 /**
  * Same rules as isFlagEnabled, and the row must BE this key: a reader that took
  * whatever row came back would turn the author's gates on from another flag.
@@ -186,4 +208,5 @@ module.exports = {
   ASSESSMENT_FDE_PATTERN_KEY, isAssessmentFdePatternEnabled,
   ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, fdePatternSubjects,
   ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY, fdeReaderPassSubjects,
+  ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY, fdeStemCheckSubjects,
 };
