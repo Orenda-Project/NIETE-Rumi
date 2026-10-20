@@ -160,4 +160,10 @@ html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; lin
 .wqs[data-screen=story-read]:has([data-art]) .wqs-near[hidden]{display:none!important}
 /* one sheet (web_quiz_read_sheet, wq-moment.js art one): the clipped band and its picture are the card, so no white card
    shows under or beside them */
-.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none;max-height:var(--wqs-cap,none)}
+.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none;max-height:var(--wqs-cap,none);min-height:var(--wqs-min,200px)}
+/* one sheet: Jugnu's hint is a bubble over the foot of the sheet, out of the page's flow, so the sheet never changes size
+   when it shows (wq-moment.js q tick) */
+.wqs .wqs-stage>.wqs-near{position:absolute;left:8px;right:8px;bottom:8px;z-index:3;margin:0;min-height:0;padding:6px 12px;border-radius:14px;background:rgba(255,255,255,.95);box-shadow:0 2px 0 var(--line,#E5E7EB)}
+.wqs .wqs-stage>.wqs-near[hidden]{display:none!important}
+/* ... and the main button keeps its place at the foot of the screen when the stage ends at a sheet that stops short */
+.wqs:has(.wqs-stage>[data-art][data-one=on]:not([hidden]))>[data-tap=main]{margin-top:auto}
