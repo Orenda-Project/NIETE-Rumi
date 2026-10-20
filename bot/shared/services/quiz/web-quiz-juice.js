@@ -8,6 +8,7 @@
  * the edge loads nothing new, and every page is today's.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const KEY = 'web_quiz_juice';
@@ -24,7 +25,7 @@ function refresh() {
   if (!reading) {
     reading = (async () => {
       try {
-        const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
+        const { data, error } = await Snap.row(KEY, () => supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle());
         if (error) throw new Error(error.message || 'app_settings read failed');
         cache = { at: Date.now(), on: isTrue(data && data.value) };
       } catch (err) {

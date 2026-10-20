@@ -27,6 +27,7 @@
  * (the request is never sent), then the retry runs for real and logs injected: true. Ignored when NODE_ENV=production.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logEvent } = require('../../utils/structured-logger');
 const { WqError } = require('./web-quiz-error');
 const Timing = require('./web-quiz-timing');
@@ -69,9 +70,11 @@ function parse(raw) {
 
 async function load() {
   try {
-    let q = supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY]);
-    if (typeof q.abortSignal === 'function') q = q.abortSignal(AbortSignal.timeout(FLAG_READ_MS));
-    const { data, error } = await q;
+    const { data, error } = await Snap.rows([FLAG_KEY], () => {
+      let q = supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY]);
+      if (typeof q.abortSignal === 'function') q = q.abortSignal(AbortSignal.timeout(FLAG_READ_MS));
+      return q;
+    });
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === FLAG_KEY);
     flag = { at: Date.now(), ...parse(row && row.value) };
