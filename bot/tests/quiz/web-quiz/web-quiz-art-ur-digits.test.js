@@ -92,8 +92,9 @@ describe('the template', () => {
     expect(html('class', 'ur', null)).toContain('<span class="num">64%</span>');
     expect(html('card', 'ur', null)).toContain('<span class="num">+18</span>');
   });
-  test('the school points keep their grouping: 1,234 → ۱,۲۳۴', () => {
-    expect(html('school', 'ur', { ud: true })).toContain('۱,۲۳۴');
+  test('the school points keep their grouping in the Arabic sign: 1,234 → ۱٬۲۳۴', () => {
+    expect(html('school', 'ur', { ud: true })).toContain('۱٬۲۳۴');
+    expect(html('school', 'ur', null)).toContain('1,234');
   });
   test('Urdu digits have a face to draw them in (the numbers run falls back to the Nastaliq face)', () => {
     const h = renderArt({ kind: 'invite', size: 'og', brand: 'niete', lang: 'ur', d: D.invite, ui: { ud: true } }, { pictures: false });
