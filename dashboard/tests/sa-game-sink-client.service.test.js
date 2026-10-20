@@ -102,3 +102,12 @@ test('forGame: a refused open is tried again on the next call', async () => {
   expect(await s.putBatch({ seq_from: 1, seq_to: 1, events: [], results: [] })).toEqual({ ok: true, acked_to: 1 });
   expect(calls.filter((c) => c.url.endsWith('/session'))).toHaveLength(2);
 });
+
+test('the play page asks with the session id only: the run token the map kept for it (sg.st.<id>), else no sink', async () => {
+  expect(Sink.create({ session_id: 'S-9' })).toBeNull();
+  store['sg.st.S-9'] = 'kept.tok';
+  const { f, calls } = fakeFetch([{ status: 200, body: { ok: true, ackedTo: 2 } }]);
+  const s = Sink.create({ session_id: 'S-9', fetchImpl: f });
+  await s.putBatch({ seq_from: 1, seq_to: 2, events: [], results: [] });
+  expect(calls[0].body.st).toBe('kept.tok');
+});
