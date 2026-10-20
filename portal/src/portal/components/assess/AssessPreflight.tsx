@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Headphones, Mic, PlaneTakeoff, Volume2 } from 'lucide-react';
+import { Headphones, Mic, PlaneTakeoff, Timer, Volume2 } from 'lucide-react';
 import type { AssessCopy } from '../../lib/assess/copy';
 import type { MicCheck } from '../../lib/assess/visitStore';
 import { pickRecordingType } from '../../lib/recordingSupport';
@@ -146,6 +146,9 @@ export default function AssessPreflight({ copy, onMic, onReady }: Props) {
       <h2 className="text-lg font-semibold text-slate-900">{copy.preflightTitle}</h2>
       <p className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-slate-800">
         <PlaneTakeoff className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden /> {copy.airplane}
+      </p>
+      <p className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-slate-800">
+        <Timer className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden /> {copy.screenTimeout}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4">
         <span className="flex items-center gap-3 font-medium text-slate-900"><Headphones className="h-5 w-5 text-slate-500" aria-hidden /> {copy.headphonesIn}</span>
