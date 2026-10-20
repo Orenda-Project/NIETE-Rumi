@@ -684,6 +684,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await (challengeP || challengeOf(ctx)); }
   // web_quiz_challenge_fold (the hub's switch cache, no read): a door with a challenger puts its way in first (wq.js landing)
   if (out.challenge && require('./web-quiz-hub-flags').nowOf('challengeFold')) out.challenge_fold = true;
+  // web_quiz_end_fit (the hub's switch cache, no read): the end screen's stars stay one row, its headline balanced (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('endFit')) out.end_fit = true;
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
   const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;
