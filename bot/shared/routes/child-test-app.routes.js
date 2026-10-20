@@ -53,7 +53,7 @@ const ROUTES = {
   '/sa/status': ['saStatus', ['userId', 'sessionId'], 'sa-api.service'],
   // another phone: the coach mints a link; the linked phone's sink calls carry the token, never a user
   '/sa/link-mint': ['saLink', ['userId', 'sessionId'], 'sa-api.service'],
-  '/sa/via-link': ['saViaLink', ['token', 'op', 'sessionId', 'seqFrom', 'seqTo', 'events', 'results', 'lang', 'device',
+  '/sa/via-link': ['saViaLink', ['token', 'op', 'sessionId', 'phone', 'seqFrom', 'seqTo', 'events', 'results', 'lang', 'device',
     'taskId', 'itemId', 'mime', 'bytes', 'key'], 'sa-api.service'],
 };
 

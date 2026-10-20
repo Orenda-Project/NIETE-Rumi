@@ -126,8 +126,14 @@ const LINK_FIELDS = {
   status: [],
 };
 
+// The linked phone's own random id (sink-coach.js), for the bot's one-phone-per-link rule; only from the header.
+const PHONE_RE = /^[A-Za-z0-9_-]{16,64}$/;
+
 function linkArgs(req, op) {
-  return { token: req.params.token, op, sessionId: req.params.id };
+  const phone = typeof req.get === 'function' ? req.get('x-sa-phone') : undefined;
+  return PHONE_RE.test(String(phone || ''))
+    ? { token: req.params.token, op, sessionId: req.params.id, phone }
+    : { token: req.params.token, op, sessionId: req.params.id };
 }
 
 async function requireLinkedCoach(req, res, next) {
