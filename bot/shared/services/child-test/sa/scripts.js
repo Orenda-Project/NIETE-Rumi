@@ -38,6 +38,13 @@ const BATTERY = {
   section_english: L('Now some English reading.', 'اب کچھ انگریزی پڑھتے ہیں۔', 'adapted:section'),
   section_maths: L('Now some number games.', 'اب گنتی کے کچھ کھیل۔', 'adapted:section'),
   end: L('All done! Thank you. Please give the phone back to your teacher.', 'سب ہو گیا! شکریہ۔ اب فون واپس اپنے استاد کو دے دیں۔', 'adapted:handback'),
+  // The game surface (DESIGN §5: no test words on a game screen; at home there is no teacher to hand back to).
+  welcome_game: L('Hello! Jugnu will play some reading and number games with you. Listen carefully and do your best.',
+    'السلام علیکم! جگنو آپ کے ساتھ پڑھنے اور گنتی کے کچھ کھیل کھیلے گا۔ غور سے سنیں اور اپنی پوری کوشش کریں۔', 'egra_tk2016:p.186 (game wording)'),
+  end_game: L('All done! Well done for trying.', 'سب ہو گیا! کوشش کرنے پر شاباش۔', 'adapted:game end'),
+};
+const GAME_LINES = {
+  hand_back: L('Well done! Let us go back to the map.', 'شاباش! اب واپس نقشے پر چلتے ہیں۔', 'adapted:game hand-back'),
 };
 
 // Per task kind. intro_record: the child reads aloud and Jugnu keeps the recording; intro_tap: Jugnu says an item and
@@ -91,6 +98,17 @@ const TASKS = {
     example: L('For example, the beginning sound of the word "{x}" is {y}.', 'جیسے: لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (example "جہاز")'),
     right: L('Well done! The beginning sound of the word "{x}" is {y}.', 'شاباش! لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (practice, correct)'),
     wrong: L('The beginning sound of the word "{x}" is {y}.', 'لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (practice, incorrect)'),
+  },
+  'en.segmentation': {
+    intro_tap: L('This is a listening game. Jugnu will say a word two times. Listen to the word, then say all the sounds in that word out loud.',
+      'یہ سننے کا کھیل ہے۔ جگنو ایک لفظ دو بار بولے گا۔ لفظ غور سے سنیں، پھر اس لفظ کی ساری آوازیں ایک ایک کر کے اونچی آواز میں بتائیں۔',
+      'egra_tk2009:p33 phoneme segmentation "tell me the sounds in that word" (record adaptation)'),
+    example: L('For example, the sounds in "{x}" are {y}.', 'مثال کے طور پر، لفظ "{x}" کی آوازیں یہ ہیں: {y}۔', 'egra_tk2009:p33 (example "pot", practice "fan", "miss")'),
+  },
+  'en.dictation': {
+    intro_tap: L('Jugnu will say a word, then a sentence with that word, then the word again. Type the word with the letter buttons. To hear it again, tap Jugnu.',
+      'جگنو ایک لفظ بولے گا، پھر اس لفظ والا ایک جملہ، پھر وہی لفظ دوبارہ۔ حروف والے بٹن دبا کر وہ لفظ لکھیں۔ دوبارہ سننے کے لیے جگنو کو دبائیں۔',
+      'egra_tk2009:p41 dictation "I will read you a short sentence ... write what you hear" (Tangerine SA typed-spelling adaptation)'),
   },
   nonwords: {
     intro_record: L('Here are some made-up words. They are not real words. Read as many as you can, out loud. Do not spell them, read each whole word. Start at the first word and go along each row. If you do not know a word, go on to the next one.',
@@ -245,4 +263,4 @@ const EN_LETTER_SOUNDS = {
   n: 'nnn', o: 'aw', p: 'puh', q: 'kwuh', r: 'rrr', s: 'sss', t: 'tuh', u: 'uh', v: 'vvv', w: 'wuh', x: 'ks', y: 'yuh', z: 'zzz',
 };
 
-module.exports = { COMMON, BATTERY, TASKS, UR_LETTER_NAMES, EN_LETTER_SOUNDS };
+module.exports = { COMMON, BATTERY, GAME_LINES, TASKS, UR_LETTER_NAMES, EN_LETTER_SOUNDS };
