@@ -46,6 +46,11 @@ const ROUTES = {
   '/sa/schools': ['listSchools', ['userId'], 'sa-api.service'],
   '/sa/list': ['dayList', ['userId', 'schoolId', 'visitId'], 'sa-api.service'],
   '/sa/outcome': ['dayOutcome', ['userId', 'schoolId', 'visitId', 'drawId', 'outcome', 'note'], 'sa-api.service'],
+  '/sa/battery': ['saBattery', ['userId', 'sessionId', 'lang', 'full'], 'sa-api.service'],
+  '/sa/batch': ['saBatch', ['userId', 'sessionId', 'seqFrom', 'seqTo', 'events', 'results', 'lang', 'device'], 'sa-api.service'],
+  '/sa/presign': ['saPresign', ['userId', 'sessionId', 'taskId', 'itemId', 'mime', 'bytes'], 'sa-api.service'],
+  '/sa/register': ['saRegister', ['userId', 'sessionId', 'taskId', 'itemId', 'key'], 'sa-api.service'],
+  '/sa/status': ['saStatus', ['userId', 'sessionId'], 'sa-api.service'],
 };
 
 function createChildTestAppRouter({ deps } = {}) {

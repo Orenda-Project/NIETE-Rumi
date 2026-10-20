@@ -120,7 +120,8 @@ test('every route is POST and named', () => {
   const paths = r.stack.filter((l) => l.route).map((l) => `${Object.keys(l.route.methods)[0]} ${l.route.path}`);
   expect(paths.sort()).toEqual([
     'post /card', 'post /check', 'post /list', 'post /media', 'post /outcome', 'post /presign',
-    'post /sa/list', 'post /sa/outcome', 'post /sa/schools', 'post /session', 'post /visits',
+    'post /sa/batch', 'post /sa/battery', 'post /sa/list', 'post /sa/outcome', 'post /sa/presign', 'post /sa/register',
+    'post /sa/schools', 'post /sa/status', 'post /session', 'post /visits',
   ]);
 });
 
