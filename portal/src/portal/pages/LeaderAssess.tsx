@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Headphones, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
+import AssessDrain from '../components/assess/AssessDrain';
 import AssessEngineSlot, { type FinishReason } from '../components/assess/AssessEngineSlot';
 import AssessOtherPhone from '../components/assess/AssessOtherPhone';
 import AssessPreflight from '../components/assess/AssessPreflight';
@@ -40,6 +41,7 @@ import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa'
 const LANG_KEY = 'niete-assess-lang';
 const LIST_SIZE = 5;
 const TICK_MS = 30_000;
+const DRAIN_EVERY_MS = 30_000;
 const TOAST_MS = 2500;
 const FULL_MINUTES = 29;
 /** Urdu: the app's Nastaliq stack and line height (index.css keys them on html[lang=ur]; this page sets its own lang), and nothing below text-sm. */
@@ -238,10 +240,28 @@ export default function LeaderAssess() {
     }
   }, [keepServerId]);
 
+  // A finished child whose rows are still on the phone: the engine's page is gone, so a hidden drain frame sends them.
+  const [drainAt, setDrainAt] = useState<number | null>(null);
+  const lastDrain = useRef(0);
+  const drainNeeded = useRef(false);
+  const maybeDrain = () => {
+    if (!drainNeeded.current || drainAt !== null || step.kind === 'engine') return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const now = Date.now();
+    if (now - lastDrain.current < DRAIN_EVERY_MS) return;
+    lastDrain.current = now;
+    setDrainAt(now);
+  };
+  const drainDone = () => {
+    setDrainAt(null);
+    if (pollKey) void poll(pollKey.split(','));
+  };
+
   const tick = useRef<() => void>(() => {});
   tick.current = () => {
     void flush();
     if (pollKey) void poll(pollKey.split(','));
+    maybeDrain();
   };
   useEffect(() => {
     if (enabled !== true) return undefined;
@@ -396,6 +416,7 @@ export default function LeaderAssess() {
   // an absent or refused row the server keeps on the list is not one of the children to test
   const isMarkedOut = (c: SaChild) => c.status === 'absent' || c.status === 'absent_final' || c.status === 'refused';
   const elsewhere = (c: SaChild) => !isDone(c) && Boolean(memory?.elsewhere[c.drawId]);
+  drainNeeded.current = doneKids.some((c) => Boolean(sessionOf(c)) && syncOf(c) !== 'sent');
   const sync: SyncItem[] = [
     ...doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) })),
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
@@ -612,6 +633,7 @@ export default function LeaderAssess() {
       <div data-testid="assess-root" className={`max-w-md mx-auto overflow-x-clip ${lang === 'ur' ? URDU_ROOT : ''}`} dir={lang === 'ur' ? 'rtl' : 'ltr'} lang={lang}>
         {!inTest && header}
         {content}
+        {drainAt !== null && step.kind !== 'engine' && <AssessDrain key={drainAt} onDone={drainDone} />}
         {toast && step.kind === 'list' && (
           <p role="status" className={`pointer-events-none fixed inset-x-4 ${above.toast} z-50 mx-auto max-w-md rounded-xl bg-slate-900 px-4 py-3 text-center text-white shadow-lg`}>{copy.savedNext}</p>
         )}
