@@ -25,16 +25,17 @@ const same = (cell, v) => {
   return cell === v;
 };
 
-// Embedded reads (PostgREST `select('…, other(cols)')`), along the foreign keys production has: [the row's column, the
-// other table's column, one | many]. The inner column list is not applied, as the outer one is not; an embed not listed
-// here leaves the row as it was (as this fake always did).
+// Embedded reads (PostgREST `select('…, other(cols)')`, or `alias:fk_column(cols)` along a foreign key column), along the
+// foreign keys production has: [the row's column, the other table's column, one | many, the other table when the embed
+// is named by its column]. The inner column list is not applied, as the outer one is not; an embed not listed here leaves
+// the row as it was (as this fake always did). An aliased embed lands under its alias.
 const EMBEDS = {
   quiz_sessions: { quiz_share_codes: ['share_code_id', 'id', 'one'], quizzes: ['quiz_id', 'id', 'one'] },
-  quiz_share_codes: { quizzes: ['quiz_id', 'id', 'one'] },
+  quiz_share_codes: { quizzes: ['quiz_id', 'id', 'one'], parent_share_code_id: ['parent_share_code_id', 'id', 'one', 'quiz_share_codes'] },
   student_videos: { quizzes: ['id', 'video_id', 'many'] },
   students: { student_lists: ['list_id', 'id', 'one'] },
 };
-const embedsOf = (cols) => [...String(cols || '').matchAll(/(?:^|,)\s*(\w+)\(/g)].map((m) => m[1]);
+const embedsOf = (cols) => [...String(cols || '').matchAll(/(?:^|,)\s*(?:(\w+):)?(\w+)\(/g)].map((m) => ({ name: m[2], as: m[1] || m[2] }));
 
 // `maxRows` ({ table: n }, default none): PostgREST's max-rows — a read of that table answers at most n rows, whatever
 // range or limit it asked for, as the server does; a read that does not page past it goes red.
@@ -141,12 +142,12 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     if (st.count) return { data: st.head ? null : hit, count: hit.length, error: null };
     const out = (r) => {
       const o = { ...r };
-      for (const name of st.embeds || []) {
+      for (const { name, as } of st.embeds || []) {
         const rel = (EMBEDS[st.t] || {})[name];
         if (!rel) continue;
-        const [mine, theirs, kind] = rel;
-        const found = table(name).filter((x) => r[mine] != null && x[theirs] === r[mine]).map((x) => ({ ...x }));
-        o[name] = kind === 'one' ? found[0] || null : found;
+        const [mine, theirs, kind, other] = rel;
+        const found = table(other || name).filter((x) => r[mine] != null && x[theirs] === r[mine]).map((x) => ({ ...x }));
+        o[as] = kind === 'one' ? found[0] || null : found;
       }
       return o;
     };
