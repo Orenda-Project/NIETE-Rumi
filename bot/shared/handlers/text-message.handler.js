@@ -551,6 +551,13 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   turn.user = user;
   turn.lookupFailed = userLookupFailed;
 
+  // STOP to the quiz reminder template (nudges/reminder-stop.js): after the quiz intercepts above, so a quiz's own
+  // STOP wins. Only an exact STOP/«روکیں» does any I/O; switch absent or no template this week ⇒ false, as before.
+  if (user?.id && messageBody && await require('../services/nudges/reminder-stop').handleReminderStop({ user, text: messageBody, to: from })) {
+    typingController.stop();
+    return;
+  }
+
   // NOTE: Funnel tracking (chat start) is handled centrally in whatsapp-bot.js
   // before routing to this handler
 

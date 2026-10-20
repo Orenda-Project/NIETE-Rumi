@@ -48,6 +48,7 @@ describe('teacher home token', () => {
     const t = HomeToken.signTeacherHome({ uid: UID, lang: 'ur', via: 'portal' });
     expect(typeof t).toBe('string');
     expect(HomeToken.verifyTeacherHome(t)).toEqual({ ok: expect.objectContaining({ uid: UID, lang: 'ur', via: 'portal' }) });
+    expect(HomeToken.verifyTeacherHome(HomeToken.signTeacherHome({ uid: UID, lang: 'en', via: 'reminder' })).ok).toMatchObject({ via: 'reminder' });
     expect(HomeToken.signTeacherHome({ uid: UID, lang: 'en', via: 'nope' })).toBeNull();
   });
 

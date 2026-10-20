@@ -6056,6 +6056,21 @@ COMMENT ON COLUMN teacher_nudges.context IS
 COMMENT ON COLUMN teacher_nudges.choice IS
   'What the teacher tapped: yes | no | ignored | class:<grade>_<subject>. A stable token, never the button title (button copy is translated and changes).';
 
+-- ─── teacher_reminder_optouts (mirror of bot/database/migrations/teacher_reminder_optouts.sql) ─────────────
+-- A teacher who replied STOP to the quiz reminder template is never sent it again. Owner notify-org; steward the
+-- NIETE bot team. Service role only (RLS on, no policy). Retention: kept while the user exists; deleted with the user.
+CREATE TABLE IF NOT EXISTS public.teacher_reminder_optouts (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  kind          text        NOT NULL CHECK (kind IN ('quiz_reminder_template')),
+  opted_out_at  timestamptz NOT NULL DEFAULT now(),
+  source        text        NOT NULL CHECK (source IN ('stop_reply')),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT teacher_reminder_optouts_one_per_kind UNIQUE (user_id, kind)
+);
+COMMENT ON COLUMN public.teacher_reminder_optouts.user_id IS 'PII: the teacher (users.id) who opted out';
+ALTER TABLE public.teacher_reminder_optouts ENABLE ROW LEVEL SECURITY;   -- no policy: service role only
+
 
 -- ── coaching_sessions: observe (HITL) columns — V1.5.4; live on every database since the HITL port ──
 ALTER TABLE coaching_sessions ADD COLUMN IF NOT EXISTS observation_type       VARCHAR(30);
