@@ -7,7 +7,8 @@
  *            list (bd-tbprit.7, 20 Oct — supersedes the 19 Oct two-tag list): school + EMIS, opened (the blue
  *            dot until she opens the card) and three tags with their numbers — recordingLess (her last 2 weeks'
  *            recordings a week are half or less of the 4 weeks before), waiting (sent > 48 h ago, in days) and
- *            repeat (her 2nd, 3rd … disagreement). To do: most tags first, then longest waiting.
+ *            repeat (her 2nd, 3rd … disagreement); bd-tbprit.9 adds short, first (the lesson recorded for under 15
+ *            minutes, in whole minutes). To do: most tags first, then longest waiting.
  *   cardFor  one request, for its own coach only (null otherwise): the report view, the grader's evidence for
  *            each reason, every indicator with its AI score, and the plan steps when the plan was checked.
  *
@@ -21,9 +22,11 @@ const OPEN = ['pending', 'sent', 'failed'];
 const LIST_LIMIT = 200;
 const WAIT_MS = 48 * 3600 * 1000;
 const DAY_MS = 24 * 3600 * 1000;
+const SHORT_SEC = 15 * 60;
 const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, school_id, ab_group, status, reasons, voice_note_key, opened_at, created_at, updated_at';
 
 const ms = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? t : 0; };
+const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 const pctOf = (scores) => {
   const p = scores && scores.overall_percentage;
   return p == null || p === '' || !Number.isFinite(Number(p)) ? null : Math.round(Number(p));
@@ -62,6 +65,7 @@ function shapeList(rows, look, now) {
     const session = look.sessions.get(r.coaching_session_id) || {};
     const tags = [];
     if (!done) {
+      if (session.durationSec > 0 && session.durationSec < SHORT_SEC) tags.push({ kind: 'short', minutes: Math.floor(session.durationSec / 60) });
       const rate = (look.rates && look.rates.get(r.teacher_user_id)) || null;
       if (rate && rate.before > 0 && rate.now <= rate.before / 2) tags.push({ kind: 'recordingLess', before: rate.before, now: rate.now });
       const waited = now.getTime() - ms(r.created_at);
@@ -105,7 +109,7 @@ async function listFor(supabase, coachId, opts = {}) {
   const [users, schools, sessions, recent] = await Promise.all([
     supabase.from('users').select('id, name').in('id', teacherIds),
     supabase.from('leader_schools').select('school_id, school_name, emis').eq('leader_user_id', coachId).in('school_id', uniq(rows.map((r) => r.school_id))),
-    supabase.from('coaching_sessions').select('id, created_at, scores:analysis_data->scores').in('id', uniq(rows.map((r) => r.coaching_session_id))),
+    supabase.from('coaching_sessions').select('id, created_at, audio_duration_seconds, scores:analysis_data->scores').in('id', uniq(rows.map((r) => r.coaching_session_id))),
     supabase.from('coaching_sessions').select('user_id, created_at').in('user_id', teacherIds)
       .gte('created_at', new Date(now.getTime() - 42 * DAY_MS).toISOString()),
   ]);
@@ -118,6 +122,7 @@ async function listFor(supabase, coachId, opts = {}) {
     rates: new Map(teacherIds.map((id) => [id, recordingRate(datesOf.get(id) || [], now)])),
     sessions: new Map(rowsOf(sessions).map((s) => [s.id, {
       createdAt: s.created_at || null,
+      durationSec: num(s.audio_duration_seconds),
       pct: pctOf(s.scores || (s.analysis_data && s.analysis_data.scores)),
     }])),
   };
@@ -128,12 +133,13 @@ async function listFor(supabase, coachId, opts = {}) {
 async function cardFor(supabase, coachId, requestId, deps = {}) {
   const { data: row } = await supabase.from('coach_visit_requests').select(ROW_SELECT).eq('id', requestId).maybeSingle();
   if (!row || !coachId || row.coach_user_id !== coachId) return null;
-  const [teacher, coach, school, data, hers] = await Promise.all([
+  const [teacher, coach, school, data, hers, rec] = await Promise.all([
     supabase.from('users').select('name').eq('id', row.teacher_user_id).maybeSingle(),
     supabase.from('users').select('preferred_language').eq('id', coachId).maybeSingle(),
     row.school_id ? supabase.from('leader_schools').select('school_name, emis').eq('school_id', row.school_id) : null,
     deps.loadReport(supabase, row.coaching_session_id, row.teacher_user_id),
     supabase.from('coach_visit_requests').select('id, created_at').eq('teacher_user_id', row.teacher_user_id),
+    supabase.from('coaching_sessions').select('audio_duration_seconds').eq('id', row.coaching_session_id).maybeSingle(),
   ]);
   if (!data || !data.session) return null;
   const { buildReportView } = require('./coaching-report-view');
@@ -162,6 +168,7 @@ async function cardFor(supabase, coachId, requestId, deps = {}) {
     evidence: evidenceFor(a, row.reasons, view.thing),
     indicators: indicatorsOf(a),
     moves: movesOf(a),
+    durationSec: num(rec && rec.data && rec.data.audio_duration_seconds),
   };
 }
 

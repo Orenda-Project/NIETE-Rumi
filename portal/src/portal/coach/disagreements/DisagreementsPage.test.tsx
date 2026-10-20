@@ -92,6 +92,13 @@ describe("DisagreementsPage, Rifat's list", () => {
     expect(screen.getByText("⏳ Sent 4 days ago")).toHaveAttribute("data-tone", "soft");
   });
 
+  it("bd-tbprit.9 — a short recording is its own red tag, first, in minutes", async () => {
+    D.list.mockResolvedValue({ success: true, todo: [row("s", { tags: [{ kind: "short", minutes: 12 }, { kind: "waiting", days: 1 }] })], done: [] });
+    renderAt();
+    await screen.findByTestId("disagreements-todo");
+    expect(screen.getByText("🎙 Short recording: 12 min")).toHaveAttribute("data-tone", "red");
+  });
+
   it("a blue dot only on a card she has not opened", async () => {
     renderAt();
     const todo = await screen.findByTestId("disagreements-todo");
