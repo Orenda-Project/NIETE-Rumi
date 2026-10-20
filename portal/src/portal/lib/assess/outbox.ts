@@ -9,7 +9,7 @@ import type { QueuedOutcome } from './visitStore';
  */
 
 export type SendResult =
-  | { kind: 'sent'; list: SaList | null }
+  | { kind: 'sent'; list: SaList | null; sessionId: string | null }
   | { kind: 'retry' }
   | { kind: 'refused'; status: number };
 
@@ -28,7 +28,7 @@ export async function sendQueued(q: QueuedOutcome): Promise<SendResult> {
   if (q.block) args.block = q.block;
   try {
     const out = await childTestSa.markOutcome(args);
-    return { kind: 'sent', list: out?.list ?? null };
+    return { kind: 'sent', list: out?.list ?? null, sessionId: out?.sessionId ?? null };
   } catch (err) {
     const status = statusOf(err);
     return isRefusal(status) ? { kind: 'refused', status } : { kind: 'retry' };

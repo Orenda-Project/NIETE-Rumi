@@ -6,13 +6,15 @@ import { MemoryRouter } from "react-router-dom";
 // school picker, the server's list (no roll number), absent → the promoted
 // alternate, present → handover (block, whole battery) → the engine frame →
 // sa:done → back to the list, the visit bar and its sync states, the summary,
-// the saved list and the outcome queue when offline. The network is mocked.
+// the saved list and the outcome queue when offline, the pre-flight card (beep,
+// microphone check), and opening a child's test on another phone by a QR link.
+// The network, the microphone and the audio graph are mocked.
 
 vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../lib/keepAwake", () => ({ keepScreenOn: vi.fn().mockResolvedValue(async () => {}) }));
 vi.mock("../services/api", () => ({
   portal: { getConfig: vi.fn() },
-  childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn() },
+  childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn(), mintLink: vi.fn() },
 }));
 
 import { portal, childTestSa } from "../services/api";
@@ -39,9 +41,16 @@ function renderPage() {
   return render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
 }
 
+/** Pick the school; the first time in a visit, get past the pre-flight card. */
+async function chooseSchool(id = "s2") {
+  fireEvent.click(await screen.findByTestId(`assess-school-${id}`));
+  const ready = screen.queryByTestId("assess-preflight-ready");
+  if (ready) fireEvent.click(ready);
+}
+
 async function openList() {
   const r = renderPage();
-  fireEvent.click(await screen.findByTestId("assess-school-s2"));
+  await chooseSchool();
   await screen.findByText("Ayan Testwala");
   return r;
 }
@@ -54,6 +63,7 @@ beforeEach(() => {
   api.getList.mockResolvedValue({ list: LIST });
   api.markOutcome.mockResolvedValue({});
   api.getStatus.mockResolvedValue({ session: { id: "x", status: "started", grade: 3, form: "f" }, block: "B1", lastSeq: 0, tasksDone: [], audio: [] });
+  api.mintLink.mockResolvedValue({ token: "tok-123", expiresAt: "2026-10-20T10:00:00Z" });
 });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -92,7 +102,7 @@ describe("LeaderAssess", () => {
     expect(buttons[0]).toBe(first);
     expect(first).toHaveTextContent("Today's visit");
     expect(buttons[1]).not.toHaveTextContent("Today's visit");
-    fireEvent.click(first);
+    await chooseSchool();
     await screen.findByText("Ayan Testwala");
     expect(api.getList).toHaveBeenCalledWith("s2", "v2");
   });
@@ -137,7 +147,7 @@ describe("LeaderAssess", () => {
       return { sessionId: "server-1" };
     });
     renderPage();
-    fireEvent.click(await screen.findByTestId("assess-school-s2"));
+    await chooseSchool();
     await screen.findByText("ایان ٹیسٹ والا");
     fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "حاضر" }));
     const block = pickBlock([]);
@@ -302,7 +312,7 @@ describe("LeaderAssess", () => {
   it("the server's list problems are plain messages", async () => {
     api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list" } } });
     renderPage();
-    fireEvent.click(await screen.findByTestId("assess-school-s2"));
+    await chooseSchool();
     expect(await screen.findByText(/no class list/i)).toBeInTheDocument();
   });
 
@@ -312,6 +322,7 @@ describe("LeaderAssess", () => {
     api.getList.mockRejectedValue(new Error("Network Error"));
     renderPage();
     fireEvent.click(await screen.findByTestId("assess-school-s2"));
+    expect(screen.queryByTestId("assess-preflight")).toBeNull();
     expect(await screen.findByText("Ayan Testwala")).toBeInTheDocument();
     expect(screen.getByText(/offline — showing saved list/i)).toBeInTheDocument();
   });
@@ -319,9 +330,183 @@ describe("LeaderAssess", () => {
   it("Urdu: right-to-left, the Urdu name when there is one", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     const { container } = renderPage();
-    fireEvent.click(await screen.findByTestId("assess-school-s2"));
+    await chooseSchool();
     expect(await screen.findByText("ایان ٹیسٹ والا")).toBeInTheDocument();
     expect(screen.getByText("Bilal Testwala")).toBeInTheDocument();
     expect(container.querySelector('[dir="rtl"]')).not.toBeNull();
+  });
+
+  describe("pre-flight card", () => {
+    let track: { stop: ReturnType<typeof vi.fn> };
+    let gum: ReturnType<typeof vi.fn>;
+    let started: string[];
+    let playSpy: { mockRestore: () => void };
+    const realMedia = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+
+    class FakeAudioContext {
+      currentTime = 0;
+      destination = {};
+      createAnalyser() { return { fftSize: 1024, getByteTimeDomainData: (b: Uint8Array) => b.fill(128 + 64) }; }
+      createMediaStreamSource() { return { connect: vi.fn() }; }
+      createOscillator() {
+        const o: any = { frequency: { value: 0 }, connect: vi.fn(), start: () => started.push("osc"), stop: vi.fn(), onended: null };
+        return o;
+      }
+      createGain() { return { gain: { value: 1 }, connect: vi.fn() }; }
+      close() { return Promise.resolve(); }
+    }
+    class FakeRecorder {
+      static isTypeSupported = () => true;
+      state = "inactive";
+      ondataavailable: ((e: any) => void) | null = null;
+      onstop: (() => void) | null = null;
+      constructor(public stream: unknown, public opts?: { mimeType?: string }) {}
+      start() { this.state = "recording"; started.push(`rec:${this.opts?.mimeType}`); }
+      stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob(["x"], { type: "audio/webm" }) }); this.onstop?.(); }
+    }
+
+    beforeEach(() => {
+      started = [];
+      track = { stop: vi.fn() };
+      gum = vi.fn().mockResolvedValue({ getTracks: () => [track] });
+      Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: gum } });
+      vi.stubGlobal("AudioContext", FakeAudioContext);
+      vi.stubGlobal("MediaRecorder", FakeRecorder);
+      (URL as any).createObjectURL = vi.fn(() => "blob:mic");
+      (URL as any).revokeObjectURL = vi.fn();
+      playSpy = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function play() { started.push("play"); return Promise.resolve(); });
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      playSpy.mockRestore();
+      if (realMedia) Object.defineProperty(navigator, "mediaDevices", realMedia);
+      else delete (navigator as any).mediaDevices;
+    });
+
+    it("shows once per visit, before the list; Ready continues; Check again reopens it", async () => {
+      const first = renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const card = await screen.findByTestId("assess-preflight");
+      expect(card).toHaveTextContent("airplane mode");
+      expect(card).toHaveTextContent("Headphones in");
+      expect(screen.queryByText("Ayan Testwala")).toBeNull();
+      fireEvent.click(within(card).getByRole("button", { name: /Play a sound/ }));
+      expect(started).toContain("osc");
+      fireEvent.click(screen.getByRole("button", { name: "Ready" }));
+      await screen.findByText("Ayan Testwala");
+      expect(stored().preflight.at).toEqual(expect.any(Number));
+      first.unmount();
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      await screen.findByText("Ayan Testwala");
+      expect(screen.queryByTestId("assess-preflight")).toBeNull();
+      fireEvent.click(screen.getByTestId("assess-check-again"));
+      expect(await screen.findByTestId("assess-preflight")).toBeInTheDocument();
+    });
+
+    it("the microphone check: level, 2 s recorded and played back, 'I heard it' keeps mic_ok and the peak RMS", async () => {
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const check = await screen.findByRole("button", { name: /Check the microphone/ });
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+      fireEvent.click(check);
+      await act(async () => { await Promise.resolve(); });
+      expect(gum).toHaveBeenCalledWith({ audio: true });
+      await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+      expect(Number(screen.getByTestId("assess-mic-level").getAttribute("aria-valuenow"))).toBeGreaterThan(0);
+      expect(started).toContain("rec:audio/webm;codecs=opus");
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+      vi.useRealTimers();
+      expect(started).toContain("play");
+      expect(track.stop).toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "I heard it" }));
+      expect(screen.getByTestId("assess-mic-ok")).toBeInTheDocument();
+      const saved = JSON.parse(window.localStorage.getItem("sa:mic_ok") as string);
+      expect(saved).toEqual({ mic_ok: true, mic_rms: 0.5, at: expect.any(Number) });
+      fireEvent.click(screen.getByRole("button", { name: "Ready" }));
+      await screen.findByText("Ayan Testwala");
+      expect(stored().preflight.mic).toEqual(saved);
+    });
+
+    it("a blocked microphone shows how to allow it, keeps mic_ok false, and the coach can go on", async () => {
+      gum.mockRejectedValue(Object.assign(new Error("denied"), { name: "NotAllowedError" }));
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(await screen.findByRole("button", { name: /Check the microphone/ }));
+      expect(await screen.findByTestId("assess-mic-denied")).toHaveTextContent(/Chrome.*Microphone.*Allow/);
+      expect(JSON.parse(window.localStorage.getItem("sa:mic_ok") as string)).toMatchObject({ mic_ok: false, mic_rms: 0 });
+      fireEvent.click(screen.getByRole("button", { name: "Ready" }));
+      await screen.findByText("Ayan Testwala");
+      expect(stored().preflight.mic).toMatchObject({ mic_ok: false });
+    });
+  });
+
+  describe("open on another phone", () => {
+    it("mints a link for the server's session: QR, Child number, t= token, no name and no #n=", async () => {
+      api.markOutcome.mockResolvedValue({ sessionId: "server-1" });
+      await openList();
+      fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" }));
+      await screen.findByTestId("assess-handover");
+      fireEvent.click(screen.getByRole("button", { name: /Open on another phone/ }));
+      const url = (await screen.findByTestId("assess-link-url")) as HTMLInputElement;
+      expect(api.mintLink).toHaveBeenCalledWith("server-1");
+      expect(api.markOutcome.mock.calls[0][0]).toMatchObject({ drawId: "d1", outcome: "present" });
+      const link = new URL(url.value);
+      expect(link.origin).toBe(window.location.origin);
+      expect(link.pathname).toBe("/sa/play.html");
+      expect(link.searchParams.get("s")).toBe("server-1");
+      expect(link.searchParams.get("t")).toBe("tok-123");
+      expect(link.searchParams.get("form")).toBe("sa.coach.G3.A.en");
+      expect(link.searchParams.get("mode")).toBe("proctored");
+      expect(link.searchParams.get("block")).toBe(pickBlock([]));
+      expect(url.value).not.toContain("#");
+      expect(url.value).not.toMatch(/Ayan|Testwala|n=/);
+      const screenText = screen.getByTestId("assess-other-phone").textContent as string;
+      expect(screenText).toContain("Child 1");
+      expect(screenText).not.toMatch(/Ayan|Testwala/);
+      const qr = screen.getByTestId("assess-qr");
+      expect(Number(qr.getAttribute("width"))).toBeGreaterThanOrEqual(240);
+      expect(qr.querySelector("path")?.getAttribute("fill")).toBe("#000");
+      expect(screen.getByText("Link works for 1 hour")).toBeInTheDocument();
+    });
+
+    it("is disabled until the queued Present reaches the server", async () => {
+      api.markOutcome.mockRejectedValueOnce(NET());
+      api.getStatus.mockRejectedValue(NET());
+      await openList();
+      fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" }));
+      await screen.findByTestId("assess-handover");
+      fireEvent.click(screen.getByTestId("assess-other-d1"));
+      await waitFor(() => expect(screen.getByTestId("assess-other-d1")).toBeDisabled());
+      expect(screen.getByText("Needs the internet once")).toBeInTheDocument();
+      expect(api.mintLink).not.toHaveBeenCalled();
+      expect(stored().queue[0]).toMatchObject({ drawId: "d1", outcome: "present" });
+      api.markOutcome.mockResolvedValue({ sessionId: "server-9" });
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      await waitFor(() => expect(screen.getByTestId("assess-other-d1")).not.toBeDisabled());
+      expect(stored().sessions.d1.serverId).toBe("server-9");
+      fireEvent.click(screen.getByTestId("assess-other-d1"));
+      await screen.findByTestId("assess-link-url");
+      expect(api.mintLink).toHaveBeenCalledWith("server-9");
+    });
+
+    it("Done marks the child 'On another phone'; the row can show the link again; completed on the server → Done, sent", async () => {
+      api.markOutcome.mockResolvedValue({ sessionId: "server-1" });
+      await openList();
+      fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" }));
+      fireEvent.click(await screen.findByTestId("assess-other-d1"));
+      await screen.findByTestId("assess-link-url");
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+      const row = await screen.findByTestId("assess-child-d1");
+      expect(row).toHaveTextContent("On another phone");
+      expect(stored().elsewhere.d1).toBe("server-1");
+      expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("Ayan · On another phone");
+      expect(within(row).getByTestId("assess-other-d1")).not.toBeDisabled();
+      api.getStatus.mockResolvedValue({ session: { id: "server-1", status: "completed", grade: 3, form: "sa.coach.G3.A.en" }, block: "B1", lastSeq: 9, tasksDone: ["t1"], audio: [] });
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      await waitFor(() => expect(screen.getByTestId("assess-child-d1")).toHaveTextContent("Done"));
+      expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("1/5");
+      expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("Ayan · sent");
+    });
   });
 });
