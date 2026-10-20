@@ -61,10 +61,10 @@ describe('SA battery bank (CONTRACT §2)', () => {
       for (const t of f.order) expect(bank.tasks[`${id}/${t}`]).toBeDefined();
       if (f.surface === 'coach') {
         expect(Object.keys(f.blocks)).toEqual(['B1', 'B2', 'B3', 'B4', 'B5']);
-        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and only patterns (B4), initial sound and vocabulary (B3) and orientation to print (B1/B2, before the story) join a block.
+        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and none joins a block (RULING #16).
         const inBlocks = Object.values(f.blocks).flat();
         expect(new Set(inBlocks).size).toBe(inBlocks.length);
-        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns|initial_sound$|vocabulary$|print_orientation$/.test(t)).sort());
+        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual([...f.extra].sort());
       } else {
         expect(Object.keys(f.islands).sort()).toEqual(['english', 'maths', 'urdu']);
         // The islands run every task of the form, the second passage and story in place of Set A's (sa-reading-2).
@@ -121,7 +121,7 @@ describe('SA battery bank (CONTRACT §2)', () => {
       const kind = t.task.split('.')[1];
       if (['letters', 'nonwords', 'words'].includes(kind)) {
         expect(t.modes).toEqual(['tap']);
-        expect(t.tap.stop).toEqual({ type: 'first_row', n: kind === 'letters' ? 10 : 5 });
+        expect(t.tap.stop).toEqual({ type: 'first_row', n: kind === 'letters' ? 10 : 5, max_correct: kind === 'letters' ? 2 : 1 }); // at chance (RULING #17)
         expect([t.tap.time_limit_s, t.tap.item_timeout_s, t.tap.replay_at_s]).toEqual([60, 10, 5]);
       }
       if (kind === 'story') {

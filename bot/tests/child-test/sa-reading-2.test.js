@@ -78,6 +78,6 @@ describe('SA segmentation and game lines', () => {
       const text = [b.lines.welcome.text, b.lines.end.text, ...b.tasks.map((t) => t.script.hand_back.text)].join(' ');
       expect([f, /امتحان|\btest\b|استاد|teacher/i.test(text)]).toEqual([f, false]);
     }
-    expect(read('sa/sa.coach.G3.A.ur.json').lines.end.text).toMatch(/استاد/);
+    expect(read('sa/sa.coach.G3.A.ur.json').lines.end.text).toMatch(/ٹیچر/);
   });
 });

@@ -38,7 +38,7 @@ describe('SA runtime batteries (what /sa/play.html runs)', () => {
   test.each(files)('%s: stop rules, skips and lines in the engine\'s terms and the battery\'s language', (f, form, lang) => {
     const b = read(f);
     const t = Object.fromEntries(b.tasks.map((x) => [x.id, x]));
-    expect(t['ur.letters'].stop).toEqual({ first_line_n: 10, first_line_min_correct: 1 });
+    expect(t['ur.letters'].stop).toEqual({ first_line_n: 10, first_line_min_correct: 3, max_correct: 2 }); // at chance (RULING #17)
     expect(t['ur.letters'].options_n).toBe(5);
     expect(t['en.words'].response).toBe('tap');
     expect(t['ma.add1'].response).toBe('keypad');

@@ -20,11 +20,11 @@ const COMMON = {
   early_stop: L('Thank you! Let us go on to the next one.', 'شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔', 'v3:script.early_stop'),
   after: L('Good effort! Let us go on to the next part.', 'شاباش! اب اگلے حصے کی طرف چلتے ہیں۔', 'v3:script.after'),
   practice_intro: L('First, let us practise.', 'پہلے مشق کرتے ہیں۔', 'egra_tk2016:Annex H (practice items)'),
-  test_intro: L('Now it is your turn. Jugnu will not say if an answer is right until the end.', 'اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔', 'egra_tk2016:no feedback on scored items'),
+  test_intro: L('Now it is your turn. Jugnu will not say if an answer is right until the end.', 'اب آپ کی باری ہے۔ جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔', 'egra_tk2016:no feedback on scored items'),
   practice_right: L('Yes! Well done.', 'شاباش! بالکل ٹھیک۔', 'v3:script.practice_1_correct'),
-  practice_wrong: L('Not quite. Listen again.', 'ابھی نہیں۔ دوبارہ سنیں۔', 'v3:script.practice_1_wrong'),
+  practice_wrong: L('Not quite. Listen again.', 'یہ والا نہیں۔ دوبارہ سنیں۔', 'v3:script.practice_1_wrong'),
   replay: L('Listen again.', 'دوبارہ سنیں۔', 'egra_tk2016:3-second rule (replay at 5 s)'),
-  hand_back: L('Well done! Please give the phone back to your teacher.', 'شاباش! اب فون واپس اپنے استاد کو دے دیں۔', 'adapted:handback'),
+  hand_back: L('Well done! Please give the phone back to your teacher.', 'شاباش! اب فون واپس اپنے ٹیچر کو دے دیں۔', 'adapted:handback'),
 };
 
 // Battery-level lines (welcome, the audio check, the end).
@@ -36,12 +36,21 @@ const BATTERY = {
   audio_fail: L('Ask for help with the headphones, then try again.', 'ہیڈ فون کے لیے مدد مانگیں، پھر دوبارہ کوشش کریں۔', 'adapted:headphone check'),
   section_urdu: L('Now some Urdu reading.', 'اب کچھ اردو پڑھتے ہیں۔', 'adapted:section'),
   section_english: L('Now some English reading.', 'اب کچھ انگریزی پڑھتے ہیں۔', 'adapted:section'),
-  section_maths: L('Now some number games.', 'اب گنتی کے کچھ کھیل۔', 'adapted:section'),
-  end: L('All done! Thank you. Please give the phone back to your teacher.', 'سب ہو گیا! شکریہ۔ اب فون واپس اپنے استاد کو دے دیں۔', 'adapted:handback'),
+  section_maths: L('Now some number games.', 'اب گنتی کے کچھ کھیل کھیلتے ہیں۔', 'adapted:section'),
+  end: L('All done! Thank you. Please give the phone back to your teacher.', 'سب ہو گیا! شکریہ۔ اب فون واپس اپنے ٹیچر کو دے دیں۔', 'adapted:handback'),
   // The game surface (DESIGN §5: no test words on a game screen; at home there is no teacher to hand back to).
   welcome_game: L('Hello! Jugnu will play some reading and number games with you. Listen carefully and do your best.',
     'السلام علیکم! جگنو آپ کے ساتھ پڑھنے اور گنتی کے کچھ کھیل کھیلے گا۔ غور سے سنیں اور اپنی پوری کوشش کریں۔', 'egra_tk2016:p.186 (game wording)'),
   end_game: L('All done! Well done for trying.', 'سب ہو گیا! کوشش کرنے پر شاباش۔', 'adapted:game end'),
+  // The engine's own screens (RULINGs #10, #13, #14, #17).
+  oral_practice: L('Let us practise answering out loud. Say: one, two, three.', 'آئیں، اونچی آواز میں جواب دینے کی مشق کریں۔ کہیں: ایک، دو، تین۔', 'RULING #13 (one practice before the first spoken answer)'),
+  oral_heard: L('I heard you!', 'مجھے سنائی دیا!', 'RULING #13'),
+  mic_check: L('Say: one, two, three.', 'کہیں: ایک، دو، تین۔', 'RULING #13 (mic probe)'),
+  mic_check_ask: L('Did you hear yourself?', 'کیا آپ کو اپنی آواز سنائی دی؟', 'RULING #13 (mic probe playback)'),
+  mercy: L('If reading is hard, tap the star.', 'اگر پڑھنا مشکل ہو تو ستارے کو دبائیں۔', 'RULING #10 (b) mercy rule (gender-neutral wording)'),
+  voice_not_ready: L('Voice not ready', 'آواز ابھی تیار نہیں', 'RULING #14'),
+  keypad_warmup: L('Type any numbers you like. Tap Done when you are ready.', 'جو نمبر چاہیں لکھیں۔ تیار ہوں تو "ہو گیا" دبائیں۔', 'RULING #17 P4 (Tangerine SA free-typing warm-up)'),
+  done: L('Done', 'ہو گیا', 'RULING #10 (c) the star tile'),
 };
 const GAME_LINES = {
   hand_back: L('Well done! Let us go back to the map.', 'شاباش! اب واپس نقشے پر چلتے ہیں۔', 'adapted:game hand-back'),
@@ -52,7 +61,7 @@ const GAME_LINES = {
 const TASKS = {
   'ur.letters': {
     intro_record: L('Here is a page of Urdu letters. Say the NAME of each letter out loud, not its sound. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
-      'یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں، آواز نہیں، صرف نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+      'یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ حرف کی آواز نہیں، صرف اس کا نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
       'v3:sets.A.reading.ur.letters.script.intro+instructions'),
     intro_tap: L('Here are some Urdu letters. Listen to the name of a letter, then tap that letter. Go as quickly and carefully as you can.',
       'یہ کچھ اردو حروف ہیں۔ ایک حرف کا نام سنیں، پھر وہی حرف دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔',
@@ -63,7 +72,7 @@ const TASKS = {
   },
   'en.letters': {
     intro_record: L('Here is a page of English letters. Say the NAME of each letter out loud, not its sound. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
-      'یہ انگریزی حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں، آواز نہیں، صرف نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+      'یہ انگریزی حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ حرف کی آواز نہیں، صرف اس کا نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
       'v3:sets.A.reading.en.letters.script.intro+instructions'),
     intro_tap: L('Here are some English letters. Listen to the name of a letter, then tap that letter. Go as quickly and carefully as you can.',
       'یہ کچھ انگریزی حروف ہیں۔ ایک حرف کا نام سنیں، پھر وہی حرف دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔',
@@ -158,10 +167,10 @@ const TASKS = {
   },
   story_comp: {
     intro_record: L('Now some questions about the story you just read. Listen to each question and say your answer out loud. You can answer in Urdu or English.',
-      'اب اس کہانی کے بارے میں کچھ سوال ہیں جو آپ نے ابھی پڑھی۔ ہر سوال سنیں اور اپنا جواب اونچی آواز میں بتائیں۔ اردو یا انگریزی، کسی بھی زبان میں جواب دیں۔',
+      'آپ نے ابھی جو کہانی پڑھی، اب اس کے بارے میں کچھ سوال ہیں۔ ہر سوال سنیں اور اپنا جواب اونچی آواز میں بتائیں۔ اردو یا انگریزی، کسی بھی زبان میں جواب دیں۔',
       'v3:sets.A.reading.<lang>.story.script.questions_intro'),
     intro_tap: L('Now some questions about the story you just read. Listen to each question, then tap the answer.',
-      'اب اس کہانی کے بارے میں کچھ سوال ہیں جو آپ نے ابھی پڑھی۔ ہر سوال سنیں، پھر جواب دبائیں۔',
+      'آپ نے ابھی جو کہانی پڑھی، اب اس کے بارے میں کچھ سوال ہیں۔ ہر سوال سنیں، پھر جواب دبائیں۔',
       'v3:sets.A.reading.<lang>.story.script.questions_intro (tap adaptation)'),
   },
   listening: {
@@ -229,7 +238,7 @@ const TASKS = {
   // The extra maths tasks (DESIGN §2b). RWP's own administration scripts were not recovered, so each line adapts the
   // RWP item's printed question ("What comes next?") with the Core EGMA keypad/tap wording of the nearest task.
   'ma.patterns': {
-    intro_tap: L('Look at the pattern. Tap what comes next.', 'اس ترتیب کو دیکھیں۔ آگے جو آئے، اسے دبائیں۔',
+    intro_tap: L('Look at the pattern. Tap what comes next.', 'اس ترتیب کو دیکھیں۔ آگے کیا آئے گا؟ اسے دبائیں۔',
       'rwp2026:patterns item text "What comes next?" (tap adaptation)'),
   },
   'ma.patterns_hi': {
@@ -247,7 +256,7 @@ const TASKS = {
   },
   'ma.fluency_l34': {
     intro_tap: L('Here are some more sums: adding, taking away, times and sharing. Type the answer to each one. If you do not know an answer, tap Next.',
-      'یہ کچھ اور سوال ہیں: جمع، تفریق، ضرب اور تقسیم۔ ہر سوال کا جواب لکھیں۔ اگر جواب نہ آئے تو "اگلا" دبائیں۔',
+      'یہ کچھ اور سوال ہیں: جمع، تفریق، ضرب اور تقسیم۔ ہر سوال کا جواب نمبر والے بٹن دبا کر لکھیں۔ اگر جواب نہ آئے تو "اگلا" دبائیں۔',
       'v3:sets.A.maths.3.add1.script.intro (keypad adaptation; RWP blfl4 grid)'),
   },
   'ma.word_problems': {

@@ -118,6 +118,11 @@ function seqStep(seq) {
   return Math.abs((x1 - x0) / (i1 - i0)) || 1;
 }
 
+// RULING #17 ⚠4: a tap first row stops at chance, not at zero (5 tiles: ≤ 2 of 10 letters; 4 tiles: ≤ 1 of 5 words).
+const CHANCE_MAX = { letters: 2, letter_sounds: 2, nonwords: 1, words: 1 };
+const CHANCE_NOTE = 'the first-row stop on the tap side is at chance (≤ 2 of 10 letters, ≤ 1 of 5 words; RULING #17), the recording side keeps EGRA\'s zero rule';
+const chanceStop = (stop, kind) => (stop && CHANCE_MAX[kind] != null ? { ...stop, max_correct: CHANCE_MAX[kind] } : stop);
+
 function stopOf(v3stop, firstLineN) {
   if (v3stop.type === 'first_row') return { type: 'first_row', n: v3stop.n };
   if (v3stop.type === 'first_line') return { type: 'first_line', n: firstLineN };
@@ -164,13 +169,13 @@ function gridTask({ lang, kind, spec, extraPractice }) {
   return {
     task, lang, kind: 'grid', legacy_block: task, family: 'egra', subtask: SUBTASK[kind], title: spec.title, modes: ['tap'],
     tap: { options_n: n, distractor_rule: kind === 'letters' ? 'same_list' : 'same_list_shares_letter', input: 'options',
-      items, time_limit_s: spec.timed_s, ...TIMED_TAP, stop: stopOf(spec.stop) },
+      items, time_limit_s: spec.timed_s, ...TIMED_TAP, stop: chanceStop(stopOf(spec.stop), kind) },
     record: { grid: spec.items, per_row: spec.per_row, direction: spec.direction, time_limit_s: spec.timed_s, stop: stopOf(spec.stop) },
     practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
     ...(!(spec.practice || []).length && practice.length ? { practice_note: 'practice items from the official form named in each src (v3 holds none)' } : {}),
     script: scriptOf(kind === 'letters' ? task : kind, 'tap', example && lines.example ? fill(lines.example, example.say.text) : null),
     source: sourceOf(spec, `${base}.script`, 'Tangerine SA hear-then-tap (sec_letter_sounds_01, sec_vocab_01); RULING #2'),
-    deviation: 'recognition, not production: Jugnu says the item and the child taps it (Tangerine SA\'s own choice); the 3-second rule becomes replay at 5 s, auto-advance marked wrong at 10 s',
+    deviation: `recognition, not production: Jugnu says the item and the child taps it (Tangerine SA's own choice); the 3-second rule becomes replay at 5 s, auto-advance marked wrong at 10 s; ${CHANCE_NOTE}`,
   };
 }
 
@@ -224,14 +229,15 @@ const SAY_OP = { '+': { en: 'plus', ur: 'جمع' }, '-': { en: 'minus', ur: 'م�
 function mathsTask({ kind, spec, grade }) {
   const task = `ma.${kind}`;
   const base = `v3:sets.${SET}.maths.${grade}.${kind}`;
-  const keypad = ['add1', 'sub1', 'add2', 'sub2', 'word_problems'].includes(kind);
+  // RULING #17 M3: missing number is typed at Grade 5 (tap 1 of 4 at Grades 1-3).
+  const keypad = ['add1', 'sub1', 'add2', 'sub2', 'word_problems'].includes(kind) || (kind === 'missing' && grade === '5');
   const timed = !!spec.timed_s;
   const lines = LINES[task] || {};
   const op = /^add/.test(kind) ? '+' : /^sub/.test(kind) ? '-' : null;
   const itemOf = (it, id, src) => {
     if (kind === 'number_id') return { id, target: Number(it), options: listOptions(id, it, spec.items, 4).map(Number), say: sayBoth(String(it), toUrDigits(it)), src };
     if (kind === 'discrimination') return { id, target: it.answer, options: [it.a, it.b], src };
-    if (kind === 'missing') return { id, target: it.answer, options: stepOptions(id, it.answer, seqStep(it.seq)), shown: it.seq, src };
+    if (kind === 'missing') return { id, target: it.answer, ...(keypad ? {} : { options: stepOptions(id, it.answer, seqStep(it.seq)) }), shown: it.seq, src };
     if (op) return { id, target: it.answer, shown: `${it.a} ${op} ${it.b} =`, say: sayBoth(`${it.a} ${SAY_OP[op].en} ${it.b}`, `${toUrDigits(it.a)} ${SAY_OP[op].ur} ${toUrDigits(it.b)}`), src };
     return { id, target: it.answer, prompt: sayBoth(it.prompt_en, it.prompt_ur), type: it.type || null, counters: 10, src };
   };
@@ -248,12 +254,12 @@ function mathsTask({ kind, spec, grade }) {
     tap: { options_n: keypad ? null : kind === 'discrimination' ? 2 : 4,
       distractor_rule: keypad ? null : kind === 'number_id' ? 'same_list' : kind === 'discrimination' ? 'the_pair' : 'plus_minus_one_step',
       input: keypad ? 'keypad' : 'options', items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP),
-      ...(kind === 'word_problems' ? { soft_cap_s: 60 } : {}), stop: stopOf(spec.stop) },
+      ...(kind === 'word_problems' ? { soft_cap_s: 60 } : {}), ...(op ? { say_on: 'replay' } : {}), stop: stopOf(spec.stop) },
     record: null,
     practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
     script: scriptOf(task, 'tap'),
     source: sourceOf(spec, `${base}.script`, keypad ? 'Tangerine SA keypad (sec_l1_addition_01, sec_l1_word_problem_01); RULING #2' : 'Tangerine SA tap (sec_num_id1, sec_num_comp1, sec_miss_num_01); RULING #2'),
-    deviation: keypad ? 'typed on a keypad, not spoken' : kind === 'number_id' ? 'recognition instead of naming' : null,
+    deviation: keypad ? `typed on a keypad, not spoken${op ? '; the sum is shown and spoken only on the replay tile (RULING #17)' : ''}` : kind === 'number_id' ? 'recognition instead of naming' : null,
   };
 }
 
@@ -275,12 +281,12 @@ function permutations(xs) {
   return xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]));
 }
 
-function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on }) {
+function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on, sayOnReplay }) {
   const timed = !!spec.timed_s;
   return {
     task, lang: null, kind: input === 'keypad' ? 'keypad' : 'choice', legacy_block: null, family: 'egma', subtask: spec.subtask,
     title: TITLES[task], modes: ['tap'],
-    tap: { options_n, distractor_rule, input, items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP), stop: null },
+    tap: { options_n, distractor_rule, input, items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP), stop: null, ...(sayOnReplay ? { say_on: 'replay' } : {}) },
     record: null, practice: [], practice_note: spec.practice_note,
     script: scriptOf(scriptKey, 'tap'),
     source: { items: extraBase, script: LINES[scriptKey].intro_tap.from, sa_adaptation: adaptation },
@@ -341,7 +347,7 @@ function extraTasks(f, extra) {
       return { id: `ma.fluency_l34.${pad(i + 1, 2)}`, target: it.answer, shown: `${it.a} ${op} ${it.b} =`,
         say: sayBoth(`${it.a} ${OP_SAY[op].en} ${it.b}`, `${toUrDigits(it.a)} ${OP_SAY[op].ur} ${toUrDigits(it.b)}`), src: src('fluency_l34', i) };
     }),
-    scriptKey: 'ma.fluency_l34', extraBase: base('fluency_l34'), adaptation: 'Tangerine SA keypad; RWP fact grid levels 3-4 (60 s)',
+    scriptKey: 'ma.fluency_l34', extraBase: base('fluency_l34'), adaptation: 'Tangerine SA keypad; RWP fact grid levels 3-4 (60 s)', sayOnReplay: true,
     deviation: 'typed on a keypad; RWP gave this grid only after 5+ correct on its level 1-2 grid, here after any correct addition level 1 item',
     depends_on: { task: 'ma.add1', skip_if_zero: true } }));
 
@@ -404,11 +410,11 @@ function readingExtras(extra) {
       return { id, role: p.role, target: p.item, options: listOptions(id, p.item, [...grid, p.item], 5, { key: EN_SOUND_KEY }), say: said('en', snd(p.item)), say_kind: 'sound',
         feedback: { correct: spoken(fill(L.right, snd(p.item))), wrong: spoken(fill(L.wrong, snd(p.item))) }, src: `extra:reading.en.letter_sounds.practice[${ls.practice.indexOf(p)}]` };
     }),
-    timed_s: ls.timed_s, stop: { type: 'first_row', n: ls.stop.n }, options_n: 5, distractor_rule: 'same_list_one_sound',
+    timed_s: ls.timed_s, stop: chanceStop({ type: 'first_row', n: ls.stop.n }, 'letter_sounds'), options_n: 5, distractor_rule: 'same_list_one_sound',
     scriptLines: 'en.letter_sounds', demo: fill(L.example, snd(ls.practice.find((p) => p.role === 'example').item)), extraBase: 'extra:reading.en.letter_sounds',
     record: { grid, per_row: ls.per_row, direction: 'ltr', time_limit_s: ls.timed_s, stop: { type: 'first_row', n: ls.stop.n } },
     adaptation: 'Tangerine SA hear-then-tap (sec_letter_sounds_01); TK2009 letter grid (p.28: the same page as letter names)',
-    deviation: 'recognition, not production: Jugnu says the sound and the child taps the letter; Jugnu\'s isolated sounds are synthetic until a human recording replaces them' }));
+    deviation: `recognition, not production: Jugnu says the sound and the child taps the letter; Jugnu's isolated sounds are synthetic until a human recording replaces them; ${CHANCE_NOTE}` }));
 
   // Initial sound: Jugnu says the word twice; the child taps the letter of its first sound (1 of 4, from the list's
   // own first letters, never a same-sound letter).
@@ -495,12 +501,13 @@ function readingExtras(extra) {
   const dic = r.en.dictation;
   const dw = dic.sentence.replace(/[.]$/, '').split(/\s+/);
   out.push({
-    task: 'en.dictation', lang: 'en', kind: 'keyboard', legacy_block: null, family: 'egra', subtask: dic.subtask,
+    task: 'en.spelling', lang: 'en', kind: 'keyboard', legacy_block: null, family: 'egra', subtask: 'spelling',
     title: { en: 'Spelling', ur: 'ہجے' }, modes: ['tap'],
     tap: { options_n: null, distractor_rule: null, input: 'keyboard', time_limit_s: null, ...UNTIMED_TAP, stop: null,
-      items: dw.map((w, i) => ({ id: `en.dictation.${pad(i + 1, 2)}`, target: w.toLowerCase(), say: said('en', `${w}. ${dic.sentence} ${w}.`), src: 'extra:reading.en.dictation.sentence' })) },
+      items: dw.map((w, i) => ({ id: `en.spelling.${pad(i + 1, 2)}`, target: w.toLowerCase(), say: said('en', `${w}. ${dic.sentence} ${w}.`), src: 'extra:reading.en.dictation.sentence' })) },
     record: null, practice: [], practice_note: 'TK2009 dictation has no practice item',
     rubric: { sentence: dic.sentence, grouping: dic.grouping, rows: dic.rubric, src: dic.rubric_src },
+    scoring: 'per word: letters in the right place, max = letters + 2 (Tangerine SA spelling, Kenya rule); the TK2009 dictation rubric scores the same answers as a sentence',
     script: scriptOf('en.dictation', 'tap'),
     source: { items: 'extra:reading.en.dictation', script: LINES['en.dictation'].intro_tap.from, sa_adaptation: 'Tangerine SA typed spelling (word, sentence, word; letter-level partial credit scored later); TK2009 sentence and rubric' },
     deviation: 'typed word by word instead of the whole sentence handwritten',
@@ -562,7 +569,12 @@ function printOrientation(lang, story, extra) {
     const tapUr = (t) => t.replace('میں نہیں چاہتا/ چاہتی کہ ابھی آپ یہ پیراگراف پڑھیں۔', 'ابھی یہ پیراگراف نہ پڑھیں۔')
       .replace(/اس صفحے پر انگلی رکھ کر بتائیے/, 'اس صفحے پر دبا کر بتائیں').replace(/اپنی انگلی کی مدد سے بتائیے/, 'دبا کر بتائیں')
       .replace(/آپ اپنی انگلی کے اشارے سے مجھے بتائیے|اپنی انگلی کے اشارے سے مجھے بتائیے/, 'دبا کر بتائیں').replace('اب آپ مجھے بتائیے', 'اب تیر دبا کر بتائیں');
-    const q = r.prompts.map((x) => tapUr(x.q));
+    // Prompts 1-3 are reworded for a tap and for a child addressed without گے forms (native review, URDU_REVIEW.md);
+    // 4-5 keep the PRP-KP wording with the tap substitution.
+    const q = r.prompts.map((x) => tapUr(x.q).replace('کونسا', 'کون سا'));
+    q[0] = 'ابھی یہ کہانی نہ پڑھیں۔ آپ کس لفظ سے پڑھنا شروع کریں؟ وہ لفظ دبائیں۔';
+    q[1] = 'اب وہ تیر دبائیں جو بتائے کہ کس طرف پڑھنا ہے۔';
+    q[2] = 'پہلی سطر ختم ہو جائے تو پھر کہاں سے پڑھنا ہے؟ وہ لفظ دبائیں۔';
     items = [
       wordItem('ur.print_orientation.1', pos.start, q[0], `${base}[0]`),
       arrowItem('ur.print_orientation.2', q[1], `${base}[1]`),
@@ -590,7 +602,7 @@ const RUN_ORDER = [
   'ur.listening', 'ur.listening2', 'ur.vocabulary', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.print_orientation',
   'ur.story', 'ur.story_comp', 'ur.story2', 'ur.story2_comp',
   'en.listening', 'en.listening2', 'en.initial_sound', 'en.segmentation', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words',
-  'en.print_orientation', 'en.story', 'en.story_comp', 'en.story2', 'en.story2_comp', 'en.dictation',
+  'en.print_orientation', 'en.story', 'en.story_comp', 'en.story2', 'en.story2_comp', 'en.spelling',
 ];
 const runRank = (id) => {
   const i = RUN_ORDER.indexOf(id);
@@ -646,10 +658,8 @@ function buildSaBank({ v3, extra }) {
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
-      const before = (list2, id, add) => (extraIds.includes(add) ? list2.flatMap((x) => (x === id ? [add, x] : [x])) : list2);
-      const blocks = { ...BLOCKS, B1: before(BLOCKS.B1, 'ur.story', 'ur.print_orientation'), B2: before(BLOCKS.B2, 'en.story', 'en.print_orientation'),
-        B3: [...extraIds.filter((id) => /initial_sound$|vocabulary$/.test(id)), ...BLOCKS.B3],
-        B4: [...BLOCKS.B4, ...extraIds.filter((id) => /^ma\.patterns/.test(id))] };
+      // RULING #16: Design A's blocks hold the 18 v3 tasks only; every extra is in the full form (the coach's toggle).
+      const blocks = BLOCKS;
       Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES });
     } else {
       // Each island: that subject's tasks in run order, extras included; the tower stays the 18 (RULING #5).
@@ -703,7 +713,9 @@ const RESPONSE = { options: 'tap', keypad: 'keypad', keyboard: 'keyboard' };
 
 function runtimeStop(s) {
   if (!s) return {};
-  if (s.type === 'first_row' || s.type === 'first_line') return { first_line_n: s.n, first_line_min_correct: 1 };
+  if (s.type === 'first_row' || s.type === 'first_line') {
+    return s.max_correct != null ? { first_line_n: s.n, first_line_min_correct: s.max_correct + 1, max_correct: s.max_correct } : { first_line_n: s.n, first_line_min_correct: 1 };
+  }
   if (s.type === 'consecutive_errors') return { consecutive_errors: s.n };
   return {};
 }
@@ -742,7 +754,7 @@ function runtimeTask(t, lang) {
   if (t.tap) {
     const tap = t.tap;
     return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, item_timeout_s: tap.item_timeout_s,
-      replay_at_s: tap.replay_at_s, ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop),
+      replay_at_s: tap.replay_at_s, ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop), ...(tap.say_on ? { say_on: tap.say_on } : {}),
       options_n: tap.options_n, distractor_rule: tap.distractor_rule, items: tap.items.map((it) => runtimeItem(it, lang)), practice,
       ...(tap.passage ? { passage: tap.passage, tap_on: 'passage' } : {}), ...(tap.option_images ? { option_images: tap.option_images } : {}),
       ...(t.rubric ? { rubric: t.rubric } : {}),
