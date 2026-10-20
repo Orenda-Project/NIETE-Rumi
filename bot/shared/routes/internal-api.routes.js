@@ -1507,9 +1507,9 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   const grade = num(body.grade);
   const subject = String(body.subject || '').trim();
   const chapterNumber = num(body.chapterNumber);
-  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!Number.isInteger(grade)) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
-  if (chapterNumber === null) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
+  if (!Number.isInteger(chapterNumber)) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
 
   const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
   const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
