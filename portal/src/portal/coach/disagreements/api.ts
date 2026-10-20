@@ -14,7 +14,9 @@ export type ReasonCode = "score" | "missed" | "wont_work" | "unclear";
 export type Tag =
   | { kind: "recordingLess"; before: number; now: number }
   | { kind: "waiting"; days: number }
-  | { kind: "repeat"; nth: number };
+  | { kind: "repeat"; nth: number }
+  /** bd-tbprit.9 — recorded, under 15 minutes. */
+  | { kind: "short"; minutes: number };
 
 export type Row = {
   id: string; teacher: string | null; school: string | null; emis: string | null; opened: boolean; reasons: ReasonCode[];
@@ -51,6 +53,8 @@ export type Card = {
   id: string; teacher: string | null; school: string | null; emis: string | null; group: string | null; nth: number; language: string; status: string; done: boolean;
   reasons: ReasonCode[]; createdAt: string; noteUrl: string | null; view: View; evidence: Evidence[];
   indicators: Indicator[]; moves: Move[] | null;
+  /** bd-tbprit.9 — how long the recording is; null when the session does not say. */
+  durationSec: number | null;
 };
 
 const path = (id: string) => `/coach/disagreements/${encodeURIComponent(id)}`;
@@ -71,9 +75,13 @@ export const disagreements = {
       return false;
     }
   },
-  /** The disputed moment, cut on the server; `at` is the grader's second (the server adds the lead-in). */
-  clipUrl(id: string, at: number): string {
-    return `${api.defaults.baseURL ?? ""}${path(id)}/clip?at=${Math.max(0, Math.floor(at))}`;
+  /**
+   * The disputed moment, cut on the server. Without `to`, `at` is the grader's second (the server adds the
+   * lead-in); with it (bd-tbprit.9), exactly the part from `at` to `to`.
+   */
+  clipUrl(id: string, at: number, to?: number): string {
+    const end = to == null ? "" : `&to=${Math.floor(to)}`;
+    return `${api.defaults.baseURL ?? ""}${path(id)}/clip?at=${Math.max(0, Math.floor(at))}${end}`;
   },
 };
 

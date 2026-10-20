@@ -23,6 +23,13 @@ describe("card parts", () => {
     expect(clips[0].getAttribute("src")).toMatch(/clip\?at=125$/);
   });
 
+  it("a missed move reads ✗ No, never the raw verdict", () => {
+    const move = { id: "m", text: "Pairs", phase: "We Do", mustHappen: true, verdict: "not_done", evidence: null, translation: null, why: null, at: null };
+    render(<ClipProvider id="r"><ReasonBlock e={{ code: "missed", noPlan: false, moves: [move], items: [] }} /></ClipProvider>);
+    expect(screen.getByTestId("reason-missed")).toHaveTextContent("✗ No");
+    expect(screen.getByTestId("reason-missed")).not.toHaveTextContent("not_done");
+  });
+
   it("won't work with no thing on record reads —", () => {
     render(<ClipProvider id="r"><ReasonBlock e={{ code: "wont_work", thing: null }} /></ClipProvider>);
     expect(screen.getByTestId("reason-wont_work")).toHaveTextContent("—");

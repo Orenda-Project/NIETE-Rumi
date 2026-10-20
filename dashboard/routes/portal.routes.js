@@ -2293,7 +2293,7 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
     markOpened: (coachId, id) => Disagreements.markOpened(supabase, coachId, id),
     // bd-tbprit.2: the disputed step, cut by ffmpeg from a five-minute link the browser never sees.
     recordingFor: (coachId, id) => Disagreements.recordingFor(supabase, coachId, id, generatePresignedUrl),
-    openClip: (url, at) => require('../services/coach-disagreement-clip').openClip(url, at),
+    openClip: (url, at, to) => require('../services/coach-disagreement-clip').openClip(url, at, { to }),
   }));
 }
 const pgQuery = (sql, params) => pool.query(sql, params);

@@ -10,7 +10,8 @@ import { FOCUS, PRIMARY_WIDE, ROW_SUB } from "../../teacher/ui/styles";
 import { disagreements, type Card } from "./api";
 import { DISAGREE } from "./copy";
 import { DisagreementsFrame, Gated } from "./frame";
-import { ClipProvider, FullReport, ReasonBlock, WhereToLook } from "./cardParts";
+import { ClipProvider, FullReport, ReasonBlock } from "./cardParts";
+import { WhereToLook } from "./whereToLook";
 import { Banner, CardHead, ReasonPills } from "./cardTop";
 
 /**
@@ -19,7 +20,7 @@ import { Banner, CardHead, ReasonPills } from "./cardTop";
  *      the top (bd-tbprit.8, Rifat's prototype) — the dark head, the pink banner
  *   A  what she disagrees with — her reasons as pills, her voice note, each reason with the grader's own evidence,
  *      what the report told her (Strength / One thing to try)
- *   B  where to look — the four sections, closed, every indicator with its AI score and a Listen per timed item
+ *   B  where to look (bd-tbprit.9) — one Listen for the problem part, the plan's moves, the other three sections
  *      her trend, then the full DC report
  *      "I have visited" — one-way (the tracker's visited_7d reads it); a done card has no button
  *
