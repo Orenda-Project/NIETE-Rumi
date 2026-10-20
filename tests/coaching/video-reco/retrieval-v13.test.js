@@ -202,17 +202,25 @@ describe('R4 the row (engine)', () => {
   }
   const a37 = (id, name) => ({ indicator_scheme: 'fico_main_37', domains: { B: { domain_max: 4, indicators: [{ id, name, score: 1, applicable: true, evidence: 'Quote: "Is this a triangle"', timestamp: '[00:30]' }] } } });
 
-  test('unknown 37-id (B7, use of the plan): reaches the model via the text route; route step_text, alias_kind unknown, tag_mismatch true, differs false', async () => {
+  test('unknown 37-id (C11, no alias, not native): reaches the model via the text route; route step_text, alias_kind unknown, tag_mismatch true, differs false', async () => {
+    const { row, completeJson } = await run({
+      analysis: a37('C11', 'Student Talk Time'), nextStep: { target: { indicator: 'C11' } },
+      card: { action: 'Close with an exit summary of what we learned' }, pick: '14-s2',
+    });
+    expect(completeJson).toHaveBeenCalledTimes(1);
+    expect(completeJson.mock.calls[0][0]).toContain('Indicator: C11 — Student Talk Time');
+    expect(row).toMatchObject({ status: 'shown', seg_id: '14-s2', route: 'step_text', alias_kind: 'unknown', tag_mismatch: true, differs_from_step: false });
+    expect(row.step_text_query).toContain('exit summary');
+    expect(new Set(row.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
+    expect(row.step_text_query).toContain('Student Talk Time');
+  });
+  test('v1.3b: the same card on 37-B7 (use of the plan) → none hole:no_move, no LLM call', async () => {
     const { row, completeJson } = await run({
       analysis: a37('B7', 'Use of Taleemabad Lesson Plan'), nextStep: { target: { indicator: 'B7' } },
       card: { action: 'Close with an exit summary of what we learned' }, pick: '14-s2',
     });
-    expect(completeJson).toHaveBeenCalledTimes(1);
-    expect(completeJson.mock.calls[0][0]).toContain('Indicator: B7 — Use of Taleemabad Lesson Plan');
-    expect(row).toMatchObject({ status: 'shown', seg_id: '14-s2', route: 'step_text', alias_kind: 'unknown', tag_mismatch: true, differs_from_step: false });
-    expect(row.step_text_query).toContain('exit summary');
-    expect(new Set(row.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
-    expect(row.step_text_query).toContain('Use of Taleemabad Lesson Plan');
+    expect(completeJson).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ status: 'none', none_reason: 'hole:no_move', alias_kind: 'no_move', route: null });
   });
   test('LABEL (37-F5, maths): a step_text pick passes validation; differs false, tag_mismatch reported', async () => {
     const { row } = await run({

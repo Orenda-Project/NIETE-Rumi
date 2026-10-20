@@ -430,3 +430,16 @@ describe('v1.3b: lead-review 19:56Z/19:58Z one-liners + r-ab EVENTS_SCHEMA §3b 
   });
 
 });
+
+describe('SPEC v1.3b NO_MOVE (engine)', () => {
+  test('a B7 step on the 37 scheme → none hole:no_move, 0 LLM calls, alias_kind no_move, route null, candidates []', async () => {
+    const d = deps();
+    const a = args({ nextStep: { target: { indicator: 'B7' } }, card: { indicator: 'B7', action: 'Follow the Taleemabad plan' } });
+    a.analysis.indicator_scheme = 'fico_main_37';
+    a.analysis.domains.B = { indicators: [{ id: 'B7', name: 'Use of Taleemabad Lesson Plan', score: 1, applicable: true, evidence: 'x' }] };
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row).toMatchObject({ status: 'none', none_reason: 'hole:no_move', alias_kind: 'no_move', route: null, candidates: [] });
+    expect(d.completeJson).not.toHaveBeenCalled();
+    expect('attempts' in row).toBe(false);
+  });
+});

@@ -50,3 +50,42 @@ describe('V1.7.2: attempts + first_none_reason, additive', () => {
     expect(down()).toMatch(/DROP COLUMN IF EXISTS first_none_reason/i);
   });
 });
+
+describe('SPEC v1.3b NO_MOVE = {B7, C10} on the 37 scheme (lead-review 20:16Z): none hole:no_move before any route', () => {
+  const T = require('../../../bot/shared/services/coaching/video-reco/target');
+  const S = require('../../../bot/shared/services/coaching/video-reco/shortlist');
+  const a37 = (rows) => ({ framework: 'fico', indicator_scheme: 'fico_main_37', domains: { B: { indicators: rows } } });
+  const row = (id, score = 1, extra = {}) => ({ id, name: id, score, applicable: true, evidence: 'x', ...extra });
+  const L = { subject: 'urdu', grade: { lo: 3, hi: 3 }, topic: null, inapplicable: [] };
+  const ctx = { language: 'ur', languages: ['ur', 'mixed'], level: 2, ladderComplete: false, history: { segments: [], modules: [] } };
+
+  test.each([
+    ['step B7', a37([row('B7')]), { target: { indicator: 'B7' } }, null],
+    ['step C10', a37([row('C10')]), { target: { indicator: 'C10' } }, null],
+    ['card B7 (also focus_area / thing_to_try in the corpus)', a37([row('B7')]), null, { indicator: 'B7', action: 'Use the Taleemabad plan' }],
+    ['card C10, no rows at all (C10 is outside the 26)', { framework: 'fico', domains: {} }, null, { indicator: 'C10', action: 'Use the tablet' }],
+    ['unscored B7 still no_move (before the unscored rule)', a37([row('B7', null)]), { target: { indicator: 'B7' } }, null],
+  ])('%s → none hole:no_move, alias_kind no_move', (_, analysis, nextStep, card) => {
+    const t = T.pick(analysis, nextStep, card, cat, { subject: 'urdu' });
+    expect(t).toMatchObject({ none: 'hole:no_move', aliasKind: 'no_move' });
+    const list = S.build(cat, t, ctx, 'x', L, { action: 'use the plan', tryTomorrow: '', thingToTry: '', name: '' });
+    expect(list.candidates).toEqual([]);
+    expect(list.noneReason).toBe('hole:no_move');
+  });
+
+  test('v4-scheme B7 (closure, another meaning) is NOT a no-move', () => {
+    const v4 = { framework: 'fico', domains: { B: { indicators: [row('B7')] } } };
+    expect(T.pick(v4, { target: { indicator: 'B7' } }, null, cat).none).not.toBe('hole:no_move');
+  });
+
+  test('card_text (c\', no indicator) is unaffected', () => {
+    const t = T.pick(a37([row('B7')]), null, { action: 'Use the plan, then ask why' }, cat);
+    expect(t.source).toBe('card_text');
+    expect(t.none).toBeNull();
+  });
+
+  test('the other labels stay on the step-text route: unscored F5 is not no_move', () => {
+    const t = T.pick(a37([row('F5', null, { applicable: false })]), { target: { indicator: 'F5' } }, null, cat, { subject: 'maths' });
+    expect(t.none).toBe('unscored_step');
+  });
+});

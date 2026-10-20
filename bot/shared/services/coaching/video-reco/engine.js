@@ -169,7 +169,10 @@ async function compute(a, d, state) {
   state.base = base;
 
   // An unknown indicator is no longer a none here: the shortlist's step-text route takes it (SPEC v1.3 R3).
-  if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') return finish({ ...base, status: 'none', none_reason: t.none });
+  if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') {
+    // v1.3b NO_MOVE: no route ran, so the row says so (route null, an empty list).
+    return finish({ ...base, status: 'none', none_reason: t.none, ...(t.none === 'hole:no_move' ? { candidates: [] } : {}) });
+  }
 
   const lesson = {
     subject,
