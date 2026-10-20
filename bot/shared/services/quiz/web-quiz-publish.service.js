@@ -600,10 +600,11 @@ const REQUEST_AGAIN_MS = 10 * 60 * 1000;
  * AUDIO_VERSION is not queued. If the queue cannot take the job, the clips are made here instead
  * (ensureQuizAudio), so a child is never left without them. Never throws.
  */
-async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false } = {}) {
+async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false, planKnown = false } = {}) {
   // web_quiz_audio_ask_plan: the minted link and the old link's redirect name no plan; they ask under the live plan
-  // for this quiz, as the page does, so the page's request is the same job and the queue drops it.
-  if (!oneVoice && quizId && await AskPlan.on({ db })) oneVoice = (await livePlanFor(quizId, db)) || false;
+  // for this quiz, as the page does, so the page's request is the same job and the queue drops it. The page itself
+  // (planKnown) has resolved the plan already, so it never reads this switch: no settings read the page did not make.
+  if (!oneVoice && !planKnown && quizId && await AskPlan.on({ db })) oneVoice = (await livePlanFor(quizId, db)) || false;
   const web = webOf(meta, { oneVoice });
   if (!quizId || isCurrent(web, { oneVoice })) return { skipped: 'current' };
   // A one-voice request is not the same request: a quiz asked for just before the switch went on (or under

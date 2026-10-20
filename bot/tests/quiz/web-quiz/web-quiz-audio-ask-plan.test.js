@@ -78,3 +78,18 @@ describe('web_quiz_audio_ask_plan off (absent, false, or "true" as a string): jo
     expect(dedupOf(queue)).toEqual([`${quizId}-quiz_web_audio-v${Publish.AUDIO_VERSION}`]);
   });
 });
+
+// The page has already resolved the one-voice plan (planKnown): it never reads this switch, so a class page makes no
+// settings read it did not make before the switch existed (the page read budget, web-quiz-one-voice-page-reads).
+describe('the page (planKnown): no read of this switch', () => {
+  test.each([[true], [undefined]])('switch %p: no app_settings read of web_quiz_audio_ask_plan, job id as asked', async (ask) => {
+    const quizId = fresh();
+    const fake = seed({ ask, oneVoice: false, quizId });
+    const keys = [];
+    const db = { from: (t) => { const q = fake.from(t); if (t !== 'app_settings') return q; const eq = q.eq.bind(q); q.eq = (c, v) => { if (c === 'key') keys.push(v); return eq(c, v); }; return q; } };
+    const queue = { queueJob: jest.fn(async () => ({})) };
+    await Publish.requestQuizAudio(quizId, { meta: {}, queue, db, planKnown: true });
+    expect(keys).not.toContain(AskPlan.KEY);
+    expect(dedupOf(queue)).toEqual([`${quizId}-quiz_web_audio-v${Publish.AUDIO_VERSION}`]);
+  });
+});
