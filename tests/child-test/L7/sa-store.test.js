@@ -136,6 +136,24 @@ describe('markSynced and summary', () => {
     expect(await Store.summary('s1')).toEqual({ ok: true, lastSeq: 7, block: 'B1', tasksDone: ['ur.letters'], audio: ['ur.story'] });
   });
 
+  test('the phone readiness fields persisted and voice are kept on the device', async () => {
+    await Store.markSynced('s1', { device: { persisted: true, voice: 'clips' } });
+    await Store.markSynced('s1', { device: { ua: 'y' } });
+    expect(db.child_test_sessions[0].device).toEqual(expect.objectContaining({ persisted: true, voice: 'clips', ua: 'y' }));
+  });
+
+  test('kept events: added once by seq, in seq order, capped at 200 with the oldest kept', async () => {
+    const e = (seq) => ({ seq, type: 'visibility_lost', task_id: 'ur.story', at: 'T', data: null });
+    await Store.markSynced('s1', { events: [e(3), e(1)] });
+    await Store.markSynced('s1', { events: [e(1), e(2)] });
+    expect(db.child_test_sessions[0].device.events.map((x) => x.seq)).toEqual([1, 2, 3]);
+    await Store.markSynced('s1', { events: Array.from({ length: 250 }, (_, i) => e(10 + i)) });
+    const kept = db.child_test_sessions[0].device.events;
+    expect(kept).toHaveLength(200);
+    expect(kept[0].seq).toBe(1);
+    expect(kept[199].seq).toBe(206);
+  });
+
   test('no such session', async () => {
     expect(await Store.markSynced('nope', {})).toEqual({ ok: false, reason: 'no_session' });
   });

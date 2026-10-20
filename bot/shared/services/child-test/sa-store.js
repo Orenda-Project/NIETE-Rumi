@@ -20,7 +20,16 @@ const BLOCKS = 'child_test_blocks';
 const PARKED = 'final:sa_score_later';
 const PHONE_SCORER = 'tap-v1';
 const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
-const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms'];
+const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice'];
+// the ruling events a session keeps (device.events); past the cap the oldest are kept
+const MAX_KEPT_EVENTS = 200;
+
+function keepEvents(had, events) {
+  const list = Array.isArray(had) ? had.slice() : [];
+  const seen = new Set(list.map((e) => e.seq));
+  for (const e of events) if (!seen.has(e.seq)) { seen.add(e.seq); list.push(e); }
+  return list.sort((x, y) => x.seq - y.seq).slice(0, MAX_KEPT_EVENTS);
+}
 
 function fail(where, error, extra) {
   logError(`child_test.sa_store.${where}`, { ...extra, error: error && error.message });
@@ -62,7 +71,7 @@ async function updateRow(id, patch, where) {
 }
 
 /** The device's sync state on the session; a field already set (the device's start) is kept. */
-async function markSynced(sessionId, { lastSeq, clientStartedAt, clientFinishedAt, device, block } = {}) {
+async function markSynced(sessionId, { lastSeq, clientStartedAt, clientFinishedAt, device, block, events } = {}) {
   const got = await getSession(sessionId);
   if (!got.ok) return got;
   if (!got.session) return { ok: false, reason: 'no_session' };
@@ -71,6 +80,7 @@ async function markSynced(sessionId, { lastSeq, clientStartedAt, clientFinishedA
   for (const f of DEVICE_FIELDS) if (device && device[f] !== undefined) dev[f] = device[f];
   if (Number.isInteger(lastSeq) && !(dev.last_seq >= lastSeq)) dev.last_seq = lastSeq;
   if (block && !dev.block) dev.block = block;
+  if (Array.isArray(events) && events.length) dev.events = keepEvents(dev.events, events);
   const patch = {
     admin_mode: s.admin_mode || 'coach_present',
     synced_at: new Date().toISOString(),
