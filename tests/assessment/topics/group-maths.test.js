@@ -1,7 +1,7 @@
 'use strict';
 /** Task 3 — Maths: one topic per SLO, word problems on their own (spec §4.1). Real fixture rows. */
 const { parseMatrixTab } = require('../../../bot/shared/services/assessment/topics/matrix-rows');
-const { groupChapter } = require('../../../bot/shared/services/assessment/topics/group');
+const { groupChapter, isTopicRow } = require('../../../bot/shared/services/assessment/topics/group');
 const { groupMaths, groupBySlo } = require('../../../bot/shared/services/assessment/topics/group-maths');
 const sample = require('./fixtures/matrix-sample.json');
 
@@ -68,10 +68,11 @@ describe('Maths Ch2 — a "Topic N:" section name wins over "I can…"', () => {
     expect(topics.flatMap((t) => t.days)).not.toContain(15);
   });
 
-  test('the labelled day names the topic of its first SLO only', () => {
-    expect(topics.map(code)).toEqual(['M-01-PV-04', 'M-01-PV-03', 'M-01-PV-01', 'M-01-PV-02']);
+  test('the labelled day names its first SLO; codes never taught first sit inside that topic', () => {
+    expect(topics.map(code)).toEqual(['M-01-PV-04,M-01-PV-03,M-01-PV-01', 'M-01-PV-02']);
     expect(topics[0]).toMatchObject({ name: 'Numbers to 99', days: [16, 17] });
-    expect(topics[1].name).toBe('Read and write numbers up to 99');
+    expect(topics[0].sloDescriptions[1]).toBe('I can read and write numbers up to 99 (2-digit numbers) in numerals and in words.');
+    expect(topics[1].name).toBe('Recognise the place value of each digit');
   });
 
   test('a label later in the section ("Copy work + Topic 2: X — …") is found', () => {
@@ -100,7 +101,7 @@ describe('Word problems are their own topic', () => {
     expect(topics.some((t) => t.sloCodes[0] === 'M-01-NS-09')).toBe(false);
   });
 
-  test('a code taught on a word-problem day takes its own days into "Word problems"', () => {
+  test('a code that is the only code on a word-problem day takes its own days into "Word problems"', () => {
     const topics = groupChapter('maths', [...base, wp(20, ['M-01-NS-07'])]);
     expect(topics.find((t) => t.name === 'Word problems').days).toEqual([9, 20]);
     expect(topics.filter((t) => t.sloCodes.includes('M-01-NS-07'))).toHaveLength(1);
@@ -113,35 +114,95 @@ describe('Word problems are their own topic', () => {
     expect(topics.find((t) => t.name === 'Word problems').days).not.toContain(12);
   });
 
+  test('codes that only share a word-problem day keep their own topics; "Word problems" is just that day', () => {
+    const topics = groupChapter('maths', [...base, wp(20, ['M-01-NS-07', 'M-01-NS-08'])]);
+    expect(topics.find((t) => t.name === 'Word problems')).toMatchObject({ days: [20] });
+    expect(topics.find((t) => t.sloCodes[0] === 'M-01-NS-07').days).toEqual([9, 10, 11, 12]);
+  });
+
   test('no word_problem days, no Word problems topic', () => {
     expect(groupMaths(base).some((t) => t.name === 'Word problems')).toBe(false);
   });
 });
 
-describe('Maths G1 Ch3 (spec §4.2 example, real rows)', () => {
-  const ch3 = parseMatrixTab(sample.maths_g1_ch3, 'maths');
-  const topics = groupChapter('maths', ch3);
-  const word = topics.filter((t) => /word problem/i.test(t.name));
+describe('in a labelled chapter, a code never taught first joins the topic it is taught with', () => {
+  const row = (day, codes) => ({ ...chapter(1)[2], day, pages: [day], sloCodes: codes,
+    sloDescriptions: codes.map((c) => `I can do ${c}.`), section: 'Practice' });
 
-  test('one "Word problems" topic: days 48-51, pages 96-106 (104 is the review day), code AS-08 only', () => {
-    expect(word).toHaveLength(1);
-    expect(word[0]).toMatchObject({
-      name: 'Word problems', days: [48, 49, 50, 51], pages: [96, 97, 98, 99, 100, 101, 102, 103, 105, 106],
-      sloCodes: ['M-01-AS-08'],
-    });
-    expect(topics.filter((t) => t.sloCodes.includes('M-01-AS-08'))).toHaveLength(1);
+  test('labelled chapter, B only ever second -> one topic for A carrying both codes', () => {
+    const labelled = { ...row(1, ['A']), section: 'Topic 1: Alpha — Adventure Begins' };
+    const topics = groupBySlo([labelled, row(2, ['A', 'B']), row(3, ['A', 'B'])]);
+    expect(topics).toHaveLength(1);
+    expect(topics[0]).toMatchObject({ days: [1, 2, 3], sloCodes: ['A', 'B'],
+      sloDescriptions: ['I can do A.', 'I can do B.'] });
   });
 
-  test('the other topics follow the spec table days', () => {
+  test('B first somewhere -> B keeps its own topic', () => {
+    const labelled = { ...row(1, ['A', 'B']), section: 'Topic 1: Alpha — Adventure Begins' };
+    expect(groupBySlo([labelled, row(2, ['B'])]).map(code)).toEqual(['A', 'B']);
+  });
+
+  test('chapter with no "Topic N:" labels -> one topic per SLO, even for a code never first', () => {
+    expect(groupBySlo([row(1, ['A', 'B'])]).map(code)).toEqual(['A', 'B']);
+  });
+});
+
+describe('Maths G1 Ch3 — the spec §4.2 table (real rows)', () => {
+  const topics = groupChapter('maths', parseMatrixTab(sample.maths_g1_ch3, 'maths'));
+
+  test('seven topics with the spec days; fact families sit inside subtraction facts', () => {
     expect(topics.map((t) => [t.name, t.days])).toEqual([
       ['How many more?', [31, 32, 33]],
       ['Addition Facts to 20', [34, 35, 36, 37]],
       ['Add 2-digit numbers mentally and in', [38, 39]],
       ['How many Less?', [40, 41, 42]],
       ['Subtraction Facts to 20', [43, 44, 45]],
-      ['Addition and subtraction fact families', [44, 45]],
       ['Subtraction', [46, 47]],
       ['Word problems', [48, 49, 50, 51]],
     ]);
+    expect(topics[4].sloCodes).toEqual(['M-01-AS-06', 'M-01-AS-05']);
+  });
+
+  test('"Word problems": AS-08 only, pages from the fixture (104 is on the review day, so not 96-106)', () => {
+    expect(topics[6]).toMatchObject({ sloCodes: ['M-01-AS-08'],
+      pages: [96, 97, 98, 99, 100, 101, 102, 103, 105, 106] });
+    expect(topics.filter((t) => t.sloCodes.includes('M-01-AS-08'))).toHaveLength(1);
+  });
+});
+
+describe('Maths G1 Ch4 — a two-code word-problem day does not swallow the chapter (real rows)', () => {
+  const topics = groupChapter('maths', parseMatrixTab(sample.maths_g1_ch4, 'maths'));
+
+  test('MN-01 keeps its topic; "Topic 2: Solving Word Problems" (MN-02) folds into "Word problems" 58-60', () => {
+    expect(topics.map((t) => [t.name, t.days])).toEqual([
+      ['Pakistani Money', [55, 56, 57]],
+      ['Word problems', [58, 59, 60]],
+    ]);
+    expect(topics[1].sloCodes).toEqual(['M-01-MN-02', 'M-01-MN-01']);
+  });
+});
+
+describe('a chapter made only of word-problem codes still keeps an SLO topic', () => {
+  const day = (d, skillType, codes) => ({ ...chapter(1)[0], day: d, skillType, pages: [d], sloCodes: codes,
+    sloDescriptions: codes.map((c) => `I can solve ${c} problems.`), section: 'Practice' });
+  const rows = [day(41, 'word_problem', ['WP-01']), day(43, 'word_problem', ['WP-02']),
+    day(44, 'pictorial_abstract', ['WP-01', 'WP-02']), day(45, 'word_problem', ['WP-01', 'WP-02'])];
+
+  test('only the word_problem days fold; day 44 gives SLO topics', () => {
+    const topics = groupMaths(rows);
+    expect(topics.find((t) => t.name === 'Word problems').days).toEqual([41, 43, 45]);
+    expect(topics.filter((t) => t.name !== 'Word problems').map((t) => [code(t), t.days]))
+      .toEqual([['WP-01', [44]], ['WP-02', [44]]]);
+  });
+});
+
+describe.each(['maths', 'maths_g1_ch3', 'maths_g1_ch4'])('real %s rows', (key) => {
+  test('every chapter with non-word-problem days has a topic other than "Word problems"', () => {
+    const rows = parseMatrixTab(sample[key], 'maths');
+    for (const n of new Set(rows.map((r) => r.chapter))) {
+      const ch = rows.filter((r) => r.chapter === n);
+      if (!ch.some((r) => isTopicRow(r) && r.skillType !== 'word_problem')) continue;
+      expect(groupChapter('maths', ch).some((t) => t.name !== 'Word problems')).toBe(true);
+    }
   });
 });
