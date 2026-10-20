@@ -1140,6 +1140,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // button pulses ("tap to hear") and a tap plays the clips. Only a clip that cannot play here at all
   // (an error, a format this phone lacks) falls back to the phone's voice.
   var CLIP_SLOW_MS = 2000, CLIP_GIVEUP_MS = 8000;
+  // GAP_SLOW: a clip not started by 5 s is read by the phone voice (a good clip starts by ~4 s even when just recorded)
+  var CLIP_GAP_SLOW_MS = 5000;
   function speak(text, url, done, meta) {
     stopVoice();
     if (!SOUND) { if (done) done(); return; }
@@ -1175,7 +1177,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         a.onended = function () { if (!switched) end(); };
         a.onerror = function () { fallback('error'); };
         setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
-        setTimeout(function () { if (!started) fallback('stalled'); }, CLIP_GIVEUP_MS);
+        setTimeout(function () { if (!started) fallback('stalled'); }, GAP_SLOW ? CLIP_GAP_SLOW_MS : CLIP_GIVEUP_MS);
         var pr = a.play();
         if (pr && pr.catch) pr.catch(function (e) { fallback('reject', e); });
         return;
