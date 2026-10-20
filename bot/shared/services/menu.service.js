@@ -146,8 +146,11 @@ class MenuService {
    * @param {string} from - User's phone number
    * @param {string} buttonId - Button ID (menu_lesson_plan, menu_coaching, etc.)
    * @param {string} language - User's language
+   * @param {object} [opts]
+   * @param {string} [opts.door] - which door asked, for the app link and its funnel: 'menu' for a
+   *   tap; bd-xw56ed's classifier opens a row by words with 'intent' / 'voice_intent'
    */
-  static async handleMenuButtonResponse(user, from, buttonId, language = 'en') {
+  static async handleMenuButtonResponse(user, from, buttonId, language = 'en', { door = 'menu' } = {}) {
     try {
       // the tap IS the intent. `menu_lesson_plan` says exactly what she
       // wants, so this method must never refuse to act for want of stored state.
@@ -184,7 +187,7 @@ class MenuService {
       // Store notice (or, inside the quiet hour, nothing) instead.
       const rowFeature = MENU_ROW_FEATURES[buttonId];
       if (rowFeature && await redirectIfFlagged(rowFeature, {
-        userId: user.id, from, language, reason: 'menu',
+        userId: user.id, from, language, reason: door,
       })) return;
 
       // Route to appropriate handler based on button ID

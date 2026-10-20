@@ -140,12 +140,13 @@ describe('chat.intent on Claude: a cut-off reply whose decision is complete is t
     expect(intent.lp_reference).toBe(true);
   });
 
+  // bd-xw56ed: the labels are now the menu's rows, `unsure` and `general`; video and presentation are gone.
   test('a label in bold or quotes is still the label', async () => {
-    cutOff('**video**\n\nShe asks to see a video on fractions, so');
+    cutOff('**unsure**\n\nShe asks to open something, but');
     const svc = await service();
-    const intent = await svc.detectIntent('fractions video dikhao');
+    const intent = await svc.detectIntent('kuch kholna hai');
     expect(openrouter).toHaveLength(0);
-    expect(intent.type).toBe('video');
+    expect(intent.type).toBe('unsure');
   });
 
   // Production read lp_ref anywhere in the reply; reading it only after a space would drop it from compact replies
@@ -204,8 +205,11 @@ describe('everything else is read exactly as before', () => {
   test.each([
     ['lesson_plan', 'lesson_plan', false],
     ['lesson plan', 'lesson_plan', false],
-    ['presentation', 'presentation', false],
-    ['video', 'video', false],
+    // bd-xw56ed: no longer labels. With no live menu passed, a menu row's label is unsure, never opened.
+    ['presentation', 'general', false],
+    ['video', 'general', false],
+    ['videos', 'unsure', false],
+    ['unsure', 'unsure', false],
     ['general', 'general', false],
     ['general lp_ref', 'general', true],
     ['lesson_plan lp_ref', 'lesson_plan', false],

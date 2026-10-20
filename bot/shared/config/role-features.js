@@ -193,6 +193,18 @@ function featureMenuRows(user, opts = {}) {
   return rows.slice(0, MAX_MENU_ROWS);
 }
 
+/**
+ * bd-xw56ed — the word the fallthrough classifier answers for each row: its id without `menu_`.
+ * Language and Ask Anything are menu rows but not features to open (one is its own picker, the
+ * other IS the chat), so they are never offered to the classifier.
+ */
+const NOT_A_FEATURE_ROWS = Object.freeze(new Set(['menu_language', 'menu_other']));
+const rowLabel = (id) => id.replace(/^menu_/, '');
+/** Every label the classifier can answer, whichever rows a given user has. */
+const FEATURE_ROW_LABELS = Object.freeze([...new Set(
+  Object.values(ROW).filter((row) => !NOT_A_FEATURE_ROWS.has(row.id)).map((row) => rowLabel(row.id)),
+)]);
+
 module.exports = {
   ROLE_FEATURES,
   DEFAULT_FEATURES,
@@ -204,4 +216,7 @@ module.exports = {
   canObserve,
   layoutFor,
   featureMenuRows,
+  NOT_A_FEATURE_ROWS,
+  FEATURE_ROW_LABELS,
+  rowLabel,
 };
