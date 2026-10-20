@@ -8,6 +8,9 @@ const TRAILING_JUNK = /[\s+&:—–\-,/;·|]+$/u;
 const SUFFIX = /\(([^()]*)\)$/;
 const SPACE = /\s/;
 const MARK = /\p{M}/u;
+const CLAUSE = /, | \+ | & | \/ |; /g;
+const MIN_CLAUSE = 15;
+const CONNECTOR = /\s+(?:the|of|and|or|a|an|to|in|on|for|with|at|by|from|into|کا|کی|کے|اور|سے|میں|کو|نے)$/iu;
 
 const pieces = (s) => s.split(/[+/]/).map((p) => p.trim().toLowerCase()).filter(Boolean);
 
@@ -31,7 +34,24 @@ function cap(text) {
     cut = MAX_NAME;
     while (cut > 1 && MARK.test(cps[cut])) cut -= 1;
   }
-  return dropOpenParen(cps.slice(0, cut).join(''));
+  return stripConnectors(dropOpenParen(atLastClause(cps.slice(0, cut).join(''))));
+}
+
+/** A cut that keeps a later clause (", " " + " " & " " / " "; " at code point ≥15) ends at that clause. */
+function atLastClause(text) {
+  const last = [...text.matchAll(CLAUSE)].pop();
+  if (!last || Array.from(text.slice(0, last.index)).length < MIN_CLAUSE) return text;
+  return text.slice(0, last.index);
+}
+
+/** Strip dangling connector words ("the", "and", "اور" …) left by a cut; never to empty. */
+function stripConnectors(text) {
+  let out = text;
+  for (;;) {
+    const next = out.replace(TRAILING_JUNK, '').replace(CONNECTOR, '');
+    if (next === out || !next.replace(TRAILING_JUNK, '')) return out;
+    out = next;
+  }
 }
 
 /** A cut inside "( … )" leaves a dangling "(": drop it and what follows, if text remains. */

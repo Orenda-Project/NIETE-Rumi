@@ -190,7 +190,7 @@ describe('Maths G1 Ch3 — the spec §4.2 table (real rows)', () => {
     expect(topics.map((t) => [t.name, t.days])).toEqual([
       ['How many more?', [31, 32, 33]],
       ['Addition Facts to 20', [34, 35, 36, 37]],
-      ['Add 2-digit numbers mentally and in', [38, 39]],
+      ['Add 2-digit numbers mentally', [38, 39]],
       ['How many Less?', [40, 41, 42]],
       ['Subtraction Facts to 20', [43, 44, 45]],
       ['Subtraction', [46, 47]],
