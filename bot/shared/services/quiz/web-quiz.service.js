@@ -682,6 +682,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   mark('live');
   // A friend's challenge: the page keeps the friend away from the challenger's class (its table, its group).
   if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await (challengeP || challengeOf(ctx)); }
+  // web_quiz_challenge_fold (the hub's switch cache, no read): a door with a challenger puts its way in first (wq.js landing)
+  if (out.challenge && require('./web-quiz-hub-flags').nowOf('challengeFold')) out.challenge_fold = true;
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
   const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;
