@@ -7,7 +7,10 @@
  * stones, Jugnu's glow as the clock while a timed task runs, a sound on each task finished, a result card per subject
  * with effort stars (finished every stone, did the practice, kept going to the end) — never a score, never a hint.
  *
- * Boot (#boot): { token, kid, lang, form, grade, bank (the form's battery file), engine: [urls], juice: {js, css} }. No test words
+ * A part runs on the child's page (/sa/play.html?...&block=<part>&skin=game&back=<this page>): offline-safe, the
+ * engine's screens with the game's skin (/sa/skin-game.js). Back here, the part's card is read from the engine's store.
+ *
+ * Boot (#boot): { token, kid, lang, form, grade, bank: [battery urls], engine: [store url], juice: {js, css} }. No test words
  * on any screen (the tower is a flight, never an exam). Progress lives on the phone
  * (localStorage sg.<kid>.<form>, a convenience only: the engine's own store keeps every answer). ES5, no build.
  */
@@ -81,7 +84,14 @@
     if (boot.juice) { css(boot.juice.css); script(boot.juice.js); }
     css('/sa/sa.css');
     var eng = Promise.all((boot.engine || []).map(script));
-    var bank = fetch(boot.bank, { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    // the engine's own battery URL first (its offline worker keeps it), then this page's
+    var urls = [].concat(boot.bank || []);
+    var get = function (i) {
+      if (i >= urls.length) return Promise.resolve(null);
+      return fetch(urls[i], { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+        .then(function (j) { return asBattery(j) ? j : get(i + 1); });
+    };
+    var bank = get(0);
     ready = Promise.all([eng, bank]).then(function (a) { battery = asBattery(a[1]); return battery; });
     return ready;
   }
@@ -111,14 +121,6 @@
     if (!battery) return [];
     return idsOf(where).map(byId).filter(Boolean).map(function (t) { return { id: t.id, title: t.title, timed: timedOf(t) }; });
   }
-  // the engine runs a battery: this part's is the file with its tasks narrowed to the part's, in the part's order
-  function partOf(where) {
-    var b = {}; for (var k in battery) if (Object.prototype.hasOwnProperty.call(battery, k)) b[k] = battery[k];
-    b.battery_id = battery.battery_id + '.' + where;
-    b.tasks = idsOf(where).map(byId).filter(Boolean);
-    return b;
-  }
-
   // ---- the shared top bar: back, the title, the one sound switch ----
   function soundIcon() { var m = J() && J().muted(); return m ? '🔇' : '🔊'; }
   function top(label, backTo) {
@@ -164,7 +166,7 @@
     }
     show(top(T[k], 'map') + '<div class="sg-grow"></div><img src="/wq/jugnu/hello.webp" alt="" width="96" style="margin:0 auto"><p class="sg-note">…</p><div class="sg-grow"></div>');
     prepare().then(function () {
-      if (!battery || !W.SAE || typeof W.SAE.start !== 'function' || !tasksOf(k).length) {
+      if (!battery || !tasksOf(k).length) {
         show(top(T[k], 'map') + '<div class="sg-grow"></div><img src="/wq/jugnu/sleep.webp" alt="" width="120" style="margin:0 auto"><p class="sg-note">' + esc(T.notReady) + '</p><div class="sg-grow"></div><button class="sg-btn" data-tap="map">' + esc(T.toMap) + '</button>');
         return;
       }
@@ -176,44 +178,48 @@
     });
   }
 
-  // ---- a run: the engine's screens, framed ----
-  var engine = null;
-  var glow = null;
-  function setGlow(v) {
-    if (!glow) return;
-    var t = v && v.phase === 'running' ? v.task : null;
-    var s = t ? (t.timed_s || t.time_limit_s || (t.tap && t.tap.time_limit_s) || (t.record && t.record.time_limit_s)) : 0;
-    var lim = v && v.time_limit_ms ? v.time_limit_ms : s ? s * 1000 : 0;
-    if (!lim || v.time_left_ms == null) { glow.className = 'sg-glow'; return; }
-    glow.className = 'sg-glow is-on';
-    glow.style.setProperty('--glow', String(Math.max(0, Math.min(1, v.time_left_ms / lim))));
+  // ---- a run: the child's page (/sa/play.html, skin=game) for one part; back here with ?done=<part>&s=<session> ----
+  var PARTS = /^(maths|english|urdu|tower)$/;
+  function backUrl(k, sid) {
+    return '/sa-game/' + boot.token + '?kid=' + boot.kid + '&lang=' + L + '&done=' + k + '&s=' + encodeURIComponent(sid);
   }
-  function run(k) {
-    if (engine) { try { engine.destroy(); } catch (_) { /* gone */ } engine = null; }
-    var tasks = tasksOf(k);
-    var n = (prog.runs[k] || 0) + 1;
-    prog.runs[k] = n; save(prog);
-    var seen = { practice: false, ended: {}, early: false };
-    show(top(T[k], null) + '<div class="sg-run" id="sg-run"></div><div class="sg-glow" id="sg-glow"><img src="/wq/jugnu/idle.webp" alt=""></div>');
-    glow = D.getElementById('sg-glow');
-    var started = W.SAE.start({
-      mount: D.getElementById('sg-run'), battery: partOf(k), mode: 'game', lang: L,
-      session_id: ['g', boot.kid, boot.form, k, n].join('.'),
-      sink: W.SAG && W.SAG.sink ? W.SAG.sink(boot, k) : undefined,
+  function localId(k) { return ['g', boot.form.replace(/\W/g, ''), k, Date.now().toString(36), Math.random().toString(36).slice(2, 8)].join('-'); }
+  // the run's session from the game sink (it keeps the answers on the server); offline or off: a session on the phone only
+  function session(k) {
+    return fetch('/api/sa-game/s/session', {
+      method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-wq-device': device() },
+      body: JSON.stringify({ t: boot.token, kid: boot.kid, part: k, form: boot.form, lang: L, n: (prog.runs[k] || 0) }),
+    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (o) {
+      if (o && o.session_id && o.st) { try { W.localStorage.setItem('sg.st.' + o.session_id, o.st); } catch (_) { /* no sink then */ } return o.session_id; }
+      return localId(k);
     });
-    Promise.resolve(started).then(function (e) {
-      engine = e;
-      if (J() && J().muted()) e.mute(true);
-      e.on('state', setGlow);
-      e.on('practice_feedback', function () { seen.practice = true; });
-      e.on('task_end', function (ev) {
-        var r = (ev && ev.value) || {};
-        seen.ended[r.task_id || ev.task_id] = true;
-        if (r.stop_reason && r.stop_reason !== 'complete' && r.stop_reason !== 'time_up') seen.early = true;
-        if (J()) J().sentence();
-      });
-      e.on('battery_end', function () { setGlow(null); done(k, tasks, seen); });
-    }, function () { intro(k); });
+  }
+  function device() { try { var d = JSON.parse(W.localStorage.getItem('wq_d')); return String((d && d.id) || d || ''); } catch (_) { return ''; } }
+  function run(k) {
+    if (!PARTS.test(k)) return;
+    prog.runs[k] = (prog.runs[k] || 0) + 1; save(prog);
+    show(top(T[k], null) + '<div class="sg-grow"></div><img src="/wq/jugnu/hello.webp" alt="" width="96" class="sg-bob" style="margin:0 auto"><div class="sg-grow"></div>');
+    session(k).then(function (sid) {
+      var q = 's=' + encodeURIComponent(sid) + '&form=' + encodeURIComponent('sa.' + boot.form + '.' + L) + '&mode=game&lang=' + L + '&block=' + k + '&skin=game&back=' + encodeURIComponent(backUrl(k, sid));
+      W.location.assign('/sa/play.html?' + q);
+    });
+  }
+
+  // back from the child's page: the part's results and events as the engine kept them on this phone
+  function back(k, sid) {
+    var tasks = tasksOf(k);
+    var seen = { practice: false, ended: {}, resumed: false };
+    var store = W.SAE && W.SAE.store && typeof W.SAE.store.open === 'function' ? W.SAE.store.open() : Promise.reject(new Error('no store'));
+    return Promise.resolve(store).then(function (st) {
+      return Promise.all([st.results(sid), st.events(sid)]);
+    }).then(function (v) {
+      (v[0] || []).forEach(function (r) { seen.ended[r.task_id] = true; if (r.resumed) seen.resumed = true; });
+      (v[1] || []).forEach(function (e) { if (e && (e.type === 'practice_answer' || e.type === 'practice_feedback')) seen.practice = true; });
+      return Object.keys(seen.ended).length > 0;
+    }).catch(function () { return false; }).then(function (any) {
+      if (!any) { map(); return; }
+      done(k, tasks, { practice: seen.practice, ended: seen.ended, early: seen.resumed });
+    });
   }
 
   // ---- the result card: what was finished, effort stars; never a score ----
@@ -239,13 +245,19 @@
     if (J()) J().tap();
     var tap = b.getAttribute('data-tap');
     var k = b.getAttribute('data-k');
-    if (tap === 'map') { if (engine) { try { engine.destroy(); } catch (_) { /* gone */ } engine = null; } map(); }
+    if (tap === 'map') map();
     else if (tap === 'island') intro(k);
     else if (tap === 'run') run(k);
-    else if (tap === 'mute' && J()) { J().mute(!J().muted()); if (engine) engine.mute(J().muted()); b.textContent = soundIcon(); }
+    else if (tap === 'mute' && J()) { J().mute(!J().muted()); b.textContent = soundIcon(); }
   });
-  W.addEventListener('pagehide', function () { if (engine && engine.flushed) engine.flushed(); });
 
   W.SG = { map: map, intro: intro, run: run, _prog: function () { return prog; } };
-  map();
+  // ?done=<part>&s=<session>: back from a run — its card (then the map); else the map
+  var q = {};
+  String(W.location.search || '').replace(/^\?/, '').split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
+  if (PARTS.test(q.done || '') && /^[A-Za-z0-9_-]{6,64}$/.test(q.s || '')) {
+    if (W.history && W.history.replaceState) W.history.replaceState(null, '', '/sa-game/' + boot.token + '?kid=' + boot.kid + '&lang=' + L);
+    show(top('', null) + '<div class="sg-grow"></div><img src="/wq/jugnu/celebrate.webp" alt="" width="110" class="sg-bob" style="margin:0 auto"><div class="sg-grow"></div>', 'sg-sea');
+    prepare().then(function () { back(q.done, q.s); });
+  } else map();
 }(window));

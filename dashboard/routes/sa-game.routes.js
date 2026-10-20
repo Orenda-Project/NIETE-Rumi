@@ -36,8 +36,9 @@ const FILES = Object.freeze({ 'game.js': 'application/javascript; charset=utf-8'
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,1000}\.[A-Za-z0-9_-]{16,64}$/;
 const CHIP_RX = /^[0-9a-f]{16}$/;
 const FORM_RX = /^game\.G(1|23|45)$/;
-// The engine's files, in load order (dashboard/sa/, served by sa-engine.routes.js). A missing one is skipped by the page.
-const ENGINE = ['sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js', 'sa-engine.js'];
+// The engine's files the map needs (dashboard/sa/, sa-engine.routes.js): its phone store, read for a run's card when the
+// child comes back. The run itself is the child's page, /sa/play.html. A missing one is skipped by the page.
+const ENGINE = ['sa-store.js'];
 const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 
 const COPY = {
@@ -84,7 +85,7 @@ ${body}
 function renderGamePage({ token, kid, lang, form, grade }) {
   const l = lang === 'en' ? 'en' : 'ur';
   const c = COPY[l];
-  const boot = { token, kid, lang: l, form, grade: grade || null, bank: `/sa-game/b/${form}/${l}`, engine: ENGINE.map((f) => `/sa/${f}`),
+  const boot = { token, kid, lang: l, form, grade: grade || null, bank: [`/sa/batteries/sa.${form}.${l}.json`, `/sa-game/b/${form}/${l}`], engine: ENGINE.map((f) => `/sa/${f}`),
     // the sound + motion kit every child screen uses (WQJ), at the child pages' own long-cached URLs
     juice: { js: `/wq/wq-juice.js?v=${versionOf('wq-juice.js', WQ_DIR)}`, css: `/wq/wq-juice.css?v=${versionOf('wq-juice.css', WQ_DIR)}` } };
   const head = `<link rel="stylesheet" href="/sa-game/a/game.css?v=${versionOf('game.css')}">\n<link rel="preload" href="/wq/jugnu/hello.webp" as="image">\n`;
