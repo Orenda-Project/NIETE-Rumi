@@ -50,19 +50,22 @@ function versionOf(file) {
   return versions.get(file);
 }
 
-const CSS = `@font-face{font-family:"WQ Nastaliq";src:url(${UR_FONT}) format("woff2");font-display:swap;size-adjust:155%;unicode-range:U+0600-06FF,U+00A0,U+200C-200F,U+0020,U+0021}
-html[lang=ur] body{font-family:"WQ Nastaliq","Noto Nastaliq Urdu",system-ui,sans-serif;line-height:1.9;word-spacing:.2em}
-.wqr{max-width:480px;margin:0 auto;padding:24px 16px;display:grid;gap:12px}.wqr h1{margin:0;font-size:22px;text-align:center}
-.wqr .wqr-o{margin:0;text-align:center;color:#5b6070;font-size:15px}.wqr .wqr-l{text-align:center;font-size:15px}`;
+// Only what wq.css does not already give this page: the column, Jugnu, and Nastaliq room (line-height 2) for Urdu.
+const CSS = `.wqr{padding:24px var(--gutter,16px) 32px;display:grid;gap:12px;align-content:start}
+.wqr .wqr-j{margin:0 auto;width:120px;height:120px}.wqr h1{margin:0;font-size:22px;text-align:center}
+html[lang=ur] .wqr h1,html[lang=ur] .wqr p{line-height:2}
+.wqr .wqr-l{justify-self:center;width:auto;min-height:44px}`;
 
-/** The reminder page: Jugnu, the ask in this language (and the other one, small), then wq-remind.js boots the card. */
-function renderRemindPage({ code, lang, test }) {
+/** The reminder page in the child pages' look (wq.css, + the adventure look when the quiz page has it): Jugnu, the
+ *  ask in this page's language only, then wq-remind.js boots the card. The other language is one small link. */
+function renderRemindPage({ code, lang, test, qa, adv }) {
   const l = lang === 'en' ? 'en' : 'ur';
   const o = l === 'en' ? 'ur' : 'en';
   const c = COPY[l];
-  const boot = { code, lang: l, test: test === true };
+  // the test-send is for QA only: the switch AND ?qa=1, so a child's walk never sees it
+  const boot = { code, lang: l, test: test === true && qa === true };
   return `<!doctype html>
-<html lang="${l}" dir="${l === 'ur' ? 'rtl' : 'ltr'}">
+<html lang="${l}" dir="${l === 'ur' ? 'rtl' : 'ltr'}"${adv ? ' class="wq-adv"' : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -71,16 +74,15 @@ function renderRemindPage({ code, lang, test }) {
 <meta name="theme-color" content="#7CC8E8">
 <title>${esc(c.title)}</title>
 ${l === 'ur' ? `<link rel="preload" href="${UR_FONT}" as="font" type="font/woff2" crossorigin>\n` : ''}<link rel="stylesheet" href="/wq/wq.css?v=${versionOf('wq.css')}">
-<style>${CSS}</style>
+${adv ? `<link rel="stylesheet" href="/wq/wq-adventure.css?v=${versionOf('wq-adventure.css')}">\n` : ''}<style>${CSS}</style>
 </head>
 <body>
-<main class="wqr">
-<img src="/wq/jugnu/hello.webp" alt="" width="96" height="96" style="margin:0 auto">
+<main class="wq-app"><section class="wq-screen wqr">
+<img class="wqr-j" src="/wq/jugnu/hello.webp" alt="" width="120" height="120">
 <h1>${esc(c.title)}</h1>
-<p class="wqr-o" lang="${o}" dir="${o === 'ur' ? 'rtl' : 'ltr'}">${esc(COPY[o].title)}</p>
 <div id="wq-remind-root"></div>
-<a class="wqr-l" href="/remind/${esc(code)}?lang=${o}" lang="${o}">${esc(c.other)}</a>
-</main>
+<a class="wq-btn wq-ghost wqr-l" href="/remind/${esc(code)}?lang=${o}" lang="${o}" dir="${o === 'ur' ? 'rtl' : 'ltr'}">${esc(c.other)}</a>
+</section></main>
 <script id="wq-remind-boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-remind.js?v=${versionOf('wq-remind.js')}" defer></script>
 </body>
@@ -116,7 +118,7 @@ function createPushRemindRouter(opts = {}) {
     if (out.status !== 200) return next();
     const lang = req.query.lang === 'en' || req.query.lang === 'ur' ? req.query.lang : phoneLang(req);
     res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
-    return res.status(200).type('html').send(renderRemindPage({ code, lang, test: Boolean(out.body && out.body.test === true) }));
+    return res.status(200).type('html').send(renderRemindPage({ code, lang, test: Boolean(out.body && out.body.test === true), qa: req.query.qa === '1', adv: Boolean(out.body && out.body.adv === true) }));
   });
 
   const relay = (op) => async (req, res) => {

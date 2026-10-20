@@ -173,26 +173,30 @@
       return 'intent://' + host + '/remind/' + code + '?from=iab&lang=' + lang
         + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(remindUrl()) + ';end';
     }
-    function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '">' + esc(label) + '</button>'; }
+    // a ghost's underline sits under the word only (not across the full-width box)
+    function lbl(cls, label) { return cls.indexOf('wq-ghost') >= 0 ? '<span style="text-decoration:underline;text-underline-offset:4px">' + esc(label) + '</span>' : esc(label); }
+    function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none"' : '') + '>' + lbl(cls, label) + '</button>'; }
     function link(cls, act, href, label) { return '<a class="wq-btn ' + cls + '" data-act="' + act + '" href="' + esc(href) + '">' + esc(label) + '</a>'; }
     function draw(inner) {
       if (!inner) { slot.innerHTML = ''; return; }
       slot.innerHTML = '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
         + ' style="margin:16px 0 0;padding:16px;display:grid;gap:10px">' + inner + '</section>';
     }
-    function title(t) { return '<h2 style="margin:0;font-size:18px">' + esc(t) + '</h2>'; }
-    function line(t) { return '<p class="wq-sub" style="margin:0">' + esc(t) + '</p>'; }
+    var lh = lang === 'ur' ? ';line-height:2' : '';
+    function title(t) { return '<h2 style="margin:0;font-size:18px' + lh + '">' + esc(t) + '</h2>'; }
+    function line(t) { return '<p class="wq-sub" style="margin:0' + lh + '">' + esc(t) + '</p>'; }
 
     var show = {
       ask: function () { draw(title(c.remindTitle) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
       done: function () {
+        // the landing's one next step is Play (the primary); Stop is the small ghost; the test-send only for QA (?qa=1)
         draw(line(c.remindDone)
-          + (landing && code ? link('wq-soft', 'play', '/q/' + code, c.play) : '')
+          + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')
           + (landing && ctx.test === true ? btn('wq-ghost', 'test', c.remindTest) : '')
           + btn('wq-ghost', 'stop', c.remindStop));
       },
       denied: function () { draw(line(c.remindDenied)); },
-      stopped: function () { draw(line(c.stopped) + (landing && code ? link('wq-soft', 'play', '/q/' + code, c.play) : '')); },
+      stopped: function () { draw(line(c.stopped) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
       iab: function () {
         draw(title(c.iabTitle) + line(c.iabBody) + (code && host ? link('wq-soft', 'escape', intentHref(), c.iabChrome) : '')
           + line(c.iabHint) + (code && host ? btn('wq-ghost', 'copy', c.iabCopy) : ''));
