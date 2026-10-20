@@ -16,6 +16,12 @@
  * web_quiz_page_keep (JSON true, with this switch on; default off): the same one read also reads every key the page
  * switch readers named (settings-snapshot.js), every 10 s, and hands the rows to them: a page on a quiet process then
  * makes no settings read at all. Off, the read's other rows are not used.
+ *
+ * web_quiz_page_boot (JSON true, with this switch on; default off): this switch is otherwise only learnt from a child's
+ * page, so on a fresh process (every deploy) the first page read every page switch one by one and the second carried
+ * this module's first read and touch. boot() (called once as the bot starts, never waited for) reads that key and this
+ * one; on, it runs flag() and the touch then, plus the page switches the touch does not name (BOOT_GETTERS), so the
+ * first page reads no switch. Off, the start makes that one read and nothing else.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -23,6 +29,7 @@ const Snap = require('../settings/settings-snapshot');
 
 const KEY = 'web_quiz_page_warm';
 const KEEP_KEY = 'web_quiz_page_keep';
+const BOOT_KEY = 'web_quiz_page_boot';
 const TTL_MS = 30 * 1000;
 const EVERY_MS = 20 * 1000;
 let cache = null; // { at, on }
@@ -126,4 +133,30 @@ function touch() {
   return Promise.all(GETTERS.map((g) => Promise.resolve().then(g).catch(() => null))).then(() => undefined);
 }
 
-module.exports = { flag, onNow, touch, tick, stop, KEY, KEEP_KEY, TTL_MS, EVERY_MS, _reset: () => { stop(); cache = null; reading = null; keepOn = false; named = false; Snap.clear(); } };
+// The page switches the touch does not name (each read once, cached for later pages): warmed only at the start.
+const BOOT_GETTERS = [
+  () => require('./web-quiz-db-deadline').settings(),
+  () => require('./web-quiz-card-switch').on(),
+  () => require('./web-quiz-closed-lang').flag(),
+];
+
+/**
+ * The start (web_quiz_page_boot): one read of that key and this one; both JSON true, flag() and every page switch's
+ * getter (GETTERS + BOOT_GETTERS) run now. Resolves true when it warmed, else false. Never throws.
+ */
+async function boot() {
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [BOOT_KEY, KEY]);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
+    if (val(BOOT_KEY) !== true || val(KEY) !== true) return false;
+  } catch (err) {
+    logToFile('⚠️ web quiz page boot: settings lookup failed — off', { error: err.message });
+    return false;
+  }
+  if (!(await flag())) return false;
+  await Promise.all([touch(), ...BOOT_GETTERS.map((g) => Promise.resolve().then(g).catch(() => null))]);
+  return true;
+}
+
+module.exports = { flag, onNow, touch, boot, tick, stop, KEY, KEEP_KEY, BOOT_KEY, TTL_MS, EVERY_MS, _reset: () => { stop(); cache = null; reading = null; keepOn = false; named = false; Snap.clear(); } };

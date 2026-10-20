@@ -1507,9 +1507,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var id = chLine && B.art && B.art.invite;
     return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id)) + '" alt="' + esc(chLine) + '">' : '';
   }
-  function wireChPic() {
+  // fold (web_quiz_challenge_fold): the picture sits right under the way in and carries a drawn "tap the link to play",
+  // so a tap on it is a tap on Play (or the remembered child's button); with the class's children listed, it shows them
+  function wireChPic(fold) {
     var im = ROOT.querySelector && ROOT.querySelector('.wq-chpic');
     if (im && im.addEventListener) im.addEventListener('error', function () { if (im.parentNode) im.parentNode.removeChild(im); });
+    if (fold && im && im.addEventListener) {
+      im.style.cursor = 'pointer';
+      im.addEventListener('click', function () {
+        var b = ROOT.querySelector('#wq-play') || ROOT.querySelector('#wq-play-as');
+        if (b && b.click) return b.click();
+        var k = ROOT.querySelector('.wq-kid');
+        if (k && k.scrollIntoView) k.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // then a short ring on the names, so the next tap is obvious; it comes off so a second tap rings again
+        var ks = (ROOT.querySelectorAll && ROOT.querySelectorAll('.wq-kid')) || [];
+        if (!ks.length && k) ks = [k];
+        Array.prototype.forEach.call(ks, function (x) { if (x.classList) x.classList.add('wq-kid-ring'); });
+        setTimeout(function () { Array.prototype.forEach.call(ks, function (x) { if (x.classList) x.classList.remove('wq-kid-ring'); }); }, 2000);
+      });
+    }
   }
 
   // A storybook the teacher sent (wq-story-link.js, loaded only then): the landing names a story.
@@ -1525,25 +1541,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A challenger who scored 0 is never a score to beat (the card shares a zero as "played"): the friend is just challenged.
     var chLine = ch ? (ch.correct > 0 ? T.challenged(ch.first, ch.correct, ch.total) : T.challengedBy(ch.first)) : '';
     if (B.preview && params.p) return teacherLanding();
-    if (ID && !B.preview) { ID.landing(chLine, chPic(chLine)); wireChPic(); return; }
+    // web_quiz_challenge_fold (the answer's challenge_fold): the way in comes right after the challenge line, and the
+    // invite picture follows it, so a small phone shows Play on the first screen
+    var pic = chPic(chLine), fold = Boolean(B.challenge_fold && pic);
+    if (ID && !B.preview) { if (fold) ID.landing(chLine, pic, true); else ID.landing(chLine, pic); wireChPic(fold); return; }
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
-      chPic(chLine) +
+      (fold ? '' : pic) +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
+      (fold ? pic : '') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today >= 5 && !B.challenge ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
       (LIVE.now >= 5 && !ch ? '<p class="wq-proof">' + ic(IC.live, '🟢 ') + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
-    wireChPic();
+    wireChPic(fold);
     on('#wq-play', who);
     on('#wq-notme', who);
     on('#wq-preview', function () { ev('identity_pick', { src: 'preview' }); startSession({}, null, ''); });

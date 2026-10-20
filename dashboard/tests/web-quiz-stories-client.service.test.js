@@ -4063,3 +4063,67 @@ describe('"Listen again" under the look: a drawn replay icon, never the ↻ glyp
     expect(await again(false, 'en')).toBe('↻ Listen again');
   });
 });
+
+// ---- one sheet that fits (web_quiz_read_sheet_fit: the book's read_sheet 2): a page never shows its words with empty
+// space where its picture would fit. Where the band and the picture cannot share one width with a line at the reader's
+// readable size, the words keep their size and the picture is drawn in the room left as its own rounded card, centred
+// under the band (when that room is 96 px or more). Jugnu's hint bubble is never wider than the picture it sits on.
+describe('Your turn, one sheet that fits: the picture in the room left, the hint no wider than the picture', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const moment = () => { const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: {} })); return win.WQMoment; };
+  const clipOf = (c) => { const m = /^inset\(([\d.]+)px 0 ([\d.]+)px 0(?: round [^)]*)?\)$/.exec(c); return m ? [+m[1], +m[2]] : null; };
+  const BOOKS = {
+    murghi: { im: { w: 720, h: 1019 }, lines: [[163, 79, 386, 84], [167, 189, 363, 89], [99, 300, 517, 93]] },
+    akhbar: { im: { w: 720, h: 1083 }, lines: [[109, 65, 494, 77], [271, 153, 167, 70]] },
+  };
+  const PHONES = { '390x844': [358, 574], '360x740': [328, 470], '360x640': [328, 370] };
+  const CASES = [];
+  Object.keys(BOOKS).forEach((bk) => Object.keys(PHONES).forEach((ph) => CASES.push([bk, ph])));
+  const draw = (bk, d, one) => {
+    const { im, lines } = BOOKS[bk];
+    const a = fakeEl('art'), i = fakeEl('i'), m = fakeEl('img'), st = fakeEl('stage');
+    a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.style.setProperty = (k, v) => { st.style[k] = v; };
+    const f = moment().art(a, env().S._cam, im, lines, lines, d, true, 0, one);
+    return { a, i, m, st, f, im, lines };
+  };
+  test('akhbar 360x640 (AK-1): the words keep their reading size and the newspaper is drawn under them, its own card, centred', () => {
+    const d = PHONES['360x640'], g = draw('akhbar', d, 2);
+    expect(Math.min(...g.lines.map((l) => l[3])) * g.f.s).toBeGreaterThanOrEqual(25.5);
+    expect(g.a.getAttribute('data-art')).toBe('on');
+    const pw = parseFloat(g.i.style.width), ph = parseFloat(g.i.style.height), top = parseFloat(g.a.style.top);
+    expect(ph).toBeGreaterThanOrEqual(96);
+    expect(pw).toBeLessThanOrEqual(d[0]);
+    expect(g.i.style.borderRadius).toBe('12px');                                  // its own card: rounded all round
+    const [, cb] = clipOf(g.f.clip), bandBottom = (g.im.h - cb) * g.f.s + g.f.ty;
+    expect(top - bandBottom).toBeGreaterThanOrEqual(6);                            // a clear gap: no seam to hide
+    expect(top + ph).toBeLessThanOrEqual(d[1] + 0.5);                              // inside the stage
+    expect(g.f.clip).toMatch(/round ([\d.]+)px\)$/);                               // the band rounded on all four corners
+    const cy = -parseFloat(/translateY\(([-\d.]+)px\)/.exec(g.m.style.transform)[1]) / (pw / g.im.w);
+    expect(cy).toBeGreaterThanOrEqual(Math.max(...g.lines.map((l) => l[1] + l[3])) - 0.5);   // no printed glyph in the picture
+    expect(parseFloat(g.st.style['--wqs-pi'])).toBeCloseTo((d[0] - pw) / 2, 0);    // the hint's inset: the picture's own
+    const cap = g.st.style['--wqs-cap'];                                           // the stage ends at the picture (or the picture at its foot)
+    expect(cap === 'none' ? d[1] - (top + ph) : parseFloat(cap) - (top + ph)).toBeLessThanOrEqual(1);
+  });
+  test.each(CASES)('%s %s: where today draws a picture, the same sheet number for number (only the hint inset is new)', (bk, ph) => {
+    const d = PHONES[ph], a = draw(bk, d, 1), b = draw(bk, d, 2);
+    if (a.a.getAttribute('data-art') !== 'on') return;
+    expect([b.f, b.a.style, b.i.style, b.m.style, b.a.attrs]).toEqual([a.f, a.a.style, a.i.style, a.m.style, a.a.attrs]);
+    const { '--wqs-pi': pi, setProperty: f1, ...rest } = b.st.style, { setProperty: f2, ...was } = a.st.style;
+    expect(rest).toEqual(was);
+    expect(parseFloat(pi)).toBeCloseTo((d[0] - parseFloat(b.i.style.width)) / 2, 0);  // murghi 360x640 (HB-1): 29 px a side
+  });
+  test('murghi 360x640 (HB-1): the bubble inset is the picture\'s, so the bubble is never wider than it; the rule reads it', () => {
+    const g = draw('murghi', PHONES['360x640'], 2);
+    expect(parseFloat(g.st.style['--wqs-pi'])).toBeGreaterThan(20);
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
+    expect(css).toContain('.wqs .wqs-stage>.wqs-near{left:calc(var(--wqs-pi,0px) + 8px);right:calc(var(--wqs-pi,0px) + 8px)}');
+  });
+  test('a stage with no room for 96 px of picture still leaves it out (words alone, today\'s band)', () => {
+    const g = draw('akhbar', [328, 190], 2), t = draw('akhbar', [328, 190], 1);
+    expect(g.a.getAttribute('data-art')).toBe('off');
+    expect([g.f, g.a.style]).toEqual([t.f, t.a.style]);
+  });
+  test.each(CASES)('%s %s, without the switch (read_sheet 1): no hint inset is set at all', (bk, ph) => {
+    expect(draw(bk, PHONES[ph], 1).st.style).not.toHaveProperty('--wqs-pi');
+  });
+});
