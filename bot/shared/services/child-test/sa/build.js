@@ -45,8 +45,10 @@ const BLOCK_NAMES = {
 
 // DESIGN §2: 5 tiles for letters, 4 for every other tap; replay at 5 s and move on at 10 s on a timed tap task.
 const OPTIONS_N = { letters: 5 };
+// The SA time rules as data (CONTRACT §2), so the engine's defaults are never the rule of record: a timed item
+// replays at 5 s and counts wrong at 10 s; an untimed item offers "next" at 15 s (word problems: answer cap 60 s).
 const TIMED_TAP = { item_timeout_s: 10, replay_at_s: 5 };
-const UNTIMED_TAP = { item_timeout_s: null, replay_at_s: null };
+const UNTIMED_TAP = { item_timeout_s: null, replay_at_s: null, next_at_s: 15 };
 
 const SUBTASK = {
   listening: 'listening_comprehension', letters: 'letter_name_identification', nonwords: 'nonword_reading',
@@ -281,12 +283,13 @@ function permutations(xs) {
   return xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]));
 }
 
-function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on, sayOnReplay }) {
+function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on, sayOnReplay, stop = null, softCap = null }) {
   const timed = !!spec.timed_s;
   return {
     task, lang: null, kind: input === 'keypad' ? 'keypad' : 'choice', legacy_block: null, family: 'egma', subtask: spec.subtask,
     title: TITLES[task], modes: ['tap'],
-    tap: { options_n, distractor_rule, input, items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP), stop: null, ...(sayOnReplay ? { say_on: 'replay' } : {}) },
+    tap: { options_n, distractor_rule, input, items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP), stop,
+      ...(softCap ? { soft_cap_s: softCap } : {}), ...(sayOnReplay ? { say_on: 'replay' } : {}) },
     record: null, practice: [], practice_note: spec.practice_note,
     script: scriptOf(scriptKey, 'tap'),
     source: { items: extraBase, script: LINES[scriptKey].intro_tap.from, sa_adaptation: adaptation },
@@ -315,11 +318,12 @@ function extraTasks(f, extra) {
   };
   out.push(extraMathsTask({ task: 'ma.patterns', spec: m.patterns, items: pat.filter((x) => x.it.level <= 2).map(patItem), input: 'options',
     options_n: 4, distractor_rule: 'printed_in_source', scriptKey: 'ma.patterns', extraBase: base('patterns'),
-    adaptation: 'Tangerine SA tap 1 of 4 (sec_miss_num_01); the RWP card\'s four printed options', deviation: null }));
+    adaptation: 'Tangerine SA tap 1 of 4 (sec_miss_num_01); the RWP card\'s four printed options', deviation: null,
+    stop: { type: 'consecutive_errors', n: 4 } })); // EGMA's untimed convention (lead-egra-2 181537)
   out.push(extraMathsTask({ task: 'ma.patterns_hi', spec: m.patterns, items: pat.filter((x) => x.it.level >= 3).map(patItem), input: 'keypad',
     options_n: null, distractor_rule: null, scriptKey: 'ma.patterns_hi', extraBase: base('patterns'),
     adaptation: 'Tangerine SA keypad (sec_l1_addition_01); RWP levels 3-4', deviation: 'typed on a keypad, not spoken',
-    depends_on: { task: 'ma.patterns', skip_if_zero: true } }));
+    depends_on: { task: 'ma.patterns', skip_if_zero: true }, stop: { type: 'consecutive_errors', n: 4 } }));
 
   // Number representation: the items that need no picture (levels 1-2 picture cards were not recovered).
   const rep = m.number_repr.items.map((it, i) => ({ it, i })).filter((x) => !x.it.picture);
@@ -355,7 +359,7 @@ function extraTasks(f, extra) {
   out.push(extraMathsTask({ task: 'ma.word_problems_l2', spec: m.word_problems_l2, input: 'keypad', options_n: null, distractor_rule: null,
     items: m.word_problems_l2.items.map((it, i) => ({ id: `ma.word_problems_l2.${it.id.replace('word_problems_', '')}`, target: it.answer,
       prompt: sayBoth(it.prompt_en, it.prompt_ur), counters: 10, src: src('word_problems_l2', i) })),
-    scriptKey: 'ma.word_problems', extraBase: base('word_problems_l2'), adaptation: 'Tangerine SA keypad (sec_l1_word_problem_01); RWP word problems 2a/2b',
+    scriptKey: 'ma.word_problems', extraBase: base('word_problems_l2'), adaptation: 'Tangerine SA keypad (sec_l1_word_problem_01); RWP word problems 2a/2b', softCap: 60,
     deviation: 'typed on a keypad, not spoken' }));
 
   // Upper-grade number identification (RTI Rwanda P6 sample items), Grades 4-5 forms only.
@@ -754,7 +758,7 @@ function runtimeTask(t, lang) {
   if (t.tap) {
     const tap = t.tap;
     return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, item_timeout_s: tap.item_timeout_s,
-      replay_at_s: tap.replay_at_s, ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop), ...(tap.say_on ? { say_on: tap.say_on } : {}),
+      replay_at_s: tap.replay_at_s, ...(tap.next_at_s ? { next_at_s: tap.next_at_s } : {}), ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop), ...(tap.say_on ? { say_on: tap.say_on } : {}),
       options_n: tap.options_n, distractor_rule: tap.distractor_rule, items: tap.items.map((it) => runtimeItem(it, lang)), practice,
       ...(tap.passage ? { passage: tap.passage, tap_on: 'passage' } : {}), ...(tap.option_images ? { option_images: tap.option_images } : {}),
       ...(t.rubric ? { rubric: t.rubric } : {}),
