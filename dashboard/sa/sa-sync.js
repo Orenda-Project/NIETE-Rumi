@@ -11,7 +11,9 @@
  * once its recording is closed (a chunk marked final), as one file. A failure waits 2 s, then doubling to 60 s; the
  * browser's online event and every new event (poke) try at once. A presign that answers skip means the surface keeps
  * no audio here (RULING #17): the recording is deleted from the phone, the task's result goes up again with
- * audio:'not_kept' and audio_reason, and nothing is retried; a sink error is not a skip, it is retried.
+ * audio:'not_kept' and audio_reason, and nothing is retried; a sink error is not a skip, it is retried. A skip
+ * whose result is not written yet is kept in localStorage (sa:notkept:<session>) until that result is acknowledged,
+ * so a reload in between does not lose the mark.
  *
  * status() → { state: 'synced'|'pending'|'offline'|'error', pending_events, pending_audio, last_ok_at }
  * UMD: window.SAE.sync in the browser, module.exports under Node.
@@ -36,7 +38,7 @@
   }
 
   /**
-   * create({ store, sink, session_id, onStatus, online, put, join, timers }) → sync.
+   * create({ store, sink, session_id, onStatus, online, put, join, timers, localStorage }) → sync.
    * online() (default navigator.onLine), put(url, body, mime) the audio upload, join(chunks, mime) → body.
    */
   function create(o) {
@@ -53,7 +55,13 @@
     var wait = MIN_WAIT;
     var timer = null;
     var stopped = false;
-    var notKept = {};
+    var ls = 'localStorage' in o ? o.localStorage : (function () { try { return root.localStorage; } catch (_) { return null; } }());
+    var NK = 'sa:notkept:' + id;
+    var notKept = (function () { try { return (ls && JSON.parse(ls.getItem(NK) || 'null')) || {}; } catch (_) { return {}; } }());
+    function keepNotKept() {
+      if (!ls) return;
+      try { if (Object.keys(notKept).length) ls.setItem(NK, JSON.stringify(notKept)); else ls.removeItem(NK); } catch (_) { /* memory only */ }
+    }
 
     function emit(next) {
       for (var k in next) st[k] = next[k];
@@ -87,7 +95,10 @@
           })).then(function (r) {
             if (!r || r.ok === false) throw new Error('batch refused');
             var acked = typeof r.acked_to === 'number' ? Math.min(r.acked_to, seqTo) : seqTo;
-            return store.markSynced(id, acked, p.results.map(function (x) { return x.task_id; }));
+            var sent = p.results.map(function (x) { return x.task_id; });
+            var had = sent.filter(function (t) { return notKept[t]; });
+            if (had.length) { had.forEach(function (t) { delete notKept[t]; }); keepNotKept(); }
+            return store.markSynced(id, acked, sent);
           });
         }
         return send.then(function () {
@@ -117,6 +128,7 @@
     function notKeptAudio(recId, reason) {
       var taskId = String(recId).split('/')[0];
       notKept[taskId] = reason || 'skip';
+      keepNotKept();
       return store.dropChunks(id, recId).then(function () { return store.results(id); }).then(function (rs) {
         var r = rs.filter(function (x) { return x.task_id === taskId; })[0];
         if (!r || r.audio === 'not_kept') return null;
