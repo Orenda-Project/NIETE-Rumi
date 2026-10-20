@@ -173,12 +173,12 @@ test('the mercy rule: the recorder\'s silence watch offers the star at 12 s and 
     onSilence: (o, cb) => { watch = { o, cb }; return () => { cancelled++; }; },
   }) };
   f.deps.micState = () => 'ok';
-  const b = { battery_id: 'mr', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
+  const b = { battery_id: 'mr', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, mercy_after_s: 11, silence_stop_s: 19, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
   const e = await start({ mount: {}, battery: b, mode: 'proctored', lang: 'ur', audio_check: false, warmup: false }, f.deps);
   e.runner.start(); e.runner.instructionDone(); e.runner.begin();
   f.ui().onRecordStart(b.tasks[0] && e.runner.view().task);
   await new Promise((r) => setTimeout(r, 0));
-  expect(watch.o).toEqual({ after_s: 12, total_s: 20 });
+  expect(watch.o).toEqual({ after_s: 11, total_s: 19 });
   watch.cb({ kind: 'mercy', silence_s: 12 });
   watch.cb({ kind: 'early_stop_silence', silence_s: 20 });
   expect(e.runner.results()[0]).toMatchObject({ stop_reason: 'early_stop_silence', mercy_offered: true, silence_s: 20 });
