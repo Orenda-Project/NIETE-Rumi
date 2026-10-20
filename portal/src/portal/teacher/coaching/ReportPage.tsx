@@ -23,6 +23,7 @@ import { COACHING_HOME, COACHING_NEW } from './paths';
 import { dcSteps, toReportData } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
+import { VideoRecoCard } from './VideoRecoCard';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 
 /**
@@ -192,9 +193,20 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
           {isVisit ? null : <SectionHeading>{C.fullReport}</SectionHeading>}
           {/* bd-z3cadk — a report the bot wrote no narrative for (older ones, and their repeats) would show bare score
               bars here; the WhatsApp report image is the full report, so it is shown instead. */}
+          {/* bd-gzfdu9 — the recommended clip under "Try next class" (under the image when that is the report); none → as today. */}
           {!isVisit && !detail.reportNarrative && reportImage
-            ? <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" />
-            : <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />}
+            ? (
+              <>
+                <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" />
+                {detail.video_recommendation ? <div className="mt-3"><VideoRecoCard video={detail.video_recommendation} /></div> : null}
+              </>
+            )
+            : (
+              <ReportBody
+                data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })}
+                afterTryNext={detail.video_recommendation ? <VideoRecoCard video={detail.video_recommendation} /> : undefined}
+              />
+            )}
         </div>
       ) : null}
     </TeacherPage>
