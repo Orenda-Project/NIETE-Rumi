@@ -2274,6 +2274,18 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
   const { noteStore } = require('../services/coach-note-store');
   const { createCoachDisagreementsRouter } = require('./coach-disagreements.routes');
   const loadReport = (...a) => require('./coaching-report.routes').loadReport(...a);
+  const Plan = require('../services/coach-disagreement-plan');
+  const cardOf = (coachId, id) => Disagreements.cardFor(supabase, coachId, id, { loadReport, presign: (key, s) => noteStore().presign(key, s) });
+  // bd-tbprit.11: the coaching box's AI suggestion, lazy-required like hcp.routes' feedback call.
+  const complete = async (prompt) => {
+    const { getClient, getDefaultModel } = require('../../bot/shared/services/llm-client');
+    const r = await getClient().chat.completions.create({
+      model: process.env.COACH_SUGGESTION_MODEL || getDefaultModel(),
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 900,
+    });
+    return r && r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content;
+  };
   router.use(createCoachDisagreementsRouter({
     guards: coachV2,
     isOn: (userId) => isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
@@ -2282,7 +2294,7 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
       Disagreements.purgeDoneNotes(supabase, coachId, (k) => noteStore().del(k)).catch(() => {});
       return Disagreements.listFor(supabase, coachId);
     },
-    card: (coachId, id) => Disagreements.cardFor(supabase, coachId, id, { loadReport, presign: (key, s) => noteStore().presign(key, s) }),
+    card: cardOf,
     ownerOf: async (id) => {
       const { data } = await supabase.from('coach_visit_requests').select('coach_user_id').eq('id', id).maybeSingle();
       return (data && data.coach_user_id) || null;
@@ -2293,6 +2305,8 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
     // bd-tbprit.2: the disputed step, cut by ffmpeg from a five-minute link the browser never sees.
     recordingFor: (coachId, id) => Disagreements.recordingFor(supabase, coachId, id, generatePresignedUrl),
     openClip: (url, at, to) => require('../services/coach-disagreement-clip').openClip(url, at, { to }),
+    savePlan: (coachId, id, body) => Plan.savePlan(supabase, coachId, id, body),
+    suggestion: (coachId, id, found) => Plan.suggestionFor(supabase, coachId, id, found, { card: () => cardOf(coachId, id), complete }),
   }));
 }
 const pgQuery = (sql, params) => pool.query(sql, params);

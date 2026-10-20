@@ -57,7 +57,16 @@ export type Card = {
   durationSec: number | null;
   /** bd-tbprit.10 — Rifat's "Is this a pattern?" (dashboard/services/coach-disagreement-pattern.js). */
   pattern: Pattern | null;
+  /** bd-tbprit.11 — what the coach chose in the coaching box; null before her first answer. */
+  plan?: Plan | null;
+  /** bd-tbprit.11 — her WhatsApp number as wa.me digits; null when none is on file. */
+  phone?: string | null;
 };
+export type Mode = "msg" | "call" | "visit";
+export type Plan = { found: number | null; mode: Mode | null; flagged: boolean; addedToVisit: boolean; sent: boolean };
+export type PlanPatch = Partial<{ found: number; mode: Mode; flagged: boolean; addedToVisit: boolean; sent: true }>;
+/** The AI-tailored version of the template (dashboard/services/coach-disagreement-plan.js). */
+export type Suggestion = { msg: string; qs: string[]; stuck: string[]; agree: string; check: string; visit: string[] };
 /** Her last lessons up to this one, oldest first. A null is "the server does not have it", never zero. */
 export type Pattern = {
   points: { pct: number; date: string }[]; avg: number | null; best: { pct: number; date: string } | null; now: number | null;
@@ -93,6 +102,24 @@ export const disagreements = {
       return data?.success === true;
     } catch {
       return false;
+    }
+  },
+  /** bd-tbprit.11 — saves the coach's choices; the saved plan back, or null when the save failed (never thrown). */
+  async savePlan(id: string, patch: PlanPatch): Promise<Plan | null> {
+    try {
+      const { data } = await api.post(`${path(id)}/plan`, patch);
+      return data?.plan ?? null;
+    } catch {
+      return null;
+    }
+  },
+  /** bd-tbprit.11 — the AI-tailored suggestion for her answer; null keeps the template. */
+  async suggestion(id: string, found: number): Promise<Suggestion | null> {
+    try {
+      const { data } = await api.post(`${path(id)}/suggestion`, { found });
+      return data?.suggestion ?? null;
+    } catch {
+      return null;
     }
   },
   /**

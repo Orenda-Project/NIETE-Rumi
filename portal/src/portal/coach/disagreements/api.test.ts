@@ -8,6 +8,7 @@ import api, { portal } from "../../services/api";
 import { forgetConfig } from "../../lib/useNewUi";
 import { DISAGREE } from "./copy";
 import { untranslated } from "../../teacher/i18n";
+import { COACHING } from "./coachingCopy";
 import { disagreements, readDisagreementsOn } from "./api";
 
 /** bd-tbprit.3 — the disagreements API client, its flag (fail-closed) and its copy (both languages, complete). */
@@ -46,5 +47,28 @@ describe("disagreements api", () => {
 
   it("every word has its Urdu", () => {
     expect(untranslated(DISAGREE, ["dash", "arrow", "schoolEmis", "appName"])).toEqual([]);
+    expect(untranslated(COACHING)).toEqual([]);
+  });
+
+  it("bd-tbprit.11: savePlan posts the patch and returns the saved plan; a failure is null, never thrown", async () => {
+    const plan = { found: 1, mode: "call", flagged: false, addedToVisit: false, sent: false };
+    A.post.mockResolvedValueOnce({ data: { success: true, plan } });
+    expect(await disagreements.savePlan("x", { found: 1, mode: "call" })).toEqual(plan);
+    expect(A.post).toHaveBeenLastCalledWith("/coach/disagreements/x/plan", { found: 1, mode: "call" });
+    A.post.mockResolvedValueOnce({ data: { success: false } });
+    expect(await disagreements.savePlan("x", { sent: true })).toBeNull();
+    A.post.mockRejectedValueOnce(new Error("500"));
+    expect(await disagreements.savePlan("x", { sent: true })).toBeNull();
+  });
+
+  it("bd-tbprit.11: suggestion posts her answer; no AI answer or a failure is null, so the template stays", async () => {
+    const s = { msg: "m", qs: ["a", "b", "c"], stuck: ["d", "e"], agree: "f", check: "g", visit: ["h", "i", "j"] };
+    A.post.mockResolvedValueOnce({ data: { success: true, suggestion: s } });
+    expect(await disagreements.suggestion("x", 2)).toEqual(s);
+    expect(A.post).toHaveBeenLastCalledWith("/coach/disagreements/x/suggestion", { found: 2 });
+    A.post.mockResolvedValueOnce({ data: { success: true, suggestion: null } });
+    expect(await disagreements.suggestion("x", 2)).toBeNull();
+    A.post.mockRejectedValueOnce(new Error("503"));
+    expect(await disagreements.suggestion("x", 2)).toBeNull();
   });
 });
