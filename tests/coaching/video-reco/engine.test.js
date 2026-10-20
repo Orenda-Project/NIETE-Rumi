@@ -212,7 +212,7 @@ test('the whole engine is capped: a hung step resolves null at the cap, and a la
 test('validation failure → none:validation, the shortlist kept', async () => {
   const d = deps({ completeJson: jest.fn().mockResolvedValue({ result: { ...GOOD, moment: { at: '00:30', quote: 'an invented sentence nobody said' } }, usage: {}, finishReason: 'stop' }) });
   const row = await E.recommendForReport({ ...args(), deps: d });
-  expect(row).toMatchObject({ status: 'none', none_reason: 'validation', seg_id: null });
+  expect(row).toMatchObject({ status: 'none', none_reason: expect.stringMatching(/^validation:/), seg_id: null });
   expect(row.candidates.length).toBeGreaterThan(0);
 });
 
