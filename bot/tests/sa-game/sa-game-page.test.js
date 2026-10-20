@@ -11,6 +11,8 @@ const mockOn = jest.fn();
 jest.mock('../../shared/services/sa-game/flag', () => ({ on: (...a) => mockOn(...a) }));
 const mockWho = jest.fn();
 jest.mock('../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockWho(...a) }));
+const mockGrade = jest.fn();
+jest.mock('../../shared/services/quiz/web-quiz-challenge', () => ({ gradeOf: (...a) => mockGrade(...a) }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
 
 const { createRouter } = require('../../shared/services/sa-game/routes');
@@ -27,7 +29,7 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${server.address().port}/api/internal/sagame`;
 });
 afterAll(() => new Promise((r) => server.close(r)));
-beforeEach(() => { mockOn.mockReset(); mockWho.mockReset(); });
+beforeEach(() => { mockOn.mockReset(); mockWho.mockReset(); mockGrade.mockReset().mockResolvedValue(3); });
 
 const get = (path, key = 'test-key') => fetch(base + path, { headers: { 'x-api-key': key, 'x-wq-device': 'dev-1' } });
 
@@ -70,11 +72,26 @@ test('a thrown read: 503, never a 500', async () => {
   expect(r.status).toBe(503);
 });
 
-test('formOf: the Challenge bands', () => {
+test('formOf: the Challenge bands; unknown or outside 1–5 has no form', () => {
   expect(Page.formOf('1')).toBe('game.G1');
   expect(Page.formOf('2')).toBe('game.G23');
-  expect(Page.formOf('3')).toBe('game.G23');
+  expect(Page.formOf(3)).toBe('game.G23');
   expect(Page.formOf('5')).toBe('game.G45');
-  expect(Page.formOf('6')).toBe('game.G45');
-  expect(Page.formOf(null)).toBe('game.G23');
+  expect(Page.formOf('6')).toBeNull();
+  expect(Page.formOf(null)).toBeNull();
+  expect(Page.formOf('')).toBeNull();
+});
+
+test('the grade is the Challenge\'s server-side chain, not the hub\'s; unknown or outside 1–5: 403 not_eligible', async () => {
+  mockOn.mockResolvedValue(true);
+  mockWho.mockResolvedValue({ studentId: 'kid-1', grade: '3', lang: 'en' });
+  mockGrade.mockResolvedValue(5);
+  expect((await (await get('/page/tok.sig?kid=0123456789abcdef')).json()).form).toBe('game.G45');
+  expect(mockGrade).toHaveBeenCalledWith({ studentId: 'kid-1' });
+  for (const g of [null, 6]) {
+    mockGrade.mockResolvedValue(g);
+    const r = await get('/page/tok.sig?kid=0123456789abcdef');
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: 'not_eligible', lang: 'en' });
+  }
 });

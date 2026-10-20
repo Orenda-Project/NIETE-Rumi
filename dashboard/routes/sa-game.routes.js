@@ -8,7 +8,7 @@
  *                                  own check) and names the language and the grade's form (GET /api/internal/sagame/page);
  *                                  the edge draws the shell. Switch off (the bot's 404), a malformed token or no bot
  *                                  configured → next(): the portal answers exactly as it does today. Not this child's
- *                                  phone → a one-line note, never a 500.
+ *                                  phone, or a grade outside 1–5 → a one-line note, never a 500.
  *   GET /sa-game/a/:file           the page's own files (dashboard/sa-game/: game.js, game.css), an allow-list, served
  *                                  only while app_settings sa_game is a JSON true (the edge's 30 s read); else next().
  *   POST /api/sa-game/s/:op, POST /api/sa-game/s/audio/:op, GET /api/sa-game/s/status   the game's sink, forwarded
@@ -42,8 +42,8 @@ const ENGINE = ['sa-store.js'];
 const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 
 const COPY = {
-  en: { title: "Jugnu's big flight", boot: 'Getting the islands ready…', other: 'Open the big flight from your games, on the phone you play on.', error: "That didn't work. Try again in a moment." },
-  ur: { title: 'جگنو کی بڑی اڑان', boot: 'جزیرے تیار ہو رہے ہیں…', other: 'بڑی اڑان اپنے کھیلوں میں سے کھولیں، اُسی فون پر جس پر آپ کھیلتے ہیں۔', error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' },
+  en: { title: "Jugnu's big flight", boot: 'Getting the islands ready…', other: 'Open the big flight from your games, on the phone you play on.', not_eligible: 'The big flight is for classes 1 to 5.', error: "That didn't work. Try again in a moment." },
+  ur: { title: 'جگنو کی بڑی اڑان', boot: 'جزیرے تیار ہو رہے ہیں…', other: 'بڑی اڑان اپنے کھیلوں میں سے کھولیں، اُسی فون پر جس پر آپ کھیلتے ہیں۔', not_eligible: 'بڑی اڑان جماعت ۱ سے ۵ کے لیے ہے۔', error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' },
 };
 
 function esc(s) {
@@ -100,7 +100,7 @@ function renderNote({ lang, kind }) {
   const l = lang === 'en' ? 'en' : 'ur';
   const c = COPY[l];
   return shell({ l, title: c.title, body: `<body>
-<main class="sg-boot"><img src="/wq/jugnu/sleep.webp" alt="" width="120" height="120"><p>${esc(kind === 'other' ? c.other : c.error)}</p></main>
+<main class="sg-boot"><img src="/wq/jugnu/sleep.webp" alt="" width="120" height="120"><p>${esc(kind === 'other' ? c.other : kind === 'not_eligible' ? c.not_eligible : c.error)}</p></main>
 </body>` });
 }
 
@@ -128,6 +128,8 @@ function createSaGameRouter(opts = {}) {
     if (out.status === 404) return next();
     noStore(res);
     if (out.status === 401) return res.status(403).type('html').send(renderNote({ lang: want || phoneLang(req), kind: 'other' }));
+    // a grade outside 1–5 or unknown (the bot's not_eligible): the note in the child's language, never a guessed form
+    if (out.status === 403 && out.body && out.body.error === 'not_eligible') return res.status(403).type('html').send(renderNote({ lang: want || out.body.lang || phoneLang(req), kind: 'not_eligible' }));
     const b = out.body || {};
     if (out.status !== 200 || !b.ok || !FORM_RX.test(String(b.form || ''))) return res.status(502).type('html').send(renderNote({ lang: want || phoneLang(req), kind: 'error' }));
     return res.status(200).type('html').send(renderGamePage({ token, kid, lang: b.lang, form: b.form, grade: b.grade }));
