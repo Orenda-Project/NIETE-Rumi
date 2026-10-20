@@ -5,9 +5,11 @@
  * The subject picker above it is a tray (teacher/ui/ClassPicker.tsx differs between main and sandbox, so nothing
  * hooks inside it); the band renders UNDER it with its own grade chips (1–5, ≥48 px, a radiogroup — FLN is for
  * Grades 1–5 only, bd-elc1qz), defaulting to the teacher's grade from their classes (the same `gs:lessons` load as
- * NewLessonPage): the lowest of their Grades 1–5, none → grade 1 (a teacher of 6–12 alone sees Grade 1).
+ * NewLessonPage): the lowest of their Grades 1–5. Whether a teacher sees it at all is `bandGrade` (bd-4tsjcr).
  *
  *   /fln/me off or 404     → null (the page is byte-identical to today)
+ *   a teacher, classes read pending → null (no heading that might then disappear)
+ *   a teacher whose every known grade is 6–12 → null, for good (operator, 20 Oct 2026: "not at all")
  *   catalogue 404          → null
  *   loading                → three skeleton rows (reserved height)
  *   503 / 5xx / network    → one calm line + Try again
@@ -33,14 +35,34 @@ const ICON: Record<FlnSubjectKey, string> = { 'rh-en': 'Aa', 'rh-ur': 'ا ب', n
 type MeState = 'pending' | 'on' | 'off';
 type CatsState = { k: 'loading' } | { k: 'off' } | { k: 'error' } | { k: 'ok'; cats: FlnCatalogue[] };
 
-/** Their grade: the lowest of their Grades 1–5; none (or only 6–12) → 1. */
+/** Their grade: the lowest of their Grades 1–5; none (or only 6–12) → 1. Whether a teacher sees the band: bandGrade. */
 export function defaultGrade(grades: Array<number | null | undefined>): number {
   const g = [...new Set(grades.filter((x): x is number => typeof x === 'number' && x >= 1 && x <= 5))].sort((a, b) => a - b);
   return g.length ? g[0] : 1;
 }
 
+/** A grade we know: an integer 1–12. Early years (null) and anything else say nothing about what they teach. */
+const knownGrade = (x: number | null | undefined): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= 12;
+
+/**
+ * bd-4tsjcr — where the band opens, or null when it is not shown at all. The operator, 20 Oct 2026, on a teacher
+ * whose classes are all Grades 6–12: "not at all".
+ *
+ *   `grades`  the grades of their classes (lesson-plan history included), or null when that read FAILED
+ *   leader                                   → shown, on defaultGrade (unchanged: their lowest Grade 1–5, else 1)
+ *   failed read / no classes / only unknown  → Grade 1: we cannot tell what they teach, so nothing is hidden
+ *   any known Grade 1–5                      → the lowest of them
+ *   every known grade above 5                → null (no band)
+ */
+export function bandGrade(grades: Array<number | null | undefined> | null, leader: boolean): number | null {
+  if (leader || grades == null) return defaultGrade(grades ?? []);
+  const known = grades.filter(knownGrade);
+  if (known.length > 0 && known.every((g) => g > 5)) return null;
+  return defaultGrade(known);
+}
+
 /** The band's body: loaded lazily by `FlnBand` only after /fln/me says lessons are on. */
-export function FlnBandBody() {
+export function FlnBandBody({ leader = false }: { leader?: boolean } = {}) {
   const lang = useLang();
   const s = flnStrings(lang);
   const rtl = FLN_DIR[lang] === 'rtl';
@@ -52,8 +74,14 @@ export function FlnBandBody() {
 
 
   const combosDone = combos.status === 'ok' || combos.status === 'error';
-  const mine = useMemo(() => defaultGrade((dataOf(combos) ?? []).map((c) => c.grade)), [combos]);
-  const grade = picked ?? (combosDone ? mine : null);
+  // undefined = their classes are still being read; null = no band for them; a number = the grade it opens on.
+  const mine = useMemo<number | null | undefined>(() => {
+    if (combos.status === 'ok') return bandGrade(combos.data.map((c) => c.grade), leader);
+    if (combos.status === 'error') return bandGrade(null, leader);
+    return undefined;
+  }, [combos, leader]);
+  const hidden = !leader && (!combosDone || mine === null);
+  const grade = hidden ? null : picked ?? (combosDone ? (mine ?? null) : null);
 
   // The selected chip in the middle of its row (red-team 192944: a G5+ teacher's chip sat off-screen in the RTL
   // scroller). Moves the row only, never the page; a scrollLeft delta works for LTR and RTL alike.
@@ -78,7 +106,7 @@ export function FlnBandBody() {
     return () => { live = false; };
   }, [me, grade, attempt]);
 
-  if (me !== 'on' || cats.k === 'off') return null;
+  if (me !== 'on' || hidden || cats.k === 'off') return null;
 
   const sub = (c: FlnCatalogue): string => {
     const level = c.level ?? (grade == null ? null : levelForGrade(grade)) ?? 1;
