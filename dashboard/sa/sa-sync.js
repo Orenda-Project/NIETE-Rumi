@@ -5,11 +5,13 @@
  * The surface supplies the sink (the engine owns no server contract):
  *   putBatch({ session_id, seq_from, seq_to, events, results }) → { ok, acked_to? }   upsert on (session_id, seq) and
  *                                                                                    (session_id, task_id)
- *   presignAudio({ session_id, task_id, mime, bytes }) → { url, key }
+ *   presignAudio({ session_id, task_id, mime, bytes }) → { url, key } | { skip: true, reason }
  *   registerAudio({ session_id, task_id, key, bytes, duration_ms })
  * A batch is sent again until acknowledged (the server's upsert makes a repeat harmless); a task's audio goes up only
  * once its recording is closed (a chunk marked final), as one file. A failure waits 2 s, then doubling to 60 s; the
- * browser's online event and every new event (poke) try at once.
+ * browser's online event and every new event (poke) try at once. A presign that answers skip means the surface keeps
+ * no audio here (RULING #17): the recording is deleted from the phone, the task's result goes up again with
+ * audio:'not_kept' and audio_reason, and nothing is retried; a sink error is not a skip, it is retried.
  *
  * status() → { state: 'synced'|'pending'|'offline'|'error', pending_events, pending_audio, last_ok_at }
  * UMD: window.SAE.sync in the browser, module.exports under Node.
@@ -51,6 +53,7 @@
     var wait = MIN_WAIT;
     var timer = null;
     var stopped = false;
+    var notKept = {};
 
     function emit(next) {
       for (var k in next) st[k] = next[k];
@@ -77,9 +80,10 @@
         if (ev.length || p.results.length) {
           var seqTo = ev.length ? ev[ev.length - 1].seq : 0;
           var clean = function (x) { var y = {}; for (var k in x) if (k !== 'synced') y[k] = x[k]; return y; };
+          var stamp = function (r) { var y = clean(r); if (notKept[y.task_id] && !y.audio) { y.audio = 'not_kept'; y.audio_reason = notKept[y.task_id]; } return y; };
           send = Promise.resolve(sink.putBatch({
             session_id: id, seq_from: ev.length ? ev[0].seq : null, seq_to: ev.length ? seqTo : null,
-            events: ev.map(clean), results: p.results.map(clean),
+            events: ev.map(clean), results: p.results.map(stamp),
           })).then(function (r) {
             if (!r || r.ok === false) throw new Error('batch refused');
             var acked = typeof r.acked_to === 'number' ? Math.min(r.acked_to, seqTo) : seqTo;
@@ -101,11 +105,27 @@
       var body = join(a.chunks.filter(function (c) { return c.blob != null; }), mime);
       var bytes = body && (body.size != null ? body.size : body.length) || 0;
       return Promise.resolve(sink.presignAudio({ session_id: id, task_id: a.task_id, mime: mime, bytes: bytes })).then(function (pre) {
+        if (pre && pre.skip === true) return notKeptAudio(a.task_id, pre.reason || null).then(function () { return 'skipped'; });
         if (!pre || !pre.url || !pre.key) throw new Error('no presign');
         return Promise.resolve(put(pre.url, body, mime)).then(function () {
           return sink.registerAudio({ session_id: id, task_id: a.task_id, key: pre.key, bytes: bytes, duration_ms: fin.duration_ms || null });
         });
-      }).then(function () { return store.markChunksSynced(id, a.task_id); });
+      }).then(function (r) { return r === 'skipped' ? null : store.markChunksSynced(id, a.task_id); });
+    }
+
+    /** The audio is not kept: off the phone, and the task's result says so (now, or when it is written). */
+    function notKeptAudio(recId, reason) {
+      var taskId = String(recId).split('/')[0];
+      notKept[taskId] = reason || 'skip';
+      return store.dropChunks(id, recId).then(function () { return store.results(id); }).then(function (rs) {
+        var r = rs.filter(function (x) { return x.task_id === taskId; })[0];
+        if (!r || r.audio === 'not_kept') return null;
+        var y = {};
+        for (var k in r) if (k !== 'synced' && k !== 'session_id') y[k] = r[k];
+        y.audio = 'not_kept';
+        y.audio_reason = notKept[taskId];
+        return store.putResult(id, y);
+      });
     }
 
     function schedule(ms) {
