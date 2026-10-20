@@ -52,6 +52,8 @@ export interface ReportData {
 
 export interface ReportBodyProps {
   data: ReportData;
+  /** bd-gzfdu9 — drawn right after "Try next class" (the recommended clip's card); absent → nothing. */
+  afterTryNext?: ReactNode;
   copy?: Partial<ReportCopy>;
   className?: string;
 }
@@ -67,7 +69,7 @@ function Card({ label, className, children }: { label: string; className?: strin
   return <section aria-label={label} className={cn(CARD, className)}>{children}</section>;
 }
 
-export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
+export function ReportBody({ data: d, copy, className, afterTryNext }: ReportBodyProps) {
   const words = { ...useKitCopy().report, ...copy };
   const hasMarks = Number.isFinite(d.marks) && Number.isFinite(d.max) && (d.max as number) > 0;
   const percent = hasMarks ? pct(d.marks as number, d.max as number) : null;
@@ -217,6 +219,8 @@ export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
           <p className="m-0 text-[17px] font-semibold leading-[1.45]">{d.tryNext}</p>
         </section>
       ) : null}
+
+      {afterTryNext ?? null}
 
       {d.debrief ? (
         <Card label={d.debrief.heading}>
