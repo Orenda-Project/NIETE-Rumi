@@ -10,7 +10,7 @@
  *   onCoachMenu(open) (the coach's hold during the run),
  *   micProbe() → Promise<{ok, rms, url}> (game mic check: a 2-s probe, url = a blob to play back),
  *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question)
- * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind) }
+ * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind), backWait() }
  *
  * Session gates (RULINGs #13, #17): mic_check (game, once per device), oral_practice (before the first oral task),
  * keypad_warmup (before the first keypad task). The passage ends on one big spoken star tile; mercy() (the engine, after
@@ -71,6 +71,7 @@
       well_done: 'Well done!',
       all_done: 'All done!',
       all_done_sub: 'Thank you for playing with Jugnu.',
+      back_wait: 'Your island is saved on this phone. It will go when the internet is back.',
       back: 'Go back',
       give_teacher: 'Give the phone back to your teacher.',
       give_coach: 'Give the phone back to the coach.',
@@ -132,6 +133,7 @@
       well_done: 'شاباش!',
       all_done: 'سب ہو گیا!',
       all_done_sub: 'جگنو کے ساتھ کھیلنے کا شکریہ۔',
+      back_wait: 'آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا جائے گا۔',
       back: 'واپس جائیں',
       give_teacher: 'اب فون ٹیچر کو واپس دے دیں۔',
       give_coach: 'اب فون کوچ کو واپس دے دیں۔',
@@ -241,6 +243,7 @@
     var kpw = null;           // the keypad warm-up: { keys, timer, done }
     var mercied = {};         // task ids the mercy line was said for
     var refused = null;       // refuse(kind): a full-screen stop
+    var backWaiting = false;  // backWait(): game, the map not reachable yet; the end screen says the island waits here
     var starEl = null;
     var starSpeech = null;
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
@@ -979,6 +982,7 @@
         jugnu('celebrate'),
         h('h1', { class: 'sae-h1 sae-xl', text: C.all_done }),
         h('p', { class: 'sae-sub', text: C.all_done_sub }),
+        backWaiting ? h('p', { class: 'sae-sub sae-backwait', text: C.back_wait }) : null,
       ], [safeBack(opts.back) ? btn(C.back, goBack, 'sae-primary') : null], true);
     }
 
@@ -1222,6 +1226,13 @@
         loop(false);
         draw();
         say(line('voice_not_ready') || { en: COPY.en.voice_not_ready, ur: COPY.ur.voice_not_ready });
+      },
+      /** Game: the map cannot be reached yet (the engine waits for the network): the end screen says so, spoken once. */
+      backWait: function () {
+        if (!alive || backWaiting) return;
+        backWaiting = true;
+        draw();
+        say({ en: COPY.en.back_wait, ur: COPY.ur.back_wait });
       },
       /** The sync status ({ state, pending_events }) as a small coach-facing dot (proctored only). */
       setSync: function (status) {
