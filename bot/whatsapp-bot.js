@@ -2568,6 +2568,9 @@ async function handleDocumentMessage(message, from, user) {
             if (observeHandled) return;
           }
 
+          // bd-uwpohl — a lesson sent as a file is a coaching request, same as a voice note.
+          if (await buttonRedirectsToApp('ai_coaching', user, from, 'classroom_audio_document')) return;
+
           // Route to classroom coaching flow
           await CoachingService.initiateCoachingSession(
             user.id,
