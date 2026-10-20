@@ -15,6 +15,7 @@ import { keepScreenOn } from '../../lib/keepAwake';
 const HOLD_MS = 3000;
 
 export type FinishReason = 'done' | 'complete' | 'coach_end' | 'handback' | 'offline';
+const COACH_END_WAIT_MS = 3000;
 
 type Props = {
   sessionId: string;
@@ -98,10 +99,23 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     doneRef.current(reason);
   };
 
+  // The hold asks the engine to end the run, so the running task's result says coach_end and is flushed;
+  // an engine that does not answer within 3 s is left anyway.
+  const coachEnding = useRef<number | null>(null);
+  const coachEnd = () => {
+    if (ended.current || coachEnding.current !== null) return;
+    try {
+      frame.current?.contentWindow?.postMessage({ type: 'sa:coach_end', s: sessionId }, window.location.origin);
+    } catch { /* no engine to ask */ }
+    coachEnding.current = window.setTimeout(() => finish('coach_end'), COACH_END_WAIT_MS);
+  };
+  useEffect(() => () => { if (coachEnding.current !== null) window.clearTimeout(coachEnding.current); }, []);
+
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: unknown; s?: unknown; reason?: unknown } | null;
       if (e.origin !== window.location.origin || !d || d.type !== 'sa:done' || d.s !== sessionId) return;
+      if (coachEnding.current !== null) { finish('coach_end'); return; }
       finish(d.reason === 'complete' || d.reason === 'coach_end' ? d.reason : 'done');
     };
     window.addEventListener('message', onMessage);
@@ -159,7 +173,7 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
         style={{ zIndex: 1000 }}
       />
       <div className="fixed bottom-2 end-2" style={{ zIndex: 1001 }}>
-        <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={() => finish('coach_end')} />
+        <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={coachEnd} />
       </div>
     </div>
   );
