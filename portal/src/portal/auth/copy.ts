@@ -72,9 +72,11 @@ export const AUTH_EN = {
   couldntCreate: "Couldn't set up",
   linkExpired: 'Link expired',
   alreadySetUp: 'Already set up',
-  // The analytics accounts' own sign-in page (/portal/analytics/login): its title is the name of the page it opens
-  // (analytics/copy.ts frame.page), and one line under it says how to sign in. The verb is the page's "Log in".
-  analyticsTitle: 'Schools analytics',
+  // The name accounts' own sign-in page (/portal/analytics/login), opened by "Admin login". bd-xxi78f.5 (operator,
+  // 2026-10-20): titled "NIETE Admin", with an "Admin" badge above the title so it reads as a different door from the
+  // teacher login; one line under it says how to sign in. The verb is the page's "Log in".
+  adminTitle: 'NIETE Admin',
+  adminBadge: 'Admin',
   analyticsSub: 'Log in with your account name',
 };
 
@@ -131,8 +133,10 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   couldntCreate: 'سیٹ اپ نہیں ہوا',
   linkExpired: 'لنک ختم ہو گیا',
   alreadySetUp: 'پہلے سے سیٹ اپ',
-  // «تجزیہ» is the ontology's Urdu for Analytics; the line under it reuses «اکاؤنٹ کا نام» and the button's «لاگ اِن».
-  analyticsTitle: 'اسکولوں کا تجزیہ',
+  // The brand stays Latin and is isolated (LRI … PDI) so it cannot reorder the Urdu around it (language-protocol §9);
+  // «ایڈمن» as in «ایڈمن لاگ اِن» above. The line under it reuses «اکاؤنٹ کا نام» and the button's «لاگ اِن».
+  adminTitle: '\u2066NIETE\u2069 ایڈمن',
+  adminBadge: 'ایڈمن',
   analyticsSub: 'اپنے اکاؤنٹ کے نام سے لاگ اِن کریں',
 };
 

@@ -64,7 +64,7 @@ describe("the app's route table", () => {
     window.history.pushState({}, "", "/portal/analytics/login");
     const { default: App } = await import("@/App");
     render(<App />);
-    expect(await screen.findByRole("heading", { level: 1, name: "Schools analytics" }, { timeout: 10_000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "NIETE Admin" }, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.getByLabelText("Account name")).toBeInTheDocument();
     expect(screen.queryByText("Send code")).toBeNull();
     expect(window.location.pathname).toBe("/portal/analytics/login");

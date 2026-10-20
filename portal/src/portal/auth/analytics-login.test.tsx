@@ -60,10 +60,11 @@ const fill = async (user: ReturnType<typeof userEvent.setup>, name = "fde_admin"
 };
 
 describe("the page: an account name, a password, one Log in", () => {
-  it("is titled 'Schools analytics' with a one-line subtitle, in the auth frame", () => {
+  // bd-xxi78f.5: titled "NIETE Admin" (it was "Schools analytics"); the badge and Back are in ./admin-login.test.tsx.
+  it("is titled 'NIETE Admin' with a one-line subtitle, in the auth frame", () => {
     mount();
     expect(document.querySelector('[data-frame="auth"]')).not.toBeNull();
-    expect(screen.getByRole("heading", { level: 1, name: "Schools analytics" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "NIETE Admin" })).toBeInTheDocument();
     expect(screen.getByText("Log in with your account name")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "NIETE Portal" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Language" })).toBeInTheDocument();
@@ -104,9 +105,9 @@ describe("the page: an account name, a password, one Log in", () => {
     }
     expect(screen.queryByText(/WhatsApp/)).toBeNull(); // no signed-out code banner, no register prompt
     expect(screen.queryByRole("link", { name: /whatsapp/i })).toBeNull();
-    // One button that submits, besides the eye and the language pill.
+    // One button that submits, besides Back (bd-xxi78f.5), the eye and the language pill.
     expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") || b.textContent)).toEqual(
-      ["Language", "Show password", "Log in"],
+      ["Back", "Language", "Show password", "Log in"],
     );
   });
 
@@ -281,7 +282,7 @@ describe("Urdu", () => {
     const frame = document.querySelector('[data-frame="auth"]') as HTMLElement;
     expect(frame).toHaveAttribute("dir", "rtl");
     expect(frame).toHaveAttribute("lang", "ur");
-    expect(screen.getByRole("heading", { level: 1, name: "اسکولوں کا تجزیہ" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /ایڈمن/ })).toBeInTheDocument();
     expect(screen.getByText("اپنے اکاؤنٹ کے نام سے لاگ اِن کریں")).toBeInTheDocument();
     expect(screen.getByLabelText("اکاؤنٹ کا نام")).toHaveAttribute("dir", "ltr");
     expect(screen.getByLabelText("پاس ورڈ")).toHaveAttribute("type", "password");
@@ -307,7 +308,7 @@ describe("Urdu", () => {
     mount();
     await user.click(screen.getByRole("button", { name: "Language" }));
     expect(i18n.language).toBe("ur");
-    expect(screen.getByRole("heading", { level: 1, name: "اسکولوں کا تجزیہ" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /ایڈمن/ })).toBeInTheDocument();
     expect(h.api.langSet).not.toHaveBeenCalled();
     expect(h.api.langGet).not.toHaveBeenCalled();
   });
