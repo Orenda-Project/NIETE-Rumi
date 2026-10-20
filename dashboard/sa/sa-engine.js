@@ -160,6 +160,25 @@
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
+        // Embedded in the coach page: its own corner hold asks the engine to end the run ({type:'sa:coach_end', s}).
+        // The running task ends as coach_end (so a coach-ended minute is never read as a whole block), the last
+        // writes and the sync go, then sa:done {reason:'coach_end'}, once. Only this session, only the page's origin.
+        var win = deps.win || root;
+        var coachEnded = false;
+        var onMsg = function (e) {
+          var d = e && e.data;
+          if (coachEnded || !opts.embed || !d || d.type !== 'sa:coach_end' || d.s !== sessionId) return;
+          if (!win.location || e.origin !== win.location.origin) return;
+          coachEnded = true;
+          runner.coachEnd();
+          runner.log('coach_end_run');
+          runner.log('handover_out');
+          writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
+            fire('unlock', null);
+            if (win.parent && win.parent !== win) win.parent.postMessage({ type: 'sa:done', s: sessionId, reason: 'coach_end' }, win.location.origin);
+          });
+        };
+        if (opts.embed && win.addEventListener) win.addEventListener('message', onMsg);
         // Another app, the screen off, a call: logged, and a timed task in progress runs again (RULING #12).
         var doc = root.document;
         var onVis = function () { if (doc.visibilityState === 'hidden') { runner.visibilityLost(); if (view && view.render) view.render(); } };
@@ -185,6 +204,7 @@
             if (sync && sync.stop) sync.stop();
             if (rec) { rec.stop(); rec.release(); }
             if (doc && doc.removeEventListener) doc.removeEventListener('visibilitychange', onVis);
+            if (win.removeEventListener) win.removeEventListener('message', onMsg);
             hooks = {};
           },
         };
