@@ -15,7 +15,7 @@ test('calls completeJson once with job coaching.videoReco, 4000 tokens (gpt-5-mi
   completeJson.mockResolvedValue({ result: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, finishReason: 'stop' });
   const r = await S.pick({ prompt: 'Return JSON' });
   expect(completeJson).toHaveBeenCalledTimes(1);
-  expect(completeJson).toHaveBeenCalledWith('Return JSON', { job: 'coaching.videoReco', maxTokens: 4000, label: 'videoReco' });
+  expect(completeJson).toHaveBeenCalledWith('Return JSON', { job: 'coaching.videoReco', maxTokens: 4000, label: 'videoReco', reasoningEffort: 'low' });
   expect(r).toEqual({ pick: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, model: expect.any(String), truncated: false });
 });
 
@@ -26,6 +26,15 @@ test('finish_reason length or an empty result → truncated:true (the engine sto
   expect((await S.pick({ prompt: 'JSON' })).truncated).toBe(true);
   completeJson.mockResolvedValueOnce({ result: {}, usage: {}, finishReason: 'stop' });
   expect((await S.pick({ prompt: 'JSON' })).truncated).toBe(true);
+});
+
+test('reasoning effort: low by default, VIDEO_RECO_REASONING overrides; the LLM call is capped at 45 s', async () => {
+  expect(S.reasoningEffort({})).toBe('low');
+  expect(S.reasoningEffort({ VIDEO_RECO_REASONING: 'minimal' })).toBe('minimal');
+  expect(S.LLM_TIMEOUT_MS).toBe(45000);
+  completeJson.mockResolvedValue({ result: { seg_id: null }, usage: {} });
+  await S.pick({ prompt: 'JSON', deps: { env: { VIDEO_RECO_REASONING: 'minimal' } } });
+  expect(completeJson.mock.calls[0][1].reasoningEffort).toBe('minimal');
 });
 
 test('the registry knows the job (env VIDEO_RECO_MODEL, default gpt-5-mini) and how its caller parses', () => {

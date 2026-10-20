@@ -19,7 +19,7 @@ const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
 
-const ENGINE_TIMEOUT_MS = 30000;
+const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const BAND_GRADES = Object.freeze({ PRIMARY: [1, 5], MIDDLE: [6, 8], HIGH: [9, 12] });
 
 class Timeout extends Error {
