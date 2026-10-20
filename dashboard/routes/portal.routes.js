@@ -2285,6 +2285,7 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
       return (data && data.coach_user_id) || null;
     },
     markVisited: (id) => VisitRequest.markVisited(supabase, id),
+    markOpened: (coachId, id) => Disagreements.markOpened(supabase, coachId, id),
     // bd-tbprit.2: the disputed step, cut by ffmpeg from a five-minute link the browser never sees.
     recordingFor: (coachId, id) => Disagreements.recordingFor(supabase, coachId, id, generatePresignedUrl),
     openClip: (url, at) => require('../services/coach-disagreement-clip').openClip(url, at),

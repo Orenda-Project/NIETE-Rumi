@@ -5,7 +5,8 @@
  * that fails is off. Off for her, every route is a 404 — week 1 of the test sees nothing new.
  *
  *   GET  /coach/disagreements              { todo, done } for the logged-in coach
- *   GET  /coach/disagreements/:id          { card } — 404 unless it is hers
+ *   GET  /coach/disagreements/:id          { card } — 404 unless it is hers; stamps it opened (bd-tbprit.7, the
+ *                                          list's blue dot) — a failed stamp is logged, the card still served
  *   POST /coach/disagreements/:id/visited  "I have visited" — hers only, one-way (no undo route: the
  *                                          tracker's visited_7d counts it)
  *   GET  /coach/disagreements/:id/clip?at= bd-tbprit.2: the disputed step as mp3, hers only, inline and never
@@ -19,7 +20,7 @@ const failed = (res) => res.status(500).json({ success: false, error: 'Something
 const { parseAt } = require('../services/coach-disagreement-clip');
 
 function createCoachDisagreementsRouter(deps) {
-  const { guards = [], isOn, list, card, ownerOf, markVisited, recordingFor, openClip } = deps;
+  const { guards = [], isOn, list, card, ownerOf, markVisited, markOpened = async () => {}, recordingFor, openClip } = deps;
   const router = express.Router();
 
   const gate = async (req, res, next) => {
@@ -46,7 +47,11 @@ function createCoachDisagreementsRouter(deps) {
   router.get('/coach/disagreements/:id', ...guards, gate, idOk, async (req, res) => {
     try {
       const c = await card(req.coachId, req.params.id);
-      return c ? res.json({ success: true, card: c }) : notFound(res);
+      if (!c) return notFound(res);
+      try { await markOpened(req.coachId, req.params.id); } catch (err) {
+        console.error('[coach-disagreements] opened stamp failed:', err.message);
+      }
+      return res.json({ success: true, card: c });
     } catch (err) {
       console.error('[coach-disagreements] card failed:', err.message);
       return failed(res);
