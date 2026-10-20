@@ -34,7 +34,7 @@ function slotBlock(text, slotId) {
 }
 
 const PAGES_NUMBERS = 'numbers: the sizes these pages use;';
-const PEOPLE = 'A person in a word problem or story who is not named is \'they\' (a carpenter … they); a named child keeps a name and needs no pronoun.';
+const PEOPLE = 'A person in a word problem or story who is not named is \'they\' (a carpenter … they).';
 
 describe('round-5 pattern prompt rules', () => {
   test('maths pages: Q1(b) and Q2 number sizes come from the pages', () => {
