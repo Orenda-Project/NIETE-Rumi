@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Card } from "./api";
 import { copyIn } from "../../teacher/i18n";
 import { COACHING } from "./coachingCopy";
+import { WHATSAPP_URL_PICKER } from "@/lib/whatsapp";
 import { firstName, message, stepOf, suggestedWay, template, waLink, warningsOf } from "./suggestion";
 
 /**
@@ -82,7 +83,7 @@ describe("message", () => {
 
 describe("waLink", () => {
   it("wa.me with the number and the edited text, encoded", () => {
-    expect(waLink("923001234567", "سعدیہ جی & شکریہ")).toBe(`https://wa.me/923001234567?text=${encodeURIComponent("سعدیہ جی & شکریہ")}`);
+    expect(waLink("923001234567", "سعدیہ جی & شکریہ")).toBe(`${WHATSAPP_URL_PICKER}923001234567?text=${encodeURIComponent("سعدیہ جی & شکریہ")}`);
   });
   it("no number, no link", () => {
     expect(waLink(null, "x")).toBeNull();

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
+import { WHATSAPP_URL_PICKER } from "@/lib/whatsapp";
 
 vi.mock("./api", async (orig) => ({
   ...(await orig<typeof import("./api")>()),
@@ -99,7 +100,7 @@ describe("CoachingBox", () => {
     expect(text.value).toMatch(/^Sadia جی، /);
     fireEvent.change(text, { target: { value: "Sadia جی، شکریہ" } });
     const send = within(box()).getByRole("link", { name: /Send to Sadia/ });
-    expect(send).toHaveAttribute("href", `https://wa.me/923001234567?text=${encodeURIComponent("Sadia جی، شکریہ")}`);
+    expect(send).toHaveAttribute("href", `${WHATSAPP_URL_PICKER}923001234567?text=${encodeURIComponent("Sadia جی، شکریہ")}`);
     fireEvent.click(send);
     await waitFor(() => expect(D.savePlan).toHaveBeenLastCalledWith("r1", { sent: true }));
   });

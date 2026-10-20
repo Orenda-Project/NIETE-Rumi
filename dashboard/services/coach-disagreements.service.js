@@ -101,6 +101,8 @@ function shapeList(rows, look, now) {
       sessionDate: session.createdAt || null,
       pct: session.pct == null ? null : Math.round(session.pct),
       hasNote: !!r.voice_note_key,
+      // bd-tbprit.16 — "Add to my next visit" (bd-tbprit.11); the coach Home lists these.
+      nextVisit: !!(r.coach_plan && r.coach_plan.addedToVisitAt),
       tags,
     };
   });
