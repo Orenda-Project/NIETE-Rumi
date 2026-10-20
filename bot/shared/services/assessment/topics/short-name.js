@@ -10,7 +10,7 @@ const SPACE = /\s/;
 const MARK = /\p{M}/u;
 const CLAUSE = /, | \+ | & | \/ |; /g;
 const MIN_CLAUSE = 15;
-const CONNECTOR = /\s+(?:the|of|and|or|a|an|to|in|on|for|with|at|by|from|into|کا|کی|کے|اور|سے|میں|کو|نے)$/iu;
+const CONNECTOR = /\s+(?:the|of|and|or|a|an|to|in|on|for|with|at|by|from|into|using|between|that|when|while|which|about|as|کا|کی|کے|اور|سے|میں|کو|نے)$/iu;
 
 const pieces = (s) => s.split(/[+/]/).map((p) => p.trim().toLowerCase()).filter(Boolean);
 
@@ -44,7 +44,7 @@ function atLastClause(text) {
   return text.slice(0, last.index);
 }
 
-/** Strip dangling connector words ("the", "and", "اور" …) left by a cut; never to empty. */
+/** Strip dangling connector words ("the", "and", "using", "اور" …) left by a cut; never to empty. */
 function stripConnectors(text) {
   let out = text;
   for (;;) {

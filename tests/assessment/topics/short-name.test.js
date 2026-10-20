@@ -102,6 +102,17 @@ describe('shortName: a cut never ends on a dangling word', () => {
     expect(shortName('Echo the Sound, Sameen Says Hello Today More!')).toBe('Echo the Sound, Sameen Says Hello Today');
   });
 
+  test('weak trailing words (using, between, that, when, while, which, about, as) are stripped too', () => {
+    expect(shortName('Measure the mass of objects using non-standard units')).toBe('Measure the mass of objects');
+    expect(shortName('Identify and differentiate between living and non-living')).toBe('Identify and differentiate');
+    expect(shortName('Solve real-world word problems that involve money')).toBe('Solve real-world word problems');
+    expect(shortName('Use unitary method for one object when the value is given')).toBe('Use unitary method for one object');
+    expect(shortName('Read the whole story aloud slowly while pointing')).toBe('Read the whole story aloud slowly');
+    expect(shortName('Find and name all the flat shapes which have four sides')).toBe('Find and name all the flat shapes');
+    expect(shortName("Talk with your partner in class about Pinky's family")).toBe('Talk with your partner in class');
+    expect(shortName('Count the coins one by one as fast as you can now')).toBe('Count the coins one by one as fast');
+  });
+
   test('Urdu connector words are stripped from a cut', () => {
     expect(shortName('حروف تہجی کی پہچان اور آوازوں کو ملا کے الفاظ کی تشکیل کرنا')).toBe('حروف تہجی کی پہچان اور آوازوں کو ملا');
   });
