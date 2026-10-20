@@ -51,5 +51,12 @@
       "bot/shared/services/quiz/web-quiz-child-lang.js"
     ],
     "reason": "Both edges are lazy, inside functions: student-quiz.service.js open() requires web-quiz-child-lang.js for the one language order (ladder) of the /quiz reply, and web-quiz-child-lang.js ladder()/childLang() require student-quiz.service.js for classLanguage/childLanguage/quizzesForStudents. Neither module touches the other at load time."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/quiz/web-quiz-identity.js",
+      "bot/shared/services/quiz/web-quiz-identity-roster.js"
+    ],
+    "reason": "web-quiz-identity-roster.js requires web-quiz-identity.js at load time (dedupe, resolveQuizClass, match); web-quiz-identity.js requires the roster only lazily, inside classWithList() and resolveQuizClass() under the class-rows-together switch, to start a class's children read early. The lazy require runs after both modules have loaded and sits in a try whose fallback is today's path, so no half-initialised export is ever read."
   }
 ]
