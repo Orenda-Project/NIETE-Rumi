@@ -411,12 +411,20 @@ class ReportGeneratorService {
         });
       }
 
+      // bd-gzfdu9: the recommended video clip (one row per session). STARTED here, awaited only by the sender after the
+      // report has gone, so it adds no delay; a promise of the row|null that never rejects. Flag off → null, nothing runs.
+      const videoReco = require('./video-reco/engine').recommendForReport({
+        session, analysis: enhancedAnalysis, nextStep, loop, card: precomputedCommitment, coachingSessionId, isRetry,
+      });
+
       // Generate report via the per-framework transformer + PDFReportService.
       // Return shape is EITHER a Buffer (PDFKit/HTML renderers) OR
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep);
+      // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ 20 s for the pick; null when off or slower.
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco }).catch(() => null);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
       // bd-v0toag.1.3 — voice-note seconds (from the session row, never decoded here) + report text length.
       const ReportEvents = require('./report-events');
@@ -466,6 +474,7 @@ class ReportGeneratorService {
       const extraLines = this._heroCaptionLines(session, { isAutoCompleted, isRetry, language: captionLang });
       let voiceStepAnnounced = false;
       let followUps = true;
+      let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
       if (isHeroImage) {
         const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
         for (const line of overflow) {
@@ -495,6 +504,7 @@ class ReportGeneratorService {
           await require('./report-link-send').sendReportLinkIfNew({
             coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
           });
+          videoClipAfter = heroSent !== false;
         }
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
         if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
@@ -679,6 +689,14 @@ class ReportGeneratorService {
           error: cardError.message,
         });
         // Don't fail the session — card is optional.
+      }
+
+      // bd-gzfdu9: the recommended clip, the LAST follow-up (lead 18:48Z: the engine's wait overlaps the voice
+      // note, survey and commit prompt). Nothing unless VIDEO_RECO_ENABLED and the row is 'shown'; never throws.
+      if (videoClipAfter) {
+        await require('./video-reco/send').sendAfterReport({
+          coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip), row: videoReco,
+        }).catch(() => null);
       }
 
       // Mark session as completed
@@ -959,7 +977,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null, nextStep = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null, nextStep = null, videoStrip = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -1041,6 +1059,7 @@ class ReportGeneratorService {
         // Feedback-uptake loop state ({ prior, status, state }) — the hero's
         // uptake block reads it; null when the loop is off.
         loop,
+        ...(videoStrip ? { videoStrip } : {}), // bd-gzfdu9 §4.9: the clip strip; absent → the hero opts as today
       },
     };
 

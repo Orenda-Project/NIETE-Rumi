@@ -193,6 +193,9 @@ app.use(createCoachingReportRouter());
 // The coach card /cv/:token, the link in a C/D teacher's coach ping (bd-v0toag.38.9). Same rules as /cr.
 const { createCoachCardRouter } = require('./routes/coach-card.routes');
 app.use(createCoachCardRouter());
+// bd-gzfdu9: the recommended training clip's tracked player /v/:token (+ its beacons and thumbnails). Same rules as /cr.
+const { createVideoRecoRouter } = require('./routes/video-reco.routes');
+app.use(createVideoRecoRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));

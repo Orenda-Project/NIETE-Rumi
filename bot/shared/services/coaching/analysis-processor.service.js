@@ -244,6 +244,7 @@ class AnalysisProcessorService {
 
       // Run GPT-5 mini analysis with prior feedback
       const metadata = {
+        coachingSessionId, // names the session on the coaching.analysis.sections event; no prompt reads it
         duration: session.audio_duration_seconds,
         language: outputLanguage,
         transcriptLanguage: session.transcript_language || null,

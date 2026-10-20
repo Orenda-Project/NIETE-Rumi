@@ -1051,6 +1051,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # Unit: tests/observe/bd-5rz1v.6.9-portal-observation-no-step-messages.test.js,
     # tests/coaching/bd-s7c31y-portal-report-no-step-messages.test.js.
 
+  @e2e @wip @draft @no-mock-driver @P1 @COA84
+  Scenario: A report section the analysis could not complete says "not assessed", never 0
+    Given the NIETE bot chat is open on a teacher
+    And the analysis of my recording comes back without one of its four sections, even after one retry
+    When my coaching report arrives
+    Then that section shows "not assessed" with a line saying it could not be analysed this time
+    And that section is not counted in my total
+    And no section shows 0 marks only because the analysis left it out
+    # ADDED 2026-10-20 (ICT DC tab row 151). A reply that ended normally carried only Section B and was
+    # scored 10/148 (0/48, 0/28, 0/32); 17 sessions since 1 Aug. analyzePedagogy retries once, then marks
+    # a still-missing section assessed:false / analysis_incomplete (reason: reportSectionNotAnalysed).
+    # Not drivable live: a model cannot be made to drop a section on demand.
+    # Unit: tests/coaching/incomplete-fico-analysis.test.js.
+
   @e2e @wip @draft @P1 @COA59
   Scenario: Picking my lesson plan from the list asks me to confirm before it is used
     Given the NIETE bot chat is open
@@ -1211,3 +1225,55 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When the teacher opens that lesson in the portal
     Then she sees the report as WhatsApp delivered it
     And she does not see the coach's conversation transcript or the feedback written for the coach
+
+  # ─── bd-gzfdu9 (VIDREC): the recommended training clip ──────────────────────────────────────────────
+  # Behind VIDEO_RECO_ENABLED (unset = off: every message, image and page exactly as today). The engine picks
+  # ONE chapter of one training video from this lesson's transcript + analysis; the surfaces show it.
+  # Units: tests/coaching/video-reco/{send,report-generator.video-reco-send,report-image-strip,card-image}.test.js,
+  # tests/portal/{video-reco-routes,coaching-report-page.video}.test.js.
+  @e2e @wip @draft @config-gated @P1 @COA84
+  Scenario: With the clip on, the report is followed by ONE "watch this" message with a video card
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    And I sent a classroom recording and answered the reflection questions
+    When my coaching report arrives
+    Then after the commit buttons I get one message with a picture of the clip, its title and its length
+    And the message says why this clip, quoting one moment of my own lesson with its time
+    And the message has one "▶ Watch" button
+    And no picture or message shows a training level
+
+  @e2e @wip @draft @config-gated @P1 @COA85
+  Scenario: The report image itself shows the clip under "Try one thing tomorrow"
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When my coaching report image arrives
+    Then under "Try one thing tomorrow" the image shows the clip's picture, "▶ Watch next:" and its title
+    And it says to tap ▶ Watch in the next message
+
+  @e2e @wip @draft @config-gated @P1 @COA86
+  Scenario: The Watch button opens the clip at the right moment, in my language
+    Given I got the "watch this" message
+    When I tap the "▶ Watch" button
+    Then a page opens in WhatsApp with the clip title, "Why this clip" and a video player
+    And the video starts at the chapter, not at the start of the module
+    And "Watch from the start" plays the module from 0:00
+    And "Back to my report" opens my report page
+
+  @e2e @wip @draft @config-gated @P2 @COA87
+  Scenario: An Urdu-speaking teacher gets the clip in Urdu, right to left
+    Given my preferred language is Urdu
+    And VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When the "watch this" message arrives
+    Then its button reads "▶ ۲ منٹ دیکھیں" with Urdu digits
+    And the clip page reads right to left with "یہ کلپ کیوں"
+
+  @e2e @wip @draft @config-gated @negative @P1 @COA88
+  Scenario: The clip message goes once, and never after a report that did not arrive
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When the report job runs twice for the same session
+    Then I get the "watch this" message only once
+    And if my 24-hour window had closed and the report came as a template, no clip message is sent
+
+  @e2e @wip @draft @negative @P1 @COA89
+  Scenario: With the clip off, the report is exactly as before
+    Given VIDEO_RECO_ENABLED is not set
+    When my coaching report arrives
+    Then no "watch this" message, no clip on the image, and no clip card on my report page
