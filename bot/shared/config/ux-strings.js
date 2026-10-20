@@ -307,6 +307,11 @@ const UX_STRINGS = {
     en: 'The classroom recording does not match the selected lesson plan. Therefore, LP Fidelity is 0%.',
     ur: 'کلاس روم کی ریکارڈنگ منتخب کردہ لیسن پلان سے مطابقت نہیں رکھتی، اس لیے لیسن پلان پر عمل کا اسکور صفر ہے۔',
   },
+  // A FICO section the analysis came back without, even after one retry: not assessed, never 0.
+  reportSectionNotAnalysed: {
+    en: 'This part of the lesson could not be analysed this time, so it is not counted in the score.',
+    ur: 'اس بار سبق کے اس حصے کا تجزیہ مکمل نہیں ہو سکا، اس لیے یہ اسکور میں شامل نہیں ہے۔',
+  },
 
   // ─── short-recording length guidance ──────────────────────────────────────
   // Sent BEFORE the chat answer, never instead of it: a recording that is too
