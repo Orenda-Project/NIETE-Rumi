@@ -46,6 +46,8 @@ const COPY = {
     dared: (n) => `${n} challenged you!`,
     scored: (n, s, t) => `${n} scored ${s} on ${t}`,
     tapPlay: 'Tap the link to play',
+    // the pill under web_quiz_share_ur_stack (English keeps its words)
+    openPlay: 'Tap the link to play',
     // the friend's door, where the picture sits under the real Play button (the friend is already on the link)
     yourTurn: 'Your turn!',
     played: 'played',
@@ -70,6 +72,8 @@ const COPY = {
     dared: (n) => `${n} نے آپ کو چیلنج کیا ہے!`,
     scored: (n, s, t) => `${n} نے ${t} میں ${s} لیے`,
     tapPlay: 'لنک پر ٹیپ کریں اور کھیلیں',
+    // the pill under web_quiz_share_ur_stack: the share words' own «کھولیں», no «ٹیپ»
+    openPlay: 'لنک کھولیں اور کھیلیں',
     yourTurn: 'آپ کی باری!',
     played: 'بچوں نے کھیلا',
     playedOf: (n, of) => `${of} میں سے ${n} بچوں نے کھیلا`,
@@ -207,6 +211,46 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
   return { pic: '', main: `<p class="kick">${esc(ud ? C.school.replace(' · ', '، ') : C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
 }
 
+// How wide a line of Urdu headline is, in ems: a Nastaliq letter ~0.46em (measured 0.44 on the long-name challenge), a
+// Latin letter or digit ~0.61em (Lexend), a space ~0.3em. Only for choosing the size: the browser breaks the lines.
+function emWidth(s) {
+  return Array.from(String(s == null ? '' : s)).reduce((n, ch) => n + (/\s/.test(ch) ? 0.3 : (/[A-Za-z0-9]/.test(ch) ? 0.61 : 0.46)), 0);
+}
+
+/**
+ * The one stack's CSS (web_quiz_share_ur_stack), after every other rule so it wins. The square: the brand, Jugnu, the
+ * words and the pill are one centred column with 24 px gaps, and Jugnu's picture (190 px, never under 96) is what gives
+ * up height when the words need it, so no line runs over another or off the picture. The wide picture keeps its two
+ * columns; its words column gets the same 24 px gaps, starting 8 px higher, its sub line at 1.7. The card's score is
+ * one Lexend line (its Urdu digits from Nastaliq made the line 118 px for a 92 px number). The challenge headline: its size (63 px square, 40 wide) unless
+ * it would need more than 2 lines, then one step down (0.86); a name whose longest word is wider than the whole line is
+ * sized to fit it, since a name is never cut. The pill: the English pill's height (its 1.2 lines and 14 px above and below) and
+ * 28 px sides, the Nastaliq 2 px larger, on one line.
+ */
+function stackCss(k, d, C, sq, S, W) {
+  const width = sq ? W - 144 : 702;
+  let head = Math.round((sq ? 58 : 40) * S);
+  if (k === 'invite') {
+    const zero = !(Number(d.correct) > 0);
+    const name = String(d.first || '');
+    const line = zero ? C.dared(name) : C.beat(name, `${d.correct}/${d.total}`);
+    if (emWidth(line) * head > 2 * width) head = Math.round(head * 0.86);
+    // a word can only break at its spaces: the name's longest word must fit the line on its own
+    const word = Math.max(0, ...name.split(/\s+/).map(emWidth));
+    if (word * head > width) head = Math.floor(width / word);
+  }
+  const pillFs = Math.round(26 * S);
+  const pillH = Math.round(pillFs * 1.2 + 28);
+  return `
+/* One stack (web_quiz_share_ur_stack): every line in the column with 24 px between, the English pill's size. */
+.main{gap:24px}${sq ? '.main{flex:0 0 auto}.art{gap:24px;justify-content:center}.side{flex:0 1 190px;min-height:96px}.jug{width:auto;height:100%;aspect-ratio:1/1}' : '.main{padding-top:52px}'}
+.kick{line-height:1.9}.sub{line-height:${sq ? 1.9 : 1.7};text-wrap:balance}${k === 'card' ? `
+.big{line-height:1;font-family:'Lexend','NastaliqUrdu',sans-serif}` : ''}${k === 'invite' ? `
+.head{font-size:${head}px;line-height:1.8;text-wrap:balance}` : ''}
+.cta{margin:0}
+.cta{height:${pillH}px;line-height:${pillH}px;padding:0 28px;font-size:${pillFs + 2}px;white-space:nowrap}`;
+}
+
 /**
  * @param {{kind:'card'|'invite'|'class'|'school', size:'og'|'sq', brand:string, lang:'en'|'ur', d:object}} a
  * @param {{fonts?:boolean, pictures?:boolean}} [opt] - off only for the layout snapshot
@@ -223,7 +267,12 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const UR2 = RTL && Boolean(ui && ui.ur2 === true);
   // The one share (app_settings web_quiz_share_v4, carried as `ui.ink`): Urdu text keeps all its ink. Off, every line below is today's.
   const INK = RTL && Boolean(ui && ui.ink === true);
-  const C = COPY[L];
+  // One stack (app_settings web_quiz_share_ur_stack, carried as `ui.us`): an Urdu card or challenge picture lays its
+  // headline, sub line, stars and pill out as one column with 24 px between them (nothing over anything), its headline in
+  // balanced lines a size step down when it would need 3, and the English pill's height and padding with «کھولیں» in it.
+  // Off (or English, or the class and school pictures), every line below is today's.
+  const US = RTL && (k === 'card' || k === 'invite') && Boolean(ui && ui.us === true);
+  const C = US ? { ...COPY[L], tapPlay: COPY[L].openPlay } : COPY[L];
   // The wide picture (1200×630) has no height to spare: under the polish its stack is budgeted — no kicker on the card and
   // the invite, the name 56/1.7, the topic 44 (36 when long), the invite's scored line 32, every line at 1.9 — so the
   // CTA pill, the last child, is never the one that falls off. The square has the height and keeps the larger sizes.
@@ -257,6 +306,7 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
 @font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}`;
   const S = sq ? 1.08 : 1;   // the square is read at a smaller on-screen size: type a step up
+  const usCss = US ? stackCss(k, d || {}, C, sq, S, W) : '';
   const css = `${fonts}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:${t['brand-ink']}}
@@ -316,7 +366,7 @@ ${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bd
 /* Room for the ink (the one share): a clipped Urdu name keeps the stroke a ک or گ throws past its line, and a pill's word
    keeps its tall letters inside the pill. The padding is given back as margin, so nothing else moves. */
 .name,.crow .who,.sn{padding:.5em .5em;margin:-.5em -.5em}
-.pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}`;
+.pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}${usCss}`;
   const top = `<div class="top"><span class="mark" aria-hidden="true">${B.mark.svg}</span><span class="brand">${esc(B.label[L])}</span></div>`;
   const side = parts.pic ? `<div class="side">${parts.pic}</div>` : '';
   // the school's rule line has its digits in the copy itself
