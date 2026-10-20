@@ -102,9 +102,9 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     module_id: 10, seg_id: '10-s1', start_s: 30, end_s: 120,
     indicator: 'C1', catalog_indicator: 'C1', indicator_scheme: 'fico_v4', step_indicator: 'C1', differs_from_step: false,
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
-    language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'within', ladder_completed: false,
+    language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
     reason_en: GOOD.reason_en, reason_ur: GOOD.reason_ur, moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
-    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-2', model: 'gpt-5-mini-2025-08-07',
+    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-3', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });
   expect(row.candidates[0]).toEqual(expect.objectContaining({ seg_id: expect.any(String), score: expect.any(Number), indicator: 'C1' }));
@@ -212,7 +212,7 @@ test('the whole engine is capped: a hung step resolves null at the cap, and a la
 test('validation failure → none:validation, the shortlist kept', async () => {
   const d = deps({ completeJson: jest.fn().mockResolvedValue({ result: { ...GOOD, moment: { at: '00:30', quote: 'an invented sentence nobody said' } }, usage: {}, finishReason: 'stop' }) });
   const row = await E.recommendForReport({ ...args(), deps: d });
-  expect(row).toMatchObject({ status: 'none', none_reason: 'validation', seg_id: null });
+  expect(row).toMatchObject({ status: 'none', none_reason: expect.stringMatching(/^validation:/), seg_id: null });
   expect(row.candidates.length).toBeGreaterThan(0);
 });
 
@@ -265,4 +265,42 @@ test('a write that fails → null (nothing for the sender to send)', async () =>
   const d = deps();
   d.store.write.mockResolvedValue(null);
   expect(await E.recommendForReport({ ...args(), deps: d })).toBeNull();
+});
+
+describe('report_language null (lead-review 19:50Z, red-team ⛔3): languages {transcript, mixed}, copy in the transcript language', () => {
+  test('null preferred + Urdu transcript → the English chapter is not a candidate; language ur; match never preferred', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = null;
+    d.completeJson.mockResolvedValue({ result: GOOD, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row).toMatchObject({ status: 'shown', language: 'ur', language_match: 'transcript', seg_id: '10-s1' });
+    const ids = row.candidates.map((c) => c.seg_id);
+    expect(ids).not.toContain('12-s1');
+    expect(ids).not.toContain('21-s1');
+    expect(row.candidates.every((c) => c.language_match !== 'preferred')).toBe(true);
+  });
+
+  test('null preferred + English transcript → copy language en, the Urdu chapters are not candidates', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = null;
+    a.session.transcript_language = 'en';
+    d.completeJson.mockResolvedValue({ result: { ...GOOD, seg_id: '12-s1' }, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row.language).toBe('en');
+    expect(row.candidates.map((c) => c.seg_id).every((id) => id === '12-s1' || id.startsWith('14-') || id === '21-s1')).toBe(true);
+    expect(row.candidates.every((c) => c.language_match !== 'preferred')).toBe(true);
+  });
+
+  test('null preferred and no transcript language → ur copy, {ur, mixed} only', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = '';
+    a.session.transcript_language = null;
+    d.completeJson.mockResolvedValue({ result: GOOD, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row).toMatchObject({ language: 'ur', language_match: 'transcript' });
+    expect(row.candidates.map((c) => c.seg_id)).not.toContain('12-s1');
+  });
 });

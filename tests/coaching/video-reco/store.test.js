@@ -33,7 +33,7 @@ test('readForSession: error or throw → null + one warn', async () => {
   expect(log.mock.calls[0][2]).toBe('warn');
 });
 
-test('recentHistory: chapters recommended in 365 d (any status); modules with ≥ 2 chapters in 180 d; one query ≤ 500', async () => {
+test('recentHistory: chapters shown in 365 d (status shown only, v1.3); modules with ≥ 2 chapters in 180 d; one query ≤ 500', async () => {
   jest.useFakeTimers().setSystemTime(new Date('2026-10-20T20:00:00Z'));
   load({ video_recommendations: { data: [
     { seg_id: '3-s2', module_id: 3, created_at: '2026-10-01T00:00:00Z' },

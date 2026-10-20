@@ -1,6 +1,6 @@
 'use strict';
 /**
- * What a recommended clip is for (bd-gzfdu9, SPEC v1.2.1 §3.2 step 4). Pure.
+ * What a recommended clip is for (bd-gzfdu9, SPEC v1.3 §3.2 step 4). Pure.
  *
  * ONE place, in order: a plan-phase step → its teaching moves; else the report's next step (nextStep.target);
  * else the commitment card's indicator when it carries one; else, when the card is the LLM card with action
@@ -40,7 +40,9 @@ function rowsOf(analysis) {
   for (const d of Object.values(domains)) {
     const inds = d && Array.isArray(d.indicators) ? d.indicators : [];
     const max = Number(d && d.domain_max);
-    const top = Number.isFinite(max) && max > 0 && inds.length ? max / inds.length : null;
+    // The rung ceiling = domain_max over the SCORED rows: not-applicable rows carry no points (red-team 19:40Z).
+    const n = inds.filter((r) => r && scored(r)).length;
+    const top = Number.isFinite(max) && max > 0 && n ? max / n : null;
     for (const r of inds) if (r && r.id) out.push({ r, top });
   }
   return out;
@@ -50,18 +52,26 @@ function scored(r) {
   return r.applicable !== false && r.score !== null && r.score !== undefined && Number.isFinite(Number(r.score));
 }
 
-/** The scorer's own quote for a row: the `Quote:` part of evidence (fico-framework.js), else evidence_summary. */
-function scorerQuote(row) {
+/** The `Quote:` part of a row's evidence (fico-framework.js) — the only scorer text a moment may match (§3.5 [v1.3] d). */
+function scorerQuoteOnly(row) {
   if (!row) return '';
   const m = String(row.evidence || '').match(/Quote:\s*["“']?([\s\S]+?)["”']?\s*$/i);
-  if (m && m[1].trim()) return m[1].trim();
-  return String(row.evidence_summary || '').trim();
+  return m && m[1].trim() ? m[1].trim() : '';
+}
+
+/** The scorer's own quote for a row, as the prompt shows it: the `Quote:` part, else evidence_summary. */
+function scorerQuote(row) {
+  if (!row) return '';
+  return scorerQuoteOnly(row) || String(row.evidence_summary || '').trim();
 }
 
 function nativeAvailable(catalog, id) {
   for (const m of (catalog && catalog.modules) || []) {
-    if (!m || m.recommendable === false) continue;
-    for (const s of m.segments || []) if (s && s.recommendable !== false && (s.fico_main37 || []).includes(id)) return true;
+    if (!m) continue;
+    for (const s of m.segments || []) {
+      // §3.3 candidate rule (shortlist.recommendable), inlined to keep target.js free of the shortlist module.
+      if (s && (s.recommendable === true || (m.recommendable !== false && s.recommendable !== false)) && (s.fico_main37 || []).includes(id)) return true;
+    }
   }
   return false;
 }
@@ -69,7 +79,7 @@ function nativeAvailable(catalog, id) {
 function none(reason, extra = {}) {
   return {
     indicator: null, indicators: [], moves: [], stepIndicator: null, stepAtTop: false, source: null, cardText: null,
-    aliasKind: null, native37: false, storedIndicator: null, scheme: null, phase: null, row: null, none: reason, ...extra,
+    aliasKind: null, native37: false, storedIndicator: null, scheme: null, phase: null, row: null, name: null, none: reason, ...extra,
   };
 }
 
@@ -109,24 +119,31 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
     const top = (hit && hit.top) || (is37 ? 4 : 2);
     const stepAtTop = !!(hit && scored(hit.r) && Number(hit.r.score) >= top);
     const common = { storedIndicator: raw, scheme, source, row: hit ? hit.r : null, stepAtTop, topRung: top };
+    const alias = ((catalog && catalog.aliases) || {})[raw];
+    // A step the scorer marked not applicable (or left unscored) never takes a tag route: the card's sentence does
+    // (the shortlist's step-text route), else none:'unscored_step' (red-team 19:40Z, lead-review 19:41Z).
+    if (hit && !scored(hit.r)) return none('unscored_step', { ...common, aliasKind: 'unscored', name: (alias && alias.name) || null });
 
     if (!is37) {
       return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw };
     }
     if (nativeAvailable(catalog, raw)) {
-      return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw, native37: true, aliasKind: 'native37' };
+      return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw, native37: true, aliasKind: 'native37', name: (alias && alias.name) || null };
     }
-    const alias = ((catalog && catalog.aliases) || {})[raw];
     const exact = alias && typeof alias === 'object' ? alias.exact : (typeof alias === 'string' ? alias : null);
-    if (exact) return { ...none(null), ...common, indicator: exact, indicators: [exact], stepIndicator: exact, aliasKind: 'exact' };
+    if (exact) return { ...none(null), ...common, indicator: exact, indicators: [exact], stepIndicator: exact, aliasKind: 'exact', name: alias.name || null };
     const subject = lesson && lesson.subject ? String(lesson.subject) : null;
     const approx = ((alias && Array.isArray(alias.approx)) ? alias.approx : [])
       .filter((id) => !SUBJECT_ROWS[id] || (subject && SUBJECT_ROWS[id].includes(subject)));
-    if (!approx.length) return none('unknown_indicator', { source, storedIndicator: raw, scheme, aliasKind: 'none', row: common.row });
-    return { ...none(null), ...common, indicator: approx[0], indicators: approx, stepIndicator: approx[0], aliasKind: 'approx' };
+    // Unknown: no native tag, no exact, no approx that suits the subject. The shortlist's step-text route takes it (v1.3 R3).
+    const blocked = alias && Array.isArray(alias.approx) && alias.approx.length > 0;
+    if (!approx.length) {
+      return none('unknown_indicator', { ...common, aliasKind: blocked ? 'subject_blocked' : 'none', name: (alias && alias.name) || null });
+    }
+    return { ...none(null), ...common, indicator: approx[0], indicators: approx, stepIndicator: approx[0], aliasKind: 'approx', name: (alias && alias.name) || null };
   } catch (e) {
     return none('no_target');
   }
 }
 
-module.exports = { pick, scorerQuote, PHASE_MOVES, V4_IDS, SUBJECT_ROWS };
+module.exports = { pick, scorerQuote, scorerQuoteOnly, PHASE_MOVES, V4_IDS, SUBJECT_ROWS };
