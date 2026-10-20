@@ -1593,6 +1593,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     T = Object.assign({}, T);
     ['challenged', 'chalLine', 'chalPlayed'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
   }
+  // web_quiz_challenge_line_sent (the answer's challenge_line_sent): the friend's challenge line is drawn one span per sentence
+  // (wq-sent, an inline block in wq.css), so a line that does not fit breaks at a full stop, never inside a sentence that fits.
+  // The text (the picture's alt, the share words) stays plain.
+  var chLineHtml = B.challenge_line_sent === true ? function (s) {
+    return '<span class="wq-sent">' + esc(s).replace(/([.!?\u06D4\u061F]) (?=\S)/g, '$1</span> <span class="wq-sent">') + '</span>';
+  } : null;
 
   function landing() {
     var here = kids();
@@ -1616,7 +1622,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       (fold ? '' : pic) +
       // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
-      (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + esc(chLine) + '</div>' : '') +
+      (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + (chLineHtml ? chLineHtml(chLine) : esc(chLine)) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
@@ -1750,7 +1756,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
-    lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher
+    lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher, chLineHtml: chLineHtml
   }) : null;
   function who() {
     if (ID) return ID.who();

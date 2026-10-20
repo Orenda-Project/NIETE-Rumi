@@ -694,6 +694,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (require('./web-quiz-hub-flags').nowOf('endOnce')) out.end_once = true;
   // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
+  // web_quiz_challenge_line_sent (the hub's switch cache, no read): the challenge line breaks only between its sentences (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('challengeLineSent')) out.challenge_line_sent = true;
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
   const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;
