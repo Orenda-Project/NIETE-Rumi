@@ -132,3 +132,30 @@ describe('on', () => {
     await expect(done()).rejects.toMatchObject({ status: expect.any(Number) });
   });
 });
+
+// app_settings web_quiz_read_sheet (default off, JSON true only; only with the reading moment on): the book says
+// `read_sheet: 1`, so Your turn draws the page's printed band and its picture as one sheet (wq-moment.js art). It rides
+// the reading moment's own settings read: on adds no read. Off: the book is today's, key for key.
+describe('web_quiz_read_sheet: the book says read_sheet: 1', () => {
+  const SHEET = 'web_quiz_read_sheet';
+  const reads = () => { let n = 0; const from = supabase.from; supabase.from = (t) => { if (t === 'app_settings') n += 1; return from(t); }; return () => n; };
+  const bookWith = async (rf, sheet) => {
+    seed({ rf }); Stories._reset(); RF._reset();
+    if (sheet !== undefined) fake.db.app_settings.push({ key: SHEET, value: sheet });
+    const n = reads();
+    return { out: clone(await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' })), n: n() };
+  };
+  test('on (JSON true) with the reading moment on: read_sheet: 1, otherwise the same book, with the same settings reads', async () => {
+    const off = await bookWith(true, undefined);
+    const on = await bookWith(true, true);
+    expect(off.out).not.toHaveProperty('read_sheet');
+    expect(on.out.read_sheet).toBe(1);
+    delete on.out.read_sheet;
+    expect(on.out).toEqual(off.out);
+    expect(on.n).toBe(off.n);
+  });
+  test('off (false, the string "true", 1, an object), or the reading moment off: no key', async () => {
+    for (const v of [false, 'true', 1, { on: true }]) expect([v, 'read_sheet' in (await bookWith(true, v)).out]).toEqual([v, false]);
+    for (const rf of [undefined, false]) expect([rf, 'read_sheet' in (await bookWith(rf, true)).out]).toEqual([rf, false]);
+  });
+});
