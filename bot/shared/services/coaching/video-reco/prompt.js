@@ -2,9 +2,12 @@
 /**
  * The video picker's prompt (bd-gzfdu9, SPEC §3.4) and the transcript moments it may quote. Pure.
  * The text is the lead's, verbatim; only the {…} slots are filled here. Bump PROMPT_VERSION with any
- * change to it: every stored row carries the version it was picked with.
+ * change to it: every stored row carries the version it was picked with. Every transcript line passes the
+ * name redactor first (H8): a quote can only carry what survived it.
  */
-const PROMPT_VERSION = 'vr-1';
+const { redactNames } = require('./redact-names');
+
+const PROMPT_VERSION = 'vr-2';
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -29,7 +32,7 @@ function clip(line) {
  * each "[mm:ss] Label: text" ≤ 220 code points. From diarization_data.segments; without it, from the
  * transcript_text lines that start with [mm:ss].
  */
-function excerpts(session, { timestamp, uptakeMoment } = {}) {
+function excerpts(session, { timestamp, uptakeMoment } = {}, people = {}) {
   let lines = [];
   const segs = session && session.diarization_data && Array.isArray(session.diarization_data.segments)
     ? session.diarization_data.segments.filter((s) => s && String(s.text || '').trim()) : [];
@@ -47,7 +50,12 @@ function excerpts(session, { timestamp, uptakeMoment } = {}) {
     lines.forEach((l, i) => { if (l.ms <= anchor) idx = i; });
     start = Math.max(0, Math.min(idx - 4, lines.length - EXCERPT_LINES));
   }
-  return lines.slice(start, start + EXCERPT_LINES).map((l) => clip(l.text));
+  return lines.slice(start, start + EXCERPT_LINES).map((l) => clip(redact(l.text, people)));
+}
+
+/** Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port). */
+function redact(text, people = {}) {
+  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' } });
 }
 
 function candidateLine(c, catalog) {
@@ -62,45 +70,59 @@ function candidateLine(c, catalog) {
 
 /**
  * @param {object} a
- * @param {object} a.target      target.pick(...)
- * @param {string} [a.rationale] the report's rationale for the step
- * @param {string} [a.tryText]   "try this tomorrow" as the teacher reads it (the card's action)
+ * @param {object} a.target        target.pick(...)
+ * @param {string} [a.rationale]   the report's rationale for the step
+ * @param {string} [a.tryText]     "try this tomorrow" as the teacher reads it (the card's action)
  * @param {string} [a.subject]
- * @param {string[]} a.excerpts
+ * @param {string[]} a.excerpts    excerpts(...) — already redacted
  * @param {Array<{seg_id:string}>} a.candidates
  * @param {object} a.catalog
- * @param {number} [a.topRung]   2 on FICO v4, 3 on the 37-id scheme
+ * @param {string} [a.scorerQuote] the target row's own quote (redacted)
+ * @param {string} [a.uptakeQuote] the card_text path's evidence line (redacted)
+ * @param {number} [a.topRung]     the scheme's top score (2 on FICO v4, 4 on the 37-id scheme)
  */
-function build({ target, rationale, tryText, subject, excerpts: ex, candidates, catalog, topRung = 2 }) {
+function build({ target, rationale, tryText, subject, excerpts: ex, candidates, catalog, scorerQuote, uptakeQuote, topRung = 2 }) {
   const t = target || {};
   const row = t.row || {};
-  const indicator = t.indicator || (t.phase ? `plan step: ${t.phase}` : '');
-  const name = row.name || (t.moves || []).join(', ') || '';
-  const rung = row.score !== undefined && row.score !== null ? row.score : '?';
+  let indicatorLine;
+  let evidenceLine = '';
+  if (t.source === 'card_text') {
+    indicatorLine = 'Indicator: not named — the step is the sentence below';
+    if (uptakeQuote) evidenceLine = `\nEvidence the scorer quoted: "${uptakeQuote}"`;
+  } else {
+    if (t.indicator) {
+      const rung = row.score !== undefined && row.score !== null ? row.score : '?';
+      indicatorLine = `Indicator: ${t.indicator} — ${row.name || t.indicator} (scored ${rung} of ${topRung} in this lesson)`;
+    } else {
+      indicatorLine = `Indicator: plan step: ${t.phase || ''} — ${(t.moves || []).join(', ')} (a step of the lesson plan, not scored)`;
+    }
+    if (scorerQuote) {
+      evidenceLine = `\nEvidence the scorer quoted: "${scorerQuote}" (around ${row.timestamp || 'unknown'}) — the report's own moment. Cite it unless a transcript line below fits the clip better.`;
+    }
+  }
+  const moments = (ex || []).length ? ex.join('\n') : "(no transcript lines for this lesson: cite the scorer's quote above)";
   return `You are the Digital Coach's video picker for a government-school teacher in Pakistan. After a lesson, the coaching report tells the teacher ONE thing to try next class. Your job: choose the ONE short training-video clip (from the candidates below) that would most help THIS teacher do THAT thing, or say that none fits. Return JSON only.
 
 THE TEACHER'S ONE NEXT STEP
-Indicator: ${indicator} — ${name} (scored ${rung} of ${topRung} in this lesson)
+${indicatorLine}
 Rationale from the report: ${rationale || ''}
-Try this tomorrow: ${tryText || ''}
-Evidence the scorer quoted: ${row.evidence_summary || row.evidence || ''} (around ${row.timestamp || 'unknown'})
+Try this tomorrow: ${tryText || ''}${evidenceLine}
 
 TRANSCRIPT MOMENTS (each line: [mm:ss] Speaker: text) — the only source for a quote:
-${(ex || []).join('\n')}
+${moments}
 
 CANDIDATE CLIPS (seg_id · title · length · language · what the teacher sees · when a teacher needs it · indicators)
 ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 
 RULES
-1. Prefer a clip that SHOWS the exact move in "Try this tomorrow". Same indicator as the next step unless a candidate for another listed indicator matches a transcript moment far better — then say so in the reason and set "differs_from_step": true.
-2. The reason must cite ONE real transcript moment: the [mm:ss] and a short quote copied from the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead. Two sentences, plain words a teacher uses, no jargon, no judgement of the teacher.
+1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
+2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the scorer's evidence or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead. The quote must contain no person's name: write [a student] in its place. Two sentences, plain words a teacher uses, no jargon, no judgement of the teacher.
 3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time).
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
-6. The quote must contain no person's name: write [a student] in its place.
 
 Return exactly this JSON:
-{"seg_id": "<one of the candidate ids, or null>", "differs_from_step": false, "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
+{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
 }
 
-module.exports = { build, excerpts, PROMPT_VERSION, stampMs };
+module.exports = { build, excerpts, redact, PROMPT_VERSION, stampMs };
