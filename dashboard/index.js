@@ -192,6 +192,8 @@ app.use(createTeacherStoriesRouter());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+// The self-administered EGRA/EGMA battery engine's files at /sa/* (switch sa_engine, app_settings; off → falls through).
+app.use(require('./routes/sa-engine.routes').createSaEngineRouter());
 
 // Latency logging middleware 
 // Tracks request duration and alerts on slow requests
