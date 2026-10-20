@@ -32,10 +32,14 @@ export function shouldOpenInApp(recording: boolean, mode: InAppMode = IN_APP_LES
   return false;
 }
 
-/** Which lesson plan: a grades 1-5 catalogue lesson, or a written grades 6-12 lesson. */
+/**
+ * Which lesson plan: a grades 1-5 catalogue lesson, or a written grades 6-12 lesson.
+ * bd-7tgiyc — or an assessment paper (or its answer key): Paper ready shows it in this same viewer.
+ */
 export type LessonPlanSource =
   | { lane: 'k5'; lessonId: string; assetKind: 'lesson' | 'answer_key' }
-  | { lane: 'g612'; renderId: string };
+  | { lane: 'g612'; renderId: string }
+  | { lane: 'paper'; paperId: string; artifact: 'paper' | 'answer_key' };
 
 /**
  * What the viewer is opened with, in the history entry (so Back closes it). `crumb` is the new
@@ -53,7 +57,14 @@ export type OpenOptions = { crumb?: string; replace?: boolean; page?: string; st
 export const LESSON_PLAN_PAGE = '/portal/curriculum';
 
 export function sourceKey(source: LessonPlanSource): string {
+  if (source.lane === 'paper') return `paper:${source.paperId}:${source.artifact}`;
   return source.lane === 'k5' ? `k5:${source.lessonId}:${source.assetKind}` : `g612:${source.renderId}`;
+}
+
+/** A paper's presigned link, the same lookup as its download (GET /assessment/paper/:id/download). */
+async function paperLink(source: { paperId: string; artifact: 'paper' | 'answer_key' }): Promise<string | null> {
+  const { data } = await api.get(`/assessment/paper/${encodeURIComponent(source.paperId)}/download`, { params: { artifact: source.artifact } });
+  return data?.available && data.url ? (data.url as string) : null;
 }
 
 /** "Not published yet" (1-5) / "still being written" (6-12): an answer, not a fault. */
@@ -68,10 +79,13 @@ export async function fetchLessonPlanPdf(
 ): Promise<ArrayBuffer> {
   const path = source.lane === 'k5'
     ? `/curriculum/lp/${encodeURIComponent(source.lessonId)}/file`
-    : `/lp612/file/${encodeURIComponent(source.renderId)}`;
+    : source.lane === 'paper'
+      ? `/assessment/paper/${encodeURIComponent(source.paperId)}/file`
+      : `/lp612/file/${encodeURIComponent(source.renderId)}`;
   try {
     const res = await api.get(path, {
       ...(source.lane === 'k5' ? { params: { kind: source.assetKind } } : {}),
+      ...(source.lane === 'paper' ? { params: { artifact: source.artifact } } : {}),
       responseType: 'arraybuffer',
       timeout: 120_000,
       onDownloadProgress: (e: { loaded: number; total?: number }) => {
@@ -92,6 +106,7 @@ export async function fetchLessonPlanPdf(
  * Minting is an open as far as the server is concerned, exactly as in openLessonPlanOutside.
  */
 export async function lessonPlanFileUrl(source: LessonPlanSource): Promise<string | null> {
+  if (source.lane === 'paper') return paperLink(source);
   if (source.lane === 'k5') {
     const { data } = await api.get(`/curriculum/lp/${source.lessonId}/pdf`, { params: { kind: source.assetKind } });
     return data.available && data.url ? (data.url as string) : null;
@@ -102,6 +117,8 @@ export async function lessonPlanFileUrl(source: LessonPlanSource): Promise<strin
 
 /** The share route's id for a plan: g612 by its render, k5 by its lesson and asset (bd-fmf24g.54: the plan or its answer key). */
 export function lessonPlanShareId(source: LessonPlanSource): string {
+  // A paper is shared as a paper (share kind 'paper', by its id), never through the lesson plan share route.
+  if (source.lane === 'paper') return source.paperId;
   return source.lane === 'k5' ? `k5:${source.lessonId}:${source.assetKind}` : `g612:${source.renderId}`;
 }
 
@@ -110,6 +127,12 @@ export function lessonPlanShareId(source: LessonPlanSource): string {
  * API says there is nothing to open (yet); throws on a real failure.
  */
 export async function openLessonPlanOutside(source: LessonPlanSource): Promise<'opened' | 'not_ready'> {
+  if (source.lane === 'paper') {
+    const url = await paperLink(source);
+    if (!url) return 'not_ready';
+    window.open(url, '_blank', 'noopener');
+    return 'opened';
+  }
   if (source.lane === 'k5') {
     const { data } = await api.get(`/curriculum/lp/${source.lessonId}/pdf`, { params: { kind: source.assetKind } });
     if (data.available && data.url) {

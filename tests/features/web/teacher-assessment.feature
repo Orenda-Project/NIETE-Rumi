@@ -145,6 +145,31 @@ Feature: Teacher assessment
     When she opens /portal/teacher/assessment/new/types, or /portal/teacher/assessment/new/extras
     Then she is on Questions, with her choices kept
 
+  # Paper ready for a plain paper (bd-7tgiyc): the paper itself in the portal's PDF viewer (the lesson plan one, read through
+  # GET /api/portal/assessment/paper/:id/file), Edit and Answer key above it, Send on WhatsApp and Download PDF docked.
+  # Test ids: lesson-plan-viewer.
+
+  @TA16
+  Scenario: A plain paper that is ready opens in the app, with no Make another and no Word
+    Given a Grade 4 Science teacher's plain paper of 15 questions and 30 marks has just been made
+    When Paper ready opens
+    Then it shows the chips Ready, "15 questions" and "30 marks"
+    And the paper's pages are drawn in the app under them, with zoom buttons, and nothing opens in another app
+    And Edit (when editing is on) and Answer key sit above the paper
+    And the dock holds Send on WhatsApp and Download PDF
+    And there is no Make another and no Word anywhere on the page
+
+  @TA17
+  Scenario: Answer key shows the key in the same viewer, and Back to paper shows the paper again
+    Given Paper ready is open for a plain paper that has an answer key
+    When she taps Answer key
+    Then the viewer shows the answer key and the button reads "Back to paper"
+    When she taps Back to paper
+    Then the viewer shows the paper again
+    Given Paper ready is open for a paper made before answer keys were kept
+    When she taps Answer key
+    Then the app says "No answer key" and the viewer shows the paper
+
   # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
   # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
   @sandbox
