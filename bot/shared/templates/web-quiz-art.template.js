@@ -123,7 +123,8 @@ function animal(key, pics) {
 }
 const num = (s) => `<span class="num">${esc(s)}</span>`;
 // An Urdu picture under web_quiz_share_ur_digits: the page's numerals (۴/۷), never 4/7. Only the digits change.
-const numUr = (s) => num(String(s == null ? '' : s).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c))));
+const urDigits = (s) => String(s == null ? '' : s).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
+const numUr = (s) => num(urDigits(s));
 const DOT = '<span class="dot"> · </span>';
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
@@ -148,11 +149,13 @@ function around(rows, n) {
 
 function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false) {
   const N = ud ? numUr : num;
+  // In Nastaliq the middle dot is the Urdu zero: «۱۵ · بچے» reads ۱۵۰. Beside Urdu digits the Urdu comma separates.
+  const SEP = ud ? '<span class="dot">، </span>' : DOT;
   const pic = (name) => (pics && assets()[name] ? `<img class="jug" src="data:image/webp;base64,${assets()[name]}" alt="">` : '<div class="jug"></div>');
   if (kind === 'card') {
     return {
       pic: pic('celebrate'),
-      main: `${og2 ? '' : `<p class="kick">${esc(C.my)}${d.cls ? `${DOT}${own(d.cls)}` : ''}</p>`}`
+      main: `${og2 ? '' : `<p class="kick">${esc(C.my)}${d.cls ? `${SEP}${own(d.cls)}` : ''}</p>`}`
         + `<h1 class="name">${d.animal ? animal(d.animal, pics) : ''}${own(d.first)}</h1>`
         + `<p class="big">${N(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
@@ -178,7 +181,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
     return {
       pic: d.rows && d.rows.length ? '' : pic('celebrate'),
       // The wide picture has no room for a separate line: the average joins the top line there.
-      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : DOT}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : DOT}${C.avgLine(N(`${d.avgPct || 0}%`))}` : ''}</p>`
+      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(N(`${d.avgPct || 0}%`))}` : ''}</p>`
         + `<h1 class="head">${d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3).map((r) => `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
@@ -195,7 +198,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
     const mv = r.move > 0 ? '<span class="mv up"></span>' : (r.move < 0 ? '<span class="mv down"></span>' : '<span class="mv"></span>');
     return `<li class="row${r.you ? ' you' : ''}"><span class="rk">${N(r.rank)}</span>${mv}`
       + `<span class="sn">${own(r.name)}${r.sector ? `<small>${own(r.sector)}</small>` : ''}</span>`
-      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)} · ${N(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
+      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${N(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
   }).join('');
   return { pic: '', main: `<p class="kick">${esc(C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
 }
@@ -301,7 +304,8 @@ ${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1
 .pts{padding-top:.45em}.cta{padding-top:.6em;padding-bottom:.3em}${sq ? '.main{gap:8px}' : ''}` : ''}`;
   const top = `<div class="top"><span class="mark" aria-hidden="true">${B.mark.svg}</span><span class="brand">${esc(B.label[L])}</span></div>`;
   const side = parts.pic ? `<div class="side">${parts.pic}</div>` : '';
-  const cta = parts.cta ? `<div class="cta">${esc(parts.cta)}</div>` : '';
+  // the school's rule line has its digits in the copy itself
+  const cta = parts.cta ? `<div class="cta">${esc(UD ? urDigits(parts.cta) : parts.cta)}</div>` : '';
   const inner = col
     ? `${top}${side}<div class="main">${parts.main}</div>${cta}`
     : `${top}<div class="main">${parts.main}${cta}</div>${side}`;
