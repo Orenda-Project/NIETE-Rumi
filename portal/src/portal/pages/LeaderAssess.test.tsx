@@ -331,6 +331,23 @@ describe("LeaderAssess", () => {
     expect(summary).toHaveTextContent("0 not sent yet");
   });
 
+  it("the visit bar counts the five children to test, not an absent row the server keeps on the list", async () => {
+    const updated = { ...LIST, children: [{ ...child(1), status: "absent" }, child(2), child(3), child(4), child(5), child(6)], alternates: [child(7)] };
+    api.markOutcome.mockResolvedValueOnce({ list: updated });
+    await openList();
+    fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Absent" }));
+    await screen.findByTestId("assess-child-d6");
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
+  });
+
+  it("the summary's 'Started, not finished' also names a child the server has open from an earlier run", async () => {
+    api.getList.mockResolvedValue({ list: { ...LIST, children: [{ ...child(1), sessionId: "srv-1", sessionStatus: "in_progress" }, child(2), child(3), child(4), child(5)] } });
+    await openList();
+    fireEvent.click(screen.getByRole("button", { name: "End visit" }));
+    const summary = await screen.findByTestId("assess-summary");
+    expect(within(summary).getByTestId("summary-unfinished")).toHaveTextContent("Ayan Testwala");
+  });
+
   it("the server's list problems are plain messages", async () => {
     api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list" } } });
     renderPage();
