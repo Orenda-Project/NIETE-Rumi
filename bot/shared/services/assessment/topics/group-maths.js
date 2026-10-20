@@ -7,9 +7,15 @@
  * comes first; else the code's own "I can…" statement (description i pairs with code i when a
  * row has as many descriptions as codes); else the first day's topic cell.
  *
- * Word problems: a code taught on any word_problem day is a word-problem code. Days whose codes
- * are all word-problem codes form the "Word problems" topic; a day shared with another code stays
- * with that code, minus the word-problem code.
+ * In a chapter the matrix splits with "Topic N:" labels, a code that is never a day's first code is
+ * taught inside another topic; it joins the topic of the first code on each day it appears (G1 Ch3:
+ * fact families AS-05 sit inside subtraction facts AS-06). Unlabelled chapters keep one topic per SLO.
+ *
+ * Word problems: a code is a word-problem code when it is the only code on some word_problem day,
+ * or when its "Topic N:" label says Word Problems. The "Word problems" topic is the word_problem days
+ * plus the days whose codes are all word-problem codes (spec §4.2: G1 Ch3 days 48-51). A day shared
+ * with another code stays with that code, minus the word-problem code. If folding would leave the
+ * chapter with no other topic, only the word_problem days fold.
  */
 const { shortName, slugify } = require('./short-name');
 const { collect } = require('./collect');
@@ -32,12 +38,16 @@ function statementFor(row, i) {
 }
 
 function sloBuckets(rows) {
+  const labelled = rows.some((r) => SECTION_LABEL.test(r.section));
+  const leads = new Set(rows.flatMap((r) => (labelled ? r.sloCodes.slice(0, 1) : r.sloCodes)));
   const buckets = new Map();
   for (const row of rows) {
     row.sloCodes.forEach((code, i) => {
-      if (!buckets.has(code)) buckets.set(code, { code, rows: [], label: null, statements: [] });
-      const b = buckets.get(code);
-      b.rows.push(row);
+      const lead = leads.has(code) ? code : row.sloCodes[0];
+      if (!buckets.has(lead)) buckets.set(lead, { codes: [], rows: [], label: null, statements: [] });
+      const b = buckets.get(lead);
+      if (!b.codes.includes(code)) b.codes.push(code);
+      if (!b.rows.includes(row)) b.rows.push(row);
       const label = i === 0 && row.section.match(SECTION_LABEL);
       if (label && !b.label) b.label = label[1];
       const statement = statementFor(row, i);
@@ -62,9 +72,9 @@ function groupBySlo(rows, fallbackName = (row) => row.topic) {
       name: shortName(raw, b.rows[0].section),
       heading: null,
       headingOrder: null,
-      slug: slugify(b.code),
+      slug: slugify(b.codes[0]),
       ...collect(b.rows),
-      sloCodes: [b.code],
+      sloCodes: b.codes,
       sloDescriptions: statements,
     };
   });
@@ -81,12 +91,30 @@ function withoutCodes(row, drop) {
   };
 }
 
-function groupMaths(rows) {
-  const wordCodes = new Set(rows.filter((r) => r.skillType === WORD_PROBLEM).flatMap((r) => r.sloCodes));
+/** Codes the only code on a word_problem day, or labelled "Topic N: … Word Problems". */
+function wordProblemCodes(rows) {
+  const codes = new Set();
+  for (const r of rows) {
+    if (r.skillType === WORD_PROBLEM && r.sloCodes.length === 1) codes.add(r.sloCodes[0]);
+    const label = r.section.match(SECTION_LABEL);
+    if (label && /word problem/i.test(label[1]) && r.sloCodes.length) codes.add(r.sloCodes[0]);
+  }
+  return codes;
+}
+
+function split(rows, wordCodes) {
   const isProblem = (r) => r.skillType === WORD_PROBLEM
     || (r.sloCodes.length > 0 && r.sloCodes.every((c) => wordCodes.has(c)));
-  const problems = rows.filter(isProblem);
-  const topics = groupBySlo(rows.filter((r) => !isProblem(r)).map((r) => withoutCodes(r, wordCodes)));
+  return {
+    problems: rows.filter(isProblem),
+    topics: groupBySlo(rows.filter((r) => !isProblem(r)).map((r) => withoutCodes(r, wordCodes))),
+  };
+}
+
+function groupMaths(rows) {
+  let { problems, topics } = split(rows, wordProblemCodes(rows));
+  const hasOtherDays = rows.some((r) => r.skillType !== WORD_PROBLEM);
+  if (!topics.length && hasOtherDays) ({ problems, topics } = split(rows, new Set()));
   if (problems.length) {
     topics.push({ name: 'Word problems', heading: null, headingOrder: null, slug: 'word-problems', ...collect(problems) });
   }
