@@ -76,6 +76,16 @@ test('on: state, key, subscribe (device from x-wq-device), test off, unsubscribe
   expect((await call('POST', '/subscribe', { sub: SUB, chips: 5 })).status).toBe(409);
   expect((await call('POST', '/subscribe', { sub: { endpoint: 'http://x' } })).status).toBe(400);
   expect((await call('POST', '/test', { endpoint: SUB.endpoint })).status).toBe(404);
+  // with the test switch on, a sent test answers 200 and the service's body (its push status is data, not the HTTP code)
+  settings({ web_quiz_push_remind: true, web_quiz_push_test: true });
+  await call('POST', '/subscribe', { sub: SUB, code: 'ABC123', lang: 'en', chips: 1 }, { 'x-wq-device': 'AAAAAAAAAAAAAAAAAAAAAA' });
+  const webpush = require('web-push');
+  const spy = jest.spyOn(webpush, 'sendNotification').mockResolvedValue({ statusCode: 201 });
+  const t = await call('POST', '/test', { endpoint: SUB.endpoint });
+  expect([t.status, await t.json()]).toEqual([200, { ok: 1, sent: 1, status: 201 }]);
+  spy.mockRestore();
+  settings({ web_quiz_push_remind: true });
+  await call('POST', '/subscribe', { sub: SUB, code: 'ABC123', lang: 'en', chips: 1 }, { 'x-wq-device': 'AAAAAAAAAAAAAAAAAAAAAA' });
   expect(await (await call('POST', '/opened', { endpoint: SUB.endpoint })).json()).toEqual({ ok: 1 });
   expect(await (await call('POST', '/unsubscribe', { endpoint: SUB.endpoint, by: 'page' })).json()).toEqual({ ok: 1 });
   expect(fake.db.web_quiz_push_subscriptions[0].revoked_by).toBe('page');
