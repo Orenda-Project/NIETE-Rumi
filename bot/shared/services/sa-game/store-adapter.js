@@ -142,16 +142,23 @@ async function createRunRow(a) {
   return fail('createRunRow', error, { runId: a.id });
 }
 
-/** A run's meta, rebuilt from a fresh read and written only if unchanged since (as web-quiz-challenge updateRunMeta). */
+/**
+ * A run's meta, rebuilt from a fresh read and written only if no one wrote it since. The guard is a small version
+ * number in meta (meta.v), never the whole meta: a filter carrying the meta rides in the request's URL and outgrew the
+ * gateway's limit once a run held about 80 events, so every later batch failed.
+ */
 async function updateMeta(id, build) {
   for (let i = 0; i < META_TRIES; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     const { data: cur, error } = await db().from(RUNS).select('id, meta').eq('id', id).eq('exercise', 'battery').maybeSingle();
     if (error) return fail('readRun', error, { runId: id });
     if (!cur) return { ok: false, reason: 'not_found' };
+    const was = cur.meta && typeof cur.meta === 'object' && Number.isInteger(cur.meta.v) ? cur.meta.v : null;
     const meta = build(cur.meta && typeof cur.meta === 'object' ? JSON.parse(JSON.stringify(cur.meta)) : {});
+    meta.v = (was || 0) + 1;
+    const q = db().from(RUNS).update({ meta }).eq('id', id);
     // eslint-disable-next-line no-await-in-loop
-    const w = await db().from(RUNS).update({ meta }).eq('id', id).eq('meta', JSON.stringify(cur.meta)).select('id');
+    const w = await (was == null ? q.is('meta->>v', null) : q.eq('meta->>v', String(was))).select('id');
     if (w.error) return fail('updateMeta', w.error, { runId: id });
     if (w.data && w.data.length) return { ok: true, meta };
   }
