@@ -50,7 +50,7 @@ function seed(rows) {
   fake = makeFake({ web_quiz_challenge_runs: rows });
   Object.assign(supabase, {
     from: (t) => (t === 'app_settings'
-      ? { select: () => ({ eq: (_k, key) => Promise.resolve({ data: settings.filter((r) => r.key === key), error: null }) }) }
+      ? { select: () => ({ eq: (_k, key) => Promise.resolve({ data: settings.filter((r) => r.key === key), error: null }), in: (_k, keys) => Promise.resolve({ data: settings.filter((r) => keys.includes(r.key)), error: null }) }) }
       : fake.from(t)),
   });
   RF._reset();
