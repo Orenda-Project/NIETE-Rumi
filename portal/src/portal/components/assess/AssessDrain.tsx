@@ -10,6 +10,15 @@ const DRAIN_MAX_MS = 60_000;
  */
 export type Drained = { s: string; pending: number }[];
 
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+
+/** One session of the engine's answer: rows (events, results) and recordings still on the phone. */
+function pendingOf(x: unknown): { s: string; pending: number } | null {
+  const o = x as { s?: unknown; pending?: unknown; pending_events?: unknown; pending_audio?: unknown } | null;
+  if (!o || typeof o.s !== 'string') return null;
+  return { s: o.s, pending: typeof o.pending === 'number' ? o.pending : num(o.pending_events) + num(o.pending_audio) };
+}
+
 export default function AssessDrain({ onDone }: { onDone: (sessions: Drained) => void }) {
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
@@ -20,8 +29,7 @@ export default function AssessDrain({ onDone }: { onDone: (sessions: Drained) =>
       const d = e.data as { type?: unknown; sessions?: unknown } | null;
       if (e.origin !== window.location.origin || !d || d.type !== 'sa:drained') return;
       const list = Array.isArray(d.sessions) ? d.sessions : [];
-      end(list.filter((x): x is { s: string; pending: number } => Boolean(x) && typeof x.s === 'string' && typeof x.pending === 'number')
-        .map((x) => ({ s: x.s, pending: x.pending })));
+      end(list.map(pendingOf).filter((x): x is { s: string; pending: number } => x !== null));
     };
     window.addEventListener('message', onMessage);
     const t = window.setTimeout(() => end(), DRAIN_MAX_MS);
