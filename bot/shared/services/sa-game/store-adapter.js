@@ -33,7 +33,9 @@ const SESSIONS = 'child_test_sessions';
 const DRAWS = 'child_test_draws';
 const EVENTS = 'child_test_sa_events';
 const RESULTS = 'child_test_sa_results';
-const EVENTS_KEPT = 6000; // per run in meta (a full battery is ≈ 2,000)
+// The run keeps the LAST this-many events in meta (the coach session keeps the same on device.events[], RULING #11):
+// a batch then costs its own size, not the run's. Results, last_seq and finished_at are always kept in full.
+const EVENTS_KEPT = 200;
 const META_TRIES = 5;
 const PROBE_TTL_MS = 10 * 60 * 1000;
 // What says "this database is not ready for this path" (not a passing fault): undefined column / table, a CHECK, a NOT
@@ -169,16 +171,21 @@ async function saveBatchRuns({ sessionId, events, results }) {
   const out = await updateMeta(sessionId, (m) => {
     m.events = m.events || {};
     m.results = m.results || {};
-    let kept = Object.keys(m.events).length;
     for (const e of events) {
       const k = String(e.seq);
       if (Object.prototype.hasOwnProperty.call(m.events, k)) continue; // first write wins, as (session_id, seq)
-      if (kept >= EVENTS_KEPT) { m.events_dropped = (m.events_dropped || 0) + 1; continue; }
+      if (m.last_seq != null && e.seq <= m.last_seq - EVENTS_KEPT) continue; // a replay of what was already let go
       const { seq, ...rest } = e;
       m.events[k] = rest;
-      kept += 1;
       if (m.last_seq == null || seq > m.last_seq) m.last_seq = seq;
       if (e.type === 'battery_end' && !m.finished_at) m.finished_at = new Date().toISOString();
+    }
+    // Keep the last EVENTS_KEPT by seq; count what was let go.
+    const seqs = Object.keys(m.events).map(Number).sort((a, b) => a - b);
+    if (seqs.length > EVENTS_KEPT) {
+      const drop = seqs.slice(0, seqs.length - EVENTS_KEPT);
+      drop.forEach((q) => { delete m.events[String(q)]; });
+      m.events_dropped = (m.events_dropped || 0) + drop.length;
     }
     for (const r of results) m.results[r.task_id] = { ...r, mode: 'game' };
     return m;
