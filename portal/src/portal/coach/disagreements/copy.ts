@@ -2,6 +2,7 @@
  * bd-tbprit.3 — every word the coach's disagreement screens show (the list and one teacher's card).
  *
  * Bilingual: DISAGREE = { en, ur }, read with useCopy(DISAGREE); `ur` is typed to en's exact SHAPE. The four
+ * list's words are Rifat's prototype, Urdu included (bd-tbprit.7). The four
  * reasons' Urdu is the teacher's own button copy (dashboard/services/coach-ping-reasons.js); the rest is
  * MACHINE-DRAFTED and awaits a native check. Scores always say "AI score" — never HITL (niete-portal rule).
  *
@@ -9,6 +10,13 @@
  */
 
 import { bilingual, type Words } from "../../teacher/i18n";
+
+const ordinal = (n: number) => {
+  const t = n % 100;
+  const suffix = t >= 11 && t <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${suffix}`;
+};
+const URDU_NTH: Record<number, string> = { 2: "دوسری", 3: "تیسری", 4: "چوتھی", 5: "پانچویں" };
 
 const EN = {
   title: "Disagreements",
@@ -20,7 +28,24 @@ const EN = {
   done: "Done",
   noneWaiting: "No one is waiting",
   noneDone: "None visited yet",
-  tag: { waiting48h: "Waiting 2+ days", second: "Disagreed before" },
+
+  /* the list, as Rifat's prototype words it (bd-tbprit.7) */
+  appName: "NIETE Teaching Assistant",
+  appRole: "Coach · ICT Islamabad",
+  listTitle: "Teachers who sent you their report",
+  back: "Back",
+  notSaved: "Not saved",
+  todoTab: (n: number) => `To do · ${n}`,
+  doneTab: (n: number) => `Done · ${n}`,
+  schoolEmis: (school: string, emis: string) => `${school} · EMIS ${emis}`,
+  tag: {
+    recordingLess: (before: number, now: number) => `📉 Recording less: ${before} → ${now} a week`,
+    waiting: (days: number) => `⏳ Sent ${days} days ago`,
+    repeat: (nth: number) => `🔁 ${ordinal(nth)} time disagreeing`,
+  },
+  doneBadge: "✓ Done",
+  allDone: "All done. No teacher is waiting.",
+  noneMarkedDone: "No card marked done yet.",
   reason: {
     score: "Score doesn't seem right",
     missed: "Report missed what I did",
@@ -65,7 +90,23 @@ const UR: Words<typeof EN> = {
   done: "مکمل",
   noneWaiting: "کوئی انتظار میں نہیں",
   noneDone: "ابھی کوئی دورہ نہیں",
-  tag: { waiting48h: "2+ دن سے انتظار", second: "پہلے بھی اختلاف" },
+
+  appName: "NIETE Teaching Assistant",
+  appRole: "کوچ · آئی سی ٹی اسلام آباد",
+  listTitle: "جن اساتذہ نے آپ کو رپورٹ بھیجی",
+  back: "واپس",
+  notSaved: "محفوظ نہیں ہوا",
+  todoTab: (n: number) => `باقی · ${n}`,
+  doneTab: (n: number) => `مکمل · ${n}`,
+  schoolEmis: (school: string, emis: string) => `${school} · EMIS ${emis}`,
+  tag: {
+    recordingLess: (before: number, now: number) => `📉 ریکارڈنگ کم: ہفتے میں ${before} سے ${now}`,
+    waiting: (days: number) => `⏳ ${days} دن پہلے بھیجا`,
+    repeat: (nth: number) => `🔁 ${URDU_NTH[nth] ?? `${nth}ویں`} بار اختلاف`,
+  },
+  doneBadge: "✓ مکمل",
+  allDone: "سب مکمل۔ کوئی استاد انتظار میں نہیں۔",
+  noneMarkedDone: "ابھی کوئی کارڈ مکمل نہیں ہوا۔",
   reason: {
     score: "میرا اسکور درست نہیں لگتا",
     missed: "میں نے یہ کیا تھا، رپورٹ نے نہیں پکڑا",

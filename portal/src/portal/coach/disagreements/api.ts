@@ -10,11 +10,15 @@ import { readConfigShared } from "../../lib/useNewUi";
  */
 
 export type ReasonCode = "score" | "missed" | "wont_work" | "unclear";
-export type Tag = "waiting48h" | "second";
+/** bd-tbprit.7 — the prototype's three tags, numbers included; the server decides which apply. */
+export type Tag =
+  | { kind: "recordingLess"; before: number; now: number }
+  | { kind: "waiting"; days: number }
+  | { kind: "repeat"; nth: number };
 
 export type Row = {
-  id: string; teacher: string | null; school: string | null; reasons: ReasonCode[]; status: string; done: boolean;
-  createdAt: string; visitedAt: string | null; sessionDate: string | null; pct: number | null; hasNote: boolean; tags: Tag[];
+  id: string; teacher: string | null; school: string | null; emis: string | null; opened: boolean; reasons: ReasonCode[];
+  status: string; done: boolean; createdAt: string; visitedAt: string | null; sessionDate: string | null; pct: number | null; hasNote: boolean; tags: Tag[];
 };
 export type List = { success: boolean; todo: Row[]; done: Row[] };
 
@@ -44,7 +48,7 @@ export type View = {
   report: unknown;
 };
 export type Card = {
-  id: string; teacher: string | null; school: string | null; language: string; status: string; done: boolean;
+  id: string; teacher: string | null; school: string | null; emis: string | null; group: string | null; nth: number; language: string; status: string; done: boolean;
   reasons: ReasonCode[]; createdAt: string; noteUrl: string | null; view: View; evidence: Evidence[];
   indicators: Indicator[]; moves: Move[] | null;
 };
