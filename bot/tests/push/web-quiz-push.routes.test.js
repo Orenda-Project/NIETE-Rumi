@@ -83,11 +83,23 @@ test('on: state, key, subscribe (device from x-wq-device), test off, unsubscribe
   expect((await call('POST', '/e', { step: 'nope' })).status).toBe(400);
 });
 
-test('the finish field: {} while off, {push_remind:true} while on', async () => {
-  settings({});
-  expect(await pushField()).toEqual({});
+test('the finish field rides the hub switches\' cache: {} cold, off, or without env; {push_remind:true} on', async () => {
+  const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
   settings({ web_quiz_push_remind: true });
-  expect(await pushField()).toEqual({ push_remind: true });
+  HubFlags._resetCache();
+  expect(pushField()).toEqual({}); // cold cache: no read of its own, no card
+  const before = fake.calls.length;
+  await HubFlags.flags(Date.now() + 10 * 60 * 1000);
+  expect(fake.calls.length).toBe(before + 1); // the hub's one read (the page boot makes it)
+  expect(pushField()).toEqual({ push_remind: true });
+  expect(fake.calls.length).toBe(before + 1); // the field itself never reads
+  const salt = process.env.WQ_PUSH_HASH_SALT;
+  delete process.env.WQ_PUSH_HASH_SALT;
+  expect(pushField()).toEqual({});
+  process.env.WQ_PUSH_HASH_SALT = salt;
+  settings({});
+  await HubFlags.flags(Date.now() + 20 * 60 * 1000);
+  expect(pushField()).toEqual({});
 });
 
 test('the worker schedules the due tick behind WEB_QUIZ_PUSH_SEND_ENABLED and the expiry tick ungated', async () => {
@@ -96,7 +108,8 @@ test('the worker schedules the due tick behind WEB_QUIZ_PUSH_SEND_ENABLED and th
   const timeouts = [];
   const due = jest.fn(async () => ({}));
   const expire = jest.fn(async () => ({}));
-  schedulePushTicks({ setIntervalFn: (fn, ms) => intervals.push([fn, ms]), setTimeoutFn: (fn, ms) => { timeouts.push([fn, ms]); }, dueTick: due, expireTick: expire });
+  let env = true;
+  schedulePushTicks({ setIntervalFn: (fn, ms) => intervals.push([fn, ms]), setTimeoutFn: (fn, ms) => { timeouts.push([fn, ms]); }, dueTick: due, expireTick: expire, envReady: () => env });
   for (const [fn] of timeouts) await fn();
   delete process.env.WEB_QUIZ_PUSH_SEND_ENABLED;
   for (const [fn] of intervals) await fn();
@@ -106,6 +119,11 @@ test('the worker schedules the due tick behind WEB_QUIZ_PUSH_SEND_ENABLED and th
   for (const [fn] of intervals) await fn();
   expect(due).toHaveBeenCalled();
   expect(intervals.map(([, ms]) => ms).sort((a, b) => a - b)).toEqual([60 * 1000, 6 * 60 * 60 * 1000]);
+  // a tier without the push env (and so without the table) is inert: the expiry tick does nothing
+  env = false;
+  expire.mockClear();
+  for (const [fn] of intervals) await fn();
+  expect(expire).not.toHaveBeenCalled();
   const src = fs.readFileSync(path.join(__dirname, '../../workers/sqs-worker.js'), 'utf8');
   expect(src).toMatch(/require\('\.\/push-ticks'\)\.schedulePushTicks\(/);
 });

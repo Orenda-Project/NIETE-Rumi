@@ -3,7 +3,8 @@
  * The reminder push's two worker ticks (shared/services/push/web-quiz-push.service.js):
  *   due    every 60 s (first ~2 min after boot), only while WEB_QUIZ_PUSH_SEND_ENABLED is on (read per tick, so a
  *          Railway flip takes effect on the next tick); the service also sends nothing while web_quiz_push_remind is off
- *   expiry every 6 h, ungated: retention holds whatever the switches say
+ *   expiry every 6 h, whatever the switches say (retention), but only on a tier with the push env set: a tier without
+ *          it (no table either) is fully inert
  * Never throws: a failed tick logs one line and the next tick runs.
  */
 const { flagOn } = require('../shared/services/nudges/flags');
@@ -17,6 +18,7 @@ function schedulePushTicks({
   setTimeoutFn = setTimeout,
   dueTick = (now) => require('../shared/services/push/web-quiz-push.service').dueTick(now),
   expireTick = (now) => require('../shared/services/push/web-quiz-push.service').expireTick(now),
+  envReady = () => require('../shared/services/push/web-quiz-push.service').envReady(),
 } = {}) {
   const safe = (label, fn) => async () => {
     try { await fn(Date.now()); } catch (err) {
@@ -24,7 +26,7 @@ function schedulePushTicks({
     }
   };
   const due = safe('due', (now) => (flagOn('WEB_QUIZ_PUSH_SEND_ENABLED') ? dueTick(now) : null));
-  const expire = safe('expiry', expireTick);
+  const expire = safe('expiry', (now) => (envReady() ? expireTick(now) : null));
   const unref = (t) => { if (t && typeof t.unref === 'function') t.unref(); return t; };
   unref(setTimeoutFn(async () => {
     await expire();

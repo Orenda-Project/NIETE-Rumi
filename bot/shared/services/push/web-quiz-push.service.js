@@ -5,7 +5,7 @@
  * teacher_portal). Switches (app_settings, JSON true only, 30 s cache, fail closed; all OFF by default):
  *
  *   remind = web_quiz_push_remind && every env below set      the routes, the card, the due tick's sends
- *   test   = web_quiz_push_test   && remind                   "Send a test now" (sandbox only)
+ *   test   = web_quiz_push_test   && remind                   "Send one now" on /remind/:code (sandbox QA only)
  *   portal = portal_push_remind   && remind                   the teacher card (car C)
  *
  * Env (sandbox only; never shared with staging or prod): WQ_PUSH_VAPID_PUBLIC, WQ_PUSH_VAPID_PRIVATE,
@@ -51,12 +51,12 @@ const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
 // The words (jg.remind.push_* in the copy deck): a reminder never names a child.
 const COPY = Object.freeze({
   quiz_reminder: {
-    en: { t: 'Jugnu', b: "Today's quiz is ready. Tap to play.", test: 'Test: reminders are on.' },
-    ur: { t: 'جگنو', b: 'آج کا کوئز تیار ہے۔ کھیلنے کے لیے دبائیں۔', test: 'ٹیسٹ: یاد دہانی آن ہے۔' },
+    en: { t: 'Jugnu', b: "Today's quiz is ready. Tap to play.", test: 'Reminders are on.' },
+    ur: { t: 'جگنو', b: 'آج کا کوئز تیار ہے۔ کھیلنے کے لیے دبائیں۔', test: 'یاد دہانی آن ہے۔' },
   },
   evening_plan: {
-    en: { t: 'NIETE', b: 'Your plan for tomorrow is ready.', test: 'Test: reminders are on.' },
-    ur: { t: 'NIETE', b: 'کل کا منصوبہ تیار ہے۔', test: 'ٹیسٹ: یاد دہانی آن ہے۔' },
+    en: { t: 'NIETE', b: 'Your plan for tomorrow is ready.', test: 'Reminders are on.' },
+    ur: { t: 'NIETE', b: 'کل کا منصوبہ تیار ہے۔', test: 'یاد دہانی آن ہے۔' },
   },
 });
 
@@ -348,7 +348,7 @@ function stepEvent(body = {}) {
 const vapidPublic = () => String(process.env.WQ_PUSH_VAPID_PUBLIC || '');
 
 module.exports = {
-  switches, subscribe, unsubscribe, markOpened, payloadFor, sendOne, sendTest, dueTick, expireTick, stepEvent, vapidPublic,
+  switches, envReady, subscribe, unsubscribe, markOpened, payloadFor, sendOne, sendTest, dueTick, expireTick, stepEvent, vapidPublic,
   nextAt, uaClass, hashEndpoint, encrypt, decrypt, COPY, KEYS, ENV, TABLE,
   __reset: () => { cache = null; },
 };
