@@ -325,6 +325,50 @@ describe("LeaderAssess", () => {
     expect(screen.getByTestId("assess-visit-bar")).not.toHaveTextContent("audio waiting");
   });
 
+  describe("draining a finished child's rows after the hand-back", () => {
+    function drained() {
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:drained", sessions: [] }, origin: window.location.origin })); });
+    }
+
+    it("a finished child not yet sent: back online, a hidden drain frame runs the engine's sync; on sa:drained it goes and status is asked again", async () => {
+      await openList();
+      const s = await startChild();
+      saDone(s);
+      await screen.findByTestId("assess-child-d1");
+      const before = api.getStatus.mock.calls.length;
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      const frame = await screen.findByTestId("assess-drain-frame");
+      expect(frame.getAttribute("src")).toBe("/sa/play.html?drain=1&embed=1");
+      expect(frame).toHaveAttribute("aria-hidden", "true");
+      drained();
+      await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
+      await waitFor(() => expect(api.getStatus.mock.calls.length).toBeGreaterThan(before));
+    });
+
+    it("no drain frame when nothing is waiting, or while a child's test is open", async () => {
+      await openList();
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      expect(screen.queryByTestId("assess-drain-frame")).toBeNull();
+      const s = await startChild();
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      expect(screen.queryByTestId("assess-drain-frame")).toBeNull();
+      expect(s).toBeTruthy();
+    });
+
+    it("once in 30 s at most", async () => {
+      await openList();
+      const s = await startChild();
+      saDone(s);
+      await screen.findByTestId("assess-child-d1");
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      await screen.findByTestId("assess-drain-frame");
+      drained();
+      await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      expect(screen.queryByTestId("assess-drain-frame")).toBeNull();
+    });
+  });
+
   it("a session the server has completed shows Done and counts as sent", async () => {
     api.getList.mockResolvedValue({ list: { ...LIST, children: [child(1, { status: "tested", sessionId: "x", sessionStatus: "completed" }), ...LIST.children.slice(1)] } });
     await openList();
