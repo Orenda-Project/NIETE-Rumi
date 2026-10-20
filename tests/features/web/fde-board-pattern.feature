@@ -184,5 +184,5 @@ Feature: FDE board-pattern paper for Grade 5
   @sandbox @real-paper
   Scenario: A paper for any other grade is unchanged
     Given the board-pattern switch is on
-    When a Grade 3 Urdu teacher makes a paper with Auto mix
+    When a Grade 3 Urdu teacher makes a paper with the default mix of types Questions starts with
     Then the screens, the request, the prompt and the printed paper are identical to those made with the switch off
