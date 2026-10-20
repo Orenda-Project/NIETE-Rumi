@@ -1136,6 +1136,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // browser refused to start (autoplay before a tap) is not spoken by the phone either: the speaker
   // button pulses ("tap to hear") and a tap plays the clips. Only a clip that cannot play here at all
   // (an error, a format this phone lacks) falls back to the phone's voice.
+  // GAP_PHONE: a line is never left silent. A clip not started after CLIP_SLOW_MS, or whose play() is refused for
+  // any reason but autoplay (NotAllowedError keeps the tap), is read by the phone's voice at once.
   var CLIP_SLOW_MS = 2000, CLIP_GIVEUP_MS = 8000;
   function speak(text, url, done, meta) {
     stopVoice();
@@ -1149,7 +1151,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // A clip that errors, will not play here, or stalls for more than 2 s counts as missing:
       // that line falls back to the phone's own voice, and we log why.
       var switched = false;
-      var fallback = function (why) {
+      var fallback = function (why, err) {
         // A clip stopped by the next screen (a fast tap, slow data) rejects its play() and
         // fires its stalled timer: that is not a missing clip, and its old line stays quiet.
         if (switched || fin || gen !== voiceGen) return;
@@ -1157,8 +1159,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
         ev('audio_fallback', { reason: why });
-        if (why === 'stalled') { end(); return; }
-        if (why === 'reject') { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
+        var tap = why === 'reject' && !(GAP_PHONE && err && err.name !== 'NotAllowedError');
+        if (why === 'stalled' && !GAP_PHONE) { end(); return; }
+        if (tap) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
         speakTts(text, end);
       };
       try {
@@ -1170,10 +1173,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         a.addEventListener('playing', function () { started = true; });
         a.onended = function () { if (!switched) end(); };
         a.onerror = function () { fallback('error'); };
-        setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
-        setTimeout(function () { if (!started) fallback('stalled'); }, CLIP_GIVEUP_MS);
+        if (!GAP_PHONE) setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
+        setTimeout(function () { if (!started) fallback('stalled'); }, GAP_PHONE ? CLIP_SLOW_MS : CLIP_GIVEUP_MS);
         var pr = a.play();
-        if (pr && pr.catch) pr.catch(function (e) { fallback('reject'); });
+        if (pr && pr.catch) pr.catch(function (e) { fallback('reject', e); });
         return;
       } catch (e) { fallback('error'); return; }
     }

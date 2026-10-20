@@ -126,8 +126,9 @@ test('a line that finishes on its own screen still runs its "done"', () => {
 
 // web_quiz_voice_gap_phone (the boot's voice_gap_phone, default off): while one voice is on, a quiz part with no recorded
 // clip (or a clip that cannot play here) is read by the phone's own voice, as before one voice, instead of left silent.
-// A phone with no voice for the language keeps the big words; a slow clip ('stalled') and a refused start ('reject')
-// stay as they are. Off: today's one-voice page (the big words, no phone voice).
+// A phone with no voice for the language keeps the big words. A clip not started after 2 s ('stalled') and a start
+// refused for any reason but autoplay ('reject') are read by the phone too; an autoplay refusal (NotAllowedError) keeps
+// the tap. Off: today's one-voice page (the big words, no phone voice).
 describe('a line with no recorded clip while one voice is on (web_quiz_voice_gap_phone)', () => {
   const setup = ({ gap, lang = 'en', voices } = {}) => {
     const h = harness(), utts = [], cls = new Set();
@@ -173,17 +174,26 @@ describe('a line with no recorded clip while one voice is on (web_quiz_voice_gap
     s2.h.ctx.speak('Line two', 'https://media.example/q2.ogg', null);
     expect(s2.utts.map((u) => u.text)).toEqual(['Line two']);
   });
-  test('switch on, a slow clip (stalled) and a refused start (reject) stay as they are: no phone voice', async () => {
+  test('switch on, a clip not started at 2 s (stalled) and a refused start (reject, not autoplay): the phone reads the line', async () => {
     const { h, utts, cls } = setup({ gap: true });
     h.ctx.speak('Slow line', 'https://media.example/q1.ogg', null);
-    h.runTimers(8000);
-    expect(utts).toEqual([]);
+    h.runTimers(2000);
+    expect(utts.map((u) => u.text)).toEqual(['Slow line']);
+    expect(cls.has('wq-phonevoice')).toBe(true);
     const s2 = setup({ gap: true });
     s2.h.ctx.speak('Refused line', 'https://media.example/q2.ogg', null);
-    s2.h.clips[0].rejectPlay(new Error('NotAllowedError'));
+    s2.h.clips[0].rejectPlay(Object.assign(new Error('aborted'), { name: 'AbortError' }));
     await flush();
-    expect(s2.utts).toEqual([]);
-    expect(s2.cls.has('wq-tap')).toBe(true);
+    expect(s2.utts.map((u) => u.text)).toEqual(['Refused line']);
+    expect(s2.cls.has('wq-tap')).toBe(false);
+  });
+  test('switch on, a start refused for autoplay (NotAllowedError): the tap, no phone voice', async () => {
+    const { h, utts, cls } = setup({ gap: true });
+    h.ctx.speak('Refused line', 'https://media.example/q2.ogg', null);
+    h.clips[0].rejectPlay(Object.assign(new Error('not allowed'), { name: 'NotAllowedError' }));
+    await flush();
+    expect(utts).toEqual([]);
+    expect(cls.has('wq-tap')).toBe(true);
     expect(cls.has('wq-phonevoice')).toBe(false);
   });
   test('the page reads the switch from the boot: var GAP_PHONE = Boolean(B.voice_gap_phone)', () => {
