@@ -32,6 +32,9 @@ const mockSwitch = jest.fn(async () => true);
 jest.mock('../../bot/shared/services/coaching/ab-v10-switch', () => ({ v10Enabled: (...a) => mockSwitch(...a) }));
 const mockGroup = jest.fn(async () => ({ group: 'C', plan: 'v9', report: 'new' }));
 jest.mock('../../bot/shared/services/coaching/ab-v10-arms', () => ({ groupFor: (...a) => mockGroup(...a) }));
+// The C/D report-link sender (bd-v0toag.19) reads the group on its own and has its own tests;
+// here only the one-next-step path is under test.
+jest.mock('../../bot/shared/services/coaching/report-link-send', () => ({ sendReportLinkIfNew: jest.fn(async () => false) }));
 
 const updates = [];
 const ok = (id, name, score) => ({ id, name, score, applicable: true });
