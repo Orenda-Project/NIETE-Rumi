@@ -126,3 +126,22 @@ describe("the class link's picture rides the same path and the same log", () => 
     expect(JSON.stringify(edge())).not.toMatch(/AB12CD|MzMzMz|abcdefghijkl/);
   });
 });
+
+// The friend's door asks for the invite drawn with "Your turn!" (w=door): the edge passes it on and keeps it apart
+// from the chat's picture; on any other kind, or with no w, the ask to the bot is today's.
+describe('the door picture', () => {
+  test('w=door on the invite: the bot is asked for the door picture, kept under its own key', async () => {
+    const asked = [];
+    answer = (url) => { asked.push(url); return jpegRes(); };
+    await req(srv, `/q/CH12CD/art/invite.jpg?a=${INVITE}`);
+    await req(srv, `/q/CH12CD/art/invite.jpg?a=${INVITE}&w=door`);
+    await req(srv, `/q/CH12CD/art/invite.jpg?a=${INVITE}&w=door`);
+    expect(asked.map((u) => u.slice(u.indexOf('/art/')))).toEqual([`/art/${INVITE}`, `/art/${INVITE}?w=door`]);
+  });
+  test('w=door on another kind: the ask is today\'s', async () => {
+    const asked = [];
+    answer = (url) => { asked.push(url); return jpegRes(); };
+    await req(srv, `/q/AB12CD/art/card.jpg?a=${CARD}&w=door`);
+    expect(asked.map((u) => u.slice(u.indexOf('/art/')))).toEqual([`/art/${CARD}`]);
+  });
+});

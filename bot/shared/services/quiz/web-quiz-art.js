@@ -244,24 +244,27 @@ const inflight = new Map();
 
 // fresh: the caller knows this picture was never drawn (a card at the finish of its session), so R2 is not asked.
 // code: the /q/<CODE> the picture was asked under; only the class link's picture (kind t) reads it.
-function artImage(id, { size = 'og', fresh = false, code = null } = {}) {
+// door: the invite for the friend's door (web_quiz_challenge_fold asks for it); any other picture ignores it.
+function artImage(id, { size = 'og', fresh = false, code = null, door = false } = {}) {
   // The class link's picture (web-quiz-class-pic.js): its own facts, switches and PNG; never this module's kinds.
   if (typeof id === 'string' && id.startsWith('t.')) return require('./web-quiz-class-pic').image(id, { code, drawTurn, ArtError });
-  const k = `${id}|${SIZES[size] ? size : 'og'}`;
+  const dr = door === true && typeof id === 'string' && id.startsWith('i.');
+  const k = `${id}|${SIZES[size] ? size : 'og'}${dr ? '|door' : ''}`;
   if (inflight.has(k)) return inflight.get(k);
-  const p = artImageNow(id, { size, fresh }).finally(() => inflight.delete(k));
+  const p = artImageNow(id, { size, fresh, door: dr }).finally(() => inflight.delete(k));
   inflight.set(k, p);
   return p;
 }
 
 const { artInput } = require('./web-quiz-art-input');
 
-async function artImageNow(id, { size = 'og', fresh = false } = {}) {
+async function artImageNow(id, { size = 'og', fresh = false, door = false } = {}) {
   const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
   const sz = SIZES[size] ? size : 'og';
-  const seen = byId.get(`${id}|${sz}`);
+  const at = `${id}|${sz}${door ? '|door' : ''}`;
+  const seen = byId.get(at);
   if (seen && seen.until > Date.now() && mem.has(seen.key)) {
     served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
@@ -272,10 +275,10 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
   ]);
   const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };
   // the one share on: an Urdu picture with room for its ink (its own key); an English one is unchanged
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, ink && f.lang === 'ur' ? { ...(ui || {}), ink: true } : ui);
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, ink && f.lang === 'ur' ? { ...(ui || {}), ink: true } : ui, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
-    byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+    byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });
     served(input, t0, 'mem', steps);
     return { bytes: mem.get(key), contentType: 'image/jpeg', key };
   }
@@ -304,7 +307,7 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
       .catch((e) => logToFile('⚠️ web-quiz art: R2 upload failed', { error: (e && e.message) || 'error' }));
   }
   remember(key, bytes);
-  byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+  byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });
   if (byId.size > MEM_MAX * 4) byId.delete(byId.keys().next().value);
   served(input, t0, from, steps);
   return { bytes, contentType: 'image/jpeg', key };

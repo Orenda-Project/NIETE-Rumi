@@ -380,3 +380,52 @@ describe('the one share (web_quiz_share_v4) gives an Urdu picture room for its i
     expect([htmlToImage.mock.calls[0][0], r2.uploadBuffer.mock.calls[0][1]]).toEqual(off);
   });
 });
+
+// The friend's door (web_quiz_challenge_fold): the invite picture sits right under the real Play button, so it is drawn
+// with "Your turn!" where the chat's picture says "tap the link to play" (the friend is already on the link). Its own key;
+// the chat's picture (no door) keeps today's HTML and key.
+describe('the invite picture for the door', () => {
+  const inv = (lang, opt) => renderArt({ kind: 'invite', size: 'og', brand: 'niete', lang, d: { first: 'Amal', correct: 7, total: 8, topic: 'Fractions' }, ...opt }, { fonts: false, pictures: false });
+  test.each([['en', 'Your turn!', 'Tap the link to play'], ['ur', 'آپ کی باری!', 'لنک پر ٹیپ کریں اور کھیلیں']])('door (%s): "your turn" in place of the link pill', (lang, turn, tap) => {
+    const html = inv(lang, { door: true });
+    expect(html).toContain(turn);
+    expect(html).not.toContain(tap);
+    expect(inv(lang, {})).toContain(tap);
+  });
+  test('the door only changes the invite: a card asked with door is the card', () => {
+    const d = { first: 'Amal', correct: 7, total: 8, topic: 'Fractions', cls: 'Class 3' };
+    expect(renderArt({ kind: 'card', size: 'og', brand: 'niete', lang: 'en', d, door: true })).toBe(renderArt({ kind: 'card', size: 'og', brand: 'niete', lang: 'en', d }));
+  });
+  test('the service: door draws the door picture under its own key; no door is today\'s input and key', async () => {
+    const id = Art.artId('i', 'CHAL01');
+    await Art.artImage(id, { size: 'og' });
+    const plain = [htmlToImage.mock.calls[0][0], r2.uploadBuffer.mock.calls[0][1]];
+    expect(plain[0]).toContain('Tap the link to play');
+    expect(Art.artInput('invite', 'og', 'niete', { lang: 'en', d: {} }, null)).not.toHaveProperty('door');
+    await Art.artImage(id, { size: 'og', door: true });
+    expect(htmlToImage).toHaveBeenCalledTimes(2);
+    expect(htmlToImage.mock.calls[1][0]).toContain('Your turn!');
+    expect(r2.uploadBuffer.mock.calls[1][1]).not.toBe(plain[1]);
+    // and the plain one is still served as it was (its own cache entry)
+    const again = await Art.artImage(id, { size: 'og' });
+    expect(again.key).toBe(plain[1]);
+  });
+  test('door on a picture that is not an invite is ignored (same key as without)', async () => {
+    const a = await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og' });
+    Art._resetCache();
+    const b = await Art.artImage(Art.artId('l', 'CLS001'), { size: 'og', door: true });
+    expect(b.key).toBe(a.key);
+  });
+  test('over HTTP: ?w=door asks for the door picture', async () => {
+    const app = express();
+    app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
+    let server;
+    await new Promise((r) => { server = app.listen(0, r); });
+    try {
+      const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
+      const r = await fetch(`${base}/art/${Art.artId('i', 'CHAL01')}?w=door`, { headers: { 'x-api-key': 'art-key' } });
+      expect(r.status).toBe(200);
+      expect(htmlToImage.mock.calls[0][0]).toContain('Your turn!');
+    } finally { await new Promise((r) => server.close(r)); }
+  });
+});
