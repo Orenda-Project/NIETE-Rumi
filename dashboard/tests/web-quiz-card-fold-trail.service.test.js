@@ -202,6 +202,16 @@ describe('home on: a child with no class (the menu\'s no_class) — the share sa
       expect(t.html()).toMatch(new RegExp(`id="wqfc-share"[^>]*>${word}</a>`));
     }
   });
+  test('the corrected Urdu share words (the menu\'s ur_share): «دوستوں کو بھیجیں»; anything but true, and English: today\'s', () => {
+    const label = (lang, extra) => {
+      const t = trail({ lang, menu: { ...FOLD, no_class: true, ...extra }, data: { next_offer: NEXT } });
+      t.TR.tapEnd('bigger-result', {});
+      return /id="wqfc-share"[^>]*>([^<]*)<\/a>/.exec(t.html())[1];
+    };
+    expect(label('ur', { ur_share: true })).toBe('دوستوں کو بھیجیں');
+    expect(label('ur', { ur_share: 'true' })).toBe('شیئر کریں');
+    expect(label('en', { ur_share: true })).toBe('Share');
+  });
   test('no_class without the fold (home off): today\'s label', () => {
     const t = trail({ menu: { card_v3: true, no_class: true, v2: {} } });
     t.TR.tapEnd('bigger-result', {});

@@ -338,12 +338,17 @@ const UR_DESC_ON = {
   class: 'کھیلنا باقی ہے؟ وہی لنک ابھی کھلا ہے۔',
   challenge: 'وہی کوئز کھیلیں اور اپنا اسکور دیکھیں!',
 };
+const UR_DESC_SHARE_CLASS = 'آپ نے ابھی تک نہیں کھیلا؟ یہ لنک ابھی بھی کھلا ہے، آئیں کھیلیں!';
 function ogText(payload, view, brand) {
   const og = ogTextOf(payload, view, brand);
   const ur = ((payload && payload.quiz) || {}).lang === 'ur';
+  // the corrected Urdu share words (web_quiz_ur_share_copy, the bot's `ur_share`): the class table's preview speaks to
+  // the reader and invites, card on or off; off, the card's line (or today's) as before
+  const urShareClass = ur && payload.ur_share === true && view === 'class' && !payload.story;
+  if (urShareClass && payload.card_v3 !== true) return { ...og, desc: UR_DESC_SHARE_CLASS };
   if (!ur || payload.card_v3 !== true) return og;
   const which = payload.challenge && payload.art && payload.art.invite ? 'challenge' : payload.story ? null : view;
-  return { ...og, title: urCount(og.title), desc: urCount(UR_DESC_ON[which] || og.desc) };
+  return { ...og, title: urCount(og.title), desc: urShareClass ? UR_DESC_SHARE_CLASS : urCount(UR_DESC_ON[which] || og.desc) };
 }
 
 function ogTextOf(payload, view, brand) {
@@ -1277,6 +1282,16 @@ function createWebQuizRouter(opts = {}) {
   const now = opts.now || Date.now;
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent, now, timeoutMs: opts.botTimeoutMs || BOT_TIMEOUT_MS });
   const ogKnown = Preview.ttlCache({ max: 2000, now });
+  // web_quiz_head_full: a code's title and language for a guessed head, kept the hour apart from its class link picture
+  // (whose facts go after 120 s, ogKeepMs); the picture is never named from here. Read only while the switch is on.
+  const headKnown = Preview.ttlCache({ max: 2000, now });
+  const learnOg = (code, facts) => {
+    ogKnown.set(code, facts, ogKeepMs(facts));
+    if (facts && facts.art && facts.art.teach) {
+      const { teach, teach_v: teachV, ...art } = facts.art;
+      headKnown.set(code, { ...facts, art }, OG_KEEP_MS);
+    }
+  };
   const artKept = Preview.ttlCache({ max: 200, now });
   // A fresh process asks the bot for the switches it would learn from a first payload (web_quiz_edge_learn, read by the bot;
   // lib/edge-learn.js): once in the background, then every 60 s only while the bot says on (5 s after a failed ask); a
@@ -1543,7 +1558,7 @@ function createWebQuizRouter(opts = {}) {
     if (preview && !known) {
       try {
         const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
-        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, ogKeepMs(known)); }
+        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; learnOg(upper, known); }
       } catch (_) { /* the full path below */ }
     }
     // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read)
@@ -1553,7 +1568,12 @@ function createWebQuizRouter(opts = {}) {
     }
     // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
     // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
-    const guessed = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1' ? { facts: ogKnown.get(upper) } : null;
+    const fastPage = lastFast && view === 'quiz' && !p && !preview && req.query.nf !== '1';
+    // web_quiz_head_full (read only for a page that would stream): a guessed head never says less than the real one. A
+    // browser's guess also takes the code's title and language kept the hour; any other fetcher (a preview fetcher not
+    // on the list, a plain fetch) waits for the bot's answer and gets the real head. Off: today's guess.
+    const full = fastPage && (await Promise.resolve().then(headFullOn).catch(() => false)) === true;
+    const guessed = fastPage && (!full || Preview.fetcherOf(req) === 'browser') ? { facts: ogKnown.get(upper) || (full ? headKnown.get(upper) : null) } : null;
     const flush = guessed
       ? renderQuizFlushTop({ facts: guessed.facts, code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k, plain: lastPlain, linkLang: req.query.lang })
       : null;
@@ -1590,7 +1610,7 @@ function createWebQuizRouter(opts = {}) {
       lastBusyRetry = out.body.busy_retry === true;
       lastPlain = lastFast && out.body.plain_paint === true;
       lastClosedLang = out.body.closed_lang === true;
-      if (!p) { const facts = Preview.ogFacts(out.body); ogKnown.set(upper, facts, ogKeepMs(facts)); }
+      if (!p) learnOg(upper, Preview.ogFacts(out.body));
       // Step timings (the bot's answer carried them: web_quiz_server_timing on), as on the hub page: the flushed page's
       // ride its boot JSON (`st`); a page whose headers have not gone yet says them as one Server-Timing: this edge's
       // wait for the bot, the bot's items, this page's render. Off: no `st`, and the page and its headers are today's.
@@ -1796,6 +1816,8 @@ function createWebQuizRouter(opts = {}) {
     const tv = teach && typeof req.query.v === 'string' && TEACH_V_RX.test(req.query.v) ? req.query.v : '';
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const sq = !teach && req.query.f === 'sq';
+    // w=door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); any other kind ignores it
+    const door = kind === 'invite' && req.query.w === 'door';
     // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
     // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
     const t0 = Date.now();
@@ -1804,12 +1826,12 @@ function createWebQuizRouter(opts = {}) {
     });
     const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}${teach ? ', immutable' : ''}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
-    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}`;
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}${door ? '|door' : ''}`;
     const kept = artKept.get(keyArt);
     if (kept) { seen('edge'); return send(kept); }
     try {
       // the class link's picture is drawn only under its own code: the bot is told which one was asked
-      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? '?f=sq' : '');
+      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? `?f=sq${door ? '&w=door' : ''}` : (door ? '?w=door' : ''));
       const out = await callBot('GET', `/api/internal/wq/art/${id}${q}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
@@ -1864,6 +1886,8 @@ function createWebQuizRouter(opts = {}) {
   const cardFastOn = quickFlag(opts.cardFastOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_fast' }));
   // web_quiz_share_link_lang: an Urdu card's link (`?lang=ur`) previews in Urdu (renderPreviewPage). Off: today's preview.
   const linkLangOn = quickFlag(opts.linkLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang' }));
+  // web_quiz_head_full: see page() (the fast first page's guessed head). Off: today's guess.
+  const headFullOn = quickFlag(opts.headFullOn || StoryAssets.flagReader({ now, key: 'web_quiz_head_full' }));
   const cardCache = opts.cardCache || require('../lib/edge-redis');
   const cardCacheKey = (token) => `wq:card:${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}:${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}`;
   const cachedFacts = async (token) => {

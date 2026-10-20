@@ -611,7 +611,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
     // web_quiz_audio_each_question: the recording writes each question as it is done, so a pending page asks every 5 s.
     // The switch rides the page's identity settings read (above, for one voice): no read of its own.
     if (audioPending && await IdRoster.audioEachQuestion()) lateMs = LATE_FAST_MS;
-    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
+    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, planKnown: true, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
@@ -684,6 +684,10 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await (challengeP || challengeOf(ctx)); }
   // web_quiz_challenge_fold (the hub's switch cache, no read): a door with a challenger puts its way in first (wq.js landing)
   if (out.challenge && require('./web-quiz-hub-flags').nowOf('challengeFold')) out.challenge_fold = true;
+  // web_quiz_end_fit (the hub's switch cache, no read): the end screen's stars stay one row, its headline balanced (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('endFit')) out.end_fit = true;
+  // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
   const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;

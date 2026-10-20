@@ -61,6 +61,7 @@ const Voice = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 const Store = require('./web-quiz-audio-store');
 const Claim = require('./web-quiz-audio-claim');
+const AskPlan = require('./web-quiz-audio-ask-plan');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
 const { resolveUx } = require('../../config/ux-strings');
@@ -386,7 +387,10 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     const language = quizLanguage(quiz, questions);
     // The plan as it applies to this quiz (web-quiz-one-voice-flag.js forQuiz): null records it as today.
     const one = OneVoice.forQuiz(oneVoice === undefined ? await OneVoice.plan({ db: client }) : planOf(oneVoice), quizId, language);
-    const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
+    // web_quiz_audio_cap_one: the cap counts one-voice recordings (meta.web_one) too.
+    const countOne = await require('./web-quiz-audio-cap-one-flag').on({ db: client });
+    const slotDay = countOne ? (((quiz.meta || {})[one ? 'web_one' : 'web'] || {}).audio_day || null) : null;
+    const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError, ...(countOne ? { countOne, slotDay } : {}) });
     if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
     const voice = Voice.quizVoice(language, { oneVoice: one });
     // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
@@ -596,7 +600,11 @@ const REQUEST_AGAIN_MS = 10 * 60 * 1000;
  * AUDIO_VERSION is not queued. If the queue cannot take the job, the clips are made here instead
  * (ensureQuizAudio), so a child is never left without them. Never throws.
  */
-async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false } = {}) {
+async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = false, planKnown = false } = {}) {
+  // web_quiz_audio_ask_plan: the minted link and the old link's redirect name no plan; they ask under the live plan
+  // for this quiz, as the page does, so the page's request is the same job and the queue drops it. The page itself
+  // (planKnown) has resolved the plan already, so it never reads this switch: no settings read the page did not make.
+  if (!oneVoice && !planKnown && quizId && await AskPlan.on({ db })) oneVoice = (await livePlanFor(quizId, db)) || false;
   const web = webOf(meta, { oneVoice });
   if (!quizId || isCurrent(web, { oneVoice })) return { skipped: 'current' };
   // A one-voice request is not the same request: a quiz asked for just before the switch went on (or under
@@ -614,6 +622,19 @@ async function requestQuizAudio(quizId, { meta, queue, publish, db, oneVoice = f
   } catch (error) {
     logError('web_quiz.publish_audio.queue_failed', { event: 'web_quiz.publish_audio.queue_failed', quizId, error: String(error.message || error).slice(0, 200) });
     return ensureQuizAudio(quizId, { meta, db, ...(oneVoice ? { oneVoice } : {}), ...(publish ? { publish } : {}) });
+  }
+}
+
+/** The one-voice plan as it applies to this quiz (its language), or null: the plan the page asks under. */
+async function livePlanFor(quizId, db) {
+  try {
+    const client = db || require('../../config/supabase');
+    const plan = await OneVoice.plan({ db: client });
+    if (!plan) return null;
+    const { data } = await client.from('quizzes').select('language').eq('id', quizId).maybeSingle();
+    return OneVoice.forQuiz(plan, quizId, data && data.language);
+  } catch (_) {
+    return null;
   }
 }
 
