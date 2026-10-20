@@ -391,13 +391,15 @@ export default function LeaderAssess() {
     if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';
   };
+  // an absent or refused row the server keeps on the list is not one of the children to test
+  const isMarkedOut = (c: SaChild) => c.status === 'absent' || c.status === 'absent_final' || c.status === 'refused';
   const elsewhere = (c: SaChild) => !isDone(c) && Boolean(memory?.elsewhere[c.drawId]);
   const sync: SyncItem[] = [
     ...doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) })),
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
   ];
   const bar = (
-    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.length)} startedAt={memory?.startedAt ?? null} sync={sync} />
+    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={memory?.startedAt ?? null} sync={sync} />
   );
 
   const canGoBack = step.kind !== 'schools' && step.kind !== 'engine';
@@ -591,7 +593,7 @@ export default function LeaderAssess() {
           <div data-testid="summary-done"><dt className="text-sm text-slate-500">{copy.summaryDone}</dt><dd className="break-words">{names(doneKids.map((c) => nameOf(c, lang)))}</dd></div>
           <div data-testid="summary-absent"><dt className="text-sm text-slate-500">{copy.summaryAbsent}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'absent').map((o) => o.name))}</dd></div>
           <div data-testid="summary-refused"><dt className="text-sm text-slate-500">{copy.summaryRefused}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'refused').map((o) => o.name))}</dd></div>
-          <div data-testid="summary-unfinished"><dt className="text-sm text-slate-500">{copy.summaryUnfinished}</dt><dd className="break-words">{names(children.filter((c) => Boolean(sessionOf(c)) && !isDone(c) && !elsewhere(c)).map((c) => nameOf(c, lang)))}</dd></div>
+          <div data-testid="summary-unfinished"><dt className="text-sm text-slate-500">{copy.summaryUnfinished}</dt><dd className="break-words">{names(children.filter((c) => Boolean(c.sessionId || sessionOf(c)) && !isDone(c) && !elsewhere(c)).map((c) => nameOf(c, lang)))}</dd></div>
           <div data-testid="summary-other"><dt className="text-sm text-slate-500">{copy.onOtherPhone}</dt><dd className="break-words">{names(children.filter(elsewhere).map((c) => nameOf(c, lang)))}</dd></div>
         </dl>
         <p className="text-slate-800">{copy.totalTime(mmss(started === null ? 0 : Date.now() - started))}</p>
