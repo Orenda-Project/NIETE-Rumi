@@ -112,6 +112,9 @@ const END_FIT_KEY = 'web_quiz_end_fit';
 // web_quiz_end_short (JSON true only, from this cache only: nowOf('endShort'), only beside end_fit): the quiz page answer says
 // `end_short`, so the end screen's Jugnu is smaller on a short screen and the Urdu headline breaks after «سے» (wq.js results)
 const END_SHORT_KEY = 'web_quiz_end_short';
+// web_quiz_end_once (JSON true only, from this cache only: nowOf('endOnce')): the quiz page answer says `end_once`, so
+// Jugnu's end-screen line is picked only from the recorded lines that do not repeat the card's heading (wq.js results)
+const END_ONCE_KEY = 'web_quiz_end_once';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -201,6 +204,7 @@ const SWITCHES = Object.freeze([
   ['earlyUnlock',  EARLY_UNLOCK_KEY,      'json'],
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['endFit',       END_FIT_KEY,           'json'],
+  ['endOnce',      END_ONCE_KEY,          'json'],
   ['endShort',     END_SHORT_KEY,         'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],

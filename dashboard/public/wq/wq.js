@@ -1096,14 +1096,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var set = VOICE_SETS[lang];
     return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
   }
-  function vline(set) {
+  // skip (optional): a word the picked line must not contain; each line keeps its own index, so its recorded clip
+  function vline(set, skip) {
     var lang = VOICE[VLANG] ? VLANG : 'en';
     var lines = VOICE[lang][set] || [];
-    if (!lines.length) return { text: '', url: null };
-    var i = Math.floor(Math.random() * lines.length);
-    if (lines.length > 1 && i === lastPick[set]) i = (i + 1) % lines.length;
+    var ok = [];
+    for (var k = 0; k < lines.length; k++) if (!skip || lines[k].toLowerCase().indexOf(skip) < 0) ok.push(k);
+    if (!ok.length) return skip ? vline(set) : { text: '', url: null };
+    var j = Math.floor(Math.random() * ok.length);
+    if (ok.length > 1 && ok[j] === lastPick[set]) j = (j + 1) % ok.length;
+    var i = ok[j];
     lastPick[set] = i;
     return { text: lines[i], url: voiceUrl(lang, set + '-' + i) };
+  }
+  // web_quiz_end_once (the answer's end_once): Jugnu's done line skips the card heading's last word when both are one
+  // language («مکمل» / "complete"), so the child does not read the heading twice
+  function doneLine() {
+    if (!B.end_once || (VOICE[VLANG] ? VLANG : 'en') !== LANG) return vline('done');
+    var w = String(T.done).toLowerCase().split(/\s+/);
+    return vline('done', w[w.length - 1]);
   }
 
   /* ---------------- sound (off by default) + read-aloud ---------------- */
@@ -2477,7 +2488,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       S.fixed = fixed; save();
       var sc = res.score || {};
       var total = sc.total || N;
-      var done = vline('done');
+      var done = doneLine();
       var h = bar() + endJug('celebrate', done.text, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         endScore(sc.correct, total) +
