@@ -40,6 +40,19 @@ const printsTopics = (slot) => {
   return rule.includes('`topics`') && !rule.includes('no `topics`');
 };
 
+// A passage's groups whose sub-questions print, as [group label, sub-questions], in the slot's
+// `parts_spec` order — the renderer's own (English Q2: i. questions, ii. do as directed). A pick
+// group prints blanks and an antonyms group word pairs, not their questions (bd-5jmnfj.29).
+function partsOf(q, slot) {
+  if (!Array.isArray(q.parts) || !Array.isArray(slot.parts_spec)) return [];
+  return slot.parts_spec.flatMap((spec, k) => {
+    if (spec.pick || spec.key === 'antonyms') return [];
+    const part = q.parts.find((p) => p && p.key === spec.key);
+    if (!part || !Array.isArray(part.questions)) return [];
+    return [[String(spec.label || '').replace(/[.:\s]/g, '') || ROMAN[k], part.questions]];
+  });
+}
+
 // label → the object whose `question` prints, in paper order: Q2b.1 is the second slot's first
 // item, Q2b.1.c its third sub-question. `withTopics` holds the items whose topics print.
 function targetsOf(examJson, P) {
@@ -55,6 +68,9 @@ function targetsOf(examJson, P) {
         (Array.isArray(q.questions) ? q.questions : []).forEach((s, j) => {
           if (s && typeof s === 'object') targets.set(`${label}.${LETTERS[j] || j + 1}`, s);
         });
+        partsOf(q, slot).forEach(([group, subs]) => subs.forEach((s, j) => {
+          if (s && typeof s === 'object') targets.set(`${label}.${group}.${LETTERS[j] || j + 1}`, s);
+        }));
       });
     }
   }
@@ -94,7 +110,7 @@ function buildStemCheckPrompt(examJson, P) {
   const targets = targetsOf(examJson, P);
   const body = [...targets].map(([label, q]) => entryOf(label, q, targets.withTopics.has(q))).join('\n\n');
   const prompt = `STEM CHECK: Grade 5 board question paper.
-Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there. "table:" is printed under its question (rows split by /), so a question that says "the table shows" has its data there. "topics:" are printed under their question as (a), (b), (c) for the child to choose from, so a question that says "any one topic" has its topics there.
+Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. Q2.1.ii.a is sub-question (a) of group ii. under item Q2.1, read with that item's passage above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there. "table:" is printed under its question (rows split by /), so a question that says "the table shows" has its data there. "topics:" are printed under their question as (a), (b), (c) for the child to choose from, so a question that says "any one topic" has its topics there.
 
 Flag a question ONLY when one of these is true:
 1. Its wording contradicts itself or is garbled, so a child cannot tell what is being asked (two questions run together, a "but" that joins things that do not clash, a half sentence).
