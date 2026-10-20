@@ -47,9 +47,11 @@ function mockBuilder(table) {
     const bad = String(cols).split(',').map((c) => c.trim()).find((c) => c && c !== '*' && !have.includes(c));
     return bad ? { code: '42703', message: `column ${table}.${bad} does not exist` } : null;
   };
-  const match = (r) => st.filters.every(([k, v, how]) => (how === 'is' ? r[k] === v : (k === 'meta' ? JSON.stringify(r[k]) === v : r[k] === v)));
+  // a JSON path filter (meta->>v) reads the text of that key, as PostgREST does
+  const valueOf = (r, k) => { const m = /^(\w+)->>(\w+)$/.exec(k); if (!m) return r[k]; const o = r[m[1]]; return o && o[m[2]] != null ? String(o[m[2]]) : null; };
+  const match = (r) => st.filters.every(([k, v, how]) => (how === 'is' ? valueOf(r, k) === v : (k === 'meta' ? JSON.stringify(r[k]) === v : valueOf(r, k) === v)));
   const run = () => {
-    mockDb.calls.push({ table, op: st.op });
+    mockDb.calls.push({ table, op: st.op, filterChars: Math.max(0, ...st.filters.map(([, v]) => String(v).length)) });
     const rows = mockDb.tables[table];
     if (st.op === 'select') {
       const err = missingCol(st.cols);
@@ -289,6 +291,30 @@ describe('batch', () => {
       results: [{ task_id: 'ur.letters', legacy_block: 'ur.letters', mode: 'game', stop_reason: 'time_up', scored_on: 'device', answers: [] }] })).json();
     expect(r).toEqual({ ok: true, acked_to: 2, ackedTo: 2 });
     expect(mockDb.tables.web_quiz_challenge_runs[0].meta.results['ur.letters']).toMatchObject({ legacy_block: 'ur.letters', stop_reason: 'time_up', mode: 'game' });
+  });
+
+  test('a long run (300 events in 6 batches): every batch stored, the stream capped at the last 200, every result kept; no write filter carries the run\'s meta', async () => {
+    const s = await newSession();
+    for (let b = 0; b < 6; b += 1) {
+      const events = Array.from({ length: 50 }, (_, i) => ({ seq: b * 50 + i + 1, type: 'tap', task_id: 'ma.add1', item_id: `i${i}`, value: { tap: String(i) } }));
+      // eslint-disable-next-line no-await-in-loop
+      const r = await post('/batch', { st: s.st, session_id: s.session_id, seq_from: b * 50 + 1, seq_to: b * 50 + 50, events, results: [{ task_id: `ma.t${b}`, attempted: 50 }] });
+      expect([b, r.status]).toEqual([b, 200]);
+    }
+    const meta = mockDb.tables.web_quiz_challenge_runs[0].meta;
+    expect(meta.last_seq).toBe(300);
+    expect(Object.keys(meta.events)).toHaveLength(200);
+    expect(Math.min(...Object.keys(meta.events).map(Number))).toBe(101);
+    expect(meta.events_dropped).toBe(100);
+    expect(Object.keys(meta.results).sort()).toEqual(['ma.t0', 'ma.t1', 'ma.t2', 'ma.t3', 'ma.t4', 'ma.t5']);
+    // a replayed old batch (seqs already dropped) is acked and changes nothing
+    const old = Array.from({ length: 50 }, (_, i) => ({ seq: i + 1, type: 'tap' }));
+    const re = await post('/batch', { st: s.st, session_id: s.session_id, seq_from: 1, seq_to: 50, events: old, results: [] });
+    expect(re.status).toBe(200);
+    expect(Object.keys(mockDb.tables.web_quiz_challenge_runs[0].meta.events)).toHaveLength(200);
+    const updates = mockDb.calls.filter((c) => c.table === 'web_quiz_challenge_runs' && c.op === 'update');
+    expect(updates.length).toBeGreaterThanOrEqual(6);
+    expect(Math.max(...updates.map((c) => c.filterChars))).toBeLessThanOrEqual(64);
   });
 
   test('battery_end completes the run', async () => {
