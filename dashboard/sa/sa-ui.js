@@ -88,6 +88,8 @@
       of: 'of',
       mic_say: 'Say: one, two, three.',
       mic_tap: 'Tap the microphone, then speak',
+      mic_skip: 'Skip for now',
+      mic_skip_say: 'If the microphone is not working, tap Skip.',
       mic_speak: 'Speak now…',
       mic_ask: 'Did you hear yourself?',
       mic_yes: 'I heard myself',
@@ -147,6 +149,8 @@
       of: 'میں سے',
       mic_say: 'کہیں: ایک، دو، تین۔',
       mic_tap: 'مائیک دبائیں، پھر بولیں',
+      mic_skip: 'ابھی چھوڑ دیں',
+      mic_skip_say: 'اگر مائیک کام نہیں کر رہا تو چھوڑ دیں دبائیں۔',
       mic_speak: 'اب بولیں…',
       mic_ask: 'کیا آپ کو اپنی آواز سنائی دی؟',
       mic_yes: 'ہاں، سنائی دی',
@@ -785,6 +789,14 @@
         ], null, true);
       }
       var rec = st.stage === 'rec';
+      // A child who never taps the mic is not stuck: after a wait a quiet "skip" appears, which counts as no working
+      // mic (the reading-aloud tasks are then skipped as mic_unavailable; the check is asked again next run).
+      var skipMs = typeof opts.micSkipMs === 'number' ? opts.micSkipMs : 15000;
+      if (!st.shownAt) {
+        st.shownAt = Date.now();
+        later(function () { if (micSt === st && st.stage === 'idle') { draw(); say({ en: COPY.en.mic_skip_say, ur: COPY.ur.mic_skip_say }); } }, skipMs + 10);
+      }
+      var canSkip = !rec && Date.now() - st.shownAt >= skipMs;
       var mic = h('button', { class: 'sae-mic sae-mic-btn sa-mic' + (rec ? ' is-on' : ''), type: 'button', 'aria-label': C.mic_tap, disabled: rec },
         [h('span', { 'aria-hidden': 'true', text: '🎤' })]);
       mic.addEventListener('click', function () { if (!rec && !busy) probe(); });
@@ -792,7 +804,7 @@
         h('h1', { class: 'sae-h1', text: head }),
         mic,
         h('p', { class: 'sae-sub', text: rec ? C.mic_speak : C.mic_tap }),
-      ], null, true);
+      ], [canSkip ? btn(C.mic_skip, function () { micDone(false, 0); }, 'sae-mic-skip') : null], true);
     }
     function probe() {
       if (typeof opts.micProbe !== 'function') { micDone(false, 0); return; }

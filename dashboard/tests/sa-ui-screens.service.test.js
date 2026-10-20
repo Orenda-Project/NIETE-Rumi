@@ -117,3 +117,33 @@ maybe('sa-ui on a DOM', () => {
     expect(el.querySelectorAll('button.sae-primary')).toHaveLength(0);
   });
 });
+
+describe('sa-ui game mic check: a way past it', () => {
+  let JSDOM2 = null;
+  try { ({ JSDOM: JSDOM2 } = require('jsdom')); } catch (_) { /* not installed */ }
+  (JSDOM2 ? test : test.skip)('a child who never taps the mic gets a skip after the wait → mic_unavailable, no recording task', async () => {
+    const dom = new JSDOM2('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
+    const keep = {};
+    for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) { keep[k] = global[k]; global[k] = k === 'window' ? dom.window : dom.window[k]; }
+    jest.resetModules();
+    try {
+      const core = require('../sa/sa-core');
+      const ui = require('../sa/sa-ui');
+      const rec = { id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: 'w', target: 'a', line: 1 }] };
+      const runner = core.createRunner({ battery: { battery_id: 'b', tasks: [rec] }, mic: () => 'unknown', mic_check: true });
+      const el = document.getElementById('m');
+      const view = ui.mount(el, { runner, battery: { tasks: [rec] }, lang: 'en', mode: 'game', speak: () => Promise.resolve(), micSkipMs: 60, micProbe: () => new Promise(() => {}) });
+      runner.start();
+      view.render();
+      await new Promise((r) => setTimeout(r, 20));
+      expect(el.getAttribute('data-phase')).toBe('mic_check');
+      expect(el.querySelector('.sae-mic-skip')).toBeNull();
+      await new Promise((r) => setTimeout(r, 120));
+      const skip = el.querySelector('.sae-mic-skip');
+      expect(skip).not.toBeNull();
+      skip.click();
+      await new Promise((r) => setTimeout(r, 20));
+      expect(runner.results()[0]).toMatchObject({ task_id: 'story', stop_reason: 'mic_unavailable' });
+    } finally { for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); }
+  });
+});
