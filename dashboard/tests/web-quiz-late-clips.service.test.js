@@ -97,7 +97,8 @@ function page({ quiz, serve = [] }) {
   const runTimers = () => timers.filter((t) => !t.ran).forEach((t) => { t.ran = true; t.fn(); });
   const settle = async () => { for (let k = 0; k < 6; k += 1) await new Promise((r) => setImmediate(r)); };
   const lateDelays = () => timers.filter((t) => t.ms >= 10000).map((t) => t.ms);
-  return { wq: ctx.__wq, voiced, gets, runTimers, settle, lateDelays };
+  const timersAt = (ms) => timers.filter((t) => t.ms === ms).map((t) => t.ms);
+  return { wq: ctx.__wq, voiced, gets, runTimers, settle, lateDelays, timersAt };
 }
 
 describe('a quiz whose clips are recorded while the child plays', () => {
@@ -139,6 +140,26 @@ describe('a quiz whose clips are recorded while the child plays', () => {
     expect(covered).toBeGreaterThanOrEqual(170000);
     expect(covered).toBeLessThanOrEqual(200000);
     expect(p.gets.length).toBe(delays.length);
+  });
+
+  // The recording now writes each question as soon as it is done (web_quiz_audio_each_question): the server says
+  // late_ms 5000 and the page asks every 5 s, still for about three minutes.
+  test('late_ms from the server: asks at that pace for about three minutes, then gives up', async () => {
+    const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', audio_pending: true, late_ms: 5000, topic: 'جانور', grade: 5, questions: [urQ(QID1, 1)] };
+    const p = page({ quiz, serve: Array.from({ length: 80 }, () => ({ quiz })) });
+    for (let k = 0; k < 80; k += 1) { p.runTimers(); await p.settle(); }
+    const delays = p.timersAt(5000);
+    expect(delays.length).toBeGreaterThanOrEqual(34);
+    expect(delays.length).toBeLessThanOrEqual(40);
+    expect(p.gets.length).toBe(delays.length);
+  });
+
+  test('a late_ms below 3 s is never a tight loop', async () => {
+    const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', audio_pending: true, late_ms: 200, topic: 'جانور', grade: 5, questions: [urQ(QID1, 1)] };
+    const p = page({ quiz, serve: Array.from({ length: 80 }, () => ({ quiz })) });
+    for (let k = 0; k < 80; k += 1) { p.runTimers(); await p.settle(); }
+    expect(p.timersAt(200)).toEqual([]);
+    expect(p.gets.length).toBeLessThanOrEqual(60);
   });
 
   test('clips that land between two asks reach the next question within 10 s', async () => {

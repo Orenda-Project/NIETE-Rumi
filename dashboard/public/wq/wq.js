@@ -2023,7 +2023,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      voice, never a silent Urdu quiz (Android has no Urdu phone voice). Every 10 s for three minutes:
      clips land 50-160 s after the first open, and a question read in the gap before the next ask is read
      without a clip that already exists. */
-  var LATE_EVERY_MS = 10000, LATE_TRIES = 18;
+  // late_ms (web_quiz_audio_each_question: each question is written as soon as it is done): ask at that pace, never
+  // faster than every 3 s, still for about three minutes.
+  var LATE_EVERY_MS = Q.late_ms > 0 ? Math.max(3000, Q.late_ms) : 10000, LATE_TRIES = Math.round(180000 / LATE_EVERY_MS);
   var lateTry = 0;
   var lateHook = null; // the question on screen: re-read in the recorded voice if it was read without it
   function lateClips() {
