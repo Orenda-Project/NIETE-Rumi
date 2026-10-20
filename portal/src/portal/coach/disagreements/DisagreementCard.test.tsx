@@ -125,14 +125,22 @@ describe("DisagreementCard", () => {
     expect(document.querySelector('audio[src="https://r2/note.ogg?sig"]')).not.toBeNull();
   });
 
-  it("where to look: closed sections; opened, every indicator with the AI's score", async () => {
+  it("where to look: closed sections; opened, every indicator with the AI's score; no plan says not checked", async () => {
     renderCard();
     const where = await screen.findByTestId("where-to-look");
     expect(within(where).queryByText("Wait time")).toBeNull();
     fireEvent.click(within(where).getByRole("button", { name: /Student Engagement/ }));
     expect(within(where).getByText("Wait time")).toBeInTheDocument();
     expect(within(where).getByText("AI score 3/4")).toBeInTheDocument();
-    expect(within(where).getByRole("button", { name: /Lesson Plan Fidelity/ })).toHaveTextContent("Plan not checked");
+    expect(within(where).getByRole("button", { name: /Lesson Plan Fidelity/ })).toHaveTextContent("not checked");
+  });
+
+  it("where to look: the short tag's recording, the DC's evidence part to play", async () => {
+    D.card.mockResolvedValue(card({ durationSec: 720 }));
+    renderCard();
+    const where = await screen.findByTestId("where-to-look");
+    expect(where).toHaveTextContent("Recording · 12:00");
+    expect(within(where).getByRole("button", { name: "▶ Listen · 2:55 – 3:55" })).toBeInTheDocument();
   });
 
   it("her trend and the full DC report", async () => {

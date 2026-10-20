@@ -9,7 +9,7 @@
  *                                          list's blue dot) — a failed stamp is logged, the card still served
  *   POST /coach/disagreements/:id/visited  "I have visited" — hers only, one-way (no undo route: the
  *                                          tracker's visited_7d counts it)
- *   GET  /coach/disagreements/:id/clip?at= bd-tbprit.2: the disputed step as mp3, hers only, inline and never
+ *   GET  /coach/disagreements/:id/clip?at=[&to=] bd-tbprit.2 (to: bd-tbprit.9): the disputed step as mp3, hers only, inline and never
  *                                          cached; 503 when ffmpeg fails, which the card survives
  */
 const express = require('express');
@@ -71,7 +71,8 @@ function createCoachDisagreementsRouter(deps) {
 
   router.get('/coach/disagreements/:id/clip', ...guards, gate, idOk, async (req, res) => {
     const at = parseAt(req.query.at);
-    if (at == null) return res.status(400).json({ success: false, error: 'Bad time' });
+    const to = req.query.to == null ? null : parseAt(req.query.to);
+    if (at == null || (req.query.to != null && to == null)) return res.status(400).json({ success: false, error: 'Bad time' });
     let url;
     try { url = await recordingFor(req.coachId, req.params.id); } catch (err) {
       console.error('[coach-disagreements] clip lookup failed:', err.message);
@@ -79,7 +80,7 @@ function createCoachDisagreementsRouter(deps) {
     }
     if (!url) return notFound(res);
     let clip;
-    try { clip = await openClip(url, at); } catch (err) {
+    try { clip = await openClip(url, at, to); } catch (err) {
       console.error('[coach-disagreements] clip failed:', err.message);
       return res.status(503).json({ success: false, error: 'Clip unavailable' });
     }

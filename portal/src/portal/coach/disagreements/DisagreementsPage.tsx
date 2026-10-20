@@ -22,8 +22,9 @@ const TAG = "rounded-md px-2 py-px text-[12px] font-bold leading-[1.5]";
 function TagChip({ t }: { t: Tag }) {
   const C = useCopy(DISAGREE);
   const text = t.kind === "recordingLess" ? C.tag.recordingLess(t.before, t.now)
-    : t.kind === "waiting" ? C.tag.waiting(t.days) : C.tag.repeat(t.nth);
-  const red = t.kind === "recordingLess";
+    : t.kind === "waiting" ? C.tag.waiting(t.days)
+    : t.kind === "short" ? C.tag.short(t.minutes) : C.tag.repeat(t.nth);
+  const red = t.kind === "recordingLess" || t.kind === "short";
   return <span data-tone={red ? "red" : "soft"} className={cn(TAG, red ? "bg-[#c2552f] text-white" : "bg-[#fdece7] text-[#b8432a]")}>{text}</span>;
 }
 
