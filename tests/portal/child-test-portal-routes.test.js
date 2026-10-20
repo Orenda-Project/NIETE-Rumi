@@ -233,3 +233,29 @@ describe('the Learning assessment (sa/*): its own switch, the same relay', () =>
     expect(off.payload.features.childTestSa).toBe(false);
   });
 });
+
+describe("the Learning assessment's sink (sa/session/:id/*)", () => {
+  const SID = '55555555-5555-4555-8555-555555555555';
+  const BOT = 'https://bot.example/api/internal/child-test/';
+
+  test('off → 404 and nothing relayed', async () => {
+    expect((await invoke(ROUTES, 'post', '/sa/session/:id/batch', { params: { id: SID } })).statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on → battery, batch, presign, register and status relay the session id from the path and only their fields', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true });
+    const params = { id: SID };
+    await invoke(ROUTES, 'get', '/sa/session/:id/battery', { params, query: { lang: 'en', full: 'true', sessionId: 'forged' } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/battery`, { userId: COACH, sessionId: SID, lang: 'en', full: 'true' }, expect.anything());
+    const events = [{ seq: 0, type: 'tap' }];
+    await invoke(ROUTES, 'post', '/sa/session/:id/batch', { params, body: { seqFrom: 0, seqTo: 0, events, results: [], lang: 'ur', device: { ua: 'x' }, userId: 'forged', sessionId: 'forged' } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/batch`, { userId: COACH, sessionId: SID, seqFrom: 0, seqTo: 0, events, results: [], lang: 'ur', device: { ua: 'x' } }, expect.anything());
+    await invoke(ROUTES, 'post', '/sa/session/:id/presign', { params, body: { taskId: 'ur.story_comp', itemId: 'q2', mime: 'audio/webm', bytes: 10, x: 1 } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/presign`, { userId: COACH, sessionId: SID, taskId: 'ur.story_comp', itemId: 'q2', mime: 'audio/webm', bytes: 10 }, expect.anything());
+    await invoke(ROUTES, 'post', '/sa/session/:id/register', { params, body: { taskId: 'ur.story_comp', itemId: 'q2', key: 'k', durationMs: 3 } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/register`, { userId: COACH, sessionId: SID, taskId: 'ur.story_comp', itemId: 'q2', key: 'k' }, expect.anything());
+    await invoke(ROUTES, 'get', '/sa/session/:id/status', { params });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/status`, { userId: COACH, sessionId: SID }, expect.anything());
+  });
+});
