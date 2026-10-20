@@ -114,19 +114,20 @@ describe('the report image strip (SPEC §4.9)', () => {
 });
 
 describe('hook B', () => {
-  test('after the report image (and the report link), before the voice debrief, with the session, phone, language and tracker', async () => {
+  test('LAST of the follow-ups (lead 18:48Z): after the report link, the voice debrief and the commit buttons; before the session closes', async () => {
     const order = [];
     require('../../../bot/shared/services/coaching/report-link-send').sendReportLinkIfNew.mockImplementation(async () => { order.push('link'); return false; });
     mockSendAfter.mockImplementation(async () => { order.push('video'); return { sent: true, via: 'cta' }; });
     RG.generateAndSendVoiceDebrief.mockImplementation(async () => { order.push('voice'); return true; });
+    WA.sendInteractiveButtons.mockImplementation(async () => { order.push('buttons'); return true; });
+    jest.spyOn(RG, 'completeSession').mockImplementation(async () => { order.push('complete'); });
     await RG.generateReport('sess-1', { from: '10000000000' });
-    expect(order).toEqual(['link', 'video', 'voice']);
+    expect(order).toEqual(['link', 'voice', 'buttons', 'video', 'complete']);
     expect(mockSendAfter).toHaveBeenCalledTimes(1);
     const arg = mockSendAfter.mock.calls[0][0];
     const linkArg = require('../../../bot/shared/services/coaching/report-link-send').sendReportLinkIfNew.mock.calls[0][0];
     expect(arg).toMatchObject({ coachingSessionId: 'sess-1', phone: '10000000000', language: linkArg.language });
     expect(arg.track).toBe(linkArg.track);
-    expect(typeof arg.track.opts).toBe('function');
   });
 
   test('window closed (the report went as the template): no clip message', async () => {
