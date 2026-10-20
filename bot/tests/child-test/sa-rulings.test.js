@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The design RULINGs #10, #13, #16 and #17 in the SA bank: Design A's blocks hold the 18 v3 tasks only; tap first-row
+ * The self-administered design rules in the SA bank: Design A's blocks hold the 18 v3 tasks only; tap first-row
  * stops at chance; missing number typed at Grade 5; sums spoken only on replay; the spelling task; the engine's new
  * lines (oral practice, mic check, mercy, voice not ready, keypad warm-up) in both languages.
  */
@@ -18,8 +18,8 @@ const bank = read('item-bank.sa.v1.json');
 const runtime = (f) => read(`sa/${f}`);
 const task = (b, id) => b.tasks.find((t) => t.id === id);
 
-describe('SA bank: RULINGs #13, #16, #17', () => {
-  test('#16: the coach blocks hold the 18 v3 tasks only (plus their story questions)', () => {
+describe('SA bank: the self-administered design rules', () => {
+  test('the coach blocks hold the 18 v3 tasks only (plus their story questions)', () => {
     for (const id of ['coach.G3.A', 'coach.G5.A']) {
       const blocks = Object.values(bank.forms[id].blocks).flat();
       expect(blocks.filter((t) => !TASKS_V3.includes(t)).sort()).toEqual(['en.story_comp', 'ur.story_comp']);
@@ -27,7 +27,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     }
   });
 
-  test('#17 ⚠4: tap first-row stops at chance (letters ≤ 2 of 10, words and made-up words ≤ 1 of 5); the record side keeps EGRA\'s', () => {
+  test('tap first-row stops at chance (letters ≤ 2 of 10, words and made-up words ≤ 1 of 5); the record side keeps EGRA\'s', () => {
     const b = runtime('sa.coach.G3.A.ur.json');
     for (const id of ['ur.letters', 'en.letters', 'en.letter_sounds']) expect(task(b, id).stop).toEqual({ first_line_n: 10, first_line_min_correct: 3, max_correct: 2 });
     for (const id of ['ur.words', 'ur.nonwords', 'en.words', 'en.nonwords']) expect(task(b, id).stop).toEqual({ first_line_n: 5, first_line_min_correct: 2, max_correct: 1 });
@@ -36,7 +36,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     expect(bank.tasks['coach.G3.A/ur.letters'].deviation).toMatch(/chance/);
   });
 
-  test('#17 M3: missing number is a tap at Grades 1-3 and typed at Grades 4-5, with its two practice items', () => {
+  test('missing number is a tap at Grades 1-3 and typed at Grades 4-5, with its two practice items', () => {
     for (const f of ['sa.coach.G3.A.ur.json', 'sa.game.G1.en.json', 'sa.game.G23.ur.json']) expect([f, task(runtime(f), 'ma.missing').response]).toEqual([f, 'tap']);
     for (const f of ['sa.coach.G5.A.ur.json', 'sa.game.G45.en.json']) {
       const t = task(runtime(f), 'ma.missing');
@@ -46,7 +46,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     }
   });
 
-  test('#17 ⚠5: sums are shown, and spoken only on the replay tile', () => {
+  test('sums are shown, and spoken only on the replay tile', () => {
     const b = runtime('sa.coach.G5.A.en.json');
     for (const id of ['ma.add1', 'ma.sub1', 'ma.add2', 'ma.sub2', 'ma.fluency_l34']) expect([id, task(b, id).say_on]).toEqual([id, 'replay']);
     expect(task(b, 'ma.word_problems').say_on).toBeUndefined();
@@ -77,7 +77,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     for (const id of ['ur.words', 'en.nonwords']) expect(bank.tasks[`coach.G3.A/${id}`].tap.distractor_rule).toBe('same_list_same_length_first_letter');
   });
 
-  test('E15: the spelling task is en.spelling (keyboard), letter-level partial credit, the TK2009 rubric kept', () => {
+  test('the spelling task is en.spelling (keyboard), letter-level partial credit, the TK2009 rubric kept', () => {
     const t = bank.tasks['game.G23/en.spelling'];
     expect(t.subtask).toBe('spelling');
     expect(t.tap.input).toBe('keyboard');
@@ -87,7 +87,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     expect(Object.keys(bank.tasks).some((k) => k.endsWith('/en.dictation'))).toBe(false);
   });
 
-  test('#13/#10/#14/#17: the engine\'s new lines exist in both languages; game copy has no test word', () => {
+  test('the engine\'s new lines (practice, mic check, mercy, voice not ready, keypad warm-up) exist in both languages; game copy has no test word', () => {
     for (const k of ['oral_practice', 'oral_heard', 'mic_check', 'mic_check_ask', 'mercy', 'voice_not_ready', 'keypad_warmup', 'done']) {
       for (const f of ['sa.coach.G3.A.ur.json', 'sa.game.G1.en.json']) {
         const l = runtime(f).lines[k];
@@ -105,7 +105,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     for (const it of bank.tasks['coach.G3.A/ur.print_orientation'].tap.items.slice(0, 3)) expect(/گے[؟۔]?/.test(it.say.text)).toBe(false);
   });
 
-  test('RULING #10: every passage carries the mercy timings as data (12 s → the star offered, 20 s → early_stop_silence)', () => {
+  test('the mercy rule: every passage carries the mercy timings as data (12 s → the star offered, 20 s → early_stop_silence)', () => {
     const files = fs.readdirSync(path.join(DATA, 'sa')).filter((f) => /^sa\..+\.(en|ur)\.json$/.test(f));
     expect(files.length).toBe(10);
     for (const f of files) {
@@ -115,7 +115,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     }
   });
 
-  test('E15: the spelling task keeps its scoring rule in the runtime battery (letter-level partial credit, scored later)', () => {
+  test('the spelling task keeps its scoring rule in the runtime battery (letter-level partial credit, scored later)', () => {
     for (const f of ['sa.game.G23.en.json', 'sa.coach.G3.A.en.json']) {
       const t = task(runtime(f), 'en.spelling');
       if (t) expect(t.scoring).toMatch(/letters in the right place/);
@@ -129,5 +129,14 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
       const internal = new RegExp(['\\b(lead|panel|fix|qa)-egra(-\\d)?\\b', '\\bm-sa-(content|engine)\\b', 'URDU' + '_REVIEW', '\\b1[78]\\d{4}\\b', '\\u26d4'].join('|'));
       expect(src).not.toMatch(internal);
     }
+  });
+
+  test('public repo: the test titles say the rule, never a design-review number', () => {
+    const src = fs.readFileSync(__filename, 'utf8');
+    const titles = [...src.matchAll(/^\s*(?:describe|test)\('((?:[^'\\]|\\.)*)'/gm)].map((m) => m[1]);
+    expect(titles.length).toBeGreaterThan(10);
+    // Built from pieces so this test's own title and pattern do not match.
+    const ref = new RegExp(['RUL' + 'ING', '#\\d', '\\u26a0', '\\b[EM]\\d+\\b'].join('|'));
+    expect(titles.filter((t) => ref.test(t))).toEqual([]);
   });
 });
