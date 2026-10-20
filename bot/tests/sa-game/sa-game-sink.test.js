@@ -220,7 +220,7 @@ describe('session', () => {
   });
 });
 
-describe('exposure (panel: the coach instrument played at home)', () => {
+describe('exposure (the coach instrument played at home)', () => {
   test('each run carries exposure_n: this child\'s runs of that part and form this PKT month, this one counted', async () => {
     await newSession();
     await newSession({ n: 2 });
@@ -324,7 +324,7 @@ describe('batch', () => {
   });
 });
 
-describe('game audio kept only with keep-audio on and consent on file (RULING #17 ⚠️10)', () => {
+describe('game audio kept only with keep-audio on and consent on file', () => {
   const ask = async (extra = {}) => {
     const s = await newSession();
     return post('/audio/presign', { st: s.st, taskId: 'ur.story', mime: 'audio/webm', bytes: 1000, ...extra });

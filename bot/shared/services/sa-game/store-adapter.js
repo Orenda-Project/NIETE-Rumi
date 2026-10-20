@@ -211,7 +211,7 @@ async function readRunRuns({ sessionId }) {
 }
 
 /**
- * How often this child met this part this PKT month (panel: the coach's instrument played at home): the runs of the part
+ * How often this child met this part this PKT month (the coach's instrument, played at home): the runs of the part
  * and form whose day is in `day`'s month, and whether a Big flight was finished then. Game runs live in the runs table
  * (a child-test game run carries the same meta). A failed read answers { ok:false } and the caller decides.
  */
