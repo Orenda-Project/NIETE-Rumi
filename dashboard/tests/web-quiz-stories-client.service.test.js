@@ -3709,7 +3709,7 @@ describe('Your turn, one sheet: the sky band and the picture are one piece, the 
     yourTurn(e2, r2);
     expect(r2.querySelector('[data-art]').getAttribute('data-one')).toBeNull();
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
-    expect(css).toContain('.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none;max-height:var(--wqs-cap,none)}');
+    expect(css).toContain('.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none;max-height:var(--wqs-cap,none);min-height:var(--wqs-min,200px)}');
   });
 });
 
@@ -3760,22 +3760,41 @@ describe('Your turn, one sheet: two books x three phones, reading and hint', () 
     expect(sheetBottom).toBeLessThanOrEqual(stageBottom + 0.5);
     if (on) expect(bandBottom - parseFloat(g.a.style.top)).toBeGreaterThanOrEqual(1);
   });
-  test.each(Object.keys(BOOKS))('%s, the reader: the hint is a bubble over the sheet\'s foot, so the sheet keeps its reading size when it shows', async (bk) => {
-    const e = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, read_sheet: 1, lang: 'ur', dir: 'rtl' }) } } })); const root = await openReader(e, { lang: 'ur' });
+  test.each(CASES)('%s %s: the stage held at the sheet stays held (drawn again in the capped room, the cap is kept, never let go and taken back)', (bk, ph) => {
+    const d = PHONES[ph], g = draw(bk, d), cap = g.st.style['--wqs-cap'];
+    if (cap === 'none') return;
+    const { im, lines } = BOOKS[bk], a = fakeEl('art'), i = fakeEl('i'), m = fakeEl('img');
+    a.querySelector = () => i; i.querySelector = () => m; a.parentNode = g.st;
+    const f = moment().art(a, env().S._cam, im, lines, lines, [d[0], parseFloat(cap)], true, 0, 1);
+    expect([g.st.style['--wqs-cap'], f.s, a.getAttribute('data-art')]).toEqual([cap, g.f.s, g.a.getAttribute('data-art')]);
+    expect(parseFloat(g.st.style['--wqs-min'])).toBeLessThanOrEqual(parseFloat(cap));   // the stage's floor never holds it open past the cap
+  });
+  test('the reader: the hint never resizes the sheet; over the picture\'s foot when there is a picture, a line under the sheet when there is none', async () => {
+    const e = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, read_sheet: 1 }) } } })); const root = await openReader(e);
     toMic(e, root); e.calls.ask[0].onStream({});
-    const cam = root.querySelector('[data-cam]'), reading = [cam.style.transform, cam.style.clipPath, root.querySelector('[data-art]').style.height];
+    const cam = root.querySelector('[data-cam]'), art = root.querySelector('[data-art]'), st = root.querySelector('[data-stage]');
+    const sheet = () => [cam.style.transform, cam.style.clipPath, art.style.top, art.style.height];
+    const reading = sheet();
     e.calls.lr[0].view = () => ({ heard: 0, total: 5 });
+    // no picture on this stage (the band alone, the stage held at it): the hint is a line under the sheet
+    expect(art.getAttribute('data-art')).toBe('off');
     e.advance(6500);
-    const near = root.querySelector('[data-near]'), st = root.querySelector('[data-stage]');
+    const near = root.querySelector('[data-near]');
     expect(near.hidden).toBe(false);
-    expect((st.kids || []).includes(near)).toBe(true);                        // in the stage: out of the page's flow
-    expect([cam.style.transform, cam.style.clipPath, root.querySelector('[data-art]').style.height]).toEqual(reading);
+    expect((st.kids || []).includes(near)).toBe(false);
+    expect(sheet()).toEqual(reading);
+    // with its picture: the hint moves into the stage, a bubble over the picture's foot, out of the page's flow
+    art.setAttribute('data-art', 'on');
+    e.advance(1000);
+    expect((st.kids || []).includes(near)).toBe(true);
+    expect(sheet()).toEqual(reading);
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
     expect(css).toContain('.wqs .wqs-stage>.wqs-near{position:absolute;');
     expect(css).toContain('.wqs .wqs-stage>.wqs-near[hidden]{display:none!important}');
+    expect(css).toContain('.wqs:has(.wqs-stage>[data-art][data-one=on]:not([hidden]))>[data-tap=main]{margin-top:auto}');
     // without the switch: the hint stays where it was, in the page's flow
     const e2 = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1 }) } } })); const r2 = await openReader(e2);
-    toMic(e2, r2); e2.calls.ask[0].onStream({}); e2.calls.lr[0].view = () => ({ heard: 0, total: 5 }); e2.advance(6500);
+    toMic(e2, r2); e2.calls.ask[0].onStream({}); e2.calls.lr[0].view = () => ({ heard: 0, total: 5 }); r2.querySelector('[data-art]').setAttribute('data-art', 'on'); e2.advance(6500);
     expect((r2.querySelector('[data-stage]').kids || []).includes(r2.querySelector('[data-near]'))).toBe(false);
   });
 });
