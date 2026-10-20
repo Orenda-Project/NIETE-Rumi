@@ -89,6 +89,25 @@ maybe('sa-ui on a DOM', () => {
     expect(order.indexOf('record')).toBeGreaterThan(order.indexOf('spoken'));
   });
 
+  test('proctored hand-back: the coach\'s 3-s press-and-hold reaches the engine (onUnlock), with no error', async () => {
+    const unlocked = [];
+    const errors = [];
+    const onErr = (e) => errors.push(e.message || String(e));
+    window.addEventListener('error', onErr);
+    const one = { id: 'k', mode: 'keypad', items: [{ id: 'k1', target: '4' }] };
+    const { runner, el, view } = mount({ battery_id: 'b', tasks: [one] }, { runner: {}, ui: { mode: 'proctored', onUnlock: () => unlocked.push(1), back: '/portal/leader/assess' } });
+    runner.start(); runner.instructionDone(); runner.begin(); runner.answer('4'); runner.next();
+    view.render();
+    await flush();
+    const hold = el.querySelector('.sae-hold');
+    expect(hold).not.toBeNull();
+    hold.dispatchEvent(new window.Event('pointerdown', { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 3300));
+    window.removeEventListener('error', onErr);
+    expect(errors).toEqual([]);
+    expect(unlocked).toEqual([1]);
+  }, 10000);
+
   test('voice not ready: the whole screen says so; proctored has no way on', async () => {
     const { el, view } = mount({ battery_id: 'b', tasks: [keys], lines: { voice_not_ready: { en: 'Jugnu cannot speak on this phone yet.', ur: 'x' } } },
       { runner: {}, ui: { mode: 'proctored' } });
