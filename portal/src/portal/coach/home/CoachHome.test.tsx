@@ -8,9 +8,11 @@ vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</>
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf Atif", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
 vi.mock("../../services/api", () => ({ coach: { getHome: vi.fn() } }));
 vi.mock("../../lib/useChildTest", () => ({ useChildTest: vi.fn(() => false) }));
+vi.mock("../../lib/useChildTestSa", () => ({ useChildTestSa: vi.fn(() => false) }));
 import { coach } from "../../services/api";
 import CoachHome from "../pages/CoachHome";
 import { useChildTest } from "../../lib/useChildTest";
+import { useChildTestSa } from "../../lib/useChildTestSa";
 
 /**
  * bd-4404s7.2 — coach Home on the kit (Coach_Home / Coach_HomeBusy / Coach_Home_Urdu): the NIETE band (no school row,
@@ -104,6 +106,18 @@ describe("CoachHome (kit)", () => {
     vi.mocked(useChildTest).mockReturnValue(true);
     renderHome();
     expect(await screen.findByTestId("more-row-child-test")).toHaveAttribute("href", "/portal/leader/child-test");
+  });
+
+  it("Learning assessment: no row with the flag off, a row to /portal/leader/assess with it on", async () => {
+    const first = renderHome();
+    await screen.findByTestId("feature-tiles");
+    expect(screen.queryByTestId("more-row-assess")).toBeNull();
+    first.unmount();
+    vi.mocked(useChildTestSa).mockReturnValue(true);
+    renderHome();
+    expect(await screen.findByTestId("more-row-assess")).toHaveAttribute("href", "/portal/leader/assess");
+    expect(screen.getByTestId("more-row-assess")).toHaveTextContent("Learning assessment");
+    vi.mocked(useChildTestSa).mockReturnValue(false);
   });
 
   it("no visits today: tiles still show and the count is a quiet 0", async () => {

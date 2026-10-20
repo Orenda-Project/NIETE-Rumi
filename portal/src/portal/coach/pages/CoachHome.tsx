@@ -9,6 +9,7 @@ import { useCopy, useLang } from "../../teacher/i18n";
 import { fullName, todayLabel } from "../../teacher/format";
 import { Card, RowLink } from "../../teacher/pages/More";
 import { useChildTest } from "../../lib/useChildTest";
+import { useChildTestSa } from "../../lib/useChildTestSa";
 import { COACH_PROFILE } from "../profile/copy";
 import CoachGate from "../CoachGate";
 import { COACH_HOME } from "../home/copy";
@@ -27,6 +28,7 @@ const CoachHome = () => {
   const W = useCopy(COACH_HOME);
   const P = useCopy(COACH_PROFILE);
   const childTest = useChildTest() === true;
+  const assess = useChildTestSa() === true;
   const lang = useLang();
   const { user } = useAuth();
   const { data, failed, reload } = useLoad(() => coach.getHome(), []);
@@ -84,6 +86,11 @@ const CoachHome = () => {
         {childTest && (
           <Card label={P.childTest}>
             <RowLink id="child-test" to="/portal/leader/child-test" icon={ClipboardCheck} label={P.childTest} />
+          </Card>
+        )}
+        {assess && (
+          <Card label={P.assess}>
+            <RowLink id="assess" to="/portal/leader/assess" icon={ClipboardCheck} label={P.assess} />
           </Card>
         )}
       </TeacherPage>
