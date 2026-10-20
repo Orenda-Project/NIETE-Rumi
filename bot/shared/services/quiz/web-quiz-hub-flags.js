@@ -97,6 +97,9 @@ const CLASS_ROWS_KEY = 'web_quiz_class_rows_together';
 // web_quiz_challenge_early (JSON true only, from this cache only: nowOf('challengeEarly')): a friend's challenge code reads its
 // parent class code in its own row's read, and the challenger's score starts once the code is known (web-quiz.service.js)
 const CHALLENGE_EARLY_KEY = 'web_quiz_challenge_early';
+// web_quiz_challenge_fold (JSON true only, from this cache only: nowOf('challengeFold')): a friend's challenge door says
+// `challenge_fold`, so the page puts Play right after the challenge line and the invite picture under it (wq.js landing)
+const CHALLENGE_FOLD_KEY = 'web_quiz_challenge_fold';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -170,6 +173,7 @@ const SWITCHES = Object.freeze([
   [null,           CARD_KEY,              'read'],
   ['challenge',    CHALLENGE_KEY,         'loose'],
   ['challengeEarly', CHALLENGE_EARLY_KEY, 'json'],
+  ['challengeFold', CHALLENGE_FOLD_KEY,   'json'],
   ['rungs',        RUNGS_KEY,             'loose'],
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
