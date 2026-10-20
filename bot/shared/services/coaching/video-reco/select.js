@@ -4,10 +4,16 @@
  * name (coaching.videoReco, model-registry), and the validation every answer passes before it is stored.
  * The teacher-facing reason comes from the model; this code only checks it.
  */
-const { modelFor } = require('../../../config/model-registry');
+const { modelFor, JOBS } = require('../../../config/model-registry');
 
 const JOB = 'coaching.videoReco';
-const LLM_TIMEOUT_MS = 20000;
+const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
+
+/** The job's reasoning effort: VIDEO_RECO_REASONING, else the registry default ('low'). */
+function reasoningEffort(env = process.env) {
+  const r = (JOBS[JOB] && JOBS[JOB].reasoning) || {};
+  return String((r.env && env[r.env]) || r.default || '').trim() || undefined;
+}
 
 async function pick({ prompt, deps = {}, timeoutMs = LLM_TIMEOUT_MS }) {
   const call = deps.completeJson
@@ -19,7 +25,7 @@ async function pick({ prompt, deps = {}, timeoutMs = LLM_TIMEOUT_MS }) {
   try {
     // 4000 = completeJson's own default: gpt-5-mini spends its budget on hidden reasoning before the answer, and at 700
     // the first real call came back finish_reason=length with empty content (evals, 18:16Z).
-    const res = await Promise.race([call(prompt, { job: JOB, maxTokens: 4000, label: 'videoReco' }), timeout]);
+    const res = await Promise.race([call(prompt, { job: JOB, maxTokens: 4000, label: 'videoReco', reasoningEffort: reasoningEffort(deps.env) }), timeout]);
     const result = (res && res.result) || null;
     const empty = !result || typeof result !== 'object' || !Object.keys(result).length;
     return { pick: result, usage: (res && res.usage) || {}, model: modelFor(JOB), truncated: (res && res.finishReason === 'length') || empty };
@@ -122,4 +128,4 @@ function validate(p, shortlist, excerpts, opts) {
   }
 }
 
-module.exports = { pick, validate, quoteFound, JOB, LLM_TIMEOUT_MS };
+module.exports = { pick, validate, quoteFound, reasoningEffort, JOB, LLM_TIMEOUT_MS };
