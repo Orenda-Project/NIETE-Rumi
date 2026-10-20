@@ -183,6 +183,13 @@ describe('sendAfterReport (hooks B and B2): the row is read by session', () => {
     expect(await send.sendAfterReport({ coachingSessionId: SESSION, phone: PHONE, language: 'en', row: Promise.resolve(ROW), deps })).toEqual({ sent: true, via: 'cta_header' });
     expect(deps.store.readForSession).not.toHaveBeenCalled();
   });
+  test('an engine promise that never settles: the wait is capped (default 60 s = the engine timeout), nothing sent', async () => {
+    const t0 = Date.now();
+    expect(await send.sendAfterReport({ coachingSessionId: SESSION, phone: PHONE, language: 'en', row: new Promise(() => {}), capMs: 50, deps })).toEqual({ sent: false, via: null });
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(wa.sendCtaUrl).not.toHaveBeenCalled();
+    expect(send.WAIT_CAP_MS).toBe(60000);
+  });
   test('handed a null row (the engine stored nothing / flag off in the engine) → nothing, no read', async () => {
     expect(await send.sendAfterReport({ coachingSessionId: SESSION, phone: PHONE, language: 'en', row: Promise.resolve(null), deps })).toEqual({ sent: false, via: null });
     expect(deps.store.readForSession).not.toHaveBeenCalled();

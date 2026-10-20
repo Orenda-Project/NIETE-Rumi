@@ -85,6 +85,7 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks(); });
 
 
+// staging/main port: generatePDFReport(session, teacherName, analysis, commitment, nextStep, videoStrip) — no loop param, so the strip is arg 5.
 describe('the report image strip (SPEC §4.9)', () => {
   beforeEach(() => mockStripFor.mockReset().mockResolvedValue(null));
   test('a strip → handed to the hero render, and the clip message records image_strip', async () => {
@@ -92,19 +93,20 @@ describe('the report image strip (SPEC §4.9)', () => {
     mockStripFor.mockResolvedValue(STRIP);
     await RG.generateReport('sess-1', { from: '10000000000' });
     expect(mockStripFor).toHaveBeenCalledWith(expect.objectContaining({ coachingSessionId: 'sess-1' }));
-    expect(RG.generatePDFReport.mock.calls[0][6]).toEqual(STRIP);
+    expect(typeof (mockStripFor.mock.calls[0][0].row && mockStripFor.mock.calls[0][0].row.then)).toBe('function');
+    expect(RG.generatePDFReport.mock.calls[0][5]).toEqual(STRIP);
     expect(mockSendAfter.mock.calls[0][0].imageStrip).toBe(true);
   });
   test('no strip → the hero render gets null, image_strip false', async () => {
     await RG.generateReport('sess-1', { from: '10000000000' });
-    expect(RG.generatePDFReport.mock.calls[0][6]).toBeNull();
+    expect(RG.generatePDFReport.mock.calls[0][5]).toBeNull();
     expect(mockSendAfter.mock.calls[0][0].imageStrip).toBe(false);
   });
   test('stripFor throwing never fails the report', async () => {
     mockStripFor.mockRejectedValue(new Error('boom'));
     await RG.generateReport('sess-1', { from: '10000000000' });
     expect(RG.generatePDFReport).toHaveBeenCalled();
-    expect(RG.generatePDFReport.mock.calls[0][6]).toBeNull();
+    expect(RG.generatePDFReport.mock.calls[0][5]).toBeNull();
   });
   test('generatePDFReport puts the strip on the hero input; absent → no key (the hero opts are as today)', () => {
     const SRC = require('fs').readFileSync(require.resolve('../../../bot/shared/services/coaching/report-generator.service'), 'utf8');
@@ -128,6 +130,7 @@ describe('hook B', () => {
     const linkArg = require('../../../bot/shared/services/coaching/report-link-send').sendReportLinkIfNew.mock.calls[0][0];
     expect(arg).toMatchObject({ coachingSessionId: 'sess-1', phone: '10000000000', language: linkArg.language });
     expect(arg.track).toBe(linkArg.track);
+    expect(typeof (arg.row && arg.row.then)).toBe('function'); // hook A's promise, awaited by the sender (merge step, SPEC §4.4)
   });
 
   test('window closed (the report went as the template): no clip message', async () => {

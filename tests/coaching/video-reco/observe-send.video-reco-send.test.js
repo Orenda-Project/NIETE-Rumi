@@ -155,6 +155,8 @@ describe('hook B2', () => {
     expect(mockSendAfter).toHaveBeenCalledTimes(1);
     expect(mockSendAfter.mock.calls[0][0]).toMatchObject({ coachingSessionId: SESSION_ID, phone: TEACHER_PHONE, language: 'en' });
     expect(order).toEqual([`image:${TEACHER_PHONE}`, `video:${TEACHER_PHONE}`]);
+    const row = mockSendAfter.mock.calls[0][0].row;
+    expect(typeof (row && row.then)).toBe('function'); // hook A2's promise
   });
 
   test('deliver with the window open: the clip goes too', async () => {
