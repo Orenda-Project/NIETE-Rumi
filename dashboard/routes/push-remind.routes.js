@@ -100,7 +100,15 @@ function createPushRemindRouter(opts = {}) {
   const router = express.Router();
   const phoneLang = (req) => (/^\s*en\b/i.test(String(req.get('accept-language') || '')) ? 'en' : 'ur');
 
-  router.get('/sw.js', (req, res, next) => {
+  // The edge's switch answers its last value while a read is out, and OFF before its first read lands: a cold process
+  // would hand a child the kill-switch worker. So the first answer waits for the first read (one read per process).
+  let primed = false;
+  router.get('/sw.js', async (req, res, next) => {
+    if (!primed && typeof on.ready === 'function') {
+      on();
+      try { await on.ready(); } catch (_) { /* answers what the switch says */ }
+      primed = true;
+    }
     const file = on() ? 'sw.js' : 'sw-off.js';
     res.set({ 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' });
     return res.sendFile(path.join(WQ_DIR, file), { dotfiles: 'allow', headers: { 'Cache-Control': 'no-cache' }, cacheControl: false, lastModified: false }, (err) => { if (err && !res.headersSent) next(); });
