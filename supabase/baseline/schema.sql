@@ -15977,6 +15977,120 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES 
 
 
 --
+-- Name: coach_visit_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.coach_visit_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    coaching_session_id uuid NOT NULL,
+    teacher_user_id uuid NOT NULL,
+    coach_user_id uuid,
+    school_id uuid,
+    ab_group text NOT NULL,
+    status text NOT NULL,
+    wa_message_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    reasons text[],
+    voice_note_key text,
+    opened_at timestamp with time zone,
+    coach_plan jsonb,
+    CONSTRAINT coach_visit_requests_ab_group_check CHECK ((ab_group = ANY (ARRAY['C'::text, 'D'::text]))),
+    CONSTRAINT coach_visit_requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text, 'no_coach'::text, 'visited'::text])))
+);
+
+
+--
+-- Name: TABLE coach_visit_requests; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.coach_visit_requests IS 'ICT G1-5 v10 coaching test (bd-v0toag.45): a C/D teacher who disagreed with her AI report asked for a coach to observe. One row per report; status pending -> sent | failed, or no_coach. Ids only. Transitional — dropped when the test is promoted.';
+
+
+--
+-- Name: COLUMN coach_visit_requests.reasons; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.coach_visit_requests.reasons IS 'bd-v0toag.38.9: the reason codes she ticked (score, missed, wont_work, unclear). Empty = voice note only.';
+
+
+--
+-- Name: COLUMN coach_visit_requests.voice_note_key; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.coach_visit_requests.voice_note_key IS 'bd-v0toag.38.9: R2 key of her voice note (up to 20 s); nulled when the coach marks the visit done and the note is deleted.';
+
+
+--
+-- Name: COLUMN coach_visit_requests.opened_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.coach_visit_requests.opened_at IS 'bd-tbprit.7: when the request''s coach first opened the disagreement card. NULL = not opened (the list''s blue dot).';
+
+
+--
+-- Name: COLUMN coach_visit_requests.coach_plan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.coach_visit_requests.coach_plan IS 'bd-tbprit.11: the coach''s step-4 choices {found, mode, flagged, flaggedAt, addedToVisitAt, sentAt, ai{0..3}}. Sensitivity: internal. No names or message text. NULL = untouched.';
+
+
+--
+-- Name: coach_visit_requests coach_visit_requests_coaching_session_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coach_visit_requests
+    ADD CONSTRAINT coach_visit_requests_coaching_session_id_key UNIQUE (coaching_session_id);
+
+
+--
+-- Name: coach_visit_requests coach_visit_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coach_visit_requests
+    ADD CONSTRAINT coach_visit_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: coach_visit_requests coach_visit_requests_coach_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coach_visit_requests
+    ADD CONSTRAINT coach_visit_requests_coach_user_id_fkey FOREIGN KEY (coach_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: coach_visit_requests coach_visit_requests_coaching_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coach_visit_requests
+    ADD CONSTRAINT coach_visit_requests_coaching_session_id_fkey FOREIGN KEY (coaching_session_id) REFERENCES public.coaching_sessions(id);
+
+
+--
+-- Name: coach_visit_requests coach_visit_requests_school_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coach_visit_requests
+    ADD CONSTRAINT coach_visit_requests_school_id_fkey FOREIGN KEY (school_id) REFERENCES public.schools(id);
+
+
+--
+-- Name: coach_visit_requests coach_visit_requests_teacher_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.coach_visit_requests
+    ADD CONSTRAINT coach_visit_requests_teacher_user_id_fkey FOREIGN KEY (teacher_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: coach_visit_requests; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.coach_visit_requests ENABLE ROW LEVEL SECURITY;
+
+
+--
 -- PostgreSQL database dump complete
 --
 

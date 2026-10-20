@@ -5,7 +5,7 @@ import { useCopy } from "../../teacher/i18n";
 import { AudioPlayer } from "../../newui/AudioPlayer";
 import { Fold } from "../../newui/Panel";
 import { FOCUS, OUTLINE_WIDE, ROW_SUB } from "../../teacher/ui/styles";
-import { disagreements, type Card, type Evidence, type Item, type Move } from "./api";
+import { disagreements, type Card, type Evidence, type Item, type Move, type View } from "./api";
 import { DISAGREE } from "./copy";
 import { markOf, type Mark } from "./sections";
 
@@ -77,11 +77,31 @@ function MoveRow({ move, k }: { move: Move; k: string }) {
 export const Items = ({ items, prefix }: { items: Item[]; prefix: string }) =>
   items.length ? <ul className="flex flex-col gap-2.5">{items.map((i) => <ItemRow key={i.id} item={i} k={`${prefix}:${i.id}`} />)}</ul> : null;
 
-export function ReasonBlock({ e }: { e: Evidence }) {
+/** bd-tbprit.14 — Rifat (20 Oct): the score reason is one line; every indicator is already in B and the full report. */
+function ScoreLine({ view }: { view?: View }) {
+  const C = useCopy(DISAGREE);
+  const h = view?.header;
+  const checked = (view?.sections ?? []).filter((s) => !s.notAssessed && s.pct != null);
+  const lowest = checked.length ? checked.reduce((a, b) => ((b.pct as number) < (a.pct as number) ? b : a)) : null;
+  const noPlan = view?.sections.some((s) => s.key === "lesson_plan_fidelity" && s.notAssessed);
+  const tail = noPlan ? C.scoreNoPlan : lowest ? C.scoreLowest(lowest.name, lowest.pct as number) : C.scoreDetails;
+  return (
+    <>
+      <p className={ROW_SUB}>{C.scoreSub}</p>
+      <p dir="auto" className="text-[15px] text-[#1d2025]">
+        {h?.pct == null ? C.dash : <b>{h.pct}%</b>}
+        {h?.marks != null && h.max != null ? ` ${h.marks} / ${h.max}` : ""}
+        {tail}
+      </p>
+    </>
+  );
+}
+
+export function ReasonBlock({ e, view }: { e: Evidence; view?: View }) {
   const C = useCopy(DISAGREE);
   let body: ReactNode;
   if (e.code === "score") {
-    body = <Items items={e.items} prefix="score" />;
+    body = <ScoreLine view={view} />;
   } else if (e.code === "missed") {
     body = (
       <>

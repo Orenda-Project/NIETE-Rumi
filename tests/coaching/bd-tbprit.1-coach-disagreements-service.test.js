@@ -83,6 +83,7 @@ function fakeSupabase(tables) {
       eq(k, v) { q.filters.push(['eq', k, v]); return chain; },
       in(k, v) { q.filters.push(['in', k, v]); return chain; },
       gte() { return chain; },
+      lte() { return chain; },
       order() { return chain; },
       limit() { return chain; },
       maybeSingle() { return Promise.resolve({ data: rowsOf()[0] || null, error: null }); },

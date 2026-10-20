@@ -353,6 +353,17 @@ WEB_SPEC_DIR = os.path.join("tests", "features", "web")
 WEB_DRIVER_DIR = os.path.join(".claude", "qa", "web", "features")
 _WEB_SPEC_ID_RE = re.compile(r"^\s*@([A-Z]{2}\d{1,3})\b", re.M)
 _WEB_CODE_ID_RE = re.compile(r"""(?:\bid:\s*|pagesScenario\(\s*)['"]([A-Z]{2}\d{1,3})['"]""")
+# a hand-written flow a generated driver joins on (gen_page_features.py EXTRA): its scenarios are the driver's too
+_WEB_FLOW_RE = re.compile(r"""require\(\s*['"](\.\./flows/[\w.-]+\.cjs)['"]\s*\)""")
+
+
+def _web_code_ids(driver):
+    text = open(driver, encoding="utf-8").read()
+    for rel in _WEB_FLOW_RE.findall(text):
+        flow = os.path.join(os.path.dirname(driver), rel)
+        if os.path.isfile(flow):
+            text += open(flow, encoding="utf-8").read()
+    return set(_WEB_CODE_ID_RE.findall(text))
 
 
 def _web_drivers(driver_dir):
@@ -371,7 +382,7 @@ def validate_web_file(path, driver_dir):
                                 "no %s/%s.cjs — nothing will ever run this spec" % (WEB_DRIVER_DIR, name)))
         return problems
     spec_ids = set(_WEB_SPEC_ID_RE.findall(open(path, encoding="utf-8").read()))
-    code_ids = set(_WEB_CODE_ID_RE.findall(open(os.path.join(driver_dir, name + ".cjs"), encoding="utf-8").read()))
+    code_ids = _web_code_ids(os.path.join(driver_dir, name + ".cjs"))
     for sid in sorted(spec_ids - code_ids):
         problems.append(Problem("error", "E-WEB-NOCODE", path, 1,
                                 "@%s has no code in %s/%s.cjs — it can never pass, fail or block. Add it "
