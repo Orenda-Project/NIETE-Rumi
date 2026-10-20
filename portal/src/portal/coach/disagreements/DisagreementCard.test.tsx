@@ -73,10 +73,23 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => { await i18n.changeLanguage("en"); }); });
 
 describe("DisagreementCard", () => {
+  it("Rifat's top: N, her name, Disagrees with report · review, back to the list; the head, the banner, her reasons", async () => {
+    renderCard();
+    await screen.findByTestId("card-head");
+    const bar = screen.getByTestId("disagreements-appbar");
+    expect(within(bar).getByTestId("appbar-mark")).toHaveTextContent("N");
+    expect(bar).toHaveTextContent("Bushra Ali");
+    expect(bar).toHaveTextContent("Disagrees with report · review");
+    expect(within(bar).getByTestId("appbar-back")).toHaveAttribute("href", "/portal/coach/disagreements");
+    expect(screen.getByTestId("card-pct")).toHaveTextContent("61%");
+    expect(screen.getByTestId("card-banner")).toHaveTextContent("3 reasons + voice note");
+    expect(screen.getAllByTestId("reason-pill")).toHaveLength(3);
+  });
+
   it("each reason with the grader's evidence: the indicator, the AI's score out of 4, its quote", async () => {
     renderCard();
     const score = await screen.findByTestId("reason-score");
-    expect(score).toHaveTextContent("Score doesn't seem right");
+    expect(score).toHaveTextContent("My score doesn't seem right");
     expect(score).toHaveTextContent("Active Participation Rate");
     expect(score).toHaveTextContent("AI score 1/4");
     expect(score).toHaveTextContent("Quote for Active Participation Rate");
