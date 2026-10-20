@@ -27,8 +27,8 @@ describe('distinctNames', () => {
     ]);
     expect(out).toEqual([
       'Use unitary method: many objects',
-      'Use unitary method: one object when',
-      'Use unitary method: many objects when',
+      'Use unitary method: one object',
+      'Use unitary method: many objects (2)',
     ]);
   });
 
