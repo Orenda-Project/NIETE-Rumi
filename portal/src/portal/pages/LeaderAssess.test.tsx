@@ -309,6 +309,22 @@ describe("LeaderAssess", () => {
     expect(screen.getByTestId("assess-visit-bar")).not.toHaveTextContent("sending");
   });
 
+  it("answers in but recordings still on the phone: 'audio waiting', and the poll goes on until they arrive", async () => {
+    await openList();
+    const s = await startChild();
+    const st = (audioWaiting: string[]) => ({ session: { id: "server-1", status: "completed", grade: 3, form: "sa.coach.G3.A.en" }, block: "B1", lastSeq: 9, tasksDone: ["ur.story"], audio: [], audioWaiting });
+    api.getStatus.mockResolvedValue(st(["ur.story"]));
+    saDone(s);
+    await screen.findByTestId("assess-child-d1");
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("audio waiting"));
+    expect(screen.getByTestId("assess-visit-bar")).not.toHaveTextContent("sent");
+    api.getStatus.mockResolvedValue(st([]));
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("sent"));
+    expect(screen.getByTestId("assess-visit-bar")).not.toHaveTextContent("audio waiting");
+  });
+
   it("a session the server has completed shows Done and counts as sent", async () => {
     api.getList.mockResolvedValue({ list: { ...LIST, children: [child(1, { status: "tested", sessionId: "x", sessionStatus: "completed" }), ...LIST.children.slice(1)] } });
     await openList();

@@ -418,6 +418,7 @@ const saStatus = onSession('sa_status', async ({ sessionId }, d, session, sa) =>
     lastSeq: sum.lastSeq,
     tasksDone: sum.tasksDone,
     audio: sum.audio,
+    audioWaiting: sum.audioWaiting || [],
   };
 });
 

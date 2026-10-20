@@ -133,7 +133,7 @@ describe('markSynced and summary', () => {
     await Store.markSynced('s1', { lastSeq: 7, block: 'B1' });
     await Store.putResults('s1', [{ task_id: 'ur.letters', mode: 'tap', scored_on: 'phone', correct: 1 }], 'ur');
     await Store.setAudio('s1', 'ur.story', null, 'k');
-    expect(await Store.summary('s1')).toEqual({ ok: true, lastSeq: 7, block: 'B1', tasksDone: ['ur.letters'], audio: ['ur.story'] });
+    expect(await Store.summary('s1')).toEqual({ ok: true, lastSeq: 7, block: 'B1', tasksDone: ['ur.letters'], audio: ['ur.story'], audioWaiting: [] });
   });
 
   test('the phone readiness fields persisted and voice are kept on the device', async () => {
@@ -152,6 +152,19 @@ describe('markSynced and summary', () => {
     expect(kept).toHaveLength(200);
     expect(kept[0].seq).toBe(1);
     expect(kept[199].seq).toBe(206);
+  });
+
+  test('audioWaiting: a recorded or spoken subtask whose answers arrived but no recording yet; not one with no microphone or audio not kept', async () => {
+    await Store.putResults('s1', [
+      { task_id: 'ur.story', mode: 'record', correct: 0 },
+      { task_id: 'en.listening', mode: 'oral', correct: 0 },
+      { task_id: 'ur.letters', mode: 'tap', scored_on: 'phone', correct: 1 },
+      { task_id: 'en.story', mode: 'record', stop_reason: 'mic_unavailable' },
+      { task_id: 'ur.listening', mode: 'oral', audio: 'not_kept' },
+    ], 'ur');
+    expect((await Store.summary('s1')).audioWaiting).toEqual(['ur.story', 'en.listening']);
+    await Store.setAudio('s1', 'ur.story', null, 'k');
+    expect((await Store.summary('s1')).audioWaiting).toEqual(['en.listening']);
   });
 
   test('no such session', async () => {

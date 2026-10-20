@@ -175,10 +175,20 @@ async function setAudio(sessionId, taskId, itemId, key, { scoreLater = false } =
   return updateRow(row.id, patch, 'setAudio');
 }
 
+const hasAudio = (r) => Boolean(r.audio_r2_key || (Array.isArray(r.audio_r2_keys) && r.audio_r2_keys.length));
+
+/** A spoken subtask whose answers have arrived but whose recording is still on the phone. */
+function audioWaiting(r) {
+  if (!['record', 'oral'].includes(r.response_mode) || hasAudio(r)) return false;
+  const result = (Array.isArray(r.responses) && r.responses.find((x) => x && x.kind === 'result')) || null;
+  if (!result) return false;
+  return result.stop_reason !== 'mic_unavailable' && result.audio !== 'not_kept';
+}
+
 async function summary(sessionId) {
   const [sess, blocks] = await Promise.all([
     getSession(sessionId),
-    supabase.from(BLOCKS).select('block, responses, audio_r2_key, audio_r2_keys').eq('session_id', sessionId),
+    supabase.from(BLOCKS).select('block, responses, response_mode, audio_r2_key, audio_r2_keys').eq('session_id', sessionId),
   ]);
   if (!sess.ok) return sess;
   if (blocks.error) return fail('summary', blocks.error, { sessionId });
@@ -189,7 +199,8 @@ async function summary(sessionId) {
     lastSeq: Number.isInteger(dev.last_seq) ? dev.last_seq : null,
     block: dev.block || null,
     tasksDone: rows.filter((r) => Array.isArray(r.responses) && r.responses.length).map((r) => r.block),
-    audio: rows.filter((r) => r.audio_r2_key || (Array.isArray(r.audio_r2_keys) && r.audio_r2_keys.length)).map((r) => r.block),
+    audio: rows.filter(hasAudio).map((r) => r.block),
+    audioWaiting: rows.filter(audioWaiting).map((r) => r.block),
   };
 }
 
