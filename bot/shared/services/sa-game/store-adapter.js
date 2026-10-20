@@ -37,6 +37,13 @@ const RESULTS = 'child_test_sa_results';
 // a batch then costs its own size, not the run's. Results, last_seq and finished_at are always kept in full.
 const EVENTS_KEPT = 200;
 const META_TRIES = 5;
+const REPLAYS_KEPT = 5;
+const AUDIO_FLAGS = ['audio', 'audio_reason', 'mode'];
+/** The same play's result sent again (a retry, an audio flag stamped later): equal but for the audio flags. */
+function samePlay(a, b) {
+  const strip = (x) => JSON.stringify(Object.keys(x).filter((k) => !AUDIO_FLAGS.includes(k)).sort().map((k) => [k, x[k]]));
+  return strip(a) === strip(b);
+}
 const PROBE_TTL_MS = 10 * 60 * 1000;
 // What says "this database is not ready for this path" (not a passing fault): undefined column / table, a CHECK, a NOT
 // NULL, a bad value for a column type, PostgREST's own "not in the schema cache".
@@ -187,7 +194,18 @@ async function saveBatchRuns({ sessionId, events, results }) {
       drop.forEach((q) => { delete m.events[String(q)]; });
       m.events_dropped = (m.events_dropped || 0) + drop.length;
     }
-    for (const r of results) m.results[r.task_id] = { ...r, mode: 'game' };
+    // The first play of the day is the measure of record (RULING #25): until the run has finished, a task's result is
+    // that play's (a retry or a re-run task replaces it); after, a result that differs from the stored one in more than
+    // its audio flags is a replay, kept under replays (the last REPLAYS_KEPT) and never over the first play.
+    for (const r of results) {
+      const next = { ...r, mode: 'game' };
+      const had = m.results[r.task_id];
+      if (!had || !m.finished_at || samePlay(had, next)) { m.results[r.task_id] = next; continue; }
+      m.replays = m.replays || {};
+      const list = (m.replays[r.task_id] = m.replays[r.task_id] || []);
+      list.push(next);
+      if (list.length > REPLAYS_KEPT) { list.splice(0, list.length - REPLAYS_KEPT); m.replays_dropped = (m.replays_dropped || 0) + 1; }
+    }
     return m;
   });
   return out.ok ? { ok: true, lastSeq: out.meta.last_seq } : out;
