@@ -69,6 +69,16 @@ describe('edge routes', () => {
     expect((await fetch(`${s.base}/api/wqpush/key`)).status).toBe(404);
   });
 
+  test('/sw.js on a cold process: waits for the first switch read, never answers the kill-switch worker by default', async () => {
+    const { createBrotliFlag } = require('../routes/web-quiz-brotli-flag');
+    // the settings read lands 30 ms later, as a cold process's first read does
+    const db = () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: () => new Promise((r) => setTimeout(() => r({ data: { value: true }, error: null }), 30)) }) }) }) });
+    s = await start({ on: createBrotliFlag({ db, key: 'web_quiz_push_remind' }) });
+    const first = await (await fetch(`${s.base}/sw.js`)).text();
+    expect(first).toContain('notificationclick');
+    expect(first).not.toMatch(/registration\.unregister\(\)/);
+  });
+
   test('/sw.js: the kill-switch worker when off, the worker when on, both with the three headers', async () => {
     let on = false;
     s = await start({ on: () => on });
