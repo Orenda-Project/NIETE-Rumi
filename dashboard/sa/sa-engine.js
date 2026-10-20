@@ -34,15 +34,52 @@
    * The phone goes back to the coach (or the game's map): embedded in the coach page's iframe, tell the parent
    * ({type:'sa:done', s, reason}: 'complete', or 'coach_end' when the coach ended any task); else go to back.
    */
-  function done(win, opts, sessionId, runner) {
+  function done(win, opts, sessionId, runner, onWait) {
     var ended = runner.results().some(function (r) { return r.stop_reason === 'coach_end'; });
     var msg = { type: 'sa:done', s: sessionId, reason: ended ? 'coach_end' : 'complete' };
     if (opts.embed && win.parent && win.parent !== win) {
       win.parent.postMessage(msg, win.location.origin);
       return 'posted';
     }
-    if (opts.back && win.location) { win.location.assign(opts.back); return 'navigated'; }
+    if (opts.back && win.location) {
+      if (opts.mode === 'game' && typeof win.fetch === 'function') { backWhenThere(win, opts.back, onWait); return 'waiting'; }
+      win.location.assign(opts.back);
+      return 'navigated';
+    }
     return null;
+  }
+
+  /**
+   * Game mode: the map is an online page, so go only when it answers (HEAD, no-store; the offline worker's 503 is "not
+   * yet"). Offline, the child stays on the last screen and goes on the 'online' event or a re-probe every 10 s, never
+   * to the browser's no-internet page. One wait per window, however often the child taps; onWait once, on the first miss.
+   */
+  var BACK_RETRY_MS = 10000;
+  function backWhenThere(win, url, onWait) {
+    if (win.__saBackWait) return;
+    win.__saBackWait = true;
+    var gone = false;
+    var told = false;
+    var timer = null;
+    function probe() {
+      if (gone) return;
+      clearTimeout(timer);
+      Promise.resolve().then(function () { return win.fetch(url, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' }); })
+        .then(function (r) { return Boolean(r && r.status < 500); }, function () { return false; })
+        .then(function (ok) {
+          if (gone) return;
+          if (!ok) {
+            if (!told && typeof onWait === 'function') { told = true; try { onWait(); } catch (e) { /* the screen */ } }
+            timer = setTimeout(probe, BACK_RETRY_MS);
+            return;
+          }
+          gone = true;
+          if (win.removeEventListener) win.removeEventListener('online', probe);
+          win.location.assign(url);
+        });
+    }
+    if (win.addEventListener) win.addEventListener('online', probe);
+    probe();
   }
 
   var HOOK = { item_correct: 'correct', item_incorrect: 'incorrect', task_start: 'task_start', task_end: 'task_end', battery_end: 'battery_end' };
@@ -159,7 +196,7 @@
             runner.log('handover_out');
             writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(function () {
               fire('unlock', null);
-              done(deps.win || root, opts, sessionId, runner);
+              done(deps.win || root, opts, sessionId, runner, function () { if (view && view.backWait) view.backWait(); });
             });
           },
           onHandover: function () { runner.log('handover_in'); },
