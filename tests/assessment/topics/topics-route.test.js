@@ -48,7 +48,10 @@ beforeEach(() => {
   listChapterTopics = jest.fn(async () => [TOPIC]);
   jest.doMock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
   jest.doMock('../../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
-  jest.doMock('../../../bot/shared/services/assessment/topics/topics.repo', () => ({ listChapterTopics }));
+  jest.doMock('../../../bot/shared/services/assessment/topics/topics.repo', () => ({
+    ...jest.requireActual('../../../bot/shared/services/assessment/topics/topics.repo'),
+    listChapterTopics,
+  }));
   router = require('../../../bot/shared/routes/internal-api.routes');
 });
 
