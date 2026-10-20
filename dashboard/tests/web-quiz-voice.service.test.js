@@ -41,6 +41,7 @@ function harness() {
     SOUND: true,
     ONE_VOICE: false, // boot one_voice (web_quiz_one_voice), off as today
     GAP_PHONE: false, // boot voice_gap_phone (web_quiz_voice_gap_phone), off as today
+    GAP_SLOW: false, // boot voice_gap_slow (web_quiz_voice_gap_slow), off as today
     ROOT: { classList: { add() {}, remove() {} } },
     speakable: (t) => /[A-Za-z0-9\u0600-\u06FF]/.test(String(t || '')),
     ev: (name, data) => events.push({ name, data }),
@@ -191,3 +192,76 @@ describe('a line with no recorded clip while one voice is on (web_quiz_voice_gap
   });
 });
 
+
+// web_quiz_voice_gap_slow (the boot's voice_gap_slow, default off; on only beside voice_gap_phone): a clip that is
+// there but will not play is read by the phone's own voice too. A play() that aborts (AbortError: the file will not
+// load) is read at once; a clip still not started at 8 s is read then, instead of the page moving on in silence. The
+// 2 s mark stays the big words only, so a slow clip that does start is never talked over. A refused start
+// (NotAllowedError, before the child's first tap) keeps the tap; a line stopped by the next screen stays quiet.
+describe('a clip that will not play while one voice is on (web_quiz_voice_gap_slow)', () => {
+  const setup = ({ slow, gap = true } = {}) => {
+    const h = harness(), utts = [], cls = new Set();
+    h.ctx.ONE_VOICE = true; h.ctx.GAP_PHONE = Boolean(gap); h.ctx.GAP_SLOW = Boolean(gap && slow);
+    h.ctx.ROOT.classList = { add: (c) => cls.add(c), remove: (c) => cls.delete(c) };
+    h.ctx.speechSynthesis = { speak: (u) => utts.push(u), cancel: () => {}, getVoices: () => [] };
+    return { h, utts, cls };
+  };
+  const abort = () => Object.assign(new Error('The play() request was interrupted because the media was removed'), { name: 'AbortError' });
+  const refuse = () => Object.assign(new Error('play() failed because the user did not interact first'), { name: 'NotAllowedError' });
+
+  test('on: a clip whose play() aborts is read by the phone at once, and the line ends on the phone voice', async () => {
+    const { h, utts, cls } = setup({ slow: true });
+    let done = 0;
+    h.ctx.speak('Option C', 'https://media.example/c.ogg', () => { done += 1; });
+    h.clips[0].rejectPlay(abort());
+    await flush();
+    expect(utts.map((u) => u.text)).toEqual(['Option C']);
+    expect(cls.has('wq-phonevoice')).toBe(true);
+    expect(cls.has('wq-tap')).toBe(false);
+    expect(h.clips[0].paused).toBe(true);
+    utts[0].onend();
+    expect(done).toBe(1);
+    expect(h.events.filter((e) => e.name === 'audio_fallback').map((e) => e.data.reason)).toEqual(['reject']);
+  });
+  test('on: a clip not started at 2 s shows the big words only; at 8 s the phone reads it', () => {
+    const { h, utts, cls } = setup({ slow: true });
+    h.ctx.speak('Option A', 'https://media.example/a.ogg', null);
+    h.runTimers(2000);
+    expect(utts).toEqual([]);
+    expect(cls.has('wq-novoice')).toBe(true);
+    h.runTimers(8000);
+    expect(utts.map((u) => u.text)).toEqual(['Option A']);
+    expect(h.clips[0].paused).toBe(true);
+  });
+  test('on: a refused start (NotAllowedError) keeps the tap, never the phone voice', async () => {
+    const { h, utts, cls } = setup({ slow: true });
+    h.ctx.speak('Read me', 'https://media.example/q.ogg', null);
+    h.clips[0].rejectPlay(refuse());
+    await flush();
+    expect(utts).toEqual([]);
+    expect(cls.has('wq-tap')).toBe(true);
+  });
+  test('on: a clip stopped by the next screen still never reads its old line', async () => {
+    const { h, utts } = setup({ slow: true });
+    h.ctx.speak('Old line', 'https://media.example/q1.ogg', null);
+    h.ctx.speak('New line', 'https://media.example/q2.ogg', null);
+    h.clips[0].rejectPlay(abort());
+    await flush();
+    h.runTimers(8000);
+    expect(utts.map((u) => u.text)).not.toContain('Old line');
+  });
+  test.each([[{ slow: false }], [{ slow: true, gap: false }]])('off (%p): an aborted clip and a stalled clip stay as today (no phone voice)', async (o) => {
+    const { h, utts, cls } = setup(o);
+    h.ctx.speak('Aborted', 'https://media.example/a.ogg', null);
+    h.clips[0].rejectPlay(abort());
+    await flush();
+    expect(cls.has('wq-tap')).toBe(true);
+    const s2 = setup(o);
+    s2.h.ctx.speak('Stalled', 'https://media.example/b.ogg', null);
+    s2.h.runTimers(8000);
+    expect([...utts, ...s2.utts]).toEqual([]);
+  });
+  test('the page reads the switch from the boot, only beside the gap switch', () => {
+    expect(SRC).toContain('var GAP_SLOW = GAP_PHONE && Boolean(B.voice_gap_slow);');
+  });
+});
