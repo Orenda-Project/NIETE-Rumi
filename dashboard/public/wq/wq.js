@@ -1161,7 +1161,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         switched = true;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
-        ev('audio_fallback', { reason: why });
+        // GAP_SLOW: a refused start names its error as the events' slug (notallowederror keeps the tap; others are read aloud)
+        ev('audio_fallback', GAP_SLOW && why === 'reject' ? { reason: why, err: String((err && err.name) || 'unknown').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'unknown' } : { reason: why });
         var aborted = why === 'reject' && err && err.name === 'AbortError';
         if (why === 'stalled' && !GAP_SLOW) { end(); return; }
         if (why === 'reject' && !(GAP_SLOW && aborted)) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
