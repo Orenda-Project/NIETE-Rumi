@@ -12,12 +12,14 @@ const ART_UR2_V = 2;
 // The one share's room for the ink (web_quiz_share_v4, as `ui.ink`): its own version, so its pictures are drawn afresh.
 const ART_INK_V = 1;
 
-function artInput(kind, size, brand, f, ui) {
+// door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); only then is it in the input,
+// so every other picture's key is today's.
+function artInput(kind, size, brand, f, ui, door = false) {
   const u = {
     ...(ui && ui.ur2 === true ? { ur2: true, v: ART_UR2_V } : {}),
     ...(ui && ui.ink === true ? { ink: true, iv: ART_INK_V } : {}),
   };
-  return { kind, size, brand, lang: f.lang, d: f.d, ...(Object.keys(u).length ? { ui: u } : {}) };
+  return { kind, size, brand, lang: f.lang, d: f.d, ...(Object.keys(u).length ? { ui: u } : {}), ...(door && kind === 'invite' ? { door: true } : {}) };
 }
 
 module.exports = { artInput, ART_UR2_V, ART_INK_V };

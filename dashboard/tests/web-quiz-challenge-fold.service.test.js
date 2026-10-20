@@ -73,3 +73,16 @@ describe('the invite picture over the kids list marks the names', () => {
     expect(remove).toHaveBeenCalledWith('wq-kid-ring');
   });
 });
+
+// Under the fold the picture sits right under Play, so it asks for the door's drawing ("Your turn!" in place of the
+// chat's "tap the link to play" pill). Off: the chat's own picture, as today.
+describe('the picture on the door is the door\'s drawing', () => {
+  test.each([['wq.js landing', {}], ['identity v2 landing', { ident: true, cls: v2 }]])('%s, on: w=door', (_n, extra) => {
+    const h = page({ lang: 'ur', art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true }, ...extra }).html();
+    expect(h).toContain(`src="/q/TEST/art/invite.jpg?a=${encodeURIComponent(INVITE)}&amp;w=door"`);
+  });
+  test('off: the chat\'s picture', () => {
+    const h = page({ lang: 'en', art: { invite: INVITE }, challenge: CH }).html();
+    expect(h).not.toContain('w=door');
+  });
+});

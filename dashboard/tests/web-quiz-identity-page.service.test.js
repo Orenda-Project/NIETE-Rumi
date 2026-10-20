@@ -592,3 +592,27 @@ describe('challenge fold with the children listed: the names before the quiz car
     expect(at(a, 'class="wq-card wq-stack"')).toBeLessThan(at(a, 'id="wq-kid-0"'));
   });
 });
+
+// The same door: "My name isn't here" is the secondary button (wq-soft, as the trail draws the same words), so the
+// child's own name reads as the thing to tap, not the dark full-width way out. Off, and on a class door, today's.
+describe('challenge fold with the children listed: "My name isn\'t here" is the secondary button', () => {
+  const kids = [{ chip: 'c1', first: 'Ayesha', animal: 'lion' }];
+  const four = ['Ayesha', 'Bilal', 'Hina', 'Omar'].map((f, i) => ({ chip: `c${i}`, first: f, animal: 'owl' }));
+  const door = (opts, fold, ch = true) => {
+    const p = page(opts);
+    if (ch) { p.ctx.B.challenge = { first: 'Ali', correct: 4, total: 7 }; p.ctx.B.art = { invite: 'i.CHAL12.abc' }; }
+    if (fold !== undefined) p.ctx.B.challenge_fold = fold;
+    p.ctx.T.challenged = (n, c, t) => `${n} got ${c}/${t}. Your turn!`;
+    p.ctx.landing();
+    return p.last().h;
+  };
+  test.each([['en', kids], ['ur', kids], ['en', four]])('on (%s, %#): wq-soft, not wq-navy', (lang, list) => {
+    const h = door({ lang, kids: list }, true);
+    expect(h).toContain('<button class="wq-btn wq-soft" id="wq-someone">');
+    expect(h).not.toContain('wq-navy" id="wq-someone"');
+  });
+  test('off, and a class door with the fold on: today\'s navy button', () => {
+    expect(door({ kids }, false)).toContain('<button class="wq-btn wq-navy" id="wq-someone">');
+    expect(door({ kids }, true, false)).toContain('<button class="wq-btn wq-navy" id="wq-someone">');
+  });
+});
