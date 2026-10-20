@@ -94,6 +94,7 @@
       passage: t.passage || null, grid: t.grid || null, per_row: t.per_row || (t.grid && t.grid.cols) || 10,
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
+      tap_on: t.tap_on || null, option_images: t.option_images || null,
     };
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
@@ -129,6 +130,7 @@
       if (t.mode === 'tap') {
         if (!t.items.length) throw new Error(at + ': tap task with no items');
         t.items.forEach(function (it, j) {
+          if (it && str(it.id) && typeof it.target_index === 'number') return; // a tap on the passage's word
           if (!it || !str(it.id) || !Array.isArray(it.options) || it.options.length < 2 || it.options.indexOf(it.target) < 0) {
             throw new Error(at + '.items[' + j + ']: needs id, options (2+) and a target among them');
           }
@@ -146,7 +148,7 @@
         throw new Error(at + ': oral task with no questions');
       }
       t.practice.forEach(function (p, j) {
-        if (t.mode === 'tap' && (!Array.isArray(p.options) || p.options.indexOf(p.target) < 0)) throw new Error(at + '.practice[' + j + ']: target not among options');
+        if (t.mode === 'tap' && typeof p.target_index !== 'number' && (!Array.isArray(p.options) || p.options.indexOf(p.target) < 0)) throw new Error(at + '.practice[' + j + ']: target not among options');
         if ((t.mode === 'keypad' || t.mode === 'keyboard') && p.target == null) throw new Error(at + '.practice[' + j + ']: no answer');
       });
     });
@@ -154,6 +156,12 @@
   }
 
   function same(a, b) { return a === b || (a != null && b != null && String(a).trim() === String(b).trim()); }
+  /** A tap on the passage is scored by the word's place (index into passage.words), never by the word: a word can
+   * appear twice. Anything else by value. */
+  function hit(it, value, mode) {
+    if (typeof it.target_index === 'number') return value !== null && value !== '' && Number(value) === it.target_index;
+    return mode === 'keyboard' ? sameWord(value, it.target) : same(value, it.target);
+  }
   function sameWord(a, b) { return a != null && b != null && String(a).trim().toLowerCase() === String(b).trim().toLowerCase(); }
 
   /**
@@ -233,7 +241,7 @@
         last_item_index: t.mode === 'record' ? st.last_item_index : (st.attempted ? st.attempted - 1 : null),
         time_used_ms: used, time_left_ms: lim == null ? null : Math.max(0, lim - used),
         stop_reason: reason, scored_on: phone ? 'phone' : 'later', resumed: st.resumed, per_minute: null,
-        options_n: t.mode === 'tap' && t.items[0] ? t.items[0].options.length : null,
+        options_n: t.mode === 'tap' && t.items[0] && t.items[0].options ? t.items[0].options.length : null,
         taps_per_s: warm ? warm.taps_per_s : null,
         answers: st.answers.slice(),
       };
@@ -270,7 +278,7 @@
 
     function score(it, value) {
       var t = task();
-      var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : (t.mode === 'keyboard' ? sameWord(value, it.target) : same(value, it.target)));
+      var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
       st.answers.push({ item_id: it.id, value: value, ok: ok });
       ev(ok === null ? 'answer' : (ok ? 'item_correct' : 'item_incorrect'), { task_id: t.id, item_id: it.id, value: value });
@@ -331,7 +339,7 @@
       practiceAnswer: function (value) {
         if (st.phase !== 'practice') return null;
         var p = task().practice[st.practice_i];
-        var ok = task().mode === 'keyboard' ? sameWord(value, p.target) : same(value, p.target);
+        var ok = hit(p, value, task().mode);
         st.practice_tries++;
         var retry = !ok && st.practice_tries < 2;
         ev('practice_answer', { task_id: st.task_id, item_id: p.id, value: { value: value, ok: ok, try: st.practice_tries } });

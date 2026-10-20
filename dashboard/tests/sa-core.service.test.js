@@ -275,3 +275,19 @@ test('a spoken question: the answer window starts when Jugnu has finished asking
   now.go(1000); r.tick();
   expect(r.view().item_index).toBe(1);
 });
+
+test('a tap on the passage is scored by the place tapped, not the word (a word can appear twice)', () => {
+  const words = [{ id: 'w0', target: 'My', line: 1 }, { id: 'w1', target: 'cat', line: 1 }, { id: 'w2', target: 'My', line: 2 }];
+  const b = { battery_id: 'po', tasks: [{ id: 'en.print_orientation', mode: 'tap', tap_on: 'passage', option_images: null,
+    passage: { text: 'My cat My', words, direction: 'ltr' },
+    items: [{ id: 'q1', target: 'My', target_index: 2 }, { id: 'q2', target: '→', options: ['→', '←', '↑', '↓'] }] }] };
+  expect(validate(b)).toBe(true);
+  const { r } = make(b);
+  r.start(); r.instructionDone(); r.begin();
+  expect(r.view().task.tap_on).toBe('passage');
+  expect(r.answer(0)).toBe(false); // the first "My" is not the one asked for
+  expect(r.answer('→')).toBe(true);
+  const { r: r2 } = make(b);
+  r2.start(); r2.instructionDone(); r2.begin();
+  expect(r2.answer(2)).toBe(true);
+});
