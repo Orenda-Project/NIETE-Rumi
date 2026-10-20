@@ -95,7 +95,7 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
   const d = deps();
   const row = await E.recommendForReport({ ...args(), deps: d });
   expect(d.completeJson).toHaveBeenCalledTimes(1);
-  expect(d.completeJson.mock.calls[0][1]).toEqual({ job: 'coaching.videoReco', maxTokens: 700, label: 'videoReco' });
+  expect(d.completeJson.mock.calls[0][1]).toEqual({ job: 'coaching.videoReco', maxTokens: 4000, label: 'videoReco' });
   expect(row).toMatchObject({
     id: 'rec-1', coaching_session_id: SID, user_id: UID, status: 'shown', arm: 'video',
     module_id: 10, seg_id: '10-s1', start_s: 30, end_s: 120,
@@ -161,6 +161,11 @@ test('validation failure → status none, none_reason validation, the shortlist 
   const row = await E.recommendForReport({ ...args(), deps: d });
   expect(row).toMatchObject({ status: 'none', none_reason: 'validation', seg_id: null });
   expect(row.candidates.length).toBeGreaterThan(0);
+});
+
+test('a truncated answer → status none, llm_truncated (its own reason)', async () => {
+  const d = deps({ completeJson: jest.fn().mockResolvedValue({ result: {}, usage: { completion_tokens: 4000 }, finishReason: 'length' }) });
+  expect(await E.recommendForReport({ ...args(), deps: d })).toMatchObject({ status: 'none', none_reason: 'llm_truncated', usage: { completion_tokens: 4000 } });
 });
 
 test('the model says none → status none, llm_none', async () => {
