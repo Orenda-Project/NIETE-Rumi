@@ -1036,9 +1036,11 @@ async function headObject(key, { bucket } = {}) {
  * Unlike getPresignedUrl it takes the key itself, so it works for a bucket other than the
  * default one; it logs nothing per link (a quiz page signs ~50 at once). Throws on failure.
  */
-async function presignKey(key, expiresIn = 3600, { bucket } = {}) {
+async function presignKey(key, expiresIn = 3600, { bucket, signingDate, cacheControl } = {}) {
   if (!key) throw new Error('presignKey needs a key');
-  return getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key }), { expiresIn });
+  // signingDate / cacheControl: the same link for the same object while signingDate holds (web quiz clips); absent, today's
+  const cmd = new GetObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key, ...(cacheControl ? { ResponseCacheControl: cacheControl } : {}) });
+  return getSignedUrl(getR2Client(), cmd, { expiresIn, ...(signingDate ? { signingDate } : {}) });
 }
 
 module.exports = {
