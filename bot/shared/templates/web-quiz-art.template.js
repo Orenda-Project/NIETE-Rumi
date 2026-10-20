@@ -123,7 +123,8 @@ function animal(key, pics) {
 }
 const num = (s) => `<span class="num">${esc(s)}</span>`;
 // An Urdu picture under web_quiz_share_ur_digits: the page's numerals (۴/۷), never 4/7. Only the digits change.
-const urDigits = (s) => String(s == null ? '' : s).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
+// a thousands comma between digits becomes the Arabic thousands sign «٬» (۱٬۲۳۴, never 1,۲۳۴)
+const urDigits = (s) => String(s == null ? '' : s).replace(/(\d),(?=\d)/g, '$1\u066C').replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
 const numUr = (s) => num(urDigits(s));
 const DOT = '<span class="dot"> · </span>';
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
