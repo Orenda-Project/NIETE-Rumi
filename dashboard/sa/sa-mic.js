@@ -48,7 +48,10 @@
     var s = ls(store);
     try {
       if (!s) return;
-      s.setItem(KEY_OK, ok ? '1' : '0');
+      // A pass is kept for the phone; a failure is not, so the next run asks again (a grown-up may have fixed the
+      // permission in between).
+      if (ok) s.setItem(KEY_OK, '1');
+      else if (s.getItem(KEY_OK) !== '1') s.removeItem(KEY_OK);
       if (typeof rms === 'number') s.setItem(KEY_RMS, String(Math.round(rms * 10000) / 10000));
     } catch (_) { /* private tab: the check is asked again next time */ }
   }
