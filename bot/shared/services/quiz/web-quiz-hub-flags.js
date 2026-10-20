@@ -68,6 +68,9 @@ const HOME_PRELOAD_KEY = 'web_quiz_home_preload';
 // The child home's first open in one response (the edge carries the home's files in the page): the hub JSON names it
 // (`home_inline`). Only the stored JSON boolean true is on.
 const HOME_INLINE_KEY = 'web_quiz_home_inline';
+// The inline Home on every open of a saved phone too, not only while it lacks the files' cookie (with home_inline): the
+// hub JSON names it (`home_every`). Only the stored JSON boolean true is on.
+const HOME_EVERY_KEY = 'web_quiz_home_inline_every';
 // A new phone's first Home asks for itself from the page's head (the edge starts the phone's own hub call before the
 // page's scripts arrive): the hub JSON names it (`early_unlock`). Only the stored JSON boolean true is on.
 const EARLY_UNLOCK_KEY = 'web_quiz_early_unlock';
@@ -84,6 +87,9 @@ const PLAIN_PAINT_KEY = 'web_quiz_plain_paint';
 // The closed and not-open pages in the child's language (web-quiz-closed-lang.js) ride this read on the hub, so a
 // child's home adds no settings read for it.
 const CLOSED_LANG_KEY = 'web_quiz_closed_lang';
+// A class link's picture facts start beside the page's own reads (web-quiz-class-pic.js, with the fast page): the hub's
+// switch cache only (nowOf('classPicEarly')), never a read of its own. Only the stored JSON boolean true is on.
+const CLASS_PIC_EARLY_KEY = 'web_quiz_class_pic_early';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -122,6 +128,9 @@ function meterOf(value) {
 // The light Urdu face (wq-nastaliq-7: the polished face with its outlines on a coarser grid) rides this one read too:
 // the page payload's `ui.fl` (web-quiz-ur-polish.js lite()). Only the stored JSON boolean true is on.
 const FACE_LITE_KEY = 'web_quiz_face_lite';
+// The games door's reads started together (web-quiz-hub-doors.js, the read-aloud budget, the challenge's switches):
+// the hub's switch cache only (nowOf('gamesTogether')), never a read of its own. Only the stored JSON boolean true is on.
+const GAMES_TOGETHER_KEY = 'web_quiz_games_together';
 // Minified page files (web-quiz-minify.js) ride this one read: only the stored JSON boolean true is on.
 const MINIFY_KEY = 'web_quiz_minify';
 // The child home's scripts and styles as one file each (the edge's pack): the hub JSON names it (`pack`).
@@ -156,15 +165,18 @@ const SWITCHES = Object.freeze([
   ['rungs',        RUNGS_KEY,             'loose'],
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
+  ['classPicEarly', CLASS_PIC_EARLY_KEY,  'json'],
   ['closedLang',   CLOSED_LANG_KEY,       'json'],
   ['prefetch',     PREFETCH_KEY,          'json'],
   ['earlyUnlock',  EARLY_UNLOCK_KEY,      'json'],
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
+  ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],
   ['gradeChange',  GRADE_CHANGE_KEY,      'json'],
   ['homeButton',   HOME_BUTTON_KEY,       'loose'],
   ['homeInline',   HOME_INLINE_KEY,       'json'],
+  ['homeEvery',    HOME_EVERY_KEY,        'json'],
   ['homePreload',  HOME_PRELOAD_KEY,      'json'],
   ['hub',          HUB_KEY,               'loose'],
   ['childMemo',    CHILD_MEMO_KEY,        'json'],
@@ -527,6 +539,7 @@ module.exports = {
   HOME_BUTTON_KEY,
   HOME_KEY,
   HOME_INLINE_KEY,
+  HOME_EVERY_KEY,
   EARLY_UNLOCK_KEY,
   REWATCH_DONE_KEY,
   VIDEO_CLEAN_KEY,
@@ -537,7 +550,9 @@ module.exports = {
   HUB_KEY,
   hubLink,
   KEYS,
+  CLASS_PIC_EARLY_KEY,
   LIBRARY_KEY,
+  GAMES_TOGETHER_KEY,
   LIVE_METER_KEY,
   LIVE_READ_V3_KEY,
   LOOK_AFTER_KEY,

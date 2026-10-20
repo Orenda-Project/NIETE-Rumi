@@ -110,6 +110,19 @@ describe('GET /api/internal/wq/edge', () => {
     expect(['home_inline' in off, 'early_unlock' in off]).toEqual([false, false]);
   });
 
+  test('(e) on with web_quiz_home_inline and web_quiz_home_inline_every: home_every true (a saved phone\'s first open after a deploy gets the inline Home); home_inline_every alone, or off: no field', async () => {
+    supabase.__state.rows = { [KEY]: true, web_quiz_home_inline: true, web_quiz_home_inline_every: true };
+    await warmPageSwitches();
+    const on = (await ask()).body;
+    expect([on.home_inline, on.home_every]).toEqual([true, true]);
+    for (const rows of [{ web_quiz_home_inline_every: true }, { web_quiz_home_inline: true }, { web_quiz_home_inline: true, web_quiz_home_inline_every: 'true' }]) {
+      supabase.__state.rows = { [KEY]: true, ...rows };
+      resetAll();
+      await warmPageSwitches();
+      expect([rows, 'home_every' in (await ask()).body]).toEqual([rows, false]);
+    }
+  });
+
   test('(e) on with web_quiz_home_inline and the v3 home: home_v3 1 (a fresh portal\'s first new phone carries the home\'s files); the fallback home, the pack, or neither home_inline nor early_unlock: no home_v3', async () => {
     supabase.__state.rows = { [KEY]: true, web_quiz_home_inline: true, web_quiz_home_v3: true };
     require('../../../shared/services/quiz/web-quiz-hub-home')._resetCache();

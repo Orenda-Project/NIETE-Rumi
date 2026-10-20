@@ -1295,8 +1295,9 @@ function createWebQuizRouter(opts = {}) {
     if (typeof b.plain_paint === 'boolean') lastPlain = b.fast === true && b.plain_paint;
     if (typeof b.wait_home === 'boolean') lastWaitHome = b.wait_home;
     // web_quiz_home_inline / web_quiz_early_unlock: known on before any page (absent: kept as they were)
-    // `home_v3` (the v3 home on, said with these two): a fresh process's first new phone carries the home's own files
-    if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline, Boolean(b.home_v3));
+    // `home_v3` (the v3 home on, said with these two): a fresh process's first new phone carries the home's own files;
+    // `home_every` (web_quiz_home_inline_every): a saved phone's first open after a deploy carries them too
+    if (typeof b.home_inline === 'boolean') INLINE.know(b.home_inline, Boolean(b.home_v3), b.home_every === true);
     if (typeof b.early_unlock === 'boolean') EarlyUnlock.learn({ early_unlock: b.early_unlock, locked: true, kids: [] });
     EarlyUnlock.guess(b);
     // web_quiz_minify: known on before any page, so the first page after a deploy names the m copies (absent: kept as it was)
