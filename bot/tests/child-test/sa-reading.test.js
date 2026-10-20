@@ -107,8 +107,8 @@ describe('SA reading extras (DESIGN §2b)', () => {
     expect(c.blocks.B3).toEqual(['ur.initial_sound', 'en.initial_sound', 'ur.listening', 'en.listening']);
     expect(c.full.indexOf('en.letter_sounds')).toBe(c.full.indexOf('en.letters') + 1);
     const g = bank.forms['game.G1'];
-    expect(g.islands.english).toEqual(['en.listening', 'en.initial_sound', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words', 'en.story', 'en.story_comp']);
-    expect(g.islands.urdu).toEqual(['ur.listening', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'ur.story_comp']);
+    expect(g.islands.english).toEqual(['en.listening2', 'en.initial_sound', 'en.segmentation', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words', 'en.story2', 'en.story2_comp']);
+    expect(g.islands.urdu).toEqual(['ur.listening2', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story2', 'ur.story2_comp']);
     expect(g.tower).toHaveLength(20); // the 18 v3 blocks + the two story-question tasks
   });
 });

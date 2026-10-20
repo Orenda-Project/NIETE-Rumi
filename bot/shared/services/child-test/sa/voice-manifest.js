@@ -7,7 +7,7 @@
  * words and single words, which a text-to-speech voice may say wrongly.
  */
 
-const EAR = { letters: true, nonwords: true, words: true };
+const EAR = { letters: true, nonwords: true, words: true, letter_sounds: true, initial_sound: true };
 
 function voiceManifest(bank) {
   const byKey = new Map();
@@ -23,7 +23,7 @@ function voiceManifest(bank) {
   const one = (x, role, ear) => { if (x && x.audio) add(x.lang, x.text, x.audio, role, ear); };
   for (const line of Object.values(bank.lines || {})) both(line, 'battery');
   for (const t of Object.values(bank.tasks || {})) {
-    for (const line of Object.values(t.script || {})) both(line, 'instruction');
+    for (const line of Object.values(t.script || {}).flat()) both(line, 'instruction');
     const ear = EAR[(t.task || '').split('.')[1]];
     for (const it of [...((t.tap && t.tap.items) || []), ...(t.practice || [])]) {
       if (it.say) (it.say.lang ? one(it.say, 'item', ear) : both(it.say, 'item'));
