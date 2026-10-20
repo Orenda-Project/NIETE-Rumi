@@ -62,7 +62,7 @@ async function cardFor(supabase, sessionId, userId, language) {
     title,
     levelLabel: null,
     durationS: end > start ? end - start : (Number(mod.duration_s) || null),
-    language: mod.language || null,
+    language: seg.language || mod.language || null, // the chapter's own language first (catalogue v1)
     reason: (ur && row.reason_ur) || row.reason_en || null,
     thumbUrl: row.module_id != null ? `${path}/thumb/${encodeURIComponent(row.module_id)}.jpg` : null,
     href: `${path}/${token}?s=portal`,
