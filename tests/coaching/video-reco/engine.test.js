@@ -104,14 +104,14 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
     language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
     reason_en: GOOD.reason_en, reason_ur: GOOD.reason_ur, moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
-    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-3', model: 'gpt-5-mini-2025-08-07',
+    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-4', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });
   expect(row.candidates[0]).toEqual(expect.objectContaining({ seg_id: expect.any(String), score: expect.any(Number), indicator: 'C1' }));
   expect(typeof row.engine_ms).toBe('number');
   const prompt = d.completeJson.mock.calls[0][0];
   expect(prompt).toContain('Try this tomorrow: Ask two why questions about shapes');
-  expect(prompt).toContain('Evidence the scorer quoted: "Is this a triangle? Yes or no"');
+  expect(prompt).toContain('The report\'s own moment: "Is this a triangle? Yes or no"');
   expect(prompt).not.toMatch(/Ahmed|Saima/); // H8: names never reach the model
 });
 
@@ -302,5 +302,88 @@ describe('report_language null (lead-review 19:50Z, red-team ⛔3): languages {t
     const row = await E.recommendForReport({ ...a, deps: d });
     expect(row).toMatchObject({ language: 'ur', language_match: 'transcript' });
     expect(row.candidates.map((c) => c.seg_id)).not.toContain('12-s1');
+  });
+});
+
+describe('v1.3b: ONE bounded validation retry (lead-review 19:49Z ruling 4)', () => {
+  const BAD_CAND = { ...GOOD, seg_id: '99-s9' }; // not on the list → validation:candidate
+  const BAD_QUOTE = { ...GOOD, moment: { at: '00:30', quote: 'words nobody ever said in this lesson' } }; // validation:quote
+
+  test('first answer fails validation, retry passes → shown, attempts 2, first_none_reason kept, appendix names the rule', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValueOnce({ result: BAD_CAND, usage: { prompt_tokens: 900, completion_tokens: 100 }, finishReason: 'stop' })
+      .mockResolvedValueOnce({ result: GOOD, usage: { prompt_tokens: 950, completion_tokens: 120 }, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...args(), deps: d });
+    expect(d.completeJson).toHaveBeenCalledTimes(2);
+    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', attempts: 2, first_none_reason: 'validation:candidate', none_reason: null });
+    expect(row.usage).toEqual({ prompt_tokens: 1850, completion_tokens: 220 });
+    const [p1, p2] = d.completeJson.mock.calls.map((c) => c[0]);
+    expect(p2.startsWith(p1)).toBe(true);
+    const appendix = p2.slice(p1.length).trim().split('\n');
+    expect(appendix).toHaveLength(2);
+    expect(appendix[0]).toContain('validation:candidate');
+    expect(p2.slice(p1.length)).not.toMatch(/scorer/i);
+  });
+
+  test('both answers fail → none with the second reason, attempts 2, first_none_reason the first', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValueOnce({ result: BAD_CAND, usage: {}, finishReason: 'stop' })
+      .mockResolvedValueOnce({ result: BAD_QUOTE, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...args(), deps: d });
+    expect(d.completeJson).toHaveBeenCalledTimes(2);
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:quote', attempts: 2, first_none_reason: 'validation:candidate' });
+  });
+
+  test('never more than one retry', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValue({ result: BAD_CAND, usage: {}, finishReason: 'stop' });
+    await E.recommendForReport({ ...args(), deps: d });
+    expect(d.completeJson).toHaveBeenCalledTimes(2);
+  });
+
+  test('the model says none (seg_id null) → no retry; attempts 1', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValue({ result: { ...GOOD, seg_id: null }, usage: {}, finishReason: 'stop' });
+    expect(await E.recommendForReport({ ...args(), deps: d })).toMatchObject({ status: 'none', none_reason: 'llm_none', attempts: 1, first_none_reason: null });
+    expect(d.completeJson).toHaveBeenCalledTimes(1);
+  });
+
+  test('a truncated answer → no retry', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValue({ result: {}, usage: {}, finishReason: 'length' });
+    expect(await E.recommendForReport({ ...args(), deps: d })).toMatchObject({ none_reason: 'llm_truncated', attempts: 1 });
+    expect(d.completeJson).toHaveBeenCalledTimes(1);
+  });
+
+  test('less than 20 s of the engine budget left → no retry, the first validation none stands', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValue({ result: BAD_CAND, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...args(), timeoutMs: 19000, deps: d });
+    expect(d.completeJson).toHaveBeenCalledTimes(1);
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:candidate', attempts: 1, first_none_reason: null });
+  });
+
+  test('the retry call itself fails → the first validation none is stored, never an error row', async () => {
+    const d = deps();
+    d.completeJson.mockResolvedValueOnce({ result: BAD_CAND, usage: {}, finishReason: 'stop' })
+      .mockRejectedValueOnce(new Error('upstream 500'));
+    const row = await E.recommendForReport({ ...args(), deps: d });
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:candidate', attempts: 2, first_none_reason: 'validation:candidate' });
+  });
+
+  test('a first answer that passes → attempts 1, first_none_reason null', async () => {
+    const d = deps();
+    expect(await E.recommendForReport({ ...args(), deps: d })).toMatchObject({ status: 'shown', attempts: 1, first_none_reason: null });
+  });
+
+  test('a none before any LLM call carries no attempts column (writable without V1.7.2)', async () => {
+    const d = deps();
+    const a = args({ nextStep: { target: { indicator: 'C2' } }, card: { indicator: 'C2' } });
+    a.session.users.preferred_language = 'en';
+    a.session.transcript_language = 'en';
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row.none_reason).toBe('language');
+    expect('attempts' in row).toBe(false);
+    expect('first_none_reason' in row).toBe(false);
   });
 });
