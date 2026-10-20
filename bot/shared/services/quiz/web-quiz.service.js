@@ -473,6 +473,8 @@ async function liveCounts(ctx, { together = false } = {}) {
 // ─── E2 the quiz ────────────────────────────────────────────────────────────
 
 const QUIZ_MEDIA_CACHE_MS = 5 * 60 * 1000;
+// A pending page asks for its late clips every 5 s when each question is written as it is done (web-quiz-audio-each-flag.js).
+const LATE_FAST_MS = 5000;
 const QUIZ_MEDIA_CACHE_MAX = 500;
 const quizMediaCache = new Map();
 
@@ -585,9 +587,12 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
   // Until they are recorded the page is told (audio_pending): it asks again and takes them as they land.
   let audioPending = false;
+  let lateMs = 0;
   if (!story) try {
     const Publish = require('./web-quiz-publish.service');
     audioPending = !Publish.isCurrent(Publish.webOf(quizMeta, { oneVoice }), { oneVoice });
+    // web_quiz_audio_each_question: the recording writes each question as it is done, so a pending page asks every 5 s.
+    if (audioPending && await require('./web-quiz-audio-each-flag').on()) lateMs = LATE_FAST_MS;
     Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
@@ -636,6 +641,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
       // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
       voice_lang: voiceLang,
       ...(audioPending ? { audio_pending: true } : {}),
+      ...(lateMs ? { late_ms: lateMs } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
