@@ -80,6 +80,7 @@ const {
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
+  COACH_DISAGREEMENT_CARD_KEY,
   isCoachObservationOn,
   isPortalAssessmentEditingEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
@@ -2270,6 +2271,35 @@ async function requireCoachV2(req, res, next) {
   return next();
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
+
+// bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
+// Behind the coach app guards AND its own flag, so week 1 of the test sees nothing new.
+{
+  const Disagreements = require('../services/coach-disagreements.service');
+  const { noteStore } = require('../services/coach-note-store');
+  const { createCoachDisagreementsRouter } = require('./coach-disagreements.routes');
+  const loadReport = (...a) => require('./coaching-report.routes').loadReport(...a);
+  router.use(createCoachDisagreementsRouter({
+    guards: coachV2,
+    isOn: (userId) => isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
+    // bd-tbprit.12: notes on cards Done over 24 h are deleted on her next list load (never blocks it).
+    list: (coachId) => {
+      Disagreements.purgeDoneNotes(supabase, coachId, (k) => noteStore().del(k)).catch(() => {});
+      return Disagreements.listFor(supabase, coachId);
+    },
+    card: (coachId, id) => Disagreements.cardFor(supabase, coachId, id, { loadReport, presign: (key, s) => noteStore().presign(key, s) }),
+    ownerOf: async (id) => {
+      const { data } = await supabase.from('coach_visit_requests').select('coach_user_id').eq('id', id).maybeSingle();
+      return (data && data.coach_user_id) || null;
+    },
+    markVisited: (id, coachId) => Disagreements.markDone(supabase, coachId, id),
+    markUndone: (id, coachId) => Disagreements.markUndone(supabase, coachId, id),
+    markOpened: (coachId, id) => Disagreements.markOpened(supabase, coachId, id),
+    // bd-tbprit.2: the disputed step, cut by ffmpeg from a five-minute link the browser never sees.
+    recordingFor: (coachId, id) => Disagreements.recordingFor(supabase, coachId, id, generatePresignedUrl),
+    openClip: (url, at, to) => require('../services/coach-disagreement-clip').openClip(url, at, { to }),
+  }));
+}
 const pgQuery = (sql, params) => pool.query(sql, params);
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -8673,6 +8703,7 @@ router.get('/config', async (req, res) => {
       newUi,
       coachV2,
       teacherV2,
+      coachDisagreements,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8689,6 +8720,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
       // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId),
+      // bd-tbprit.1: the coach's disagreements card, per user (off unless set).
+      isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8702,6 +8735,7 @@ router.get('/config', async (req, res) => {
         newUi,
         coachV2,
         teacherV2,
+        coachDisagreements,
       },
     });
   } catch (error) {
@@ -8719,6 +8753,7 @@ router.get('/config', async (req, res) => {
         newUi: false,
         coachV2: false,
         teacherV2: false,
+        coachDisagreements: false,
       },
     });
   }

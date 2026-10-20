@@ -447,6 +447,7 @@ export const portal = {
           newUi: false,
           assessmentEditing: false,
           coachV2: false,
+          coachDisagreements: false,
           teacherV2: false,
         },
       };
@@ -649,6 +650,8 @@ export type PortalConfig = {
     assessmentEditing?: boolean;
     /** bd-o15qnr — the coach app v2 is on for THIS user (fail-closed; shown to role=coach only). */
     coachV2?: boolean;
+    /** bd-tbprit.1 — the coach's disagreement card is on for THIS user (fail-closed). */
+    coachDisagreements?: boolean;
     /** bd-fmf24g.1 — the teacher app v2 is on for THIS user (fail-closed; shown to teachers only). */
     teacherV2?: boolean;
   };

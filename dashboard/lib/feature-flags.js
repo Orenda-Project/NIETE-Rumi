@@ -114,6 +114,13 @@ const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
 const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 
 /**
+ * bd-tbprit.1 — app_settings key for the coach's disagreements card in the portal (the C/D teachers who
+ * answered "Not accurate" to their coaching report, v10 coaching test). Same rule as the keys above:
+ * true = everyone, a list of users.id = a pilot, absent = off. Off, /cv/:token keeps the v1 card.
+ */
+const COACH_DISAGREEMENT_CARD_KEY = 'coach_disagreement_card';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -310,6 +317,7 @@ module.exports = {
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
+  COACH_DISAGREEMENT_CARD_KEY,
   isFlagEnabledForUser,
   isCoachAppUser,
   isCoachObservationOn,
