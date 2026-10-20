@@ -90,6 +90,16 @@ describe('POST /api/internal/assessment/topics', () => {
     expect(listChapterTopics).not.toHaveBeenCalled();
   });
 
+  test('a fractional grade or chapterNumber is a 400, not a rounded lookup', async () => {
+    const frac = await invoke('/assessment/topics', { grade: 1, subject: 'maths', chapterNumber: 1.5 });
+    expect(frac.statusCode).toBe(400);
+    expect(frac.payload).toEqual({ success: false, error: 'chapterNumber is required' });
+    const g = await invoke('/assessment/topics', { grade: 2.5, subject: 'maths', chapterNumber: 3 });
+    expect(g.statusCode).toBe(400);
+    expect(g.payload).toEqual({ success: false, error: 'grade is required' });
+    expect(listChapterTopics).not.toHaveBeenCalled();
+  });
+
   test('needs the internal key', async () => {
     const { statusCode } = await invoke('/assessment/topics', { grade: 1, subject: 'maths', chapterNumber: 3 }, 'wrong');
     expect(statusCode).toBe(401);
