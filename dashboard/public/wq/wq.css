@@ -141,6 +141,8 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 /* the challenge line on the fold door (web_quiz_challenge_fold): wrapped balanced, never one word left alone */
 .wq-chline{text-wrap:balance}
+/* web_quiz_challenge_line_sent: each sentence of the challenge line is one inline block, so the line breaks between sentences */
+.wq-banner .wq-sent{display:inline-block;max-width:100%}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
 .wq-dot.wq-done{background:var(--green)}
