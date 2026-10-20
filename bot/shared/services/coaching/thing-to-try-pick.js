@@ -40,20 +40,31 @@ function pickThingToTry(lpFidelity) {
   };
 }
 
+// The tag reads a move's wording first, so one pair activity is C9 or C11 ("swap", "each other") and one
+// class question C1 or C4 ("choral", "by name") on wording alone. Used only when no same-tag move exists.
+const FAMILY = { C9: 'C11', C11: 'C9', C1: 'C4', C4: 'C1' };
+
 /**
- * Did this recording show the prior thing's practice? { outcome, matched, moveIds }, null with no prior
- * tag. moveIds are the moves judged, so a coach can review the call. Pure.
+ * Did this recording show the prior thing's practice? { outcome, matched, moveIds, matchedBy }, null with
+ * no prior tag. moveIds are the moves judged, so a coach can review the call; matchedBy is 'tag', 'family'
+ * (bd-v0toag.100.5) or null. Pure.
  */
 function checkThing(prior, lpFidelity) {
   if (!prior || !prior.tag) return null;
   const moves = gradedMoves(lpFidelity);
-  if (!moves) return { outcome: 'not_graded', matched: 0, moveIds: [] };
-  const same = moves.filter((m) => m.verdict !== 'not_adjudicable' && practiceTag(m) === prior.tag);
+  if (!moves) return { outcome: 'not_graded', matched: 0, moveIds: [], matchedBy: null };
+  const judged = moves.filter((m) => m.verdict !== 'not_adjudicable');
+  let same = judged.filter((m) => practiceTag(m) === prior.tag);
+  let matchedBy = same.length ? 'tag' : null;
+  if (!same.length && FAMILY[prior.tag]) {
+    same = judged.filter((m) => practiceTag(m) === FAMILY[prior.tag]);
+    matchedBy = same.length ? 'family' : null;
+  }
   let outcome = 'no_matching_move';
   if (same.some((m) => DONE.has(m.verdict))) outcome = 'did';
   else if (same.some((m) => m.verdict === 'partial')) outcome = 'partly';
   else if (same.length) outcome = 'not_done';
-  return { outcome, matched: same.length, moveIds: same.map((m) => m.move_id) };
+  return { outcome, matched: same.length, moveIds: same.map((m) => m.move_id), matchedBy };
 }
 
 async function priorSession(userId, coachingSessionId) {
