@@ -489,14 +489,108 @@ function readingExtras(extra) {
         source: { items: `extra:reading.${lang}.listening2` }, questions: l.questions.map((q, i) => ({ id: `${lang}.listening2.q${i + 1}`, prompt: q.q, accept: q.accept })) } }));
   }
   for (const t of out) if (/(story2|listening2)/.test(t.task)) t.parallel_of = t.task.replace('2', '');
+
+  // English dictation (TK2009 sentence) as Tangerine SA's typed spelling: Jugnu says the word, the sentence, the word;
+  // the child types it on an a-z strip. The TK2009 rubric stays with the task for the whole-sentence score.
+  const dic = r.en.dictation;
+  const dw = dic.sentence.replace(/[.]$/, '').split(/\s+/);
+  out.push({
+    task: 'en.dictation', lang: 'en', kind: 'keyboard', legacy_block: null, family: 'egra', subtask: dic.subtask,
+    title: { en: 'Spelling', ur: 'ہجے' }, modes: ['tap'],
+    tap: { options_n: null, distractor_rule: null, input: 'keyboard', time_limit_s: null, ...UNTIMED_TAP, stop: null,
+      items: dw.map((w, i) => ({ id: `en.dictation.${pad(i + 1, 2)}`, target: w.toLowerCase(), say: said('en', `${w}. ${dic.sentence} ${w}.`), src: 'extra:reading.en.dictation.sentence' })) },
+    record: null, practice: [], practice_note: 'TK2009 dictation has no practice item',
+    rubric: { sentence: dic.sentence, grouping: dic.grouping, rows: dic.rubric, src: dic.rubric_src },
+    script: scriptOf('en.dictation', 'tap'),
+    source: { items: 'extra:reading.en.dictation', script: LINES['en.dictation'].intro_tap.from, sa_adaptation: 'Tangerine SA typed spelling (word, sentence, word; letter-level partial credit scored later); TK2009 sentence and rubric' },
+    deviation: 'typed word by word instead of the whole sentence handwritten',
+  });
+
+  // Urdu vocabulary (SELECT 2024 action pictures): Jugnu says what is happening, the child taps 1 of 4 pictures.
+  const voc = r.ur.vocabulary;
+  const vk = (x) => `ur.vocabulary.${x.image.replace(/^ur\.vocabulary\.|\.webp$/g, '')}`;
+  const images = Object.fromEntries([...voc.practice, ...voc.items].map((x) => [vk(x), `sa/img/vocab/${x.image}`]));
+  const itemKeys = voc.items.map(vk);
+  const VL = LINES['ur.vocabulary'];
+  const vex = voc.practice.find((p) => p.role === 'example');
+  out.push({
+    task: 'ur.vocabulary', lang: 'ur', kind: 'choice', legacy_block: null, family: 'egra', subtask: voc.subtask,
+    title: { en: 'Pictures', ur: 'تصویریں' }, modes: ['tap'],
+    tap: { options_n: 4, distractor_rule: 'same_set_of_pictures', input: 'options', time_limit_s: null, ...UNTIMED_TAP, stop: { type: 'first_row', n: voc.stop.n },
+      option_images: images,
+      items: voc.items.map((x, i) => {
+        const id = `ur.vocabulary.${pad(i + 1, 2)}`;
+        return { id, target: vk(x), options: listOptions(id, vk(x), itemKeys, 4), say: said('ur', x.say), accept_spoken: x.accept, src: `extra:reading.ur.vocabulary.items[${i}]` };
+      }) },
+    record: null,
+    practice: voc.practice.filter((p) => p.role !== 'example').map((p) => {
+      const id = `${vk(p)}.p`;
+      return { id, role: 'practice', target: vk(p), options: listOptions(id, vk(p), [...voc.practice.map(vk), ...itemKeys], 4), say: said('ur', p.say),
+        feedback: { correct: spoken(fill(VL.right, p.say)), wrong: spoken(fill(VL.wrong, p.say)) }, src: `extra:reading.ur.vocabulary.practice[${voc.practice.indexOf(p)}]` };
+    }),
+    script: { ...scriptOf('ur.vocabulary', 'tap', fill(VL.example, vex.say)), demo_image: images[vk(vex)] },
+    source: { items: 'extra:reading.ur.vocabulary', script: VL.intro_tap.from, sa_adaptation: 'Tangerine SA hear-then-tap; the SELECT picture cards (p.113) as tiles' },
+    deviation: 'receptive (hear, tap the picture) instead of expressive (say what is happening)',
+  });
   return out;
+}
+
+// Orientation to print (RULING #2: before the story at coach G3 and game G1-G3): the official prompts asked on the
+// passage this form shows next (Set A on the coach, the second passage in the game); the child taps a word or an arrow.
+const ARROWS = ['→', '←', '↓', '↑'];
+function printOrientation(lang, story, extra) {
+  const r = extra.reading[lang].print_orientation;
+  const p = story.record.passage;
+  const w = p.words.map((x) => x.target);
+  const L1 = p.lines[0];
+  const L2 = p.lines[1];
+  const sentence1 = p.text.split(/[۔.!?]/)[0].split(/\s+/).filter(Boolean).length;
+  const pos = { start: 0, line_end: L1.to, next_line: L2.from, sentence_end: Math.min(sentence1, w.length) - 1, story_end: w.length - 1 };
+  const words = [...new Set(Object.values(pos).map((i) => w[i]))];
+  const wordItem = (id, at, say, src) => ({ id, target: w[at], target_index: at, options: listOptions(id, w[at], words, Math.min(4, words.length)), say: said(lang, say), src });
+  const arrowItem = (id, say, src) => ({ id, target: lang === 'ur' ? '←' : '→', options: ARROWS, say: said(lang, say), src });
+  const base = `extra:reading.${lang}.print_orientation.prompts`;
+  let items;
+  if (lang === 'en') {
+    const q = r.prompts;
+    items = [
+      wordItem('en.print_orientation.1', pos.start, `${q[0]} ${q[1].replace('Show me with your finger.', 'Tap that word.')}`, `${base}[1]`),
+      arrowItem('en.print_orientation.2', 'Now tap the arrow that shows which way you would read next.', `${base}[2]`),
+      wordItem('en.print_orientation.3', pos.next_line, `${q[3]} Tap that word.`, `${base}[3]`),
+    ];
+  } else {
+    const tapUr = (t) => t.replace('میں نہیں چاہتا/ چاہتی کہ ابھی آپ یہ پیراگراف پڑھیں۔', 'ابھی یہ پیراگراف نہ پڑھیں۔')
+      .replace(/اس صفحے پر انگلی رکھ کر بتائیے/, 'اس صفحے پر دبا کر بتائیں').replace(/اپنی انگلی کی مدد سے بتائیے/, 'دبا کر بتائیں')
+      .replace(/آپ اپنی انگلی کے اشارے سے مجھے بتائیے|اپنی انگلی کے اشارے سے مجھے بتائیے/, 'دبا کر بتائیں').replace('اب آپ مجھے بتائیے', 'اب تیر دبا کر بتائیں');
+    const q = r.prompts.map((x) => tapUr(x.q));
+    items = [
+      wordItem('ur.print_orientation.1', pos.start, q[0], `${base}[0]`),
+      arrowItem('ur.print_orientation.2', q[1], `${base}[1]`),
+      wordItem('ur.print_orientation.3', pos.next_line, q[2], `${base}[2]`),
+      wordItem('ur.print_orientation.4', pos.sentence_end, q[3], `${base}[3]`),
+      wordItem('ur.print_orientation.5', pos.story_end, q[4], `${base}[4]`),
+    ];
+  }
+  const { words: _w, ...shown } = p;
+  return {
+    task: `${lang}.print_orientation`, lang, kind: 'choice', legacy_block: null, family: 'egra', subtask: r.subtask,
+    title: { en: 'How we read', ur: 'ہم کیسے پڑھتے ہیں' }, modes: ['tap'],
+    tap: { options_n: 4, distractor_rule: 'words_of_the_passage | arrows', input: 'options', time_limit_s: null, ...UNTIMED_TAP, stop: null,
+      passage: { ...shown, words: p.words.map((x) => ({ id: x.id, target: x.target, line: x.line })) }, items },
+    record: null, practice: [], practice_note: 'orientation to print has no practice item',
+    script: scriptOf(`${lang}.print_orientation`, 'tap'),
+    source: { items: `extra:reading.${lang}.print_orientation`, script: LINES[`${lang}.print_orientation`].intro_tap.from,
+      sa_adaptation: `the official prompts asked on the passage that follows (${story.task}); the expected word comes from that passage` },
+    deviation: 'the child taps the word or arrow instead of pointing; prompts address the passage this form shows',
+  };
 }
 
 // Where a task sits in its section's run order (EGRA toolkit order within each language; the 18 v3 tasks keep v3's).
 const RUN_ORDER = [
-  'ur.listening', 'ur.listening2', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'ur.story_comp', 'ur.story2', 'ur.story2_comp',
-  'en.listening', 'en.listening2', 'en.initial_sound', 'en.segmentation', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words', 'en.story',
-  'en.story_comp', 'en.story2', 'en.story2_comp',
+  'ur.listening', 'ur.listening2', 'ur.vocabulary', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.print_orientation',
+  'ur.story', 'ur.story_comp', 'ur.story2', 'ur.story2_comp',
+  'en.listening', 'en.listening2', 'en.initial_sound', 'en.segmentation', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words',
+  'en.print_orientation', 'en.story', 'en.story_comp', 'en.story2', 'en.story2_comp', 'en.dictation',
 ];
 const runRank = (id) => {
   const i = RUN_ORDER.indexOf(id);
@@ -534,6 +628,13 @@ function buildSaBank({ v3, extra }) {
     const core18 = formTasks(f, v3, extra);
     // The second passages and stories (parallel_of) are the game's; the coach keeps Set A only.
     const extras = extra ? [...readingExtras(extra), ...extraTasks(f, extra)].filter((t) => f.surface === 'game' || !t.parallel_of) : [];
+    // Orientation to print at Grades 1-3 (RULING #2), on the passage this form shows.
+    if (extra && f.grades.some((g) => g <= 3)) {
+      for (const lang of ['ur', 'en']) {
+        const story = extras.find((t) => t.task === `${lang}.story2`) || core18.find((t) => t.task === `${lang}.story`);
+        extras.push(printOrientation(lang, story, extra));
+      }
+    }
     // Each extra sits in its language's section (stable: the core order and the maths extras' order are kept).
     const list = [...core18, ...extras].map((t, i) => ({ t, i })).sort((a, b) => {
       const [sa, ra] = runRank(a.t.task);
@@ -545,7 +646,9 @@ function buildSaBank({ v3, extra }) {
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
-      const blocks = { ...BLOCKS, B3: [...extraIds.filter((id) => /initial_sound$/.test(id)), ...BLOCKS.B3],
+      const before = (list2, id, add) => (extraIds.includes(add) ? list2.flatMap((x) => (x === id ? [add, x] : [x])) : list2);
+      const blocks = { ...BLOCKS, B1: before(BLOCKS.B1, 'ur.story', 'ur.print_orientation'), B2: before(BLOCKS.B2, 'en.story', 'en.print_orientation'),
+        B3: [...extraIds.filter((id) => /initial_sound$|vocabulary$/.test(id)), ...BLOCKS.B3],
         B4: [...BLOCKS.B4, ...extraIds.filter((id) => /^ma\.patterns/.test(id))] };
       Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES });
     } else {
@@ -596,7 +699,7 @@ function splitSaBank(bank) {
 // ---------------------------------------------------------------------------------------------- runtime batteries
 // What the engine runs (dashboard/sa/sa-core.js normalize/validate, served at /sa/batteries/sa.<form>.<lang>.json):
 // one form in one instruction language, tasks[] in the form's order, each with one response mode.
-const RESPONSE = { options: 'tap', keypad: 'keypad' };
+const RESPONSE = { options: 'tap', keypad: 'keypad', keyboard: 'keyboard' };
 
 function runtimeStop(s) {
   if (!s) return {};
@@ -641,6 +744,8 @@ function runtimeTask(t, lang) {
     return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, item_timeout_s: tap.item_timeout_s,
       replay_at_s: tap.replay_at_s, ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop),
       options_n: tap.options_n, distractor_rule: tap.distractor_rule, items: tap.items.map((it) => runtimeItem(it, lang)), practice,
+      ...(tap.passage ? { passage: tap.passage, tap_on: 'passage' } : {}), ...(tap.option_images ? { option_images: tap.option_images } : {}),
+      ...(t.rubric ? { rubric: t.rubric } : {}),
       ...(t.record && t.record.grid ? { grid: t.record.grid, per_row: t.record.per_row, direction: t.record.direction } : {}),
       ...(t.depends_on ? { depends_on: t.depends_on } : {}) };
   }
