@@ -156,7 +156,7 @@ async function compute(a, d, state) {
   state.base = base;
 
   // An unknown indicator is no longer a none here: the shortlist's step-text route takes it (SPEC v1.3 R3).
-  if (t.none && t.none !== 'unknown_indicator') return finish({ ...base, status: 'none', none_reason: t.none });
+  if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') return finish({ ...base, status: 'none', none_reason: t.none });
 
   const lesson = {
     subject,
@@ -194,8 +194,9 @@ async function compute(a, d, state) {
   const fa = (analysis && analysis.focus_area) || {};
   const text = prompt.build({
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
-    rationale: step.rationale || fa.rationale || '',
-    tryText: (card && card.action) || step.try || fa.try_this_tomorrow || '',
+    // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
+    rationale: prompt.redact(step.rationale || fa.rationale || '', people),
+    tryText: prompt.redact((card && card.action) || step.try || fa.try_this_tomorrow || '', people),
     subject,
     excerpts: ex,
     candidates: list.candidates,

@@ -27,33 +27,33 @@ test('the scorer\'s quote is an accepted moment (moment_source scorer)', () => {
 
 test('seg_id null → llm_none; not shortlisted → validation', () => {
   expect(validate({ ...good(), seg_id: null }, shortlist, excerpts, opts)).toMatchObject({ ok: false, none: 'llm_none' });
-  expect(validate({ ...good(), seg_id: '12-s1' }, shortlist, excerpts, opts).none).toBe('validation');
+  expect(validate({ ...good(), seg_id: '12-s1' }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
 });
 
 test('indicator path: a chapter that does not name the step → validation (differs is 0 by construction)', () => {
   const sl = { candidates: [...shortlist.candidates, { seg_id: '11-s2', indicator: 'C2' }] };
-  expect(validate({ ...good(), seg_id: '11-s2' }, sl, excerpts, opts).none).toBe('validation');
+  expect(validate({ ...good(), seg_id: '11-s2' }, sl, excerpts, opts).none).toMatch(/^validation:/);
 });
 
 test('an invented quote → validation; spacing/punctuation/case are fine; Urdu matches; [a student] stands in for a name', () => {
-  expect(validate({ ...good(), moment: { at: '03:00', quote: 'Please explain why the sky is blue' } }, shortlist, excerpts, opts).none).toBe('validation');
+  expect(validate({ ...good(), moment: { at: '03:00', quote: 'Please explain why the sky is blue' } }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
   expect(validate({ ...good(), moment: { at: '03:00', quote: 'is this a  TRIANGLE yes or no' } }, shortlist, excerpts, opts).ok).toBe(true);
   expect(validate({ ...good(), moment: { at: '03:20', quote: 'جی ہاں یہ مثلث ہے' } }, shortlist, excerpts, opts).ok).toBe(true);
   const ex = ['[05:00] Teacher: [a student], tum batao is this a triangle'];
   expect(validate({ ...good(), moment: { at: '05:00', quote: '[a student], tum batao is this a triangle' } }, shortlist, ex, opts).ok).toBe(true);
-  expect(validate({ ...good(), moment: null }, shortlist, excerpts, opts).none).toBe('validation');
+  expect(validate({ ...good(), moment: null }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
 });
 
 test('reason_en 20–400 code points; reason_ur ≥ 60% Arabic script (English pedagogy terms allowed)', () => {
-  expect(validate({ ...good(), reason_en: 'Too short.' }, shortlist, excerpts, opts).none).toBe('validation');
-  expect(validate({ ...good(), reason_en: 'x'.repeat(401) }, shortlist, excerpts, opts).none).toBe('validation');
-  expect(validate({ ...good(), reason_ur: 'The teacher asked yes/no questions only, so watch this.' }, shortlist, excerpts, opts).none).toBe('validation');
+  expect(validate({ ...good(), reason_en: 'Too short.' }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
+  expect(validate({ ...good(), reason_en: 'x'.repeat(401) }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
+  expect(validate({ ...good(), reason_ur: 'The teacher asked yes/no questions only, so watch this.' }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
   expect(validate({ ...good(), reason_ur: `${UR} open-ended questions` }, shortlist, excerpts, opts).ok).toBe(true);
 });
 
 test('H8: the teacher\'s own name in a quote or reason → validation', () => {
   const named = { ...good(), reason_en: 'At 03:00 Saima Khan asked only yes or no questions; this clip shows why and how.' };
-  expect(validate(named, shortlist, excerpts, { ...opts, teacherName: 'Saima Khan' }).none).toBe('validation');
+  expect(validate(named, shortlist, excerpts, { ...opts, teacherName: 'Saima Khan' }).none).toMatch(/^validation:/);
   expect(validate(good(), shortlist, excerpts, { ...opts, teacherName: 'Saima Khan' }).ok).toBe(true);
 });
 
@@ -70,6 +70,6 @@ test('card_text path: any shortlisted chapter is fine', () => {
 test('confidence clamped; junk → validation, never a throw', () => {
   expect(validate({ ...good(), confidence: 7 }, shortlist, excerpts, opts).confidence).toBe(1);
   expect(validate({ ...good(), confidence: 'x' }, shortlist, excerpts, opts).confidence).toBe(0);
-  expect(validate(null, shortlist, excerpts, opts).none).toBe('validation');
-  expect(validate('text', null, null, null).none).toBe('validation');
+  expect(validate(null, shortlist, excerpts, opts).none).toMatch(/^validation:/);
+  expect(validate('text', null, null, null).none).toMatch(/^validation:/);
 });
