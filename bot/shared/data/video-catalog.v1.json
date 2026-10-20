@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261020T1959-6f716783",
- "built_at": "2026-10-20T19:59:07.231Z",
+ "version": "catalog-v1-20261020T2022-7097e261",
+ "built_at": "2026-10-20T20:22:55.808Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -4576,7 +4576,7 @@
       "رکھا",
       "ڈایاگرام"
      ],
-     "recommendable_reason": "panel_veto: not_a_move: a lesson-plan voice-over (board diagram, bundling sticks, experiment) picked only by B8/F5 label scores; ⛔2 on 5 of 5 judged picks (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
+     "recommendable_reason": "panel_veto: not_a_move: lecture/plan voice-over, R3 = 2 in 8/8 persona scores; the engine's generic fallback on F5/B8 labels (ped-review live review, board 20261020T194756_ped-review_spec.md; appended by eng-engine on lead-review 19:56Z item 4)"
     },
     {
      "seg_id": "11-s3",
@@ -48319,7 +48319,7 @@
       "denominators",
       "انکوائری"
      ],
-     "recommendable_reason": "panel_veto: not_a_move: a three-lesson objectives sequence picked on a B7 score alone; nothing a teacher copies tomorrow (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
+     "recommendable_reason": "panel_veto: not_a_move: a three-lesson objectives sequence, 2/2 (ped-review live review, board 20261020T194756_ped-review_spec.md; appended by eng-engine on lead-review 19:56Z item 4)"
     },
     {
      "seg_id": "99-s3",
@@ -48458,7 +48458,7 @@
       "کنیکٹ",
       "guided"
      ],
-     "recommendable_reason": "panel_veto: not_a_move: a five-strategy planning list picked on a B7 score artefact (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
+     "recommendable_reason": "panel_veto: not_a_move: a planning list, R3 = 2 in 6/6 (ped-review live review, board 20261020T194756_ped-review_spec.md; appended by eng-engine on lead-review 19:56Z item 4)"
     },
     {
      "seg_id": "99-s4",
@@ -66461,7 +66461,7 @@
       "ریسرچ",
       "کمیونٹی"
      ],
-     "recommendable_reason": "panel_veto: teacher_cant_act: a five-step project (days of research) sent to single-period lessons on F6 n/a cards (ped/REVIEW.md; lead-review ruling 19:49Z item 2)"
+     "recommendable_reason": "panel_veto: teacher_cant_act: a five-step project over days, not a single-period move (ped-review live review, board 20261020T194756_ped-review_spec.md; appended by eng-engine on lead-review 19:56Z item 4)"
     },
     {
      "seg_id": "133-s4",

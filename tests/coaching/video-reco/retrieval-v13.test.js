@@ -100,12 +100,13 @@ describe('R3 the step-text route', () => {
     expect(routes(r)).toEqual(['step_text']);
     expect(S.build(cat, tgt('D3'), ctx(), 'x', L(), step('zzz')).noneReason).toBe('hole');
   });
-  test('37 label whose v4 exact is a hole (native pool present) also appends the text route', () => {
+  test('v1.3b F2: a NATIVE 37 match whose v4 exact is a hole is a move: tag route only, the hole check never applies', () => {
     const c = copy((d) => { seg(d, '14-s1').fico_main37 = ['D9']; d.indicator_aliases.D9 = { exact: 'D3', approx: [] }; });
     const t = tgt('D9', { native37: true, scheme: 'fico_main_37', storedIndicator: 'D9', aliasKind: 'native37' });
     const r = S.build(c, t, ctx(), 'x', L(), step('wait pause silence'));
-    expect(r.textReason).toBe('hole');
-    expect(ids(r)).toEqual(['14-s1', '10-s2']);
+    expect(r.textReason).toBeNull();
+    expect(ids(r)).toEqual(['14-s1']);
+    expect(routes(r)).toEqual(['tag']);
   });
   test('unknown_indicator: the text route alone; nothing over the floor → none:unknown_indicator', () => {
     const r = S.build(cat, B7, ctx(), 'x', L(), step('exit summary'));
@@ -266,4 +267,26 @@ test('V1.7.1 is additive and idempotent; its rollback drops only its own columns
   }
   expect(up).not.toMatch(/DROP (TABLE|COLUMN)|CREATE TABLE|NOT NULL(?! DEFAULT)/);
   expect(down).not.toMatch(/DROP TABLE/);
+});
+
+describe('v1.3b ⛔11 (lead-review 19:56Z ruling 1): near chapters first, the SAME 12, stable', () => {
+  const loud = copy((d) => { seg(d, '13-s1').keywords = ['zebra', 'zebra', 'zebra']; }); // level 4, the BM25 winner
+  test('known part-way level 2: a near chapter exists ⇒ it is listed before every far one', () => {
+    const r = S.build(loud, tgt('C1'), ctx({ level: 2 }), 'zebra zebra', L());
+    const m = r.candidates.map((c) => c.level_match);
+    expect(m).toContain('far');
+    expect(m.lastIndexOf('near')).toBeLessThan(m.indexOf('far'));
+    expect(ids(r)[ids(r).length - 1]).toBe('13-s1');
+    const near = r.candidates.filter((c) => c.level_match === 'near').map((c) => c.score);
+    expect(near).toEqual([...near].sort((a, b) => b - a)); // score order inside the group
+  });
+  test('the same set as score order, only re-ordered', () => {
+    const r = S.build(loud, tgt('C1'), ctx({ level: 2 }), 'zebra zebra', L());
+    const byScore = [...r.candidates].sort((a, b) => b.score - a.score).map((c) => c.seg_id);
+    expect([...ids(r)].sort()).toEqual([...byScore].sort());
+  });
+  test('completed ladder: unchanged, score order (the far winner stays first)', () => {
+    const r = S.build(loud, tgt('C1'), ctx({ level: 4, ladderComplete: true }), 'zebra zebra', L());
+    expect(ids(r)[0]).toBe('13-s1');
+  });
 });

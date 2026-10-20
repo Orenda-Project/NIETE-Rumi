@@ -115,7 +115,9 @@ async function compute(a, d, state) {
   // A teacher with no stored language reads the copy in the lesson's language (⛔3, red-team 19:50Z): never a 'preferred'.
   const pref = session.users && session.users.preferred_language;
   const hasPref = typeof pref === 'string' && pref.trim() !== '';
-  const transcriptLanguage = session.transcript_language ? clampLanguage(session.transcript_language) : null;
+  // A lesson language outside {en, ur} (a 'hindi' transcript) is unknown, never clamped to en (red-team 19:55Z).
+  const rawTranscript = typeof session.transcript_language === 'string' ? session.transcript_language.trim().toLowerCase() : '';
+  const transcriptLanguage = ['en', 'ur'].includes(rawTranscript) ? rawTranscript : null;
   const language = hasPref ? clampLanguage(pref) : (transcriptLanguage || 'ur');
   const [history, ladder] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id)]);
   const completed = new Set(ladder.completedModules || []);
@@ -187,11 +189,14 @@ async function compute(a, d, state) {
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
-  base.step_text_query = list.stepTextQuery || null;
+  const people = { teacher: session.users && session.users.name };
+  // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
+  // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
+  const st = stepTextOf(t, analysis, card);
+  base.step_text_query = list.stepTextQuery ? shortlist.stepQuery({ ...st, action: prompt.redact(st.action, people) }) || null : null;
   if (list.route === 'step_text') base.alias_kind = list.textReason;
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
 
-  const people = { teacher: session.users && session.users.name };
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
   const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }, people);
@@ -238,7 +243,11 @@ async function compute(a, d, state) {
       v = check(again);
     } catch (e) { /* the first answer's none stands */ }
   }
-  const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone };
+  // r-ab EVENTS_SCHEMA §3b (V1.7.2): the language facts the STOP_lang_null guardrail reads, on every row with a call.
+  const withLlm = {
+    ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
+    report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
+  };
   if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
 
   const p = res.pick;
@@ -263,6 +272,7 @@ async function compute(a, d, state) {
     start_s: hit.segment.start_s,
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
+    chapter_language: hit.segment.language || hit.module.language || null,
     reason_en: String(p.reason_en).trim(),
     reason_ur: String(p.reason_ur).trim(),
     moment_at: p.moment && p.moment.at ? String(p.moment.at) : null,
