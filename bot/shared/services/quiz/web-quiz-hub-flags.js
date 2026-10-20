@@ -100,6 +100,12 @@ const CHALLENGE_EARLY_KEY = 'web_quiz_challenge_early';
 // web_quiz_challenge_fold (JSON true only, from this cache only: nowOf('challengeFold')): a friend's challenge door says
 // `challenge_fold`, so the page puts Play right after the challenge line and the invite picture under it (wq.js landing)
 const CHALLENGE_FOLD_KEY = 'web_quiz_challenge_fold';
+// web_quiz_challenge_line_keep (JSON true only, from this cache only: nowOf('challengeLineKeep')): the quiz page answer says
+// `challenge_line_keep`, so each number in the challenge line and the challenge share text keeps the word after it (wq.js keepNum)
+const CHALLENGE_LINE_KEEP_KEY = 'web_quiz_challenge_line_keep';
+// web_quiz_end_fit (JSON true only, from this cache only: nowOf('endFit')): the quiz page answer says `end_fit`, so the end
+// screen draws its stars in one row sized from their count and its score headline balanced (wq.js results)
+const END_FIT_KEY = 'web_quiz_end_fit';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -174,6 +180,7 @@ const SWITCHES = Object.freeze([
   ['challenge',    CHALLENGE_KEY,         'loose'],
   ['challengeEarly', CHALLENGE_EARLY_KEY, 'json'],
   ['challengeFold', CHALLENGE_FOLD_KEY,   'json'],
+  ['challengeLineKeep', CHALLENGE_LINE_KEEP_KEY, 'json'],
   ['rungs',        RUNGS_KEY,             'loose'],
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
@@ -183,6 +190,7 @@ const SWITCHES = Object.freeze([
   ['prefetch',     PREFETCH_KEY,          'json'],
   ['earlyUnlock',  EARLY_UNLOCK_KEY,      'json'],
   ['edgeLearn',    EDGE_LEARN_KEY,        'json'],
+  ['endFit',       END_FIT_KEY,           'json'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
   ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],

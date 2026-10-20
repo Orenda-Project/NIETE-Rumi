@@ -4127,3 +4127,107 @@ describe('Your turn, one sheet that fits: the picture in the room left, the hint
     expect(draw(bk, PHONES[ph], 1).st.style).not.toHaveProperty('--wqs-pi');
   });
 });
+
+// ---- the picture card trimmed to its drawing (web_quiz_read_sheet_trim: the book's read_sheet 3, with the fit): where the
+// picture is drawn as its own card in the room left (read_sheet 2's own card), the blank paper above and below the
+// drawing is not part of the card. The page reads the drawing's ink rows from the loaded picture (a small canvas, once
+// per picture), so the card holds the drawing with a thin margin and the drawing grows into the room the paper took.
+// No pixels to read (no canvas, a picture not loaded yet, a tainted canvas): read_sheet 2's card, number for number.
+describe('Your turn, the picture card trimmed to its drawing (akhbar 360x640, SF-1)', () => {
+  const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
+  const IM = { w: 720, h: 1083 }, LINES = [[109, 65, 494, 77], [271, 153, 167, 70]], INK = [470, 1010], D = [328, 370];
+  // a canvas whose pixels are the page's: white paper, the drawing's ink between INK[0] and INK[1] (image rows)
+  const canvasDoc = (calls) => ({
+    createElement: (t) => {
+      if (t !== 'canvas') return {};
+      const c = { width: 0, height: 0, src: null };
+      c.getContext = () => ({
+        drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh) { calls.push([sx, sy, sw, sh, dw, dh]); c.src = [sy, sh, dh]; },
+        getImageData(x, y, w, h) {
+          const data = new Uint8ClampedArray(w * h * 4).fill(255);
+          for (let r = 0; r < h; r += 1) {
+            const iy = c.src[0] + (r + 0.5) * c.src[1] / c.src[2];
+            if (iy >= INK[0] && iy <= INK[1]) for (let k = Math.floor(w * 0.2); k < w * 0.8; k += 1) { const o = (r * w + k) * 4; data[o] = data[o + 1] = data[o + 2] = 60; }
+          }
+          return { data };
+        },
+      });
+      return c;
+    },
+  });
+  const moment = (doc) => { const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: doc })); return win.WQMoment; };
+  const draw = (one, doc, img = {}) => {
+    const a = fakeEl('art'), i = fakeEl('i'), m = Object.assign(fakeEl('img'), { complete: true, naturalWidth: IM.w }, img), st = fakeEl('stage');
+    a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.style.setProperty = (k, v) => { st.style[k] = v; };
+    const f = moment(doc).art(a, env().S._cam, IM, LINES, LINES, D, true, 0, one);
+    const pw = parseFloat(i.style.width), z = pw / IM.w;
+    return { a, i, m, st, f, z, pw, ph: parseFloat(i.style.height), top: parseFloat(a.style.top), cy: -parseFloat(/translateY\(([-\d.]+)px\)/.exec(m.style.transform)[1]) / z };
+  };
+  test('on: the card starts at the drawing (≤ 12 px of paper above it) and ends at it, the drawing larger than read_sheet 2\'s', () => {
+    const calls = [];
+    const b = draw(2, {}), g = draw(3, canvasDoc(calls));
+    expect(calls.length).toBe(1);                                                   // one small read of the picture's part
+    expect(calls[0][4]).toBeLessThanOrEqual(200);                                    // a small canvas, not the full picture
+    expect(g.a.getAttribute('data-art')).toBe('on');
+    expect(g.i.style.borderRadius).toBe('12px');
+    expect((INK[0] - g.cy) * g.z).toBeGreaterThanOrEqual(0);
+    expect((INK[0] - g.cy) * g.z).toBeLessThanOrEqual(12);                           // SF-1: no band of blank paper on top
+    expect(g.cy + g.ph / g.z - INK[1]).toBeGreaterThanOrEqual(0);
+    expect((g.cy + g.ph / g.z - INK[1]) * g.z).toBeLessThanOrEqual(12);              // nor at its foot
+    expect((INK[0] - b.cy) * b.z).toBeGreaterThan(40);                               // read_sheet 2 shows the paper (the bug)
+    expect(g.z).toBeGreaterThanOrEqual(b.z);                                         // the drawing never smaller
+    expect(g.pw).toBeLessThanOrEqual(D[0]);
+    expect(g.top + g.ph).toBeLessThanOrEqual(D[1] + 0.5);                            // inside the stage
+    expect(g.top).toBe(b.top);                                                       // the same gap under the words
+    expect(g.f).toEqual(b.f);                                                        // the words' sheet untouched
+    expect(parseFloat(g.st.style['--wqs-pi'])).toBeCloseTo((D[0] - g.pw) / 2, 0);    // the hint stays inside the picture
+    const cap = g.st.style['--wqs-cap'];
+    expect(cap === 'none' ? D[1] - (g.top + g.ph) : parseFloat(cap) - (g.top + g.ph)).toBeLessThanOrEqual(1);
+  });
+  test('the read is kept on the picture: a second draw reads no pixels', () => {
+    const calls = [], doc = canvasDoc(calls), M = moment(doc);
+    const a = fakeEl('art'), i = fakeEl('i'), m = Object.assign(fakeEl('img'), { complete: true, naturalWidth: IM.w }), st = fakeEl('stage');
+    a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.style.setProperty = (k, v) => { st.style[k] = v; };
+    M.art(a, env().S._cam, IM, LINES, LINES, D, true, 0, 3); M.art(a, env().S._cam, IM, LINES, LINES, D, true, 0, 3);
+    expect(calls.length).toBe(1);
+  });
+  test('the box\'s picture still loading: the stage\'s copy of the same file (drawn already) is read, so the card is trimmed', () => {
+    const calls = [], a = fakeEl('art'), i = fakeEl('i'), st = fakeEl('stage');
+    const m = Object.assign(fakeEl('img'), { complete: false, naturalWidth: 0, src: 'https://x.test/s/b/p01.webp' });
+    const copy = Object.assign(fakeEl('img'), { complete: true, naturalWidth: IM.w, src: m.src });
+    a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.querySelectorAll = () => [m, copy]; st.style.setProperty = (k, v) => { st.style[k] = v; };
+    moment(canvasDoc(calls)).art(a, env().S._cam, IM, LINES, LINES, D, true, 0, 3);
+    const z = parseFloat(i.style.width) / IM.w, cy = -parseFloat(/translateY\(([-\d.]+)px\)/.exec(m.style.transform)[1]) / z;
+    expect(calls.length).toBe(1);
+    expect((INK[0] - cy) * z).toBeLessThanOrEqual(12);
+  });
+  test('nothing loaded yet: the host\'s re-frame runs once the picture comes in (not before)', () => {
+    const a = fakeEl('art'), i = fakeEl('i'), st = fakeEl('stage'), m = Object.assign(fakeEl('img'), { complete: false, naturalWidth: 0 });
+    a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.style.setProperty = (k, v) => { st.style[k] = v; };
+    let again = 0;
+    const M = moment(canvasDoc([]));
+    M.art(a, env().S._cam, IM, LINES, LINES, D, true, 0, 3, () => { again += 1; });
+    M.art(a, env().S._cam, IM, LINES, LINES, D, true, 0, 3, () => { again += 1; });
+    expect(again).toBe(0);
+    expect(m.L.load.length).toBe(1);                                                 // one listener, however often it is framed
+    m.L.load[0]();
+    expect(again).toBe(1);
+  });
+  test.each([
+    ['no canvas', () => ({}), {}],
+    ['the picture not loaded yet', () => canvasDoc([]), { complete: false, naturalWidth: 0 }],
+    ['a tainted canvas', () => ({ createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData() { throw new Error('SecurityError'); } }) }) }), {}],
+  ])('%s: read_sheet 2\'s card, number for number', (_n, doc, img) => {
+    const b = draw(2, {}), g = draw(3, doc(), img);
+    expect([g.f, g.a.style, g.i.style, g.m.style, g.a.attrs, g.st.style['--wqs-pi'], g.st.style['--wqs-cap']]).toEqual([b.f, b.a.style, b.i.style, b.m.style, b.a.attrs, b.st.style['--wqs-pi'], b.st.style['--wqs-cap']]);
+  });
+  test('a page where the sheet already shares one width with its picture (360x740): read_sheet 2\'s, number for number', () => {
+    const run = (one, doc) => {
+      const a = fakeEl('art'), i = fakeEl('i'), m = Object.assign(fakeEl('img'), { complete: true, naturalWidth: IM.w }), st = fakeEl('stage');
+      a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.style.setProperty = (k, v) => { st.style[k] = v; };
+      const f = moment(doc).art(a, env().S._cam, IM, LINES, LINES, [328, 470], true, 0, one);
+      return [f, a.style, i.style, m.style, a.attrs, st.style['--wqs-pi']];
+    };
+    expect(run(3, canvasDoc([]))).toEqual(run(2, {}));
+  });
+});

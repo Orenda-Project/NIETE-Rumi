@@ -757,6 +757,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
     }
   }[LANG];
+  // The corrected Urdu share words (app_settings web_quiz_ur_share_copy → the payload's `ur_share`): «بھیجیں» for Share,
+  // no masculine form aimed at the child, «دبائیں» for tap. The polished copy below keeps its own lines on top. Off: today's T.
+  if (LANG === 'ur' && B.ur_share === true) {
+    T = Object.assign({}, T, {
+      sharePlain: 'دوستوں کو بھیجیں',
+      shareLine: function (w, s, n, t) { return '\u2068' + w + '\u2069 نے \u2068' + t + '\u2069 میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!'; },
+      tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:'; },
+      whoStreet: 'محلے میں کوئی دوست',
+      chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
+      chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
+    });
+  }
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, shorter
   // lines, Urdu digits isolated left to right, one word for "done". Off, T is today's map, untouched.
   var UR2 = LANG === 'ur' && (function () { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } })();
@@ -1470,6 +1482,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     for (var i = 0; i < total; i++) h += STAR.replace('{on}', i < n ? ' wq-on' : '');
     return '<div class="wq-stars" role="img" aria-label="' + n + '/' + total + '">' + h + '</div>';
   }
+  // The end screen's score: the headline and its stars. web_quiz_end_fit (the answer's end_fit): the stars stay one row,
+  // each min(48 px, its share of the card) (wq-fitstars), and the headline wraps balanced (wq-endh). Off: today's.
+  function endScore(n, total) {
+    if (!B.end_fit) return '<h1>' + esc(T.got(n, total)) + '</h1>' + stars(n, total);
+    return '<h1 class="wq-endh">' + esc(T.got(n, total)) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+  }
   function toast(msg) {
     var t = document.createElement('div');
     t.className = 'wq-toast'; t.textContent = msg; t.setAttribute('role', 'status');
@@ -1503,9 +1521,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
   // hand-off from the chat to the page is one picture, not two different things. Gone if it cannot load.
-  function chPic(chLine) {
+  // Under the fold it sits right under Play, so it is the door's drawing: "Your turn!" in place of the chat's link pill.
+  function chPic(chLine, door) {
     var id = chLine && B.art && B.art.invite;
-    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id)) + '" alt="' + esc(chLine) + '">' : '';
+    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id) + (door ? '&w=door' : '')) + '" alt="' + esc(chLine) + '">' : '';
   }
   // fold (web_quiz_challenge_fold): the picture sits right under the way in and carries a drawn "tap the link to play",
   // so a tap on it is a tap on Play (or the remembered child's button); with the class's children listed, it shows them
@@ -1530,6 +1549,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // A storybook the teacher sent (wq-story-link.js, loaded only then): the landing names a story.
   if (B.story && window.WQSTORYLINK) T = window.WQSTORYLINK.copy(T, LANG);
+  // web_quiz_challenge_line_keep (the answer's challenge_line_keep): each number in the challenge line and the challenge share text
+  // keeps the word after it (a no-break space), so a balanced wrap never ends a line on «۴» with «ستارے» on the next
+  if (B.challenge_line_keep === true) {
+    var keepNum = function (s) { return String(s).replace(/([0-9\u06F0-\u06F9]+(?:\/[0-9\u06F0-\u06F9]+)?\u2069?) (?=\S)/g, '$1\u00a0'); };
+    T = Object.assign({}, T);
+    ['challenged', 'chalLine', 'chalPlayed'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
+  }
 
   function landing() {
     var here = kids();
@@ -1543,7 +1569,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (B.preview && params.p) return teacherLanding();
     // web_quiz_challenge_fold (the answer's challenge_fold): the way in comes right after the challenge line, and the
     // invite picture follows it, so a small phone shows Play on the first screen
-    var pic = chPic(chLine), fold = Boolean(B.challenge_fold && pic);
+    var pic = chPic(chLine, Boolean(B.challenge_fold)), fold = Boolean(B.challenge_fold && pic);
     if (ID && !B.preview) { if (fold) ID.landing(chLine, pic, true); else ID.landing(chLine, pic); wireChPic(fold); return; }
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
@@ -1552,7 +1578,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       (fold ? '' : pic) +
-      (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
+      // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
+      (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + esc(chLine) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
@@ -2439,7 +2466,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var done = vline('done');
       var h = bar() + jug('celebrate', done.text, true, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
-        '<h1>' + esc(T.got(sc.correct, total)) + '</h1>' + stars(sc.correct, total) +
+        endScore(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? pracBanner(res, total) : '') +
@@ -2486,7 +2513,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var sc = localScore();
     var h = bar() + jug('celebrate', T.offDone, true) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
-      '<h1>' + esc(T.got(sc.correct, sc.total)) + '</h1>' + stars(sc.correct, sc.total) + '</div>' +
+      endScore(sc.correct, sc.total) + '</div>' +
       '<div class="wq-banner">' + esc(T.offWait) + '</div>' +
       '<button class="wq-btn wq-go" id="wq-sync">' + esc(T.tryNow) + '</button>';
     render(h, 'M9-pending');

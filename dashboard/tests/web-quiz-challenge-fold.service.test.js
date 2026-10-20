@@ -14,15 +14,15 @@ const at = (h, s) => h.indexOf(s);
 describe.each([['wq.js landing', {}], ['identity v2 landing', { ident: true, cls: v2 }]])('%s', (_n, extra) => {
   test.each([['en'], ['ur']])('on (%s): the line, then Play, then the picture', (lang) => {
     const h = page({ lang, art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true }, ...extra }).html();
-    expect(at(h, 'id="wq-play"')).toBeGreaterThan(at(h, 'class="wq-banner"'));
+    expect(at(h, 'id="wq-play"')).toBeGreaterThan(at(h, 'class="wq-banner'));
     expect(at(h, 'class="wq-chpic"')).toBeGreaterThan(at(h, 'id="wq-play"'));
   });
   test('off: today\'s order, byte for byte (the picture above the line and the button)', () => {
     const base = page({ lang: 'en', art: { invite: INVITE }, challenge: CH, ...extra }).html();
     const off = page({ lang: 'en', art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: false }, ...extra }).html();
     expect(off).toBe(base);
-    expect(at(base, 'class="wq-chpic"')).toBeLessThan(at(base, 'class="wq-banner"'));
-    expect(at(base, 'class="wq-banner"')).toBeLessThan(at(base, 'id="wq-play"'));
+    expect(at(base, 'class="wq-chpic"')).toBeLessThan(at(base, 'class="wq-banner'));
+    expect(at(base, 'class="wq-banner')).toBeLessThan(at(base, 'id="wq-play"'));
   });
   test('on, no picture (an older card): the same page as off', () => {
     const on = page({ lang: 'en', challenge: CH, bootExtra: { challenge_fold: true }, ...extra }).html();
@@ -71,5 +71,34 @@ describe('the invite picture over the kids list marks the names', () => {
     expect(add).toHaveBeenCalledWith('wq-kid-ring');
     p.runTimers();
     expect(remove).toHaveBeenCalledWith('wq-kid-ring');
+  });
+});
+
+// Under the fold the picture sits right under Play, so it asks for the door's drawing ("Your turn!" in place of the
+// chat's "tap the link to play" pill). Off: the chat's own picture, as today.
+describe('the picture on the door is the door\'s drawing', () => {
+  test.each([['wq.js landing', {}], ['identity v2 landing', { ident: true, cls: v2 }]])('%s, on: w=door', (_n, extra) => {
+    const h = page({ lang: 'ur', art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true }, ...extra }).html();
+    expect(h).toContain(`src="/q/TEST/art/invite.jpg?a=${encodeURIComponent(INVITE)}&amp;w=door"`);
+  });
+  test('off: the chat\'s picture', () => {
+    const h = page({ lang: 'en', art: { invite: INVITE }, challenge: CH }).html();
+    expect(h).not.toContain('w=door');
+  });
+});
+
+// Under the fold the challenge line wraps balanced (wq-chline: text-wrap balance), so an Urdu line never leaves its last
+// word alone on a line at 360/390. Off: today's banner, byte for byte (the off test above).
+describe('the challenge line wraps balanced on the fold door', () => {
+  test.each([['wq.js landing', {}], ['identity v2 landing', { ident: true, cls: v2 }]])('%s, on: wq-chline', (_n, extra) => {
+    const h = page({ lang: 'ur', art: { invite: INVITE }, challenge: CH, bootExtra: { challenge_fold: true }, ...extra }).html();
+    expect(h).toContain('<div class="wq-banner wq-chline">');
+  });
+  test('off: no wq-chline', () => {
+    expect(page({ lang: 'ur', art: { invite: INVITE }, challenge: CH }).html()).not.toContain('wq-chline');
+  });
+  test('the stylesheet balances it', () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'wq', 'wq.css'), 'utf8');
+    expect(css).toMatch(/\.wq-chline\{[^}]*text-wrap:balance/);
   });
 });

@@ -139,6 +139,8 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-who-np{padding:6px 0}
 .wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:32px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
+/* the challenge line on the fold door (web_quiz_challenge_fold): wrapped balanced, never one word left alone */
+.wq-chline{text-wrap:balance}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
 .wq-dot.wq-done{background:var(--green)}
@@ -199,6 +201,10 @@ html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
 /* On the score card the stars keep ONE row (a 7- or 10-question quiz wrapped to two and pushed the card's actions below a phone's first screen): each shrinks from 40px to fit. */
 .wq-scorecard .wq-stars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,40px);justify-content:center;gap:6px}
 .wq-scorecard .wq-star{width:100%;height:auto;aspect-ratio:1}
+/* the end screen with web_quiz_end_fit: one star row always, each star min(48px, its share); the headline balanced */
+.wq-fitstars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,48px);justify-content:center;gap:6px}
+.wq-fitstars .wq-star{width:100%;height:auto;aspect-ratio:1}
+.wq-endh{text-wrap:balance}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
 /* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */

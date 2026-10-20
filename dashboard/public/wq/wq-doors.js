@@ -818,6 +818,8 @@
     var fo = { kind: 'video', deed: 'video_watched', lang: langOf(ctx), title: w.title || '', next: next, lead: true, plain: !!(B.doors && B.doors.videos && B.doors.videos.watch === true), auth: { hub: tok(B, ctx), kid: B.kid || '' }, ev: ev };
     // the one share (share_v4): the card names the video, so its link lands a new child on it
     if (B.share_v4 === true) { fo.v4 = true; fo.item = w.vid ? { type: 'video', id: String(w.vid) } : null; }
+    // the corrected Urdu share words (web_quiz_ur_share_copy): the no-class Share says «دوستوں کو بھیجیں»
+    if (B.ur_share === true) fo.urs = true;
     try { ok = window.WQFC.mount(a, fo); } catch (e) { ok = false; }
     if (!ok) return false;
     if (a && a.parentNode) a.parentNode.removeChild(a);
