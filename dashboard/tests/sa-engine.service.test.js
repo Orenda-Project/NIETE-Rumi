@@ -142,3 +142,45 @@ test('the hand-back: embedded â†’ tells the coach page (sa:done); not embedded â
   expect(done(top, { embed: true, back: '/list' }, 's1', { results: () => [] })).toBe('navigated');
   expect(posted[1]).toEqual(['go', '/list']);
 });
+
+test('the microphone: proctored without the pre-flight skips recording tasks; a game mic check is kept for the phone', async () => {
+  const s = await shared();
+  const kept = [];
+  const micStore = { v: 'unknown' };
+  const mic = { state: () => micStore.v, remember: (ok, rms) => kept.push([ok, rms]), probe: async () => ({ ok: true, rms: 0.02 }), level: () => () => {} };
+  const b = { battery_id: 'm', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
+  const p = fakes(s); p.deps.mic = mic;
+  const ep = await start({ mount: {}, battery: b, mode: 'proctored', lang: 'ur', audio_check: false, warmup: false }, p.deps);
+  ep.runner.start();
+  expect(ep.runner.results()[0]).toMatchObject({ stop_reason: 'mic_unavailable' });
+  const g = fakes(s); g.deps.mic = mic;
+  const eg = await start({ mount: {}, battery: b, mode: 'game', lang: 'ur', audio_check: false, warmup: false }, g.deps);
+  eg.runner.start();
+  expect(eg.runner.view().phase).toBe('mic_check');
+  expect(typeof g.ui().micProbe).toBe('function');
+  eg.runner.micChecked(true, 0.02);
+  await eg.flushed();
+  expect(kept).toEqual([[true, 0.02]]);
+});
+
+test('the mercy rule: the recorder\'s silence watch offers the star at 12 s and ends the passage at 20 s', async () => {
+  const s = await shared();
+  const f = fakes(s);
+  let watch = null;
+  let cancelled = 0;
+  f.deps.rec = { create: () => ({
+    ready: async () => true, start: () => true, stop: async () => ({ parts: 1, duration_ms: 20000 }), release() {},
+    onSilence: (o, cb) => { watch = { o, cb }; return () => { cancelled++; }; },
+  }) };
+  f.deps.micState = () => 'ok';
+  const b = { battery_id: 'mr', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
+  const e = await start({ mount: {}, battery: b, mode: 'proctored', lang: 'ur', audio_check: false, warmup: false }, f.deps);
+  e.runner.start(); e.runner.instructionDone(); e.runner.begin();
+  f.ui().onRecordStart(b.tasks[0] && e.runner.view().task);
+  await new Promise((r) => setTimeout(r, 0));
+  expect(watch.o).toEqual({ after_s: 12, total_s: 20 });
+  watch.cb({ kind: 'mercy', silence_s: 12 });
+  watch.cb({ kind: 'early_stop_silence', silence_s: 20 });
+  expect(e.runner.results()[0]).toMatchObject({ stop_reason: 'early_stop_silence', mercy_offered: true, silence_s: 20 });
+  expect(cancelled).toBe(1);
+});

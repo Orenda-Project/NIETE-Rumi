@@ -57,6 +57,7 @@
     var voiceMod = deps.voice || SAE.voice;
     var syncMod = deps.sync || SAE.sync || null;
     var recMod = deps.rec || SAE.rec || null;
+    var micMod = deps.mic || SAE.mic || null;
     var now = deps.now || function () { return (root.performance && root.performance.now) ? root.performance.now() : Date.now(); };
     var mode = opts.mode === 'game' ? 'game' : 'proctored';
     var lang = opts.lang === 'en' ? 'en' : 'ur';
@@ -83,9 +84,18 @@
             return Promise.all(jobs);
           }).then(function () { if (opts.onEvent) opts.onEvent(e); if (sync) sync.poke(); });
           if (HOOK[e.type]) fire(HOOK[e.type], e);
+          // The game's mic check is kept for this phone (the coach's pre-flight writes the same keys).
+          if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms);
+        }
+        // The microphone as the runner sees it: the coach's pre-flight or an earlier mic check on this phone; in game
+        // mode an unknown phone gets the engine's own mic check, in proctored mode no mic_ok means no recording.
+        function micState() {
+          var m = micMod ? micMod.state() : 'unknown';
+          return m === 'unknown' && mode === 'proctored' ? 'no' : m;
         }
 
-        runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false });
+        runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
+          mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false });
         var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
@@ -95,14 +105,30 @@
         var needsMic = battery.tasks.some(function (t) { return t.mode === 'record' || t.mode === 'oral'; });
         var rec = needsMic && recMod ? recMod.create({ store: store, session_id: sessionId }) : null;
         var micReady = rec ? rec.ready() : Promise.resolve(false);
+        var cancelSilence = null;
         function recStart(t, item) {
           if (!rec) return;
           micReady.then(function (ok) {
             if (!ok) { runner.log('mic_unavailable', { task_id: t.id }); return; }
             if (rec.start(item ? t.id + '/' + item.id : t.id)) runner.log('record_start', { task_id: t.id, item_id: item ? item.id : undefined });
+            // The mercy rule on the passage (RULING #10): no voice for 12 s → Jugnu offers the star once; 20 s → the
+            // task ends as early_stop_silence. The recorder's watch starts now, with the recording running.
+            if (t.mode === 'record' && !item && rec.onSilence) {
+              cancelSilence = rec.onSilence({ after_s: 12, total_s: 20 }, function (s) {
+                if (s.kind === 'mercy') {
+                  runner.mercyOffered();
+                  if (view && view.mercy) view.mercy();
+                } else if (s.kind === 'early_stop_silence') {
+                  runner.silence(s.silence_s);
+                  recStop(t, null);
+                  if (view && view.render) view.render();
+                }
+              });
+            }
           });
         }
         function recStop(t, item) {
+          if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
           if (!rec) return Promise.resolve(null);
           return rec.stop().then(function (meta) {
             if (meta) runner.log('record_stop', { task_id: t.id, item_id: item ? item.id : undefined, value: { duration_ms: meta.duration_ms, parts: meta.parts } });
@@ -128,8 +154,14 @@
             });
           },
           onHandover: function () { runner.log('handover_in'); },
+          micProbe: micMod ? function () { return micMod.probe(2000); } : null,
+          micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
+        // Another app, the screen off, a call: logged, and a timed task in progress runs again (RULING #12).
+        var doc = root.document;
+        var onVis = function () { if (doc.visibilityState === 'hidden') { runner.visibilityLost(); if (view && view.render) view.render(); } };
+        if (doc && doc.addEventListener) doc.addEventListener('visibilitychange', onVis);
         if (prev === null) write(function () { return store.putSession({ session_id: sessionId, battery_id: battery.battery_id || null, mode: mode, lang: lang, snapshot: null, ended: false, created_at: new Date().toISOString() }); });
 
         return {
@@ -150,6 +182,7 @@
             if (view && view.destroy) view.destroy();
             if (sync && sync.stop) sync.stop();
             if (rec) { rec.stop(); rec.release(); }
+            if (doc && doc.removeEventListener) doc.removeEventListener('visibilitychange', onVis);
             hooks = {};
           },
         };

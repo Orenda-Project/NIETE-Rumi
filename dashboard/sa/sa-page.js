@@ -164,7 +164,11 @@
         ? (p.token ? (SAE.sinks && SAE.sinks.coachLinked ? SAE.sinks.coachLinked(p.token) : null)
           : (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null))
         : ((root.SAE.sinks && root.SAE.sinks.game) ? root.SAE.sinks.game({ session_id: p.session_id }) : null);
-      var offline = SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false });
+      // The device's readiness (RULING #14, #11): the battery and clips on the phone, a voice for the language, storage
+      // kept. SAE.prepare (car 4b) answers voice 'clips' | 'tts' | 'none'; the older offline.prepare when it is absent.
+      var offline = SAE.prepare ? SAE.prepare(full, { lang: p.lang, battery_url: url, base: '/' })
+        : (SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false }));
+      offline = offline.then(null, function () { return { ready: false }; });
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
         child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
@@ -174,7 +178,17 @@
           var release = lockDown(root, engine);
           engine.on('unlock', release);
         }
-        offline.then(function (o) { engine.runner.log('offline_ready', { value: { ready: !!o.ready, clips: o.clips || 0, clips_missing: o.clips_missing || 0 } }); });
+        offline.then(function (o) {
+          engine.runner.log('device_ready', { value: {
+            ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
+            clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
+          } });
+          // No clip and no phone voice for this language: Jugnu would be silent, so the test does not start.
+          if (o.voice === 'none' && engine.view && engine.view.refuse) {
+            engine.runner.log('voice_not_ready');
+            engine.view.refuse('voice');
+          }
+        });
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
         return engine;

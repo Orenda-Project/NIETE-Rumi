@@ -29,6 +29,15 @@
  * A timed tap item with no tap: Jugnu says it again at replay_at_s (5 s), and at item_timeout_s (10 s) it counts as
  * wrong and the next one shows. An untimed item waits; after next_at_s (15 s) the page offers "next" (skip()).
  *
+ *   mic_unavailable          a task that records (passage, spoken answers) with no working microphone: skipped,
+ *                            never a silent recording (proctored: the coach's pre-flight sets it; game: the engine's
+ *                            own mic check, once per device)
+ *   early_stop_silence       the passage: no voice for 20 s (the mercy rule; the star was offered at 12 s)
+ *
+ * Session gates, once each: the mic check (game) before the first task that records, one practice oral question before
+ * the first oral task, a keypad warm-up before the first keypad task. The page losing sight of the screen during a
+ * timed task re-runs that task from its start (resumed), as a reload does.
+ *
  * A task stopped by a reload or a killed tab: a timed one is run again from its start, flagged resumed (EGRA); an
  * untimed one resumes at the item reached. Finished tasks are never asked again.
  *
@@ -44,6 +53,7 @@
     COMPLETE: 'complete', TIME_UP: 'time_up', FIRST_LINE: 'early_stop_first_line',
     CONSECUTIVE: 'consecutive_errors', COACH_END: 'coach_end',
     SKIPPED_L2: 'skipped_level2', SKIPPED_NO_LINE: 'skipped_no_first_line',
+    MIC: 'mic_unavailable', SILENCE: 'early_stop_silence',
   });
   var MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
   // The lead's ruling (design §2): the response mode per EGRA/EGMA subtask. A task's own `response` wins.
@@ -76,6 +86,8 @@
     var o = {};
     for (var k in it) if (has(it, k)) o[k] = it[k];
     if (!has(o, 'target')) o.target = it.answer;
+    // The runtime batteries put what the child sees ("1 + 3 =") in shown.
+    if (o.label == null && it.shown != null) o.label = it.shown;
     if (!has(o, 'options') && Array.isArray(it.choices)) o.options = it.choices;
     return o;
   }
@@ -180,6 +192,9 @@
     var results = resume ? (resume.results || []).slice() : [];
     var taskIndex = resume ? resume.task_index || 0 : 0;
     var warm = resume ? resume.warmup || null : null;
+    // Session gates already passed (they never come twice in a run, a reload included).
+    var gates = resume && resume.gates ? JSON.parse(JSON.stringify(resume.gates)) : {};
+    var mic = opts.mic || function () { return 'ok'; };
     var st = { phase: 'battery_intro' };
 
     function ev(type, extra) {
@@ -224,7 +239,28 @@
         st.item_i = from.answers.length;
       }
       ev('task_intro', { task_id: t.id, value: resumed ? { resumed: true } : undefined });
-      if (g.skip) { st.started = now(); finish(g.skip); }
+      // A task that records, on a phone with no working microphone, is mic_unavailable before any other reason.
+      var noMic = (t.mode === 'record' || t.mode === 'oral') && !gates.mic_ok && mic() === 'no';
+      if (g.skip && !noMic) { st.started = now(); finish(g.skip); return; }
+      preGates();
+    }
+
+    /** The session's once-only screens in front of the task, then its instruction. */
+    function preGates() {
+      var t = task();
+      var records = t.mode === 'record' || t.mode === 'oral';
+      if (records) {
+        var m = gates.mic_ok ? 'ok' : mic(); // a pass this run counts even where the phone cannot store it
+        if (m !== 'ok') {
+          if (opts.mic_check && m === 'unknown' && !gates.mic_check) { st.phase = 'mic_check'; return; }
+          st.started = now();
+          finish(STOP.MIC);
+          return;
+        }
+      }
+      if (t.mode === 'oral' && opts.oral_practice && !gates.oral_practice) { st.phase = 'oral_practice'; return; }
+      if (t.mode === 'keypad' && opts.keypad_warmup && !gates.keypad_warmup) { st.phase = 'keypad_warmup'; return; }
+      st.phase = 'instruction';
     }
 
     function limitMs(t) { return t.time_limit_s ? t.time_limit_s * 1000 : null; }
@@ -243,9 +279,12 @@
         stop_reason: reason, scored_on: phone ? 'phone' : 'later', resumed: st.resumed, per_minute: null,
         options_n: t.mode === 'tap' && t.items[0] && t.items[0].options ? t.items[0].options.length : null,
         taps_per_s: warm ? warm.taps_per_s : null,
+        elapsed_ms: used,
         answers: st.answers.slice(),
       };
       if (t.mode === 'record') {
+        r.mercy_offered = !!st.mercy;
+        r.silence_s = st.silence_s == null ? null : st.silence_s;
         r.last_word_index = st.last_item_index;
         var w = st.last_item_index != null ? t.items[st.last_item_index] : null;
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
@@ -322,6 +361,46 @@
         warm = { taps: taps, ms: Math.round(ms), taps_per_s: ms > 0 ? Math.round(taps * 100000 / ms) / 100 : null };
         ev('warmup_result', { value: warm });
         enterTask(false);
+      },
+      /** The game's mic check: ok (heard back, level above the floor) and the level measured. */
+      micChecked: function (ok, rms) {
+        if (st.phase !== 'mic_check') return;
+        gates.mic_check = true;
+        gates.mic_ok = !!ok;
+        ev('mic_check', { value: { ok: !!ok, rms: typeof rms === 'number' ? rms : null } });
+        if (ok) preGates(); else { st.started = now(); finish(STOP.MIC); }
+      },
+      /** The practice spoken question ("I heard you"): heard = the meter moved. */
+      oralPracticeDone: function (heard) {
+        if (st.phase !== 'oral_practice') return;
+        gates.oral_practice = true;
+        ev('oral_practice', { value: { heard: !!heard } });
+        preGates();
+      },
+      /** The keypad warm-up (20 s of free typing, a Done tile): keys pressed. */
+      keypadWarmupDone: function (keys) {
+        if (st.phase !== 'keypad_warmup') return;
+        gates.keypad_warmup = true;
+        ev('keypad_warmup', { value: { keys: keys | 0 } });
+        preGates();
+      },
+      /** The page was hidden (another app, the screen off): logged; a timed task in progress runs again from its start. */
+      visibilityLost: function () {
+        var t = task();
+        ev('visibility_lost', { task_id: st.task_id || undefined, value: { phase: st.phase } });
+        if (st.phase === 'running' && t && t.time_limit_s) enterTask(true);
+      },
+      /** The mercy rule: Jugnu offered the star (12 s of no voice on the passage). */
+      mercyOffered: function () {
+        if (st.phase !== 'running' || task().mode !== 'record' || st.mercy) return;
+        st.mercy = true;
+        ev('mercy_offered', { task_id: st.task_id });
+      },
+      /** No voice for the whole window (20 s): the passage ends as early_stop_silence, no last word asked. */
+      silence: function (seconds) {
+        if (st.phase !== 'running' || task().mode !== 'record') return;
+        st.silence_s = typeof seconds === 'number' ? seconds : null;
+        finish(STOP.SILENCE);
       },
       /** The instruction was played (again). */
       instructionPlayed: function () {
@@ -448,7 +527,7 @@
         var cur = st.phase === 'running' && task() && !task().time_limit_s ? { task_id: st.task_id, answers: st.answers.slice() } : null;
         return {
           task_index: st.phase === 'task_end' ? taskIndex + 1 : taskIndex, results: results.slice(), seq: seq,
-          t_ms: Math.round(now() - t0), ended: st.phase === 'battery_end', warmup: warm, current: cur,
+          t_ms: Math.round(now() - t0), ended: st.phase === 'battery_end', warmup: warm, current: cur, gates: gates,
         };
       },
     };
