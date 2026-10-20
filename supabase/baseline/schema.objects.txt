@@ -404,6 +404,20 @@ coach_directory.leader_user_id:uuid
 coach_directory.match_method:text
 coach_directory.updated_at:timestamp with time zone
 coach_directory.work_email:text
+coach_visit_requests.ab_group:text
+coach_visit_requests.coach_plan:jsonb
+coach_visit_requests.coach_user_id:uuid
+coach_visit_requests.coaching_session_id:uuid
+coach_visit_requests.created_at:timestamp with time zone
+coach_visit_requests.id:uuid
+coach_visit_requests.opened_at:timestamp with time zone
+coach_visit_requests.reasons:ARRAY
+coach_visit_requests.school_id:uuid
+coach_visit_requests.status:text
+coach_visit_requests.teacher_user_id:uuid
+coach_visit_requests.updated_at:timestamp with time zone
+coach_visit_requests.voice_note_key:text
+coach_visit_requests.wa_message_id:text
 coaching_jobs.attempts:integer
 coaching_jobs.coaching_session_id:uuid
 coaching_jobs.completed_at:timestamp with time zone
