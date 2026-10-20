@@ -63,6 +63,16 @@ function checkBlueprint(examJson, { tos = null, tolerance = TOLERANCE, sectionLe
       }
       const slotMarks = Math.min(slot.attempt, list.length) * slot.marks_each;
       marks += slotMarks;
+      // A question FDE splits across levels inside itself (bd-5jmnfj.26, English): its marks go by that
+      // split, scaled to the marks it gives, whatever its item is tagged.
+      if (slot.levels && slotMarks) {
+        const full = slot.attempt * slot.marks_each;
+        for (const band of LEVELS) {
+          const m = ((slot.levels[band] || 0) * slotMarks) / full;
+          levels[band].marks += m; own[band].marks += m;
+        }
+        continue;
+      }
       const each = list.length ? slotMarks / list.length : 0;
       let untagged = 0;
       list.forEach((q) => {
