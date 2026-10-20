@@ -121,6 +121,8 @@ function own(text) {
   const t = String(text == null ? '' : text);
   return `<bdi dir="${scriptOf(t) === 'ur' ? 'rtl' : 'ltr'}">${esc(t)}</bdi>`;
 }
+/** A name or a title written in the Urdu (Arabic) script: its own sizes and line height, whatever the picture's language. */
+const isArabicScript = (text) => scriptOf(text) === 'ur';
 function animal(key, pics) {
   const a = pics ? assets().animals[ANIMAL_KEYS.includes(key) ? key : 'star'] : '';
   return a ? `<img class="ani" src="data:image/svg+xml;base64,${a}" alt="">` : '<span class="ani"></span>';
@@ -272,7 +274,9 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   // balanced lines a size step down when it would need 3, and the English pill's height and padding with «کھولیں» in it.
   // Off (or English, or the class and school pictures), every line below is today's.
   const US = RTL && (k === 'card' || k === 'invite') && Boolean(ui && ui.us === true);
-  const C = US ? { ...COPY[L], tapPlay: COPY[L].openPlay } : COPY[L];
+  // Its challenge sub line names the quiz in «» («… نے «تفہیم - مکالمے کو سمجھنا» میں ۴/۷ لیے»): a title that ends in a verb
+  // reads as a name, not as part of the sentence. The title keeps its own isolated run inside the marks.
+  const C = US ? { ...COPY[L], tapPlay: COPY[L].openPlay, scored: (n, sc, tp) => COPY[L].scored(n, sc, `«${tp}»`) } : COPY[L];
   // The wide picture (1200×630) has no height to spare: under the polish its stack is budgeted — no kicker on the card and
   // the invite, the name 56/1.7, the topic 44 (36 when long), the invite's scored line 32, every line at 1.9 — so the
   // CTA pill, the last child, is never the one that falls off. The square has the height and keeps the larger sizes.
@@ -292,7 +296,7 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const first = String((d && d.first) || '');
   const nameBase = RTL && sz !== 'sq' ? 56 : Math.round(68 * (sz === 'sq' ? 1.08 : 1));
   const NFANI = Math.ceil(1.3 * nameBase);
-  const NFPX = Math.floor(((sz === 'sq' ? W - 144 : 702) - (INK ? nameBase : 0) - NFANI) / (Math.max(1, Array.from(first).length) * (scriptOf(first) === 'ur' ? 0.42 : 0.61)));
+  const NFPX = Math.floor(((sz === 'sq' ? W - 144 : 702) - (INK ? nameBase : 0) - NFANI) / (Math.max(1, Array.from(first).length) * (isArabicScript(first) ? 0.42 : 0.61)));
   const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD);
   const sq = sz === 'sq';
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
@@ -355,7 +359,7 @@ bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 ${col && !sq ? '.sn small{display:none}.pt{flex-direction:row;align-items:baseline;gap:10px}' : ''}
 ${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1.7 : 1.55}}.big{font-size:92px}.head{line-height:${UR2 ? 1.9 : 1.7}}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
 .ani{width:1em;height:1em;display:inline-block;vertical-align:-.12em;margin-inline-end:.25em;object-fit:contain}
-${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bdi{display:inline-block;max-width:calc(100% - ${NFANI}px);font-size:max(34px,min(1em,${NFPX}px));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom${scriptOf(first) === 'ur' ? ';line-height:1.9' : ''}}
+${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bdi{display:inline-block;max-width:calc(100% - ${NFANI}px);font-size:max(34px,min(1em,${NFPX}px));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom${isArabicScript(first) ? ';line-height:1.9' : ''}}
 ` : ''}.pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:${UR2 ? '28px' : '999px'};padding:${RTL ? (UR2 ? '2px 24px' : '0 22px') : '8px 22px'};font-size:${Math.round((UR2 && !OG2 ? 28 : 24) * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700${UR2 ? ';text-align:start' : ''}}${UR2 ? `
 .pts .sch{display:block;font-family:'Lexend','NastaliqUrdu',sans-serif;font-size:${Math.round((OG2 ? 21 : 26) * S)}px;line-height:1.35;opacity:.9}` : ''}
 .crow{list-style:none;display:flex;flex-direction:column;gap:${sq ? 10 : 6}px;width:${sq ? '86%' : '100%'};text-align:start}
