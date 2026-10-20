@@ -611,7 +611,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
     // web_quiz_audio_each_question: the recording writes each question as it is done, so a pending page asks every 5 s.
     // The switch rides the page's identity settings read (above, for one voice): no read of its own.
     if (audioPending && await IdRoster.audioEachQuestion()) lateMs = LATE_FAST_MS;
-    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
+    Publish.requestQuizAudio(ctx.quizId, { meta: quizMeta, planKnown: true, ...(oneVoice ? { oneVoice } : {}) }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   if (!hit) {
