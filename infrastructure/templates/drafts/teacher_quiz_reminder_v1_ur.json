@@ -1,0 +1,28 @@
+{
+  "name": "teacher_quiz_reminder_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "آج کے سبق کا کوئز آپ کی کلاس کے لیے NIETE پورٹل پر تیار ہے۔ کھولنے کے لیے نیچے دبائیں۔"
+    },
+    {
+      "type": "FOOTER",
+      "text": "یاد دہانی بند کرنے کے لیے STOP لکھیں"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "کوئز کھولیں",
+          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+          ]
+        }
+      ]
+    }
+  ]
+}

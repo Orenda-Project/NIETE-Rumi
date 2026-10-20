@@ -1,0 +1,28 @@
+{
+  "name": "teacher_quiz_reminder_v1",
+  "category": "UTILITY",
+  "language": "en_US",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Today's lesson quiz for your class is ready on your NIETE portal. Tap the button to open it."
+    },
+    {
+      "type": "FOOTER",
+      "text": "Reply STOP to stop reminders"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Open quiz",
+          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+          ]
+        }
+      ]
+    }
+  ]
+}
