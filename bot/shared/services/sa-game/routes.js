@@ -4,7 +4,8 @@
  * x-api-key. Who the child is comes only from the hub token + chip + the phone's device header.
  *
  *   GET /page/:token?kid&lang    the page's facts (page.js): 404 {off:true} with the switch off (the edge falls through),
- *                                401 when the link does not open as a child on this phone, else {ok, lang, grade, form}
+ *                                401 when the link does not open as a child on this phone, 403 {error:'not_eligible',
+ *                                lang} for a grade outside 1–5 or unknown, else {ok, lang, grade, form}
  *
  *   /s/*                         the game's sink (sink.routes.js): a run's session, its batches and its audio
  *
@@ -24,6 +25,7 @@ function createRouter({ page = Page } = {}) {
     try {
       const out = await page.info({ token: req.params.token, kid: req.query.kid, device: req.get('x-wq-device') || undefined, lang: req.query.lang });
       if (out.status === 404) return res.status(404).json({ off: true });
+      if (out.status === 403) return res.status(403).json({ error: 'not_eligible', lang: out.lang });
       if (out.status !== 200) return res.status(out.status).json({ error: 'not_child' });
       return res.status(200).json(out.body);
     } catch (err) {
