@@ -9,7 +9,7 @@ vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Ha
 vi.mock("../../teacher/useLanguageSwitch", () => ({ useLanguageSwitch: () => ({ target: "ur", status: "idle", toggle: vi.fn() }) }));
 vi.mock("./api", async (orig) => ({
   ...(await orig<typeof import("./api")>()),
-  disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), undone: vi.fn(), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
+  disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), undone: vi.fn(), savePlan: vi.fn(), suggestion: vi.fn().mockResolvedValue(null), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
   readDisagreementsOn: vi.fn(),
 }));
 import { disagreements, readDisagreementsOn } from "./api";
@@ -74,10 +74,20 @@ beforeEach(async () => {
   vi.mocked(readDisagreementsOn).mockResolvedValue(true);
   D.card.mockResolvedValue(card());
   D.visited.mockResolvedValue(true);
+  D.suggestion.mockResolvedValue(null);
 });
 afterEach(async () => { await act(async () => { await i18n.changeLanguage("en"); }); });
 
 describe("DisagreementCard", () => {
+  it("bd-tbprit.11: the coaching suggestion sits after the full report, before Mark as done", async () => {
+    renderCard();
+    const box = await screen.findByTestId("coaching-box");
+    expect(box).toHaveTextContent("💡 Coaching suggestion");
+    const order = [...document.querySelectorAll("[data-testid]")].map((e) => e.getAttribute("data-testid"));
+    expect(order.indexOf("coaching-box")).toBeGreaterThan(order.indexOf("pattern"));
+    expect(order.indexOf("coaching-box")).toBeLessThan(order.indexOf("done-bar"));
+  });
+
   it("Rifat's top: N, her name, Disagrees with report · review, back to the list; the head, the banner, her reasons", async () => {
     renderCard();
     await screen.findByTestId("card-head");
@@ -91,13 +101,14 @@ describe("DisagreementCard", () => {
     expect(screen.getAllByTestId("reason-pill")).toHaveLength(3);
   });
 
-  it("each reason with the grader's evidence: the indicator, the AI's score out of 4, its quote", async () => {
+  it("bd-tbprit.14 — a score she questions is Rifat's one line: %, marks, the lowest section, Details in B; no indicator list", async () => {
     renderCard();
     const score = await screen.findByTestId("reason-score");
     expect(score).toHaveTextContent("My score doesn't seem right");
-    expect(score).toHaveTextContent("Active Participation Rate");
-    expect(score).toHaveTextContent("AI score 1/4");
-    expect(score).toHaveTextContent("Quote for Active Participation Rate");
+    expect(score).toHaveTextContent("Score she questions");
+    expect(score).toHaveTextContent("61% 86 / 140 · lowest: Student Engagement (64%). Details in B.");
+    expect(score).not.toHaveTextContent("Active Participation Rate");
+    expect(within(score).queryByRole("button", { name: /Listen/ })).toBeNull();
   });
 
   it("no plan checked is said, never guessed; the low indicators stand in", async () => {
@@ -114,9 +125,10 @@ describe("DisagreementCard", () => {
 
   it("Listen plays the disputed step from the server, in the kit player — no download link anywhere", async () => {
     renderCard();
-    const score = await screen.findByTestId("reason-score");
+    const where = await screen.findByTestId("where-to-look");
     expect(document.querySelector('audio[src*="/clip"]')).toBeNull();
-    fireEvent.click(within(score).getByRole("button", { name: /Listen/ }));
+    fireEvent.click(within(where).getByRole("button", { name: /Student Engagement/ }));
+    fireEvent.click(within(where).getAllByRole("button", { name: /Listen 3:10/ })[0]);
     const audio = document.querySelector('audio[src*="/clip"]') as HTMLAudioElement;
     expect(audio.getAttribute("src")).toBe(`/api/portal/coach/disagreements/${ID}/clip?at=190`);
     expect(document.querySelector("a[download]")).toBeNull();

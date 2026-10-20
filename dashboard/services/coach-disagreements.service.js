@@ -11,7 +11,8 @@
  *            minutes, in whole minutes). To do: most tags first, then longest waiting.
  *   cardFor  one request, for its own coach only (null otherwise): the report view, the grader's evidence for
  *            each reason, every indicator with its AI score, and the plan steps when the plan was checked;
- *            bd-tbprit.10 adds Rifat's "Is this a pattern?" (coach-disagreement-pattern).
+ *            bd-tbprit.10 adds Rifat's "Is this a pattern?" (coach-disagreement-pattern); bd-tbprit.11 adds the
+ *            coaching box's saved choices (coach-disagreement-plan) and her number for the wa.me link.
  *
  * bd-tbprit.12 — Rifat's "✓ Mark as done" can be undone ("Move back to To do"):
  *   markDone       her open row reads visited, stamped now (the tracker's visited_7d); her voice note is kept
@@ -23,19 +24,27 @@ const { fullNameOf } = require('../../bot/shared/utils/person-name');
 const { cleanReasons } = require('./coach-ping-reasons');
 const { evidenceFor, indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
 const { patternOf } = require('./coach-disagreement-pattern');
+const { publicPlan } = require('./coach-disagreement-plan');
 
 const OPEN = ['pending', 'sent', 'failed'];
 const LIST_LIMIT = 200;
 const WAIT_MS = 48 * 3600 * 1000;
 const DAY_MS = 24 * 3600 * 1000;
 const SHORT_SEC = 15 * 60;
-const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, school_id, ab_group, status, reasons, voice_note_key, opened_at, created_at, updated_at';
+const ROW_SELECT = 'id, coaching_session_id, teacher_user_id, coach_user_id, school_id, ab_group, status, reasons, voice_note_key, opened_at, coach_plan, created_at, updated_at';
 
 const ms = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? t : 0; };
 const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 const pctOf = (scores) => {
   const p = scores && scores.overall_percentage;
   return p == null || p === '' || !Number.isFinite(Number(p)) ? null : Math.round(Number(p));
+};
+
+/** bd-tbprit.11 — her number for the wa.me link: digits only, a local 03… made 923…; null when there is none. */
+const waDigits = (phone) => {
+  const d = String(phone || '').replace(/\D/g, '');
+  if (!d) return null;
+  return d.startsWith('0') ? `92${d.slice(1)}` : d;
 };
 
 /** Recordings a week: the 4 weeks before the last 2 (`before`) and the last 2 (`now`). dates: ISO strings. Pure. */
@@ -157,7 +166,7 @@ async function cardFor(supabase, coachId, requestId, deps = {}) {
   const { data: row } = await supabase.from('coach_visit_requests').select(ROW_SELECT).eq('id', requestId).maybeSingle();
   if (!row || !coachId || row.coach_user_id !== coachId) return null;
   const [teacher, coach, school, data, hers, rec] = await Promise.all([
-    supabase.from('users').select('name').eq('id', row.teacher_user_id).maybeSingle(),
+    supabase.from('users').select('name, phone_number').eq('id', row.teacher_user_id).maybeSingle(),
     supabase.from('users').select('preferred_language').eq('id', coachId).maybeSingle(),
     row.school_id ? supabase.from('leader_schools').select('school_name, emis').eq('school_id', row.school_id) : null,
     deps.loadReport(supabase, row.coaching_session_id, row.teacher_user_id),
@@ -195,6 +204,8 @@ async function cardFor(supabase, coachId, requestId, deps = {}) {
     moves: movesOf(a),
     durationSec: num(rec && rec.data && rec.data.audio_duration_seconds),
     pattern,
+    plan: publicPlan(row.coach_plan),
+    phone: waDigits(teacher && teacher.data && teacher.data.phone_number),
   };
 }
 

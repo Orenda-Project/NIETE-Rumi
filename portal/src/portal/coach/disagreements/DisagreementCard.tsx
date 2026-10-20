@@ -12,6 +12,7 @@ import { WhereToLook } from "./whereToLook";
 import { Banner, CardHead, ReasonPills } from "./cardTop";
 import { DoneBadge, DoneBar } from "./doneBar";
 import { PatternSection } from "./patternSection";
+import { CoachingBox } from "./CoachingBox";
 
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order:
@@ -21,9 +22,8 @@ import { PatternSection } from "./patternSection";
  *      what the report told her (Strength / One thing to try)
  *   B  where to look (bd-tbprit.9) — one Listen for the problem part, the plan's moves, the other three sections
  *      3. is this a pattern? (bd-tbprit.10) — her last lessons as Rifat's line and four facts, then the full DC report
+ *      💡 coaching suggestion (bd-tbprit.11) — listen, what did you find, the suggested way, what to do
  *      the footer (bd-tbprit.12) — "✓ Mark as done", or on a done card the ✓ Done badge and "Move back to To do"
- *
- * The coaching suggestion and message/call (bd-tbprit.11) are not built yet.
  */
 
 const H2 = "text-[17px] font-bold text-[#1d2025]";
@@ -45,7 +45,7 @@ function Loaded({ card }: { card: Card }) {
             <AudioPlayer src={card.noteUrl} label={C.herNote} testId="disagreement-note" />
           </div>
         ) : null}
-        {card.evidence.map((e) => <ReasonBlock key={e.code} e={e} />)}
+        {card.evidence.map((e) => <ReasonBlock key={e.code} e={e} view={card.view} />)}
         <div className="flex flex-col gap-1.5 border-t border-[#e1e4ea] pt-3">
           <p className={ROW_SUB}>{C.reportSaid}</p>
           <p className="text-[14px] font-semibold">{C.didWell}</p>
@@ -60,6 +60,8 @@ function Loaded({ card }: { card: Card }) {
       {card.pattern ? <PatternSection p={card.pattern} /> : null}
 
       <FullReport card={card} />
+
+      <CoachingBox card={card} />
 
       <DoneBar id={card.id} done={card.done} teacher={card.teacher ?? C.dash} />
     </ClipProvider>
