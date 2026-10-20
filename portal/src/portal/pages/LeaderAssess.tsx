@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, type Lang } from '../lib/assess/copy';
-import { pickBlock, type Block } from '../lib/assess/blocks';
+import { isBlock, pickBlock, type Block } from '../lib/assess/blocks';
 import { sendQueued } from '../lib/assess/outbox';
 import {
   allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
@@ -318,12 +318,13 @@ export default function LeaderAssess() {
   };
 
   /** Send Present for the handover's child, once. False: the server turned it down. */
-  const sendPresent = async (): Promise<{ ok: boolean; serverId: string | null; queued: boolean }> => {
-    if (step.kind !== 'handover') return { ok: false, serverId: null, queued: false };
-    const { school, child, sessionId, block } = step;
+  const sendPresent = async (): Promise<{ ok: boolean; serverId: string | null; queued: boolean; block: Block }> => {
+    if (step.kind !== 'handover') return { ok: false, serverId: null, queued: false, block: 'full' };
+    const { school, child, sessionId } = step;
+    let { block } = step;
     if (!memory?.startedAt) remember((m) => ({ ...m, startedAt: m.startedAt ?? Date.now() }));
     const had = sessionOf(child);
-    if (had?.sent) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false };
+    if (had?.sent) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false, block: had.block };
     const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block };
     let serverId: string | null = null;
     let queued = false;
@@ -332,32 +333,35 @@ export default function LeaderAssess() {
       const out = await childTestSa.markOutcome(args);
       if (out?.list) keepList(out.list);
       serverId = out?.sessionId || null;
+      // the server may give the child a block they have not taken yet; the answer names it
+      if (isBlock(out?.block)) block = out.block;
     } catch (err) {
-      if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return { ok: false, serverId: null, queued: false }; }
+      if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return { ok: false, serverId: null, queued: false, block }; }
       queue(args);
       queued = true;
     }
     remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { id: sessionId, block, sent: true, ...(serverId ? { serverId } : {}) } } }));
     setBusy(false);
-    return { ok: true, serverId, queued };
+    return { ok: true, serverId, queued, block };
   };
 
   const start = async () => {
     if (step.kind !== 'handover') return;
-    if ((await sendPresent()).ok) setStep({ ...step, kind: 'engine' });
+    const sent = await sendPresent();
+    if (sent.ok) setStep({ ...step, kind: 'engine', block: sent.block });
   };
 
   /** From the handover: send Present if it has not gone, then show the link once the server has the session. */
   const otherPhone = async () => {
     if (step.kind !== 'handover') return;
-    const { ok, serverId, queued } = await sendPresent();
+    const { ok, serverId, queued, block } = await sendPresent();
     if (!ok) return;
     let id = serverId;
     if (!id && !queued) {
       try { id = (await childTestSa.getStatus(step.sessionId))?.session?.id || null; } catch { id = null; }
       if (id && vkeyRef.current) keepServerId(vkeyRef.current, step.sessionId, id);
     }
-    if (id) setStep({ kind: 'link', school: step.school, child: step.child, serverId: id, block: step.block });
+    if (id) setStep({ kind: 'link', school: step.school, child: step.child, serverId: id, block });
   };
 
   const linkDone = () => {
