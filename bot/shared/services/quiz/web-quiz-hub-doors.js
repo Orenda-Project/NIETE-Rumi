@@ -21,6 +21,7 @@
 const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage } = require('../../config/ux-strings');
+const SaGameDoor = require('./sa-game-door'); // sa_game: the big flight's row (off: the answer untouched)
 
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -222,7 +223,7 @@ async function door(token, opts = {}) {
   if (!who || !who.studentId) fail(401, 'bad_token');
   const l = clampLanguage(lang);
   try {
-    return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
+    return d === 'stories' ? await storiesDoor(homeFlags.list) : SaGameDoor.addRow(await gamesDoor(who, l, now), who, { token, kid, lang: l });
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
